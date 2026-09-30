@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 
 import java.lang.ref.WeakReference;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * "Scrollable Tooltips" - killer560, 2026-09-16: "make sure it has scrollable tool tips as well."
@@ -148,7 +149,7 @@ public final class TooltipScrollFeature {
             // Hover tracking only runs inside container screens; without this, closing one would leave a
             // stale offset that the next unrelated (e.g. widget) tooltip would silently inherit. Also covers
             // "reset when the screen closes" - the very next tick after a container screen closes runs this.
-            if (!(client.screen instanceof AbstractContainerScreen<?>)) {
+            if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?>)) {
                 setHovered(null);
             }
         }));

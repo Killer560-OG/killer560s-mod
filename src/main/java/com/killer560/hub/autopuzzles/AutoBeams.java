@@ -12,6 +12,7 @@ import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Creeper Beams - port of QUOI {@code CreeperBeamsSolver.kt}'s {@code auto} on top of this mod's
@@ -118,7 +119,7 @@ public final class AutoBeams {
 
         LocalPlayer player = client.player;
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
-        if (!GUARD.fresh() || client.screen != null || solvedPairs >= 4 || pairs.isEmpty() || cr == null) {
+        if (!GUARD.fresh() || McCompat.screen(client) != null || solvedPairs >= 4 || pairs.isEmpty() || cr == null) {
             return;
         }
         BlockPos start = PuzzleCoords.real(16, 74, 14, cr);

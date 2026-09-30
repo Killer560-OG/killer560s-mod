@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Floor 4 / Master Mode 4 (Thorn) boss helpers - entry point. Three parts, all default OFF ({@link ThornConfig}):
@@ -190,7 +191,7 @@ public final class ThornFeature {
             ThornConfig cfg = ThornConfig.getInstance();
             String line1;
             String line2;
-            if (client.screen instanceof HudEditorScreen) {
+            if (McCompat.screen(client) instanceof HudEditorScreen) {
                 line1 = "§6Bear: §d17/25";
                 line2 = "§6Overkill: §e3";
             } else {

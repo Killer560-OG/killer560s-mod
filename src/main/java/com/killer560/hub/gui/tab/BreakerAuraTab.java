@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Breaker Aura - see {@link com.killer560.hub.dungeonextras.BreakerAuraFeature}. Cheat build only; split
  *  out of the old "Dungeon Extras" tab 2026-09-20 per killer560: "Make a breaker aura tab itself" - shares
@@ -87,7 +88,7 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SettingsButtonWidget.builder(Component.literal("Choose Breaker Aura Config: §6"
                         + cfg.getBreakerAuraConfigFile()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new BreakerAuraConfigScreen(client.screen));
+                    McCompat.setScreen(client, new BreakerAuraConfigScreen(McCompat.screen(client)));
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Breaker Aura Folder"), btn -> openFolder())

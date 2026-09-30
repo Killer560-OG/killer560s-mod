@@ -29,6 +29,7 @@ import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Routes settings - see {@link AutoRoutesFeature}. Cheat build only ({@link NewTab}'s cheat block), red
@@ -407,7 +408,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                                     IntConsumer apply) {
         w.add(SettingsButtonWidget.builder(ColorSwatch.label(label, argb), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, label, argb, defaultArgb, picked -> {
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), label, argb, defaultArgb, picked -> {
                         apply.accept(picked);
                         AutoRoutesConfig.getInstance().save();
                     }));

@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * One global gate that every automated interaction in the mod passes through.
@@ -277,11 +278,11 @@ public final class ActionGate {
      * Hypixel opened that container, so it knows the menu is up, and a world interaction sent while it is up
      * is something no legitimate client produces. A purely client-side screen (this mod's menu, the HUD
      * editor, chat, the pause menu) is invisible to the server, so acting with one open is indistinguishable
-     * from ordinary play. Features call this instead of testing {@code client.screen != null}, which blocked
+     * from ordinary play. Features call this instead of testing {@code McCompat.screen(client) != null}, which blocked
      * far more than safety required (killer560, 2026-09-20).
      */
     public static boolean containerScreenOpen(Minecraft client) {
-        return client != null && client.screen instanceof AbstractContainerScreen<?>;
+        return client != null && McCompat.screen(client) instanceof AbstractContainerScreen<?>;
     }
 
     // killer560, 2026-09-21, asked where the Action Gate settings should live: "Everything should by default
@@ -333,7 +334,7 @@ public final class ActionGate {
         System.arraycopy(WANTED_THIS_TICK, 0, WANTED_LAST_TICK, 0, COUNT);
         Arrays.fill(WANTED_THIS_TICK, false);
 
-        Screen screen = client.screen;
+        Screen screen = McCompat.screen(client);
         if (screen != prevScreen.get()) {
             // The tick a terminal opens and the tick it closes are the two moments a world aura must not fire in:
             // the client still has the old screen state, the server already has the new one.
@@ -414,7 +415,7 @@ public final class ActionGate {
         if (client == null || client.player == null || client.level == null) {
             return false;
         }
-        Screen screen = client.screen;
+        Screen screen = McCompat.screen(client);
         switch (actor.kind) {
             case WORLD -> {
                 // Only a CONTAINER screen blocks a world action, not every screen (killer560, 2026-09-20:

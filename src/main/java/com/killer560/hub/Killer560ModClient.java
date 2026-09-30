@@ -64,6 +64,7 @@ import com.killer560.hub.util.ModLog;
 
 import java.util.Locale;
 import java.util.Optional;
+import com.killer560.hub.compat.McCompat;
 
 public class Killer560ModClient implements ClientModInitializer {
 
@@ -391,7 +392,7 @@ public class Killer560ModClient implements ClientModInitializer {
                             // /start command pattern) rather than calling setScreen synchronously from
                             // inside command execution, in case that context matters.
                             client.execute(() -> {
-                                client.setScreenAndShow(new ModScreen(client.screen));
+                                client.setScreenAndShow(new ModScreen(McCompat.screen(client)));
                             });
                             return 1;
                         })
@@ -427,7 +428,7 @@ public class Killer560ModClient implements ClientModInitializer {
                                             }
                                             Minecraft mc = Minecraft.getInstance();
                                             mc.execute(() -> mc.setScreenAndShow(
-                                                    new com.killer560.hub.roomsim.RoomLibraryScreen(mc.screen)));
+                                                    new com.killer560.hub.roomsim.RoomLibraryScreen(McCompat.screen(mc))));
                                             return 1;
                                         }))
                                 .executes(context -> {
@@ -449,7 +450,7 @@ public class Killer560ModClient implements ClientModInitializer {
                                 .executes(context -> {
                                     Minecraft client = Minecraft.getInstance();
                                     client.execute(() -> client.setScreenAndShow(
-                                            new com.killer560.hub.leapmenu.LeapOrderScreen(client.screen)));
+                                            new com.killer560.hub.leapmenu.LeapOrderScreen(McCompat.screen(client))));
                                     return 1;
                                 }))
                         // Real, working data-gathering tool for the Mapping tab's placeholders - see
@@ -564,7 +565,7 @@ public class Killer560ModClient implements ClientModInitializer {
                                 return 0;
                             }
                             Minecraft client = Minecraft.getInstance();
-                            client.execute(() -> client.setScreenAndShow(new TermismMenuScreen(client.screen)));
+                            client.execute(() -> client.setScreenAndShow(new TermismMenuScreen(McCompat.screen(client))));
                             return 1;
                         })));
 
@@ -590,7 +591,7 @@ public class Killer560ModClient implements ClientModInitializer {
                     .executes(context -> {
                         Minecraft client = Minecraft.getInstance();
                         TranslateTab.openPickerOnNextBuild = true;
-                        client.execute(() -> client.setScreenAndShow(new ModScreen(client.screen, TRANSLATE_TAB_INDEX)));
+                        client.execute(() -> client.setScreenAndShow(new ModScreen(McCompat.screen(client), TRANSLATE_TAB_INDEX)));
                         return 1;
                     })
                     .then(ClientCommands.argument("language", StringArgumentType.greedyString())
@@ -759,8 +760,8 @@ public class Killer560ModClient implements ClientModInitializer {
             return;
         }
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
-        if (down && !editKeyWasDown && !(client.screen instanceof HudEditorScreen)) {
-            client.setScreen(new HudEditorScreen(client.screen));
+        if (down && !editKeyWasDown && !(McCompat.screen(client) instanceof HudEditorScreen)) {
+            McCompat.setScreen(client, new HudEditorScreen(McCompat.screen(client)));
         }
         editKeyWasDown = down;
     }

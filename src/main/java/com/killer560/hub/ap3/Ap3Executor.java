@@ -44,6 +44,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Performs AP3 nodes. CHEAT BUILD ONLY - only ever ticked by {@link Ap3Feature} behind {@link Ap3Config#isEnabled()}
@@ -709,13 +710,13 @@ public final class Ap3Executor {
         }
         lastSelfPos = pos;
         if (player.isDeadOrDying() || player.isSpectator()
-                || client.screen instanceof net.minecraft.client.gui.screens.DeathScreen) {
+                || McCompat.screen(client) instanceof net.minecraft.client.gui.screens.DeathScreen) {
             stop("you died");
             applyFallbackKeys(client);
             return;
         }
         boolean busy = isRunning();
-        boolean screenOpen = client.screen != null;
+        boolean screenOpen = McCompat.screen(client) != null;
         if (busy) {
             if (screenOpen && !screenAllowed()) {
                 stop("a screen opened");
@@ -730,7 +731,7 @@ public final class Ap3Executor {
             // Polled every tick so the snapshot stays fresh; only a press while something is going on is a takeover.
             // (Frozen: the step keys are presses too, and never a takeover.)
             boolean pressed = anyNewButton(client) && !Ap3FreezeState.isFrozen();
-            if (pressed && busy && client.screen == null) {
+            if (pressed && busy && McCompat.screen(client) == null) {
                 stop("you took control (test mode)");
                 return;
             }
@@ -1227,7 +1228,7 @@ public final class Ap3Executor {
     // ---- close gate: "only fires on left click, or after a terminal closes" ------------------------------------
 
     private static void tickGate(Minecraft client) {
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             gateSawScreen = true;
         } else if (gateSawScreen) {
             releaseGate("the screen closed");
@@ -1501,7 +1502,7 @@ public final class Ap3Executor {
             termAuraTries = 0;
             termAuraGap = 0;
         }
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             finishNode(); // it opened - that was the whole job
             return;
         }
@@ -2761,7 +2762,7 @@ public final class Ap3Executor {
             retrySlotBack(player); // a cancel whose swap-back the gate refused
         }
         Minecraft mc = Minecraft.getInstance();
-        if (chain == null || preAimed != null || activeNode != null || holdDir == null || mc.screen != null
+        if (chain == null || preAimed != null || activeNode != null || holdDir == null || McCompat.screen(mc) != null
                 || physicalMovementKeyDown(mc)) {
             // Only while an AP3 walk is carrying you: never when AP3 is idle, under a node in progress, with a
             // screen open or with your own keys down (a node you walk into by hand doesn't fire anyway).
@@ -3678,7 +3679,7 @@ public final class Ap3Executor {
      *  the player working, not an override, so a screen being open masks them. */
     private static void pollClick(Minecraft client) {
         boolean down = leftButtonDown(client);
-        if (down && !leftWasDown && client.screen == null) {
+        if (down && !leftWasDown && McCompat.screen(client) == null) {
             clickLatch = true;
         }
         leftWasDown = down;

@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Performance HUD (renamed from "Lag Display", killer560 2026-09-27) - gap-analysis item 1.5 ("Lag /
@@ -129,7 +130,7 @@ public final class LagDisplayFeature {
     private static void sampleClicks() {
         LagDisplayConfig cfg = LagDisplayConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isEnabled() || !cfg.isShowCps() || client.player == null || client.screen != null) {
+        if (!cfg.isEnabled() || !cfg.isShowCps() || client.player == null || McCompat.screen(client) != null) {
             leftWasDown = false;
             rightWasDown = false;
             return;

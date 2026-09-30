@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.input.KeyEvent;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Input decisions for the Fast Leap mixins ({@code FastLeapMouseHandlerMixin}, {@code FastLeapKeyboardHandlerMixin}).
@@ -27,7 +28,7 @@ public final class FastLeapInput {
     }
 
     private static boolean leapMenuOrWorld(Minecraft client) {
-        return client.screen == null || LeapManager.leapMenuScreen(client.screen) != null;
+        return McCompat.screen(client) == null || LeapManager.leapMenuScreen(McCompat.screen(client)) != null;
     }
 
     /** @param action GLFW action (1 = press, 0 = release) */
@@ -39,7 +40,7 @@ public final class FastLeapInput {
         if (LeapManager.blocksInput() && leapMenuOrWorld(client)) {
             return true;
         }
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             return false;
         }
         if (I4LeapFeature.blocksInput()) {
@@ -59,7 +60,7 @@ public final class FastLeapInput {
         if (LeapManager.blocksInput() && leapMenuOrWorld(client)) {
             return true;
         }
-        if (client.screen != null || !I4LeapFeature.blocksInput()) {
+        if (McCompat.screen(client) != null || !I4LeapFeature.blocksInput()) {
             return false;
         }
         Options o = client.options;
@@ -69,11 +70,11 @@ public final class FastLeapInput {
 
     public static boolean shouldCancelScroll() {
         Minecraft client = Minecraft.getInstance();
-        return client.screen == null && (LeapManager.blocksInput() || I4LeapFeature.blocksInput());
+        return McCompat.screen(client) == null && (LeapManager.blocksInput() || I4LeapFeature.blocksInput());
     }
 
     public static boolean shouldCancelTurn() {
         Minecraft client = Minecraft.getInstance();
-        return client.screen == null && (LeapManager.blocksInput() || I4LeapFeature.blocksInput());
+        return McCompat.screen(client) == null && (LeapManager.blocksInput() || I4LeapFeature.blocksInput());
     }
 }

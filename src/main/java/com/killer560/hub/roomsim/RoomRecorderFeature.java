@@ -25,6 +25,7 @@ import net.minecraft.client.Minecraft;
 
 import java.util.Locale;
 import java.util.Random;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Fills the room library by running F7 over and over and reading whatever loads.
@@ -309,7 +310,7 @@ public final class RoomRecorderFeature {
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
         boolean pressed = down && !resumeKeyWasDown;
         resumeKeyWasDown = down;
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             // Typing, not commanding. Held down as far as the edge detector is concerned, so the key has to be
             // released and pressed again after the screen closes - otherwise the very keystroke that closes
             // chat arrives on the next tick as a fresh press.
@@ -413,7 +414,7 @@ public final class RoomRecorderFeature {
         DungeonInstanceCooldown.tick(client);
         // The key that started or resumed it is still held on the next tick, and the any-key stop would
         // instantly undo it. Wait for a clean keyboard before arming that again.
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             // A screen is open, so every key belongs to it, not to the world. This is the other half of the
             // "if i turn it on it auto turns off" bug (killer560, 2026-09-28): Return submits the command that
             // starts it, and Escape closes the settings tab that starts it, and both were being read as him
@@ -865,7 +866,7 @@ public final class RoomRecorderFeature {
      * @return whether the confirm was clicked
      */
     private static boolean confirmUndersizedParty(Minecraft client) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             confirmClickTick = -1;
             return false;
         }

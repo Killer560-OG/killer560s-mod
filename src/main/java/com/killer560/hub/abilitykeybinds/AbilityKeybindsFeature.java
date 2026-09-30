@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Real dungeon class ability keybinds, ported from Noamm's own {@code Abilities.kt} (the keybind half
@@ -38,7 +39,7 @@ public final class AbilityKeybindsFeature {
 
     private static void tick(Minecraft client) {
         AbilityKeybindsConfig cfg = AbilityKeybindsConfig.getInstance();
-        if (!cfg.isEnabled() || client.screen != null || !DungeonState.isInDungeon() || client.player == null) {
+        if (!cfg.isEnabled() || McCompat.screen(client) != null || !DungeonState.isInDungeon() || client.player == null) {
             abilityKeyWasDown = false;
             ultimateKeyWasDown = false;
             return;

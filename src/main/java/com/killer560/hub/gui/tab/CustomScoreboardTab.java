@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
+import com.killer560.hub.compat.McCompat;
 
 /** Custom Scoreboard settings - see {@link com.killer560.hub.scoreboard.CustomScoreboardFeature}. */
 public class CustomScoreboardTab extends BaseTab {
@@ -58,7 +59,7 @@ public class CustomScoreboardTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Visual Editor"), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new com.killer560.hub.scoreboard.ScoreboardEditorScreen(client.screen));
+                    McCompat.setScreen(client, new com.killer560.hub.scoreboard.ScoreboardEditorScreen(McCompat.screen(client)));
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
@@ -396,7 +397,7 @@ public class CustomScoreboardTab extends BaseTab {
                                               int x, int y, int w) {
         return SettingsButtonWidget.builder(ColorSwatch.label(label, current), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, label, current, def, argb -> {
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), label, current, def, argb -> {
                         setter.accept(argb);
                         cfg.save();
                     }));

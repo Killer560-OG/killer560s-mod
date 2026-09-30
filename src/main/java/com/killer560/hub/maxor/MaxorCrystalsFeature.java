@@ -24,6 +24,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Maxor's Crystals (F7/M7 Phase 1) - a port of NoammAddons'
@@ -359,7 +360,7 @@ public final class MaxorCrystalsFeature {
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
             MaxorConfig cfg = MaxorConfig.getInstance();
-            if (client.screen instanceof HudEditorScreen) {
+            if (McCompat.screen(client) instanceof HudEditorScreen) {
                 graphics.text(client.font, "§bCrystals: §f1.70", x, y, 0xFFFFFFFF, true);
                 graphics.text(client.font, "§e⚠ §bCrystal §e⚠", x, y + 10, 0xFFFFFFFF, true);
                 graphics.text(client.font, "§6Active: §e2§7/§e5", x, y + 20, 0xFFFFFFFF, true);

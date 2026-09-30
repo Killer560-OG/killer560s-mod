@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Enchant Colours settings - see {@link EnchantColorsFeature} for what actually gets recoloured and where
  *  the behaviour was taken from SkyHanni. Ships OFF.
@@ -71,7 +72,7 @@ public class EnchantColorsTab extends BaseTab {
         if (!cfg.isOnlyKnownEnchants()) {
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Unknown Enchants", cfg.getUnknownColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        client.setScreen(new ColorPickerScreen(client.screen, "Unknown Enchant Colour",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Unknown Enchant Colour",
                                 cfg.getUnknownColor(), EnchantColorsDefaults.UNKNOWN, argb -> {
                             cfg.setUnknownColor(argb);
                             cfg.save();
@@ -87,7 +88,7 @@ public class EnchantColorsTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Poor", cfg.getPoorColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Poor Enchant Colour",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Poor Enchant Colour",
                             cfg.getPoorColor(), EnchantColorsDefaults.POOR, argb -> {
                         cfg.setPoorColor(argb);
                         cfg.save();
@@ -95,7 +96,7 @@ public class EnchantColorsTab extends BaseTab {
                 }).bounds(contentX, y, half, 18).build());
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Good", cfg.getGoodColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Good Enchant Colour",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Good Enchant Colour",
                             cfg.getGoodColor(), EnchantColorsDefaults.GOOD, argb -> {
                         cfg.setGoodColor(argb);
                         cfg.save();
@@ -105,7 +106,7 @@ public class EnchantColorsTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Great", cfg.getGreatColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Great Enchant Colour",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Great Enchant Colour",
                             cfg.getGreatColor(), EnchantColorsDefaults.GREAT, argb -> {
                         cfg.setGreatColor(argb);
                         cfg.save();
@@ -114,7 +115,7 @@ public class EnchantColorsTab extends BaseTab {
         if (!cfg.isPerfectChroma()) {
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Perfect", cfg.getPerfectColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        client.setScreen(new ColorPickerScreen(client.screen, "Perfect Enchant Colour",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Perfect Enchant Colour",
                                 cfg.getPerfectColor(), EnchantColorsDefaults.PERFECT, argb -> {
                             cfg.setPerfectColor(argb);
                             cfg.save();
@@ -167,7 +168,7 @@ public class EnchantColorsTab extends BaseTab {
         if (cfg.isUltimateEnabled()) {
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Ultimate Colour", cfg.getUltimateColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        client.setScreen(new ColorPickerScreen(client.screen, "Ultimate Enchant Colour",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Ultimate Enchant Colour",
                                 cfg.getUltimateColor(), EnchantColorsDefaults.ULTIMATE, argb -> {
                             cfg.setUltimateColor(argb);
                             cfg.save();

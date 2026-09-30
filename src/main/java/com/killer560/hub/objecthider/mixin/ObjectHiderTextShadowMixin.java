@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * QUOI {@code RenderOptimiser.kt} "Disable text shadow" / "Container text shadow" (both OFF by default,
@@ -40,7 +41,7 @@ public abstract class ObjectHiderTextShadowMixin {
         }
         // QUOI's "Container text shadow" is a force-ON parity option, not a hider - it only exists so text
         // stays readable over an inventory background while "Disable text shadow" is on everywhere else.
-        if (container && Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>) {
+        if (container && McCompat.screen(Minecraft.getInstance()) instanceof AbstractContainerScreen<?>) {
             return true;
         }
         return !disable && shadow;

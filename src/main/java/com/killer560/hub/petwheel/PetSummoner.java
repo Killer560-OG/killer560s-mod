@@ -18,6 +18,7 @@ import com.killer560.hub.util.ModLog;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Picking a wheel slice lands here: send {@code /pets}, wait for the real Pets menu, find the chosen pet's
@@ -140,7 +141,7 @@ public final class PetSummoner {
     }
 
     private static void awaitPets(Minecraft client, long now) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             return;
         }
         String title = screen.getTitle().getString();
@@ -168,7 +169,7 @@ public final class PetSummoner {
     }
 
     private static void clickPet(Minecraft client, LocalPlayer player, long now) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen) || !PETS_TITLE.matcher(screen.getTitle().getString()).matches()) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen) || !PETS_TITLE.matcher(screen.getTitle().getString()).matches()) {
             return; // menu went away under us; the timeout ends this
         }
         String title = screen.getTitle().getString();
@@ -233,8 +234,8 @@ public final class PetSummoner {
     }
 
     private static void closeOurMenu(Minecraft client) {
-        if (client.screen instanceof AbstractContainerScreen<?> screen && PETS_TITLE.matcher(screen.getTitle().getString()).matches()) {
-            client.screen.onClose();
+        if (McCompat.screen(client) instanceof AbstractContainerScreen<?> screen && PETS_TITLE.matcher(screen.getTitle().getString()).matches()) {
+            McCompat.screen(client).onClose();
         }
     }
 

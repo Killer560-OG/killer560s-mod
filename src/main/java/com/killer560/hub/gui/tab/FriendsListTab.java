@@ -10,6 +10,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Custom Friends List settings - see {@link com.killer560.hub.social.FriendsListCommands}. New tab, off by
  *  default: the "Use Our /fl" toggle especially must never hijack {@code /fl} until killer560 turns it on. */
@@ -41,7 +42,7 @@ public class FriendsListTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Friends List (/flcustom)"), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new FriendsListScreen(client.screen));
+                    McCompat.setScreen(client, new FriendsListScreen(McCompat.screen(client)));
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 

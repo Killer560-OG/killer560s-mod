@@ -9,6 +9,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Our own Friends List menu (killer560's 8.7, reworked 2026-09-27) - opened by {@code /fl} when
@@ -319,7 +320,7 @@ public class FriendsListScreen extends Screen {
     @Override
     public void onClose() {
         FriendsListConfig.getInstance().save();
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

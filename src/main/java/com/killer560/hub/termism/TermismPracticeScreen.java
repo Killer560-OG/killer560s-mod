@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
+import com.killer560.hub.compat.McCompat;
 
 /** Generates and hosts a fake, entirely local terminal puzzle to practice on - killer560's explicit
  *  request (2026-09-09): "generate its own terminal for me to practice solve." No real Hypixel menu is
@@ -861,7 +862,7 @@ public class TermismPracticeScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

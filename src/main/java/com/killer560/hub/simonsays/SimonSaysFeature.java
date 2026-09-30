@@ -37,6 +37,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * F7/M7 boss-fight Simon Says solver.
@@ -822,9 +823,9 @@ public final class SimonSaysFeature {
         // Real bug (2026-09-20 tooltip/config sweep): this fired on the raw key state anywhere at all -
         // including with chat open and with Simon Says switched off - so typing the bound letter into
         // chat sent "/pc Resetting Simon Says" to the party. The Restart Key next to it already got
-        // this right (see tickRestartKeybind's client.screen == null check); this one never did.
+        // this right (see tickRestartKeybind's McCompat.screen(client) == null check); this one never did.
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getAnnounceKeyCode());
-        if (down && !announceKeyWasDown && client.screen == null && cfg.isEnabled()) {
+        if (down && !announceKeyWasDown && McCompat.screen(client) == null && cfg.isEnabled()) {
             if (client.player != null) {
                 client.player.connection.sendCommand("pc " + cfg.getResetMessageText());
             }
@@ -1392,7 +1393,7 @@ public final class SimonSaysFeature {
             return;
         }
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), key);
-        if (down && !restartKeyWasDown && client.screen == null) {
+        if (down && !restartKeyWasDown && McCompat.screen(client) == null) {
             if (!autoStartRunning) {
                 maybeAutoAnnounceReset(client, cfg);
                 beginAutoStart(cfg, "manual restart key", 0);
@@ -1812,7 +1813,7 @@ public final class SimonSaysFeature {
             return;
         }
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.level == null || client.screen != null || !cfg.isEnabled() || !wasActive
+        if (client.player == null || client.level == null || McCompat.screen(client) != null || !cfg.isEnabled() || !wasActive
                 || !isDeviceInRange(client) || cfg.isAutoSolveEnabled() || firstPhase || isStillRevealing()
                 || autoStartRunning || clickNeeded >= clickInOrder.size()) {
             return; // tick() owns these gates and clears the aim timer when they close

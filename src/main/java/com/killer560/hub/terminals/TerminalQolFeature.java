@@ -20,6 +20,7 @@ import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Terminal QoL pack for F7/M7 P3 - five small terminal-adjacent features that are independent of the
@@ -106,7 +107,7 @@ public final class TerminalQolFeature {
      *  every input hook: a click can land before the first tick after the screen opened, and Terminal
      *  Protection's whole job is to judge that exact click, so it must never see a stale open time. */
     private static void syncScreen() {
-        Screen screen = Minecraft.getInstance().screen;
+        Screen screen = McCompat.screen(Minecraft.getInstance());
         if (!(screen instanceof AbstractContainerScreen<?> container)) {
             currentType = null;
             currentScreenIdentity = 0;
@@ -397,7 +398,7 @@ public final class TerminalQolFeature {
 
     private static void applyScale(Minecraft client, Window window, int scale) {
         window.setGuiScale(scale);
-        Screen screen = client.screen;
+        Screen screen = McCompat.screen(client);
         if (screen != null) {
             screen.resize(window.getGuiScaledWidth(), window.getGuiScaledHeight());
         }

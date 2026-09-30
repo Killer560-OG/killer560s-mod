@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * "Choose AP3 Config" - killer560 (2026-09-21): "I should be able to click into it and select any of the ap3's in
@@ -138,7 +139,7 @@ public class Ap3ConfigScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

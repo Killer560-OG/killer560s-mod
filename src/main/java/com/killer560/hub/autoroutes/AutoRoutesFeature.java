@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Routes - per-room recorded routes that play back when you etherwarp onto their start node. CHEAT BUILD
@@ -392,7 +393,7 @@ public final class AutoRoutesFeature {
         }
 
         // Interlock 1: Interactive Map open -> hidden and inert.
-        boolean mapOpen = client.screen instanceof InteractiveMapScreen;
+        boolean mapOpen = McCompat.screen(client) instanceof InteractiveMapScreen;
         if (mapOpen) {
             if (!mapWasOpen && RouteExecutor.isRunning()) {
                 RouteExecutor.stop("Interactive Map opened");
@@ -490,7 +491,7 @@ public final class AutoRoutesFeature {
     /** Starts the room's route when the player stands in its START node (or, when allowed, any node). */
     private static void arm(Minecraft client, LocalPlayer player, RouteCoords.Frame frame, AutoRoutesConfig cfg) {
         Route route = RouteStore.getInstance().forRoom(frame.roomName());
-        if (route == null || route.nodes().isEmpty() || client.screen != null) {
+        if (route == null || route.nodes().isEmpty() || McCompat.screen(client) != null) {
             latchedNode = null;
             return;
         }

@@ -21,6 +21,7 @@ import com.killer560.hub.util.ModLog;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * killer560's item 8.1, part 4: "when he is on Hypixel's own 'Create BIN Auction' menu, show the current
@@ -213,7 +214,7 @@ public final class ListingHelperFeature {
 
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         copyButtonRect = null;
-        if (!active() || Minecraft.getInstance().screen != screen) {
+        if (!active() || McCompat.screen(Minecraft.getInstance()) != screen) {
             return;
         }
         String title = ChatFormatting.stripFormatting(screen.getTitle().getString()).trim();

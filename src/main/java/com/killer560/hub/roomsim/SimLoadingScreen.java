@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * The sim's own loading screen, held up until the map is actually built.
@@ -104,14 +105,14 @@ public final class SimLoadingScreen extends Screen {
     /** Puts this screen up, replacing whatever is there. */
     public static SimLoadingScreen show(Minecraft client, String what) {
         SimLoadingScreen screen = new SimLoadingScreen(what);
-        client.setScreen(screen);
+        McCompat.setScreen(client, screen);
         return screen;
     }
 
     /** Takes it down, but only if it is still the screen showing - never closes something else. */
     public static void dismiss(Minecraft client) {
-        if (client.screen instanceof SimLoadingScreen) {
-            client.setScreen(null);
+        if (McCompat.screen(client) instanceof SimLoadingScreen) {
+            McCompat.setScreen(client, null);
         }
     }
 }

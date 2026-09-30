@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Reads Hypixel's own fairy soul menu and syncs the found-soul log to it.
@@ -56,7 +57,7 @@ public final class FairySoulMenu {
         if (!PathfindingConfig.getInstance().isFairySouls()) {
             return;
         }
-        Screen screen = client.screen;
+        Screen screen = McCompat.screen(client);
         if (screen != lastScreen) {
             lastScreen = screen;
             stableTicks = 0;

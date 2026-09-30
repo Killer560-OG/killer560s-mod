@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /** Custom Mage Beam - see {@link com.killer560.hub.dungeonextras.MageBeamFeature}. Both builds (no cheat
  *  gating). Split out of the old "Dungeon Extras" tab 2026-09-20 per killer560: "For the dungeon extras,
@@ -58,7 +59,7 @@ public class CustomMageBeamTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Beam Color", cfg.getMageBeamColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Beam Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Beam Color",
                             cfg.getMageBeamColor(), DungeonExtrasConfig.DEFAULT_BEAM_COLOR, argb -> {
                         cfg.setMageBeamColor(argb);
                         cfg.save();

@@ -17,6 +17,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Leap Order editor (2026-09-15 redo, killer560: "There should first be a menu where you select what class you
@@ -269,7 +270,7 @@ public class LeapOrderScreen extends Screen {
 
     @Override
     public void onClose() {
-        minecraft.setScreen(parent);
+        McCompat.setScreen(minecraft, parent);
     }
 
     @Override

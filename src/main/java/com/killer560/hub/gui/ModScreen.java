@@ -31,6 +31,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 public class ModScreen extends Screen {
 
@@ -382,7 +383,7 @@ public class ModScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

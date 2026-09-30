@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /** Teammate Highlight settings - see {@link com.killer560.hub.teammates.TeammatesFeature}. Through Walls is the only
  *  cheat-build setting and lives under its own red header, same as every other cheat-only section. */
@@ -82,7 +83,7 @@ public class TeammatesTab extends BaseTab {
         });
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Unknown Class Color", cfg.getUnknownColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Unknown Class Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Unknown Class Color",
                             cfg.getUnknownColor(), TeammatesConfig.DEFAULT_UNKNOWN_COLOR, argb -> {
                         cfg.setUnknownColor(argb);
                         cfg.save();

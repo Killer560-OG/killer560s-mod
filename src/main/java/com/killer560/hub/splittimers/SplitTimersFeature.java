@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Per-floor dungeon split timers - killer560's "Implement Noamm split timers" request. Every regex
@@ -598,7 +599,7 @@ public final class SplitTimersFeature {
             if (!SplitTimersConfig.getInstance().isCoreEntryTimes()) {
                 return List.of();
             }
-            if (Minecraft.getInstance().screen instanceof com.killer560.hub.hud.HudEditorScreen) {
+            if (McCompat.screen(Minecraft.getInstance()) instanceof com.killer560.hub.hud.HudEditorScreen) {
                 return CoreEntryTimes.editorLines();
             }
             return CoreEntryTimes.lines();
@@ -612,7 +613,7 @@ public final class SplitTimersFeature {
             if (!cfg.isP5DragonLines() && !cfg.isP5RelicLines()) {
                 return List.of();
             }
-            if (Minecraft.getInstance().screen instanceof com.killer560.hub.hud.HudEditorScreen) {
+            if (McCompat.screen(Minecraft.getInstance()) instanceof com.killer560.hub.hud.HudEditorScreen) {
                 List<String> out = new ArrayList<>();
                 if (cfg.isP5DragonLines()) {
                     out.add("§5Purple §8#1§f: 11.35s");
@@ -720,7 +721,7 @@ public final class SplitTimersFeature {
          *  untouched and still uses {@link #DIVIDER_TEXT}. Labels shortened for the same reason. */
         private static List<String> totalsLines() {
             SplitTimersConfig cfg = SplitTimersConfig.getInstance();
-            if (Minecraft.getInstance().screen instanceof com.killer560.hub.hud.HudEditorScreen) {
+            if (McCompat.screen(Minecraft.getInstance()) instanceof com.killer560.hub.hud.HudEditorScreen) {
                 List<String> sample = new ArrayList<>();
                 if (cfg.isTotalWithLag()) {
                     sample.add("§eTotal§f: 1m 23.45s");
@@ -765,7 +766,7 @@ public final class SplitTimersFeature {
             if (!SplitTimersConfig.getInstance().isCoreEntrySlowestHud()) {
                 return List.of();
             }
-            if (Minecraft.getInstance().screen instanceof com.killer560.hub.hud.HudEditorScreen) {
+            if (McCompat.screen(Minecraft.getInstance()) instanceof com.killer560.hub.hud.HudEditorScreen) {
                 return List.of("§6Slowest§f: §cTeammate§f: 6.20s");
             }
             String line = CoreEntryTimes.slowestHudLine();

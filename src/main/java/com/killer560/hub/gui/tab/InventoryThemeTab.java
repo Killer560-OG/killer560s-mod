@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Custom Inventory Overlay settings - killer560's item 5.8, "Custom inventory overlay in the mod's
  *  theme." See {@link com.killer560.hub.inventorytheme.InventoryThemeFeature}'s class doc for exactly
@@ -85,7 +86,7 @@ public class InventoryThemeTab extends BaseTab {
             widgets.add(SettingsButtonWidget.builder(
                     ColorSwatch.label("Accent Color", cfg.getAccentColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        client.setScreen(new ColorPickerScreen(client.screen, "Accent Color",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Accent Color",
                                 cfg.getAccentColor(), InventoryThemeConfig.THEME_ACCENT, argb -> {
                             cfg.setCustomAccentColor(argb);
                             cfg.save();

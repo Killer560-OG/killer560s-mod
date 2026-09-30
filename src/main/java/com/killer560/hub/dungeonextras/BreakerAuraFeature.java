@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Breaker Aura (cheat build) - while holding a DUNGEONBREAKER with charges, breaks blocks that obstruct the
@@ -194,7 +195,7 @@ public final class BreakerAuraFeature {
     private static void tickSelectKey(Minecraft client) {
         DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
         int key = cfg.getBreakerAuraSelectKey();
-        if (client.screen != null || client.player == null || client.level == null || client.getWindow() == null) {
+        if (McCompat.screen(client) != null || client.player == null || client.level == null || client.getWindow() == null) {
             selectKeyWasDown = false;
             return;
         }

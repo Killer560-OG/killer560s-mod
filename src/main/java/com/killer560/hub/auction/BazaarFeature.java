@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * killer560's item 8.1, Bazaar half: "then the same for Bazaar" - same open mechanism as the Auction
@@ -76,7 +77,7 @@ public final class BazaarFeature {
 
     public static void openDeferred() {
         Minecraft client = Minecraft.getInstance();
-        client.execute(() -> client.setScreenAndShow(new BazaarScreen(client.screen)));
+        client.execute(() -> client.setScreenAndShow(new BazaarScreen(McCompat.screen(client))));
     }
 
     private static void tick(Minecraft client) {
@@ -94,7 +95,7 @@ public final class BazaarFeature {
             return;
         }
         boolean down = KeyUtil.isKeyDown(client.getWindow(), code);
-        if (down && !keyWasDown && client.screen == null) {
+        if (down && !keyWasDown && McCompat.screen(client) == null) {
             openDeferred();
         }
         keyWasDown = down;

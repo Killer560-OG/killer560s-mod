@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Sharp Shooter "Auto Mask" - killer560 (2026-09-14): "add an auto swap mask version" + "an order tracker that
@@ -237,7 +238,7 @@ public final class I4AutoMask {
         String deferReason = AutoI4Feature.isAbilityHoldActive() ? "Rapid Fire still active"
                 : MaskSwapper.isBusy() ? "another swap is already running"
                 : ActionGate.containerScreenOpen(client)
-                        ? "a container menu is open (\"" + client.screen.getTitle().getString() + "\")" : null;
+                        ? "a container menu is open (\"" + McCompat.screen(client).getTitle().getString() + "\")" : null;
         if (!I4SensorsFeature.isOnDevice(player.position())) {
             return;
         }

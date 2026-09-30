@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * killer560 9.1, verbatim: "Baisically once I click on one of the 5 classes on that main page, have it have a
@@ -75,7 +76,7 @@ public final class ClassSelectionOverlay {
 
     private static void tick(Minecraft client) {
         ClassSelectionOverlayConfig cfg = ClassSelectionOverlayConfig.getInstance();
-        if (!cfg.isEnabled() || client.player == null || !(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!cfg.isEnabled() || client.player == null || !(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             clear();
             return;
         }

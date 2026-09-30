@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Bazaar-to-NPC Flipper (CHEAT BUILD ONLY - {@link BazaarFlipConfig#isEnabled()} is hard-gated on
@@ -48,7 +49,7 @@ import com.killer560.hub.util.ModLog;
  * <p>The awkward part, and the reason CLAUDE.md has a lesson about it: an "any key stops it" guard that fires
  * with a screen open stops the feature instantly, because the Return that submits a command and the Escape
  * that closes the settings tab are both key presses. So the world-side watcher in {@link #tick} only looks at
- * keys while {@code client.screen == null}, and the screen-side watcher is registered on CONTAINER screens
+ * keys while {@code McCompat.screen(client) == null}, and the screen-side watcher is registered on CONTAINER screens
  * only ({@link #onScreenInit}) - never on chat, never on this mod's own menu, never on the pause screen. A
  * container screen is a Hypixel menu the bot is driving, so a key press there really is him intervening.
  * On top of that {@link #START_GRACE_MS} swallows everything for a moment after a start, so the bind itself
@@ -293,7 +294,7 @@ public final class BazaarFlipFeature {
         }
         // Any key, while no screen is open. With a screen open the container watcher above handles it, and
         // nothing else is watched at all - see this class's doc for why.
-        if (client.screen == null && anyKeyDownInWorld(client)) {
+        if (McCompat.screen(client) == null && anyKeyDownInWorld(client)) {
             return;
         }
         if (clicks >= MAX_CLICKS_PER_SESSION) {
@@ -339,7 +340,7 @@ public final class BazaarFlipFeature {
         }
         // Rising edge, and only with no screen open, so the bind can't fire while he is typing in chat or
         // clicking around this mod's own settings.
-        if (down && !keyWasDown && client.screen == null && state == State.IDLE) {
+        if (down && !keyWasDown && McCompat.screen(client) == null && state == State.IDLE) {
             String refusal = start();
             if (refusal != null) {
                 ModChat.send("Bazaar Flip", ModChat.bad("Can't start: "), ModChat.text(refusal));
@@ -446,7 +447,7 @@ public final class BazaarFlipFeature {
     }
 
     private static void tickWaitMenu(Minecraft client, String what, State next) {
-        if (client.screen instanceof AbstractContainerScreen<?>) {
+        if (McCompat.screen(client) instanceof AbstractContainerScreen<?>) {
             setState(next);
             return;
         }
@@ -456,7 +457,7 @@ public final class BazaarFlipFeature {
     }
 
     private static void tickBuy(Minecraft client, BazaarFlipConfig cfg) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             stop("the Bazaar menu closed");
             return;
         }
@@ -484,7 +485,7 @@ public final class BazaarFlipFeature {
     }
 
     private static void tickSell(Minecraft client, BazaarFlipConfig cfg) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             stop("the /trades menu closed");
             return;
         }

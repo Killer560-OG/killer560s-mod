@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * AP3 settings - automated F7/M7 boss-fight movement. Cheat build only ({@link NewTab}'s cheat block), red headers,
@@ -119,7 +120,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         // The "AP3 status:" line is gone (killer560: "remove the ap3 status: line").
         w.add(SettingsButtonWidget.builder(Component.literal("Choose AP3 Config: \u00a76" + cfg.getChainsFile()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new Ap3ConfigScreen(client.screen));
+                    McCompat.setScreen(client, new Ap3ConfigScreen(McCompat.screen(client)));
                 }).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += 24;
         w.add(SettingsButtonWidget.builder(Component.literal("Open AP3 Folder"), btn -> openFolder())
@@ -426,7 +427,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
                                     IntConsumer apply, Runnable save) {
         w.add(SettingsButtonWidget.builder(ColorSwatch.label(label, argb), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, label, argb, defaultArgb, picked -> {
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), label, argb, defaultArgb, picked -> {
                         apply.accept(picked);
                         if (save != null) {
                             save.run();

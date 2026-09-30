@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Storage Item Search - a GLOBAL search across everything this mod has cached, as opposed to
@@ -96,7 +97,7 @@ public final class StorageSearchFeature {
         // storage overlay") - handed over as a callback so the overlay never has to know this feature exists.
         StorageOverlayFeature.setSearchOpener(() -> {
             Minecraft client = Minecraft.getInstance();
-            client.setScreen(new StorageSearchScreen(client.screen, ""));
+            McCompat.setScreen(client, new StorageSearchScreen(McCompat.screen(client), ""));
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(searchCommand("k560search"));
@@ -152,7 +153,7 @@ public final class StorageSearchFeature {
             }
         }
         // Only from in-game (no screen open) so typing the bind into a chat box / sign never opens it.
-        if (down && !bindWasDown && client.screen == null) {
+        if (down && !bindWasDown && McCompat.screen(client) == null) {
             client.setScreenAndShow(new StorageSearchScreen(null, ""));
         }
         bindWasDown = down;
@@ -219,7 +220,7 @@ public final class StorageSearchFeature {
         ModChat.send(CHAT_PREFIX, ModChat.dim("Chest marked at "),
                 ModChat.value(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()),
                 ModChat.dim(" (" + (int) Math.sqrt(distance) + " blocks away)"));
-        client.setScreen(null);
+        McCompat.setScreen(client, null);
     }
 
     /** "If something exists on my island as the exact same item in multiple areas, then highlight all chests it may
@@ -258,7 +259,7 @@ public final class StorageSearchFeature {
             case PETS -> "pets";
             default -> null;
         };
-        client.setScreen(null);
+        McCompat.setScreen(client, null);
         if (command == null || client.player.connection == null) {
             ModChat.send(CHAT_PREFIX, ModChat.dim("Open your equipment menu - the slot will be outlined."));
             return;
@@ -286,7 +287,7 @@ public final class StorageSearchFeature {
                 StorageOverlayFeature.setFocus(entry.storageKey());
             }
         }
-        client.setScreen(null);
+        McCompat.setScreen(client, null);
         String command = entry.type() == StorageSearchIndex.SourceType.ENDER_CHEST
                 ? "enderchest " + entry.storageNumber()
                 : "backpack " + entry.storageNumber();

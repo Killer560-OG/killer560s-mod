@@ -16,6 +16,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Everything related to Spirit Leaping in one tab (killer560, 2026-09-14): the custom leap menu + Leap Order editor
@@ -70,7 +71,7 @@ public class LeapMenuTab extends BaseTab {
                 }).bounds(x, y, half, ROW).build());
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Leap Order"), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreenAndShow(new LeapOrderScreen(client.screen));
+                    client.setScreenAndShow(new LeapOrderScreen(McCompat.screen(client)));
                 }).bounds(rightX, y, rightW, ROW).build());
         y += ROW + GAP;
 

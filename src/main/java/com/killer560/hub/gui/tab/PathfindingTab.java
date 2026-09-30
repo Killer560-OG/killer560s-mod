@@ -18,6 +18,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /** Pathfinding + Fairy Souls settings - see {@link com.killer560.hub.pathfinding.PathfindingFeature}. The
  *  cheat-only "Auto Fairy Souls" walking/clicking logic lives in {@link AutoFairySoulsTab} (split out
@@ -81,14 +82,14 @@ public class PathfindingTab extends BaseTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Path Color", cfg.getPathColor()), btn ->
-                        client.setScreen(new ColorPickerScreen(client.screen, "Path Color", cfg.getPathColor(),
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Path Color", cfg.getPathColor(),
                                 PathfindingConfig.DEFAULT_PATH_COLOR, argb -> {
                                     cfg.setPathColor(argb);
                                     cfg.save();
                                 })))
                 .bounds(contentX, y, col2W, 18).build());
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Target Color", cfg.getTargetColor()), btn ->
-                        client.setScreen(new ColorPickerScreen(client.screen, "Target Color", cfg.getTargetColor(),
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Target Color", cfg.getTargetColor(),
                                 PathfindingConfig.DEFAULT_TARGET_COLOR, argb -> {
                                     cfg.setTargetColor(argb);
                                     cfg.save();

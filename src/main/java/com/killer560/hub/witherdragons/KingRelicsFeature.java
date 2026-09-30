@@ -42,6 +42,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * M7 Phase 5 relic helpers - port of Odin's {@code KingRelics} module
@@ -369,7 +370,7 @@ public final class KingRelicsFeature {
                 return;
             }
             String text;
-            if (client.screen instanceof HudEditorScreen) {
+            if (McCompat.screen(client) instanceof HudEditorScreen) {
                 text = "§3Relics: 1.90s";
             } else if (!HudVisibility.hidesHud() && relicTicksToSpawn > 0) {
                 text = "§3Relics: " + String.format(Locale.US, "%.2f", relicTicksToSpawn / 20f) + "s";

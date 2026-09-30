@@ -10,6 +10,7 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * The sim's toolkit, as a grid you click.
@@ -102,7 +103,7 @@ public final class SimItemsScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

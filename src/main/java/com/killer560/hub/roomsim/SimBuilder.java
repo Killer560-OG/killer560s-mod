@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 
 import java.util.Locale;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Turns a map code into rooms on the ground.
@@ -49,7 +50,7 @@ public final class SimBuilder {
                             .requires(src -> SimState.canAct(Minecraft.getInstance()))
                             .executes(ctx -> {
                                 Minecraft mc = Minecraft.getInstance();
-                                mc.execute(() -> mc.setScreenAndShow(new SimMenuScreen(mc.screen)));
+                                mc.execute(() -> mc.setScreenAndShow(new SimMenuScreen(McCompat.screen(mc))));
                                 return 1;
                             }));
                     dispatcher.register(

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Maxor's Crystals settings - the F7/M7 Phase 1 crystal respawn timer, placement timer, unplaced-crystal alert,
@@ -88,7 +89,7 @@ public class MaxorTab extends BaseTab {
                                               java.util.function.IntConsumer setter) {
         return SettingsButtonWidget.builder(ColorSwatch.label(name, current), btn -> {
             Minecraft client = Minecraft.getInstance();
-            client.setScreen(new ColorPickerScreen(client.screen, name, current, defaultColor, argb -> {
+            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), name, current, defaultColor, argb -> {
                 setter.accept(argb);
                 MaxorConfig.getInstance().save();
             }));

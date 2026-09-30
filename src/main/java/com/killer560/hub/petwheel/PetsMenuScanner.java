@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Passively reads whatever page of the real {@code /pets} menu is currently open into
@@ -48,7 +49,7 @@ public final class PetsMenuScanner {
     /** Called every client tick by {@link PetWheelFeature}; no-ops unless Pet Wheel is enabled and the real
      *  Pets screen is the one currently open - this package touches nothing while the feature is off. */
     public static void tick(Minecraft client) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             lastScannedContainerId = -1;
             return;
         }

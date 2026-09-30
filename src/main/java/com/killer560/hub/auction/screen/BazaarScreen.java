@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeSet;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * killer560's item 8.1, Bazaar half - same black+amber chrome as {@link AuctionHouseScreen} (see its class
@@ -263,7 +264,7 @@ public final class BazaarScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

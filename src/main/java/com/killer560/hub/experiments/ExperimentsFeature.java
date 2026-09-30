@@ -45,6 +45,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.ThreadLocalRandom;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Runs off the client tick, reads whatever container screen is open, and does one of two completely
@@ -359,7 +360,7 @@ public final class ExperimentsFeature {
         if (!cfg.isEnabled() || !cfg.isAutonomousMode() || armed) {
             return false;
         }
-        return Minecraft.getInstance().screen instanceof ContainerScreen screen
+        return McCompat.screen(Minecraft.getInstance()) instanceof ContainerScreen screen
                 && screen.getTitle().getString().equals("Experimentation Table");
     }
 
@@ -387,7 +388,7 @@ public final class ExperimentsFeature {
      *  Chronomatron/Ultrasequencer's ordered sequence, matched-pair colored for Superpairs - never a
      *  click. See the class doc for why this exists as a mode of its own. */
     private static void renderHighlights(GuiGraphicsExtractor graphics, ExperimentsConfig cfg) {
-        if (!(Minecraft.getInstance().screen instanceof ContainerScreen screen)) {
+        if (!(McCompat.screen(Minecraft.getInstance()) instanceof ContainerScreen screen)) {
             return;
         }
         ExperimentSolver.Mode mode = lastLoggedMode;
@@ -650,7 +651,7 @@ public final class ExperimentsFeature {
         long now = System.currentTimeMillis();
         firePendingActions(now);
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
-        if (!(client.screen instanceof ContainerScreen screen)) {
+        if (!(McCompat.screen(client) instanceof ContainerScreen screen)) {
             SOLVER.select("");
             logModeChangeIfAny(ExperimentSolver.Mode.NONE, "");
             lastCells = List.of();
@@ -799,8 +800,8 @@ public final class ExperimentsFeature {
                         scheduleClick(menu.containerId, goBackSlot, now, cfg);
                     } else {
                         scheduleAction(() -> {
-                            if (Minecraft.getInstance().screen != null) {
-                                Minecraft.getInstance().screen.onClose();
+                            if (McCompat.screen(Minecraft.getInstance()) != null) {
+                                McCompat.screen(Minecraft.getInstance()).onClose();
                             }
                             armReopenAfterClaim(System.currentTimeMillis());
                         }, now, cfg);
@@ -837,8 +838,8 @@ public final class ExperimentsFeature {
         Minecraft client = Minecraft.getInstance();
         switch (swap.action()) {
             case CLOSE_TABLE -> scheduleAction(() -> {
-                if (client.screen != null) {
-                    client.screen.onClose();
+                if (McCompat.screen(client) != null) {
+                    McCompat.screen(client).onClose();
                 }
             }, now, cfg);
             case RUN_PETS_COMMAND -> scheduleAction(() -> {
@@ -848,14 +849,14 @@ public final class ExperimentsFeature {
             }, now, cfg);
             case CLICK_SLOT, NEXT_PAGE -> scheduleClick(menu.containerId, swap.slot(), now, cfg);
             case CLOSE_NOT_FOUND -> scheduleAction(() -> {
-                if (Minecraft.getInstance().screen != null) {
-                    Minecraft.getInstance().screen.onClose();
+                if (McCompat.screen(Minecraft.getInstance()) != null) {
+                    McCompat.screen(Minecraft.getInstance()).onClose();
                 }
                 ModOverlayMessage.show("§c[Killer560's Mod] No Guardian pet found!", 4000);
             }, now, cfg);
             case CLOSE_AND_REOPEN -> scheduleAction(() -> {
-                if (Minecraft.getInstance().screen != null) {
-                    Minecraft.getInstance().screen.onClose();
+                if (McCompat.screen(Minecraft.getInstance()) != null) {
+                    McCompat.screen(Minecraft.getInstance()).onClose();
                 }
                 armReopenAfterClaim(System.currentTimeMillis());
             }, now, cfg);
@@ -1148,7 +1149,7 @@ public final class ExperimentsFeature {
         if (lastLoggedMode != ExperimentSolver.Mode.CHRONOMATRON && lastLoggedMode != ExperimentSolver.Mode.ULTRASEQUENCER) {
             return false;
         }
-        if (!(Minecraft.getInstance().screen instanceof ContainerScreen screen)) {
+        if (!(McCompat.screen(Minecraft.getInstance()) instanceof ContainerScreen screen)) {
             return false;
         }
         AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
@@ -1426,7 +1427,7 @@ public final class ExperimentsFeature {
         // the gate's one-per-tick/settle/focus protection every other automated actor in the mod gets.
         // Captured here (decide time) rather than read fresh inside gateGatedClick, since the whole
         // point is to catch the screen having changed OUT from under a click that hasn't fired yet.
-        Screen ownScreen = Minecraft.getInstance().screen;
+        Screen ownScreen = McCompat.screen(Minecraft.getInstance());
         scheduleAction(gateGatedClick(containerId, slot, ownScreen, now + GATE_RETRY_BUDGET_MS), now, cfg);
     }
 
@@ -1462,7 +1463,7 @@ public final class ExperimentsFeature {
             // Harmless no-op for Chronomatron/Ultrasequencer/navigation/claim clicks, which never arm
             // that gate at all.
             if (!ActionGate.tryAct(ActionGate.Actor.EXPERIMENTS, ownScreen)) {
-                if (Minecraft.getInstance().screen == ownScreen && sentAtMs < giveUpAtMs) {
+                if (McCompat.screen(Minecraft.getInstance()) == ownScreen && sentAtMs < giveUpAtMs) {
                     // Denied for a transient reason (spacing, a world aura mid cross-class cooldown, a
                     // settle window) and still aimed at the right menu - the gate only ever delays, so
                     // retry the SAME click rather than treating a denial as "never happened".

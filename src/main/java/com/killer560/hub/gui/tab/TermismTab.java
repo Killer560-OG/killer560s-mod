@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Opens {@link TermismMenuScreen} - killer560's practice-mode request (2026-09-09): "I should be able
  *  to run /termism or be able to open it through the settings." This tab is that settings entry point;
@@ -25,7 +26,7 @@ public class TermismTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Termism"), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new TermismMenuScreen(client.screen));
+                    McCompat.setScreen(client, new TermismMenuScreen(McCompat.screen(client)));
                 }).bounds(contentX, y, 220, 20).build());
 
         return widgets;

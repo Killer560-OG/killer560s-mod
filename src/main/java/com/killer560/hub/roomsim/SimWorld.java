@@ -11,6 +11,7 @@ import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Opens the singleplayer world the dungeon sim is built in.
@@ -60,7 +61,7 @@ public final class SimWorld {
             // Only once the level is actually here. While it is still loading, vanilla owns the screen -
             // fighting it for that every tick means replacing its receiving-level screen over and over, which
             // is its own way to hang the client. Vanilla covers the world load; this covers the build after it.
-            if (client.level != null && !(client.screen instanceof SimLoadingScreen)) {
+            if (client.level != null && !(McCompat.screen(client) instanceof SimLoadingScreen)) {
                 loadingScreen = SimLoadingScreen.show(client, loadingLabel);
             }
             if (++loadingTicks > LOADING_WATCHDOG_TICKS) {

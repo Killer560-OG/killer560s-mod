@@ -41,9 +41,7 @@ builds behind with a stale `.pending` nothing had ever promoted.
 **Enumerate the instances directory, never trust this list.** It has been wrong twice in one day:
 `AP3 Competition Instance` was missing from it, then that instance disappeared and two new ones showed up.
 
-**`26.2` and `26.2 ALT` exist and must NOT be deployed to.** They are Minecraft 26.2 (Fabric Loader 0.19.5
-and 0.19.3); `fabric.mod.json` declares `minecraft ~26.1`, so this jar will not load there. Neither has a
-killer560smod jar today. Porting to 26.2 is its own job — do not "fix" it by widening the version range.
+**`26.2` and `26.2 ALT` get the 26.2 build, not the 26.1.2 one.** killer560 lifted the old do-not-deploy rule on 2026-09-30 ("you can deploy the proper version of the mod to the proper instance") when 26.2 became a supported target: 26.1.2 stays the main release because most people play it, and a good few play 26.2. Four jars now ship - legit and cheat for each - and the Minecraft version is in every jar's name so `*-legit.jar` cannot match two different builds. The 26.1.2 jar still will not load on 26.2 and vice versa, because each declares its own `minecraft` range; that is the point, not a bug to widen away.
 
 There is an anticheat harness at `C:\Users\Hunter\killer560s-mod-testkit` that runs features against a real
 GrimAC on a real dedicated server. See its own `CLAUDE.md`.

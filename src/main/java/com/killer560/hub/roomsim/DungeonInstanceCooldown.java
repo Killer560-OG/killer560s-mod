@@ -2,6 +2,7 @@ package com.killer560.hub.roomsim;
 
 import com.killer560.hub.secrets.DungeonState;
 import net.minecraft.client.Minecraft;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * When a new dungeon instance can be created, and when it is worth trying to rejoin after being dropped.
@@ -68,7 +69,7 @@ public final class DungeonInstanceCooldown {
      * directions; this is the condition the guess was standing in for.
      */
     public static boolean inPlayableWorld(Minecraft client) {
-        return client != null && client.level != null && client.player != null && client.screen == null;
+        return client != null && client.level != null && client.player != null && McCompat.screen(client) == null;
     }
 
     /** True while the player is below the world, which is what being dumped to limbo looks like from here. */

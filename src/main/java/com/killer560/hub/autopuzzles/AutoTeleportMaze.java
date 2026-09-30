@@ -16,6 +16,7 @@ import com.killer560.hub.util.ModLog;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Teleport Maze - port of QUOI {@code TeleportMazeSolver.kt}'s {@code auto}, which IS movement automation: once
@@ -102,7 +103,7 @@ final class AutoTeleportMaze {
             stop(client);
             return;
         }
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             stop(client);
             pendingTicks = -1;
             return;
@@ -157,7 +158,7 @@ final class AutoTeleportMaze {
     /** Aura the chest, walk to the exit pad, then walk out - see this class's own doc for why a plain walk (not
      *  an etherwarp path) is both safe and correct here. */
     private static void tickFinish(Minecraft client) {
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             return;
         }
         LocalPlayer player = client.player;

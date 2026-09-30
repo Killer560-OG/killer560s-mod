@@ -15,6 +15,7 @@ import com.killer560.hub.util.ModLog;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Runs an optimised route through the chain's Path nodes - killer560 (2026-09-22): "a movement optimizer/pathfinder...
@@ -1097,7 +1098,7 @@ final class Ap3RouteRunner {
     // ---- terminal stops -----------------------------------------------------------------------------------------
 
     private static boolean tickTermWait(Minecraft client, LocalPlayer player) {
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             sawTermScreen = true;
             waitingForTermTicks = 0;
             return true;

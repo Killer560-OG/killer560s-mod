@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import com.killer560.hub.compat.McCompat;
 
 /** Ticks every configured {@link AbilityTimerEntry}'s raw keybind (same hardware-poll pattern
  *  {@code Killer560ModClient}'s HUD-edit keybind already uses, not routed through any screen) and draws
@@ -43,7 +44,7 @@ public final class AbilityTimersFeature {
         // ability had just been used. The render side already guarded on this same check; tick() didn't.
         // Skips the whole loop (rather than updating keyWasDown from unreliable-while-typing key state)
         // so closing the screen doesn't itself cause a false "just pressed" edge on the next real tick.
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             return;
         }
         for (AbilityTimerEntry e : cfg.entries()) {

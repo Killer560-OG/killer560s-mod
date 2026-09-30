@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.Random;
+import com.killer560.hub.compat.McCompat;
 
 /** Entry menu for Termism, killer560's own practice-mode request (2026-09-09): open via {@code /termism}
  *  or a settings button, "a button for random and then a button for each of the other actual terminals...
@@ -64,7 +65,7 @@ public class TermismMenuScreen extends Screen {
     }
 
     private void open(TerminalType type) {
-        Minecraft.getInstance().setScreen(new TermismPracticeScreen(this, type));
+        McCompat.setScreen(Minecraft.getInstance(), new TermismPracticeScreen(this, type));
     }
 
     @Override
@@ -79,7 +80,7 @@ public class TermismMenuScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

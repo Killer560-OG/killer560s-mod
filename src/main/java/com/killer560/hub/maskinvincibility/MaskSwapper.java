@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * The mod's one death-item swap mechanism: {@code /stats} + a click on the mask in the menu for Spirit and
@@ -363,7 +364,7 @@ public final class MaskSwapper {
     }
 
     private static void awaitMenu(Minecraft client, long now) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             return;
         }
         String title = screen.getTitle().getString();
@@ -392,7 +393,7 @@ public final class MaskSwapper {
     }
 
     private static void clickMask(Minecraft client, LocalPlayer player, long now) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)
                 || !screen.getTitle().getString().toLowerCase(Locale.ROOT).contains("equipment")) {
             return; // the menu went away under us; the timeout will end this
         }
@@ -490,7 +491,7 @@ public final class MaskSwapper {
     }
 
     private static void awaitPets(Minecraft client, long now) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             return;
         }
         String title = screen.getTitle().getString();
@@ -519,7 +520,7 @@ public final class MaskSwapper {
     }
 
     private static void clickPet(Minecraft client, LocalPlayer player, long now) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)
                 || !PETS_TITLE.matcher(screen.getTitle().getString()).matches()) {
             return; // the menu went away under us; the timeout will end this
         }
@@ -594,12 +595,12 @@ public final class MaskSwapper {
     }
 
     private static void closeOurMenu(Minecraft client) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             return;
         }
         String title = screen.getTitle().getString();
         if (title.toLowerCase(Locale.ROOT).contains("equipment") || PETS_TITLE.matcher(title).matches()) {
-            client.screen.onClose();
+            McCompat.screen(client).onClose();
         }
     }
 

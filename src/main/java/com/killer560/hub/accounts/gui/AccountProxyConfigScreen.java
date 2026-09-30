@@ -10,6 +10,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Per-account proxy assignment, opened from a "Proxy" button on {@link AccountSwitcherScreen}'s own
@@ -190,6 +191,6 @@ public class AccountProxyConfigScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(this.parent);
+        McCompat.setScreen(this.minecraft, this.parent);
     }
 }

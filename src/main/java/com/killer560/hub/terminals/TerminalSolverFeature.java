@@ -35,6 +35,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
+import com.killer560.hub.compat.McCompat;
 
 /** Highlights the correct slot(s) to click in Floor 7 dungeon terminals - Solver Only, per killer560's
  *  explicit "Not auto terminals yet just the solver": this never clicks anything, only draws colored
@@ -324,7 +325,7 @@ public final class TerminalSolverFeature {
         }
         closeWatcherRegistered = true;
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("TerminalSolverFeature", client -> {
-            if (currentType == null || client.screen != null) {
+            if (currentType == null || McCompat.screen(client) != null) {
                 noScreenTicks = 0;
                 return;
             }
@@ -425,7 +426,7 @@ public final class TerminalSolverFeature {
     public static void refreshState() {
         ensureCloseWatcherRegistered();
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-        if (!cfg.isEnabled() || !(Minecraft.getInstance().screen instanceof ContainerScreen screen)) {
+        if (!cfg.isEnabled() || !(McCompat.screen(Minecraft.getInstance()) instanceof ContainerScreen screen)) {
             endTracking();
             return;
         }
@@ -972,7 +973,7 @@ public final class TerminalSolverFeature {
         if (currentType == null) {
             return;
         }
-        if (!(Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(Minecraft.getInstance()) instanceof AbstractContainerScreen<?> screen)) {
             return;
         }
         if (!isCustomGuiActive()) {

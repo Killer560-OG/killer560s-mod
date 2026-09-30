@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /** Posmsg (position message) waypoints - a ring drawn on the ground that types its own line into party
  *  chat the moment you walk into it, only during the F7/M7 boss fight. Preloaded room presets (Simon
@@ -168,7 +169,7 @@ public class PosmsgTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", e.color()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Waypoint Color", e.color(),
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Waypoint Color", e.color(),
                             0xFFCC6600, argb -> {
                                 e.colorHex = String.format("%06X", argb & 0xFFFFFF);
                                 PosmsgConfig.getInstance().save();

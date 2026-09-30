@@ -58,6 +58,7 @@ import net.minecraft.world.level.block.piston.PistonHeadBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Real Hypixel Skyblock Etherwarp landing-prediction overlay, ported from Odin's own {@code Etherwarp.kt}
@@ -95,7 +96,7 @@ public final class EtherwarpOverlayFeature {
     private static void onWorldRender(LevelRenderContext context) {
         EtherwarpOverlayConfig cfg = EtherwarpOverlayConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isEnabled() || client.screen != null || client.player == null || client.level == null) {
+        if (!cfg.isEnabled() || McCompat.screen(client) != null || client.player == null || client.level == null) {
             return;
         }
 

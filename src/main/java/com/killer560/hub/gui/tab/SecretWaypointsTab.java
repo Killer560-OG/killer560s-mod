@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntConsumer;
+import com.killer560.hub.compat.McCompat;
 
 /** Secret Waypoints settings - see
  *  {@link com.killer560.hub.secretwaypoints.SecretWaypointsFeature}'s class doc for the real room
@@ -99,7 +100,7 @@ public class SecretWaypointsTab extends BaseTab {
                                               IntConsumer setter) {
         return SettingsButtonWidget.builder(ColorSwatch.label(name, current), btn -> {
             Minecraft client = Minecraft.getInstance();
-            client.setScreen(new ColorPickerScreen(client.screen, name, current, defaultColor, argb -> {
+            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), name, current, defaultColor, argb -> {
                 setter.accept(argb);
                 SecretWaypointsConfig.getInstance().save();
             }));

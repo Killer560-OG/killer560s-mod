@@ -7,6 +7,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Scaled preview of one monitor with the N layout cells outlined; clicking a cell moves + resizes this
  *  Minecraft window into it (see {@link WindowLayoutFeature}). */
@@ -204,7 +205,7 @@ public class WindowLayoutScreen extends Screen {
 
     @Override
     public void onClose() {
-        minecraft.setScreen(parent);
+        McCompat.setScreen(minecraft, parent);
     }
 
     @Override

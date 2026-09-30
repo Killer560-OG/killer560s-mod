@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Voice To Text - killer560's "hears what I say via a keybind... and sends it to chat" request, with
@@ -111,7 +112,7 @@ public final class VoiceToTextFeature {
         // then sent whatever the mic heard straight to /pc or /gc. A push-to-talk press only counts
         // with no screen open; opening one mid-recording reads as a release, so the mic closes and what
         // was already captured is transcribed, exactly as letting go of the key would.
-        boolean down = client.screen == null
+        boolean down = McCompat.screen(client) == null
                 && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getPushToTalkKeyCode());
         if (down && !keyWasDown) {
             onKeyPressed();

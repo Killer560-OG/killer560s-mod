@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
+import com.killer560.hub.compat.McCompat;
 
 /** Dungeon Queue: Auto Requeue ({@link com.killer560.hub.dungeonqueue.DungeonQueueFeature}) and Party Finder
  *  Overlay ({@link com.killer560.hub.partyfinder.PartyFinderOverlay}). */
@@ -230,7 +231,7 @@ public class DungeonQueueTab extends BaseTab {
                                               Runnable save, int x, int y, int w) {
         return SettingsButtonWidget.builder(ColorSwatch.label(label, getter.getAsInt()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, label, getter.getAsInt(), defaultArgb, argb -> {
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), label, getter.getAsInt(), defaultArgb, argb -> {
                         setter.accept(argb);
                         save.run();
                     }));

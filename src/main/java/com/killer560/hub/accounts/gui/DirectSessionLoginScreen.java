@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * A "Direct Connect"-style quick login: paste a Minecraft session/access token straight from
@@ -140,7 +141,7 @@ public class DirectSessionLoginScreen extends Screen {
     }
 
     private void onBack() {
-        Minecraft.getInstance().setScreen(this.backTarget);
+        McCompat.setScreen(Minecraft.getInstance(), this.backTarget);
     }
 
     private void onConnect() {
@@ -175,7 +176,7 @@ public class DirectSessionLoginScreen extends Screen {
             SessionLoginStore.getInstance().setLastKnownName(result.name());
             SessionLoginStore.getInstance().save();
             AccountApplier.apply(result);
-            Minecraft.getInstance().setScreen(this.successTarget);
+            McCompat.setScreen(Minecraft.getInstance(), this.successTarget);
         }, this.screenExecutor);
     }
 

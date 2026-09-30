@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 import java.util.concurrent.ThreadLocalRandom;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Goldor Triggerbot - killer560, 2026-09-21: "Create goldore triggerbot with cps range". While the crosshair is
@@ -97,7 +98,7 @@ public final class GoldorTriggerbotFeature {
         String gate = null;
         if (!CheatUtils.isOnDungeonServer(client)) {
             gate = "not on hypixel/p3sim";
-        } else if (client.screen != null) {
+        } else if (McCompat.screen(client) != null) {
             // Any screen, not just a container: with a menu up the mouse is not steering the crosshair, so
             // "aimed at Goldor" is a stale reading of where you were looking. The gate refuses container
             // screens by itself; this is the stricter half the gate deliberately leaves to the feature.

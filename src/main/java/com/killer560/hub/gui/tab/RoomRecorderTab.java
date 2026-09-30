@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Room Recorder - the F7 loop that fills the sim's room library.
@@ -88,16 +89,16 @@ public class RoomRecorderTab extends BaseTab {
 
         w.add(SettingsButtonWidget.builder(
                         Component.literal("Pause / Resume Key: §6" + KeyUtil.bindDisplayName(cfg.getResumeKeyCode())),
-                        btn -> Minecraft.getInstance().setScreen(
-                                new RoomLibraryScreen(Minecraft.getInstance().screen)))
+                        btn -> McCompat.setScreen(Minecraft.getInstance(), 
+                                new RoomLibraryScreen(McCompat.screen(Minecraft.getInstance()))))
                 .bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
         w.add(SettingsButtonWidget.builder(
                         Component.literal("Room Library  §7(" + RoomLibrary.completeCount() + " captured, "
                                 + RoomLibrary.incomplete().size() + " unfinished)"),
-                        btn -> Minecraft.getInstance().setScreen(
-                                new RoomLibraryScreen(Minecraft.getInstance().screen)))
+                        btn -> McCompat.setScreen(Minecraft.getInstance(), 
+                                new RoomLibraryScreen(McCompat.screen(Minecraft.getInstance()))))
                 .bounds(contentX, y, contentWidth, 20).build());
         return w;
     }

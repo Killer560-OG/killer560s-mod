@@ -15,6 +15,7 @@ import net.minecraft.network.chat.TextColor;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Name Changer / nick hider settings - see {@link NameChangerFeature}'s class doc. Own display name, an editable
  *  "real name -> display name" list (same add/edit/delete row pattern as {@link AbilityTimersTab}/{@link PosmsgTab}),
@@ -174,7 +175,7 @@ public class NameChangerTab extends BaseTab {
                                               java.util.function.IntConsumer setter) {
         return SettingsButtonWidget.builder(swatch(argb, width), btn -> {
             Minecraft client = Minecraft.getInstance();
-            client.setScreen(new ColorPickerScreen(client.screen, title,
+            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), title,
                     argb == NameColor.NONE ? 0xFFFFFFFF : argb, 0xFFFFFFFF, picked -> {
                 setter.accept(picked);
                 btn.setMessage(swatch(picked, width));

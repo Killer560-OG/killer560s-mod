@@ -19,6 +19,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /** Waypoint Routes - see {@link WaypointRoutesFeature}. Route list (select/delete), selected-route settings,
  *  clipboard import/export, display options and keybinds. */
@@ -125,7 +126,7 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
             y += 22;
 
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", sel.color), btn ->
-                            client.setScreen(new ColorPickerScreen(client.screen, "Route Color", sel.color, Route.DEFAULT_COLOR,
+                            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Route Color", sel.color, Route.DEFAULT_COLOR,
                                     argb -> {
                                         sel.color = argb;
                                         RouteStore.save();
@@ -220,7 +221,7 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Start At Nearest", cfg.isStartAtNearest()));
                 }).bounds(contentX, y, col2W, 18).build());
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Next Point", cfg.getTargetColor()), btn ->
-                        client.setScreen(new ColorPickerScreen(client.screen, "Next Point Color", cfg.getTargetColor(),
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Next Point Color", cfg.getTargetColor(),
                                 WaypointRoutesConfig.DEFAULT_TARGET_COLOR, argb -> {
                                     cfg.setTargetColor(argb);
                                     cfg.save();

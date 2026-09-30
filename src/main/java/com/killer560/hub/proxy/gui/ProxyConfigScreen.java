@@ -9,6 +9,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Instance proxy editor, opened from the Swap Accounts screen's "Set Instance Proxy" button. Lets the user
@@ -244,6 +245,6 @@ public class ProxyConfigScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(this.parent);
+        McCompat.setScreen(this.minecraft, this.parent);
     }
 }

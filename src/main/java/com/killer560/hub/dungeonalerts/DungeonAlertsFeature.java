@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Entry point + shared helpers for the Dungeon Alerts pack. {@link #register()} wires every sub-feature,
@@ -100,7 +101,7 @@ public final class DungeonAlertsFeature {
     // ---- shared helpers ----
 
     static boolean isEditorOpen() {
-        return Minecraft.getInstance().screen instanceof HudEditorScreen;
+        return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen;
     }
 
     /** @return floor number 0-7 from the sidebar floor string ("F6" -> 6, "E" -> 0), or -1 outside a run. */

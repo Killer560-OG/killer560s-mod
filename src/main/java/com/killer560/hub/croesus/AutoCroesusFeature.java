@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Croesus (CHEAT BUILD ONLY - {@link CroesusConfig#isAutoCroesusEnabled()} is hard-gated on
@@ -219,7 +220,7 @@ public final class AutoCroesusFeature {
             return false;
         }
         Minecraft client = Minecraft.getInstance();
-        return client.screen instanceof AbstractContainerScreen<?> screen
+        return McCompat.screen(client) instanceof AbstractContainerScreen<?> screen
                 && DungeonChestValuer.CROESUS_MENU_TITLE.matcher(ChestProfitFeature.titleOf(screen)).matches();
     }
 
@@ -234,7 +235,7 @@ public final class AutoCroesusFeature {
         if (!running && !shouldShowStartButton()) {
             return;
         }
-        if (running && !(Minecraft.getInstance().screen instanceof AbstractContainerScreen<?>)) {
+        if (running && !(McCompat.screen(Minecraft.getInstance()) instanceof AbstractContainerScreen<?>)) {
             return;
         }
         int[] pos = resolveStartButtonPosition();
@@ -405,7 +406,7 @@ public final class AutoCroesusFeature {
         if (state == State.IDLE && !armed) {
             return;
         }
-        AbstractContainerScreen<?> screen = client.screen instanceof AbstractContainerScreen<?> s ? s : null;
+        AbstractContainerScreen<?> screen = McCompat.screen(client) instanceof AbstractContainerScreen<?> s ? s : null;
         String title = ChestProfitFeature.titleOf(screen);
         boolean inMenu = screen != null && DungeonChestValuer.CROESUS_MENU_TITLE.matcher(title).matches();
         boolean inRunView = screen != null && DungeonChestValuer.RUN_VIEW_TITLE.matcher(title).matches();
@@ -438,7 +439,7 @@ public final class AutoCroesusFeature {
         switch (state) {
             case MENU -> {
                 if (!inMenu) {
-                    stop(client.screen == null ? "menu closed" : "unexpected screen \"" + title + "\"", client.screen != null);
+                    stop(McCompat.screen(client) == null ? "menu closed" : "unexpected screen \"" + title + "\"", McCompat.screen(client) != null);
                     return;
                 }
                 if (now < nextActionAtMs) {
@@ -528,7 +529,7 @@ public final class AutoCroesusFeature {
                     setState(State.RUN_VIEW, now);
                     return;
                 }
-                if (client.screen == null) {
+                if (McCompat.screen(client) == null) {
                     // Hypixel sometimes re-sends the chest window rather than editing it in place.
                     if (inState > REROLL_TIMEOUT_MS) {
                         stop("the chest never came back after the reroll", true);
@@ -564,7 +565,7 @@ public final class AutoCroesusFeature {
     private static void runView(Minecraft client, AbstractContainerScreen<?> screen, String title, boolean inRunView,
                                 long now, long inState) {
         if (!inRunView) {
-            stop(describe(client, title), client.screen != null);
+            stop(describe(client, title), McCompat.screen(client) != null);
             return;
         }
         if (now < nextActionAtMs) {
@@ -677,7 +678,7 @@ public final class AutoCroesusFeature {
     private static void chest(Minecraft client, AbstractContainerScreen<?> screen, String title, ChestType chestTitle,
                               long now, long inState) {
         if (chestTitle == null || chestTitle != targetType) {
-            stop(describe(client, title), client.screen != null);
+            stop(describe(client, title), McCompat.screen(client) != null);
             return;
         }
         if (now < nextActionAtMs) {
@@ -802,7 +803,7 @@ public final class AutoCroesusFeature {
             setState(State.RUN_VIEW, now);
             return;
         }
-        if (client.screen == null) {
+        if (McCompat.screen(client) == null) {
             reopenSent = false;
             reopenAttempts = 0;
             setState(State.WAIT_REOPEN, now);
@@ -845,7 +846,7 @@ public final class AutoCroesusFeature {
             setState(State.MENU, now);
             return;
         }
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             stop(describe(client, title), true);
             return;
         }
@@ -1027,7 +1028,7 @@ public final class AutoCroesusFeature {
                         : ModChat.bad(DungeonChestValuer.formatCoins(claimedProfit)));
         state = State.IDLE;
         armed = false;
-        if (client.player != null && client.screen != null) {
+        if (client.player != null && McCompat.screen(client) != null) {
             client.player.closeContainer();
         }
     }
@@ -1052,7 +1053,7 @@ public final class AutoCroesusFeature {
     }
 
     private static String describe(Minecraft client, String title) {
-        return client.screen == null ? "menu closed" : "unexpected screen \"" + title + "\"";
+        return McCompat.screen(client) == null ? "menu closed" : "unexpected screen \"" + title + "\"";
     }
 
     private static int pageOf(String title) {

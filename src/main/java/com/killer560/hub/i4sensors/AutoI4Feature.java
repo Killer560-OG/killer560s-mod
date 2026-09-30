@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Sharp Shooter (i4) automation - killer560's "Next lets work on the autoi4 portion" request (2026-09-14),
@@ -272,7 +273,7 @@ public final class AutoI4Feature {
         if (!I4SensorsFeature.isOnDungeonServer(client)) {
             return "not on hypixel.net/p3sim.net";
         }
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             return "a screen is open";
         }
         if (!I4SensorsFeature.isOnDevice(player.position())) {
@@ -593,7 +594,7 @@ public final class AutoI4Feature {
             }
         }
         // Clicking only once the device has started, holding the bow, with no menu open.
-        if (!deviceStarted || sessionBaseCps <= 0 || client.screen != null || !player.getMainHandItem().is(Items.BOW)
+        if (!deviceStarted || sessionBaseCps <= 0 || McCompat.screen(client) != null || !player.getMainHandItem().is(Items.BOW)
                 || now < nextClickAtMs) {
             return;
         }

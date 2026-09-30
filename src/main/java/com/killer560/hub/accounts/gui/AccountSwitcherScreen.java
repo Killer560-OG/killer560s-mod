@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import com.killer560.hub.compat.McCompat;
 
 public class AccountSwitcherScreen extends Screen {
 
@@ -126,7 +127,7 @@ public class AccountSwitcherScreen extends Screen {
             this.addRenderableWidget(copyButton);
 
             SettingsButtonWidget proxyButton = SettingsButtonWidget.builder(proxyButtonLabel(account),
-                            btn -> Minecraft.getInstance().setScreen(new AccountProxyConfigScreen(this, account)))
+                            btn -> McCompat.setScreen(Minecraft.getInstance(), new AccountProxyConfigScreen(this, account)))
                     .bounds(startX + buttonWidth + gap + copyWidth + gap, y, proxyWidth, 20)
                     .build();
             proxyButton.active = !this.busy;
@@ -145,7 +146,7 @@ public class AccountSwitcherScreen extends Screen {
         // Bottom-middle "Direct Connect"-style entry point: a temporary login from a raw session
         // token, not one of Prism's saved accounts (see DirectSessionLoginScreen).
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Direct Session Login"), btn ->
-                        Minecraft.getInstance().setScreen(new DirectSessionLoginScreen(this, this.parent)))
+                        McCompat.setScreen(Minecraft.getInstance(), new DirectSessionLoginScreen(this, this.parent)))
                 .bounds(this.width / 2 - buttonWidth / 2, belowListY + 26, buttonWidth, 20)
                 .build());
 
@@ -156,7 +157,7 @@ public class AccountSwitcherScreen extends Screen {
         // before, so the account list layout below it doesn't move.
         int proxyY = belowListY + 58;
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Set Instance Proxy"), btn ->
-                        Minecraft.getInstance().setScreen(new com.killer560.hub.proxy.gui.ProxyConfigScreen(this)))
+                        McCompat.setScreen(Minecraft.getInstance(), new com.killer560.hub.proxy.gui.ProxyConfigScreen(this)))
                 .bounds(this.width / 2 - buttonWidth / 2, proxyY, buttonWidth, 20)
                 .build());
         this.universalButton = SettingsButtonWidget.builder(universalToggleLabel(), btn -> onUniversalToggled())
@@ -290,7 +291,7 @@ public class AccountSwitcherScreen extends Screen {
     }
 
     private void onBack() {
-        Minecraft.getInstance().setScreen(this.parent);
+        McCompat.setScreen(Minecraft.getInstance(), this.parent);
     }
 
     private Component universalToggleLabel() {
@@ -334,7 +335,7 @@ public class AccountSwitcherScreen extends Screen {
             // explicit choice, explicitly clears) the active proxy to match this account's own saved
             // assignment every time, right after the swap actually completes.
             ProxyConfig.getInstance().applyAccountProfile(AccountProxyStore.get(account.uuid()));
-            Minecraft.getInstance().setScreen(this.parent);
+            McCompat.setScreen(Minecraft.getInstance(), this.parent);
         }, this.screenExecutor);
     }
 

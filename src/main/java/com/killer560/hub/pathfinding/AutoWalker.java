@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Walks the computed path. CHEAT BUILD ONLY - every caller is behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} and
@@ -171,7 +172,7 @@ public final class AutoWalker {
             stop(player == null ? "world change" : "auto walk turned off");
             return;
         }
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             stop("a screen opened");
             return;
         }

@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
+import com.killer560.hub.compat.McCompat;
 
 /** Ability/cooldown timer settings - killer560's "tick timers from Odin/noamm" and "mask invulnerability
  *  cooldown timers" requests, one generic list-of-named-timers system (see {@link AbilityTimerEntry}'s
@@ -95,7 +96,7 @@ public class AbilityTimersTab extends BaseTab implements KeyCaptureTab {
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", e.color()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Timer Color", e.color(),
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Timer Color", e.color(),
                             0xFFCC6600, argb -> {
                                 e.colorHex = String.format("%06X", argb & 0xFFFFFF);
                                 AbilityTimersConfig.getInstance().save();

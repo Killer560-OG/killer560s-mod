@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * What the Dungeon Sim button opens: pick a previous run, generate a map, or load a single room.
@@ -100,7 +101,7 @@ public class SimMenuScreen extends Screen {
         // between is gone, and its Floor / Rooms to blood / Puzzles controls and its Generate moved onto the
         // designer, so nothing it could do was lost.
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Create a New Map"), b ->
-                this.minecraft.setScreen(new SimMapEditorScreen(this)))
+                McCompat.setScreen(this.minecraft, new SimMapEditorScreen(this)))
                 .bounds(x, y + 30, w, 22).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Load a Room"), b -> {
             mode = Mode.ROOM;
@@ -111,7 +112,7 @@ public class SimMenuScreen extends Screen {
         // come up otherwise.
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("All Rooms (route practice)"), b -> {
             SimGenerator.generateAllRooms(this.minecraft);
-            this.minecraft.setScreen(null);
+            McCompat.setScreen(this.minecraft, null);
         }).bounds(x, y + 90, w, 22).build());
     }
 
@@ -216,7 +217,7 @@ public class SimMenuScreen extends Screen {
                 } else {
                     SimRunHistory.load(this.minecraft, picked);
                 }
-                this.minecraft.setScreen(null);
+                McCompat.setScreen(this.minecraft, null);
                 return true;
             }
         }
@@ -265,7 +266,7 @@ public class SimMenuScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

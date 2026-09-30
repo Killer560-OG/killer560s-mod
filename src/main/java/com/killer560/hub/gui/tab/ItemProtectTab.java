@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Item Protection settings - see {@link com.killer560.hub.itemprotect.ItemProtectFeature}'s class doc for
  *  exactly what each of the four guards blocks and where it hooks in. Everything ships OFF. */
@@ -117,7 +118,7 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
 
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Lock Color", cfg.getLockColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        client.setScreen(new ColorPickerScreen(client.screen, "Locked Slot Color",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Locked Slot Color",
                                 cfg.getLockColor(), 0xFFFF5555, argb -> {
                             cfg.setLockColor(argb);
                             cfg.save();
@@ -164,7 +165,7 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(contentX, y, half, 18).build());
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Highlight Color", cfg.getProtectedColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        client.setScreen(new ColorPickerScreen(client.screen, "Protected Item Color",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Protected Item Color",
                                 cfg.getProtectedColor(), 0xFF55FFFF, argb -> {
                             cfg.setProtectedColor(argb);
                             cfg.save();

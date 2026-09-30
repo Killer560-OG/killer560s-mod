@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Tic Tac Toe - port of QUOI {@code TicTacToeSolver.kt}'s {@code auto}: whenever the solver has a best move and
@@ -105,7 +106,7 @@ final class AutoTicTacToe {
         }
         wasInRoom = true;
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
-        if (!roomSpotAttempted && cr != null && client.screen == null) {
+        if (!roomSpotAttempted && cr != null && McCompat.screen(client) == null) {
             // Pure navigation, tried once per room visit regardless of solver/GUARD state below - same one-shot
             // pattern as Auto Water Board's "start area" walk.
             BlockPos spot = ROOM_SPOT_RELATIVE == null ? null
@@ -153,7 +154,7 @@ final class AutoTicTacToe {
         }
         LocalPlayer player = client.player;
         long now = System.currentTimeMillis();
-        if (client.screen != null || player.isShiftKeyDown()
+        if (McCompat.screen(client) != null || player.isShiftKeyDown()
                 // To the BOX, matching the limit - see the note in AutoWater.
                 || com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), best) > REACH_SQ
                 || now - lastClickMs < CLICK_GAP_MS) {
@@ -193,7 +194,7 @@ final class AutoTicTacToe {
     // ------------------------------------------------------------------ chest side trip
 
     private static void tickChest(Minecraft client, LocalPlayer player, int[] cr) {
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             return;
         }
         switch (chestStage) {

@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Armour Recolour settings - see {@link ArmourDye} for what the overrides do, which surfaces they cover and what
@@ -242,7 +243,7 @@ public class ArmourDyeTab extends BaseTab implements KeyCaptureTab {
         ArmourDyeConfig cfg = ArmourDyeConfig.getInstance();
         return SettingsButtonWidget.builder(ColorSwatch.label("Colour", entry.color), btn -> {
             Minecraft client = Minecraft.getInstance();
-            client.setScreen(new ColorPickerScreen(client.screen, entry.label + " Colour", entry.color,
+            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), entry.label + " Colour", entry.color,
                     0xFFFFFFFF, argb -> {
                 // Picking a colour also arms it - killer560 shouldn't have to hit a second toggle after choosing
                 // one. "Use Colour" is still there to park a colour without losing it.

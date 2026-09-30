@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Black + orange search screen for {@link StorageSearchFeature} - same chrome as {@code ModScreen}
  *  (dim backdrop, near-black panel, dim-amber border, black header with the bright amber underline). */
@@ -342,7 +343,7 @@ public class StorageSearchScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

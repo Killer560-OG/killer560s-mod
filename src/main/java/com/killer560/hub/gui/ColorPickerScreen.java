@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.util.function.IntConsumer;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * A real HSV color picker (hue bar + saturation/value square + alpha slider) - killer560's "click on
@@ -211,7 +212,7 @@ public class ColorPickerScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

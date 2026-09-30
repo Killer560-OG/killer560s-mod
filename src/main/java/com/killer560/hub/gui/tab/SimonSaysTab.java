@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Simon Says solver + automation settings - see {@link com.killer560.hub.simonsays.SimonSaysFeature}'s
  *  class doc for the real device layout/detection logic this is built on (ported from Odin/QUOI/
@@ -105,7 +106,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         // points at the current tab's own screen instance.
         widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("1st Color", cfg.getFirstColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "First Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "First Color",
                             cfg.getFirstColor(), SimonSaysConfig.DEFAULT_FIRST_COLOR, argb -> {
                         cfg.setFirstColor(argb);
                         cfg.save();
@@ -114,7 +115,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
 
         widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("2nd Color", cfg.getSecondColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Second Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Second Color",
                             cfg.getSecondColor(), SimonSaysConfig.DEFAULT_SECOND_COLOR, argb -> {
                         cfg.setSecondColor(argb);
                         cfg.save();
@@ -123,7 +124,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
 
         widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("3rd Color", cfg.getThirdColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Third Color+",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Third Color+",
                             cfg.getThirdColor(), SimonSaysConfig.DEFAULT_THIRD_COLOR, argb -> {
                         cfg.setThirdColor(argb);
                         cfg.save();

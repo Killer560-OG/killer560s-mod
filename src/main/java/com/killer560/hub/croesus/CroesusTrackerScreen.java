@@ -13,6 +13,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * The dungeon profit tracker, opened with {@code /croesus}.
@@ -395,7 +396,7 @@ public class CroesusTrackerScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

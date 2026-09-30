@@ -8,6 +8,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import com.killer560.hub.compat.McCompat;
 
 /** Real bug found and fixed (2026-09-27) - see {@link InventoryThemeFeature}'s class doc for the full
  *  javap-verified chain: {@code RecipeBookComponent#init} sets its {@code visible} field from whatever
@@ -26,7 +27,7 @@ public abstract class InventoryThemeRecipeBookVisibilityMixin {
 
     @Inject(method = "isVisible", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$forceHidden(CallbackInfoReturnable<Boolean> cir) {
-        Screen screen = Minecraft.getInstance().screen;
+        Screen screen = McCompat.screen(Minecraft.getInstance());
         if (InventoryThemeFeature.shouldTheme(screen)) {
             cir.setReturnValue(false);
         }

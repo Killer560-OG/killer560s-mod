@@ -15,6 +15,7 @@ import com.killer560.hub.util.ModLog;
 
 import java.util.HashSet;
 import java.util.Set;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Terminal Triggerbot - the same shape as {@code SecretTriggerbotFeature}, for P3 terminals (killer560,
@@ -72,7 +73,7 @@ public final class TerminalTriggerbotFeature {
         if (player == null || client.level == null || client.gameMode == null) {
             return;
         }
-        if (client.screen != null || player.isDeadOrDying()
+        if (McCompat.screen(client) != null || player.isDeadOrDying()
                 || !Floor7Tracker.inF7Boss() || !Floor7Tracker.inPhase(Floor7Tracker.Phase.P3)) {
             // A screen being open is the normal case right after a successful click - drop the pending
             // trigger rather than firing it at whatever is behind the terminal you just opened.

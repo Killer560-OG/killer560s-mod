@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Pet Wheel settings (killer560's item 8.2) - OFF by default, New tab until confirmed live. Not cheat-gated
@@ -156,7 +157,7 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
         y += 24;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Pets"), btn ->
-                        Minecraft.getInstance().setScreen(PetWheelScreen.forEdit(Minecraft.getInstance().screen)))
+                        McCompat.setScreen(Minecraft.getInstance(), PetWheelScreen.forEdit(McCompat.screen(Minecraft.getInstance()))))
                 .bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 

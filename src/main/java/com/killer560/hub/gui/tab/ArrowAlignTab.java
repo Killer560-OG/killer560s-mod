@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /** Arrow Align (F7/M7 P3 third device) settings - see {@link com.killer560.hub.arrowalign.ArrowAlignFeature}. Laid out
  *  like {@link SimonSaysTab}: legit rows first, Trigger Bot/Aura only on the cheat build behind the red divider. */
@@ -69,7 +70,7 @@ public class ArrowAlignTab extends BaseTab {
                 widgets.add(SettingsButtonWidget.builder(
                         ColorSwatch.label("Highlight Color", cfg.getHighlightColor()), btn -> {
                             Minecraft client = Minecraft.getInstance();
-                            client.setScreen(new ColorPickerScreen(client.screen, "Highlight Color",
+                            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Highlight Color",
                                     cfg.getHighlightColor(), ArrowAlignConfig.DEFAULT_HIGHLIGHT_COLOR, argb -> {
                                 cfg.setHighlightColor(argb);
                                 cfg.save();

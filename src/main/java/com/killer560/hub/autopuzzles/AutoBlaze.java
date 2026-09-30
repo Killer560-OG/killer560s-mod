@@ -18,6 +18,7 @@ import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Blaze - port of QUOI {@code BlazeSolver.kt}'s {@code auto} (TickEvent.End) logic on top of this mod's
@@ -137,7 +138,7 @@ final class AutoBlaze {
             return;
         }
         lastBlazeCount = blazes.size();
-        if (!GUARD.fresh() || client.screen != null) {
+        if (!GUARD.fresh() || McCompat.screen(client) != null) {
             return;
         }
         if (REPOSITION.isActive()) {
@@ -353,7 +354,7 @@ final class AutoBlaze {
     // ------------------------------------------------------------------ Auto Secret (killer560, 2026-09-27)
 
     private static void tickSecret(Minecraft client, LocalPlayer player) {
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             return;
         }
         switch (secretStage) {

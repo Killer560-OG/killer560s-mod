@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * The radial menu itself - opened by {@link PetWheelFeature} on the wheel keybind for picking a pet to summon,
@@ -369,7 +370,7 @@ public class PetWheelScreen extends Screen {
             PetWheelFeature.summon(chosen);
         }
         if (minecraft != null) {
-            minecraft.setScreen(null);
+            McCompat.setScreen(minecraft, null);
         }
     }
 
@@ -479,7 +480,7 @@ public class PetWheelScreen extends Screen {
     @Override
     public void onClose() {
         if (editMode && minecraft != null) {
-            minecraft.setScreen(editParent);
+            McCompat.setScreen(minecraft, editParent);
             return;
         }
         super.onClose();

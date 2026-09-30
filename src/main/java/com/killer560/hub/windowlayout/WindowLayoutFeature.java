@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Moves + resizes this Minecraft window into one cell of an N-window grid on a chosen monitor, so several
@@ -99,7 +100,7 @@ public final class WindowLayoutFeature {
 
     public static void openPicker() {
         Minecraft client = Minecraft.getInstance();
-        client.setScreen(new WindowLayoutScreen(client.screen));
+        McCompat.setScreen(client, new WindowLayoutScreen(McCompat.screen(client)));
     }
 
     private static void tick(Minecraft client) {

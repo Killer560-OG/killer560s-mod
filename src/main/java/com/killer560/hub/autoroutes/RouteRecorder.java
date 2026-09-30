@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * {@code /ar start record} / {@code /ar stop record} - killer560: "I etherwarp to a block and type /ar start record
@@ -201,7 +202,7 @@ public final class RouteRecorder {
         // ---- clicks (only with no screen open, so GUI clicks don't count) ----
         boolean useDown = client.options.keyUse.isDown();
         boolean attackDown = client.options.keyAttack.isDown();
-        if (client.screen == null && !AutoRoutesFeature.isEditMode()) {
+        if (McCompat.screen(client) == null && !AutoRoutesFeature.isEditMode()) {
             if (useDown && !useWasDown) {
                 onRightClick(player, sampleIndex);
             }

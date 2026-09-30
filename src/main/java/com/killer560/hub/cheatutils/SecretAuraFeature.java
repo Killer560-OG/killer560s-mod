@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Secret Aura - interacts (no rotation) with secret chests, levers and Wither Essence skulls in reach, ported
@@ -99,7 +100,7 @@ public final class SecretAuraFeature {
         if (client.level != null && (!done.isEmpty() || !attempts.isEmpty() || !leverInitialState.isEmpty())) {
             // Runs even while a screen is open: a chest's GUI opening right after our click means it worked
             // (its lid open-ness can already be back to 0 by the time the GUI is closed again).
-            if (client.screen != null && lastClickKey != null && now - lastClickMs < 2000) {
+            if (McCompat.screen(client) != null && lastClickKey != null && now - lastClickMs < 2000) {
                 markDone(lastClickKey, "screen opened after click");
                 lastClickKey = null;
             }

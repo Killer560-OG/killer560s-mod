@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Terminal Solver settings: master toggle, a scale slider for the highlight overlay, and a per-type
  *  toggle for each of the 5 covered terminals - per killer560's explicit request (2026-09-08) for
@@ -402,7 +403,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
         return SettingsButtonWidget.builder(ColorSwatch.label(key.label(), cfg.getOverlayColor(key)), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, key.label(),
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), key.label(),
                             cfg.getOverlayColor(key), key.defaultArgb(), argb -> {
                         cfg.setOverlayColor(key, argb);
                         cfg.save();

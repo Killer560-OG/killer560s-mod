@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Routes playback. CHEAT BUILD ONLY - only ever started by {@link AutoRoutesFeature} behind
@@ -400,7 +401,7 @@ public final class RouteExecutor {
             stop("world change");
             return;
         }
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             stop("a screen opened");
             return;
         }

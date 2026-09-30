@@ -41,6 +41,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * M7 Phase 5 Wither Dragons - port of Odin's {@code WitherDragons} module
@@ -522,7 +523,7 @@ public final class WitherDragonsFeature {
         private static List<String> lines() {
             List<String> out = new ArrayList<>();
             Minecraft client = Minecraft.getInstance();
-            if (client.screen instanceof HudEditorScreen) {
+            if (McCompat.screen(client) instanceof HudEditorScreen) {
                 out.add("§8» §5Purple: §a4500ms");
                 out.add("§cRed: §a4500ms");
                 return out;

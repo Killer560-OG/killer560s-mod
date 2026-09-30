@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 
 import static com.killer560.hub.scoreboard.ScoreboardData.firstMatches;
 import static com.killer560.hub.scoreboard.ScoreboardData.nextAfter;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Custom Scoreboard - a port of SkyHanni's Custom Scoreboard ({@code features/gui/customscoreboard/}), which SkyHanni
@@ -367,7 +368,7 @@ public final class CustomScoreboardFeature {
         Minecraft client = Minecraft.getInstance();
         lastLayout = null;
         if (!(isActive() || minimalActive()) || client.player == null || client.options.hideGui
-                || client.screen instanceof HudEditorScreen) {
+                || McCompat.screen(client) instanceof HudEditorScreen) {
             return;
         }
         List<ScoreboardLine> lines = current;
@@ -378,7 +379,7 @@ public final class CustomScoreboardFeature {
         if (cfg.isHideWhenTab() && client.options.keyPlayerList.isDown()) {
             return;
         }
-        boolean chatOpen = client.screen instanceof ChatScreen;
+        boolean chatOpen = McCompat.screen(client) instanceof ChatScreen;
         if (cfg.isHideWhenChat() && chatOpen) {
             return;
         }
@@ -804,7 +805,7 @@ public final class CustomScoreboardFeature {
             CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
             Minecraft client = Minecraft.getInstance();
             // Editor preview only - in game this element is drawn by CustomScoreboardFeature's own HUD layer.
-            if (!cfg.isEnabled() || !(client.screen instanceof HudEditorScreen)) {
+            if (!cfg.isEnabled() || !(McCompat.screen(client) instanceof HudEditorScreen)) {
                 return;
             }
             drawBoard(graphics, client.font, x, y, previewLines(), cfg, false);

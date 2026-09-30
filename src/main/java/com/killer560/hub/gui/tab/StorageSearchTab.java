@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Storage Item Search settings - see {@link com.killer560.hub.storagesearch.StorageSearchFeature}. */
 public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
@@ -86,7 +87,7 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
         }
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Search"), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new StorageSearchScreen(client.screen, ""));
+                    McCompat.setScreen(client, new StorageSearchScreen(McCompat.screen(client), ""));
                 }).bounds(colBX, y, colW, 18).build());
         y += 22;
 

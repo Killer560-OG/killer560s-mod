@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeSet;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * killer560's item 8.1: the custom Auction House browser. Black+amber chrome (same palette as
@@ -364,7 +365,7 @@ public final class AuctionHouseScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

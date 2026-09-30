@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Draw a floor room by room, then play it.
@@ -241,7 +242,7 @@ public class SimMapEditorScreen extends Screen {
         bx += bw + 6;
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b ->
-                this.minecraft.setScreen(parent)).bounds(bx, by, bw, 20).build());
+                McCompat.setScreen(this.minecraft, parent)).bounds(bx, by, bw, 20).build());
         bx += bw + 6;
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aPlay"), b -> play())
@@ -502,7 +503,7 @@ public class SimMapEditorScreen extends Screen {
         }
         int built = SimFloorGen.buildExplicit(this.minecraft, placements);
         if (built > 0) {
-            this.minecraft.setScreen(null);
+            McCompat.setScreen(this.minecraft, null);
         }
     }
 

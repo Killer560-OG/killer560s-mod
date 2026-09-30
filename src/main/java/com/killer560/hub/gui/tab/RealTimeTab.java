@@ -16,6 +16,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /** Real Time clock settings - see {@link RealTimeFeature}. */
 public class RealTimeTab extends BaseTab {
@@ -79,7 +80,7 @@ public class RealTimeTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Text Color", cfg.getTextColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Real Time Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Real Time Color",
                             cfg.getTextColor(), RealTimeConfig.DEFAULT_TEXT_COLOR, argb -> {
                         cfg.setTextColor(argb);
                         cfg.save();

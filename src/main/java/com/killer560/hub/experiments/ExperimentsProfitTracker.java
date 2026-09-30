@@ -34,6 +34,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Experimentation Table profit tracker (roadmap item, 2026-09-15): logs each finished experiment
@@ -144,7 +145,7 @@ public final class ExperimentsProfitTracker {
         try {
             long now = System.currentTimeMillis();
             maybeFinishChatWindow(now);
-            if (!(client.screen instanceof ContainerScreen screen)) {
+            if (!(McCompat.screen(client) instanceof ContainerScreen screen)) {
                 return;
             }
             String title = screen.getTitle().getString();

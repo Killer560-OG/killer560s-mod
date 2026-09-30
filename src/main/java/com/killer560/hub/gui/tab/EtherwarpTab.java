@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Etherwarp/secret-spot waypoint settings - see {@link EtherwarpFeature}'s class doc for the 2026-09-27
  *  room-relative rewrite (why these now persist across restarts, and why the list below only ever shows
@@ -106,7 +107,7 @@ public class EtherwarpTab extends BaseTab {
                                               java.util.function.IntConsumer setter) {
         return SettingsButtonWidget.builder(ColorSwatch.label(name, current), btn -> {
             Minecraft client = Minecraft.getInstance();
-            client.setScreen(new ColorPickerScreen(client.screen, name, current, defaultColor, argb -> {
+            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), name, current, defaultColor, argb -> {
                 setter.accept(argb);
                 EtherwarpWaypointsConfig.getInstance().save();
             }));

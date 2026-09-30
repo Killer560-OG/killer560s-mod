@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Sell (killer560: "add an auto sell feature you can refrence quoi for it").
@@ -109,7 +110,7 @@ public final class AutoSellFeature {
             return "your sell list is empty - /autosell add <item> first.";
         }
         Minecraft client = Minecraft.getInstance();
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             return "no container screen is open.";
         }
         String title = titleOf(screen);
@@ -152,7 +153,7 @@ public final class AutoSellFeature {
             stop("Auto Sell was turned off");
             return;
         }
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             stop("screen closed");
             return;
         }

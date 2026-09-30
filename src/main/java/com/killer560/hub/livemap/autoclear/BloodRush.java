@@ -16,6 +16,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Blood Rush (cheat): "replicate me pressing the keybind to go to wither doors until blood door opens". Repeats the
@@ -244,7 +245,7 @@ public final class BloodRush {
 
     private static boolean userInput(Minecraft client) {
         var o = client.options;
-        return client.screen == null && (o.keyUp.isDown() || o.keyDown.isDown() || o.keyLeft.isDown() || o.keyRight.isDown()
+        return McCompat.screen(client) == null && (o.keyUp.isDown() || o.keyDown.isDown() || o.keyLeft.isDown() || o.keyRight.isDown()
                 || o.keyJump.isDown() || o.keyAttack.isDown() || o.keyUse.isDown());
     }
 

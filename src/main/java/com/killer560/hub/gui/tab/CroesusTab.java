@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Chest Profit overlay, Croesus Profit Logger and (cheat build only) Auto Croesus settings - see
  *  {@link com.killer560.hub.croesus.ChestProfitFeature}, {@link CroesusProfitLog}, {@link AutoCroesusFeature}.
@@ -84,7 +85,7 @@ public class CroesusTab extends BaseTab {
                     }).bounds(contentX, y, half, 18).build());
             widgets.add(SettingsButtonWidget.builder(Component.literal("Open Profit Tracker"), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        client.setScreenAndShow(new CroesusTrackerScreen(client.screen, CroesusTrackerScreen.View.OVERVIEW));
+                        client.setScreenAndShow(new CroesusTrackerScreen(McCompat.screen(client), CroesusTrackerScreen.View.OVERVIEW));
                     }).bounds(contentX + half + GAP, y, half, 18).build());
             y += 20;
             widgets.add(label(contentX, y, contentWidth, "§7" + CroesusProfitLog.entryCount()

@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Wither Doors settings - see {@link com.killer560.hub.witherdoors.WitherDoorsFeature}'s class doc for
  *  how the closest-door search, the Wither/Blood distinction and the key-held colour switch all work. */
@@ -45,7 +46,7 @@ public class WitherDoorsTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Wither Door Color", cfg.getWitherLockedColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Wither Door Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Wither Door Color",
                             cfg.getWitherLockedColor(), WitherDoorsConfig.DEFAULT_LOCKED_COLOR, argb -> {
                         cfg.setWitherLockedColor(argb);
                         cfg.save();
@@ -53,7 +54,7 @@ public class WitherDoorsTab extends BaseTab {
                 }).bounds(col2aX, y, col2W, 18).build());
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Wither Door (Key) Color", cfg.getWitherReadyColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Wither Door (Key) Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Wither Door (Key) Color",
                             cfg.getWitherReadyColor(), WitherDoorsConfig.DEFAULT_READY_COLOR, argb -> {
                         cfg.setWitherReadyColor(argb);
                         cfg.save();
@@ -97,7 +98,7 @@ public class WitherDoorsTab extends BaseTab {
         if (cfg.isShowAllDoorsRaw()) {
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Blood Door Color", cfg.getBloodLockedColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        client.setScreen(new ColorPickerScreen(client.screen, "Blood Door Color",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Blood Door Color",
                                 cfg.getBloodLockedColor(), WitherDoorsConfig.DEFAULT_LOCKED_COLOR, argb -> {
                             cfg.setBloodLockedColor(argb);
                             cfg.save();
@@ -105,7 +106,7 @@ public class WitherDoorsTab extends BaseTab {
                     }).bounds(col2aX, y, col2W, 18).build());
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Blood Door (Key) Color", cfg.getBloodReadyColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        client.setScreen(new ColorPickerScreen(client.screen, "Blood Door (Key) Color",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Blood Door (Key) Color",
                                 cfg.getBloodReadyColor(), WitherDoorsConfig.DEFAULT_READY_COLOR, argb -> {
                             cfg.setBloodReadyColor(argb);
                             cfg.save();

@@ -24,6 +24,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Pathfinding: "show me the fastest way there" navigation on Hypixel Skyblock islands, built on SkyHanni's public
@@ -98,7 +99,7 @@ public final class PathfindingFeature {
             return;
         }
         boolean down = KeyUtil.isKeyDown(client.getWindow(), code);
-        if (down && !resumeKeyWasDown && client.screen == null) {
+        if (down && !resumeKeyWasDown && McCompat.screen(client) == null) {
             if (AutoSoulRunner.isActive()) {
                 AutoSoulRunner.stop("resume key", true);
             } else {
@@ -378,7 +379,7 @@ public final class PathfindingFeature {
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
             PathfindingConfig cfg = PathfindingConfig.getInstance();
-            boolean editor = client.screen instanceof HudEditorScreen;
+            boolean editor = McCompat.screen(client) instanceof HudEditorScreen;
             if (!cfg.isEnabled() && !editor) {
                 return;
             }

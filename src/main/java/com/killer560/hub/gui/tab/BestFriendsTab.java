@@ -10,6 +10,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Party Time Tracker settings - see {@link com.killer560.hub.social.BestFriendsTracker}. New tab, off by
  *  default per the 2026-09-21 rule for every untested feature. */
@@ -57,7 +58,7 @@ public class BestFriendsTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Best Friends (/bestfriends)"), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new BestFriendsScreen(client.screen));
+                    McCompat.setScreen(client, new BestFriendsScreen(McCompat.screen(client)));
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 

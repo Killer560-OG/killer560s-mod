@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import com.killer560.hub.compat.McCompat;
 
 /** The themed title layout removes the Realms button, but TitleScreen still renders its
  *  RealmsNotificationsScreen, whose news / invite / unseen-notification / trial icons are drawn at the
@@ -22,7 +23,7 @@ public abstract class MainMenuRealmsNotificationsMixin {
     @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$hideRealmsIcons(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         try {
-            if (MainMenuTitleLayout.isAppliedTo(Minecraft.getInstance().screen)) {
+            if (MainMenuTitleLayout.isAppliedTo(McCompat.screen(Minecraft.getInstance()))) {
                 ci.cancel();
             }
         } catch (Throwable t) {

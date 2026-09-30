@@ -51,6 +51,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Dungeon Score Calculator: live estimate of the Catacombs score, S+ secrets needed, and 270/300 alerts.
@@ -761,7 +762,7 @@ public final class ScoreCalculatorFeature {
     }
 
     private static boolean inEditor() {
-        return Minecraft.getInstance().screen instanceof HudEditorScreen;
+        return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen;
     }
 
     public static final class ScoreHudElement implements HudElement {

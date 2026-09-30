@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Chat Keybinds (originally "Command Keybinds", ported from Odin's own {@code CommandKeybinds.kt} - "various
@@ -34,7 +35,7 @@ public final class CommandKeybindsFeature {
         if (wasDown.length != binds.size()) {
             wasDown = new boolean[binds.size()];
         }
-        if (!cfg.isEnabled() || client.screen != null || client.player == null) {
+        if (!cfg.isEnabled() || McCompat.screen(client) != null || client.player == null) {
             java.util.Arrays.fill(wasDown, false);
             return;
         }

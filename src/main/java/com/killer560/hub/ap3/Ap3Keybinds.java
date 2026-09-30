@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 
 import java.util.Arrays;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Raw-polled keybinds for every {@code /ap3} command - "Every command gets an assignable keybind, all unbound by
@@ -42,7 +43,7 @@ public final class Ap3Keybinds {
 
     private static void tick(Minecraft client) {
         try {
-            if (client.screen != null || client.player == null || client.getWindow() == null) {
+            if (McCompat.screen(client) != null || client.player == null || client.getWindow() == null) {
                 // Reset the edge state so a key that was held while a screen opened doesn't fire the moment it
                 // closes - the press happened somewhere else.
                 Arrays.fill(wasDown, false);

@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Borderless fullscreen: an undecorated window resized/positioned to cover the whole monitor,
  *  as opposed to Minecraft's own real-fullscreen (a dedicated exclusive video mode). Implemented
@@ -217,7 +218,7 @@ public final class WindowModeFeature {
     private static void reapplyCursorState(Minecraft client) {
         try {
             Window window = client.getWindow();
-            boolean grabbed = client.mouseHandler.isMouseGrabbed() && client.screen == null;
+            boolean grabbed = client.mouseHandler.isMouseGrabbed() && McCompat.screen(client) == null;
             InputConstants.grabOrReleaseMouse(window,
                     grabbed ? InputConstants.CURSOR_DISABLED : InputConstants.CURSOR_NORMAL,
                     client.mouseHandler.xpos(), client.mouseHandler.ypos());

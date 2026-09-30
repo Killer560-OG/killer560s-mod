@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Black+orange restyle of the vanilla title screen (2026-09-15, killer560: "redo the main menu to fit our
@@ -53,7 +54,7 @@ public final class MainMenuTheme {
     /** {@link #active()} and the screen currently shown is the title screen - used by the mixins on
      *  shared widget classes (AbstractButton, PlainTextButton) so other screens stay vanilla. */
     public static boolean activeOnTitleScreen() {
-        return active() && Minecraft.getInstance().screen instanceof TitleScreen;
+        return active() && McCompat.screen(Minecraft.getInstance()) instanceof TitleScreen;
     }
 
     /** Widget theming scope (buttons, text fields, sliders, checkboxes, lists...): the title screen, plus -
@@ -63,7 +64,7 @@ public final class MainMenuTheme {
         if (!active()) {
             return false;
         }
-        Screen screen = Minecraft.getInstance().screen;
+        Screen screen = McCompat.screen(Minecraft.getInstance());
         if (screen == null) {
             return false;
         }

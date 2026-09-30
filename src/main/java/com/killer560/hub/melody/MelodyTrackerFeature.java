@@ -21,6 +21,7 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Legit, read-only Floor 7 Melody terminal progress tracker - killer560 (2026-09-21): "I really want
@@ -94,7 +95,7 @@ public final class MelodyTrackerFeature {
     // ------------------------------------------------------------------ our own read
 
     private static void tickSelf(Minecraft client) {
-        if (!SkyblockGate.allows() || !(client.screen instanceof ContainerScreen screen)) {
+        if (!SkyblockGate.allows() || !(McCompat.screen(client) instanceof ContainerScreen screen)) {
             closeIfOpen();
             return;
         }

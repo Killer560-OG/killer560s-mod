@@ -23,6 +23,7 @@ import com.killer560.hub.util.ModLog;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Fast Leap + Auto Leap - a faithful Java port of QUOI's {@code module/impl/floor7/AutoLeap.kt} (the I4 leap lives in
@@ -122,7 +123,7 @@ public final class FastLeapFeature {
         }
         I4LeapFeature.tick(client);
         // I4 "Prevent Inputs": hold movement keys up while the device runs / the leap is pending
-        if (I4LeapFeature.blocksInput() && client.screen == null) {
+        if (I4LeapFeature.blocksInput() && McCompat.screen(client) == null) {
             client.options.keyUp.setDown(false);
             client.options.keyDown.setDown(false);
             client.options.keyLeft.setDown(false);
@@ -134,7 +135,7 @@ public final class FastLeapFeature {
         } else if (i4MovementHeld) {
             i4MovementHeld = false;
             // with a screen open, closing it re-syncs the keys (MouseHandler.grabMouse -> KeyMapping.setAll)
-            if (client.screen == null) {
+            if (McCompat.screen(client) == null) {
                 net.minecraft.client.KeyMapping.setAll();
             }
         }

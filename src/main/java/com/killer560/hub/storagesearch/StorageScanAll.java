@@ -11,6 +11,7 @@ import net.minecraft.world.inventory.Slot;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * "Scan All" - killer560 (2026-09-21): "a button titled scan all that will go through and open all of my storage
@@ -73,7 +74,7 @@ public final class StorageScanAll {
         visited = 0;
         ModChat.send(StorageSearchFeature.CHAT_PREFIX, ModChat.text("Scan All started - "),
                 ModChat.dim("opening every storage page, wardrobe page and pet page. Open anything yourself to stop."));
-        client.setScreen(null);
+        McCompat.setScreen(client, null);
     }
 
     public static void stop(String why) {
@@ -95,7 +96,7 @@ public final class StorageScanAll {
             return;
         }
         if (current == null) {
-            if (client.screen != null) {
+            if (McCompat.screen(client) != null) {
                 return; // wait for the previous menu to finish closing
             }
             current = queue.remove(0);
@@ -106,14 +107,14 @@ public final class StorageScanAll {
             return;
         }
         ticks++;
-        boolean containerOpen = client.screen instanceof AbstractContainerScreen<?>;
+        boolean containerOpen = McCompat.screen(client) instanceof AbstractContainerScreen<?>;
         if (!opened) {
             if (containerOpen) {
                 opened = true;
                 ticks = 0;
             } else if (ticks > OPEN_TIMEOUT_TICKS) {
                 current = null; // this page doesn't exist - move on
-            } else if (client.screen != null) {
+            } else if (McCompat.screen(client) != null) {
                 stop("another screen opened");
             }
             return;
@@ -159,7 +160,7 @@ public final class StorageScanAll {
     }
 
     private static Slot findNextPage(Minecraft client) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             return null;
         }
         List<Slot> slots = screen.getMenu().slots;
@@ -175,7 +176,7 @@ public final class StorageScanAll {
 
     private static boolean clickNextPage(Minecraft client) {
         Slot next = findNextPage(client);
-        if (next == null || !(client.screen instanceof AbstractContainerScreen<?> screen) || client.gameMode == null) {
+        if (next == null || !(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen) || client.gameMode == null) {
             return false;
         }
         client.gameMode.handleContainerInput(screen.getMenu().containerId, next.index, 0, ContainerInput.PICKUP, client.player);

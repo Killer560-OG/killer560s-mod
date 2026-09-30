@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Interactive Map - port of QUOI's {@code InteractiveMap} module (plus NoammAddons/Odin map UX): keybinds, the HUD peek,
@@ -74,7 +75,7 @@ public final class InteractiveMapFeature {
         boolean inClear = DungeonState.isInDungeon() && !LiveMapFeature.isInBoss();
 
         // HUD peek: held key enlarges the HUD map.
-        peeking = hasWindow && cfg.isEnabled() && cfg.getPeekKeyCode() >= 0 && client.screen == null
+        peeking = hasWindow && cfg.isEnabled() && cfg.getPeekKeyCode() >= 0 && McCompat.screen(client) == null
                 && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getPeekKeyCode());
 
         // QUOI open key: press opens (only from no screen); Release closes on release, Repress closes on the next press.
@@ -82,21 +83,21 @@ public final class InteractiveMapFeature {
         // keyboard key or a mouse button, whichever this code encodes (see KeyUtil).
         boolean openDown = hasWindow && cfg.getOpenKeyCode() != com.killer560.hub.util.KeyUtil.NONE
                 && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), cfg.getOpenKeyCode());
-        boolean mapOpen = client.screen instanceof InteractiveMapScreen;
+        boolean mapOpen = McCompat.screen(client) instanceof InteractiveMapScreen;
         if (cfg.isInteractiveMapEnabled() && inClear && !isDead(client)) {
             if (openDown && !openWasDown) {
                 if (mapOpen && cfg.isCloseOnRepress()) {
-                    client.setScreen(null);
-                } else if (client.screen == null) {
-                    client.setScreen(new InteractiveMapScreen(true));
+                    McCompat.setScreen(client, null);
+                } else if (McCompat.screen(client) == null) {
+                    McCompat.setScreen(client, new InteractiveMapScreen(true));
                 }
             } else if (!openDown && openWasDown && !cfg.isCloseOnRepress() && mapOpen
-                    && ((InteractiveMapScreen) client.screen).openedByKey()) {
-                client.setScreen(null);
+                    && ((InteractiveMapScreen) McCompat.screen(client)).openedByKey()) {
+                McCompat.setScreen(client, null);
             }
         }
         openWasDown = openDown;
-        mapOpen = client.screen instanceof InteractiveMapScreen;
+        mapOpen = McCompat.screen(client) instanceof InteractiveMapScreen;
 
         // QUOI start / locked door keys only act while the map is open. killer560: "The button prebound as
         // lmb and rmb should be customizable in settings, those are the ones currently under start key and
@@ -133,7 +134,7 @@ public final class InteractiveMapFeature {
 
         boolean bloodDown = hasWindow && cfg.getBloodRushKeyCode() != com.killer560.hub.util.KeyUtil.NONE
                 && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), cfg.getBloodRushKeyCode());
-        if (bloodDown && !bloodRushWasDown && (client.screen == null || mapOpen) && cfg.isBloodRushEnabled()) {
+        if (bloodDown && !bloodRushWasDown && (McCompat.screen(client) == null || mapOpen) && cfg.isBloodRushEnabled()) {
             BloodRush.toggle();
         }
         bloodRushWasDown = bloodDown;
@@ -360,7 +361,7 @@ public final class InteractiveMapFeature {
      *  Interactive Map is a real {@code Screen}, so it is handed the cursor position every frame and caches it -
      *  the key poll above just asks it what is under there. */
     private static int cellUnderCursor(Minecraft client) {
-        return client.screen instanceof InteractiveMapScreen map ? map.cellUnderCursor() : -1;
+        return McCompat.screen(client) instanceof InteractiveMapScreen map ? map.cellUnderCursor() : -1;
     }
 
     /**
@@ -442,7 +443,7 @@ public final class InteractiveMapFeature {
             if (mouseX >= pos[0] && mouseY >= pos[1] && mouseX < pos[0] + element.width() * scale
                     && mouseY < pos[1] + element.height() * scale) {
                 Minecraft client = Minecraft.getInstance();
-                client.execute(() -> client.setScreen(new InteractiveMapScreen(false)));
+                client.execute(() -> McCompat.setScreen(client, new InteractiveMapScreen(false)));
                 return true;
             }
         }

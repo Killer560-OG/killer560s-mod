@@ -5,6 +5,7 @@ import com.mojang.blaze3d.platform.Window;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 public final class HudElementRegistry {
 
@@ -145,7 +146,7 @@ public final class HudElementRegistry {
 
     private static boolean editorOpen() {
         Minecraft client = Minecraft.getInstance();
-        return client != null && client.screen instanceof HudEditorScreen;
+        return client != null && McCompat.screen(client) instanceof HudEditorScreen;
     }
 
     private static int[] screenSize() {

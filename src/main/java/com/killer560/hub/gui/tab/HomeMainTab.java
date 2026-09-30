@@ -15,6 +15,7 @@ import net.minecraft.util.Util;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Landing tab - deliberately kept small (2026-09-08, per killer560's explicit request): just the mod
  *  meta actions (Check for Updates, Join Discord) and the HUD position editor. Everything else that
@@ -97,7 +98,7 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Edit HUD Positions"), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new HudEditorScreen(client.screen));
+                    McCompat.setScreen(client, new HudEditorScreen(McCompat.screen(client)));
                 }).bounds(contentX, y, half, 20).build());
 
         Component keybindLabel = listening

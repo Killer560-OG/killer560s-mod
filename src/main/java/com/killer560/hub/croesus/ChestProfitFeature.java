@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Chest Profit overlay + Croesus Profit Logger claim detection (both builds).
@@ -288,7 +289,7 @@ public final class ChestProfitFeature {
             kind = Kind.NONE;
             return;
         }
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             setKind(Kind.NONE, "");
             return;
         }
@@ -377,12 +378,12 @@ public final class ChestProfitFeature {
         if (elapsed < CONFIRM_MIN_MS) {
             return;
         }
-        boolean sameScreen = client.screen instanceof AbstractContainerScreen<?> s
+        boolean sameScreen = McCompat.screen(client) instanceof AbstractContainerScreen<?> s
                 && s.getMenu().containerId == claim.containerId()
                 && ChestType.fromName(titleOf(s)) == claim.value().type();
         boolean stillClaimable = false;
         if (sameScreen) {
-            List<ItemStack> stacks = containerStacks((AbstractContainerScreen<?>) client.screen);
+            List<ItemStack> stacks = containerStacks((AbstractContainerScreen<?>) McCompat.screen(client));
             stillClaimable = stacks.size() > DungeonChestValuer.CLAIM_BUTTON_SLOT
                     && DungeonChestValuer.isClaimableButton(stacks.get(DungeonChestValuer.CLAIM_BUTTON_SLOT));
         }
@@ -431,7 +432,7 @@ public final class ChestProfitFeature {
     }
 
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
-        if (Minecraft.getInstance().screen != screen) {
+        if (McCompat.screen(Minecraft.getInstance()) != screen) {
             return;
         }
         // Drawn from the container screen's own pass, so it sits over the menu rather than under its

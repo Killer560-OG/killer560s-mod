@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Waypoint Routes - ColeWeight/SkyHanni-style ordered routes. The active route for the current Skyblock area
@@ -219,7 +220,7 @@ public final class WaypointRoutesFeature {
             int code = cfg.getKeyCode(i);
             boolean down = code >= 0 && client.getWindow() != null && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
             // Keys typed into chat/any screen still update state, so closing it never fires an action.
-            if (down && !keyWasDown[i] && client.screen == null) {
+            if (down && !keyWasDown[i] && McCompat.screen(client) == null) {
                 onKey(client, cfg, i);
             }
             keyWasDown[i] = down;

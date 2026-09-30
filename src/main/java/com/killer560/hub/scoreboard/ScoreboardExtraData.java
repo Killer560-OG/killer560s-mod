@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Game data the Custom Scoreboard needs beyond the sidebar/tab list, cached and persisted to
@@ -515,7 +516,7 @@ public final class ScoreboardExtraData {
     // ---- menus ----
 
     private static void readScreen(Minecraft client) {
-        if (!(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             return;
         }
         String title = ChatFormatting.stripFormatting(screen.getTitle().getString());

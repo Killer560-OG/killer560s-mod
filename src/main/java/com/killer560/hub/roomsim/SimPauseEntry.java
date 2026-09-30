@@ -11,6 +11,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.lang.ref.WeakReference;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * "Change Room" on the pause screen, while you are in the sim.
@@ -56,7 +57,7 @@ public final class SimPauseEntry {
                             // Straight to the picker. It opens the world it needs, so there is nothing to tear
                             // down here - and leaving the sim first would drop him to the title screen, which
                             // is the long way round this button exists to avoid.
-                            client.setScreen(new SimMenuScreen(screen));
+                            McCompat.setScreen(client, new SimMenuScreen(screen));
                         })
                 .bounds(x, y, width, 20)
                 .build();

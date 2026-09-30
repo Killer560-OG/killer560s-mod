@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** "Sharp Shooter (i4)" - everything i4 in one section, laid out like {@link SimonSaysTab} (killer560's own
  *  request, 2026-09-14): the visual Solver on every build, then Auto i4 (Mode, Weapon, Rotation Time,
@@ -41,7 +42,7 @@ public class I4SensorsTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("Aim Marker Color", cfg.getSolverColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new com.killer560.hub.gui.ColorPickerScreen(client.screen, "Aim Marker Color",
+                    McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(McCompat.screen(client), "Aim Marker Color",
                             cfg.getSolverColor(), I4SensorsConfig.DEFAULT_SOLVER_COLOR, argb -> {
                         cfg.setSolverColor(argb);
                         cfg.save();

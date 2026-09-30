@@ -20,6 +20,7 @@ import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Dungeon Map - the HUD map itself, the room/door palette both maps paint with, and (2026-09-20) everything moved
@@ -236,7 +237,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                                  LiveMapConfig cfg, int x, int y, int w) {
         return SettingsButtonWidget.builder(ColorSwatch.label(label, get.getAsInt()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, label, get.getAsInt(), def, argb -> {
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), label, get.getAsInt(), def, argb -> {
                         set.accept(argb);
                         cfg.save();
                     }));
@@ -251,7 +252,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                                        LiveMapConfig cfg, int x, int y, int w) {
         return SettingsButtonWidget.builder(ColorSwatch.label(label, get.getAsInt()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, label, get.getAsInt(), def, argb -> {
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), label, get.getAsInt(), def, argb -> {
                         set.accept(argb);
                         cfg.markCustomTheme();
                         cfg.save();

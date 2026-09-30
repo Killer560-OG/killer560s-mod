@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * "Choose Breaker Aura Config" - killer560: "breaker aura also needs an option to swap between breaker auras just
@@ -154,7 +155,7 @@ public class BreakerAuraConfigScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

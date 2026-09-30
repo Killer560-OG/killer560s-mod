@@ -13,6 +13,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Inventory HUD - draws the player's 27 main-inventory slots (not the hotbar) as an always-on HUD panel,
@@ -69,7 +70,7 @@ public final class InventoryHudFeature {
         }
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
         // Only from in-game so typing the key into chat / a sign never flips it.
-        if (down && !keyWasDown && client.screen == null) {
+        if (down && !keyWasDown && McCompat.screen(client) == null) {
             cfg.setToggledVisible(!cfg.isToggledVisible());
             cfg.save();
         }
@@ -102,17 +103,17 @@ public final class InventoryHudFeature {
     }
 
     private static boolean isVisible(Minecraft client, InventoryHudConfig cfg) {
-        if (client.screen instanceof HudEditorScreen) {
+        if (McCompat.screen(client) instanceof HudEditorScreen) {
             return false; // the editor draws its own preview via InventoryHudElement#render
         }
-        if (cfg.isHideInScreens() && client.screen != null && !(client.screen instanceof ChatScreen)) {
+        if (cfg.isHideInScreens() && McCompat.screen(client) != null && !(McCompat.screen(client) instanceof ChatScreen)) {
             return false;
         }
         return switch (cfg.getVisibility()) {
             case ALWAYS -> true;
             case TOGGLE_KEY -> cfg.isToggledVisible();
             case HOLD_KEY -> cfg.getKeyCode() >= 0 && client.getWindow() != null
-                    && !(client.screen instanceof ChatScreen)
+                    && !(McCompat.screen(client) instanceof ChatScreen)
                     && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getKeyCode());
         };
     }
@@ -355,7 +356,7 @@ public final class InventoryHudFeature {
             InventoryHudConfig cfg = InventoryHudConfig.getInstance();
             Minecraft client = Minecraft.getInstance();
             // Editor preview only - in game this element is drawn by InventoryHudFeature's own HUD layer.
-            if (!cfg.isEnabled() || !(client.screen instanceof HudEditorScreen)) {
+            if (!cfg.isEnabled() || !(McCompat.screen(client) instanceof HudEditorScreen)) {
                 return;
             }
             try {

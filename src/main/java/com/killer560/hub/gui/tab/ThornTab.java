@@ -20,6 +20,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
+import com.killer560.hub.compat.McCompat;
 
 /** Thorn (F4/M4 boss) settings - see {@link ThornFeature}. Spirit Bear counter, Thorn ESP (Through Walls is cheat build
  *  only, in its own red section) and stun-spot waypoints. */
@@ -100,7 +101,7 @@ public class ThornTab extends BaseTab {
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Stun Spot Waypoints", cfg::getStunSpotsRaw, cfg::setStunSpots));
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Stun Spot Color", cfg.getStunSpotColor()), btn ->
-                mc.setScreen(new ColorPickerScreen(mc.screen, "Stun Spot Color", cfg.getStunSpotColor(),
+                McCompat.setScreen(mc, new ColorPickerScreen(McCompat.screen(mc), "Stun Spot Color", cfg.getStunSpotColor(),
                         ThornConfig.DEFAULT_STUN_SPOT_COLOR, argb -> {
                     cfg.setStunSpotColor(argb);
                     cfg.save();
@@ -146,7 +147,7 @@ public class ThornTab extends BaseTab {
         widgets.add(toggle(x, y, width, name, getter, setter));
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label(colorName + " Color", colorGetter.getAsInt()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, colorName + " Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), colorName + " Color",
                             colorGetter.getAsInt(), defaultColor, argb -> {
                         colorSetter.accept(argb);
                         ThornConfig.getInstance().save();

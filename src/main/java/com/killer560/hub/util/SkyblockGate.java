@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * "Skyblock Only" (2026-09-15, killer560: a toggle so "none of the mods work outside of sky block or P3 Sim ... it
@@ -70,8 +71,8 @@ public final class SkyblockGate {
         Minecraft client = Minecraft.getInstance();
         // The mod's own screens (settings menu, HUD editor, pickers) show the real saved values.
         // Read once: some gated getters run off the render thread (e.g. block-shape mixins on the integrated
-        // server thread), where client.screen can go null between two reads.
-        net.minecraft.client.gui.screens.Screen screen = client == null ? null : client.screen;
+        // server thread), where McCompat.screen(client) can go null between two reads.
+        net.minecraft.client.gui.screens.Screen screen = client == null ? null : McCompat.screen(client);
         return screen != null && screen.getClass().getName().startsWith("com.killer560.hub.");
     }
 

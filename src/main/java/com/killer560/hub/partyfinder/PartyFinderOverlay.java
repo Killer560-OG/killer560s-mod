@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Party Finder Overlay - a port of Devonian's Party Finder GUI features:
@@ -93,7 +94,7 @@ public final class PartyFinderOverlay {
             return;
         }
         PartyFinderOverlayConfig cfg = PartyFinderOverlayConfig.getInstance();
-        if (!cfg.isEnabled() || !(client.screen instanceof AbstractContainerScreen<?> screen)) {
+        if (!cfg.isEnabled() || !(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             clearScan();
             return;
         }

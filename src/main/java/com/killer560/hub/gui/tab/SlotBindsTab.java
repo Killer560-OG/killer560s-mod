@@ -15,6 +15,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import com.killer560.hub.compat.McCompat;
 
 /** Slot Binds settings - see {@link com.killer560.hub.slotbinds.SlotBindsFeature}'s class doc for the
  *  real Odin-ported swap mechanic this is built on and for the 2026-09-27 two-click bind flow: set the
@@ -78,7 +79,7 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, half, 18).build());
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Border Color", cfg.getOverlayColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, "Slot Bind Border Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Slot Bind Border Color",
                             cfg.getOverlayColor(), 0xFFFFAA00, argb -> {
                         cfg.setOverlayColor(argb);
                         cfg.save();

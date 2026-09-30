@@ -18,6 +18,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Starred mob / bat / wither highlight settings - see {@link com.killer560.hub.mobesp.MobEspFeature}. Sections, in
@@ -196,7 +197,7 @@ public class MobEspTab extends BaseTab {
                 }).bounds(x, y, width, 18).build());
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", colorGetter.getAsInt()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    client.setScreen(new ColorPickerScreen(client.screen, colorName + " Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), colorName + " Color",
                             colorGetter.getAsInt(), defaultColor, argb -> {
                         colorSetter.accept(argb);
                         MobEspConfig.getInstance().save();

@@ -9,6 +9,7 @@ import net.minecraft.world.entity.monster.Silverfish;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Ice Path - port of QUOI {@code IcePathSolver.kt}'s {@code auto(...)} on top of {@link IcePathSolverFeature}.
@@ -58,7 +59,7 @@ final class AutoIcePath {
         }
         Silverfish fish = IcePathSolverFeature.getSilverfish();
         LocalPlayer player = client.player;
-        if (!GUARD.fresh() || client.screen != null || path.size() < 2 || fish == null) {
+        if (!GUARD.fresh() || McCompat.screen(client) != null || path.size() < 2 || fish == null) {
             return;
         }
         if (REPOSITION.isActive()) {

@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Secret Triggerbot - ported from QUOI {@code dungeon/secrets/impl/SecretTriggerbot.kt}: when the crosshair
@@ -236,7 +237,7 @@ public final class SecretTriggerbotFeature {
     /** Runs before the screen gate: a chest GUI opening means the looked-at / just-clicked chest was looted. */
     private static void updateDone(Minecraft client, long now) {
         BlockHitResult hit = crosshairBlock(client);
-        if (client.screen instanceof ContainerScreen) {
+        if (McCompat.screen(client) instanceof ContainerScreen) {
             if (lastClickedChest != null && now - lastClickMs < CHEST_GUI_CONFIRM_MS) {
                 markDone(lastClickedChest, "chest GUI opened after click");
                 lastClickedChest = null;

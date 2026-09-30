@@ -19,6 +19,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Real bow-arrow / Ender Pearl trajectory prediction, ported from QUOI's own {@code Trajectories.kt}
@@ -50,7 +51,7 @@ public final class TrajectoriesFeature {
     private static void onWorldRender(LevelRenderContext context) {
         TrajectoriesConfig cfg = TrajectoriesConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isEnabled() || client.screen != null || client.player == null || client.level == null) {
+        if (!cfg.isEnabled() || McCompat.screen(client) != null || client.player == null || client.level == null) {
             return;
         }
         Player player = client.player;

@@ -20,6 +20,7 @@ import net.minecraft.world.entity.player.Player;
 import java.util.Locale;
 import java.util.TreeSet;
 import java.util.UUID;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * SkyBlock Profile Viewer - {@code /pv [name]} (and {@code /killer560pv [name]}), modelled on
@@ -126,7 +127,7 @@ public final class ProfileViewerFeature {
             return;
         }
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
-        if (down && !keyWasDown && client.screen == null) {
+        if (down && !keyWasDown && McCompat.screen(client) == null) {
             Target target = self();
             Entity looked = client.crosshairPickEntity;
             if (looked instanceof Player p && p != client.player && isRealPlayer(p.getUUID(), p.getGameProfile().name())) {

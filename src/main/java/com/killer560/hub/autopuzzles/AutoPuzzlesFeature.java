@@ -31,6 +31,7 @@ import com.killer560.hub.util.ModLog;
 
 import java.util.HashSet;
 import java.util.Set;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Cheat-build-only "Auto Puzzles": Auto Quiz (Trivia) and Auto Three Weirdos. Pure consumers of the existing
@@ -232,7 +233,7 @@ public final class AutoPuzzlesFeature {
             quizPendingSinceMs = now;
             quizWaitLogged = false;
         }
-        if (now - quizPendingSinceMs < cfg.getQuizDelayMs() || client.screen != null) {
+        if (now - quizPendingSinceMs < cfg.getQuizDelayMs() || McCompat.screen(client) != null) {
             return;
         }
         String blocker = null;
@@ -312,7 +313,7 @@ public final class AutoPuzzlesFeature {
         }
         long now = System.currentTimeMillis();
         boolean solved = chest != null && WeirdosSolverFeature.getWrongChestCount() >= 2;
-        if (!solved && cfg.isWeirdosTalkToNpcs() && client.screen == null && !client.player.isShiftKeyDown()) {
+        if (!solved && cfg.isWeirdosTalkToNpcs() && McCompat.screen(client) == null && !client.player.isShiftKeyDown()) {
             tryTalkToNpc(client, now);
         }
         if (!solved) {
@@ -330,7 +331,7 @@ public final class AutoPuzzlesFeature {
             weirdosPendingSinceMs = now;
             weirdosWaitLogged = false;
         }
-        if (now - weirdosPendingSinceMs < cfg.getWeirdosDelayMs() || client.screen != null) {
+        if (now - weirdosPendingSinceMs < cfg.getWeirdosDelayMs() || McCompat.screen(client) != null) {
             return;
         }
         BlockState state = client.level.getBlockState(chest);

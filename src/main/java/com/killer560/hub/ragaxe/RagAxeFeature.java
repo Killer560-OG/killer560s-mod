@@ -23,6 +23,7 @@ import com.killer560.hub.util.ModLog;
 
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Rag Axe - Ragnarock Axe cast detection, channel / buff / cooldown timers and the built-in "rag now" prompts
@@ -153,7 +154,7 @@ public final class RagAxeFeature {
     // ------------------------------------------------------------------ HUD
 
     private static boolean editorOpen() {
-        return Minecraft.getInstance().screen instanceof HudEditorScreen;
+        return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen;
     }
 
     private static void drawInGame(GuiGraphicsExtractor graphics, HudElement element) {

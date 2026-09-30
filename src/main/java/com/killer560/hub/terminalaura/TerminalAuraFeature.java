@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Terminal Aura - opens P3 terminals by itself when you walk past one, cheat build only, default OFF.
@@ -60,7 +61,7 @@ public final class TerminalAuraFeature {
         }
         // Any open screen means a terminal (or anything else) is already up - clicking another one
         // underneath it would queue a second GUI on top of the one being solved.
-        if (client.screen != null || player.isDeadOrDying()) {
+        if (McCompat.screen(client) != null || player.isDeadOrDying()) {
             return;
         }
         if (!Floor7Tracker.inF7Boss() || !Floor7Tracker.inPhase(Floor7Tracker.Phase.P3)) {

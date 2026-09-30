@@ -11,6 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Water Board - port of QUOI {@code WaterBoardSolver.kt}'s {@code auto} on top of {@link WaterSolverFeature}'s
@@ -76,7 +77,7 @@ final class AutoWater {
         }
         wasInRoom = true;
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
-        if (!startAreaAttempted && cr != null && client.screen == null) {
+        if (!startAreaAttempted && cr != null && McCompat.screen(client) == null) {
             // Pure navigation, no solver data involved - tried once per room visit regardless of the solver/GUARD
             // state below, same as walking OUT of Boulder/Teleport Maze doesn't wait on their solvers either.
             BlockPos start = START_SPOT_RELATIVE == null ? null
@@ -98,7 +99,7 @@ final class AutoWater {
             return;
         }
         LocalPlayer player = client.player;
-        if (cr == null || player.getY() != 59.0 || client.screen != null || atChest) {
+        if (cr == null || player.getY() != 59.0 || McCompat.screen(client) != null || atChest) {
             return;
         }
         if (REPOSITION.isActive()) {

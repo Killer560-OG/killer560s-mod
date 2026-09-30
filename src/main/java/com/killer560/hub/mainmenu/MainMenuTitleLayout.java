@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import java.util.Comparator;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Themed title screen button layout (2026-09-15, killer560): no Realms button, no language / accessibility
@@ -237,7 +238,7 @@ public final class MainMenuTitleLayout {
             if (afterMultiplayer >= 0) {
                 if (sim == null) {
                     sim = SettingsButtonWidget.builder(Component.literal("Dungeon Sim"), btn ->
-                            Minecraft.getInstance().setScreen(
+                            McCompat.setScreen(Minecraft.getInstance(), 
                                     new com.killer560.hub.roomsim.SimMenuScreen(screen)))
                             .bounds(cx - COLUMN_WIDTH / 2, oldRowY, COLUMN_WIDTH, ROW_HEIGHT)
                             .build();

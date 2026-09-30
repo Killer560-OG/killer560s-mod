@@ -21,6 +21,7 @@ import net.minecraft.world.item.component.CustomData;
 
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Performs a Spirit Leap - port of QUOI {@code utils/skyblock/player/LeapManager.kt} (+ the parts of its
@@ -255,7 +256,7 @@ public final class LeapManager {
             return false;
         }
         // nothing else on screen: replacing e.g. chat/pause would close it, so let vanilla show the menu there
-        if (client.screen != null || !(screen instanceof AbstractContainerScreen<?> container)) {
+        if (McCompat.screen(client) != null || !(screen instanceof AbstractContainerScreen<?> container)) {
             return false;
         }
         LocalPlayer player = client.player;
@@ -313,7 +314,7 @@ public final class LeapManager {
             startLeap(client, req);
         }
         // QUOI TickEvent.Server: run a queued leap once no screen/container/task is open
-        if (pending != null && active == null && client.screen == null && player.containerMenu == player.inventoryMenu) {
+        if (pending != null && active == null && McCompat.screen(client) == null && player.containerMenu == player.inventoryMenu) {
             Request req = pending;
             pending = null;
             if (System.currentTimeMillis() - req.createdAtMs <= QUEUE_EXPIRY_MS) {
@@ -346,10 +347,10 @@ public final class LeapManager {
     private static void startLeap(Minecraft client, Request req) {
         // QUOI: an already-open menu only counts if its title is exactly "Spirit Leap" (a substring match would also
         // take e.g. a Bazaar/AH page for the item and close it on timeout)
-        boolean menuOpen = isExactLeapMenu(client.screen);
+        boolean menuOpen = isExactLeapMenu(McCompat.screen(client));
         if (active == null && pending == null && menuOpen) {
             doLeap(client, req, true);
-        } else if (client.screen != null || active != null) {
+        } else if (McCompat.screen(client) != null || active != null) {
             pending = req;
             ModChat.send("Fast Leap", ModChat.text("Queued leap to "), ModChat.value(req.target.display()));
         } else {
@@ -412,11 +413,11 @@ public final class LeapManager {
             if (!a.preOpened && !a.usedItem) {
                 return;
             }
-            AbstractContainerScreen<?> screen = leapMenuScreen(client.screen);
+            AbstractContainerScreen<?> screen = leapMenuScreen(McCompat.screen(client));
             if (screen != null) {
                 a.menu = screen.getMenu();
                 beginFastBlock(a);
-            } else if (client.screen instanceof AbstractContainerScreen<?> other && player.containerMenu != player.inventoryMenu) {
+            } else if (McCompat.screen(client) instanceof AbstractContainerScreen<?> other && player.containerMenu != player.inventoryMenu) {
                 finish(a, Result.FAILURE, "Wrong container name. Got " + other.getTitle().getString() + ", needed Spirit Leap");
                 return;
             } else {
@@ -640,7 +641,7 @@ public final class LeapManager {
     /** Re-read held keys - only in the world: with a screen open that would press movement keys inside the GUI, and
      *  closing the screen re-syncs them anyway ({@code MouseHandler.grabMouse} calls {@code KeyMapping.setAll()}). */
     private static void resyncKeys() {
-        if (Minecraft.getInstance().screen == null) {
+        if (McCompat.screen(Minecraft.getInstance()) == null) {
             KeyMapping.setAll();
         }
     }

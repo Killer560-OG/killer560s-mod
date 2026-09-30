@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * The whole {@code /ap3} command tree, plus the one place every action's real body lives.
@@ -384,7 +385,7 @@ public final class Ap3Commands {
                                                                 + "."));
                                                 return 0;
                                             }
-                                            client.execute(() -> client.setScreen(
+                                            client.execute(() -> McCompat.setScreen(client, 
                                                     new Ap3EditScreen(null, index)));
                                             return 1;
                                         })))

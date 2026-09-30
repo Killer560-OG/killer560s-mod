@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * "YT Shorts" - YouTube Shorts in a companion browser window glued over Minecraft (no embedded browser: MCEF
@@ -1562,7 +1563,7 @@ public final class ShortsFeature {
         int[] keys = {cfg.getToggleKey(), cfg.getNextKey(), cfg.getPreviousKey(), cfg.getPlayPauseKey(), cfg.getMuteKey()};
         for (int i = 0; i < keys.length; i++) {
             boolean down = keys[i] >= 0 && client.getWindow() != null && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), keys[i]);
-            if (down && !keyWasDown[i] && client.screen == null) {
+            if (down && !keyWasDown[i] && McCompat.screen(client) == null) {
                 switch (i) {
                     case 0 -> toggleShown();
                     case 1 -> next();

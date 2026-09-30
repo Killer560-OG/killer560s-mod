@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * The /pv screen. Layout follows NEU's old GuiProfileViewer (fixed panel, page tabs along the top, profile
@@ -258,7 +259,7 @@ public class ProfileViewerScreen extends Screen {
     }
 
     private void rebuildSafe() {
-        if (this.minecraft != null && this.minecraft.screen == this) {
+        if (this.minecraft != null && McCompat.screen(this.minecraft) == this) {
             this.rebuildWidgets();
         }
     }
@@ -438,7 +439,7 @@ public class ProfileViewerScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

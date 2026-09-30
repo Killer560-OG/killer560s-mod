@@ -16,6 +16,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Crystal Hollows Map + Interactive Map settings (killer560, verbatim: "interactive map for ch auto crystal
@@ -53,7 +54,7 @@ public class CrystalHollowsMapTab extends BaseTab {
         }
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Map"),
-                        btn -> Minecraft.getInstance().setScreen(new CrystalHollowsMapScreen()))
+                        btn -> McCompat.setScreen(Minecraft.getInstance(), new CrystalHollowsMapScreen()))
                 .bounds(contentX, y, colW, 18).build());
         widgets.add(new ThemedSliderButton(colBX, y, colW, 18, scaleText(cfg),
                 (cfg.getMapScale() - CrystalHollowsMapConfig.MIN_SCALE)

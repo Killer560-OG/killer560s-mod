@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import com.killer560.hub.compat.McCompat;
 
 /** Tick Timers settings - see {@link com.killer560.hub.ticktimers.TickTimersFeature}'s class doc for
  *  the real Odin-ported chat triggers/tick counts this is built on.
@@ -192,7 +193,7 @@ public class TickTimersTab extends BaseTab {
                                                 java.util.function.IntConsumer setter) {
         return SettingsButtonWidget.builder(ColorSwatch.label(name, current), btn -> {
             Minecraft client = Minecraft.getInstance();
-            client.setScreen(new ColorPickerScreen(client.screen, name, current, defaultColor, argb -> {
+            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), name, current, defaultColor, argb -> {
                 setter.accept(argb);
                 TickTimersConfig.getInstance().save();
             }));

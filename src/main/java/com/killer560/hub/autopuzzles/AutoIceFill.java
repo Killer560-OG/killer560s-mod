@@ -13,6 +13,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Ice Fill - port of QUOI {@code IceFillSolver.kt}'s {@code auto}. QUOI automates it with Aspect of the
@@ -62,7 +63,7 @@ final class AutoIceFill {
         }
         wasInRoom = true;
         if (!GUARD.solverOn(IceFillSolverConfig.getInstance().isEnabled()) || raw.isEmpty() || !GUARD.fresh()
-                || client.screen != null || done) {
+                || McCompat.screen(client) != null || done) {
             return;
         }
         if (IceFillSolverConfig.getInstance().isOptimizedPath()) {

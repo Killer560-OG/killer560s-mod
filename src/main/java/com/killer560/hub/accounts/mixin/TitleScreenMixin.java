@@ -13,6 +13,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import com.killer560.hub.compat.McCompat;
 
 @Mixin(TitleScreen.class)
 public abstract class TitleScreenMixin extends Screen {
@@ -38,7 +39,7 @@ public abstract class TitleScreenMixin extends Screen {
         if (themed) {
             try {
                 this.addRenderableWidget(MainMenuTitleLayout.createSwapAccountsButton(
-                        btn -> Minecraft.getInstance().setScreen(new AccountSwitcherScreen(self))));
+                        btn -> McCompat.setScreen(Minecraft.getInstance(), new AccountSwitcherScreen(self))));
                 return;
             } catch (Throwable t) {
                 MainMenuTheme.fail("swap accounts button", t);
@@ -55,7 +56,7 @@ public abstract class TitleScreenMixin extends Screen {
         // memory: a manually-drawn line went invisible from a color missing its alpha byte). Default
         // button label rendering is proven to work.
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Swap Accounts - Playing as " + currentName),
-                        btn -> Minecraft.getInstance().setScreen(new AccountSwitcherScreen(self)))
+                        btn -> McCompat.setScreen(Minecraft.getInstance(), new AccountSwitcherScreen(self)))
                 .bounds(4, 4, 260, 20)
                 .build());
     }

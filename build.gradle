@@ -94,8 +94,36 @@ public final class BuildVariant {
 compileJava.dependsOn "generateBuildVariant"
 sourceSets.main.java.srcDir buildVariantDir
 
+// ---------------------------------------------------------------- per-Minecraft-version compatibility layer
+//
+// killer560 (2026-09-30): "At some point far in the future hypixel will drop support for 26.1.2 so we will
+// have to start working on higher versions ... you can create whatever structure you need."
+//
+// 26.2 is a refactor rather than a version bump - measured on the 26.2-port branch: 706 compile errors across
+// 229 files from 84 distinct symbols, with Minecraft.screen and setScreen gone outright (396 of them), every
+// EntityType constant moved to EntityTypes, the 16 coloured block variants collapsed into
+// ColorCollection<Block>, and MultiBufferSource deleted from the render pipeline.
+//
+// Rather than fork the source, everything version-specific lives behind a small facade whose implementation
+// comes from ONE directory chosen by minecraft_version. src/main stays version-neutral and is edited once;
+// porting to a new Minecraft means writing a new src/mcXX_Y, not sweeping 229 files again. No interface and no
+// indirection at runtime - each version's copy is a plain class with the same public statics, exactly how the
+// generated BuildVariant above is consumed.
+def mcBranch = "mc" + project.minecraft_version.tokenize('.')[0..1].join('_')
+def compatDir = file("src/${mcBranch}/java")
+if (!compatDir.directory) {
+	throw new GradleException("No compatibility layer for Minecraft ${project.minecraft_version}: expected "
+			+ "${compatDir}. Porting to a new Minecraft version starts by creating that directory - copy the "
+			+ "nearest existing src/mc*/java and fix what moved.")
+}
+sourceSets.main.java.srcDir compatDir
+
 jar {
-	archiveClassifier = cheatBuild ? "cheat" : "legit"
+	// The Minecraft version is in the name of all four jars on purpose. With a legit and a cheat jar for each
+	// of two Minecraft versions, two files both called "-legit.jar" is how somebody installs the wrong one -
+	// and .github/workflows/dev-build.yml collects them with a `*-legit.jar` glob, which would silently pick
+	// whichever landed last.
+	archiveClassifier = "${project.minecraft_version}-" + (cheatBuild ? "cheat" : "legit")
 }
 
 tasks.withType(JavaCompile).configureEach {

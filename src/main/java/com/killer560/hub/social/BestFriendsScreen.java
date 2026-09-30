@@ -13,6 +13,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * {@code /bestfriends} - Party Time Tracker menu (killer560's 8.6). Same black + amber chrome as every other
@@ -313,7 +314,7 @@ public class BestFriendsScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

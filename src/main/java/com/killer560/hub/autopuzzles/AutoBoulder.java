@@ -13,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Boulder - REDONE ENTIRELY (killer560, 2026-09-27): "redo auto boulder in its entirety. It should instead be
@@ -80,7 +81,7 @@ final class AutoBoulder {
             return;
         }
         wasInRoom = true;
-        if (client.screen != null || stage == Stage.DONE) {
+        if (McCompat.screen(client) != null || stage == Stage.DONE) {
             return;
         }
         LocalPlayer player = client.player;

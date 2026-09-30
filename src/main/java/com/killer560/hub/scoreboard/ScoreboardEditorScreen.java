@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * SkyHanni-style visual editor for the Custom Scoreboard - killer560: "Redesign the custom scoreboard so it
@@ -531,7 +532,7 @@ public class ScoreboardEditorScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

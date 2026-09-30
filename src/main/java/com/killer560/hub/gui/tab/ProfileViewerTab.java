@@ -15,6 +15,7 @@ import net.minecraft.util.FormattedCharSequence;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Profile Viewer settings - see {@link ProfileViewerFeature}. Not a toggleable feature (the /pv command
  *  is always available), so this tab is just the data source, API key, keybind and display options. */
@@ -37,7 +38,7 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
         int colBX = contentX + colW + gap;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open My Profile"), btn -> {
-                    mc.setScreen(new ProfileViewerScreen(mc.screen, ProfileViewerFeature.self()));
+                    McCompat.setScreen(mc, new ProfileViewerScreen(McCompat.screen(mc), ProfileViewerFeature.self()));
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 28;
 

@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Applies a saved {@link InventoryLayout} by clicking container slots in the player's own real vanilla Inventory
@@ -107,7 +108,7 @@ public final class InventorySorterExecutor {
         if (client.player == null) {
             return false;
         }
-        if (!(client.screen instanceof InventoryScreen)) {
+        if (!(McCompat.screen(client) instanceof InventoryScreen)) {
             client.setScreenAndShow(new InventoryScreen(client.player));
         }
         setState(State.WAIT_SCREEN);
@@ -146,7 +147,7 @@ public final class InventorySorterExecutor {
         long now = System.currentTimeMillis();
         switch (state) {
             case WAIT_SCREEN -> {
-                if (client.screen instanceof InventoryScreen) {
+                if (McCompat.screen(client) instanceof InventoryScreen) {
                     setState(State.SORTING);
                 } else if (now - stateSinceMs > WAIT_FOR_SCREEN_MS) {
                     stop("could not open your inventory");
@@ -173,7 +174,7 @@ public final class InventorySorterExecutor {
     }
 
     private static void sortTick(Minecraft client, long now) {
-        if (!(client.screen instanceof InventoryScreen screen)) {
+        if (!(McCompat.screen(client) instanceof InventoryScreen screen)) {
             stop("inventory closed");
             return;
         }

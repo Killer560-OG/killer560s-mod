@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Dungeon Blessings tracker - the run's Power/Time/Wisdom/Stone/Life levels on a movable HUD. Default OFF
@@ -101,7 +102,7 @@ public final class BlessingsFeature {
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
             BlessingsConfig cfg = BlessingsConfig.getInstance();
-            boolean editor = client.screen instanceof HudEditorScreen;
+            boolean editor = McCompat.screen(client) instanceof HudEditorScreen;
             if (!editor && !cfg.isHudEnabled()) {
                 return;
             }

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * SkyHanni-style HUD position editor: every listed {@link HudElement} is drawn at its current
@@ -225,7 +226,7 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override

@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * killer560's item 8.1, part 1+2: "Custom AH search/sell menu... /ah replacement toggle or
@@ -83,7 +84,7 @@ public final class AuctionHouseFeature {
 
     public static void openDeferred() {
         Minecraft client = Minecraft.getInstance();
-        client.execute(() -> client.setScreenAndShow(new AuctionHouseScreen(client.screen)));
+        client.execute(() -> client.setScreenAndShow(new AuctionHouseScreen(McCompat.screen(client))));
     }
 
     /**
@@ -115,7 +116,7 @@ public final class AuctionHouseFeature {
             return;
         }
         boolean down = KeyUtil.isKeyDown(client.getWindow(), code);
-        if (down && !keyWasDown && client.screen == null) {
+        if (down && !keyWasDown && McCompat.screen(client) == null) {
             openDeferred();
         }
         keyWasDown = down;

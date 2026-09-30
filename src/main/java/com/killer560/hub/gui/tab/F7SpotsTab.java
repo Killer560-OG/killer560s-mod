@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * F7 Spots settings - walk-to waypoints and Last Breath aim spots (see {@link F7SpotsFeature}). Everything
@@ -253,7 +254,7 @@ public class F7SpotsTab extends BaseTab {
                                               java.util.function.IntConsumer setter) {
         return SettingsButtonWidget.builder(ColorSwatch.label(name, current), btn -> {
             Minecraft client = Minecraft.getInstance();
-            client.setScreen(new ColorPickerScreen(client.screen, name, current, defaultColor, argb -> {
+            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), name, current, defaultColor, argb -> {
                 setter.accept(argb);
                 F7SpotsConfig.getInstance().save();
             }));

@@ -26,6 +26,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Gives the sim's own copies of Hypixel items ({@code /simitem}) and reimplements the abilities of the ones
@@ -177,7 +178,7 @@ public final class SimItems {
                     ModChat.send("Sim", ModChat.text("Sim items only work inside the sim."));
                     return 1;
                 }
-                mc.execute(() -> mc.setScreenAndShow(new SimItemsScreen(mc.screen)));
+                mc.execute(() -> mc.setScreenAndShow(new SimItemsScreen(McCompat.screen(mc))));
                 return 1;
             });
             for (GiveItem item : GiveItem.values()) {

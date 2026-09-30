@@ -14,6 +14,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.inventory.Slot;
 
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Right-click-a-slot half of the Pet Wheel's reworked edit mode (killer560, 2026-09-27): "If i right click a
@@ -62,14 +63,14 @@ final class PetWheelEditor {
         targetSlotIndex = wheelIndex;
         returnParent = editScreen.editParent();
         Minecraft client = Minecraft.getInstance();
-        client.setScreen(null);
+        McCompat.setScreen(client, null);
     }
 
     private static void tick(Minecraft client) {
         if (!armed || sentCommand) {
             return;
         }
-        if (client.screen != null) {
+        if (McCompat.screen(client) != null) {
             return;
         }
         LocalPlayer player = client.player;
@@ -124,7 +125,7 @@ final class PetWheelEditor {
         cfg.save();
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
-            if (client.screen == screen) {
+            if (McCompat.screen(client) == screen) {
                 screen.onClose();
             }
             reopenEditScreen();
@@ -138,7 +139,7 @@ final class PetWheelEditor {
         sentCommand = false;
         targetSlotIndex = -1;
         returnParent = null;
-        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(PetWheelScreen.forEdit(parent)));
+        Minecraft.getInstance().execute(() -> McCompat.setScreen(Minecraft.getInstance(), PetWheelScreen.forEdit(parent)));
     }
 
     private static void cancel(String why) {

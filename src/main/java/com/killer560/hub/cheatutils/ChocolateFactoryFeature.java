@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Chocolate Factory - ported from QUOI {@code misc/ChocolateFactory.kt} (itself OdinLegacy's
@@ -58,19 +59,19 @@ public final class ChocolateFactoryFeature {
             halted = false;
             return;
         }
-        if (client.screen == null) {
+        if (McCompat.screen(client) == null) {
             endSession("screen closed");
             if (halted) {
                 halted = false;
             }
             return;
         }
-        boolean isFactory = client.screen instanceof AbstractContainerScreen<?> s && TITLE.equals(s.getTitle().getString());
+        boolean isFactory = McCompat.screen(client) instanceof AbstractContainerScreen<?> s && TITLE.equals(s.getTitle().getString());
         if (!isFactory) {
             if (sessionActive) {
-                String title = client.screen.getTitle().getString();
+                String title = McCompat.screen(client).getTitle().getString();
                 CheatUtils.LOGGER.warn("[CheatUtils] ChocolateFactory unexpected screen '{}' ({}) - halting",
-                        title, client.screen.getClass().getSimpleName());
+                        title, McCompat.screen(client).getClass().getSimpleName());
                 ModChat.send(CheatUtils.CHAT_TAG, ModChat.text("Chocolate Factory stopped: "),
                         ModChat.bad("unexpected screen"), ModChat.dim(" '" + title + "' - close it to re-arm"));
                 endSession("unexpected screen");
@@ -81,7 +82,7 @@ public final class ChocolateFactoryFeature {
         if (halted) {
             return;
         }
-        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) client.screen;
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) McCompat.screen(client);
         AbstractContainerMenu menu = screen.getMenu();
         if (menu.slots.size() <= 45) {
             return;
