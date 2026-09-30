@@ -231,6 +231,38 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   be, with that zombie kept only as the automatic fallback when the player entity cannot be built (no player on
   the server yet, an unsendable name, or the `ServerPlayer` constructor throwing) - there is no setting either way.
 
+## Unreproduced: "this room is not part of supertall it is its on 1x1"
+
+His 2026-09-30 screenshot showed a 1x1 drawn as part of the neighbouring 2x2 Supertall. Measured rather than
+eyeballed, and it did not happen: scenario 90 plans a floor, publishes it through
+`LiveMapFeature.publishSimFloor`, captures it through `DungeonLayout.capture` and compares the two partitions
+of the even cells - which placement owns a tile against which map room owns it. Over **240 planned F7s, 160
+of them holding Supertall, 8,639 room tiles across 5,263 map rooms: zero merges and zero splits.** Scenario
+79 makes the same check on the one floor it really builds.
+
+So the map-code and grouping path is not where it went wrong, and the three mechanisms that could merge two
+rooms were each checked and are sound: `SimFloorGen.markRoomCells` fills a rectangle of reserved cells and
+never a neighbour's; a connector between two different rooms is left `NO_ROOM` so it is never `Tile.ROOM`;
+and `rebuildGroups`' union-by-name is capped at the room's own `shapeTileCount`. Supertall's capture is 65x65
+(2 tiles each way) and the database says `2x2`, so it is not a footprint mismatch either.
+
+What is still unexplained is the picture. The likeliest remaining reading is that it was the STALE map from
+the single-room bug above - the previous floor still drawn over a world holding one room - which is fixed.
+To go further, what is needed is that floor's map code (`SimState.mapCode()`), not another guess.
+
+## The Spirit Sceptre fired all along; it just could not be seen
+
+"the sim spirit scepter doesnt work" (2026-09-30), and his log has six `[Sim] Spirit Sceptre bats fired`
+lines from that session. `SimItems.tryUse` was reached and did what it said. What it did was hit whatever was
+already inside an `AABB.ofSize(centre, 6, 3, 4)` - no bats, no particles, no sound - and he was standing in a
+single-room Supertall sim with no mobs in it, so nothing happened at all.
+
+The box was also axis aligned, so "range" was the X dimension and "width" the Z one whatever the look vector
+said: facing east it reached six blocks and spread two each side, facing south it reached two and spread
+three. `SimSpiritSceptre` replaces it with five bats that leave the hand two ticks apart, fly the look vector
+with a little spread, trail soul flame, and explode in a SPHERE on the first block or mob they meet. The
+damage is still server-side and still an approximation, not Hypixel's numbers.
+
 ## A room's y band is per room, not a constant
 
 `RoomLibrary.MIN_Y`/`MAX_Y` are the band a NEW capture may use (-64..320). They are **not** the band any
@@ -320,6 +352,44 @@ head height with a useless opening below them. Every Catacombs doorway is on the
 with roofs at y99-107, so the search now runs DOWN from capture y90 to y55 and takes the highest surface in
 that band.
 
+## The doorway carve was landing five blocks above the floor
+
+`SimDoors.findFloor` searched DOWN from capture y75, and y75 is above a doorway's four-block opening rather
+than inside it. The seam above a door is usually open, often all the way to the roof, so the first surface
+the scan met coming down was the top of the door's own LINTEL - and the carve then cut a perfect 3x4x7
+opening five blocks over the walking floor while the floor itself stayed solid. Measured 2026-09-30 by
+printing the carve volume layer by layer (scenario 81 now does this for every doorway it cannot walk):
+`-1=0 0=13 1=13 2=14 3=14 4=5 5=21 6=21 7=21 8=21` - the 21s are the carve, five layers up.
+
+`DOORWAY_SEARCH_TOP` is now 72, the top block OF an opening whose floor is y69, so the scan starts inside
+the opening and walks down to its floor. It still covers floors y67..y72, which is every Catacombs doorway.
+Over three runs of scenario 81 afterwards the five-blocks-up pattern is gone; impassable doorways went from
+2, 1, 1 of 8 to 1, 1, 0 of 8, and what is left is the cluster below.
+
+## The single-room load never published its own map, and the build timer lied about it
+
+Two separate things behind "if i load only a single room make sure it wipes everything else on the map first
+and the map should only show the room that i loaded not the previous map" (2026-09-30):
+
+`SimBuilder.buildSingleRoom` wiped the world and never called `LiveMapFeature.publishSimFloor`, which only
+`build()` did - so the HUD map, the interactive map and every pathfinder that reads the layout kept the last
+FLOOR's twenty-two rooms while the world held one. It now publishes a map of just that room's cells.
+Scenario 91 builds an F7, loads one room into the same world, and requires the map to go from 22 rooms to
+exactly 1 named room, with a block of the old floor found at the edge of the grid first and gone afterwards.
+
+And `SimBuildQueue`'s "Sim build took N ms" was measuring from the PREVIOUS build. `startedAtMs` was set only
+in `submit`, and a single-room load queues its clear first, so the paste then found a non-empty queue and
+nobody started the clock. That is where "Sim build took 112851 ms for 1715451 block(s)" came from: 112.8
+seconds is exactly the gap back to the floor he had generated two minutes earlier, and his own log's
+timestamps put the actual build at about three seconds. Every queue entry point marks the start now. Do not
+read a build time from a log older than 2026-09-30.
+
+The clear was still the wrong shape, though, and is fixed too: `ClearJob` read and wrote block by block
+through `level.getBlockState`/`level.setBlock` while the paste had been moved onto `RoomPlacer.SectionWriter`
+in September. It now walks chunk sections, skips an all-air section in one `hasOnlyAir()` call - about three
+quarters of a 385-block-tall band - and writes into the section the way the paste does. Measured after:
+1.79M blocks cleared and pasted in 702 ms.
+
 ## Open: impassable doorways cluster on the rooms whose doorways cannot be MEASURED
 
 Three fixes to `SimDoors.findFloor` each cut this down and none of them ended it. Measured over four
@@ -331,6 +401,10 @@ consecutive runs of scenario 81 on 2026-09-30, with the scenario now naming both
 | 2 | 1 of 8 | **Pedestal** and Logs (blocked by stone brick AND a chest) |
 | 3 | 2 of 8 | **Supertall** and Lower Blaze; **Supertall** and Mines |
 | 4 | 1 of 8 | **Blood** and Leaves |
+
+Two of those four runs were the lintel bug above, not this. Re-measured after that fix, over three more runs
+(2026-09-30): 1, 1 and 0 of 8, still on **Blood** and **Supertall**, so the clustering stands and so does
+everything below - there is just less noise on top of it now.
 
 The clustering is the finding. **Blood** and **Supertall** are exactly the rooms the mod already knows it
 cannot measure a doorway for: `RoomDoors.of` says "Blood and Higher Blaze are the only two rooms this cannot
