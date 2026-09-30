@@ -126,7 +126,12 @@ public final class HudConfig {
     }
 
     public float getScale(String id, float defaultScale) {
-        return scales.getOrDefault(id, defaultScale);
+        // Same trap as getPosition above, fourteen lines up: getOrDefault takes an Object, so defaultScale is
+        // boxed BEFORE the call and thrown away again whenever the id has a saved scale. Float.valueOf has no
+        // value cache the way Integer.valueOf does, so that box is a real allocation every time - and this is
+        // read per element per frame by HudInGameRenderer plus a dozen feature render callbacks.
+        Float saved = scales.get(id);
+        return saved != null ? saved : defaultScale;
     }
 
     public void setScale(String id, float scale) {

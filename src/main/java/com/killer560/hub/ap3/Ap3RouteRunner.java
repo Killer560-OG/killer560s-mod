@@ -1413,11 +1413,20 @@ final class Ap3RouteRunner {
             int bz1 = Mth.floor(minZ + (h - 1) * CELL);
             for (int bx = bx0; bx <= bx1; bx++) {
                 for (int bz = bz0; bz <= bz1; bz++) {
+                    // isLoaded(pos) is "inside build height" AND "horizontally in bounds" AND "chunk loaded".
+                    // Only the first depends on y; the other two depend on bx/bz alone, so asking per column
+                    // instead of per block drops this from one test per block to one per column. With the
+                    // default 32-block scan pad that is a ~78x78 footprint over a band of 15+, so it was about
+                    // 91,000 calls where 6,084 do the same job - and this runs on the client thread, which is
+                    // most of what he feels as the route taking a moment to appear.
+                    if (!level.hasChunkAt(bx, bz)) {
+                        continue;
+                    }
                     for (int y = bandLo; y <= bandHi; y++) {
-                        pos.set(bx, y, bz);
-                        if (!level.isLoaded(pos)) {
+                        if (level.isOutsideBuildHeight(y)) {
                             continue;
                         }
+                        pos.set(bx, y, bz);
                         net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
                         if (!state.getFluidState().isEmpty()) {
                             hazards.add(bx, y, bz, bx + 1.0, y + 1.0, bz + 1.0);
@@ -1485,11 +1494,17 @@ final class Ap3RouteRunner {
             // Start above his head rather than at his feet: a node on a platform several blocks up needs its own
             // surface to be findable, and the level test below picks the one he can actually use.
             boolean fluid = false;
+            // Same hoist as readBoxes: the chunk half of isLoaded depends only on bx/bz, and this is called
+            // once per half-block cell (~24,600 of them for a default-pad snapshot), each walking the whole
+            // band. One test per column instead of one per block in the column.
+            if (!level.hasChunkAt(bx, bz)) {
+                return;
+            }
             for (int y = bandHi; y >= bandLo; y--) {
-                pos.set(bx, y, bz);
-                if (!level.isLoaded(pos)) {
+                if (level.isOutsideBuildHeight(y)) {
                     continue;
                 }
+                pos.set(bx, y, bz);
                 if (!level.getBlockState(pos).getFluidState().isEmpty()) {
                     // Lava or water: somewhere the route may not be. Keep the column blocked but go on looking, so
                     // a pool on a balcony does not blind the floor below it.

@@ -1276,7 +1276,10 @@ final class ExtraPages {
             if (row++ % 2 == 0) {
                 g.fill(rx + 2, ty - 2, rx + rw - 2, ty + rowH - 2, 0xFF161616);
             }
-            String name = CROP_NAMES.getOrDefault(crop, SbProfile.titleCase(crop));
+            // Not getOrDefault: titleCase builds a String eagerly, once per row per frame, and CROP_NAMES
+            // covers every vanilla crop so it is thrown away every time.
+            String mapped = CROP_NAMES.get(crop);
+            String name = mapped != null ? mapped : SbProfile.titleCase(crop);
             ItemStack icon = ItemIcons.forId(crop);
             g.pose().pushMatrix();
             g.pose().translate(rx + 5, ty - 2);
@@ -1450,6 +1453,25 @@ final class ExtraPages {
         }
     }
 
+    /** The map's "total" entry, or the largest entry when the profile has no "total". Walks the values only in
+     *  the second case - see the note at the call site about getOrDefault evaluating its default eagerly. */
+    private static long maxOrTotal(Map<String, Long> counts) {
+        if (counts == null || counts.isEmpty()) {
+            return 0L;
+        }
+        Long total = counts.get("total");
+        if (total != null) {
+            return total;
+        }
+        long best = 0L;
+        for (Long v : counts.values()) {
+            if (v != null && v > best) {
+                best = v;
+            }
+        }
+        return best;
+    }
+
     private void drawGeneral(GuiGraphicsExtractor g, SbProfile p, ProfileExtras.Misc m, int rx, int rw, int mx, int my) {
         int x = rx + 6;
         int w = (rw - 24) / 2;
@@ -1470,8 +1492,11 @@ final class ExtraPages {
         y = s.stat2(g, x, y, w, "First Join", date(p.firstJoin));
         y = s.stat2(g, x, y, w, "SkyBlock XP", commas(m.sbXp()));
         y = s.stat2(g, x, y, w, "Cookie Buff", m.cookieBuff() ? "Active" : "Inactive");
-        long kills = m.kills().getOrDefault("total", m.kills().values().stream().mapToLong(Long::longValue).max().orElse(0));
-        long deaths = m.deaths().getOrDefault("total", m.deaths().values().stream().mapToLong(Long::longValue).max().orElse(0));
+        // getOrDefault EVALUATES its default eagerly, so both of these built a Stream, a LongStream and an
+        // OptionalLong and unboxed the whole map - every frame this page is open, and thrown away every time,
+        // because "total" is present in practically every profile. The lookup answers first now.
+        long kills = maxOrTotal(m.kills());
+        long deaths = maxOrTotal(m.deaths());
         y = s.stat2(g, x, y, w, "Kills", commas(kills));
         y = s.stat2(g, x, y, w, "Deaths", commas(deaths));
         y = s.stat2(g, x, y, w, "K/D", deaths == 0 ? "-" : String.format(Locale.ROOT, "%.2f", (double) kills / deaths));
