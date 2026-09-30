@@ -99,6 +99,13 @@ public final class SimBuilder {
     }
 
     public static void build(Minecraft client, String code) {
+        // On a real server getSingleplayerServer() is null, and the branch below reads that as "no world yet"
+        // and opens one - so /simbuild code <x> typed on Hypixel tried to tear him out into a sim world.
+        // SimWorld.open now refuses as well; this says so before any of the work starts.
+        if (!SimState.canOpen(client)) {
+            ModChat.send("Sim", ModChat.text("The dungeon sim only runs in its own world."));
+            return;
+        }
         MapCode.Decoded decoded = MapCode.decode(code);
         if (decoded == null) {
             ModChat.send("Sim", ModChat.text("That map code is not valid."));
@@ -344,11 +351,23 @@ public final class SimBuilder {
                 // A secret chest that does not survive the build is a secret he can never find, and it has
                 // happened twice - so the build checks its own work rather than waiting for a scenario to
                 // notice. Cheap: it is one block read per secret chest, about thirty a floor.
+                // Two secrets on ONE block is a secret he can never find, and checking each position on its
+                // own cannot see it: both reads hit the same chest and both pass. The build reported "all 34
+                // in place" while the floor held 33, which is how this was found.
+                java.util.Set<net.minecraft.core.BlockPos> distinct =
+                        new java.util.HashSet<>(SimSecrets.PLACED_CHESTS);
+                int collisions = SimSecrets.PLACED_CHESTS.size() - distinct.size();
+                if (collisions > 0) {
+                    LOGGER.warn("Sim build: {} secret chest(s) share a block with another secret - that many "
+                            + "secrets are unreachable, because opening one chest can only count once",
+                            collisions);
+                }
                 if (still < SimSecrets.PLACED_CHESTS.size()) {
                     LOGGER.warn("Sim build: only {} of {} secret chest(s) survived - the rest were replaced "
                             + "by {}", still, SimSecrets.PLACED_CHESTS.size(), gone);
                 } else {
-                    LOGGER.info("Sim build: all {} secret chest(s) are in place", still);
+                    LOGGER.info("Sim build: all {} secret chest(s) are in place ({} distinct block(s))",
+                            still, distinct.size());
                 }
                 // The golden crypts that were already in the rooms, found once the floor is standing.
                 // Not every floor has one - only four rooms in the library carry one.
@@ -793,6 +812,10 @@ public final class SimBuilder {
      * room around it, and reported with its coordinates so he can find it rather than hunt.
      */
     public static void buildFlatTest(Minecraft client) {
+        if (!SimState.canOpen(client)) {
+            ModChat.send("Sim", ModChat.text("The dungeon sim only runs in its own world."));
+            return;
+        }
         // The flat room is synthetic and has no captured content to measure, so it builds where the
         // capture's own coordinates say - no shift. Reset rather than inherited, or it lands wherever
         // the last real floor happened to sit.

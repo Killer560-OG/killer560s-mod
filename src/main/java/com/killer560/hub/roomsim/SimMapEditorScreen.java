@@ -45,6 +45,14 @@ public class SimMapEditorScreen extends Screen {
     /** Cell -> the anchor occupying it, rebuilt whenever placements change. */
     private final Map<Integer, Integer> occupiedBy = new LinkedHashMap<>();
 
+    /**
+     * The rooms HE placed, as opposed to the ones a Generate drew.
+     *
+     * <p>Kept apart so Clear can take a generated floor off without throwing away his own work, and so a
+     * Generate can be asked to build around what he has pinned rather than over it.
+     */
+    private final Map<Integer, String> pinned = new LinkedHashMap<>();
+
     /** What the right-hand panel is listing. */
     private enum Panel { ROOMS, MAPS }
 
@@ -176,17 +184,33 @@ public class SimMapEditorScreen extends Screen {
         int bw = (panelW - 28 - 6 * (count - 1)) / count;
         int bx = panelX + 14;
 
+        // Clear takes the GENERATION off first, and only wipes the drawing if there is no generation to take
+        // off. killer560 (2026-09-29): "also had a button to clear the current generation". Two steps rather
+        // than two buttons: after a Generate the thing on screen is the generated floor, so that is what Clear
+        // should remove, and pressing it again clears whatever he had drawn himself.
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Clear"), b -> {
-            placements.clear();
-            planStale();
-            rebuildOccupancy();
-            status = "cleared";
+            if (generated != null) {
+                planStale();
+                placements.clear();
+                placements.putAll(pinned);
+                rebuildOccupancy();
+                status = pinned.isEmpty() ? "generation cleared"
+                        : "generation cleared - your " + pinned.size() + " room(s) kept";
+            } else {
+                placements.clear();
+                pinned.clear();
+                rebuildOccupancy();
+                status = "cleared";
+            }
         }).bounds(bx, by, bw, 20).build());
         bx += bw + 6;
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Fill"), b -> {
             planStale();
             autoFill();
+            // A filled grid is his drawing, not a generated floor - Clear should treat it that way.
+            pinned.clear();
+            pinned.putAll(placements);
         })
                 .bounds(bx, by, bw, 20).build());
         bx += bw + 6;
@@ -346,6 +370,7 @@ public class SimMapEditorScreen extends Screen {
 
     private void loadMap(String name) {
         planStale();
+        pinned.clear();
         Map<Integer, String> saved = SimMapPresets.get(name);
         if (saved == null) {
             status = "could not read \"" + name + "\"";
@@ -362,6 +387,7 @@ public class SimMapEditorScreen extends Screen {
                 continue;
             }
             placements.put(e.getKey(), e.getValue());
+            pinned.put(e.getKey(), e.getValue());
         }
         rebuildOccupancy();
         mapName = name;
@@ -373,6 +399,13 @@ public class SimMapEditorScreen extends Screen {
         refilter();
         status = dropped == 0 ? "loaded \"" + name + "\""
                 : "loaded \"" + name + "\" - " + dropped + " room(s) are no longer captured";
+    }
+
+    /** A slider value, or a fresh draw from {@code min..max} when that value is {@link SimSlider#RANDOM}. */
+    private static int roll(int value, int min, int max) {
+        return value == SimSlider.RANDOM
+                ? min + java.util.concurrent.ThreadLocalRandom.current().nextInt(max - min + 1)
+                : value;
     }
 
     /**
@@ -390,7 +423,11 @@ public class SimMapEditorScreen extends Screen {
      * Lays out a floor and puts it on the grid. Nothing is built and no world is opened.
      */
     private void preview() {
-        SimFloorGen.Planned planned = SimFloorGen.plan(floor, puzzleCount, roomsToBlood);
+        // A slider parked at the far right means "pick for me", and the pick is drawn INSIDE the slider's own
+        // range, so random can never produce a floor the slider could not have been set to by hand.
+        int puzzles = roll(puzzleCount, SimFloorGen.MIN_PUZZLES, SimFloorGen.MAX_PUZZLES);
+        int blood = roll(roomsToBlood, SimFloorGen.MIN_ROOMS_TO_BLOOD, SimFloorGen.MAX_ROOMS_TO_BLOOD);
+        SimFloorGen.Planned planned = SimFloorGen.plan(floor, puzzles, blood);
         if (planned == null) {
             status = "could not lay out that floor";   // plan() has already said why, in chat
             return;
@@ -413,7 +450,7 @@ public class SimMapEditorScreen extends Screen {
             }
         }
         rebuildOccupancy();
-        status = planned.decoded().nameTable().length + " rooms, blood "
+        status = planned.decoded().nameTable().length + " rooms, " + puzzles + " puzzle(s), blood "
                 + planned.bloodDistance() + " in - press Play to build it";
     }
 
@@ -448,6 +485,7 @@ public class SimMapEditorScreen extends Screen {
                 Integer anchor = occupiedBy.get(slot);
                 if (anchor != null) {
                     planStale();
+                    pinned.remove(anchor);
                     status = "removed " + placements.remove(anchor);
                     rebuildOccupancy();
                 }
@@ -460,12 +498,14 @@ public class SimMapEditorScreen extends Screen {
             Integer anchor = occupiedBy.get(slot);
             if (anchor != null) {
                 planStale();
+                pinned.remove(anchor);
                 placements.remove(anchor);
                 rebuildOccupancy();
             }
             if (canPlace(selected, slot)) {
                 planStale();
                 placements.put(slot, selected);
+                pinned.put(slot, selected);
                 rebuildOccupancy();
                 status = "placed " + selected;
             } else {
@@ -573,7 +613,10 @@ public class SimMapEditorScreen extends Screen {
                         room / Math.max(1, this.font.width("n"))))).trim();
             }
             if (room > 8) {
-                g.text(this.font, label, x0 + 3, y0 + (y1 - y0) / 2 - 4, 0xFFFFFFFF, false);
+                // Centred in the room's whole box, not pinned to its left edge - a 2x2's name belongs in the
+                // middle of the 2x2. killer560 (2026-09-29): "The room names need centered".
+                g.text(this.font, label, x0 + ((x1 - x0) - this.font.width(label)) / 2,
+                        y0 + (y1 - y0) / 2 - 4, 0xFFFFFFFF, false);
             }
         }
         // A nub between two different rooms that touch, so the drawing shows where doors will be cut.

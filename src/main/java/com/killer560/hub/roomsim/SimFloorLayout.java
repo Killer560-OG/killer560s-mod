@@ -90,13 +90,16 @@ public final class SimFloorLayout {
     }
 
     /**
-     * How many floors to lay out before picking one.
+     * How many floors to lay out before settling for the best of them.
      *
      * <p>A single attempt reaches the room count it was asked for about four times in five; the rest stall
-     * early because the entrance happened to land in a corner facing a wall. Laying out ten and keeping the
-     * best takes about an eighth of a second and turns "usually a full floor" into "always one".
+     * early because the entrance happened to land in a corner facing a wall. So {@link #generate} lays out
+     * several and keeps the best - but it stops the moment one of them is actually FINISHED (blood room, the
+     * floor's room count, and the whole cell target), which is most of them on the first or second try. The cap
+     * is what the stalling ones cost, and at about half a millisecond an attempt it is cheap enough to be
+     * generous: two F7s in 800 came out a room short with ten attempts.
      */
-    private static final int ATTEMPTS = 10;
+    private static final int ATTEMPTS = 30;
 
     /**
      * Rooms of which a generated floor may hold at most ONE between them.
@@ -134,13 +137,21 @@ public final class SimFloorLayout {
     /**
      * Lays out the best of {@link #ATTEMPTS} floors.
      *
-     * @param wantRooms  how many rooms the floor should have
+     * <p><b>The target is CELLS, not rooms.</b> killer560 (2026-09-29): "it still isnt generating a full map."
+     * A room is not a cell - a 1x2 covers two and a 2x2 covers four - so stopping at a room count lands the
+     * floor anywhere between that many cells and the whole grid depending on which rooms happened to be picked.
+     * Measured over 100 planned F7s before this changed: 21 rooms every time, but 25 to 35 of the 36 room slots
+     * filled, median 30. His own Map Logger scans of 40 real floors put a fully-walked floor at 34 to 36 with
+     * 12 of the 40 at exactly 36, so a median of 30 is a floor with rows missing - which is what he saw.
+     *
+     * @param minRooms   the fewest rooms the floor may have, so a floor of big rooms is still a floor
+     * @param wantCells  how many of the {@link #GRID}x{@link #GRID} room slots to fill - the real target
      * @param puzzles    how many puzzle rooms to try to include
      * @param bloodDepth how many doorways from the entrance the blood room should be
      * @return the floor, or null when there is not even an entrance room captured
      */
-    public static Floor generate(Map<String, RoomLibrary.Room> usable, int wantRooms, int puzzles,
-                                 int bloodDepth, Random rng) {
+    public static Floor generate(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
+                                 int puzzles, int bloodDepth, Random rng) {
         List<Candidate> pool = candidates(usable);
         if (pool.isEmpty()) {
             return null;
@@ -148,20 +159,39 @@ public final class SimFloorLayout {
         Floor best = null;
         int bestScore = Integer.MIN_VALUE;
         for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
-            Floor floor = growOnce(pool, wantRooms, puzzles, bloodDepth, rng);
+            Floor floor = growOnce(pool, minRooms, wantCells, puzzles, bloodDepth, rng);
             if (floor == null) {
                 continue;
             }
-            // Rooms first, then having a blood room at all, then fewest doorways left to brick up.
-            int score = floor.rooms().size() * 1000
-                    + (floor.bloodDepth() >= 0 ? 500 : 0)
+            // Having a blood room at all comes first - a floor without one is not a floor, and scenario 73
+            // requires it. Then the room minimum, because an attempt that stalled at 20 rooms over 32 cells
+            // otherwise beat one that reached 22 rooms over 31, and "fewer rooms than the floor has" is the
+            // one thing scenario 73 asserts about the size. Then cells filled, which is the point of the
+            // target; then rooms; then fewest doorways left to brick up.
+            int score = (floor.bloodDepth() >= 0 ? 1_000_000 : 0)
+                    + (floor.rooms().size() >= minRooms ? 500_000 : 0)
+                    + cellsOf(floor) * 1000
+                    + floor.rooms().size() * 5
                     - floor.openDoors().size();
             if (score > bestScore) {
                 bestScore = score;
                 best = floor;
             }
+            if (floor.bloodDepth() >= 0 && floor.rooms().size() >= minRooms
+                    && cellsOf(floor) >= wantCells) {
+                break;   // finished - nothing another attempt could improve
+            }
         }
         return best;
+    }
+
+    /** Room slots the floor actually occupies - the number {@link #generate} is aiming at. */
+    public static int cellsOf(Floor floor) {
+        int cells = 0;
+        for (Placement p : floor.rooms()) {
+            cells += p.cellsX() * p.cellsZ();
+        }
+        return cells;
     }
 
     /** Every usable room, with its doorways pre-rotated so the inner loop never measures anything. */
@@ -196,8 +226,8 @@ public final class SimFloorLayout {
         return out;
     }
 
-    private static Floor growOnce(List<Candidate> pool, int wantRooms, int puzzles, int bloodDepth,
-                                  Random rng) {
+    private static Floor growOnce(List<Candidate> pool, int minRooms, int wantCells, int puzzles,
+                                  int bloodDepth, Random rng) {
         Map<String, Candidate> byName = new HashMap<>();
         List<Candidate> normal = new ArrayList<>();
         List<Candidate> puzzleRooms = new ArrayList<>();
@@ -234,6 +264,7 @@ public final class SimFloorLayout {
             ez = swap == 0 ? 0 : GRID - em.tilesZ();
         }
         commit(entrance, entranceRotation, ex, ez, 0, occupied, placed, stubs, used);
+        int filled = em.tilesX() * em.tilesZ();
 
         int puzzlesLeft = puzzles;
         int bloodPlacedDepth = -1;
@@ -247,6 +278,12 @@ public final class SimFloorLayout {
         // is already true - the fairy is never attached to a doorway of the entrance itself, so there is
         // always a room in between - and this is the second half.
         java.util.Set<Long> fairyCells = new HashSet<>();
+        // And the other way round. The guard above only stopped BLOOD landing next to the fairy; a fairy room
+        // placed afterwards could still end up against a blood cell, which happened on about 2% of floors
+        // before and after the cell target went in (measured over 800). No door was ever cut between the two -
+        // blood's stubs are dropped the moment it is placed - so the blood-rush rule held, but the rule is
+        // meant to be about the cells, so it is checked both ways now.
+        java.util.Set<Long> bloodCells = new HashSet<>();
         List<Stub> failed = new ArrayList<>();
 
         for (int pass = 0; pass < 2; pass++) {
@@ -256,7 +293,26 @@ public final class SimFloorLayout {
                 failed.clear();
             }
             int guard = 0;
-            while (placed.size() < wantRooms && !stubs.isEmpty() && guard++ < 4000) {
+            // Three things have to be true before the floor is finished, and the cell target is the one that
+            // was missing: enough of the grid filled, at least the floor's room count, and a blood room.
+            while ((filled < wantCells || placed.size() < minRooms || bloodPlacedDepth < 0)
+                    && !stubs.isEmpty() && guard++ < 4000) {
+                int cellsLeft = wantCells - filled;
+                boolean needMore = filled < wantCells || placed.size() < minRooms;
+                // Below the cells-per-room a real floor of this size has, so the next room should be a big
+                // one. Above it, small rooms fill the last gaps without spilling over them. Without this the
+                // sort's fixed preference for small rooms meant hitting 36 cells took 26 rooms rather than the
+                // 21 his own scans measured.
+                // Biggest footprint still allowed. Filling the grid with big rooms can finish the floor with
+                // FEWER rooms than it is supposed to have - measured at 20 on a 21-room F7, and scenario 73
+                // asserts the count - so every room still owed needs a cell left for it.
+                int roomsShort = Math.max(0, minRooms - placed.size());
+                int maxArea = cellsLeft <= 0
+                        ? Integer.MAX_VALUE
+                        : Math.max(1, cellsLeft - Math.max(0, roomsShort - 1));
+                boolean preferBig = needMore && maxArea > 1
+                        && (double) filled / Math.max(1, placed.size()) < (double) wantCells / Math.max(1, minRooms)
+                        && cellsLeft >= 2;
                 int si = rng.nextInt(stubs.size());
                 Stub stub = stubs.get(si);
                 int tx = stub.cellX + RoomDoors.DX[stub.side];
@@ -274,24 +330,37 @@ public final class SimFloorLayout {
                 // room is not a floor, so once there are only a couple of rooms left to place it goes in
                 // wherever the next stub is.
                 boolean wantBlood = bloodPlacedDepth < 0 && byName.containsKey("blood")
-                        && (stub.depth + 1 >= bloodDepth || placed.size() >= wantRooms - 2)
+                        && (stub.depth + 1 >= bloodDepth || (!needMore && stub.depth >= 2)
+                            || (cellsLeft <= 2 && stub.depth >= 2))
                         && !touchesFairy(tx, tz, fairyCells);
-                boolean wantFairy = !fairyPlaced[0] && !wantBlood && stub.depth >= 1
-                        && byName.containsKey("fairy") && rng.nextDouble() < 0.25;
+                boolean wantFairy = !fairyPlaced[0] && !wantBlood && needMore && stub.depth >= 1
+                        && byName.containsKey("fairy") && !touchesFairy(tx, tz, bloodCells)
+                        && rng.nextDouble() < 0.25;
                 if (wantBlood) {
                     wanted = List.of(byName.get("blood"));
                 } else if (wantFairy) {
                     wanted = List.of(byName.get("fairy"));
+                } else if (!needMore) {
+                    // Everything but blood is done, so this stub is only worth spending on blood. Dropping it
+                    // rather than falling through to the normal pool is what stops the floor overshooting its
+                    // size while it hunts for somewhere to put the blood room.
+                    failed.add(stubs.remove(si));
+                    continue;
                 } else if (puzzlesLeft > 0 && !puzzleRooms.isEmpty() && rng.nextDouble() < 0.35) {
                     wanted = puzzleRooms;
                 } else {
                     wanted = normal;
                 }
-                Best best = choose(wanted, used, stub, tx, tz, occupied, stubs, wantRooms - placed.size(),
-                        wantBlood || wantFairy || wanted == puzzleRooms, rng);
-                if (best == null && wanted != normal) {
-                    best = choose(normal, used, stub, tx, tz, occupied, stubs,
-                            wantRooms - placed.size(), false, rng);
+                // The dead-end guard counts in CELLS now: a one-doorway room spends a doorway and gives none
+                // back, so it is only allowed once there is almost nothing left to fill.
+                int remaining = Math.max(cellsLeft, minRooms - placed.size());
+                // A given room is never held back by the size cap: there is exactly one blood and one fairy.
+                Best best = choose(wanted, used, stub, tx, tz, occupied, stubs, remaining,
+                        wantBlood || wantFairy || wanted == puzzleRooms, preferBig, cellsLeft,
+                        wantBlood || wantFairy ? Integer.MAX_VALUE : maxArea, rng);
+                if (best == null && wanted != normal && needMore) {
+                    best = choose(normal, used, stub, tx, tz, occupied, stubs, remaining, false,
+                            preferBig, cellsLeft, maxArea, rng);
                 }
                 if (best == null) {
                     failed.add(stubs.remove(si));
@@ -300,6 +369,7 @@ public final class SimFloorLayout {
 
                 int idx = commit(best.candidate, best.rotation, best.originX, best.originZ, stub.depth + 1,
                         occupied, placed, stubs, used);
+                filled += placed.get(idx).cellsX() * placed.get(idx).cellsZ();
                 links.add(new Link(stub.cellX, stub.cellZ, tx, tz));
                 stubs.remove(si);
                 consume(stubs, tx, tz, (stub.side + 2) % 4, idx);
@@ -337,11 +407,17 @@ public final class SimFloorLayout {
                 }
                 if (wantBlood) {
                     bloodPlacedDepth = stub.depth + 1;
+                    RoomDoors.Mask bm = best.candidate.byRotation()[best.rotation / 90];
+                    for (int a = 0; a < bm.tilesX(); a++) {
+                        for (int c = 0; c < bm.tilesZ(); c++) {
+                            bloodCells.add(cellKey(best.originX + a, best.originZ + c));
+                        }
+                    }
                     // Blood is the end of the run: nothing is attached beyond it.
                     stubs.removeIf(s -> s.owner == idx);
                 }
             }
-            if (placed.size() >= wantRooms) {
+            if (filled >= wantCells && placed.size() >= minRooms && bloodPlacedDepth >= 0) {
                 break;
             }
         }
@@ -387,7 +463,7 @@ public final class SimFloorLayout {
      */
     private static Best choose(List<Candidate> pool, Set<String> used, Stub stub, int tx, int tz,
                                int[] occupied, List<Stub> stubs, int remaining, boolean allowDeadEnd,
-                               Random rng) {
+                               boolean preferBig, int cellsLeft, int maxArea, Random rng) {
         int need = (stub.side + 2) % 4;
         List<Candidate> shortlist = new ArrayList<>();
         for (Candidate c : pool) {
@@ -396,6 +472,9 @@ public final class SimFloorLayout {
             }
             if (!allowDeadEnd && remaining > 2 && c.doorCount() <= 1) {
                 continue;
+            }
+            if (c.area(0) > maxArea) {
+                continue;   // no cell left over for the rooms the floor still owes
             }
             shortlist.add(c);
         }
@@ -416,9 +495,15 @@ public final class SimFloorLayout {
         // throws "Comparison method violates its general contract!" - which is what scenario 73 hit on
         // 2026-09-29 and is why the generator has to be tested against his real 135-room library rather than
         // a handful of shapes.
+        //
+        // {@code preferBig} flips the size term. The floor is aiming at a CELL count, and while it is behind
+        // the cells-per-room a real floor of this size has, a bigger room is the one that gets it there; once
+        // it is ahead, small rooms are what fit the last gaps. A fixed preference for small rooms is what left
+        // 21 rooms covering 30 of the 36 slots.
+        double areaWeight = preferBig ? -0.55 : 0.45;
         Map<String, Double> key = new HashMap<>();
         for (Candidate c : shortlist) {
-            key.put(c.name(), c.area(0) * 0.45 - c.doorCount() * 0.9 + rng.nextDouble());
+            key.put(c.name(), c.area(0) * areaWeight - c.doorCount() * 0.9 + rng.nextDouble());
         }
         shortlist.sort(Comparator.comparingDouble(c -> key.get(c.name())));
 
@@ -459,14 +544,19 @@ public final class SimFloorLayout {
                     if (!fits(occupied, originX, originZ, mask.tilesX(), mask.tilesZ())) {
                         continue;
                     }
-                    double score = score(mask, originX, originZ, tx, tz, need, occupied, stubs, rng);
+                    double score = score(mask, originX, originZ, tx, tz, need, occupied, stubs,
+                            cellsLeft, preferBig, rng);
                     if (score > bestScore) {
                         bestScore = score;
                         best = new Best(c, rotation * 90, originX, originZ);
                     }
                 }
             }
-            if (best != null && bestScore >= 2.0) {
+            // "Good enough, stop looking." The threshold has to move with the extra credit a multi-tile room
+            // gets while the floor is behind on cells, or the first 1x1 that scores 2.0 ends the search before
+            // a bigger room is ever examined - which is how a floor reached 36 cells but took 26 rooms to do it
+            // when his own scans say 21.
+            if (best != null && bestScore >= (preferBig ? 5.0 : 2.0)) {
                 break;
             }
         }
@@ -474,7 +564,8 @@ public final class SimFloorLayout {
     }
 
     private static double score(RoomDoors.Mask mask, int originX, int originZ, int tx, int tz, int need,
-                                int[] occupied, List<Stub> stubs, Random rng) {
+                                int[] occupied, List<Stub> stubs, int cellsLeft, boolean preferBig,
+                                Random rng) {
         int matched = 0;
         int growable = 0;
         int seal = 0;
@@ -496,7 +587,83 @@ public final class SimFloorLayout {
                 growable++;
             }
         }
-        return matched * 2.0 + growable - seal * 3.0 - rng.nextDouble() * 0.5;
+        int stranded = cellsLeft <= 0 ? 0 : stranded(mask, originX, originZ, occupied, stubs);
+        // Credit for the cells a multi-tile room brings, but only while the floor is behind the cells-per-room
+        // a real one of this size has. A big room has more doorways and so more chances to face a neighbour's
+        // blank wall, and the seal cost of that was enough on its own to make the layout refuse every one of
+        // them - it filled the grid with small rooms instead and needed five more rooms than a real floor.
+        double bulk = preferBig
+                ? Math.min(mask.tilesX() * mask.tilesZ(), Math.max(1, cellsLeft)) - 1
+                : 0;
+        return matched * 2.0 + growable - seal * 3.0 - stranded * 2.5 + bulk * 1.8
+                - rng.nextDouble() * 0.5;
+    }
+
+    /**
+     * Free cells this placement would leave with no way in, ever.
+     *
+     * <p>A free cell can only be filled by attaching a room to a doorway pointing at it. Once every neighbour
+     * of a free cell is a blank wall, that cell is dead: nothing can be put there for the rest of the floor and
+     * it stays a hole in the map. That is the "single orphan cell" a generator aiming at a cell count has to
+     * avoid, and it is invisible to a generator aiming at a room count because it never goes looking for the
+     * last few cells in the first place.
+     *
+     * <p>Counted, not forbidden: a placement that strands one cell is sometimes still the best one available,
+     * so this is a cost in {@link #score} rather than a rejection in {@link #choose}.
+     */
+    private static int stranded(RoomDoors.Mask mask, int originX, int originZ, int[] occupied,
+                                List<Stub> stubs) {
+        Set<Long> mine = new HashSet<>();
+        for (int a = 0; a < mask.tilesX(); a++) {
+            for (int b = 0; b < mask.tilesZ(); b++) {
+                mine.add(cellKey(originX + a, originZ + b));
+            }
+        }
+        Set<Long> doorways = new HashSet<>();
+        for (int[] door : RoomDoors.doorCells(mask, originX, originZ)) {
+            doorways.add(cellKey(door[0] + RoomDoors.DX[door[2]], door[1] + RoomDoors.DZ[door[2]]));
+        }
+        Set<Long> checked = new HashSet<>();
+        int count = 0;
+        for (long k : mine) {
+            int cx = (int) (k >> 32);
+            int cz = (int) (k & 0xffffffffL);
+            for (int s = 0; s < 4; s++) {
+                int nx = cx + RoomDoors.DX[s];
+                int nz = cz + RoomDoors.DZ[s];
+                if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
+                    continue;
+                }
+                long nk = cellKey(nx, nz);
+                if (mine.contains(nk) || occupied[nz * GRID + nx] >= 0 || !checked.add(nk)) {
+                    continue;
+                }
+                if (doorways.contains(nk)) {
+                    continue;   // this room opens onto it
+                }
+                boolean reachable = false;
+                for (int t = 0; t < 4 && !reachable; t++) {
+                    int ox = nx + RoomDoors.DX[t];
+                    int oz = nz + RoomDoors.DZ[t];
+                    if (ox < 0 || oz < 0 || ox >= GRID || oz >= GRID) {
+                        continue;
+                    }
+                    long ok = cellKey(ox, oz);
+                    if (mine.contains(ok)) {
+                        continue;   // this room's own wall, already known to be blank here
+                    }
+                    if (occupied[oz * GRID + ox] < 0) {
+                        reachable = true;   // another free cell, so the floor can still grow into it
+                    } else if (hasStub(stubs, ox, oz, (t + 2) % 4)) {
+                        reachable = true;   // a placed room has a doorway pointing at it
+                    }
+                }
+                if (!reachable) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     private static boolean fits(int[] occupied, int originX, int originZ, int w, int h) {

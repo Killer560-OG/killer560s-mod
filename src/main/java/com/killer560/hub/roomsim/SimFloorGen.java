@@ -64,23 +64,39 @@ public final class SimFloorGen {
      * <p>Two of my estimates were wrong in a way worth keeping a note of. I had F6 bigger than F5 and F7
      * bigger than both; the measurements say F5 and F7 are 21 and F6 is 19, so floor number is not room count
      * and guessing from it was never going to work.
+     *
+     * <p><b>{@code cells} is the real target, {@code rooms} only a floor under it.</b> killer560 (2026-09-29):
+     * "it still isnt generating a full map." A room is not a cell - a 1x2 covers two of the 36 room slots and a
+     * 2x2 covers four - so a generator that stops at 21 ROOMS fills anywhere from 21 to 36 cells depending on
+     * which rooms it happened to pick, and measured over 100 planned F7s it came out at a median of 30 with
+     * whole rows of the grid empty.
+     *
+     * <p>36 for F7 is MEASURED: the {@code [LiveMap] Cell ... -> ROOM} lines from 40 of his own recorded
+     * dungeon scans put a fully-walked floor at 34-36 of the 36 room slots, with 12 of the 40 at exactly 36.
+     * The smaller floors are NOT measured - they are that same 36/21 cells-per-room ratio applied to each
+     * floor's measured room count and capped at the grid, so they are an inference and the floor logger is
+     * still the thing that would correct them.
      */
     public enum Floor {
-        ENTRANCE("Entrance", 11),
-        F1("Floor 1", 13),
-        F2("Floor 2", 15),
-        F3("Floor 3", 16),
-        F4("Floor 4", 19),
-        F5("Floor 5", 21),
-        F6("Floor 6", 19),
-        F7("Floor 7", 21);
+        ENTRANCE("Entrance", 11, 19),
+        F1("Floor 1", 13, 22),
+        F2("Floor 2", 15, 26),
+        F3("Floor 3", 16, 27),
+        F4("Floor 4", 19, 33),
+        F5("Floor 5", 21, 36),
+        F6("Floor 6", 19, 33),
+        F7("Floor 7", 21, 36);
 
         public final String label;
+        /** Fewest rooms the floor may have. Other code reads this, and scenario 73 asserts it. */
         public final int rooms;
+        /** Room slots of the 6x6 grid to fill - what the generator actually aims at. */
+        public final int cells;
 
-        Floor(String label, int rooms) {
+        Floor(String label, int rooms, int cells) {
             this.label = label;
             this.rooms = rooms;
+            this.cells = cells;
         }
     }
 
@@ -159,12 +175,14 @@ public final class SimFloorGen {
         }
 
         int wantRooms = Math.min(floor.rooms, ROOM_GRID * ROOM_GRID);
+        int wantCells = Math.max(wantRooms, Math.min(floor.cells, ROOM_GRID * ROOM_GRID));
         int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(MAX_PUZZLES, puzzles));
         // Blood sits one doorway beyond the last ordinary room, which is how he counts it: "the max is 8 if
         // you do not count blood green room or fairy."
         int wantDistance = Math.max(MIN_ROOMS_TO_BLOOD, Math.min(MAX_ROOMS_TO_BLOOD, roomsToBlood)) + 1;
 
-        SimFloorLayout.Floor laid = SimFloorLayout.generate(usable, wantRooms, wantPuzzles, wantDistance, RNG);
+        SimFloorLayout.Floor laid =
+                SimFloorLayout.generate(usable, wantRooms, wantCells, wantPuzzles, wantDistance, RNG);
         if (laid == null || laid.rooms().size() < 3) {
             ModChat.send("Sim", ModChat.text("Could not lay out a floor that size - "),
                     ModChat.dim("the Entrance room has to be captured first."));
@@ -228,8 +246,10 @@ public final class SimFloorGen {
             doors++;
         }
 
-        LOGGER.info("[SimPhase] layout planned in {} ms: {} room(s), {} door(s), {} doorway(s) to brick up",
-                System.currentTimeMillis() - planStart, laid.rooms().size(), doors, laid.openDoors().size());
+        LOGGER.info("[SimPhase] layout planned in {} ms: {} room(s) over {}/{} cell(s), {} door(s), "
+                        + "{} doorway(s) to brick up",
+                System.currentTimeMillis() - planStart, laid.rooms().size(), SimFloorLayout.cellsOf(laid),
+                wantCells, doors, laid.openDoors().size());
         MapCode.Decoded decoded = new MapCode.Decoded(
                 nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation);
         return new Planned(decoded, MapCode.encodeDecoded(decoded), placedPuzzles,

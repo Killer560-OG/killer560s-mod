@@ -42,6 +42,17 @@ public final class SimState {
                 && client.getCurrentServer() == null;
     }
 
+    /**
+     * May a sim world be opened right now?
+     *
+     * <p>Deliberately NOT {@link #canAct}, which requires a singleplayer server to already exist - useless to
+     * anything whose job is to create one, and to anything running from the main menu. The only question here
+     * is whether he is attached to somebody else's server, and if he is the answer is no.
+     */
+    public static boolean canOpen(Minecraft client) {
+        return client != null && client.getCurrentServer() == null;
+    }
+
     public static void enter(String code) {
         active = true;
         mapCode = code == null ? "" : code;

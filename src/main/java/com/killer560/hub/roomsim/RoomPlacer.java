@@ -121,7 +121,19 @@ public final class RoomPlacer {
                 section = chunk.getSections()[idx];
                 sectionIndex = idx;
             }
-            section.setBlockState(x & 15, y & 15, z & 15, state, false);
+            BlockState old = section.setBlockState(x & 15, y & 15, z & 15, state, false);
+            // Take the old BLOCK ENTITY with it.
+            //
+            // Writing into the section behind Level.setBlock's back skips everything setBlock does, and one
+            // of those things is removing the block entity of whatever was there. Paving over a secret chest
+            // left a ChestBlockEntity attached to a position now holding stone, and vanilla throws
+            // "Invalid block entity minecraft:chest ... got Block{minecraft:stone}" when it next walks the
+            // chunk - the gametest log filled with them (2026-09-29). Costs nothing in the normal case:
+            // hasBlockEntity is a flag on the state, so only the handful of positions that really had one
+            // pay for the removal.
+            if (old.hasBlockEntity() && !state.is(old.getBlock())) {
+                chunk.removeBlockEntity(new net.minecraft.core.BlockPos(x, y, z));
+            }
             chunk.markUnsaved();
             return true;
         }

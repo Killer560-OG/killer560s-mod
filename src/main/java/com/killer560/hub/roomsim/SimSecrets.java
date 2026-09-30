@@ -193,6 +193,17 @@ public final class SimSecrets {
         chestsSkippedOutside = 0;
     }
 
+    /**
+     * How many placed chests share a block with another placed chest.
+     *
+     * <p>Two secrets on one block is one secret he can never find: opening the chest counts once. It is not a
+     * translation fault - the database has no duplicate coordinates - it is two rooms' secrets meeting in a
+     * shared wall, which got likelier the moment floors started filling all 36 cells.
+     */
+    public static int collidingChests() {
+        return PLACED_CHESTS.size() - new java.util.HashSet<>(PLACED_CHESTS).size();
+    }
+
     /** Every chest this floor placed, so the build can check afterwards that they are all still there. */
     public static final java.util.List<BlockPos> PLACED_CHESTS =
             new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -214,10 +225,23 @@ public final class SimSecrets {
      */
     private static final int OUTSIDE_TOLERANCE = 2;
 
-    /** Whether a secret is close enough to its own room to be worth placing. Counts the ones that are not. */
+    /**
+     * Whether a secret is close enough to its own room to be worth placing. Counts the ones that are not.
+     *
+     * <p>Y COUNTS TOO. This checked x and z only, so a secret whose database y falls outside the captured band
+     * ({@link RoomLibrary#MIN_Y}..{@link RoomLibrary#MAX_Y}) was written into the void above or below the
+     * floor. Three of Supertall's chests sit at y 142, two above the ceiling of the capture, and a build
+     * reported "only 30 of 33 secret chest(s) survived - the rest were replaced by void_air" at exactly the
+     * floor's top plus two. Sixty-four more secrets across the library sit below y 60 and were going the same
+     * way, downwards.
+     *
+     * <p>There is nothing to place them against: the geometry around those positions was never captured. A
+     * secret floating in the void is worse than a missing one, because the room's count still promises it.
+     */
     private static boolean checkInside(BlockPos at) {
         boolean inside = at.getX() >= boxMinX - OUTSIDE_TOLERANCE && at.getX() <= boxMaxX + OUTSIDE_TOLERANCE
-                && at.getZ() >= boxMinZ - OUTSIDE_TOLERANCE && at.getZ() <= boxMaxZ + OUTSIDE_TOLERANCE;
+                && at.getZ() >= boxMinZ - OUTSIDE_TOLERANCE && at.getZ() <= boxMaxZ + OUTSIDE_TOLERANCE
+                && at.getY() >= SimAltitude.minWorldY() && at.getY() <= SimAltitude.maxWorldY();
         if (!inside) {
             outsideBox++;
         }

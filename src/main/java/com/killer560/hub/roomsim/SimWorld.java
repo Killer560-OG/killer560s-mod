@@ -164,6 +164,22 @@ public final class SimWorld {
      */
     public static void open(Minecraft client, String mapCode, java.util.function.Consumer<Minecraft> build,
                             String label) {
+        // NEVER while connected to a real server. killer560 (2026-09-29): "be sure that SIM commands do not
+        // fill or work on any server besides being in the sim."
+        //
+        // This is the one chokepoint for it, on purpose. Every way into the sim ends here, so one check covers
+        // all of them - the same reasoning as the reach check that belonged at the single place an interaction
+        // is sent rather than in each of four callers. SimState.canAct cannot be used here: it requires a
+        // singleplayer server to already exist, and the whole job of this method is to create one. The
+        // question at this point is only "am I attached to someone else's server", and the answer must be no.
+        if (client.getCurrentServer() != null || client.getConnection() != null
+                && client.getSingleplayerServer() == null) {
+            com.killer560.hub.util.ModChat.send("Sim",
+                    com.killer560.hub.util.ModChat.text("The dungeon sim only runs in its own world - "),
+                    com.killer560.hub.util.ModChat.dim("leave the server first."));
+            LOGGER.warn("[SimPhase] refused to open the sim world while connected to a server");
+            return;
+        }
         // The sim world is generated, so rebuilding it costs nothing but the seconds it takes - and a world
         // made before the void change is still a superflat, which is the whole complaint. Done once, tracked
         // by a flag next to the other sim settings rather than by guessing at the world's generator.

@@ -95,7 +95,30 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   into a single smeared paste. Non-adjacent duplicates survived by luck, which is why it usually looked fine.
 - `SimFloorGen.plan(...)` lays out a floor without touching the world, so a scenario can assert over a hundred
   floors instead of one. Built because the "does it ever place a multi-tile room" assertion passed and failed
-  on alternate runs when it could only see a single floor — a test that flaps teaches you to ignore it.
+  on alternate runs when it could only see a single floor — a test that flaps teaches you to ignore it. It
+  needs no Minecraft classes below it either: `RoomDoors` reads only `Room.blocks`/`palette`/`margin`, so the
+  whole generator compiles and runs outside the game against data-loading stubs of `RoomLibrary` and
+  `SimFloorGen`. That is the way to measure a distribution over hundreds of floors without booting anything.
+- **A ROOM COUNT IS NOT A CELL COUNT, and the generator's target has to be cells.** "It still isnt generating a
+  full map" was `SimFloorLayout` stopping at `wantRooms` placements: a 1x2 covers two of the 36 room slots and a
+  2x2 covers four, so 21 rooms landed anywhere from 25 to 35 cells, median 30, with whole rows of the 6x6 grid
+  empty. His own Map Logger scans of 40 real floors put a fully-walked one at 34-36 with 12 of the 40 at exactly
+  36. `Floor.cells` is now the target and `Floor.rooms` only a minimum; measured over 500 planned F7s afterwards,
+  36 of 36 cells every time with 21-26 rooms. Three things had to come with it, and each was its own defect:
+  the attempt scoring has to rank the room MINIMUM above cells, or an attempt that stalled at 20 rooms over 32
+  cells beats one that reached 22 over 31; a room's footprint has to be capped at
+  `cellsLeft - (roomsStillOwed - 1)`, or big rooms fill the grid with fewer rooms than the floor is supposed to
+  have; and a free cell whose every neighbour is a blank wall can never be filled, so `score` costs a placement
+  for each one it would strand.
+- Preferring small rooms is not free. `choose` sorted candidates by `area * 0.45 - doors * 0.9`, and a
+  multi-tile room also has more doorways that can end up facing a neighbour's blank wall — worth -3 each in
+  `score` — so between them the layout refused nearly every big room. Reaching 36 cells took 26 rooms until the
+  size term flipped sign while the floor is behind the cells-per-room a real floor has, the "good enough, stop
+  looking" threshold moved with the extra credit, and multi-tile footprints got credit for the cells they bring.
+  A fixed weighting cannot do this: the same preference that fills the grid leaves the last odd cells unfillable.
+- Blood was kept away from the fairy room in one direction only: `touchesFairy` stopped blood landing next to
+  fairy, but a fairy placed after blood could still end up against it (about 2% of floors). No door was ever cut
+  between them, so the blood-rush rule held by luck rather than by construction.
 - Verify Skyblock item ids against Hypixel's own list (`api.hypixel.net/v2/resources/skyblock/items`), not
   against the name or memory. Three were wrong at once (2026-09-28): the Spirit Sceptre is `BAT_WAND`, not
   `SPIRIT_SCEPTRE`, which broke both the sim item and the RNG meter's auction price lookup; `ClearNode` had
@@ -122,3 +145,14 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   must publish its own "still steering" flag: `isBusy()` is false for the whole wait by design, and Auto Routes'
   interlock 5 reads exactly that, so a node underfoot would arm in the gap and steer against the warp about to
   start. `InteractiveMapFeature.isSteering()` is that flag.
+- **The sim must never act on somebody else's server, and `canAct` alone does not guarantee it.** `canAct`
+  needs a singleplayer server to already exist, so it is useless to anything whose job is to CREATE one.
+  `SimBuilder.build(code)` had no gate at all and read `getSingleplayerServer() == null` as "no world yet",
+  so `/simbuild code <x>` typed on Hypixel called `SimWorld.open` and tried to tear him out into a sim world
+  (found 2026-09-29). The check belongs at the one chokepoint every entry into the sim passes through:
+  `SimWorld.open` now refuses whenever `getCurrentServer() != null`, via `SimState.canOpen`. Audited at the
+  same time: all six sim commands, all eight puzzle resets, and every block write in the package. The other
+  writers (`SimSecrets`, `SimBuildQueue`, `RoomPlacer`) take a `ServerLevel` they can only get from a
+  singleplayer server, and `SimBreakerState` ticks on `END_SERVER_TICK`, which never fires on a remote
+  server - so those are structurally safe rather than gated. Scenario 88 fires every sim command at a real
+  dedicated server and fingerprints the arena block for block before and after.
