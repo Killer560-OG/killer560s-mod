@@ -64,6 +64,11 @@ public final class MissingRoomsHud implements HudElement {
             // listing it as found would hide work that still needs doing.
             if (have == null || !have.usable()) {
                 out.add(entry.name);
+            } else if (have.cutOff()) {
+                // Captured, usable, and still worth walking: its structure ran into the bottom of the band it
+                // was recorded at, so the part below that was never seen. Marked rather than hidden, because
+                // "found" would stop him re-walking exactly the rooms that are missing their basements.
+                out.add(entry.name + " (cut off)");
             }
         }
         out.sort(String.CASE_INSENSITIVE_ORDER);
@@ -118,7 +123,11 @@ public final class MissingRoomsHud implements HudElement {
         }
 
         List<String> missing = missing();
-        graphics.text(font, "Rooms left to find: " + missing.size(), x, y, ProfitPanels.ACCENT, false);
+        long cut = missing.stream().filter(n -> n.endsWith("(cut off)")).count();
+        String header = cut == 0
+                ? "Rooms left to find: " + missing.size()
+                : "Rooms left: " + missing.size() + " (" + cut + " cut off)";
+        graphics.text(font, header, x, y, ProfitPanels.ACCENT, false);
         int lineY = y + 11;
         if (missing.isEmpty()) {
             graphics.text(font, "every known room captured", x, lineY, ProfitPanels.TEXT, false);

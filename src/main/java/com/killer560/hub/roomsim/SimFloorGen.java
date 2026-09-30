@@ -434,8 +434,45 @@ public final class SimFloorGen {
      * that matters is the one about a room's own halves: a 2x2's four cells touch each other and must not get
      * doors between them, or the floor fills with doorways inside single rooms.
      */
+    /**
+     * Puts a door in every gap between two DIFFERENT rooms that touch - unless it would close a LOOP.
+     *
+     * <p>killer560 (2026-09-30): "when it generates a map there should only be 1 way to enter a room for the
+     * first time [...] see how i can essentially make an infinate loop by running through flags into supertall
+     * into slime then back to flags."
+     *
+     * <p>The growth pass already opens one door per room as it reaches it, which is a tree by construction.
+     * This pass then doored every remaining adjacency, and every one of those extra doors closed a cycle -
+     * that is exactly what a loop is. So the rooms are tracked with a union-find seeded from the doors that
+     * already exist, and a gap is only opened when the two sides are not already connected some other way.
+     * Everything else stays walled, which is what the seal pass bricks up.
+     *
+     * <p>The rule that matters is the one about a room's own halves: a 2x2's four cells touch each other and
+     * must not get doors between them, or the floor fills with doorways inside single rooms. That is handled
+     * by comparing room ids, not cells, and it is also why the union-find is keyed on the room id.
+     */
     private static int linkDoors(int[] cellRoom, int[] cellDoor, List<int[]> occupied, Set<Long> filled,
                                  int[] entrance, int[] blood) {
+        // Seeded with the doors the growth pass already placed, so this cannot undo the floor's own tree.
+        Map<Integer, Integer> parent = new HashMap<>();
+        for (int cell = 0; cell < cellDoor.length; cell++) {
+            if (cellDoor[cell] == DungeonLayout.DOOR_NONE) {
+                continue;
+            }
+            int gx = cell % DungeonLayout.GRID;
+            int gz = cell / DungeonLayout.GRID;
+            int left = gx > 0 ? cellRoom[cell - 1] : MapCode.NO_ROOM;
+            int right = gx + 1 < DungeonLayout.GRID ? cellRoom[cell + 1] : MapCode.NO_ROOM;
+            int up = gz > 0 ? cellRoom[cell - DungeonLayout.GRID] : MapCode.NO_ROOM;
+            int down = gz + 1 < DungeonLayout.GRID ? cellRoom[cell + DungeonLayout.GRID] : MapCode.NO_ROOM;
+            if (left != MapCode.NO_ROOM && right != MapCode.NO_ROOM) {
+                union(parent, left, right);
+            }
+            if (up != MapCode.NO_ROOM && down != MapCode.NO_ROOM) {
+                union(parent, up, down);
+            }
+        }
+
         int doors = 0;
         for (int[] c : occupied) {
             for (int[] step : new int[][]{{1, 0}, {0, 1}}) {
@@ -452,6 +489,11 @@ public final class SimFloorGen {
                 if (cellDoor[between] != DungeonLayout.DOOR_NONE) {
                     continue;
                 }
+                // Already reachable from each other: a door here would be a second way in.
+                if (find(parent, cellRoom[a]) == find(parent, cellRoom[bCell])) {
+                    continue;
+                }
+                union(parent, cellRoom[a], cellRoom[bCell]);
                 boolean toBlood = blood != null && (same(c, blood) || same(n, blood));
                 boolean fromEntrance = entrance != null && (same(c, entrance) || same(n, entrance));
                 cellDoor[between] = toBlood ? DungeonLayout.DOOR_BLOOD
@@ -462,6 +504,30 @@ public final class SimFloorGen {
         }
         return doors;
     }
+
+    private static int find(Map<Integer, Integer> parent, int room) {
+        int root = room;
+        while (parent.getOrDefault(root, root) != root) {
+            root = parent.get(root);
+        }
+        // Path compression, so a long chain of rooms does not make every later lookup walk it again.
+        int walk = room;
+        while (parent.getOrDefault(walk, walk) != walk) {
+            int next = parent.get(walk);
+            parent.put(walk, root);
+            walk = next;
+        }
+        return root;
+    }
+
+    private static void union(Map<Integer, Integer> parent, int a, int b) {
+        int ra = find(parent, a);
+        int rb = find(parent, b);
+        if (ra != rb) {
+            parent.put(ra, rb);
+        }
+    }
+
 
     /**
      * How many grid cells a captured room covers, as {width, height}.

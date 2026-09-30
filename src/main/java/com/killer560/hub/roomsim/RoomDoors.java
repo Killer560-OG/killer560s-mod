@@ -352,7 +352,7 @@ public final class RoomDoors {
      */
     private static boolean isDoorway(RoomLibrary.Room room, int x, int y, int z) {
         if (x < 0 || z < 0 || x >= room.sizeX || z >= room.sizeZ
-                || y < RoomLibrary.MIN_Y || y > RoomLibrary.MAX_Y) {
+                || y < room.minY || y > room.maxY) {
             return true;
         }
         short idx = room.blocks[room.index(x, y, z)];

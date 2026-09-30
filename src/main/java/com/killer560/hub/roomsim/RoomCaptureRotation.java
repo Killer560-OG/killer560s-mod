@@ -137,7 +137,7 @@ public final class RoomCaptureRotation {
 
     /** The highest y at which any of the four corner columns holds something other than air. */
     private static int roofLine(RoomLibrary.Room room, int[][] corners) {
-        for (int y = RoomLibrary.MAX_Y; y >= RoomLibrary.MIN_Y; y--) {
+        for (int y = room.maxY; y >= room.minY; y--) {
             for (int[] c : corners) {
                 String block = blockAt(room, c[0], y, c[1]);
                 if (block != null && !"minecraft:air".equals(block)) {
@@ -185,7 +185,7 @@ public final class RoomCaptureRotation {
         int frameX = (degrees == 90 || degrees == 270) ? room.sizeZ : room.sizeX;
         int frameZ = (degrees == 90 || degrees == 270) ? room.sizeX : room.sizeZ;
         for (RoomEntry.Pos p : list) {
-            if (p.y < RoomLibrary.MIN_Y || p.y > RoomLibrary.MAX_Y) {
+            if (p.y < room.minY || p.y > room.maxY) {
                 continue;
             }
             // The database measures from the tile corner; the capture window starts one wall outside it.
@@ -201,7 +201,7 @@ public final class RoomCaptureRotation {
     /** The captured block id at these room-local coordinates, or null where nothing was ever read. */
     private static String blockAt(RoomLibrary.Room room, int x, int y, int z) {
         if (x < 0 || z < 0 || x >= room.sizeX || z >= room.sizeZ
-                || y < RoomLibrary.MIN_Y || y > RoomLibrary.MAX_Y) {
+                || y < room.minY || y > room.maxY) {
             return null;
         }
         short id = room.blocks[room.index(x, y, z)];

@@ -106,8 +106,25 @@ public final class RoomLibrary {
      * would multiply the library for nothing, and cutting it too close silently loses ceilings, which is the
      * kind of loss you only notice once the room is rebuilt and has a hole in it.
      */
-    public static final int MIN_Y = 60;
-    public static final int MAX_Y = 140;
+    /**
+     * The y band a NEW capture records.
+     *
+     * <p>Was 60..140, which cut the bottom off 58 of his 135 rooms - anything with a basement, a ravine or a
+     * pit. killer560 (2026-09-29): "Make the scanner read the full height that way it cannot accidentally
+     * miss something." So the scan now covers the whole world column rather than a guessed band, and no
+     * dungeon geometry can fall outside it by construction.
+     *
+     * <p>That would be a lot of memory to keep - the full column is three times the old band, and a library
+     * that got too big to load is a mistake this file has already made once. It is not kept: a room is
+     * SAVED trimmed to the y range that actually holds something (see {@code toJson}), so files and loaded
+     * rooms stay the size of the room rather than the size of the world. Re-capturing widens it back to the
+     * full column, fills it in, and it trims again on the next save.
+     *
+     * <p>A room already on disk keeps its own band - see {@link Room#minY} - so changing this invalidates
+     * nothing; it only changes what the recorder writes from now on.
+     */
+    public static final int MIN_Y = -64;
+    public static final int MAX_Y = 320;
 
     /** name -> room. A TreeMap so the "still needed" list is stable and alphabetical. */
     private static final Map<String, Room> ROOMS = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -195,11 +212,34 @@ public final class RoomLibrary {
             return fromJar;
         }
 
+        /**
+         * The y band THIS capture covers.
+         *
+         * <p>Per room, not global, and that is the point. {@link RoomLibrary#MIN_Y} was 60 and every capture
+         * was indexed against that constant, so a room whose structure runs below 60 was sliced off at the
+         * bottom and the missing blocks were simply never recorded. killer560 saw it as "purple flags was
+         * missing the bottom part of it"; measured across the library, 58 of his 135 rooms have built
+         * structure sitting on that floor.
+         *
+         * <p>The file has always written its own {@code minY}/{@code maxY} - the loader just ignored them and
+         * used the constant. Reading them back means the floor can be lowered for NEW captures while every
+         * existing file keeps loading at the band it was written with, so nothing has to be re-recorded before
+         * the change is safe to ship.
+         */
+        public final int minY;
+        public final int maxY;
+
         Room(String name, int sizeX, int sizeZ) {
+            this(name, sizeX, sizeZ, MIN_Y, MAX_Y);
+        }
+
+        Room(String name, int sizeX, int sizeZ, int minY, int maxY) {
             this.name = name;
             this.sizeX = sizeX;
             this.sizeZ = sizeZ;
-            this.blocks = new short[sizeX * sizeZ * (MAX_Y - MIN_Y + 1)];
+            this.minY = minY;
+            this.maxY = maxY;
+            this.blocks = new short[sizeX * sizeZ * (maxY - minY + 1)];
             java.util.Arrays.fill(this.blocks, (short) -1);
             this.seenColumn = new boolean[sizeX * sizeZ];
         }
@@ -216,7 +256,7 @@ public final class RoomLibrary {
         }
 
         int index(int x, int y, int z) {
-            return (y - MIN_Y) * sizeX * sizeZ + z * sizeX + x;
+            return (y - minY) * sizeX * sizeZ + z * sizeX + x;
         }
 
         /**
@@ -226,7 +266,7 @@ public final class RoomLibrary {
          * "rest of it" still out of render distance.
          */
         void set(int x, int y, int z, String blockId) {
-            if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ || y < MIN_Y || y > MAX_Y) {
+            if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ || y < minY || y > maxY) {
                 return;
             }
             blocks[index(x, y, z)] = paletteFor(blockId);
@@ -281,6 +321,12 @@ public final class RoomLibrary {
         private int contentMinY = Integer.MIN_VALUE;
         private int contentMaxY = Integer.MIN_VALUE;
 
+        /** Drop the cached content range - the blocks under it have changed. */
+        synchronized void contentChanged() {
+            contentMinY = Integer.MIN_VALUE;
+            contentMaxY = Integer.MIN_VALUE;
+        }
+
         /**
          * The lowest y in this room that is not air.
          *
@@ -306,16 +352,33 @@ public final class RoomLibrary {
             if (contentMinY != Integer.MIN_VALUE) {
                 return;
             }
-            int air = palette.indexOf("minecraft:air");
-            int lo = MAX_Y;
-            int hi = MIN_Y;
+            // THIS room's band, not the global constants. index() is relative to minY, so walking the
+            // constants over a room loaded at an older, narrower band indexes straight out of the array -
+            // and SimAltitude calls this on every build.
+            // EVERY kind of nothing, not just "minecraft:air".
+            //
+            // Above the build area the world is minecraft:void_air and in caves it is minecraft:cave_air, and
+            // treating those as content made a freshly scanned room measure as full to y 320: Pipes stored 293
+            // layers where about 70 hold anything. That is three times the file for nothing - and worse,
+            // SimAltitude positions a whole floor from this range, so it would have placed floors against a
+            // ceiling that is not there.
+            java.util.Set<Short> empty = new java.util.HashSet<>();
+            for (int i = 0; i < palette.size(); i++) {
+                String state = palette.get(i);
+                if ("minecraft:air".equals(state) || "minecraft:void_air".equals(state)
+                        || "minecraft:cave_air".equals(state)) {
+                    empty.add((short) i);
+                }
+            }
+            int lo = maxY;
+            int hi = minY;
             boolean any = false;
-            for (int y = MIN_Y; y <= MAX_Y; y++) {
+            for (int y = minY; y <= maxY; y++) {
                 boolean solid = false;
                 for (int z = 0; z < sizeZ && !solid; z++) {
                     for (int x = 0; x < sizeX; x++) {
                         short id = blocks[index(x, y, z)];
-                        if (id >= 0 && id != air) {
+                        if (id >= 0 && !empty.contains(id)) {
                             solid = true;
                             break;
                         }
@@ -332,6 +395,19 @@ public final class RoomLibrary {
         }
 
         /** Finished AND in the current format - the only thing that should ever be called done. */
+        /**
+         * Whether this room was captured at a band that CUT it, so it is worth walking again.
+         *
+         * <p>A room recorded before the floor dropped below y 60 is not broken - 67 of his 135 sit well above
+         * that and lost nothing. The ones that matter are those whose structure reaches the very bottom of
+         * the band they were stored at, because whatever continued below it was never recorded. That is
+         * exactly how "purple flags was missing the bottom part of it" happened, and measuring it beats
+         * guessing from the band alone: by band 119 rooms look stale, by content only 52 actually are.
+         */
+        public boolean cutOff() {
+            return minY != MIN_Y && contentMinY() <= minY;
+        }
+
         public boolean usable() {
             return currentFormat() && complete();
         }
@@ -934,6 +1010,34 @@ public final class RoomLibrary {
         if (r == null || r.sizeX != sizeX || r.sizeZ != sizeZ) {
             r = new Room(name, sizeX, sizeZ);
             ROOMS.put(name, r);
+        } else if (r.minY != MIN_Y || r.maxY != MAX_Y) {
+            // WIDEN a room captured at the old band, rather than writing into it out of bounds.
+            //
+            // The scan below walks the CURRENT band while index() uses the room's OWN, so a room loaded at
+            // 60..140 would index negatively the moment the floor dropped to 12 - an out-of-bounds write on
+            // the first column. It is rebuilt at the new band with everything already captured copied across,
+            // and every column marked unread so the recorder fills in the depth that was never there. Which
+            // is the whole point: this is what makes re-walking a room actually deepen it.
+            Room wider = new Room(name, sizeX, sizeZ, MIN_Y, MAX_Y);
+            for (String state : r.palette) {
+                wider.paletteFor(state);
+            }
+            int from = Math.max(r.minY, MIN_Y);
+            int to = Math.min(r.maxY, MAX_Y);
+            for (int x = 0; x < sizeX; x++) {
+                for (int z = 0; z < sizeZ; z++) {
+                    for (int y = from; y <= to; y++) {
+                        wider.blocks[wider.index(x, y, z)] = r.blocks[r.index(x, y, z)];
+                    }
+                }
+            }
+            wider.margin = r.margin;
+            wider.mobSpawns.addAll(r.mobSpawns);
+            LOGGER.info("Widening captured room \"{}\" from y {}..{} to {}..{} - every column will be "
+                    + "re-read so the part below the old floor is filled in",
+                    name, r.minY, r.maxY, MIN_Y, MAX_Y);
+            r = wider;
+            ROOMS.put(name, r);
         }
         int worldX0 = centreX - TILE / 2 - WALL_MARGIN;
         int worldZ0 = centreZ - TILE / 2 - WALL_MARGIN;
@@ -946,11 +1050,11 @@ public final class RoomLibrary {
                 if (r.seenColumn[col]) {
                     continue;
                 }
-                cursor.set(worldX0 + x, MIN_Y, worldZ0 + z);
+                cursor.set(worldX0 + x, r.minY, worldZ0 + z);
                 if (!com.killer560.hub.chunkcache.ChunkCacheManager.isLoadedOrCached(level, cursor)) {
                     continue; // not loaded: recording air here would be a lie that never gets corrected
                 }
-                for (int y = MIN_Y; y <= MAX_Y; y++) {
+                for (int y = r.minY; y <= r.maxY; y++) {
                     cursor.set(worldX0 + x, y, worldZ0 + z);
                     BlockState state = level.getBlockState(cursor);
                     // The FULL state, not just the block id. Storing only the id threw away every stair's
@@ -964,6 +1068,7 @@ public final class RoomLibrary {
                             net.minecraft.commands.arguments.blocks.BlockStateParser.serialize(state));
                 }
                 r.seenColumn[col] = true;
+                r.contentChanged();
                 added++;
                 if (added >= columnBudget) {
                     // Out of budget. The rest of this room is picked up on a later tick - seenColumn means
@@ -1216,8 +1321,16 @@ public final class RoomLibrary {
         o.addProperty("name", r.name);
         o.addProperty("sizeX", r.sizeX);
         o.addProperty("sizeZ", r.sizeZ);
-        o.addProperty("minY", MIN_Y);
-        o.addProperty("maxY", MAX_Y);
+        // TRIMMED to the part of the column that holds something. The scan covers the whole world height so
+        // nothing can be missed, but storing that would triple every file and every loaded room for air.
+        int lo = r.contentMinY();
+        int hi = r.contentMaxY();
+        if (lo > hi) {
+            lo = r.minY;
+            hi = r.minY;   // nothing captured yet: keep one layer so the arithmetic stays valid
+        }
+        o.addProperty("minY", lo);
+        o.addProperty("maxY", hi);
         JsonArray pal = new JsonArray();
         for (String p : r.palette) {
             pal.add(p);
@@ -1230,7 +1343,10 @@ public final class RoomLibrary {
         //
         // The same data as gzipped bytes is roughly a twentieth of the size and needs no parsing at all. That
         // is the difference between a library that is slow and one that does not fit in a boot.
-        o.addProperty("blocksZ", encodeShorts(r.blocks));
+        int layer = r.sizeX * r.sizeZ;
+        short[] trimmed = new short[layer * (hi - lo + 1)];
+        System.arraycopy(r.blocks, (lo - r.minY) * layer, trimmed, 0, trimmed.length);
+        o.addProperty("blocksZ", encodeShorts(trimmed));
         o.addProperty("seenZ", encodeBits(r.seenColumn));
         o.addProperty("margin", r.margin);
         JsonArray spawns = new JsonArray();
@@ -1243,7 +1359,12 @@ public final class RoomLibrary {
 
     private static Room fromJson(JsonObject o) {
         String name = o.get("name").getAsString();
-        Room r = new Room(name, o.get("sizeX").getAsInt(), o.get("sizeZ").getAsInt());
+        // The band the FILE was written with, not today's constant. Every capture has carried these two
+        // fields all along; reading them is what lets the recorder's floor drop without invalidating a single
+        // existing room. A file from before they were written falls back to the old 60..140.
+        int fileMinY = o.has("minY") ? o.get("minY").getAsInt() : 60;
+        int fileMaxY = o.has("maxY") ? o.get("maxY").getAsInt() : 140;
+        Room r = new Room(name, o.get("sizeX").getAsInt(), o.get("sizeZ").getAsInt(), fileMinY, fileMaxY);
         JsonArray pal = o.getAsJsonArray("palette");
         for (int i = 0; i < pal.size(); i++) {
             r.paletteFor(pal.get(i).getAsString());

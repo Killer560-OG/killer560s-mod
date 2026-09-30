@@ -801,7 +801,28 @@ final class MapPainter {
     // ------------------------------------------------------------------------------------------- labels
 
     /** One room's text label, in map units so the same cache serves the HUD and the full-screen map. */
-    private record Label(String[] lines, int maxWidth, int color, float boxW, float boxH, float cx, float cy) {
+    private record Label(String[] lines, int maxWidth, int color, float boxW, float boxH, float cx, float cy,
+                         int fill) {
+    }
+
+    /**
+     * Whether text in {@code text} would be hard to read on a room filled with {@code fill}.
+     *
+     * <p>killer560 (2026-09-29): "for those rare rooms that are grey, make a way for the room name text on the
+     * map to stand out. Right now it doesnt." A rare room is grey and the label is light, so the two sit at
+     * nearly the same brightness and the name disappears into the fill.
+     *
+     * <p>Measured rather than special-cased on "RARE", because every one of these colours is his to change in
+     * the GUI - a rule written around today's grey would be wrong the moment he recolours anything. This
+     * compares perceived brightness (the usual 0.299/0.587/0.114 weighting, since green reads far brighter
+     * than blue at the same value) and calls it a problem when they are within a quarter of the range.
+     */
+    private static boolean lowContrast(int text, int fill) {
+        return Math.abs(luminance(text) - luminance(fill)) < 0.25;
+    }
+
+    private static double luminance(int argb) {
+        return (0.299 * ((argb >> 16) & 0xFF) + 0.587 * ((argb >> 8) & 0xFF) + 0.114 * (argb & 0xFF)) / 255.0;
     }
 
     private static final List<Label> LABEL_CACHE = new ArrayList<>();
@@ -853,7 +874,8 @@ final class MapPainter {
             float boxH = group.lShape ? ROOM_UNITS : cellPos(group.maxGZ) + ROOM_UNITS - cellPos(group.minGZ);
             LABEL_CACHE.add(new Label(lines.toArray(new String[0]), maxWidth,
                     stateColor(visibleState(group)), boxW, boxH,
-                    group.labelGX * 10 + 8, group.labelGZ * 10 + 8));
+                    group.labelGX * 10 + 8, group.labelGZ * 10 + 8,
+                    roomColor(group, LiveMapConfig.getInstance())));
         }
         return LABEL_CACHE;
     }
@@ -915,7 +937,11 @@ final class MapPainter {
             int top = Math.round(-label.lines.length * font.lineHeight / 2f);
             for (int i = 0; i < label.lines.length; i++) {
                 String s = label.lines[i];
-                graphics.text(font, s, -font.width(s) / 2, top + i * font.lineHeight, label.color, cfg.isTextShadow());
+                // A shadow whenever the name would otherwise blend into the room it is written on, whatever
+                // his Text Shadow setting says. The setting is about how he likes the map to look; this is
+                // about the name being readable at all, and it only overrides when it has to.
+                boolean shadow = cfg.isTextShadow() || lowContrast(label.color, label.fill);
+                graphics.text(font, s, -font.width(s) / 2, top + i * font.lineHeight, label.color, shadow);
             }
             graphics.pose().popMatrix();
         }
