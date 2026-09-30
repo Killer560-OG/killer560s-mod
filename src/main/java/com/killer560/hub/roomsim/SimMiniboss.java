@@ -9,6 +9,7 @@ import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -116,7 +117,7 @@ public final class SimMiniboss {
      * @return the placed entity, or null if it could not be placed - in which case the caller is expected to
      *         fall back to something that does work rather than leaving the room empty
      */
-    static ServerPlayer place(ServerLevel level, BlockPos pos, Name name, double health) {
+    static Placed place(ServerLevel level, BlockPos pos, Name name, double health) {
         if (!name.sendable()) {
             LOGGER.warn("Cannot place a \"{}\": a game profile name is capped at {} characters on the wire"
                             + " (ByteBufCodecs.PLAYER_NAME) and Player.getName() reads the profile only",
@@ -143,6 +144,19 @@ public final class SimMiniboss {
             LOGGER.warn("Could not build a miniboss player entity; the caller will fall back to a mob", e);
             return null;
         }
+        // The star stand is CONSTRUCTED HERE, one line after the boss, and handed back for the caller to
+        // configure and add.
+        //
+        // Mob ESP resolves a starred stand to the entity at id-1, which is how Hypixel lays them out. The
+        // zombie and skeleton paths get that for free because their stand is built immediately after them,
+        // but the miniboss did not: something on the ServerPlayer path between here and the stand's old
+        // construction site consumed an id, so the sim produced mob 651 with its tag at 653 and the ESP
+        // could not resolve it. Scenario 89 caught it as "idAdjacent=false" on 2026-09-30.
+        //
+        // Reserving the next id by constructing the stand immediately is structural rather than a matter of
+        // ordering luck: whatever allocates later, these two were made back to back and cannot be separated.
+        ArmorStand tag = new ArmorStand(level, boss.getX(), boss.getY(), boss.getZ());
+
         boss.getAttribute(Attributes.MAX_HEALTH).setBaseValue(health);
         boss.setHealth((float) health);
         // Nothing moves it: Miniboss.tick() runs no physics at all, so the position it is placed at is the
@@ -166,9 +180,19 @@ public final class SimMiniboss {
             return null;
         }
         PLACED.add(boss.getUUID());
-        LOGGER.info("Placed miniboss \"{}\" uuid={} (v{}) id={} at {}",
-                name.text(), boss.getUUID(), boss.getUUID().version(), boss.getId(), pos);
-        return boss;
+        LOGGER.info("Placed miniboss \"{}\" uuid={} (v{}) id={} tagId={} at {}",
+                name.text(), boss.getUUID(), boss.getUUID().version(), boss.getId(), tag.getId(), pos);
+        return new Placed(boss, tag);
+    }
+
+    /**
+     * A placed miniboss and the star stand reserved for it.
+     *
+     * <p>The stand is built but NOT added to the level - the caller decides whether this miniboss is starred,
+     * and an unstarred one simply never adds it. What matters is that its entity id was taken immediately
+     * after the boss's, which is the whole reason it is made here rather than where it is used.
+     */
+    public record Placed(ServerPlayer boss, ArmorStand tag) {
     }
 
     /**

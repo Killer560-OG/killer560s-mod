@@ -227,18 +227,20 @@ public final class SimMobs {
      * should never have to do."
      */
     private static void spawnMiniboss(ServerLevel level, BlockPos pos, SimMiniboss.Name name, boolean starred) {
-        ServerPlayer boss = SimMiniboss.place(level, pos, name, MINIBOSS_HEALTH);
-        if (boss == null) {
+        SimMiniboss.Placed placed = SimMiniboss.place(level, pos, name, MINIBOSS_HEALTH);
+        if (placed == null) {
             spawnDummy(level, new SimZombie(EntityType.ZOMBIE, level), pos, starred, MINIBOSS_HEALTH);
             return;
         }
+        ServerPlayer boss = placed.boss();
         SPAWNED.add(boss.getUUID());
         if (starred) {
             STARRED.add(boss.getUUID());
             // WITH a star stand, because that is how Hypixel does it - see attachStarTag for the log lines
-            // off his own client. Added immediately after the player so the stand's entity id is the
-            // player's plus one, which is the first thing MobEspFeature.resolveMob looks at.
-            attachStarTag(level, boss, name.text(), MINIBOSS_HEALTH);
+            // off his own client. The stand was CONSTRUCTED alongside the boss in SimMiniboss.place so its
+            // entity id is the boss's plus one, which is the first thing MobEspFeature.resolveMob looks at;
+            // building it here instead left a gap of two and the ESP could not resolve the miniboss at all.
+            attachStarTag(level, boss, name.text(), MINIBOSS_HEALTH, placed.tag());
         }
     }
 
@@ -303,7 +305,19 @@ public final class SimMobs {
      */
     private static void attachStarTag(ServerLevel level, net.minecraft.world.entity.LivingEntity mob,
                                       String displayName, double health) {
-        ArmorStand tag = new ArmorStand(level, mob.getX(), mob.getY() + mob.getBbHeight() + 0.1, mob.getZ());
+        attachStarTag(level, mob, displayName, health, null);
+    }
+
+    /**
+     * @param prebuilt a stand already constructed next to the mob, to keep their entity ids adjacent, or
+     *                 null to build one here - which is correct whenever the mob's own construction was the
+     *                 last thing to take an id
+     */
+    private static void attachStarTag(ServerLevel level, net.minecraft.world.entity.LivingEntity mob,
+                                      String displayName, double health, ArmorStand prebuilt) {
+        ArmorStand tag = prebuilt != null ? prebuilt
+                : new ArmorStand(level, mob.getX(), mob.getY() + mob.getBbHeight() + 0.1, mob.getZ());
+        tag.snapTo(mob.getX(), mob.getY() + mob.getBbHeight() + 0.1, mob.getZ(), 0f, 0f);
         tag.setInvisible(true);
         tag.setNoGravity(true);
         tag.setNoBasePlate(true);
