@@ -319,3 +319,19 @@ height, with content down to y15, scenario 81 found two of eight doorways impass
 head height with a useless opening below them. Every Catacombs doorway is on the dungeon floor around y68-70
 with roofs at y99-107, so the search now runs DOWN from capture y90 to y55 and takes the highest surface in
 that band.
+
+## Open: one doorway in eight is still occasionally impassable
+
+Fixing `findFloor` took scenario 81 from two impassable doorways per floor to zero on two runs and one on a
+third, so the floor-finding was most of it but not all. The remaining case looks different in the log: the
+player gets 2.2 blocks INTO the opening before stone brick stops him, where the floor-level failures stopped
+him at 0.2. So the opening is being carved, in the right place, and something beyond it is solid.
+
+Two candidates, neither checked yet. The carve is 3 wide and 4 high centred on the cell centre, and a room
+whose own doorway is offset from that centre would be opened next to its doorway rather than through it -
+scenario 73 asserts the door is a doorway in both rooms' GEOMETRY, which is the plan, and says nothing about
+where the carve lands. Or the opening is right and the room's doorway is a different height from the
+connector's floor, so the two openings do not line up.
+
+The next step is to dump the 3x4x7 box the carve writes against the room's own measured doorway box for a
+failing cell, rather than guessing between those two.
