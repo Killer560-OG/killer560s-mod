@@ -76,6 +76,8 @@ public class SimMenuScreen extends Screen {
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
         RoomLibrary.loadAsync();
+        // See SimMapEditorScreen.init - the sim runs from the main menu, where nothing else starts this.
+        com.killer560.hub.roomdatabase.RoomDatabase.ensureLoading();
 
         switch (mode) {
             case HOME -> buildHome();

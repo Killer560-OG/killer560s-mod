@@ -103,6 +103,16 @@ public class SimMapEditorScreen extends Screen {
     @Override
     protected void init() {
         RoomLibrary.loadAsync();
+        // The room DATABASE too, not just the captures.
+        //
+        // Everything that knows a room is a puzzle, a trap, blood or fairy goes through
+        // SimFloorGen.typeOf -> RoomDatabase.lookupByName, and the only thing that ever started that load was
+        // LiveMapFeature, which runs when he is in a real dungeon on Hypixel. The sim opens from the MAIN
+        // MENU, so the database was never loaded and every room came back NORMAL: one colour for the whole
+        // grid, "normal" under every name in the list, and - worse than cosmetic - a generator that could not
+        // tell a puzzle from an ordinary room while being asked for three of them, and could not see which
+        // rooms are L-shaped to exclude them (SimFloorGen.shapeOf reads the same entry).
+        RoomDatabase.ensureLoading();
         panelW = Math.min(this.width - 40, 640);
         // One row taller than it was: the generator settings moved onto this screen.
         panelH = Math.min(this.height - 40, 366);

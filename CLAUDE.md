@@ -76,46 +76,16 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
 
 ## Quirks and lessons
 
-- The dungeon map does NOT work in the sim by itself. `LiveMapFeature` fills its grid from the vanilla map
-  ITEM and Hypixel's clay markers; a singleplayer world has neither, so the scan finds nothing and overwrites
-  whatever else tried to fill it. The sim calls `LiveMapFeature.publishSimFloor` instead and the scan is
-  skipped while `SimState.isActive()`. Anything else that reads Hypixel coordinates in the sim needs
-  `SimAltitude.offset()` added to its y - `DungeonLayout.doorBlock`, Secret Waypoints' database y and its
-  68..108 lever band all did.
-- An L-shaped room is captured as its 2x2 bounding box, and nine of his eleven have a NEIGHBOURING room's
-  geometry in the quarter they do not occupy. They are excluded from generated floors until the capture
-  records which quadrant is real. Hand-drawn maps are not filtered.
+Two topics have their own files, because they had grown to half this one:
+**[docs/SIM.md](docs/SIM.md)** for the dungeon sim (`roomsim/`) - room captures, floor generation,
+secret placement, doors and altitude - and **[docs/AP3.md](docs/AP3.md)** for AP3's nodes and align
+physics. Read the relevant one before touching either area.
+
 - A reach check belongs at the one place the interaction is SENT, not in each caller. Simon Says had four
   callers and a check in one of them; three paths sent clicks from up to 30 blocks away for months.
 - `"^(?:.*something.*|...)$"` is NOT anchored. The leading `^` buys nothing when the alternative starts with
   `.*`, and the Blood Key split read that way for months. Anchor on the real line shape, with a
   `[A-Za-z0-9_]{1,16}` name group, and check with `matches()`.
-
-- A room's DOORWAYS are read off the captured blocks (`RoomDoors`), not declared anywhere. A Catacombs
-  doorway is 3 wide and 4 high at a tile-edge midpoint, cut through the perimeter wall at `margin` blocks in.
-  "Doorway" is not "air": a shut wither door is coal block and a blood door red terracotta, and checking for
-  air alone reported Spikes, Staircase and Arrow Trap as sealed. Blood and Higher Blaze genuinely have none
-  at floor height and are read as enterable from any side.
-- **A capture carries its own rotation, and it is not the database's.** Secret coordinates in the room
-  database are relative to the room's CANONICAL orientation; a capture is taken from whatever instance he
-  walked through, so each one holds an arbitrary quarter turn. The sim handed `toRealCoord` the rotation the
-  room was PASTED at alone, so every non-canonical room put its secrets in the wrong corner - measured
-  2026-09-29, only 34 of 135 captures are canonical and 88 of the 122 identifiable ones were wrong. Invisible
-  in square rooms, because a wrong corner is still inside the room. `RoomCaptureRotation` recovers the turn
-  from the capture's own blue terracotta roof marker (119 of 135), with the database's chest and lever
-  positions breaking ties (122). The paste rotation still decides the FOOTPRINT; only the sum decides the
-  corner and the translation, so `SimSecrets.clayCorner` takes both separately.
-- The room captures only store y 60..140 (`RoomLibrary.MIN_Y`), but 29 of the 167 database chest secrets sit
-  below y 60, down to y 28. Those parts of those rooms were never captured, so Catwalk holds 2 chests where
-  the database lists 4. Not a translation fault - do not chase it as one.
-- Three captures are the wrong SIZE, not the wrong rotation: Deathmite is 2 tiles where the database says 3,
-  and Chambers and Raccoon match at no rotation. Re-capturing is the only fix.
-- An empty `catch` on a per-tick handler is a feature that can stop working with nothing anywhere to say so.
-  `SimSecretItems` swallowed every `RuntimeException` from the server tick; it now logs once.
-- `SimSecrets`' clay corner is ROTATION-DEPENDENT: NW at 0, NE at 90, SE at 180, SW at 270. It used NW
-  always, which was invisible while the generator refused to rotate rooms and threw every secret out of the
-  room the moment it did. It is the corner of the TILE area, not of the captured window - the wall margin is
-  deliberately not subtracted.
 - A comparator must not call the RNG. `SimFloorLayout` sorted candidates by a key containing
   `rng.nextDouble()`; TimSort noticed and threw "Comparison method violates its general contract!". Draw the
   jitter once per element and store it.
@@ -123,105 +93,27 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   building a release jar, a plain `./gradlew build` left the legit jar still carrying `DEV_TOOLS=false`.
   Delete `build/generated/sources/buildVariant` between variants, and check the class hash:
   `c7d5d8f5`=cheat+dev, `1d821df5`=legit+dev, `f8fc20a1`=legit+release.
-
 - Mixin config uses `defaultRequire: 0`, so a wrong target signature fails **silently** and the feature
   just never runs. Verify targets with `javap` against the mapped jar in `.gradle/loom-cache/` before
   trusting a new mixin. A probe that silently counts nothing reports zeroes that read as findings.
 - A class placed inside a mixin-owned package throws `IllegalClassLoadError` and crashes the game at boot.
   Keep helper classes out of `mixin` packages.
-- Interaction features must tick on `ClientTickEvents.START_CLIENT_TICK`, not `END_CLIENT_TICK`: END runs
-  after the player's own movement packet, and GrimAC flags every resulting interaction as `Post`. Measured
-  2026-09-27 — Breaker Aura drew 808 violations on END and zero on START; Secret Triggerbot 17 and 17.
-  Fixed for Breaker Aura in `825f319`. Audited properly 2026-09-29: of 111 END registrations, exactly
-  **three** reach a block/item/container packet — `Ap3Feature:95`, `AutoRoutesFeature:87`, `FastLeapFeature:105`
-  — and about 17 more send only chat or a server command. The "about twenty" figure counted those. Separately,
-  three features click from a RENDER FRAME, which is also after the movement packet: Goldor Triggerbot, Arrow
-  Align and Auto I4. `ActionGate` does not help — `tryAct` returns immediately and the caller sends
-  synchronously, so it arbitrates who acts and never changes ordering.
 - `RenderSystem.setShaderColor` does not exist in 26.1.2, so there is no global colour multiplier and items
   cannot be tinted per-item. The inventory HUD's Opacity now dims items with a translucent quad drawn over the
   panel after the item loop instead: 0 hides the panel outright, and the darkening is capped at 80% so no
   setting turns it into an unreadable black box.
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
   StackOverflows. Send below the dispatcher via `util/ServerCommands.toServer`.
-- `DungeonState.toggleSimOverride()` (the `/killer560 sim` command) forces floor, F7 **and boss phase** on
-  together, so it shuts the gate on any feature that requires *not* being in the boss. To get a dungeon that
-  is not a boss, let floor detection run for real off a scoreboard sidebar line reading
-  "The Catacombs (F7)".
-- Several features gate on `getCurrentServer().ip` containing `hypixel.net` or `p3sim.net`, with no
-  override anywhere in the codebase.
-- An automated click must aim at a point on the block's real **surface**, from the eye, not at
-  `Vec3.atCenterOf(pos)` with a fixed `Direction`. The centre is a point *inside* the block and no raycast
-  produces it; GrimAC raised `PositionPlace` on every such click even at a distance the server accepted
-  (2026-09-28). Use `util/BlockHits.surface`, and prefer skipping a tick to sending an impossible hit. Entity
-  clicks are the same: aim at a point on the entity's box, which Arrow Align and Terminal Aura already do.
-- Server interaction limits, measured on the sim: **4.5 blocks** to a block's box (past it the server refuses
-  outright), **3.0 blocks** to an entity (past it the anticheat names the distance). `MEASURED_MAX_REACH` and
-  `MEASURED_MAX_ENTITY_REACH` in `CheatUtilsConfig` are the single places those live. The entity figure was
-  re-measured at 0.1 resolution on 2026-09-29 (scenario 85, player placed rather than walked): **3.00 draws no
-  flag, 3.10 does** - so 3.0 is right and is exactly on the edge. Confirmed in the same run that 4.50 to the box
-  is 5.08 to the CENTRE, which is why a centre-measured 4.5 limit silently refuses legitimate blocks.
-  Audited 2026-09-29: 22 sites carried their own number, all inherited from QUOI and none tied to the
-  measurement - 6.0 in the puzzle chest auras and Auto Croesus, 5.48 in Weirdos/Water/Tic Tac Toe/Auto Routes,
-  4.0 for a terminal (an ENTITY click, so the limit is 3.0), 4.7 for essence skulls, and clamps at 5.5 and 6.0
-  that let a saved config keep an unsafe value even after the default moved. All now derive from the constants.
 - When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
   feature is often ticked from a lambda in another class entirely (`CheatUtils` ticks Secret Aura, Auto Ult and
   Chocolate Factory; `PathfindingFeature` ticks the soul runner and pearl hopper). A per-file grep missed seven
   of them and the gap only surfaced as `Post` violations in a later test.
 - Reach must be measured to the block's **box**, not its centre — the centre reads up to half a block
   further and makes a module look out of range when it is not.
-- AP3's align planners solve the YAW freely, so two entries in an action set differ only by the SIZE of the
-  push and what they leave for the next tick (sprint, crouch) - a key pointing elsewhere is the same action at
-  another yaw. All eighteen real key combinations produce just five sizes: 0, 0.13377 (non-sprinting straight
-  key), 0.13650 (non-sprinting diagonal), 0.17390 (W) and 0.17745 (W+A), and only `fw > 0` sprints. Searching a
-  near-duplicate costs |ACTS| to the power of the press count for nothing.
-- **Align nodes are designed for 550-600 speed** on the Hypixel scale (killer560, 2026-09-28: "they should
-  still align at lower speeds but the time isn't important"). So tune and benchmark at 550-600, and treat low
-  speed as a CORRECTNESS check only - it must still land, it may take as long as it likes. This matters because
-  every push the planner prices comes off the movement-speed attribute: at 550-600 Fast Align lands 100% of
-  cases in 3 or 4 ticks, while at 100-450 it lands 89% with a tail out to 7. A constant tuned at walking pace
-  is not tuned. The sim can be set to any Hypixel speed with `TestMap.speed(550)`.
-- The dungeon sim (`roomsim/`) is the ONE place this mod writes positions, and that is correct there: the
-  no-direct-movement rule exists because Hypixel reconstructs your movement and lags you back, and in the sim the
-  integrated server is ours. Everything sim-only gates on `SimState.canAct`, which requires a singleplayer world
-  AND no connected server. If that gate is ever wrong, those files write positions on Hypixel - treat it as the
-  single safety boundary of that package and do not add a second way in.
-- **A negative y is a valid y in the sim.** A bottom-aligned floor occupies y -63..17, so `landing = -1` as a
-  "not found" sentinel made `SimBuilder.snapPlayerTo` throw away every spot it found and drop him in at
-  `maxWorldY` to land on the roof (2026-09-29). Use a flag. `SimDoors.findFloor` was already right.
-- A teleport that walks its bounding box along the look vector must SLIDE when only the vertical part is
-  blocked. Standing on a floor, the box's bottom face is on the floor's top face, so any downward look made
-  `SimAbilities.dash`'s first 0.25 step collide and refused the AOTV teleport outright - 14 refusals in 10
-  seconds of play. Keep the horizontal part and carry on at the starting height.
-- Synthetic sim rooms live in `RoomLibrary`'s separate `TEST_ROOMS` map, are never saved, never counted and never
-  listed as missing. A synthetic room in the real map would be written to disk by `saveAll()` and would end up in
-  the shipped library looking exactly like a captured one.
-- No public dungeon dataset ships room GEOMETRY (checked 2026-09-28). Dungeon Rooms Mod and its kind store secret
-  coordinates plus room identification, which a waypoint mod needs and a sim cannot use. DRM is also GPL-3.0
-  against this mod's MIT, so its code can never be used here - data only, credited, and only with his say-so.
-- Align tick counts are bound by STOPPING, not by travel or by the solver. You must arrive under vanilla's 0.003
-  zeroing line or the next tick slides you off the point, and friction alone takes ~8 ticks from top speed. A
-  floor that charges the stop sits at 4.41 ticks against the planner's 4.52 (measured 2026-09-28), and 3 ticks
-  is impossible for 72% of aligns at any tolerance. Tolerance is nearly free: Caleb's 3e-8 costs 0.09 of a tick
-  over 1e-4. Do not accept a "make the align faster" task without re-deriving that floor first.
-- A room's captured size is `tiles * 32 + 1` (`RoomLibrary.footprint`), and the ONLY inverse is
-  `tiles = (size - 1) / 32`. Two places had their own: capture read a room's grid-cell span as a tile count
-  (a 3-tile room captured 157 blocks long instead of 97, running 60 columns into the next room), and
-  `SimFloorGen.cellFootprint` read the captured size as a tile span and halved it. Those two errors cancelled
-  exactly, so fixing one alone produced a worse bug than either — a 2-tile room planned into one cell and
-  pasted over its neighbour. `RoomLibrary.cellFootprint(name)` is now the single inverse; scenario 73 asserts
-  every room covers exactly its captured footprint.
-- Map-code room ids are per PLACEMENT, never per name. They were deduplicated by name, and `SimBuilder` pastes
-  by flood-filling cells with the same id — so two placements of one room standing next to each other merged
-  into a single smeared paste. Non-adjacent duplicates survived by luck, which is why it usually looked fine.
 - The gametest client runs as **java.exe**, not javaw.exe. `run-scenario.ps1` filtered on javaw only, so every
   safeguard in it was inert — the freeze watcher never saw an unresponsive client and the deadline cleanup
   killed nothing, while the script reported success. That is why "it still doesn't close out on freeze"
   survived two rounds of fixes to the watching logic.
-- `SimFloorGen.plan(...)` lays out a floor without touching the world, so a scenario can assert over a hundred
-  floors instead of one. Built because the "does it ever place a multi-tile room" assertion passed and failed
-  on alternate runs when it could only see a single floor — a test that flaps teaches you to ignore it.
 - **A throw in a RAW chat listener disconnects him from Hypixel.** `ClientReceiveMessageEvents` runs on the
   packet path, and `ClientCommonPacketListenerImpl.onPacketError` logs "Failed to handle packet, disconnecting"
   and drops the connection. `util/ChatObserver` catches per listener; the raw events do not. On 2026-09-29 the
@@ -245,12 +137,6 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   (2026-09-29), and `contains("has obtained Wither Key")` let anyone make the client right-click a door. Even
   an anchored `^(.{1,16}) completed a terminal!` is forgeable, because `[VIP] Bob: a` is sixteen characters -
   a name group must be `[A-Za-z0-9_]{1,16}`, which no chat prefix can be.
-- Verify Skyblock item ids against Hypixel's own list (`api.hypixel.net/v2/resources/skyblock/items`), not
-  against the name or memory. Three were wrong at once (2026-09-28): the Spirit Sceptre is `BAT_WAND`, not
-  `SPIRIT_SCEPTRE`, which broke both the sim item and the RNG meter's auction price lookup; `ClearNode` had
-  `ASTREA` for `ASTRAEA`; and Auto Debuff's `equals` missed `STARRED_MIDAS_SWORD`. Exactly 30 items have a
-  `STARRED_` form and the wither blades are not among them, so "strip STARRED_" and "treat the blades as one
-  item" are separate fixes. `ItemIdentity.family()` is the one place that knows both.
 - Instant Transmission is 8 blocks on Aspect of the End, Aspect of the Void AND the Etherwarp Conduit alike.
   What changes the range is the item's own `tuned_transmission` tag - a Transmission Tuner adds a block, four
   maximum - so a fully tuned one of any of them goes 12, and killer560 plays fully tuned ("nearly no one plays
@@ -268,42 +154,9 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
   the command starting the feature, and the Escape that closes the settings tab starting it, each stop it
   immediately - which reads as "I turn it on and it auto turns off". Name the key in the stop message too; "key
   pressed" cannot tell a walk from the feature killing itself.
-- `DungeonLayout.name(room)` returns the literal `"Unknown"` for a room it has not identified yet - a
-  placeholder, not a name. `RoomLibrary.capture` only rejected null/blank, so the first live scan (2026-09-28)
-  wrote `Entrance.json` and `Unknown.json` identical in all 77841 block positions and reported "2 of 2 rooms
-  complete" for one room seen twice. Every unidentified room shares that one placeholder, so the real damage
-  was the next one overwriting it and producing a file holding half of two different rooms. Check for the
-  placeholder, not just for blank, and distrust a room count that has not been diffed.
-- The sim menu runs from the MAIN MENU, where there is no world yet. Every builder had a `server == null`
-  branch that returned silently or opened an empty sim with a "run the command again" message, so nothing the
-  menu offered ever built anything (found 2026-09-28: "no room ever loaded"). `SimWorld.open` now takes the
-  build as a callback and runs it once the world exists, behind `SimLoadingScreen`. Any new entry point must
-  go through that, not call a builder directly.
 - `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default
   could never be restored once the setter ran. Fixed 2026-09-27. Worth checking other setters for the same
   mismatch between setter clamp and field default.
-- **A node's angle was being quantised on every save.** `Ap3Store.writeNode` wrote yaw and pitch through
-  `round(v, 1)`, so a restart moved every node's angle to the nearest tenth of a degree and the loss compounded
-  (killer560, 2026-09-29: "it feels like the angles and stuff gets truncated whenever I close and restart").
-  `Ap3EditScreen.fmt` did the same at two decimals, and it is read back on Save, so opening an editor and
-  saving damaged the node - as did "Look from me". Store at 5-6 decimals, and print fields at full precision
-  with the zeros trimmed.
-- `Ap3Store` wrote `useItemId` inside `case LEAP`, so a USE node's recorded item was NEVER saved while the load
-  path read it unconditionally. It worked until the game closed and then became "use whatever is in my hand".
-  A field shared by several node types belongs outside the type switch.
-- A step machine whose every phase sets the next step and RETURNS costs one client tick per phase whether or
-  not it had anything to wait for. AP3's USE node spent four ticks before the click, six or seven with a swap
-  ("my use item nodes come out like half a second late"). Only two waits are real: the server must see the new
-  rotation before the use, and it must have acknowledged a hotbar change. Let the rest fall through in one tick.
-- A second Interactive Map goal cannot simply be issued over a running one. `ClearExecutor.etherPath` returns
-  immediately while `pathPending`, and even when it does plan, it plans from the position you were at when you
-  pressed - `ClearNode.inside` needs you within 0.32 blocks of the first hop, so once you have warped off that
-  spot the new queue is inert and `isBusy()` never clears. A new goal must `cancel()` and then be issued from a
-  later tick. `cancel()` also had to stop clearing everything *except* `syncDelay`, which kept `isBusy()` true
-  for up to 49 more ticks with no completion callback left to run. Anything that holds a goal across those ticks
-  must publish its own "still steering" flag: `isBusy()` is false for the whole wait by design, and Auto Routes'
-  interlock 5 reads exactly that, so a node underfoot would arm in the gap and steer against the warp about to
-  start. `InteractiveMapFeature.isSteering()` is that flag.
 - `RouteExecutor.stop()` is already a real cancel - it drops the step machine, `releaseKeys()` zeroes the
   want-flags the input mixin reads, `RouteRotation.clear()` releases the camera, and every per-node buildup
   (breaker queue, boom snapshot, swap/await state) is rebuilt by `beginAction`. BOOM and BREAKER send their

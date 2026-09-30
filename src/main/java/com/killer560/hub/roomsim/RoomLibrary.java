@@ -30,8 +30,11 @@ import java.util.TreeMap;
  * <p>This exists because no public dungeon dataset ships room GEOMETRY. The well-known references store secret
  * coordinates and a way to tell which room you are standing in, which is all a waypoint mod needs and is not
  * enough to build a room you can walk through (checked 2026-09-28). So the blocks have to come from real runs,
- * and this is where they land. Once a room is complete it never needs capturing again, and the finished library
- * ships inside the mod.
+ * and this is where they land. Once a room is complete it never needs capturing again.
+ *
+ * <p><b>The finished library ships inside the jar</b> ({@link #BUNDLED_ROOT}), so the sim works the same in
+ * every instance instead of being only as good as what that instance happened to walk through. His own captures
+ * still win over the shipped copies - see {@link #mergeBundled} for the exact rule.
  *
  * <p><b>Completeness is per column, not per room.</b> A room is only ever partly loaded - you see the half you
  * walked through and the rest is outside render distance or behind a wall - so "captured" cannot be a flag set
@@ -45,6 +48,34 @@ public final class RoomLibrary {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path DIR =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-rooms");
+
+    private static final String MOD_ID = "killer560smod";
+
+    /**
+     * The baseline library shipped inside the jar.
+     *
+     * <p>Rooms used to exist only per-instance in {@link #DIR}, which meant the sim was only as good as
+     * whatever that particular Prism instance happened to have walked through. Measured on 2026-09-29: his
+     * "Map Logger" instance held 110 files of which 60 were usable and every single usable one was 1x1 - the
+     * other 43 were stored at the OLD footprint, so {@link Room#currentFormat()} threw them out, and every
+     * multi-tile room he had ever captured was among them. Generated floors there were entirely 1x1 and looked
+     * sparse. His "26.1.2 (Mod Only Test)" instance had all 135 rooms complete and correct at the same moment.
+     * Same mod, same code, wildly different sim, and nothing on screen said why.
+     *
+     * <p>So the 135 good rooms ship with the mod: 4.6 MB against a 33 MB jar. Every instance now starts from
+     * the same baseline and his own captures still win over it - see the merge in {@link #mergeBundled}.
+     */
+    private static final String BUNDLED_ROOT = "assets/killer560smod/rooms";
+
+    /**
+     * Names of the bundled rooms, one per line, no {@code .json}.
+     *
+     * <p>Driven off a list rather than by listing the directory: a mod's resources live inside a jar (or, in a
+     * dev run, a loose folder, or a Loom-remapped temporary), and walking a directory through a zip
+     * {@code FileSystem} is not something to depend on across all three. A text file reads the same way
+     * everywhere.
+     */
+    private static final String BUNDLED_INDEX = BUNDLED_ROOT + "/index.txt";
 
     /** One dungeon tile is 31 blocks across with a 1-block seam; the grid steps every 32. */
     public static final int TILE = 31;
@@ -93,6 +124,18 @@ public final class RoomLibrary {
     private static final java.util.Set<String> DIRTY = new java.util.LinkedHashSet<>();
     private static boolean loaded;
 
+    /**
+     * Marks a room as changed, and therefore no longer the copy that shipped in the jar.
+     *
+     * <p>Both halves in one place on purpose. {@link Room#fromJar} is what keeps {@link #saveAll()} from
+     * writing the shipped baseline into every instance, so a write path that forgot to clear it would make his
+     * own change look like a shipped room and quietly refuse to save it.
+     */
+    private static void markDirty(Room r) {
+        DIRTY.add(r.name);
+        r.fromJar = false;
+    }
+
     private RoomLibrary() {
     }
 
@@ -131,6 +174,27 @@ public final class RoomLibrary {
          */
         public final java.util.Set<String> mobSpawns = new java.util.LinkedHashSet<>();
 
+        /**
+         * Came out of the jar and has not been touched since.
+         *
+         * <p>Exists so {@link RoomLibrary#saveAll()} does not write 135 shipped rooms into every instance's
+         * config folder. {@code saveAll} rewrites the whole library - about 13 MB of gzipped block arrays -
+         * and copying the jar's own baseline out to disk would make that both bigger and pointless, and would
+         * then be indistinguishable from something he captured himself.
+         *
+         * <p>Cleared by {@link RoomLibrary#markDirty} the moment anything changes the room, which is every
+         * path that writes to it: a capture that fills columns, a mob spawn, a synthetic {@code set}. So
+         * "bundled" always means "still byte-for-byte what shipped", and anything else gets saved normally.
+         * A re-capture at a different footprint builds a brand new {@link Room} anyway (see
+         * {@link RoomLibrary#captureAt}), which starts out false.
+         */
+        boolean fromJar;
+
+        /** Whether this room is the untouched copy that shipped in the jar. */
+        public boolean isBundled() {
+            return fromJar;
+        }
+
         Room(String name, int sizeX, int sizeZ) {
             this.name = name;
             this.sizeX = sizeX;
@@ -167,10 +231,12 @@ public final class RoomLibrary {
             }
             blocks[index(x, y, z)] = paletteFor(blockId);
             seenColumn[z * sizeX + x] = true;
+            fromJar = false;
         }
 
         /** Marks every column read. For synthetic rooms; a captured one earns this a column at a time. */
         void markComplete() {
+            fromJar = false;
             java.util.Arrays.fill(seenColumn, true);
             for (int i = 0; i < blocks.length; i++) {
                 if (blocks[i] == -1) {
@@ -344,6 +410,10 @@ public final class RoomLibrary {
      *
      * <p>So the files are read into a local map with no lock held at all, and the lock is taken once at the
      * end to swap it in. The render thread now waits for a map assignment rather than for a disk read.
+     *
+     * <p>The BUNDLED library is read the same way, into the same local map, before the lock is taken - see
+     * {@link #mergeBundled}. Reading 4.6 MB out of the jar is the same kind of work as reading it off disk and
+     * gets the same treatment.
      */
     public static void load() {
         synchronized (RoomLibrary.class) {
@@ -390,19 +460,131 @@ public final class RoomLibrary {
         } catch (Exception e) {
             LOGGER.error("Could not load the room library", e);
         }
+        int onDisk = fresh.size();
+        // Still no lock held. mergeBundled reads the jar and merges into the same local map.
+        int rescued = mergeBundled(fresh);
+        int fromJar = 0;
+        for (Room r : fresh.values()) {
+            if (r.fromJar) {
+                fromJar++;
+            }
+        }
         int complete;
         synchronized (RoomLibrary.class) {
             ROOMS.clear();
             ROOMS.putAll(fresh);
-            // Set on EVERY path, including "there is no rooms folder yet". The old code returned early in that
-            // case without setting it, so a first run with nothing captured left the library permanently "not
-            // ready" and every later load refused to start - which is how the gametest found this.
+            // Set on EVERY path, including "there is no rooms folder yet", no mod container, and no bundled
+            // index. The old code returned early in that case without setting it, so a first run with nothing
+            // captured left the library permanently "not ready" and every later load refused to start - which
+            // is how the gametest found this. mergeBundled never throws for the same reason.
             loaded = true;
             loading = false;
             complete = completeCountLocked();
         }
-        LOGGER.info("Room library: {} room(s) on disk, {} complete, {} upgraded to the compact format, {} ms",
-                fresh.size(), complete, upgraded, System.currentTimeMillis() - startedAt);
+        LOGGER.info("Room library: {} room(s), {} from the jar and {} from disk ({} read off disk), "
+                        + "{} bundled room(s) replaced an unusable local copy, {} complete, "
+                        + "{} upgraded to the compact format, {} ms",
+                fresh.size(), fromJar, fresh.size() - fromJar, onDisk, rescued, complete, upgraded,
+                System.currentTimeMillis() - startedAt);
+    }
+
+    /**
+     * Overlays the shipped library onto what was read off disk, and returns how many unusable local rooms the
+     * jar rescued.
+     *
+     * <p>The merge rule, which is the whole point of shipping the rooms at all:
+     * <ul>
+     *   <li>A USABLE disk room wins. His own newer capture always beats the shipped copy - that is what makes
+     *       re-capturing a room still worth doing.</li>
+     *   <li>An UNUSABLE disk room loses to a usable bundled one. That is the Map Logger case exactly: 43 rooms
+     *       stored at the old footprint, filtered out by {@link Room#currentFormat()}, sitting in the map under
+     *       the right names and hiding the good shipped copies behind them.</li>
+     *   <li>If NEITHER is usable the disk one stays, so a half-captured room keeps its partial progress and the
+     *       Room Recorder can carry on filling it in.</li>
+     *   <li>A room that exists on only one side is kept as it is.</li>
+     * </ul>
+     *
+     * <p>The usable disk room is decided BEFORE the bundled file's blocks are decoded, so the good instance -
+     * where all 135 disk rooms already win - does not pay to gunzip 20 MB of block arrays it is about to throw
+     * away. Only the small header fields are needed to know the disk copy wins.
+     *
+     * <p>Never throws. A missing mod container or a missing index logs one line and leaves the disk rooms
+     * exactly as they were; the sim then behaves the way it did before this existed rather than not loading.
+     */
+    private static int mergeBundled(Map<String, Room> fresh) {
+        List<String> names;
+        try {
+            java.util.Optional<Path> index = bundled(BUNDLED_INDEX);
+            if (index.isEmpty()) {
+                LOGGER.warn("No bundled room library in this jar ({} is missing) - using only the {} room(s) "
+                        + "in this instance's config folder", BUNDLED_INDEX, fresh.size());
+                return 0;
+            }
+            names = new ArrayList<>();
+            for (String line : Files.readString(index.get(), StandardCharsets.UTF_8).split("\\R")) {
+                // The index holds safeName() output, so any character outside that alphabet cannot be part
+                // of a room's file name - which disposes of the UTF-8 BOM on the first line, of a stray CR,
+                // and of trailing spaces in one go. Left in, the BOM becomes part of the first room's file
+                // name and loses exactly one room, silently.
+                String name = line.replaceAll("[^A-Za-z0-9._-]", "");
+                if (!name.isEmpty()) {
+                    names.add(name);
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Could not read the bundled room index ({}) - using only this instance's rooms",
+                    e.getClass().getSimpleName());
+            return 0;
+        }
+
+        int rescued = 0;
+        for (String fileName : names) {
+            try {
+                java.util.Optional<Path> p = bundled(BUNDLED_ROOT + "/" + fileName + ".json");
+                if (p.isEmpty()) {
+                    LOGGER.warn("Bundled room {} is listed in the index but not in the jar", fileName);
+                    continue;
+                }
+                JsonObject json = JsonParser.parseString(
+                        Files.readString(p.get(), StandardCharsets.UTF_8)).getAsJsonObject();
+                // The room's NAME is the one in the file, not the file name - the files are written through
+                // safeName(), so "Arrow Trap" is stored as Arrow_Trap.json and the map is keyed by the former.
+                String name = json.has("name") ? json.get("name").getAsString() : null;
+                if (name == null || name.isBlank()) {
+                    continue;
+                }
+                Room disk = fresh.get(name);
+                if (disk != null && disk.usable()) {
+                    continue; // his own capture wins; do not even decode the shipped blocks
+                }
+                Room b = fromJson(json);
+                if (b == null) {
+                    continue;
+                }
+                b.fromJar = true;
+                if (disk == null) {
+                    fresh.put(b.name, b);
+                    readSoFar = fresh.size();
+                } else if (b.usable()) {
+                    // The measured case: an old-footprint or half-captured local room was hiding a good one.
+                    fresh.put(b.name, b);
+                    rescued++;
+                }
+                // else: neither is usable, so the disk room stays and keeps its partial progress.
+            } catch (Exception e) {
+                LOGGER.warn("Could not read the bundled room {} ({})", fileName, e.getClass().getSimpleName());
+            }
+        }
+        return rescued;
+    }
+
+    /** One file inside this mod's own jar, or empty when there is no container (never throws). */
+    private static java.util.Optional<Path> bundled(String inner) {
+        try {
+            return FabricLoader.getInstance().getModContainer(MOD_ID).flatMap(c -> c.findPath(inner));
+        } catch (Throwable t) {
+            return java.util.Optional.empty();
+        }
     }
 
     /** Rooms read so far by an in-progress load, for a progress line. Written by the loader thread only. */
@@ -532,6 +714,17 @@ public final class RoomLibrary {
      * <p>The real total is the room database, the same 140-room list the Live Map identifies rooms against and
      * the missing-rooms HUD already compares to. Falls back to the file count only while that is still loading,
      * so the number is never zero and never pretends to be authoritative when it is not.
+     *
+     * <p><b>Unchanged in meaning now that 135 rooms ship with the mod, and that is deliberate.</b> The
+     * denominator is still "every room Catacombs has", not "every room this instance could have" - so
+     * "135 of 140 rooms complete" now reads the same in every instance and says what is actually true: the
+     * shipped baseline covers all but a handful, and those few are still worth capturing. Making it the shipped
+     * count instead would read "135 of 135" everywhere and hide the remaining work; making it the file count
+     * would put a moving denominator back, which is the bug this method was written to fix.
+     *
+     * <p>Never smaller than {@link #roomCount()}. {@link #completeCount()} can only count rooms that are in the
+     * map, so a library holding a room the database has not heard of - a re-capture under a slightly different
+     * name, say - could otherwise print "137 of 135".
      */
     public static int expectedCount() {
         if (!com.killer560.hub.roomdatabase.RoomDatabase.isReady()) {
@@ -544,7 +737,7 @@ public final class RoomLibrary {
                 names.add(e.name);
             }
         }
-        return names.isEmpty() ? roomCount() : names.size();
+        return Math.max(names.size(), roomCount());
     }
 
     /** Every room touched so far that is not finished, worst first - what the recorder still needs. */
@@ -775,16 +968,16 @@ public final class RoomLibrary {
                 if (added >= columnBudget) {
                     // Out of budget. The rest of this room is picked up on a later tick - seenColumn means
                     // resuming costs nothing and never re-reads what is already stored.
-                    DIRTY.add(name);
+                    markDirty(r);
                     return added;
                 }
             }
         }
         if (added > 0) {
-            DIRTY.add(name);
+            markDirty(r);
         }
         if (captureMobs(level, r, worldX0, worldZ0)) {
-            DIRTY.add(name);
+            markDirty(r);
         }
         return added;
     }
@@ -888,20 +1081,40 @@ public final class RoomLibrary {
         if (r == null) {
             return;
         }
-        r.mobSpawns.add(localX + "," + localY + "," + localZ + "," + kind);
+        if (r.mobSpawns.add(localX + "," + localY + "," + localZ + "," + kind)) {
+            // A shipped room that now holds a spawn he recorded is no longer the shipped room, and saveAll
+            // skips anything still flagged as bundled - so without this the spawn would be lost on restart.
+            markDirty(r);
+        }
     }
 
-    public static synchronized void saveAll() {
+    /**
+     * Writes every room that is not still the untouched copy from the jar.
+     *
+     * <p>The skip is not an optimisation, it is the difference between shipping a baseline and copying it into
+     * 135 files in every one of his seven instances. {@code saveAll} already rewrites the whole library - about
+     * 13 MB of gzipped block arrays - and writing out the jar's own rooms as well would make that worse for no
+     * gain, and would leave rooms on disk that look exactly like something he captured.
+     *
+     * @return how many files were written
+     */
+    public static synchronized int saveAll() {
+        int written = 0;
         try {
             Files.createDirectories(DIR);
             for (Room r : ROOMS.values()) {
+                if (r.fromJar) {
+                    continue;
+                }
                 Path f = DIR.resolve(safeName(r.name) + ".json");
                 Files.writeString(f, GSON.toJson(toJson(r)), StandardCharsets.UTF_8);
+                written++;
             }
             DIRTY.clear();
         } catch (Exception e) {
             LOGGER.error("Could not save the room library", e);
         }
+        return written;
     }
 
     /**
@@ -918,7 +1131,10 @@ public final class RoomLibrary {
             Files.createDirectories(DIR);
             for (String name : DIRTY) {
                 Room r = ROOMS.get(name);
-                if (r == null) {
+                if (r == null || r.fromJar) {
+                    // fromJar here means a reload replaced the room this name was dirty for with the shipped
+                    // copy, so the change it refers to no longer exists in memory. Writing the jar's room out
+                    // under his name would be worse than writing nothing.
                     continue;
                 }
                 Path f = DIR.resolve(safeName(r.name) + ".json");
