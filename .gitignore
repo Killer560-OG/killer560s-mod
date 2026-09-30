@@ -35,3 +35,9 @@ TESTING.md
 
 # Session handoff notes, not for the public repo
 HANDOFF.md
+
+# Session scratch. 116 files of staged copies of already-shipped source were committed here by
+# accident and sat two weeks stale; git history keeps them if ever wanted.
+/scratchpad/
+# A scratchpad PATH once got used as a literal directory name, committing a .class file with it.
+/UsersHunter*/
