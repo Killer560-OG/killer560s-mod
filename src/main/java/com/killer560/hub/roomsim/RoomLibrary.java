@@ -757,6 +757,18 @@ public final class RoomLibrary {
      *
      * @return 0 when the room is unknown or not in the current format
      */
+    /**
+     * Whether this room is one the sim will actually place.
+     *
+     * <p>The same question {@link Room#usable()} answers, by name, so anything choosing rooms from the
+     * outside asks the one authority rather than re-deriving it - a screen, a layout and a test each with
+     * their own idea of usable is three places to drift.
+     */
+    public static synchronized boolean isUsable(String name) {
+        Room r = get(name);
+        return r != null && r.usable();
+    }
+
     public static synchronized int cellFootprint(String name) {
         Room r = ROOMS.get(name);
         if (r == null || !r.currentFormat()) {
