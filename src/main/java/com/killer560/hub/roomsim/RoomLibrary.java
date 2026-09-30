@@ -1017,6 +1017,105 @@ public final class RoomLibrary {
      * @param tilesX   how many tiles wide, at least 1
      * @param tilesZ   how many tiles deep, at least 1
      */
+    /**
+     * The largest a real Catacombs room can be on one axis, in tiles.
+     *
+     * <p>Not a guess: the room database holds six shapes and no others - 1x1, 1x2, 1x3, 1x4, 2x2 and L -
+     * across all 280 rooms, so four is the ceiling and an L fits in a 2x2 box.
+     */
+    private static final int MAX_ROOM_TILES = 4;
+
+    /**
+     * The footprint a capture should actually use, which is <b>the database's shape</b> whenever it knows one.
+     *
+     * <p><b>This is the guard that was missing on 2026-09-30.</b> killer560 walked every room on an Ashfall
+     * practice floor to re-record them and the library came out WORSE - 43 of 135 rooms ended up with a
+     * footprint the database contradicts, including Hall and Slime at 11x1, Small Stairs and Multicolored at
+     * 11x1, and Melon grown from a good 1x1 to an 8x1. An Ashfall preset lays every room out in a LINE, so
+     * when the layout merges a run of neighbours into one room the bounding box of the whole run becomes the
+     * footprint. Nothing checked it, and {@code captureAt} throws away a room whose footprint changed, so each
+     * one overwrote a good capture. They then failed silently forever, because {@code currentFormat()} only
+     * asks whether the size is a whole number of tiles and the generator simply never finds room for an
+     * 11-tile room on a 6-tile grid.
+     *
+     * <p>Clamping, not refusing, and that distinction matters in both directions:
+     * <ul>
+     *   <li><b>Measured too big</b> (a merged run): capturing the database's smaller box reads the one room
+     *       instead of the whole row.</li>
+     *   <li><b>Measured too small</b> (he has only walked part of a 2x2): refusing would mean the room could
+     *       never be captured at all. Capturing into the database-sized box instead gets the SHAPE right and
+     *       leaves the rest of the columns unread, so {@code complete()} stays false and the generator will
+     *       not place a quarter of a room as though it were whole. Twelve rooms are in this state right now -
+     *       Atlas, Cathedral, Quartz Knight and the rest - and this is what lets walking them fix it.</li>
+     * </ul>
+     *
+     * <p>Either axis order is accepted, because a capture can be rotated relative to the database; when the
+     * measured footprint matches neither, the orientation closer to what was measured is used.
+     *
+     * @return {tilesX, tilesZ} to capture, or null when even the hard cap cannot be satisfied
+     */
+    private static int[] resolveFootprint(String name, int tilesX, int tilesZ) {
+        int[] want = shapeTiles(name);
+        if (want == null) {
+            // The database does not know this room, so the hard cap is the only thing that can be checked.
+            if (tilesX > MAX_ROOM_TILES || tilesZ > MAX_ROOM_TILES) {
+                warnFootprintOnce(name, tilesX, tilesZ, "no Catacombs room is more than "
+                        + MAX_ROOM_TILES + " tiles across, and the room database has no shape for it");
+                return null;
+            }
+            return new int[]{tilesX, tilesZ};
+        }
+        if ((tilesX == want[0] && tilesZ == want[1]) || (tilesX == want[1] && tilesZ == want[0])) {
+            return new int[]{tilesX, tilesZ};
+        }
+        // Keep the orientation the world suggested; only the SIZE comes from the database.
+        int big = Math.max(want[0], want[1]);
+        int small = Math.min(want[0], want[1]);
+        int[] use = tilesX >= tilesZ ? new int[]{big, small} : new int[]{small, big};
+        warnFootprintOnce(name, tilesX, tilesZ, "the room database says it is " + want[0] + "x" + want[1]
+                + " tiles, so it is being captured as " + use[0] + "x" + use[1] + " instead");
+        return use;
+    }
+
+    /** Rooms already warned about, so a scan that retries every tick does not fill the log. */
+    private static final java.util.Set<String> FOOTPRINT_WARNED =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    private static void warnFootprintOnce(String name, int tilesX, int tilesZ, String why) {
+        if (FOOTPRINT_WARNED.add(name + "|" + tilesX + "x" + tilesZ)) {
+            LOGGER.warn("Refusing to capture \"{}\" as {}x{} tiles - {}. Whatever is already captured for it "
+                    + "is left alone.", name, tilesX, tilesZ, why);
+        }
+    }
+
+    /**
+     * The database's shape for this room as a tile bounding box, or null when it does not know it.
+     *
+     * <p>An L is a 2x2 box with a cell missing, and the box is what a capture covers.
+     */
+    private static int[] shapeTiles(String name) {
+        try {
+            var entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(name);
+            if (entry == null || entry.shape == null) {
+                return null;
+            }
+            String shape = entry.shape.trim();
+            if (shape.equalsIgnoreCase("L")) {
+                return new int[]{2, 2};
+            }
+            int x = shape.toLowerCase(java.util.Locale.ROOT).indexOf('x');
+            if (x <= 0 || x + 1 >= shape.length()) {
+                return null;
+            }
+            return new int[]{
+                Integer.parseInt(shape.substring(0, x).trim()),
+                Integer.parseInt(shape.substring(x + 1).trim()),
+            };
+        } catch (Exception e) {
+            return null;   // an unparsable shape is not a reason to block a capture
+        }
+    }
+
     public static synchronized int captureAt(Level level, String name, int centreX, int centreZ,
                                              int tilesX, int tilesZ, int columnBudget) {
         load();
@@ -1024,10 +1123,25 @@ public final class RoomLibrary {
                 || tilesX < 1 || tilesZ < 1) {
             return 0;
         }
+        int[] use = resolveFootprint(name, tilesX, tilesZ);
+        if (use == null) {
+            return 0;
+        }
+        tilesX = use[0];
+        tilesZ = use[1];
         int sizeX = footprint((tilesX - 1) * 2);
         int sizeZ = footprint((tilesZ - 1) * 2);
         Room r = ROOMS.get(name);
         if (r == null || r.sizeX != sizeX || r.sizeZ != sizeZ) {
+            if (r != null) {
+                // Said out loud, because this DISCARDS a capture. A room at a different footprint cannot be
+                // grown into - the array is a different shape - so the old one goes and the new one starts
+                // empty. That is right when an old capture was genuinely the wrong size, and a disaster when
+                // the new footprint is the wrong one, which is why plausibleFootprint runs first.
+                LOGGER.warn("Re-capturing \"{}\" at {}x{} tiles, replacing the {}x{}-block capture already "
+                        + "held - its blocks are discarded and it starts empty",
+                        name, tilesX, tilesZ, r.sizeX, r.sizeZ);
+            }
             r = new Room(name, sizeX, sizeZ);
             ROOMS.put(name, r);
         } else if (r.minY != MIN_Y || r.maxY != MAX_Y) {

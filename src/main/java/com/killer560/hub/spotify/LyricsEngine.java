@@ -199,13 +199,16 @@ public final class LyricsEngine {
                 return List.of();
             }
 
-            JsonObject match = null;
-            for (JsonElement el : results) {
-                JsonObject obj = el.getAsJsonObject();
-                if (obj.has("syncedLyrics") && !obj.get("syncedLyrics").isJsonNull()) {
-                    match = obj;
-                    break;
-                }
+            // An EXACT artist and title match wins over merely the first result with synced lyrics.
+            //
+            // lrclib's search is fuzzy, so a query returns remixes, live cuts, sped-up edits and other
+            // artists' covers alongside the real thing - measured on "Lil Uzi Vert - Money Longer"
+            // (2026-09-30) it returned 20 results, all with synced lyrics. Taking the first one that happened
+            // to have lyrics meant the choice between them was whatever order the server replied in, and a
+            // remix's timings do not fit the album version at all.
+            JsonObject match = pick(results, artist, title, true);
+            if (match == null) {
+                match = pick(results, artist, title, false);
             }
             if (match == null) {
                 match = results.get(0).getAsJsonObject();
@@ -222,6 +225,36 @@ public final class LyricsEngine {
             SpotifyLyricsFeature.LOGGER.warn("lrclib search threw for artist='{}' title='{}': {}", artist, title, e.toString());
             return List.of();
         }
+    }
+
+    /**
+     * The best result with synced lyrics: {@code exact} requires the artist and title to match what Spotify
+     * reported, ignoring case and surrounding space.
+     */
+    private static JsonObject pick(JsonArray results, String artist, String title, boolean exact) {
+        for (JsonElement el : results) {
+            JsonObject obj = el.getAsJsonObject();
+            if (!obj.has("syncedLyrics") || obj.get("syncedLyrics").isJsonNull()) {
+                continue;
+            }
+            if (!exact) {
+                return obj;
+            }
+            if (same(obj, "trackName", title) && same(obj, "artistName", artist)) {
+                return obj;
+            }
+        }
+        return null;
+    }
+
+    private static boolean same(JsonObject obj, String key, String want) {
+        if (want == null || want.isBlank()) {
+            return true;   // nothing to compare against - the window title gave no artist
+        }
+        if (!obj.has(key) || obj.get(key).isJsonNull()) {
+            return false;
+        }
+        return obj.get(key).getAsString().trim().equalsIgnoreCase(want.trim());
     }
 
     private List<LyricLine> parseLrc(String lrc) {
