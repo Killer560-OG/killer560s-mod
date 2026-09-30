@@ -72,6 +72,31 @@ public final class SimDoors {
     /** Secret chests a doorway carve has removed. Reported by the sim's build so this cannot go unnoticed. */
     public static int CHESTS_CARVED_AWAY;
 
+    /**
+     * Every position a doorway carve opened, so nothing gets put back into a doorway afterwards.
+     *
+     * <p>The build deliberately carves doorways BEFORE placing secrets, because the reverse order had the
+     * carve delete a secret chest that happened to sit in a doorway - about one chest on one floor in three.
+     * Flipping it fixed that and created the mirror image: a secret chest placed INTO a carved opening, which
+     * is a door you cannot walk through. Scenario 81 found one between Blood and Pedestal on 2026-09-30,
+     * blocked by "stone_brick_stairs+stone_bricks+chest".
+     *
+     * <p>Neither order is right on its own; what is needed is for the secret placement to know where the
+     * openings are. A missing chest is a far smaller problem than a sealed door, so a secret that lands in one
+     * is skipped and said out loud rather than placed.
+     */
+    private static final java.util.Set<BlockPos> CARVED = new java.util.HashSet<>();
+
+    /** Whether this position is inside an opening a doorway carve made. */
+    public static boolean isCarvedDoorway(BlockPos at) {
+        return CARVED.contains(at);
+    }
+
+    /** How many positions the carves opened on this floor. */
+    public static int carvedCount() {
+        return CARVED.size();
+    }
+
     private static final List<Door> DOORS = new CopyOnWriteArrayList<>();
 
     /** Reverse lookup so a right-click on any one of a door's blocks finds the whole door in O(1). */
@@ -144,6 +169,7 @@ public final class SimDoors {
                         CHESTS_CARVED_AWAY++;
                     }
                     level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
+                    CARVED.add(at.immutable());
                     if (fill != null && d == 0) {
                         level.setBlockAndUpdate(at, fill);
                         filled.add(at.immutable());
@@ -496,6 +522,7 @@ public final class SimDoors {
     public static void clear() {
         DOORS.clear();
         BLOCK_INDEX.clear();
+        CARVED.clear();
         PENDING.clear();
     }
 }

@@ -369,6 +369,13 @@ public final class SimBuilder {
                     LOGGER.info("Sim build: all {} secret chest(s) are in place ({} distinct block(s))",
                             still, distinct.size());
                 }
+                // Said out loud rather than silently dropped: a secret that would have sealed a doorway is
+                // skipped, and that is a real chest missing from the floor even though it is the right call.
+                if (SimSecrets.chestsInDoorways > 0) {
+                    LOGGER.warn("Sim build: {} secret chest(s) skipped because they landed in a carved "
+                            + "doorway - a chest there is a door nobody can walk through",
+                            SimSecrets.chestsInDoorways);
+                }
                 // The golden crypts that were already in the rooms, found once the floor is standing.
                 // Not every floor has one - only four rooms in the library carry one.
                 int princes = SimPrince.scan(level);

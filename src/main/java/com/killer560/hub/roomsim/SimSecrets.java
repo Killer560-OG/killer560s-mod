@@ -191,6 +191,7 @@ public final class SimSecrets {
         chestsChecked = 0;
         chestsUncorrected = 0;
         chestsSkippedOutside = 0;
+        chestsInDoorways = 0;
     }
 
     /**
@@ -205,6 +206,9 @@ public final class SimSecrets {
     }
 
     /** Every chest this floor placed, so the build can check afterwards that they are all still there. */
+    /** Secret chests skipped because they landed in a carved doorway. Reported by the build. */
+    public static int chestsInDoorways;
+
     public static final java.util.List<BlockPos> PLACED_CHESTS =
             new java.util.concurrent.CopyOnWriteArrayList<>();
 
@@ -290,6 +294,12 @@ public final class SimSecrets {
                     p, uncorrectedClayX, uncorrectedClayZ, uncorrectedRotation));
             if (level.getBlockState(before).is(Blocks.CHEST)) {
                 chestsUncorrected++;
+            }
+            // Never into a carved doorway. A chest there is a door nobody can walk through, which is a much
+            // worse outcome than one missing secret - see SimDoors.CARVED for why the two orders trade off.
+            if (SimDoors.isCarvedDoorway(at)) {
+                chestsInDoorways++;
+                continue;
             }
             SimBuildQueue.touched(at.getX(), at.getZ());
             level.setBlockAndUpdate(at, Blocks.CHEST.defaultBlockState());
