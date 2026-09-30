@@ -31,7 +31,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *  <li>{@code shouldInstantlyReplaceVisibleItem} + {@code tick} TAIL (main/off hand height fields) - equip.</li>
  *  <li>{@code renderHandsWithItems} - the two {@code Axis.rotationDegrees(F)} view-bob sway rotations.</li>
  *  </ul>
- *  Every injector is {@code require = 0}; every one starts with a single static boolean read. */
+ *  Every injector is {@code require = 0}; every one starts with a single static boolean read.
+ *  <p>
+ *  <p><b>The two 26.2 renames.</b> This class survives the 26.2 render rework with the same members and the
+ *  same parameter lists; only two of the names it injects into changed, {@code renderArmWithItem} to
+ *  {@code submitArmWithItem} and {@code renderHandsWithItems} to {@code submitHandsWithItems} (javap on both
+ *  jars: byte-identical descriptors, including the inner {@code renderItem} and {@code Axis.rotationDegrees}
+ *  targets). Both names are listed in each {@code method =}, so one file serves both versions and the handler
+ *  signatures need no change - which is why this mixin did NOT need splitting into the per-version source
+ *  directories the way the ones whose target CLASS moved did.
+ */
 @Mixin(ItemInHandRenderer.class)
 public abstract class HeldItemInHandRendererMixin {
 
@@ -40,7 +49,7 @@ public abstract class HeldItemInHandRendererMixin {
     @Shadow private float offHandHeight;
     @Shadow private float oOffHandHeight;
 
-    @Inject(method = "renderArmWithItem",
+    @Inject(method = {"renderArmWithItem", "submitArmWithItem"},
             at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", shift = At.Shift.AFTER),
             require = 0)
     private void killer560smod$heldItemOffset(AbstractClientPlayer player, float frameInterp, float xRot,
@@ -56,7 +65,7 @@ public abstract class HeldItemInHandRendererMixin {
         poseStack.translate(t.x * sign, t.y, t.z);
     }
 
-    @Inject(method = "renderArmWithItem",
+    @Inject(method = {"renderArmWithItem", "submitArmWithItem"},
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;renderItem(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemDisplayContext;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V"),
             require = 0)
     private void killer560smod$heldItemRotateScale(AbstractClientPlayer player, float frameInterp, float xRot,
@@ -74,7 +83,7 @@ public abstract class HeldItemInHandRendererMixin {
     }
 
     /** {@code attack} is the swing progress (0 = at rest); pinning it to 0 removes the swing arc/rotation. */
-    @ModifyVariable(method = "renderArmWithItem", at = @At("HEAD"), ordinal = 2, argsOnly = true, require = 0)
+    @ModifyVariable(method = {"renderArmWithItem", "submitArmWithItem"}, at = @At("HEAD"), ordinal = 2, argsOnly = true, require = 0)
     private float killer560smod$heldItemNoSwing(float attack) {
         if (!HeldItemConfig.isActive()) return attack;
         return HeldItemConfig.getInstance().isNoSwing() ? 0f : attack;
@@ -104,7 +113,7 @@ public abstract class HeldItemInHandRendererMixin {
 
     /** The two {@code Axis.rotationDegrees} calls in renderHandsWithItems are the look-around sway
      *  ({@code (xRot - xBob) * 0.1F} and the yaw equivalent); zeroing their angle keeps the item still. */
-    @ModifyArg(method = "renderHandsWithItems",
+    @ModifyArg(method = {"renderHandsWithItems", "submitHandsWithItems"},
             at = @At(value = "INVOKE", target = "Lcom/mojang/math/Axis;rotationDegrees(F)Lorg/joml/Quaternionf;"),
             index = 0, require = 0)
     private float killer560smod$heldItemNoSway(float degrees) {

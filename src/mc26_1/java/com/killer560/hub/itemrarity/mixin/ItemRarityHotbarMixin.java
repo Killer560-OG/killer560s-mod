@@ -18,7 +18,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  Verified with javap against minecraft-merged-043a8b3edf-26.1.2.jar: {@code private void
  *  extractSlot(GuiGraphicsExtractor, int, int, DeltaTracker, Player, ItemStack, int)}. The empty-stack early
  *  return is AFTER HEAD, so {@link ItemRarityFeature#drawBackground} checks {@code isEmpty()} itself.
- *  {@code require = 0} so a mismatch just disables it instead of crashing. */
+ *  {@code require = 0} so a mismatch just disables it instead of crashing.
+ *  <p>
+ *  <p><b>This mixin has one copy per Minecraft version</b>, in {@code src/mc26_1/java} and
+ *  {@code src/mc26_2/java}, because the class it targets is not the same class on both - and a
+ *  {@code @Mixin} target is an annotation constant, so it cannot come from the {@code compat} facade the
+ *  rest of the port uses. Only one is ever compiled. <b>A change to one belongs in the other</b>, exactly as
+ *  for {@code compat/McCompat}: the mixin configs use {@code defaultRequire: 0}, so a copy left behind fails
+ *  SILENTLY and the feature simply stops running with nothing in the log.
+ */
 @Mixin(Gui.class)
 public abstract class ItemRarityHotbarMixin {
 

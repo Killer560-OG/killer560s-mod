@@ -32,6 +32,14 @@ import net.minecraft.world.scores.PlayerTeam;
  * <p><b>Keep every version's copy method-for-method identical in signature.</b> A method present in one and
  * missing in another turns a clean compile on one version into a break on the other, which is exactly the
  * failure this class exists to prevent. When you add one, add it everywhere.
+ *
+ * <p><b>Mixins live here too, when they have to.</b> A {@code @Mixin} target is an annotation constant, so a
+ * mixin whose target CLASS moved between versions cannot go through this facade - it gets one copy per version
+ * beside it instead, at the same fully-qualified name, and the mixin config keeps naming it once. Eight do as
+ * of the 26.2 port ({@code Gui} to {@code Hud} for four HUD hooks, {@code Minecraft} to {@code Gui} for Fast
+ * Leap's screen hook, {@code TabButton}/{@code TabNavigationBar} to {@code MenuTabBar}'s new inner classes,
+ * and {@code SectionRenderDispatcher.RenderSection} to {@code SectionUpdateTracker}). A mixin where only the
+ * METHOD name changed does not need splitting: {@code method = {"oldName", "newName"}} serves both.
  */
 public final class McCompat {
 

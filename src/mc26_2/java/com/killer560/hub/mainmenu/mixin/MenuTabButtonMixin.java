@@ -5,6 +5,7 @@ import com.killer560.hub.mainmenu.MenuWidgets;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.TabButton;
+import net.minecraft.client.gui.components.tabs.MenuTabBar;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
@@ -29,8 +30,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *       {@code ActiveTextCollector.acceptScrollingWithDefaultCenter(Component,int,int,int,int)} interface call,
  *       arg 0 = getMessage()).</li>
  * </ul>
+ *
+ * <b>This mixin has one copy per Minecraft version</b>, in {@code src/mc26_1/java} and
+ * {@code src/mc26_2/java}, because the class it targets is not the same class on both - and a
+ * {@code @Mixin} target is an annotation constant, so it cannot come from the {@code compat} facade the
+ * rest of the port uses. Only one is ever compiled. <b>A change to one belongs in the other</b>, exactly as
+ * for {@code compat/McCompat}: the mixin configs use {@code defaultRequire: 0}, so a copy left behind fails
+ * SILENTLY and the feature simply stops running with nothing in the log.
+ * <p>26.2: {@code TabButton} keeps only the behaviour, and everything this mixin draws through moved down
+ * into the new subclass {@code tabs.MenuTabBar.MenuTabButton}, renamed from extract- to render-:
+ * {@code extractWidgetRenderState} keeps its name, {@code extractMenuBackground} is
+ * {@code renderMenuBackground}, {@code extractFocusUnderline} is {@code renderFocusUnderline} and
+ * {@code extractLabel} is {@code renderLabel}. Every inner {@code @At} target survives byte for byte -
+ * one {@code blitSprite}, one {@code fill}, one {@code acceptScrollingWithDefaultCenter} - read off
+ * {@code javap -c} on the new class, so the redirects and arg indices are unchanged. The
+ * {@code (TabButton) (Object) this} casts still hold, because MenuTabButton extends TabButton.
  */
-@Mixin(TabButton.class)
+@Mixin(MenuTabBar.MenuTabButton.class)
 public abstract class MenuTabButtonMixin {
 
     @Redirect(method = "extractWidgetRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
@@ -50,14 +66,14 @@ public abstract class MenuTabButtonMixin {
         graphics.blitSprite(pipeline, sprite, x, y, width, height);
     }
 
-    @Inject(method = "extractMenuBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIII)V", at = @At("HEAD"), cancellable = true, require = 0)
+    @Inject(method = "renderMenuBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIII)V", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$themedTabBackground(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, CallbackInfo ci) {
         if (MenuWidgets.active()) {
             ci.cancel();
         }
     }
 
-    @ModifyArg(method = "extractFocusUnderline(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;I)V",
+    @ModifyArg(method = "renderFocusUnderline(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;I)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V"),
             index = 4, require = 0)
     private int killer560smod$themedTabUnderline(int color) {
@@ -76,7 +92,7 @@ public abstract class MenuTabButtonMixin {
         }
     }
 
-    @ModifyArg(method = "extractLabel(Lnet/minecraft/client/gui/ActiveTextCollector;)V",
+    @ModifyArg(method = "renderLabel(Lnet/minecraft/client/gui/ActiveTextCollector;)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/ActiveTextCollector;acceptScrollingWithDefaultCenter(Lnet/minecraft/network/chat/Component;IIII)V"),
             index = 0, require = 0)
     private Component killer560smod$themedTabLabel(Component message) {
