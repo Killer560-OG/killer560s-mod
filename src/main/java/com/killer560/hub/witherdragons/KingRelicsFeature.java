@@ -315,9 +315,9 @@ public final class KingRelicsFeature {
         AABB beam = new AABB(p.getX() + 0.35, p.getY() + 1, p.getZ() + 0.35, p.getX() + 0.65, p.getY() + 40, p.getZ() + 0.65);
         WorldRenderUtils.renderFilledBox(context, beam, c[0], c[1], c[2], 0.25f);
         if (cfg.isRelicTracer()) {
-            // WorldRenderUtils.tracerOrigin(), not client.player.getEyePosition() - see that method's doc for
+            // WorldRenderUtils.tracerOrigin(context), not client.player.getEyePosition() - see that method's doc for
             // the head-instead-of-crosshair bug killer560 reported on doorkeys/wither ESP's tracers.
-            WorldRenderUtils.renderLineStrip(context, List.of(WorldRenderUtils.tracerOrigin(),
+            WorldRenderUtils.renderLineStrip(context, List.of(WorldRenderUtils.tracerOrigin(context),
                     new Vec3(p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5)), c[0], c[1], c[2], 1f, 2f);
         }
     }

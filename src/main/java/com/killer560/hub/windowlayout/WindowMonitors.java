@@ -10,6 +10,7 @@ import org.lwjgl.glfw.GLFWVidMode;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.killer560.hub.compat.McCompat;
 
 /** Connected monitors straight from GLFW (Mojang's {@code ScreenManager} keeps its map private), with the
  *  Windows work area from user32 {@code GetMonitorInfoW} and GLFW's own work area as the fallback. Must be
@@ -98,7 +99,7 @@ public final class WindowMonitors {
             Monitor best = window.findBestMonitor();
             if (best != null) {
                 for (MonitorInfo m : monitors) {
-                    if (m.handle() == best.getMonitor()) {
+                    if (m.handle() == McCompat.monitorHandle(best)) {
                         return m;
                     }
                 }

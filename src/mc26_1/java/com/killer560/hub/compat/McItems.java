@@ -146,4 +146,10 @@ public final class McItems {
     public static final Item GREEN_WOOL = Items.GREEN_WOOL;
     public static final Item RED_WOOL = Items.RED_WOOL;
     public static final Item BLACK_WOOL = Items.BLACK_WOOL;
+
+    // Lightning rod. Not a colour family: 26.2 gave the rod copper weathering, so Items.LIGHTNING_ROD there is a
+    // WeatheringCopperCollection and no longer an Item at all. This is the plain, unwaxed, unaffected rod -
+    // registry id minecraft:lightning_rod - which is what the Termism practice screen has always shown for L.
+    public static final Item LIGHTNING_ROD = Items.LIGHTNING_ROD;
+
 }

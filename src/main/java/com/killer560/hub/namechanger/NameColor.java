@@ -3,6 +3,7 @@ package com.killer560.hub.namechanger;
 import net.minecraft.ChatFormatting;
 
 import java.util.Locale;
+import com.killer560.hub.util.ChatColors;
 
 /**
  * Colour handling for Name Changer's display names. killer560 (2026-09-20): "instead of using color codes I
@@ -27,7 +28,7 @@ public final class NameColor {
 
     private static ChatFormatting[] buildColors() {
         return java.util.Arrays.stream(ChatFormatting.values())
-                .filter(f -> f.isColor() && f.getColor() != null)
+                .filter(f -> ChatColors.isColor(f))
                 .toArray(ChatFormatting[]::new);
     }
 
@@ -35,8 +36,8 @@ public final class NameColor {
     public static int argbForCode(char code) {
         char lower = Character.toLowerCase(code);
         for (ChatFormatting f : COLORS) {
-            if (f.getChar() == lower) {
-                return 0xFF000000 | f.getColor();
+            if (ChatColors.code(f) == lower) {
+                return 0xFF000000 | ChatColors.color(f);
             }
         }
         return NONE;
@@ -50,7 +51,7 @@ public final class NameColor {
         ChatFormatting best = ChatFormatting.WHITE;
         long bestDistance = Long.MAX_VALUE;
         for (ChatFormatting f : COLORS) {
-            int c = f.getColor();
+            int c = ChatColors.color(f);
             long dr = r - ((c >> 16) & 0xFF);
             long dg = g - ((c >> 8) & 0xFF);
             long db = b - (c & 0xFF);
@@ -60,7 +61,7 @@ public final class NameColor {
                 best = f;
             }
         }
-        return best.getChar();
+        return ChatColors.code(best);
     }
 
     /** "" for {@link #NONE}, otherwise the "§x" prefix to put in front of a display name. */
@@ -163,8 +164,8 @@ public final class NameColor {
         }
         char code = codeFor(argb);
         for (ChatFormatting f : COLORS) {
-            if (f.getChar() == code) {
-                return f.getName().replace('_', ' ').toLowerCase(Locale.US);
+            if (ChatColors.code(f) == code) {
+                return ChatColors.name(f).replace('_', ' ').toLowerCase(Locale.US);
             }
         }
         return "Default";

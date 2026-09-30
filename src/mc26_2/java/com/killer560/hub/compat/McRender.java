@@ -1,10 +1,25 @@
 package com.killer560.hub.compat;
 
+import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.buffers.Std140Builder;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.pipeline.TextureTarget;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.GpuTexture;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.BindGroupLayouts;
+import org.joml.Vector4f;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
 
 /**
  * World-space drawing, for Minecraft 26.2.
@@ -36,6 +51,44 @@ public final class McRender {
     /** Where the camera is this frame. */
     public static Vec3 cameraPos(LevelRenderContext context) {
         return context.levelState().cameraRenderState.pos;
+    }
+
+    /**
+     * How the camera is turned this frame - {@code Camera.rotation()}'s quaternion, for billboarding.
+     *
+     * <p>{@code CameraRenderState.orientation} is not merely similar to it: 26.2's own
+     * {@code Camera.extractRenderState} fills that field with {@code orientation.set(rotation())}, read off the
+     * bytecode. The instance is the render state's own and vanilla reuses it between frames, so a caller must
+     * not keep it - every caller in this mod feeds it straight to {@code PoseStack.mulPose}.
+     */
+    public static Quaternionf cameraRotation(LevelRenderContext context) {
+        return context.levelState().cameraRenderState.orientation;
+    }
+
+    /** The camera's pitch, in degrees - {@code Camera.xRot()}. */
+    public static float cameraXRot(LevelRenderContext context) {
+        return context.levelState().cameraRenderState.xRot;
+    }
+
+    /** The camera's yaw, in degrees - {@code Camera.yRot()}. */
+    public static float cameraYRot(LevelRenderContext context) {
+        return context.levelState().cameraRenderState.yRot;
+    }
+
+    /**
+     * Unit vector the camera is looking along - {@code Camera.forwardVector()}.
+     *
+     * <p>The render state does NOT carry this one, so it is rebuilt the way {@code Camera} builds it:
+     * {@code Camera.setRotation} does {@code FORWARDS.rotate(rotation, forwards)} with the class's private
+     * {@code FORWARDS} constant, which the static initialiser sets to {@code (0, 0, -1)} - both facts read off
+     * {@code javap -c} on 26.2's own {@code Camera}, not assumed from the 26.1.2 source. Minus Z, not plus:
+     * getting that sign wrong would have compiled and pointed every tracer backwards.
+     *
+     * <p>A fresh vector each call, because {@code rotate} writes into its destination and the camera's own
+     * {@code forwards} field is not reachable here.
+     */
+    public static Vector3fc cameraForward(LevelRenderContext context) {
+        return new Vector3f(0.0F, 0.0F, -1.0F).rotate(cameraRotation(context));
     }
 
     /**
@@ -98,6 +151,79 @@ public final class McRender {
                                 net.minecraft.client.gui.Font.DisplayMode mode, int background, int light) {
         context.submitNodeCollector().order(0).submitText(poseStack, x, y, text, shadow, mode, light, colour,
                 background, 0);
+    }
+
+
+    // --------------------------------------------------------------------------- render targets and GPU buffers
+    //
+    // The four differences the two cosmetic post-process features (Custom Scoreboard's background blur and
+    // Motion Blur) ran into. All four are the same API doing the same thing under a different name, verified
+    // with javap against both jars - none of them needed the features stubbing out, and neither feature's GLSL
+    // changes at all: 26.2 still wants "#version 330", still ships
+    // assets/minecraft/shaders/include/dynamictransforms.glsl and projection.glsl for #moj_import, and still
+    // declares "uniform sampler2D Sampler0" (see core/text.fsh).
+
+    /**
+     * The framebuffer the world was drawn into this frame.
+     *
+     * <p>26.2 removes {@code Minecraft.getMainRenderTarget()}. It is NOT replaced by a GpuSurface model, as the
+     * port notes claimed: {@code GameRenderer} keeps a private {@code mainRenderTarget} field and exposes it as
+     * the public method {@code mainRenderTarget()} - the old name minus the {@code get}. Found by listing
+     * {@code GameRenderer}, and it is still a real {@code MainTarget}, so everything the two blur features do
+     * with it (width, height, {@code getColorTexture}, {@code getColorTextureView}) is unchanged.
+     * {@code Minecraft.windowSurface()} is a different thing - the swapchain the finished frame is presented to -
+     * and is NOT what either feature wants to sample.
+     */
+    public static RenderTarget mainRenderTarget(Minecraft client) {
+        return client.gameRenderer.mainRenderTarget();
+    }
+
+    /**
+     * Declares that a pipeline samples texture unit 0.
+     *
+     * <p>26.2 drops {@code RenderPipeline.Builder.withSampler(String)} for the bind-group model, where the same
+     * declaration is {@code withBindGroupLayout(BindGroupLayouts.SAMPLER0)} - and {@code BindGroupLayouts.SAMPLER0}
+     * is, in its own bytecode, exactly {@code BindGroupLayout.builder().withSampler("Sampler0").build()}, which is
+     * why this is a rename and not a shader change.
+     */
+    public static RenderPipeline.Builder withSampler0(RenderPipeline.Builder builder) {
+        return builder.withBindGroupLayout(BindGroupLayouts.SAMPLER0);
+    }
+
+    /**
+     * An off-screen colour target the size of the window, in the same format as the main one.
+     *
+     * <p>26.2's {@code TextureTarget} constructor gained a {@code GpuFormat}. {@code RGBA8_UNORM} is not a guess:
+     * it is what {@code MainTarget}'s own constructor passes up to {@code RenderTarget}, read off its bytecode -
+     * and it has to match, because the whole point of this target is to be a {@code copyTextureToTexture}
+     * destination for the main one.
+     */
+    public static TextureTarget newTextureTarget(String label, int width, int height, boolean useDepth) {
+        return new TextureTarget(label, width, height, useDepth, GpuFormat.RGBA8_UNORM);
+    }
+
+    /**
+     * Clears a colour texture to transparent black - the {@code 0} that 26.1.2's {@code clearColorTexture} took
+     * as a packed ARGB int, which 26.2 takes as a {@code Vector4fc}.
+     */
+    public static void clearToZero(GpuTexture texture) {
+        RenderSystem.getDevice().createCommandEncoder()
+                .clearColorTexture(texture, new Vector4f(0.0F, 0.0F, 0.0F, 0.0F));
+    }
+
+    /**
+     * Writes one std140 vec4 into a mapped uniform buffer.
+     *
+     * <p>26.2 moves mapping off the command encoder and onto the buffer: {@code CommandEncoder.mapBuffer(buffer,
+     * read, write)} returning a {@code GpuBuffer.MappedView} became {@code GpuBuffer.map(read, write)} returning
+     * a {@code GpuBufferSlice.MappedView}. Both are {@code AutoCloseable} with a {@code data()} of
+     * {@code ByteBuffer} and {@code Std140Builder} is unchanged, but the view TYPE differs, so the
+     * try-with-resources itself has to live on this side of the facade rather than at the call site.
+     */
+    public static void writeUniformVec4(GpuBuffer buffer, float x, float y, float z, float w) {
+        try (GpuBufferSlice.MappedView view = buffer.map(false, true)) {
+            Std140Builder.intoBuffer(view.data()).putVec4(x, y, z, w);
+        }
     }
 
 }

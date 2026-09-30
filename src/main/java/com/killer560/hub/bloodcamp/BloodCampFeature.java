@@ -40,6 +40,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import com.killer560.hub.compat.McRender;
+import com.killer560.hub.compat.McCompat;
 
 /**
  * Blood Camp - killer560's request: "use noamm's blood mob tracer thing it already has, then add a
@@ -163,7 +164,7 @@ public final class BloodCampFeature {
                                    com.killer560.hub.hud.HudElement element) {
         Minecraft client = Minecraft.getInstance();
         // menuOpen(), not "screen != null": chat must not hide this (killer560), the HUD editor still does.
-        if (client.player == null || com.killer560.hub.hud.HudVisibility.menuOpen() || client.options.hideGui
+        if (client.player == null || com.killer560.hub.hud.HudVisibility.menuOpen() || McCompat.hudHidden(client)
                 || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
@@ -617,8 +618,7 @@ public final class BloodCampFeature {
     private static void renderTimerText(LevelRenderContext context, double worldX, double worldY, double worldZ, double seconds) {
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
-        var mainCamera = client.gameRenderer.getMainCamera();
-        Vec3 cam = mainCamera.position();
+        Vec3 cam = McRender.cameraPos(context);
         String text = String.format(Locale.US, "%.1fs", seconds);
         // killer560: "the timer on each box should be bigger" - Timer Text Scale (default 2x) on top of
         // the base 0.02f every other world-space label in this mod uses.
@@ -627,7 +627,7 @@ public final class BloodCampFeature {
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
         poseStack.translate(worldX - cam.x, worldY - cam.y, worldZ - cam.z);
-        poseStack.mulPose(mainCamera.rotation());
+        poseStack.mulPose(McRender.cameraRotation(context));
         // Real bug found and fixed (2026-09-14): scaled by (-s, -s, s), the pre-1.21.2 nametag transform.
         // On 26.1.2 the camera quaternion is already flipped and vanilla's nametag renderer uses
         // (+s, -s, +s); the extra -X mirror reversed the glyph quads' winding so the (culled) text

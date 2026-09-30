@@ -368,9 +368,9 @@ public final class WitherDragonsFeature {
     /** Odin {@code alert(..., playSound = true)}: title 0/20/5 ticks + NOTE_BLOCK_PLING. */
     private static void alert(WitherDragon d, String subtitle) {
         Minecraft client = Minecraft.getInstance();
-        client.gui.setTimes(0, 20, 5);
-        client.gui.setTitle(Component.literal("§" + d.colorCode + d.displayName().toUpperCase(Locale.ROOT) + " DRAGON IS SPAWNING"));
-        client.gui.setSubtitle(Component.literal(subtitle));
+        McCompat.setTimes(client, 0, 20, 5);
+        McCompat.setTitle(client, Component.literal("§" + d.colorCode + d.displayName().toUpperCase(Locale.ROOT) + " DRAGON IS SPAWNING"));
+        McCompat.setSubtitle(client, Component.literal(subtitle));
         if (WitherDragonsConfig.getInstance().isTitleSound()) {
             client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 1f, 1f));
         }
@@ -453,9 +453,9 @@ public final class WitherDragonsFeature {
         if (cfg.isDragonTracer() && p != null && p.state == WitherDragon.State.SPAWNING) {
             float[] c = WorldRenderUtils.argbToFloats(p.argb);
             Vec3 target = new Vec3(p.spawnPos.getX() + 0.5, p.spawnPos.getY() + 0.5, p.spawnPos.getZ() + 0.5);
-            // WorldRenderUtils.tracerOrigin(), not client.player.getEyePosition() - same head-instead-of-crosshair
+            // WorldRenderUtils.tracerOrigin(context), not client.player.getEyePosition() - same head-instead-of-crosshair
             // bug killer560 reported on doorkeys/wither ESP's tracers (2026-09-27); this one moves the same way.
-            WorldRenderUtils.renderLineStrip(context, List.of(WorldRenderUtils.tracerOrigin(), target), c[0], c[1], c[2], 1f, 2f);
+            WorldRenderUtils.renderLineStrip(context, List.of(WorldRenderUtils.tracerOrigin(context), target), c[0], c[1], c[2], 1f, 2f);
         }
     }
 
@@ -464,12 +464,11 @@ public final class WitherDragonsFeature {
     static void renderWorldText(LevelRenderContext context, String text, double x, double y, double z, float scale) {
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
-        var camera = client.gameRenderer.getMainCamera();
-        Vec3 cam = camera.position();
+        Vec3 cam = McRender.cameraPos(context);
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
         poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-        poseStack.mulPose(camera.rotation());
+        poseStack.mulPose(McRender.cameraRotation(context));
         float s = 0.025f * scale;
         poseStack.scale(s, -s, s);
         Component component = Component.literal(text);

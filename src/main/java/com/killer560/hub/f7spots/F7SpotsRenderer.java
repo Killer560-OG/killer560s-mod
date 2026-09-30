@@ -7,7 +7,6 @@ import com.killer560.hub.util.WorldRenderUtils;
 import com.killer560.hub.witherdragons.P5State;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.world.entity.player.Player;
@@ -35,16 +34,15 @@ public final class F7SpotsRenderer {
         if (client.level == null || client.player == null || !F7SpotsFeature.inF7Boss()) {
             return;
         }
-        Camera camera = client.gameRenderer.getMainCamera();
         if (cfg.isWalkWaypointsEnabled()) {
-            renderWalkWaypoints(context, cfg, client.player, camera);
+            renderWalkWaypoints(context, cfg, client.player);
         }
         if (cfg.isAimSpotsEnabled()) {
-            renderAimSpots(context, cfg, client.player, camera);
+            renderAimSpots(context, cfg, client.player);
         }
     }
 
-    private static void renderWalkWaypoints(LevelRenderContext context, F7SpotsConfig cfg, Player player, Camera camera) {
+    private static void renderWalkWaypoints(LevelRenderContext context, F7SpotsConfig cfg, Player player) {
         List<WalkWaypoint> waypoints = cfg.getWalkWaypoints();
         if (waypoints.isEmpty()) {
             return;
@@ -72,12 +70,12 @@ public final class F7SpotsRenderer {
             String text = labelText(cfg.isWalkLabels() ? w.label() : null, cfg.isWalkDistance(),
                     player.position().distanceTo(new Vec3(bx + 0.5, by + 0.5, bz + 0.5)));
             if (text != null) {
-                renderLabel(context, camera, bx + 0.5, by + 1.6, bz + 0.5, text, 0xFF000000 | argb);
+                renderLabel(context, bx + 0.5, by + 1.6, bz + 0.5, text, 0xFF000000 | argb);
             }
         }
     }
 
-    private static void renderAimSpots(LevelRenderContext context, F7SpotsConfig cfg, Player player, Camera camera) {
+    private static void renderAimSpots(LevelRenderContext context, F7SpotsConfig cfg, Player player) {
         List<AimSpot> spots = cfg.getAimSpots();
         List<AimSpot> arrowStack = cfg.isAimArrowStack() ? AimSpots.ARROW_STACK : List.<AimSpot>of();
         List<AimSpot> devonianLb = cfg.isAimDevonianLb() ? AimSpots.DEVONIAN_LB : List.<AimSpot>of();
@@ -87,17 +85,17 @@ public final class F7SpotsRenderer {
         DungeonClass self = P5State.selfClass();
         Floor7Tracker.Phase phase = currentPhase();
         for (AimSpot spot : arrowStack) {
-            drawAimSpot(context, cfg, player, camera, spot, self, phase);
+            drawAimSpot(context, cfg, player, spot, self, phase);
         }
         for (AimSpot spot : devonianLb) {
-            drawAimSpot(context, cfg, player, camera, spot, self, phase);
+            drawAimSpot(context, cfg, player, spot, self, phase);
         }
         for (AimSpot spot : spots) {
-            drawAimSpot(context, cfg, player, camera, spot, self, phase);
+            drawAimSpot(context, cfg, player, spot, self, phase);
         }
     }
 
-    private static void drawAimSpot(LevelRenderContext context, F7SpotsConfig cfg, Player player, Camera camera,
+    private static void drawAimSpot(LevelRenderContext context, F7SpotsConfig cfg, Player player,
                                     AimSpot spot, DungeonClass self, Floor7Tracker.Phase phase) {
         AimSituation situation = spot.situation() == null ? AimSituation.ANY : spot.situation();
         if (!cfg.isAimAllSituations() && !situation.activeIn(phase)) {
@@ -131,7 +129,7 @@ public final class F7SpotsRenderer {
         String text = labelText(cfg.isAimLabels() ? label : null, cfg.isAimDistance(),
                 player.position().distanceTo(new Vec3(spot.x(), spot.y(), spot.z())));
         if (text != null) {
-            renderLabel(context, camera, spot.x(), spot.y() + half + 0.6, spot.z(), text, 0xFF000000 | argb);
+            renderLabel(context, spot.x(), spot.y() + half + 0.6, spot.z(), text, 0xFF000000 | argb);
         }
     }
 
@@ -154,20 +152,20 @@ public final class F7SpotsRenderer {
     }
 
     /** Same billboard transform as Thorn's stun spots / Waypoint Routes' numbers (26.1.2 nametag transform). */
-    static void renderLabel(LevelRenderContext context, Camera camera, double x, double y, double z,
+    static void renderLabel(LevelRenderContext context, double x, double y, double z,
                             String text, int color) {
         PoseStack poseStack = context.poseStack();
         if (poseStack == null) {
             return;
         }
         Font font = Minecraft.getInstance().font;
-        Vec3 cam = camera.position();
+        Vec3 cam = McRender.cameraPos(context);
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
         float s = 0.025f * (float) Math.min(8.0, Math.max(1.0, dist / 12.0));
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-            poseStack.mulPose(camera.rotation());
+            poseStack.mulPose(McRender.cameraRotation(context));
             poseStack.scale(s, -s, s);
             McRender.drawText(context, font, text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
         } finally {

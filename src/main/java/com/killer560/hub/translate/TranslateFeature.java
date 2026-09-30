@@ -12,6 +12,7 @@ import com.killer560.hub.notify.ModOverlayMessage;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McCompat;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -199,7 +200,7 @@ public final class TranslateFeature {
         if (addToHistory) {
             String historyText = finalCommandWord == null
                     ? correctedWithEmotes : "/" + finalCommandWord + " " + correctedWithEmotes;
-            client.gui.getChat().addRecentChat(historyText);
+            McCompat.chat(client).addRecentChat(historyText);
         }
 
         if (!translateActive || !emoteSplit.hasBody()) {

@@ -10,6 +10,7 @@ import net.minecraft.util.Util;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McCompat;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -88,7 +89,7 @@ public final class CopyChatFeature {
             return false;
         }
         Minecraft client = Minecraft.getInstance();
-        ChatComponent chat = client.gui.getChat();
+        ChatComponent chat = McCompat.chat(client);
         if (!chat.isChatFocused()) {
             return false;
         }

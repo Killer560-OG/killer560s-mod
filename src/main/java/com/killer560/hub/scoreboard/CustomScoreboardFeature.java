@@ -367,7 +367,7 @@ public final class CustomScoreboardFeature {
     private static void drawInGame(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
         lastLayout = null;
-        if (!(isActive() || minimalActive()) || client.player == null || client.options.hideGui
+        if (!(isActive() || minimalActive()) || client.player == null || McCompat.hudHidden(client)
                 || McCompat.screen(client) instanceof HudEditorScreen) {
             return;
         }

@@ -479,9 +479,9 @@ public final class ScoreCalculatorFeature {
         boolean title = is300 ? cfg.isTitle300() : cfg.isTitle270();
         if (title) {
             String text = (is300 ? cfg.getTitle300Text() : cfg.getTitle270Text()).replace('&', '§');
-            client.gui.setTimes(5, 40, 10);
-            client.gui.setTitle(Component.literal(text.contains("§") ? text : "§6§l" + text));
-            client.gui.setSubtitle(Component.literal(""));
+            McCompat.setTimes(client, 5, 40, 10);
+            McCompat.setTitle(client, Component.literal(text.contains("§") ? text : "§6§l" + text));
+            McCompat.setSubtitle(client, Component.literal(""));
             if (cfg.isAlertSound()) {
                 client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
             }
@@ -502,9 +502,9 @@ public final class ScoreCalculatorFeature {
         ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
         String text = (milestone >= 300 ? cfg.getTitle300Text() : cfg.getTitle270Text()).replace('&', '§');
-        client.gui.setTimes(5, 40, 10);
-        client.gui.setTitle(Component.literal(text.contains("§") ? text : "§6§l" + text));
-        client.gui.setSubtitle(Component.literal(""));
+        McCompat.setTimes(client, 5, 40, 10);
+        McCompat.setTitle(client, Component.literal(text.contains("§") ? text : "§6§l" + text));
+        McCompat.setSubtitle(client, Component.literal(""));
         if (cfg.isAlertSound()) {
             client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
         }

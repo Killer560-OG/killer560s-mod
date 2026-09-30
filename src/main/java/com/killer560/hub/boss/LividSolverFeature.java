@@ -191,10 +191,10 @@ public final class LividSolverFeature {
         // killer560, 2026-09-20: "add an option to draw a line to the correct livid".
         if (cfg.isShowLine() && client.player != null) {
             Vec3 target = lividEntity.getBoundingBox().getCenter();
-            // WorldRenderUtils.tracerOrigin(), not client.player.getEyePosition() - see that method's doc for
+            // WorldRenderUtils.tracerOrigin(context), not client.player.getEyePosition() - see that method's doc for
             // the head-instead-of-crosshair bug killer560 reported on doorkeys/wither ESP's tracers (this one
             // moves the same way).
-            SolverEspRender.renderLineStrip(context, List.of(WorldRenderUtils.tracerOrigin(), target),
+            SolverEspRender.renderLineStrip(context, List.of(WorldRenderUtils.tracerOrigin(context), target),
                     c[0], c[1], c[2], 1f, 2f);
         }
     }

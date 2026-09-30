@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import com.killer560.hub.compat.McRender;
+import com.killer560.hub.util.ChatColors;
 
 /**
  * Real Hypixel dungeon "Water Board" puzzle solver, ported from Odin's own {@code WaterSolver.kt}. This
@@ -393,7 +394,7 @@ public final class WaterSolverFeature {
     /** The exact RGB a §-colour code renders text in, as 0..1 floats - so a world-space highlight can match a
      *  chat/label colour exactly instead of a separately hand-picked one. */
     private static float[] textColor(ChatFormatting formatting) {
-        Integer packed = formatting.getColor();
+        Integer packed = ChatColors.color(formatting);
         int rgb = packed != null ? packed : 0xFFFFFF;
         return new float[] {
                 ((rgb >> 16) & 0xFF) / 255f,
@@ -406,14 +407,13 @@ public final class WaterSolverFeature {
                                          String text) {
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
-        var mainCamera = client.gameRenderer.getMainCamera();
-        Vec3 cam = mainCamera.position();
+        Vec3 cam = McRender.cameraPos(context);
         float scale = 0.02f;
 
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
         poseStack.translate(worldX - cam.x, worldY - cam.y, worldZ - cam.z);
-        poseStack.mulPose(mainCamera.rotation());
+        poseStack.mulPose(McRender.cameraRotation(context));
         // Real bug found and fixed (2026-09-14, same root cause as SimonSaysFeature.renderNumber): the
         // old pre-1.21.2 (-s, -s, s) nametag scale mirrors X on top of 26.1.2's already-flipped camera
         // quaternion, reversing glyph winding so every lever countdown was back-face culled and never

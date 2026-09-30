@@ -4,6 +4,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import com.killer560.hub.util.ChatColors;
 
 /**
  * Turns a 1.8 "§"-coded string (item names/lore in Hypixel's API NBT) into a styled Component with an
@@ -39,7 +40,7 @@ public final class LegacyText {
                 }
                 if (fmt == ChatFormatting.RESET) {
                     style = BASE.withColor(ChatFormatting.WHITE);
-                } else if (fmt.isColor()) {
+                } else if (ChatColors.isColor(fmt)) {
                     style = BASE.withColor(fmt);
                 } else {
                     style = style.applyFormat(fmt);

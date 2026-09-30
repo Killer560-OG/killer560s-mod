@@ -15,6 +15,7 @@ import net.minecraft.resources.Identifier;
 import org.joml.Matrix3x2f;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McRender;
 
 /**
  * Real background blur behind the Custom Scoreboard - the approach of SkyBlock Custom Scoreboard's
@@ -68,11 +69,10 @@ public final class ScoreboardBlur {
         }
         try {
             Identifier shader = Identifier.fromNamespaceAndPath("killer560smod", "core/scoreboard_blur");
-            pipeline = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GUI_SNIPPET)
+            pipeline = RenderPipelines.register(McRender.withSampler0(RenderPipeline.builder(RenderPipelines.GUI_SNIPPET)
                     .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/scoreboard_blur"))
                     .withVertexShader(shader)
-                    .withFragmentShader(shader)
-                    .withSampler("Sampler0")
+                    .withFragmentShader(shader))
                     .build());
         } catch (RuntimeException | LinkageError e) {
             fail("pipeline registration", e);
@@ -109,15 +109,15 @@ public final class ScoreboardBlur {
         }
         try {
             Minecraft client = Minecraft.getInstance();
-            RenderTarget main = client.getMainRenderTarget();
+            RenderTarget main = McRender.mainRenderTarget(client);
             if (target == null || target.width != main.width || target.height != main.height) {
                 // Resized here (extraction), never in GuiRenderer#draw, so no queued element still holds an old view.
                 if (target == null) {
-                    target = new TextureTarget("killer560smod scoreboard blur", main.width, main.height, false);
+                    target = McRender.newTextureTarget("killer560smod scoreboard blur", main.width, main.height, false);
                 } else {
                     target.resize(main.width, main.height);
                 }
-                RenderSystem.getDevice().createCommandEncoder().clearColorTexture(target.getColorTexture(), 0);
+                McRender.clearToZero(target.getColorTexture());
                 setup = null;
                 // The copy for the new size hasn't happened yet: hide the quads for this frame rather than risk
                 // drawing the cleared (opaque black) texture if the copy below doesn't run.
@@ -164,7 +164,7 @@ public final class ScoreboardBlur {
             return;
         }
         try {
-            RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
+            RenderTarget main = McRender.mainRenderTarget(Minecraft.getInstance());
             if (main.width != target.width || main.height != target.height
                     || main.getColorTexture() == null || target.getColorTexture() == null) {
                 // Nothing was copied: keep the quads invisible until one really lands, so the next frames can't

@@ -128,7 +128,7 @@ public final class ThornFeature {
     private static void drawHudInGame(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
         // menuOpen(), not "screen != null": chat must not hide this (killer560), the HUD editor still does.
-        if (client.player == null || HudVisibility.menuOpen() || client.options.hideGui || !SkyblockGate.allows()) {
+        if (client.player == null || HudVisibility.menuOpen() || McCompat.hudHidden(client) || !SkyblockGate.allows()) {
             return;
         }
         int[] pos = HudElementRegistry.resolvePosition(HUD);

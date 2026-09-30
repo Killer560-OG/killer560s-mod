@@ -8,7 +8,6 @@ import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.world.entity.Entity;
@@ -154,7 +153,6 @@ public final class TeammatesFeature {
         boolean filled = cfg.getStyle() == TeammatesConfig.Style.FILLED;
         float lineWidth = cfg.getLineWidth();
         float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Camera camera = client.gameRenderer.getMainCamera();
         Vec3 selfPos = client.player.getPosition(partialTick);
         for (Map.Entry<Integer, Integer> target : current.entrySet()) {
             Entity entity = client.level.getEntity(target.getKey());
@@ -171,7 +169,7 @@ public final class TeammatesFeature {
 
             String label = labelText(cfg, player.getGameProfile().name(), selfPos.distanceTo(lerped));
             if (label != null) {
-                renderLabel(context, camera, lerped.x, lerped.y + player.getBbHeight() + 0.5, lerped.z, label,
+                renderLabel(context, lerped.x, lerped.y + player.getBbHeight() + 0.5, lerped.z, label,
                         0xFF000000 | (color & 0xFFFFFF));
             }
         }
@@ -190,20 +188,20 @@ public final class TeammatesFeature {
     }
 
     /** {@code F7SpotsRenderer.renderLabel} - the same billboard transform Thorn's stun spots use. */
-    private static void renderLabel(LevelRenderContext context, Camera camera, double x, double y, double z,
+    private static void renderLabel(LevelRenderContext context, double x, double y, double z,
                                     String text, int color) {
         PoseStack poseStack = context.poseStack();
         if (poseStack == null) {
             return;
         }
         Font font = Minecraft.getInstance().font;
-        Vec3 cam = camera.position();
+        Vec3 cam = McRender.cameraPos(context);
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
         float s = 0.025f * (float) Math.min(8.0, Math.max(1.0, dist / 12.0));
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-            poseStack.mulPose(camera.rotation());
+            poseStack.mulPose(McRender.cameraRotation(context));
             poseStack.scale(s, -s, s);
             McRender.drawText(context, font, text, -font.width(text) / 2f, -font.lineHeight / 2f, color, false, poseStack, Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
         } finally {

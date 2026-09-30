@@ -8,6 +8,7 @@ import net.minecraft.network.chat.TextColor;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import com.killer560.hub.util.ChatColors;
 
 /**
  * Flattens a lore {@link Component} back into a legacy "§"-coded string and back again.
@@ -33,9 +34,9 @@ public final class LegacyText {
     private static Map<Integer, Character> buildRgbToCode() {
         Map<Integer, Character> map = new HashMap<>();
         for (ChatFormatting fmt : ChatFormatting.values()) {
-            Integer rgb = fmt.getColor();
-            if (fmt.isColor() && rgb != null) {
-                map.putIfAbsent(rgb, fmt.getChar());
+            Integer rgb = ChatColors.color(fmt);
+            if (ChatColors.isColor(fmt) && rgb != null) {
+                map.putIfAbsent(rgb, ChatColors.code(fmt));
             }
         }
         return map;
@@ -68,22 +69,22 @@ public final class LegacyText {
         } else if (color != null) {
             // Truecolor (no legacy equivalent): reset, then let the flags below re-apply. Hypixel lore never
             // uses these, but another mod's injected line might.
-            out.append('§').append(ChatFormatting.RESET.getChar());
+            out.append('§').append(ChatColors.code(ChatFormatting.RESET));
         }
         if (style.isObfuscated()) {
-            out.append('§').append(ChatFormatting.OBFUSCATED.getChar());
+            out.append('§').append(ChatColors.code(ChatFormatting.OBFUSCATED));
         }
         if (style.isBold()) {
-            out.append('§').append(ChatFormatting.BOLD.getChar());
+            out.append('§').append(ChatColors.code(ChatFormatting.BOLD));
         }
         if (style.isStrikethrough()) {
-            out.append('§').append(ChatFormatting.STRIKETHROUGH.getChar());
+            out.append('§').append(ChatColors.code(ChatFormatting.STRIKETHROUGH));
         }
         if (style.isUnderlined()) {
-            out.append('§').append(ChatFormatting.UNDERLINE.getChar());
+            out.append('§').append(ChatColors.code(ChatFormatting.UNDERLINE));
         }
         if (style.isItalic()) {
-            out.append('§').append(ChatFormatting.ITALIC.getChar());
+            out.append('§').append(ChatColors.code(ChatFormatting.ITALIC));
         }
     }
 
@@ -111,7 +112,7 @@ public final class LegacyText {
             if (fmt == ChatFormatting.RESET) {
                 color = 0;
                 formats.setLength(0);
-            } else if (fmt.isColor()) {
+            } else if (ChatColors.isColor(fmt)) {
                 color = code;
                 formats.setLength(0);
             } else if (formats.indexOf(String.valueOf(code)) < 0) {
@@ -123,7 +124,7 @@ public final class LegacyText {
             return "";
         }
         StringBuilder out = new StringBuilder();
-        out.append('§').append(color == 0 ? ChatFormatting.RESET.getChar() : color);
+        out.append('§').append(color == 0 ? ChatColors.code(ChatFormatting.RESET) : color);
         for (int i = 0; i < formats.length(); i++) {
             out.append('§').append(formats.charAt(i));
         }

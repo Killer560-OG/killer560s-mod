@@ -349,9 +349,9 @@ public final class MobEspFeature {
             // killer560, 2026-09-27: "the wwither tracer is bugged and kinda works. It looks like it is being
             // drawn to my players head instead of their crosshair." It started at
             // client.player.getEyePosition(partialTick) - still the PLAYER, which lags a tick behind the
-            // camera the same way even with partialTick interpolation applied to it. WorldRenderUtils.tracerOrigin()
+            // camera the same way even with partialTick interpolation applied to it. WorldRenderUtils.tracerOrigin(context)
             // reads the camera directly instead, same fix as doorkeys.DoorKeysFeature's tracer.
-            Vec3 eyes = WorldRenderUtils.tracerOrigin();
+            Vec3 eyes = WorldRenderUtils.tracerOrigin(context);
             float thickness = renderCfg.getWitherTracerThickness();
             for (Map.Entry<Integer, Integer> target : tracers.entrySet()) {
                 Entity entity = client.level.getEntity(target.getKey());

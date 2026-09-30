@@ -4,7 +4,6 @@ import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.WorldRenderUtils;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.world.phys.AABB;
@@ -39,9 +38,8 @@ public final class PathWorldRenderer {
         if (!cfg.isEnabled() || client.player == null || client.level == null) {
             return;
         }
-        Camera camera = client.gameRenderer.getMainCamera();
         if (cfg.isSoulWaypoints() && cfg.isFairySouls()) {
-            renderSouls(context, camera, cfg);
+            renderSouls(context, cfg);
         }
         if (!NavigationManager.isActive()) {
             return;
@@ -58,7 +56,7 @@ public final class PathWorldRenderer {
             int startIdx = closestIndex(smoothed, pos);
             // the visible stretch: from the player, along the next N blocks of path
             List<Vec3> near = new ArrayList<>();
-            near.add(new Vec3(camera.position().x, camera.position().y - 1.2, camera.position().z));
+            near.add(new Vec3(McRender.cameraPos(context).x, McRender.cameraPos(context).y - 1.2, McRender.cameraPos(context).z));
             double budget = cfg.getVisiblePathLength();
             for (int i = startIdx; i < smoothed.size() && budget > 0; i++) {
                 Vec3 point = smoothed.get(i);
@@ -81,18 +79,18 @@ public final class PathWorldRenderer {
                 tc[0], tc[1], tc[2], 0.5f, thickness);
         if (cfg.isShowTargetLabel()) {
             double distance = NavigationManager.remainingDistance();
-            renderText(context, camera, t.x, t.y + 1.8, t.z, target.label, 0xFF000000 | (cfg.getTargetColor() & 0xFFFFFF),
+            renderText(context, t.x, t.y + 1.8, t.z, target.label, 0xFF000000 | (cfg.getTargetColor() & 0xFFFFFF),
                     String.format(Locale.US, "%.0fm", distance), 0xFF000000 | ModChat.LIGHT_ORANGE, cfg.getTextScale());
         }
     }
 
-    private static void renderSouls(LevelRenderContext context, Camera camera, PathfindingConfig cfg) {
+    private static void renderSouls(LevelRenderContext context, PathfindingConfig cfg) {
         String island = IslandDetector.graphIsland();
         IslandGraph graph = island == null ? null : GraphRepository.get(island);
         if (graph == null) {
             return;
         }
-        Vec3 cam = camera.position();
+        Vec3 cam = McRender.cameraPos(context);
         float[] c = WorldRenderUtils.argbToFloats(cfg.getTargetColor());
         String profile = ProfileTracker.key();
         for (IslandGraph.Node soul : graph.withTag(IslandGraph.TAG_FAIRY_SOUL)) {
@@ -175,20 +173,20 @@ public final class PathWorldRenderer {
     }
 
     /** Billboard text - same 26.1.2 nametag transform Waypoint Routes uses (camera rotation, then (+s, -s, +s)). */
-    private static void renderText(LevelRenderContext context, Camera camera, double x, double y, double z,
+    private static void renderText(LevelRenderContext context, double x, double y, double z,
                                    String line1, int color1, String line2, int color2, float scaleMul) {
         PoseStack poseStack = context.poseStack();
         if (poseStack == null || (line1 == null && line2 == null)) {
             return;
         }
         Font font = Minecraft.getInstance().font;
-        Vec3 cam = camera.position();
+        Vec3 cam = McRender.cameraPos(context);
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
         float s = 0.025f * scaleMul * (float) Math.min(8.0, Math.max(1.0, dist / 12.0));
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
-            poseStack.mulPose(camera.rotation());
+            poseStack.mulPose(McRender.cameraRotation(context));
             poseStack.scale(s, -s, s);
             float yOff = (line1 != null && line2 != null) ? -font.lineHeight : -font.lineHeight / 2f;
             if (line1 != null) {

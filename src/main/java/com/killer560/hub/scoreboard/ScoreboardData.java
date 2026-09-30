@@ -1,6 +1,8 @@
 package com.killer560.hub.scoreboard;
 
 import com.killer560.hub.scoreboard.mixin.CustomScoreboardTabOverlayAccessor;
+import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.util.ChatColors;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.PlayerTabOverlay;
@@ -46,7 +48,7 @@ public final class ScoreboardData {
 
     static {
         for (ChatFormatting f : ChatFormatting.values()) {
-            TextColor c = f.isColor() ? TextColor.fromLegacyFormat(f) : null;
+            TextColor c = ChatColors.isColor(f) ? TextColor.fromLegacyFormat(f) : null;
             if (c != null) {
                 COLOR_LUT.putIfAbsent(c.getValue(), f);
             }
@@ -100,7 +102,7 @@ public final class ScoreboardData {
         if (client.player != null) {
             PlayerTeam team = scoreboard.getPlayersTeam(client.player.getScoreboardName());
             if (team != null) {
-                DisplaySlot slot = DisplaySlot.teamColorToSlot(team.getColor());
+                DisplaySlot slot = McCompat.teamDisplaySlot(team);
                 if (slot != null) {
                     objective = scoreboard.getDisplayObjective(slot);
                 }
@@ -186,7 +188,7 @@ public final class ScoreboardData {
             tabFooterPlain = "";
             return;
         }
-        PlayerTabOverlay overlay = client.gui.getTabList();
+        PlayerTabOverlay overlay = McCompat.tabList(client);
         List<PlayerInfo> infos = null;
         Component footer = null;
         if (accessorUsable && overlay instanceof CustomScoreboardTabOverlayAccessor accessor) {

@@ -6,6 +6,7 @@ import com.killer560.hub.accounts.HypixelJoinWatcher;
 import com.killer560.hub.autojoinskyblock.AutoJoinSkyblockFeature;
 import com.killer560.hub.automeow.AutoMeowFeature;
 import com.killer560.hub.compat.ModCompatibility;
+import java.util.List;
 import com.killer560.hub.cringe.CringeFeature;
 import com.killer560.hub.dungeoninfo.DungeonInfoFeature;
 import com.killer560.hub.dvd.DvdFeature;
@@ -86,6 +87,20 @@ public class Killer560ModClient implements ClientModInitializer {
         LOGGER.info("Killer560's Mod starting: {} variant, {} build",
                 BuildVariant.CHEAT_FEATURES_ENABLED ? "cheat" : "legit",
                 BuildVariant.DEV_TOOLS ? "dev" : "release");
+
+        // util/ChatColors carries the 16 legacy colour RGB values by hand, because Minecraft 26.2 deleted
+        // ChatFormatting.getColor() and there is nothing left to ask. A wrong entry would compile, draw a
+        // plausible-looking colour and never be noticed - so on the version that still HAS the real method,
+        // check the table against it and say so loudly if they ever disagree. On 26.2 the check cannot run and
+        // returns nothing, which is why the log line below says which version it spoke for rather than
+        // reporting a pass it did not earn.
+        if (BuildVariant.DEV_TOOLS) {
+            List<String> chatColorProblems = McCompat.verifyChatColors();
+            if (!chatColorProblems.isEmpty()) {
+                LOGGER.error("ChatColors disagrees with vanilla ChatFormatting in {} place(s): {}",
+                        chatColorProblems.size(), String.join("; ", chatColorProblems));
+            }
+        }
 
         // THE ACTION GATE GOES FIRST, and the order is the whole point.
         //

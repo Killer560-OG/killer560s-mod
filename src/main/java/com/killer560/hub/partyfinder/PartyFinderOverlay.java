@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.util.ChatColors;
 
 /**
  * Party Finder Overlay - a port of Devonian's Party Finder GUI features:
@@ -367,8 +368,8 @@ public final class PartyFinderOverlay {
                 return Optional.empty();
             }
             for (ChatFormatting f : ChatFormatting.values()) {
-                if (f.isColor() && f.getColor() != null && f.getColor() == color.getValue()) {
-                    return Optional.of("&" + f.getChar());
+                if (ChatColors.isColor(f) && ChatColors.RGB[f.ordinal()] == color.getValue()) {
+                    return Optional.of("&" + ChatColors.code(f));
                 }
             }
             return Optional.empty();

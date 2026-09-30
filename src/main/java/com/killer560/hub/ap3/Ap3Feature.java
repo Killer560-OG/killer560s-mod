@@ -25,6 +25,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.compat.McCompat;
 
 import java.util.Collections;
 import java.util.List;
@@ -951,7 +952,7 @@ public final class Ap3Feature {
         try {
             Minecraft client = Minecraft.getInstance();
             Ap3Config cfg = Ap3Config.getInstance();
-            if (client.player == null || client.options.hideGui || HudVisibility.menuOpen() || !cfg.isEnabled() || !cfg.isStopwatchHud()) {
+            if (client.player == null || McCompat.hudHidden(client) || HudVisibility.menuOpen() || !cfg.isEnabled() || !cfg.isStopwatchHud()) {
                 return;
             }
             int[] pos = HudElementRegistry.resolvePosition(STOPWATCH_HUD);
@@ -974,7 +975,7 @@ public final class Ap3Feature {
     private static void drawForceDungeonReminder(GuiGraphicsExtractor graphics) {
         try {
             Minecraft client = Minecraft.getInstance();
-            if (!forceDungeon || client.player == null || client.options.hideGui) {
+            if (!forceDungeon || client.player == null || McCompat.hudHidden(client)) {
                 return;
             }
             var font = client.font;

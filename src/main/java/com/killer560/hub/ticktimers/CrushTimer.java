@@ -2,6 +2,7 @@ package com.killer560.hub.ticktimers;
 
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.util.WorldRenderUtils;
+import com.killer560.hub.compat.McCompat;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -139,8 +140,8 @@ public final class CrushTimer {
         if (client.gui == null) {
             return;
         }
-        client.gui.setTimes(0, 25, 5);
-        client.gui.setTitle(Component.literal(text));
+        McCompat.setTimes(client, 0, 25, 5);
+        McCompat.setTitle(client, Component.literal(text));
     }
 
     private static double remainingSeconds(float interval) {
