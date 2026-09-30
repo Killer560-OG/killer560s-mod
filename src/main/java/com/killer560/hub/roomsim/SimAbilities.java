@@ -161,7 +161,17 @@ public final class SimAbilities {
      * phases through a wall is a route that does not work on Hypixel.
      */
     private static boolean instantTransmission(Minecraft client, ItemStack held) {
-        return dash(client, INSTANT_TRANSMISSION_BASE + tuners(held));
+        return dash(client, instantTransmissionRange(held));
+    }
+
+    /**
+     * How far an Instant Transmission goes with this item, in blocks.
+     *
+     * <p>Public for the teleport logger, so the range it checks Hypixel against is the sim's own number and
+     * not a second copy of the base-plus-tuners rule.
+     */
+    public static double instantTransmissionRange(ItemStack held) {
+        return INSTANT_TRANSMISSION_BASE + tuners(held);
     }
 
     /** Tuners on this item, read off its own tag - capped, because Hypixel caps it at four. */
@@ -217,8 +227,19 @@ public final class SimAbilities {
     /** How far a blocked step may lift to clear what it hit: a slab, then a full block. */
     private static final double[] STEP_UPS = {0.5, 1.0};
 
-    private static boolean dash(Minecraft client, double range) {
+    /**
+     * Where {@link #dash} would land, or null when nothing along the look fits.
+     *
+     * <p>Public and side-effect free so the teleport logger can ask the sim what it WOULD do and print that
+     * beside what Hypixel actually did. The alternative was a second copy of this walk in the logger, and a
+     * logger comparing Hypixel against a copy of the model would agree with the model no matter how wrong the
+     * model was - it has to call the real thing or it measures nothing.
+     */
+    public static Vec3 dashTarget(Minecraft client, double range) {
         var player = client.player;
+        if (player == null || client.level == null) {
+            return null;
+        }
         Vec3 look = player.getViewVector(1.0f);
         Vec3 from = player.position();   // reassigned when a step lifts over a block
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
@@ -267,6 +288,12 @@ public final class SimAbilities {
             }
             break;
         }
+        return best;
+    }
+
+    private static boolean dash(Minecraft client, double range) {
+        var player = client.player;
+        Vec3 best = dashTarget(client, range);
         if (best == null) {
             // LAST RESORT: straight up a block.
             //
@@ -276,6 +303,12 @@ public final class SimAbilities {
             // "no room to teleport that way" fourteen times in a row. Lifting him instead is what he asked
             // for, and it is what unsticks the case - from a block higher the next teleport has somewhere to
             // go. It still has to pass the same box test, so it can never put him inside anything.
+            //
+            // `from` is the player's own position here rather than the walk's running one: the walk only moves
+            // `from` when a lift SUCCEEDS, and a successful lift sets `best`, so reaching this branch means it
+            // never moved.
+            Vec3 from = player.position();
+            net.minecraft.world.phys.AABB box = player.getBoundingBox();
             for (double lift : STEP_UPS) {
                 Vec3 up = new Vec3(from.x, from.y + lift, from.z);
                 if (fits(client, player, box, from, up)) {

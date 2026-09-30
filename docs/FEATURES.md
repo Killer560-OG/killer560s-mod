@@ -234,6 +234,9 @@ AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phas
 - Nucleus Run Profit Tracker — the same, per nucleus run, detecting the end of a run from Hypixel's own loot-bundle chat block. Run count is exact; per-item coin value is best effort, and lines it can't price are skipped rather than guessed at
 - Planned — one page inside the Mining tab listing everything still to come, including Auto Commissions, Auto Crystal and Auto Nucleus Run. Those three briefly had a settings tab each containing nothing but a "not wired yet" label, which put coming-soon work in two places at once; they are lines on this page now, each with the actual blocker written down — Dwarven Mines terrain pathfinding (the mod only paths the dungeon's fixed room grid) and a reliable way to tell a crystal block from terrain
 
+**Diagnostics**
+- Teleport Logger — writes every Instant Transmission and etherwarp to `config/killer560smod-teleports.log`: where you were, where you ended up, how far that was, and what the dungeon sim's own model says should have happened, with each entry marked MATCH or MISMATCH. It exists so the sim's teleport can be corrected against measurements of the real server rather than against single reports of it feeling wrong, which is how it was rewritten three times. A click that produced no teleport at all is recorded too, because Hypixel refusing where the sim would have moved you is just as much a difference. It sends nothing to the server - it only reads your own position and the item in your hand - and it stops after 4000 entries so it cannot grow without bound. On by default; turn it off in the config file when we are done with it
+
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen
 - Fullbright — see clearly in dark areas without touching your real brightness setting
