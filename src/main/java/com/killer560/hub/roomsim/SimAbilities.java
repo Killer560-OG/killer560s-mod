@@ -214,10 +214,13 @@ public final class SimAbilities {
      * you along the ground rather than doing nothing. Only a step that cannot move him horizontally either -
      * flush against a wall - ends the walk, and only a walk that never moved him at all reports a failure.
      */
+    /** How far a blocked step may lift to clear what it hit: a slab, then a full block. */
+    private static final double[] STEP_UPS = {0.5, 1.0};
+
     private static boolean dash(Minecraft client, double range) {
         var player = client.player;
         Vec3 look = player.getViewVector(1.0f);
-        Vec3 from = player.position();
+        Vec3 from = player.position();   // reassigned when a step lifts over a block
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
         Vec3 best = null;
         // Once the vertical part of the move is blocked it stays blocked for the rest of the walk: the next
@@ -237,6 +240,30 @@ public final class SimAbilities {
                     best = flat;
                     continue;
                 }
+            }
+            // STEP UP rather than stop.
+            //
+            // killer560 (2026-09-29): "if i am looking at a block it should still teleport me towards it and
+            // up a block if it is something i am touching already." Standing against a block, the very first
+            // step collides with it and the walk ended there - so looking at the thing right in front of him
+            // teleported him nowhere. Raising the step clears a block he is up against, the way walking into
+            // one steps onto it, and the walk carries on from there.
+            //
+            // Tried in halves: 0.5 first for a slab or a stair, then a full block. A raised step has to clear
+            // the same full box test as any other, so this cannot put him inside anything.
+            boolean stepped = false;
+            for (double lift : STEP_UPS) {
+                Vec3 raised = new Vec3(full.x, from.y + lift, full.z);
+                if (fits(client, player, box, from, raised)) {
+                    best = raised;
+                    from = new Vec3(from.x, from.y + lift, from.z);
+                    verticalBlocked = true;
+                    stepped = true;
+                    break;
+                }
+            }
+            if (stepped) {
+                continue;
             }
             break;
         }

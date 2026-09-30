@@ -238,7 +238,72 @@ public final class RoomDoors {
                 edges.add(edge(EAST, j));
             }
         }
-        return new Mask(tilesX, tilesZ, edges);
+        return new Mask(tilesX, tilesZ, dropStaircase(room, edges));
+    }
+
+    /**
+     * The Entrance's back staircase is not a door.
+     *
+     * <p>killer560 (2026-09-29): "for entrance the second picture shows the front. That long staircase is the
+     * back and nothing can attach there." The detector was finding TWO ways out of the Entrance and letting
+     * the generator hang a room off either, so half the floors grew out of the back of the green room.
+     *
+     * <p>Measured on his own capture rather than assumed. Of the two, one is a doorway and one is not:
+     *
+     * <pre>
+     * WEST  door box 3x4: 12/12 air   surrounding 11x12:  12/132 air   &lt;- a doorway
+     * EAST  door box 3x4:  0/12 air   surrounding 11x12:  39/132 air   &lt;- solid at floor level
+     * </pre>
+     *
+     * The east side is solid where a door would be and open higher up, because the staircase RISES - and the
+     * search walks y from {@value #SEARCH_MIN_Y} to {@value #SEARCH_MAX_Y} looking for any 3x4 opening, so it
+     * matched the stairwell partway up. A real doorway sits at the room's floor.
+     *
+     * <p>So for the Entrance only, the doorway that matches LOWEST wins and the rest are dropped. It is
+     * scoped to the Entrance deliberately: Higher and Lower Blaze genuinely have doors at unusual heights,
+     * and a blanket "lowest only" rule would break them.
+     */
+    private static Set<Integer> dropStaircase(RoomLibrary.Room room, Set<Integer> edges) {
+        if (!"entrance".equalsIgnoreCase(room.name) || edges.size() <= 1) {
+            return edges;
+        }
+        int best = -1;
+        int bestY = Integer.MAX_VALUE;
+        for (int e : edges) {
+            int y = lowestMatch(room, sideOf(e), indexOf(e));
+            if (y < bestY) {
+                bestY = y;
+                best = e;
+            }
+        }
+        return best < 0 ? edges : Set.of(best);
+    }
+
+    /** The lowest y at which this edge's doorway matches, or {@code Integer.MAX_VALUE} if it never does. */
+    private static int lowestMatch(RoomLibrary.Room room, int side, int index) {
+        int margin = room.margin;
+        int tilesX = Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1));
+        int centre = margin + index * (RoomLibrary.TILE + 1) + RoomLibrary.TILE / 2;
+        for (int base = SEARCH_MIN_Y; base <= SEARCH_MAX_Y - DOOR_HEIGHT; base++) {
+            int hits = 0;
+            for (int d = -(DOOR_WIDTH / 2); d <= DOOR_WIDTH / 2; d++) {
+                for (int y = base; y < base + DOOR_HEIGHT; y++) {
+                    boolean open = switch (side) {
+                        case NORTH -> isDoorway(room, centre + d, y, margin);
+                        case SOUTH -> isDoorway(room, centre + d, y, room.sizeZ - 1 - margin);
+                        case WEST -> isDoorway(room, margin, y, centre + d);
+                        default -> isDoorway(room, room.sizeX - 1 - margin, y, centre + d);
+                    };
+                    if (open) {
+                        hits++;
+                    }
+                }
+            }
+            if (hits >= DOOR_MIN_MATCH) {
+                return base;
+            }
+        }
+        return Integer.MAX_VALUE;
     }
 
     /** A doorway in a wall that runs along X - so the three blocks vary in X and the wall's Z is fixed. */

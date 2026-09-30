@@ -53,6 +53,17 @@ public class SimMapEditorScreen extends Screen {
      */
     private final Map<Integer, String> pinned = new LinkedHashMap<>();
 
+    /**
+     * The rotation each placed room is at, in degrees, keyed by its anchor cell.
+     *
+     * <p>Without this the grid drew every room at rotation 0, so a 1x4 turned a quarter turn was drawn 1 wide
+     * and 4 deep while it really covers 4 by 1 - which is what made a generated floor look like it had holes
+     * in it and gave "Flags" a shape no Catacombs room has (killer560, 2026-09-29: "It still is not
+     * generating the full map nor is that flags shape normal"). The floor was right; the picture of it was
+     * not. Hand-placed rooms are 0, which is what {@code SimFloorGen.planExplicit} builds them at.
+     */
+    private final Map<Integer, Integer> rotations = new LinkedHashMap<>();
+
     /** What the right-hand panel is listing. */
     private enum Panel { ROOMS, MAPS }
 
@@ -192,6 +203,7 @@ public class SimMapEditorScreen extends Screen {
             if (generated != null) {
                 planStale();
                 placements.clear();
+                clearRotations();
                 placements.putAll(pinned);
                 rebuildOccupancy();
                 status = pinned.isEmpty() ? "generation cleared"
@@ -199,6 +211,7 @@ public class SimMapEditorScreen extends Screen {
             } else {
                 placements.clear();
                 pinned.clear();
+                clearRotations();
                 rebuildOccupancy();
                 status = "cleared";
             }
@@ -269,7 +282,7 @@ public class SimMapEditorScreen extends Screen {
     private void rebuildOccupancy() {
         occupiedBy.clear();
         for (Map.Entry<Integer, String> e : placements.entrySet()) {
-            int[] size = footprintOf(e.getValue());
+            int[] size = footprintOf(e.getValue(), rotations.getOrDefault(e.getKey(), 0));
             int ax = e.getKey() % GRID;
             int az = e.getKey() / GRID;
             for (int dx = 0; dx < size[0]; dx++) {
@@ -285,12 +298,15 @@ public class SimMapEditorScreen extends Screen {
     }
 
     /** Footprint in ROOM CELLS, read from the capture - the same measure the builder plans against. */
-    private static int[] footprintOf(String name) {
+    private static int[] footprintOf(String name, int rotation) {
         RoomLibrary.Room r = RoomLibrary.get(name);
         if (r == null) {
             return new int[]{1, 1};
         }
-        return new int[]{tiles(r.sizeX), tiles(r.sizeZ)};
+        // A quarter turn swaps the axes, exactly as RoomPlacer.rotateLocal does when it pastes.
+        return rotation == 90 || rotation == 270
+                ? new int[]{tiles(r.sizeZ), tiles(r.sizeX)}
+                : new int[]{tiles(r.sizeX), tiles(r.sizeZ)};
     }
 
     /** Same inverse of {@link RoomLibrary#footprint} the builder uses - they must not disagree. */
@@ -313,7 +329,7 @@ public class SimMapEditorScreen extends Screen {
     }
 
     private boolean canPlace(String name, int slot) {
-        int[] size = footprintOf(name);
+        int[] size = footprintOf(name, 0);
         int ax = slot % GRID;
         int az = slot / GRID;
         if (ax + size[0] > GRID || az + size[1] > GRID) {
@@ -370,6 +386,7 @@ public class SimMapEditorScreen extends Screen {
 
     private void loadMap(String name) {
         planStale();
+        clearRotations();
         pinned.clear();
         Map<Integer, String> saved = SimMapPresets.get(name);
         if (saved == null) {
@@ -419,6 +436,11 @@ public class SimMapEditorScreen extends Screen {
         generated = null;
     }
 
+    /** Forget the rotations too - they belong to the plan that is being dropped. */
+    private void clearRotations() {
+        rotations.clear();
+    }
+
     /**
      * Lays out a floor and puts it on the grid. Nothing is built and no world is opened.
      */
@@ -437,6 +459,7 @@ public class SimMapEditorScreen extends Screen {
         }
         generated = planned;
         placements.clear();   // `pinned` is deliberately NOT cleared: Clear restores it
+        rotations.clear();
         var decoded = planned.decoded();
         java.util.Set<Integer> anchored = new java.util.HashSet<>();
         // Room ids are per PLACEMENT, never per name, so the first cell carrying an id in reading order is
@@ -450,18 +473,20 @@ public class SimMapEditorScreen extends Screen {
                     continue;
                 }
                 placements.put(gz * GRID + gx, decoded.nameTable()[id]);
+                rotations.put(gz * GRID + gx, decoded.cellRotation()[cell]);
             }
         }
         rebuildOccupancy();
         // Pins that could not be used are named, not swallowed - he put them there on purpose.
         String pins = "";
         if (!planned.unusedPins().isEmpty()) {
-            pins = " - could not keep " + String.join(", ", planned.unusedPins());
+            pins = " · dropped " + planned.unusedPins().size() + " pin(s)";
         } else if (!planned.keptPins().isEmpty()) {
-            pins = " - kept your " + planned.keptPins().size() + " room(s)";
+            pins = " · kept " + planned.keptPins().size();
         }
-        status = planned.decoded().nameTable().length + " rooms, " + puzzles + " puzzle(s), blood "
-                + planned.bloodDistance() + " in" + pins + " - press Play to build it";
+        // Short. It sits under the grid, and the long form ran on into the room list.
+        status = planned.decoded().nameTable().length + " rooms · " + puzzles + " puzzles · blood "
+                + planned.bloodDistance() + pins;
     }
 
     private void play() {
@@ -495,6 +520,7 @@ public class SimMapEditorScreen extends Screen {
                 Integer anchor = occupiedBy.get(slot);
                 if (anchor != null) {
                     planStale();
+                    rotations.remove(anchor);
                     pinned.remove(anchor);
                     status = "removed " + placements.remove(anchor);
                     rebuildOccupancy();
@@ -508,18 +534,20 @@ public class SimMapEditorScreen extends Screen {
             Integer anchor = occupiedBy.get(slot);
             if (anchor != null) {
                 planStale();
+                rotations.remove(anchor);
                 pinned.remove(anchor);
                 placements.remove(anchor);
                 rebuildOccupancy();
             }
             if (canPlace(selected, slot)) {
                 planStale();
+                rotations.remove(slot);   // placed by hand, so rotation 0
                 placements.put(slot, selected);
                 pinned.put(slot, selected);
                 rebuildOccupancy();
                 status = "placed " + selected;
             } else {
-                int[] s = footprintOf(selected);
+                int[] s = footprintOf(selected, 0);
                 status = selected + " needs " + s[0] + "x" + s[1] + " free cells here";
             }
             return true;
@@ -568,10 +596,6 @@ public class SimMapEditorScreen extends Screen {
         g.fill(panelX, panelY, panelX + panelW, panelY + 30, 0xFF000000);
         g.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
         g.text(this.font, "DESIGN A MAP", panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
-        String right = placements.size() + " placed  ·  " + listed.size() + " rooms available";
-        g.text(this.font, right, panelX + panelW - 10 - this.font.width(right), panelY + 11,
-                ProfitPanels.DIM, false);
-
         drawGrid(g, mouseX, mouseY);
         drawList(g, mouseX, mouseY);
 
@@ -607,7 +631,7 @@ public class SimMapEditorScreen extends Screen {
         }
         for (Map.Entry<Integer, String> e : placements.entrySet()) {
             String name = e.getValue();
-            int[] fp = footprintOf(name);
+            int[] fp = footprintOf(name, rotations.getOrDefault(e.getKey(), 0));
             int ax = e.getKey() % GRID;
             int az = e.getKey() / GRID;
             int x0 = gridX + ax * cell + 1;
