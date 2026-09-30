@@ -484,8 +484,22 @@ that: `carveDoorway` only removes the air space above a floor it searches for, a
 is a doorway with nothing solid in it that the player still cannot cross, because he walks into a trench.
 
 Measured 2026-09-30 by scenario 81: between "Crypt" and "Mines", every column of the doorway at foot and head
-height was air, and the floor was missing for the three blocks on the approach side. He walked 3.2 blocks and
-fell in. Scenario 92 audits all 135 captures for this in about four seconds and 99 of them agree at y69.
+height was air, the seam itself was floored, and the floor was two blocks LOWER for the three blocks on the
+approach side. He walked 3.2 blocks and fell in; a two-block step back up is not climbable.
+
+**The room-wide audit does not explain that case, and saying it did was wrong.** Scenario 92 measures each
+capture's modal floor and both Crypt and Mines come out at y69, so they pass it. The disagreement at that
+doorway is LOCAL - a room can sit at y69 over most of its area and still be two blocks low in the corner a
+door lands in, which is precisely what a modal measurement cannot see. Scenario 92 is still worth having (99
+of 135 agree at y69, and fourteen sit within five blocks) but it is a separate observation, and no room on
+its list has been shown to break a doorway.
+
+Three causes remain open for the local case and they have not been separated: real lowered geometry just
+inside the doorway, a capture missing blocks there (an unread column pastes nothing and leaves air), or
+`findFloor` taking the height from one room while the other's floor by that door is genuinely lower. The
+middle one is cheaply decidable because `Room.seenColumn` records which columns were ever read. The
+measurement that would settle it is floor height **per doorway**, not per room, because that is what the
+carve depends on.
 
 Note "Criss Cross" and "Criss-Cross" are both in the library at the same height - almost certainly one room
 captured twice under two spellings.
