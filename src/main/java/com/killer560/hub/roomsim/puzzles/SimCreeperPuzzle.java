@@ -142,8 +142,100 @@ public final class SimCreeperPuzzle {
         if (idx == null) {
             return false;
         }
-        connectPair(client, idx);
+        pick(client, idx, pos.immutable());
         return true;
+    }
+
+    /**
+     * TWO SHOTS make a beam, not one.
+     *
+     * <p>killer560 (2026-10-01): "once i shoot one square if it is right it shouldnt insta fill the other it
+     * should let me choose where it goes then draw a beacon line between the two." Shooting a lantern used to
+     * turn BOTH ends of its pair at once, which answers the puzzle for him - the whole skill in the real room
+     * is working out which far lantern a near one belongs to, and a one-click solve removes exactly that.
+     *
+     * <p>So the first shot lights one end and leaves it waiting; the second decides. The partner completes the
+     * pair and draws the beam. The same lantern again cancels. Any other lantern is a miss: the held end goes
+     * dark and nothing is connected, which is the cost of guessing.
+     */
+    private static void pick(Minecraft client, int idx, BlockPos pos) {
+        boolean[] c = connected;
+        if (idx < 0 || idx >= c.length || c[idx]) {
+            return;   // already joined - its beam is already drawn
+        }
+        BlockPos held = pendingPos;
+        if (held == null) {
+            pendingIndex = idx;
+            pendingPos = pos;
+            setLantern(client, pos, true);
+            com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.text("Beam held - "),
+                    com.killer560.hub.util.ModChat.dim("now shoot the lantern it pairs with."));
+            return;
+        }
+        if (held.equals(pos)) {
+            setLantern(client, held, false);
+            pendingPos = null;
+            pendingIndex = -1;
+            com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.dim("Beam dropped."));
+            return;
+        }
+        if (idx == pendingIndex) {
+            pendingPos = null;
+            pendingIndex = -1;
+            connectPair(client, idx);
+            return;
+        }
+        setLantern(client, held, false);
+        pendingPos = null;
+        pendingIndex = -1;
+        com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.bad("Not that pair"),
+                com.killer560.hub.util.ModChat.dim(" - the beam goes out."));
+    }
+
+    /** The lantern this run is holding, and its pair, or null/-1 when nothing is held. */
+    private static volatile BlockPos pendingPos = null;
+    private static volatile int pendingIndex = -1;
+
+    /** Turns one lantern on (prismarine, lit) or back off (sea lantern). */
+    private static void setLantern(Minecraft client, BlockPos pos, boolean on) {
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        server.execute(() -> server.overworld().setBlockAndUpdate(pos,
+                (on ? Blocks.PRISMARINE : Blocks.SEA_LANTERN).defaultBlockState()));
+    }
+
+    /**
+     * The beams themselves, drawn between the two ends of every joined pair.
+     *
+     * <p>Through {@code SolverEspRender}, which is the pipeline every highlight in this mod already goes
+     * through - a second one registered for this would be a second thing to keep in step with the render
+     * phase, and this draws after translucent terrain for the same reason the solvers do.
+     */
+    public static void registerRender() {
+        com.killer560.hub.puzzlesolvers.SolverEspRender.init();
+        net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN
+                .register(context -> {
+                    boolean[] c = connected;
+                    List<Pair> world = worldPairs;
+                    if (!SimState.canAct(Minecraft.getInstance()) || c.length == 0 || world.isEmpty()) {
+                        return;
+                    }
+                    for (int i = 0; i < c.length && i < world.size(); i++) {
+                        if (!c[i]) {
+                            continue;
+                        }
+                        Pair pair = world.get(i);
+                        List<net.minecraft.world.phys.Vec3> line = List.of(
+                                new net.minecraft.world.phys.Vec3(pair.a().getX() + 0.5,
+                                        pair.a().getY() + 0.5, pair.a().getZ() + 0.5),
+                                new net.minecraft.world.phys.Vec3(pair.b().getX() + 0.5,
+                                        pair.b().getY() + 0.5, pair.b().getZ() + 0.5));
+                        com.killer560.hub.puzzlesolvers.SolverEspRender.renderLineStrip(
+                                context, line, 0.4f, 0.9f, 1.0f, 1f, 3f);
+                    }
+                });
     }
 
     /** Clears any previous arena and places a fresh, unconnected one (all Sea Lantern) at {@code origin}. */
@@ -164,6 +256,8 @@ public final class SimCreeperPuzzle {
         }
         worldPairs = List.copyOf(world);
         connected = new boolean[pairs.size()];
+        pendingPos = null;
+        pendingIndex = -1;
         Map<BlockPos, Integer> lookup = new HashMap<>();
         for (int i = 0; i < world.size(); i++) {
             lookup.put(world.get(i).a(), i);
@@ -221,6 +315,8 @@ public final class SimCreeperPuzzle {
         worldPairs = List.copyOf(world);
         storedOrigin = world.get(0).a();   // only used as a "something is built" marker now
         connected = new boolean[pairs.size()];
+        pendingPos = null;
+        pendingIndex = -1;
         Map<BlockPos, Integer> lookup = new HashMap<>();
         for (int i = 0; i < world.size(); i++) {
             lookup.put(world.get(i).a(), i);
@@ -273,6 +369,8 @@ public final class SimCreeperPuzzle {
         connected = new boolean[0];
         storedOrigin = null;
         built = false;
+        pendingPos = null;
+        pendingIndex = -1;
     }
 
     public static void reset() {
@@ -286,6 +384,8 @@ public final class SimCreeperPuzzle {
             return;
         }
         connected = new boolean[world.size()];
+        pendingPos = null;
+        pendingIndex = -1;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             BlockState lit = Blocks.SEA_LANTERN.defaultBlockState();

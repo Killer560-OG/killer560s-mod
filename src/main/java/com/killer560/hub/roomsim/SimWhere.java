@@ -77,7 +77,13 @@ public final class SimWhere {
         }
         RoomLibrary.Room lib = RoomLibrary.get(room.name());
         int[] local = lib == null ? null : captureLocal(room, lib, pos);
+        // toRelativeCoord passes y straight through, and the y it is handed is a WORLD y - which in here is
+        // the floor's own shifted one, so it printed things like "db-relative (53, -22, 15)" when the real
+        // room's y is 94. Undoing the shift is the same SimAltitude.toCaptured every other read of a sim
+        // coordinate goes through, and it is what makes the two printed systems differ only in x/z, which is
+        // the whole point of printing both.
         RoomEntry.Pos rel = RoomDatabase.toRelativeCoord(pos, room.clayX(), room.clayZ(), room.rotation());
+        rel.y = SimAltitude.toCaptured(pos.getY());
 
         ModChat.send("Sim", ModChat.value(room.name()),
                 ModChat.dim(" (pasted " + room.pasteRotation() + ", database rotation " + room.rotation() + ")"));

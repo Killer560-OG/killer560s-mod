@@ -78,23 +78,33 @@ public final class SimFloorGen {
      * still the thing that would correct them.
      */
     public enum Floor {
-        ENTRANCE("Entrance", 11, 19),
-        F1("Floor 1", 13, 22),
-        F2("Floor 2", 15, 26),
-        F3("Floor 3", 16, 27),
-        F4("Floor 4", 19, 33),
-        F5("Floor 5", 21, 36),
-        F6("Floor 6", 19, 33),
-        F7("Floor 7", 21, 36);
+        ENTRANCE("Entrance", "E", 11, 19),
+        F1("Floor 1", "F1", 13, 22),
+        F2("Floor 2", "F2", 15, 26),
+        F3("Floor 3", "F3", 16, 27),
+        F4("Floor 4", "F4", 19, 33),
+        F5("Floor 5", "F5", 21, 36),
+        F6("Floor 6", "F6", 19, 33),
+        F7("Floor 7", "F7", 21, 36);
 
         public final String label;
+        /**
+         * The short form the rest of the mod writes a floor as - "F7", "E" - and the one
+         * {@link com.killer560.hub.roomsim.SimState#setFloorLabel} expects.
+         *
+         * <p>That setter existed and nothing ever called it, so the sim thought it was on F7 whatever was
+         * actually generated. Anything that behaves differently per floor was therefore wrong on every floor
+         * but one: the mimic rule below, and the floor's own name in the sidebar.
+         */
+        public final String code;
         /** Fewest rooms the floor may have. Other code reads this, and scenario 73 asserts it. */
         public final int rooms;
         /** Room slots of the 6x6 grid to fill - what the generator actually aims at. */
         public final int cells;
 
-        Floor(String label, int rooms, int cells) {
+        Floor(String label, String code, int rooms, int cells) {
             this.label = label;
+            this.code = code;
             this.rooms = rooms;
             this.cells = cells;
         }
@@ -153,6 +163,10 @@ public final class SimFloorGen {
         if (planned == null) {
             return;   // plan() has already said why
         }
+        // Which floor this is, for everything downstream that behaves differently per floor - the mimic rule
+        // and the sidebar. Set here because this is the only entry point that KNOWS the floor; a map code
+        // carries rooms, not a floor number, so those paths keep the default.
+        SimState.setFloorLabel(floor.code);
         ModChat.send("Sim", ModChat.text(floor.label + ": "),
                 ModChat.value(String.valueOf(planned.decoded().nameTable().length)),
                 ModChat.text(" rooms, "), ModChat.value(String.valueOf(planned.placedPuzzles())),

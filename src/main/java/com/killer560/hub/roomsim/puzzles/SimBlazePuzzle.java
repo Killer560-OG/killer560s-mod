@@ -246,10 +246,18 @@ public final class SimBlazePuzzle {
         // fits wins, and spacing 1 always does, so this can no longer fail to arm a room it used to arm.
         BlockPos found = null;
         int chosenSpacing = 1;
-        int from = higher ? 120 : 66;
+        // THE ROOM'S OWN BAND, not a remembered Hypixel height.
+        //
+        // This started at a hardcoded 66 (120 for Higher), and Lower Blaze's capture runs y 15..83 - so the
+        // search began 46 blocks ABOVE its floor, found the first air-over-solid it met on the way up, and put
+        // the chain in the roof. killer560 (2026-10-01): "The blazes are now in lower blaze but they are way up
+        // in the ceeling". Every room carries its own band (RoomLibrary.Room.minY/maxY) and has since captures
+        // stopped being indexed against a global constant; starting there is the same fix that file documents.
+        int from = higher ? p.room().maxY : p.room().minY;
         int step = higher ? -1 : 1;
+        int span = p.room().maxY - p.room().minY + 1;
         BlockPos floorTop = null;
-        for (int i = 0; i < 70 && floorTop == null; i++) {
+        for (int i = 0; i < span && floorTop == null; i++) {
             int y = from + i * step;
             BlockPos here = anchor.world(15, y, 16);
             // The first air with something solid under it: that is where a player stands.

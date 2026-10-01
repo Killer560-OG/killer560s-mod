@@ -193,20 +193,46 @@ public final class EtherwarpPathfinder {
         return path == null ? null : smoothPath(path, dist, withLast);
     }
 
-    /** QUOI {@code findDungeonPath}: room-by-room segments via {@link DungeonMapPathfinder}. */
+    /** Why a path search gave up, so a failure can say which of five different things went wrong. */
+    private static final org.slf4j.Logger LOGGER =
+            com.killer560.hub.util.ModLog.get("killer560smod-livemap");
+
+    /**
+     * QUOI {@code findDungeonPath}: room-by-room segments via {@link DungeonMapPathfinder}.
+     *
+     * <p><b>Every refusal says which one it is.</b> killer560 (2026-10-01): "interactive map fails anytime I
+     * try to use it on sim", and all the feature printed was "Failed after 671ms" - which is the same message
+     * for an unetherwarpable target, a room graph with no route, and a segment search that timed out. Those
+     * have nothing in common and only one of them is a bug. One line per refusal settles it in a single run
+     * instead of a round of guesses.
+     */
     public static List<Node> findDungeonPath(Vec3 from, BlockPos to, PathConfig cfg, double dist, boolean offset,
                                              DungeonLayout layout) {
         if (!TeleportUtils.etherwarpable(to)) {
+            LOGGER.info("[Path] {} is not etherwarpable - it is not solid, or there is no standing room over"
+                    + " it. Nothing searched.", to);
             return null;
         }
         BlockPos startPos = BlockPos.containing(from);
         int startRoom = layout.roomAtWorld(from.x, from.z);
         int goalRoom = layout.roomAtWorld(to.getX(), to.getZ());
         if (startRoom < 0 || goalRoom < 0 || startRoom == goalRoom) {
-            return findPath(from, to, cfg, dist, offset, false, layout);
+            List<Node> direct = findPath(from, to, cfg, dist, offset, false, layout);
+            if (direct == null) {
+                LOGGER.info("[Path] No single-room path from {} to {} (startRoom {}, goalRoom {}) - the"
+                        + " warp search found nothing within {} blocks a hop.", startPos, to, startRoom,
+                        goalRoom, dist);
+            }
+            return direct;
         }
         List<DungeonMapPathfinder.RoomStep> roomPath = DungeonMapPathfinder.findPath(layout, startRoom, goalRoom, false);
         if (roomPath == null) {
+            // The usual cause is every door between here and there reading as LOCKED. DungeonLayout decides
+            // that by testing whether the block at doorBlock(idx) is air, so a sim whose doorways are carved
+            // at a different height than the one it checks locks the whole floor at once.
+            LOGGER.info("[Path] No ROOM route from room {} to room {}: every door between them reads as"
+                    + " locked or missing. {} door(s) on the grid are currently locked.",
+                    startRoom, goalRoom, lockedDoorCount(layout));
             return null;
         }
         List<Node> path = new ArrayList<>();
@@ -231,6 +257,9 @@ public final class EtherwarpPathfinder {
             // One search thread per room-hop still remaining to the goal room (this segment counts as one).
             List<Node> segment = find(ctx, threadsFor(roomPath.size() - i));
             if (segment == null) {
+                LOGGER.info("[Path] Room hop {} of {} failed: no warp chain from {} to {} (room {}, door {},"
+                        + " radius {}). The room route exists; this leg of it does not.",
+                        i + 1, roomPath.size(), lastNode.pos, target, step.room(), step.door(), radius);
                 return null;
             }
             for (int j = 1; j < segment.size(); j++) {
@@ -245,6 +274,8 @@ public final class EtherwarpPathfinder {
             }
         }
         if (path.isEmpty()) {
+            LOGGER.info("[Path] Room route from {} to {} is {} hop(s) long but produced no warps at all.",
+                    startRoom, goalRoom, roomPath.size());
             return null;
         }
         path.add(0, new Node(from.x, from.y, from.z, startPos, 0.0, 0.0, null, 0f, 0f));
@@ -252,6 +283,18 @@ public final class EtherwarpPathfinder {
             path.get(1).parent = path.get(0);
         }
         return smoothPath(path, dist, false);
+    }
+
+    /** How many of the grid's doors currently read as locked - the number that makes a "no room route"
+     *  line mean something. */
+    private static int lockedDoorCount(DungeonLayout layout) {
+        int locked = 0;
+        for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
+            if (layout.doorType(idx) != DungeonLayout.DOOR_NONE && layout.isLocked(idx)) {
+                locked++;
+            }
+        }
+        return locked;
     }
 
     // ------------------------------------------------------------------------------------------- search

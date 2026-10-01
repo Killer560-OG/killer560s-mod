@@ -253,9 +253,10 @@ public final class SimBuilder {
                     collectChests(level, gx, gz, room, rot);
                 }
             }
-            // One mimic per MAP, chosen once everything is down. Picking while placing would give the first
-            // eligible room a far better chance than the last.
-            SimMimic.chooseForMap();
+            // The mimic is NOT chosen here. It used to be, and it was too early: the secret chests go in from
+            // the build's completion callback, long after this line, so the pick only ever saw the chests the
+            // captures themselves carry. The real pick is in that callback (search chooseForMap), after both
+            // sets of chests exist - which is what "once everything is down" was supposed to mean.
             // The score's denominators come from the map that was actually built, not from a guess. Without
             // them "explore" divides by zero and the whole score is meaningless - and a score screen that
             // invents its own totals is worse than one that says it does not know.
@@ -447,6 +448,10 @@ public final class SimBuilder {
                 // (2026-09-30): "none of the puzzles do anything. They are all rooms that exist but they have
                 // none of the actual attributes of the puzzle."
                 SimRoomPuzzles.armFloor(level);
+                // The plain rooms whose lever opens a way through - Mines' barred door, Pressure
+                // Plates' boarded wall. Same moment as the puzzles and for the same reason: the blocks
+                // have to be standing before anything can be bound to them.
+                SimRoomLevers.armFloor(level);
                 int still = 0;
                 StringBuilder gone = new StringBuilder();
                 for (var cp : SimSecrets.PLACED_CHESTS) {

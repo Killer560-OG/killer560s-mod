@@ -134,12 +134,9 @@ public final class IceFillSolverFeature {
         }
     }
 
+    /** Delegating to {@link PuzzleCoords#real} - see the note there about the sim's floor shift. */
     private static BlockPos realPos(Pos pos, int[] clayAndRotation) {
-        RoomEntry.Pos relative = new RoomEntry.Pos();
-        relative.x = pos.x();
-        relative.y = pos.y();
-        relative.z = pos.z();
-        return RoomDatabase.toRealCoord(relative, clayAndRotation[0], clayAndRotation[1], clayAndRotation[2]);
+        return PuzzleCoords.real(pos.x(), pos.y(), pos.z(), clayAndRotation);
     }
 
     private static void onWorldRender(LevelRenderContext context) {

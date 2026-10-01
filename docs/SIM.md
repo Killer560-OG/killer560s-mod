@@ -831,3 +831,110 @@ fills air in the room's own outermost layer with stone, using the same "only whe
 `SimBuildQueue.submitSeal` uses for single-room tests, but with stone rather than diamond because here it is
 meant to disappear. It runs from `doorWork` BEFORE the doorways are carved, so the one real door is reopened
 afterwards; running it after would brick up the way out of the run.
+
+## Every solver was pointing at Hypixel's height
+
+`RoomDatabase.toRealCoord` rotates x and z and passes y **straight through**, because on Hypixel a room-relative
+y IS a world y - every dungeon floor is at the same height. The sim shifts the whole map vertically
+(`SimAltitude`), so the identical call there returns a position tens of blocks from the room it was measured in.
+That one line is why killer560's solvers "didn't work in sim": not one of them was wrong about the room, they
+were all drawing at the right x and z at the wrong altitude - a hundred blocks over his head or buried under the
+floor.
+
+The fix is in `PuzzleCoords.real/relative`, which adds and subtracts `DungeonLayout.simYOffset()` (zero outside
+the sim, so a real run is unchanged). The four private `realPos` copies in Quiz, Water, Beams and Ice Fill now
+delegate to it instead of each repeating the same three lines - three of the four were missing the shift, which
+is exactly the drift CLAUDE.md's "a fix applied to one of a set" note warns about. `WeirdosSolverFeature`'s
+hardcoded `69` got the same treatment; it was the fifth place to need the helper that already existed for
+`doorBlock` and `cellCenter`.
+
+**Making a solver work in the sim is usually two things, not one**: the geometry has to be at the right height
+(above) and the CHAT has to be in Hypixel's own shape. `QuizSolverFeature` wants a line containing the question
+followed by lines starting `ⓐ`/`ⓑ`/`ⓒ` and ending with the answer; `WeirdosSolverFeature` wants
+`^\[NPC] <name>: <line>` plus an ArmorStand of that name. A `[Sim] ...` prefix breaks both anchors, so the sim
+now sends those lines raw through `sendSystemMessage` - they still reach `ChatObserver`, which is what every
+solver subscribes to.
+
+## Three Weirdos is three weirdos now
+
+The capture's three chests sit at local (25,69,12), (26,69,14) and (25,69,17), and the chamber's cauldron at
+(29,69,16) - so the middle chest was two short of its line. All three move the same two blocks rather than being
+re-spaced (killer560: "the middle most should be in line with the cauldron in the room"), because the
+arrangement is the room's own and only the alignment was wrong.
+
+Each chest now has a NAMED ArmorStand one database-relative block of -x from it, because that is the exact
+offset `WeirdosSolverFeature` walks (`relative.x += 1` from the NPC). Which world direction "-x" is depends on
+the room's rotation, so it is derived from the anchor: `anchor.world(1,0,0) - anchor.world(0,0,0)`. The weirdo
+at the correct chest speaks a line from the solver's own SOLUTIONS list and the other two from its WRONG list,
+which is precisely the rule it implements - "the speaker of a solution line is standing at the right chest".
+
+**An ArmorStand's name floats about 2.3 blocks above the stand.** That is the whole of the "the text is two
+blocks too high" report, twice - first on the Quiz, then on Three Weirdos. A stand lifted 1.3 puts its text 3.6
+over the spot; -0.7 puts it just above head height. The stand ends up inside the floor, which is fine: it is
+invisible and has no collision. There is one lift constant for the whole file now.
+
+## Lower Blaze was looking for its floor at Hypixel's height too
+
+`SimBlazePuzzle.bindAt` started its floor search at a hardcoded captured y of 66 (120 for Higher). Lower Blaze's
+capture runs y **15..83** - its floor is at 20 - so the search began 46 blocks above it, found the first
+air-over-solid on the way up and hung the chain in the roof. Every room carries its own band
+(`RoomLibrary.Room.minY/maxY`) and has done since captures stopped being indexed against a global constant;
+starting there is the same fix that file already documents.
+
+## Levers that open a way through, and why they are a table
+
+Mines' barred door and Pressure Plates' boarded wall are blocks Hypixel moves with a command, not with redstone
+a capture could record - so nothing in the data connects them to their lever. `SimRoomLevers` is that connection,
+written down once per room in capture-local coordinates, which is the system `/simwhere` prints.
+
+Both entries came from killer560 looking at the block and running `/simwhere`, not from decoding and reasoning -
+which had already produced two confident wrong answers on these same two rooms. Mines' door is an 18-block dark
+oak frame at `x=50, y=78..84, z=58..60` with three iron bars filling its opening, 21 cells exactly; Pressure
+Plates' wall is 30 blocks of oak at `x=54..55, y=93..97, z=15..17`, again exactly a box. In both cases the flood
+fill matching the box's volume is the check that the box is the thing and nothing else.
+
+`/simwhere` itself had a bug worth knowing about: its "db-relative" line printed the raw world y, because
+`toRelativeCoord` passes y through and the y it is handed in the sim is the shifted one. It prints the captured
+y now, so the two systems it shows differ only in x and z - which is the entire point of showing both.
+
+## The prince has a second signature
+
+Gold touching smooth stone slab picks out Chambers, Sloth, Red Blue and Market. It cannot pick out Leaves, whose
+prince killer560 `/simwhere`'d at capture (10,82,16): a 3x3 of polished andesite with a **sea lantern** in the
+middle, a player head on its side and stone brick stairs underneath. Nothing about it is gold.
+
+"Sea lantern with polished andesite on all FOUR horizontal sides" is as sharp as the gold rule - across all 135
+captures it picks out exactly two rooms, Leaves and Stairs, both with the full eight-block ring. Relaxing it to
+"andesite anywhere beside a lantern" picks 23 rooms and is useless, which is the same trap the gold-alone rule
+fell into. Stairs is an inference and is reported in the build log by room, so a wrong second room is visible
+rather than silently worth a bonus point.
+
+## One mimic, and only from Floor 5
+
+killer560 (2026-10-01): "always and only make 1 mimic per run. except if you are on floor 4 or below then it
+should never have one." It is a property of the FLOOR, not of chance. (Note this is one floor lower than
+`SimScore`'s wiki-sourced note, which says VI and above; his rule is the one implemented and the two are flagged
+rather than quietly reconciled.)
+
+Two real bugs came out of wiring that up. **`SimState.setFloorLabel` existed and nothing ever called it**, so
+the sim believed it was on F7 whatever was generated - anything per-floor was wrong on every floor but one.
+`SimFloorGen.generate` sets it now, from a new `Floor.code`. And **the mimic was picked before the secrets were
+placed**: `chooseForMap` ran in the placement loop, while the secret chests go in from the build's completion
+callback, so the pick only ever saw the chests the captures themselves carry. It runs in that callback now,
+which is what "once everything is down" was always supposed to mean.
+
+The mimic's room is painted the map's own blood red (`cfg.getColorBlood()`), not the faint `MIMIC_TINT` blend
+the live check uses - the live check looks for a `trapped_chest` at a database secret position, which a sim
+never has, so `SimMimic.mimicCell()` answers directly instead.
+
+## Trap rooms take your abilities
+
+killer560: "in trap I cannot etherwarp or teleport or use any ability [...] This does not apply to dungeon
+breaker or super boom." Checked at the moment of the click against the room he is STANDING in, so a warp that
+starts outside and lands inside is allowed - which is the case he named. The Dungeon Breaker needs no exemption
+in the code at all: it is a LEFT-click tool on `AttackBlockCallback` and never reaches the use path. Superboom is
+the one name in the allow set. The refusal returns `FAIL` rather than `PASS`, because an ender pearl is vanilla
+all the way down and `PASS` would let it throw anyway.
+
+A trap room is identified by `RoomEntry.type`, not by its name containing "trap" - the name is only a fallback
+for a room the database does not know.

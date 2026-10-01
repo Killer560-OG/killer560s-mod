@@ -357,6 +357,7 @@ public final class SimWorld {
         // zero, which reads as "unknown" rather than as a perfect run.
         SimScore.reset(0, 0);
         SimMimic.reset();
+        SimRoomLevers.forget();
         SimSecretItems.reset();
         SimTerminator.reset();
         SimArchitect.reset();
@@ -421,6 +422,7 @@ public final class SimWorld {
         SimMobs.clear(client);
         SimRun.reset();
         SimMimic.reset();
+        SimRoomLevers.forget();
         SimBreakerState.reset();
         SimSidebar.reset();
         SimBuilder.clearEntranceDoor();

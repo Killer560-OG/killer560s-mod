@@ -106,12 +106,10 @@ public final class QuizSolverFeature {
         options[2].blockPos = realPos(10, 70, 6, clayAndRotation);
     }
 
+    /** Its own copy of {@link PuzzleCoords#real}, now delegating: the shared one carries the sim's floor
+     *  shift, and four private copies of the same three lines is how three of them came to be missing it. */
     private static BlockPos realPos(int x, int y, int z, int[] clayAndRotation) {
-        RoomEntry.Pos relative = new RoomEntry.Pos();
-        relative.x = x;
-        relative.y = y;
-        relative.z = z;
-        return RoomDatabase.toRealCoord(relative, clayAndRotation[0], clayAndRotation[1], clayAndRotation[2]);
+        return PuzzleCoords.real(x, y, z, clayAndRotation);
     }
 
     private static void onMessage(Component message) {

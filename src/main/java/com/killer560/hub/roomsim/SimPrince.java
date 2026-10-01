@@ -44,6 +44,26 @@ public final class SimPrince {
     private static final net.minecraft.world.level.block.Block CROWN = Blocks.GOLD_BLOCK;
     private static final net.minecraft.world.level.block.Block PLINTH = Blocks.SMOOTH_STONE_SLAB;
 
+    /**
+     * The SECOND prince, and the second signature: a sea lantern walled in by polished andesite.
+     *
+     * <p>killer560, 2026-10-01, standing in Leaves: "in leaves the structure with the head on it by the chest
+     * is a princel". His {@code /simwhere} put it at capture {@code (10, 82, 16)}, and decoding around that
+     * gives a 3x3 of polished andesite at {@code y=82} with a sea lantern in the middle, a player head on its
+     * side and a 3x3 of stone brick stairs under it. Nothing about it is gold, so the plinth rule above could
+     * never have found it.
+     *
+     * <p>"Sea lantern with polished andesite on all FOUR horizontal sides" is the test, and it is as sharp as
+     * the gold one: across all 135 captures it picks out exactly two rooms, Leaves and Stairs, both with the
+     * full eight-block ring. Relaxing it to "andesite anywhere beside a lantern" picks 23 rooms and is
+     * useless, which is the same trap the gold-alone rule fell into.
+     *
+     * <p>Stairs is an inference, not his word - he only named Leaves. It is reported in the build log by room,
+     * so a wrong second room is visible rather than silently worth a bonus point.
+     */
+    private static final net.minecraft.world.level.block.Block LANTERN = Blocks.SEA_LANTERN;
+    private static final net.minecraft.world.level.block.Block LANTERN_WALL = Blocks.POLISHED_ANDESITE;
+
     /** Which prince each block belongs to - a floor can hold more than one. */
     private static final Map<BlockPos, Integer> BLOCKS = new HashMap<>();
 
@@ -155,7 +175,8 @@ public final class SimPrince {
                 var sections = chunk.getSections();
                 for (int i = 0; i < sections.length; i++) {
                     var section = sections[i];
-                    if (section == null || section.hasOnlyAir() || !section.maybeHas(st -> st.is(CROWN))) {
+                    if (section == null || section.hasOnlyAir()
+                            || !section.maybeHas(st -> st.is(CROWN) || st.is(LANTERN))) {
                         continue;
                     }
                     int baseY = chunk.getSectionYFromSectionIndex(i) << 4;
@@ -165,12 +186,25 @@ public final class SimPrince {
                     for (int lx = 0; lx < 16; lx++) {
                         for (int lz = 0; lz < 16; lz++) {
                             for (int ly = 0; ly < 16; ly++) {
-                                if (!section.getBlockState(lx, ly, lz).is(CROWN)) {
-                                    continue;
-                                }
+                                var state = section.getBlockState(lx, ly, lz);
                                 BlockPos at = new BlockPos((cx << 4) + lx, baseY + ly, (cz << 4) + lz);
-                                if (onAPlinth(level, at)) {
+                                if (state.is(CROWN)) {
+                                    if (onAPlinth(level, at)) {
+                                        crowns.add(at);
+                                    }
+                                } else if (state.is(LANTERN) && walledIn(level, at)) {
+                                    // The lantern AND its ring, so a superboom aimed at any face of the
+                                    // structure finds a prince block - he is looking at andesite, not at the
+                                    // lantern buried inside it.
                                     crowns.add(at);
+                                    for (int dx = -1; dx <= 1; dx++) {
+                                        for (int dz = -1; dz <= 1; dz++) {
+                                            BlockPos ring = at.offset(dx, 0, dz);
+                                            if (level.getBlockState(ring).is(LANTERN_WALL)) {
+                                                crowns.add(ring);
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -202,6 +236,16 @@ public final class SimPrince {
             }
         }
         return PRINCES.size();
+    }
+
+    /** Whether a sea lantern is walled in by polished andesite on all four sides - see {@link #LANTERN}. */
+    private static boolean walledIn(ServerLevel level, BlockPos at) {
+        for (Direction dir : Direction.Plane.HORIZONTAL) {
+            if (!level.getBlockState(at.relative(dir)).is(LANTERN_WALL)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Whether a gold block has a smooth stone slab beside it - the plinth the crown sits in. */

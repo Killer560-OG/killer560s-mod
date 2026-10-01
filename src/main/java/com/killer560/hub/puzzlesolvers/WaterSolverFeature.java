@@ -320,12 +320,10 @@ public final class WaterSolverFeature {
         return flat;
     }
 
+    /** Its own copy of {@link PuzzleCoords#real}, now delegating: the shared one carries the sim's floor
+     *  shift, and four private copies of the same three lines is how three of them came to be missing it. */
     private static BlockPos realPos(int x, int y, int z, int[] clayAndRotation) {
-        RoomEntry.Pos relative = new RoomEntry.Pos();
-        relative.x = x;
-        relative.y = y;
-        relative.z = z;
-        return RoomDatabase.toRealCoord(relative, clayAndRotation[0], clayAndRotation[1], clayAndRotation[2]);
+        return PuzzleCoords.real(x, y, z, clayAndRotation);
     }
 
     private static BlockPos leverRealPos(LeverBlock lever) {

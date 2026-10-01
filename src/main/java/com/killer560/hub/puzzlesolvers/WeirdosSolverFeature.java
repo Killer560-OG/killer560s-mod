@@ -196,7 +196,10 @@ public final class WeirdosSolverFeature {
         // the "off by -1 on one axis and +1 on the other" he saw. The class doc's own design is "the
         // chest sits one relative block over from the NPC", so the fix is to do the ENTIRE offset in
         // relative space (the existing `relative.x += 1` below) and nothing before it.
-        BlockPos npcBlockPos = new BlockPos((int) Math.floor(npc.getX()), 69, (int) Math.floor(npc.getZ()));
+        // 69 is Hypixel's dungeon floor; the sim shifts the whole map, so the literal has to move with it.
+        // Same DungeonLayout.simYOffset() every other height in this mod goes through, zero on a real run.
+        BlockPos npcBlockPos = new BlockPos((int) Math.floor(npc.getX()),
+                69 + com.killer560.hub.livemap.DungeonLayout.simYOffset(), (int) Math.floor(npc.getZ()));
         RoomEntry.Pos relative = RoomDatabase.toRelativeCoord(
                 npcBlockPos, clayAndRotation[0], clayAndRotation[1], clayAndRotation[2]);
         relative.x += 1;

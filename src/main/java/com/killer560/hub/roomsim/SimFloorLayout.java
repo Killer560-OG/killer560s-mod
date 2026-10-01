@@ -550,6 +550,17 @@ public final class SimFloorLayout {
         // meant to be about the cells, so it is checked both ways now.
         java.util.Set<Long> bloodCells = new HashSet<>();
         List<Stub> failed = new ArrayList<>();
+        /**
+         * Which room each placed room grew out of, by index, or -1 for a root (the entrance, and any pin
+         * nothing has reached yet). {@code commit} appends exactly one room per call, so this stays aligned
+         * with {@code placed} as long as every commit site adds an entry.
+         *
+         * <p>Only the fairy rule below needs it, and it needs it because "on the path to blood" is a question
+         * about ANCESTRY and the floor records only depth.
+         */
+        List<Integer> parentOf = new ArrayList<>();
+        /** The fairy room's index once it is down, or -1. */
+        int[] fairyIndex = {-1};
 
         // Rooms that are ON the grid but that nothing has reached yet: every pin except a pinned entrance.
         //
@@ -573,6 +584,7 @@ public final class SimFloorLayout {
             }
             int idx = commit(p.candidate(), pinRotation[i] * 90, p.cellX(), p.cellZ(), 0,
                     occupied, placed, placedFrom, stubs, used);
+            parentOf.add(-1);   // a pin is a root until something reaches it
             RoomDoors.Mask pm = p.candidate().byRotation()[pinRotation[i]];
             filled += pm.tilesX() * pm.tilesZ();
             if ("ENTRANCE".equalsIgnoreCase(p.candidate().type()) && entrancePin < 0) {
@@ -587,6 +599,7 @@ public final class SimFloorLayout {
             if ("FAIRY".equalsIgnoreCase(p.candidate().type())) {
                 fairyCellsInto(fairyCells, pm, p.cellX(), p.cellZ());
                 fairyPlaced[0] = true;
+                fairyIndex[0] = idx;
             }
             if ("BLOOD".equalsIgnoreCase(p.candidate().type())) {
                 fairyCellsInto(bloodCells, pm, p.cellX(), p.cellZ());
@@ -624,6 +637,7 @@ public final class SimFloorLayout {
             // its footprint and its position had been worked out at the rotation that was drawn. Entrance is
             // 1x1 so the position was right; its two doorways were simply never turned.
             commit(entrance, entranceRotation * 90, ex, ez, 0, occupied, placed, placedFrom, stubs, used);
+            parentOf.add(-1);   // the seed
             filled += em.tilesX() * em.tilesZ();
         }
         if (!dormant.isEmpty()) {
@@ -693,13 +707,32 @@ public final class SimFloorLayout {
                 // doorways in simply never got one, because no branch ran that deep. A floor with no blood
                 // room is not a floor, so once there are only a couple of rooms left to place it goes in
                 // wherever the next stub is.
+                // THE FAIRY IS ON THE WAY TO BLOOD. killer560 (2026-10-01): "for map generation fairy should
+                // always be on the path to blood."
+                //
+                // "On the path" is ancestry: blood may only grow out of a room the fairy is an ancestor of,
+                // so walking back from blood towards the entrance goes through the fairy. It cannot be every
+                // route - the floor deliberately grows loops, and a second way round is exactly what a loop
+                // is - but it is the route the floor was built along, and it is the one Auto Blood Rush walks
+                // for want of a shorter one.
+                //
+                // The escape hatch stays: a floor with no blood room is not a floor (scenario 73 asserts one),
+                // so when the grid is nearly full and the rule has not been satisfiable, blood goes in anyway
+                // rather than losing the whole attempt. attemptLoop scores and retries, so the forgiving case
+                // is the exception rather than the norm.
+                boolean lastChanceBlood = cellsLeft <= 2 && stub.depth >= 2;
+                boolean fairyOnWay = fairyIndex[0] >= 0 && isDescendant(parentOf, stub.owner, fairyIndex[0]);
                 boolean wantBlood = bloodPlacedDepth < 0 && byName.containsKey("blood")
+                        && (fairyOnWay || lastChanceBlood || !byName.containsKey("fairy"))
                         && (stub.depth + 1 >= bloodDepth || (!needMore && stub.depth >= 2)
-                            || (cellsLeft <= 2 && stub.depth >= 2))
+                            || lastChanceBlood)
                         && !touchesFairy(tx, tz, fairyCells);
+                // The fairy goes in EARLIER and more often than it used to, because blood now waits on it: at
+                // one in four it regularly landed in the last few rooms, by which time there was no branch
+                // left under it to hang a blood room from.
                 boolean wantFairy = !fairyPlaced[0] && !wantBlood && needMore && stub.depth >= 1
                         && byName.containsKey("fairy") && !touchesFairy(tx, tz, bloodCells)
-                        && rng.nextDouble() < 0.25;
+                        && rng.nextDouble() < 0.5;
                 if (wantBlood) {
                     wanted = List.of(byName.get("blood"));
                 } else if (wantFairy) {
@@ -733,6 +766,7 @@ public final class SimFloorLayout {
 
                 int idx = commit(best.candidate, best.rotation, best.originX, best.originZ, stub.depth + 1,
                         occupied, placed, placedFrom, stubs, used);
+                parentOf.add(stub.owner);
                 filled += placed.get(idx).cellsX() * placed.get(idx).cellsZ();
                 links.add(new Link(stub.cellX, stub.cellZ, tx, tz));
                 stubs.remove(si);
@@ -783,6 +817,7 @@ public final class SimFloorLayout {
                 boolean gotBlood = wantBlood && "BLOOD".equalsIgnoreCase(best.candidate.type());
                 if (gotFairy) {
                     fairyPlaced[0] = true;
+                    fairyIndex[0] = idx;
                     fairyCellsInto(fairyCells, best.candidate.byRotation()[best.rotation / 90],
                             best.originX, best.originZ);
                 }
@@ -909,6 +944,24 @@ public final class SimFloorLayout {
      *
      * @return the blood depth, set if the room adopted is the blood room he pinned
      */
+    /**
+     * Whether {@code room} is {@code ancestor}, or grew out of it - see the fairy rule in {@link #growOnce}.
+     *
+     * <p>Bounded by the list's own length rather than trusted to terminate: {@code parentOf} is built as a
+     * tree and cannot contain a cycle, but a walk that reads a parent array is one bad entry away from
+     * hanging the generator, and this runs inside a 4000-iteration loop inside a retry loop.
+     */
+    private static boolean isDescendant(List<Integer> parentOf, int room, int ancestor) {
+        int at = room;
+        for (int steps = 0; at >= 0 && steps <= parentOf.size(); steps++) {
+            if (at == ancestor) {
+                return true;
+            }
+            at = at < parentOf.size() ? parentOf.get(at) : -1;
+        }
+        return false;
+    }
+
     private static int adopt(int idx, int depth, List<Placement> placed, List<Candidate> placedFrom,
                              List<Stub> stubs, List<String> reached, Set<Long> bloodCells, int bloodDepth) {
         Placement p = placed.get(idx);

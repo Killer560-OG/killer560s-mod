@@ -589,7 +589,7 @@ public final class SimItems {
             // census behind that - cracked brick is decoration almost everywhere, and a crypt wall is cracked
             // brick interleaved with plain and mossy brick that a fragile-only fill cannot cross.
             java.util.List<BlockPos> targets = slabCrypt
-                    ? slabSection
+                    ? withStairsAndFloor(level, slabSection)
                     : openedCrypt
                             ? wallSlab(level, center, face)
                             : connectedFragile(level, center);
@@ -1001,6 +1001,43 @@ public final class SimItems {
             }
         }
         return found;
+    }
+
+    /**
+     * A slab crypt's slabs, plus the stairs around them and the block each stair stands on.
+     *
+     * <p>killer560 (2026-10-01): "The crypt thing worked perfectly but also needs to break the stairs and that
+     * layer below it. THey are the stone brick stairs and the full block right below them." The slab run is the
+     * crypt's lid; the stone brick stairs are its rim and the course under them is its floor, and leaving
+     * either standing leaves a lip he cannot walk over into a crypt he has just opened.
+     *
+     * <p>Only stairs TOUCHING the slab run, and only one block under each - not a flood fill of its own. A
+     * dungeon floor is full of stone brick stairs, and a fill that wandered off along them would chew a
+     * trench across the room from a single charge.
+     */
+    private static java.util.List<BlockPos> withStairsAndFloor(ServerLevel level,
+                                                               java.util.List<BlockPos> slabs) {
+        java.util.LinkedHashSet<BlockPos> out = new java.util.LinkedHashSet<>(slabs);
+        java.util.List<BlockPos> stairs = new java.util.ArrayList<>();
+        for (BlockPos slab : slabs) {
+            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
+                BlockPos next = slab.relative(dir).immutable();
+                if (level.getBlockState(next).is(net.minecraft.world.level.block.Blocks.STONE_BRICK_STAIRS)
+                        && out.add(next)) {
+                    stairs.add(next);
+                }
+            }
+        }
+        for (BlockPos stair : stairs) {
+            BlockPos under = stair.below().immutable();
+            // A FULL block, which is his own description of it ("the full block right below them") and the
+            // thing that stops this taking the floor out from under an ordinary staircase: air, slabs and
+            // more stairs are all left alone.
+            if (level.getBlockState(under).isCollisionShapeFullBlock(level, under)) {
+                out.add(under);
+            }
+        }
+        return new java.util.ArrayList<>(out);
     }
 
     private static java.util.List<BlockPos> connectedFragile(ServerLevel level, BlockPos start) {

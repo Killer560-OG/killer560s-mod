@@ -394,12 +394,42 @@ final class MapPainter {
         // not a flat overwrite, so it reads as "this brown room" plus a warning, not a different room type.
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && hasLiveMimic(group)) {
             color = mix(color, MIMIC_TINT);
+        } else if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && hasSimMimic(group)) {
+            // The sim's mimic, painted the map's OWN red rather than a faint blend. killer560 (2026-10-01):
+            // "make that room the red that the normal map uses as well for the map" - so it is the blood
+            // colour out of his own Dungeon Map settings, not a new one invented here.
+            color = cfg.getColorBlood();
         }
         return color;
     }
 
     /** ~55% faint red, blended onto the room's own colour by {@link #mix}. */
     private static final int MIMIC_TINT = 0x8CFF0000;
+
+    /**
+     * Whether the SIM's mimic is in this room.
+     *
+     * <p>Separate from {@link #hasLiveMimic} because the two know different things. On Hypixel the mimic is a
+     * {@code trapped_chest} standing where the database says a secret chest is, and that is what the live
+     * check looks for. The sim's mimic is an ordinary chest that {@code SimMimic} happened to pick, so there
+     * is nothing in the world to find - it has to be asked. Cheap: one cell comparison, no block reads, so it
+     * needs none of the once-a-second caching the live scan does.
+     */
+    private static boolean hasSimMimic(LiveMapFeature.RoomGroup group) {
+        if (!com.killer560.hub.roomsim.SimState.isActive()) {
+            return false;
+        }
+        int cell = com.killer560.hub.roomsim.SimMimic.mimicCell();
+        if (cell < 0) {
+            return false;
+        }
+        for (int c : group.cells) {
+            if (c == cell) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /** Once-a-second snapshot of which rooms (by {@code mainIdx}) currently have a live mimic - see
      *  {@link #hasLiveMimic}. Rebuilt lazily, never more often than {@link #MIMIC_SCAN_TTL_MS}: a live block

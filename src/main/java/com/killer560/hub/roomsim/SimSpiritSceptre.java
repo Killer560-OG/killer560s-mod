@@ -84,6 +84,70 @@ public final class SimSpiritSceptre {
         Vec3 velocity;
         int delay;
         int ticksLeft = MAX_FLIGHT_TICKS;
+        /** The real bat entity carrying this one, or null before it has been spawned. */
+        java.util.UUID entity;
+    }
+
+    /**
+     * A REAL BAT, not a line of particles.
+     *
+     * <p>killer560 (2026-10-01): "Spirit scepter still shoots its own beams instead of a bat." The flight was
+     * drawn as a dense trail of soul-fire flame, which from where he stands is a beam - the one thing the
+     * ability is not. So each projectile now carries an actual {@code Bat} entity that is moved along the same
+     * path and discarded when it goes off, and the trail is one particle at the bat rather than a line through
+     * the whole step.
+     *
+     * <p>No AI, no gravity, invulnerable and silent: it is a projectile wearing a bat, and anything vanilla
+     * would do with a real one - flying off, resting on a ceiling, being hit - would take it off the path the
+     * blast is computed from.
+     */
+    private static void spawnBatEntity(Minecraft client, Bat bat) {
+        var server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        Vec3 at = bat.at;
+        net.minecraft.world.entity.ambient.Bat entity =
+                new net.minecraft.world.entity.ambient.Bat(
+                        net.minecraft.world.entity.EntityType.BAT, server.overworld());
+        entity.moveTo(at.x, at.y, at.z, 0f, 0f);
+        entity.setNoGravity(true);
+        entity.setNoAi(true);
+        entity.setInvulnerable(true);
+        entity.setSilent(true);
+        bat.entity = entity.getUUID();
+        server.execute(() -> server.overworld().addFreshEntity(entity));
+    }
+
+    /** Moves this one's bat entity to where the flight has got to. */
+    private static void moveBatEntity(Minecraft client, Bat bat, Vec3 to) {
+        var server = client.getSingleplayerServer();
+        if (server == null || bat.entity == null) {
+            return;
+        }
+        java.util.UUID id = bat.entity;
+        server.execute(() -> {
+            Entity entity = server.overworld().getEntity(id);
+            if (entity != null) {
+                entity.moveTo(to.x, to.y, to.z, entity.getYRot(), 0f);
+            }
+        });
+    }
+
+    /** Takes this one's bat entity away - it has exploded, or the sim has closed. */
+    private static void removeBatEntity(Minecraft client, Bat bat) {
+        var server = client.getSingleplayerServer();
+        if (server == null || bat.entity == null) {
+            return;
+        }
+        java.util.UUID id = bat.entity;
+        bat.entity = null;
+        server.execute(() -> {
+            Entity entity = server.overworld().getEntity(id);
+            if (entity != null) {
+                entity.discard();
+            }
+        });
     }
 
     private static final List<Bat> FLYING = new ArrayList<>();
@@ -116,6 +180,7 @@ public final class SimSpiritSceptre {
                     (RNG.nextDouble() - 0.5) * 2 * SPREAD).normalize();
             bat.at = eye.add(dir.scale(MUZZLE));
             bat.velocity = dir.scale(SPEED);
+            spawnBatEntity(client, bat);
             FLYING.add(bat);
         }
         client.level.playLocalSound(eye.x, eye.y, eye.z, SoundEvents.BAT_TAKEOFF,
@@ -125,6 +190,10 @@ public final class SimSpiritSceptre {
 
     /** Throws away anything still in the air - for leaving the sim, so a bat cannot outlive its world. */
     public static void clear() {
+        Minecraft client = Minecraft.getInstance();
+        for (Bat bat : FLYING) {
+            removeBatEntity(client, bat);
+        }
         FLYING.clear();
     }
 
@@ -145,7 +214,7 @@ public final class SimSpiritSceptre {
             return;
         }
         if (!SimState.canAct(client) || client.level == null) {
-            FLYING.clear();
+            clear();
             return;
         }
         // Copied before stepping: a blast is allowed to touch nothing here, but a bat that finishes is removed
@@ -196,33 +265,37 @@ public final class SimSpiritSceptre {
         trail(client, from, to);
 
         if (hitEntity != null && !wallFirst) {
+            removeBatEntity(client, bat);
             explode(client, hitEntity.getBoundingBox().getCenter());
             return false;
         }
         if (wallFirst) {
+            removeBatEntity(client, bat);
             explode(client, wall.getLocation());
             return false;
         }
         bat.at = to;
+        moveBatEntity(client, bat, to);
         if (--bat.ticksLeft <= 0) {
+            removeBatEntity(client, bat);
             explode(client, to);
             return false;
         }
         return true;
     }
 
-    /** The bat itself, as a short line of particles so it reads as something moving rather than a dot. */
+    /**
+     * A wisp at the bat, not a line through where it has been.
+     *
+     * <p>This drew a soul-fire flame every 0.3 blocks of the step, which at 1.2 blocks a tick is a solid rod
+     * of fire - the "beam" killer560 saw instead of a bat. One particle at the leading edge reads as a trail
+     * behind something that is itself visible now, which is the bat entity's job.
+     */
     private static void trail(Minecraft client, Vec3 from, Vec3 to) {
-        Vec3 delta = to.subtract(from);
-        double length = delta.length();
-        if (length < 0.01) {
+        if (from.distanceToSqr(to) < 0.0001) {
             return;
         }
-        Vec3 dir = delta.scale(1.0 / length);
-        for (double d = 0; d < length; d += 0.3) {
-            Vec3 at = from.add(dir.scale(d));
-            client.level.addParticle(ParticleTypes.SOUL_FIRE_FLAME, at.x, at.y, at.z, 0.0, 0.0, 0.0);
-        }
+        client.level.addParticle(ParticleTypes.SOUL_FIRE_FLAME, to.x, to.y, to.z, 0.0, 0.0, 0.0);
     }
 
     /**

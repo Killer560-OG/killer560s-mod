@@ -32,6 +32,8 @@ import java.util.Set;
  */
 public final class SimMimic {
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-roomsim");
+
     private static final Random RNG = new Random();
 
     /** Room-name fragments that mean no mimic can spawn there. Lower case; matched as substrings. */
@@ -116,11 +118,74 @@ public final class SimMimic {
     public static void chooseForMap() {
         mimic = null;
         found = false;
+        if (!floorHasMimic()) {
+            LOGGER.info("Sim mimic: none on {} - mimics start at Floor 5", SimState.floorLabel());
+            return;
+        }
         if (CANDIDATES.isEmpty()) {
+            // Loud, because "exactly one per run" is his rule and a run with none is the rule being broken,
+            // not a quiet variation. It means every room on the floor was ineligible or chestless, which is a
+            // generator problem rather than a mimic one.
+            LOGGER.warn("Sim mimic: {} should have one and there is no eligible chest on the floor to be it",
+                    SimState.floorLabel());
             return;
         }
         List<BlockPos> pool = new ArrayList<>(CANDIDATES);
         mimic = pool.get(RNG.nextInt(pool.size()));
+        LOGGER.info("Sim mimic: 1 of {} candidate chest(s) on {}, at {}",
+                pool.size(), SimState.floorLabel(), mimic);
+    }
+
+    /**
+     * Whether this floor gets a mimic at all.
+     *
+     * <p>killer560 (2026-10-01): "always and only make 1 mimic per run. except if you are on floor 4 or below
+     * then it should never have one." So it is a property of the FLOOR, not of chance: F5 and up have exactly
+     * one, everything below has none, and there is no roll either way.
+     *
+     * <p>Note this is Floor 5, one lower than {@code SimScore}'s bonus note (which says VI and above, from the
+     * wiki). His rule is the one implemented, because the sim is his practice tool; the two are flagged here
+     * rather than quietly reconciled.
+     */
+    private static boolean floorHasMimic() {
+        String floor = SimState.floorLabel();
+        if (floor == null || floor.length() < 2 || floor.charAt(0) != 'F') {
+            return false;   // the Entrance, and anything that did not name a floor
+        }
+        try {
+            return Integer.parseInt(floor.substring(1)) >= 5;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    /**
+     * The grid cell the mimic's chest is in, or -1 - so the map can paint that room.
+     *
+     * <p>killer560 (2026-10-01): "make that room the red that the normal map uses as well for the map." The
+     * map's own mimic highlight tests for a live {@code trapped_chest} at a database secret position, which a
+     * sim never has: the sim's mimic is an ordinary chest that one of them happens to be. So the sim says
+     * which cell instead, and {@code MapPainter} reads it.
+     */
+    public static int mimicCell() {
+        BlockPos pos = mimic;
+        if (pos == null) {
+            return -1;
+        }
+        int best = -1;
+        long bestDist = Long.MAX_VALUE;
+        int cells = com.killer560.hub.livemap.DungeonLayout.GRID * com.killer560.hub.livemap.DungeonLayout.GRID;
+        for (int i = 0; i < cells; i++) {
+            BlockPos centre = com.killer560.hub.livemap.DungeonLayout.cellCenter(i);
+            long dx = centre.getX() - pos.getX();
+            long dz = centre.getZ() - pos.getZ();
+            long dist = dx * dx + dz * dz;
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = i;
+            }
+        }
+        return best;
     }
 
     public static boolean hasMimic() {

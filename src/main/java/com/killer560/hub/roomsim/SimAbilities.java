@@ -102,6 +102,12 @@ public final class SimAbilities {
             if (id == null) {
                 return InteractionResult.PASS;
             }
+            if (trapLocked(id)) {
+                sayTrapLocked();
+                // FAIL, not PASS: PASS would let the item's VANILLA behaviour through, and an ender pearl is
+                // vanilla all the way down - it would still throw and still teleport him out of the trap.
+                return InteractionResult.FAIL;
+            }
             markAbilityUsed();
             if (ETHERWARP_ITEMS.contains(id) && player.isShiftKeyDown()) {
                 return etherwarp(client) ? InteractionResult.SUCCESS : InteractionResult.PASS;
@@ -268,8 +274,69 @@ public final class SimAbilities {
      * <p>Stopping short rather than passing through: on Hypixel the blades do not put you inside a wall, and a
      * sim that let you phase through one would make every route practised in it wrong.
      */
+    /**
+     * Wither Impact: the dash, and then the blast it lands with.
+     *
+     * <p>killer560 (2026-10-01): "the hyperion does not do its aoe damage either." It never did - this was one
+     * line, the teleport, with nothing on the other end of it. On Hypixel the ability's whole point is that it
+     * puts you in the middle of a pack and then detonates there, so a sim Hyperion that only moves you is a
+     * practice tool that teaches the wrong half of the weapon.
+     *
+     * <p>The blast is a sphere at where he LANDED, not where he aimed, because that is what the ability does
+     * and it is the difference between a good blink and a wasted one. Damage and radius are approximations and
+     * are not Hypixel's real formula - sim mobs have one health, so what matters is which of them are inside
+     * it. Same server-thread, server's-own-entities rule the Spirit Sceptre's blast follows.
+     */
     private static boolean witherImpact(Minecraft client) {
-        return dash(client, WITHER_IMPACT_RANGE);
+        if (!dash(client, WITHER_IMPACT_RANGE)) {
+            return false;
+        }
+        witherBlast(client);
+        return true;
+    }
+
+    /** Wither Impact's radius, in blocks. */
+    private static final double WITHER_BLAST_RADIUS = 5.0;
+
+    /** Enough to kill anything in the sim outright; sim mobs have one health anyway. */
+    private static final float WITHER_BLAST_DAMAGE = 10_000f;
+
+    private static void witherBlast(Minecraft client) {
+        var server = client.getSingleplayerServer();
+        if (server == null || client.player == null) {
+            return;
+        }
+        java.util.UUID uuid = client.player.getUUID();
+        server.execute(() -> {
+            var sp = server.getPlayerList().getPlayer(uuid);
+            if (sp == null) {
+                return;
+            }
+            net.minecraft.server.level.ServerLevel level = (net.minecraft.server.level.ServerLevel) sp.level();
+            net.minecraft.world.phys.Vec3 centre = sp.position().add(0, sp.getBbHeight() / 2.0, 0);
+            var box = net.minecraft.world.phys.AABB.ofSize(centre,
+                    WITHER_BLAST_RADIUS * 2, WITHER_BLAST_RADIUS * 2, WITHER_BLAST_RADIUS * 2);
+            var source = level.damageSources().playerAttack(sp);
+            int hit = 0;
+            for (net.minecraft.world.entity.LivingEntity target
+                    : level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class, box,
+                            e -> e.isAlive() && e != sp)) {
+                // The BOX is a box and the blast is a sphere - the corners of an axis-aligned box reach 1.7x
+                // further than its faces, which is the axis-dependent reach the Spirit Sceptre was rewritten
+                // to get rid of. Same check, same reason.
+                if (target.getBoundingBox().distanceToSqr(centre)
+                        > WITHER_BLAST_RADIUS * WITHER_BLAST_RADIUS) {
+                    continue;
+                }
+                target.hurtServer(level, source, WITHER_BLAST_DAMAGE);
+                hit++;
+            }
+            if (hit > 0) {
+                level.playSound(null, sp.blockPosition(),
+                        net.minecraft.sounds.SoundEvents.GENERIC_EXPLODE.value(),
+                        net.minecraft.sounds.SoundSource.PLAYERS, 0.6f, 1.2f);
+            }
+        });
     }
 
     /**
@@ -430,6 +497,55 @@ public final class SimAbilities {
     private static final int ABILITY_GRACE_TICKS = 2;
 
     /** Whether an ability has just been used, so the beam should stay quiet. */
+    /**
+     * Abilities are off inside a trap room.
+     *
+     * <p>killer560 (2026-10-01): "Make it so in trap I cannot etherwarp or teleport or use any ability. I can
+     * use abilities to go into it but not while in it. THis does not apply to dungeon breaker or super boom."
+     *
+     * <p>"While in it" is the whole rule, so it is checked at the moment of the click against the room he is
+     * STANDING in - a warp that starts outside and lands inside is allowed, and that is the one he named.
+     *
+     * <p>The two exemptions are both already outside this path or named here. The Dungeon Breaker is a
+     * LEFT-click tool handled on {@code AttackBlockCallback} and never reaches this callback at all; Superboom
+     * is in {@link #TRAP_ALLOWED} below. The Terminator's left-click shot is likewise untouched - only its
+     * right-click ability stops.
+     *
+     * <p>The room's own type decides, not its name: {@code RoomEntry.type} is what the map and the generator
+     * already call a trap room, and matching on the word would catch any room unlucky enough to be called
+     * one. The name is only a fallback for a room the database does not know.
+     */
+    private static final java.util.Set<String> TRAP_ALLOWED = java.util.Set.of("SUPERBOOM_TNT");
+
+    private static boolean trapLocked(String skyblockId) {
+        if (skyblockId == null || TRAP_ALLOWED.contains(skyblockId)) {
+            return false;
+        }
+        String room = SimState.currentRoomName();
+        if (room == null) {
+            return false;
+        }
+        var entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room);
+        String type = entry == null ? null : entry.type;
+        return type == null
+                ? room.toLowerCase(java.util.Locale.ROOT).contains("trap")
+                : type.equalsIgnoreCase("trap");
+    }
+
+    /** Said at most once a second, or holding right-click fills chat with it. */
+    private static long lastTrapMessageMs = 0L;
+
+    private static void sayTrapLocked() {
+        long now = System.currentTimeMillis();
+        if (now - lastTrapMessageMs < 1000L) {
+            return;
+        }
+        lastTrapMessageMs = now;
+        com.killer560.hub.util.ModChat.send("Sim",
+                com.killer560.hub.util.ModChat.bad("No abilities in a trap room"),
+                com.killer560.hub.util.ModChat.dim(" - walk it."));
+    }
+
     public static boolean usedAbilityRecently() {
         return abilityGraceTicks > 0;
     }

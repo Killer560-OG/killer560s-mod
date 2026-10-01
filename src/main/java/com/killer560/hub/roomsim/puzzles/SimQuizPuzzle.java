@@ -78,6 +78,41 @@ public final class SimQuizPuzzle {
     /** {world position, answer index} for each of a bound room's twelve pillar buttons. Null when standalone. */
     private static volatile java.util.List<Object[]> quizButtons = null;
 
+    /**
+     * Three Weirdos' three chests, capture-local, shifted so the middle lines up with the room's cauldron -
+     * see {@link #bindAt}. The capture's own are at z 12/14/17; these are the same three two blocks along.
+     */
+    private static final int[][] WEIRDO_SPOTS = {{25, 69, 14}, {26, 69, 16}, {25, 69, 19}};
+
+    /**
+     * The NPC names the sim's three weirdos answer to.
+     *
+     * <p>Invented, not Hypixel's. {@code WeirdosSolverFeature} matches the speaker with {@code ^\[NPC] (.+):}
+     * and then looks for an ArmorStand of that name, so WHICH name it is does not matter to the solver - only
+     * that the chat line and the stand agree, which is the one thing this list guarantees.
+     */
+    private static final String[] WEIRDO_NAMES = {"Aldous", "Berta", "Cadmus"};
+
+    /**
+     * One line from {@code WeirdosSolverFeature}'s own SOLUTIONS list, and two from its WRONG list.
+     *
+     * <p>The solver's rule is simply "whoever speaks a SOLUTION line is standing at the right chest", so the
+     * sim has the weirdo at the correct chest say the first and the other two say the others. Taken verbatim
+     * from the solver's patterns rather than written fresh, because a line that does not match one of them
+     * exactly tells it nothing.
+     */
+    private static final String WEIRDO_SOLUTION = "My chest has the reward and I'm telling the truth!";
+    private static final String[] WEIRDO_WRONG = {
+        "One of us is telling the truth!",
+        "My chest doesn't have the reward. At least one of the others is telling the truth!",
+    };
+
+    /** Set while the bound room is Three Weirdos rather than the Quiz. */
+    private static volatile boolean weirdosRoom = false;
+
+    /** World x/z step of one database-relative +x block, for placing the NPCs - see {@link #bindAt}. */
+    private static volatile int[] npcStep = null;
+
     /** When the question was announced. An answer before {@link #ANSWER_DELAY_MS} after it does not count. */
     private static volatile long askedAtMs = 0L;
 
@@ -212,16 +247,41 @@ public final class SimQuizPuzzle {
         boolean weirdos = "three weirdos".equalsIgnoreCase(p.room().name);
         BlockPos[] positions;
         if (weirdos) {
-            List<BlockPos> chests = SimRoomPuzzles.capturedBlocks(p, Blocks.CHEST);
-            if (chests.size() < 3) {
-                com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
-                        "Sim quiz: Three Weirdos' capture holds {} chest(s), not the three the puzzle needs",
-                        chests.size());
-                return false;
+            // THE CHESTS MOVE. killer560 (2026-10-01): "For three weirdos the chests need to be shifted, the
+            // middle most should be in line with the cauldron in the room."
+            //
+            // The capture holds its three chests at local (25,69,12), (26,69,14) and (25,69,17), and the
+            // chamber's cauldron at (29,69,16) - so the middle chest sits two short of the cauldron's line.
+            // All three move the same two blocks rather than being re-spaced, because their arrangement is the
+            // room's own and only the alignment was wrong: the middle one lands on z=16 with the cauldron, and
+            // the other two keep their offsets from it.
+            List<BlockPos> captured = SimRoomPuzzles.capturedBlocks(p, Blocks.CHEST);
+            positions = new BlockPos[WEIRDO_SPOTS.length];
+            for (int i = 0; i < WEIRDO_SPOTS.length; i++) {
+                positions[i] = SimRoomPuzzles.capturedPos(p,
+                        WEIRDO_SPOTS[i][0], WEIRDO_SPOTS[i][1], WEIRDO_SPOTS[i][2]);
             }
-            // The three closest to each other, since a bigger room can hold an unrelated chest too. Cheap:
-            // three chests is three candidate triples.
-            positions = new BlockPos[]{chests.get(0), chests.get(1), chests.get(2)};
+            // The room's own three go, or the puzzle would have six chests and three of them dead.
+            for (BlockPos old : captured) {
+                boolean kept = false;
+                for (BlockPos now : positions) {
+                    kept |= now.equals(old);
+                }
+                if (!kept) {
+                    level.setBlockAndUpdate(old, Blocks.AIR.defaultBlockState());
+                }
+            }
+            for (BlockPos now : positions) {
+                level.setBlockAndUpdate(now, Blocks.CHEST.defaultBlockState());
+            }
+            // The direction one DATABASE-RELATIVE block of -x is, in this room at this rotation. The Weirdos
+            // solver finds a chest by taking its NPC's position and adding 1 to relative x, so the NPC has to
+            // stand exactly one relative block the other way - and which world direction that is depends on
+            // how the room was turned.
+            SimRoomPuzzles.Anchor anchor = p.anchor();
+            BlockPos zero = anchor.world(0, 0, 0);
+            BlockPos oneX = anchor.world(1, 0, 0);
+            npcStep = new int[]{oneX.getX() - zero.getX(), oneX.getZ() - zero.getZ()};
         } else {
             int[][] spots = {{20, 70, 6}, {15, 70, 9}, {10, 70, 6}};
             List<int[]> rels = List.of(spots);
@@ -264,9 +324,12 @@ public final class SimQuizPuzzle {
         // Same in-memory clear reset() does, without its queued block writes: those are aimed at the PREVIOUS
         // arena's positions and would land a tick from now, inside the room just pasted.
         java.util.List<Object[]> buttons = quizButtons;
+        int[] step = npcStep;
         forget();
         quizButtons = buttons;
+        npcStep = step;
         boundRoom = p.room().name;
+        weirdosRoom = weirdos;
         if (buttons != null) {
             for (Object[] b : buttons) {
                 CELL_INDEX.put((BlockPos) b[0], (Integer) b[1]);
@@ -324,13 +387,24 @@ public final class SimQuizPuzzle {
         built = true;
         char[] letters = {'ⓐ', 'ⓑ', 'ⓒ'};
         for (int i = 0; i < 3; i++) {
-            // NO CHEST in a bound room - the pillar's buttons are the answer now, so a chest would
+            // NO CHEST in a bound QUIZ room - the pillar's buttons are the answer now, so a chest would
             // be a second way to answer and a block the room does not have. A standalone arena
-            // still gets them, because it has no pillars to press.
-            if (quizButtons == null) {
+            // still gets them, because it has no pillars to press. Three Weirdos keeps its chests: they
+            // ARE the puzzle there, and bindAt has already put them where they belong.
+            if (quizButtons == null && !weirdosRoom) {
                 level.setBlockAndUpdate(positions[i], Blocks.CHEST.defaultBlockState());
             }
-            LABELS.add(spawnLabel(level, positions[i], letters[i] + " " + text[i]));
+            if (weirdosRoom) {
+                // A NAMED WEIRDO, one relative block off its chest, instead of a lettered answer.
+                //
+                // That is what the room really has and it is the only arrangement WeirdosSolverFeature can
+                // read: it finds the speaker's ArmorStand by name and then takes the chest one relative
+                // block over. A label floating on the chest itself would leave the solver with nothing to
+                // find, which is why it never worked in here.
+                LABELS.add(spawnLabel(level, npcPos(positions[i]), WEIRDO_NAMES[i]));
+            } else {
+                LABELS.add(spawnLabel(level, positions[i], letters[i] + " " + text[i]));
+            }
         }
         StringBuilder options = new StringBuilder();
         for (int i = 0; i < 3; i++) {
@@ -375,9 +449,54 @@ public final class SimQuizPuzzle {
         }
         announced = true;
         askedAtMs = System.currentTimeMillis();
+        if (weirdosRoom) {
+            sayWeirdos(client);
+            return;
+        }
+        // THE SERVER'S OWN WORDING, so QuizSolverFeature can read it. It listens for a line CONTAINING a
+        // question it knows and then for lines starting with the circled letters whose text ends with the
+        // answer - both of which are Hypixel's exact chat shape, and neither of which a "[Sim] ..." line with
+        // the options squashed onto one row satisfies. The options go out one per line now, raw, which is how
+        // Oruo sends them; the "[Sim]" header above them is still there to say where they came from.
         ModChat.send("Sim", ModChat.text(pendingQuestion));
-        ModChat.send("Sim", ModChat.dim(pendingOptions));
+        raw(client, "[STATUE] Oruo the Omniscient: " + pendingQuestion);
+        for (String option : pendingOptions.split(" {2}")) {
+            raw(client, option.trim());
+        }
         ModChat.send("Sim", ModChat.dim("Oruo is still reading - answers count in 5s."));
+    }
+
+    /**
+     * The three weirdos speak, in the server's own format, and the solver listens.
+     *
+     * <p>Whoever stands at the correct chest says a line out of {@code WeirdosSolverFeature}'s SOLUTIONS list
+     * and the other two say lines out of its WRONG list - which is exactly the rule that solver implements
+     * ("the speaker of a solution line is standing at the right chest"). Sent raw rather than through
+     * {@link ModChat}, because its "[feature] " prefix would break the solver's anchored {@code ^\[NPC] }.
+     */
+    private static void sayWeirdos(Minecraft client) {
+        int wrong = 0;
+        for (int i = 0; i < 3; i++) {
+            String line = i == correctIndex
+                    ? WEIRDO_SOLUTION
+                    : WEIRDO_WRONG[Math.min(wrong++, WEIRDO_WRONG.length - 1)];
+            raw(client, "[NPC] " + WEIRDO_NAMES[i] + ": " + line);
+        }
+        ModChat.send("Sim", ModChat.dim("Three Weirdos - open the chest of whoever is telling the truth."));
+    }
+
+    /** A line with no mod prefix at all, so an anchored solver pattern matches it. It still goes through
+     *  ChatObserver, which is what every solver in this mod subscribes to. */
+    private static void raw(Minecraft client, String line) {
+        if (client.player != null) {
+            client.player.sendSystemMessage(Component.literal(line));
+        }
+    }
+
+    /** Where the weirdo standing at this chest goes: one database-relative block of -x from it. */
+    private static BlockPos npcPos(BlockPos chest) {
+        int[] step = npcStep;
+        return step == null ? chest : chest.offset(-step[0], 0, -step[1]);
     }
 
     /** Two other real questions' correct answers, picked at random and excluding anything equal to the correct
@@ -438,6 +557,8 @@ public final class SimQuizPuzzle {
         quizButtons = null;
         boundPositions = null;
         boundRoom = null;
+        weirdosRoom = false;
+        npcStep = null;
         chestPos = null;
         CELL_INDEX.clear();
         LABELS.clear();
@@ -529,7 +650,13 @@ public final class SimQuizPuzzle {
         // blocks too high." The spot is one above the floor and the label floated 1.3 over that, putting it 2.3
         // up; with no chest under it there is nothing to clear, so it drops to 0.3 - the two blocks he measured.
         // A standalone arena keeps the old height, where a real chest IS in the way.
-        double lift = quizButtons == null ? 1.3 : -0.7;
+        // ONE height now, for every label this puzzle makes. killer560 measured the Quiz's as two blocks too
+        // high and then the Three Weirdos' as two blocks too high in the same way, which is the tell that it
+        // was never about the chest: an ArmorStand renders its name about 2.3 blocks above its own position,
+        // so a stand lifted 1.3 puts the text 3.6 over the spot. -0.7 puts it just above head height, where
+        // both of them should have been. The stand itself ends up inside the floor, which is fine - it is
+        // invisible and has no collision.
+        double lift = -0.7;
         ArmorStand stand = new ArmorStand(level, chestPos.getX() + 0.5, chestPos.getY() + lift, chestPos.getZ() + 0.5);
         stand.setInvisible(true);
         stand.setNoGravity(true);
