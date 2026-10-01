@@ -153,6 +153,16 @@ physics. Read the relevant one before touching either area.
   `continueDestroyBlock` calls `startDestroyBlock` on its fallback path). The sim's Dungeon Breaker spent its
   whole twenty-charge bar in one second this way. Anything that consumes that callback needs its own
   edge-detection - track the block and clear it when `keyAttack` comes up.
+- **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session
+  cannot compile (the network policy blocks `maven.fabricmc.net` and Mojang's hosts), so a wrong method name is
+  not caught until killer560 runs the build, and it costs him a whole round trip. Three in one batch on
+  2026-10-01: `Entity.moveTo` is `snapTo` in 26.1.2, `EntityType.BAT` belongs behind `McEntities.BAT` because it
+  is one of the names that moved in 26.2, and `BlockState.isCollisionShapeFullBlock` was a guess at a predicate
+  that could have been several things. Every one of them had a working equivalent already in the tree -
+  `SimMiniboss.snapTo`, `SimMobs`' bat spawn, `TeleportUtils`' `getCollisionShape(...).max(...)`. The rule is
+  mechanical: before using a vanilla method or constant that does not already appear in `src/`, either find it
+  there or pick something that does. Block constants (`Blocks.X`) are stable and map 1:1 to registry ids;
+  METHOD names are what move between versions.
 - A class placed inside a mixin-owned package throws `IllegalClassLoadError` and crashes the game at boot.
   Keep helper classes out of `mixin` packages.
 - `RenderSystem.setShaderColor` does not exist in 26.1.2, so there is no global colour multiplier and items
