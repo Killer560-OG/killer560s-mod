@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalInt;
-import java.util.Queue;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -85,7 +84,16 @@ final class ExperimentSolver {
     private int ultrasequencerClickIndex;
     private boolean ultrasequencerReady;
     private long ultrasequencerRoundReadyAtMs;
-    private final Queue<Integer> pairClicks = new ArrayDeque<>();
+    private final java.util.Deque<Integer> pairClicks = new ArrayDeque<>();
+    /** The FIRST click of a pair whose partner is still waiting in {@link #pairClicks}, or null. If that click
+     *  times out with the tile still covered, it did not land, and clicking the partner anyway turns a sure
+     *  pair into a miss - which is how "Experiment the Fish" (slots 20/40) was lost in his 2026-10-01 09:33
+     *  run: 20 never turned over, the solver clicked 40, then an unrelated 38, and Hypixel paid neither. */
+    private Integer superpairsPairFirstSlot;
+    private final Map<Integer, Integer> superpairsPairRetries = new HashMap<>();
+    /** Re-clicks allowed for a pair's first tile. A re-click on a tile that did turn over costs nothing
+     *  (killer560, 2026-10-01: clicking an uncovered tile does not use a click). */
+    private static final int SUPERPAIRS_PAIR_FIRST_RETRIES = 2;
     private final Set<Integer> queuedPairSlots = new HashSet<>();
     /** Field-tested (2026-09-06): unlike Chronomatron/Ultrasequencer, Superpairs tiles are genuinely
      *  hidden behind a covering item (glass pane) until clicked - killer560 confirmed the solver never
@@ -720,7 +728,19 @@ final class ExperimentSolver {
                     // out, and freeing it here (like a genuine stuck pair-click) just re-exposed the same
                     // already-activated tile as "not yet activated" on the very next scan, clicking it
                     // again forever. Leaving it queued is correct here - the tile's already spent.
-                    if (!superpairsAwaitingConfirmSlot.equals(superpairsPowerupActivationSlot)) {
+                    int retries = superpairsPairRetries.getOrDefault(superpairsAwaitingConfirmSlot, 0);
+                    if (superpairsAwaitingConfirmSlot.equals(superpairsPairFirstSlot) && current != null
+                            && !isRevealedPair(current) && retries < SUPERPAIRS_PAIR_FIRST_RETRIES) {
+                        // The pair's first tile never turned over: click it again before its partner.
+                        // It stays in queuedPairSlots - the pair is still ours.
+                        superpairsPairRetries.put(superpairsAwaitingConfirmSlot, retries + 1);
+                        pairClicks.addFirst(superpairsAwaitingConfirmSlot);
+                        LOGGER.info("Superpairs: first click of a pair on slot {} did not land (still '{}') - "
+                                + "re-clicking it before its partner {} (retry {}/{})",
+                                superpairsAwaitingConfirmSlot, current.name(), pairClicks.size() > 1
+                                        ? java.util.List.copyOf(pairClicks).get(1) : "?",
+                                retries + 1, SUPERPAIRS_PAIR_FIRST_RETRIES);
+                    } else if (!superpairsAwaitingConfirmSlot.equals(superpairsPowerupActivationSlot)) {
                         queuedPairSlots.remove(superpairsAwaitingConfirmSlot);
                         // A powerup tile never visibly changes, so only real reveal/pair clicks are
                         // worth watching for a late confirm.
@@ -855,6 +875,7 @@ final class ExperimentSolver {
     }
 
     private OptionalInt decideSuperpairsClickInternal(List<Cell> cells, boolean valuableOnly) {
+        superpairsPairFirstSlot = null;
         Map<Integer, Cell> bySlot = new HashMap<>();
         for (Cell cell : cells) {
             bySlot.put(cell.slot(), cell);
@@ -951,7 +972,9 @@ final class ExperimentSolver {
         }
 
         if (!pairClicks.isEmpty()) {
-            return OptionalInt.of(pairClicks.poll());
+            int next = pairClicks.poll();
+            superpairsPairFirstSlot = pairClicks.isEmpty() ? null : next;
+            return OptionalInt.of(next);
         }
 
         // Nothing known matches yet - click an unrevealed (still-covered) tile to learn what's under
@@ -1039,6 +1062,7 @@ final class ExperimentSolver {
         queuedPairSlots.add(first);
         queuedPairSlots.add(second);
         pairClicks.add(second);
+        superpairsPairFirstSlot = first;
         LOGGER.info("Superpairs: board explored, matching XP pair slot {} with slot {} (name='{}')",
                 first, second, bestPair.get(0).name());
         return OptionalInt.of(first);
@@ -1132,6 +1156,8 @@ final class ExperimentSolver {
         ultrasequencerReady = false;
         ultrasequencerRoundReadyAtMs = 0;
         pairClicks.clear();
+        superpairsPairFirstSlot = null;
+        superpairsPairRetries.clear();
         queuedPairSlots.clear();
         knownSuperpairsCells.clear();
         superpairsRevealAttempted.clear();
