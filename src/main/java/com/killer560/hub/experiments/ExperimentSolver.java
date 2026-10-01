@@ -868,6 +868,9 @@ final class ExperimentSolver {
             OptionalInt best = bestKnownSingleTarget(valuableOnly, bySlot);
             if (best.isPresent()) {
                 queuedPairSlots.add(best.getAsInt());
+                Cell target = knownSuperpairsCells.get(best.getAsInt());
+                LOGGER.info("Superpairs: powerup match spent on slot {} (itemId={}, name='{}') - reserved for the rest of the round",
+                        best.getAsInt(), target == null ? "?" : target.itemId(), target == null ? "?" : target.name());
                 return best;
             }
         }
@@ -880,6 +883,9 @@ final class ExperimentSolver {
             superpairsPowerupPending = true;
             queuedPairSlots.add(slot);
             superpairsPowerupActivationSlot = slot;
+            Cell tile = bySlot.get(slot);
+            LOGGER.info("Superpairs: activating powerup on slot {} (name='{}', lore='{}') - reserved for the rest of the round",
+                    slot, tile == null ? "?" : tile.name(), tile == null ? "?" : tile.lore());
             return OptionalInt.of(slot);
         }
 
@@ -1009,7 +1015,7 @@ final class ExperimentSolver {
     private OptionalInt matchHighestValueDyePair() {
         Map<String, List<Cell>> byKey = new HashMap<>();
         for (Cell cell : knownSuperpairsCells.values()) {
-            if (!isDyeFamilyItem(cell) || queuedPairSlots.contains(cell.slot())) continue;
+            if (!isSuperpairsXpTile(cell) || queuedPairSlots.contains(cell.slot())) continue;
             byKey.computeIfAbsent(cell.itemId() + "|" + cell.name(), k -> new ArrayList<>()).add(cell);
         }
         List<Cell> bestPair = null;
@@ -1030,6 +1036,8 @@ final class ExperimentSolver {
         queuedPairSlots.add(first);
         queuedPairSlots.add(second);
         pairClicks.add(second);
+        LOGGER.info("Superpairs: board explored, matching XP pair slot {} with slot {} (name='{}')",
+                first, second, bestPair.get(0).name());
         return OptionalInt.of(first);
     }
 
@@ -1058,7 +1066,7 @@ final class ExperimentSolver {
             Integer bestDyeSlot = null;
             int bestDyeCount = -1;
             for (Cell cell : knownSuperpairsCells.values()) {
-                if (!isDyeFamilyItem(cell) || queuedPairSlots.contains(cell.slot())) continue;
+                if (!isSuperpairsXpTile(cell) || queuedPairSlots.contains(cell.slot())) continue;
                 if (cell.count() > bestDyeCount) {
                     bestDyeCount = cell.count();
                     bestDyeSlot = cell.slot();
@@ -1084,7 +1092,20 @@ final class ExperimentSolver {
      *  family Ultrasequencer's own notes use (see {@link #isDyeFamilyItem}). So instead of trying to
      *  whitelist "valuable," this blacklists dye-family items and treats everything else as valuable. */
     private static boolean isValuablePair(Cell cell) {
-        return !isDyeFamilyItem(cell);
+        return !isSuperpairsXpTile(cell);
+    }
+
+    private static final Pattern SUPERPAIRS_XP_NAME = Pattern.compile("\\+[\\d,]+ XP");
+
+    /** A plain Experience reward in Superpairs. Mostly a dye-family item named like "144k Enchanting Exp",
+     *  but the big one is a LAPIS BLOCK named "+479,095 XP" (2026-10-01 log, three runs), which
+     *  {@link #isDyeFamilyItem} does not cover - so it was treated as valuable, spent a powerup's matched
+     *  click and got paired ahead of real rewards. Kept separate from isDyeFamilyItem because Ultrasequencer
+     *  uses that one for its notes. */
+    private static boolean isSuperpairsXpTile(Cell cell) {
+        return isDyeFamilyItem(cell)
+                || cell.itemId().equals("minecraft:lapis_block")
+                || SUPERPAIRS_XP_NAME.matcher(cell.name()).matches();
     }
 
     private void reset(Mode selected) {
