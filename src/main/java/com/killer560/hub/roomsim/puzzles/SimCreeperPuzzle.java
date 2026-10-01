@@ -142,9 +142,27 @@ public final class SimCreeperPuzzle {
         if (idx == null) {
             return false;
         }
+        // THREE TICKS before the same lantern answers again.
+        //
+        // killer560 (2026-10-01): "make the delay between selecting a block and unslecting that same block 3
+        // ticks", and in the same breath "it wouldnt let my shots render the thing as hit most of the time".
+        // They are one fault. A cancelled block break re-enters AttackBlockCallback every TICK rather than
+        // once per click (see CLAUDE.md), so a single held shot picked the lantern, cancelled it, picked it
+        // again - twenty times a second. From in front of it that is a lantern that mostly does not respond.
+        long now = client.level == null ? 0L : client.level.getGameTime();
+        Long last = lastPickTick.get(pos);
+        if (last != null && now - last < REPICK_DELAY_TICKS) {
+            return true;   // ours, and deliberately ignored - never falls through to a block break
+        }
+        lastPickTick.put(pos.immutable(), now);
         pick(client, idx, pos.immutable());
         return true;
     }
+
+    /** Ticks a lantern ignores a second hit, so one held shot is one answer - see {@link #tryConnectAt}. */
+    private static final int REPICK_DELAY_TICKS = 3;
+
+    private static final Map<BlockPos, Long> lastPickTick = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * TWO SHOTS make a beam, not one.
@@ -369,6 +387,7 @@ public final class SimCreeperPuzzle {
         connected = new boolean[0];
         storedOrigin = null;
         built = false;
+        lastPickTick.clear();
         pendingPos = null;
         pendingIndex = -1;
     }

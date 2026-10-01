@@ -45,8 +45,14 @@ import java.util.Random;
  */
 public final class SimSpiritSceptre {
 
-    /** Bats per cast. The real ability fires a spread; five is enough to read as a burst without a wall of them. */
-    private static final int BATS = 5;
+    /**
+     * Bats per cast. ONE.
+     *
+     * <p>killer560 (2026-10-01): "For spirit sceptre make it not shoot out the beam it all only 1 bat." Five
+     * bats a couple of ticks apart, each trailing soul flame, is a stream - which is the "beam" he keeps
+     * seeing however thin the trail gets. One bat is one bat.
+     */
+    private static final int BATS = 1;
 
     /** Ticks between one bat leaving and the next, so it reads as a burst rather than one clump. */
     private static final int LAUNCH_GAP = 2;
@@ -294,10 +300,8 @@ public final class SimSpiritSceptre {
      * behind something that is itself visible now, which is the bat entity's job.
      */
     private static void trail(Minecraft client, Vec3 from, Vec3 to) {
-        if (from.distanceToSqr(to) < 0.0001) {
-            return;
-        }
-        client.level.addParticle(ParticleTypes.SOUL_FIRE_FLAME, to.x, to.y, to.z, 0.0, 0.0, 0.0);
+        // NOTHING. The bat is a real entity now and it is the thing to watch; every particle behind it is
+        // another frame of the beam he asked twice to be rid of.
     }
 
     /**

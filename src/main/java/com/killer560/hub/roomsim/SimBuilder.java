@@ -571,9 +571,58 @@ public final class SimBuilder {
      * reconstructs movement and lags you back; there is no Hypixel in this world.
      */
     static void snapPlayerTo(Minecraft client, ServerLevel level, int gridX, int gridZ) {
+        snapPlayerTo(client, level, gridX, gridZ, null);
+    }
+
+    /**
+     * Where a room would rather he started than its middle.
+     *
+     * <p>killer560 (2026-10-01): "make it so if i do the command to go to higher lower blaze it spawns me 1
+     * block infront of the entrance on that level"; and "if i do goto creeperbeams or generate teh room as a
+     * single dont make me spawn in the middle column ofset my position any horizontal amount by 4 blocks."
+     *
+     * <p>{@code dx}/{@code dz} are blocks from the tile centre. {@code fromTop} flips the landing scan, which
+     * otherwise comes UP from the bottom of the world and finds the lowest floor - right for every room but
+     * Higher Blaze, which is entered near its ceiling and whose "that level" is the top one.
+     */
+    private record Spawn(int dx, int dz, boolean fromTop) {
+    }
+
+    private static Spawn spawnFor(RoomLibrary.Room room) {
+        if (room == null || room.name == null) {
+            return null;
+        }
+        String name = room.name.toLowerCase(Locale.ROOT);
+        if (name.equals("creeper beams")) {
+            // Four blocks off the centre column, any horizontal direction - the middle is where the puzzle's
+            // own structure is, and landing inside it is both disorienting and in the way of the shots.
+            return new Spawn(4, 0, false);
+        }
+        if (name.equals("higher blaze") || name.equals("lower blaze")) {
+            // ONE BLOCK IN FROM THE DOORWAY. A blaze room is a shaft; its middle is the chain, and the level
+            // that matters is the one you walk in on. The side comes from the room's own measured doorway
+            // mask rather than a guess, and 14 is the tile centre (16 in capture-local) stepped out to the
+            // wall at 1 or 31 and back in one.
+            RoomDoors.Mask mask = RoomDoors.of(room.name);
+            if (mask != null) {
+                for (int packed : mask.edges()) {
+                    int side = RoomDoors.sideOf(packed);
+                    return new Spawn(RoomDoors.DX[side] * 14, RoomDoors.DZ[side] * 14,
+                            name.startsWith("higher"));
+                }
+            }
+            return new Spawn(0, 0, name.startsWith("higher"));
+        }
+        return null;
+    }
+
+    static void snapPlayerTo(Minecraft client, ServerLevel level, int gridX, int gridZ,
+                             RoomLibrary.Room room) {
         var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
-        int x = origin.getX();
-        int z = origin.getZ();
+        Spawn spawn = spawnFor(room);
+        int x = origin.getX() + (spawn == null ? 0 : spawn.dx());
+        int z = origin.getZ() + (spawn == null ? 0 : spawn.dz());
+        boolean fromTop = spawn != null && spawn.fromTop();
         // Upwards from the bottom. Scanning DOWN from the top finds the first standable surface from above,
         // which for a room with a ceiling is the ROOF - killer560 (2026-09-28): "it put me ontop of the room
         // instead of insidde it." Coming up from the floor finds the floor.
@@ -589,7 +638,10 @@ public final class SimBuilder {
         // bug and nothing to do with its cause.
         int landing = 0;
         boolean found = false;
-        for (int y = SimAltitude.minWorldY(); y < SimAltitude.maxWorldY() - 2; y++) {
+        int first = fromTop ? SimAltitude.maxWorldY() - 3 : SimAltitude.minWorldY();
+        int last = fromTop ? SimAltitude.minWorldY() : SimAltitude.maxWorldY() - 3;
+        int step = fromTop ? -1 : 1;
+        for (int y = first; fromTop ? y >= last : y <= last; y += step) {
             if (!level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()
                     && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 1, z)).isAir()
                     && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 2, z)).isAir()) {
@@ -1045,9 +1097,25 @@ public final class SimBuilder {
             SimBuildQueue.whenDone(() -> {
                 // After the geometry, never before: a chest placed first would be overwritten by the paste.
                 int secrets = SimSecrets.place(level, room, centre, centre, 0);
+                // THE PUZZLES, which a single-room load has never armed.
+                //
+                // This is the one line, and it explains most of a day's reports at once. killer560
+                // (2026-10-01): "There still werent blazes", "tictactoe still is missing its bottom right
+                // button", "the solver isnt working there either", "Nor the auto puzzles none were working",
+                // "The teleport pads in tpmaze still arent teleporting me", "This time i went to ice path it
+                // didnt even have the silver fish last time it did" - every one of them is a room loaded on
+                // its own, and NOTHING was ever bound to it. The full-floor path has called armFloor since
+                // puzzles were bound at all; this path never did, so a room loaded by itself was always
+                // scenery. "Last time it did" is the tell: that was a generated floor.
+                //
+                // The solvers and the autos go with it, because they read the puzzle's own state - a board
+                // nobody armed has no board to read.
+                SimRoomPuzzles.armFloor(level);
+                SimRoomLevers.armFloor(level);
+                SimPrince.scan(level);
                 SimMimic.chooseForMap();
                 SimScore.reset(Math.max(0, secrets), 1);
-                snapPlayerTo(client, level, centre, centre);
+                snapPlayerTo(client, level, centre, centre, room);
                 client.execute(() -> SimSecrets.report(roomName, secrets));
                 client.execute(() -> {
                     publishSingleRoomMap(room, centre);

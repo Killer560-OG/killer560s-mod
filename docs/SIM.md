@@ -1007,3 +1007,59 @@ and while blood is still owed the stub draw is **biased to the fairy's own subtr
 restriction - when that side has nothing open the draw falls back to the whole list, so a floor is never lost).
 
 This is ancestry, not every route: the floor deliberately grows loops, and a second way round is what a loop is.
+
+## A single-room load never armed anything
+
+`SimBuilder.buildSingleRoom` pasted the room, placed its secrets, published its map - and never called
+`SimRoomPuzzles.armFloor`. The full-floor path has called it since puzzles were bound at all; this one never
+did. So a room loaded on its own was **scenery**: no blazes, no tic-tac-toe buttons, no creeper-beam pairs, no
+teleport pads, no silverfish, and therefore no solvers and no autos either, because all of those read the
+puzzle's own state.
+
+That is one line and most of a day's reports. killer560, 2026-10-01, all in one message: "There still werent
+blazes", "tictactoe still is missing its bottom right button", "the solver isnt working there either", "Nor the
+auto puzzles none were working", "The teleport pads in tpmaze still arent teleporting me", "This time i went to
+ice path it didnt even have the silver fish **last time it did**". That last clause is the tell - last time was
+a generated floor. When a sim report says a puzzle does nothing, the first question is which path built it.
+
+`SimPrince.scan` and `SimRoomLevers.armFloor` were missing from the same place and went in with it.
+
+## Water Board's gates are its back wall, and the capture names every one
+
+The first version moved three blocks at the foot of each lever's plinth. That was a guess, and killer560 said
+so: "it should move those blocks at the very back in and out on that wall, not right belowt he levers."
+
+The real mechanism is entirely in the capture. Twenty-seven sticky pistons stand at room-relative `z=28`, and
+each one pushes an **ore block** - and that ore is what says whose slot it is: `coal_block` is COAL's,
+`terracotta` is CLAY's (the solution file spells it `hardened_clay`), and so on through the six. Retracted, the
+ore sits at `z=27` and is what you see on the wall; extended, the piston head is at `z=27` and the ore has been
+pushed back to `z=26`. So **the wall's pattern of ore blocks is the board's state**, and reading either cell
+gives both the owner and the position.
+
+Counted off the file: coal 4, gold 3, quartz 5, diamond 6, emerald 4, clay 4, plus one `lapis_block` slot that
+belongs to no lever and is left alone. Thirteen of the twenty-seven start extended - which is "some amount of
+blocks need to start out for the path to get the secret", and it is the room's own starting pattern rather than
+one invented here. A reset restores *that*, not a flattened board.
+
+The piston head and the two piston states are **copied off the room** at arm time rather than built from
+literals, so nothing here guesses a block property name - which is the mistake that cost a build on the same
+day.
+
+## Rooms that want a different spawn than their middle
+
+`snapPlayerTo` drops him at the tile centre and scans UP from the bottom of the world for somewhere to stand.
+Two rooms need better: a blaze shaft's middle is the chain and its "level" is the one you walk in on, and
+Creeper Beams' middle is the puzzle's own structure. `SimBuilder.spawnFor` is the table - an x/z offset plus a
+flag that flips the landing scan to come DOWN from the top, which is what Higher Blaze needs and no other room
+does. The blaze doorway side comes from the room's own measured `RoomDoors` mask rather than a guess; 14 is the
+tile centre stepped out to the wall and back in one. `/goto` passes the room through to the same table, so the
+command and a single-room build cannot drift apart.
+
+## One held shot is twenty clicks
+
+"it wouldnt let my shots render the thing as hit most of the time" and "make the delay between selecting a
+block and unslecting that same block 3 ticks" are the same fault. CLAUDE.md already records that cancelling a
+block break re-enters `AttackBlockCallback` every TICK rather than once per click; Creeper Beams consumes that
+callback, so one held shot picked a lantern, cancelled it and picked it again twenty times a second. From in
+front of it that is a lantern that mostly does not respond. Three ticks of per-position cooldown, and the
+repeat is swallowed rather than passed on to a block break.

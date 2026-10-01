@@ -189,7 +189,11 @@ public final class SimTeleportCommands {
         // gridX/gridZ is the room's top-left cell, which is the cell every build path already snaps to for the
         // room it placed there - so a multi-tile room lands in the same corner it lands in when it is built on
         // its own, rather than in whichever tile a second definition of "the middle" happened to pick.
-        SimBuilder.snapPlayerTo(client, level, target.gridX(), target.gridZ());
+        // The ROOM is handed over too, so /goto lands where that room wants him rather than in its middle -
+        // one block in from the doorway for a blaze shaft, four off the centre column in Creeper Beams. The
+        // same table a single-room build uses, so the two cannot drift.
+        SimBuilder.snapPlayerTo(client, level, target.gridX(), target.gridZ(),
+                RoomLibrary.get(target.name()));
         ModChat.send("Sim", ModChat.text("Teleported to "), ModChat.value(target.name()));
         return 1;
     }

@@ -118,8 +118,6 @@ public final class SimWaterPuzzle {
     /** Mistakes before the puzzle is failed. */
     private static final int MAX_MISTAKES = 3;
 
-    /** The room-relative y the water runs at, and so the level each lever's gate sits in. */
-    private static final int CHANNEL_Y = 59;
 
     /** The colour wool's two positions: retracted, and pushed up into the walkway where the solver reads it. */
     private static final int WOOL_IN_Y = 55;
@@ -141,10 +139,111 @@ public final class SimWaterPuzzle {
     private static final Map<LeverBlock, BlockPos> POSITIONS = new EnumMap<>(LeverBlock.class);
     private static final Map<BlockPos, LeverBlock> BLOCK_INDEX = new ConcurrentHashMap<>();
 
-    /** Each ore lever's three gate blocks, and the state to put back when it closes. */
-    private static final Map<LeverBlock, List<BlockPos>> GATES = new EnumMap<>(LeverBlock.class);
-    private static final Map<BlockPos, BlockState> GATE_CLOSED = new ConcurrentHashMap<>();
+    /**
+     * The BACK WALL, which is where the blocks a lever moves actually are.
+     *
+     * <p>killer560 (2026-10-01): "it should move those blocks at the very back in and out on that wall, not
+     * right belowt he levers." The first version moved three blocks at the foot of each lever's plinth, which
+     * was a guess; the real thing is the piston board filling the room's back wall, and the capture holds all
+     * of it.
+     *
+     * <p>Twenty-seven sticky pistons stand at room-relative {@code z=28}. Each pushes an ORE BLOCK, and that
+     * ore block is what says which lever owns it: {@code coal_block} is COAL's, {@code terracotta} is CLAY's,
+     * and so on through the six. When the slot is RETRACTED the ore sits at {@code z=27}, visible on the wall
+     * face; when it is EXTENDED the piston head is at {@code z=27} and the ore has been pushed back to
+     * {@code z=26}. So the wall's pattern of ore blocks IS the board's state, and reading either of those two
+     * cells tells you both whose slot it is and which way it is currently sitting.
+     *
+     * <p>Counted off the capture: coal 4, gold 3, quartz 5, diamond 6, emerald 4, clay 4, and one
+     * {@code lapis_block} slot that belongs to no lever and is left alone. Thirteen of the twenty-seven start
+     * extended, which is the "some amount of blocks need to start out" he asked for - it is the room's own
+     * starting pattern, not one invented here.
+     */
+    private record Slot(BlockPos piston, BlockPos face, BlockPos behind, BlockState ore) {
+    }
+
+    private static final Map<LeverBlock, List<Slot>> GATES = new EnumMap<>(LeverBlock.class);
+    /** Whether each slot is currently pushed out. */
+    private static final Map<BlockPos, Boolean> SLOT_OUT = new ConcurrentHashMap<>();
+    /** How the room had each slot when it was armed, so a reset restores the board rather than flattening it. */
+    private static final Map<BlockPos, Boolean> STARTED_OUT = new ConcurrentHashMap<>();
+    /** Copied from the room rather than built from a literal: a piston head and the two piston states. */
+    private static volatile BlockState headState = null;
+    private static volatile BlockState pistonOut = null;
+    private static volatile BlockState pistonIn = null;
     private static final Set<LeverBlock> GATES_OPEN = EnumSet.noneOf(LeverBlock.class);
+
+    /** Where the piston board stands, room-relative: the pistons, their faces and the cell behind. */
+    private static final int BOARD_PISTON_Z = 28;
+    private static final int BOARD_FACE_Z = 27;
+    private static final int BOARD_BEHIND_Z = 26;
+    private static final int BOARD_MIN_X = 4;
+    private static final int BOARD_MAX_X = 28;
+    private static final int BOARD_MIN_Y = 58;
+    private static final int BOARD_MAX_Y = 90;
+
+    /** Which lever an ore block on the board belongs to. The lapis slot is in no lever's list. */
+    private static LeverBlock leverForOre(BlockState state) {
+        if (state.is(Blocks.COAL_BLOCK)) {
+            return LeverBlock.COAL;
+        }
+        if (state.is(Blocks.GOLD_BLOCK)) {
+            return LeverBlock.GOLD;
+        }
+        if (state.is(Blocks.QUARTZ_BLOCK)) {
+            return LeverBlock.QUARTZ;
+        }
+        if (state.is(Blocks.DIAMOND_BLOCK)) {
+            return LeverBlock.DIAMOND;
+        }
+        if (state.is(Blocks.EMERALD_BLOCK)) {
+            return LeverBlock.EMERALD;
+        }
+        if (state.is(Blocks.TERRACOTTA)) {
+            return LeverBlock.CLAY;   // "hardened_clay" in the solution file's own spelling
+        }
+        return null;
+    }
+
+    /** Reads the room's piston board into {@link #GATES}. Server thread, at arm time. */
+    private static void readBoard(ServerLevel level) {
+        GATES.clear();
+        SLOT_OUT.clear();
+        headState = null;
+        pistonOut = null;
+        pistonIn = null;
+        int found = 0;
+        for (int x = BOARD_MIN_X; x <= BOARD_MAX_X; x++) {
+            for (int y = BOARD_MIN_Y; y <= BOARD_MAX_Y; y++) {
+                BlockPos piston = at(x, y, BOARD_PISTON_Z);
+                if (piston == null || !level.getBlockState(piston).is(Blocks.STICKY_PISTON)) {
+                    continue;
+                }
+                BlockPos face = at(x, y, BOARD_FACE_Z);
+                BlockPos behind = at(x, y, BOARD_BEHIND_Z);
+                BlockState atFace = level.getBlockState(face);
+                boolean out = atFace.is(Blocks.PISTON_HEAD);
+                BlockState ore = out ? level.getBlockState(behind) : atFace;
+                LeverBlock lever = leverForOre(ore);
+                if (lever == null) {
+                    continue;   // the lapis slot, or a cell the capture never read
+                }
+                if (out && headState == null) {
+                    headState = atFace;
+                    pistonOut = level.getBlockState(piston);
+                } else if (!out && pistonIn == null) {
+                    pistonIn = level.getBlockState(piston);
+                }
+                GATES.computeIfAbsent(lever, k -> new ArrayList<>())
+                        .add(new Slot(piston, face, behind, ore));
+                SLOT_OUT.put(face, out);
+                STARTED_OUT.put(face, out);
+                found++;
+            }
+        }
+        LOGGER.info("Sim Water Board: back wall read - {} slot(s) over {} lever(s), {} starting out",
+                found, GATES.size(), SLOT_OUT.values().stream().filter(Boolean::booleanValue).count());
+    }
 
     // ------------------------------------------------------------------------------------------- the board
 
@@ -287,28 +386,16 @@ public final class SimWaterPuzzle {
             for (WoolColor colour : WoolColor.values()) {
                 level.setBlock(at(15, WOOL_IN_Y - 1, colour.relZ()), Blocks.STONE.defaultBlockState(), WRITE_FLAGS);
             }
-            for (LeverBlock lever : oreLevers()) {
-                for (int dz = -1; dz <= 1; dz++) {
-                    level.setBlock(at(lever.relX(), CHANNEL_Y, lever.relZ() + dz),
-                            Blocks.ANDESITE.defaultBlockState(), WRITE_FLAGS);
-                }
-            }
+            // No gates in a standalone arena: the gates are the captured room's piston board, and a bare
+            // arena has no back wall to put one on. The levers, the clock and the colour columns are all
+            // here; only the thing they move is missing, which is said in chat below rather than faked with
+            // a row of andesite under each lever (which is what this used to build, and what he saw as
+            // blocks moving in the wrong place).
             if (!arm(level, false)) {
                 ModChat.send("Sim", ModChat.bad("Water Board"),
                         ModChat.text(" could not be set up - no bundled board matched."));
             }
         });
-    }
-
-    /** The six ore levers - every lever but the back one that starts the water. */
-    private static List<LeverBlock> oreLevers() {
-        List<LeverBlock> out = new ArrayList<>();
-        for (LeverBlock lever : LeverBlock.values()) {
-            if (lever != LeverBlock.WATER) {
-                out.add(lever);
-            }
-        }
-        return out;
     }
 
     /**
@@ -320,25 +407,15 @@ public final class SimWaterPuzzle {
     private static boolean arm(ServerLevel level, boolean withWater) {
         POSITIONS.clear();
         BLOCK_INDEX.clear();
-        GATES.clear();
-        GATE_CLOSED.clear();
         GATES_OPEN.clear();
         for (LeverBlock lever : LeverBlock.values()) {
             BlockPos pos = at(lever.relX(), lever.relY(), lever.relZ());
             POSITIONS.put(lever, pos);
             BLOCK_INDEX.put(pos, lever);
         }
-        for (LeverBlock lever : oreLevers()) {
-            List<BlockPos> gate = new ArrayList<>(3);
-            for (int dz = -1; dz <= 1; dz++) {
-                BlockPos pos = at(lever.relX(), CHANNEL_Y, lever.relZ() + dz);
-                gate.add(pos);
-                // Whatever the room has there is what "closed" means, so closing it again restores the room
-                // rather than stamping a block of our choosing into it.
-                GATE_CLOSED.put(pos, level.getBlockState(pos));
-            }
-            GATES.put(lever, List.copyOf(gate));
-        }
+        // The back wall IS the gates - see Slot. A standalone arena has no wall, so it reads nothing and the
+        // levers simply have nothing to move; the rules still work.
+        readBoard(level);
 
         int identifier = identifierAt(level);
         if (identifier < 0) {
@@ -567,26 +644,47 @@ public final class SimWaterPuzzle {
                 ModChat.dim("Pull the back lever again to restart the timing."));
     }
 
-    /** Opens or closes one lever's gate - "the blocks on the back of the wall in or out". */
+    /**
+     * Moves every slot this lever owns, in or out - "those blocks at the very back in and out on that wall".
+     *
+     * <p>A real piston move, both cells of it: out puts the head on the wall face and the ore behind it, in
+     * puts the ore back on the face and clears the cell behind. The piston block itself is swapped between
+     * the two states copied off the room at arm time, so it never shows a head with a retracted body - and
+     * nothing here guesses a property name, which is the mistake that cost a build.
+     *
+     * <p>Each slot flips individually from where IT is, rather than all of a lever's slots being driven from
+     * one flag: a board that starts half out stays meaningful that way, and a lever is a toggle, not a
+     * setter.
+     */
     private static void toggleGate(MinecraftServer server, LeverBlock lever) {
-        List<BlockPos> gate = GATES.get(lever);
-        if (gate == null) {
+        List<Slot> gate = GATES.get(lever);
+        if (gate == null || gate.isEmpty()) {
             return;
         }
-        boolean open = !GATES_OPEN.contains(lever);
-        if (open) {
-            GATES_OPEN.add(lever);
-        } else {
+        if (!GATES_OPEN.add(lever)) {
             GATES_OPEN.remove(lever);
         }
-        List<BlockPos> positions = List.copyOf(gate);
+        List<Slot> slots = List.copyOf(gate);
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            for (BlockPos pos : positions) {
-                BlockState closed = GATE_CLOSED.getOrDefault(pos, Blocks.ANDESITE.defaultBlockState());
-                level.setBlock(pos, open ? Blocks.AIR.defaultBlockState() : closed, WRITE_FLAGS);
+            for (Slot slot : slots) {
+                boolean wasOut = Boolean.TRUE.equals(SLOT_OUT.get(slot.face()));
+                setSlot(level, slot, !wasOut);
             }
         });
+    }
+
+    /** One slot pushed out or pulled in. Server thread. */
+    private static void setSlot(ServerLevel level, Slot slot, boolean out) {
+        BlockState head = headState;
+        BlockState pistonState = out ? pistonOut : pistonIn;
+        if (head == null || pistonState == null) {
+            return;   // the room showed neither an extended nor a retracted slot to copy from
+        }
+        level.setBlock(slot.face(), out ? head : slot.ore(), WRITE_FLAGS);
+        level.setBlock(slot.behind(), out ? slot.ore() : Blocks.AIR.defaultBlockState(), WRITE_FLAGS);
+        level.setBlock(slot.piston(), pistonState, WRITE_FLAGS);
+        SLOT_OUT.put(slot.face(), out);
     }
 
     /** Starts or stops the room's own water column. */
@@ -753,9 +851,11 @@ public final class SimWaterPuzzle {
         server.execute(() -> {
             ServerLevel level = server.overworld();
             for (LeverBlock lever : toClose) {
-                for (BlockPos pos : GATES.getOrDefault(lever, List.of())) {
-                    level.setBlock(pos, GATE_CLOSED.getOrDefault(pos, Blocks.ANDESITE.defaultBlockState()),
-                            WRITE_FLAGS);
+                for (Slot slot : GATES.getOrDefault(lever, List.of())) {
+                    // Back to the way the room had it, which is what startedOut remembers - NOT all the way
+                    // in. Half of the board starts out, and a reset that pushed everything in would hand him
+                    // a different puzzle from the one he was given.
+                    setSlot(level, slot, Boolean.TRUE.equals(STARTED_OUT.get(slot.face())));
                 }
             }
             for (WoolColor colour : colours) {
@@ -797,7 +897,11 @@ public final class SimWaterPuzzle {
         POSITIONS.clear();
         BLOCK_INDEX.clear();
         GATES.clear();
-        GATE_CLOSED.clear();
+        SLOT_OUT.clear();
+        STARTED_OUT.clear();
+        headState = null;
+        pistonOut = null;
+        pistonIn = null;
         GATES_OPEN.clear();
         board = List.of();
         openColours.clear();
