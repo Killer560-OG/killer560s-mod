@@ -295,8 +295,13 @@ public final class SimIceFillPuzzle {
      */
     public static boolean bindAt(ServerLevel level, SimRoomPuzzles.Placement p) {
         List<int[]> rels = new ArrayList<>(WAYPOINTS.length);
+        // THE ICE IS UNDER THE WAYPOINT. The bundled path is FEET positions - decoded 2026-10-01, all 45 tiles of
+        // the identified layout are air with ice directly beneath at no nudge, and identifier pairs match all three
+        // floors only at no nudge. Testing for ice AT the waypoint is what found "dy = -1", and publishing that
+        // nudge moved IceFillSolverFeature's identifier lookups a block down, where none of them match - which is
+        // "the ice fill solver still isnt working in ice fill" (killer560, 2026-10-01).
         for (Pt pt : WAYPOINTS) {
-            rels.add(new int[]{pt.x(), pt.y(), pt.z()});
+            rels.add(new int[]{pt.x(), pt.y() - 1, pt.z()});
         }
         java.util.function.Predicate<BlockState> isIce =
                 SimRoomPuzzles.is(Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE);
@@ -318,7 +323,7 @@ public final class SimIceFillPuzzle {
             int maxX = Integer.MIN_VALUE;
             int minZ = Integer.MAX_VALUE;
             int maxZ = Integer.MIN_VALUE;
-            int y = floor[0].y();
+            int y = floor[0].y() - 1;   // the ice, one under the feet - see above
             for (Pt pt : floor) {
                 minX = Math.min(minX, pt.x());
                 maxX = Math.max(maxX, pt.x());
@@ -341,7 +346,7 @@ public final class SimIceFillPuzzle {
                 return false;
             }
             Pt last = floor[floor.length - 1];
-            exits.add(anchor.world(last.x(), last.y(), last.z()));
+            exits.add(anchor.world(last.x(), last.y() - 1, last.z()));
         }
         for (Set<BlockPos> tiles : found) {
             for (BlockPos pos : tiles) {

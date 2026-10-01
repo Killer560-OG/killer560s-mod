@@ -216,10 +216,13 @@ public final class TicTacToeSolverFeature {
         int marks = 0;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
-                BlockPos cell = PuzzleCoords.real(8, 72 - row, 17 - col, cr);
-                var state = level.getBlockState(cell);
-                char mark = state.is(com.killer560.hub.compat.McBlocks.RED_CONCRETE) ? 'X'
-                        : state.is(com.killer560.hub.compat.McBlocks.LIME_CONCRETE) ? 'O' : EMPTY;
+                // The cell, or the wall one block behind it (x=7): the sim paints a played cell's mark on the wall
+                // and takes the button away (killer560, 2026-10-01: "have them back one and just delete the
+                // button").
+                char mark = simMark(level.getBlockState(PuzzleCoords.real(8, 72 - row, 17 - col, cr)));
+                if (mark == EMPTY) {
+                    mark = simMark(level.getBlockState(PuzzleCoords.real(7, 72 - row, 17 - col, cr)));
+                }
                 if (mark != EMPTY) {
                     board[row * 3 + col] = mark;
                     marks++;
@@ -227,6 +230,11 @@ public final class TicTacToeSolverFeature {
             }
         }
         return marks;
+    }
+
+    private static char simMark(net.minecraft.world.level.block.state.BlockState state) {
+        return state.is(com.killer560.hub.compat.McBlocks.RED_CONCRETE) ? 'X'
+                : state.is(com.killer560.hub.compat.McBlocks.LIME_CONCRETE) ? 'O' : EMPTY;
     }
 
     private static Integer getBestMove(char[] board, boolean isPlayer) {

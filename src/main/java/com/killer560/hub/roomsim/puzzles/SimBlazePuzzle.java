@@ -51,7 +51,7 @@ import com.killer560.hub.compat.McEntities;
 public final class SimBlazePuzzle {
 
     /** Distinct HP values, arbitrary but ordered so the required kill sequence reads as a plain countdown. */
-    private static final float[] HEALTHS = {5f, 4f, 3f, 2f, 1f};
+    private static final float[] HEALTHS = {10f, 9f, 8f, 7f, 6f, 5f, 4f, 3f, 2f, 1f};
 
     /**
      * The blazes stand in a VERTICAL CHAIN up the middle, not a ring at head height.
@@ -73,6 +73,60 @@ public final class SimBlazePuzzle {
             out[i] = new BlockPos(0, i * spacing, 0);
         }
         return out;
+    }
+
+    /** The four sides of the middle bar, two blocks out from it. */
+    private static final BlockPos[] SIDES = {
+            new BlockPos(2, 0, 0), new BlockPos(-2, 0, 0), new BlockPos(0, 0, 2), new BlockPos(0, 0, -2),
+            new BlockPos(2, 0, 2), new BlockPos(-2, 0, 2), new BlockPos(2, 0, -2), new BlockPos(-2, 0, -2)};
+
+    /** Most blocks between one blaze and the next one up. */
+    private static final int MAX_SPACING = 5;
+
+    /**
+     * Where each blaze goes, indexed like {@link #HEALTHS}: around the middle bar rather than in a line up it.
+     *
+     * <p>killer560 (2026-10-01): "The blazes are working alot better for now for higher lower. Just get a few more
+     * and instead of placing them in a line place them on any side of that middle bar with more verticle
+     * spacing." Ten, like the real room. Heights are spread over the headroom the room has, up to
+     * {@link #MAX_SPACING} apart, and HP is SHUFFLED against height - in a line ordered by height the kill order
+     * could be read straight off the column, which is not the puzzle. Each blaze takes a random side that is clear
+     * for its whole height; if no side is, it goes back on the bar itself rather than being dropped.
+     */
+    private static BlockPos[] layoutAround(ServerLevel level, BlockPos floorTop, int headroom) {
+        int n = HEALTHS.length;
+        int spacing = Math.max(1, Math.min(MAX_SPACING, (headroom - 3) / Math.max(1, n - 1)));
+        java.util.Random rng = new java.util.Random();
+        List<Integer> heights = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            heights.add(1 + i * spacing);
+        }
+        java.util.Collections.shuffle(heights, rng);
+        BlockPos[] out = new BlockPos[n];
+        for (int i = 0; i < n; i++) {
+            BlockPos column = floorTop.above(heights.get(i));
+            List<BlockPos> sides = new ArrayList<>(java.util.Arrays.asList(SIDES));
+            java.util.Collections.shuffle(sides, rng);
+            BlockPos chosen = column;
+            for (BlockPos side : sides) {
+                BlockPos at = column.offset(side);
+                if (level.getBlockState(at).isAir() && level.getBlockState(at.above()).isAir()) {
+                    chosen = at;
+                    break;
+                }
+            }
+            out[i] = chosen;
+        }
+        return out;
+    }
+
+    /** Clear air straight up from {@code from}, counted up to {@code cap}. */
+    private static int headroomAbove(ServerLevel level, BlockPos from, int cap) {
+        int h = 0;
+        while (h < cap && level.getBlockState(from.above(h)).isAir()) {
+            h++;
+        }
+        return h;
     }
 
     /** How tall the chain is for a spacing, in blocks of clearance needed above the origin. */
@@ -243,12 +297,12 @@ public final class SimBlazePuzzle {
         despawnCurrent(client);
         storedOrigin = origin;
         final boolean higher = lowestFirst;
-        final BlockPos[] chain = offsetsFor(spacing);
         server.execute(() -> {
             ServerLevel level = server.overworld();
+            final BlockPos[] placed = layoutAround(level, origin, headroomAbove(level, origin, 60));
             UUID[] byPlacement = new UUID[HEALTHS.length];
             for (int i = 0; i < HEALTHS.length; i++) {
-                BlockPos pos = origin.offset(chain[i]);
+                BlockPos pos = placed[i];
                 SimBlazeEntity blaze = new SimBlazeEntity(McEntities.BLAZE, level);
                 blaze.getAttribute(Attributes.MAX_HEALTH).setBaseValue(HEALTHS[i]);
                 blaze.setHealth(HEALTHS[i]);
@@ -362,7 +416,7 @@ public final class SimBlazePuzzle {
         }
         found = floorTop;
         spacing = chosenSpacing;
-        final BlockPos[] chain = offsetsFor(chosenSpacing);
+        final BlockPos[] placed = layoutAround(level, floorTop, headroomAbove(level, floorTop, 60));
         despawnCurrent(Minecraft.getInstance());
         storedOrigin = found;
         boundOrigin = found;
@@ -371,7 +425,7 @@ public final class SimBlazePuzzle {
         final BlockPos origin = found;
         UUID[] byPlacement = new UUID[HEALTHS.length];
         for (int i = 0; i < HEALTHS.length; i++) {
-            BlockPos pos = origin.offset(chain[i]);
+            BlockPos pos = placed[i];
             SimBlazeEntity blaze = new SimBlazeEntity(McEntities.BLAZE, level);
             blaze.getAttribute(Attributes.MAX_HEALTH).setBaseValue(HEALTHS[i]);
             blaze.setHealth(HEALTHS[i]);
@@ -403,9 +457,10 @@ public final class SimBlazePuzzle {
         nextRequired = 0;
         complete = false;
         com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
-                "Sim blaze puzzle: {} blaze(s) in {} at {}, {}-HP first, chained vertically {} block(s) apart, "
-                        + "each labelled for BlazeSolverFeature",
-                ordered.size(), p.room().name, origin, higher ? "lowest" : "highest", chosenSpacing);
+                "Sim blaze puzzle: {} blaze(s) in {} around {}, {}-HP first, on all sides of the bar at heights "
+                        + "{}, each labelled for BlazeSolverFeature",
+                ordered.size(), p.room().name, origin, higher ? "lowest" : "highest",
+                java.util.Arrays.stream(placed).map(b -> b.getY() - origin.getY()).sorted().toList());
         return true;
     }
 

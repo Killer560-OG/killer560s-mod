@@ -203,8 +203,18 @@ public final class SimTicTacToePuzzle {
             }
         }
         cellPos = positions;
-        // No separate paint target in a bound room - the mark IS the cell. See paintPos.
-        paintPos = null;
+        // THE MARK GOES ON THE WALL BEHIND, AND THE BUTTON GOES. killer560 (2026-10-01): "For tictactoe instead
+        // of putting those blocks where the buttons are have them back one and just delete the button." The
+        // wall the buttons hang on is database x=7; TicTacToeSolverFeature.readSimBoard reads it as well as the
+        // cell, so the solver still sees every mark.
+        BlockPos[] walls = new BlockPos[9];
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                walls[row * 3 + col] = anchor.world(7, 72 - row, 17 - col).immutable();
+            }
+        }
+        paintPos = walls;
+        wallState = level.getBlockState(walls[4]);
         boundAnchor = anchor;
         for (int i = 0; i < 9; i++) {
             CELL_INDEX.put(positions[i], i);
@@ -251,9 +261,8 @@ public final class SimTicTacToePuzzle {
         // Straight onto the level, not through paintAll's server.execute: this method already runs on the
         // server thread, from SimRoomPuzzles.armFloor.
         for (int i = 0; i < 9; i++) {
-            BlockState state = stateFor(board[i]);
-            if (state != null) {
-                level.setBlockAndUpdate(positions[i], state);
+            for (Object[] w : writesFor(i, board[i])) {
+                level.setBlockAndUpdate((BlockPos) w[0], (BlockState) w[1]);
             }
         }
         return true;
@@ -307,6 +316,40 @@ public final class SimTicTacToePuzzle {
     /** The room's own button, as it was at bind time, so a restart can put nine of them back. */
     private static volatile BlockState buttonState = null;
 
+    /** The wall behind the buttons as it was at bind time, so an unplayed cell's wall can be put back. */
+    private static volatile BlockState wallState = null;
+
+    /**
+     * Every block write that shows {@code mark} on cell {@code index}, as {position, state} pairs.
+     *
+     * <p>Bound room: the cell itself is the button while unplayed and AIR once played, and the wall behind it is
+     * the room's own wall while unplayed and the mark's colour once played. Standalone arena: the one cell block,
+     * as before.
+     */
+    private static java.util.List<Object[]> writesFor(int index, char mark) {
+        java.util.List<Object[]> out = new java.util.ArrayList<>(2);
+        BlockPos[] cells = cellPos;
+        BlockPos cell = cells == null || index < 0 || index >= cells.length ? null : cells[index];
+        if (boundAnchor != null) {
+            BlockPos[] walls = paintPos;
+            BlockPos wall = walls == null ? null : walls[index];
+            BlockState cellState = mark == EMPTY ? buttonState : Blocks.AIR.defaultBlockState();
+            BlockState wallBlock = mark == EMPTY ? wallState : colourFor(mark);
+            if (cell != null && cellState != null) {
+                out.add(new Object[]{cell, cellState});
+            }
+            if (wall != null && wallBlock != null) {
+                out.add(new Object[]{wall, wallBlock});
+            }
+            return out;
+        }
+        BlockState state = stateFor(mark);
+        if (cell != null && state != null) {
+            out.add(new Object[]{cell, state});
+        }
+        return out;
+    }
+
     /**
      * The block a cell should hold for this mark, or null when there is nothing to write.
      *
@@ -331,6 +374,7 @@ public final class SimTicTacToePuzzle {
         cellPos = null;
         paintPos = null;
         buttonState = null;
+        wallState = null;
         CELL_INDEX.clear();
         Arrays.fill(board, EMPTY);
         built = false;
@@ -428,32 +472,29 @@ public final class SimTicTacToePuzzle {
     }
 
     private static void paintAll(MinecraftServer server) {
-        BlockPos[] targets = new BlockPos[9];
-        for (int i = 0; i < 9; i++) {
-            targets[i] = paintTarget(i);
-        }
         char[] snapshot = board.clone();
-        BlockState[] states = new BlockState[9];
+        java.util.List<Object[]> writes = new java.util.ArrayList<>();
         for (int i = 0; i < 9; i++) {
-            states[i] = stateFor(snapshot[i]);
+            writes.addAll(writesFor(i, snapshot[i]));
         }
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            for (int i = 0; i < 9; i++) {
-                if (targets[i] != null && states[i] != null) {
-                    level.setBlockAndUpdate(targets[i], states[i]);
-                }
+            for (Object[] w : writes) {
+                level.setBlockAndUpdate((BlockPos) w[0], (BlockState) w[1]);
             }
         });
     }
 
     private static void paintCell(MinecraftServer server, int index, char mark) {
-        BlockPos pos = paintTarget(index);
-        BlockState state = stateFor(mark);
-        if (pos == null || state == null) {
+        java.util.List<Object[]> writes = writesFor(index, mark);
+        if (writes.isEmpty()) {
             return;
         }
-        server.execute(() -> server.overworld().setBlockAndUpdate(pos, state));
+        server.execute(() -> {
+            for (Object[] w : writes) {
+                server.overworld().setBlockAndUpdate((BlockPos) w[0], (BlockState) w[1]);
+            }
+        });
     }
 
     private static BlockState colourFor(char mark) {

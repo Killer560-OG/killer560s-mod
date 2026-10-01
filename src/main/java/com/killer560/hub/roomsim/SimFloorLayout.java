@@ -277,7 +277,31 @@ public final class SimFloorLayout {
                 unused.addAll(second.unusedNotes());
             }
         }
+        remember(best.floor());
         return new PinnedFloor(best.floor(), best.reached(), unused);
+    }
+
+    /**
+     * How recently each room has been on a generated floor: +1 for every floor it was on, halved each floor.
+     *
+     * <p>killer560 (2026-10-01): "it feels like the map uses just about the same set of rooms each time. It almost
+     * always has mines museum and flags and other large rooms." It did. {@link #choose} orders candidates by size
+     * and doorway count with a 0..1 die roll on top, so whenever the floor wanted a big room the same few big,
+     * many-doored ones led the list every time. Not seeded - floors are never regenerated from a seed, a drawn
+     * floor is kept as a map code - so remembering across floors changes nothing anyone relies on.
+     */
+    private static final Map<String, Double> RECENT = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static void remember(Floor floor) {
+        RECENT.replaceAll((k, v) -> v * 0.5);
+        RECENT.values().removeIf(v -> v < 0.05);
+        for (Placement p : floor.rooms()) {
+            RECENT.merge(p.name(), 1.0, Double::sum);
+        }
+    }
+
+    private static double recency(String name) {
+        return RECENT.getOrDefault(name, 0.0);
     }
 
     /** The best of {@link #ATTEMPTS} (or {@link #PINNED_ATTEMPTS}) layouts. */
@@ -1103,7 +1127,9 @@ public final class SimFloorLayout {
         double areaWeight = preferBig ? -0.55 : 0.45;
         Map<String, Double> key = new HashMap<>();
         for (Candidate c : shortlist) {
-            key.put(c.name(), c.area(0) * areaWeight - c.doorCount() * 0.9 + rng.nextDouble());
+            // A wider die and a cost for having been on recent floors - see RECENT.
+            key.put(c.name(), c.area(0) * areaWeight - c.doorCount() * 0.9 + rng.nextDouble() * 2.5
+                    + recency(c.name()) * 2.0);
         }
         shortlist.sort(Comparator.comparingDouble(c -> key.get(c.name())));
 
@@ -1145,7 +1171,7 @@ public final class SimFloorLayout {
                         continue;
                     }
                     double score = score(mask, originX, originZ, tx, tz, need, occupied, stubs,
-                            cellsLeft, preferBig, dormant, rng);
+                            cellsLeft, preferBig, dormant, rng) - recency(c.name()) * 1.5;
                     if (score > bestScore) {
                         bestScore = score;
                         best = new Best(c, rotation * 90, originX, originZ);

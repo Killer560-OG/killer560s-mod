@@ -449,6 +449,26 @@ public class Killer560ModClient implements ClientModInitializer {
                                             }
                                             return 1;
                                         }))
+                                // Empties one room so the recorder reads it again - see RoomLibrary.resetForRescan.
+                                .then(ClientCommands.literal("rescan")
+                                        .then(ClientCommands.argument("room", StringArgumentType.greedyString())
+                                                .executes(context -> {
+                                                    if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
+                                                        return 1;
+                                                    }
+                                                    String room = com.killer560.hub.roomsim.RoomLibrary.resetForRescan(
+                                                            StringArgumentType.getString(context, "room"));
+                                                    if (room == null) {
+                                                        com.killer560.hub.util.ModChat.send("Room Recorder", com.killer560.hub.util.ModChat.bad("No room called "),
+                                                                com.killer560.hub.util.ModChat.value(StringArgumentType.getString(context, "room")));
+                                                    } else {
+                                                        com.killer560.hub.util.ModChat.send("Room Recorder", com.killer560.hub.util.ModChat.value(room),
+                                                                com.killer560.hub.util.ModChat.text(" emptied - walk through it with the recorder on"
+                                                                        + " to capture it again. It is left out of"
+                                                                        + " generated floors until it is complete."));
+                                                    }
+                                                    return 1;
+                                                })))
                                 .then(ClientCommands.literal("rooms")
                                         .executes(context -> {
                                             if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {

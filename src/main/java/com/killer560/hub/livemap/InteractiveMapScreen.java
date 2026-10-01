@@ -155,7 +155,10 @@ public class InteractiveMapScreen extends Screen {
             MapPainter.drawDoors(graphics, layout, cfg, ox, oy, ppu, hoveredDoor);
             MapPainter.drawReportedDoors(graphics, cfg, ox, oy, ppu);
             for (int gid = 0; gid < groups.size(); gid++) {
-                drawRoom(graphics, groups.get(gid), gid, gid == hoveredGroup, cfg, ox, oy, ppu);
+                drawRoom(graphics, groups.get(gid), gid, false, cfg, ox, oy, ppu);
+            }
+            if (hoveredGroup >= 0) {
+                drawHoveredTile(graphics, groups.get(hoveredGroup), hoveredCell, cfg, ox, oy, ppu);
             }
             // killer560s-mod-relay task (2026-09-21): teammate-reported rooms this client has not scanned
             // itself yet. Display only - not part of the click/teleport/hover-route targets below, since a
@@ -220,6 +223,35 @@ public class InteractiveMapScreen extends Screen {
         if (hovered) {
             MapPainter.outlineGroup(graphics, group, gid, 0xB4FFFFFF, ox, oy, ppu);
         }
+    }
+
+    /**
+     * Lights up only the QUARTER of the room under the cursor - the one tile a click there will path into.
+     *
+     * <p>killer560 (2026-10-01): "instead of kind of lighting up the whole room i am hovering have it light up the
+     * quadrent of the room", and then "if the room is a 2x2 and i am hovering the top left it would highlight the
+     * top left quarter of that room". The tile is chosen exactly as {@code InteractiveMapFeature}'s click chooses
+     * it - the room tile under the cursor, or the room's main tile when the cursor is on a connector strip - so
+     * what lights up is where the press goes. A 1x1 room is its own only tile, so it lights up whole as before.
+     */
+    private void drawHoveredTile(GuiGraphicsExtractor graphics, LiveMapFeature.RoomGroup group, int cell,
+                                 LiveMapConfig cfg, float ox, float oy, float ppu) {
+        int g = LiveMapFeature.GRID;
+        int gx = cell % g;
+        int gz = cell / g;
+        int tile = gx % 2 == 0 && gz % 2 == 0 ? cell : group.mainIdx;
+        int tx = tile % g;
+        int tz = tile / g;
+        int x0 = Math.round(ox + MapPainter.cellPos(tx) * ppu);
+        int y0 = Math.round(oy + MapPainter.cellPos(tz) * ppu);
+        int x1 = Math.round(ox + (MapPainter.cellPos(tx) + MapPainter.cellSize(tx)) * ppu);
+        int y1 = Math.round(oy + (MapPainter.cellPos(tz) + MapPainter.cellSize(tz)) * ppu);
+        graphics.fill(x0, y0, x1, y1, MapPainter.multiply(MapPainter.roomColor(group, cfg), 1.15f));
+        int edge = 0xB4FFFFFF;
+        graphics.fill(x0 - 1, y0 - 1, x1 + 1, y0, edge);
+        graphics.fill(x0 - 1, y1, x1 + 1, y1 + 1, edge);
+        graphics.fill(x0 - 1, y0, x0, y1, edge);
+        graphics.fill(x1, y0, x1 + 1, y1, edge);
     }
 
     private static boolean holdingLeap(Minecraft client) {

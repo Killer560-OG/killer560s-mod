@@ -555,11 +555,20 @@ public final class SimAbilities {
         if (room == null) {
             return false;
         }
+        // Teleport Maze too. killer560 (2026-10-01): "disable all abilites and dungeon breaker in teleprot maze."
+        // The chambers are sealed by iron bars; an etherwarp or a teleport skips the whole puzzle.
+        if (isTeleportMaze(room)) {
+            return true;
+        }
         var entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room);
         String type = entry == null ? null : entry.type;
         return type == null
                 ? room.toLowerCase(java.util.Locale.ROOT).contains("trap")
                 : type.equalsIgnoreCase("trap");
+    }
+
+    static boolean isTeleportMaze(String room) {
+        return room != null && room.equalsIgnoreCase("Teleport Maze");
     }
 
     /** Said at most once a second, or holding right-click fills chat with it. */
@@ -572,7 +581,8 @@ public final class SimAbilities {
         }
         lastTrapMessageMs = now;
         com.killer560.hub.util.ModChat.send("Sim",
-                com.killer560.hub.util.ModChat.bad("No abilities in a trap room"),
+                com.killer560.hub.util.ModChat.bad(isTeleportMaze(SimState.currentRoomName())
+                        ? "No abilities in the Teleport Maze" : "No abilities in a trap room"),
                 com.killer560.hub.util.ModChat.dim(" - walk it."));
     }
 

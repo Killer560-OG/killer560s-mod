@@ -337,6 +337,16 @@ public final class ClearExecutor {
             if (node instanceof ClearNode.HypeNode) {
                 hypeDelay = 3;
             }
+            // IN THE SIM, WAIT TO LAND. doTeleport has just moved the cached position to the predicted landing
+            // so the next hop can fire next tick - zero-ping chaining, which works on Hypixel because the aim
+            // travels inside the packet. The sim's etherwarp resolves from where the client player actually IS,
+            // and the teleport has not arrived yet, so every chained hop missed ("no etherwarp target there" in
+            // bursts in his 2026-10-01 log) and the path stalled partway: "the interactive map etherwarp gets stuck
+            // alot partway through". Dropping the cache makes the next tick read his real position, and the next
+            // node is only inside that once he has landed.
+            if (com.killer560.hub.roomsim.SimState.isActive()) {
+                position = null;
+            }
             if (clearNodes.isEmpty()) {
                 nodes = null;
                 position = null;

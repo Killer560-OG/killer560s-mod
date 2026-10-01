@@ -721,6 +721,44 @@ public final class RoomLibrary {
         TEST_ROOMS.clear();
     }
 
+    /**
+     * Empties one room so the recorder reads it again from scratch, and returns its canonical name (null if no
+     * such room).
+     *
+     * <p>killer560 (2026-10-01): "Balcony is rendered wrong [...] How should I go about rescanning it." There was
+     * no way. Capture skips every column already marked seen, so walking through a complete room again added
+     * nothing, and deleting his file only brought the jar's copy back. This puts an EMPTY room of the same size
+     * in its place - not from the jar, so it is saved as it fills - and drops the cached doorways and capture
+     * turn, which were measured off the old blocks.
+     *
+     * <p>Until it is complete again the room is unusable, so the generator leaves it out. If the game restarts
+     * half way, the shipped copy wins over the partial one at load and the command has to be run again.
+     */
+    public static synchronized String resetForRescan(String wanted) {
+        load();
+        if (wanted == null) {
+            return null;
+        }
+        Room old = null;
+        for (Room r : ROOMS.values()) {
+            if (r.name.equalsIgnoreCase(wanted.trim())) {
+                old = r;
+                break;
+            }
+        }
+        if (old == null) {
+            return null;
+        }
+        Room fresh = new Room(old.name, old.sizeX, old.sizeZ);
+        fresh.margin = old.margin;
+        ROOMS.put(old.name, fresh);
+        RoomDoors.clearCache();
+        RoomCaptureRotation.clearCache();
+        LOGGER.info("Rescan requested for \"{}\": the {}x{} capture is emptied and will be read again",
+                old.name, old.sizeX, old.sizeZ);
+        return old.name;
+    }
+
     /** Whether a room of this name is known, captured or synthetic. */
     public static synchronized boolean has(String name) {
         load();

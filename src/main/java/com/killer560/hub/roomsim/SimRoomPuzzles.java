@@ -160,12 +160,10 @@ public final class SimRoomPuzzles {
     /**
      * The vertical nudge a bound room needed, by room name - so the SOLVER can use it too.
      *
-     * <p>One capture in the library is measured a block off the reference its bundled data was taken in, and it
-     * is Ice Fill: decoded against {@code ice-fill-floors.json}, every one of the 244 easy-path positions lands
-     * on ice at {@code dy = -1} and none of them at {@code dy = 0}. {@link #bestAnchor} searches for that and
-     * binds the puzzle correctly, which is why the sim's Ice Fill works - but
-     * {@code IceFillSolverFeature} knows nothing about it and drew its line one block above the ice, through
-     * the same {@link com.killer560.hub.puzzlesolvers.PuzzleCoords} every solver uses.
+     * <p>Introduced for Ice Fill on the belief that its capture was a block low. It was not - the bundled path is
+     * FEET positions and the ice is under them (docs/SIM.md, "Ice Fill's path is feet positions"), and publishing
+     * -1 is what broke {@code IceFillSolverFeature}. No shipped room needs a nudge now; the mechanism stays for a
+     * capture that genuinely is off.
      *
      * <p>So the nudge is published rather than kept private. {@code PuzzleCoords.real} adds it for whichever
      * room he is standing in, which makes the solver and the puzzle measure from the same place without either

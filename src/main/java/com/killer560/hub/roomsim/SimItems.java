@@ -580,11 +580,25 @@ public final class SimItems {
             java.util.List<BlockPos> slabSection = slabRun
                     ? connectedSlabs(level, center) : java.util.List.of();
             boolean slabCrypt = slabRun && slabSection.size() >= MIN_CRYPT_SLABS;
+            // CLOSE ENOUGH IS A HIT. killer560 (2026-10-01): "if i use a superboom anywhere close to a crypt then it
+            // blows it up. So i can hit the ground with 1 block gap between where i place it and the crypt and
+            // itll still blow up the crypt." Only when he did not aim at cracked brick, so a decorative cracked
+            // wall next to a crypt still behaves as it did.
+            boolean aimedCracked = aimed.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
+                    || aimed.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS);
+            BlockPos nearCrypt = null;
+            if (!slabCrypt && !aimedCracked) {
+                nearCrypt = nearbySlabCrypt(level, center);
+                if (nearCrypt != null) {
+                    slabSection = connectedSlabs(level, nearCrypt);
+                    slabCrypt = true;
+                }
+            }
             boolean openedCrypt = slabCrypt
                     || ((aimed.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
                     || aimed.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS))
                     && sealsAChamber(level, center));
-            BlockPos cryptAt = openedCrypt ? center : null;
+            BlockPos cryptAt = openedCrypt ? (nearCrypt != null ? nearCrypt : center) : null;
             // A crypt gets the SLAB; anything else keeps the fragile-only fill. See docs/SIM.md for the
             // census behind that - cracked brick is decoration almost everywhere, and a crypt wall is cracked
             // brick interleaved with plain and mossy brick that a fragile-only fill cannot cross.
@@ -639,7 +653,9 @@ public final class SimItems {
                 // BEHIND the wall, in the chamber. above() put it inside the stonework, where it either
                 // suffocated or never appeared - getDirection() points out towards him, so the opposite
                 // of it is the air the crypt was sealing.
-                SimMobs.spawnStarred(client, cryptAt.relative(face.getOpposite()), SimMobs.Kind.ZOMBIE);
+                // A slab crypt's chamber is under its lid, whichever way he was facing when he threw it.
+                SimMobs.spawnStarred(client, slabCrypt ? cryptAt.below() : cryptAt.relative(face.getOpposite()),
+                        SimMobs.Kind.ZOMBIE);
             }
             if (princeAt != null) {
                 boolean scored = SimPrince.takeScore();
@@ -883,7 +899,7 @@ public final class SimItems {
         // killer560 (2026-10-01): "make it so in puzzle rooms I cannot use dungeon breaker" and "make it so i
         // cant dungeon breaker secrets". The first is also the real item's own rule: the wiki says the
         // Dungeonbreaker cannot be used in puzzle rooms, on doors, or to pass through a wall into another room.
-        if (inPuzzleRoom(client, target)) {
+        if (inPuzzleRoom(client, target) || SimAbilities.isTeleportMaze(SimState.currentRoomName())) {
             fail(client, "the Dungeonbreaker does not work in puzzle rooms");
             return false;
         }
@@ -973,6 +989,37 @@ public final class SimItems {
     /** How many connected smooth stone slabs make a crypt rather than a decorative slab. */
     private static final int MIN_CRYPT_SLABS = 4;
 
+    /** How far from where a Superboom lands a crypt still counts as hit: a one-block gap is two blocks away. */
+    private static final int SUPERBOOM_CRYPT_REACH = 3;
+
+    /**
+     * The nearest smooth stone slab within {@link #SUPERBOOM_CRYPT_REACH} of {@code at} whose connected run is a
+     * crypt (at least {@link #MIN_CRYPT_SLABS}), or null. Searched in rings of growing distance so the nearest
+     * crypt wins when two are in reach, and two layers up and down so a charge on the floor beside a raised or
+     * sunken lid still finds it.
+     */
+    private static BlockPos nearbySlabCrypt(ServerLevel level, BlockPos at) {
+        BlockPos best = null;
+        int bestDist = Integer.MAX_VALUE;
+        for (int dx = -SUPERBOOM_CRYPT_REACH; dx <= SUPERBOOM_CRYPT_REACH; dx++) {
+            for (int dz = -SUPERBOOM_CRYPT_REACH; dz <= SUPERBOOM_CRYPT_REACH; dz++) {
+                for (int dy = -2; dy <= 2; dy++) {
+                    int dist = dx * dx + dz * dz + dy * dy;
+                    if (dist >= bestDist) {
+                        continue;
+                    }
+                    BlockPos p = at.offset(dx, dy, dz);
+                    if (level.getBlockState(p).is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE_SLAB)
+                            && connectedSlabs(level, p).size() >= MIN_CRYPT_SLABS) {
+                        best = p.immutable();
+                        bestDist = dist;
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
     /**
      * The connected run of {@code smooth_stone_slab} containing {@code start}.
      *
@@ -1046,28 +1093,24 @@ public final class SimItems {
     }
 
     /**
-     * Adds one block of the crypt's floor course, if that is what is there.
+     * Adds the block directly under a removed slab or stair - one layer, never two.
      *
-     * <p>THE CRYPT'S OWN STONEWORK, named block by block. "The full block right below them" is his
-     * description and the obvious test for it is a collision-shape question, but every such predicate is a
-     * version-specific name this file would be guessing at, and naming the blocks is both narrower and
-     * certain. It also keeps the blast off anything that is not the crypt - a chest, a torch or a piece of the
-     * room's decoration under the rim is left where it is.
+     * <p>killer560 (2026-10-01): "it does a great job right now of removing the top layer of slabs only, however
+     * everywhere it removes a slab have it remove one y layer below it as well." This used to name the stonework
+     * it would accept (stone bricks, cobble, andesite...) and whatever his crypts actually sit on was not on the
+     * list, so only the lid went. Now it is whatever is there, minus the things a blast must never take: air,
+     * anything with a block entity (a chest, a skull, a secret), and the world's own floor.
      */
     private static void addFloorCourse(ServerLevel level, java.util.Set<BlockPos> out, BlockPos under) {
         BlockState below = level.getBlockState(under);
-        if (below.is(net.minecraft.world.level.block.Blocks.STONE_BRICKS)
-                || below.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
-                || below.is(net.minecraft.world.level.block.Blocks.MOSSY_STONE_BRICKS)
-                || below.is(net.minecraft.world.level.block.Blocks.CHISELED_STONE_BRICKS)
-                || below.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS)
-                || below.is(net.minecraft.world.level.block.Blocks.STONE)
-                || below.is(net.minecraft.world.level.block.Blocks.COBBLESTONE)
-                || below.is(net.minecraft.world.level.block.Blocks.MOSSY_COBBLESTONE)
-                || below.is(net.minecraft.world.level.block.Blocks.ANDESITE)
-                || below.is(net.minecraft.world.level.block.Blocks.POLISHED_ANDESITE)) {
-            out.add(under);
+        if (below.isAir() || below.hasBlockEntity()
+                || below.is(net.minecraft.world.level.block.Blocks.BEDROCK)
+                || below.is(net.minecraft.world.level.block.Blocks.BARRIER)
+                || below.is(net.minecraft.world.level.block.Blocks.LEVER)
+                || below.is(net.minecraft.world.level.block.Blocks.SOUL_LANTERN)) {
+            return;
         }
+        out.add(under);
     }
 
     private static java.util.List<BlockPos> connectedFragile(ServerLevel level, BlockPos start) {

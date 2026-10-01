@@ -1109,11 +1109,8 @@ Two follow-ons went in with it:
 - **`bestAnchor` can overrule the recovered turn, and now the map follows.** When a puzzle's own furniture scores
   better at a different rotation, `SimRoomIndex.correct` re-records that room, and the publish (which runs after
   `armFloor`) picks it up. Before, the puzzle moved and every solver's highlight stayed where it was.
-- **A per-room vertical nudge is published too.** Ice Fill's capture sits exactly one block low - decoded
-  against `ice-fill-floors.json`, 244 of 244 easy-path positions land on ice at `dy = -1` and **0 of 244** at
-  `dy = 0`. `bestAnchor` already found that and bound the puzzle correctly; the solver had no way to know and
-  drew its line a block above the ice. `SimRoomPuzzles.dyFor` publishes it and `PuzzleCoords` is the one place
-  that applies it, so every solver gets it and none carries a per-room constant.
+- **A per-room vertical nudge is published too** (`SimRoomPuzzles.dyFor`, applied in `PuzzleCoords`). Ice Fill
+  was the reason, and **that reason was wrong - corrected below.** No shipped room needs a nudge now.
 
 ## Hypixel heights hardcoded where the sim moves the floor
 
@@ -1324,6 +1321,44 @@ Every claim these puzzles make about their room was re-decoded rather than taken
 | Teleport Maze | 30 pads, sealed chambers | 30 end_portal_frames, 240 iron bars, solid wall at `(12,69,13)` between the start pad and chamber one |
 | Tic Tac Toe | 8 of 9 buttons, the ninth already played | 8/9 at rotation 180 - the gap is **row 2, col 2**, the bottom right, exactly as reported |
 | Ice Path | 289 ice cells, one stray wall in the capture | 289/289 ice; 17 non-air at the wall layer against the corrected 16, the extra at `(15,16)` |
-| Ice Fill | the capture is a block low | 50/50 waypoints and 244/244 easy-path tiles on ice at `dy = -1`, **0** at `dy = 0` |
+| Ice Fill | ~~the capture is a block low~~ - wrong, see "Ice Fill's path is feet positions" | the bundled path is feet positions: at `dy = 0` all 45 identified tiles are air with ice under them, and the identifier pairs match all three floors |
 | Three Weirdos | three chests moved to line the middle one up with the cauldron | chests at local `(25,69,12)/(26,69,14)/(25,69,17)`, cauldron at `(29,69,16)`; all three new spots have solid floor under them and three blocks of air over them |
 | Mines / Pressure Plates | one lever opens a whole wooden door | lever exactly at the recorded spot in both; Mines' region is 21 cells and holds 21 dark-oak/iron-bar blocks (y 78..84 is the whole door - 74..75 is a separate grate below the floor), Pressure Plates' is 30 cells and all 30 are oak |
+
+## Ice Fill's path is feet positions, not ice (2026-10-01, local session)
+
+"the ice fill solver still isnt working in ice fill." The 2026-10-01 cloud round decided the Ice Fill capture
+was a block low because the bundled path "lands on ice at dy = -1". It does - because the path is where you
+STAND, and the ice is the block under your feet. Decoded at database rotation 270: at `dy = 0` all 45 tiles of
+the identified layout are air with ice directly beneath, and `IceFillSolverFeature`'s identifier pairs match
+exactly one pattern on each floor (3, 4, 3); at `dy = -1` none of them match. Publishing -1 moved the solver's
+identifier lookups into the ice, every floor failed to identify, and the solver drew nothing. `SimIceFillPuzzle.
+bindAt` now tests for ice one under each waypoint, so it binds at no nudge and publishes none. Before reading a
+bundled coordinate as "the block", check whether it is the block or the space above it.
+
+## Smaller ones from the same round
+
+- **Teleport Maze is paired like the real room.** Each of the 28 pads is linked both ways to a pad in another
+  chamber, the start pad to one of them, and one pad leads to the end; a landing puts you ON the destination pad,
+  which does nothing until you step off it. Every teleport turns you to face the exit pad, because
+  `TeleportMazeSolverFeature` finds the exit by crossing those look rays. Abilities and the Dungeon Breaker are
+  refused in the maze by room name.
+- **The interactive map stalled in the sim because it chains hops on a predicted position.** `ClearNode.
+  doTeleport` moves the executor's cached position to the landing and the next hop fires next tick; on Hypixel the
+  aim travels in the packet, but the sim's etherwarp resolves from where the client player actually is, which has
+  not moved yet - "no etherwarp target there" in bursts. In the sim the cache is dropped after each hop so the next
+  one waits for the landing.
+- **Generated floors repeated the same big rooms** because `choose` ranked by size and doorways with a 0..1 die.
+  `SimFloorLayout.RECENT` now costs a room for having been on recent floors (halved each floor) and the die is
+  wider.
+- **Tic Tac Toe** paints a played cell's mark on the wall one block back (database x=7) and removes the button;
+  `TicTacToeSolverFeature.readSimBoard` reads the wall as well as the cell.
+- **`/goto Higher Blaze`** scans down from the sky for its landing and found the roof. A downward scan now only
+  accepts a spot with something over it. Spawn offsets for the blaze rooms and Ice Fill are turned by the room's
+  paste rotation, which they never were.
+- **Rescanning a room**: `/killer560 roomrecorder rescan <room>` empties the capture so the recorder reads it
+  again; without it a complete room is never re-read, because capture skips seen columns. Balcony and Archway are
+  the only two rooms whose captures have no roof marker, which is the code's own sign of a missing roof corner.
+  The handoff said `SimBuilder` warns when a 1x2's reserved cells disagree with its long axis; no such warning
+  exists in the code.
+

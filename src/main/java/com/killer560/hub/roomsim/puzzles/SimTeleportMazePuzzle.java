@@ -285,12 +285,23 @@ public final class SimTeleportMazePuzzle {
         // REAL_PADS[0..27], the twenty-eight CHOICE pads, and stopped there. So he stood outside a sealed maze
         // with nothing to step on that did anything, and every pad that would have worked was behind a wall.
         indexPad(anchor.world(REAL_PADS[29]), ENTRY_CELL, 0);
+        BlockPos[] pads = new BlockPos[REAL_PADS.length];
+        BOUND_INDEX.clear();
+        for (int i = 0; i < REAL_PADS.length; i++) {
+            pads[i] = anchor.world(REAL_PADS[i]).immutable();
+            BOUND_INDEX.put(pads[i], i);
+            BOUND_INDEX.put(pads[i].above().immutable(), i);
+        }
+        boundPads = pads;
+        drawLinks();
+        lockedPad = -1;
+        settleTicks = 0;
         int[] chosen = new int[CELL_COUNT];
         for (int c = 0; c < CELL_COUNT; c++) {
             chosen[c] = ThreadLocalRandom.current().nextInt(PADS_PER_CELL);
         }
         correctPad = chosen;
-        storedOrigin = anchor.world(REAL_PADS[29]);   // the start pad, for a rebuild after a wrong pad
+        storedOrigin = anchor.world(REAL_PADS[29]);   // the start pad
         boundAnchor = anchor;
         currentCell = 0;
         complete = false;
@@ -300,6 +311,150 @@ public final class SimTeleportMazePuzzle {
 
     /** Non-null while this puzzle is bound to a real room rather than to a standalone arena. */
     private static volatile com.killer560.hub.roomsim.SimRoomPuzzles.Anchor boundAnchor = null;
+
+    // ---------------------------------------------------------------- the real room's pad pairing
+    //
+    // killer560 (2026-10-01): "the pads are teleporting me but make it so the pad teleports me ontop of a pad in
+    // another room, that second pad it teleports me onto will take me back to the first but I should have to walk
+    // off and back onto it for it to do taht." That is the real room: every pad is one end of a two-way link to a
+    // pad in a DIFFERENT chamber, the start pad is linked to one of them, and exactly one pad leads to the end.
+    // Nothing fails; a wrong pad just takes you somewhere else. And on every maze teleport Hypixel turns you to
+    // face the exit pad - TeleportMazeSolverFeature narrows its candidates by crossing exactly those look rays,
+    // so the sim does the same or the solver has nothing to read.
+
+    private static final int START = 29;
+    private static final int END = 28;
+
+    /** World position of each of the 30 pads, indexed like {@link #REAL_PADS}. */
+    private static volatile BlockPos[] boundPads = new BlockPos[0];
+    /** Pad id -> the pad it sends you to. The exit pad maps to {@link #END}. */
+    private static volatile int[] link = new int[0];
+    /** The one pad that leads to the end. */
+    private static volatile int exitPad = -1;
+    /** Feet position -> pad id, at both heights a player can stand at on one (see {@link #PAD_INDEX}). */
+    private static final Map<BlockPos, Integer> BOUND_INDEX = new HashMap<>();
+    /** The pad he was just put on: inert until he has stepped off it. */
+    private static volatile int lockedPad = -1;
+    /** Ticks before a pad can fire again - the server moves him a tick or two after the client asks. */
+    private static volatile int settleTicks = 0;
+
+    private static int chamberOf(int pad) {
+        return pad < END ? pad / PADS_PER_CELL : -1;
+    }
+
+    /**
+     * Draws a fresh pairing: the start linked to one chamber pad, one exit pad, the other 26 paired two by two
+     * across different chambers. Redrawn until the exit's chamber can be reached from the start's, walking inside
+     * a chamber being free.
+     */
+    private static void drawLinks() {
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
+        for (int attempt = 0; attempt < 500; attempt++) {
+            List<Integer> pads = new ArrayList<>();
+            for (int i = 0; i < END; i++) {
+                pads.add(i);
+            }
+            java.util.Collections.shuffle(pads, rng);
+            int[] l = new int[30];
+            java.util.Arrays.fill(l, -1);
+            int entry = pads.remove(0);
+            int exit = -1;
+            for (int i = 0; i < pads.size(); i++) {
+                if (chamberOf(pads.get(i)) != chamberOf(entry)) {
+                    exit = pads.remove(i);
+                    break;
+                }
+            }
+            if (exit < 0) {
+                continue;
+            }
+            l[START] = entry;
+            l[entry] = START;
+            l[exit] = END;
+            boolean ok = true;
+            while (!pads.isEmpty() && ok) {
+                int a = pads.remove(0);
+                int partner = -1;
+                for (int i = 0; i < pads.size(); i++) {
+                    if (chamberOf(pads.get(i)) != chamberOf(a)) {
+                        partner = pads.remove(i);
+                        break;
+                    }
+                }
+                if (partner < 0) {
+                    ok = false;
+                } else {
+                    l[a] = partner;
+                    l[partner] = a;
+                }
+            }
+            if (!ok || !reachable(l, chamberOf(entry), chamberOf(exit))) {
+                continue;
+            }
+            link = l;
+            exitPad = exit;
+            return;
+        }
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim")
+                .warn("Sim teleport maze: could not draw a connected pairing in 500 tries");
+    }
+
+    private static boolean reachable(int[] l, int from, int to) {
+        boolean[] seen = new boolean[CELL_COUNT];
+        java.util.ArrayDeque<Integer> q = new java.util.ArrayDeque<>();
+        seen[from] = true;
+        q.add(from);
+        while (!q.isEmpty()) {
+            int c = q.poll();
+            if (c == to) {
+                return true;
+            }
+            for (int i = 0; i < PADS_PER_CELL; i++) {
+                int other = l[c * PADS_PER_CELL + i];
+                int oc = other >= 0 ? chamberOf(other) : -1;
+                if (oc >= 0 && !seen[oc]) {
+                    seen[oc] = true;
+                    q.add(oc);
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Pad ticking for the bound room. */
+    private static void tickBound(Minecraft client) {
+        if (settleTicks > 0) {
+            settleTicks--;
+            return;
+        }
+        Integer pad = BOUND_INDEX.get(client.player.blockPosition());
+        if (pad == null) {
+            lockedPad = -1;   // stepped off: the pad he landed on works again
+            return;
+        }
+        if (pad == lockedPad || pad == END || link.length == 0) {
+            return;
+        }
+        int dest = link[pad];
+        if (dest < 0) {
+            return;
+        }
+        BlockPos to = boundPads[dest];
+        lockedPad = dest;
+        settleTicks = 5;
+        if (dest == END) {
+            complete = true;
+            ModChat.send("Sim", ModChat.good("Teleport Maze crossed!"));
+        }
+        // Face the exit pad, the way Hypixel turns you on every maze teleport.
+        BlockPos exit = exitPad >= 0 ? boundPads[exitPad] : to;
+        double dx = exit.getX() + 0.5 - (to.getX() + 0.5);
+        double dz = exit.getZ() + 0.5 - (to.getZ() + 0.5);
+        float yaw = (dx == 0 && dz == 0) ? client.player.getYRot()
+                : (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90f;
+        // x.5 / pad y + 0.5 / z.5: the shape TeleportMazeSolverFeature accepts as a maze teleport.
+        teleport(client, to.getX() + 0.5, to.getY() + 0.5, to.getZ() + 0.5, yaw);
+    }
 
     /** True once the last cell's correct pad has sent the player to the final landing spot. */
     public static boolean isComplete() {
@@ -327,6 +482,16 @@ public final class SimTeleportMazePuzzle {
         built = false;
         storedOrigin = null;
         boundAnchor = null;
+        clearBound();
+    }
+
+    private static void clearBound() {
+        boundPads = new BlockPos[0];
+        link = new int[0];
+        exitPad = -1;
+        BOUND_INDEX.clear();
+        lockedPad = -1;
+        settleTicks = 0;
     }
 
     public static void reset() {
@@ -339,6 +504,7 @@ public final class SimTeleportMazePuzzle {
         complete = false;
         built = false;
         boundAnchor = null;
+        clearBound();
     }
 
     private static void clearBlocks(Minecraft client) {
@@ -361,6 +527,10 @@ public final class SimTeleportMazePuzzle {
 
     private static void tick(Minecraft client) {
         if (!SimState.canAct(client) || !built || complete) {
+            return;
+        }
+        if (boundAnchor != null) {
+            tickBound(client);
             return;
         }
         BlockPos feet = client.player.blockPosition();
@@ -472,12 +642,15 @@ public final class SimTeleportMazePuzzle {
      * disagrees with the client on the very next tick. Relative set is empty so yaw/pitch are kept.
      */
     private static void teleport(Minecraft client, double x, double y, double z) {
+        teleport(client, x, y, z, client.player.getYRot());
+    }
+
+    private static void teleport(Minecraft client, double x, double y, double z, float yaw) {
         MinecraftServer server = client.getSingleplayerServer();
         if (server == null) {
             return;
         }
         UUID uuid = client.player.getUUID();
-        float yaw = client.player.getYRot();
         float pitch = client.player.getXRot();
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);

@@ -620,14 +620,52 @@ public final class SimBuilder {
      * otherwise comes UP from the bottom of the world and finds the lowest floor - right for every room but
      * Higher Blaze, which is entered near its ceiling and whose "that level" is the top one.
      */
-    private record Spawn(int dx, int dz, boolean fromTop) {
+    private record Spawn(int dx, int dz, boolean fromTop, int doorDx, int doorDz) {
+        Spawn(int dx, int dz, boolean fromTop) {
+            this(dx, dz, fromTop, 0, 0);
+        }
+
+        /** Whether the landing height is the doorway's floor rather than a scan of this column. */
+        boolean atDoorLevel() {
+            return doorDx != 0 || doorDz != 0;
+        }
     }
 
-    private static Spawn spawnFor(RoomLibrary.Room room) {
+    /** The room's doorway mask turned to the rotation it was pasted at, or null. */
+    private static RoomDoors.Mask doorsAsPasted(RoomLibrary.Room room, int gridX, int gridZ) {
+        RoomDoors.Mask mask = RoomDoors.of(room.name);
+        if (mask == null) {
+            return null;
+        }
+        // Offsets are in the CAPTURE's orientation; a generated floor pastes rooms turned, so the doorway
+        // side has to be turned with it or the spawn lands against a blank wall.
+        for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
+            if (placed.gridX() == gridX && placed.gridZ() == gridZ && room.name.equals(placed.name())) {
+                return RoomDoors.rotate(mask, placed.pasteRotation());
+            }
+        }
+        return mask;
+    }
+
+    private static Spawn spawnFor(RoomLibrary.Room room, int gridX, int gridZ) {
         if (room == null || room.name == null) {
             return null;
         }
         String name = room.name.toLowerCase(Locale.ROOT);
+        if (name.equals("ice fill")) {
+            // TWO BLOCKS IN FROM THE DOORWAY, AT THE DOORWAY'S OWN HEIGHT. killer560 (2026-10-01): "make it so
+            // when I spawn into ice fill it is 2 blocks infront of the entrance on that same y level." 13 is the
+            // tile centre stepped out to the wall (15) and back in two.
+            RoomDoors.Mask mask = doorsAsPasted(room, gridX, gridZ);
+            if (mask != null) {
+                for (int packed : mask.edges()) {
+                    int side = RoomDoors.sideOf(packed);
+                    return new Spawn(RoomDoors.DX[side] * 13, RoomDoors.DZ[side] * 13, false,
+                            RoomDoors.DX[side] * 15, RoomDoors.DZ[side] * 15);
+                }
+            }
+            return null;
+        }
         if (name.equals("creeper beams")) {
             // Four blocks off the centre column, any horizontal direction - the middle is where the puzzle's
             // own structure is, and landing inside it is both disorienting and in the way of the shots.
@@ -638,7 +676,7 @@ public final class SimBuilder {
             // that matters is the one you walk in on. The side comes from the room's own measured doorway
             // mask rather than a guess, and 14 is the tile centre (16 in capture-local) stepped out to the
             // wall at 1 or 31 and back in one.
-            RoomDoors.Mask mask = RoomDoors.of(room.name);
+            RoomDoors.Mask mask = doorsAsPasted(room, gridX, gridZ);
             if (mask != null) {
                 for (int packed : mask.edges()) {
                     int side = RoomDoors.sideOf(packed);
@@ -651,13 +689,38 @@ public final class SimBuilder {
         return null;
     }
 
+    /** Whether anything solid stands anywhere above {@code fromY} in this column - a ceiling, not sky. */
+    private static boolean coveredAbove(ServerLevel level, int x, int fromY, int z) {
+        for (int y = fromY; y <= SimAltitude.maxWorldY(); y++) {
+            if (!level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static void snapPlayerTo(Minecraft client, ServerLevel level, int gridX, int gridZ,
                              RoomLibrary.Room room) {
         var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
-        Spawn spawn = spawnFor(room);
+        Spawn spawn = spawnFor(room, gridX, gridZ);
         int x = origin.getX() + (spawn == null ? 0 : spawn.dx());
         int z = origin.getZ() + (spawn == null ? 0 : spawn.dz());
         boolean fromTop = spawn != null && spawn.fromTop();
+        // The doorway's floor, read in the doorway itself: up from the bottom, the first standable block in the
+        // wall's column is the threshold, because everything under a doorway is wall.
+        Integer doorLevel = null;
+        if (spawn != null && spawn.atDoorLevel()) {
+            int wx = origin.getX() + spawn.doorDx();
+            int wz = origin.getZ() + spawn.doorDz();
+            for (int y = SimAltitude.minWorldY(); y <= SimAltitude.maxWorldY() - 3; y++) {
+                if (!level.getBlockState(new net.minecraft.core.BlockPos(wx, y, wz)).isAir()
+                        && level.getBlockState(new net.minecraft.core.BlockPos(wx, y + 1, wz)).isAir()
+                        && level.getBlockState(new net.minecraft.core.BlockPos(wx, y + 2, wz)).isAir()) {
+                    doorLevel = y + 1;
+                    break;
+                }
+            }
+        }
         // Upwards from the bottom. Scanning DOWN from the top finds the first standable surface from above,
         // which for a room with a ceiling is the ROOF - killer560 (2026-09-28): "it put me ontop of the room
         // instead of insidde it." Coming up from the floor finds the floor.
@@ -679,11 +742,19 @@ public final class SimBuilder {
         for (int y = first; fromTop ? y >= last : y <= last; y += step) {
             if (!level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()
                     && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 1, z)).isAir()
-                    && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 2, z)).isAir()) {
+                    && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 2, z)).isAir()
+                    // Coming DOWN, the first standable spot is the roof. killer560 (2026-10-01): "if i use
+                    // /goto higher blaze it puts me on the roof of the sim." Inside the room is the first spot
+                    // with something over it; the roof has open sky.
+                    && (!fromTop || coveredAbove(level, x, y + 3, z))) {
                 landing = y + 1;
                 found = true;
                 break;
             }
+        }
+        if (doorLevel != null) {
+            landing = doorLevel;
+            found = true;
         }
         if (!found) {
             // Nothing to stand on at the centre - a doorway column, or a room whose middle is a pit. Put him
