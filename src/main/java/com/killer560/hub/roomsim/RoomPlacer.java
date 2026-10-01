@@ -153,6 +153,30 @@ public final class RoomPlacer {
             if (old.hasBlockEntity() && !state.is(old.getBlock())) {
                 chunk.removeBlockEntity(new net.minecraft.core.BlockPos(x, y, z));
             }
+            // And GIVE THE NEW STATE ITS OWN BLOCK ENTITY.
+            //
+            // This is why killer560 reported (2026-10-01) that "all the chests are invisible". A chest's block
+            // model draws nothing at all - its render shape is ENTITYBLOCK_ANIMATED and every pixel of it comes
+            // from the BlockEntityRenderer attached to its ChestBlockEntity. Level.setBlock creates that entity
+            // for any EntityBlock; a raw LevelChunkSection.setBlockState does not, and this fast path is the
+            // latter. So every chest, sign, banner, skull, hopper and brewing stand pasted out of a capture had
+            // the right block state and no block entity, which renders as empty air you cannot open.
+            //
+            // It was only ever HALF the chests, which is why this read as cosmetic rather than structural:
+            // SimSecrets places its secret chests with level.setBlockAndUpdate, so those came out fine and
+            // visible while the room's own captured chests did not.
+            //
+            // Costs nothing in the normal case - hasBlockEntity is a flag on the state, so only the handful of
+            // positions that really need one pay for it.
+            if (state.hasBlockEntity()
+                    && state.getBlock() instanceof net.minecraft.world.level.block.EntityBlock entityBlock) {
+                net.minecraft.core.BlockPos bePos = new net.minecraft.core.BlockPos(x, y, z);
+                net.minecraft.world.level.block.entity.BlockEntity be =
+                        entityBlock.newBlockEntity(bePos, state);
+                if (be != null) {
+                    chunk.setBlockEntity(be);
+                }
+            }
             chunk.markUnsaved();
             return true;
         }

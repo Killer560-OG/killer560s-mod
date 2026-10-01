@@ -38,6 +38,25 @@ import java.util.concurrent.ConcurrentHashMap;
  * failure, and the failure breaks THAT SECTION - every one of its blocks goes to air - and lays it back as
  * fresh regular ice {@link #REGEN_TICKS} ticks later. <b>Nothing teleports the player, ever.</b>
  *
+ * <h2>The rules he added on 2026-10-01</h2>
+ *
+ * <ul>
+ *   <li><b>One section is live at a time.</b> "If i complete the first section then the second section should
+ *       start working and the first section should no longer be able to be broken." {@link #activeSection} is
+ *       that section; one below it is finished and inert, one above it is not live yet. Only the live one can
+ *       fail, which is what lets him walk back over section 1's packed ice to reach section 2.</li>
+ *   <li><b>Jumping fails it.</b> "If i leave the block that I am on by jumping or teleporting then it should
+ *       break that section." {@link #AIRBORNE_FAIL_TICKS} consecutive airborne ticks on the live section is a
+ *       jump.</li>
+ *   <li><b>A short etherwarp does not.</b> "If i etherwarp to a block directly touching the block I am
+ *       currently on thought (ice block) then it is ok." So the test is adjacency, not whether a teleport
+ *       happened - and the same {@link #touching} test covers a walked step, a one-block warp and a warp right
+ *       off the fill, because those are not three rules, they are one.</li>
+ *   <li><b>Only the failed section regenerates</b>, not all three, now that the earlier ones are inert.</li>
+ *   <li><b>The water goes</b> at arm time, and <b>the iron bars go</b> when the fill is crossed - see
+ *       {@link #bindAt} and {@link #openChests}.</li>
+ * </ul>
+ *
  * <h2>What a "section" is, and why</h2>
  *
  * A section is one of the three bundled FLOORS, which is also one physical slab of ice in the room. That is
@@ -96,6 +115,16 @@ public final class SimIceFillPuzzle {
     /** How long a broken section stays broken. killer560: "regenerates 2 seconds later" - 2s at 20 tps. */
     private static final int REGEN_TICKS = 40;
 
+    /**
+     * How many consecutive airborne ticks on the active section count as a jump.
+     *
+     * <p>Not one. A jump is airborne for ten or more ticks, so four is unambiguous, while a single-tick blip -
+     * which a step up onto the next slab or the frame after an etherwarp can produce - is not punished. Chosen
+     * to be wrong in the forgiving direction: a missed jump costs him nothing, and a false fail on a legal move
+     * is the bug that makes a puzzle feel broken.
+     */
+    private static final int AIRBORNE_FAIL_TICKS = 4;
+
     private record Pt(int x, int y, int z) {
     }
 
@@ -150,10 +179,28 @@ public final class SimIceFillPuzzle {
     /** Blocks this class PLACED, for a standalone arena's {@link #reset} to take away again. */
     private static volatile List<BlockPos> placedBlocks = List.of();
 
+    /** The iron bars the capture holds, so finishing the fill can take them away. World positions. */
+    private static volatile List<BlockPos> ironBars = List.of();
+
     /** The tile the player is already standing on, so marking it does not immediately read as a repeat. */
     private static volatile BlockPos currentTile = null;
 
-    private static volatile int sectionReached = 0;
+    /** Which section {@link #currentTile} belongs to, or -1 when the player is not on the fill. */
+    private static volatile int currentSection = -1;
+
+    /**
+     * The one section that is live.
+     *
+     * <p>killer560 (2026-10-01): "if i complete the first section then the second section should start working
+     * and the first section should no longer be able to be broken." So exactly one section can fail at a time.
+     * A section below this one is FINISHED and inert - its packed ice is walked back over on the way to the next
+     * one, and stepping on it must not read as a repeat. A section above it is not live yet.
+     */
+    private static volatile int activeSection = 0;
+
+    /** Consecutive ticks the player has been off the ground while on the active section - see {@link #tick}. */
+    private static volatile int airborneTicks = 0;
+
     private static volatile boolean complete = false;
     private static volatile int brokenSection = -1;
     private static volatile int regenCountdown = 0;
@@ -310,8 +357,33 @@ public final class SimIceFillPuzzle {
         exitTiles = List.copyOf(exits);
         storedOrigin = null;
         boundAnchor = anchor;
-        LOGGER.info("Sim ice fill: armed in {} - section sizes {}/{}/{}, exits {}", p.room().name,
-                found.get(0).size(), found.get(1).size(), found.get(2).size(), exits);
+        activeSection = 0;
+
+        // THE WATER GOES. killer560 (2026-10-01): "there is a bunch of water still in it."
+        //
+        // The capture really does hold it - 143 water blocks, 103 of them at captured y 66, sitting directly
+        // under the fill's lowest slab, plus a shallow spill up to y 70 inside the same x 8..27 / z 11..22
+        // footprint as the slabs. On a floor it reads as the fill being flooded.
+        //
+        // Read out of the CAPTURE rather than scanned out of the world, through the same
+        // {@link SimRoomPuzzles#capturedBlocks} the other binds use, so only the room's own water is touched and
+        // nothing of a neighbour's. A waterlogged stair or fence is a different block state and is left alone -
+        // worth saying, because if any of the flooding survives that is where the rest of it is.
+        int drained = 0;
+        for (BlockPos pos : SimRoomPuzzles.capturedBlocks(p, Blocks.WATER)) {
+            if (level.getBlockState(pos).is(Blocks.WATER)) {
+                level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                drained++;
+            }
+        }
+
+        // The bars in front of the reward chests, remembered now and removed when the fill is crossed - see
+        // openChests. Taken at arm time because by completion the Placement is long gone.
+        ironBars = List.copyOf(SimRoomPuzzles.capturedBlocks(p, Blocks.IRON_BARS));
+
+        LOGGER.info("Sim ice fill: armed in {} - section sizes {}/{}/{}, exits {}, {} water block(s) drained, "
+                        + "{} iron bar(s) held for the finish", p.room().name,
+                found.get(0).size(), found.get(1).size(), found.get(2).size(), exits, drained, ironBars.size());
         return true;
     }
 
@@ -389,8 +461,11 @@ public final class SimIceFillPuzzle {
         sections = List.of();
         exitTiles = List.of();
         TILE_SECTION.clear();
+        ironBars = List.of();
         currentTile = null;
-        sectionReached = 0;
+        currentSection = -1;
+        activeSection = 0;
+        airborneTicks = 0;
         complete = false;
         brokenSection = -1;
         regenCountdown = 0;
@@ -406,8 +481,11 @@ public final class SimIceFillPuzzle {
         sections = List.of();
         exitTiles = List.of();
         TILE_SECTION.clear();
+        ironBars = List.of();
         currentTile = null;
-        sectionReached = 0;
+        currentSection = -1;
+        activeSection = 0;
+        airborneTicks = 0;
         complete = false;
         brokenSection = -1;
         regenCountdown = 0;
@@ -447,37 +525,118 @@ public final class SimIceFillPuzzle {
         if (TILE_SECTION.isEmpty() || complete) {
             return;
         }
+        // Are we standing on the section that is actually live? Every rule below applies only there, which is
+        // what makes a finished section inert: walking back across section 1's packed ice on the way to
+        // section 2 has to be free, and so does stepping off it onto the solid step between the slabs.
+        boolean onActive = currentTile != null && currentSection == activeSection;
+
+        // A JUMP IS A FAIL. killer560 (2026-10-01): "if i leave the block that I am on by jumping or
+        // teleporting then it should break that section."
+        if (onActive && !client.player.onGround()) {
+            airborneTicks++;
+            if (airborneTicks >= AIRBORNE_FAIL_TICKS) {
+                breakSection(client, activeSection, "jumped off the ice");
+            }
+            return;
+        }
+        airborneTicks = 0;
+
         // The ONLY trigger: the block the player is standing on is one of this fill's own blocks. That is what
         // confines this puzzle to its own room - see the class doc on the fall-teleport bug this replaced.
         BlockPos tile = client.player.blockPosition().below();
         Integer section = TILE_SECTION.get(tile);
         if (section == null) {
+            // Off the fill. Walking a single block off the edge is allowed - it is a dead end and nothing more.
+            // Arriving somewhere that is NOT touching the tile just left is a teleport, and that fails.
+            if (onActive && !touching(currentTile, tile)) {
+                breakSection(client, activeSection, "teleported off the ice");
+                return;
+            }
             currentTile = null;
+            currentSection = -1;
             return;
         }
         if (tile.equals(currentTile)) {
             return;   // already judged; marking it packed must not read as stepping on packed ice
         }
+        // THE ETHERWARP EXCEPTION. killer560: "If i etherwarp to a block directly touching the block I am
+        // currently on thought (ice block) then it is ok." Adjacency is the whole test, so one rule covers a
+        // walked step, a short etherwarp and a long one - and it is deliberately the SAME rule as the branch
+        // above, because "teleported to another ice tile" and "teleported off the ice" are one mistake.
+        // Touching includes the diagonals and one block of height, which is what the slabs between sections
+        // need: section 1's exit and section 2's entry are a block apart vertically.
+        if (onActive && !touching(currentTile, tile)) {
+            breakSection(client, activeSection, "teleported off the ice");
+            return;
+        }
         currentTile = tile;
+        currentSection = section;
+        if (section != activeSection) {
+            // A finished section cannot be broken, and one not reached yet is not live. Either way: nothing.
+            return;
+        }
         BlockState state = client.level.getBlockState(tile);
         if (state.is(Blocks.PACKED_ICE)) {
-            breakSection(client, section);
+            breakSection(client, section, "stepped on ice you had already used");
             return;
         }
         if (!state.is(Blocks.ICE)) {
             return;   // air (a section mid-break) or the solid step between two slabs
         }
         mark(client, tile);
-        if (section > sectionReached) {
-            sectionReached = section;
-            ModChat.send("Sim", ModChat.text("Ice Fill - section "), ModChat.value((section + 1) + " of "
-                    + FLOORS.length));
-        }
         List<BlockPos> exits = exitTiles;
-        if (exits.size() == FLOORS.length && tile.equals(exits.get(FLOORS.length - 1))) {
-            complete = true;
-            ModChat.send("Sim", ModChat.good("Ice Fill crossed!"));
+        if (exits.size() == FLOORS.length && tile.equals(exits.get(section))) {
+            if (section + 1 < FLOORS.length) {
+                activeSection = section + 1;
+                ModChat.send("Sim", ModChat.good("Ice Fill - section " + (section + 1) + " done, "),
+                        ModChat.text("section "), ModChat.value((section + 2) + " of " + FLOORS.length),
+                        ModChat.text(" is live."));
+            } else {
+                complete = true;
+                ModChat.send("Sim", ModChat.good("Ice Fill crossed!"));
+                openChests(client);
+            }
         }
+    }
+
+    /** Whether two tiles touch - the eight neighbours and one block of height, as a walked step does. */
+    private static boolean touching(BlockPos a, BlockPos b) {
+        return a != null && b != null
+                && Math.abs(a.getX() - b.getX()) <= 1
+                && Math.abs(a.getY() - b.getY()) <= 1
+                && Math.abs(a.getZ() - b.getZ()) <= 1;
+    }
+
+    /**
+     * Takes away the iron bars the capture holds in front of the reward chests.
+     *
+     * <p>killer560 (2026-10-01): "Once all sections are done delete the iron bars blocking the two chests at
+     * the end." The capture holds 43 of them in one flat wall, and the chests behind it are secret chests the
+     * database places rather than anything in the capture - which is why the capture itself contains no chest at
+     * all. The positions were taken at arm time from the capture rather than scanned for now, so a bar somewhere
+     * else in the room is not swept up by accident.
+     */
+    private static void openChests(Minecraft client) {
+        List<BlockPos> bars = ironBars;
+        if (bars.isEmpty()) {
+            return;   // a standalone arena has none, and that is not a fault
+        }
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        server.execute(() -> {
+            ServerLevel level = server.overworld();
+            int removed = 0;
+            for (BlockPos pos : bars) {
+                if (level.getBlockState(pos).is(Blocks.IRON_BARS)) {
+                    level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                    removed++;
+                }
+            }
+            LOGGER.info("Sim ice fill: fill crossed - {} of {} iron bar(s) cleared from the chests",
+                    removed, bars.size());
+        });
     }
 
     /** The "you have used this one" mark: regular ice becomes packed ice under the player's feet. */
@@ -492,12 +651,16 @@ public final class SimIceFillPuzzle {
     /**
      * Stepped on ice already used: that section breaks now and comes back in {@link #REGEN_TICKS} ticks.
      *
-     * <p>Only the failed section is aired out, which is what he asked for. The regeneration then puts EVERY
-     * section back to plain ice rather than just that one, because "for me to try again" means the fill has to
-     * be walkable again: leaving the earlier sections packed would make the first step back onto section 1 a
-     * second instant failure, and he would never get another attempt at the section he actually failed.
+     * <p>Only the failed section is aired out, and - unlike the first version of this - only the failed section
+     * comes back. That used to restore ALL THREE, because leaving the earlier sections packed would have made
+     * the first step back onto section 1 a second instant failure. Sequential sections remove the need:
+     * a section below {@link #activeSection} is finished and inert, so its packed ice can be walked back over
+     * freely and there is nothing to undo. Resetting it would instead throw away work he had already done.
+     *
+     * <p>{@code why} is the mistake, in his words, because "section 2 breaks" on its own does not say whether
+     * he repeated a tile, jumped, or warped too far - and those are three different things to stop doing.
      */
-    private static void breakSection(Minecraft client, int section) {
+    private static void breakSection(Minecraft client, int section, String why) {
         List<Set<BlockPos>> all = sections;
         if (section < 0 || section >= all.size()) {
             return;
@@ -505,12 +668,13 @@ public final class SimIceFillPuzzle {
         // Tells the Architect's First Draft feature a puzzle failed, so his existing auto-get setting works in
         // here the same as it does on Hypixel.
         SimPuzzles.reportFail("Ice Fill");
-        ModChat.send("Sim", ModChat.bad("Stepped on ice you had already used - section "),
+        ModChat.send("Sim", ModChat.bad("Ice Fill - " + why + ": section "),
                 ModChat.value(String.valueOf(section + 1)), ModChat.bad(" breaks, back in 2s."));
         brokenSection = section;
         regenCountdown = REGEN_TICKS;
         currentTile = null;
-        sectionReached = 0;
+        currentSection = -1;
+        airborneTicks = 0;
         MinecraftServer server = client.getSingleplayerServer();
         if (server == null) {
             return;
@@ -524,13 +688,40 @@ public final class SimIceFillPuzzle {
         });
     }
 
+    /**
+     * The broken section comes back as fresh ice. Only that one - see {@link #breakSection}.
+     *
+     * <p>{@link #activeSection} is deliberately NOT moved: the section he failed is the section he retries.
+     */
     private static void regenerate(Minecraft client) {
+        int section = brokenSection;
         brokenSection = -1;
         currentTile = null;
-        sectionReached = 0;
+        currentSection = -1;
+        airborneTicks = 0;
         complete = false;
-        restoreAll(client);
-        ModChat.send("Sim", ModChat.text("Ice Fill regenerated - try again."));
+        restoreSection(client, section);
+        ModChat.send("Sim", ModChat.text("Ice Fill - section "),
+                ModChat.value(String.valueOf(section + 1)), ModChat.text(" regenerated, try again."));
+    }
+
+    /** One section back to plain, unwalked ice. */
+    private static void restoreSection(Minecraft client, int section) {
+        List<Set<BlockPos>> all = sections;
+        if (section < 0 || section >= all.size() || !SimState.canAct(client)) {
+            return;
+        }
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        Set<BlockPos> tiles = Set.copyOf(all.get(section));
+        server.execute(() -> {
+            ServerLevel level = server.overworld();
+            for (BlockPos pos : tiles) {
+                level.setBlockAndUpdate(pos, Blocks.ICE.defaultBlockState());
+            }
+        });
     }
 
     /** Every section back to plain, unwalked ice. */

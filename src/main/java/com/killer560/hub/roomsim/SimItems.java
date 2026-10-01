@@ -1,5 +1,6 @@
 package com.killer560.hub.roomsim;
 
+import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.util.ModChat;
 
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -728,6 +729,74 @@ public final class SimItems {
     /** Instantly breaks the exact block you're looking at - the Dungeon Breaker's whole point ("0 ping",
      *  see {@code DungeonBreakerFeature}), except here there is no real server ping to hide because the
      *  sim's server IS the client's own integrated server. */
+    /**
+     * Whether a Dungeonbreaker swing at {@code target} is happening in a puzzle room.
+     *
+     * <p>True when EITHER the player or the block is in one, which is two rules in one test: you cannot use it
+     * while standing in a puzzle room, and you cannot stand outside one and reach into it through the wall.
+     * The wiki forbids both.
+     *
+     * <p>The room is found by nearest grid cell rather than by inverting {@link DungeonLayout#cellCenter}.
+     * Cells sit {@code HALF_ROOM} apart, so an inversion is an off-by-one waiting to happen at every boundary,
+     * and 121 squared distances on a single left-click costs nothing measurable.
+     */
+    private static boolean inPuzzleRoom(Minecraft client, BlockPos target) {
+        if (client.player == null) {
+            return false;
+        }
+        return isPuzzleCell(nearestCell(target)) || isPuzzleCell(nearestCell(client.player.blockPosition()));
+    }
+
+    private static boolean isPuzzleCell(int cell) {
+        if (cell < 0) {
+            return false;
+        }
+        String name = SimRoomIndex.nameAtCell(cell);
+        return name != null && "PUZZLE".equals(SimFloorGen.typeOf(name));
+    }
+
+    /** The 11x11 grid cell whose centre is closest to {@code at}, or -1 when the grid is empty. */
+    private static int nearestCell(BlockPos at) {
+        int best = -1;
+        long bestDist = Long.MAX_VALUE;
+        int cells = DungeonLayout.GRID * DungeonLayout.GRID;
+        for (int i = 0; i < cells; i++) {
+            BlockPos centre = DungeonLayout.cellCenter(i);
+            long dx = centre.getX() - at.getX();
+            long dz = centre.getZ() - at.getZ();
+            long dist = dx * dx + dz * dz;
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Whether this block is one of the floor's secrets.
+     *
+     * <p>Tested by BLOCK rather than by position alone, because a captured room's own chests are secret chests
+     * too - {@code SimSecrets.PLACED_CHESTS} holds only the ones the database added on top, so a position test
+     * by itself would protect the added ones and leave the captured ones minable. Bat and item secrets are
+     * entities and cannot be mined in the first place.
+     *
+     * <p>The two marker blocks are {@code SimSecrets}' own stand-ins: a soul lantern for wither essence and a
+     * lever for a redstone key. A lever is also Water Board's control, which this protects as a side effect,
+     * and that is correct for the same reason - it is not scenery.
+     */
+    private static boolean isSecretBlock(Minecraft client, BlockPos target) {
+        if (client.level == null) {
+            return false;
+        }
+        var state = client.level.getBlockState(target);
+        return state.is(net.minecraft.world.level.block.Blocks.CHEST)
+                || state.is(net.minecraft.world.level.block.Blocks.TRAPPED_CHEST)
+                || state.is(net.minecraft.world.level.block.Blocks.SOUL_LANTERN)
+                || state.is(net.minecraft.world.level.block.Blocks.LEVER)
+                || SimSecrets.PLACED_CHESTS.contains(target);
+    }
+
     private static boolean dungeonBreak(Minecraft client) {
         // NOT on a generated floor before the run has started.
         //
@@ -753,6 +822,20 @@ public final class SimItems {
         BlockPos target = hit.getBlockPos().immutable();
         var server = client.getSingleplayerServer();
         if (server == null) {
+            return false;
+        }
+        // NOT IN A PUZZLE ROOM, and NOT ON A SECRET. Both refusals happen BEFORE trySpend below, so a refused
+        // break costs no charge - which is the whole reason they are here and not inside breakIfBreakable.
+        //
+        // killer560 (2026-10-01): "make it so in puzzle rooms I cannot use dungeon breaker" and "make it so i
+        // cant dungeon breaker secrets". The first is also the real item's own rule: the wiki says the
+        // Dungeonbreaker cannot be used in puzzle rooms, on doors, or to pass through a wall into another room.
+        if (inPuzzleRoom(client, target)) {
+            fail(client, "the Dungeonbreaker does not work in puzzle rooms");
+            return false;
+        }
+        if (isSecretBlock(client, target)) {
+            fail(client, "that is a secret - the Dungeonbreaker cannot mine it");
             return false;
         }
         if (!SimBreakerState.trySpend()) {
