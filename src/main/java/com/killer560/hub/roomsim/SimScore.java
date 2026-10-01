@@ -119,6 +119,32 @@ public final class SimScore {
         return secretsTotal;
     }
 
+    /**
+     * The rest of the run's counters, for the HUDs that normally read them off Hypixel's TAB LIST.
+     *
+     * <p>A singleplayer sim has no tab list - the integrated server lists one player and none of Hypixel's
+     * "Secrets Found"/"Crypts"/"Completed Rooms" display names exist - so the Dungeon Info HUD and the Score
+     * Calculator found nothing all run and reported "?" ({@code No tab-list 'Secrets Found' line matched} in
+     * his log). They read these instead while the sim is active. Same numbers this class already scores with,
+     * so the HUD and the sim's own score screen cannot disagree.
+     */
+    public static int roomsCleared() {
+        return roomsCleared;
+    }
+
+    public static int roomsTotal() {
+        return roomsTotal;
+    }
+
+    public static int deaths() {
+        return deaths;
+    }
+
+    /** Secrets found as a percentage of the floor's total, or 0 before a map has been built. */
+    public static double secretsPercent() {
+        return secretsTotal <= 0 ? 0.0 : 100.0 * secretsFound / secretsTotal;
+    }
+
     public static int exploreScore() {
         if (roomsTotal <= 0) {
             return 0;

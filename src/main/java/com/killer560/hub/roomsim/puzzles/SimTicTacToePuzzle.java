@@ -322,7 +322,8 @@ public final class SimTicTacToePuzzle {
             // exists to make impossible. Treated as a fail: reset, not a silent pass.
             // Tells the Architect's First Draft feature a puzzle failed, so his existing auto-get
             // setting works in here the same as it does on Hypixel.
-            SimPuzzles.reportFail("Tic Tac Toe");
+            // Room name as well as puzzle name - see SimRoomState; this puzzle's room is named for it.
+            SimPuzzles.reportFail("Tic Tac Toe", "Tic Tac Toe");
             if (boundAnchor != null) {
                 // Bound to a real room: start a fresh game on the same board. reset() here would set the nine
                 // cells to AIR, which in a captured room means nine holes punched in its wall and no board

@@ -968,21 +968,35 @@ public final class LiveMapFeature {
             return 500;
         }
 
-        /** The map is {@link MapPainter#MAP_UNITS} units square plus a 2px margin each side, NOT an 11x11 grid of
-         *  equal cells - rooms are 16 units and gaps 4, exactly like the real dungeon map. */
-        private static int mapSize() {
-            return Math.round(MapPainter.MAP_UNITS * LiveMapConfig.getInstance().getRoomPx() / 16f) + 4;
+        /**
+         * The map's drawn size, plus a 2px margin each side.
+         *
+         * <p>It is NOT an 11x11 grid of equal cells - rooms are 16 units and gaps 4, exactly like the real
+         * dungeon map - and since 2026-10-01 it is not a fixed square either. killer560: "if it sees i go into
+         * f7 have it auto size to the f7 size. same for other floors." {@link MapPainter#panelUnits} gives the
+         * floor's own shape at the zoom {@link MapPainter#autoFit} will draw it at, so a fully-walked F7 is the
+         * 116x116 it always was and a shorter floor gets a shorter map instead of a square with a dead band
+         * across it.
+         *
+         * <p>Both {@link #width()}/{@link #height()} and the background {@link #renderMap} fills go through
+         * here, which is the rule that matters: {@code HudElementRegistry} defines the element's on-screen size
+         * as {@code width() * scale}, and a panel measured one way and drawn another is the bug that made the
+         * Storage Overlay unclampable (see CLAUDE.md).
+         */
+        private static int mapPx(int axis) {
+            float[] units = MapPainter.panelUnits(groups);
+            return Math.round(units[axis] * LiveMapConfig.getInstance().getRoomPx() / 16f) + 4;
         }
 
         @Override
         public int width() {
-            return mapSize();
+            return mapPx(0);
         }
 
         @Override
         public int height() {
             // killer560, 2026-09-20: "remove room name below map" - the HUD is exactly the map now, no extra row.
-            return mapSize();
+            return mapPx(1);
         }
 
         @Override
@@ -1040,11 +1054,12 @@ public final class LiveMapFeature {
          *  checkmarks - the same geometry and palette as the held map itself. */
         private void renderMap(GuiGraphicsExtractor graphics, int x, int y, LiveMapConfig cfg, Minecraft client) {
             float ppu = cfg.getRoomPx() / 16f;
-            int size = mapSize();
-            graphics.fill(x, y, x + size, y + size, cfg.getMapBackground());
+            int sizeW = mapPx(0);
+            int sizeH = mapPx(1);
+            graphics.fill(x, y, x + sizeW, y + sizeH, cfg.getMapBackground());
             int border = cfg.getMapBorderColor();
             if ((border >>> 24) != 0) {
-                graphics.outline(x, y, size, size, border);
+                graphics.outline(x, y, sizeW, sizeH, border);
             }
             // Automatic zoom for small floors - no toggle, on his instruction. Applied by moving the origin
             // and multiplying the pixels-per-unit, so every drawing call below is untouched: doors, rooms,

@@ -738,3 +738,92 @@ queueing air at a few hundred absolute positions now sitting inside a freshly bu
 the callers that genuinely want those blocks removed call `clearPlaced()` first, which queues the writes and
 empties the list itself.
 
+
+## Water Board: the real mechanic, and what the capture does and does not hold
+
+**The capture settles the geometry; it cannot settle the redstone.** `Water_Board.json` decodes cleanly at
+database rotation 270 (`capture (cx,cz) -> db (31-cz, cx-1)`), and every piece of furniture the live
+`WaterSolverFeature` indexes is in it at the position that solver already uses: 7 of 7 levers at
+`(20|10, 61, 10|15|20)` plus the back lever at `(15, 60, 5)`, each ore lever mounted on its own matching ore
+block one block further out; the five colour columns at `x=15`, `z=15..19`, each with its wool at `(15, 55, z)`
+standing on an up-facing sticky piston at `(15, 54, z)`, pushing into `(15, 56, z)` - which is exactly the block
+the solver's `extendedSlots` scan tests; and the terracotta identifier marker at `(14, 77, 27)`, so this capture
+is **board 0**. The room's water is a sealed column: a source at `(15, 62, 3)` feeding `(15, 59..62, 4)`, boxed
+in by sea lanterns at `x=14/16` and andesite at `z=5`.
+
+What is NOT in it is the mechanism. A capture is one frozen frame, and in this one **every colour is retracted**
+(all five of `(15, 56, z)` are air) and there are no pistons behind the lever walls at all - Hypixel moves those
+blocks by `setblock`, not by redstone a capture could record. So the sim cannot replay the real board; it can
+only drive the same visible parts.
+
+**Three of five colours have to be pushed out or his solver sits out.** `WaterSolverFeature.scan` refuses to do
+anything unless exactly three of the five read as extended AND an identifier marker matches. A captured room
+fails the first test, which is the whole reason the Water Board solver never lit up in the sim.
+`SimWaterPuzzle.bindAt` therefore picks a board the bundled `water-solutions.json` actually contains (`"012"`
+first - every identifier carries it), pushes those three colours out itself, and then drives its own rules from
+`WaterSolverFeature.bundledClickOrder` for the same board. It also reads his own **Optimized Path** setting,
+because that switches the whole sequence: a sim that ignored it would score him against a different solution
+from the one on his screen.
+
+**The bundled data kills the obvious model.** "One timed click opens one colour" holds for only 6 of the 80
+bundled boards - the non-zero click counts run from 1 to 10 against always exactly 3 colours. And `water` is not
+always a single click: 12 of the 80 boards flip the back lever a SECOND time at a non-zero time, which is the
+flow being stopped and restarted mid-solution. So the sim spreads the three colours evenly across however many
+timed clicks the board has, nearest the entrance first, and treats a later `water` entry as an ordinary timed
+click that also toggles the flow. Both of those are the sim's own choice and are written as such in
+`SimWaterPuzzle`'s class doc.
+
+**Starting and stopping the water needs no fluid simulation.** Letting water out into the room would flood the
+floor within seconds. Instead the sealed column itself is removed when the flow is off and put back when it is
+on, with `UPDATE_CLIENTS | UPDATE_SKIP_ALL_SIDEEFFECTS` so nothing schedules a fluid tick. Binding turns it off,
+so the first click of every attempt is the back lever - which is what every bundled solution says anyway.
+
+## A failed sim puzzle can now turn its room red
+
+`DungeonMapScanner.STATE_FAILED` comes from the vanilla dungeon map ITEM: Hypixel sets a failed puzzle's centre
+map byte to 18 (red) while its side byte stays 66 (purple), which is the pair `case 18` decodes. A sim has no
+map item, the scanner is never calibrated, and every room painted as plain "discovered" - so there was no way
+for a failed sim puzzle to show. `SimRoomState` is the sim saying so directly, keyed by room NAME because that
+is what a puzzle knows about itself and what `MapPainter` already resolves a `RoomGroup` to. Cleared when a
+floor is built and when an Architect's First Draft resets the puzzles, which is exactly the behaviour he asked
+for ("If i then use an archetechs draft itll fix it and restart it").
+
+Two related things came out of it. `MapPainter.roomColor` was drawing only the red cross and leaving the square
+its normal purple, on real runs as well - it now blends `FAILED_TINT` in, so a failed room reads as red at a
+glance. And `SimPuzzles.reportFail` gained a room-name overload: six of the seven failable puzzles live in a
+room named after them, but `SimQuizPuzzle` runs both Quiz and Three Weirdos and was hardcoding "Three Weirdos"
+into the chat line of both.
+
+## The sim has no tab list, and two HUDs were reading one
+
+`DungeonInfoFeature` and `ScoreCalculatorFeature` both take their secrets, crypts, rooms and deaths from
+Hypixel's TAB LIST display names. An integrated server lists one player and none of those lines exist, so both
+found nothing for a whole sim run - his log says so once per run, `No tab-list 'Secrets Found' line matched`.
+Both now read `SimScore` while `SimState.isActive()`, which is the same counter the sim's own sidebar uses, so
+the HUD and the score screen cannot disagree.
+
+That exposed a real bug underneath: the sim's secret TOTAL was `SimMimic.candidateCount()`, the number of chests
+that could have been the mimic. It is a different quantity, and it ignores bats, essences, items and levers.
+`SimBuilder` now sums each placed room's `RoomEntry.secrets` - the same number the map prints beside a room's
+name.
+
+## The map is the shape of the floor now, not a fixed square
+
+`MAP_UNITS` (116 = 6 rooms of 16 units + 5 gaps of 4) is F7's size, and `autoFit` already blew smaller floors up
+to fill it - but it CENTRED them inside a square panel, which left a dead band down one pair of edges on every
+floor that is not square. `MapPainter.panelUnits` now gives the floor's own shape at that same zoom and the HUD
+element measures AND draws itself from it, so a fully-walked F7 is the 116x116 it always was and a shorter floor
+gets a shorter map. The long axis is still always 116, so the panel never grows past what it used to be and no
+saved HUD position can be stranded off screen (which is the failure mode CLAUDE.md records for the Storage
+Overlay). Teammate-reported cells are counted in the box as well as locally revealed ones, because they are
+drawn and the panel is now cut to that box.
+
+## The green room's open faces
+
+The Entrance - green on the map, and the mod's own name for it - has a complete capture (all 1,089 columns
+marked seen) and still shows the void through its back wall and its window bays, because what is behind those
+faces on Hypixel is dungeon scenery outside the 31x31 tile a capture covers. `SimBuilder.closeGreenRoomShell`
+fills air in the room's own outermost layer with stone, using the same "only where the ring is already air" rule
+`SimBuildQueue.submitSeal` uses for single-room tests, but with stone rather than diamond because here it is
+meant to disappear. It runs from `doorWork` BEFORE the doorways are carved, so the one real door is reopened
+afterwards; running it after would brick up the way out of the run.

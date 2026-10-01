@@ -54,6 +54,12 @@ import com.killer560.hub.util.ChatColors;
  */
 public final class WaterSolverFeature {
 
+    /**
+     * The five real wool colours, in the order their indices are written into the solution key.
+     *
+     * <p>{@link #z} is the room-relative z of the colour's own column; the block that says whether it is
+     * pushed out is {@code (15, 56, z)} - see {@link #scan}. The wool itself sits one lower when retracted.
+     */
     public enum WoolColor {
         PURPLE(19), ORANGE(18), BLUE(17), GREEN(16), RED(15);
 
@@ -62,28 +68,71 @@ public final class WaterSolverFeature {
         WoolColor(int z) {
             this.z = z;
         }
+
+        /** Room-relative z of this colour's column, for the sim's practice copy of the board. */
+        public int relZ() {
+            return z;
+        }
     }
 
     public enum LeverBlock {
-        COAL(20, 61, 10),
-        GOLD(20, 61, 15),
-        QUARTZ(20, 61, 20),
-        DIAMOND(10, 61, 20),
-        EMERALD(10, 61, 15),
-        CLAY(10, 61, 10),
-        WATER(15, 60, 5);
+        COAL(20, 61, 10, "coal_block"),
+        GOLD(20, 61, 15, "gold_block"),
+        QUARTZ(20, 61, 20, "quartz_block"),
+        DIAMOND(10, 61, 20, "diamond_block"),
+        EMERALD(10, 61, 15, "emerald_block"),
+        CLAY(10, 61, 10, "hardened_clay"),
+        WATER(15, 60, 5, "water");
 
         final int x;
         final int y;
         final int z;
+        /** The key this lever is stored under in {@code water-solutions.json} - the file's own spelling. */
+        final String solutionKey;
         int clicked = 0;
 
-        LeverBlock(int x, int y, int z) {
+        LeverBlock(int x, int y, int z, String solutionKey) {
             this.x = x;
             this.y = y;
             this.z = z;
+            this.solutionKey = solutionKey;
+        }
+
+        /** Room-relative position, for the sim's practice copy of the board. */
+        public int relX() {
+            return x;
+        }
+
+        public int relY() {
+            return y;
+        }
+
+        public int relZ() {
+            return z;
+        }
+
+        public String solutionKey() {
+            return solutionKey;
         }
     }
+
+    /**
+     * One of the four real blocks that say which physical board layout is active, with the identifier it means.
+     *
+     * <p>Order matters and is the order {@link #scan} tests them in - two of them share a position and are
+     * told apart only by which block is there. Published because the sim's practice copy of this puzzle has to
+     * read the SAME markers off the SAME room to pick the same solution his solver will; a second copy of the
+     * list in {@code roomsim} is exactly the kind of pair that drifts.
+     */
+    public record IdentifierMarker(int x, int y, int z, net.minecraft.world.level.block.Block block,
+                                   int identifier) {
+    }
+
+    public static final List<IdentifierMarker> IDENTIFIER_MARKERS = List.of(
+            new IdentifierMarker(14, 77, 27, Blocks.TERRACOTTA, 0),
+            new IdentifierMarker(16, 78, 27, Blocks.EMERALD_BLOCK, 1),
+            new IdentifierMarker(14, 78, 27, Blocks.DIAMOND_BLOCK, 2),
+            new IdentifierMarker(14, 78, 27, Blocks.QUARTZ_BLOCK, 3));
 
     private static final Type SOLUTIONS_TYPE =
             new TypeToken<Map<String, Map<String, Map<String, Map<String, List<Double>>>>>>() {
@@ -168,23 +217,20 @@ public final class WaterSolverFeature {
             return;
         }
 
-        int identifier;
-        if (level.getBlockState(realPos(14, 77, 27, clayAndRotation)).is(Blocks.TERRACOTTA)) {
-            identifier = 0;
-        } else if (level.getBlockState(realPos(16, 78, 27, clayAndRotation)).is(Blocks.EMERALD_BLOCK)) {
-            identifier = 1;
-        } else if (level.getBlockState(realPos(14, 78, 27, clayAndRotation)).is(Blocks.DIAMOND_BLOCK)) {
-            identifier = 2;
-        } else if (level.getBlockState(realPos(14, 78, 27, clayAndRotation)).is(Blocks.QUARTZ_BLOCK)) {
-            identifier = 3;
-        } else {
+        int identifier = -1;
+        for (IdentifierMarker marker : IDENTIFIER_MARKERS) {
+            if (level.getBlockState(realPos(marker.x(), marker.y(), marker.z(), clayAndRotation))
+                    .is(marker.block())) {
+                identifier = marker.identifier();
+                break;
+            }
+        }
+        if (identifier == -1) {
             return;
         }
 
-        Map<String, List<Double>> leverTimes = SOLUTIONS
-                .getOrDefault(String.valueOf(WaterSolverConfig.getInstance().isOptimizedPath()), Map.of())
-                .getOrDefault(String.valueOf(identifier), Map.of())
-                .get(extendedSlots.toString());
+        Map<String, List<Double>> leverTimes = bundledSolution(
+                WaterSolverConfig.getInstance().isOptimizedPath(), identifier, extendedSlots.toString());
         if (leverTimes == null) {
             return;
         }
@@ -203,16 +249,75 @@ public final class WaterSolverFeature {
     }
 
     private static LeverBlock fromKey(String key) {
-        return switch (key) {
-            case "coal_block" -> LeverBlock.COAL;
-            case "gold_block" -> LeverBlock.GOLD;
-            case "quartz_block" -> LeverBlock.QUARTZ;
-            case "diamond_block" -> LeverBlock.DIAMOND;
-            case "emerald_block" -> LeverBlock.EMERALD;
-            case "hardened_clay" -> LeverBlock.CLAY;
-            case "water" -> LeverBlock.WATER;
-            default -> null;
-        };
+        for (LeverBlock lever : LeverBlock.values()) {
+            if (lever.solutionKey.equals(key)) {
+                return lever;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * One board's real bundled lever timings, straight out of {@code water-solutions.json}.
+     *
+     * <p>Published for the dungeon sim's practice copy of this puzzle, which has to be driven by the SAME
+     * numbers the solver is about to display or the two disagree on screen - including on
+     * {@code optimizedPath}, which is his own setting and changes the whole sequence.
+     *
+     * @param extendedSlots the indices into {@link WoolColor#values()} of the colours pushed out, in order,
+     *                      as a string - the file's own key, e.g. {@code "012"}
+     * @return the times per {@link LeverBlock#solutionKey()}, or null when that board is not in the file
+     */
+    public static Map<String, List<Double>> bundledSolution(boolean optimizedPath, int identifier,
+                                                            String extendedSlots) {
+        return SOLUTIONS
+                .getOrDefault(String.valueOf(optimizedPath), Map.of())
+                .getOrDefault(String.valueOf(identifier), Map.of())
+                .get(extendedSlots);
+    }
+
+    /** {@link #bundledSolution} keyed by the lever enum rather than the file's strings. */
+    public static Map<LeverBlock, List<Double>> bundledSolutionByLever(boolean optimizedPath, int identifier,
+                                                                      String extendedSlots) {
+        Map<String, List<Double>> raw = bundledSolution(optimizedPath, identifier, extendedSlots);
+        if (raw == null) {
+            return null;
+        }
+        Map<LeverBlock, List<Double>> out = new EnumMap<>(LeverBlock.class);
+        for (Map.Entry<String, List<Double>> entry : raw.entrySet()) {
+            LeverBlock lever = fromKey(entry.getKey());
+            if (lever != null) {
+                out.put(lever, entry.getValue());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * The solver's own click ORDER for one board: every remaining click, soonest first.
+     *
+     * <p>This is the order the tracer walks and therefore the order he is told to click in, so the sim scores
+     * his clicks against the same list rather than inventing a second ordering. Same comparator as
+     * {@link #onWorldRender}'s {@code flat} sort: the zero-time clicks first in lever order, then the timed
+     * ones by time.
+     */
+    public static List<Map.Entry<LeverBlock, Double>> bundledClickOrder(boolean optimizedPath, int identifier,
+                                                                       String extendedSlots) {
+        Map<LeverBlock, List<Double>> byLever = bundledSolutionByLever(optimizedPath, identifier, extendedSlots);
+        if (byLever == null) {
+            return null;
+        }
+        List<Map.Entry<LeverBlock, Double>> flat = new ArrayList<>();
+        for (Map.Entry<LeverBlock, List<Double>> entry : byLever.entrySet()) {
+            for (double time : entry.getValue()) {
+                flat.add(Map.entry(entry.getKey(), time));
+            }
+        }
+        flat.sort(Comparator
+                .comparing((Map.Entry<LeverBlock, Double> e) -> e.getValue() != 0.0)
+                .thenComparingInt(e -> e.getValue() == 0.0 ? e.getKey().ordinal() : Integer.MAX_VALUE)
+                .thenComparingDouble(e -> e.getValue() != 0.0 ? e.getValue() : 0.0));
+        return flat;
     }
 
     private static BlockPos realPos(int x, int y, int z, int[] clayAndRotation) {

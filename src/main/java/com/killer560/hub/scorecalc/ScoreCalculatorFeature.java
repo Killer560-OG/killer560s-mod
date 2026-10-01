@@ -287,6 +287,18 @@ public final class ScoreCalculatorFeature {
         if (client.getConnection() == null) {
             return;
         }
+        // THE SIM HAS NO TAB LIST - see DungeonInfoFeature.updateSecretsCount for the same branch and the
+        // same reason. Without this the score HUD read zeroes for a whole sim run, which made the one place
+        // a practice run is supposed to answer "was that 300?" always say no. SimScore keeps the identical
+        // counters, so the HUD and the sim's own score line agree by construction.
+        if (com.killer560.hub.roomsim.SimState.isActive()) {
+            secretsFound = com.killer560.hub.roomsim.SimScore.secretsFound();
+            secretsPercent = com.killer560.hub.roomsim.SimScore.secretsPercent();
+            crypts = com.killer560.hub.roomsim.SimScore.cryptsBlown();
+            completedRooms = com.killer560.hub.roomsim.SimScore.roomsCleared();
+            deaths = com.killer560.hub.roomsim.SimScore.deaths();
+            return;
+        }
         int completedPuzzles = 0;
         int failedPuzzles = 0;
         boolean sawPuzzleHeader = false;

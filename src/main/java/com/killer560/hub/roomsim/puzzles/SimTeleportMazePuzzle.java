@@ -389,7 +389,8 @@ public final class SimTeleportMazePuzzle {
     private static void failAndRebuild(Minecraft client) {
         // Tells the Architect's First Draft feature a puzzle failed, so his existing
         // auto-get setting works in here the same as it does on Hypixel.
-        SimPuzzles.reportFail("Teleport Maze");
+        // Room name as well as puzzle name - see SimRoomState; this puzzle's room is named for it.
+        SimPuzzles.reportFail("Teleport Maze", "Teleport Maze");
         ModChat.send("Sim", ModChat.bad("Wrong pad - resetting the maze."));
         com.killer560.hub.roomsim.SimRoomPuzzles.Anchor bound = boundAnchor;
         if (bound != null) {

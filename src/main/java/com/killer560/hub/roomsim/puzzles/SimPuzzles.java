@@ -136,6 +136,22 @@ public final class SimPuzzles {
      * sack to pull from in a world this mod made.
      */
     public static void reportFail(String puzzleName) {
+        reportFail(puzzleName, null);
+    }
+
+    /**
+     * The same, for a puzzle that knows which ROOM it is bound to.
+     *
+     * <p>On Hypixel a failed puzzle also turns its room red on the dungeon map, which killer560 asked for in
+     * here ("the map image for the room should turn red to show that I failed the puzzle"). The map cannot
+     * work that out for itself in a sim - there is no map item for it to read - so the puzzle says so. Room
+     * name rather than puzzle name because the two are not always the same: Three Weirdos is run by
+     * {@code SimQuizPuzzle}, and it is the room that gets painted.
+     */
+    public static void reportFail(String puzzleName, String roomName) {
+        if (roomName != null) {
+            com.killer560.hub.roomsim.SimRoomState.markFailed(roomName);
+        }
         com.killer560.hub.roomsim.SimArchitect.onPuzzleFail(puzzleName);
     }
 
@@ -183,6 +199,9 @@ public final class SimPuzzles {
 
     /** Clears every puzzle's state, for leaving the sim or restarting a run. */
     public static void resetAll() {
+        // An Architect's First Draft comes through here, and the whole point of one is that the room stops
+        // being failed - so the red square goes with the reset.
+        com.killer560.hub.roomsim.SimRoomState.clear();
         for (Runnable r : RESETS.values()) {
             try {
                 r.run();

@@ -693,7 +693,8 @@ public final class SimIceFillPuzzle {
         }
         // Tells the Architect's First Draft feature a puzzle failed, so his existing auto-get setting works in
         // here the same as it does on Hypixel.
-        SimPuzzles.reportFail("Ice Fill");
+        // Room name as well as puzzle name - see SimRoomState; this puzzle's room is named for it.
+        SimPuzzles.reportFail("Ice Fill", "Ice Fill");
         ModChat.send("Sim", ModChat.bad("Ice Fill - " + why + ": section "),
                 ModChat.value(String.valueOf(section + 1)), ModChat.bad(" breaks, back in 2s."));
         brokenSection = section;

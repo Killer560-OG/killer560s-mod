@@ -58,10 +58,51 @@ final class MapPainter {
      * so it grows into the space as the floor is discovered rather than jumping to a final layout the moment
      * one far room appears.
      *
-     * @return the zoom to apply and the unit offset that centres it, or a 1x identity when there is nothing
-     *         sensible to fit
+     * <p><b>No centring any more.</b> It used to centre the fitted floor inside a fixed 116x116 square, which
+     * left a dead band down one pair of edges on every floor that is not square - the thing killer560 then
+     * asked to go ({@code 2026-10-01}: "if it sees i go into f7 have it auto size to the f7 size. same for
+     * other floors"). The PANEL is now the shape of the floor instead - see {@link #panelUnits} - so the fit
+     * lands at the top-left of it and fills it on both axes.
+     *
+     * @return the zoom to apply and the unit offset that puts the floor at the panel's corner, or a 1x
+     *         identity when there is nothing sensible to fit
      */
     static float[] autoFit(java.util.List<LiveMapFeature.RoomGroup> groups) {
+        int[] box = usedBox(groups);
+        if (box == null) {
+            return new float[]{1f, 0f, 0f};
+        }
+        return new float[]{fitScale(box), -box[0], -box[1]};
+    }
+
+    /**
+     * The map's own size, in units, for the floor currently on it: {@code {unitsX, unitsY}}.
+     *
+     * <p>The long axis is always {@link #MAP_UNITS} - that is what "upscale to take up the whole area" means
+     * and it is why a fully-walked F7, which uses the whole 6x6 grid, comes out at exactly the 116x116 it
+     * always was. The short axis is however long the floor actually is at that same zoom, so there is no empty
+     * band: a floor six rooms wide and four tall gives a map six wide and four tall.
+     *
+     * <p>Falls back to the full square before anything is revealed, so the HUD element has a box to show in
+     * the editor rather than collapsing to nothing.
+     */
+    static float[] panelUnits(java.util.List<LiveMapFeature.RoomGroup> groups) {
+        int[] box = usedBox(groups);
+        if (box == null) {
+            return new float[]{MAP_UNITS, MAP_UNITS};
+        }
+        float scale = fitScale(box);
+        return new float[]{box[2] * scale, box[3] * scale};
+    }
+
+    /**
+     * The drawn floor's bounding box in units: {@code {minU, minV, usedU, usedV}}, or null when empty.
+     *
+     * <p>Teammate-reported cells count, not just locally revealed ones. They are drawn
+     * ({@link #drawReportedRoom}) and the panel is now cut to this box, so a reported room left out here would
+     * be painted outside the HUD element's own edges.
+     */
+    private static int[] usedBox(java.util.List<LiveMapFeature.RoomGroup> groups) {
         int minU = Integer.MAX_VALUE;
         int minV = Integer.MAX_VALUE;
         int maxU = Integer.MIN_VALUE;
@@ -79,20 +120,26 @@ final class MapPainter {
                 maxV = Math.max(maxV, cellPos(gz) + cellSize(gz));
             }
         }
-        if (minU > maxU || minV > maxV) {
-            return new float[]{1f, 0f, 0f};
+        for (PartyMapIntel.ReportedRoom rr : PartyMapIntel.reportedRoomsView()) {
+            minU = Math.min(minU, cellPos(rr.col()));
+            minV = Math.min(minV, cellPos(rr.row()));
+            maxU = Math.max(maxU, cellPos(rr.col()) + cellSize(rr.col()));
+            maxV = Math.max(maxV, cellPos(rr.row()) + cellSize(rr.row()));
         }
-        int usedU = Math.max(1, maxU - minU);
-        int usedV = Math.max(1, maxV - minV);
-        // One scale for both axes, or a tall floor would come out stretched and stop matching the real map.
-        float scale = Math.min(MAP_UNITS / (float) usedU, MAP_UNITS / (float) usedV);
+        if (minU > maxU || minV > maxV) {
+            return null;
+        }
+        return new int[]{minU, minV, Math.max(1, maxU - minU), Math.max(1, maxV - minV)};
+    }
+
+    /** One zoom for both axes - a per-axis scale would stretch the map and stop it matching the real one. */
+    private static float fitScale(int[] box) {
+        float scale = MAP_UNITS / (float) Math.max(box[2], box[3]);
         // Never shrink. A floor that somehow reaches past the grid should overflow rather than be squashed
         // into something that no longer lines up with the room positions he has learned.
-        scale = Math.max(1f, scale);
-        float offU = -minU + (MAP_UNITS / scale - usedU) / 2f;
-        float offV = -minV + (MAP_UNITS / scale - usedV) / 2f;
-        return new float[]{scale, offU, offV};
+        return Math.max(1f, scale);
     }
+
     static final int ROOM_UNITS = 16;
     static final int GAP_UNITS = 4;
 
@@ -165,6 +212,15 @@ final class MapPainter {
     /** Map state of a whole room: the most progressed of its tiles, the way NoammAddons merges a {@code UniqueRoom}.
      *  {@code STATE_UNDISCOVERED} means "do not draw this room". */
     static int visibleState(LiveMapFeature.RoomGroup group) {
+        // The sim has no map item for the scanner to read, so a failed sim puzzle could never turn its room
+        // red the way a failed real one does. The sim says so directly instead - see SimRoomState. Checked
+        // first because it is an answer about THIS room, not a fallback for a missing map.
+        if (com.killer560.hub.roomsim.SimState.isActive() && group.entry != null) {
+            int simState = com.killer560.hub.roomsim.SimRoomState.stateFor(group.entry.name);
+            if (simState >= 0) {
+                return simState;
+            }
+        }
         if (!DungeonMapScanner.isCalibrated()) {
             // Before the map item exists (start of a run, boss, p3sim): the legit map has nothing to show.
             return hideUnrevealed() ? DungeonMapScanner.STATE_UNDISCOVERED : DungeonMapScanner.STATE_DISCOVERED;
@@ -325,6 +381,15 @@ final class MapPainter {
             return multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
         }
         int color = cfg.isColourByType() ? typeColor(roomType(group), cfg) : cfg.getColorNormal();
+        // A failed puzzle reads as failed from across the map, not just by its cross. Hypixel does this
+        // itself: the room's CENTRE map byte goes to 18 (red) while its side byte stays 66 (purple), which
+        // is the very pair DungeonMapScanner's `case 18` decodes into STATE_FAILED. This map drew the red
+        // cross and left the square its normal purple, so a failed room looked like any other puzzle at a
+        // glance - killer560 asked for the square ("the map image for the room should turn red to show that
+        // I failed the puzzle"). Blended, like MIMIC_TINT, so the room still reads as the type it is.
+        if (state == DungeonMapScanner.STATE_FAILED) {
+            color = mix(color, FAILED_TINT);
+        }
         // killer560, 2026-09-27: "if you have cheater map then it should highlight the room tha thas mimic
         // as a faint red instead of the normal brown" - cheat build only, same live "is this known secret
         // chest position actually a trapped_chest right now" check SecretWaypointsFeature already uses for
@@ -340,6 +405,10 @@ final class MapPainter {
 
     /** ~55% faint red, blended onto the room's own colour by {@link #mix}. */
     private static final int MIMIC_TINT = 0x8CFF0000;
+
+    /** ~80% red, for a failed puzzle - strong enough to read as "that one is red", weak enough that the
+     *  room's own type colour still shows through. */
+    private static final int FAILED_TINT = 0xCCFF3030;
 
     /** Once-a-second snapshot of which rooms (by {@code mainIdx}) currently have a live mimic - see
      *  {@link #hasLiveMimic}. Rebuilt lazily, never more often than {@link #MIMIC_SCAN_TTL_MS}: a live block

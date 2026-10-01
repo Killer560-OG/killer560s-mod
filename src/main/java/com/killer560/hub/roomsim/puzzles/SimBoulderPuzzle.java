@@ -271,7 +271,9 @@ public final class SimBoulderPuzzle {
     private static void fail(Minecraft client, String what) {
         // Tells the Architect's First Draft feature a puzzle failed, so his existing
         // auto-get setting works in here the same as it does on Hypixel.
-        SimPuzzles.reportFail("Boulder");
+        // Room name as well as puzzle name: a failed puzzle turns its room red on the map (SimRoomState),
+        // and this puzzle only ever lives in the room of the same name.
+        SimPuzzles.reportFail("Boulder", "Boulder");
         ModChat.send("Sim", ModChat.bad("Boulder"), ModChat.text(" failed - pressed " + what + ". Resetting."));
         if (boundAnchor != null && SimState.canAct(client)) {
             // Bound to a real room: put the boulders back and unpress, rather than rebuilding an arena the

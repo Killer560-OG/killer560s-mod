@@ -127,6 +127,7 @@ public final class SimBuilder {
             // Counted in an array so the lambda can write to it - rooms actually built, which is the score's
             // room denominator.
             final int[] roomsPlaced = {0};
+            final int[] secretsPlaced = {0};
             // Where to put him when it is built.
             //
             // killer560 (2026-09-28): "when i tried to generate a map everything was broken it made rooms but
@@ -240,6 +241,14 @@ public final class SimBuilder {
                     }
                 }
                 roomsPlaced[0]++;
+                // The floor's secret TOTAL, room by room, out of the room database - the same number the map
+                // prints beside a room's name. See the SimScore.reset call below for why this replaced the
+                // mimic candidate count.
+                com.killer560.hub.roomdatabase.RoomEntry secretEntry =
+                        com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(name);
+                if (secretEntry != null) {
+                    secretsPlaced[0] += Math.max(0, secretEntry.secrets);
+                }
                 if (SimMimic.roomEligible(name)) {
                     collectChests(level, gx, gz, room, rot);
                 }
@@ -250,7 +259,12 @@ public final class SimBuilder {
             // The score's denominators come from the map that was actually built, not from a guess. Without
             // them "explore" divides by zero and the whole score is meaningless - and a score screen that
             // invents its own totals is worse than one that says it does not know.
-            SimScore.reset(SimMimic.candidateCount(), roomsPlaced[0]);
+            // Secrets: the sum of what the room database says each placed room HOLDS. This was
+            // SimMimic.candidateCount(), which is the number of chests that could have been the mimic - a
+            // different quantity entirely, and one that ignores bats, essences, items and levers. It made the
+            // sim's secret counter wrong in both directions, which matters now that it feeds the Dungeon Info
+            // HUD and the Score Calculator as well as the sim's own sidebar (see SimScore's getters).
+            SimScore.reset(secretsPlaced[0], roomsPlaced[0]);
             final int m = missing;
             final String names = missingNames.toString();
             final int roomCount = roomsPlaced[0];
@@ -396,6 +410,9 @@ public final class SimBuilder {
             doorWork.add(() -> {
                 SimDoors.CHESTS_CARVED_AWAY = 0;
                 SimDoors.FLOORED = 0;
+                // BEFORE the carves, so the carve reopens the one door this room really has - see
+                // closeGreenRoomShell.
+                closeGreenRoomShell(level);
                 for (int[] d : doorCells) {
                     SimDoors.carveDoorway(level, DungeonLayout.cellCenter(d[0]), d[1] == 1, d[2]);
                 }
@@ -565,6 +582,71 @@ public final class SimBuilder {
                 sp.teleportTo(level, x + 0.5, y, z + 0.5, java.util.Set.of(), sp.getYRot(), sp.getXRot(), false);
             }
         });
+    }
+
+    /**
+     * Puts a wall behind the green room's open faces.
+     *
+     * <p>killer560 (2026-10-01): <i>"can you make the very back of green room have a stone back wall intsead of
+     * just air. and the window areas on the front."</i> The green room is the Entrance - the mod calls it that
+     * itself, and green is its colour on the dungeon map.
+     *
+     * <p>Its capture is complete (every one of its 1,089 columns is marked seen), so this is not a rescan: the
+     * real room genuinely has nothing behind those faces, because on Hypixel what is behind them is the rest of
+     * the dungeon's own scenery, which is outside the 31x31 tile a room capture covers. In the sim there is
+     * nothing out there at all, so the back wall and the three window bays on each side look out into the void.
+     *
+     * <p>The rule is the one {@code SimBuildQueue.submitSeal} already uses for single-room tests, with two
+     * differences: stone rather than diamond, because here the point is for it to disappear into the room
+     * rather than be noticed, and only the Entrance, because every other room's open faces are either a
+     * doorway (carved or bricked up from the measured masks) or a wall that is already there. Air in the room's
+     * own outermost layer is filled; everything inside it is the room and is left alone.
+     *
+     * <p>Called from {@code doorWork} BEFORE the doorways are carved, so the one real door is reopened
+     * afterwards. Running it after would brick up the way out of the run.
+     */
+    private static void closeGreenRoomShell(ServerLevel level) {
+        for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
+            if (!"Entrance".equalsIgnoreCase(placed.name())) {
+                continue;
+            }
+            RoomLibrary.Room room = RoomLibrary.get(placed.name());
+            if (room == null) {
+                continue;
+            }
+            net.minecraft.core.BlockPos origin = DungeonLayout.cellCenter(
+                    placed.gridZ() * DungeonLayout.GRID + placed.gridX());
+            int worldX0 = origin.getX() - RoomLibrary.TILE / 2 - room.margin;
+            int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - room.margin;
+            // The room's own outermost layer, which is inside the capture's margin ring.
+            int lo = room.margin;
+            int hiX = room.sizeX - 1 - room.margin;
+            int hiZ = room.sizeZ - 1 - room.margin;
+            net.minecraft.world.level.block.state.BlockState stone =
+                    net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+            // UPDATE_CLIENTS so he sees it, SKIP_ALL_SIDEEFFECTS so a few thousand blocks do not each cascade
+            // into a neighbour update - the same trade RoomPlacer's own flags make, for the same reason.
+            int flags = net.minecraft.world.level.block.Block.UPDATE_CLIENTS
+                    | net.minecraft.world.level.block.Block.UPDATE_SKIP_ALL_SIDEEFFECTS;
+            int filled = 0;
+            for (int ly = room.minY; ly <= room.maxY; ly++) {
+                int wy = SimAltitude.toWorld(ly);
+                for (int lx = lo; lx <= hiX; lx++) {
+                    for (int lz = lo; lz <= hiZ; lz++) {
+                        if (lx != lo && lx != hiX && lz != lo && lz != hiZ) {
+                            continue;   // interior - the room itself
+                        }
+                        net.minecraft.core.BlockPos pos =
+                                new net.minecraft.core.BlockPos(worldX0 + lx, wy, worldZ0 + lz);
+                        if (level.getBlockState(pos).isAir()) {
+                            level.setBlock(pos, stone, flags);
+                            filled++;
+                        }
+                    }
+                }
+            }
+            LOGGER.info("Sim green room: {} block(s) of stone put behind the Entrance's open faces", filled);
+        }
     }
 
     /** The room name at a grid cell, or "(none)", for a log line that has to name both sides of a door. */

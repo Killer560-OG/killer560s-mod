@@ -289,6 +289,7 @@ public final class SimBlazePuzzle {
         storedOrigin = found;
         boundOrigin = found;
         lowestFirst = higher;
+        boundRoom = p.room().name;
         final BlockPos origin = found;
         UUID[] byPlacement = new UUID[HEALTHS.length];
         for (int i = 0; i < HEALTHS.length; i++) {
@@ -332,6 +333,9 @@ public final class SimBlazePuzzle {
     private static volatile BlockPos boundOrigin = null;
     /** Whether the CURRENT arena drills the Higher Blaze half of the rule (lowest HP first). */
     private static volatile boolean lowestFirst = false;
+    /** The bound room's own name - "Higher Blaze" or "Lower Blaze". Held rather than derived from
+     *  {@link #lowestFirst} so the chat label and the map's red square say which room, not which rule. */
+    private static volatile String boundRoom = null;
 
     /** {@link #KILL_ORDER_INDICES}, reversed for the Higher Blaze half of the real rule. */
     private static int[] killOrder(boolean higher) {
@@ -371,6 +375,7 @@ public final class SimBlazePuzzle {
         complete = false;
         storedOrigin = null;
         boundOrigin = null;
+        boundRoom = null;
     }
 
     public static void reset() {
@@ -455,7 +460,7 @@ public final class SimBlazePuzzle {
     private static void failAndRebuild(Minecraft client, MinecraftServer server, ServerLevel level, List<UUID> ids) {
         // Tells the Architect's First Draft feature a puzzle failed, so his existing
         // auto-get setting works in here the same as it does on Hypixel.
-        SimPuzzles.reportFail("Blaze");
+        SimPuzzles.reportFail(boundRoom == null ? "Blaze" : boundRoom, boundRoom);
         for (UUID id : ids) {
             Entity entity = level.getEntity(id);
             if (entity != null && entity.isAlive()) {

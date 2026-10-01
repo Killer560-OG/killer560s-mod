@@ -266,6 +266,7 @@ public final class SimQuizPuzzle {
         java.util.List<Object[]> buttons = quizButtons;
         forget();
         quizButtons = buttons;
+        boundRoom = p.room().name;
         if (buttons != null) {
             for (Object[] b : buttons) {
                 CELL_INDEX.put((BlockPos) b[0], (Integer) b[1]);
@@ -425,6 +426,10 @@ public final class SimQuizPuzzle {
     /** Non-null while this puzzle is bound to a real captured room rather than a standalone arena. */
     private static volatile BlockPos[] boundPositions = null;
 
+    /** The bound room's own name - "Quiz" or "Three Weirdos". Both the chat label and the red square on the
+     *  map are about the ROOM, and this class stands in for two of them. */
+    private static volatile String boundRoom = null;
+
     public static void forget() {
         pendingQuestion = null;
         pendingOptions = null;
@@ -432,6 +437,7 @@ public final class SimQuizPuzzle {
         askedAtMs = 0L;
         quizButtons = null;
         boundPositions = null;
+        boundRoom = null;
         chestPos = null;
         CELL_INDEX.clear();
         LABELS.clear();
@@ -495,7 +501,10 @@ public final class SimQuizPuzzle {
             // question rather than the same one with the wrong option already given away.
             // Tells the Architect's First Draft feature a puzzle failed, so his existing auto-get
             // setting works in here the same as it does on Hypixel.
-            SimPuzzles.reportFail("Three Weirdos");
+            // The room's own name, not a hardcoded "Three Weirdos": this class runs the Quiz room too, and
+            // the label he reads should say which of them he just failed. Passing the room name also turns
+            // that room red on the map - see SimRoomState.
+            SimPuzzles.reportFail(boundRoom == null ? "Quiz" : boundRoom, boundRoom);
             if (boundPositions != null && server != null) {
                 // Bound to a real room: a new question on the same three chests. reset() here would delete
                 // them, and in Three Weirdos those chests are the ROOM'S OWN - deleting them leaves a puzzle

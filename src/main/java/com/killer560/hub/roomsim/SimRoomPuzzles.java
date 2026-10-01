@@ -272,6 +272,8 @@ public final class SimRoomPuzzles {
         for (String name : com.killer560.hub.roomsim.puzzles.SimPuzzles.names()) {
             com.killer560.hub.roomsim.puzzles.SimPuzzles.forget(name);
         }
+        // Last floor's red squares with it. Nothing on THIS floor has been failed yet.
+        SimRoomState.clear();
         int armed = 0;
         int seen = 0;
         // One of each puzzle CLASS, because each one is a singleton holding one arena's worth of static state.
