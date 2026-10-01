@@ -1,5 +1,6 @@
 package com.killer560.hub.roomsim.puzzles;
 
+import com.killer560.hub.compat.McBlocks;
 import com.killer560.hub.puzzlesolvers.WaterSolverConfig;
 import com.killer560.hub.puzzlesolvers.WaterSolverFeature;
 import com.killer560.hub.puzzlesolvers.WaterSolverFeature.LeverBlock;
@@ -768,11 +769,11 @@ public final class SimWaterPuzzle {
     /** The capture's own block for each colour - note the "green" slot is LIME wool in the real room. */
     private static Block woolFor(WoolColor colour) {
         return switch (colour) {
-            case PURPLE -> Blocks.PURPLE_WOOL;
-            case ORANGE -> Blocks.ORANGE_WOOL;
-            case BLUE -> Blocks.BLUE_WOOL;
-            case GREEN -> Blocks.LIME_WOOL;
-            case RED -> Blocks.RED_WOOL;
+            case PURPLE -> McBlocks.PURPLE_WOOL;
+            case ORANGE -> McBlocks.ORANGE_WOOL;
+            case BLUE -> McBlocks.BLUE_WOOL;
+            case GREEN -> McBlocks.LIME_WOOL;
+            case RED -> McBlocks.RED_WOOL;
         };
     }
 

@@ -226,7 +226,7 @@ public final class SimCreeperPuzzle {
             return;
         }
         server.execute(() -> server.overworld().playSound(null, pos.getX(), pos.getY(), pos.getZ(),
-                net.minecraft.sounds.SoundEvents.ELDER_GUARDIAN_HURT.value(),
+                net.minecraft.sounds.SoundEvents.ELDER_GUARDIAN_HURT,
                 net.minecraft.sounds.SoundSource.BLOCKS, 1.0f, pitch));
     }
 

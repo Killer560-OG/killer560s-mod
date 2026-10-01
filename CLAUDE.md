@@ -181,8 +181,11 @@ physics. Read the relevant one before touching either area.
   that could have been several things. Every one of them had a working equivalent already in the tree -
   `SimMiniboss.snapTo`, `SimMobs`' bat spawn, `TeleportUtils`' `getCollisionShape(...).max(...)`. The rule is
   mechanical: before using a vanilla method or constant that does not already appear in `src/`, either find it
-  there or pick something that does. Block constants (`Blocks.X`) are stable and map 1:1 to registry ids;
-  METHOD names are what move between versions.
+  there or pick something that does. METHOD names are what move between versions - and so do some block
+  constants: a coloured block (`Blocks.RED_WOOL`) does not exist in 26.2 and must be `McBlocks.RED_WOOL`, which
+  broke only the 26.2 build of `a4e563a`. The same commit also broke 26.1.2 with
+  `SoundEvents.ELDER_GUARDIAN_HURT.value()`: only some `SoundEvents` are holders (`NOTE_BLOCK_PLING`,
+  `GENERIC_EXPLODE`); mob sounds like `BLAZE_HURT` are plain `SoundEvent`s. Copy the shape of an existing use.
 - **A cloud session CAN check far more than it parses.** `javac -XDshould-stop.ifNoError=PARSE` only checks
   syntax, which is why `List<Integer> pool = live;` shipped into a method whose own parameter was already called
   `pool` and broke the build. Run the FULL compile on each changed file and filter the noise instead - without
