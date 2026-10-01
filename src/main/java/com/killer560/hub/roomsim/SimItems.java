@@ -563,16 +563,36 @@ public final class SimItems {
             // the loop runs nothing is sealed any more. Counted once per detonation rather than per block, or
             // a single charge would hand out the bonus five points several times over.
             BlockState aimed = level.getBlockState(center);
-            boolean openedCrypt = (aimed.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
+            // A SECTION OF SMOOTH STONE SLABS IS A CRYPT. killer560 (2026-10-01): "For crypts try having it scan
+            // for a sectiion of smooth stone slabs and those are crypts."
+            //
+            // His log is what makes this safe to act on. Every attempt he made aimed at smooth_stone_slab and
+            // broke nothing, because a slab is not in the fragile set so connectedFragile had nothing to walk.
+            // The same log also shows sealsAChamber returning false on EVERY detonation, including the
+            // cracked_stone_bricks one that broke 34 blocks - so the old crypt test could never fire at all, and
+            // "I still cannot explode crypts" was two faults stacked: nothing to break, and nothing to score.
+            //
+            // A SECTION, not a slab: a lone decorative slab is everywhere, so the run has to be at least
+            // MIN_CRYPT_SLABS connected before it counts. The cracked-brick path is left exactly as it was,
+            // sealsAChamber included - widening THAT would make every decorative cracked wall on the floor pay
+            // out the crypt bonus, and cracked brick is decoration almost everywhere (see docs/SIM.md).
+            boolean slabRun = aimed.is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE_SLAB);
+            java.util.List<BlockPos> slabSection = slabRun
+                    ? connectedSlabs(level, center) : java.util.List.of();
+            boolean slabCrypt = slabRun && slabSection.size() >= MIN_CRYPT_SLABS;
+            boolean openedCrypt = slabCrypt
+                    || ((aimed.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
                     || aimed.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS))
-                    && sealsAChamber(level, center);
+                    && sealsAChamber(level, center));
             BlockPos cryptAt = openedCrypt ? center : null;
             // A crypt gets the SLAB; anything else keeps the fragile-only fill. See docs/SIM.md for the
             // census behind that - cracked brick is decoration almost everywhere, and a crypt wall is cracked
             // brick interleaved with plain and mossy brick that a fragile-only fill cannot cross.
-            java.util.List<BlockPos> targets = openedCrypt
-                    ? wallSlab(level, center, face)
-                    : connectedFragile(level, center);
+            java.util.List<BlockPos> targets = slabCrypt
+                    ? slabSection
+                    : openedCrypt
+                            ? wallSlab(level, center, face)
+                            : connectedFragile(level, center);
             BlockPos princeAt = null;
             int broken = 0;
             for (BlockPos here : targets) {
@@ -605,7 +625,7 @@ public final class SimItems {
                             + " {} block(s) broken",
                     center, face,
                     net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(aimed.getBlock()),
-                    openedCrypt,
+                    openedCrypt + (slabCrypt ? " (slab section of " + slabSection.size() + ")" : ""),
                     aimed.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
                             || aimed.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS),
                     sealsAChamber(level, center), broken);
@@ -950,6 +970,39 @@ public final class SimItems {
      * through a floor's stonework, and an unbounded flood fill on the server thread is how a click becomes a
      * freeze. Orthogonal neighbours only - a wall that meets another only at a corner is a different wall.
      */
+    /** How many connected smooth stone slabs make a crypt rather than a decorative slab. */
+    private static final int MIN_CRYPT_SLABS = 4;
+
+    /**
+     * The connected run of {@code smooth_stone_slab} containing {@code start}.
+     *
+     * <p>Same shape as {@link #connectedFragile}, over one block type, and capped the same way so a floor made
+     * of slabs cannot turn one Superboom into a thousand-block hole.
+     */
+    private static java.util.List<BlockPos> connectedSlabs(ServerLevel level, BlockPos start) {
+        java.util.List<BlockPos> found = new java.util.ArrayList<>();
+        if (!level.getBlockState(start).is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE_SLAB)) {
+            return found;
+        }
+        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+        queue.add(start.immutable());
+        seen.add(start.immutable());
+        while (!queue.isEmpty() && found.size() < 256) {
+            BlockPos here = queue.removeFirst();
+            found.add(here);
+            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
+                BlockPos next = here.relative(dir).immutable();
+                if (seen.add(next)
+                        && level.getBlockState(next)
+                        .is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE_SLAB)) {
+                    queue.add(next);
+                }
+            }
+        }
+        return found;
+    }
+
     private static java.util.List<BlockPos> connectedFragile(ServerLevel level, BlockPos start) {
         java.util.List<BlockPos> found = new java.util.ArrayList<>();
         if (!isFragile(level.getBlockState(start)) && !SimPrince.isPrince(start)) {

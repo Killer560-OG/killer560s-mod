@@ -234,40 +234,55 @@ public final class SimBlazePuzzle {
     public static boolean bindAt(net.minecraft.server.level.ServerLevel level,
                                  com.killer560.hub.roomsim.SimRoomPuzzles.Placement p, boolean higher) {
         com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor = p.anchor();
-        // The room's centre column, walked from the dungeon floor upwards for the first place a 5-block-tall
-        // arena fits. Lower Blaze is entered at the bottom and Higher Blaze near its ceiling, so the search
-        // starts from the end the player arrives at rather than assuming one of them.
-        // Tall enough for the whole CHAIN now, not for one blaze at head height. The widest spacing that fits
-        // the room's own centre column wins, so a short shaft gets a tighter chain rather than nothing.
+        // ANCHORED ON THE FLOOR, with the chain fitted to whatever headroom is above it.
+        //
+        // This searched for the first gap tall enough for the whole chain, and that was a regression: a chain of
+        // five at spacing 3 needs 14 clear blocks, so the search sailed past the floor and found the first
+        // 14-block gap higher up. killer560's log has them at world y=6 on a floor shifted -78 - fourteen blocks
+        // over his head, which read as "lower blaze still isnt generating any mobs" even though the same line
+        // says five spawned. Before the chain existed it only wanted 6 blocks and landed near the ground.
+        //
+        // So: find the standing floor first, then fit the chain into the air above it. The widest spacing that
+        // fits wins, and spacing 1 always does, so this can no longer fail to arm a room it used to arm.
         BlockPos found = null;
-        int chosenSpacing = SPACINGS[0];
-        int from = higher ? 120 : 70;
+        int chosenSpacing = 1;
+        int from = higher ? 120 : 66;
         int step = higher ? -1 : 1;
-        for (int candidateSpacing : SPACINGS) {
-            int needed = chainHeight(candidateSpacing);
-            for (int i = 0; i < 70 && found == null; i++) {
-                int y = from + i * step;
-                BlockPos candidate = anchor.world(15, y, 16);
-                boolean clear = true;
-                for (int dy = 0; dy <= needed && clear; dy++) {
-                    clear = level.getBlockState(candidate.above(dy)).isAir();
-                }
-                if (clear) {
-                    found = candidate;
-                    chosenSpacing = candidateSpacing;
-                }
+        BlockPos floorTop = null;
+        for (int i = 0; i < 70 && floorTop == null; i++) {
+            int y = from + i * step;
+            BlockPos here = anchor.world(15, y, 16);
+            // The first air with something solid under it: that is where a player stands.
+            if (level.getBlockState(here).isAir() && !level.getBlockState(here.below()).isAir()) {
+                floorTop = here;
             }
-            if (found != null) {
+        }
+        if (floorTop == null) {
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
+                    "Sim blaze puzzle: no standable floor in {}'s centre column - not armed", p.room().name);
+            return false;
+        }
+        // How much clear air is above that floor, up to the tallest chain worth building.
+        int headroom = 0;
+        int maxNeeded = chainHeight(SPACINGS[0]);
+        while (headroom <= maxNeeded && level.getBlockState(floorTop.above(headroom)).isAir()) {
+            headroom++;
+        }
+        for (int candidateSpacing : SPACINGS) {
+            if (chainHeight(candidateSpacing) <= headroom) {
+                chosenSpacing = candidateSpacing;
                 break;
             }
         }
-        if (found == null) {
+        // Spacing 1 is the floor of the fallback: five blazes stacked is still a vertical chain, and it is
+        // always better than none. Said out loud when the room is too short for a real one.
+        if (chainHeight(chosenSpacing) > headroom) {
+            chosenSpacing = 1;
             com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
-                    "Sim blaze puzzle: {}'s centre column has no clear run tall enough for a chain of {} "
-                            + "(needed {} or {} blocks) - not armed",
-                    p.room().name, HEALTHS.length, chainHeight(SPACINGS[0]), chainHeight(SPACINGS[1]));
-            return false;
+                    "Sim blaze puzzle: {} has only {} block(s) of headroom in its centre column - stacking the "
+                            + "chain at 1 block apart rather than skipping the room", p.room().name, headroom);
         }
+        found = floorTop;
         spacing = chosenSpacing;
         final BlockPos[] chain = offsetsFor(chosenSpacing);
         despawnCurrent(Minecraft.getInstance());

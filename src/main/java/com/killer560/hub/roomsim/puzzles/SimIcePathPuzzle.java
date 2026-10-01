@@ -723,5 +723,26 @@ public final class SimIcePathPuzzle {
         @Override
         public void checkDespawn() {
         }
+
+        /**
+         * It shoves nobody and nobody shoves it.
+         *
+         * <p>killer560 (2026-10-01): "make it so the silver fish cannot push me when I walk into it but it is
+         * working great." Walking into it was nudging him off the tile he was standing on, which in a puzzle
+         * where the tile you are on is the whole state is worse than annoying.
+         *
+         * <p>Both halves are needed and they are different methods. {@code pushEntities} is what a living entity
+         * does TO its neighbours each tick - {@code setNoAi} does not stop it, because it runs from
+         * {@code LivingEntity.aiStep} rather than from any goal - and {@code isPushable} is what lets neighbours
+         * do it back. The slide is driven by {@code setPos}, so this entity has no need of either.
+         */
+        @Override
+        protected void pushEntities() {
+        }
+
+        @Override
+        public boolean isPushable() {
+            return false;
+        }
     }
 }

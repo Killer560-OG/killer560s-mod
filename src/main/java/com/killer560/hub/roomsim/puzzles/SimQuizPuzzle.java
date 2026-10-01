@@ -82,6 +82,8 @@ public final class SimQuizPuzzle {
      *  {@code roomsim} {@code register()} calls (wiring not done here - see this file's restriction on which
      *  files it may touch). */
     public static void register() {
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(
+                com.killer560.hub.util.FeatureGuard.start("SimQuizPuzzle.tick", SimQuizPuzzle::tick));
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
             Minecraft client = Minecraft.getInstance();
             // level.isClientSide(): this event also fires server-side; without this check a real click would
@@ -294,12 +296,46 @@ public final class SimQuizPuzzle {
         for (int i = 0; i < 3; i++) {
             options.append(letters[i]).append(' ').append(text[i]).append("  ");
         }
-        final String q = question;
-        final String o = options.toString().trim();
-        Minecraft.getInstance().execute(() -> {
-            ModChat.send("Sim", ModChat.text(q));
-            ModChat.send("Sim", ModChat.dim(o));
-        });
+        // HELD until he walks in, not announced now.
+        //
+        // killer560 (2026-10-01): "i also didnt see it send a chat message saying the question nor did my solver
+        // work probably because of no message", and earlier: "only have it send the question once I open the
+        // room." It WAS being sent - his log has it at 20:02:54, with the room reached at 20:04:22 - so it had
+        // scrolled away ninety seconds before he got there. A bound room arms during the floor build, which is
+        // minutes before he reaches it, so announcing at arm time can only ever be too early.
+        pendingQuestion = question;
+        pendingOptions = options.toString().trim();
+        announced = false;
+    }
+
+    /** The question and its lettered options, waiting for him to enter the room. Null once announced. */
+    private static volatile String pendingQuestion = null;
+    private static volatile String pendingOptions = null;
+    private static volatile boolean announced = false;
+
+    /** How close counts as being in the room. A quiz room is one tile, so this comfortably covers it. */
+    private static final double ANNOUNCE_RANGE_SQR = 22.0 * 22.0;
+
+    /**
+     * Announces the held question the first time he is near the three answer spots.
+     *
+     * <p>Distance to the puzzle's own blocks rather than the live map's room name: it needs no map, works for a
+     * standalone arena as well as a bound room, and cannot announce the wrong room's question.
+     */
+    private static void tick(Minecraft client) {
+        if (announced || pendingQuestion == null || !SimState.canAct(client)) {
+            return;
+        }
+        BlockPos[] positions = chestPos;
+        if (positions == null || positions.length == 0 || positions[0] == null) {
+            return;
+        }
+        if (client.player.blockPosition().distSqr(positions[0]) > ANNOUNCE_RANGE_SQR) {
+            return;
+        }
+        announced = true;
+        ModChat.send("Sim", ModChat.text(pendingQuestion));
+        ModChat.send("Sim", ModChat.dim(pendingOptions));
     }
 
     /** Two other real questions' correct answers, picked at random and excluding anything equal to the correct
@@ -349,6 +385,9 @@ public final class SimQuizPuzzle {
     private static volatile BlockPos[] boundPositions = null;
 
     public static void forget() {
+        pendingQuestion = null;
+        pendingOptions = null;
+        announced = false;
         boundPositions = null;
         chestPos = null;
         CELL_INDEX.clear();
