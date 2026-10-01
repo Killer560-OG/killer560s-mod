@@ -163,6 +163,18 @@ physics. Read the relevant one before touching either area.
   mechanical: before using a vanilla method or constant that does not already appear in `src/`, either find it
   there or pick something that does. Block constants (`Blocks.X`) are stable and map 1:1 to registry ids;
   METHOD names are what move between versions.
+- **A cloud session CAN check far more than it parses.** `javac -XDshould-stop.ifNoError=PARSE` only checks
+  syntax, which is why `List<Integer> pool = live;` shipped into a method whose own parameter was already called
+  `pool` and broke the build. Run the FULL compile on each changed file and filter the noise instead - without
+  the Minecraft jar every type is unresolved, but everything structural is still reported:
+  ```
+  javac -proc:none -nowarn -Xmaxerrs 2000 -d /tmp/out F.java 2>&1 | grep "error:" \
+    | grep -vE "cannot find symbol|package .* does not exist|cannot access|incompatible types|method does not override|no suitable method|cannot be applied|is not abstract|bad operand|cannot be dereferenced|array required|unexpected type|not a statement|cannot infer type"
+  ```
+  What survives that filter is real: "already defined", "missing return statement", "unreachable statement",
+  "cannot assign a value to final variable", "might not have been initialized", duplicate methods. Verified by
+  reintroducing the `pool` collision into a scratch copy and watching the filter print it. This does NOT replace
+  the rule below about API names - an unresolved method is indistinguishable from a misspelt one here.
 - A class placed inside a mixin-owned package throws `IllegalClassLoadError` and crashes the game at boot.
   Keep helper classes out of `mixin` packages.
 - `RenderSystem.setShaderColor` does not exist in 26.1.2, so there is no global colour multiplier and items

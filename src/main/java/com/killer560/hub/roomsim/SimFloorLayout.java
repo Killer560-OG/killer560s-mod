@@ -700,7 +700,9 @@ public final class SimFloorLayout {
                 //
                 // A bias, not a restriction: when the fairy's side has nothing open the draw falls back to
                 // the whole list, so a floor is never lost to this.
-                List<Integer> pool = live;
+                // drawFrom, not "pool": growOnce's own parameter is already called pool (the room
+                // candidates), and shadowing it here is how this file failed to compile.
+                List<Integer> drawFrom = live;
                 if (fairyIndex[0] >= 0 && bloodPlacedDepth < 0) {
                     List<Integer> under = new ArrayList<>();
                     for (int i : live) {
@@ -709,10 +711,10 @@ public final class SimFloorLayout {
                         }
                     }
                     if (!under.isEmpty()) {
-                        pool = under;
+                        drawFrom = under;
                     }
                 }
-                int si = pool.get(rng.nextInt(pool.size()));
+                int si = drawFrom.get(rng.nextInt(drawFrom.size()));
                 Stub stub = stubs.get(si);
                 int tx = stub.cellX + RoomDoors.DX[stub.side];
                 int tz = stub.cellZ + RoomDoors.DZ[stub.side];
