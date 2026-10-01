@@ -205,6 +205,7 @@ public final class SimFloorGen {
                     ModChat.dim("run the Room Recorder first."));
             return null;
         }
+        usable = capChampions(usable, pinned);
 
         int wantRooms = Math.min(floor.rooms, ROOM_GRID * ROOM_GRID);
         int wantCells = Math.max(wantRooms, Math.min(floor.cells, ROOM_GRID * ROOM_GRID));
@@ -466,6 +467,52 @@ public final class SimFloorGen {
     }
 
     /** The database's type for a room, or "NORMAL" when it does not know it. */
+    /**
+     * At most ONE yellow room on a floor.
+     *
+     * <p>killer560 (2026-10-01): "there should only be the ability for there to be 1 yellow room per run."
+     * Yellow on the Catacombs map is the miniboss colour - {@code MapPainter} maps colour 74 to it - and the
+     * room database's name for that type is {@code CHAMPION}, of which it holds four.
+     *
+     * <p>Done by trimming the CANDIDATE POOL rather than by constraining the layout engine, which is both
+     * simpler and exactly equivalent: a floor never uses the same room name twice, so a pool holding one
+     * champion can place at most one champion. The engine keeps its existing type rules untouched.
+     *
+     * <p>A champion he PINNED is always the one kept, because a pin is a deliberate request and dropping it
+     * would surface as "could not keep your pinned room" for a reason he never asked about.
+     */
+    private static Map<String, RoomLibrary.Room> capChampions(Map<String, RoomLibrary.Room> usable,
+                                                              Map<Integer, String> pinned) {
+        List<String> champions = new ArrayList<>();
+        for (String name : usable.keySet()) {
+            if ("CHAMPION".equalsIgnoreCase(typeOf(name))) {
+                champions.add(name);
+            }
+        }
+        if (champions.size() <= 1) {
+            return usable;
+        }
+        String keep = null;
+        if (pinned != null) {
+            for (String name : champions) {
+                if (pinned.containsValue(name)) {
+                    keep = name;
+                    break;
+                }
+            }
+        }
+        if (keep == null) {
+            keep = champions.get(RNG.nextInt(champions.size()));
+        }
+        Map<String, RoomLibrary.Room> trimmed = new java.util.LinkedHashMap<>(usable);
+        for (String name : champions) {
+            if (!name.equals(keep)) {
+                trimmed.remove(name);
+            }
+        }
+        return trimmed;
+    }
+
     public static String typeOf(String name) {
         var entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(name);
         return entry == null || entry.type == null ? "NORMAL" : entry.type;

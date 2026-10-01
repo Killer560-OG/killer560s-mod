@@ -75,6 +75,15 @@ public final class SimQuizPuzzle {
     private static volatile boolean complete = false;
     private static volatile int correctIndex = -1;
 
+    /** {world position, answer index} for each of a bound room's twelve pillar buttons. Null when standalone. */
+    private static volatile java.util.List<Object[]> quizButtons = null;
+
+    /** When the question was announced. An answer before {@link #ANSWER_DELAY_MS} after it does not count. */
+    private static volatile long askedAtMs = 0L;
+
+    /** killer560 (2026-10-01): "have a 5s delay from the question coming out to being able to answer it." */
+    private static final long ANSWER_DELAY_MS = 5000L;
+
     private SimQuizPuzzle() {
     }
 
@@ -158,7 +167,12 @@ public final class SimQuizPuzzle {
         server.execute(() -> {
             ServerLevel level = server.overworld();
             for (int i = 0; i < 3; i++) {
-                level.setBlockAndUpdate(positions[i], Blocks.CHEST.defaultBlockState());
+                // NO CHEST in a bound room - the pillar's buttons are the answer now, so a chest would
+                // be a second way to answer and a block the room does not have. A standalone arena
+                // still gets them, because it has no pillars to press.
+                if (quizButtons == null) {
+                    level.setBlockAndUpdate(positions[i], Blocks.CHEST.defaultBlockState());
+                }
                 LABELS.add(spawnLabel(level, positions[i], letters[i] + " " + text[i]));
             }
         });
@@ -224,9 +238,22 @@ public final class SimQuizPuzzle {
                 return false;
             }
             positions = new BlockPos[3];
+            quizButtons = new java.util.ArrayList<>();
             for (int i = 0; i < 3; i++) {
                 // One above the floor spot: the spot itself is the block he stands on in the real room.
                 positions[i] = anchor.world(spots[i]).above();
+                // THE PILLAR'S FOUR BUTTONS. killer560 (2026-10-01): "Dont have the chests in the room it
+                // should just be answered by pressing any of the buttons on the cooresponding pillar."
+                //
+                // Decoding the capture settles where they are without a guess: at this room's own turn the
+                // three answer spots land on capture (11,70,25), (16,70,22) and (21,70,25), and all twelve of
+                // its stone buttons sit in rings of four around exactly those - each spot's four horizontal
+                // neighbours at the same height. So a button is an answer spot stepped one block along x or z,
+                // and pressing any of a pillar's four answers that pillar.
+                for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    quizButtons.add(new Object[]{
+                        anchor.world(spots[i][0] + d[0], spots[i][1], spots[i][2] + d[1]), i});
+                }
             }
         }
         if (ANSWERS.isEmpty()) {
@@ -236,7 +263,14 @@ public final class SimQuizPuzzle {
         }
         // Same in-memory clear reset() does, without its queued block writes: those are aimed at the PREVIOUS
         // arena's positions and would land a tick from now, inside the room just pasted.
+        java.util.List<Object[]> buttons = quizButtons;
         forget();
+        quizButtons = buttons;
+        if (buttons != null) {
+            for (Object[] b : buttons) {
+                CELL_INDEX.put((BlockPos) b[0], (Integer) b[1]);
+            }
+        }
         newQuestion(level, positions, false);
         return true;
     }
@@ -289,7 +323,12 @@ public final class SimQuizPuzzle {
         built = true;
         char[] letters = {'ⓐ', 'ⓑ', 'ⓒ'};
         for (int i = 0; i < 3; i++) {
-            level.setBlockAndUpdate(positions[i], Blocks.CHEST.defaultBlockState());
+            // NO CHEST in a bound room - the pillar's buttons are the answer now, so a chest would
+            // be a second way to answer and a block the room does not have. A standalone arena
+            // still gets them, because it has no pillars to press.
+            if (quizButtons == null) {
+                level.setBlockAndUpdate(positions[i], Blocks.CHEST.defaultBlockState());
+            }
             LABELS.add(spawnLabel(level, positions[i], letters[i] + " " + text[i]));
         }
         StringBuilder options = new StringBuilder();
@@ -334,8 +373,10 @@ public final class SimQuizPuzzle {
             return;
         }
         announced = true;
+        askedAtMs = System.currentTimeMillis();
         ModChat.send("Sim", ModChat.text(pendingQuestion));
         ModChat.send("Sim", ModChat.dim(pendingOptions));
+        ModChat.send("Sim", ModChat.dim("Oruo is still reading - answers count in 5s."));
     }
 
     /** Two other real questions' correct answers, picked at random and excluding anything equal to the correct
@@ -388,6 +429,8 @@ public final class SimQuizPuzzle {
         pendingQuestion = null;
         pendingOptions = null;
         announced = false;
+        askedAtMs = 0L;
+        quizButtons = null;
         boundPositions = null;
         chestPos = null;
         CELL_INDEX.clear();
@@ -431,9 +474,18 @@ public final class SimQuizPuzzle {
 
     private static void onChestClick(Minecraft client, int index) {
         MinecraftServer server = client.getSingleplayerServer();
+        // Too early. Not a wrong answer - on Hypixel the options are not live while Oruo is still talking, so
+        // an early press has to be ignored rather than failed, or the puzzle would punish reading quickly.
+        if (askedAtMs > 0 && System.currentTimeMillis() - askedAtMs < ANSWER_DELAY_MS) {
+            long left = (ANSWER_DELAY_MS - (System.currentTimeMillis() - askedAtMs) + 999) / 1000;
+            ModChat.send("Sim", ModChat.dim("Too early - " + left + "s left."));
+            return;
+        }
         if (index == correctIndex) {
             complete = true;
-            if (server != null) {
+            if (server != null && quizButtons == null) {
+                // Standalone only: in a bound room that position is the pillar top and nothing would put it
+                // back, so the room would keep a stray emerald block for the rest of the run.
                 BlockPos pos = chestPos[index];
                 server.execute(() -> server.overworld().setBlockAndUpdate(pos, Blocks.EMERALD_BLOCK.defaultBlockState()));
             }
@@ -448,11 +500,13 @@ public final class SimQuizPuzzle {
                 // Bound to a real room: a new question on the same three chests. reset() here would delete
                 // them, and in Three Weirdos those chests are the ROOM'S OWN - deleting them leaves a puzzle
                 // room with nothing in it and no way to build it again on a generated floor.
-                ModChat.send("Sim", ModChat.bad("Wrong chest - new question."));
+                ModChat.send("Sim", ModChat.bad("Wrong answer - new question."));
+                askedAtMs = 0L;
+                announced = false;
                 BlockPos[] positions = boundPositions;
                 server.execute(() -> newQuestion(server.overworld(), positions, true));
             } else {
-                ModChat.send("Sim", ModChat.bad("Wrong chest - resetting. Build again to retry."));
+                ModChat.send("Sim", ModChat.bad("Wrong answer - resetting. Build again to retry."));
                 reset();
             }
         }
@@ -462,7 +516,12 @@ public final class SimQuizPuzzle {
      *  "invisible stand, visible name" tag SimMobs uses for star mobs, and WeirdosSolverFeature reads for real
      *  NPCs. Floats just above the chest so it doesn't block the click raycast onto the chest itself. */
     private static UUID spawnLabel(ServerLevel level, BlockPos chestPos, String text) {
-        ArmorStand stand = new ArmorStand(level, chestPos.getX() + 0.5, chestPos.getY() + 1.3, chestPos.getZ() + 0.5);
+        // TWO BLOCKS LOWER in a bound room. killer560 (2026-10-01): "The quiz names above chests are still 2
+        // blocks too high." The spot is one above the floor and the label floated 1.3 over that, putting it 2.3
+        // up; with no chest under it there is nothing to clear, so it drops to 0.3 - the two blocks he measured.
+        // A standalone arena keeps the old height, where a real chest IS in the way.
+        double lift = quizButtons == null ? 1.3 : -0.7;
+        ArmorStand stand = new ArmorStand(level, chestPos.getX() + 0.5, chestPos.getY() + lift, chestPos.getZ() + 0.5);
         stand.setInvisible(true);
         stand.setNoGravity(true);
         stand.setNoBasePlate(true);

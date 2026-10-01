@@ -165,6 +165,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // should work on this sim." The sim has no highlighter of its own now; Secret Waypoints is the only one.
         // The sim's puzzles. Each owns its own arena and its own failure rule; they do nothing outside the sim.
         com.killer560.hub.roomsim.SimSecrets.register();
+        com.killer560.hub.roomsim.SimWhere.register();
         com.killer560.hub.roomsim.puzzles.SimBlazePuzzle.register();
         com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.register();
         com.killer560.hub.roomsim.puzzles.SimQuizPuzzle.register();
