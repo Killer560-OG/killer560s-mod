@@ -1,7 +1,6 @@
 package com.killer560.hub.etherwarp;
 
 import com.killer560.hub.livemap.LiveMapFeature;
-import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
@@ -122,7 +121,8 @@ public final class EtherwarpFeature {
         List<EtherwarpWaypoint> visible = new ArrayList<>(saved.size());
         List<AABB> visibleBoxes = new ArrayList<>(saved.size());
         for (EtherwarpWaypoint w : saved) {
-            BlockPos real = RoomDatabase.toRealCoord(toPos(w), ctx.clayX(), ctx.clayZ(), ctx.rotation());
+            BlockPos real = com.killer560.hub.puzzlesolvers.PuzzleCoords.real(toPos(w),
+                    new int[]{ctx.clayX(), ctx.clayZ(), ctx.rotation()});
             if (eye.distanceToSqr(real.getX() + 0.5, real.getY() + 0.5, real.getZ() + 0.5) > maxSq) {
                 continue;
             }
@@ -219,7 +219,17 @@ public final class EtherwarpFeature {
         if (ctx == null) {
             return "§c[Etherwarp] Stand in an identified dungeon room before adding a waypoint.";
         }
-        RoomEntry.Pos relative = RoomDatabase.toRelativeCoord(real, ctx.clayX(), ctx.clayZ(), ctx.rotation());
+        // THROUGH PuzzleCoords, both ways. A waypoint is stored room-relative on purpose (killer560: "Make
+        // sure they dont save based off of location but off of location in a room"), and toRelativeCoord passes
+        // y straight through - so in the dungeon sim, where the whole floor is shifted vertically, a waypoint
+        // saved there stored a SHIFTED height as though it were relative. That is wrong on Hypixel and wrong in
+        // the sim's own next build too, because the shift is chosen per floor. Same fault RouteCoords had.
+        BlockPos rel3 = com.killer560.hub.puzzlesolvers.PuzzleCoords.relative(real,
+                new int[]{ctx.clayX(), ctx.clayZ(), ctx.rotation()});
+        RoomEntry.Pos relative = new RoomEntry.Pos();
+        relative.x = rel3.getX();
+        relative.y = rel3.getY();
+        relative.z = rel3.getZ();
         int order = EtherwarpWaypointsStore.nextOrder(ctx.room().name);
         String n = name == null || name.isBlank() ? "Waypoint " + order : name.trim();
         EtherwarpWaypointsStore.add(new EtherwarpWaypoint(null, n, ctx.room().name, relative.x, relative.y, relative.z, order));
@@ -249,7 +259,8 @@ public final class EtherwarpFeature {
         EtherwarpWaypoint best = null;
         double bestSq = Double.MAX_VALUE;
         for (EtherwarpWaypoint w : saved) {
-            BlockPos real = RoomDatabase.toRealCoord(toPos(w), ctx.clayX(), ctx.clayZ(), ctx.rotation());
+            BlockPos real = com.killer560.hub.puzzlesolvers.PuzzleCoords.real(toPos(w),
+                    new int[]{ctx.clayX(), ctx.clayZ(), ctx.rotation()});
             double d = client.player.distanceToSqr(real.getX() + 0.5, real.getY() + 0.5, real.getZ() + 0.5);
             if (d < bestSq) {
                 bestSq = d;

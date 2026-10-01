@@ -65,9 +65,32 @@ public final class RouteCoords {
         };
     }
 
+    /**
+     * How far a stored route's heights have to move to land on the floor the sim actually built.
+     *
+     * <p>None of these four transforms touched y, which is correct on Hypixel - every dungeon floor is at the
+     * same height there, so a relative y IS a world y. The sim shifts the whole map by one offset per build
+     * ({@code SimAltitude}: normally the lowest block one above the void, or top-aligned when the floor holds
+     * Higher Blaze), and that offset is DIFFERENT for different floors. So without this:
+     *
+     * <ul>
+     *   <li>a route recorded on Hypixel replayed in the sim aims at Hypixel's height - under the floor or in
+     *       the air, depending which way that build was shifted;</li>
+     *   <li>a route recorded in the sim stores a shifted height as though it were relative, so it is wrong on
+     *       Hypixel AND wrong in the sim's own next build, whose offset is not the same number.</li>
+     * </ul>
+     *
+     * <p>Carrying it in both directions makes a stored route mean the same thing wherever it was recorded.
+     * Zero outside the sim, so a real run is unchanged - the same
+     * {@link com.killer560.hub.livemap.DungeonLayout#simYOffset()} {@code PuzzleCoords} and the waypoints use.
+     */
+    private static int shift() {
+        return com.killer560.hub.livemap.DungeonLayout.simYOffset();
+    }
+
     public static Vec3 toReal(Frame f, double rx, double ry, double rz) {
         double[] r = rotate(rx, rz, f.rotation());
-        return new Vec3(r[0] + f.clayX(), ry, r[1] + f.clayZ());
+        return new Vec3(r[0] + f.clayX(), ry + shift(), r[1] + f.clayZ());
     }
 
     public static Vec3 toReal(Frame f, Vec3 relative) {
@@ -87,21 +110,21 @@ public final class RouteCoords {
         // a room the generator had turned a quarter turn came out mirrored around the clay corner, which is
         // half of all rooms, and the error is invisible in a square room recorded near its middle.
         double[] r = rotate(x - f.clayX(), z - f.clayZ(), -f.rotation());
-        return new Vec3(r[0], y, r[1]);
+        return new Vec3(r[0], y - shift(), r[1]);
     }
 
     /** Real block for a room-relative block - the real {@link RoomDatabase#toRealCoord}, not a re-implementation. */
     public static BlockPos toRealBlock(Frame f, BlockPos relative) {
         RoomEntry.Pos p = new RoomEntry.Pos();
         p.x = relative.getX();
-        p.y = relative.getY();
+        p.y = relative.getY() + shift();
         p.z = relative.getZ();
         return RoomDatabase.toRealCoord(p, f.clayX(), f.clayZ(), f.rotation());
     }
 
     public static BlockPos toRelativeBlock(Frame f, BlockPos real) {
         RoomEntry.Pos p = RoomDatabase.toRelativeCoord(real, f.clayX(), f.clayZ(), f.rotation());
-        return new BlockPos(p.x, p.y, p.z);
+        return new BlockPos(p.x, p.y - shift(), p.z);
     }
 
     /** Real-world yaw equivalent of a stored relative yaw. Wrapped, because it is only ever a TARGET that the

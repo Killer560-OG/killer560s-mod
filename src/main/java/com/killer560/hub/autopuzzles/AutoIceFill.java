@@ -95,7 +95,12 @@ final class AutoIceFill {
             return;
         }
         LocalPlayer player = client.player;
-        if (cfg.isEtherwarpReposition() && (player.getY() < 69.5 || player.getY() > 72.5)) {
+        // 69.5..72.5 is the ROOM-RELATIVE band of this room's three ice levels, and the sim shifts every room
+        // vertically. Without the shift the test read "he is nowhere near the ice" on every sim floor and Auto
+        // Ice Fill spent the room warping onto the first unfilled tile instead of walking the path. Zero on a
+        // real run - the same DungeonLayout.simYOffset() every height in this mod goes through.
+        double floor = com.killer560.hub.livemap.DungeonLayout.simYOffset();
+        if (cfg.isEtherwarpReposition() && (player.getY() < 69.5 + floor || player.getY() > 72.5 + floor)) {
             if (AutoPuzzleUtil.isMoving(player)) {
                 return;
             }
@@ -183,21 +188,32 @@ final class AutoIceFill {
         return updated;
     }
 
-    /** QUOI stupidStairs: add a midpoint before the first point at y 71.1 and before the first at y 72.1. */
+    /**
+     * QUOI stupidStairs: add a midpoint before the first point at y 71.1 and before the first at y 72.1.
+     *
+     * <p>Both heights carry the sim's floor shift. 71.1 and 72.1 are Hypixel heights for the two steps up out
+     * of this room's basin, and the path these are matched against is built from the solver's own real
+     * positions - which in the sim are shifted by {@code SimAltitude.offset()} like everything else. Without
+     * the shift neither comparison could ever be true in there, so both midpoints were silently dropped and the
+     * walk tried to climb the steps without them.
+     */
     private static List<Vec3> stupidStairs(List<Vec3> points) {
         if (points.isEmpty()) {
             return points;
         }
+        double shift = com.killer560.hub.livemap.DungeonLayout.simYOffset();
+        double first = 71.1 + shift;
+        double second = 72.1 + shift;
         List<Vec3> updated = new ArrayList<>(points.size() + 2);
         Vec3 lastPoint = points.get(0);
         boolean added71 = false;
         boolean added72 = false;
         for (Vec3 point : points) {
-            if (!added71 && Math.abs(point.y - 71.1) < EPS) {
-                updated.add(new Vec3((lastPoint.x + point.x) / 2, 71.1, (lastPoint.z + point.z) / 2));
+            if (!added71 && Math.abs(point.y - first) < EPS) {
+                updated.add(new Vec3((lastPoint.x + point.x) / 2, first, (lastPoint.z + point.z) / 2));
                 added71 = true;
-            } else if (!added72 && Math.abs(point.y - 72.1) < EPS) {
-                updated.add(new Vec3((lastPoint.x + point.x) / 2, 72.1, (lastPoint.z + point.z) / 2));
+            } else if (!added72 && Math.abs(point.y - second) < EPS) {
+                updated.add(new Vec3((lastPoint.x + point.x) / 2, second, (lastPoint.z + point.z) / 2));
                 added72 = true;
             }
             updated.add(point);

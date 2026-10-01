@@ -139,7 +139,12 @@ public final class TeleportMazeSolverFeature {
             return;
         }
         Vec3 pos = packet.change().position();
-        if (pos.x % 0.5 != 0.0 || pos.y != 69.5 || pos.z % 0.5 != 0.0) {
+        // 69.5 IS A ROOM-RELATIVE HEIGHT. Every maze teleport on Hypixel lands half a block over the chamber
+        // floor, and that floor is at the same y in every dungeon - so the bare literal is right there and
+        // nowhere else. The sim shifts the whole map (SimAltitude), so this test rejected every teleport it
+        // made and the solver never marked a pad visited or worked out a candidate. Zero outside the sim.
+        if (pos.x % 0.5 != 0.0 || pos.z % 0.5 != 0.0
+                || pos.y != 69.5 + com.killer560.hub.livemap.DungeonLayout.simYOffset()) {
             return;
         }
         float yaw = packet.change().yRot();

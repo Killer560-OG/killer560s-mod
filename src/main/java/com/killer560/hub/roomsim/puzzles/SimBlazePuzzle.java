@@ -16,6 +16,7 @@ import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import com.killer560.hub.compat.McEntities;
 
@@ -97,6 +98,73 @@ public final class SimBlazePuzzle {
     private static net.minecraft.network.chat.Component blazeLabel(float health) {
         int hp = (int) health;
         return net.minecraft.network.chat.Component.literal("[Lv1] Blaze " + hp + "/" + hp + "\u2764");
+    }
+
+    /** Blaze UUID -> the armour stand carrying its label, so a dead blaze's label dies with it. */
+    private static final Map<UUID, UUID> LABEL_STANDS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Hangs the label on an ARMOUR STAND over the blaze, which is the only thing the solver looks at.
+     *
+     * <p>killer560 (2026-10-01): "auto blaze wanted to look towards the middle" - and then nothing. This is why.
+     * {@code BlazeSolverFeature.rescan} begins:
+     *
+     * <pre>  for (Entity entity : client.level.entitiesForRendering()) {
+     *      if (!(entity instanceof ArmorStand)) continue;</pre>
+     *
+     * so a name set on the Blaze itself is invisible to it however well it matches the pattern. The solver
+     * therefore found zero blazes in the sim, and {@code AutoBlaze} reads nothing BUT
+     * {@code getOrderedBlazes()} - its very first line. What he saw was {@code seedDefaultView}, which runs
+     * before the empty-list check, turning him towards the middle; everything after that was skipped.
+     *
+     * <p>This is also how the real room is built - Hypixel renders a mob's name on a separate stand - and how
+     * {@code SimMobs} already tags its starred mobs, so the shape is proven rather than invented. The blaze keeps
+     * its own custom name as well: it costs nothing, and it is what shows if a stand is ever missing.
+     *
+     * <p><b>The one dial here, said out loud.</b> The stand sits just above the blaze, which is
+     * {@code SimMobs}' own star-tag placement and the only one in this codebase shown not to swallow a kill.
+     * Both the solver's highlight and Auto Blaze's aim are RECONSTRUCTED from the stand with offsets Odin tuned
+     * against Hypixel's own stand geometry - {@code getBoundingBox().inflate(0.5, 1.0, 0.5).move(0, -1, 0)} for
+     * the box, and {@code boundingBox.getCenter().y - 1.0} for the aim - and that geometry cannot be measured
+     * from a capture, because a stand is an entity. So if the highlight reads as too tall or Auto Blaze shoots
+     * over the blazes, the height on the line below is the dial, and nothing else needs touching.
+     */
+    private static void attachLabel(ServerLevel level, Entity blaze, float health) {
+        net.minecraft.world.entity.decoration.ArmorStand tag =
+                new net.minecraft.world.entity.decoration.ArmorStand(level,
+                        blaze.getX(), blaze.getY() + blaze.getBbHeight() + 0.1, blaze.getZ());
+        tag.setInvisible(true);
+        tag.setNoGravity(true);
+        tag.setNoBasePlate(true);
+        tag.setInvulnerable(true);
+        tag.setCustomName(blazeLabel(health));
+        tag.setCustomNameVisible(true);
+        if (level.addFreshEntity(tag)) {
+            LABEL_STANDS.put(blaze.getUUID(), tag.getUUID());
+        }
+    }
+
+    /** Takes a blaze's label away - called the tick its blaze is found dead, so the solver stops counting it. */
+    private static void dropLabel(ServerLevel level, UUID blazeId) {
+        UUID tagId = LABEL_STANDS.remove(blazeId);
+        if (tagId == null) {
+            return;
+        }
+        Entity tag = level.getEntity(tagId);
+        if (tag != null) {
+            tag.discard();
+        }
+    }
+
+    /** Every label stand this arena put up, dropped with the arena. */
+    private static void dropAllLabels(ServerLevel level) {
+        for (UUID tagId : List.copyOf(LABEL_STANDS.values())) {
+            Entity tag = level.getEntity(tagId);
+            if (tag != null) {
+                tag.discard();
+            }
+        }
+        LABEL_STANDS.clear();
     }
 
     /** Indices into {@link #HEALTHS} and the chain positions, sorted by health DESCENDING - the real Lower Blaze
@@ -199,6 +267,8 @@ public final class SimBlazePuzzle {
                     continue;
                 }
                 byPlacement[i] = blaze.getUUID();
+            // The label the SOLVER reads lives on its own armour stand - see attachLabel.
+            attachLabel(level, blaze, HEALTHS[i]);
             }
             List<UUID> ordered = new ArrayList<>(HEALTHS.length);
             for (int idx : killOrder(higher)) {
@@ -316,6 +386,8 @@ public final class SimBlazePuzzle {
                 continue;
             }
             byPlacement[i] = blaze.getUUID();
+            // The label the SOLVER reads lives on its own armour stand - see attachLabel.
+            attachLabel(level, blaze, HEALTHS[i]);
         }
         List<UUID> ordered = new ArrayList<>(HEALTHS.length);
         int[] order = killOrder(higher);
@@ -377,7 +449,9 @@ public final class SimBlazePuzzle {
      */
     public static void forget() {
         // The blazes themselves are entities in a level that is about to be wiped and rebuilt, so they go
-        // with it - nothing is discarded here, which is the whole point of forget().
+        // with it - nothing is discarded here, which is the whole point of forget(). Their label stands go the
+        // same way, so the map of them is only dropped, never walked.
+        LABEL_STANDS.clear();
         spawnedIds = List.of();
         nextRequired = 0;
         complete = false;
@@ -415,6 +489,9 @@ public final class SimBlazePuzzle {
                     entity.discard();
                 }
             }
+            // And their labels, which are separate entities - a stand left standing keeps the solver counting a
+            // blaze that is not there any more.
+            dropAllLabels(level);
         });
     }
 
@@ -442,6 +519,7 @@ public final class SimBlazePuzzle {
         ServerLevel level = server.overworld();
         int idx = nextRequired;
         while (idx < ids.size() && isDead(level, ids.get(idx))) {
+            dropLabel(level, ids.get(idx));
             idx++;
         }
         if (idx > nextRequired) {

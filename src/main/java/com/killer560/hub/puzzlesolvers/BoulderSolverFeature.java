@@ -4,7 +4,6 @@ import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.killer560.hub.livemap.LiveMapFeature;
-import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -134,15 +133,20 @@ public final class BoulderSolverFeature {
         if (level == null) {
             return false;
         }
+        // THROUGH PuzzleCoords, not RoomDatabase directly. killer560 (2026-10-01): "boulder is very broken
+        // looking" / "the buttons still dont push them."
+        //
+        // toRealCoord passes y straight through, so a room-relative 66 comes out as world 66 - correct on
+        // Hypixel, where the two are the same number, and wrong by the whole of SimAltitude.offset() in the
+        // dungeon sim. This solver read the arrangement out of empty air at y 66 (giving all-air, which matches
+        // no bundled pattern and so showed nothing) and would have drawn its boxes a hundred blocks under the
+        // room. PuzzleCoords.real is the shared transform that carries the shift, and every other solver in this
+        // package already goes through it; these three calls were the last ones that did not.
+        int[] cr = {clayX, clayZ, rotationDegrees};
         StringBuilder key = new StringBuilder(42);
         for (int z = 24; z >= 9; z -= 3) {
             for (int x = 24; x >= 6; x -= 3) {
-                RoomEntry.Pos relative = new RoomEntry.Pos();
-                relative.x = x;
-                relative.y = 66;
-                relative.z = z;
-                BlockPos real = RoomDatabase.toRealCoord(relative, clayX, clayZ, rotationDegrees);
-                key.append(level.getBlockState(real).isAir() ? '0' : '1');
+                key.append(level.getBlockState(PuzzleCoords.real(x, 66, z, cr)).isAir() ? '0' : '1');
             }
         }
         List<List<Integer>> solution = SOLUTIONS.get(key.toString());
@@ -152,16 +156,8 @@ public final class BoulderSolverFeature {
         }
         List<BoxPosition> positions = new ArrayList<>();
         for (List<Integer> sol : solution) {
-            RoomEntry.Pos renderPos = new RoomEntry.Pos();
-            renderPos.x = sol.get(0);
-            renderPos.y = 65;
-            renderPos.z = sol.get(1);
-            RoomEntry.Pos clickPos = new RoomEntry.Pos();
-            clickPos.x = sol.get(2);
-            clickPos.y = 65;
-            clickPos.z = sol.get(3);
-            BlockPos render = RoomDatabase.toRealCoord(renderPos, clayX, clayZ, rotationDegrees);
-            BlockPos click = RoomDatabase.toRealCoord(clickPos, clayX, clayZ, rotationDegrees);
+            BlockPos render = PuzzleCoords.real(sol.get(0), 65, sol.get(1), cr);
+            BlockPos click = PuzzleCoords.real(sol.get(2), 65, sol.get(3), cr);
             positions.add(new BoxPosition(new AABB(render), click));
         }
         currentPositions = positions;

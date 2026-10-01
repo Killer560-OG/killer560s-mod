@@ -140,6 +140,7 @@ public final class SimCreeperPuzzle {
         }
         Integer idx = lanternToPairIndex.get(pos);
         if (idx == null) {
+            sayNotAPairLantern(client, pos);
             return false;
         }
         // THREE TICKS before the same lantern answers again.
@@ -157,6 +158,76 @@ public final class SimCreeperPuzzle {
         lastPickTick.put(pos.immutable(), now);
         pick(client, idx, pos.immutable());
         return true;
+    }
+
+    /**
+     * Says so when he shoots a sea lantern that is not one of the puzzle's, once per lantern.
+     *
+     * <p>Decoding the capture settles that this is a real thing to be confused by rather than a bug: the room
+     * holds <b>35</b> lantern blocks and only <b>22</b> of them are in {@code creeper-beams-solutions.json}'s
+     * eleven pairs. The other thirteen are the room's own sea lanterns, in the walls and floor, and they are
+     * there on Hypixel too - so shooting one does nothing there either. What the sim can do that the real room
+     * cannot is say which it was, instead of a shot that silently achieves nothing. (The solver's coloured boxes
+     * mark the twenty-two while it is on; this is for when it is not.)
+     */
+    private static void sayNotAPairLantern(Minecraft client, BlockPos pos) {
+        // IN THIS ROOM, and a lantern, before the "said once" set is touched at all.
+        //
+        // tryConnectAt runs for EVERY left click anywhere in the sim (SimItems owns that callback), so without
+        // the range test a decorative sea lantern in some other room would be told it is not part of a beam
+        // pair - which is true and useless. And testing the block first keeps the set from churning on every
+        // ordinary block he hits: a cancelled break re-enters that callback every tick.
+        BlockPos origin = storedOrigin;
+        if (lanternToPairIndex.isEmpty() || client.level == null || origin == null
+                || pos.distSqr(origin) > SAME_ROOM_RANGE_SQR) {
+            return;
+        }
+        BlockState state = client.level.getBlockState(pos);
+        if (!state.is(Blocks.SEA_LANTERN) && !state.is(Blocks.PRISMARINE)) {
+            return;
+        }
+        if (!NOT_A_PAIR_SAID.add(pos.immutable())) {
+            return;
+        }
+        com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.dim(
+                "That lantern is not part of a beam pair - this room has 13 of those as well as the 22 that are."));
+    }
+
+    /** Far enough to cover the whole Creeper Beams room from any of its lanterns, and no further. */
+    private static final double SAME_ROOM_RANGE_SQR = 40.0 * 40.0;
+
+    private static final Set<BlockPos> NOT_A_PAIR_SAID = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * Hypixel's own two pitches for an elder guardian hurt sound at a shot lantern. Not invented here and not
+     * reverse-engineered for this - {@code AutoBeams.onSound} already carries them as QUOI's exact values:
+     * {@code 1.3968254f} is "first lantern of a pair registered", {@code 2.0f} is "pair completed".
+     */
+    private static final float FIRST_HIT_PITCH = 1.3968254f;
+    private static final float PAIR_DONE_PITCH = 2.0f;
+
+    /**
+     * The progress sound Auto Creeper Beams reads, played at the lantern that was just shot.
+     *
+     * <p>killer560 (2026-10-01): "auto creeper beams would look down and teleport and that was it." Two faults,
+     * and this is the second. {@code AutoBeams} does not watch the blocks at all: it advances a pair's stage
+     * ONLY when a {@code ClientboundSoundPacket} for {@code entity.elder_guardian.hurt} arrives at the exact
+     * lantern it just shot, with one of the two pitches above. That is how the real room reports a hit, and the
+     * sim was reporting nothing - so even with the aim fixed it would have shot the first lantern forever and
+     * never moved on to the second.
+     *
+     * <p>Played at INTEGER coordinates on purpose. {@code AutoBeams.onSound} compares the packet's position to
+     * the lantern's {@code BlockPos} component by component, and a sound played at a block's centre would arrive
+     * as {@code x + 0.5} and never match.
+     */
+    private static void hitSound(Minecraft client, BlockPos pos, float pitch) {
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        server.execute(() -> server.overworld().playSound(null, pos.getX(), pos.getY(), pos.getZ(),
+                net.minecraft.sounds.SoundEvents.ELDER_GUARDIAN_HURT.value(),
+                net.minecraft.sounds.SoundSource.BLOCKS, 1.0f, pitch));
     }
 
     /** Ticks a lantern ignores a second hit, so one held shot is one answer - see {@link #tryConnectAt}. */
@@ -185,13 +256,12 @@ public final class SimCreeperPuzzle {
         if (held == null) {
             pendingIndex = idx;
             pendingPos = pos;
-            setLantern(client, pos, true);
+            hitSound(client, pos, FIRST_HIT_PITCH);
             com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.text("Beam held - "),
                     com.killer560.hub.util.ModChat.dim("now shoot the lantern it pairs with."));
             return;
         }
         if (held.equals(pos)) {
-            setLantern(client, held, false);
             pendingPos = null;
             pendingIndex = -1;
             com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.dim("Beam dropped."));
@@ -200,29 +270,35 @@ public final class SimCreeperPuzzle {
         if (idx == pendingIndex) {
             pendingPos = null;
             pendingIndex = -1;
+            hitSound(client, pos, PAIR_DONE_PITCH);
             connectPair(client, idx);
             return;
         }
-        setLantern(client, held, false);
         pendingPos = null;
         pendingIndex = -1;
         com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.bad("Not that pair"),
                 com.killer560.hub.util.ModChat.dim(" - the beam goes out."));
     }
 
-    /** The lantern this run is holding, and its pair, or null/-1 when nothing is held. */
+    /**
+     * The lantern this run is holding, and its pair, or null/-1 when nothing is held.
+     *
+     * <p><b>A HELD LANTERN IS STILL A SEA LANTERN.</b> killer560 (2026-10-01): "For creeper beams lanters still
+     * are messed up i am not even sure what all is wrong but it is just wrong."
+     *
+     * <p>Holding used to turn the lantern to {@code PRISMARINE}, and that is the one thing it must never do.
+     * {@code BeamsSolverFeature.rescan} reads exactly that difference, and it reads it as the FAILURE state:
+     *
+     * <pre>  litA != litB && (usedUp(a) || usedUp(b))  ->  misaligned, paint both ends RED</pre>
+     *
+     * <p>which is its "one of this pair was burned on the wrong partner and can never be finished". So the first
+     * correct shot of every pair made his own solver light that pair up red and draw a red line across the room -
+     * the exact opposite of what had just happened. The hold is this class's bookkeeping, not a change to the
+     * room, so it is drawn by {@link #registerRender} instead and the block is left alone until the pair is
+     * actually joined.
+     */
     private static volatile BlockPos pendingPos = null;
     private static volatile int pendingIndex = -1;
-
-    /** Turns one lantern on (prismarine, lit) or back off (sea lantern). */
-    private static void setLantern(Minecraft client, BlockPos pos, boolean on) {
-        MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
-        server.execute(() -> server.overworld().setBlockAndUpdate(pos,
-                (on ? Blocks.PRISMARINE : Blocks.SEA_LANTERN).defaultBlockState()));
-    }
 
     /**
      * The beams themselves, drawn between the two ends of every joined pair.
@@ -239,6 +315,13 @@ public final class SimCreeperPuzzle {
                     List<Pair> world = worldPairs;
                     if (!SimState.canAct(Minecraft.getInstance()) || c.length == 0 || world.isEmpty()) {
                         return;
+                    }
+                    // The held end, drawn rather than built. See pendingPos: changing the block is what made
+                    // BeamsSolverFeature call a correct first shot a misaligned pair.
+                    BlockPos held = pendingPos;
+                    if (held != null) {
+                        com.killer560.hub.puzzlesolvers.SolverEspRender.renderWaypoint(context,
+                                new net.minecraft.world.phys.AABB(held), 1.0f, 1.0f, 0.4f, 2f);
                     }
                     for (int i = 0; i < c.length && i < world.size(); i++) {
                         if (!c[i]) {
@@ -388,6 +471,7 @@ public final class SimCreeperPuzzle {
         storedOrigin = null;
         built = false;
         lastPickTick.clear();
+        NOT_A_PAIR_SAID.clear();
         pendingPos = null;
         pendingIndex = -1;
     }

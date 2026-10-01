@@ -239,6 +239,18 @@ public final class WeirdosSolverFeature {
         return wrongPositions.size();
     }
 
+    /**
+     * Forgets this room's answer so a fresh set of three lines can be read.
+     *
+     * <p>The same {@link #reset} the room change does, exposed for the dungeon sim. A real Three Weirdos is
+     * answered once and never speaks again, so the solver has never had to cope with a second round in one
+     * room - but the sim's version hands out a new round after a wrong chest, and without this the previous
+     * round's correct chest and both its wrong chests were still highlighted alongside the new ones.
+     */
+    public static void clearForNewRound() {
+        reset();
+    }
+
     private static void reset() {
         correctPos = null;
         wrongPositions.clear();

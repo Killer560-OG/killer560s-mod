@@ -1063,3 +1063,267 @@ block break re-enters `AttackBlockCallback` every TICK rather than once per clic
 callback, so one held shot picked a lantern, cancelled it and picked it again twenty times a second. From in
 front of it that is a lantern that mostly does not respond. Three ticks of per-position cooldown, and the
 repeat is swallowed rather than passed on to a block break.
+
+## The one line that broke every solver in the sim
+
+`SimBuilder` publishes each room's clay corner and rotation to the live map, and every puzzle solver asks
+`LiveMapFeature.currentRoomClayAndRotation()` for them. It was publishing the **paste rotation** next to a corner
+computed for the **database rotation**:
+
+```java
+int[] clay = SimSecrets.clayCorner(room, gx, gz, rot);   // db rotation worked out internally - correct
+clayByRoom[nameIndex] = new int[]{clay[0], clay[1], rot}; // and then the PASTE rotation published beside it
+```
+
+`clayCorner`'s own doc spells the distinction out - the footprint follows the paste rotation, which corner the
+marker stands in follows the database rotation - and the two differ by the capture's own turn
+(`RoomCaptureRotation`) in 88 of the 122 identifiable rooms. So the solvers got a correct corner with a rotation
+a quarter or a half turn off it, and **every relative coordinate came out spun about that corner**.
+
+Decoded off the captures, with the paste rotation 0 that a single-room load always uses:
+
+| Room | Capture turn | Rotation published (was) |
+|---|---|---|
+| Water Board | 270 | 0 |
+| Creeper Beams | 0 | 0 |
+| Tic Tac Toe | 180 | 0 |
+| Boulder | 270 | 0 |
+| Quiz | 180 | 0 |
+| Three Weirdos | 270 | 0 |
+| Ice Fill | 270 | 0 |
+| Ice Path | 180 | 0 |
+| Teleport Maze | 0 | 0 |
+| Higher Blaze | 270 | 0 |
+| Lower Blaze | 90 | 0 |
+
+Nine of the eleven puzzle rooms were wrong. Only Creeper Beams and Teleport Maze, whose captures happen to be
+canonical, could ever have worked - which is exactly the pattern of "my solvers don't work in the sim" reports.
+Every one of those turns matches what `SimRoomPuzzles.bestAnchor` independently measured against the pasted
+blocks, so the two methods agree.
+
+`SimRoomIndex.add` has always computed it correctly, for Secret Waypoints - which is why the **waypoints landed
+while the solvers did not**, and the single best clue in hindsight. Both now use the same expression.
+
+Two follow-ons went in with it:
+
+- **`bestAnchor` can overrule the recovered turn, and now the map follows.** When a puzzle's own furniture scores
+  better at a different rotation, `SimRoomIndex.correct` re-records that room, and the publish (which runs after
+  `armFloor`) picks it up. Before, the puzzle moved and every solver's highlight stayed where it was.
+- **A per-room vertical nudge is published too.** Ice Fill's capture sits exactly one block low - decoded
+  against `ice-fill-floors.json`, 244 of 244 easy-path positions land on ice at `dy = -1` and **0 of 244** at
+  `dy = 0`. `bestAnchor` already found that and bound the puzzle correctly; the solver had no way to know and
+  drew its line a block above the ice. `SimRoomPuzzles.dyFor` publishes it and `PuzzleCoords` is the one place
+  that applies it, so every solver gets it and none carries a per-room constant.
+
+## Hypixel heights hardcoded where the sim moves the floor
+
+`PuzzleCoords` carries the floor shift for everything that goes through it. Five places did not go through it,
+and each one failed silently:
+
+| Where | Was | Symptom |
+|---|---|---|
+| `AutoBeams` | `player.getY() != 75.0` | "auto creeper beams would look down and teleport and that was it" - it repositioned onto the platform, re-read 75, and repositioned again |
+| `AutoWater` | `player.getY() != 59.0` | every lever click declined, no message |
+| `AutoBlaze` | `player.getY() <= 75` | Higher Blaze skipped its reposition instead of repeating it |
+| `AutoIceFill` | `69.5..72.5` band, and `stupidStairs`' 71.1 / 72.1 | warped onto the first unfilled tile instead of walking; both stair midpoints dropped |
+| `TeleportMazeSolverFeature` | `pos.y != 69.5` | the solver rejected every teleport the sim made, so it never marked a pad visited or found a candidate |
+
+`BoulderSolverFeature` was reaching past `PuzzleCoords` to `RoomDatabase.toRealCoord` directly for all three of
+its coordinates, so it read the arrangement out of empty air (all-air matches no bundled pattern, hence nothing
+drawn) and would have put its boxes a hundred blocks under the room. `AutoBoulder`, `AutoBlaze` and
+`AutoTicTacToe` did the same for a secret's position, which is why their chest side-trips walked to nowhere -
+`PuzzleCoords` now has a `RoomEntry.Pos` overload so there is no reason to reach past it.
+
+`RouteCoords` did not carry it in either direction, so an Auto Route recorded on Hypixel aimed at Hypixel's
+height in the sim, and one recorded in the sim stored a shifted height as though it were relative - wrong on
+Hypixel *and* wrong in the sim's own next build, because the offset is chosen per floor. Both directions carry
+it now, which makes a stored route mean the same thing wherever it was recorded.
+
+## Auto puzzles: the sim's Terminator was not a shortbow
+
+"the auto puzzles none were working except auto blaze wanted to look towards the middle."
+
+Auto Creeper Beams, Auto Ice Path and Auto Blaze all gate their shot on `AutoPuzzleUtil.isShortbow`, which is a
+lore search for the single line **`Shortbow: Instantly shoots!`** - how Hypixel marks every shortbow, Terminator
+included. `SimItemLore`'s Terminator did not have it. So all three ran their aim and then declined to fire, and
+Auto Blaze stopping with the crosshair on the middle blaze is precisely what that looks like.
+`AutoReposition`'s own swap-to-a-bow was failing for the same reason.
+
+## Teleport Maze: the start pad was the one pad nothing indexed
+
+"The teleport pads in tpmaze still arent teleporting me."
+
+The seven chambers are sealed - the capture holds **240 iron bars** and a solid stone brick wall at relative
+`(12,69,13)`, right between the start pad and chamber one - so the start pad at `(15,69,12)` is the only way in,
+exactly as on Hypixel. `bindAt` indexed `REAL_PADS[0..27]`, the twenty-eight choice pads, and stopped. He stood
+outside a sealed maze with nothing to step on, and every pad that would have worked was behind a wall.
+
+Maze teleports also now land at `y + 1.5` rather than `y + 1`. That half block is not cosmetic: the solver only
+treats a position packet as a maze teleport when it lands on room-relative `y 69.5`, which is what every real
+Hypixel maze teleport does, and works out the exit from the yaw of exactly those packets.
+
+## Tic Tac Toe: the marks were painted where the solver never looks
+
+The real board's nine marks are maps in item frames. An item frame is an entity, so a block capture cannot hold
+one and the sim has nothing to paste - it writes concrete instead. It was writing it on the **wall at relative
+`x=7`**, to keep the buttons standing at `x=8`. `TicTacToeSolverFeature` reads the board at `x=8` and nowhere
+else, so every mark was invisible to it and to Auto Tic Tac Toe with it.
+
+The mark now goes **on the cell**, which is also where its button is, so painting a mark and removing that cell's
+button are the same write instead of two that had to agree - and an unplayed cell is simply its button again,
+which is what the real board looks like and what makes it clickable. The solver reads those nine cells when it
+finds no item frames at all, so a real dungeon never takes that path.
+
+## Creeper Beams: a correct first shot was painted as a failure
+
+"For creeper beams lanters still are messed up i am not even sure what all is wrong but it is just wrong."
+
+Holding the first lantern of a pair turned it to `PRISMARINE`, and that is the one thing it must never do.
+`BeamsSolverFeature.rescan` reads exactly that difference, and reads it as the **failure** state:
+
+```java
+litA != litB && (usedUp(a) || usedUp(b))   ->  misaligned, paint both ends RED
+```
+
+its "one of this pair was burned on the wrong partner and can never be finished". So the first correct shot of
+every pair made his own solver light that pair up red and draw a red line across the room. The hold is the sim's
+bookkeeping, not a change to the room, so it is drawn by the puzzle's own renderer and the block is left alone
+until the pair is actually joined.
+
+The room also has **35** lantern blocks and only **22** of them are in the bundled eleven pairs. The other
+thirteen are the room's own sea lanterns and are there on Hypixel too, so shooting one does nothing there either
+- but the sim can say which it was instead of a shot that silently achieves nothing, and does, once per lantern.
+
+Auto Creeper Beams needed one more thing: it does not watch the blocks at all, it advances a pair's stage only
+when an `entity.elder_guardian.hurt` sound packet arrives at the exact lantern it just shot, with pitch
+`1.3968254` (first hit) or `2.0` (pair done). The sim plays both now, at **integer** coordinates - a sound at a
+block's centre arrives as `x + 0.5` and would never match.
+
+## Quiz: the question was announced from the corridor, and the solver wiped it
+
+"my quiz solver and auto quiz are still broken."
+
+`QuizSolverFeature` and `WeirdosSolverFeature` both do this on a room change:
+
+```java
+if (current != lastRoomEntry) { lastRoomEntry = current; reset(); }
+```
+
+and that `reset()` clears `triviaAnswers` and every `options[].correct`. The announce range is 22 blocks, which
+reaches well outside a one-tile room, so the question and its three ⓐ/ⓑ/ⓒ lines went out **while he was still in
+the corridor**. The solver read them and armed correctly - and then he stepped through the door, the room
+changed, and it wiped everything it had just learned. Nothing sends those lines again.
+
+The gate is now the live map's own answer, held steady: the room it names must be the bound room, with a resolved
+rotation, for three ticks running. Two is already enough to guarantee the solvers have done their reset before
+the first line arrives, because they run on `END_CLIENT_TICK` and this runs on `START`. A bound room the map
+cannot name at all falls back to distance after three seconds, with a line in the log saying so.
+
+Four more things came out of reading that solver against the sim's:
+
+- **A second question in the same room lit up two answers.** Hypixel always announces the previous question as
+  answered before asking the next, so the solver has never had to cope with two arriving back to back - and the
+  sim hands out a new question after a wrong answer. `clearForNewQuestion` / `clearForNewRound` are that line's
+  job, done by hand.
+- **The pillar buttons stopped working after a wrong answer.** `newQuestion`'s label-replacement branch clears
+  the whole click index, and in a bound Quiz room those twelve buttons are the only way to answer.
+- **The highlight was one block inside the pillar.** Decoding `Quiz.json` settles what the solver's three
+  coordinates name: at the capture's own rotation they land on `smooth_stone` with air above, each ringed by four
+  of the room's twelve wall buttons - all twelve. They are the little pillars Oruo's buttons hang off, not floor
+  to stand on, so the box goes on the block itself rather than the one under it.
+- **Auto Quiz was clicking the pillar.** A right-click on smooth stone does nothing. `getCorrectAnswerButton`
+  returns a button off the correct pillar's four sides, falling back to the pillar if a room has none.
+- **A standalone `/simpuzzle quiz` arena never spoke the server's format at all** - it announced with the three
+  options squashed onto one `[Sim] ...` row, which is exactly the shape the solver cannot read. Both paths share
+  one question now.
+
+Two smaller hardenings, both read off the solver rather than guessed: the sim only picks a question that
+`QuizSolverFeature`'s own first-contained-key scan resolves to itself (a question whose text contains an earlier
+entry's hands the solver the wrong answer list), and a distractor that merely **ends with** any of the question's
+correct answers is rejected, because the option test is `anyMatch(trimmed::endsWith)` over the whole list.
+
+## Boulder: a boulder is three blocks tall
+
+"boulder still has a bunch of random floating stone blocks on the top layer of the wood boulders and the buttons
+still dont push them."
+
+Decoding `Boulder.json`: 90 jungle and 72 birch planks on **each** of y 64, 65, 66, and nothing on 67. A boulder
+is a three-block plank column, the arrangement is sampled at its top (66), and all 31 stone buttons are at 65.
+So writing `Blocks.STONE` at 66 dropped a stone cap onto every real boulder and writing AIR there beheaded the
+ones the pattern did not want. It has to be written at all - this room's own arrangement,
+`011110001011000101100000010000101000001100`, is not one of the eight in `boulder-solutions.json` - but as whole
+boulders, in the room's own plank.
+
+The push had the same off-by-a-column fault: it moved one block, from y 65, so a press carved the middle out of
+a boulder and left its top and bottom standing. The clearance test only looked at y 65 too, so a neighbouring
+boulder's gap-free column read as "air" at the only height being checked and the roll walked through it.
+
+## Etherwarp onto the roof, and what the interactive map actually needs
+
+"somehow my etherwarp pathfound onto the roof of the dungeon while using interactive map."
+
+On Hypixel that cannot happen and nothing ever had to stop it: a real dungeon is a solid block of rock with rooms
+carved out of it, so there is no outside surface to stand on and no line of sight to one. The sim is the opposite
+shape - each room is pasted as its own captured column, rock above the ceiling included, and the **cells between
+the rooms are empty air** because nothing was captured there. So the sim's map is a cluster of rock towers with
+open sky over them and gaps to see out through, and a pathfinder whose moves are "etherwarp at anything you can
+see" will climb one.
+
+`TeleportUtils.underCover` tests the thing that is actually different: a landing inside the dungeon has the
+dungeon's own rock above it, a landing on top of one has nothing. Skipped within six blocks of floor height,
+which is where nearly every landing on a clear is, so the normal path costs nothing.
+
+"it doesn't need to go the exact spot that I click instead it just needs to go to that room, more specifically if
+that room is a 1x2 then it should go into that rooms quadrant that I clicked. It can choose anywhere in that room
+whatever is fastest." The fallback was `nearestEtherwarpable` on the tile centre - a 25-block sphere sorted by
+distance from that centre, which can leave the tile, pick a block 20 up, or land on a wall, and has no idea where
+the player is. `etherwarpableInTile` stays inside the clicked tile's own footprint, at that tile's floor height,
+and picks the candidate closest to him. A room override that turns out not to be standable now falls through to
+it rather than failing the whole press.
+
+## Blaze: the solver only looks at armour stands
+
+"auto blaze wanted to look towards the middle" - and then nothing. `BlazeSolverFeature.rescan` begins:
+
+```java
+for (Entity entity : client.level.entitiesForRendering()) {
+    if (!(entity instanceof ArmorStand)) continue;
+```
+
+so a name set on the Blaze itself is invisible to it however well it matches the pattern. The sim named the blaze.
+The solver therefore found **zero** blazes in there, and `AutoBlaze` reads nothing but `getOrderedBlazes()` - its
+very first line. What he saw was `seedDefaultView`, which runs before the empty-list check, turning him towards
+the middle; everything after that was skipped. The label hangs on its own stand now, the same way `SimMobs`
+already tags its starred mobs, and it is dropped the tick its blaze is found dead so the solver stops counting it.
+
+**One dial left, and it is written down rather than guessed.** Both the solver's highlight box and Auto Blaze's
+aim are reconstructed *from the stand*, with offsets Odin tuned against Hypixel's own stand geometry
+(`inflate(0.5, 1.0, 0.5).move(0, -1, 0)` for the box, `boundingBox.getCenter().y - 1.0` for the aim). That
+geometry cannot be measured from a capture, because a stand is an entity and a capture holds blocks. The stand is
+placed where `SimMobs` puts its star tags - just above the mob, the only placement in this codebase shown not to
+swallow a kill. If the highlight reads too tall or the auto shoots over the blazes, that height is the only thing
+to change; `attachLabel`'s doc says so at the call site.
+
+## A button has to be allowed to be a button
+
+`InteractionResult.SUCCESS` from a `UseBlockCallback` cancels the interaction. That is exactly right for a chest
+- it stops an empty chest screen opening - and exactly wrong for a button: the Quiz room's twelve pillar buttons
+and Tic Tac Toe's nine cell buttons never depressed and never clicked, so the only sign a press had registered
+was a chat line. Both now return PASS when the block they are on is a `ButtonBlock`, which is the same
+observe-never-consume rule `SimWaterPuzzle`'s levers and `SimBoulderPuzzle`'s buttons were already written to.
+
+## Verified against the captures this round
+
+Every claim these puzzles make about their room was re-decoded rather than taken from the comment above it:
+
+| Room | Claim | Measured |
+|---|---|---|
+| Quiz | three answer pillars ringed by the room's buttons | 3/3 smooth_stone with air above at rotation 180, 12 of 12 wall buttons accounted for |
+| Water Board | 7 levers, 27-piston back wall, 5 wool columns | 7/7 levers at 270; 27 pistons at z=28, 13 extended; wool at `(15,55,z)` with air at 56; the terracotta identifier marker present |
+| Creeper Beams | 22 lanterns in 11 pairs | 22 distinct over 13 entries (two are duplicates), 9 sea + 13 prismarine, plus 13 further sea lanterns in no pair |
+| Teleport Maze | 30 pads, sealed chambers | 30 end_portal_frames, 240 iron bars, solid wall at `(12,69,13)` between the start pad and chamber one |
+| Tic Tac Toe | 8 of 9 buttons, the ninth already played | 8/9 at rotation 180 - the gap is **row 2, col 2**, the bottom right, exactly as reported |
+| Ice Path | 289 ice cells, one stray wall in the capture | 289/289 ice; 17 non-air at the wall layer against the corrected 16, the extra at `(15,16)` |
+| Ice Fill | the capture is a block low | 50/50 waypoints and 244/244 easy-path tiles on ice at `dy = -1`, **0** at `dy = 0` |
+| Three Weirdos | three chests moved to line the middle one up with the cauldron | chests at local `(25,69,12)/(26,69,14)/(25,69,17)`, cauldron at `(29,69,16)`; all three new spots have solid floor under them and three blocks of air over them |
+| Mines / Pressure Plates | one lever opens a whole wooden door | lever exactly at the recorded spot in both; Mines' region is 21 cells and holds 21 dark-oak/iron-bar blocks (y 78..84 is the whole door - 74..75 is a separate grate below the floor), Pressure Plates' is 30 cells and all 30 are oak |

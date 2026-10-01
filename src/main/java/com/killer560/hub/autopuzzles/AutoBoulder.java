@@ -4,7 +4,6 @@ import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.livemap.autoclear.AutoClearUtils;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import com.killer560.hub.puzzlesolvers.PuzzleCoords;
-import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
@@ -131,8 +130,10 @@ final class AutoBoulder {
         standRel.x = chestRel.x;
         standRel.y = chestRel.y + 3;
         standRel.z = chestRel.z - 3;
-        chestReal = RoomDatabase.toRealCoord(chestRel, cr[0], cr[1], cr[2]);
-        standReal = RoomDatabase.toRealCoord(standRel, cr[0], cr[1], cr[2]);
+        // PuzzleCoords, not RoomDatabase: a secret's database y is a Hypixel height and the sim shifts the
+        // whole floor. Walking to the raw coordinate aimed tens of blocks off the room in there.
+        chestReal = PuzzleCoords.real(chestRel, cr);
+        standReal = PuzzleCoords.real(standRel, cr);
         int[] exitRel = AutoClearUtils.roomOverride(ROOM);
         exitReal = exitRel == null ? null : PuzzleCoords.real(exitRel[0], exitRel[1], exitRel[2], cr);
         legStartMs = System.currentTimeMillis();

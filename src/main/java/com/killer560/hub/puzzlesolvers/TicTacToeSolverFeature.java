@@ -116,6 +116,15 @@ public final class TicTacToeSolverFeature {
             }
         }
 
+        if (validFrames == 0) {
+            // THE SIM HAS NO MAPS. The real board's nine marks are maps in item frames, and an item frame is an
+            // entity - a room capture holds blocks and nothing else, so the dungeon sim has no way to paste them
+            // and this scan finds nothing at all in there. Its board writes its marks as concrete on the same
+            // nine cells instead (SimTicTacToePuzzle), which is the one thing this scan can be taught to read
+            // without a second notion of where the board is. Only reached when there were no frames, so a real
+            // dungeon never takes this path.
+            validFrames = readSimBoard(level, cr, board);
+        }
         if (getScore(board) != 0 || validFrames == 9) {
             reset();
             return;
@@ -192,6 +201,32 @@ public final class TicTacToeSolverFeature {
 
     private static BlockPos indexToPos(int i, int[] cr) {
         return PuzzleCoords.real(8, 72 - (i / 3), 17 - (i % 3), cr);
+    }
+
+    /**
+     * The dungeon sim's board, read off the nine cells themselves.
+     *
+     * <p>Same nine coordinates, same {@code row = 72 - y} / {@code col = 17 - z} indexing, same two marks - only
+     * the medium differs: red concrete is the computer's X and lime concrete is the player's O, which is what
+     * {@code SimTicTacToePuzzle} writes. An unplayed cell is the room's own stone button and counts as empty.
+     *
+     * @return how many cells are marked, which is what the turn test needs
+     */
+    private static int readSimBoard(ClientLevel level, int[] cr, char[] board) {
+        int marks = 0;
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                BlockPos cell = PuzzleCoords.real(8, 72 - row, 17 - col, cr);
+                var state = level.getBlockState(cell);
+                char mark = state.is(com.killer560.hub.compat.McBlocks.RED_CONCRETE) ? 'X'
+                        : state.is(com.killer560.hub.compat.McBlocks.LIME_CONCRETE) ? 'O' : EMPTY;
+                if (mark != EMPTY) {
+                    board[row * 3 + col] = mark;
+                    marks++;
+                }
+            }
+        }
+        return marks;
     }
 
     private static Integer getBestMove(char[] board, boolean isPlayer) {

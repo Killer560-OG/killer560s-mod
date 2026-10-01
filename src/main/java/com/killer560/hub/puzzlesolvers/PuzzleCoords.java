@@ -30,18 +30,52 @@ public final class PuzzleCoords {
     public static BlockPos real(int x, int y, int z, int[] clayAndRotation) {
         RoomEntry.Pos relative = new RoomEntry.Pos();
         relative.x = x;
-        relative.y = y + com.killer560.hub.livemap.DungeonLayout.simYOffset();
+        relative.y = y + com.killer560.hub.livemap.DungeonLayout.simYOffset() + simRoomNudge();
         relative.z = z;
         return RoomDatabase.toRealCoord(relative, clayAndRotation[0], clayAndRotation[1], clayAndRotation[2]);
+    }
+
+    /**
+     * A single room's own measured vertical correction, on top of the whole floor's shift.
+     *
+     * <p>Almost always zero, and zero on every real run. One capture in the sim's library sits a block off the
+     * reference the bundled puzzle data was measured in - Ice Fill, where all 244 of the easy path's positions
+     * land on ice one block down and none of them at the solver's own y - so the puzzle binds there and the
+     * solver, which had no way to know, drew its line one block above the ice. {@code SimRoomPuzzles} measures
+     * that nudge when it binds and publishes it by room name; this is the one place that reads it, so every
+     * solver gets it at once and none of them carries a per-room constant.
+     *
+     * <p>Keyed on the room he is standing in, which is also the room every caller of this class passes the
+     * clay corner of - they all take it from {@code LiveMapFeature.currentRoomClayAndRotation()}.
+     */
+    private static int simRoomNudge() {
+        if (!com.killer560.hub.roomsim.SimState.isActive()) {
+            return 0;
+        }
+        RoomEntry room = com.killer560.hub.livemap.LiveMapFeature.currentRoomEntry();
+        return room == null ? 0 : com.killer560.hub.roomsim.SimRoomPuzzles.dyFor(room.name);
     }
 
     public static BlockPos real(BlockPos relative, int[] clayAndRotation) {
         return real(relative.getX(), relative.getY(), relative.getZ(), clayAndRotation);
     }
 
+    /**
+     * The same, for a database {@link RoomEntry.Pos} - which is the shape a SECRET's coordinates come in.
+     *
+     * <p>Added because three of the autos reached past this class and called {@code toRealCoord} directly on a
+     * secret position ({@code AutoBoulder}'s chest and standing spot, {@code AutoBlaze}'s nearest secret,
+     * {@code AutoTicTacToe}'s chest), which is the one call that does not carry the sim's floor shift. Every one
+     * of them walked to, and aura'd at, Hypixel's height.
+     */
+    public static BlockPos real(RoomEntry.Pos relative, int[] clayAndRotation) {
+        return real(relative.x, relative.y, relative.z, clayAndRotation);
+    }
+
     /** The inverse, undoing the same shift - see {@link #real(int, int, int, int[])}. */
     public static BlockPos relative(BlockPos real, int[] clayAndRotation) {
         RoomEntry.Pos pos = RoomDatabase.toRelativeCoord(real, clayAndRotation[0], clayAndRotation[1], clayAndRotation[2]);
-        return new BlockPos(pos.x, pos.y - com.killer560.hub.livemap.DungeonLayout.simYOffset(), pos.z);
+        return new BlockPos(pos.x,
+                pos.y - com.killer560.hub.livemap.DungeonLayout.simYOffset() - simRoomNudge(), pos.z);
     }
 }

@@ -19,6 +19,9 @@ import java.util.Map;
  */
 public final class AutoClearUtils {
 
+    private static final org.slf4j.Logger LOGGER =
+            com.killer560.hub.util.ModLog.get("killer560smod-interactivemap");
+
     private static final Map<String, int[]> ROOM_OVERRIDES = Map.ofEntries(
             Map.entry("Creeper Beams", new int[]{15, 68, 5}),
             Map.entry("Three Weirdos", new int[]{15, 68, 22}),
@@ -191,9 +194,26 @@ public final class AutoClearUtils {
             // or the override points at air a hundred blocks above the room.
             goal = RoomDatabase.toRealCoord(rel, cr[0], cr[1], cr[2])
                     .above(DungeonLayout.simYOffset());
+            // THE OVERRIDE IS A PREFERENCE, NOT A REQUIREMENT. killer560 (2026-10-01): "it doesn't need to go
+            // the exact spot that I click instead it just needs to go to that room [...] It can choose anywhere
+            // in that room whatever is fastest." An override that is not standable - the room's own geometry
+            // differs by a block, or the sim pasted something into that cell - used to fail the whole press
+            // ("Couldn't find goal position"), because findDungeonPath refuses a goal it cannot warp onto.
+            if (!TeleportUtils.etherwarpable(goal) || !TeleportUtils.underCover(goal)) {
+                LOGGER.info("[Path] {}'s recorded spot {} is not standable - using the nearest"
+                        + " standable block in the clicked tile instead", name, goal);
+                goal = null;
+            }
         }
-        if (goal == null) {
-            goal = TeleportUtils.nearestEtherwarpable(DungeonLayout.cellCenter(tileIdx));
+        if (goal == null && client.player != null) {
+            // INSIDE THE CLICKED TILE, nearest to him - see TeleportUtils.etherwarpableInTile for why the old
+            // 25-block sphere around the tile centre was the wrong search. Falls back to that sphere only when
+            // the tile holds no standable block at all, which is a room the map should not have offered.
+            BlockPos centre = DungeonLayout.cellCenter(tileIdx);
+            goal = TeleportUtils.etherwarpableInTile(centre, client.player.position());
+            if (goal == null) {
+                goal = TeleportUtils.nearestEtherwarpable(centre);
+            }
         }
         if (goal == null) {
             ModChat.send(ClearExecutor.CHAT, ModChat.bad("Couldn't find goal position in "), ModChat.value(name));

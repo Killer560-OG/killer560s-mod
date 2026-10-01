@@ -254,9 +254,16 @@ public final class AutoPuzzlesFeature {
             return; // gate held this tick back - the question is not marked acted, we just click on a later tick
         }
         quizActed = true; // once per question, even if the click itself can't be built
-        if (!interactBlockNoRotate(client, answer)) {
+        // THE BUTTON, not the pillar. killer560 (2026-10-01): "auto quiz isnt workign on sim."
+        //
+        // The solver's three answer coordinates are the little smooth_stone pillars Oruo's buttons hang off -
+        // decoding Quiz.json puts four of the room's twelve wall buttons around each one, which is all twelve.
+        // Right-clicking the pillar itself does nothing in either the sim or a real dungeon, so this asks the
+        // solver which button to press and falls back to the pillar only if the room has none.
+        BlockPos click = QuizSolverFeature.getCorrectAnswerButton(client.level);
+        if (!interactBlockNoRotate(client, click)) {
             LOGGER.warn("[AutoPuzzles] Quiz: no clickable shape at {} (state={}) - not clicking this question",
-                    answer, client.level.getBlockState(answer));
+                    click, client.level.getBlockState(click));
             return;
         }
         ModChat.send(CHAT, ModChat.text("Quiz: clicked the "), ModChat.good("correct answer"), ModChat.text("."));

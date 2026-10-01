@@ -141,7 +141,14 @@ public final class SimQuizPuzzle {
                 return InteractionResult.PASS;
             }
             onChestClick(client, index);
-            return InteractionResult.SUCCESS;
+            // A BUTTON GETS TO BE A BUTTON. SUCCESS cancels the interaction, which is exactly right for a chest
+            // (it stops the empty chest screen opening) and wrong for the Quiz room's pillar buttons: it threw
+            // away vanilla's own press, so the button never depressed, never clicked, and the only sign anything
+            // had happened was a chat line. Same reasoning SimWaterPuzzle's levers and SimBoulderPuzzle's
+            // buttons already use - observe the click, never consume it.
+            return level.getBlockState(hitResult.getBlockPos())
+                    .getBlock() instanceof net.minecraft.world.level.block.ButtonBlock
+                    ? InteractionResult.PASS : InteractionResult.SUCCESS;
         });
     }
 
@@ -157,67 +164,26 @@ public final class SimQuizPuzzle {
             return;
         }
         reset();
+        // reset() keeps the bind's own fields on purpose (it is also the mid-session "put it back" path), so a
+        // standalone arena built after a bound room has to say it is one. Without this it would believe it had
+        // pillar buttons and place no chests at all.
+        quizButtons = null;
+        weirdosRoom = false;
+        boundRoom = null;
         if (ANSWERS.isEmpty()) {
             ModChat.send("Sim", ModChat.bad("No quiz data bundled - quiz-answers.json did not load."));
             return;
         }
-        List<String> questions = new ArrayList<>(ANSWERS.keySet());
-        String question = questions.get(ThreadLocalRandom.current().nextInt(questions.size()));
-        List<String> correctAnswers = ANSWERS.get(question);
-        String correct = correctAnswers.get(ThreadLocalRandom.current().nextInt(correctAnswers.size()));
-
-        String[] text = new String[3];
-        int correctSlot = ThreadLocalRandom.current().nextInt(3);
-        text[correctSlot] = correct;
-        List<String> wrongPool = distractorPool(question, correct, questions);
-        int wrongTaken = 0;
-        for (int i = 0; i < 3 && wrongTaken < wrongPool.size(); i++) {
-            if (i == correctSlot) {
-                continue;
-            }
-            text[i] = wrongPool.get(wrongTaken++);
-        }
-        // If the file somehow had too few other questions to borrow two distractors from, fall back to a
-        // clearly-fake placeholder rather than leaving a chest unlabelled.
-        for (int i = 0; i < 3; i++) {
-            if (text[i] == null) {
-                text[i] = "(no other answer available)";
-            }
-        }
-        correctIndex = correctSlot;
-
         BlockPos[] positions = new BlockPos[3];
         for (int i = 0; i < 3; i++) {
             positions[i] = origin.offset(OFFSET_X[i], 0, 0).immutable();
         }
-        chestPos = positions;
-        boundPositions = null;   // a standalone arena, not a bind to a captured room
-        for (int i = 0; i < 3; i++) {
-            CELL_INDEX.put(positions[i], i);
-        }
-        built = true;
         complete = false;
-
-        char[] letters = {'ⓐ', 'ⓑ', 'ⓒ'}; // circled a/b/c - same glyphs QuizSolverFeature matches
-        server.execute(() -> {
-            ServerLevel level = server.overworld();
-            for (int i = 0; i < 3; i++) {
-                // NO CHEST in a bound room - the pillar's buttons are the answer now, so a chest would
-                // be a second way to answer and a block the room does not have. A standalone arena
-                // still gets them, because it has no pillars to press.
-                if (quizButtons == null) {
-                    level.setBlockAndUpdate(positions[i], Blocks.CHEST.defaultBlockState());
-                }
-                LABELS.add(spawnLabel(level, positions[i], letters[i] + " " + text[i]));
-            }
-        });
-
-        StringBuilder options = new StringBuilder();
-        for (int i = 0; i < 3; i++) {
-            options.append(letters[i]).append(' ').append(text[i]).append("  ");
-        }
-        ModChat.send("Sim", ModChat.text(question));
-        ModChat.send("Sim", ModChat.dim(options.toString().trim()));
+        // ONE question path, shared with a bound room. This method used to pick its own question and announce
+        // it with ModChat, options squashed onto a single "[Sim] ⓐ … ⓑ … ⓒ …" row - which is exactly the shape
+        // QuizSolverFeature cannot read, so the solver never worked in a /simpuzzle arena even when it worked
+        // in a generated floor. newQuestion holds the question for tick() to announce in Oruo's own format.
+        server.execute(() -> newQuestion(server.overworld(), positions, false, false));
     }
 
     /**
@@ -325,7 +291,7 @@ public final class SimQuizPuzzle {
                 CELL_INDEX.put((BlockPos) b[0], (Integer) b[1]);
             }
         }
-        newQuestion(level, positions, false);
+        newQuestion(level, positions, false, true);
         return true;
     }
 
@@ -333,8 +299,11 @@ public final class SimQuizPuzzle {
      * Picks a fresh question and puts it on these three chests. Server thread only.
      *
      * @param replaceLabels true when there are already labels floating over them to take away first
+     * @param bound true for a captured room, false for a standalone {@code /simpuzzle} arena - decides whether
+     *              a wrong answer asks a new question on the same furniture or tears the arena down
      */
-    private static void newQuestion(ServerLevel level, BlockPos[] positions, boolean replaceLabels) {
+    private static void newQuestion(ServerLevel level, BlockPos[] positions, boolean replaceLabels,
+                                    boolean bound) {
         if (ANSWERS.isEmpty()) {
             return;
         }
@@ -349,13 +318,13 @@ public final class SimQuizPuzzle {
             CELL_INDEX.clear();
         }
         List<String> questions = new ArrayList<>(ANSWERS.keySet());
-        String question = questions.get(ThreadLocalRandom.current().nextInt(questions.size()));
+        String question = pickQuestion(questions);
         List<String> correctAnswers = ANSWERS.get(question);
         String correct = correctAnswers.get(ThreadLocalRandom.current().nextInt(correctAnswers.size()));
         String[] text = new String[3];
         int correctSlot = ThreadLocalRandom.current().nextInt(3);
         text[correctSlot] = correct;
-        List<String> wrongPool = distractorPool(question, correct, questions);
+        List<String> wrongPool = distractorPool(question, correctAnswers, questions);
         int wrongTaken = 0;
         for (int i = 0; i < 3 && wrongTaken < wrongPool.size(); i++) {
             if (i == correctSlot) {
@@ -370,9 +339,18 @@ public final class SimQuizPuzzle {
         }
         correctIndex = correctSlot;
         chestPos = positions;
-        boundPositions = positions;
+        boundPositions = bound ? positions : null;
         for (int i = 0; i < 3; i++) {
             CELL_INDEX.put(positions[i], i);
+        }
+        // THE PILLAR BUTTONS GO BACK IN. The replaceLabels branch above clears CELL_INDEX wholesale, and in a
+        // bound Quiz room the twelve buttons are the ONLY way to answer - so a second question (which is what a
+        // wrong answer produces) left a room whose buttons did nothing at all.
+        java.util.List<Object[]> buttons = quizButtons;
+        if (buttons != null) {
+            for (Object[] b : buttons) {
+                CELL_INDEX.put((BlockPos) b[0], (Integer) b[1]);
+            }
         }
         built = true;
         char[] letters = {'ⓐ', 'ⓑ', 'ⓒ'};
@@ -392,9 +370,12 @@ public final class SimQuizPuzzle {
             }
             LABELS.add(spawnLabel(level, positions[i], letters[i] + " " + text[i]));
         }
-        StringBuilder options = new StringBuilder();
+        // ONE STRING PER LINE, not one string split on double spaces later. Oruo sends the three options as
+        // three separate chat lines and the solver matches each one whole; rebuilding them by splitting a joined
+        // string would come apart on any answer that happens to contain two spaces in a row.
+        String[] lines = new String[3];
         for (int i = 0; i < 3; i++) {
-            options.append(letters[i]).append(' ').append(text[i]).append("  ");
+            lines[i] = letters[i] + " " + text[i];
         }
         // HELD until he walks in, not announced now.
         //
@@ -404,23 +385,60 @@ public final class SimQuizPuzzle {
         // scrolled away ninety seconds before he got there. A bound room arms during the floor build, which is
         // minutes before he reaches it, so announcing at arm time can only ever be too early.
         pendingQuestion = question;
-        pendingOptions = options.toString().trim();
+        pendingOptions = lines;
         announced = false;
     }
 
     /** The question and its lettered options, waiting for him to enter the room. Null once announced. */
     private static volatile String pendingQuestion = null;
-    private static volatile String pendingOptions = null;
+    private static volatile String[] pendingOptions = null;
     private static volatile boolean announced = false;
 
     /** How close counts as being in the room. A quiz room is one tile, so this comfortably covers it. */
     private static final double ANNOUNCE_RANGE_SQR = 22.0 * 22.0;
 
     /**
-     * Announces the held question the first time he is near the three answer spots.
+     * How many consecutive ticks the live map must already have agreed on the room before the question goes
+     * out. See {@link #tick} - two would do, three is margin.
+     */
+    private static final int ROOM_SETTLE_TICKS = 3;
+
+    /** Consecutive ticks the live map has reported the bound room with a resolved rotation. */
+    private static int settledTicks = 0;
+
+    /** Ticks spent in announce range with the live map unable to name the room. See {@link #tick}. */
+    private static int unmappedTicks = 0;
+
+    /** How long to wait for the live map before announcing anyway. Three seconds. */
+    private static final int MAP_GRACE_TICKS = 60;
+
+    /**
+     * Announces the held question once he is in the room AND the solvers have settled on it.
      *
-     * <p>Distance to the puzzle's own blocks rather than the live map's room name: it needs no map, works for a
-     * standalone arena as well as a bound room, and cannot announce the wrong room's question.
+     * <p><b>Why this is not just a distance check.</b> killer560 (2026-10-01): "my quiz solver and auto quiz
+     * are still broken." They were, and this method was the reason. {@code QuizSolverFeature.onTick} and
+     * {@code WeirdosSolverFeature} both do the same thing on a room change:
+     *
+     * <pre>  if (current != lastRoomEntry) { lastRoomEntry = current; reset(); }</pre>
+     *
+     * and that {@code reset()} clears {@code triviaAnswers} and every {@code options[].correct}. The announce
+     * range is 22 blocks, which reaches well outside a one-tile room, so the question and its three ⓐ/ⓑ/ⓒ
+     * lines were going out while he was still in the CORRIDOR. The solver read them, armed correctly - and
+     * then he stepped through the door, the room changed, and it wiped everything it had just learned. Nothing
+     * ever sends those lines again, so the solver sat empty for the rest of the room and Auto Quiz, which only
+     * ever acts on what the solver knows, had nothing to act on.
+     *
+     * <p>So the gate is now the live map's own answer, held steady: the room it names must be the bound room,
+     * with a resolved rotation, for {@link #ROOM_SETTLE_TICKS} ticks running. Two of those ticks is already
+     * enough to guarantee the solvers have seen the room change and done their reset BEFORE the first line
+     * arrives, because they run on END_CLIENT_TICK and this runs on START. The rotation has to be resolved for
+     * a second reason as well - {@link #spawnWeirdos} inverts the solver's transform with it, and without it
+     * the three stands were silently never spawned.
+     *
+     * <p>Distance is still required, and it is still the only gate for a standalone {@code /simpuzzle} arena,
+     * which has no room on any map. A bound room whose name the live map cannot resolve at all falls back to
+     * distance after {@link #MAP_GRACE_TICKS}, with a line in the log saying so - a question he can still play
+     * beats a room that stays silent, and the log says which it was.
      */
     private static void tick(Minecraft client) {
         if (announced || pendingQuestion == null || !SimState.canAct(client)) {
@@ -431,14 +449,46 @@ public final class SimQuizPuzzle {
             return;
         }
         if (client.player.blockPosition().distSqr(positions[0]) > ANNOUNCE_RANGE_SQR) {
+            settledTicks = 0;
+            unmappedTicks = 0;
             return;
         }
+        String room = boundRoom;
+        if (room != null) {
+            com.killer560.hub.roomdatabase.RoomEntry current =
+                    com.killer560.hub.livemap.LiveMapFeature.currentRoomEntry();
+            boolean onIt = current != null && room.equalsIgnoreCase(current.name)
+                    && com.killer560.hub.livemap.LiveMapFeature.currentRoomClayAndRotation() != null;
+            if (onIt) {
+                unmappedTicks = 0;
+                if (++settledTicks < ROOM_SETTLE_TICKS) {
+                    return;
+                }
+            } else if (++unmappedTicks < MAP_GRACE_TICKS) {
+                settledTicks = 0;
+                return;
+            } else {
+                com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
+                        "Sim quiz: in range of {} for {} ticks and the live map still cannot name the room with"
+                                + " a rotation (it says {}) - asking the question anyway, but its solver will"
+                                + " have nothing to measure against",
+                        room, unmappedTicks, current == null ? "nothing" : current.name);
+            }
+        }
         announced = true;
+        settledTicks = 0;
+        unmappedTicks = 0;
         askedAtMs = System.currentTimeMillis();
         if (weirdosRoom) {
+            // Hypixel's weirdos speak once per room, so the solver has no "new round" of its own. The sim's do
+            // speak again after a wrong chest, and the last round's three highlights would otherwise still be up.
+            com.killer560.hub.puzzlesolvers.WeirdosSolverFeature.clearForNewRound();
             sayWeirdos(client);
             return;
         }
+        // Same for Oruo: Hypixel always announces the previous question as answered before asking the next, and
+        // the sim does not, so the previous question's correct flag has to come off by hand.
+        com.killer560.hub.puzzlesolvers.QuizSolverFeature.clearForNewQuestion();
         // THE SERVER'S OWN WORDING, so QuizSolverFeature can read it. It listens for a line CONTAINING a
         // question it knows and then for lines starting with the circled letters whose text ends with the
         // answer - both of which are Hypixel's exact chat shape, and neither of which a "[Sim] ..." line with
@@ -446,8 +496,12 @@ public final class SimQuizPuzzle {
         // Oruo sends them; the "[Sim]" header above them is still there to say where they came from.
         ModChat.send("Sim", ModChat.text(pendingQuestion));
         raw(client, "[STATUE] Oruo the Omniscient: " + pendingQuestion);
-        for (String option : pendingOptions.split(" {2}")) {
-            raw(client, option.trim());
+        String[] lines = pendingOptions;
+        // The QUESTION FIRST, then the options, and never the other way round: the solver only marks an option
+        // correct when it already knows the question's answers, so an option line that arrives first is read
+        // against the previous question's answers or against nothing at all.
+        for (String option : lines == null ? new String[0] : lines) {
+            raw(client, option);
         }
     }
 
@@ -523,14 +577,59 @@ public final class SimQuizPuzzle {
         });
     }
 
-    /** Two other real questions' correct answers, picked at random and excluding anything equal to the correct
-     *  answer text (so a question that happens to share wording with another isn't its own distractor). */
-    private static List<String> distractorPool(String question, String correct, List<String> allQuestions) {
+    /**
+     * A question {@code QuizSolverFeature} will resolve to the right answer list.
+     *
+     * <p>That solver finds a question by taking the FIRST key in {@code quiz-answers.json} that the chat line
+     * contains:
+     *
+     * <pre>  for (entry : ANSWERS) if (msg.contains(entry.getKey())) { triviaAnswers = entry.getValue(); break; }</pre>
+     *
+     * <p>So if one question's text is a substring of another's, asking the longer one hands the solver the
+     * SHORTER one's answers, and nothing on any of the three chests matches them - the solver goes quiet with
+     * no way to tell that from a solver that is simply broken. The real statue can of course ask whichever it
+     * likes and that is the live solver's problem; the sim picks the questions, so it picks ones that resolve.
+     *
+     * <p>Falls back to a plain random pick if somehow none qualifies, so this can never fail to return.
+     */
+    private static String pickQuestion(List<String> allQuestions) {
+        List<String> candidates = new ArrayList<>(allQuestions);
+        java.util.Collections.shuffle(candidates, ThreadLocalRandom.current());
+        for (String q : candidates) {
+            if (solverResolves(q)) {
+                return q;
+            }
+        }
+        return allQuestions.get(ThreadLocalRandom.current().nextInt(allQuestions.size()));
+    }
+
+    /** Whether {@code QuizSolverFeature}'s first-contained-key scan over {@code ANSWERS} lands on this
+     *  question itself. Written as that scan rather than as a substring test, so the two cannot drift. */
+    private static boolean solverResolves(String question) {
+        for (String key : ANSWERS.keySet()) {
+            if (question.contains(key)) {
+                return key.equals(question);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Two other real questions' correct answers to use as distractors.
+     *
+     * <p>Excludes any candidate the solver would mistake for the right answer. Its option test is
+     * {@code triviaAnswers.stream().anyMatch(trimmed::endsWith)} over the WHOLE answer list, not just the one
+     * answer this question happens to be showing - so a distractor that merely ENDS WITH any of the question's
+     * correct answers ("Bonzo" vs "Super Bonzo") would light up as correct alongside the real one, and
+     * {@code getCorrectAnswerPos} would hand Auto Quiz whichever came first in the array. Equality was the only
+     * thing checked before, which catches the obvious case and not that one.
+     */
+    private static List<String> distractorPool(String question, List<String> correctAnswers,
+                                               List<String> allQuestions) {
         List<String> candidates = new ArrayList<>(allQuestions);
         candidates.remove(question);
         java.util.Collections.shuffle(candidates, ThreadLocalRandom.current());
         Set<String> seen = new HashSet<>();
-        seen.add(correct);
         List<String> picked = new ArrayList<>(2);
         for (String q : candidates) {
             if (picked.size() >= 2) {
@@ -541,7 +640,11 @@ public final class SimQuizPuzzle {
                 continue;
             }
             String answer = answers.get(0);
-            if (seen.add(answer)) {
+            boolean shadows = false;
+            for (String right : correctAnswers) {
+                shadows |= answer.endsWith(right) || right.endsWith(answer);
+            }
+            if (!shadows && seen.add(answer)) {
                 picked.add(answer);
             }
         }
@@ -577,6 +680,8 @@ public final class SimQuizPuzzle {
         pendingQuestion = null;
         pendingOptions = null;
         announced = false;
+        settledTicks = 0;
+        unmappedTicks = 0;
         askedAtMs = 0L;
         quizButtons = null;
         boundPositions = null;
@@ -653,7 +758,7 @@ public final class SimQuizPuzzle {
                 askedAtMs = 0L;
                 announced = false;
                 BlockPos[] positions = boundPositions;
-                server.execute(() -> newQuestion(server.overworld(), positions, true));
+                server.execute(() -> newQuestion(server.overworld(), positions, true, true));
             } else {
                 ModChat.send("Sim", ModChat.bad("Wrong answer - resetting. Build again to retry."));
                 reset();

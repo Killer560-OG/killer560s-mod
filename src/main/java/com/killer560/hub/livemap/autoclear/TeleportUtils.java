@@ -423,8 +423,108 @@ public final class TeleportUtils {
         BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
         for (long packed : table) {
             mut.set(center.getX() + BlockPos.getX(packed), center.getY() + BlockPos.getY(packed), center.getZ() + BlockPos.getZ(packed));
-            if (etherwarpable(mut)) {
+            if (etherwarpable(mut) && underCover(mut)) {
                 return mut.immutable();
+            }
+        }
+        return null;
+    }
+
+    /** How far above a landing to look for the dungeon's own rock. See {@link #underCover}. */
+    private static final int COVER_SCAN = 64;
+
+    /** Nothing to check at or near the dungeon's floor, which is where almost every landing is. */
+    private static final int COVER_FLOOR_SLACK = 6;
+
+    /**
+     * Whether a landing is somewhere INSIDE the dungeon rather than on top of it. Always true outside the sim.
+     *
+     * <p>killer560 (2026-10-01): "somehow my etherwarp pathfound onto the roof of the dungeon while using
+     * interactive map."
+     *
+     * <p>On Hypixel that cannot happen and nothing here ever had to stop it: a real dungeon is a solid block of
+     * rock with rooms carved out of it, so there is no outside surface to stand on and no line of sight to one.
+     * The sim is the opposite shape. Each room is pasted as its own captured column - rock above the ceiling
+     * included, which is why the room files run up to y 99 and beyond - but the CELLS BETWEEN the rooms are
+     * simply empty air, because nothing was captured there. So the sim's map is a cluster of rock towers with
+     * open sky over them and gaps you can see out through, and a pathfinder whose moves are "etherwarp at
+     * anything you can see" will happily climb one.
+     *
+     * <p>The test is the thing that is actually different: a landing inside the dungeon has the dungeon's own
+     * rock above it, and a landing on top of one has nothing above it at all. Skipped entirely within
+     * {@link #COVER_FLOOR_SLACK} of floor height, which is where nearly every landing on a clear is - so the
+     * column read costs nothing on the normal path and only runs for a candidate that is already suspicious.
+     */
+    public static boolean underCover(BlockPos landing) {
+        if (!com.killer560.hub.roomsim.SimState.isActive()) {
+            return true;
+        }
+        int floor = 69 + com.killer560.hub.livemap.DungeonLayout.simYOffset();
+        if (landing.getY() <= floor + COVER_FLOOR_SLACK) {
+            return true;
+        }
+        Level level = level();
+        if (level == null) {
+            return true;
+        }
+        // From +3, not +1: the two blocks of standing room over the landing are air by definition (that is what
+        // etherwarpable means), so starting at +1 would only ever read them and find nothing.
+        int top = Math.min(level.getMaxY(), landing.getY() + COVER_SCAN);
+        BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
+        for (int y = landing.getY() + 3; y <= top; y++) {
+            mut.set(landing.getX(), y, landing.getZ());
+            if (!level.getBlockState(mut).isAir()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The tile is 31 blocks across; 14 keeps a search inside its walls. */
+    private static final int TILE_HALF = 14;
+
+    /**
+     * An etherwarpable block inside ONE map tile, nearest to {@code from} - "anywhere in that room, whatever is
+     * fastest".
+     *
+     * <p>killer560 (2026-10-01): "For the interactive map etherwarp it doesn't need to go the exact spot that I
+     * click instead it just needs to go to that room, more specifically if that room is a 1x2 then it should go
+     * into that rooms quadrant that I clicked. It can choose anywhere in that room whatever is fastest."
+     *
+     * <p>{@link #nearestEtherwarpable} was what that fell back to, and it is the wrong search for this: it is a
+     * 25-block sphere around the tile centre sorted by distance from that centre, so it can and does leave the
+     * tile, pick a block 20 blocks up, or land on a wall - and it has no idea where the player is, so "nearest"
+     * meant nearest to the middle of the room rather than nearest to him. This one stays inside the clicked
+     * tile's own footprint, at that tile's own floor height, and picks the candidate closest to where he is
+     * standing.
+     *
+     * @param tileCentre {@code DungeonLayout.cellCenter} of the clicked tile - its y is one ABOVE the floor
+     * @param from where the player is now, so "fastest" means something
+     */
+    public static BlockPos etherwarpableInTile(BlockPos tileCentre, Vec3 from) {
+        // Two passes: the floor course first, then a wider band for a room whose clicked quadrant is a pit or a
+        // raised platform. Widening rather than starting wide keeps a normal room's answer on its own floor.
+        for (int band : new int[]{2, 8}) {
+            BlockPos best = null;
+            double bestDistSq = Double.MAX_VALUE;
+            BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
+            for (int dy = band; dy >= -band; dy--) {
+                for (int dx = -TILE_HALF; dx <= TILE_HALF; dx++) {
+                    for (int dz = -TILE_HALF; dz <= TILE_HALF; dz++) {
+                        mut.set(tileCentre.getX() + dx, tileCentre.getY() + dy, tileCentre.getZ() + dz);
+                        if (!etherwarpable(mut) || !underCover(mut)) {
+                            continue;
+                        }
+                        double d = from.distanceToSqr(mut.getX() + 0.5, mut.getY() + 1.0, mut.getZ() + 0.5);
+                        if (d < bestDistSq) {
+                            bestDistSq = d;
+                            best = mut.immutable();
+                        }
+                    }
+                }
+            }
+            if (best != null) {
+                return best;
             }
         }
         return null;

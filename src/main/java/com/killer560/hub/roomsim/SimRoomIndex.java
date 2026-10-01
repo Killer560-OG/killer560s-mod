@@ -94,6 +94,36 @@ public final class SimRoomIndex {
         return List.copyOf(ROOMS);
     }
 
+    /**
+     * Re-records one room's corner and rotation, because its own FURNITURE disagreed with the recovered turn.
+     *
+     * <p>{@link RoomCaptureRotation} is recovered rather than recorded, and {@code docs/SIM.md} puts that
+     * recovery at 120 of 135 rooms - so for a handful of rooms the turn this class computed is wrong.
+     * {@link SimRoomPuzzles#bestAnchor} already catches exactly those: it scores a puzzle's own blocks at all
+     * four rotations against the room as it stands in the world and logs a warning when the winner is not the
+     * recorded one. The blocks are the harder evidence (they are the thing being bound to), and until now only
+     * the PUZZLE followed them - the live map, and therefore every solver, Secret Waypoints, Auto Routes and
+     * the interactive map, carried on using the rotation that had just been shown to be wrong. One room, two
+     * answers.
+     *
+     * <p>Called during {@link SimRoomPuzzles#armFloor}, which runs before the floor is published, so the
+     * correction reaches the map in the same build rather than the next one.
+     *
+     * @return whether a room at that cell was found and updated
+     */
+    public static boolean correct(int gridX, int gridZ, int clayX, int clayZ, int rotation) {
+        for (int i = 0; i < ROOMS.size(); i++) {
+            Placed p = ROOMS.get(i);
+            if (p.gridX() != gridX || p.gridZ() != gridZ) {
+                continue;
+            }
+            ROOMS.set(i, new Placed(p.name(), clayX, clayZ, rotation, p.cells(), p.gridX(), p.gridZ(),
+                    p.pasteRotation()));
+            return true;
+        }
+        return false;
+    }
+
     private static int tiles(int size) {
         return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
     }

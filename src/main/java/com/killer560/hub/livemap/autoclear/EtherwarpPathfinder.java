@@ -425,6 +425,14 @@ public final class EtherwarpPathfinder {
                 continue;
             }
             BlockPos hit = result.pos();
+            // NOT ONTO THE ROOF. killer560 (2026-10-01): "somehow my etherwarp pathfound onto the roof of the
+            // dungeon while using interactive map." A real dungeon is solid rock with rooms cut out of it, so
+            // there is no outside to climb onto; the sim's rooms are separate pasted towers with open sky over
+            // them and empty cells in between to see out through. underCover is a no-op outside the sim and at
+            // floor height, so this costs the normal search nothing - see its own doc.
+            if (!hit.equals(ctx.goal) && !TeleportUtils.underCover(hit)) {
+                continue;
+            }
             if (hitCache.add(hit.asLong())) {
                 double hCost = (distance(hit, ctx.goal) / ctx.dist) * ctx.hWeight;
                 ctx.addNode(new Node(hit.getX() + 0.5, hit.getY() + (ctx.offset ? 1.05 : 1.0), hit.getZ() + 0.5, hit,

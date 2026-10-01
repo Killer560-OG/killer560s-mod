@@ -99,6 +99,21 @@ public final class SimTeleportMazePuzzle {
     /** Which pad (0-3) is correct for each cell, chosen fresh every {@link #build}. */
     private static volatile int[] correctPad = new int[0];
 
+    /** The cell number {@link #PAD_INDEX} files the START pad under - not a cell, the door into cell one. */
+    private static final int ENTRY_CELL = -1;
+
+    /**
+     * How far over the block below a maze teleport lands the player.
+     *
+     * <p>1.5, not 1, and the extra half block is not cosmetic. {@code TeleportMazeSolverFeature} only treats a
+     * position packet as a maze teleport when it lands on {@code y 69.5} - room-relative, which is what every
+     * real Hypixel maze teleport does - and it works out which pad is the exit from the yaw of exactly those
+     * packets. Landing on a whole y meant the sim's own teleports did not look like maze teleports to it, so
+     * standing on the right pad moved him and taught his solver nothing. Half a block of fall onto the chamber
+     * floor is what the real room does too.
+     */
+    private static final double LANDING_HEIGHT = 1.5;
+
     /**
      * Feet-level position -> {cell, padIndex}, rebuilt every {@link #build} and every {@link #bindAt}.
      *
@@ -253,10 +268,23 @@ public final class SimTeleportMazePuzzle {
             // The pads sit IN the chamber floor - the room's solid floor is the block below them - so a
             // cellAnchor, which every landing adds one to, is the block below the walking level. Same
             // convention build() uses, where the anchor is the floor it places and the player stands on top.
-            anchors[c] = new BlockPos(sx / PADS_PER_CELL, y - 1, sz / PADS_PER_CELL);
+            // floorDiv, not /: the sim's grid is anchored at -185, so these world coordinates are negative and
+            // plain integer division truncates towards zero rather than down - a one-block drift in the landing
+            // spot that only shows up on the negative side of the map, which is all of it.
+            anchors[c] = new BlockPos(Math.floorDiv(sx, PADS_PER_CELL), y - 1,
+                    Math.floorDiv(sz, PADS_PER_CELL));
         }
         anchors[CELL_COUNT] = anchor.world(REAL_PADS[28]).below();   // the end pad
         cellAnchor = anchors;
+        // THE START PAD IS THE WAY IN, and it was the one pad nothing indexed.
+        //
+        // killer560 (2026-10-01): "The teleport pads in tpmaze still arent teleporting me." Decoding the room
+        // says why plainly. The seven chambers are sealed - the capture holds 240 iron bars and a solid stone
+        // brick wall at relative (12,69,13), right between the start pad and chamber one - so the only way into
+        // the first chamber is the start pad at (15,69,12), exactly as on Hypixel. This bind indexed
+        // REAL_PADS[0..27], the twenty-eight CHOICE pads, and stopped there. So he stood outside a sealed maze
+        // with nothing to step on that did anything, and every pad that would have worked was behind a wall.
+        indexPad(anchor.world(REAL_PADS[29]), ENTRY_CELL, 0);
         int[] chosen = new int[CELL_COUNT];
         for (int c = 0; c < CELL_COUNT; c++) {
             chosen[c] = ThreadLocalRandom.current().nextInt(PADS_PER_CELL);
@@ -342,6 +370,17 @@ public final class SimTeleportMazePuzzle {
         }
         int cell = hit[0];
         int padIndex = hit[1];
+        if (cell == ENTRY_CELL) {
+            // The start pad: it is not a choice, it is the door. Puts him in chamber one and leaves itself
+            // indexed, so coming back out to it after a wrong pad works the same way round.
+            if (currentCell == 0 && cellAnchor.length > 0 && cellAnchor[0] != null) {
+                BlockPos landing = cellAnchor[0];
+                teleport(client, landing.getX() + 0.5, landing.getY() + LANDING_HEIGHT, landing.getZ() + 0.5);
+                ModChat.send("Sim", ModChat.text("Into the maze - "),
+                        ModChat.dim("cell 1 of " + CELL_COUNT + ", one of the four pads is the way on."));
+            }
+            return;
+        }
         if (cell != currentCell) {
             // Only reachable by standing on a pad from a cell the player has no business being on yet/again.
             failAndRebuild(client);
@@ -377,7 +416,7 @@ public final class SimTeleportMazePuzzle {
         int next = currentCell + 1;
         currentCell = next;
         BlockPos landing = cellAnchor[next];
-        teleport(client, landing.getX() + 0.5, landing.getY() + 1, landing.getZ() + 0.5);
+        teleport(client, landing.getX() + 0.5, landing.getY() + LANDING_HEIGHT, landing.getZ() + 0.5);
         if (next >= CELL_COUNT) {
             complete = true;
             ModChat.send("Sim", ModChat.good("Teleport Maze crossed!"));
@@ -414,6 +453,8 @@ public final class SimTeleportMazePuzzle {
                 indexPad(bound.world(REAL_PADS[c * PADS_PER_CELL + i]), c, i);
             }
         }
+        // The door back in, same as bindAt - without it a reset leaves him on a start pad that does nothing.
+        indexPad(bound.world(REAL_PADS[29]), ENTRY_CELL, 0);
         int[] chosen = new int[CELL_COUNT];
         for (int c = 0; c < CELL_COUNT; c++) {
             chosen[c] = ThreadLocalRandom.current().nextInt(PADS_PER_CELL);
@@ -422,7 +463,7 @@ public final class SimTeleportMazePuzzle {
         currentCell = 0;
         complete = false;
         BlockPos start = bound.world(REAL_PADS[29]);
-        teleport(client, start.getX() + 0.5, start.getY() + 1, start.getZ() + 0.5);
+        teleport(client, start.getX() + 0.5, start.getY() + LANDING_HEIGHT, start.getZ() + 0.5);
     }
 
     /**

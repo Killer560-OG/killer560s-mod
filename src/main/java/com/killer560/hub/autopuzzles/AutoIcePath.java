@@ -80,11 +80,14 @@ final class AutoIcePath {
             return;
         }
         BlockPos fishPos = fish.blockPosition();
-        // 66 is the ice's height on Hypixel; the sim shifts the whole floor, so the literal moves with it.
-        // Same DungeonLayout.simYOffset() every other height in this mod goes through, zero on a real run -
-        // and the only hardcoded world y left in this package after the PuzzleCoords sweep.
-        BlockPos currSpot = new BlockPos(fishPos.getX(),
-                66 + com.killer560.hub.livemap.DungeonLayout.simYOffset(), fishPos.getZ());
+        // THE SOLVER'S OWN HEIGHT, not a literal 66 plus a correction.
+        //
+        // Every point in `path` is the solver's `PuzzleCoords.real(col, 66, row)`, so its y already IS the ice's
+        // world height - whole-floor shift, per-room nudge and all. Re-deriving it here from the literal 66 meant
+        // two expressions that had to stay equal, and they had already drifted apart once (the sim's floor shift
+        // was missing) and would have drifted again the moment a room needed a nudge. `path.size() < 2` has
+        // already been checked above, so element 0 exists.
+        BlockPos currSpot = new BlockPos(fishPos.getX(), (int) Math.floor(path.get(0).y), fishPos.getZ());
         if (AutoPuzzleUtil.etherwarpDirection(client.level, player, currSpot) == null) {
             return;
         }

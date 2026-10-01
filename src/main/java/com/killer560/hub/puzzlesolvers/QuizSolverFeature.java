@@ -175,8 +175,15 @@ public final class QuizSolverFeature {
             if (!option.correct || option.blockPos == null) {
                 continue;
             }
-            BlockPos below = option.blockPos.below();
-            SolverEspRender.renderWaypoint(context, new AABB(below), 0.2f, 1.0f, 0.3f, 2f);
+            // THE BLOCK ITSELF, not the one under it.
+            //
+            // Decoding Quiz.json settles what these three coordinates actually name. At the capture's
+            // database rotation (180) they land on capture-local (11,70,25), (16,70,22) and (21,70,25) -
+            // each a smooth_stone block with air above it, and each ringed by FOUR of the room's twelve
+            // wall-mounted stone buttons, which is all twelve of them. So (20,70,6) and its two siblings are
+            // the little pillars Oruo's answer buttons hang off, not floor to stand on - and highlighting one
+            // block lower put the box inside the pillar's own stonework.
+            SolverEspRender.renderWaypoint(context, new AABB(option.blockPos), 0.2f, 1.0f, 0.3f, 2f);
         }
     }
 
@@ -191,6 +198,49 @@ public final class QuizSolverFeature {
             }
         }
         return null;
+    }
+
+    /**
+     * The BUTTON to right-click for the correct answer, which is not the same block as the answer pillar.
+     *
+     * <p>{@link #getCorrectAnswerPos} names the pillar (see the render note above): a plain smooth_stone block
+     * that a right-click does nothing to. The answer is given by pressing any of the four stone buttons on its
+     * sides, which is exactly what the capture holds - four wall buttons around each of the three pillars, at
+     * the pillar's own height. Auto Quiz was clicking the pillar.
+     *
+     * @return the first button found on the correct pillar's four sides, or the pillar itself when the room
+     *         has none there (so a room that does not match this shape still gets the old behaviour rather
+     *         than nothing at all)
+     */
+    public static BlockPos getCorrectAnswerButton(net.minecraft.world.level.Level level) {
+        BlockPos pillar = getCorrectAnswerPos();
+        if (pillar == null || level == null) {
+            return pillar;
+        }
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+            BlockPos side = pillar.relative(d);
+            if (level.getBlockState(side).getBlock() instanceof net.minecraft.world.level.block.ButtonBlock) {
+                return side;
+            }
+        }
+        return pillar;
+    }
+
+    /**
+     * Forgets the question currently being shown, keeping the three answer positions.
+     *
+     * <p>Exactly what the real {@code "answered Question #N correctly!"} line does here, exposed so the dungeon
+     * sim can ask a second question in the same room without faking that line. Hypixel always announces the
+     * previous question as answered before asking the next one, so the solver has never had to cope with two
+     * questions arriving back to back - and when the sim's Quiz hands out a new question after a wrong answer,
+     * the previous question's {@code correct} flag was still set and TWO options lit up, with
+     * {@link #getCorrectAnswerPos} returning whichever came first in the array rather than the right one.
+     */
+    public static void clearForNewQuestion() {
+        for (TriviaOption option : options) {
+            option.correct = false;
+        }
+        triviaAnswers = null;
     }
 
     private static void reset() {

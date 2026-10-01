@@ -153,6 +153,26 @@ physics. Read the relevant one before touching either area.
   `continueDestroyBlock` calls `startDestroyBlock` on its fallback path). The sim's Dungeon Breaker spent its
   whole twenty-charge bar in one second this way. Anything that consumes that callback needs its own
   edge-detection - track the block and clear it when `keyAttack` comes up.
+- **One room must not have two answers.** A room's clay corner and its rotation are published once and read
+  everywhere; if any second place computes them, they will disagree and the symptom will be "my solvers point at
+  the wrong block". `SimBuilder` published the PASTE rotation beside a corner computed for the DATABASE rotation,
+  which differ by the capture's own turn in 88 of 122 rooms, so nine of the eleven puzzle rooms' solvers were
+  measuring through a rotation a quarter or half turn off. `SimRoomIndex` had always been right, which is why
+  Secret Waypoints worked while every solver did not - **a feature that works beside one that does not, on the
+  same data, is naming the bug.** The publish now reads `SimRoomIndex` and nothing else computes it.
+- **A bare dungeon height in a comparison is a bug in the sim.** Relative y IS world y on Hypixel, so
+  `player.getY() != 75.0`, `pos.y != 69.5`, `69.5..72.5` and `y 66` all look like facts and are all wrong the
+  moment `SimAltitude` shifts the floor. Anything that TRANSLATES a coordinate goes through
+  `PuzzleCoords`/`RouteCoords`; anything that COMPARES one adds `DungeonLayout.simYOffset()`. Better still, take
+  the height from the solver's own output (`path.get(0).y`) so there is no second expression to keep in step.
+  Five of these were found in one sweep in October 2026, one per auto, each failing silently.
+- **To make the sim satisfy a solver, read the solver's SCAN, not just its coordinates.** Getting the position
+  right is half of it. `BlazeSolverFeature` skips anything that is not an `ArmorStand`, so a name set on the blaze
+  itself was invisible; `TicTacToeSolverFeature` reads map ITEM FRAMES at the cell, so a mark painted on the wall
+  behind the button was invisible; `BeamsSolverFeature` reads prismarine as "burned on the wrong partner", so the
+  sim marking a held lantern that way turned a correct shot red; `TeleportMazeSolverFeature` only accepts a
+  teleport that lands on a half block. In every case the sim was placing the right thing somewhere the solver
+  never looks, or the wrong thing where it does.
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session
   cannot compile (the network policy blocks `maven.fabricmc.net` and Mojang's hosts), so a wrong method name is
   not caught until killer560 runs the build, and it costs him a whole round trip. Three in one batch on

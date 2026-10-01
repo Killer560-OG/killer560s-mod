@@ -99,7 +99,13 @@ final class AutoWater {
             return;
         }
         LocalPlayer player = client.player;
-        if (cr == null || player.getY() != 59.0 || McCompat.screen(client) != null || atChest) {
+        // 59 IS A ROOM-RELATIVE HEIGHT, and in the sim the whole floor moves. Water Board's lever floor is
+        // relative y 58 (AutoClearUtils' own override for this room is {15, 58, 9}), so standing on it is 59 -
+        // on Hypixel, where relative and absolute y are the same number. The sim shifts every room by one
+        // offset, so the literal 59 could never be true in there and Auto Water declined every click without
+        // saying anything. Same fault, same shape, as Auto Creeper Beams' "y == 75".
+        if (cr == null || player.getY() != 59.0 + com.killer560.hub.livemap.DungeonLayout.simYOffset()
+                || McCompat.screen(client) != null || atChest) {
             return;
         }
         if (REPOSITION.isActive()) {

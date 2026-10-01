@@ -93,6 +93,16 @@ public final class SimItemLore {
         }),
         Map.entry("TERMINATOR", new String[]{
             "§6Terminator",
+            // THE LINE THREE AUTOS LOOK FOR. killer560 (2026-10-01): "the auto puzzles none were working except
+            // auto blaze wanted to look towards the middle."
+            //
+            // That is this line's absence, exactly. Auto Creeper Beams, Auto Ice Path and Auto Blaze all gate
+            // their shot on AutoPuzzleUtil.isShortbow, which is a lore search for "Shortbow: Instantly shoots!"
+            // and nothing else - it is how Hypixel marks every shortbow, Terminator included - and this lore did
+            // not have it. So all three ran their aim and then declined to fire, and Auto Blaze stopping with
+            // the crosshair on the middle blaze is precisely what that looks like. AutoReposition's own
+            // swap-to-a-bow (swapTo(isShortbow)) was failing for the same reason.
+            "§6Shortbow: Instantly shoots!",
             "§6Ability: Salvation",
             "§7Shoots §a3 §7arrows at once.",
             "",

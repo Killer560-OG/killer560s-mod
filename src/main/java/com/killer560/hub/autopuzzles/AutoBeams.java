@@ -131,7 +131,16 @@ public final class AutoBeams {
             return;
         }
         boolean reposition = cfg.isEtherwarpReposition();
-        if (player.getY() != 75.0) {
+        // THE PLATFORM'S OWN HEIGHT, not the literal 75. killer560 (2026-10-01): "auto creeper beams would look
+        // down and teleport and that was it."
+        //
+        // That is this check, and it could never pass in the sim. 75 is Hypixel's height for the top of the
+        // centre platform - start is room-relative (16,74,14), so one above it IS 75 on a real floor and the two
+        // readings are identical there. The sim shifts the whole map vertically (SimAltitude), so the platform is
+        // somewhere else entirely and player.getY() was never 75: it repositioned onto the platform, re-read 75,
+        // found it still false, and repositioned again. Warp, look down, nothing, forever.
+        double platformY = start.getY() + 1.0;
+        if (player.getY() != platformY) {
             if (reposition) {
                 REPOSITION.start(client, start, true, false, false);
             }

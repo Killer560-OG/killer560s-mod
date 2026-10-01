@@ -93,6 +93,14 @@ public final class SimWhere {
                 ModChat.value(local == null ? "?" : "(" + local[0] + ", " + local[1] + ", " + local[2] + ")"));
         ModChat.send("Sim", ModChat.text("db-relative   "),
                 ModChat.value("(" + rel.x + ", " + rel.y + ", " + rel.z + ")"));
+        // The room's own measured nudge, because it is part of what a SOLVER'S coordinate goes through -
+        // PuzzleCoords adds it on top of the floor shift. Nearly always 0; Ice Fill's capture is a block low.
+        int nudge = SimRoomPuzzles.dyFor(room.name());
+        if (nudge != 0) {
+            ModChat.send("Sim", ModChat.text("room nudge    "),
+                    ModChat.value(nudge > 0 ? "+" + nudge : String.valueOf(nudge)),
+                    ModChat.dim(" - this capture is measured off the bundled data, and solvers carry it"));
+        }
         ModChat.send("Sim", ModChat.dim("world " + str(pos)));
     }
 

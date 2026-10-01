@@ -236,7 +236,9 @@ final class AutoTicTacToe {
             return false;
         }
         RoomEntry.Pos nearest = chests.get(0);
-        chestReal = com.killer560.hub.roomdatabase.RoomDatabase.toRealCoord(nearest, cr[0], cr[1], cr[2]);
+        // PuzzleCoords, not RoomDatabase - the raw call drops the sim's floor shift, so the chest trip walked
+        // to Hypixel's height and the aura never had anything in reach.
+        chestReal = PuzzleCoords.real(nearest, cr);
         chestLegStartMs = System.currentTimeMillis();
         return true;
     }

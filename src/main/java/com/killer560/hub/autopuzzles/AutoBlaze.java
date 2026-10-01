@@ -149,7 +149,11 @@ final class AutoBlaze {
         boolean reposition = cfg.isEtherwarpReposition() && cr != null;
         boolean higher = HIGHER.equals(roomName);
 
-        if (higher && player.getY() <= 75) {
+        // Relative 75, not absolute 75: "am I up on Higher Blaze's top level yet". The sim shifts the whole
+        // floor - and for a floor holding Higher Blaze it shifts it UP, to put the ceiling under the build
+        // limit - so the bare literal is the wrong question in there. See AutoWater and AutoBeams for the same
+        // fault; this one failed the other way round, skipping the reposition instead of repeating it.
+        if (higher && player.getY() <= 75 + com.killer560.hub.livemap.DungeonLayout.simYOffset()) {
             if (reposition) {
                 cyclePosition(client, player, blazes, cr, higher);
             }
@@ -394,7 +398,9 @@ final class AutoBlaze {
         boolean bestIsChest = false;
         double bestDistSq = Double.MAX_VALUE;
         for (SecretCandidate c : candidates) {
-            BlockPos real = com.killer560.hub.roomdatabase.RoomDatabase.toRealCoord(c.relative(), cr[0], cr[1], cr[2]);
+            // PuzzleCoords, not RoomDatabase - see its RoomEntry.Pos overload: the raw call drops the sim's
+            // floor shift, so this picked "nearest secret" by distance to a point at Hypixel's height.
+            BlockPos real = PuzzleCoords.real(c.relative(), cr);
             double distSq = player.position().distanceToSqr(Vec3.atCenterOf(real));
             if (distSq < bestDistSq) {
                 bestDistSq = distSq;

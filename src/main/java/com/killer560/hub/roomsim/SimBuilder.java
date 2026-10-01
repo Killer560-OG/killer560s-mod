@@ -259,8 +259,28 @@ public final class SimBuilder {
                 // SimBuildAudit, which is the only check here whose answer comes from the world.
                 SimBuildAudit.record(room, gx, gz, rot);
                 if (nameIndex >= 0 && nameIndex < clayByRoom.length) {
-                    int[] clay = SimSecrets.clayCorner(room, gx, gz, rot);
-                    clayByRoom[nameIndex] = new int[]{clay[0], clay[1], rot};
+                    // THE DATABASE ROTATION, NOT THE PASTE ROTATION.
+                    //
+                    // This one line is why killer560's solvers did not work in the sim. clayCorner's own doc
+                    // spells the distinction out - "the room's FOOTPRINT follows the rotation it was pasted at;
+                    // WHICH CORNER the marker stands in follows the database rotation, because that is the
+                    // corner toRealCoord measures from" - and the two differ by the capture's own turn
+                    // (RoomCaptureRotation) in 88 of his 122 identifiable rooms.
+                    //
+                    // The CORNER here was already right: the four-argument clayCorner works the database
+                    // rotation out for itself. The ROTATION published beside it was `rot`, the paste rotation.
+                    // So LiveMapFeature.currentRoomClayAndRotation() - which is what every puzzle solver,
+                    // AutoClearUtils, Auto Routes and RouteCoords ask - handed out a correct corner with a
+                    // rotation a quarter or a half turn off it, and every relative coordinate came out spun
+                    // about that corner. "the solver is one diagonally back and to the right from the actual
+                    // chest" is this, and so is most of "none of my solvers work in the sim".
+                    //
+                    // SimRoomIndex.add, six lines up, has always computed it correctly for Secret Waypoints,
+                    // which is exactly why the waypoints landed while the solvers did not. Same expression, so
+                    // the two cannot disagree again.
+                    int dbRotation = Math.floorMod(rot + RoomCaptureRotation.of(room), 360);
+                    int[] clay = SimSecrets.clayCorner(room, gx, gz, rot, dbRotation);
+                    clayByRoom[nameIndex] = new int[]{clay[0], clay[1], dbRotation};
                 }
                 if (firstPlacedCell[0] < 0) {
                     firstPlacedCell[0] = anchorCell;
@@ -534,6 +554,21 @@ public final class SimBuilder {
                 if (firstCell >= 0) {
                     snapPlayerTo(client, level, firstCell % DungeonLayout.GRID,
                             firstCell / DungeonLayout.GRID);
+                }
+                // LAST WORD TO SimRoomIndex, which armFloor above may have corrected.
+                //
+                // bestAnchor scores a puzzle's own furniture at all four rotations and takes the winner; when
+                // that is not the recovered capture turn it now says so to SimRoomIndex (see its correct()).
+                // Re-reading the table here is what carries that onto the map, so the solver for a room whose
+                // turn was recovered wrongly measures from the same corner the puzzle was bound at instead of
+                // highlighting a spot a quarter turn away from it.
+                for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
+                    for (int i = 0; i < decoded.nameTable().length; i++) {
+                        if (placed.name().equals(decoded.nameTable()[i])) {
+                            clayByRoom[i] = new int[]{placed.clayX(), placed.clayZ(), placed.rotation()};
+                            break;
+                        }
+                    }
                 }
                 client.execute(() -> {
                 // The map, on the client thread where LiveMapFeature's arrays live. Without this the live
@@ -1137,9 +1172,12 @@ public final class SimBuilder {
      * map that disagrees with the world that hard is worse than no map, because every pathfinder and the
      * interactive map read the same arrays.
      *
-     * <p>Rotation is 0 because {@code buildSingleRoom} pastes at 0; the clay corner comes from the same
-     * {@link SimSecrets#clayCorner} call the secrets were placed with, so a waypoint cannot point somewhere
-     * the secret is not.
+     * <p>The PASTE rotation is 0 because {@code buildSingleRoom} pastes at 0. The rotation PUBLISHED is not:
+     * what every solver does with {@code currentRoomClayAndRotation} is translate database coordinates, and the
+     * rotation those are measured in is the paste rotation plus the capture's own turn. Publishing 0 for a room
+     * whose capture is not canonical - 88 of his 122 - handed the solvers a correct corner and a rotation a
+     * quarter turn off it, which spins every relative coordinate about that corner. Same fault as the generated
+     * floor's, and fixed the same way; see the long note at the {@code clayByRoom} assignment in {@link #build}.
      */
     private static void publishSingleRoomMap(RoomLibrary.Room room, int centre) {
         int cells = DungeonLayout.GRID * DungeonLayout.GRID;
@@ -1155,9 +1193,22 @@ public final class SimBuilder {
                 cellRoom[gz * DungeonLayout.GRID + gx] = 0;
             }
         }
-        int[] clay = SimSecrets.clayCorner(room, centre, centre, 0);
+        // From SimRoomIndex, which armFloor may have corrected off this room's own furniture - see its
+        // correct(). Falls back to computing it when the room is somehow not in the index.
+        int dbRotation = Math.floorMod(RoomCaptureRotation.of(room), 360);
+        int[] clay = SimSecrets.clayCorner(room, centre, centre, 0, dbRotation);
+        int clayX = clay[0];
+        int clayZ = clay[1];
+        for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
+            if (placed.name().equals(room.name)) {
+                clayX = placed.clayX();
+                clayZ = placed.clayZ();
+                dbRotation = placed.rotation();
+                break;
+            }
+        }
         com.killer560.hub.livemap.LiveMapFeature.publishSimFloor(cellRoom, cellDoor,
-                new String[]{room.name}, new int[][]{{clay[0], clay[1], 0}});
+                new String[]{room.name}, new int[][]{{clayX, clayZ, dbRotation}});
     }
 
     /** A captured size back to a tile count - {@code RoomLibrary.footprint}'s only inverse. */

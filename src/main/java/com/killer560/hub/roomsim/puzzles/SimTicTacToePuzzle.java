@@ -61,23 +61,25 @@ public final class SimTicTacToePuzzle {
     private static volatile BlockPos[] cellPos = null;
 
     /**
-     * Cell index -> the block that is COLOURED, which is not the same block in a captured room.
+     * THE MARK GOES ON THE CELL, and an unplayed cell is a button. (Kept as a field name for the standalone
+     * arena's sake; in a bound room it is always null now.)
      *
-     * <p>killer560 (2026-10-01): "Tictactoe does not have buttons for me to play tic tactoe." His log shows the
-     * room binding fine - "8 of 9 expected block(s) present" - so the buttons were found and then painted over,
-     * because the bind wrote the mark onto the cell coordinate, which IS the button's coordinate.
+     * <p>killer560 (2026-10-01): "tictactoe still is missing its bottom right button. Also the solver isnt
+     * working there either." Two reports, one cause, and it is this.
      *
      * <p>Decoding the capture gives the real board: eight {@code stone_button} at capture {@code x=23},
      * {@code y 70..72}, {@code z 14..16}, each attached to an {@code iron_block} wall one step further in at
-     * {@code x=24}, with air in front at {@code x=22}. The ninth is missing because that cell was already
-     * played. In the database's own coordinates that puts the button at {@code x=8} - which is
-     * {@code TicTacToeSolverFeature}'s cell coordinate, and {@code 31 - 23 = 8} agrees - and the wall at
-     * {@code x=7}.
+     * {@code x=24}, with air in front at {@code x=22}. In the database's own coordinates the button is at
+     * {@code x=8} - which is {@code TicTacToeSolverFeature}'s cell coordinate, and {@code 31 - 23 = 8} agrees -
+     * and the wall at {@code x=7}.
      *
-     * <p>So the button stays where it is and the colour goes on the wall behind it. A button is a small block,
-     * so the wall reads clearly around it, and the cell is still something to press.
-     *
-     * <p>Null for a standalone arena, which has no wall behind anything - there the two are the same block.
+     * <p>The mark used to be painted on the WALL at {@code x=7}, to keep the button standing. That is the one
+     * place {@code TicTacToeSolverFeature} never looks. It reads the board at {@code x=8} and nowhere else, so
+     * every mark was invisible to it and to Auto Tic Tac Toe with it. On the real board a played cell has no
+     * button and shows its mark AT {@code x=8} (a map in an item frame, which is an entity and so can never be
+     * in a capture) - so the mark goes on the cell, exactly where the solver reads, and an unplayed cell is
+     * simply its button again. Painting and un-buttoning are now the same write instead of two that had to
+     * agree.
      */
     private static volatile BlockPos[] paintPos = null;
     /** Reverse lookup for the click hook, same shape as SimDoors' BLOCK_INDEX. */
@@ -106,7 +108,13 @@ public final class SimTicTacToePuzzle {
                 return InteractionResult.PASS;
             }
             onPlayerClick(client, index);
-            return InteractionResult.SUCCESS;
+            // PASS for the room's own button, so vanilla still presses it - the depress and the click are what
+            // make a cell feel played, and SUCCESS threw both away. A standalone arena's cell is concrete with
+            // no interaction of its own, so consuming that one costs nothing and stops a stray right-click
+            // doing anything else with it. Same split SimQuizPuzzle's pillar buttons use.
+            return level.getBlockState(hitResult.getBlockPos())
+                    .getBlock() instanceof net.minecraft.world.level.block.ButtonBlock
+                    ? InteractionResult.PASS : InteractionResult.SUCCESS;
         });
     }
 
@@ -189,16 +197,14 @@ public final class SimTicTacToePuzzle {
         // would blank the board this method just built.
         forget();
         BlockPos[] positions = new BlockPos[9];
-        BlockPos[] walls = new BlockPos[9];
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
                 positions[row * 3 + col] = anchor.world(8, 72 - row, 17 - col).immutable();
-                // One step further in: the iron wall the button is attached to - see paintPos.
-                walls[row * 3 + col] = anchor.world(7, 72 - row, 17 - col).immutable();
             }
         }
         cellPos = positions;
-        paintPos = walls;
+        // No separate paint target in a bound room - the mark IS the cell. See paintPos.
+        paintPos = null;
         boundAnchor = anchor;
         for (int i = 0; i < 9; i++) {
             CELL_INDEX.put(positions[i], i);
@@ -242,8 +248,13 @@ public final class SimTicTacToePuzzle {
         if (opening != null) {
             board[opening] = COMPUTER;
         }
+        // Straight onto the level, not through paintAll's server.execute: this method already runs on the
+        // server thread, from SimRoomPuzzles.armFloor.
         for (int i = 0; i < 9; i++) {
-            level.setBlockAndUpdate(walls[i], colourFor(board[i]));
+            BlockState state = stateFor(board[i]);
+            if (state != null) {
+                level.setBlockAndUpdate(positions[i], state);
+            }
         }
         return true;
     }
@@ -286,32 +297,33 @@ public final class SimTicTacToePuzzle {
         }
         MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
         if (server != null) {
-            restoreButtons(server);
+            // One write per cell: an empty cell gets its button back, the computer's opening gets its mark.
+            // That used to be three passes (restore every button, paint every cell, then take one button away
+            // again) and the order they landed in decided whether the opening cell ended up a mark or a button.
             paintAll(server);
-            if (opening != null) {
-                removeButton(server, opening);
-            }
         }
     }
 
     /** The room's own button, as it was at bind time, so a restart can put nine of them back. */
     private static volatile BlockState buttonState = null;
 
-    /** Puts a stone button back on every cell that has none - see {@link #removeButton}. */
-    private static void restoreButtons(MinecraftServer server) {
-        BlockPos[] cells = cellPos;
-        BlockState button = buttonState;
-        if (boundAnchor == null || cells == null || button == null) {
-            return;
+    /**
+     * The block a cell should hold for this mark, or null when there is nothing to write.
+     *
+     * <p>In a BOUND room an empty cell is the room's own stone button - which is both what the real board looks
+     * like and the thing that makes the cell clickable - and a played cell is its mark. In a standalone arena
+     * there are no buttons at all, so an empty cell is white concrete and the mark replaces it. Null only when a
+     * bound room never managed to record a button to copy, in which case leaving the cell alone beats putting
+     * something invented there.
+     */
+    private static BlockState stateFor(char mark) {
+        if (mark != EMPTY) {
+            return colourFor(mark);
         }
-        BlockPos[] snapshot = cells.clone();
-        server.execute(() -> {
-            for (BlockPos pos : snapshot) {
-                if (pos != null && !server.overworld().getBlockState(pos).is(Blocks.STONE_BUTTON)) {
-                    server.overworld().setBlockAndUpdate(pos, button);
-                }
-            }
-        });
+        if (boundAnchor == null) {
+            return McBlocks.WHITE_CONCRETE.defaultBlockState();
+        }
+        return buttonState;
     }
 
     public static void forget() {
@@ -366,11 +378,10 @@ public final class SimTicTacToePuzzle {
         }
         MinecraftServer server = client.getSingleplayerServer();
         if (server != null) {
+            // Painting the mark IS taking the button away - they are the same block now.
             paintCell(server, index, PLAYER);
-            removeButton(server, index);
             if (replyIndex != null) {
                 paintCell(server, replyIndex, COMPUTER);
-                removeButton(server, replyIndex);
             }
         }
         finishIfOver();
@@ -406,29 +417,7 @@ public final class SimTicTacToePuzzle {
         }
     }
 
-    /**
-     * Takes a played cell's button away.
-     *
-     * <p>killer560 (2026-10-01): "Once i click on a button delete that button." It is also what the real room
-     * does - a cell that has been played has no button on it any more, which is exactly why the capture is a
-     * button short. Only ever in a BOUND room: in a standalone arena the cell block IS the mark, so there is
-     * nothing separate to remove and airing it out would delete the mark that was just painted.
-     */
-    private static void removeButton(MinecraftServer server, int index) {
-        BlockPos[] cells = cellPos;
-        if (boundAnchor == null || cells == null || index < 0 || index >= cells.length || cells[index] == null) {
-            return;
-        }
-        BlockPos pos = cells[index];
-        server.execute(() -> {
-            if (server.overworld().getBlockState(pos).is(Blocks.STONE_BUTTON)) {
-                server.overworld().setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
-            }
-        });
-    }
-
-    /** The block a cell's colour is written to - the wall behind the button in a bound room, the cell itself in
-     *  a standalone arena. */
+    /** The block a cell's colour is written to - the cell itself, which is also where its button is. */
     private static BlockPos paintTarget(int index) {
         BlockPos[] walls = paintPos;
         if (walls != null && index >= 0 && index < walls.length && walls[index] != null) {
@@ -444,11 +433,15 @@ public final class SimTicTacToePuzzle {
             targets[i] = paintTarget(i);
         }
         char[] snapshot = board.clone();
+        BlockState[] states = new BlockState[9];
+        for (int i = 0; i < 9; i++) {
+            states[i] = stateFor(snapshot[i]);
+        }
         server.execute(() -> {
             ServerLevel level = server.overworld();
             for (int i = 0; i < 9; i++) {
-                if (targets[i] != null) {
-                    level.setBlockAndUpdate(targets[i], colourFor(snapshot[i]));
+                if (targets[i] != null && states[i] != null) {
+                    level.setBlockAndUpdate(targets[i], states[i]);
                 }
             }
         });
@@ -456,10 +449,11 @@ public final class SimTicTacToePuzzle {
 
     private static void paintCell(MinecraftServer server, int index, char mark) {
         BlockPos pos = paintTarget(index);
-        if (pos == null) {
+        BlockState state = stateFor(mark);
+        if (pos == null || state == null) {
             return;
         }
-        server.execute(() -> server.overworld().setBlockAndUpdate(pos, colourFor(mark)));
+        server.execute(() -> server.overworld().setBlockAndUpdate(pos, state));
     }
 
     private static BlockState colourFor(char mark) {

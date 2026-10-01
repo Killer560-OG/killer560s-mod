@@ -157,6 +157,30 @@ public final class SimRoomPuzzles {
         }
     }
 
+    /**
+     * The vertical nudge a bound room needed, by room name - so the SOLVER can use it too.
+     *
+     * <p>One capture in the library is measured a block off the reference its bundled data was taken in, and it
+     * is Ice Fill: decoded against {@code ice-fill-floors.json}, every one of the 244 easy-path positions lands
+     * on ice at {@code dy = -1} and none of them at {@code dy = 0}. {@link #bestAnchor} searches for that and
+     * binds the puzzle correctly, which is why the sim's Ice Fill works - but
+     * {@code IceFillSolverFeature} knows nothing about it and drew its line one block above the ice, through
+     * the same {@link com.killer560.hub.puzzlesolvers.PuzzleCoords} every solver uses.
+     *
+     * <p>So the nudge is published rather than kept private. {@code PuzzleCoords.real} adds it for whichever
+     * room he is standing in, which makes the solver and the puzzle measure from the same place without either
+     * of them carrying a per-room constant. Empty on a real run, because nothing binds there.
+     */
+    private static final java.util.Map<String, Integer> ROOM_DY = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** The nudge for a room, 0 when it needed none. Keyed by the room's own name, case-insensitively. */
+    public static int dyFor(String roomName) {
+        if (roomName == null || ROOM_DY.isEmpty()) {
+            return 0;
+        }
+        return ROOM_DY.getOrDefault(roomName.toLowerCase(Locale.ROOT), 0);
+    }
+
     /** A predicate for "is one of these blocks", for the self-checks below. */
     public static Predicate<BlockState> is(Block... blocks) {
         return state -> {
@@ -246,6 +270,25 @@ public final class SimRoomPuzzles {
                             + " rotation {} ({} land)",
                     p.room().name, best.rotation(), best.dy(), bestScore, rels.size(),
                     recorded.rotation(), recordedScore);
+            // AND THE MAP FOLLOWS THE FURNITURE. Until now only the puzzle did, so a room this fired on had the
+            // puzzle in one place and every SOLVER's highlight in another - the solvers ask the live map, and
+            // the live map was still carrying the rotation that just lost the vote. See SimRoomIndex.correct;
+            // armFloor runs before the floor is published, so this lands in the same build.
+            //
+            // Only the ROTATION and the CORNER travel. The dy nudge cannot: the map publishes no height, and
+            // the one capture that needs it (Ice Fill, measured a block low) keeps it as that puzzle's own
+            // correction - which is why it is logged here rather than quietly absorbed.
+            // The NUDGE travels too, by room name - see ROOM_DY. Without it the puzzle binds a block off where
+            // its solver draws, which is exactly the Ice Fill case.
+            if (best.dy() != 0) {
+                ROOM_DY.put(p.room().name.toLowerCase(Locale.ROOT), best.dy());
+            }
+            if (best.rotation() != recorded.rotation()
+                    && SimRoomIndex.correct(p.gridX(), p.gridZ(), best.clayX(), best.clayZ(), best.rotation())) {
+                LOGGER.info("Sim puzzle {}: the live map now reports database rotation {} for this room too, so"
+                        + " its solver measures from the same corner the puzzle was bound at",
+                        p.room().name, best.rotation());
+            }
         } else {
             LOGGER.info("Sim puzzle {}: bound at database rotation {} - {} of {} expected block(s) present",
                     p.room().name, best.rotation(), bestScore, rels.size());
@@ -274,6 +317,9 @@ public final class SimRoomPuzzles {
         }
         // Last floor's red squares with it. Nothing on THIS floor has been failed yet.
         SimRoomState.clear();
+        // And the last floor's measured nudges - this floor's rooms have not been scored yet, and a stale entry
+        // would move a solver's coordinates in a room that never needed it.
+        ROOM_DY.clear();
         int armed = 0;
         int seen = 0;
         // One of each puzzle CLASS, because each one is a singleton holding one arena's worth of static state.
@@ -331,6 +377,23 @@ public final class SimRoomPuzzles {
             if (ok) {
                 armed++;
                 names.append(names.isEmpty() ? "" : ", ").append(placed.name());
+                // WHAT THE SOLVER WILL BE TOLD, next to what the puzzle actually bound at.
+                //
+                // These two being different numbers for the same room is the bug that cost a day: the floor was
+                // publishing the PASTE rotation to the live map while the puzzle used the DATABASE one, so every
+                // solver measured a correct corner through a rotation a quarter turn off it. They agree by
+                // construction now - the publish reads this very table, and bestAnchor writes back to it when a
+                // room's furniture overrules the recovered turn - and this line is how that stays checkable in a
+                // log instead of being taken on trust.
+                for (SimRoomIndex.Placed after : SimRoomIndex.placed()) {
+                    if (after.gridX() == placed.gridX() && after.gridZ() == placed.gridZ()) {
+                        LOGGER.info("Sim puzzles: {} will be published to the live map at clay {},{} rotation {}"
+                                        + " (pasted at {}, nudge {}) - this is what its solver measures from",
+                                placed.name(), after.clayX(), after.clayZ(), after.rotation(),
+                                after.pasteRotation(), dyFor(placed.name()));
+                        break;
+                    }
+                }
             } else {
                 LOGGER.warn("Sim puzzles: {} was NOT armed", placed.name());
             }
