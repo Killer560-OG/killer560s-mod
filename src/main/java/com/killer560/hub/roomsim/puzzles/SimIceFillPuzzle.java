@@ -381,9 +381,35 @@ public final class SimIceFillPuzzle {
         // openChests. Taken at arm time because by completion the Placement is long gone.
         ironBars = List.copyOf(SimRoomPuzzles.capturedBlocks(p, Blocks.IRON_BARS));
 
+        // THE TWO REWARD CHESTS. killer560 (2026-10-01): "In ice fill there needs to be two chests inside the
+        // torches on the andesite blocks."
+        //
+        // The capture holds the alcove but not the chests - decoding it finds no chest anywhere in the room.
+        // Behind the iron-bars wall (capture x 28, z 14-18) sits a pocket whose far side is capture x 30: two
+        // polished_andesite pedestals at (30, 74, 15) and (30, 74, 17), air directly above each, and the two
+        // torches at (30, 75, 14) and (30, 75, 18) standing on cobblestone walls either side of them. So "inside
+        // the torches, on the andesite blocks" is (30, 75, 15) and (30, 75, 17), and that is where these go.
+        //
+        // These coordinates are read off THIS capture of Ice Fill, so they are the one thing here that a
+        // re-walk of the room could move. Each is written only if that spot is currently air, and the count is
+        // logged, so a capture that has shifted reports zero chests rather than burying two in a wall.
+        int rewards = 0;
+        for (int cz : new int[]{15, 17}) {
+            BlockPos spot = SimRoomPuzzles.capturedPos(p, 30, 75, cz);
+            if (level.getBlockState(spot).isAir()) {
+                level.setBlockAndUpdate(spot, Blocks.CHEST.defaultBlockState());
+                rewards++;
+            } else {
+                LOGGER.warn("Sim ice fill: no air at the reward-chest spot {} (capture 30,75,{}) - holds {}. "
+                                + "If Ice Fill has been re-captured these two coordinates need re-measuring.",
+                        spot, cz, level.getBlockState(spot).getBlock());
+            }
+        }
+
         LOGGER.info("Sim ice fill: armed in {} - section sizes {}/{}/{}, exits {}, {} water block(s) drained, "
-                        + "{} iron bar(s) held for the finish", p.room().name,
-                found.get(0).size(), found.get(1).size(), found.get(2).size(), exits, drained, ironBars.size());
+                        + "{} iron bar(s) held for the finish, {} of 2 reward chest(s) placed", p.room().name,
+                found.get(0).size(), found.get(1).size(), found.get(2).size(), exits, drained, ironBars.size(),
+                rewards);
         return true;
     }
 

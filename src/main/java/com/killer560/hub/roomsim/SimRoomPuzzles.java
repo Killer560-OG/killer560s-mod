@@ -399,6 +399,28 @@ public final class SimRoomPuzzles {
     }
 
     /**
+     * Where ONE capture-local coordinate ended up in the world.
+     *
+     * <p>{@link #capturedBlocks} answers "where are this room's chests", which is the usual question. This
+     * answers "where is the block I measured at capture-local (x, y, z)", which is what a puzzle needs when it
+     * has to WRITE something at a spot found by decoding the capture rather than by searching the world. Same
+     * transform, same anchor, same {@code RoomPlacer.rotateLocal} - so it lands exactly where the paste put
+     * that cell, at any rotation, with nothing guessed.
+     *
+     * <p>Capture-local, NOT database-relative: the two differ by the capture's own turn, and a coordinate read
+     * out of a capture file is the former.
+     */
+    public static BlockPos capturedPos(Placement p, int cx, int cy, int cz) {
+        RoomLibrary.Room room = p.room();
+        BlockPos origin = com.killer560.hub.livemap.DungeonLayout.cellCenter(
+                p.gridZ() * com.killer560.hub.livemap.DungeonLayout.GRID + p.gridX());
+        int worldX0 = origin.getX() - RoomLibrary.TILE / 2 - room.margin;
+        int worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - room.margin;
+        int[] local = RoomPlacer.rotateLocal(cx, cz, room.sizeX, room.sizeZ, p.pasteRotation());
+        return new BlockPos(worldX0 + local[0], SimAltitude.toWorld(cy), worldZ0 + local[1]);
+    }
+
+    /**
      * One bind, picked by puzzle name.
      *
      * <p>Split out of {@link #armFloor} only so every puzzle goes through the same guard there. A switch

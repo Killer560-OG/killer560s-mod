@@ -41,11 +41,69 @@ public final class SimSecrets {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
 
-    /** Stand-ins for the two secret kinds that are not worth modelling exactly. */
+    /**
+     * A wither essence, as a pure black skull. Clickable - see {@link #register}.
+     *
+     * <p>killer560 (2026-10-01): "For the wither essences, make it so if i click it then it dissapears and make
+     * the skull pure black. Also alll wither essences were recorded with this glowing lantern above them that
+     * shouldnt exist."
+     *
+     * <p><b>The lantern was this file's own doing, and it was a workaround for a bug that is now fixed.</b>
+     * Searching all 134 captures settles it: {@code soul_lantern} appears in NONE of them, and
+     * {@code player_head} appears in 98 - which is what Hypixel renders a wither essence as. So the essence was
+     * always in the room, and the reason it read as "wither essences are not loading in" on 2026-09-30 is the
+     * same reason the chests were invisible: a {@code SkullBlock} is an {@code EntityBlock} whose model draws
+     * nothing, and {@code RoomPlacer}'s fast path was not giving pasted blocks their block entity. A lantern was
+     * added above the essence to stand in for something that was there all along and could not be seen.
+     *
+     * <p>With that fixed the lantern is both redundant and wrong, so it is gone. What goes in its place is a
+     * {@code wither_skeleton_skull} written AT the essence's own database position, replacing whatever head the
+     * capture holds there - the closest vanilla block to "pure black", and thematically the right one. A
+     * captured {@code player_head} carries no profile through a capture (the palette stores a block state, not a
+     * skin), so leaving it would have rendered a default Steve head instead.
+     *
+     * <p>Only the heads at the database's own wither coordinates are touched. 98 captures contain player heads
+     * and most of them are decoration or some other secret entirely.
+     */
     private static final net.minecraft.world.level.block.state.BlockState WITHER_MARKER =
-            Blocks.SOUL_LANTERN.defaultBlockState();
+            Blocks.WITHER_SKELETON_SKULL.defaultBlockState();
     private static final net.minecraft.world.level.block.state.BlockState KEY_MARKER =
             Blocks.LEVER.defaultBlockState();
+
+    /** Every wither essence skull this floor placed, so a click on one can be told from a click on scenery. */
+    public static final java.util.Set<BlockPos> PLACED_WITHER =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * Makes a wither essence collectable.
+     *
+     * <p>Right-clicking one takes it away and counts a secret, which is what it does on Hypixel. Client side
+     * only - {@code UseBlockCallback} fires on the integrated server too in singleplayer, and counting there as
+     * well would score every essence twice.
+     */
+    public static void register() {
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+            if (!level.isClientSide()) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+            if (!SimState.canAct(client) || player != client.player) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            BlockPos at = hit.getBlockPos().immutable();
+            if (!PLACED_WITHER.remove(at)) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            SimScore.secretFound();
+            ModChat.send("Sim", ModChat.good("Wither essence collected"));
+            var server = client.getSingleplayerServer();
+            if (server != null) {
+                server.execute(() ->
+                        server.overworld().setBlockAndUpdate(at, Blocks.AIR.defaultBlockState()));
+            }
+            return net.minecraft.world.InteractionResult.SUCCESS;
+        });
+    }
 
     private SimSecrets() {
     }
@@ -110,8 +168,9 @@ public final class SimSecrets {
         placed += chests(level, entry.secretCoords.chest, clayX, clayZ, dbRotation);
         placed += bats(level, entry.secretCoords.bat, clayX, clayZ, dbRotation);
         placed += items(level, entry.secretCoords.item, clayX, clayZ, dbRotation);
-        placed += markers(level, entry.secretCoords.wither, clayX, clayZ, dbRotation, WITHER_MARKER);
-        placed += markers(level, entry.secretCoords.redstoneKey, clayX, clayZ, dbRotation, KEY_MARKER);
+        placed += markers(level, entry.secretCoords.wither, clayX, clayZ, dbRotation, WITHER_MARKER,
+                PLACED_WITHER);
+        placed += markers(level, entry.secretCoords.redstoneKey, clayX, clayZ, dbRotation, KEY_MARKER, null);
         // Loud only when something is wrong. A handful of real secrets do sit in a room's wall, so a couple
         // outside the tile box is normal; a whole room's worth means the clay corner for that rotation is
         // wrong, which is exactly the bug rotation introduced on 2026-09-29.
@@ -193,6 +252,9 @@ public final class SimSecrets {
         chestsUncorrected = 0;
         chestsSkippedOutside = 0;
         chestsInDoorways = 0;
+        // The last floor's essences are gone with it, and a stale position would make a click on some unrelated
+        // block on the new floor count a secret.
+        PLACED_WITHER.clear();
     }
 
     /**
@@ -368,8 +430,12 @@ public final class SimSecrets {
         return n;
     }
 
+    /**
+     * @param record positions are added here when non-null, so a click can be told from a click on scenery
+     */
     private static int markers(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation,
-                               net.minecraft.world.level.block.state.BlockState marker) {
+                               net.minecraft.world.level.block.state.BlockState marker,
+                               java.util.Set<BlockPos> record) {
         if (list == null) {
             return 0;
         }
@@ -380,19 +446,28 @@ public final class SimSecrets {
             if (!checkInside(at)) {
                 continue;
             }
-            // NOT "only if the spot is already air".
+            // THE DATABASE POSITION FIRST, and a head there is something to REPLACE rather than avoid.
             //
-            // killer560 (2026-09-30): "wither essences are not loading in." The database's coordinate is the
-            // essence's own position, and in a real room that is often INSIDE the geometry - tucked in a wall
-            // or under a floor - so requiring air there silently dropped exactly the secrets that are hidden,
-            // which is most of them. A marker has to be visible to be worth placing, so this walks up to two
-            // blocks up looking for somewhere it can actually be seen, and says so when it cannot.
+            // The old rule was "the first air at or within two blocks above", which is how a glowing lantern
+            // ended up hovering above every essence - killer560 (2026-10-01). It was written when
+            // "wither essences are not loading in" looked like the coordinate being buried in geometry. It was
+            // not: 98 of the 134 captures hold a player_head, which is what Hypixel draws an essence as, and
+            // those heads were simply invisible for want of a block entity - see WITHER_MARKER and RoomPlacer.
+            //
+            // So a head or air at the essence's own coordinate is the right spot, and the upward walk is kept
+            // only as a fallback for a room whose coordinate really is inside something solid.
             BlockPos spot = null;
-            for (int up = 0; up <= 2; up++) {
-                BlockPos candidate = at.above(up);
-                if (level.getBlockState(candidate).isAir()) {
-                    spot = candidate;
-                    break;
+            net.minecraft.world.level.block.state.BlockState there = level.getBlockState(at);
+            if (there.isAir()
+                    || there.getBlock() instanceof net.minecraft.world.level.block.AbstractSkullBlock) {
+                spot = at;
+            } else {
+                for (int up = 1; up <= 2; up++) {
+                    BlockPos candidate = at.above(up);
+                    if (level.getBlockState(candidate).isAir()) {
+                        spot = candidate;
+                        break;
+                    }
                 }
             }
             if (spot == null) {
@@ -401,6 +476,9 @@ public final class SimSecrets {
             }
             SimBuildQueue.touched(spot.getX(), spot.getZ());
             level.setBlockAndUpdate(spot, marker);
+            if (record != null) {
+                record.add(spot);
+            }
             n++;
         }
         if (blocked > 0) {
