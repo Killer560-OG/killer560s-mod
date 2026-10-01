@@ -8,10 +8,15 @@ and (in one of the two build variants) automation. Personal toolkit that friends
 Java 25 and a JDK on `JAVA_HOME`. Gradle wrapper, Fabric Loom.
 
 ```
-./gradlew build                     # legit variant  -> build/libs/killer560smod-1.1.0-legit.jar
-./gradlew build -PcheatBuild=true   # cheat variant  -> build/libs/killer560smod-1.1.0-cheat.jar
+./gradlew build                     # legit variant  -> build/libs/killer560smod-1.1.0-26.1.2-legit.jar
+./gradlew build -PcheatBuild=true   # cheat variant  -> build/libs/killer560smod-1.1.0-26.1.2-cheat.jar
 ./gradlew build -Prelease=true      # official release: compiles dev tooling OUT
+python deploy-to-instances.py [--dry-run] [--jars-dir DIR]   # install into every Prism instance
 ```
+
+The Minecraft version is in every jar name, and one gradle run builds one version. The deploy script keeps
+each instance on its MC version and installed variant, stages `.jar.pending` for a running one, and prints
+each instance's BuildVariant md5; point `--jars-dir` at a folder holding the other version's jars.
 
 Both variants come from the same source. `build.gradle` generates
 `com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED` from `-PcheatBuild`, and `DEV_TOOLS` from
@@ -298,12 +303,13 @@ physics. Read the relevant one before touching either area.
   while the window was briefly 854x480 froze `storage_overlay` at the clamped `x:0` and it stayed there at
   2560x1441, which is what "the storage overlay is no longer centered" turned out to be. A saved position is
   never re-clamped, so the cure is deleting the element's entry from `killer560smod-hud.json`.
-- Superpairs' biggest XP tile is a **lapis BLOCK** named `+479,095 XP`, not a dye. Treating "dye family" as
-  "XP" made it a valuable reward that powerup matches and pairing spent clicks on (his 2026-10-01 runs). Superpairs
-  uses `isSuperpairsXpTile`; `isDyeFamilyItem` stays Ultrasequencer's note check.
-- `deploy-to-instances.py` predates the per-version jar names (`killer560smod-1.1.0-26.1.2-cheat.jar`) and
-  exits "missing build output" against a current build; it also skips 26.2 instances. Until it is rewritten,
-  install by hand: same variant per instance, `.jar.pending` for a running one, verify with the BuildVariant md5.
+- **Superpairs powerups come in two kinds, told apart by lore.** "Instant powerup!" (the `+479,095 XP` lapis
+  block, "Gained +3 Clicks") applies on the spot; only "Powerup for next click!" (Instant Find) matches the next
+  click. Arming on both spent a lone click on an Enchanted Book and reserved it, blocking its pair (2026-10-01).
+  XP reward tiles are recognised by NAME (`... Enchanting Exp`): the item varies, and cocoa beans were missed.
+  Clicking a tile that is already uncovered does not use a click (killer560, 2026-10-01). A pair's first click
+  can fail to land (tile still covered, others still read "Click any button!"); clicking the partner anyway lost
+  Experiment the Fish, so the first tile is now re-clicked before its partner.
 - **Hypixel's Bazaar summaries are named the opposite of how they read.** In
   `api.hypixel.net/v2/skyblock/bazaar`, `buy_summary` is the book you INSTANT-BUY OUT OF and `sell_summary` is
   the one you instant-sell into. Verified on `VIBRANT_CORAL` (2026-09-29): `quick_status.buyPrice` 3324220.9
