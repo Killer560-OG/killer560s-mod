@@ -475,7 +475,7 @@ final class ExperimentSolver {
             // Enchanting Exp"/"38k Enchanting Exp" (the amount is embedded in the name text itself, NOT
             // the stack count - a real log caught that assumption before it shipped), so this just strips
             // the trailing "Enchanting Exp"/"Enchanting XP" words and keeps the leading amount token.
-            names.put(slot, isDyeFamilyItem(known) ? xpAmountLabel(known.name()) : known.name());
+            names.put(slot, isSuperpairsXpTile(known) ? xpAmountLabel(known.name()) : known.name());
         }
         return names;
     }
@@ -875,15 +875,18 @@ final class ExperimentSolver {
             }
         }
 
-        // A discovered-but-not-yet-activated bonus tile takes priority over normal exploration -
-        // activating it is free value (bonus clicks) and arms the next click's auto-match.
+        // A discovered-but-not-yet-activated bonus tile takes priority over normal exploration.
+        // Only one KIND arms the next click's auto-match: its lore says "Powerup for next click!" (Instant
+        // Find). "Instant powerup!" tiles (the "+479,095 XP" lapis block, "Gained +3 Clicks") apply on the
+        // spot. Arming on those too spent a lone click on the Enchanted Book at slot 10 in his 2026-10-01
+        // 09:20 run, which reserved it, so when its partner turned up at 34 the pair was blocked.
         if (superpairsPowerupSlot != null && !queuedPairSlots.contains(superpairsPowerupSlot)) {
             int slot = superpairsPowerupSlot;
             superpairsPowerupSlot = null;
-            superpairsPowerupPending = true;
+            Cell tile = bySlot.get(slot);
+            superpairsPowerupPending = tile != null && armsNextClick(tile);
             queuedPairSlots.add(slot);
             superpairsPowerupActivationSlot = slot;
-            Cell tile = bySlot.get(slot);
             LOGGER.info("Superpairs: activating powerup on slot {} (name='{}', lore='{}') - reserved for the rest of the round",
                     slot, tile == null ? "?" : tile.name(), tile == null ? "?" : tile.lore());
             return OptionalInt.of(slot);
@@ -1095,6 +1098,11 @@ final class ExperimentSolver {
         return !isSuperpairsXpTile(cell);
     }
 
+    /** "Powerup for next click!" - the lore of Instant Find, the one powerup that matches the next click. */
+    private static boolean armsNextClick(Cell cell) {
+        return cell.lore() != null && cell.lore().toLowerCase(Locale.ROOT).contains("next click");
+    }
+
     private static final Pattern SUPERPAIRS_XP_NAME = Pattern.compile("\\+[\\d,]+ XP");
 
     /** A plain Experience reward in Superpairs. Mostly a dye-family item named like "144k Enchanting Exp",
@@ -1103,7 +1111,12 @@ final class ExperimentSolver {
      *  click and got paired ahead of real rewards. Kept separate from isDyeFamilyItem because Ultrasequencer
      *  uses that one for its notes. */
     private static boolean isSuperpairsXpTile(Cell cell) {
-        return isDyeFamilyItem(cell)
+        // By NAME first: every XP tile is named "<n>k Enchanting Exp", whatever item draws it. Cocoa beans
+        // (the brown dye) were missed by the item check, so a 25k XP pair was treated as valuable, paired
+        // first and took the Instant Find match (2026-10-01 09:20 run).
+        return cell.name().endsWith("Enchanting Exp")
+                || isDyeFamilyItem(cell)
+                || cell.itemId().equals("minecraft:cocoa_beans")
                 || cell.itemId().equals("minecraft:lapis_block")
                 || SUPERPAIRS_XP_NAME.matcher(cell.name()).matches();
     }
