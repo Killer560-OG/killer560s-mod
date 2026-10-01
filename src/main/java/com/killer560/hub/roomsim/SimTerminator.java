@@ -403,7 +403,25 @@ public final class SimTerminator {
 
         TerminatorArrow(Level level, LivingEntity owner) {
             // Positions itself at the owner's eye and calls setOwner - both verified in the 26.1.2 bytecode.
-            super(level, owner, new ItemStack(Items.ARROW), ItemStack.EMPTY);
+            //
+            // THE WEAPON MUST BE A REAL WEAPON. This argument was ItemStack.EMPTY, and 26.1.2's AbstractArrow
+            // constructor refuses that outright, so EVERY shot threw before an arrow existed:
+            //
+            //   java.lang.IllegalArgumentException: Invalid weapon firing an arrow
+            //     at AbstractArrow.<init>(AbstractArrow.java:126)
+            //     at Arrow.<init>(Arrow.java:38)
+            //     at SimTerminator$TerminatorArrow.<init>(SimTerminator.java:406)
+            //     at SimTerminator.lambda$shoot$0(SimTerminator.java:249)
+            //
+            // Thrown on the server thread inside the shoot lambda, which is why it never reached him as a crash
+            // and read instead as the weapon doing nothing at all - killer560 (2026-10-01): "I still cannot
+            // shoot the terminator without an arrow. Nor does it perform like a shortbow or shoot 3 arrows."
+            // All three of those are this one exception: arrowsFired could never increment, so the earlier note
+            // that the Terminator "has fired three arrows since it was written, invisibly" was wrong. It has
+            // never fired one.
+            //
+            // A bow satisfies it and is the honest answer anyway - a shortbow is what fires these on Hypixel.
+            super(level, owner, new ItemStack(Items.ARROW), new ItemStack(Items.BOW));
             // "make it so I can shoot without arrows" cuts both ways: none are consumed and none are given
             // back either, so the pickup item above is never reachable.
             pickup = Pickup.DISALLOWED;

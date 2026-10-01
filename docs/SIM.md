@@ -663,7 +663,30 @@ without running the ability a second time.
 **"The secrets are highlighted with my setting off" was not Secret Waypoints at all.** `SecretWaypointsFeature` gates correctly on `SecretWaypointsConfig.isEnabled()` (which ships false) and nothing in the repo ever writes that field except the GUI tab, so the config was never the culprit. The highlighter was `SimMimicRenderer`, a sim-only `AFTER_TRANSLUCENT_TERRAIN` callback whose entire gate was `SimState.canAct() && SimMimic.hasMimic()`. It outlined every mimic CANDIDATE within 40 blocks in amber, and `SimSecrets` registers each placed secret chest as a candidate (`SimMimic.addCandidate`) on top of every chest baked into a capture - so "the chests that could be the mimic" was, in practice, every secret on the floor. Deleted 2026-09-30 rather than re-gated, at his request: the sim now has no highlighter of its own and Secret Waypoints is the only thing drawing secrets in there. When a feature looks like it is ignoring its setting, check whether a SECOND renderer is drawing the same thing - this one was in a different package, on an earlier render pass, and never consulted the config at all.
 
 **A sim weapon that is hitscan is a sim weapon that fires nothing, as far as he can tell.** The Terminator
-has fired three arrows since it was written, invisibly, and read to him as firing none.
+read to him as firing none.
+
+**Correction, 2026-10-01: it was not firing them invisibly. It had never fired one.** This section used to say
+the Terminator "has fired three arrows since it was written, invisibly". His log from the Map Logger instance
+shows otherwise, on every shot:
+
+```
+java.lang.IllegalArgumentException: Invalid weapon firing an arrow
+  at AbstractArrow.<init>(AbstractArrow.java:126)
+  at Arrow.<init>(Arrow.java:38)
+  at SimTerminator$TerminatorArrow.<init>(SimTerminator.java:406)
+  at SimTerminator.lambda$shoot$0(SimTerminator.java:249)
+```
+
+`TerminatorArrow` passed `ItemStack.EMPTY` as the weapon argument, and 26.1.2's `AbstractArrow` constructor
+refuses it. The throw happens inside the `server.execute` lambda, so it never surfaced as a crash - it landed
+in the log as an `Error executing task on Server` and the weapon simply did nothing. `arrowsFired` could not
+increment either, so the counter that was supposed to prove the weapon acted had nothing to count and said so
+in a way nobody read. Fixed by passing `new ItemStack(Items.BOW)`, which is what fires these on Hypixel.
+
+Two lessons. A claim that a feature "works, invisibly" needs the log checked before it is written down; this
+one was wrong for three days and absorbed two rounds of work on the rendering instead. And **an exception
+thrown inside `server.execute` is silent to the player** - every sim feature that queues work there and
+reports success from the client side can report success for something that never ran.
 
 ## Ice Path: the whole puzzle was already in the capture
 
