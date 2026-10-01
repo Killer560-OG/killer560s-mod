@@ -788,11 +788,15 @@ is what a puzzle knows about itself and what `MapPainter` already resolves a `Ro
 floor is built and when an Architect's First Draft resets the puzzles, which is exactly the behaviour he asked
 for ("If i then use an archetechs draft itll fix it and restart it").
 
-Two related things came out of it. `MapPainter.roomColor` was drawing only the red cross and leaving the square
-its normal purple, on real runs as well - it now blends `FAILED_TINT` in, so a failed room reads as red at a
-glance. And `SimPuzzles.reportFail` gained a room-name overload: six of the seven failable puzzles live in a
-room named after them, but `SimQuizPuzzle` runs both Quiz and Three Weirdos and was hardcoding "Three Weirdos"
-into the chat line of both.
+**It is the NAME that goes red, not the square.** killer560, 2026-10-01: "no not the square the text should
+become red." That needed nothing drawing-side - every label is already coloured `stateColor(visibleState(group))`
+and `STATE_FAILED`'s colour is `0xFFFF5555` - so reaching the state is the whole job and a tint on
+`roomColor` was wrong. Worth remembering before "make X show on the map" turns into a painter change: the
+state-driven colours are already wired, and most of these asks are about a state nothing in a sim can set.
+
+`SimPuzzles.reportFail` also gained a room-name overload: six of the seven failable puzzles live in a room named
+after them, but `SimQuizPuzzle` runs both Quiz and Three Weirdos and was hardcoding "Three Weirdos" into the
+chat line of both.
 
 ## The sim has no tab list, and two HUDs were reading one
 

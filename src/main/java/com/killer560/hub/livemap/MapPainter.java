@@ -381,15 +381,10 @@ final class MapPainter {
             return multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
         }
         int color = cfg.isColourByType() ? typeColor(roomType(group), cfg) : cfg.getColorNormal();
-        // A failed puzzle reads as failed from across the map, not just by its cross. Hypixel does this
-        // itself: the room's CENTRE map byte goes to 18 (red) while its side byte stays 66 (purple), which
-        // is the very pair DungeonMapScanner's `case 18` decodes into STATE_FAILED. This map drew the red
-        // cross and left the square its normal purple, so a failed room looked like any other puzzle at a
-        // glance - killer560 asked for the square ("the map image for the room should turn red to show that
-        // I failed the puzzle"). Blended, like MIMIC_TINT, so the room still reads as the type it is.
-        if (state == DungeonMapScanner.STATE_FAILED) {
-            color = mix(color, FAILED_TINT);
-        }
+        // A failed puzzle does NOT recolour its square. killer560, 2026-10-01: "no not the square the text
+        // should become red." The room keeps its own type colour and the NAME goes red, which it already does
+        // - every label's colour is stateColor(visibleState(group)), and STATE_FAILED's is 0xFFFF5555. So the
+        // only thing the sim had to add was a way to reach that state without a map item (SimRoomState).
         // killer560, 2026-09-27: "if you have cheater map then it should highlight the room tha thas mimic
         // as a faint red instead of the normal brown" - cheat build only, same live "is this known secret
         // chest position actually a trapped_chest right now" check SecretWaypointsFeature already uses for
@@ -405,10 +400,6 @@ final class MapPainter {
 
     /** ~55% faint red, blended onto the room's own colour by {@link #mix}. */
     private static final int MIMIC_TINT = 0x8CFF0000;
-
-    /** ~80% red, for a failed puzzle - strong enough to read as "that one is red", weak enough that the
-     *  room's own type colour still shows through. */
-    private static final int FAILED_TINT = 0xCCFF3030;
 
     /** Once-a-second snapshot of which rooms (by {@code mainIdx}) currently have a live mimic - see
      *  {@link #hasLiveMimic}. Rebuilt lazily, never more often than {@link #MIMIC_SCAN_TTL_MS}: a live block
