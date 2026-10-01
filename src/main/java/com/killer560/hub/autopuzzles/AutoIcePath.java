@@ -80,7 +80,11 @@ final class AutoIcePath {
             return;
         }
         BlockPos fishPos = fish.blockPosition();
-        BlockPos currSpot = new BlockPos(fishPos.getX(), 66, fishPos.getZ());
+        // 66 is the ice's height on Hypixel; the sim shifts the whole floor, so the literal moves with it.
+        // Same DungeonLayout.simYOffset() every other height in this mod goes through, zero on a real run -
+        // and the only hardcoded world y left in this package after the PuzzleCoords sweep.
+        BlockPos currSpot = new BlockPos(fishPos.getX(),
+                66 + com.killer560.hub.livemap.DungeonLayout.simYOffset(), fishPos.getZ());
         if (AutoPuzzleUtil.etherwarpDirection(client.level, player, currSpot) == null) {
             return;
         }

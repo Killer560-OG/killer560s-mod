@@ -203,6 +203,38 @@ public final class SimTicTacToePuzzle {
         for (int i = 0; i < 9; i++) {
             CELL_INDEX.put(positions[i], i);
         }
+        // THE NINTH BUTTON. killer560 (2026-10-01): "When I went into tictactoe the bottom right button wwas
+        // missing." It is missing from the CAPTURE - the room was walked after that cell had been played, so
+        // only eight of the nine are in the file (the gap is at capture (23,70,16)). A board you can only play
+        // eight squares of is not the puzzle.
+        //
+        // The replacement is COPIED from one of the eight that are there rather than built from a literal,
+        // because a button carries a facing and which way it faces depends on how the room was turned - and
+        // the eight present ones are already correct at this rotation by construction.
+        BlockState existing = null;
+        for (BlockPos pos : positions) {
+            if (level.getBlockState(pos).is(Blocks.STONE_BUTTON)) {
+                existing = level.getBlockState(pos);
+                break;
+            }
+        }
+        // REMEMBERED, not re-read later. By the end of a game every cell has been played and none of the nine
+        // still holds a button, so a restart that went looking for one to copy would find nothing and put
+        // none back - a board that can only be played once.
+        buttonState = existing;
+        if (existing != null) {
+            int replaced = 0;
+            for (BlockPos pos : positions) {
+                if (!level.getBlockState(pos).is(Blocks.STONE_BUTTON)) {
+                    level.setBlockAndUpdate(pos, existing);
+                    replaced++;
+                }
+            }
+            if (replaced > 0) {
+                com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                        "Sim tic tac toe: {} button(s) the capture is missing put back", replaced);
+            }
+        }
         Arrays.fill(board, EMPTY);
         built = true;
         complete = false;
@@ -237,7 +269,13 @@ public final class SimTicTacToePuzzle {
     /** Non-null while this board is bound to a real captured room rather than a standalone arena. */
     private static volatile com.killer560.hub.roomsim.SimRoomPuzzles.Anchor boundAnchor = null;
 
-    /** A fresh game on the board already standing in a captured room - no blocks added or removed. */
+    /**
+     * A fresh game on the board already standing in a captured room.
+     *
+     * <p>The buttons come BACK, because a played cell's button is now removed - without this, a second game
+     * would start on a board with only the unplayed squares still clickable, and the third with fewer again.
+     * The opening move the computer makes keeps its cell buttonless, same as any other played cell.
+     */
     private static void restartBound() {
         Arrays.fill(board, EMPTY);
         complete = false;
@@ -248,14 +286,39 @@ public final class SimTicTacToePuzzle {
         }
         MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
         if (server != null) {
+            restoreButtons(server);
             paintAll(server);
+            if (opening != null) {
+                removeButton(server, opening);
+            }
         }
+    }
+
+    /** The room's own button, as it was at bind time, so a restart can put nine of them back. */
+    private static volatile BlockState buttonState = null;
+
+    /** Puts a stone button back on every cell that has none - see {@link #removeButton}. */
+    private static void restoreButtons(MinecraftServer server) {
+        BlockPos[] cells = cellPos;
+        BlockState button = buttonState;
+        if (boundAnchor == null || cells == null || button == null) {
+            return;
+        }
+        BlockPos[] snapshot = cells.clone();
+        server.execute(() -> {
+            for (BlockPos pos : snapshot) {
+                if (pos != null && !server.overworld().getBlockState(pos).is(Blocks.STONE_BUTTON)) {
+                    server.overworld().setBlockAndUpdate(pos, button);
+                }
+            }
+        });
     }
 
     public static void forget() {
         boundAnchor = null;
         cellPos = null;
         paintPos = null;
+        buttonState = null;
         CELL_INDEX.clear();
         Arrays.fill(board, EMPTY);
         built = false;
@@ -304,8 +367,10 @@ public final class SimTicTacToePuzzle {
         MinecraftServer server = client.getSingleplayerServer();
         if (server != null) {
             paintCell(server, index, PLAYER);
+            removeButton(server, index);
             if (replyIndex != null) {
                 paintCell(server, replyIndex, COMPUTER);
+                removeButton(server, replyIndex);
             }
         }
         finishIfOver();
@@ -339,6 +404,27 @@ public final class SimTicTacToePuzzle {
             complete = true;
             ModChat.send("Sim", ModChat.good(score > 0 ? "You won!" : "Draw - the computer never got three in a row."));
         }
+    }
+
+    /**
+     * Takes a played cell's button away.
+     *
+     * <p>killer560 (2026-10-01): "Once i click on a button delete that button." It is also what the real room
+     * does - a cell that has been played has no button on it any more, which is exactly why the capture is a
+     * button short. Only ever in a BOUND room: in a standalone arena the cell block IS the mark, so there is
+     * nothing separate to remove and airing it out would delete the mark that was just painted.
+     */
+    private static void removeButton(MinecraftServer server, int index) {
+        BlockPos[] cells = cellPos;
+        if (boundAnchor == null || cells == null || index < 0 || index >= cells.length || cells[index] == null) {
+            return;
+        }
+        BlockPos pos = cells[index];
+        server.execute(() -> {
+            if (server.overworld().getBlockState(pos).is(Blocks.STONE_BUTTON)) {
+                server.overworld().setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+            }
+        });
     }
 
     /** The block a cell's colour is written to - the wall behind the button in a bound room, the cell itself in

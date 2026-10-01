@@ -44,6 +44,9 @@ import java.util.Set;
  */
 public final class SimFloorLayout {
 
+    private static final org.slf4j.Logger LOGGER =
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim");
+
     /** The room grid inside {@link com.killer560.hub.livemap.DungeonLayout}'s 11x11. */
     public static final int GRID = (com.killer560.hub.livemap.DungeonLayout.GRID + 1) / 2;
 
@@ -677,21 +680,39 @@ public final class SimFloorLayout {
                 // A dormant pin's stubs are in the list so that meeting one scores as a match, but the floor
                 // may not GROW from one until something has reached it. With no pins this is the single draw
                 // it always was.
-                int si;
-                if (dormant.isEmpty()) {
-                    si = rng.nextInt(stubs.size());
-                } else {
-                    live.clear();
-                    for (int i = 0; i < stubs.size(); i++) {
-                        if (!dormant.contains(stubs.get(i).owner)) {
-                            live.add(i);
+                live.clear();
+                for (int i = 0; i < stubs.size(); i++) {
+                    if (!dormant.contains(stubs.get(i).owner)) {
+                        live.add(i);
+                    }
+                }
+                if (live.isEmpty()) {
+                    break;   // everything still open belongs to a room nothing can reach
+                }
+                // GROW THE FAIRY'S SIDE while blood is still owed. killer560 (2026-10-01): "Fairy is still
+                // not on the blood rushing path."
+                //
+                // Requiring blood to be a descendant of the fairy (below) is necessary and was not
+                // sufficient: the fairy went in on a coin flip somewhere, the growth carried on wherever the
+                // draw sent it, and by the time blood was due there was usually no stub left under the fairy
+                // at all - so the escape hatch fired on nearly every floor and the rule did nothing. Biasing
+                // the DRAW towards the fairy's own subtree is what makes the subtree exist to put blood in.
+                //
+                // A bias, not a restriction: when the fairy's side has nothing open the draw falls back to
+                // the whole list, so a floor is never lost to this.
+                List<Integer> pool = live;
+                if (fairyIndex[0] >= 0 && bloodPlacedDepth < 0) {
+                    List<Integer> under = new ArrayList<>();
+                    for (int i : live) {
+                        if (isDescendant(parentOf, stubs.get(i).owner, fairyIndex[0])) {
+                            under.add(i);
                         }
                     }
-                    if (live.isEmpty()) {
-                        break;   // everything still open belongs to a room nothing can reach
+                    if (!under.isEmpty()) {
+                        pool = under;
                     }
-                    si = live.get(rng.nextInt(live.size()));
                 }
+                int si = pool.get(rng.nextInt(pool.size()));
                 Stub stub = stubs.get(si);
                 int tx = stub.cellX + RoomDoors.DX[stub.side];
                 int tz = stub.cellZ + RoomDoors.DZ[stub.side];
@@ -730,9 +751,11 @@ public final class SimFloorLayout {
                 // The fairy goes in EARLIER and more often than it used to, because blood now waits on it: at
                 // one in four it regularly landed in the last few rooms, by which time there was no branch
                 // left under it to hang a blood room from.
+                // NO COIN FLIP. The fairy goes in at the first spot that can take it, because blood now waits
+                // on it - a fairy placed late is a fairy with no subtree under it, and that is what made the
+                // rule above do nothing on most floors.
                 boolean wantFairy = !fairyPlaced[0] && !wantBlood && needMore && stub.depth >= 1
-                        && byName.containsKey("fairy") && !touchesFairy(tx, tz, bloodCells)
-                        && rng.nextDouble() < 0.5;
+                        && byName.containsKey("fairy") && !touchesFairy(tx, tz, bloodCells);
                 if (wantBlood) {
                     wanted = List.of(byName.get("blood"));
                 } else if (wantFairy) {
@@ -822,6 +845,14 @@ public final class SimFloorLayout {
                             best.originX, best.originZ);
                 }
                 if (gotBlood) {
+                    if (!fairyOnWay && fairyIndex[0] >= 0) {
+                        // SAID OUT LOUD. The escape hatch is meant to be rare; a floor that takes it has a
+                        // fairy the blood rush does not pass through, and if this line is in every log the
+                        // bias above is not working rather than the floor being unusual.
+                        LOGGER.warn("Sim floor: blood went in at depth {} WITHOUT the fairy on the way to it"
+                                + " - the fairy's side of the floor had nothing left to grow into",
+                                stub.depth + 1);
+                    }
                     bloodPlacedDepth = stub.depth + 1;
                     fairyCellsInto(bloodCells, best.candidate.byRotation()[best.rotation / 90],
                             best.originX, best.originZ);

@@ -79,10 +79,14 @@ public final class SimQuizPuzzle {
     private static volatile java.util.List<Object[]> quizButtons = null;
 
     /**
-     * Three Weirdos' three chests, capture-local, shifted so the middle lines up with the room's cauldron -
-     * see {@link #bindAt}. The capture's own are at z 12/14/17; these are the same three two blocks along.
+     * Three Weirdos' three chests, capture-local.
+     *
+     * <p>The capture's own are at z 12, 14 and 17. All three move two blocks so the middle one lines up with
+     * the chamber's cauldron at z=16 (killer560: "the middle most should be in line with the cauldron"), and
+     * then the far one comes in one more (2026-10-01: "move the rightmost chest in 1, the one furthest away
+     * from the skull in that room") - which leaves 14, 16, 18, evenly spaced two apart.
      */
-    private static final int[][] WEIRDO_SPOTS = {{25, 69, 14}, {26, 69, 16}, {25, 69, 19}};
+    private static final int[][] WEIRDO_SPOTS = {{25, 69, 14}, {26, 69, 16}, {25, 69, 18}};
 
     /**
      * The NPC names the sim's three weirdos answer to.
@@ -110,14 +114,10 @@ public final class SimQuizPuzzle {
     /** Set while the bound room is Three Weirdos rather than the Quiz. */
     private static volatile boolean weirdosRoom = false;
 
-    /** World x/z step of one database-relative +x block, for placing the NPCs - see {@link #bindAt}. */
-    private static volatile int[] npcStep = null;
 
-    /** When the question was announced. An answer before {@link #ANSWER_DELAY_MS} after it does not count. */
+    /** When the question was announced. Kept for the chat line and for tests; nothing gates on it. */
     private static volatile long askedAtMs = 0L;
 
-    /** killer560 (2026-10-01): "have a 5s delay from the question coming out to being able to answer it." */
-    private static final long ANSWER_DELAY_MS = 5000L;
 
     private SimQuizPuzzle() {
     }
@@ -274,14 +274,6 @@ public final class SimQuizPuzzle {
             for (BlockPos now : positions) {
                 level.setBlockAndUpdate(now, Blocks.CHEST.defaultBlockState());
             }
-            // The direction one DATABASE-RELATIVE block of -x is, in this room at this rotation. The Weirdos
-            // solver finds a chest by taking its NPC's position and adding 1 to relative x, so the NPC has to
-            // stand exactly one relative block the other way - and which world direction that is depends on
-            // how the room was turned.
-            SimRoomPuzzles.Anchor anchor = p.anchor();
-            BlockPos zero = anchor.world(0, 0, 0);
-            BlockPos oneX = anchor.world(1, 0, 0);
-            npcStep = new int[]{oneX.getX() - zero.getX(), oneX.getZ() - zero.getZ()};
         } else {
             int[][] spots = {{20, 70, 6}, {15, 70, 9}, {10, 70, 6}};
             List<int[]> rels = List.of(spots);
@@ -324,10 +316,8 @@ public final class SimQuizPuzzle {
         // Same in-memory clear reset() does, without its queued block writes: those are aimed at the PREVIOUS
         // arena's positions and would land a tick from now, inside the room just pasted.
         java.util.List<Object[]> buttons = quizButtons;
-        int[] step = npcStep;
         forget();
         quizButtons = buttons;
-        npcStep = step;
         boundRoom = p.room().name;
         weirdosRoom = weirdos;
         if (buttons != null) {
@@ -395,16 +385,12 @@ public final class SimQuizPuzzle {
                 level.setBlockAndUpdate(positions[i], Blocks.CHEST.defaultBlockState());
             }
             if (weirdosRoom) {
-                // A NAMED WEIRDO, one relative block off its chest, instead of a lettered answer.
-                //
-                // That is what the room really has and it is the only arrangement WeirdosSolverFeature can
-                // read: it finds the speaker's ArmorStand by name and then takes the chest one relative
-                // block over. A label floating on the chest itself would leave the solver with nothing to
-                // find, which is why it never worked in here.
-                LABELS.add(spawnLabel(level, npcPos(positions[i]), WEIRDO_NAMES[i]));
-            } else {
-                LABELS.add(spawnLabel(level, positions[i], letters[i] + " " + text[i]));
+                // The weirdos are NOT spawned here - see sayWeirdos. Their position has to be the one the
+                // solver's own transform maps back onto the chest, and that transform needs the live map's
+                // clay/rotation, which does not exist yet while the floor is still being built.
+                continue;
             }
+            LABELS.add(spawnLabel(level, positions[i], letters[i] + " " + text[i]));
         }
         StringBuilder options = new StringBuilder();
         for (int i = 0; i < 3; i++) {
@@ -463,7 +449,6 @@ public final class SimQuizPuzzle {
         for (String option : pendingOptions.split(" {2}")) {
             raw(client, option.trim());
         }
-        ModChat.send("Sim", ModChat.dim("Oruo is still reading - answers count in 5s."));
     }
 
     /**
@@ -475,6 +460,7 @@ public final class SimQuizPuzzle {
      * {@link ModChat}, because its "[feature] " prefix would break the solver's anchored {@code ^\[NPC] }.
      */
     private static void sayWeirdos(Minecraft client) {
+        spawnWeirdos(client);
         int wrong = 0;
         for (int i = 0; i < 3; i++) {
             String line = i == correctIndex
@@ -493,10 +479,48 @@ public final class SimQuizPuzzle {
         }
     }
 
-    /** Where the weirdo standing at this chest goes: one database-relative block of -x from it. */
-    private static BlockPos npcPos(BlockPos chest) {
-        int[] step = npcStep;
-        return step == null ? chest : chest.offset(-step[0], 0, -step[1]);
+    /**
+     * Puts the three weirdos where the SOLVER will look for them.
+     *
+     * <p>killer560 (2026-10-01): "the solver is one diagonally back and to the right from the actual chest."
+     * The stands were placed at bind time from the puzzle's own anchor, one database block of -x off each
+     * chest - which is the right RULE and the wrong transform: the anchor's clay corner and the one the live
+     * map publishes for the same room do not have to agree to the block, and a constant disagreement in both
+     * x and z is exactly a diagonal miss.
+     *
+     * <p>So the position is worked out by inverting {@code WeirdosSolverFeature}'s own calculation, with the
+     * same {@code currentRoomClayAndRotation} it will use: take the chest to relative space, step one back in
+     * x, and come out again. Whatever those numbers are, the solver's {@code relative.x += 1} then lands on
+     * the chest by construction rather than by agreement. That needs the live map, which is why this happens
+     * when he walks in rather than while the floor is being built.
+     *
+     * <p>The y is 69 plus the sim's floor shift, which is the literal the solver uses for an NPC - so the
+     * round trip is exact in all three axes.
+     */
+    private static void spawnWeirdos(Minecraft client) {
+        BlockPos[] positions = boundPositions;
+        MinecraftServer server = client.getSingleplayerServer();
+        int[] cr = com.killer560.hub.livemap.LiveMapFeature.currentRoomClayAndRotation();
+        if (positions == null || server == null || cr == null) {
+            return;
+        }
+        int y = 69 + com.killer560.hub.livemap.DungeonLayout.simYOffset();
+        BlockPos[] spots = new BlockPos[3];
+        for (int i = 0; i < 3 && i < positions.length; i++) {
+            com.killer560.hub.roomdatabase.RoomEntry.Pos rel =
+                    com.killer560.hub.roomdatabase.RoomDatabase.toRelativeCoord(
+                            new BlockPos(positions[i].getX(), y, positions[i].getZ()), cr[0], cr[1], cr[2]);
+            rel.x -= 1;
+            spots[i] = com.killer560.hub.roomdatabase.RoomDatabase.toRealCoord(rel, cr[0], cr[1], cr[2]);
+        }
+        server.execute(() -> {
+            ServerLevel level = server.overworld();
+            for (int i = 0; i < 3; i++) {
+                if (spots[i] != null) {
+                    LABELS.add(spawnLabel(level, spots[i], WEIRDO_NAMES[i]));
+                }
+            }
+        });
     }
 
     /** Two other real questions' correct answers, picked at random and excluding anything equal to the correct
@@ -558,7 +582,6 @@ public final class SimQuizPuzzle {
         boundPositions = null;
         boundRoom = null;
         weirdosRoom = false;
-        npcStep = null;
         chestPos = null;
         CELL_INDEX.clear();
         LABELS.clear();
@@ -601,13 +624,9 @@ public final class SimQuizPuzzle {
 
     private static void onChestClick(Minecraft client, int index) {
         MinecraftServer server = client.getSingleplayerServer();
-        // Too early. Not a wrong answer - on Hypixel the options are not live while Oruo is still talking, so
-        // an early press has to be ignored rather than failed, or the puzzle would punish reading quickly.
-        if (askedAtMs > 0 && System.currentTimeMillis() - askedAtMs < ANSWER_DELAY_MS) {
-            long left = (ANSWER_DELAY_MS - (System.currentTimeMillis() - askedAtMs) + 999) / 1000;
-            ModChat.send("Sim", ModChat.dim("Too early - " + left + "s left."));
-            return;
-        }
+        // NO ANSWER DELAY. killer560 asked for one ("have a 5s delay from the question coming out to being
+        // able to answer it") and then asked for it back out ("remove the quiz delay I dont like it"), so an
+        // answer counts the moment the question is up. The reading-time rule is Hypixel's; this is a drill.
         if (index == correctIndex) {
             complete = true;
             if (server != null && quizButtons == null) {

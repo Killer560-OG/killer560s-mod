@@ -152,6 +152,13 @@ public final class ClearExecutor {
         Vec3 from = player.position();
         DungeonLayout layout = DungeonLayout.capture();
         EtherwarpPathfinder.PathConfig cfg = pathConfig();
+        // THE RANGE THE HOP WILL ACTUALLY HAVE. killer560 (2026-10-01): "if it is far away then it fails."
+        // The planner has always used 60, but Hypixel's etherwarp is 57 (see CLAUDE.md on EtherwarpHopper)
+        // and the sim's SimAbilities enforces exactly that - so a hop planned at 58-60 blocks was accepted by
+        // the search and refused by the ability, leaving the queue stuck on a node that could never fire. The
+        // real game is left on the number it has always used; only the sim plans to its own limit.
+        double hopRange = com.killer560.hub.roomsim.SimState.isActive()
+                ? com.killer560.hub.roomsim.SimAbilities.etherwarpRange() : 60.0;
         int gen = generation;
         pathPending = true;
         lastPathFailed = false;
@@ -159,7 +166,7 @@ public final class ClearExecutor {
             long start = System.currentTimeMillis();
             List<EtherwarpPathfinder.Node> path = null;
             try {
-                path = EtherwarpPathfinder.findDungeonPath(from, to, cfg, 60.0, true, layout);
+                path = EtherwarpPathfinder.findDungeonPath(from, to, cfg, hopRange, true, layout);
             } catch (RuntimeException e) {
                 LOGGER.warn("[InteractiveMap] Path search failed: {}", e.toString());
             }
@@ -353,7 +360,20 @@ public final class ClearExecutor {
         // Same direction as the target, expressed relative to the running (unwrapped) yaw.
         float yaw = player.getYRot() + Mth.wrapDegrees(interact[0] - player.getYRot());
         float pitch = Mth.clamp(interact[1], -90f, 90f);
-        if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
+        // THE SIM HAS NO SERVER-SIDE ETHERWARP, so a raw use PACKET teleports nobody.
+        //
+        // killer560 (2026-10-01): "Etherwarp is now saying found path but not actually etherwarping." The
+        // path was fine; the hop was not. startPrediction below builds a ServerboundUseItemPacket and hands
+        // it to the connection - on Hypixel that IS the ability, because Hypixel's server implements it. The
+        // sim's ability lives in SimAbilities behind Fabric's UseItemCallback, and nothing on the integrated
+        // server turns an inbound use packet into one. So the hop was sent, accepted and did nothing.
+        //
+        // gameMode.useItem is the client-side path that callback is injected into, and it is already the
+        // fallback branch below for a missing mixin - so the sim takes that branch deliberately rather than
+        // getting a third copy of it. AutoPuzzleUtil.useItemRotated fires its shots the same way, which is
+        // why the puzzle autos worked in here when this did not.
+        boolean sim = com.killer560.hub.roomsim.SimState.isActive();
+        if (!sim && client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
             invoker.killer560smod$invokeStartPrediction(client.level,
                     sequence -> new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch));
         } else {

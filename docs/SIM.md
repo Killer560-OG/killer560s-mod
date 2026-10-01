@@ -938,3 +938,72 @@ all the way down and `PASS` would let it throw anyway.
 
 A trap room is identified by `RoomEntry.type`, not by its name containing "trap" - the name is only a fallback
 for a room the database does not know.
+
+## A use PACKET is not an ability in here
+
+`ClearExecutor` sends its etherwarp hops as a `ServerboundUseItemPacket` through `startPrediction`. On Hypixel
+that IS the ability, because Hypixel's server implements it. The sim's abilities live in `SimAbilities` behind
+Fabric's `UseItemCallback`, and nothing on the integrated server turns an inbound use packet into one - so the
+hop was sent, accepted and did nothing: "Etherwarp is now saying found path but not actually etherwarping."
+
+The fix is to take the branch that was already there for a missing mixin - `gameMode.useItem`, the client-side
+path that callback is injected into. `AutoPuzzleUtil.useItemRotated` has always fired its shots that way, which
+is why the puzzle autos worked in the sim when the map's own hops did not. **Anything in this mod that performs
+an interaction by building a packet will do nothing in the sim; anything that calls the `gameMode` method
+works.** That is the first thing to check when something automated "runs" in here and nothing happens.
+
+The second half of the same report - "if it is far away then it fails" - is a range disagreement. The planner
+has always searched with 60 blocks a hop; Hypixel's etherwarp is 57 and `SimAbilities` enforces exactly that, so
+a hop planned at 58-60 was accepted by the search and refused by the ability, leaving the queue stuck on a node
+that could never fire. In the sim the planner now asks `SimAbilities.etherwarpRange()`.
+
+## Teleporting up had only one fallback, and it was downwards
+
+`dashTarget` walks the look vector and keeps the furthest point the player still fits at. When a step did not
+fit it fell back to the same horizontal position **at the height he started at** - right for aiming down (the
+floor stops you and you slide along it, which his Hypixel log confirms) and wrong for aiming up, where the
+moment the ceiling stopped the climb it dropped him all the way back to his own level. The fallback now walks
+from the candidate's own height TOWARDS his, one block at a time, and takes the first that fits: under him that
+is the floor, over him it is the last block below the roof. A settle that is not further than the best so far is
+refused outright, so looking straight up at a low ceiling does nothing rather than teleporting him to where he
+already is.
+
+## Boulder was three writes of scenery
+
+"There are random stone blocks floating everywhere" was `bindAt`: it placed each boulder at `BUTTON_Y` (65)
+while the grid the pattern is written to is `FLOOR_Y` (66), so every boulder hung a block under the floor; it
+placed one at all, when the pattern already puts a solid block at every `1` cell; and it propped up a missing
+button with a **stone pedestal in mid-air**. All three are gone - the boulder is the room's own block at the
+grid cell, and a solution step with no button is reported instead of built.
+
+"Pressing the buttons doesnt move the boulders anywhere" was `pressButton` deleting the boulder. It pushes now,
+and the direction is read off the solution rather than chosen: every entry pairs a boulder with the click one
+square away from it, so the push runs from the button through the boulder and onward until something stops it.
+A fail puts the whole 42-cell arrangement back, not just the two boulders the solution names - a push can roll
+one several squares onto a cell the pattern wanted empty.
+
+## Where a diagnostic went in instead of a guess
+
+Three reports this round could not be resolved from the captures, so each got one line that names the cause on
+the next run rather than a change made on a hunch:
+
+- **Ice Path solver** declines in four different places and all four look the same from in front of it.
+  `sayOnce` prints which, once per reason per room. Its silverfish search box also went from 16 to 20 blocks:
+  the board is 17 cells across, so its far corners sat exactly on the edge of the old box.
+- **Archway "generated halfway and broke [...] rotated 90 degrees"** is the footprint and the paste disagreeing
+  about which axis is long - a 65x33 capture needs 2x1 room cells at rotation 0 and 1x2 at 90. The two numbers
+  come from different places (the layout's flood fill, and the capture's own size), so the build now compares
+  them and says so when they differ.
+- **Blood without the fairy on the way** now warns when the escape hatch fires, because that hatch is meant to
+  be rare and a line in every log means the bias is not working rather than the floor being unusual.
+
+## Making the fairy a real stop on the way to blood
+
+Requiring blood to be a descendant of the fairy was necessary and not sufficient: the fairy went in on a coin
+flip, growth carried on wherever the draw sent it, and by the time blood was due there was usually no stub left
+under the fairy at all - so the escape hatch fired on nearly every floor and the rule did nothing. Two changes
+make the subtree exist: the fairy goes in at the **first** spot that can take it rather than on a 1-in-4 roll,
+and while blood is still owed the stub draw is **biased to the fairy's own subtree** (a bias, not a
+restriction - when that side has nothing open the draw falls back to the whole list, so a floor is never lost).
+
+This is ancestry, not every route: the floor deliberately grows loops, and a second way round is what a loop is.

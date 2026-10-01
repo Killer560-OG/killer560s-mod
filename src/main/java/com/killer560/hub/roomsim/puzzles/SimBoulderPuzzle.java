@@ -66,6 +66,9 @@ public final class SimBoulderPuzzle {
     private record Button(BlockPos render, BlockPos click) {
     }
 
+    /** How far a pushed boulder may roll before it stops on its own - the board is seven wide. */
+    private static final int BOULDER_MAX_ROLL = 7;
+
     private static final List<Button> BUTTONS = new ArrayList<>();
     private static final Map<BlockPos, Button> BLOCK_INDEX = new ConcurrentHashMap<>();
     /** Click positions already pressed once - a second press on one of these is the fail condition. */
@@ -218,25 +221,28 @@ public final class SimBoulderPuzzle {
                 }
             }
         }
+        // THE BOULDER IS AT FLOOR LEVEL, AND IT IS THE ROOM'S OWN BLOCK.
+        //
+        // killer560 (2026-10-01): "boulder is very broken looking. There are random stone blocks floating
+        // everywhere." Three writes made that mess, and all three are gone:
+        //
+        //   - the boulder was placed at BUTTON_Y (65) while the grid the pattern is written to is FLOOR_Y
+        //     (66), so every "boulder" was a cobblestone block hanging one under the floor;
+        //   - it was placed at all, when the pattern written above already puts a solid block at every '1'
+        //     cell - the boulder IS that block, and a second one on top of it is scenery;
+        //   - a missing button got a STONE PEDESTAL under it, in mid-air, because the click row sits above
+        //     nothing. A solution step with no button is now reported instead of propped up.
         List<Button> buttons = new ArrayList<>();
         for (int[] sol : SOLUTION) {
-            buttons.add(new Button(anchor.world(sol[0], BUTTON_Y, sol[1]),
+            buttons.add(new Button(anchor.world(sol[0], FLOOR_Y, sol[1]),
                     anchor.world(sol[2], BUTTON_Y, sol[3])));
         }
         for (Button button : buttons) {
-            // The boulder to push. Cobblestone is the same placeholder build() uses - see its comment.
-            level.setBlockAndUpdate(button.render(), Blocks.COBBLESTONE.defaultBlockState());
-            // Most of the solution's click positions already hold a real stone button in the capture; the ones
-            // that do not get one, because a solution step with nothing to press is a puzzle that cannot be
-            // finished. Only ever added, never moved.
             if (!level.getBlockState(button.click()).is(Blocks.STONE_BUTTON)) {
-                if (level.getBlockState(button.click().below()).isAir()) {
-                    level.setBlockAndUpdate(button.click().below(), Blocks.STONE.defaultBlockState());
-                }
-                level.setBlockAndUpdate(button.click(), Blocks.STONE_BUTTON.defaultBlockState()
-                        .setValue(HorizontalDirectionalBlock.FACING, Direction.NORTH)
-                        .setValue(ButtonBlock.POWERED, Boolean.FALSE)
-                        .setValue(FaceAttachedHorizontalDirectionalBlock.FACE, AttachFace.FLOOR));
+                com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
+                        "Sim boulder: the solution wants a button at {} and the room has {} there - that step"
+                                + " cannot be pressed", button.click(),
+                        level.getBlockState(button.click()).getBlock());
             }
         }
         BUTTONS.clear();
@@ -255,12 +261,43 @@ public final class SimBoulderPuzzle {
     /** Non-null while this puzzle is bound to a real captured room rather than a standalone arena. */
     private static volatile com.killer560.hub.roomsim.SimRoomPuzzles.Anchor boundAnchor = null;
 
-    /** Removes the pressed button's boulder ("it rolled away") and checks for completion. */
+    /**
+     * Pushes the pressed button's boulder one square, and checks for completion.
+     *
+     * <p>killer560 (2026-10-01): "pressing the buttons doesnt move the boulders anywhere." It deleted the
+     * boulder instead, which is not what a push looks like - on the real board the boulder rolls away from
+     * the button along the row the button is on, and watching it move is the feedback that tells you whether
+     * the press was the right one.
+     *
+     * <p>The direction is READ OFF THE SOLUTION, not chosen: every entry pairs a boulder with the click one
+     * square away from it, so the push runs from the button towards the boulder and onward. The boulder rolls
+     * until something stops it, which is what a boulder does; if the very first square is blocked it stays
+     * put and says so.
+     */
     private static void pressButton(Minecraft client, Button button) {
         MinecraftServer server = client.getSingleplayerServer();
         if (server != null) {
-            server.execute(() -> server.overworld().setBlockAndUpdate(button.render(),
-                    Blocks.AIR.defaultBlockState()));
+            BlockPos from = button.render();
+            int dx = Integer.signum(from.getX() - button.click().getX());
+            int dz = Integer.signum(from.getZ() - button.click().getZ());
+            server.execute(() -> {
+                ServerLevel level = server.overworld();
+                BlockPos at = from;
+                BlockPos next = at.offset(dx, 0, dz);
+                int rolled = 0;
+                while (rolled < BOULDER_MAX_ROLL && level.getBlockState(next).isAir()) {
+                    at = next;
+                    next = at.offset(dx, 0, dz);
+                    rolled++;
+                }
+                if (rolled == 0) {
+                    return;   // hard against something - nothing moves
+                }
+                BlockState boulder = level.getBlockState(from);
+                level.setBlockAndUpdate(from, Blocks.AIR.defaultBlockState());
+                level.setBlockAndUpdate(at, boulder.isAir()
+                        ? Blocks.STONE.defaultBlockState() : boulder);
+            });
         }
         if (PRESSED.size() >= BUTTONS.size()) {
             complete = true;
@@ -294,11 +331,24 @@ public final class SimBoulderPuzzle {
         if (server == null) {
             return;
         }
-        List<Button> buttons = List.copyOf(BUTTONS);
+        com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor = boundAnchor;
+        if (anchor == null) {
+            return;
+        }
+        // THE WHOLE GRID, not just the two boulders the solution names. A push can roll a boulder several
+        // squares and onto a cell the pattern wanted empty, so putting back only the two it started on leaves
+        // the rest of the board as the last attempt left it. Re-writing all 42 is the same work bindAt does
+        // and it is the only thing that actually restores the arrangement.
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            for (Button button : buttons) {
-                level.setBlockAndUpdate(button.render(), Blocks.COBBLESTONE.defaultBlockState());
+            int charIndex = 0;
+            for (int z : Z_VALUES) {
+                for (int x : X_VALUES) {
+                    boolean solid = PATTERN_KEY.charAt(charIndex++) == '1';
+                    level.setBlockAndUpdate(anchor.world(x, FLOOR_Y, z), solid
+                            ? Blocks.STONE.defaultBlockState()
+                            : Blocks.AIR.defaultBlockState());
+                }
             }
         });
     }

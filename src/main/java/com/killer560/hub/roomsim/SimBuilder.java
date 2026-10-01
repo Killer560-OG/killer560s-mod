@@ -214,6 +214,36 @@ public final class SimBuilder {
                 }
                 int gx = anchor % DungeonLayout.GRID;
                 int gz = anchor / DungeonLayout.GRID;
+                // THE FOOTPRINT AND THE PASTE MUST AGREE ON WHICH WAY IS LONG.
+                //
+                // killer560 (2026-10-01): "archway generated halfwawy and broke. It looks like it was rotated
+                // 90 degrees." Archway is a 65x33 capture - two tiles along x - so at rotation 0 or 180 it
+                // needs a 2x1 run of room cells and at 90 or 270 a 1x2. If the cells reserved for it are the
+                // other way round, RoomPlacer writes half the room outside them and the other half is clipped,
+                // which is exactly a room that came out half-built and turned.
+                //
+                // Checked rather than assumed, because the two numbers come from different places: the
+                // footprint from the layout's flood fill over the map code, and the paste from the capture's
+                // own sizeX/sizeZ. A warning, not a refusal - a floor with one twisted room is still worth
+                // practising in, and refusing would turn an occasional fault into no floor at all.
+                int rotation0 = decoded.cellRotation()[cell];
+                int tilesX = Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1));
+                int tilesZ = Math.max(1, (room.sizeZ - 1) / (RoomLibrary.TILE + 1));
+                boolean quarter = rotation0 == 90 || rotation0 == 270;
+                int wantX = quarter ? tilesZ : tilesX;
+                int wantZ = quarter ? tilesX : tilesZ;
+                int haveX = 1;
+                int haveZ = 1;
+                for (int fc : footprint) {
+                    haveX = Math.max(haveX, (fc % DungeonLayout.GRID - gx) / 2 + 1);
+                    haveZ = Math.max(haveZ, (fc / DungeonLayout.GRID - gz) / 2 + 1);
+                }
+                if (haveX != wantX || haveZ != wantZ) {
+                    LOGGER.warn("Sim build: {} is a {}x{} capture pasted at rotation {}, which needs {}x{}"
+                                    + " room cells, but the floor reserved {}x{} for it at grid ({},{}). Half"
+                                    + " of it will land outside its own cells.",
+                            name, tilesX, tilesZ, rotation0, wantX, wantZ, haveX, haveZ, gx, gz);
+                }
                 SimBuildQueue.submit(level, room, gx, gz, decoded.cellRotation()[cell]);
                 final int rot = decoded.cellRotation()[cell];
                 final int fgx = gx;

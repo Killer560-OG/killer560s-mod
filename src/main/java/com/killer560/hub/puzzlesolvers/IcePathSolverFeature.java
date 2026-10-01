@@ -73,6 +73,24 @@ public final class IcePathSolverFeature {
         tickInner(client);
     }
 
+    /**
+     * One line per reason, per room, so a solver that draws nothing says why.
+     *
+     * <p>killer560 (2026-10-01): "Ice path solver didnt showw up." There are four separate ways this class
+     * can decline - no room, no clay/rotation, no silverfish, no path from where it is standing - and all
+     * four look identical from in front of it. Rate-limited to one of each per room so a per-tick refusal
+     * cannot fill a log.
+     */
+    private static String lastSaid = null;
+
+    private static void sayOnce(String why) {
+        if (why.equals(lastSaid)) {
+            return;
+        }
+        lastSaid = why;
+        com.killer560.hub.util.ModLog.get("killer560smod-puzzles").info("[IcePathSolver] {}", why);
+    }
+
     private static void tickInner(Minecraft client) {
         if (!IcePathSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()
                 || client.level == null) {
@@ -92,15 +110,23 @@ public final class IcePathSolverFeature {
         }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (cr == null) {
+            sayOnce("the room is Ice Path but its clay corner / rotation is not resolved, so there is nothing"
+                    + " to measure the board against");
             return;
         }
         Level level = client.level;
         boolean boardChanged = updateBoard(level, cr);
 
-        AABB searchBox = AABB.ofSize(Vec3.atCenterOf(PuzzleCoords.real(15, 66, 16, cr)), 16.0, 16.0, 16.0);
+        // 20, not 16. The board is 17 cells across, so its far corners sit exactly 8 from this centre - the
+        // edge of a 16-wide box - and whether a silverfish standing there was found at all came down to its
+        // own hitbox overlapping the boundary. A couple of blocks of slack costs nothing and removes a
+        // find/no-find that depends on which corner the puzzle happened to start in.
+        AABB searchBox = AABB.ofSize(Vec3.atCenterOf(PuzzleCoords.real(15, 66, 16, cr)), 20.0, 20.0, 20.0);
         List<Silverfish> found = level.getEntitiesOfClass(Silverfish.class, searchBox, e -> !e.isRemoved());
         if (found.isEmpty()) {
             silverfish = null;
+            sayOnce("no silverfish in the 20-block box around " + PuzzleCoords.real(15, 66, 16, cr)
+                    + " - the room is identified but the puzzle's own entity is not there");
             return;
         }
         Silverfish fish = found.get(0);
@@ -121,6 +147,8 @@ public final class IcePathSolverFeature {
             BlockPos rel = PuzzleCoords.relative(fish.blockPosition(), cr);
             int[] cell = {24 - rel.getZ(), 23 - rel.getX()};
             if (cell[0] < 0 || cell[0] >= BOARD_SIZE || cell[1] < 0 || cell[1] >= BOARD_SIZE) {
+                sayOnce("the silverfish is at room-relative " + rel + ", which is row " + cell[0] + " col "
+                        + cell[1] + " - off a 17x17 board, so there is nothing to solve from");
                 return;
             }
             if (silverfishCell == null || silverfishCell[0] != cell[0] || silverfishCell[1] != cell[1] || boardChanged) {
@@ -165,6 +193,8 @@ public final class IcePathSolverFeature {
                     real.add(new Vec3(b.getX(), b.getY(), b.getZ()));
                 }
                 path = real;
+                sayOnce("solved: " + current.size() + " stop(s) from row " + start[0] + " col " + start[1]
+                        + " to the exit");
                 return;
             }
             for (int[] d : DIRECTIONS) {
@@ -183,6 +213,16 @@ public final class IcePathSolverFeature {
             }
         }
         // QUOI keeps the previous path when no solution exists.
+        int walls = 0;
+        for (boolean[] row : board) {
+            for (boolean cellIsWall : row) {
+                if (cellIsWall) {
+                    walls++;
+                }
+            }
+        }
+        sayOnce("no route from row " + start[0] + " col " + start[1] + " to the exit - the board read "
+                + walls + " wall(s) at relative y 67. A board that reads 0 or 289 is not being read at all.");
     }
 
     private static void onWorldRender(LevelRenderContext context) {

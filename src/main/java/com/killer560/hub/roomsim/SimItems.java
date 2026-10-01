@@ -991,7 +991,11 @@ public final class SimItems {
         while (!queue.isEmpty() && found.size() < 256) {
             BlockPos here = queue.removeFirst();
             found.add(here);
-            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
+            // HORIZONTAL ONLY, so the run stays on the layer he aimed at. killer560 (2026-10-01): "make sure
+            // crypts can only break the layer with the slabs and the one directly below it nothing lower than
+            // that." A six-way fill climbs any slab stack it meets, and a dungeon has plenty - one charge
+            // could open a shaft through several floors of them.
+            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.Plane.HORIZONTAL) {
                 BlockPos next = here.relative(dir).immutable();
                 if (seen.add(next)
                         && level.getBlockState(next)
@@ -1020,7 +1024,9 @@ public final class SimItems {
         java.util.LinkedHashSet<BlockPos> out = new java.util.LinkedHashSet<>(slabs);
         java.util.List<BlockPos> stairs = new java.util.ArrayList<>();
         for (BlockPos slab : slabs) {
-            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
+            // Horizontal neighbours only, for the same reason the slab run is: the rim is on the slab layer,
+            // and a stair above or below it belongs to a different one.
+            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.Plane.HORIZONTAL) {
                 BlockPos next = slab.relative(dir).immutable();
                 if (level.getBlockState(next).is(net.minecraft.world.level.block.Blocks.STONE_BRICK_STAIRS)
                         && out.add(next)) {
@@ -1028,29 +1034,40 @@ public final class SimItems {
                 }
             }
         }
+        // And the course directly under the SLABS as well as under the stairs - that is "the one directly
+        // below it", one layer, never two.
+        for (BlockPos slab : slabs) {
+            addFloorCourse(level, out, slab.below().immutable());
+        }
         for (BlockPos stair : stairs) {
-            BlockPos under = stair.below().immutable();
-            // THE CRYPT'S OWN STONEWORK, named block by block. "The full block right below them" is his
-            // description and the obvious test for it is a collision-shape question, but every such predicate
-            // is a version-specific name this file would be guessing at - and naming the blocks is both
-            // narrower and certain. It also keeps the blast off anything that is not the crypt: a stair over
-            // a chest, a torch or a piece of the room's decoration is left where it is.
-            BlockState below = level.getBlockState(under);
-            if (below.is(net.minecraft.world.level.block.Blocks.STONE_BRICKS)
-                    || below.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
-                    || below.is(net.minecraft.world.level.block.Blocks.MOSSY_STONE_BRICKS)
-                    || below.is(net.minecraft.world.level.block.Blocks.CHISELED_STONE_BRICKS)
-                    || below.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS)
-                    || below.is(net.minecraft.world.level.block.Blocks.STONE)
-                    || below.is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE)
-                    || below.is(net.minecraft.world.level.block.Blocks.COBBLESTONE)
-                    || below.is(net.minecraft.world.level.block.Blocks.MOSSY_COBBLESTONE)
-                    || below.is(net.minecraft.world.level.block.Blocks.ANDESITE)
-                    || below.is(net.minecraft.world.level.block.Blocks.POLISHED_ANDESITE)) {
-                out.add(under);
-            }
+            addFloorCourse(level, out, stair.below().immutable());
         }
         return new java.util.ArrayList<>(out);
+    }
+
+    /**
+     * Adds one block of the crypt's floor course, if that is what is there.
+     *
+     * <p>THE CRYPT'S OWN STONEWORK, named block by block. "The full block right below them" is his
+     * description and the obvious test for it is a collision-shape question, but every such predicate is a
+     * version-specific name this file would be guessing at, and naming the blocks is both narrower and
+     * certain. It also keeps the blast off anything that is not the crypt - a chest, a torch or a piece of the
+     * room's decoration under the rim is left where it is.
+     */
+    private static void addFloorCourse(ServerLevel level, java.util.Set<BlockPos> out, BlockPos under) {
+        BlockState below = level.getBlockState(under);
+        if (below.is(net.minecraft.world.level.block.Blocks.STONE_BRICKS)
+                || below.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
+                || below.is(net.minecraft.world.level.block.Blocks.MOSSY_STONE_BRICKS)
+                || below.is(net.minecraft.world.level.block.Blocks.CHISELED_STONE_BRICKS)
+                || below.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS)
+                || below.is(net.minecraft.world.level.block.Blocks.STONE)
+                || below.is(net.minecraft.world.level.block.Blocks.COBBLESTONE)
+                || below.is(net.minecraft.world.level.block.Blocks.MOSSY_COBBLESTONE)
+                || below.is(net.minecraft.world.level.block.Blocks.ANDESITE)
+                || below.is(net.minecraft.world.level.block.Blocks.POLISHED_ANDESITE)) {
+            out.add(under);
+        }
     }
 
     private static java.util.List<BlockPos> connectedFragile(ServerLevel level, BlockPos start) {

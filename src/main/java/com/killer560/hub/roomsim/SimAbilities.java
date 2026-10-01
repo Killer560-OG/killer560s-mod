@@ -53,6 +53,12 @@ public final class SimAbilities {
     /** Hypixel's etherwarp range. */
     private static final double ETHERWARP_RANGE = 57.0;
 
+    /** The range an etherwarp hop will actually have in here, for the Interactive Map's planner - a hop it
+     *  plans longer than this is one this class will refuse, and the queue then sticks on it. */
+    public static double etherwarpRange() {
+        return ETHERWARP_RANGE;
+    }
+
     /** Wither Impact throws you this far along your look. */
     private static final double WITHER_IMPACT_RANGE = 10.0;
 
@@ -416,12 +422,13 @@ public final class SimAbilities {
         Vec3 from = player.position();
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
         Vec3 best = null;
-        // Once the look has driven the travel into the floor it stays there for the rest of the walk, so the
-        // remaining steps run along the ground rather than re-testing a descent that can only fail again.
-        boolean verticalBlocked = false;
+        // Once the look has driven the travel into something it stays at the height it settled at for the
+        // rest of the walk, so the remaining steps run along that level rather than re-testing a climb or a
+        // descent that can only fail again. Null until that happens.
+        Double lockedY = null;
         for (double d = STEP; d <= range + 1.0e-6; d += STEP) {
             Vec3 full = from.add(look.scale(d));
-            Vec3 candidate = snap(verticalBlocked ? new Vec3(full.x, from.y, full.z) : full);
+            Vec3 candidate = snap(lockedY == null ? full : new Vec3(full.x, lockedY, full.z));
             if (candidate.equals(best)) {
                 continue;   // the same block as the last step - nothing new to test
             }
@@ -429,20 +436,41 @@ public final class SimAbilities {
                 best = candidate;
                 continue;
             }
-            // AIMING DOWN MUST STILL MOVE YOU. killer560 (2026-09-30): "If i am looking down even just a
-            // little bit or hitting a block at all it doesnt work even though on main it should."
-            //
-            // Standing on a floor and looking down even a degree puts the very first candidate inside that
-            // floor, and breaking there meant the whole teleport was refused - which is exactly what he saw.
-            // His own Hypixel log shows the real behaviour: aiming 35 degrees down moved him 1.6 blocks at
-            // the SAME height. So a blocked descent keeps the horizontal part and carries on along the
-            // ground. What is NOT restored is the old step-up, which raised the walk's origin and let the
-            // raises stack into a six-block climb.
-            if (!verticalBlocked) {
-                Vec3 flat = snap(new Vec3(full.x, from.y, full.z));
-                if (fits(client, player, box, from, flat)) {
-                    verticalBlocked = true;
-                    best = flat;
+            if (lockedY == null) {
+                // A BLOCKED VERTICAL SETTLES AT THE NEAREST HEIGHT THAT FITS, between where the look wanted
+                // to put him and the height he started at.
+                //
+                // Two reports, one rule. Aiming DOWN (killer560, 2026-09-30: "If i am looking down even just
+                // a little bit [...] it doesnt work even though on main it should") puts the very first
+                // candidate inside the floor, and his Hypixel log has the real behaviour - 35 degrees down
+                // moved him 1.6 blocks at the SAME height. Aiming UP (2026-10-01: "if i am looking up and try
+                // to teleport then it should teleport me as much up as it can without puting my head into the
+                // roof") is the same thing from the other end, and the old code got it backwards: its only
+                // fallback was the height he started at, so the moment the ceiling stopped the climb it
+                // dropped him all the way back down - from the highest block he fitted in to his own.
+                //
+                // So the search walks from the candidate's own height TOWARDS his, one block at a time, and
+                // takes the first that fits. Under him that is the floor he is standing on; over him it is
+                // the last block below the roof. What is NOT restored is the old step-up, which raised the
+                // walk's ORIGIN and let the raises stack into a six-block climb.
+                double fromY = Math.floor(from.y);
+                double dir = candidate.y > fromY ? -1.0 : 1.0;
+                Vec3 settled = null;
+                for (double y = candidate.y + dir;
+                        dir < 0 ? y >= fromY : y <= fromY;
+                        y += dir) {
+                    Vec3 lower = new Vec3(candidate.x, y, candidate.z);
+                    if (fits(client, player, box, from, lower)) {
+                        settled = lower;
+                        break;
+                    }
+                }
+                // Never a step BACKWARDS. Looking straight up at a low ceiling settles on his own block,
+                // which is not a teleport - it is undoing the one he already has.
+                if (settled != null
+                        && (best == null || from.distanceToSqr(settled) > from.distanceToSqr(best))) {
+                    lockedY = settled.y;
+                    best = settled;
                     continue;
                 }
             }
