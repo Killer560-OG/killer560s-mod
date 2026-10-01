@@ -505,7 +505,15 @@ public final class SecretWaypointsFeature {
         }
         return switch (kind) {
             case CHEST -> new AABB(x + 0.0625, y, z + 0.0625, x + 0.9375, y + 0.875, z + 0.9375);
-            case ITEM -> new AABB(x + 0.375, y, z + 0.375, x + 0.625, y + 0.25, z + 0.625);
+            // killer560, 2026-10-01: "can you make the item waypoints a bit larger for the secret waypoints."
+            // Was the literal dropped-item cube, 0.25 wide and 0.25 tall, which is the item's real footprint
+            // and much smaller than the item READS on screen once it is spinning and bobbing. Half a block
+            // wide and 0.4 tall now - the same reasoning as the wither box on 2026-09-27, and still clearly
+            // smaller than BAT or CHEST so the kinds stay tellable apart at a glance. FULL_BLOCK remains the
+            // setting for anyone who wants the whole cube.
+            //
+            // This is the REDSTONE KEY box too: addGroup passes Kind.ITEM for keys as well as items.
+            case ITEM -> new AABB(x + 0.25, y, z + 0.25, x + 0.75, y + 0.4, z + 0.75);
             case BAT -> new AABB(x + 0.25, y, z + 0.25, x + 0.75, y + 0.9, z + 0.75);
             // killer560, 2026-09-27: "the wither essence one is too small and should be the size of a
             // Minecraft skull" - vanilla's real floor SkullBlock shape (Block.box(4,0,4,12,8,12), i.e.
