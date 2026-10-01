@@ -1030,10 +1030,23 @@ public final class SimItems {
         }
         for (BlockPos stair : stairs) {
             BlockPos under = stair.below().immutable();
-            // A FULL block, which is his own description of it ("the full block right below them") and the
-            // thing that stops this taking the floor out from under an ordinary staircase: air, slabs and
-            // more stairs are all left alone.
-            if (level.getBlockState(under).isCollisionShapeFullBlock(level, under)) {
+            // THE CRYPT'S OWN STONEWORK, named block by block. "The full block right below them" is his
+            // description and the obvious test for it is a collision-shape question, but every such predicate
+            // is a version-specific name this file would be guessing at - and naming the blocks is both
+            // narrower and certain. It also keeps the blast off anything that is not the crypt: a stair over
+            // a chest, a torch or a piece of the room's decoration is left where it is.
+            BlockState below = level.getBlockState(under);
+            if (below.is(net.minecraft.world.level.block.Blocks.STONE_BRICKS)
+                    || below.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
+                    || below.is(net.minecraft.world.level.block.Blocks.MOSSY_STONE_BRICKS)
+                    || below.is(net.minecraft.world.level.block.Blocks.CHISELED_STONE_BRICKS)
+                    || below.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS)
+                    || below.is(net.minecraft.world.level.block.Blocks.STONE)
+                    || below.is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE)
+                    || below.is(net.minecraft.world.level.block.Blocks.COBBLESTONE)
+                    || below.is(net.minecraft.world.level.block.Blocks.MOSSY_COBBLESTONE)
+                    || below.is(net.minecraft.world.level.block.Blocks.ANDESITE)
+                    || below.is(net.minecraft.world.level.block.Blocks.POLISHED_ANDESITE)) {
                 out.add(under);
             }
         }

@@ -332,7 +332,9 @@ public final class SimAbilities {
                 hit++;
             }
             if (hit > 0) {
-                level.playSound(null, sp.blockPosition(),
+                // The x/y/z overload, which is the one SimTerminator already uses - the BlockPos one is a
+                // second signature to be wrong about for nothing.
+                level.playSound(null, sp.getX(), sp.getY(), sp.getZ(),
                         net.minecraft.sounds.SoundEvents.GENERIC_EXPLODE.value(),
                         net.minecraft.sounds.SoundSource.PLAYERS, 0.6f, 1.2f);
             }

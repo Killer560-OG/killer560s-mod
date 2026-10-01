@@ -107,14 +107,16 @@ public final class SimSpiritSceptre {
             return;
         }
         Vec3 at = bat.at;
+        // McEntities.BAT and snapTo, not EntityType.BAT and moveTo: the entity-type constant lives in the
+        // version compat layer and moveTo is not what this version calls it (SimMiniboss and SimMobs are the
+        // proven spelling of both). Written from memory the first time, which cost a build.
         net.minecraft.world.entity.ambient.Bat entity =
                 new net.minecraft.world.entity.ambient.Bat(
-                        net.minecraft.world.entity.EntityType.BAT, server.overworld());
-        entity.moveTo(at.x, at.y, at.z, 0f, 0f);
+                        com.killer560.hub.compat.McEntities.BAT, server.overworld());
+        entity.snapTo(at.x, at.y, at.z, 0f, 0f);
         entity.setNoGravity(true);
         entity.setNoAi(true);
         entity.setInvulnerable(true);
-        entity.setSilent(true);
         bat.entity = entity.getUUID();
         server.execute(() -> server.overworld().addFreshEntity(entity));
     }
@@ -129,7 +131,7 @@ public final class SimSpiritSceptre {
         server.execute(() -> {
             Entity entity = server.overworld().getEntity(id);
             if (entity != null) {
-                entity.moveTo(to.x, to.y, to.z, entity.getYRot(), 0f);
+                entity.snapTo(to.x, to.y, to.z, entity.getYRot(), 0f);
             }
         });
     }
