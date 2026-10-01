@@ -109,13 +109,41 @@ public final class SimCreeperPuzzle {
             if (!SimState.canAct(client) || player != client.player) {
                 return InteractionResult.PASS;
             }
-            Integer idx = lanternToPairIndex.get(hitResult.getBlockPos());
-            if (idx == null) {
+            if (!tryConnectAt(hitResult.getBlockPos())) {
                 return InteractionResult.PASS;
             }
-            connectPair(client, idx);
             return InteractionResult.SUCCESS;
         });
+    }
+
+    /**
+     * Connects the pair this block belongs to, if it is one of this arena's lanterns.
+     *
+     * <p>Shared by the right-click hook above and by the LEFT-click path, which is the one killer560 was
+     * actually using: "creeper beams does nothing when i shoot the lanterns" (2026-10-01). His log shows the
+     * room binding correctly - "Sim puzzle Creeper Beams: bound at database rotation 0 - 22 of 22 expected
+     * block(s) present" - so the lanterns were there and the puzzle was armed; only right-clicking reached it,
+     * and shooting a lantern with the Mage beam or an arrow is a left click.
+     *
+     * <p>The left click arrives through {@code SimItems}' own {@code AttackBlockCallback} rather than a second
+     * one registered here, and that is deliberate: {@code SimItems} returns SUCCESS for every left click in the
+     * sim in order to stop a stray swing mining a room, which consumes the event. A listener registered
+     * afterwards would never run - so the dispatch has to live at the gate that already owns left clicks, not
+     * beside it.
+     *
+     * @return whether this was one of this puzzle's lanterns
+     */
+    public static boolean tryConnectAt(BlockPos pos) {
+        Minecraft client = Minecraft.getInstance();
+        if (!SimState.canAct(client) || pos == null) {
+            return false;
+        }
+        Integer idx = lanternToPairIndex.get(pos);
+        if (idx == null) {
+            return false;
+        }
+        connectPair(client, idx);
+        return true;
     }
 
     /** Clears any previous arena and places a fresh, unconnected one (all Sea Lantern) at {@code origin}. */

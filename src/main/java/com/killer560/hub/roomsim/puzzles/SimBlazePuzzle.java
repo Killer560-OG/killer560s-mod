@@ -52,16 +52,54 @@ public final class SimBlazePuzzle {
     /** Distinct HP values, arbitrary but ordered so the required kill sequence reads as a plain countdown. */
     private static final float[] HEALTHS = {5f, 4f, 3f, 2f, 1f};
 
-    /** Stand positions relative to {@code origin}, spread out at head height so no two are lined up. */
-    private static final BlockPos[] OFFSETS = {
-            new BlockPos(0, 3, 5),
-            new BlockPos(4, 3, 2),
-            new BlockPos(3, 3, -4),
-            new BlockPos(-3, 3, -3),
-            new BlockPos(-4, 3, 3),
-    };
+    /**
+     * The blazes stand in a VERTICAL CHAIN up the middle, not a ring at head height.
+     *
+     * <p>killer560 (2026-10-01): "For higher/lower blaze you need to space the blazes out along the vertical
+     * chain in the middle." That is the real room: a shaft with the blazes at different heights, which is what
+     * makes Higher and Lower different puzzles in the first place - you are picking by height as well as by HP.
+     * The old ring put all five at {@code y+3} spread around in x and z, which is a different puzzle.
+     *
+     * <p>Spacings are tried in order and the first that fits the room's own centre column wins, so a shorter
+     * shaft still gets a chain rather than no blazes at all - see {@link #bindAt}.
+     */
+    private static final int[] SPACINGS = {3, 2};
 
-    /** Indices into {@link #HEALTHS}/{@link #OFFSETS}, sorted by health DESCENDING - the real Lower Blaze
+    /** The chain for one spacing: straight up, {@code spacing} blocks apart, from the origin. */
+    private static BlockPos[] offsetsFor(int spacing) {
+        BlockPos[] out = new BlockPos[HEALTHS.length];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = new BlockPos(0, i * spacing, 0);
+        }
+        return out;
+    }
+
+    /** How tall the chain is for a spacing, in blocks of clearance needed above the origin. */
+    private static int chainHeight(int spacing) {
+        return (HEALTHS.length - 1) * spacing + 2;
+    }
+
+    /** The spacing the current arena was built with. */
+    private static volatile int spacing = SPACINGS[0];
+
+    /**
+     * The name the solver reads.
+     *
+     * <p>{@code BlazeSolverFeature} matches {@code ^\[Lv\d+].*Blaze [\d,]+/([\d,]+)❤$} against
+     * {@code entity.getName().getString()} and orders by the captured MAX HP, so a sim blaze with no custom name
+     * is invisible to it however it is arranged - killer560 (2026-10-01): "they need to have lables to know what
+     * order to shoot them in for my solver to pick up."
+     *
+     * <p>The numbers are this arena's own {@link #HEALTHS}, so the order the solver computes from the labels is
+     * the same order {@link #KILL_ORDER_INDICES} requires. Using prettier, more Hypixel-looking HP values would
+     * have let the two disagree, which is the one thing a practice target must not do.
+     */
+    private static net.minecraft.network.chat.Component blazeLabel(float health) {
+        int hp = (int) health;
+        return net.minecraft.network.chat.Component.literal("[Lv1] Blaze " + hp + "/" + hp + "\u2764");
+    }
+
+    /** Indices into {@link #HEALTHS} and the chain positions, sorted by health DESCENDING - the real Lower Blaze
      *  rule ("kill the HIGHEST-HP blaze first"), computed once since the health list never changes. */
     private static final int[] KILL_ORDER_INDICES = descendingByHealth();
 
@@ -137,16 +175,20 @@ public final class SimBlazePuzzle {
         despawnCurrent(client);
         storedOrigin = origin;
         final boolean higher = lowestFirst;
+        final BlockPos[] chain = offsetsFor(spacing);
         server.execute(() -> {
             ServerLevel level = server.overworld();
             UUID[] byPlacement = new UUID[HEALTHS.length];
             for (int i = 0; i < HEALTHS.length; i++) {
-                BlockPos pos = origin.offset(OFFSETS[i]);
+                BlockPos pos = origin.offset(chain[i]);
                 SimBlazeEntity blaze = new SimBlazeEntity(McEntities.BLAZE, level);
                 blaze.getAttribute(Attributes.MAX_HEALTH).setBaseValue(HEALTHS[i]);
                 blaze.setHealth(HEALTHS[i]);
                 blaze.setPersistenceRequired();
                 blaze.setNoAi(true);
+                // The label is what BlazeSolverFeature reads - see blazeLabel.
+                blaze.setCustomName(blazeLabel(HEALTHS[i]));
+                blaze.setCustomNameVisible(true);
                 blaze.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
                 if (!level.addFreshEntity(blaze)) {
                     // Said out loud rather than silently skipped. A blaze arena with no blazes in it looks
@@ -195,26 +237,39 @@ public final class SimBlazePuzzle {
         // The room's centre column, walked from the dungeon floor upwards for the first place a 5-block-tall
         // arena fits. Lower Blaze is entered at the bottom and Higher Blaze near its ceiling, so the search
         // starts from the end the player arrives at rather than assuming one of them.
+        // Tall enough for the whole CHAIN now, not for one blaze at head height. The widest spacing that fits
+        // the room's own centre column wins, so a short shaft gets a tighter chain rather than nothing.
         BlockPos found = null;
+        int chosenSpacing = SPACINGS[0];
         int from = higher ? 120 : 70;
         int step = higher ? -1 : 1;
-        for (int i = 0; i < 70 && found == null; i++) {
-            int y = from + i * step;
-            BlockPos candidate = anchor.world(15, y, 16);
-            boolean clear = true;
-            for (int dy = 0; dy <= 5 && clear; dy++) {
-                clear = level.getBlockState(candidate.above(dy)).isAir();
+        for (int candidateSpacing : SPACINGS) {
+            int needed = chainHeight(candidateSpacing);
+            for (int i = 0; i < 70 && found == null; i++) {
+                int y = from + i * step;
+                BlockPos candidate = anchor.world(15, y, 16);
+                boolean clear = true;
+                for (int dy = 0; dy <= needed && clear; dy++) {
+                    clear = level.getBlockState(candidate.above(dy)).isAir();
+                }
+                if (clear) {
+                    found = candidate;
+                    chosenSpacing = candidateSpacing;
+                }
             }
-            if (clear) {
-                found = candidate;
+            if (found != null) {
+                break;
             }
         }
         if (found == null) {
             com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
-                    "Sim blaze puzzle: no 6-block-tall air pocket in {}'s centre column - not armed",
-                    p.room().name);
+                    "Sim blaze puzzle: {}'s centre column has no clear run tall enough for a chain of {} "
+                            + "(needed {} or {} blocks) - not armed",
+                    p.room().name, HEALTHS.length, chainHeight(SPACINGS[0]), chainHeight(SPACINGS[1]));
             return false;
         }
+        spacing = chosenSpacing;
+        final BlockPos[] chain = offsetsFor(chosenSpacing);
         despawnCurrent(Minecraft.getInstance());
         storedOrigin = found;
         boundOrigin = found;
@@ -222,12 +277,14 @@ public final class SimBlazePuzzle {
         final BlockPos origin = found;
         UUID[] byPlacement = new UUID[HEALTHS.length];
         for (int i = 0; i < HEALTHS.length; i++) {
-            BlockPos pos = origin.offset(OFFSETS[i]);
+            BlockPos pos = origin.offset(chain[i]);
             SimBlazeEntity blaze = new SimBlazeEntity(McEntities.BLAZE, level);
             blaze.getAttribute(Attributes.MAX_HEALTH).setBaseValue(HEALTHS[i]);
             blaze.setHealth(HEALTHS[i]);
             blaze.setPersistenceRequired();
             blaze.setNoAi(true);
+            blaze.setCustomName(blazeLabel(HEALTHS[i]));
+            blaze.setCustomNameVisible(true);
             blaze.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
             if (!level.addFreshEntity(blaze)) {
                 com.killer560.hub.util.ModLog.get("killer560smod-roomsim")
@@ -250,8 +307,9 @@ public final class SimBlazePuzzle {
         nextRequired = 0;
         complete = false;
         com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
-                "Sim blaze puzzle: {} blaze(s) in {} at {}, {}-HP first",
-                ordered.size(), p.room().name, origin, higher ? "lowest" : "highest");
+                "Sim blaze puzzle: {} blaze(s) in {} at {}, {}-HP first, chained vertically {} block(s) apart, "
+                        + "each labelled for BlazeSolverFeature",
+                ordered.size(), p.room().name, origin, higher ? "lowest" : "highest", chosenSpacing);
         return true;
     }
 

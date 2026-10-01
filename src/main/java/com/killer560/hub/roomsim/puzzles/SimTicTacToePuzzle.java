@@ -57,8 +57,29 @@ public final class SimTicTacToePuzzle {
             0, 4, 8, 2, 4, 6
     };
 
-    /** Cell index (row*3+col) -> world position. Empty until {@link #build}. */
+    /** Cell index (row*3+col) -> the block that is CLICKED. Empty until {@link #build}. */
     private static volatile BlockPos[] cellPos = null;
+
+    /**
+     * Cell index -> the block that is COLOURED, which is not the same block in a captured room.
+     *
+     * <p>killer560 (2026-10-01): "Tictactoe does not have buttons for me to play tic tactoe." His log shows the
+     * room binding fine - "8 of 9 expected block(s) present" - so the buttons were found and then painted over,
+     * because the bind wrote the mark onto the cell coordinate, which IS the button's coordinate.
+     *
+     * <p>Decoding the capture gives the real board: eight {@code stone_button} at capture {@code x=23},
+     * {@code y 70..72}, {@code z 14..16}, each attached to an {@code iron_block} wall one step further in at
+     * {@code x=24}, with air in front at {@code x=22}. The ninth is missing because that cell was already
+     * played. In the database's own coordinates that puts the button at {@code x=8} - which is
+     * {@code TicTacToeSolverFeature}'s cell coordinate, and {@code 31 - 23 = 8} agrees - and the wall at
+     * {@code x=7}.
+     *
+     * <p>So the button stays where it is and the colour goes on the wall behind it. A button is a small block,
+     * so the wall reads clearly around it, and the cell is still something to press.
+     *
+     * <p>Null for a standalone arena, which has no wall behind anything - there the two are the same block.
+     */
+    private static volatile BlockPos[] paintPos = null;
     /** Reverse lookup for the click hook, same shape as SimDoors' BLOCK_INDEX. */
     private static final Map<BlockPos, Integer> CELL_INDEX = new ConcurrentHashMap<>();
 
@@ -168,12 +189,16 @@ public final class SimTicTacToePuzzle {
         // would blank the board this method just built.
         forget();
         BlockPos[] positions = new BlockPos[9];
+        BlockPos[] walls = new BlockPos[9];
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
                 positions[row * 3 + col] = anchor.world(8, 72 - row, 17 - col).immutable();
+                // One step further in: the iron wall the button is attached to - see paintPos.
+                walls[row * 3 + col] = anchor.world(7, 72 - row, 17 - col).immutable();
             }
         }
         cellPos = positions;
+        paintPos = walls;
         boundAnchor = anchor;
         for (int i = 0; i < 9; i++) {
             CELL_INDEX.put(positions[i], i);
@@ -186,7 +211,7 @@ public final class SimTicTacToePuzzle {
             board[opening] = COMPUTER;
         }
         for (int i = 0; i < 9; i++) {
-            level.setBlockAndUpdate(positions[i], colourFor(board[i]));
+            level.setBlockAndUpdate(walls[i], colourFor(board[i]));
         }
         return true;
     }
@@ -230,6 +255,7 @@ public final class SimTicTacToePuzzle {
     public static void forget() {
         boundAnchor = null;
         cellPos = null;
+        paintPos = null;
         CELL_INDEX.clear();
         Arrays.fill(board, EMPTY);
         built = false;
@@ -237,7 +263,10 @@ public final class SimTicTacToePuzzle {
     }
 
     public static void reset() {
-        BlockPos[] positions = cellPos;
+        // ONLY a standalone arena's blocks. cellPos now holds the captured room's own stone buttons, and
+        // paintPos its iron wall, so airing either out in a bound room would tear a hole in the room and take
+        // the buttons with it. A bound board just goes back to white on the next paint.
+        BlockPos[] positions = boundAnchor == null ? cellPos : null;
         Minecraft client = Minecraft.getInstance();
         if (positions != null && SimState.canAct(client)) {
             MinecraftServer server = client.getSingleplayerServer();
@@ -251,6 +280,7 @@ public final class SimTicTacToePuzzle {
             }
         }
         cellPos = null;
+        paintPos = null;
         boundAnchor = null;
         CELL_INDEX.clear();
         Arrays.fill(board, EMPTY);
@@ -310,19 +340,38 @@ public final class SimTicTacToePuzzle {
         }
     }
 
+    /** The block a cell's colour is written to - the wall behind the button in a bound room, the cell itself in
+     *  a standalone arena. */
+    private static BlockPos paintTarget(int index) {
+        BlockPos[] walls = paintPos;
+        if (walls != null && index >= 0 && index < walls.length && walls[index] != null) {
+            return walls[index];
+        }
+        BlockPos[] cells = cellPos;
+        return cells == null || index < 0 || index >= cells.length ? null : cells[index];
+    }
+
     private static void paintAll(MinecraftServer server) {
-        BlockPos[] positions = cellPos;
+        BlockPos[] targets = new BlockPos[9];
+        for (int i = 0; i < 9; i++) {
+            targets[i] = paintTarget(i);
+        }
         char[] snapshot = board.clone();
         server.execute(() -> {
             ServerLevel level = server.overworld();
             for (int i = 0; i < 9; i++) {
-                level.setBlockAndUpdate(positions[i], colourFor(snapshot[i]));
+                if (targets[i] != null) {
+                    level.setBlockAndUpdate(targets[i], colourFor(snapshot[i]));
+                }
             }
         });
     }
 
     private static void paintCell(MinecraftServer server, int index, char mark) {
-        BlockPos pos = cellPos[index];
+        BlockPos pos = paintTarget(index);
+        if (pos == null) {
+            return;
+        }
         server.execute(() -> server.overworld().setBlockAndUpdate(pos, colourFor(mark)));
     }
 

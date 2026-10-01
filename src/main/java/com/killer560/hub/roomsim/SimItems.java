@@ -47,6 +47,8 @@ import com.killer560.hub.compat.McCompat;
  */
 public final class SimItems {
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-roomsim");
+
     /** Reach for "the block you're looking at" - superboom and the dungeon breaker both use it. Matches the
      *  block interaction range elsewhere in the mod closely enough for a sim; there is no server to enforce
      *  Hypixel's own measured 4.5-block limit here, so this is just "close enough to be aiming at it". */
@@ -134,6 +136,20 @@ public final class SimItems {
                     Minecraft client = Minecraft.getInstance();
                     if (!SimState.canAct(client) || player != client.player) {
                         return net.minecraft.world.InteractionResult.PASS;
+                    }
+                    // PUZZLES GET THE CLICK FIRST, whatever is in hand.
+                    //
+                    // This callback returns SUCCESS for every left click in the sim so a stray swing cannot mine
+                    // a room, and SUCCESS consumes the event - so a puzzle that registered its own
+                    // AttackBlockCallback afterwards would never see one. Any puzzle that wants left clicks has
+                    // to be dispatched from here. Creeper Beams is the first: killer560 (2026-10-01) "creeper
+                    // beams does nothing when i shoot the lanterns", and shooting a lantern - Mage beam, arrow,
+                    // bare swing - is a left click, while the puzzle only had a right-click hook.
+                    //
+                    // Ahead of the held-item checks on purpose: a lantern should connect whether or not he
+                    // happens to be holding the Dungeonbreaker.
+                    if (com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.tryConnectAt(pos.immutable())) {
+                        return net.minecraft.world.InteractionResult.SUCCESS;
                     }
                     String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(player.getItemInHand(hand));
                     if ("DUNGEONBREAKER".equals(id)) {
@@ -574,9 +590,26 @@ public final class SimItems {
                 level.destroyBlock(here, false, sp, 512);
                 broken++;
             }
+            // SAYS WHAT IT DID, in the log, every detonation.
+            //
+            // killer560 (2026-10-01): "I still cannot blow up crypts." His run's log contains nothing at all
+            // from this method - no line for a successful boom and none for a dud - so there is no way to tell
+            // which of three things happened: he never used a Superboom, the aimed block was not cracked brick,
+            // or sealsAChamber refused and the fragile-only fallback found nothing to break. One line answers
+            // that outright.
+            //
+            // Deliberately NOT chat. killer560 (2026-09-30): "Remove the nothing to blow up line" - a Superboom
+            // aimed at ordinary stone should do nothing visible, the way it does on Hypixel. A log line is not
+            // something he has to read, and it is the thing that was missing.
+            LOGGER.info("Sim superboom at {} face {}: aimed block {}, crypt={} (cracked={}, sealsAChamber={}),"
+                            + " {} block(s) broken",
+                    center, face,
+                    net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(aimed.getBlock()),
+                    openedCrypt,
+                    aimed.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
+                            || aimed.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS),
+                    sealsAChamber(level, center), broken);
             if (broken == 0) {
-                // Silent. killer560 (2026-09-30): "Remove the nothing to blow up line." A Superboom aimed at
-                // ordinary stone should simply do nothing, the way it does on Hypixel.
                 return;
             }
             if (openedCrypt) {
