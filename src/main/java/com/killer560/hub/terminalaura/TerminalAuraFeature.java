@@ -50,6 +50,28 @@ public final class TerminalAuraFeature {
         LOGGER.info("[TerminalAura] Registered (default OFF)");
     }
 
+    /**
+     * Whether a movement key is being HELD, which is not the same question as whether the player is moving.
+     *
+     * <p>killer560 (2026-10-01): "holding any movement key at all whatsoever, not necessarily having velocity."
+     * So this reads the key states and never the velocity. The two genuinely differ, and in both directions:
+     * walking into a wall holds a key with no velocity at all, and being knocked across the platform by Goldor
+     * gives plenty of velocity with no key down. He asked for the key.
+     *
+     * <p>The four directions and jump. SNEAK is deliberately NOT one of them: it does not move you, and it is
+     * held down for the whole of an etherwarp, so counting it would switch the aura off every time he warped
+     * between terminals - which is the opposite of useful. Say the word and it goes in.
+     *
+     * <p>Same idiom as {@code BloodRush.userInput}, including the open-screen test: a key cannot be "held" for
+     * movement while a GUI has the keyboard.
+     */
+    private static boolean movementKeyHeld(Minecraft client) {
+        var o = client.options;
+        return McCompat.screen(client) == null
+                && (o.keyUp.isDown() || o.keyDown.isDown() || o.keyLeft.isDown() || o.keyRight.isDown()
+                || o.keyJump.isDown());
+    }
+
     private static void tick(Minecraft client) {
         TerminalAuraConfig cfg = TerminalAuraConfig.getInstance();
         if (!cfg.isEnabled()) {
@@ -72,6 +94,9 @@ public final class TerminalAuraFeature {
             return;
         }
         if (cfg.isGroundOnly() && !player.onGround()) {
+            return;
+        }
+        if (cfg.isPauseOnMovementKeys() && movementKeyHeld(client)) {
             return;
         }
         if (cfg.isLeapDelayEnabled()

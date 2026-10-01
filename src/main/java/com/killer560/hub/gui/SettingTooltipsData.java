@@ -463,6 +463,9 @@ final class SettingTooltipsData {
         d.put("terminal aura", "Cheat build: opens any terminal in range during F7/M7 P3.");
         d.put("ground only", "Cheat build: only opens terminals while you're on the ground.");
         d.put("leap delay", "Cheat build: Terminal Aura waits after you leap before opening terminals.");
+        d.put("pause on movement keys", "Cheat build: Terminal Aura holds off while you hold a movement key "
+                + "(WASD or jump). Reads the keys, not your velocity, so walking into a wall still counts and "
+                + "being knocked about does not. Sneak is not one of them.");
         d.put("leap delay time", "Cheat build: how long Terminal Aura waits after a leap, 0.1-5.0 seconds.");
         d.put("through walls", "Cheat build: draws starred mob and bat boxes through blocks.");
         d.put("diagnostic logging", "Logs held-map changes to the log file, for map research only.");
@@ -1556,7 +1559,9 @@ final class SettingTooltipsData {
         d.put("teammate highlight/line width", "Thickness of the box outline, 1-10.");
         d.put("teammate highlight/range", "Only teammates within this many blocks (5-128) are highlighted.");
         d.put("teammate highlight/through walls", "Cheat build: highlights teammates through walls.");
-        d.put("terminal aura/range", "Cheat build: how close a terminal must be to be opened, 1-4 blocks.");
+        d.put("terminal aura/range", "Cheat build: how close a terminal must be to be opened, 0.5-4.5 blocks. "
+                + "Red past 3.0 - that is the furthest measured not to draw a Reach flag, because a terminal is "
+                + "an armour stand and an entity gets a tighter limit than a block's 4.5.");
         d.put("terminal aura/delay", "Cheat build: minimum time between two terminal opens, 0-2000 ms.");
         d.put("terminal solver/numbers", "Highlights the next two panes to click in the 'Click in order!' terminal.");
         d.put("terminal triggerbot/delay", "Cheat build: how long your crosshair must stay on a terminal before it opens, 0-1000 ms.");

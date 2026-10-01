@@ -22,18 +22,34 @@ public final class TerminalAuraConfig {
     private static final Path CONFIG_PATH =
             FabricLoader.getInstance().getConfigDir().resolve("killer560smod-terminalaura.json");
 
-    /** Hypixel's own interact reach. Anything past this is refused server-side anyway. */
-    // Capped at the measured entity limit - vanilla allows 3.0 to an entity, and past it the anticheat
-    // names the distance in a Reach violation. See CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH.
-    public static final double MAX_RANGE =
+    /**
+     * The slider's own bounds. killer560 (2026-10-01): "make the range a slider and have it go from half a
+     * block up to 4.5 blocks."
+     *
+     * <p><b>The top of this slider is past what was measured to be safe, and that is worth knowing before
+     * using it.</b> {@link #SAFE_RANGE} is 3.0, measured on his own harness against a live GrimAC on
+     * 2026-09-28: interacting with an armour stand at 3.26 blocks and beyond drew a {@code Reach} violation
+     * naming the distance, 2.18 and closer drew nothing. A terminal IS an armour stand, so that is the limit
+     * that applies here - the 4.5 figure is the BLOCK interaction limit, which is a different and looser one.
+     * The cap used to be 3.0 for exactly this reason. It is 4.5 now because he asked for it; the tab colours
+     * anything past 3.0 so the choice is visible where it is made rather than only in this comment.
+     */
+    public static final double MIN_RANGE = 0.5;
+    public static final double MAX_RANGE = 4.5;
+
+    /** The largest range measured not to draw a Reach violation. See {@link #MAX_RANGE}. */
+    public static final double SAFE_RANGE =
             com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
+
     public static final int MAX_DELAY_MS = 2000;
 
     private static TerminalAuraConfig instance;
 
     private boolean enabled = false;
-    private double range = MAX_RANGE;
+    /** Defaults to the measured-safe 3.0, not to the top of the slider - see {@link #MAX_RANGE}. */
+    private double range = SAFE_RANGE;
     private int delayMs = 750;
+    private boolean pauseOnMovementKeys = false;
     private boolean groundOnly = false;
     private boolean leapDelayEnabled = false;
     private double leapDelaySeconds = 0.5;
@@ -55,11 +71,14 @@ public final class TerminalAuraConfig {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject root = JsonParser.parseString(json).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(root, "enabled", false);
-                cfg.range = ConfigJson.getDouble(root, "range", 4.0);
+                // 3.0, matching the field default. It read 4.0 here and SAFE_RANGE on the field, so the
+                // two disagreed and getRange() silently clamped the difference away.
+                cfg.range = ConfigJson.getDouble(root, "range", SAFE_RANGE);
                 cfg.delayMs = ConfigJson.getInt(root, "delayMs", 750);
                 cfg.groundOnly = ConfigJson.getBool(root, "groundOnly", false);
                 cfg.leapDelayEnabled = ConfigJson.getBool(root, "leapDelayEnabled", false);
                 cfg.leapDelaySeconds = ConfigJson.getDouble(root, "leapDelaySeconds", 0.5);
+                cfg.pauseOnMovementKeys = ConfigJson.getBool(root, "pauseOnMovementKeys", false);
             } catch (Exception ignored) {
                 // Unreadable file: the per-key readers keep whatever parsed, the rest stay at defaults.
             }
@@ -77,6 +96,7 @@ public final class TerminalAuraConfig {
             root.addProperty("groundOnly", groundOnly);
             root.addProperty("leapDelayEnabled", leapDelayEnabled);
             root.addProperty("leapDelaySeconds", leapDelaySeconds);
+            root.addProperty("pauseOnMovementKeys", pauseOnMovementKeys);
             Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -97,7 +117,7 @@ public final class TerminalAuraConfig {
     }
 
     public double getRange() {
-        return Math.min(MAX_RANGE, Math.max(0.0, range));
+        return Math.min(MAX_RANGE, Math.max(MIN_RANGE, range));
     }
 
     public void setRange(double range) {
@@ -126,6 +146,22 @@ public final class TerminalAuraConfig {
 
     public void setLeapDelayEnabled(boolean leapDelayEnabled) {
         this.leapDelayEnabled = leapDelayEnabled;
+    }
+
+    /**
+     * Whether holding a movement key stops the aura.
+     *
+     * <p>killer560 (2026-10-01): "add an option to not have term aura work whenever you are moving by moving,
+     * I mean, holding any movement key at all whatsoever, not necessarily having velocity." So the test is the
+     * KEY, not the velocity - see {@code TerminalAuraFeature.movementKeyHeld}. Ships off, so turning it on is
+     * his choice rather than a behaviour change he did not ask for on the next build.
+     */
+    public boolean isPauseOnMovementKeys() {
+        return pauseOnMovementKeys;
+    }
+
+    public void setPauseOnMovementKeys(boolean pauseOnMovementKeys) {
+        this.pauseOnMovementKeys = pauseOnMovementKeys;
     }
 
     public double getLeapDelaySeconds() {
