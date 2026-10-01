@@ -298,6 +298,12 @@ physics. Read the relevant one before touching either area.
   while the window was briefly 854x480 froze `storage_overlay` at the clamped `x:0` and it stayed there at
   2560x1441, which is what "the storage overlay is no longer centered" turned out to be. A saved position is
   never re-clamped, so the cure is deleting the element's entry from `killer560smod-hud.json`.
+- Superpairs' biggest XP tile is a **lapis BLOCK** named `+479,095 XP`, not a dye. Treating "dye family" as
+  "XP" made it a valuable reward that powerup matches and pairing spent clicks on (his 2026-10-01 runs). Superpairs
+  uses `isSuperpairsXpTile`; `isDyeFamilyItem` stays Ultrasequencer's note check.
+- `deploy-to-instances.py` predates the per-version jar names (`killer560smod-1.1.0-26.1.2-cheat.jar`) and
+  exits "missing build output" against a current build; it also skips 26.2 instances. Until it is rewritten,
+  install by hand: same variant per instance, `.jar.pending` for a running one, verify with the BuildVariant md5.
 - **Hypixel's Bazaar summaries are named the opposite of how they read.** In
   `api.hypixel.net/v2/skyblock/bazaar`, `buy_summary` is the book you INSTANT-BUY OUT OF and `sell_summary` is
   the one you instant-sell into. Verified on `VIBRANT_CORAL` (2026-09-29): `quick_status.buyPrice` 3324220.9
