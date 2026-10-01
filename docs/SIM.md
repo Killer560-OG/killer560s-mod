@@ -710,6 +710,20 @@ worse than it looks - the obvious "middle of the entry side", cell (16, 8), **sl
 push** on this very capture. The rule picks cell (9, 0) and a 16-shove solution, and it can never pick a cell
 with no solution.
 
+**One stray block made 26 cells unsolvable, and the board is otherwise exactly right.** killer560 marked the
+real room up cell by cell on 2026-10-01 against the decoded capture. Sixteen of the seventeen walls matched;
+the capture carried ONE the real room does not have, at board {@code (15,16)}. With it, 26 of the open cells
+cannot reach the exit at all - without it, every one of the 273 can, which is what a real Hypixel puzzle looks
+like. So "zero unsolvable cells" is now the cheap check on whether a decoded Ice Path board is right, and a
+decode that leaves dead cells should be suspected rather than shipped.
+
+He also settled two things that had been guesswork: there is exactly ONE Ice Path layout, and he enters from
+row 16 with the chest past row 0 - the orientation `IcePathSolverFeature` already indexes. Because the layout
+is known, `SimIcePathPuzzle.bindAt` now CONFORMS a bound room's maze layer to it instead of taking the capture
+as found, and logs how many cells it had to correct. The silverfish starts at (15,15), ten shoves out, checked
+for solvability at arm time rather than trusted - his first reading of the spot, (14,16), was one of those 26
+dead cells, and a silverfish that can never escape looks exactly like one that works.
+
 **A punch must not be a hit.** The shove arrives on `AttackEntityCallback` returning `InteractionResult.FAIL`,
 which fires before any damage logic, so the silverfish is shoved and never hurt - otherwise eight HP of
 punching kills the puzzle. An arrow is picked up separately, by looking for an `AbstractArrow` against the fish

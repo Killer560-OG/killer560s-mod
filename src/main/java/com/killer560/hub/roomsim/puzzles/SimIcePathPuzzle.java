@@ -136,14 +136,34 @@ public final class SimIcePathPuzzle {
     private static final double SLIDE_SPEED = 0.45;
 
     /**
-     * The 17 interior wall cells of the real Ice Path, as {row, col}, decoded out of
-     * {@code assets/killer560smod/rooms/Ice_Path.json} at database rotation 180. Used to BUILD the standalone
-     * arena only; a bound room's walls are read out of the room itself.
+     * The 16 interior wall cells of the real Ice Path, as {row, col}. <b>Verified against a live room.</b>
+     *
+     * <p>Decoded from {@code assets/killer560smod/rooms/Ice_Path.json} and then checked block by block by
+     * killer560 on 2026-10-01 against a real Catacombs run, on a grid he marked up himself. The capture was
+     * right about fifteen of the sixteen and carried ONE wall the real room does not have, at {@code (15,16)}.
+     *
+     * <p>That one block was not cosmetic. With it, 26 of the board's open cells cannot reach the exit at all;
+     * without it, every one of the 273 can. A real Hypixel puzzle has no dead cells, so the corrected board is
+     * self-evidently the right one and the capture had picked up a stray.
+     *
+     * <p>killer560 also settled the orientation: <b>he enters from row 16</b> and the chest alcove is past row
+     * 0, which is the way {@code IcePathSolverFeature} already indexes it. So there is one true layout, and
+     * this is it - which is why {@link #bindAt} now CONFORMS a bound room to this list rather than taking
+     * whatever its capture happens to hold.
      */
     private static final int[][] WALLS = {
-            {0, 5}, {1, 1}, {2, 4}, {2, 12}, {3, 0}, {3, 16}, {9, 15}, {10, 1}, {10, 10}, {10, 15},
-            {11, 2}, {11, 11}, {15, 6}, {15, 10}, {15, 16}, {16, 2}, {16, 13},
+            {0, 5}, {1, 1}, {2, 4}, {2, 12}, {3, 0}, {3, 16}, {9, 15}, {10, 1},
+            {10, 10}, {10, 15}, {11, 2}, {11, 11}, {15, 6}, {15, 10}, {16, 2}, {16, 13},
     };
+
+    /**
+     * Where the silverfish starts, given by killer560 on 2026-10-01 against the real room.
+     *
+     * <p>Ten shoves to the exit on the corrected board. Used whenever it is open and solvable, which is checked
+     * rather than assumed - a board that has drifted falls back to {@link #furthestSolvable} rather than
+     * spawning a silverfish that can never get out.
+     */
+    private static final int[] SPAWN = {15, 15};
 
     /** The board as the solver reads it - true is a wall. Empty until built or bound. */
     private static volatile boolean[][] board = null;
@@ -308,14 +328,33 @@ public final class SimIcePathPuzzle {
         forget();
         boundAnchor = anchor;
 
+        // CONFORMED to the verified layout, not taken as the capture left it.
+        //
+        // There is one true Ice Path - killer560, 2026-10-01 - and WALLS is it, checked against a real room.
+        // The shipped capture carries one wall the real room does not have, at (15,16), and that single block
+        // makes 26 of the board's cells unable to reach the exit. Reading the room as captured would hand him a
+        // maze that is not the one he practises on, and sometimes an unsolvable one.
+        //
+        // Only the maze layer inside the 17x17 is touched - nothing outside the board, nothing at any other
+        // height - and the count is logged, so a capture that has drifted says how far rather than silently
+        // being papered over.
         boolean[][] read = new boolean[BOARD_SIZE][BOARD_SIZE];
-        int walls = 0;
+        for (int[] wall : WALLS) {
+            read[wall[0]][wall[1]] = true;
+        }
+        int walls = WALLS.length;
+        int corrected = 0;
         for (int row = 0; row < BOARD_SIZE; row++) {
             for (int col = 0; col < BOARD_SIZE; col++) {
-                read[row][col] = !level.getBlockState(wallOf(row, col)).isAir();
-                if (read[row][col]) {
-                    walls++;
+                BlockPos at = wallOf(row, col);
+                boolean isWall = !level.getBlockState(at).isAir();
+                if (isWall == read[row][col]) {
+                    continue;
                 }
+                level.setBlockAndUpdate(at, read[row][col]
+                        ? Blocks.POLISHED_ANDESITE.defaultBlockState()
+                        : Blocks.AIR.defaultBlockState());
+                corrected++;
             }
         }
         int[] start = chooseStart(read);
@@ -331,8 +370,9 @@ public final class SimIcePathPuzzle {
             forget();
             return false;
         }
-        LOGGER.info("Sim ice path: armed in {} - {} wall cell(s), silverfish at cell ({},{}), {} shove(s) to "
-                + "the exit", p.room().name, walls, start[0], start[1], shoveCount(read, start));
+        LOGGER.info("Sim ice path: armed in {} - {} wall cell(s), {} corrected from the capture, silverfish at "
+                        + "cell ({},{}), {} shove(s) to the exit",
+                p.room().name, walls, corrected, start[0], start[1], shoveCount(read, start));
         return true;
     }
 
@@ -494,15 +534,32 @@ public final class SimIcePathPuzzle {
     }
 
     /**
-     * The cell to start the silverfish on: the open one needing the most shoves to escape, of those that can.
+     * The cell to start the silverfish on: {@link #SPAWN} when it works on this board, otherwise the rule.
      *
-     * <p>This file's own choice, for want of any bundled spawn - see the class doc, which also says why a fixed
-     * guess is worse than it looks. Ties go to the lowest row, then the lowest column, so the same board always
-     * produces the same arena.
+     * <p>The fixed cell is killer560's, read off the real room. It is still CHECKED rather than trusted,
+     * because a fixed cell cannot be safe on a board that has drifted - his first reading of it, {@code (14,16)},
+     * turned out to be one of the 26 cells that could not reach the exit at all, and a silverfish that can never
+     * escape is a worse failure than one in the wrong corner, since nothing about it looks broken.
      *
      * @return {row, col}, or null when no cell on this board has a solution at all
      */
     private static int[] chooseStart(boolean[][] b) {
+        if (!b[SPAWN[0]][SPAWN[1]] && shoveCount(b, SPAWN) > 0) {
+            return new int[]{SPAWN[0], SPAWN[1]};
+        }
+        LOGGER.warn("Sim ice path: the recorded start cell ({},{}) is {} on this board - falling back to the "
+                        + "furthest solvable cell", SPAWN[0], SPAWN[1],
+                b[SPAWN[0]][SPAWN[1]] ? "a wall" : "unable to reach the exit");
+        return furthestSolvable(b);
+    }
+
+    /**
+     * The open cell needing the most shoves to escape, of those that can escape at all.
+     *
+     * <p>The fallback for a board {@link #SPAWN} does not fit. It cannot produce an unsolvable arena, because a
+     * cell with no solution is never eligible, and it cannot produce a one-shove arena either.
+     */
+    private static int[] furthestSolvable(boolean[][] b) {
         int[] best = null;
         int bestShoves = 0;
         for (int row = 0; row < BOARD_SIZE; row++) {
