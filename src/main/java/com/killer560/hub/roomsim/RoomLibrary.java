@@ -1276,6 +1276,12 @@ public final class RoomLibrary {
         int sizeX = footprint((tilesX - 1) * 2);
         int sizeZ = footprint((tilesZ - 1) * 2);
         Room r = ROOMS.get(name);
+        if (r != null && r.sizeX == sizeZ && r.sizeZ == sizeX && sizeX != sizeZ && !rescanPending(name)) {
+            // The same room, seen a quarter turn round on this floor. Its capture is already in its own
+            // orientation and the roof marker says which; discarding it to start again at the other one threw
+            // away good captures (Pedestal, 2026-10-04) for nothing. Only a requested rescan starts over.
+            return 0;
+        }
         if (r == null || r.sizeX != sizeX || r.sizeZ != sizeZ) {
             if (r != null) {
                 // Said out loud, because this DISCARDS a capture. A room at a different footprint cannot be
@@ -1328,7 +1334,10 @@ public final class RoomLibrary {
                 if (r.seenColumn[col]) {
                     continue;
                 }
-                cursor.set(worldX0 + x, r.minY, worldZ0 + z);
+                // Asked INSIDE the level's own height. The band starts at -64 for local worlds, and Hypixel's
+                // dungeon world starts at 0, so asking at r.minY there called every column unloaded and the
+                // recorder read nothing at all on Hypixel from 2026-09-29 until 2026-10-04 ("0 new column(s)").
+                cursor.set(worldX0 + x, Math.max(level.getMinY(), Math.min(level.getMaxY(), 70)), worldZ0 + z);
                 if (!com.killer560.hub.chunkcache.ChunkCacheManager.isLoadedOrCached(level, cursor)) {
                     continue; // not loaded: recording air here would be a lie that never gets corrected
                 }
