@@ -38,7 +38,7 @@ import java.util.Set;
  * A plain door takes the colour of its most interesting neighbouring room (NoammAddons {@code DoorTile.getColor},
  * Devonian {@code doorColor}) - that is why corridors on the real map are the same brown as the rooms they join.
  */
-final class MapPainter {
+public final class MapPainter {
 
     /** 6 rooms of 16 units + 5 gaps of 4 units. */
     static final int MAP_UNITS = 116;
@@ -1018,23 +1018,43 @@ final class MapPainter {
         }
         for (Label label : labels(style, font)) {
             float want = 0.4f * cfg.getFontScale() * ppu;
-            float fit = Math.min(label.boxW * ppu / Math.max(1, label.maxWidth),
-                    label.boxH * ppu / (label.lines.length * font.lineHeight));
-            float scale = Math.max(0.3f, Math.min(want, fit));
-            graphics.pose().pushMatrix();
-            graphics.pose().translate(ox + label.cx * ppu, oy + label.cy * ppu);
-            graphics.pose().scale(scale, scale);
-            int top = Math.round(-label.lines.length * font.lineHeight / 2f);
-            for (int i = 0; i < label.lines.length; i++) {
-                String s = label.lines[i];
-                // A shadow whenever the name would otherwise blend into the room it is written on, whatever
-                // his Text Shadow setting says. The setting is about how he likes the map to look; this is
-                // about the name being readable at all, and it only overrides when it has to.
-                boolean shadow = cfg.isTextShadow() || lowContrast(label.color, label.fill);
-                graphics.text(font, s, -font.width(s) / 2, top + i * font.lineHeight, label.color, shadow);
-            }
-            graphics.pose().popMatrix();
+            // A shadow whenever the name would otherwise blend into the room it is written on, whatever
+            // his Text Shadow setting says. The setting is about how he likes the map to look; this is
+            // about the name being readable at all, and it only overrides when it has to.
+            boolean shadow = cfg.isTextShadow() || lowContrast(label.color, label.fill);
+            drawFittedLines(graphics, font, label.lines, ox + label.cx * ppu, oy + label.cy * ppu,
+                    label.boxW * ppu, label.boxH * ppu, want, label.color, shadow);
         }
+    }
+
+    /**
+     * Room-name text, one word per line, scaled down until it fits a box and centred on it - the live map's
+     * own fitting rule, shared so the sim's map designer writes names exactly the way this map does.
+     *
+     * @param boxW  the room's width in screen pixels
+     * @param boxH  the room's height in screen pixels
+     * @param want  the scale the text would like to be at; it only ever shrinks from there, never below 0.3
+     */
+    public static void drawFittedLines(GuiGraphicsExtractor graphics, Font font, String[] lines, float cx,
+                                       float cy, float boxW, float boxH, float want, int color, boolean shadow) {
+        if (lines == null || lines.length == 0) {
+            return;
+        }
+        int maxWidth = 0;
+        for (String s : lines) {
+            maxWidth = Math.max(maxWidth, font.width(s));
+        }
+        float fit = Math.min(boxW / Math.max(1, maxWidth), boxH / (lines.length * font.lineHeight));
+        float scale = Math.max(0.3f, Math.min(want, fit));
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(cx, cy);
+        graphics.pose().scale(scale, scale);
+        int top = Math.round(-lines.length * font.lineHeight / 2f);
+        for (int i = 0; i < lines.length; i++) {
+            String s = lines[i];
+            graphics.text(font, s, -font.width(s) / 2, top + i * font.lineHeight, color, shadow);
+        }
+        graphics.pose().popMatrix();
     }
 
     static void drawMark(GuiGraphicsExtractor graphics, Font font, int state, LiveMapConfig cfg,

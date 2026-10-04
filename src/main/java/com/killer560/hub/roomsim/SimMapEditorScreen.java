@@ -101,6 +101,17 @@ public class SimMapEditorScreen extends Screen {
      */
     private SimFloorGen.Planned generated;
 
+    /**
+     * The doors a DRAWN grid will really get, re-planned quietly whenever the drawing changes.
+     *
+     * <p>killer560 (2026-10-04): "have some distinction on the map as to what are actual doorways and wither
+     * doors and whatnot instead of just showing all the doors." The grid used to put a nub in every gap between
+     * two touching rooms, but a floor is a tree - most of those gaps are bricked up - so the picture promised
+     * doors the build never cuts. This is the build's own plan of the drawing, so the grid shows exactly its
+     * doors. Null while a generated plan is on the grid; that plan already carries its doors.
+     */
+    private MapCode.Decoded drawnPlan;
+
     private SimFloorGen.Floor floor = SimFloorGen.Floor.F7;
     private int roomsToBlood = 5;
     private int puzzleCount = 3;
@@ -281,6 +292,11 @@ public class SimMapEditorScreen extends Screen {
     }
 
     private void rebuildOccupancy() {
+        drawnPlan = null;
+        if (generated == null && !placements.isEmpty()) {
+            SimFloorGen.Planned quiet = SimFloorGen.planExplicit(placements, true);
+            drawnPlan = quiet == null ? null : quiet.decoded();
+        }
         occupiedBy.clear();
         for (Map.Entry<Integer, String> e : placements.entrySet()) {
             int[] size = footprintOf(e.getValue(), rotations.getOrDefault(e.getKey(), 0));
@@ -675,45 +691,80 @@ public class SimMapEditorScreen extends Screen {
             int x1 = gridX + Math.min(GRID, ax + fp[0]) * cell - 1;
             int y1 = gridY + Math.min(GRID, az + fp[1]) * cell - 1;
             g.fill(x0, y0, x1, y1, colourFor(name));
-            // Only label a room the cell is wide enough to read, or the grid turns to mush.
-            String label = name;
-            int room = x1 - x0 - 4;
-            if (this.font.width(label) > room) {
-                label = label.substring(0, Math.max(1, Math.min(label.length(),
-                        room / Math.max(1, this.font.width("n"))))).trim();
-            }
-            if (room > 8) {
-                // Centred in the room's whole box, not pinned to its left edge - a 2x2's name belongs in the
-                // middle of the 2x2. killer560 (2026-09-29): "The room names need centered".
-                g.text(this.font, label, x0 + ((x1 - x0) - this.font.width(label)) / 2,
-                        y0 + (y1 - y0) / 2 - 4, 0xFFFFFFFF, false);
-            }
+            // The live map's own fitting, not a truncation. killer560 (2026-10-04): "make it so the text will
+            // fit rooms that are too small to load the whole text, just like our normal map would." One word a
+            // line, scaled down until the longest word and the line count both fit the room, centred on it -
+            // MapPainter.drawFittedLines is the same code the dungeon map draws its names with.
+            com.killer560.hub.livemap.MapPainter.drawFittedLines(g, this.font, name.split(" "),
+                    x0 + (x1 - x0) / 2f, y0 + (y1 - y0) / 2f, x1 - x0 - 4, y1 - y0 - 4, 1.0f,
+                    0xFFFFFFFF, true);
         }
-        // A nub between two different rooms that touch, so the drawing shows where doors will be cut.
-        for (int gz = 0; gz < GRID; gz++) {
-            for (int gx = 0; gx < GRID; gx++) {
-                Integer a = occupiedBy.get(gz * GRID + gx);
-                if (a == null) {
-                    continue;
-                }
-                Integer rightN = gx + 1 < GRID ? occupiedBy.get(gz * GRID + gx + 1) : null;
-                if (rightN != null && !rightN.equals(a)) {
-                    int x = gridX + (gx + 1) * cell;
-                    int y = gridY + gz * cell + cell / 2;
-                    g.fill(x - 2, y - 3, x + 3, y + 3, 0xFF2A2A2A);
-                }
-                Integer downN = gz + 1 < GRID ? occupiedBy.get((gz + 1) * GRID + gx) : null;
-                if (downN != null && !downN.equals(a)) {
-                    int x = gridX + gx * cell + cell / 2;
-                    int y = gridY + (gz + 1) * cell;
-                    g.fill(x - 3, y - 2, x + 3, y + 3, 0xFF2A2A2A);
-                }
-            }
-        }
+        drawDoors(g);
         if (mouseX >= gridX && mouseX < gridX + size && mouseY >= gridY && mouseY < gridY + size) {
             int gx = (mouseX - gridX) / cell;
             int gz = (mouseY - gridY) / cell;
             g.outline(gridX + gx * cell, gridY + gz * cell, cell, cell, ProfitPanels.ACCENT);
+        }
+    }
+
+    /**
+     * The doors the build will actually cut, coloured the way the dungeon map colours them.
+     *
+     * <p>Read from the plan's own door cells - the generated plan when there is one, otherwise the quiet plan
+     * of the drawing - so a gap with no door in it is drawn as the wall it will be. An ordinary doorway is a
+     * narrow opening; wither, blood and entrance doors are wider blocks in the live map's configured colours,
+     * and a wither door gets the same amber outline the live map gives it so it cannot vanish against the grid.
+     */
+    private void drawDoors(GuiGraphicsExtractor g) {
+        MapCode.Decoded plan = generated != null ? generated.decoded() : drawnPlan;
+        if (plan == null) {
+            return;
+        }
+        com.killer560.hub.livemap.LiveMapConfig cfg = com.killer560.hub.livemap.LiveMapConfig.getInstance();
+        int big = GRID * 2 - 1;
+        for (int gz = 0; gz < big; gz++) {
+            for (int gx = 0; gx < big; gx++) {
+                boolean betweenX = gx % 2 == 1 && gz % 2 == 0;
+                boolean betweenZ = gx % 2 == 0 && gz % 2 == 1;
+                if (!betweenX && !betweenZ) {
+                    continue;
+                }
+                int idx = gz * com.killer560.hub.livemap.DungeonLayout.GRID + gx;
+                if (idx >= plan.cellDoor().length) {
+                    continue;
+                }
+                int type = plan.cellDoor()[idx];
+                if (type == com.killer560.hub.livemap.DungeonLayout.DOOR_NONE) {
+                    continue;
+                }
+                boolean normal = type == com.killer560.hub.livemap.DungeonLayout.DOOR_NORMAL;
+                int colour = switch (type) {
+                    case com.killer560.hub.livemap.DungeonLayout.DOOR_WITHER -> cfg.getColorWitherDoor();
+                    case com.killer560.hub.livemap.DungeonLayout.DOOR_BLOOD -> cfg.getColorBlood();
+                    case com.killer560.hub.livemap.DungeonLayout.DOOR_ENTRANCE -> cfg.getColorEntrance();
+                    default -> 0xFF8A6A48;
+                };
+                // Across the gap: an ordinary doorway is a third of a cell wide, a special door half of one.
+                int across = Math.max(3, normal ? cell / 3 : cell / 2);
+                int along = Math.max(3, cell / 5);
+                int x0;
+                int y0;
+                if (betweenX) {
+                    x0 = gridX + ((gx + 1) / 2) * cell - along / 2;
+                    y0 = gridY + (gz / 2) * cell + cell / 2 - across / 2;
+                } else {
+                    x0 = gridX + (gx / 2) * cell + cell / 2 - across / 2;
+                    y0 = gridY + ((gz + 1) / 2) * cell - along / 2;
+                }
+                int x1 = x0 + (betweenX ? along : across);
+                int y1 = y0 + (betweenX ? across : along);
+                g.fill(x0, y0, x1, y1, colour);
+                if (type == com.killer560.hub.livemap.DungeonLayout.DOOR_WITHER) {
+                    g.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
+                } else if (!normal) {
+                    g.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFF000000);
+                }
+            }
         }
     }
 

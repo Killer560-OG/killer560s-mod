@@ -388,9 +388,19 @@ public final class SimFloorGen {
      * no generated blood path to measure.
      */
     public static Planned planExplicit(Map<Integer, String> placements) {
+        return planExplicit(placements, false);
+    }
+
+    /**
+     * The same, optionally without a word in chat - for the map designer, which re-plans the drawing every
+     * time he places a room so it can show which gaps really become doors, and must not narrate each one.
+     */
+    public static Planned planExplicit(Map<Integer, String> placements, boolean quiet) {
         Map<String, RoomLibrary.Room> usable = usableRooms();
         if (placements == null || placements.isEmpty()) {
-            ModChat.send("Sim", ModChat.text("Nothing placed on the map yet."));
+            if (!quiet) {
+                ModChat.send("Sim", ModChat.text("Nothing placed on the map yet."));
+            }
             return null;
         }
         int gridCells = DungeonLayout.GRID * DungeonLayout.GRID;
@@ -450,7 +460,9 @@ public final class SimFloorGen {
             }
         }
         if (nameTable.isEmpty()) {
-            ModChat.send("Sim", ModChat.text("Nothing on the map could be placed."));
+            if (!quiet) {
+                ModChat.send("Sim", ModChat.text("Nothing on the map could be placed."));
+            }
             return null;
         }
         // No entrance drawn: the first placement stands in, so /start still has a door to open.
@@ -459,7 +471,7 @@ public final class SimFloorGen {
         }
         int doors = linkDoors(cellRoom, cellDoor, occupied, filled, entrance, blood);
 
-        for (String d : dropped) {
+        for (String d : quiet ? List.<String>of() : dropped) {
             ModChat.send("Sim", ModChat.dim("skipped " + d));
         }
         MapCode.Decoded decoded = new MapCode.Decoded(

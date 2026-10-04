@@ -234,6 +234,80 @@ public final class SimAbilities {
         return true;
     }
 
+    /** What happened to one {@link #etherwarpAlong} hop, reported back on the client thread. */
+    public enum HopResult { LANDED, LANDED_ELSEWHERE, NO_TARGET }
+
+    /**
+     * An etherwarp aimed by a yaw and pitch rather than by the camera, resolved from where the SERVER has him -
+     * the Interactive Map's hop, done the way Hypixel does it.
+     *
+     * <p>killer560 (2026-10-04): "the interactive map etherwarp on sim is really slow for some reason. Also
+     * sometimes it doesn't aim at the right block so it ends up off one or so." Both came from {@link #etherwarp}
+     * resolving from the CLIENT player's position. A chained hop cannot use that: the previous teleport has not
+     * reached the client yet, so the executor had to sit and wait for it to land before every hop (about three
+     * ticks a hop), and even then the client stands at block top + 1.0 while the planner aimed from + 1.05 - a
+     * twentieth of a block of eye height, which is enough to tip a ray aimed at a block's edge onto its
+     * neighbour. On Hypixel the aim travels in the packet and the server resolves it from its own copy of the
+     * player, which is already where the last hop put him; that is what this does, so hops chain one a tick.
+     *
+     * <p>The ray is the PLANNER'S ({@code TeleportUtils.getLook} and {@code traverseVoxels}, sneaking eye
+     * height), so a hop lands exactly where the path search verified it would. Hand-aimed etherwarps still go
+     * through {@link #etherwarp} and the overlay's resolver.
+     *
+     * @param expected the block the planner expects this hop to land on, or null
+     * @param onResult told, on the client thread, how the hop went; may be null
+     * @return false when this cannot be an etherwarp at all (wrong item, not sneaking, trap room), in which case
+     *         nothing was sent
+     */
+    public static boolean etherwarpAlong(Minecraft client, float yaw, float pitch, BlockPos expected,
+                                         java.util.function.Consumer<HopResult> onResult) {
+        if (!SimState.canAct(client) || client.player == null) {
+            return false;
+        }
+        String id = CheatUtils.skyblockId(client.player.getMainHandItem());
+        if (id == null || !ETHERWARP_ITEMS.contains(id) || !client.player.isShiftKeyDown() || trapLocked(id)) {
+            return false;
+        }
+        var server = client.getSingleplayerServer();
+        if (server == null) {
+            return false;
+        }
+        markAbilityUsed();
+        double range = ETHERWARP_RANGE + tunersOnHeldItem(client);
+        var uuid = client.player.getUUID();
+        // His camera, not the aim: a chained hop must not swing the view to every hop's direction.
+        float keepYaw = client.player.getYRot();
+        float keepPitch = client.player.getXRot();
+        double eye = com.killer560.hub.livemap.autoclear.TeleportUtils.eyeHeight(true);
+        Vec3 look = com.killer560.hub.livemap.autoclear.TeleportUtils.getLook(
+                net.minecraft.util.Mth.wrapDegrees(yaw), net.minecraft.util.Mth.wrapDegrees(pitch));
+        server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
+            if (sp == null) {
+                return;
+            }
+            Vec3 from = new Vec3(sp.getX(), sp.getY() + eye, sp.getZ());
+            Vec3 to = from.add(look.scale(range));
+            var hit = com.killer560.hub.livemap.autoclear.TeleportUtils.traverseVoxels(
+                    from.x, from.y, from.z, to.x, to.y, to.z, true);
+            HopResult result;
+            if (!hit.succeeded() || hit.pos() == null) {
+                result = HopResult.NO_TARGET;
+            } else {
+                BlockPos target = hit.pos();
+                net.minecraft.server.level.ServerLevel level = (net.minecraft.server.level.ServerLevel) sp.level();
+                double standY = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.standYOn(level, target);
+                sp.teleportTo(level, target.getX() + 0.5, standY, target.getZ() + 0.5,
+                        Set.<Relative>of(), keepYaw, keepPitch, false);
+                result = expected == null || expected.equals(target) ? HopResult.LANDED : HopResult.LANDED_ELSEWHERE;
+            }
+            if (onResult != null) {
+                client.execute(() -> onResult.accept(result));
+            }
+        });
+        return true;
+    }
+
     /** Tuners on the item in hand, so the sim's reach matches the one he is actually carrying. */
     private static int tunersOnHeldItem(Minecraft client) {
         var stack = client.player.getMainHandItem();

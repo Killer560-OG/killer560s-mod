@@ -166,14 +166,69 @@ public final class TeleportUtils {
         return predictTransmission(from.x, from.y, from.z, look.x, look.y, look.z, distance);
     }
 
-    /** QUOI {@code getEtherwarpDirection} (Aton). */
+    /**
+     * QUOI {@code getEtherwarpDirection} (Aton), made to aim where it will actually land.
+     *
+     * <p>killer560 (2026-10-04): "sometimes it doesn't aim at the right block so it ends up off one or so."
+     * QUOI's version returned the direction to the first of {@link #VISIBLE_OFFSETS} a ray could reach, and
+     * those are mostly points 0.001 from a block's EDGE - and its top-centre point sits exactly on the top face,
+     * which the voxel walk files under the AIR block above, so from above it never matched and the edge points
+     * were what got used. A ray grazing an edge is a coin toss: a twentieth of a block of eye height or one
+     * rounding of the float yaw puts it on the neighbour. So the aim now goes for the middle of a face first
+     * ({@link #AIM_POINTS}), and every answer is checked by casting the REAL hop - the float yaw and pitch it
+     * will be sent with, along {@link #getLook}, for exactly {@code dist} blocks - and refused unless that ray
+     * lands on {@code to}. The old points remain as a last resort, under the same check.
+     */
     public static Rotation getEtherwarpDirection(Vec3 from, BlockPos to, double dist) {
-        if (from.distanceToSqr(Vec3.atLowerCornerOf(to)) > (dist + 2) * (dist + 2)) {
+        return getEtherwarpDirection(from, to, dist, true);
+    }
+
+    /**
+     * The same, with {@code thorough == false} trying only the face-centre {@link #AIM_POINTS}: 18 rays instead
+     * of 48 for a block that turns out not to be visible, which is what most of the pairs the path smoother asks
+     * about are. The edge points it skips are the fragile aims this method exists to avoid anyway.
+     */
+    public static Rotation getEtherwarpDirection(Vec3 from, BlockPos to, double dist, boolean thorough) {
+        double cx = to.getX() + 0.5 - from.x;
+        double cy = to.getY() + 0.5 - from.y;
+        double cz = to.getZ() + 0.5 - from.z;
+        if (cx * cx + cy * cy + cz * cz > (dist + 1) * (dist + 1)) {
             return null;
         }
-        Vec3 visible = getVisiblePoint(from, to);
-        return visible == null ? null : getDirection(from, visible);
+        for (double[][] set : thorough ? new double[][][]{AIM_POINTS, VISIBLE_OFFSETS}
+                : new double[][][]{AIM_POINTS}) {
+            for (double[] o : set) {
+                double tx = to.getX() + o[0];
+                double ty = to.getY() + o[1];
+                double tz = to.getZ() + o[2];
+                RaycastResult hit = traverseVoxels(from.x, from.y, from.z, tx, ty, tz, true);
+                if (!to.equals(hit.pos())) {
+                    continue;
+                }
+                Rotation r = getDirection(from, new Vec3(tx, ty, tz));
+                Vec3 end = getLook(r.yaw(), r.pitch()).scale(dist).add(from);
+                RaycastResult real = traverseVoxels(from.x, from.y, from.z, end.x, end.y, end.z, true);
+                if (real.succeeded() && to.equals(real.pos())) {
+                    return r;
+                }
+            }
+        }
+        return null;
     }
+
+    /**
+     * Aim points well inside a block's faces, best first: the top face (where almost every etherwarp lands from
+     * above), then the four sides at mid height, then the bottom. All of them are a few hundredths INSIDE the
+     * block, so the voxel walk files them under the block itself and not under its neighbour.
+     */
+    private static final double[][] AIM_POINTS = {
+            {0.5, 0.97, 0.5},
+            {0.3, 0.97, 0.3}, {0.7, 0.97, 0.3}, {0.3, 0.97, 0.7}, {0.7, 0.97, 0.7},
+            {0.5, 0.97, 0.15}, {0.5, 0.97, 0.85}, {0.15, 0.97, 0.5}, {0.85, 0.97, 0.5},
+            {0.03, 0.5, 0.5}, {0.97, 0.5, 0.5}, {0.5, 0.5, 0.03}, {0.5, 0.5, 0.97},
+            {0.03, 0.85, 0.5}, {0.97, 0.85, 0.5}, {0.5, 0.85, 0.03}, {0.5, 0.85, 0.97},
+            {0.5, 0.03, 0.5}
+    };
 
     private static final double[][] VISIBLE_OFFSETS = {
             {0.5, 1.0, 0.5}, {0.0, 0.5, 0.5}, {1.0, 0.5, 0.5}, {0.5, 0.5, 0.0}, {0.5, 0.5, 1.0}, {0.5, 0.0, 0.5},

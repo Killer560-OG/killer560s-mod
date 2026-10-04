@@ -86,7 +86,8 @@ public abstract class ClearNode {
                     ModChat.dim(" pitch "), ModChat.value(String.format(java.util.Locale.US, "%.1f", pitch)));
             return cancel();
         }
-        ClearExecutor.queueInteract(yaw, pitch);
+        // An etherwarp hop says which block it expects, so the sim can tell a hop that landed off-plan.
+        ClearExecutor.queueInteract(yaw, pitch, this instanceof EtherNode ? res.pos() : null);
         playerPos[0] = res.pos().getX() + 0.5;
         playerPos[1] = res.pos().getY() + yOff;
         playerPos[2] = res.pos().getZ() + 0.5;
@@ -105,8 +106,13 @@ public abstract class ClearNode {
 
         @Override
         public boolean execute(double[] playerPos) {
-            return doTeleport(playerPos, new String[]{"ASPECT_OF_THE_VOID"}, true, 1.05,
-                    from -> TeleportUtils.getEtherPos(from, yaw, pitch));
+            // + 1.0 in the sim, where SimAbilities stands him on the block top; Hypixel keeps QUOI's 1.05.
+            boolean sim = com.killer560.hub.roomsim.SimState.isActive();
+            double yOff = sim ? 1.0 : 1.05;
+            // And the sim's own reach, so the prediction cannot accept a hop the ability will refuse.
+            double reach = sim ? com.killer560.hub.roomsim.SimAbilities.etherwarpRange() : 61.0;
+            return doTeleport(playerPos, new String[]{"ASPECT_OF_THE_VOID"}, true, yOff,
+                    from -> TeleportUtils.getEtherPos(from, yaw, pitch, reach));
         }
     }
 

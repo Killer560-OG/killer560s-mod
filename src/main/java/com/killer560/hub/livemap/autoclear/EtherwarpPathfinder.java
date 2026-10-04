@@ -189,7 +189,11 @@ public final class EtherwarpPathfinder {
         BlockPos startPos = BlockPos.containing(from);
         ctx.addNode(new Node(from.x, from.y, from.z, startPos, 0.0, distance(startPos, to) / dist, null, 0f, 0f));
         // No room chain here (single search) - nothing to size the worker count against, so use every core.
-        List<Node> path = find(ctx, threadsFor(Runtime.getRuntime().availableProcessors()));
+        Node startNode = new Node(from.x, from.y, from.z, startPos, 0.0, 0.0, null, 0f, 0f);
+        List<Node> path = directHop(ctx, startNode);
+        if (path == null) {
+            path = find(ctx, threadsFor(Runtime.getRuntime().availableProcessors()));
+        }
         return path == null ? null : smoothPath(path, dist, withLast);
     }
 
@@ -235,6 +239,11 @@ public final class EtherwarpPathfinder {
                     startRoom, goalRoom, lockedDoorCount(layout));
             return null;
         }
+        long searchStart = System.nanoTime();
+        int directLegs = 0;
+        int searchedLegs = 0;
+        int expanded = 0;
+        long legNanos = 0;
         List<Node> path = new ArrayList<>();
         Node lastNode = new Node(from.x, from.y, from.z, startPos, 0.0, 0.0, null, 0f, 0f);
         Node startNode = lastNode;
@@ -255,7 +264,19 @@ public final class EtherwarpPathfinder {
             startNode.h = distance(startNode.pos, target) / dist;
             ctx.addNode(startNode);
             // One search thread per room-hop still remaining to the goal room (this segment counts as one).
-            List<Node> segment = find(ctx, threadsFor(roomPath.size() - i));
+            // A straight shot first. Most legs of a dungeon path are one warp - stand in a room, land in its
+            // doorway - and proving that costs a handful of rays, against hundreds per node for the A*
+            // fan. Only a leg with no direct line falls through to the search.
+            long segStart = System.nanoTime();
+            List<Node> segment = directHop(ctx, startNode);
+            if (segment != null) {
+                directLegs++;
+            } else {
+                segment = find(ctx, threadsFor(roomPath.size() - i));
+                searchedLegs++;
+                expanded += ctx.processed.get();
+            }
+            legNanos += System.nanoTime() - segStart;
             if (segment == null) {
                 LOGGER.info("[Path] Room hop {} of {} failed: no warp chain from {} to {} (room {}, door {},"
                         + " radius {}). The room route exists; this leg of it does not.",
@@ -282,7 +303,74 @@ public final class EtherwarpPathfinder {
         if (path.size() > 1) {
             path.get(1).parent = path.get(0);
         }
-        return smoothPath(path, dist, false);
+        long smoothStart = System.nanoTime();
+        List<Node> smoothed = smoothPath(path, dist, false);
+        long end = System.nanoTime();
+        // One line a search, so the cost can be read off his log rather than guessed at: how many legs were a
+        // straight shot, how many needed the A*, how many nodes it expanded, and where the time went.
+        LOGGER.info("[Path] {} leg(s): {} direct, {} searched ({} node(s) expanded); legs {} ms, smoothing {} ms,"
+                        + " total {} ms, {} warp(s)",
+                roomPath.size(), directLegs, searchedLegs, expanded,
+                String.format(java.util.Locale.ROOT, "%.2f", legNanos / 1e6),
+                String.format(java.util.Locale.ROOT, "%.2f", (end - smoothStart) / 1e6),
+                String.format(java.util.Locale.ROOT, "%.2f", (end - searchStart) / 1e6), smoothed.size());
+        return smoothed;
+    }
+
+    /** How many landing blocks around a door a straight shot tries before giving the leg to the A*. */
+    private static final int DIRECT_CANDIDATES = 8;
+
+    /**
+     * One warp from {@code start} straight into the leg's goal, or null when there is no such warp.
+     *
+     * <p>The candidates are the goal block itself and, for a door leg, the standable blocks within the goal
+     * radius, nearest the door first - the same set {@link #isGoal} would accept by radius. Each is tried with
+     * {@link TeleportUtils#getEtherwarpDirection}, which only answers when the real hop, at the real float aim
+     * and range, lands on that block, so a direct leg is exactly as trustworthy as a searched one.
+     */
+    private static List<Node> directHop(Context ctx, Node start) {
+        Vec3 eye = new Vec3(start.x, start.y + TeleportUtils.eyeHeight(true), start.z);
+        List<BlockPos> candidates = new ArrayList<>();
+        if (TeleportUtils.etherwarpable(ctx.goal)) {
+            candidates.add(ctx.goal);
+        }
+        if (ctx.radius > 0.0) {
+            int r = (int) Math.ceil(Math.sqrt(ctx.radius));
+            List<BlockPos> ring = new ArrayList<>();
+            BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
+            for (int dy = -r; dy <= r; dy++) {
+                for (int dx = -r; dx <= r; dx++) {
+                    for (int dz = -r; dz <= r; dz++) {
+                        if ((dx | dy | dz) == 0 || dx * dx + dy * dy + dz * dz > ctx.radius) {
+                            continue;
+                        }
+                        mut.set(ctx.goal.getX() + dx, ctx.goal.getY() + dy, ctx.goal.getZ() + dz);
+                        if (TeleportUtils.etherwarpable(mut) && TeleportUtils.underCover(mut)) {
+                            ring.add(mut.immutable());
+                        }
+                    }
+                }
+            }
+            ring.sort(java.util.Comparator.comparingDouble(b -> b.distSqr(ctx.goal)));
+            candidates.addAll(ring);
+        }
+        int tried = 0;
+        for (BlockPos c : candidates) {
+            if (tried++ >= DIRECT_CANDIDATES) {
+                break;
+            }
+            TeleportUtils.Rotation dir = TeleportUtils.getEtherwarpDirection(eye, c, ctx.dist, false);
+            if (dir == null) {
+                continue;
+            }
+            Node landing = new Node(c.getX() + 0.5, c.getY() + (ctx.offset ? 1.05 : 1.0), c.getZ() + 0.5, c,
+                    start.g + 1.0, 0.0, start, dir.yaw(), dir.pitch());
+            List<Node> out = new ArrayList<>(2);
+            out.add(start);
+            out.add(landing);
+            return out;
+        }
+        return null;
     }
 
     /** How many of the grid's doors currently read as locked - the number that makes a "no room route"
@@ -455,7 +543,7 @@ public final class EtherwarpPathfinder {
             float yaw = path.get(next).yaw;
             float pitch = path.get(next).pitch;
             for (int j = path.size() - 1; j >= i + 1; j--) {
-                TeleportUtils.Rotation dir = TeleportUtils.getEtherwarpDirection(from, path.get(j).pos, dist);
+                TeleportUtils.Rotation dir = TeleportUtils.getEtherwarpDirection(from, path.get(j).pos, dist, false);
                 if (dir != null) {
                     next = j;
                     yaw = dir.yaw();

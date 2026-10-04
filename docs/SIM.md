@@ -1396,3 +1396,40 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   "Skyblock Only" feature in the sim depends on that.
 - The pause screen's Change Room button is a vanilla `Button` placed 4 px under the lowest button in the centre
   column, read from the screen's widgets, instead of pinned to `height - 46`.
+
+## The 2026-10-04 round: traps, the designer's doors, and the map's etherwarp
+
+**Every generated floor has a trap.** Trap rooms (database type `TRAP`, or the names Old Trap / New Trap
+before the database loads - Arrow Trap is an ordinary room) are held out of the normal pool and asked for on
+their own: a 30% roll once a stub is a doorway in, and every stub once the floor is within eight cells or five
+rooms of done. The attempt scoring ranks "has a trap" just under "has blood", and if no attempt managed one
+`SimFloorLayout.ensureTrap` swaps a trap in for an unpinned 1x1 NORMAL room whose links its doorways cover,
+bricking any extra doorway it brings. Not measured over a batch of floors yet - scenario 73 is where that
+belongs.
+
+**The sim never builds a wither door,** so the designer can never show one on a generated floor. Doors come
+out of `plan()` as NORMAL, BLOOD or ENTRANCE only. Adding them is not a drawing change: `SimMobs` fires the key
+drop once, when the LAST starred mob on the whole floor dies, so one key exists per floor and it is needed for
+the blood door. A floor with wither doors on the blood path would be unfinishable until keys drop per room.
+
+**The map's etherwarp in the sim was slow because every hop waited to land.** The 2026-10-01 fix dropped the
+predicted position after each hop, because the hop resolved from the CLIENT player's position and the previous
+teleport had not arrived. Etherwarp hops now go through `SimAbilities.etherwarpAlong`, which resolves on the
+integrated server from the server's own copy of him with the planner's ray (`TeleportUtils.getLook` +
+`traverseVoxels`, sneaking eye 1.27) - which is how Hypixel does it - so the queue chains from the prediction
+one hop a tick again. A hop that lands off its planned block reports back and only then is the position
+re-read; a hop with no target stops the path; a queue that cannot find him on any hop for two seconds cancels.
+
+**"Off by one" had two causes.** The planner stood him at block top + 1.05 (QUOI's Hypixel number) while the
+sim stands him at + 1.0, so every sim hop was aimed from an eye 0.05 too high; the sim now plans at + 1.0. And
+QUOI's aim points are mostly 0.001 from a block's edge, with its top-centre point exactly ON the top face, which
+the voxel walk files under the air block above - so from above the edge points were what got used, and a ray
+grazing an edge flips to the neighbour on any rounding. `getEtherwarpDirection` now aims at face centres first
+and only returns an aim after casting the real float yaw/pitch for exactly the hop range and seeing it land on
+the block.
+
+**Path search speed is not measured in game yet.** Each leg now tries a straight warp into the door (up to
+eight landing blocks, face-centre aims only) before the A* fan, and the smoother uses the 18 face-centre points
+rather than 48. Each search logs one `[Path] N leg(s): d direct, s searched ...` line with the leg, smoothing
+and total milliseconds; read those before deciding whether the A* itself needs the next round (a per-search
+block-flag snapshot is the obvious one).

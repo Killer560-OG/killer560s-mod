@@ -277,8 +277,120 @@ public final class SimFloorLayout {
                 unused.addAll(second.unusedNotes());
             }
         }
-        remember(best.floor());
-        return new PinnedFloor(best.floor(), best.reached(), unused);
+        Floor floor = ensureTrap(best.floor(), pool, best.reached(), rng);
+        remember(floor);
+        return new PinnedFloor(floor, best.reached(), unused);
+    }
+
+    /**
+     * Whether a room is one of the two trap rooms.
+     *
+     * <p>The room database's {@code TRAP} type is the authority; the two names are the fallback for the window
+     * before the database has loaded, when {@link SimFloorGen#typeOf} answers NORMAL for everything. Arrow Trap
+     * is deliberately NOT one - it is an ordinary room with "trap" in its name, and killer560 asked for "new or
+     * old trap".
+     */
+    static boolean isTrap(String name, String type) {
+        if (type != null && type.equalsIgnoreCase("TRAP")) {
+            return true;
+        }
+        return name != null && (name.equalsIgnoreCase("Old Trap") || name.equalsIgnoreCase("New Trap"));
+    }
+
+    static boolean hasTrap(Floor floor) {
+        for (Placement p : floor.rooms()) {
+            if (isTrap(p.name(), p.type())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The last resort for "every floor has a trap": swap one in for an ordinary 1x1 room the floor already has.
+     *
+     * <p>The growth asks for a trap and the attempt scoring prefers floors that got one, so this almost never
+     * runs. When it does, it only replaces a room it can replace WITHOUT touching the rest of the floor: a 1x1
+     * ordinary room nobody pinned, and a trap rotation whose doorways cover every link that room already has,
+     * so every door on the floor is still a measured doorway in both rooms. Any extra doorway the trap brings
+     * is added to {@code openDoors}, which the builder bricks up exactly as it does any other.
+     */
+    private static Floor ensureTrap(Floor floor, List<Candidate> pool, List<String> pinnedNames, Random rng) {
+        List<Candidate> traps = new ArrayList<>();
+        for (Candidate c : pool) {
+            if (isTrap(c.name(), c.type()) && c.area(0) == 1) {
+                traps.add(c);
+            }
+        }
+        if (traps.isEmpty() || hasTrap(floor)) {
+            return floor;
+        }
+        java.util.Collections.shuffle(traps, rng);
+        Set<String> pinnedLower = new HashSet<>();
+        for (String n : pinnedNames) {
+            pinnedLower.add(n.toLowerCase(Locale.ROOT));
+        }
+        List<Integer> order = new ArrayList<>();
+        for (int i = 0; i < floor.rooms().size(); i++) {
+            order.add(i);
+        }
+        java.util.Collections.shuffle(order, rng);
+        for (int i : order) {
+            Placement p = floor.rooms().get(i);
+            if (p.cellsX() != 1 || p.cellsZ() != 1 || !"NORMAL".equalsIgnoreCase(p.type())
+                    || pinnedLower.contains(p.name().toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            Set<Integer> linked = new HashSet<>();
+            for (Link l : floor.links()) {
+                if (l.aX() == p.originX() && l.aZ() == p.originZ()) {
+                    linked.add(sideTowards(l.bX() - l.aX(), l.bZ() - l.aZ()));
+                } else if (l.bX() == p.originX() && l.bZ() == p.originZ()) {
+                    linked.add(sideTowards(l.aX() - l.bX(), l.aZ() - l.bZ()));
+                }
+            }
+            for (Candidate trap : traps) {
+                for (int r = 0; r < 4; r++) {
+                    RoomDoors.Mask m = trap.byRotation()[r];
+                    Set<Integer> sides = new HashSet<>();
+                    for (int[] door : RoomDoors.doorCells(m, p.originX(), p.originZ())) {
+                        sides.add(door[2]);
+                    }
+                    if (!sides.containsAll(linked)) {
+                        continue;
+                    }
+                    List<Placement> rooms = new ArrayList<>(floor.rooms());
+                    rooms.set(i, new Placement(trap.name(), r * 90, p.originX(), p.originZ(), 1, 1,
+                            p.depth(), trap.type()));
+                    List<int[]> open = new ArrayList<>();
+                    for (int[] o : floor.openDoors()) {
+                        if (o[0] != p.originX() || o[1] != p.originZ()) {
+                            open.add(o);
+                        }
+                    }
+                    for (int side : sides) {
+                        if (!linked.contains(side)) {
+                            open.add(new int[]{p.originX(), p.originZ(), side});
+                        }
+                    }
+                    LOGGER.info("Sim floor: no attempt placed a trap, so {} replaces {} at cell {},{}",
+                            trap.name(), p.name(), p.originX(), p.originZ());
+                    return new Floor(rooms, floor.links(), open, floor.bloodDepth());
+                }
+            }
+        }
+        LOGGER.warn("Sim floor: no trap room could be fitted anywhere on this floor");
+        return floor;
+    }
+
+    /** The {@link RoomDoors} side index pointing one cell along (dx, dz). */
+    private static int sideTowards(int dx, int dz) {
+        for (int s = 0; s < 4; s++) {
+            if (RoomDoors.DX[s] == Integer.signum(dx) && RoomDoors.DZ[s] == Integer.signum(dz)) {
+                return s;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -343,6 +455,10 @@ public final class SimFloorLayout {
         Grown best = null;
         int bestScore = Integer.MIN_VALUE;
         int attempts = pins.isEmpty() ? ATTEMPTS : PINNED_ATTEMPTS;
+        boolean trapAvailable = false;
+        for (Candidate c : pool) {
+            trapAvailable |= isTrap(c.name(), c.type());
+        }
         for (int attempt = 0; attempt < attempts; attempt++) {
             Grown grown = growOnce(pool, minRooms, wantCells, puzzles, bloodDepth, pins, rng);
             if (grown == null) {
@@ -361,7 +477,12 @@ public final class SimFloorLayout {
             // target on 14 of 200 floors, measured. A pin's cells are counted as filled while it sits there,
             // so dropping one already shows up as a hole in the coverage; this is the extra nudge, not the
             // whole preference. With no pins the term is zero and the ranking is what it always was.
+            // A TRAP ranks just under blood. killer560 (2026-10-04): "It should always have new or old trap on
+            // every map generated." A floor without one is only kept when no attempt managed one, and then
+            // ensureTrap below swaps one in after the fact.
+            boolean trapOk = !trapAvailable || hasTrap(floor);
             int score = (floor.bloodDepth() >= 0 ? 4_000_000 : 0)
+                    + (trapOk ? 2_000_000 : 0)
                     + (floor.rooms().size() >= minRooms ? 500_000 : 0)
                     + cellsOf(floor) * 1000
                     - grown.unusedNames().size() * 5_000
@@ -371,7 +492,7 @@ public final class SimFloorLayout {
                 bestScore = score;
                 best = grown;
             }
-            if (floor.bloodDepth() >= 0 && grown.unusedNames().isEmpty()
+            if (floor.bloodDepth() >= 0 && grown.unusedNames().isEmpty() && trapOk
                     && floor.rooms().size() >= minRooms && cellsOf(floor) >= wantCells) {
                 break;   // finished - nothing another attempt could improve
             }
@@ -566,8 +687,15 @@ public final class SimFloorLayout {
         Map<String, Candidate> byName = new HashMap<>();
         List<Candidate> normal = new ArrayList<>();
         List<Candidate> puzzleRooms = new ArrayList<>();
+        // The trap rooms, kept OUT of the normal pool so a floor gets exactly one and gets it on purpose -
+        // see isTrap and the wantTrap rule below.
+        List<Candidate> trapRooms = new ArrayList<>();
         for (Candidate c : pool) {
             byName.put(c.name().toLowerCase(Locale.ROOT), c);
+            if (isTrap(c.name(), c.type())) {
+                trapRooms.add(c);
+                continue;
+            }
             switch (c.type().toUpperCase(Locale.ROOT)) {
                 case "PUZZLE" -> puzzleRooms.add(c);
                 case "BLOOD", "ENTRANCE", "FAIRY" -> {
@@ -825,6 +953,11 @@ public final class SimFloorLayout {
                     // size while it hunts for somewhere to put the blood room.
                     failed.add(stubs.remove(si));
                     continue;
+                } else if (wantTrap(trapRooms, used, stub.depth, cellsLeft, placed.size(), minRooms, rng)) {
+                    // killer560 (2026-10-04): "It should always have new or old trap on every map generated."
+                    // Asked for on a coin flip while the floor is young, and on every stub once it is nearly
+                    // full, so it cannot be squeezed out by the last few cells.
+                    wanted = trapRooms;
                 } else if (puzzlesLeft > 0 && !puzzleRooms.isEmpty() && rng.nextDouble() < 0.35) {
                     wanted = puzzleRooms;
                 } else {
@@ -835,8 +968,8 @@ public final class SimFloorLayout {
                 int remaining = Math.max(cellsLeft, minRooms - placed.size());
                 // A given room is never held back by the size cap: there is exactly one blood and one fairy.
                 Best best = choose(wanted, used, stub, tx, tz, occupied, stubs, remaining,
-                        wantBlood || wantFairy || wanted == puzzleRooms, preferBig, cellsLeft,
-                        wantBlood || wantFairy ? Integer.MAX_VALUE : maxArea, dormant, rng);
+                        wantBlood || wantFairy || wanted == puzzleRooms || wanted == trapRooms, preferBig, cellsLeft,
+                        wantBlood || wantFairy || wanted == trapRooms ? Integer.MAX_VALUE : maxArea, dormant, rng);
                 if (best == null && wanted != normal && needMore) {
                     best = choose(normal, used, stub, tx, tz, occupied, stubs, remaining, false,
                             preferBig, cellsLeft, maxArea, dormant, rng);
@@ -962,6 +1095,24 @@ public final class SimFloorLayout {
         }
         return new Grown(new Floor(kept, links, open, bloodPlacedDepth), pinsReached, pinsUnusedNames,
                 pinsUnused);
+    }
+
+    /**
+     * Whether this stub should be spent on a trap room: none on the floor yet (a used trap's name is in
+     * {@code used}, pinned or grown), at least one doorway in from the entrance, and either a 30% roll or the
+     * floor close enough to full that waiting any longer risks never placing one.
+     */
+    private static boolean wantTrap(List<Candidate> trapRooms, Set<String> used, int stubDepth, int cellsLeft,
+                                    int placedCount, int minRooms, Random rng) {
+        if (trapRooms.isEmpty() || stubDepth < 1) {
+            return false;
+        }
+        for (Candidate t : trapRooms) {
+            if (used.contains(t.name())) {
+                return false;
+            }
+        }
+        return cellsLeft <= 8 || placedCount + 5 >= minRooms || rng.nextDouble() < 0.3;
     }
 
     /** Every cell a placed room covers, into {@code into}. */
