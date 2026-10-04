@@ -205,6 +205,7 @@ public final class AutoClearUtils {
                 goal = null;
             }
         }
+        boolean wholeTile = false;
         if (goal == null && client.player != null) {
             // INSIDE THE CLICKED TILE, nearest to him - see TeleportUtils.etherwarpableInTile for why the old
             // 25-block sphere around the tile centre was the wrong search. Falls back to that sphere only when
@@ -213,13 +214,21 @@ public final class AutoClearUtils {
             goal = TeleportUtils.etherwarpableInTile(centre, client.player.position());
             if (goal == null) {
                 goal = TeleportUtils.nearestEtherwarpable(centre);
+            } else {
+                wholeTile = true;
             }
         }
         if (goal == null) {
             ModChat.send(ClearExecutor.CHAT, ModChat.bad("Couldn't find goal position in "), ModChat.value(name));
             return false;
         }
-        ClearExecutor.etherPath(goal, null);
+        if (wholeTile) {
+            // "It can choose anywhere in that room whatever is fastest": the planner takes the whole tile and
+            // lands wherever the fewest warps do; the block above is only its fallback.
+            ClearExecutor.etherPathToTile(goal, tileIdx, null);
+        } else {
+            ClearExecutor.etherPath(goal, null);
+        }
         return true;
     }
 }

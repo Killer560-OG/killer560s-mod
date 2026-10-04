@@ -33,12 +33,20 @@ import java.util.concurrent.ConcurrentHashMap;
  * its chunk is resent or forgotten ({@link #invalidateColumn}); anything older than {@link #MAX_AGE_MS} is
  * refilled regardless, so a change that slips past the hooks cannot outlive a few seconds.
  *
- * <p>One instance per search and one thread per instance; the shared cache is the only concurrent part.
+ * <p>The floor graph ({@link WarpGraph}) keeps edges worked out from these flags, so it has to hear about
+ * changes. A packet hook does not tell it directly: the section's old flags are set aside, and on the planner
+ * thread {@link #processChanges} reads the section again and reports it only if the FLAGS differ - a lever, a
+ * chest lid or a chunk re-sent unchanged costs the graph nothing. The 15 s refill reports a difference too.
+ *
+ * <p>One instance per search and one thread per instance (the graph's warm-up workers each make their own); the
+ * shared cache is the only concurrent part.
  */
 public final class LevelEtherGrid implements EtherSearch.Grid {
 
     private static final long MAX_AGE_MS = 15_000;
-    private static final int MAX_ENTRIES = 8192;
+    // Air sections are cached too (one shared array), and a rays-eye view of a floor reaches ~60 blocks past it:
+    // about 10,000 sections. Overflowing clears the floor graph, so this must stay well above that.
+    private static final int MAX_ENTRIES = 40_000;
 
     /** A section with nothing in it, and anything outside the world: all air. */
     private static final byte[] AIR_SECTION = new byte[4096];
@@ -81,6 +89,8 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
         Arrays.fill(keys, Long.MIN_VALUE);
         if (cacheLevel != level) {
             CACHE.clear();
+            DIRTY.clear();
+            PREVIOUS.clear();
             cacheLevel = level;
         }
     }
@@ -174,30 +184,97 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
             }
         }
         LevelChunk chunk = level.getChunk(sx, sz);
-        if (chunk == null) {
-            return AIR_SECTION;
+        LevelChunkSection section = null;
+        if (chunk != null) {
+            LevelChunkSection[] sections = chunk.getSections();
+            int idx = chunk.getSectionIndex(sy << 4);
+            if (idx >= 0 && idx < sections.length) {
+                section = sections[idx];
+            }
         }
-        LevelChunkSection[] sections = chunk.getSections();
-        int idx = chunk.getSectionIndex(sy << 4);
-        if (idx < 0 || idx >= sections.length) {
-            return AIR_SECTION;
-        }
-        LevelChunkSection section = sections[idx];
-        if (section == null || section.hasOnlyAir()) {
-            return AIR_SECTION;
-        }
+        // Air is cached too (with the section it was, or null for no chunk), so that when a chunk arrives the
+        // floor graph can be told which sections really changed rather than every one it had read as air.
         long now = System.currentTimeMillis();
         Entry e = CACHE.get(key);
         if (e != null && e.section() == section && now - e.madeAtMs() < MAX_AGE_MS) {
             return e.flags();
         }
-        byte[] out = fill(level, section, sx << 4, sy << 4, sz << 4);
-        filled++;
+        byte[] out = section == null || section.hasOnlyAir() ? AIR_SECTION
+                : fill(level, section, sx << 4, sy << 4, sz << 4);
+        if (out != AIR_SECTION) {
+            filled++;
+        }
         if (CACHE.size() > MAX_ENTRIES) {
             CACHE.clear();
+            WarpGraph g = listener;
+            if (g != null) {
+                g.clear();   // what it read can no longer be compared against
+            }
+        }
+        if (e != null && !Arrays.equals(e.flags(), out)) {
+            // A change the packet hooks did not report, caught by the 15 s refill.
+            WarpGraph g = listener;
+            if (g != null) {
+                g.sectionChanged(sx, sy, sz);
+            }
         }
         CACHE.put(key, new Entry(section, out, now));
         return out;
+    }
+
+    // ------------------------------------------------------------------------------------------- the floor graph
+
+    /** The floor graph to tell about sections whose flags changed (EtherwarpPathfinder sets it). */
+    static volatile WarpGraph listener;
+
+    /** Sections a packet touched, and the flags they had before, until the planner compares them. */
+    private static final java.util.concurrent.ConcurrentLinkedQueue<Long> DIRTY =
+            new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private static final ConcurrentHashMap<Long, byte[]> PREVIOUS = new ConcurrentHashMap<>();
+
+    private static void markDirty(long key) {
+        Entry old = CACHE.remove(key);
+        if (old != null) {
+            PREVIOUS.putIfAbsent(key, old.flags());
+            DIRTY.add(key);
+        }
+    }
+
+    /** Whether a packet touched a section the planner has read and not compared since. */
+    static boolean hasPendingChanges() {
+        return !DIRTY.isEmpty();
+    }
+
+    /**
+     * Planner thread: reads every section a packet touched again and tells the floor graph about the ones whose
+     * FLAGS changed. A lever flipping or a chunk re-sent unchanged changes nothing the search reads, so it costs
+     * the graph nothing; a door opening drops exactly the nodes whose rays crossed it. A section the planner never
+     * read cannot have anything depending on it and is not queued at all.
+     */
+    static void processChanges(Level level) {
+        if (DIRTY.isEmpty()) {
+            return;
+        }
+        WarpGraph g = listener;
+        LevelEtherGrid grid = new LevelEtherGrid(level);
+        java.util.Set<Long> done = new java.util.HashSet<>();
+        Long key;
+        while ((key = DIRTY.poll()) != null) {
+            if (!done.add(key)) {
+                continue;
+            }
+            byte[] before = PREVIOUS.remove(key);
+            if (before == null) {
+                continue;
+            }
+            int sx = (int) (key >>> 42) << 10 >> 10;
+            int sz = (int) ((key >>> 20) & 0x3FFFFF) << 10 >> 10;
+            int sy = (int) (key & 0xFFFFFL) << 12 >> 12;
+            byte[] now = grid.load(sx, sy, sz, key);
+            if (g != null && !Arrays.equals(before, now)) {
+                g.sectionChanged(sx, sy, sz);
+            }
+        }
     }
 
     private static byte[] fill(Level level, LevelChunkSection section, int bx, int by, int bz) {
@@ -277,10 +354,11 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
 
     /** A block changed: forget its section. Called on the client thread after vanilla has applied it. */
     public static void invalidate(BlockPos pos) {
-        CACHE.remove(sectionKey(pos.getX() >> 4, pos.getY() >> 4, pos.getZ() >> 4));
-        if (mirrorOn) {
-            // The server only sends block changes for a chunk it has sent him, so his copy is current.
-            FRESH_COLUMNS.add(columnKey(pos.getX() >> 4, pos.getZ() >> 4));
+        markDirty(sectionKey(pos.getX() >> 4, pos.getY() >> 4, pos.getZ() >> 4));
+        if (mirrorOn && FRESH_COLUMNS.add(columnKey(pos.getX() >> 4, pos.getZ() >> 4))) {
+            // The server only sends block changes for a chunk it has sent him, so his copy is current - and the
+            // whole column now reads from it instead of the snapshot, which the graph cannot compare against.
+            columnSwitched(pos.getX() >> 4, pos.getZ() >> 4);
         }
     }
 
@@ -291,11 +369,28 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
 
     /** A chunk was resent or forgotten: forget every section of the column. */
     public static void invalidateColumn(int chunkX, int chunkZ) {
+        if (mirrorOn && FRESH_COLUMNS.add(columnKey(chunkX, chunkZ))) {
+            columnSwitched(chunkX, chunkZ);
+        }
+        markColumnDirty(chunkX, chunkZ);
+    }
+
+    private static void columnSwitched(int chunkX, int chunkZ) {
+        if (MIRROR_COLUMNS.contains(columnKey(chunkX, chunkZ))) {
+            WarpGraph g = listener;
+            if (g != null) {
+                g.columnChanged(chunkX, chunkZ);
+            }
+        }
+    }
+
+    private static void markColumnDirty(int chunkX, int chunkZ) {
         long sx = chunkX & 0x3FFFFF;
         long sz = chunkZ & 0x3FFFFF;
-        CACHE.keySet().removeIf(k -> ((k >>> 42) & 0x3FFFFF) == sx && ((k >>> 20) & 0x3FFFFF) == sz);
-        if (mirrorOn) {
-            FRESH_COLUMNS.add(columnKey(chunkX, chunkZ));
+        for (Long k : CACHE.keySet()) {
+            if (((k >>> 42) & 0x3FFFFF) == sx && ((k >>> 20) & 0x3FFFFF) == sz) {
+                markDirty(k);
+            }
         }
     }
 
@@ -339,6 +434,12 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
         MIRROR_COLUMNS.clear();
         FRESH_COLUMNS.clear();
         CACHE.clear();
+        DIRTY.clear();
+        PREVIOUS.clear();
+        WarpGraph g = listener;
+        if (g != null) {
+            g.clear();   // a new floor
+        }
         int copied = 0;
         for (int cx = minX >> 4; cx <= maxX >> 4; cx++) {
             for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++) {
@@ -370,5 +471,11 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
         MIRROR_COLUMNS.clear();
         FRESH_COLUMNS.clear();
         CACHE.clear();
+        DIRTY.clear();
+        PREVIOUS.clear();
+        WarpGraph g = listener;
+        if (g != null) {
+            g.clear();
+        }
     }
 }
