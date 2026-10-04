@@ -113,21 +113,16 @@ final class SettingTooltipsData {
         d.put("experiment solver enabled", "Turns on the Experimentation Table solver for Chronomatron, Ultrasequencer and Superpairs.");
         d.put("auto-solve superpairs", "Lets the bot play Superpairs too (cheat build, Autonomous mode).");
         d.put("superpairs pairs", "Every Pair matches all revealed pairs; Skip Plain XP saves clicks for other rewards (cheat build, Autonomous mode).");
-        d.put("adaptive timeout", "Scales how long the bot waits for a Superpairs click from your ping (cheat build, Autonomous mode).");
-        d.put("timeout margin", "Extra milliseconds (0-1000) added to the ping-based Superpairs timeout (cheat build).");
+        d.put("adaptive timeout", "While the server lags, the bot waits that much longer for a Superpairs click to land (cheat build, Autonomous mode).");
         d.put("block input in menu", "Ignores your own clicks and keys in container menus while the bot runs (cheat build, Autonomous mode).");
         d.put("auto-swap to guardian pet", "Before a run, equips your best Guardian pet via /pets (cheat build, Autonomous mode).");
         d.put("emergency cancel key", "Keybind that instantly stops the running bot (cheat build, Autonomous mode).");
         d.put("stop at", "When to leave Chronomatron and Ultrasequencer: Max Clicks or Max XP (cheat build, Autonomous mode).");
-        d.put("delay (ms)", "Wait in ms (0-1000) between the bot's game clicks (cheat build, Autonomous mode).");
-        d.put("set click delay", "Saves the typed number as the delay between the bot's clicks (cheat build, Autonomous mode).");
-        d.put("first click delay", "Extra wait in ms before the first click of each Chronomatron or Ultrasequencer round (cheat build).");
-        d.put("set first click delay", "Saves the typed wait before the first click of each round (cheat build, Autonomous mode).");
-        d.put("random delay (ms)", "Cheat build: max random extra delay added to every bot click, 0-1000 ms.");
-        d.put("set random delay (max)", "Cheat build: saves the typed value as the max random delay added to every bot click.");
+        d.put("auto experimentation table/click delay", "Wait between the bot's game clicks, 0-1000 ms in 50 ms steps (cheat build only).");
+        d.put("first click delay", "Extra wait before the first click of each Chronomatron or Ultrasequencer round, 0-3000 ms (cheat build).");
+        d.put("random delay (max)", "Cheat build: max random extra delay added to every bot click, 0-1000 ms in 50 ms steps.");
         d.put("auto-renew charges", "Cheat build: how many Renew Experiments charges (0-3) the bot buys per day.");
-        d.put("max titanic price", "Cheat build: the most the bot pays for a Titanic Experience Bottle, 0 disables.");
-        d.put("helpers/set", "Cheat build: applies the coin amount typed in the Max Titanic Price box.");
+        d.put("max titanic price", "Cheat build: the most the bot pays for a Titanic Experience Bottle, 0 disables. Drag in 50k steps or type an exact amount.");
         d.put("chat/set", "Applies the percent typed in the box as the cat sound volume.");
         d.put("hud elements/set", "Applies the value typed in the box next to it.");
         d.put("new/set", "Saves the typed Leaping To message.");
@@ -1391,7 +1386,6 @@ final class SettingTooltipsData {
         //
         // "experiments/mode" is gone with the Mode button: the solver and the automation are two independent
         // settings now, not two positions of one switch.
-        d.put("auto experimentation table/set", "Applies the coin amount typed in the Max Titanic Price box (cheat build only).");
         d.put("auto experimentation table/press any key...", "Press the key to use as the Emergency Cancel Key.");
         d.put("fast/auto leap/fast leap", "Left-clicking a leap item in a dungeon leaps straight to your target instead of opening the menu (cheat build only).");
         d.put("fast/auto leap/leaps", "One row per leap spot; Edit opens that leap's settings.");

@@ -30,6 +30,9 @@ public final class ServerTickClock {
 
     // CopyOnWriteArrayList: fire() iterates while a late subscribe() could still add a listener.
     private static final List<Runnable> LISTENERS = new CopyOnWriteArrayList<>();
+    /** Fired on EVERY non-zero ping, whichever source drives the clock - for a listener that measures the
+     *  gaps between real server ticks itself, which is exactly when the clock falls back to client ticks. */
+    private static final List<Runnable> RAW_PING_LISTENERS = new CopyOnWriteArrayList<>();
     private static long windowStartMs = 0L;
     private static int pingsInWindow = 0;
     private static boolean pingDriven = false;
@@ -57,12 +60,24 @@ public final class ServerTickClock {
         LISTENERS.add(listener);
     }
 
+    /** See {@link #RAW_PING_LISTENERS}. */
+    public static void subscribeRawPing(Runnable listener) {
+        RAW_PING_LISTENERS.add(listener);
+    }
+
     /** Called from the ping mixin on the client thread. */
     public static void onPing(int id) {
         if (id == 0) {
             return;
         }
         pingsInWindow++;
+        for (Runnable listener : RAW_PING_LISTENERS) {
+            try {
+                listener.run();
+            } catch (RuntimeException e) {
+                // same rule as fire(): a broken listener must never break packet handling
+            }
+        }
         if (pingDriven) {
             fire();
         }

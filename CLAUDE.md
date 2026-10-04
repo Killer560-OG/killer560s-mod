@@ -253,6 +253,9 @@ physics. Read the relevant one before touching either area.
   while the window was briefly 854x480 froze `storage_overlay` at the clamped `x:0` and it stayed there at
   2560x1441, which is what "the storage overlay is no longer centered" turned out to be. A saved position is
   never re-clamped, so the cure is deleting the element's entry from `killer560smod-hud.json`.
+- `ServerTickClock`'s subscribers cannot measure a lag spike: a real stall drops the ping rate under 15/s,
+  the clock flips to client-tick fallback, and what it fires is the client's own ticks. Anything measuring
+  server stalls subscribes to `subscribeRawPing` instead (as `experiments/ServerLagSensor` does).
 - **Hypixel's Bazaar summaries are named the opposite of how they read.** In
   `api.hypixel.net/v2/skyblock/bazaar`, `buy_summary` is the book you INSTANT-BUY OUT OF and `sell_summary` is
   the one you instant-sell into. Verified on `VIBRANT_CORAL` (2026-09-29): `quick_status.buyPrice` 3324220.9

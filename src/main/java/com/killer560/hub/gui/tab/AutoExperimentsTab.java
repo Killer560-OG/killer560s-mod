@@ -3,7 +3,6 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.experiments.ExperimentsConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
-import com.killer560.hub.notify.ModOverlayMessage;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -12,6 +11,8 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 
 /** Auto E-Table - the autonomous Experimentation Table macro: it opens Chronomatron/Ultrasequencer, picks
  *  the highest tier, plays the puzzles, claims the rewards and buys renews/XP bottles. Cheat build only, so
@@ -80,38 +81,15 @@ public class AutoExperimentsTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX + half + GAP, y, half, 20).build());
         y += 24;
 
-        // 2026-09-15 roadmap: Superpairs confirm-timeout scaled from measured latency (see
-        // ExperimentSolver#superpairsConfirmTimeoutMs). Margin slider only shown while it's on.
+        // Adaptive Timeout extends Superpairs' confirm wait by however long the server stalls (see
+        // ExperimentSolver#superpairsConfirmTimeoutMs). Its Timeout Margin slider went on 2026-10-04 -
+        // killer560: "that shouldn't have a margin it should sense when the server is lagging".
         widgets.add(SettingsButtonWidget.builder(adaptiveTimeoutText(), btn -> {
                     ExperimentsConfig c = ExperimentsConfig.getInstance();
                     c.setSuperpairsAdaptiveTimeout(!c.isSuperpairsAdaptiveTimeout());
                     c.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, half, 20).build());
-        if (cfg.isSuperpairsAdaptiveTimeout()) {
-            int marginRange = ExperimentsConfig.MAX_SUPERPAIRS_TIMEOUT_MARGIN_MS - ExperimentsConfig.MIN_SUPERPAIRS_TIMEOUT_MARGIN_MS;
-            double marginNormalized = (cfg.getSuperpairsTimeoutMarginMs() - ExperimentsConfig.MIN_SUPERPAIRS_TIMEOUT_MARGIN_MS)
-                    / (double) marginRange;
-            widgets.add(new ThemedSliderButton(contentX + half + GAP, y, half, 20, timeoutMarginText(), marginNormalized) {
-                private static final int SNAP_STEP = 50;
-
-                @Override
-                protected void updateMessage() {
-                    setMessage(timeoutMarginText());
-                }
-
-                @Override
-                protected void applyValue() {
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    int raw = ExperimentsConfig.MIN_SUPERPAIRS_TIMEOUT_MARGIN_MS + (int) Math.round(this.value * marginRange);
-                    int snapped = Math.round(raw / (float) SNAP_STEP) * SNAP_STEP;
-                    c.setSuperpairsTimeoutMarginMs(snapped);
-                    c.save();
-                    this.value = (c.getSuperpairsTimeoutMarginMs() - ExperimentsConfig.MIN_SUPERPAIRS_TIMEOUT_MARGIN_MS)
-                            / (double) marginRange;
-                }
-            });
-        }
+                    btn.setMessage(adaptiveTimeoutText());
+                }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
         // Per killer560's request: Block Input and Auto-Swap Guardian side by side instead of stacked.
@@ -150,45 +128,20 @@ public class AutoExperimentsTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX + half + GAP, y, half, 20).build());
         y += 28;
 
-        EditBox delayField = new EditBox(Minecraft.getInstance().font, contentX, y, 80, 20, Component.literal("Delay (ms)"));
-        delayField.setValue(String.valueOf(cfg.getDelayMs()));
-        widgets.add(delayField);
-        // Per killer560's request: each of these 3 buttons now says WHICH delay it sets, not just a
-        // generic "Click to set delay to Xms" that looked identical across all three.
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set Click Delay: " + cfg.getDelayMs() + "ms"), btn -> {
-                    Integer ms = parseInt(delayField.getValue());
-                    if (ms != null) {
-                        ExperimentsConfig.getInstance().setDelayMs(ms);
-                        ExperimentsConfig.getInstance().save();
-                    }
-                    requestRebuild.run();
-                }).bounds(contentX + 86, y, contentWidth - 86, 20).build());
+        // 2026-10-04, killer560: "make the timeouts bars and remove the boxes I can type in. Have the bars be
+        // in 50ms increments." The three typed boxes and their Set buttons became these sliders; same
+        // fields, same JSON keys.
+        widgets.add(msSlider(contentX, y, contentWidth, "Click Delay", ExperimentsConfig.MAX_DELAY_MS,
+                () -> ExperimentsConfig.getInstance().getDelayMs(),
+                ms -> ExperimentsConfig.getInstance().setDelayMs(ms)));
         y += 22;
-
-        EditBox firstDelayField = new EditBox(Minecraft.getInstance().font, contentX, y, 80, 20, Component.literal("First click delay"));
-        firstDelayField.setValue(String.valueOf(cfg.getFirstClickDelayMs()));
-        widgets.add(firstDelayField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set First Click Delay: " + cfg.getFirstClickDelayMs() + "ms"), btn -> {
-                    Integer ms = parseInt(firstDelayField.getValue());
-                    if (ms != null) {
-                        ExperimentsConfig.getInstance().setFirstClickDelayMs(ms);
-                        ExperimentsConfig.getInstance().save();
-                    }
-                    requestRebuild.run();
-                }).bounds(contentX + 86, y, contentWidth - 86, 20).build());
+        widgets.add(msSlider(contentX, y, contentWidth, "First Click Delay", ExperimentsConfig.MAX_FIRST_CLICK_DELAY_MS,
+                () -> ExperimentsConfig.getInstance().getFirstClickDelayMs(),
+                ms -> ExperimentsConfig.getInstance().setFirstClickDelayMs(ms)));
         y += 22;
-
-        EditBox randomDelayField = new EditBox(Minecraft.getInstance().font, contentX, y, 80, 20, Component.literal("Random Delay (ms)"));
-        randomDelayField.setValue(String.valueOf(cfg.getRandomDelayMaxMs()));
-        widgets.add(randomDelayField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set Random Delay (max): " + cfg.getRandomDelayMaxMs() + "ms"), btn -> {
-                    Integer ms = parseInt(randomDelayField.getValue());
-                    if (ms != null) {
-                        ExperimentsConfig.getInstance().setRandomDelayMaxMs(ms);
-                        ExperimentsConfig.getInstance().save();
-                    }
-                    requestRebuild.run();
-                }).bounds(contentX + 86, y, contentWidth - 86, 20).build());
+        widgets.add(msSlider(contentX, y, contentWidth, "Random Delay (max)", ExperimentsConfig.MAX_DELAY_MS,
+                () -> ExperimentsConfig.getInstance().getRandomDelayMaxMs(),
+                ms -> ExperimentsConfig.getInstance().setRandomDelayMaxMs(ms)));
         y += 28;
 
         // Per killer560's request: dragging must SNAP to discrete steps (1-count increments here, 50k
@@ -216,62 +169,102 @@ public class AutoExperimentsTab extends BaseTab implements KeyCaptureTab {
 
         int titanicSliderWidth = half;
         int titanicFieldX = contentX + titanicSliderWidth + GAP;
-        int titanicFieldWidth = 70;
-        // Declared before the slider so its applyValue() can keep this field's text in sync while
-        // dragging - manually typing into this field and pressing "Set" still applies the EXACT typed
-        // value with no snapping at all, per killer560's "still allow for me to manually type in the coin
-        // portion for something more precise... but it wont ever snap there."
+        int titanicFieldWidth = contentWidth - titanicSliderWidth - GAP;
+        // The slider snaps to 50k; the box beside it takes an exact amount with no snapping, per
+        // killer560's "still allow for me to manually type in the coin portion for something more
+        // precise... but it wont ever snap there." Since 2026-10-04 the box applies as you type (killer560:
+        // "remove the set button it isn't needed") - anything that is not a number in range is ignored.
+        TitanicSlider titanicSlider = new TitanicSlider(contentX, y, titanicSliderWidth);
         EditBox titanicField = new EditBox(Minecraft.getInstance().font, titanicFieldX, y, titanicFieldWidth, 20,
                 Component.literal("Max Titanic Price"));
         titanicField.setMaxLength(10);
         titanicField.setValue(String.format("%.0f", cfg.getTitanicMaxPriceCoins()));
-
-        double titanicNormalized = (cfg.getTitanicMaxPriceCoins() - ExperimentsConfig.MIN_TITANIC_MAX_PRICE)
-                / (ExperimentsConfig.MAX_TITANIC_MAX_PRICE - ExperimentsConfig.MIN_TITANIC_MAX_PRICE);
-        widgets.add(new ThemedSliderButton(contentX, y, titanicSliderWidth, 20, titanicPriceText(), titanicNormalized) {
-            private static final double SNAP_STEP = 50_000.0;
-
-            @Override
-            protected void updateMessage() {
-                setMessage(titanicPriceText());
+        titanicSlider.field = titanicField;
+        titanicField.setResponder(text -> {
+            Double parsed = parseDouble(text);
+            if (parsed == null) {
+                return;
             }
-
-            @Override
-            protected void applyValue() {
-                ExperimentsConfig c = ExperimentsConfig.getInstance();
-                double raw = ExperimentsConfig.MIN_TITANIC_MAX_PRICE
-                        + this.value * (ExperimentsConfig.MAX_TITANIC_MAX_PRICE - ExperimentsConfig.MIN_TITANIC_MAX_PRICE);
-                double snapped = Math.round(raw / SNAP_STEP) * SNAP_STEP;
-                snapped = Math.max(ExperimentsConfig.MIN_TITANIC_MAX_PRICE,
-                        Math.min(ExperimentsConfig.MAX_TITANIC_MAX_PRICE, snapped));
-                c.setTitanicMaxPriceCoins(snapped);
+            ExperimentsConfig c = ExperimentsConfig.getInstance();
+            if (c.getTitanicMaxPriceCoins() != parsed) {
+                c.setTitanicMaxPriceCoins(parsed);
                 c.save();
-                this.value = (snapped - ExperimentsConfig.MIN_TITANIC_MAX_PRICE)
-                        / (ExperimentsConfig.MAX_TITANIC_MAX_PRICE - ExperimentsConfig.MIN_TITANIC_MAX_PRICE);
-                titanicField.setValue(String.format("%.0f", snapped));
             }
+            titanicSlider.sync();
         });
+        widgets.add(titanicSlider);
         widgets.add(titanicField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
-                    Double parsed = parseDouble(titanicField.getValue());
-                    if (parsed == null) {
-                        ModOverlayMessage.show("§c[Killer560's Mod] Invalid price - enter a number 0-3000000", 3000);
-                        return;
-                    }
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setTitanicMaxPriceCoins(parsed);
-                    c.save();
-                    requestRebuild.run();
-                }).bounds(titanicFieldX + titanicFieldWidth + GAP, y, contentWidth - titanicSliderWidth - titanicFieldWidth - 2 * GAP, 20).build());
 
         return widgets;
     }
 
-    private static Integer parseInt(String text) {
-        try {
-            return Integer.parseInt(text.trim());
-        } catch (Exception e) {
-            return null;
+    /** A 0..max ms slider that snaps to {@link ExperimentsConfig#DELAY_STEP_MS} and saves as it moves. The
+     *  snapped fraction is written back into {@code value}, which also positions the handle, so the handle
+     *  jumps between steps instead of sliding continuously. */
+    private static ThemedSliderButton msSlider(int x, int y, int width, String label, int maxMs,
+            IntSupplier getter, IntConsumer setter) {
+        return new ThemedSliderButton(x, y, width, 20, msText(label, getter.getAsInt()),
+                getter.getAsInt() / (double) maxMs) {
+            @Override
+            protected void updateMessage() {
+                setMessage(msText(label, getter.getAsInt()));
+            }
+
+            @Override
+            protected void applyValue() {
+                int step = ExperimentsConfig.DELAY_STEP_MS;
+                int snapped = (int) Math.round(this.value * maxMs / step) * step;
+                setter.accept(Math.max(0, Math.min(maxMs, snapped)));
+                ExperimentsConfig.getInstance().save();
+                this.value = getter.getAsInt() / (double) maxMs;
+            }
+        };
+    }
+
+    private static Component msText(String label, int ms) {
+        return Component.literal(label + ": §b" + ms + "ms");
+    }
+
+    /** Max Titanic Price slider, snapping to 50k coins. Dragging it rewrites the box beside it; typing in
+     *  the box moves it back via {@link #sync()}. */
+    private static final class TitanicSlider extends ThemedSliderButton {
+        private static final double SNAP_STEP = 50_000.0;
+        private static final double RANGE = ExperimentsConfig.MAX_TITANIC_MAX_PRICE - ExperimentsConfig.MIN_TITANIC_MAX_PRICE;
+
+        private EditBox field;
+
+        TitanicSlider(int x, int y, int width) {
+            super(x, y, width, 20, titanicPriceText(), fraction());
+        }
+
+        private static double fraction() {
+            return (ExperimentsConfig.getInstance().getTitanicMaxPriceCoins() - ExperimentsConfig.MIN_TITANIC_MAX_PRICE) / RANGE;
+        }
+
+        /** Re-reads the saved price, for when the box changed it. */
+        void sync() {
+            this.value = fraction();
+            updateMessage();
+        }
+
+        @Override
+        protected void updateMessage() {
+            setMessage(titanicPriceText());
+        }
+
+        @Override
+        protected void applyValue() {
+            ExperimentsConfig c = ExperimentsConfig.getInstance();
+            double raw = ExperimentsConfig.MIN_TITANIC_MAX_PRICE + this.value * RANGE;
+            double snapped = Math.round(raw / SNAP_STEP) * SNAP_STEP;
+            snapped = Math.max(ExperimentsConfig.MIN_TITANIC_MAX_PRICE,
+                    Math.min(ExperimentsConfig.MAX_TITANIC_MAX_PRICE, snapped));
+            c.setTitanicMaxPriceCoins(snapped);
+            c.save();
+            this.value = fraction();
+            if (field != null) {
+                field.setValue(String.format("%.0f", snapped));
+            }
         }
     }
 
@@ -307,10 +300,6 @@ public class AutoExperimentsTab extends BaseTab implements KeyCaptureTab {
     private static Component adaptiveTimeoutText() {
         return Component.literal("Adaptive Timeout: "
                 + (ExperimentsConfig.getInstance().isSuperpairsAdaptiveTimeout() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component timeoutMarginText() {
-        return Component.literal("Timeout Margin: §b" + ExperimentsConfig.getInstance().getSuperpairsTimeoutMarginMs() + "ms");
     }
 
     private static Component stopStrategyText() {
