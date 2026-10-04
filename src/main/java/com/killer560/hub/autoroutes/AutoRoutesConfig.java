@@ -92,6 +92,9 @@ public final class AutoRoutesConfig {
     private boolean colorsSectionOpen = false;
     private boolean keybindsSectionOpen = false;
     private boolean chatFeedback = true;
+    /** Each node's number (its position in the room's list - what /ar list, /ar delete and /ar remove take) drawn
+     *  over it at all times, AP3's "Show Node Numbers". On by default like AP3's. */
+    private boolean showNodeNumbers = true;
     private final Map<String, Integer> keybinds = new LinkedHashMap<>();
 
     private AutoRoutesConfig() {
@@ -153,6 +156,7 @@ public final class AutoRoutesConfig {
                 cfg.colorsSectionOpen = ConfigJson.getBool(o, "colorsSectionOpen", cfg.colorsSectionOpen);
                 cfg.keybindsSectionOpen = ConfigJson.getBool(o, "keybindsSectionOpen", cfg.keybindsSectionOpen);
                 cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
+                cfg.showNodeNumbers = ConfigJson.getBool(o, "showNodeNumbers", cfg.showNodeNumbers);
                 JsonObject keys = ConfigJson.getObject(o, "keybinds");
                 if (keys != null) {
                     for (String id : keys.keySet()) {
@@ -190,6 +194,7 @@ public final class AutoRoutesConfig {
             o.addProperty("maxDriftDistance", maxDriftDistance);
             o.addProperty("reachTimeoutTicks", reachTimeoutTicks);
             o.addProperty("chatFeedback", chatFeedback);
+            o.addProperty("showNodeNumbers", showNodeNumbers);
             JsonObject keys = new JsonObject();
             for (Map.Entry<String, Integer> e : keybinds.entrySet()) {
                 keys.addProperty(e.getKey(), e.getValue());
@@ -326,6 +331,8 @@ public final class AutoRoutesConfig {
 
     // ------------------------------------------------------------------------------------------- tab layout
 
+    public boolean isShowNodeNumbers() { return showNodeNumbers; }
+    public void setShowNodeNumbers(boolean v) { showNodeNumbers = v; }
     public boolean isColorsSectionOpen() { return colorsSectionOpen; }
     public void setColorsSectionOpen(boolean v) { colorsSectionOpen = v; }
 

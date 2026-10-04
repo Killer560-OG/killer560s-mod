@@ -399,7 +399,9 @@ final class SettingTooltipsData {
         d.put("add superboom node key", "Adds a superboom node (same as /ar add boom).");
         d.put("clear room route key", "Deletes this room's whole route (same as /ar clear).");
         d.put("list nodes key", "Prints this room's nodes in chat (same as /ar list).");
-        d.put("delete last node key", "Deletes the most recently added node.");
+        d.put("delete nearest node key", "Deletes the Auto Routes node you stand clearly nearest (same as /ar delete with no number).");
+        d.put("undo last node key", "Undoes the last Auto Routes add, delete, breaker edit or clear (same as /ar undo).");
+        d.put("stop route key", "Stops the running Auto Route and releases every key (same as /ar stop).");
         d.put("reload routes file key", "Re-reads the routes file from disk (same as /ar reload).");
         d.put("ap3", "Cheat build: walks a hand-placed node chain through each F7/M7 boss phase.");
         d.put("ap3 status", "Shows which boss area's chain is active right now.");
@@ -1651,7 +1653,7 @@ final class SettingTooltipsData {
         d.put("auto routes/active node colour", "Colour of the node the route is currently walking to or performing.");
         d.put("auto routes/keybinds", "Binds a key to each /ar command (cheat build only).");
         d.put("auto routes/recording", "Records a route: stand on the start block, press Start, run the room, press Stop (cheat build only).");
-        d.put("auto routes/delete last node", "Deletes the node you most recently placed in this room (cheat build only).");
+        d.put("auto routes/show node numbers", "Shows each node's number over it, as used by /ar delete <n> and /ar remove <n>.");
         d.put("test mode", "Dry run for this session: AP3 nodes run without waiting on the arena. Same as /ap3 testmode.");
         d.put("croesus/auto croesus", "Press Start Croesus to automatically claim profitable chests on every unclaimed run (cheat build only).");
         d.put("rag axe/mage reduction", "Shortens the ability cooldown countdown while you play Mage.");

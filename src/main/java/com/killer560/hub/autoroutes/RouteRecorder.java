@@ -449,11 +449,13 @@ public final class RouteRecorder {
         }
         // ---- modifiers: start and await apply on top of the type-specific handling above, to any node type ----
         boolean movedStart = false;
+        RouteNode previousStart = null;
         if (mods.start) {
             for (RouteNode n : target.nodes()) {
                 if (n.start) {
                     n.start = false;
                     movedStart = true;
+                    previousStart = n;
                 }
             }
             node.start = true;
@@ -464,6 +466,8 @@ public final class RouteRecorder {
             node.awaitAmount = mods.awaitAmount;
         }
         target.nodes().add(node);
+        // /ar undo takes it back off (and puts the start flag back where it was).
+        RouteHistory.added(target, node, previousStart);
         if (type == RouteNode.Type.DUNGEON_BREAKER) {
             breakerBeingBuilt = node;
         }

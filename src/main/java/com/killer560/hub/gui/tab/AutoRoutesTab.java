@@ -300,6 +300,8 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                 (cfg.getHeight() - MIN_HEIGHT) / (MAX_HEIGHT - MIN_HEIGHT),
                 v -> cfg.setHeight((float) (Math.round((MIN_HEIGHT + v * (MAX_HEIGHT - MIN_HEIGHT)) * 10.0) / 10.0)));
         y[0] += 24;
+        // AP3's "Show Node Numbers": the number over each node is the one /ar delete and /ar remove take.
+        toggle(w, x, y, "Show Node Numbers", cfg::isShowNodeNumbers, cfg::setShowNodeNumbers, null);
     }
 
     private void buildKeybindSection(List<AbstractWidget> w, AutoRoutesConfig cfg, int x, int[] y, int width,

@@ -164,6 +164,21 @@ public final class RouteExecutor {
      * installing the etherwarp's sneak, so "/ar add ew start" never warped (2026-10-04).
      */
     private static boolean handsLatched;
+    /**
+     * Arrival re-fire (killer560, 2026-10-04: "if an ar goes back onto another ar pad, so for instance two ew nodes
+     * point at each other, have them retoggle again and again"). Set when a teleporting node (an etherwarp, or a use
+     * node with a recorded landing) finishes on a landing the SERVER confirmed with its position packet; the next
+     * walk step of a path-less route consumes it, and if the player is now inside a node - any node of the route,
+     * the one he warped from included, in any order - that node fires. Two etherwarps aimed at each other therefore
+     * ping-pong until something stops the route. Never the node just performed (a warp onto its own ring would
+     * warp in place forever), and never same-tick: each fire still runs its whole sneak / swap / aim / use / landing
+     * cycle, and {@code settleTicks} sits between landing and the next fire.
+     */
+    private static RouteNode landedFrom;
+    /** True once a landing has sent the route BACK to an earlier node (a loop such as a ping-pong). From then a FRESH
+     *  movement key press stops the route ("you moved") on a path-less route too - otherwise a press there is only
+     *  overridden during an action, which would leave a loop with no way out but the mouse or {@code /ar stop}. */
+    private static boolean arrivalChain;
     /** A path-less route's WALK node: the real-world yaw it holds a sprint along until the next node fires, or null. */
     private static Float walkHoldYaw;
     private static Vec3 walkHoldLastPos;
@@ -181,12 +196,14 @@ public final class RouteExecutor {
     }
 
     /** Stops playback and tells the user why (chat, when chat feedback is on). Safe to call when idle. */
+    /** {@code /ar stop} and its key - one of the user-stop reasons below. */
+    private static final String STOPPED_BY_COMMAND = "you stopped it";
     /** Reasons that mean "the player took over" rather than "the route ended or the world changed". After
      *  one of these the feature must not re-arm until they have walked clear of every node (2026-09-16
      *  review: tapping W stopped a route and releasing W restarted it, because the player was still
      *  standing inside the ring the bot had just walked them through). */
     private static final java.util.Set<String> USER_STOP_REASONS =
-            java.util.Set.of("you moved", "you moved the camera");
+            java.util.Set.of("you moved", "you moved the camera", STOPPED_BY_COMMAND);
 
     private static boolean stoppedByUser;
     /** Set when a route runs to its end. The player is then standing IN the last node, which with
@@ -212,6 +229,16 @@ public final class RouteExecutor {
         stoppedByUser = false;
     }
 
+    /** {@code /ar stop} (and its key): stops the route as the player taking over, so the node he is standing in stays
+     *  latched until he steps off it. @return false when nothing was running. */
+    public static boolean stopByUser() {
+        if (!running) {
+            return false;
+        }
+        stop(STOPPED_BY_COMMAND);
+        return true;
+    }
+
     public static void stop(String reason) {
         boolean wasRunning = running;
         if (wasRunning && reason != null && USER_STOP_REASONS.contains(reason)) {
@@ -221,6 +248,8 @@ public final class RouteExecutor {
         stopReason = reason;
         activeNode = null;
         step = null;
+        landedFrom = null;
+        arrivalChain = false;
         forceSneak = false;
         unsneakOverride = false;
         endWalkHold();
@@ -286,6 +315,8 @@ public final class RouteExecutor {
         unsneakOverride = false;
         secretsFound = -1;
         awaitPhaseDone = true;
+        landedFrom = null;
+        arrivalChain = false;
         endWalkHold();
         RouteRotation.clear();
         running = true;
@@ -401,6 +432,10 @@ public final class RouteExecutor {
         }
         if (handsLatched) {
             return driven || activeNode != null || walkHoldYaw != null;
+        }
+        if (arrivalChain) {
+            stop("you moved");
+            return false;
         }
         if (driven) {
             stop("you moved");
@@ -522,6 +557,24 @@ public final class RouteExecutor {
             clearMovement();
             if (walkHoldYaw != null) {
                 tickWalkHold(player);
+            }
+            if (landedFrom != null) {
+                RouteNode from = landedFrom;
+                landedFrom = null;
+                RouteNode arrived = nodeLandedIn(player, cfg, from);
+                if (arrived != null) {
+                    int at = ordered.indexOf(arrived);
+                    if (at < nextNode) {
+                        // Sent BACK to an earlier node (or the one it came from): a loop. A plain landing on the
+                        // next node is the ordinary route and leaves his keys as they were.
+                        arrivalChain = true;
+                    }
+                    nextNode = at;
+                    LOGGER.info("[AutoRoutes] Landed in node #{} ({}) from #{} - firing it", route.indexOf(arrived) + 1,
+                            arrived.type, route.indexOf(from) + 1);
+                    beginAction(arrived);
+                    return;
+                }
             }
             if (nextNode >= ordered.size()) {
                 if (walkHoldYaw == null) {
@@ -656,6 +709,24 @@ public final class RouteExecutor {
         RouteRotation.follow(walkHoldYaw, player.getXRot());
     }
 
+    /** The node a route-made teleport landed the player in: the next node in order if it is that one, else the first
+     *  in path order he is inside - never {@code from}, the node that warped him. */
+    private static RouteNode nodeLandedIn(LocalPlayer player, AutoRoutesConfig cfg, RouteNode from) {
+        net.minecraft.world.phys.AABB box = player.getBoundingBox();
+        if (nextNode < ordered.size()) {
+            RouteNode next = ordered.get(nextNode);
+            if (next != from && next.contains(RouteCoords.toReal(frame, next.relativePos()), cfg.getHeight(), box)) {
+                return next;
+            }
+        }
+        for (RouteNode node : ordered) {
+            if (node != from && node.contains(RouteCoords.toReal(frame, node.relativePos()), cfg.getHeight(), box)) {
+                return node;
+            }
+        }
+        return null;
+    }
+
     private static void endWalkHold() {
         walkHoldYaw = null;
         walkHoldLastPos = null;
@@ -715,6 +786,7 @@ public final class RouteExecutor {
         step = Step.PREP;
         stepTicks = 0;
         swapSent = false;
+        landedFrom = null;
         actionOrigin = Minecraft.getInstance().player.position();
         // Any node firing ends a held walk ("keep me walking until I hit a different node", AP3's rule), and the
         // node owns the input from here: keys he is already holding are overridden, not read as a takeover.
@@ -906,6 +978,7 @@ public final class RouteExecutor {
                     cameraGraceTicks = 3;
                     rejoinPathAfterTeleport(player, node);
                     finishAction();
+                    noteLanding(node);
                 } else if (stepTicks > LANDING_TIMEOUT) {
                     LOGGER.info("[AutoRoutes] Etherwarp: no landing after {} ticks - player {} (moved {} from {}), "
                             + "recorded landing {}", stepTicks, fmt(player.position()),
@@ -969,6 +1042,7 @@ public final class RouteExecutor {
                     cameraGraceTicks = 3;
                     rejoinPathAfterTeleport(player, node);
                     finishAction();
+                    noteLanding(node);
                 } else if (stepTicks > LANDING_TIMEOUT) {
                     stop(node.item + " didn't teleport where it was recorded");
                 }
@@ -1243,6 +1317,12 @@ public final class RouteExecutor {
             return teleportPacketSeen || moved || originWasLanding;
         }
         return actionOrigin != null && pos.distanceTo(actionOrigin) > 3.0;
+    }
+
+    /** A teleport node just finished: arm the arrival re-fire, but only on a path-less route and only when the server's
+     *  position packet proved the teleport - a landing judged from the client's own position alone never re-fires. */
+    private static void noteLanding(RouteNode node) {
+        landedFrom = route != null && route.path().isEmpty() && teleportPacketSeen ? node : null;
     }
 
     private static String fmt(Vec3 v) {

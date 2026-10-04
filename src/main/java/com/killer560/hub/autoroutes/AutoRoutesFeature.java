@@ -169,7 +169,11 @@ public final class AutoRoutesFeature {
             chatBad("Block is too far from breaker #" + breakerIndex() + ".");
             return true;
         }
+        Route editRoute = RouteStore.getInstance().forRoom(frame.roomName());
         if (shift) {
+            if (editBreakerNode.breakerBlocks.contains(rel)) {
+                RouteHistory.edited(editRoute, editBreakerNode);
+            }
             if (editBreakerNode.breakerBlocks.remove(rel)) {
                 RouteStore.getInstance().save();
                 chat(ModChat.text("Removed "), ModChat.value(pos.toShortString()),
@@ -184,6 +188,7 @@ public final class AutoRoutesFeature {
             chatBad("Breaker #" + breakerIndex() + " already has " + RouteStore.MAX_BREAKER_BLOCKS + " blocks.");
             return true;
         }
+        RouteHistory.edited(editRoute, editBreakerNode);
         editBreakerNode.breakerBlocks.add(rel);
         RouteStore.getInstance().save();
         chat(ModChat.text("Added "), ModChat.value(pos.toShortString()),
@@ -197,14 +202,23 @@ public final class AutoRoutesFeature {
         return route == null ? Collections.emptyList() : route.nodes();
     }
 
-    /** Deletes node {@code index} of the current room's route. @return true when something was deleted. */
+    /** Deletes node {@code index} (0-BASED; shown as {@code index + 1}) of the current room's route, remembered
+     *  for {@code /ar undo}. Every later node's number drops by one - numbers are positions in the room's list, the
+     *  same as AP3's. @return true when something was deleted. */
     public static boolean deleteNode(int index) {
+        return deleteNode(index, true);
+    }
+
+    private static boolean deleteNode(int index, boolean remember) {
         Route route = currentRoute();
         if (route == null || index < 0 || index >= route.nodes().size()) {
             chatBad("No node #" + (index + 1) + " in this room.");
             return false;
         }
         RouteNode removed = route.nodes().remove(index);
+        if (remember) {
+            RouteHistory.removed(route, removed, index);
+        }
         if (removed == editBreakerNode) {
             editBreakerNode = null;
         }
@@ -212,7 +226,109 @@ public final class AutoRoutesFeature {
             RouteExecutor.stop("route edited");
         }
         RouteStore.getInstance().save();
+        suppressAutoArm();
         return true;
+    }
+
+    /** {@code /ar delete} with no number: nearest node within this many blocks... */
+    private static final double NEAREST_MAX = 3.0;
+    /** ...and every other node at least this much further away, or it is ambiguous. AP3's two constants. */
+    private static final double NEAREST_MARGIN = 1.0;
+
+    /**
+     * {@code /ar delete} / {@code /ar remove} with no number - AP3's {@code deleteNearestNode}: the node you stand
+     * clearly nearest, within {@value #NEAREST_MAX} blocks and every other node at least {@value #NEAREST_MARGIN}
+     * further, else it says why (with AP3's wording) and deletes nothing.
+     * @return the 0-based index to delete, or -1 after saying why not
+     */
+    public static int nearestNodeIndex() {
+        Route route = currentRoute();
+        RouteCoords.Frame frame = RouteRecorder.isRecording() ? RouteRecorder.recordingFrame() : RouteCoords.Frame.current();
+        Minecraft client = Minecraft.getInstance();
+        if (route == null || route.nodes().isEmpty() || frame == null || client.player == null) {
+            chatBad("No nodes in " + AutoRoutesCommands.roomName() + ".");
+            return -1;
+        }
+        Vec3 pos = client.player.position();
+        int best = -1;
+        double bestDist = Double.MAX_VALUE;
+        double second = Double.MAX_VALUE;
+        List<RouteNode> nodes = route.nodes();
+        for (int i = 0; i < nodes.size(); i++) {
+            double d = RouteCoords.toReal(frame, nodes.get(i).relativePos()).distanceTo(pos);
+            if (d < bestDist) {
+                second = bestDist;
+                bestDist = d;
+                best = i;
+            } else if (d < second) {
+                second = d;
+            }
+        }
+        if (best < 0 || bestDist > NEAREST_MAX) {
+            chatBad(String.format(java.util.Locale.US, "No node within %.0f blocks - stand next to one or give its number.", NEAREST_MAX));
+            return -1;
+        }
+        if (second < bestDist + NEAREST_MARGIN) {
+            chatBad(String.format(java.util.Locale.US, "Two nodes are about as close (#%d and one %.1f blocks off) - give the number.",
+                    best + 1, second));
+            return -1;
+        }
+        return best;
+    }
+
+    /**
+     * {@code /ar undo} - AP3's {@code undoLastAdded}, widened to a history: reverts the most recent add, remove,
+     * breaker edit or clear, whatever room it was in ({@link RouteHistory}). With nothing left to undo it does
+     * what AP3's does then - deletes the last node of the room you stand in (that delete is not itself undoable,
+     * or undo would just put it back on the next press).
+     */
+    public static boolean undo() {
+        RouteHistory.Undone done = RouteHistory.undo();
+        if (done == null) {
+            List<RouteNode> nodes = currentRouteNodes();
+            if (nodes.isEmpty()) {
+                chatBad("Nothing to undo in " + AutoRoutesCommands.roomName() + ".");
+                return false;
+            }
+            int last = nodes.size() - 1;
+            String what = nodes.get(last).type.label();
+            if (!deleteNode(last, false)) {
+                return false;
+            }
+            chat(ModChat.text("Deleted "), ModChat.value("#" + (last + 1) + " " + what),
+                    ModChat.dim(" from " + AutoRoutesCommands.roomName()));
+            return true;
+        }
+        if (RouteExecutor.isRunning()) {
+            RouteExecutor.stop("route edited");
+        }
+        if (editBreakerNode != null && done.route().indexOf(editBreakerNode) < 0
+                && done.route() == RouteStore.getInstance().forRoom(done.route().roomName())) {
+            editBreakerNode = null;
+        }
+        if (editMode && editBreakerNode == null) {
+            pickEditBreakerNode();
+        }
+        RouteStore.getInstance().save();
+        suppressAutoArm();
+        if (done.node() == null) {
+            int n = done.route().nodes().size();
+            chat(ModChat.text(done.verb() + " "), ModChat.value(done.route().roomName()),
+                    ModChat.dim(" (" + n + " node" + (n == 1 ? "" : "s") + ")"));
+        } else {
+            chat(ModChat.text(done.verb() + " "), ModChat.value("#" + done.number() + " " + done.node().type.label()),
+                    ModChat.dim(" in " + done.route().roomName()));
+        }
+        return true;
+    }
+
+    /** After an edit he may be standing in a node that is new, renumbered or back again: like AP3's
+     *  {@code suppressAutoArm}, the node he is in when arming next looks counts as already stood in, so it fires
+     *  when he walks back onto it, not under him the moment chat closes. */
+    private static boolean suppressArm;
+
+    private static void suppressAutoArm() {
+        suppressArm = true;
     }
 
     /** Removes the whole route (nodes + recording) for the room you are in. @return true when one existed. */
@@ -232,7 +348,12 @@ public final class AutoRoutesFeature {
             RouteExecutor.stop("route cleared");
         }
         editBreakerNode = null;
+        Route saved = RouteStore.getInstance().forRoom(frame.roomName());
         boolean removed = RouteStore.getInstance().remove(frame.roomName());
+        if (removed) {
+            RouteHistory.cleared(saved); // /ar undo puts the whole route back
+        }
+        suppressAutoArm();
         RouteStore.getInstance().save();
         if (!removed) {
             chatBad(frame.roomName() + " has no route.");
@@ -358,6 +479,7 @@ public final class AutoRoutesFeature {
     static void onRoutesReloaded() {
         editBreakerNode = null;
         latchedNode = null;
+        RouteHistory.reset();
         if (editMode) {
             pickEditBreakerNode();
         }
@@ -515,6 +637,7 @@ public final class AutoRoutesFeature {
         if (route == null || route.nodes().isEmpty()) {
             gate("no route for " + frame.roomName());
             latchedNode = null;
+            suppressArm = false;
             return;
         }
         if (McCompat.screen(client) != null) {
@@ -534,6 +657,14 @@ public final class AutoRoutesFeature {
             if (node.contains(RouteCoords.toReal(frame, node.relativePos()), height, playerBox)) {
                 inside = node;
                 break;
+            }
+        }
+        if (suppressArm) {
+            suppressArm = false;
+            if (inside != null) {
+                latchedNode = inside;
+                gate("in node #" + (route.indexOf(inside) + 1) + " right after an edit - latched until you step off");
+                return;
             }
         }
         if (inside == null) {

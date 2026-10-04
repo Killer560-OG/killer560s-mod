@@ -30,7 +30,8 @@ import java.util.concurrent.CompletableFuture;
  * killer560's list (2026-09-16), verbatim: {@code /ar start record}, {@code /ar stop record}, {@code /ar add ew},
  * {@code /ar add breaker}, {@code /ar add use}, {@code /ar add walk}, {@code /ar add boom}, {@code /ar add await},
  * {@code /ar add start}, {@code /ar edit db} (also {@code /ar edit dungeonbreaker}), {@code /ar clear},
- * {@code /ar list}, {@code /ar delete <n>} - and, added the same day, {@code /ar reload} ("reload it while already
+ * {@code /ar list}, {@code /ar delete <n>} (since 2026-10-04 also {@code /ar remove}, both with the number
+ * optional, plus {@code /ar undo} and {@code /ar stop} - AP3's set) - and, added the same day, {@code /ar reload} ("reload it while already
  * in game in case you change your folder" - now the one shareable routes file, since he then settled on "I should
  * only have to share one file"). "Keybinds for every command" is the other half of that request, so
  * every action is an {@link Action} constant with a stable id: {@link AutoRoutesKeybinds} polls the id's key and
@@ -89,12 +90,19 @@ public final class AutoRoutesCommands {
         EDIT_BREAKER("edit_db", "Edit Breaker Blocks", "/ar edit db"),
         CLEAR("clear", "Clear Room Route", "/ar clear"),
         LIST("list", "List Nodes", "/ar list"),
-        /** The command takes a number; a key can't, so the keybind deletes the LAST node (the one you just added).
-         *  Label has no ':' of its own (2026-09-20 tooltip sweep: the old "Delete Node (key: last)" put a colon
-         *  in front of the row's own " Key: <name>" suffix, so SettingTooltips.key() cut at the wrong one and no
-         *  tooltip could ever match). */
-        DELETE_LAST("delete", "Delete Last Node", "/ar delete <n>"),
-        RELOAD("reload", "Reload Routes File", "/ar reload");
+        /** AP3's UNDO (killer560, 2026-10-04: "the same node numbering system per room and the remove and delete
+         *  and undo command"): the most recent add / remove / breaker edit / clear, see {@link RouteHistory}. */
+        UNDO("undo", "Undo Last Node", "/ar undo"),
+        /** AP3's DELETE_NEAREST, id unchanged so an existing binding keeps working. The command takes an optional
+         *  number; the key (and the bare command) delete the node you stand clearly nearest. It used to delete the
+         *  LAST node. Label has no ':' of its own (2026-09-20 tooltip sweep: SettingTooltips.key() cuts at the
+         *  first colon, and the row appends " Key: <name>"). */
+        DELETE_NEAREST("delete", "Delete Nearest Node", "/ar delete|remove [n]"),
+        RELOAD("reload", "Reload Routes File", "/ar reload"),
+        /** AP3's {@code /ap3 stop}: ends the running route and releases every key. Counts as the player taking
+         *  over, so the node he stands in will not fire again until he steps off it - which is how a ping-pong of
+         *  two nodes landing in each other (see RouteExecutor's arrival re-fire) is broken by command or key. */
+        STOP("stop", "Stop Route", "/ar stop");
 
         public final String id;
         public final String label;
@@ -193,6 +201,7 @@ public final class AutoRoutesCommands {
                                 .then(ClientCommands.literal("record")
                                         .executes(context -> exec(Action.START_RECORD))))
                         .then(ClientCommands.literal("stop")
+                                .executes(context -> exec(Action.STOP))
                                 .then(ClientCommands.literal("record")
                                         .executes(context -> exec(Action.STOP_RECORD))))
                         // "/ar add <type> [modifiers...]" - one word for the type, the rest free-form modifiers
@@ -218,15 +227,42 @@ public final class AutoRoutesCommands {
                         .then(ClientCommands.literal("clear").executes(context -> exec(Action.CLEAR)))
                         .then(ClientCommands.literal("list").executes(context -> exec(Action.LIST)))
                         .then(ClientCommands.literal("reload").executes(context -> exec(Action.RELOAD)))
-                        // "/ar delete <n>" takes the 1-based number "/ar list" prints, not a 0-based index -
-                        // the list is what the user is looking at when they type this.
-                        .then(ClientCommands.literal("delete")
-                                .then(ClientCommands.argument("n", IntegerArgumentType.integer(1))
-                                        .executes(context -> {
-                                            int n = IntegerArgumentType.getInteger(context, "n");
-                                            return guarded(() -> delete(n - 1)) ? 1 : 0;
-                                        })))));
+                        .then(ClientCommands.literal("undo").executes(context -> exec(Action.UNDO)))
+                        // "/ar delete [n]" and "/ar remove [n]" are the same command, as "/ap3 delete|remove [n]"
+                        // are. <n> is the 1-based number "/ar list" and the world labels show; with no number the
+                        // node you stand clearly nearest goes. Converted to 0-based exactly here.
+                        .then(deleteBranch("delete"))
+                        .then(deleteBranch("remove"))));
     }
+
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<FabricClientCommandSource> deleteBranch(String word) {
+        return ClientCommands.literal(word)
+                .executes(context -> exec(Action.DELETE_NEAREST))
+                .then(ClientCommands.argument("n", IntegerArgumentType.integer(1))
+                        .suggests(NODE_NUMBER_SUGGEST)
+                        .executes(context -> {
+                            int n = IntegerArgumentType.getInteger(context, "n");
+                            return guarded(() -> delete(n - 1)) ? 1 : 0;
+                        }));
+    }
+
+    /** Offers the numbers this room's nodes have right now, 1..size - the numbers on the world labels. */
+    private static final SuggestionProvider<FabricClientCommandSource> NODE_NUMBER_SUGGEST = (ctx, b) -> {
+        int size;
+        try {
+            size = AutoRoutesFeature.currentRouteNodes().size();
+        } catch (Exception e) {
+            size = 0;
+        }
+        String typed = b.getRemaining();
+        for (int i = 1; i <= size; i++) {
+            String n = Integer.toString(i);
+            if (n.startsWith(typed)) {
+                b.suggest(n);
+            }
+        }
+        return b.buildFuture();
+    };
 
     private static int exec(Action action) {
         run(action);
@@ -270,8 +306,10 @@ public final class AutoRoutesCommands {
             case EDIT_BREAKER -> toggleEditMode();
             case CLEAR -> clear();
             case LIST -> list();
-            case DELETE_LAST -> deleteLast();
+            case UNDO -> AutoRoutesFeature.undo();
+            case DELETE_NEAREST -> deleteNearest();
             case RELOAD -> reload();
+            case STOP -> stopRoute();
         }
     }
 
@@ -468,16 +506,20 @@ public final class AutoRoutesCommands {
         for (int i = 0; i < nodes.size(); i++) {
             ModChat.send(FEATURE, ModChat.dim("#" + (i + 1) + " "), ModChat.value(describe(nodes.get(i))));
         }
-        ModChat.send(FEATURE, ModChat.dim("/ar delete <n> removes one by its number."));
+        ModChat.send(FEATURE, ModChat.dim("/ar delete <n> removes one by its number; /ar delete alone takes the nearest; /ar undo the last change."));
     }
 
-    private static void deleteLast() {
-        int size = AutoRoutesFeature.currentRouteNodes().size();
-        if (size == 0) {
-            ModChat.send(FEATURE, ModChat.text("No nodes to delete in "), ModChat.value(roomName()), ModChat.text("."));
-            return;
+    private static void deleteNearest() {
+        int index = AutoRoutesFeature.nearestNodeIndex();
+        if (index >= 0) {
+            delete(index);
         }
-        delete(size - 1);
+    }
+
+    private static void stopRoute() {
+        if (!RouteExecutor.stopByUser()) {
+            ModChat.send(FEATURE, ModChat.text("No route is running."));
+        }
     }
 
     /** {@code index} is 0-based here; the command and the tab both convert from the 1-based display number. */
@@ -491,9 +533,12 @@ public final class AutoRoutesCommands {
         if (RouteExecutor.isRunning()) {
             RouteExecutor.stop("node deleted");
         }
-        String what = describe(nodes.get(index));
-        AutoRoutesFeature.deleteNode(index);
-        ModChat.send(FEATURE, ModChat.text("Deleted "), ModChat.dim("#" + (index + 1) + " "), ModChat.value(what), ModChat.text("."));
+        String what = nodes.get(index).type.label();
+        if (AutoRoutesFeature.deleteNode(index)) {
+            // AP3's line: "Deleted #3 Etherwarp from <room>". Every later node's number has just dropped by one.
+            ModChat.send(FEATURE, ModChat.text("Deleted "), ModChat.value("#" + (index + 1) + " " + what),
+                    ModChat.dim(" from " + roomName()));
+        }
     }
 
     /**
