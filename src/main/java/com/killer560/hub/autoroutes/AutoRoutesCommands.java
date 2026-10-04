@@ -45,8 +45,12 @@ import java.util.concurrent.CompletableFuture;
  * {@code Ap3Commands}' {@code /ap3 add <type> [mods...]} (single word type argument, one greedy modifiers
  * argument, both tab-completed). {@link #addCommand} does the parsing; {@link RouteRecorder.NodeModifiers} carries
  * the result into {@link RouteRecorder#addNode}. Old routes files with real {@code START}/{@code AWAIT} nodes
- * still load - {@link RouteStore} folds them onto the modifier fields - and {@code /ar add start} / {@code /ar
- * add await} (no type) still work as deprecated aliases for "a plain walk node with just that one modifier".
+ * still load - {@link RouteStore} folds them onto the modifier fields.
+ * <p>
+ * Tightened 2026-10-04 (killer560): "The only commands there should be are boom, breaker, ew/etherwarp, use, and
+ * walk ... no other command should work after /ar add", and after the type "only have it show await:x and start",
+ * where x must be a number. So {@link #ADD_TYPES} is the whole list - no aliases, no bare {@code /ar add start} /
+ * {@code /ar add await} - and {@link #parseModifiers} takes exactly {@code start} and {@code await:<number>}.
  * <p>
  * Registered as its own root ({@code /ar}) rather than under {@code /killer560} because that's the syntax killer560
  * typed, same reasoning as {@code /posmsg} in {@code Killer560ModClient}. Feedback is local orange chat via
@@ -82,8 +86,6 @@ public final class AutoRoutesCommands {
         ADD_USE_ITEM("add_use", "Add Use Item Node", "/ar add use"),
         ADD_WALK("add_walk", "Add Walk Node", "/ar add walk"),
         ADD_BOOM("add_boom", "Add Superboom Node", "/ar add boom"),
-        ADD_AWAIT("add_await", "Add Await Node", "/ar add await"),
-        ADD_START("add_start", "Add Start Node", "/ar add start"),
         EDIT_BREAKER("edit_db", "Edit Breaker Blocks", "/ar edit db"),
         CLEAR("clear", "Clear Room Route", "/ar clear"),
         LIST("list", "List Nodes", "/ar list"),
@@ -117,17 +119,45 @@ public final class AutoRoutesCommands {
     //      type; killer560's tab-completion ask from Ap3 applies here just as much: typing a node type or a
     //      modifier should show its options, not require memorising them) ----
 
-    /** The node-type words {@code /ar add <type>} accepts. {@code start} and {@code await} are deliberately NOT
-     *  offered here any more - they are modifiers now (see {@link #MOD_SUGGEST}) - but {@link #addCommand} still
-     *  accepts them bare as deprecated aliases. */
-    private static final List<String> TYPE_WORDS = List.of("walk", "ew", "etherwarp", "use", "breaker", "boom");
-    /** Modifiers offered after any {@code /ar add <type>}. */
-    private static final List<String> MOD_WORDS = List.of("start", "await:1", "await:2", "await:5");
+    /** Every word {@code /ar add <type>} accepts, and the only ones - killer560's list, in his order. A walk node
+     *  sprints (see {@code RouteExecutor}'s walk hold) even though it is called walk. */
+    private static final java.util.Map<String, RouteNode.Type> ADD_TYPES = java.util.Map.of(
+            "boom", RouteNode.Type.BOOM,
+            "breaker", RouteNode.Type.DUNGEON_BREAKER,
+            "ew", RouteNode.Type.ETHERWARP,
+            "etherwarp", RouteNode.Type.ETHERWARP,
+            "use", RouteNode.Type.USE_ITEM,
+            "walk", RouteNode.Type.WALK);
+    private static final List<String> TYPE_WORDS = List.of("boom", "breaker", "ew", "etherwarp", "use", "walk");
+    /** Modifiers offered after any {@code /ar add <type>}. {@code x} is a placeholder: the command refuses
+     *  {@code await:} followed by anything but a number. */
+    private static final List<String> MOD_WORDS = List.of("await:x", "start");
+    /** Bounded so a typed number can never overflow parseInt; a room never holds anywhere near this many secrets. */
+    private static final java.util.regex.Pattern AWAIT_ARG = java.util.regex.Pattern.compile("await:(\\d{1,3})");
 
     private static final SuggestionProvider<FabricClientCommandSource> TYPE_SUGGEST =
             (ctx, b) -> suggestTokens(b, TYPE_WORDS);
-    private static final SuggestionProvider<FabricClientCommandSource> MOD_SUGGEST =
-            (ctx, b) -> suggestTokens(b, MOD_WORDS);
+    private static final SuggestionProvider<FabricClientCommandSource> MOD_SUGGEST = (ctx, b) -> {
+        // Each modifier once: "start" already typed is not offered again, nor is "await:" once there is one.
+        // Only the finished words count - the one being typed is what is being completed.
+        String remaining = b.getRemaining().toLowerCase(Locale.ROOT);
+        int lastSpace = remaining.lastIndexOf(' ');
+        boolean hasStart = false;
+        boolean hasAwait = false;
+        if (lastSpace > 0) {
+            for (String t : remaining.substring(0, lastSpace).trim().split("\\s+")) {
+                hasStart |= t.equals("start");
+                hasAwait |= t.startsWith("await");
+            }
+        }
+        List<String> left = new java.util.ArrayList<>();
+        for (String m : MOD_WORDS) {
+            if (m.startsWith("await:") ? !hasAwait : !hasStart) {
+                left.add(m);
+            }
+        }
+        return suggestTokens(b, left);
+    };
 
     /** Suggests {@code options} for the LAST whitespace-separated token of the argument's input, so completion
      *  works inside the greedy modifiers string ("ew st" -> "start") as well as for a single word. */
@@ -237,10 +267,6 @@ public final class AutoRoutesCommands {
             case ADD_USE_ITEM -> add(RouteNode.Type.USE_ITEM);
             case ADD_WALK -> add(RouteNode.Type.WALK);
             case ADD_BOOM -> add(RouteNode.Type.BOOM);
-            // Deprecated (keybinds only reach here - the chat command aliases these too, see addCommand): a
-            // plain walk node carrying just the one modifier, since START/AWAIT stopped being node types.
-            case ADD_AWAIT -> add(RouteNode.Type.WALK, RouteRecorder.NodeModifiers.awaitDefault());
-            case ADD_START -> add(RouteNode.Type.WALK, RouteRecorder.NodeModifiers.startOnly());
             case EDIT_BREAKER -> toggleEditMode();
             case CLEAR -> clear();
             case LIST -> list();
@@ -284,9 +310,9 @@ public final class AutoRoutesCommands {
         for (Action a : Action.values()) {
             ModChat.send(FEATURE, ModChat.value(a.command), ModChat.dim(" - " + a.label));
         }
-        ModChat.send(FEATURE, ModChat.dim("Add modifiers after any /ar add <type>, any order: "),
-                ModChat.value("start"), ModChat.dim(" (this room's start node), "), ModChat.value("await:<n>"),
-                ModChat.dim(" (wait for n secrets first) - e.g. "), ModChat.value("/ar add ew start await:2"),
+        ModChat.send(FEATURE, ModChat.dim("Types: boom, breaker, ew (or etherwarp), use, walk. After the type, any order: "),
+                ModChat.value("start"), ModChat.dim(" (this room's start node), "), ModChat.value("await:<number>"),
+                ModChat.dim(" (wait for that many secrets first) - e.g. "), ModChat.value("/ar add ew start await:2"),
                 ModChat.dim("."));
     }
 
@@ -339,22 +365,10 @@ public final class AutoRoutesCommands {
     private static void addCommand(String typeWord, String mods) {
         guarded(() -> {
             String key = typeWord.trim().toLowerCase(Locale.ROOT);
-            // Deprecated aliases: START and AWAIT used to be their own node types (killer560's original /ar add
-            // start / /ar add await). They're modifiers on any node now, but a BARE "/ar add start" or "/ar add
-            // await" (no further modifiers text) still works - a plain walk node carrying just that one
-            // modifier, which is exactly what a START/AWAIT node already behaved like on its own (see
-            // RouteExecutor#tickAction). "start" or "await:<n>" typed as the TYPE by mistake (e.g. someone
-            // half-remembering the new syntax as "/ar add start await:2") falls through to the unknown-type
-            // message below instead, which points at the real syntax - silently ignoring the "await:2" they
-            // typed would be worse than saying so.
-            if ((key.equals("start") || key.equals("await") || key.equals("wait")) && (mods == null || mods.isBlank())) {
-                dispatch(key.equals("start") ? Action.ADD_START : Action.ADD_AWAIT);
-                return;
-            }
-            RouteNode.Type type = RouteNode.Type.parse(key);
-            if (type == null || type == RouteNode.Type.START || type == RouteNode.Type.AWAIT) {
+            RouteNode.Type type = ADD_TYPES.get(key);
+            if (type == null) {
                 ModChat.send(FEATURE, ModChat.bad("Unknown node type "), ModChat.value(typeWord),
-                        ModChat.dim(" - walk, ew, use, breaker, boom. start and await:<n> are modifiers now, e.g. "),
+                        ModChat.dim(" - boom, breaker, ew (or etherwarp), use or walk. start and await:<number> go after it, e.g. "),
                         ModChat.value("/ar add ew start await:2"), ModChat.dim("."));
                 return;
             }
@@ -367,51 +381,41 @@ public final class AutoRoutesCommands {
     }
 
     /**
-     * The modifiers after {@code /ar add <type>}: {@code start} (this route's start node) and {@code await:<n>}
-     * (wait for {@code n} secrets before this node fires) or {@code await:delay:<ms>} (wait a fixed delay
-     * instead - the AWAIT node's two conditions, {@link RouteNode.AwaitCondition#SECRET} /
-     * {@link RouteNode.AwaitCondition#DELAY}, carried over unchanged). Any order, either, neither, or both.
-     * @return null (after saying why in chat) on an unrecognised token, so a typo never silently adds the node
-     * without the modifier the player asked for.
+     * The modifiers after {@code /ar add <type>}: {@code start} (this route's start node) and {@code await:<number>}
+     * (wait for that many secrets before this node fires). Any order, either, neither, or both - and nothing else.
+     * {@code await:x}, a bare {@code await} and {@code await:0} are refused: the x is a placeholder for a number
+     * (killer560, 2026-10-04), and a node that silently waited for one secret when he typed a typo would be worse.
+     * @return null (after saying why in chat) on anything unrecognised, so a typo never adds the node at all.
      */
     private static RouteRecorder.NodeModifiers parseModifiers(String mods) {
         boolean start = false;
         boolean awaitEnabled = false;
-        RouteNode.AwaitCondition condition = RouteNode.AwaitCondition.SECRET;
         int amount = 1;
         if (mods != null && !mods.isBlank()) {
             for (String raw : mods.trim().split("\\s+")) {
                 String t = raw.toLowerCase(Locale.ROOT);
                 if (t.equals("start")) {
                     start = true;
-                } else if (t.equals("await")) {
-                    awaitEnabled = true;
-                } else if (t.startsWith("await:")) {
-                    awaitEnabled = true;
-                    String rest = t.substring("await:".length());
-                    if (rest.startsWith("delay:")) {
-                        condition = RouteNode.AwaitCondition.DELAY;
-                        amount = parseAmount(rest.substring("delay:".length()), 500);
-                    } else {
-                        condition = RouteNode.AwaitCondition.SECRET;
-                        amount = parseAmount(rest, 1);
-                    }
-                } else {
-                    ModChat.send(FEATURE, ModChat.bad("Unknown modifier \"" + raw + "\""),
-                            ModChat.dim(" - start, await:<n> (secrets), or await:delay:<ms>."));
-                    return null;
+                    continue;
                 }
+                if (t.equals("await") || t.startsWith("await:")) {
+                    java.util.regex.Matcher m = AWAIT_ARG.matcher(t);
+                    int n = m.matches() ? Integer.parseInt(m.group(1)) : 0;
+                    if (n < 1) {
+                        ModChat.send(FEATURE, ModChat.bad("\"" + raw + "\" needs a number of secrets"),
+                                ModChat.dim(" - e.g. "), ModChat.value("await:2"), ModChat.dim(". Nothing was added."));
+                        return null;
+                    }
+                    awaitEnabled = true;
+                    amount = n;
+                    continue;
+                }
+                ModChat.send(FEATURE, ModChat.bad("Unknown modifier \"" + raw + "\""),
+                        ModChat.dim(" - only start and await:<number>. Nothing was added."));
+                return null;
             }
         }
-        return new RouteRecorder.NodeModifiers(start, awaitEnabled, condition, amount);
-    }
-
-    private static int parseAmount(String s, int fallback) {
-        try {
-            return Math.max(0, Math.min(600_000, Integer.parseInt(s)));
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
+        return new RouteRecorder.NodeModifiers(start, awaitEnabled, RouteNode.AwaitCondition.SECRET, amount);
     }
 
     /**

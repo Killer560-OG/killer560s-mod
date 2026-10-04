@@ -115,7 +115,7 @@ public final class RouteRecorder {
         // command. A plain WALK node carrying the `start` flag, not a dedicated START type any more - it
         // behaves exactly the same way in the executor (a no-op pass-through node), see RouteNode.Type's doc.
         sample(client, player);
-        Vec3 rel = RouteCoords.toRelative(f, player.position());
+        Vec3 rel = RouteCoords.toRelative(f, snappedFeet(player));
         RouteNode startNode = new RouteNode(RouteNode.Type.WALK, rel.x, rel.y, rel.z,
                 RouteCoords.toRelativeYaw(f, player.getYRot()), player.getXRot(), 0);
         startNode.start = true;
@@ -275,8 +275,22 @@ public final class RouteRecorder {
         }
     }
 
+    /**
+     * Where a node goes: the player's feet snapped exactly as AP3 places its nodes (killer560, 2026-10-04: "Make it
+     * so nodes snap to blocks the exact same as our AP3 does") - x and z to the nearest half-block line (a block
+     * centre, or the seam between two or four blocks when he stands nearer that), y kept at the feet to a thousandth
+     * so a node on carpet or a slab sits on its top. Snapped in WORLD space and then made room-relative, so the
+     * grid it lands on is the world's; a room rotation is a quarter turn about an integer clay corner, which keeps
+     * half-block lines on half-block lines either way.
+     */
+    static Vec3 snappedFeet(LocalPlayer player) {
+        Vec3 p = player.position();
+        return new Vec3(com.killer560.hub.ap3.Ap3Node.snapCentre(p.x), com.killer560.hub.ap3.Ap3Node.snapY(p.y),
+                com.killer560.hub.ap3.Ap3Node.snapCentre(p.z));
+    }
+
     private static RouteNode nodeAtPlayer(LocalPlayer player, int sampleIndex) {
-        Vec3 rel = RouteCoords.toRelative(frame, player.position());
+        Vec3 rel = RouteCoords.toRelative(frame, snappedFeet(player));
         return new RouteNode(RouteNode.Type.WALK, rel.x, rel.y, rel.z,
                 RouteCoords.toRelativeYaw(frame, player.getYRot()), player.getXRot(), Math.max(0, sampleIndex));
     }
@@ -306,17 +320,6 @@ public final class RouteRecorder {
             this.awaitEnabled = awaitEnabled;
             this.awaitCondition = awaitCondition;
             this.awaitAmount = awaitAmount;
-        }
-
-        /** The deprecated {@code /ar add start} alias: just the start flag. */
-        public static NodeModifiers startOnly() {
-            return new NodeModifiers(true, false, RouteNode.AwaitCondition.SECRET, 1);
-        }
-
-        /** The deprecated {@code /ar add await} alias: just the default await (1 secret) - the old AWAIT node's
-         *  own default when it was added with no argument (the command tree never actually passed it one). */
-        public static NodeModifiers awaitDefault() {
-            return new NodeModifiers(false, true, RouteNode.AwaitCondition.SECRET, 1);
         }
     }
 
@@ -357,7 +360,7 @@ public final class RouteRecorder {
         if (target.nodes().size() >= RouteStore.MAX_NODES) {
             return bad("This route already has " + RouteStore.MAX_NODES + " nodes.");
         }
-        Vec3 rel = RouteCoords.toRelative(f, player.position());
+        Vec3 rel = RouteCoords.toRelative(f, snappedFeet(player));
         int anchor;
         if (recording) {
             anchor = Math.max(0, target.path().size() - 1);
@@ -424,6 +427,9 @@ public final class RouteRecorder {
         }
         if (!recording) {
             RouteStore.getInstance().save();
+            // He is standing on the node he just placed: it must not go off the moment chat closes, only when he
+            // walks back onto it (AP3's rule for a freshly placed node).
+            AutoRoutesFeature.latchUnderfoot(node);
         }
         if (mods.start) {
             // "setting it on a new node clears it from whatever had it (and say so in chat)" (task spec).

@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * {@code moveVector = new Vec2(calculateImpulse(left, right), calculateImpulse(forward, backward)).normalized()}).
  * <p>
  * The physical keys are never touched, so the {@code keyPresses} read at the top are the player's own - that is how
- * "the player pressed WASD/space, stop immediately" is detected. Without this mixin (config not registered) the
+ * "the player pressed WASD/space" is detected ({@code RouteExecutor#onInputTick} decides what that means). Without this mixin (config not registered) the
  * executor falls back to holding the key mappings, exactly like {@code AutoWalker}.
  * <p>
  * Registration: {@code killer560smod-autoroutes.mixins.json} must be listed in {@code fabric.mod.json} - an
@@ -33,11 +33,11 @@ public abstract class AutoRoutesInputMixin extends ClientInput {
             return;
         }
         Input keys = this.keyPresses;
-        if (keys.forward() || keys.backward() || keys.left() || keys.right() || keys.jump()) {
-            RouteExecutor.onUserMovementInput();
-            return;
-        }
-        if (!RouteExecutor.isDriving()) {
+        boolean userKeys = keys.forward() || keys.backward() || keys.left() || keys.right() || keys.jump();
+        // The executor decides: keys held from before it took over are overridden, a fresh press is a takeover
+        // (see RouteExecutor#onInputTick). An override with nothing driven installs an all-off record (plus the
+        // etherwarp's sneak), so held keys move nothing while a node's action runs.
+        if (!RouteExecutor.onInputTick(userKeys)) {
             return;
         }
         this.keyPresses = RouteExecutor.drivenInput();

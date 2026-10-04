@@ -289,6 +289,11 @@ physics. Read the relevant one before touching either area.
   `stoppedByUser`/`justFinished`, and both make `AutoRoutesFeature` latch instead of arming *while the player
   stands inside a node* - which is exactly where a map warp puts him. Clear them whenever something other than
   the player cancels a route.
+- A movement key held when an Auto Routes node fires is the walk that got him there, not a takeover. The input
+  mixin used to return before installing the route's input whenever any movement key was down, so walking onto
+  an `/ar add ew start` node never got the etherwarp's sneak out and timed out (and a driven route stopped on its
+  first tick) - traced in the code 2026-10-04, not yet confirmed in game. `RouteExecutor.onInputTick` now overrides keys held since the route took over and treats only a
+  press after a release as "you moved" - AP3's align rule.
 - **Moving a setting to a different sub-tab silently orphans its scoped tooltip.** `SettingTooltips.describe`
   looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
   entry stops being found the moment that button is built by a different tab - no error, the hover text just
