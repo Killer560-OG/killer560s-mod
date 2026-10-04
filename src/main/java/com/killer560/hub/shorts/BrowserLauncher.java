@@ -1,10 +1,10 @@
 package com.killer560.hub.shorts;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 
 import java.io.BufferedReader;
@@ -28,7 +28,7 @@ final class BrowserLauncher {
     }
 
     static Path profileDir() {
-        return FabricLoader.getInstance().getConfigDir().resolve("killer560smod-shorts-profile");
+        return ModPaths.config("killer560smod-shorts-profile");
     }
 
     /** @return absolute path to msedge.exe/chrome.exe, or null if neither is installed. */

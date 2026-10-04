@@ -1,10 +1,10 @@
 package com.killer560.hub.fullbright;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -16,7 +16,7 @@ public final class FullbrightConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-fullbright.json");
+            ModPaths.config("killer560smod-fullbright.json");
 
     private static FullbrightConfig instance;
 

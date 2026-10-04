@@ -1,11 +1,11 @@
 package com.killer560.hub.social;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -17,7 +17,7 @@ import java.nio.file.Path;
  * the New tab until confirmed working), same load/save shape as {@code teammates.TeammatesConfig}.
  * <p>
  * The actual accumulated per-player time/run data is NOT in here - it lives in {@link BestFriendsStore},
- * its own file under {@code config/killer560smod-social/}, for the same reason {@code runsummary.RunHistoryStore}
+ * its own file under {@code config/killer560/social/friends/killer560smod-social/}, for the same reason {@code runsummary.RunHistoryStore}
  * keeps run history out of a plain {@code killer560smod-*.json}: {@code profiles.ProfileManager} snapshots,
  * applies and overwrites every {@code killer560smod-*.json} setting file, and real accumulated data (that
  * killer560 explicitly wants kept "forever") must never be silently replaced by switching profiles.
@@ -26,7 +26,7 @@ public final class BestFriendsConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-bestfriends.json");
+            ModPaths.config("killer560smod-bestfriends.json");
 
     public enum SortMode {
         TIME("Time Together"), RUNS("Dungeon Runs"), NAME("Name");

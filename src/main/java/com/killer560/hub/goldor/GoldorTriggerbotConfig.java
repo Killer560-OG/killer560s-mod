@@ -1,5 +1,6 @@
 package com.killer560.hub.goldor;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -7,7 +8,6 @@ import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.SkyblockGate;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -30,7 +30,7 @@ public final class GoldorTriggerbotConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-goldortriggerbot.json");
+            ModPaths.config("killer560smod-goldortriggerbot.json");
 
     public static final int MIN_CPS = 1;
     /** The gate's one-tick floor caps any automation here - see this class's doc. */

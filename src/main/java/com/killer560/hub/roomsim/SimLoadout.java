@@ -1,5 +1,6 @@
 package com.killer560.hub.roomsim;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -10,7 +11,6 @@ import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -43,7 +43,7 @@ public final class SimLoadout {
     private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-sim-loadout.json");
+            ModPaths.config("killer560smod-sim-loadout.json");
 
     /** Hotbar plus the main inventory - the whole player inventory, in slot order. */
     private static final int SLOTS = 36;

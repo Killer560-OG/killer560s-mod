@@ -80,6 +80,10 @@ public class Killer560ModClient implements ClientModInitializer {
     public void onInitializeClient() {
         ModCompatibility.refuseIfFirmamentPresent();
 
+        // Before anything reads a setting: sweep every killer560smod-* file and folder out of the config root into
+        // config/killer560/<category>/<feature>/, so the root is clean even for features not touched this session.
+        com.killer560.hub.util.ModPaths.migrateAll();
+
         // The one startup line worth keeping, and the only thing this class logs now: which jar is actually
         // running. Four instances have been caught two builds behind with an unpromoted .jar.pending, and the
         // legit and cheat variants are indistinguishable once installed - so say it once, in the log the bug

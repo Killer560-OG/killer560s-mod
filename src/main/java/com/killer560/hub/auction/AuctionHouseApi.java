@@ -1,5 +1,6 @@
 package com.killer560.hub.auction;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -10,7 +11,6 @@ import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
 import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
 import com.killer560.hub.profileviewer.item.LegacyItems;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -92,7 +92,7 @@ public final class AuctionHouseApi {
     private static final Logger LOGGER = ModLog.get("killer560smod-auctionhouse");
 
     private static final String AUCTIONS_URL = "https://api.hypixel.net/skyblock/auctions";
-    private static final Path CACHE_PATH = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-auction-cache.json");
+    private static final Path CACHE_PATH = ModPaths.config("killer560smod-auction-cache.json");
     private static final long AUTO_RESCAN_MINUTES = 5;
     /** Pause between each page fetch during a scan - "page through it slowly and never block". */
     private static final long PAGE_DELAY_MS = 250;

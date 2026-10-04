@@ -21,7 +21,7 @@ import java.nio.file.Path;
  * and after a night of arguing with simulations the only way left to tell which of us is wrong is to record the
  * real thing. Every claim about that jump so far has come from a model; this is the ground truth it has to match.
  * <p>
- * Toggled with {@code /ap3 record}. It writes {@code config/killer560smod/ap3-trajectory.json}: one entry a tick
+ * Toggled with {@code /ap3 record}. It writes {@code config/killer560/dungeons/ap3/ap3-trajectory.json}: one entry a tick
  * with position, velocity, whether he was on the ground, his yaw and the keys he was holding, plus the speed
  * attribute in force - which is the other thing that has been assumed rather than measured.
  */
@@ -102,8 +102,7 @@ public final class Ap3Trajectory {
             }
             root.addProperty("ticks", ticks.size());
             root.add("path", ticks);
-            Path f = Minecraft.getInstance().gameDirectory.toPath()
-                    .resolve("config").resolve("killer560smod").resolve("ap3-trajectory.json");
+            Path f = com.killer560.hub.util.ModPaths.config("killer560smod/ap3-trajectory.json");
             Files.createDirectories(f.getParent());
             Files.writeString(f, root.toString(), StandardCharsets.UTF_8);
             ModChat.send("AP3", ModChat.text("Recorded "), ModChat.value(ticks.size() + " ticks"),

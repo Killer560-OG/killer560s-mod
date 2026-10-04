@@ -1,6 +1,6 @@
 package com.killer560.hub.pathfinding;
 
-import net.fabricmc.loader.api.FabricLoader;
+import com.killer560.hub.util.ModPaths;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Downloads and caches the island navigation graphs at runtime, the same way {@code roomdatabase/RoomDatabase} handles
  * the dungeon room database: nothing is bundled in this repo, the files live in the config folder
- * ({@code config/killer560smod-pathfinding/graphs/}), a failed fetch backs off instead of retrying every tick, and a
+ * ({@code config/killer560/skyblock/pathfinding/killer560smod-pathfinding/graphs/}), a failed fetch backs off instead of retrying every tick, and a
  * previously downloaded copy keeps working while the network is down.
  * <p>
  * Source: SkyHanni's own public data repo, {@code constants/island_graphs/<ISLAND>.json} in
@@ -63,7 +63,7 @@ public final class GraphRepository {
     }
 
     public static Path dataDir() {
-        return FabricLoader.getInstance().getConfigDir().resolve("killer560smod-pathfinding").resolve("graphs");
+        return ModPaths.config("killer560smod-pathfinding").resolve("graphs");
     }
 
     /** The graph for this island if it is already loaded, else null (a background load is started). */

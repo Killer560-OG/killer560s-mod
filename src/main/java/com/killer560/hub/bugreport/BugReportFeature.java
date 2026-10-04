@@ -1,5 +1,6 @@
 package com.killer560.hub.bugreport;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -106,7 +107,7 @@ public final class BugReportFeature {
     }
 
     private static Path buildZip() throws Exception {
-        Path bugReportsDir = FabricLoader.getInstance().getConfigDir().resolve("bug-reports");
+        Path bugReportsDir = ModPaths.config("bug-reports");
         Files.createDirectories(bugReportsDir);
         String timestamp = TIMESTAMP_FORMAT.format(LocalDateTime.now());
         Path zipPath = bugReportsDir.resolve("killer560smod-bugreport-" + timestamp + ".zip");
@@ -185,11 +186,10 @@ public final class BugReportFeature {
 
     private static List<Path> listConfigFiles() {
         List<Path> files = new ArrayList<>();
-        Path configDir = FabricLoader.getInstance().getConfigDir();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir, "killer560smod-*.json")) {
-            for (Path entry : stream) {
-                String name = entry.getFileName().toString();
-                if (Files.isRegularFile(entry) && !FULLY_EXCLUDED_CONFIG_FILES.contains(name)) {
+        try {
+            // Every killer560smod-*.json across the config/killer560 tree - ModPaths keeps the names unchanged.
+            for (Path entry : ModPaths.settingFiles()) {
+                if (!FULLY_EXCLUDED_CONFIG_FILES.contains(entry.getFileName().toString())) {
                     files.add(entry);
                 }
             }

@@ -1,12 +1,12 @@
 package com.killer560.hub.croesus;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -23,14 +23,14 @@ import java.util.concurrent.Executors;
 
 /**
  * Croesus Profit Logger storage: every confirmed claim appended to
- * {@code config/killer560smod-croesus-log.json} ({@code entries}), plus running all-time totals per floor
+ * {@code config/killer560/dungeons/runs/killer560smod-croesus-log.json} ({@code entries}), plus running all-time totals per floor
  * ({@code totals}) and in-memory session totals. "Reset totals" clears both totals; the entry history is
  * kept (it's the "full log" - delete the file to wipe it).
  */
 public final class CroesusProfitLog {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-croesus");
-    private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-croesus-log.json");
+    private static final Path PATH = ModPaths.config("killer560smod-croesus-log.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final ExecutorService WRITER = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "killer560smod-croesus-log-writer");

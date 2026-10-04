@@ -1,11 +1,11 @@
 package com.killer560.hub.voicetotext;
 
+import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonParser;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -173,7 +173,7 @@ public final class VoiceToTextFeature {
     }
 
     private static Path modelDirectory() {
-        return FabricLoader.getInstance().getConfigDir().resolve("killer560smod-voice-model").resolve(MODEL_DIR_NAME);
+        return ModPaths.config("killer560smod-voice-model").resolve(MODEL_DIR_NAME);
     }
 
     /** Caps for the Vosk model archive (2026-09-16 security pass). The real small-English model is about

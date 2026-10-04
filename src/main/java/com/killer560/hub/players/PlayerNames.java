@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
  * <p>
  * Lookup order, cheapest first:
  * <ol>
- *   <li>The persisted cache ({@link PlayerNameCache}, {@code config/killer560smod-playernames.json}).</li>
+ *   <li>The persisted cache ({@link PlayerNameCache}, {@code config/killer560/social/playernames/killer560smod-playernames.json}).</li>
  *   <li>Whoever is in your current lobby right now: a {@code PlayerInfo} tab-list entry already carries a
  *       real UUID for free, so it's scanned and cached before any network call is ever considered.</li>
  *   <li>Mojang's public profile endpoints, no API key (verified current 2026-09-21, minecraft.wiki/w/Mojang_API):

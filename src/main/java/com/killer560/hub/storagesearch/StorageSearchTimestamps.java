@@ -1,10 +1,10 @@
 package com.killer560.hub.storagesearch;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -22,9 +22,9 @@ public final class StorageSearchTimestamps {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-storagesearch-timestamps.json");
+            ModPaths.config("killer560smod-storagesearch-timestamps.json");
     private static final Path OVERLAY_CACHE_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-storageoverlay-cache.json");
+            ModPaths.config("killer560smod-storageoverlay-cache.json");
 
     private static final Map<String, Long> TIMES = new HashMap<>();
     private static boolean loaded = false;

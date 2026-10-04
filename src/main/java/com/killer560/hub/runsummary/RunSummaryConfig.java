@@ -1,21 +1,21 @@
 package com.killer560.hub.runsummary;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.SkyblockGate;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Persisted Dungeon Run Summary SETTINGS - {@code config/killer560smod-runsummary.json}, a normal
+ * Persisted Dungeon Run Summary SETTINGS - {@code config/killer560/dungeons/runs/killer560smod-runsummary.json}, a normal
  * {@code killer560smod-*.json} settings file so profiles carry it. The run HISTORY itself deliberately
- * does not live here: see {@link RunHistoryStore} ({@code config/killer560smod-runs/history.json}).
+ * does not live here: see {@link RunHistoryStore} ({@code config/killer560/dungeons/runs/killer560smod-runs/history.json}).
  * <p>
  * Ships disabled by default, and the compact chat summary ships OFF on top of that so it can never
  * fight {@code splittimers/SplitTimersFeature}'s existing end-of-run chat summary.
@@ -24,7 +24,7 @@ public final class RunSummaryConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-runsummary.json");
+            ModPaths.config("killer560smod-runsummary.json");
 
     public static final int MIN_RUNS = 5;
     public static final int MAX_RUNS = RunHistoryStore.HARD_MAX;

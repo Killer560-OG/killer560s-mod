@@ -1,5 +1,6 @@
 package com.killer560.hub.pathfinding;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -7,7 +8,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -22,8 +22,8 @@ import java.util.Map;
 /**
  * The per-profile "which fairy souls have I already found" log, persisted across restarts.
  * <p>
- * Lives in {@code config/killer560smod-pathfinding/fairy-souls.json} - deliberately inside the feature's own folder
- * rather than as a {@code config/killer560smod-*.json} file, because {@code profiles/ProfileManager} snapshots and
+ * Lives in {@code config/killer560/skyblock/pathfinding/killer560smod-pathfinding/fairy-souls.json} - deliberately inside the feature's own folder
+ * rather than as a {@code killer560smod-*.json} file, because {@code profiles/ProfileManager} snapshots and
  * overwrites every file matching that name pattern, and this is real run data, not a setting.
  * <p>
  * Two sources feed it, the way SkyHanni's {@code FastFairySoulsPathfinder} does it:
@@ -42,8 +42,7 @@ public final class FairySoulStore {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final double MATCH_DISTANCE_SQ = 9.0;
 
-    private static final Path FILE = FabricLoader.getInstance().getConfigDir()
-            .resolve("killer560smod-pathfinding").resolve("fairy-souls.json");
+    private static final Path FILE = ModPaths.config("killer560smod-pathfinding").resolve("fairy-souls.json");
 
     /** One island's record inside one profile. */
     public static final class IslandRecord {

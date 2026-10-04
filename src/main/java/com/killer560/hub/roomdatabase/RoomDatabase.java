@@ -1,8 +1,8 @@
 package com.killer560.hub.roomdatabase;
 
+import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.chunkcache.ChunkCacheManager;
 import com.google.gson.Gson;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -130,7 +130,7 @@ public final class RoomDatabase {
     }
 
     private static Path dataDir() {
-        return FabricLoader.getInstance().getConfigDir().resolve("killer560smod-roomdata");
+        return ModPaths.config("killer560smod-roomdata");
     }
 
     private static void loadBlocking() {

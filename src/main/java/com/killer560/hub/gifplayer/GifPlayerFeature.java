@@ -1,11 +1,11 @@
 package com.killer560.hub.gifplayer;
 
+import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.hud.HudSeen;
 import com.mojang.blaze3d.platform.NativeImage;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -39,7 +39,7 @@ public final class GifPlayerFeature {
     private static final int MAX_DISPLAY_SIZE = 256;
 
     private static final Path GIF_FOLDER =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-gifs");
+            ModPaths.config("killer560smod-gifs");
 
     /** Filename -> its loaded/playing state. Only present here while enabled and successfully decoded. */
     private static final Map<String, LoadedGif> loaded = new LinkedHashMap<>();

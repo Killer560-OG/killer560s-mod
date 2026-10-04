@@ -1,5 +1,6 @@
 package com.killer560.hub.mining.profit;
 
+import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -9,7 +10,6 @@ import com.google.gson.JsonParser;
 import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.pathfinding.IslandDetector;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -50,7 +50,7 @@ public final class MiningProfitTracker {
     private static final Logger LOGGER = ModLog.get("killer560smod-mining-profit");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path DATA_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-mining-profit.json");
+            ModPaths.config("killer560smod-mining-profit.json");
 
     /** Hypixel islands where "Mining Islands Only" lets the clock run - {@link IslandDetector}'s own graph
      *  island names, the same ones {@code pathfinding} features already gate on. */

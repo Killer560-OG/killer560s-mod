@@ -1,11 +1,11 @@
 package com.killer560.hub.abilitykeybinds;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -18,7 +18,7 @@ public final class AbilityKeybindsConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-abilitykeybinds.json");
+            ModPaths.config("killer560smod-abilitykeybinds.json");
 
     /** Bumped to 2 when the Ability/Ultimate packets were un-swapped (2026-09-20) - a version-1 file has its
      *  two saved codes swapped on load so each physical key keeps doing exactly what it did before the fix. */

@@ -350,8 +350,7 @@ final class Ap3RouteCache {
     // ---- on disk -------------------------------------------------------------------------------------------------
 
     private static Path file() {
-        return Minecraft.getInstance().gameDirectory.toPath()
-                .resolve("config").resolve("killer560smod").resolve("ap3-routes.json");
+        return com.killer560.hub.util.ModPaths.config("killer560smod/ap3-routes.json");
     }
 
     private static synchronized void load() {

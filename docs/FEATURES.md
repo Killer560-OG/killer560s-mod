@@ -251,7 +251,7 @@ AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phas
 - The mod menu remembers your scroll position, selected tab, and search text between opens
 
 **Profiles**
-- Save your current settings as a named profile, switch between profiles, and export one to a single `.zip` file to share with a friend (they drop it in `config/killer560smod-profiles/` and import it). Excludes real credentials (session login token, per-account proxies) and run caches - only actual feature settings travel with a profile. Switching applies immediately to disk; restart Minecraft for every feature to pick it up
+- Save your current settings as a named profile, switch between profiles, and export one to a single `.zip` file to share with a friend (they drop it in `config/killer560/system/profiles/killer560smod-profiles/` and import it). Excludes real credentials (session login token, per-account proxies) and run caches - only actual feature settings travel with a profile. Switching applies immediately to disk; restart Minecraft for every feature to pick it up
 
 ## Requirements
 

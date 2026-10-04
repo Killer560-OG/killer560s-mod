@@ -1,11 +1,11 @@
 package com.killer560.hub.cheatutils;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -24,7 +24,7 @@ public final class CheatUtilsConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-cheatutils.json");
+            ModPaths.config("killer560smod-cheatutils.json");
     private static final Random RANDOM = new Random();
 
     private static CheatUtilsConfig instance;

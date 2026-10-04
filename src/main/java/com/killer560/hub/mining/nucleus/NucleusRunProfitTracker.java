@@ -1,5 +1,6 @@
 package com.killer560.hub.mining.nucleus;
 
+import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -9,7 +10,6 @@ import com.killer560.hub.mining.profit.MiningItemPricer;
 import com.killer560.hub.pathfinding.IslandDetector;
 import com.killer560.hub.rngmeter.RngItemNames;
 import com.killer560.hub.util.ChatObserver;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
@@ -57,7 +57,7 @@ public final class NucleusRunProfitTracker {
     private static final Logger LOGGER = ModLog.get("killer560smod-nucleus-profit");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path DATA_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-nucleus-profit.json");
+            ModPaths.config("killer560smod-nucleus-profit.json");
 
     private static final Pattern LOOT_START = Pattern.compile("CRYSTAL NUCLEUS LOOT BUNDLE");
     private static final Pattern LOOT_END = Pattern.compile("▬{20,}");

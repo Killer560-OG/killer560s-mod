@@ -1,5 +1,6 @@
 package com.killer560.hub.ap3;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -8,7 +9,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.Direction;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -30,9 +30,9 @@ import java.util.regex.Pattern;
  * Settings live in their own file ({@link Ap3Config}), so this one is nothing but chains.
  * <p>
  * <b>Which file</b> (killer560, 2026-09-21: "I should be able to click into it and select any of the ap3's in my
- * folder, and create new ones"): every chains file lives in {@code config/killer560smod-ap3/} and exactly one of them
+ * folder, and create new ones"): every chains file lives in {@code config/killer560/dungeons/ap3/killer560smod-ap3/} and exactly one of them
  * is in use at a time - {@link Ap3Config#getChainsFile()}, {@code default.json} until he picks another. The old
- * single file {@code config/killer560smod-ap3.json} is copied into the folder as {@code default.json} the first time
+ * single file {@code config/killer560/dungeons/ap3/killer560smod-ap3.json} is copied into the folder as {@code default.json} the first time
  * the folder has no such file, and left where it was. {@link #listConfigNames()}, {@link #select} and
  * {@link #createConfig} are what the "Choose AP3 Config" screen drives.
  * <p>
@@ -109,7 +109,7 @@ public final class Ap3Store {
 
     /** The folder every chains file lives in (the tab's "Open Folder" button); created if missing. */
     public static Path directory() {
-        Path dir = FabricLoader.getInstance().getConfigDir().resolve(FOLDER_NAME);
+        Path dir = ModPaths.config(FOLDER_NAME);
         try {
             Files.createDirectories(dir);
         } catch (Exception ignored) {
@@ -267,7 +267,7 @@ public final class Ap3Store {
     private static void migrateLegacyFile() {
         try {
             Path target = directory().resolve(DEFAULT_CONFIG_NAME);
-            Path legacy = FabricLoader.getInstance().getConfigDir().resolve(LEGACY_FILE_NAME);
+            Path legacy = ModPaths.config(LEGACY_FILE_NAME);
             if (!Files.exists(target) && Files.isRegularFile(legacy)) {
                 Files.copy(legacy, target);
                 LOGGER.info("[AP3] Copied the old {} into {}/{}", LEGACY_FILE_NAME, FOLDER_NAME, DEFAULT_CONFIG_NAME);

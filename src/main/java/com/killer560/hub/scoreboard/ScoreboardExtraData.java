@@ -41,7 +41,7 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * Game data the Custom Scoreboard needs beyond the sidebar/tab list, cached and persisted to
- * {@code config/killer560smod-customscoreboard/data.json} so it survives restarts (SkyHanni keeps these in its
+ * {@code config/killer560/interface/customscoreboard/killer560smod-customscoreboard/data.json} so it survives restarts (SkyHanni keeps these in its
  * profile storage; one global cache here):
  * <ul>
  * <li><b>Mayor / Minister</b> - Hypixel's keyless {@code /v2/resources/skyblock/election} (SkyHanni's

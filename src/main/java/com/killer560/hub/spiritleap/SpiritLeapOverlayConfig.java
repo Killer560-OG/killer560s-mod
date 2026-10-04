@@ -1,10 +1,10 @@
 package com.killer560.hub.spiritleap;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -17,7 +17,7 @@ public final class SpiritLeapOverlayConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-spiritleapoverlay.json");
+            ModPaths.config("killer560smod-spiritleapoverlay.json");
 
     /** Scale range of the custom leap menu (2026-09-15, killer560: "let the scale go up to 400%"). The renderer
      *  still shrinks the boxes to fit the window, so a big scale never pushes them off-screen. */

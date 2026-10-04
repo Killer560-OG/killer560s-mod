@@ -14,7 +14,7 @@ import java.util.Locale;
 
 /**
  * One finished dungeon run, exactly as {@link RunSummaryFeature} assembled it - the only thing that ever
- * gets written to {@code config/killer560smod-runs/history.json}.
+ * gets written to {@code config/killer560/dungeons/runs/killer560smod-runs/history.json}.
  * <p>
  * Everything here is COLLECTED, never computed a second time: the per-phase splits come from
  * {@code splittimers/SplitTimersFeature}'s public segment getters, the score estimate from

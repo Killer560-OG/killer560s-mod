@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonextras;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -7,7 +8,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
 /**
  * Swappable Breaker Aura configs - killer560: "breaker aura also needs an option to swap between breaker auras
  * just like the auto routes can swap. with the same easy copy and whatnot." Follows {@code ap3/Ap3Store} exactly:
- * every config is its own file in {@code config/killer560smod-breakeraura/}, exactly one is active at a time
+ * every config is its own file in {@code config/killer560/dungeons/breakeraura/killer560smod-breakeraura/}, exactly one is active at a time
  * ({@link DungeonExtrasConfig#getBreakerAuraConfigFile()}), and {@link #listConfigNames()} / {@link #select} /
  * {@link #createConfig} / {@link #delete} are what {@link BreakerAuraConfigScreen} drives.
  * <p>
@@ -104,7 +104,7 @@ public final class BreakerAuraStore {
 
     /** The folder every config file lives in (the tab's "Open Folder" button); created if missing. */
     public static Path directory() {
-        Path dir = FabricLoader.getInstance().getConfigDir().resolve(FOLDER_NAME);
+        Path dir = ModPaths.config(FOLDER_NAME);
         try {
             Files.createDirectories(dir);
         } catch (Exception ignored) {

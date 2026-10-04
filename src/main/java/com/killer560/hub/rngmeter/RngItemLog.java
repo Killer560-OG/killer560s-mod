@@ -1,10 +1,10 @@
 package com.killer560.hub.rngmeter;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,13 +19,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * so every page of a multi-page floor accumulates under the same key - opening just page 1 of F7
  * still shows every reward ever seen across both its pages, from this session or a past one).
  *
- * <p>Saved to {@code config/killer560smod-rng-item-log.json}, sorted for a stable, human-readable,
+ * <p>Saved to {@code config/killer560/dungeons/runs/killer560smod-rng-item-log.json}, sorted for a stable, human-readable,
  * shareable file - the whole point being that this can be copied to a friend's install and they
  * start with everything already discovered instead of re-scanning every menu themselves.
  */
 public final class RngItemLog {
 
-    private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-rng-item-log.json");
+    private static final Path PATH = ModPaths.config("killer560smod-rng-item-log.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static final Map<String, Map<String, Long>> LOG = new ConcurrentHashMap<>();

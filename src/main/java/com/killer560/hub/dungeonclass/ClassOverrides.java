@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonclass;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -8,7 +9,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.players.PlayerNames;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -23,7 +23,7 @@ import java.util.UUID;
 
 /**
  * MOD-WIDE manual class overrides: player -&gt; {@link DungeonClass}, persisted in
- * {@code config/killer560smod-classoverrides.json}.
+ * {@code config/killer560/dungeons/runs/killer560smod-classoverrides.json}.
  * <p>
  * killer560, 2026-09-16: "You could implement the class override system as something mod wide as it would be useful
  * during stuff like the leap menu being changed as well to fit classes whenever we have duplicates. I already have
@@ -56,7 +56,7 @@ public final class ClassOverrides {
     private static final Logger LOGGER = ModLog.get("killer560smod-classoverrides");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-classoverrides.json");
+            ModPaths.config("killer560smod-classoverrides.json");
     /** A friend's file, not a network input - but still bounded. */
     public static final int MAX_ENTRIES = 64;
     public static final int MAX_IGN = 16;

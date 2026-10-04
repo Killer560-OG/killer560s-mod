@@ -1,10 +1,10 @@
 package com.killer560.hub.storagesearch;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 
@@ -33,7 +33,7 @@ public final class IslandChestCache {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CACHE_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-storagesearch-chests.json");
+            ModPaths.config("killer560smod-storagesearch-chests.json");
 
     /** Hard cap so a long session of opening chests can never grow the file without bound. Oldest goes first. */
     private static final int MAX_CHESTS = 400;

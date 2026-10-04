@@ -1,6 +1,6 @@
 package com.killer560.hub.cringe;
 
-import net.fabricmc.loader.api.FabricLoader;
+import com.killer560.hub.util.ModPaths;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -16,8 +16,7 @@ import java.util.List;
  *  emptied out or deleted. */
 public final class CringeLines {
 
-    private static final Path FILE = FabricLoader.getInstance().getConfigDir()
-            .resolve("killer560smod-cringe").resolve("cringe-lines.txt");
+    private static final Path FILE = ModPaths.config("killer560smod-cringe").resolve("cringe-lines.txt");
 
     private static volatile List<String> current = List.of();
 

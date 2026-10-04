@@ -23,7 +23,7 @@ import com.killer560.hub.compat.McCompat;
  * purple of the picture. He also said the same shape is meant to serve every skill later, so the cards and the
  * graph live in {@link ProfitPanels} and know nothing about dungeons; only this screen does.
  *
- * <p>Everything is still read out of the existing {@code config/killer560smod-croesus-log.json}. The concept
+ * <p>Everything is still read out of the existing {@code config/killer560/dungeons/runs/killer560smod-croesus-log.json}. The concept
  * needed no new tracking at all: {@link CroesusProfitLog} already kept per-floor totals, a per-item index and
  * every claim with its cost, value and profit, which is exactly what the three tabs want. There is no second
  * store and no new file.

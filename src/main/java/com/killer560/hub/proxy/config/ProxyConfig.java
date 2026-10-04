@@ -1,5 +1,6 @@
 package com.killer560.hub.proxy.config;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -8,7 +9,6 @@ import io.netty.handler.proxy.ProxyHandler;
 import io.netty.handler.proxy.Socks4ProxyHandler;
 import io.netty.handler.proxy.Socks5ProxyHandler;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -18,7 +18,7 @@ import java.nio.file.Path;
 
 /**
  * Singleton holding the proxy configuration. Persisted as JSON in the Fabric
- * config directory ({@code config/proxyclient.json}) and used to build the
+ * config directory ({@code config/killer560/system/proxy/proxyclient.json}) and used to build the
  * Netty {@link ProxyHandler} that is inserted into the client's outbound
  * channel pipeline.
  */
@@ -26,7 +26,7 @@ public final class ProxyConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("proxyclient.json");
+            ModPaths.config("proxyclient.json");
 
     private static ProxyConfig instance;
 

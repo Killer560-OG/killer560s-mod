@@ -1,5 +1,6 @@
 package com.killer560.hub.social;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -7,7 +8,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -24,7 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The persisted Party Time Tracker data: {@code config/killer560smod-social/bestfriends.json}.
+ * The persisted Party Time Tracker data: {@code config/killer560/social/friends/killer560smod-social/bestfriends.json}.
  * <p>
  * A subfolder file, deliberately - same reasoning as {@code runsummary.RunHistoryStore}: this is real
  * accumulated data killer560 explicitly wants kept "forever" (2026-09-21 settled answer), not a setting, so
@@ -46,7 +46,7 @@ public final class BestFriendsStore {
     private static final Logger LOGGER = ModLog.get("killer560smod-bestfriends");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private static final Path DIR = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-social");
+    private static final Path DIR = ModPaths.config("killer560smod-social");
     private static final Path FILE = DIR.resolve("bestfriends.json");
     private static final int FILE_VERSION = 1;
 

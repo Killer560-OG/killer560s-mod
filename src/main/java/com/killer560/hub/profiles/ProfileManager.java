@@ -1,6 +1,6 @@
 package com.killer560.hub.profiles;
 
-import net.fabricmc.loader.api.FabricLoader;
+import com.killer560.hub.util.ModPaths;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -24,7 +24,7 @@ import java.util.zip.ZipOutputStream;
  * Real config-file profile system - killer560's "custom mod profiles... clicking between them will
  * change which settings" request. A profile is a real, plain snapshot of every one of this mod's own
  * `killer560smod-*.json` setting files, copied into its own folder under
- * {@code config/killer560smod-profiles/<name>/}. Applying a profile overwrites the live JSON files on disk
+ * {@code config/killer560/system/profiles/killer560smod-profiles/<name>/}. Applying a profile overwrites the live JSON files on disk
  * and then re-runs every config class's static {@code load()} on the client thread (see
  * {@link #reloadAllConfigs()}). Before 2026-09-15 it only wrote the files: every {@code XyzConfig} keeps its
  * settings in a static instance loaded once per session, so the next {@code save()} of ANY setting wrote
@@ -38,9 +38,8 @@ import java.util.zip.ZipOutputStream;
 public final class ProfileManager {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-profiles");
-    private static final Path CONFIG_DIR = FabricLoader.getInstance().getConfigDir();
-    private static final Path PROFILES_DIR = CONFIG_DIR.resolve("killer560smod-profiles");
-    private static final Path ACTIVE_MARKER = CONFIG_DIR.resolve("killer560smod-active-profile.txt");
+    private static final Path PROFILES_DIR = ModPaths.config("killer560smod-profiles");
+    private static final Path ACTIVE_MARKER = ModPaths.config("killer560smod-active-profile.txt");
 
     private static final Set<String> EXCLUDED_FILES = Set.of(
             "killer560smod-session-login.json",
@@ -189,14 +188,13 @@ public final class ProfileManager {
     }
 
     private static List<Path> liveConfigFiles() {
+        // Every killer560smod-*.json across the config/killer560 tree, at feature-folder depth only - so the copies
+        // inside this class's own profiles folder are never read back as live settings.
         List<Path> files = new ArrayList<>();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(CONFIG_DIR, "killer560smod-*.json")) {
-            for (Path entry : stream) {
-                if (Files.isRegularFile(entry) && isProfileSettingFile(entry.getFileName().toString())) {
-                    files.add(entry);
-                }
+        for (Path entry : ModPaths.settingFiles()) {
+            if (isProfileSettingFile(entry.getFileName().toString())) {
+                files.add(entry);
             }
-        } catch (IOException ignored) {
         }
         return files;
     }
@@ -244,7 +242,8 @@ public final class ProfileManager {
                         continue;
                     }
                     inProfile.add(file.getFileName().toString());
-                    Path live = CONFIG_DIR.resolve(file.getFileName());
+                    // The name decides the folder, exactly as it does for the feature that reads the file.
+                    Path live = ModPaths.config(file.getFileName().toString());
                     if (!copyPreservingSecrets(file, live)) {
                         Files.copy(file, live, StandardCopyOption.REPLACE_EXISTING);
                     }
@@ -521,7 +520,7 @@ public final class ProfileManager {
         }
     }
 
-    /** Zips a profile's folder into {@code config/killer560smod-profiles/<name>.zip} - a single real
+    /** Zips a profile's folder into {@code config/killer560/system/profiles/killer560smod-profiles/<name>.zip} - a single real
      *  file the user can hand to a friend (Discord attachment, etc.) with no path guessing needed. */
     public static Result exportProfile(String rawName) {
         String name = sanitize(rawName);
@@ -551,7 +550,7 @@ public final class ProfileManager {
     }
 
     /** Imports a shared zip into a new profile. {@code source} may be an absolute path, or just a
-     *  filename to look for directly inside {@code config/killer560smod-profiles/} (the simplest case -
+     *  filename to look for directly inside {@code config/killer560/system/profiles/killer560smod-profiles/} (the simplest case -
      *  a friend drops the .zip they were sent into that folder and only types its name). */
     public static Result importProfile(String source, String rawNewName) {
         String name = sanitize(rawNewName);
@@ -569,7 +568,7 @@ public final class ProfileManager {
         }
         if (zipPath == null || !Files.isRegularFile(zipPath)) {
             return new Result(false, "§cCouldn't find a file at \"" + source
-                    + "\" (checked that path directly, and inside config/killer560smod-profiles/).");
+                    + "\" (checked that path directly, and inside config/killer560/system/profiles/killer560smod-profiles/).");
         }
         Path dir = PROFILES_DIR.resolve(name);
         try {
