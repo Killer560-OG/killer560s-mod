@@ -106,7 +106,9 @@ features (blink, inventory walk) were declined in September 2026 and stay declin
 Two topics have their own files, because they had grown to half this one:
 **[docs/SIM.md](docs/SIM.md)** for the dungeon sim (`roomsim/`) - room captures, floor generation,
 secret placement, doors and altitude - and **[docs/AP3.md](docs/AP3.md)** for AP3's nodes and align
-physics. Read the relevant one before touching either area.
+physics. Read the relevant one before touching either area. Feature-specific lessons (Bazaar, HUD
+elements, Superpairs, Instant Transmission, item identity, gametest) are in
+**[docs/LESSONS.md](docs/LESSONS.md)**.
 
 - `LOGGER.debug` never reaches his log. Minecraft's root log4j2 level is INFO, and a real client log
   (`26.1.2 (Dungeons)`, 29,596 lines, 2026-09-29) contains zero DEBUG lines. So a `.debug` call is not the
@@ -205,10 +207,6 @@ physics. Read the relevant one before touching either area.
   the rule below about API names - an unresolved method is indistinguishable from a misspelt one here.
 - A class placed inside a mixin-owned package throws `IllegalClassLoadError` and crashes the game at boot.
   Keep helper classes out of `mixin` packages.
-- `RenderSystem.setShaderColor` does not exist in 26.1.2, so there is no global colour multiplier and items
-  cannot be tinted per-item. The inventory HUD's Opacity now dims items with a translucent quad drawn over the
-  panel after the item loop instead: 0 hides the panel outright, and the darkening is capped at 80% so no
-  setting turns it into an unreadable black box.
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
   StackOverflows. Send below the dispatcher via `util/ServerCommands.toServer`.
 - When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
@@ -217,10 +215,6 @@ physics. Read the relevant one before touching either area.
   of them and the gap only surfaced as `Post` violations in a later test.
 - Reach must be measured to the block's **box**, not its centre — the centre reads up to half a block
   further and makes a module look out of range when it is not.
-- The gametest client runs as **java.exe**, not javaw.exe. `run-scenario.ps1` filtered on javaw only, so every
-  safeguard in it was inert — the freeze watcher never saw an unresponsive client and the deadline cleanup
-  killed nothing, while the script reported success. That is why "it still doesn't close out on freeze"
-  survived two rounds of fixes to the watching logic.
 - **A throw in a RAW chat listener disconnects him from Hypixel.** `ClientReceiveMessageEvents` runs on the
   packet path, and `ClientCommonPacketListenerImpl.onPacketError` logs "Failed to handle packet, disconnecting"
   and drops the connection. `util/ChatObserver` catches per listener; the raw events do not. On 2026-09-29 the
@@ -234,17 +228,6 @@ physics. Read the relevant one before touching either area.
   palette first (`section.maybeHas(...)`, plus `hasOnlyAir()`) does the same job in 0.7% of the reads -
   10,240 against 1,527,209 over a whole floor, verified equivalent by scenario 77 which runs BOTH algorithms
   and requires identical results. Also hoist `isLoaded`/`getChunk` out of the y loop: they depend only on x,z.
-- **A `HudElement`'s `render()` is not always where it draws.** For `croesus_start_button`,
-  `experiments_start_button`, `rng_meter_ranking`, `storage_overlay`, `inventory_hud` and `custom_scoreboard`,
-  `render()` is ONLY the HUD editor's preview and the real pixels come from a container-screen or Fabric HUD
-  layer elsewhere in the feature; `etherwarp_waypoints` never draws at all (`isVisible()` is hardcoded false).
-  So anything that needs to know "was this on screen" must be placed at each feature's own draw site, not on
-  the interface method. That is what `hud/HudSeen` does, and why `isRelevantNow` was split into
-  `isEnabledInSettings()` (the toggle) plus the draw stamp on 2026-09-30 - the old single predicate had
-  already drifted from the render path it mirrored in four places (Split Timers' tested `isInDungeon()` and
-  its `render` did not).
-- `Map.getOrDefault` EVALUATES its default eagerly. `HudConfig.getPosition` allocated a throwaway `int[2]` on
-  every call even when a saved value existed - about 110 allocations a frame across the HUD.
 - An early-out that reads "not enabled AND no key bound" is not an early-out when the key has a DEFAULT
   binding. Breaker Aura's render callback ran in every world, including the lobby, because its select key
   defaults to semicolon. Gate on the state the feature needs (in a dungeon), not on whether it is configured.
@@ -253,14 +236,6 @@ physics. Read the relevant one before touching either area.
   (2026-09-29), and `contains("has obtained Wither Key")` let anyone make the client right-click a door. Even
   an anchored `^(.{1,16}) completed a terminal!` is forgeable, because `[VIP] Bob: a` is sixteen characters -
   a name group must be `[A-Za-z0-9_]{1,16}`, which no chat prefix can be.
-- Instant Transmission is 8 blocks on Aspect of the End, Aspect of the Void AND the Etherwarp Conduit alike.
-  What changes the range is the item's own `tuned_transmission` tag - a Transmission Tuner adds a block, four
-  maximum - so a fully tuned one of any of them goes 12, and killer560 plays fully tuned ("nearly no one plays
-  with less"). AOTV is NOT 12 by nature; assuming that got AOTE and AOTV wrongly split in the route matcher
-  once already. `EtherwarpHopper` reads the same tag for the 57-block etherwarp.
-- `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker.
-  Widening it to make two items equal makes "sell my Hyperion" sell an Astraea. Loose matching belongs in
-  `matches()`, which only a route's USE_ITEM node reaches.
 - `/f7`, `/m7` and the rest are THIS MOD'S client-side shortcuts, not Hypixel commands - they expand to
   `/joininstance catacombs_floor_seven` etc. in `CommandShortcutsFeature.Shortcut`. So automation must send the
   `joininstance` form: `ServerCommands.toServer` deliberately sends below the client dispatcher, so it handed
@@ -297,32 +272,6 @@ physics. Read the relevant one before touching either area.
 - **Moving a setting to a different sub-tab silently orphans its scoped tooltip.** `SettingTooltips.describe`
   looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
   entry stops being found the moment that button is built by a different tab - no error, the hover text just
-  changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.
-- **A HUD element's `width()` must be in the registry's unit, and the HUD editor saves on a zero-pixel
-  click.** `HudElementRegistry` defines an element's on-screen size as `width() * HudConfig` scale, but the
-  Storage Overlay's `defaultX()` centred against `width() * its own slider scale` and its render pose used a
-  third combination, so the clamp, the editor box and the drawn panel measured three different panels
-  (2026-09-30). A clamp also cannot rescue a panel *wider* than the screen - it only picks which columns to
-  hide - so `gridWidthLocal()` now drops columns until the grid fits. Separately, `HudEditorScreen.
-  mouseReleased` persists a position for any press-release on a box, drag or not: one click in the editor
-  while the window was briefly 854x480 froze `storage_overlay` at the clamped `x:0` and it stayed there at
-  2560x1441, which is what "the storage overlay is no longer centered" turned out to be. A saved position is
-  never re-clamped, so the cure is deleting the element's entry from `killer560smod-hud.json`.
-- **Superpairs powerups come in two kinds, told apart by lore.** "Instant powerup!" (the `+479,095 XP` lapis
-  block, "Gained +3 Clicks") applies on the spot; only "Powerup for next click!" (Instant Find) matches the next
-  click. Arming on both spent a lone click on an Enchanted Book and reserved it, blocking its pair (2026-10-01).
-  XP reward tiles are recognised by NAME (`... Enchanting Exp`): the item varies, and cocoa beans were missed.
-  Clicking a tile that is already uncovered does not use a click (killer560, 2026-10-01). A pair's first click
-  can fail to land (tile still covered, others still read "Click any button!"); clicking the partner anyway lost
-  Experiment the Fish, so the first tile is now re-clicked before its partner.
-- `ServerTickClock`'s subscribers cannot measure a lag spike: a real stall drops the ping rate under 15/s,
-  the clock flips to client-tick fallback, and what it fires is the client's own ticks. Anything measuring
-  server stalls subscribes to `subscribeRawPing` instead (as `experiments/ServerLagSensor` does).
-- **Hypixel's Bazaar summaries are named the opposite of how they read.** In
-  `api.hypixel.net/v2/skyblock/bazaar`, `buy_summary` is the book you INSTANT-BUY OUT OF and `sell_summary` is
-  the one you instant-sell into. Verified on `VIBRANT_CORAL` (2026-09-29): `quick_status.buyPrice` 3324220.9
-  matches `buy_summary[0].pricePerUnit` and `sellPrice` 221605.8 matches `sell_summary[0]`. Reading them the
-  other way round produced a fake 1.6-billion-coin flip. `quick_status.buyPrice` is also a weighted AVERAGE,
-  matching the exact top of book on only 628 of 1833 products, so anything sizing a real purchase must walk the
-  levels. Scale check for the Bazaar-to-NPC flipper: of 819 products with an `npc_sell_price` only ~46 profit at
-  all and the worthwhile margins are 0.4%-1.5% - a result far outside that band means the book is backwards.
+  changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.- Agent worktrees are cut from `main`, not from the branch checked out here. On 2026-10-04 six were started
+  while work sat on a feature branch 26 commits ahead of `main`, and every one began on stale code. Get the
+  work onto `main` (or tell each agent its base) before fanning out.
