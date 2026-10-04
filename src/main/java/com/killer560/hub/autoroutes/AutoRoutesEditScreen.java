@@ -32,15 +32,20 @@ import java.util.Map;
  * have a dropdown section for how many secrets to wait on from 0 to 4 and an option to make it a start node or not".
  *
  * <p>Mirrors {@code Ap3EditScreen}: the same panel, text boxes read back on Save and refused whole if one is not a
- * number (a half-applied form is a node he did not ask for), "Position from me" / "Look from me" filling the boxes
- * without applying, Save / Cancel, full-precision numbers with the zeros trimmed. On top of that: the node's
- * type (the five {@code /ar add} types), Start Node, the Await Secrets dropdown, half-block nudges, the use item,
- * the breaker's blocks, Go To and Delete.
+ * number (a half-applied form is a node he did not ask for), "Look from me" filling the boxes without applying,
+ * Save / Cancel, full-precision numbers with the zeros trimmed. On top of that: the node's type (the five
+ * {@code /ar add} types), Start Node, the Await Secrets dropdown, whole-block nudges, the use item, the breaker's
+ * blocks, Go To and Delete.
+ *
+ * <p>Layout (killer560, 2026-10-04: "Remove the position from me from the edit menu and clean up the menu a little
+ * bit. Make the goto stand out more."): Go To is the full-width amber button at the top; then Position (X/Y/Z on one
+ * row, nudges under it), Aim, Item, Node (type, start, await) and Breaker sections, each under a small heading; then
+ * Save / Delete / Cancel in one row.
  *
  * <p>Coordinates and yaw are shown in WORLD terms (what F3 shows) and turned back into the room-relative values
  * the route stores on Save. A box left exactly as it was keeps the stored value bit for bit, so opening and saving
- * a node never moves it; a changed position is snapped to the half-block grid every placed node sits on
- * ({@code RouteRecorder.snappedFeet}, AP3's snapping), which is what makes two nodes on one tile a stack.
+ * a node never moves it; a changed position is snapped to the centre of its block, where every placed node sits
+ * ({@link RouteNode#snapBlockCentre}), which is what makes two nodes on one tile a stack.
  *
  * <p>Every change goes through {@link AutoRoutesFeature#applyNodeEdit}, which records it in {@link RouteHistory},
  * so {@code /ar undo} reverts a whole Save and {@code /ar redo} re-applies it.
@@ -51,7 +56,7 @@ public class AutoRoutesEditScreen extends Screen {
     private static final int PAD = 10;
     private static final int ROW = 16;
     private static final int GAP = 4;
-    private static final int LABEL_W = 62;
+    private static final int HEADING_H = 11;
     /** Tooltip scope - {@code SettingTooltipsData} keys these buttons "ar edit/<label>". */
     private static final String TOOLTIP_SCOPE = "ar edit";
 
@@ -71,6 +76,8 @@ public class AutoRoutesEditScreen extends Screen {
     private String status = "";
 
     private final List<Field> fields = new ArrayList<>();
+    /** Section headings drawn by {@link #extractRenderState}: text and y. */
+    private final List<Heading> headings = new ArrayList<>();
     /** Box text carried across a rebuild (the type changing shows or hides rows; the dropdown opening adds one). */
     private final Map<String, String> pending = new HashMap<>();
     /** The text each box started with, so an untouched box keeps the stored value exactly. */
@@ -88,7 +95,10 @@ public class AutoRoutesEditScreen extends Screen {
     private AbstractWidget tooltipWidget;
     private long tooltipSinceMs;
 
-    private record Field(String label, EditBox box) {
+    private record Field(String label, EditBox box, int labelX) {
+    }
+
+    private record Heading(String text, int y) {
     }
 
     public AutoRoutesEditScreen(Route route, RouteNode node) {
@@ -147,25 +157,35 @@ public class AutoRoutesEditScreen extends Screen {
             original.put("Item", node.item == null ? "" : node.item);
             pending.putAll(original);
         }
+        headings.clear();
         boolean aim = aims(type);
         boolean use = type == RouteNode.Type.USE_ITEM;
         boolean breaker = type == RouteNode.Type.DUNGEON_BREAKER;
-        int rows = 3 + 1 /* nudges */ + (aim ? 2 : 0) + (use ? 1 : 0) + 3 /* type, start, await */
-                + (awaitOpen ? 1 : 0) + (breaker ? 1 : 0) + 1 /* from me */;
+        int line = ROW + GAP;
+        int sections = 2 + (aim ? 1 : 0) + (use ? 1 : 0) + (breaker ? 1 : 0);
+        int rows = 2 /* xyz, nudges */ + (aim ? 2 : 0) + (use ? 1 : 0) + 2 /* type+start, await */
+                + (awaitOpen ? 1 : 0) + (breaker ? 1 : 0);
         panelW = PANEL_W;
-        panelH = 32 + rows * (ROW + GAP) + 4 + 20 + GAP + 20 + 14 + PAD;
+        panelH = 32 + 22 + GAP * 2 + sections * HEADING_H + rows * line + GAP + 20 + 14 + PAD;
         panelX = (this.width - panelW) / 2;
         panelY = Math.max(4, (this.height - panelH) / 2);
         int x = panelX + PAD;
         int w = panelW - PAD * 2;
         int y = panelY + 32;
 
-        y = addField(x, y, w, "X");
-        y = addField(x, y, w, "Y");
-        y = addField(x, y, w, "Z");
+        // The primary action, first and full width: saves, then etherwarps there with the Interactive Map's pathfinder.
+        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§6§lGo To"), b -> goTo())
+                .bounds(x, y, w, 22).primary().build());
+        y += 22 + GAP * 2;
 
-        // Half-block nudges on the WORLD axes, snapped like a placed node; a block at a time for the height.
-        String[] nudgeLabels = {"X -0.5", "X +0.5", "Z -0.5", "Z +0.5", "Y -1", "Y +1"};
+        y = heading("Position", y);
+        int third = (w - GAP * 2) / 3;
+        addField(x, y, third, "X", 12);
+        addField(x + third + GAP, y, third, "Y", 12);
+        addField(x + (third + GAP) * 2, y, w - (third + GAP) * 2, "Z", 12);
+        y += line;
+        // Whole-block nudges on the WORLD axes, each landing on a block centre like a placed node.
+        String[] nudgeLabels = {"X -1", "X +1", "Z -1", "Z +1", "Y -1", "Y +1"};
         int nw = (w - GAP * 5) / 6;
         for (int i = 0; i < nudgeLabels.length; i++) {
             final String axis = nudgeLabels[i].substring(0, 1);
@@ -173,33 +193,41 @@ public class AutoRoutesEditScreen extends Screen {
             int bx = x + i * (nw + GAP);
             button(nudgeLabels[i], b -> nudge(axis, step), bx, y, i == 5 ? x + w - bx : nw, ROW);
         }
-        y += ROW + GAP;
+        y += line;
 
         if (aim) {
-            y = addField(x, y, w, "Yaw");
-            y = addField(x, y, w, "Pitch");
+            y = heading("Aim", y);
+            int half = (w - GAP) / 2;
+            addField(x, y, half, "Yaw", 26);
+            addField(x + half + GAP, y, w - half - GAP, "Pitch", 30);
+            y += line;
+            button("Look from me", b -> fillFromPlayer(true, false), x, y, w, ROW);
+            y += line;
         }
         if (use) {
-            y = addField(x, y, w, "Item");
+            y = heading("Item", y);
+            int boxW = w - 90 - GAP;
+            addField(x, y, boxW, "Item", 0);
+            button("Item from hand", b -> fillFromPlayer(false, true), x + boxW + GAP, y, w - boxW - GAP, ROW);
+            y += line;
         }
 
+        y = heading("Node", y);
+        int half = (w - GAP) / 2;
         button(typeLabel(), b -> {
             type = cycleType(type);
             rebuildWidgets();
-        }, x, y, w, ROW);
-        y += ROW + GAP;
-
+        }, x, y, half, ROW);
         button(onOff("Start Node", start), b -> {
             start = !start;
             b.setMessage(onOff("Start Node", start));
-        }, x, y, w, ROW);
-        y += ROW + GAP;
-
+        }, x + half + GAP, y, w - half - GAP, ROW);
+        y += line;
         button(awaitLabel(), b -> {
             awaitOpen = !awaitOpen;
             rebuildWidgets();
         }, x, y, w, ROW);
-        y += ROW + GAP;
+        y += line;
         if (awaitOpen) {
             int ow = (w - GAP * AWAIT_MAX) / (AWAIT_MAX + 1);
             for (int i = 0; i <= AWAIT_MAX; i++) {
@@ -212,40 +240,34 @@ public class AutoRoutesEditScreen extends Screen {
                     rebuildWidgets();
                 }, bx, y, i == AWAIT_MAX ? x + w - bx : ow, ROW);
             }
-            y += ROW + GAP;
+            y += line;
         }
 
         if (breaker) {
-            int half = (w - GAP) / 2;
+            y = heading("Breaker", y);
             button("Pick Blocks", b -> pickBlocks(), x, y, half, ROW);
             button(onOff("Clear Blocks", clearBlocks), b -> {
                 clearBlocks = !clearBlocks;
                 b.setMessage(onOff("Clear Blocks", clearBlocks));
             }, x + half + GAP, y, w - half - GAP, ROW);
-            y += ROW + GAP;
+            y += line;
         }
 
-        int third = (w - GAP * 2) / 3;
-        button("Position from me", b -> fillFromPlayer(true, false, false), x, y, aim || use ? third : w, ROW);
-        if (aim) {
-            button("Look from me", b -> fillFromPlayer(false, true, false), x + third + GAP, y, third, ROW);
-        }
-        if (use) {
-            int bx = x + (third + GAP) * 2;
-            button("Item from hand", b -> fillFromPlayer(false, false, true), bx, y, x + w - bx, ROW);
-        }
-        y += ROW + GAP + 4;
-
-        int half = (w - GAP) / 2;
+        y += GAP;
         button("§aSave", b -> {
             if (save()) {
                 onClose();
             }
-        }, x, y, half, 20);
-        button("§6Go To", b -> goTo(), x + half + GAP, y, w - half - GAP, 20);
-        y += 20 + GAP;
-        button(confirmDelete ? "§cConfirm Delete" : "§cDelete", b -> delete(), x, y, half, 20);
-        button("Cancel", b -> onClose(), x + half + GAP, y, w - half - GAP, 20);
+        }, x, y, third, 20);
+        button(confirmDelete ? "§cConfirm Delete" : "§cDelete", b -> delete(), x + third + GAP, y, third, 20);
+        int cx = x + (third + GAP) * 2;
+        button("Cancel", b -> onClose(), cx, y, x + w - cx, 20);
+    }
+
+    /** A small section heading at {@code y}; returns the y below it. */
+    private int heading(String text, int y) {
+        headings.add(new Heading(text, y));
+        return y + HEADING_H;
     }
 
     private void button(String label, SettingsButtonWidget.OnPress onPress, int x, int y, int w, int h) {
@@ -256,13 +278,13 @@ public class AutoRoutesEditScreen extends Screen {
         this.addRenderableWidget(SettingsButtonWidget.builder(label, onPress).bounds(x, y, w, h).build());
     }
 
-    private int addField(int x, int y, int w, String label) {
-        EditBox box = new EditBox(this.font, x + LABEL_W, y, w - LABEL_W, ROW, Component.literal(label));
+    /** A text box {@code w} wide at {@code x}, its label drawn in the first {@code labelW} pixels (0: no label). */
+    private void addField(int x, int y, int w, String label, int labelW) {
+        EditBox box = new EditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(label));
         box.setMaxLength(label.equals("Item") ? RouteStore.MAX_ITEM_ID : 32);
         box.setValue(pending.getOrDefault(label, ""));
         this.addRenderableWidget(box);
-        fields.add(new Field(label, box));
-        return y + ROW + GAP;
+        fields.add(new Field(label, box, labelW > 0 ? x : -1));
     }
 
     private String typeLabel() {
@@ -292,29 +314,23 @@ public class AutoRoutesEditScreen extends Screen {
         return Component.literal(label + ": " + (on ? "§aon" : "§7off"));
     }
 
-    /** Moves the position boxes by {@code step} along a world axis, snapping x/z to the half-block grid. */
+    /** Moves the position boxes by {@code step} along a world axis, x/z landing on a block centre. */
     private void nudge(String axis, double step) {
         Double v = num(axis);
         if (v == null) {
             status = "§c" + axis + " is not a number.";
             return;
         }
-        double out = axis.equals("Y") ? Ap3Node.snapY(v + step) : Ap3Node.snapCentre(v + step);
+        double out = axis.equals("Y") ? Ap3Node.snapY(v + step) : RouteNode.snapBlockCentre(v + step);
         set(axis, fmt(out));
         status = "§7Moved - press Save to apply";
     }
 
-    /** Fills boxes from where he stands / looks / what he holds, without applying anything yet. */
-    private void fillFromPlayer(boolean position, boolean look, boolean item) {
+    /** Fills boxes from where he looks / what he holds, without applying anything yet. */
+    private void fillFromPlayer(boolean look, boolean item) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
             return;
-        }
-        if (position) {
-            Vec3 p = RouteRecorder.snappedFeet(player);
-            set("X", fmt(p.x));
-            set("Y", fmt(p.y));
-            set("Z", fmt(p.z));
         }
         if (look) {
             set("Yaw", fmt(player.getYRot()));
@@ -354,7 +370,8 @@ public class AutoRoutesEditScreen extends Screen {
                 status = "§cA coordinate is not a number - nothing was changed.";
                 return false;
             }
-            Vec3 r = RouteCoords.toRelative(frame, Ap3Node.snapCentre(nx), Ap3Node.snapY(ny), Ap3Node.snapCentre(nz));
+            Vec3 r = RouteCoords.toRelative(frame, RouteNode.snapBlockCentre(nx), Ap3Node.snapY(ny),
+                    RouteNode.snapBlockCentre(nz));
             if (Math.abs(r.x) > RouteStore.MAX_ABS_COORD || Math.abs(r.y) > RouteStore.MAX_ABS_COORD
                     || Math.abs(r.z) > RouteStore.MAX_ABS_COORD) {
                 status = "§cThat position is outside the room's range - nothing was changed.";
@@ -522,8 +539,16 @@ public class AutoRoutesEditScreen extends Screen {
                 + (node.type == type ? "" : " §8(type changes on Save)")
                 : "§cthat node is gone";
         graphics.centeredText(this.font, sub, panelX + panelW / 2, panelY + 19, 0xFF9A8C80);
+        for (Heading h : headings) {
+            String text = "§l" + h.text();
+            graphics.text(this.font, text, panelX + PAD, h.y() + 1, 0xFFCC8844, false);
+            int tw = this.font.width(text);
+            graphics.fill(panelX + PAD + tw + 4, h.y() + 5, panelX + panelW - PAD, h.y() + 6, 0xFF3A2A1A);
+        }
         for (Field f : fields) {
-            graphics.text(this.font, f.label(), panelX + PAD, f.box().getY() + 4, 0xFFBBAA99, false);
+            if (f.labelX() >= 0) {
+                graphics.text(this.font, f.label(), f.labelX(), f.box().getY() + 4, 0xFFBBAA99, false);
+            }
         }
         if (!status.isEmpty()) {
             graphics.centeredText(this.font, status, panelX + panelW / 2, panelY + panelH - 12, 0xFFFFFFFF);

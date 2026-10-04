@@ -682,16 +682,72 @@ public final class AutoRoutesFeature {
         teleportSettleTicks = TELEPORT_SETTLE_TICKS;
     }
 
-    /** A node was just placed at his feet ({@code /ar add}): treat him as already standing in it, so it fires when
-     *  he walks back onto it rather than the instant chat closes. Leaving it clears the latch as usual. */
-    static void latchUnderfoot(RouteNode node) {
+    /** The node {@code /ar add} just placed, waiting to fire on the first tick nothing is in the way (see
+     *  {@link #fireAddedNode}), and its route. */
+    private static RouteNode addedToFire;
+    private static Route addedToFireRoute;
+
+    /**
+     * {@code /ar add} placed {@code node} at his feet: it fires as if he had just walked onto it (killer560,
+     * 2026-10-04: "Make it so once I add a node it performs that action immediately, so if I add an etherwarp it will
+     * instantly warp"). Not here and now - the command runs inside the chat screen's key handler, outside the
+     * START-of-tick slot every route action is sent from, and a route refuses to run under a screen - but on the first
+     * tick the chat is closed, through {@link RouteExecutor#start}, the normal firing path: its whole stack, the
+     * route carrying on from it, a landing re-fire (ping-pong) included. The start-only setting, the latch and a
+     * finished or user-stopped run do not hold it back: he asked for this one. It is latched meanwhile, so the normal
+     * arming never fires it a second time. While a route is already running it is only latched, as before.
+     *
+     * @return true when it will fire
+     */
+    static boolean fireAddedNode(Route route, RouteNode node) {
         latchedNode = node;
+        if (RouteExecutor.isRunning() || RouteRecorder.isRecording()) {
+            addedToFire = null;
+            addedToFireRoute = null;
+            return false;
+        }
+        addedToFire = node;
+        addedToFireRoute = route;
+        return true;
+    }
+
+    /** Fires the node {@link #fireAddedNode} queued, once no screen is open. @return true when this tick is spent
+     *  on it (fired, or still waiting for the chat to close). */
+    private static boolean tickAddedNode(Minecraft client, LocalPlayer player, RouteCoords.Frame frame,
+                                         AutoRoutesConfig cfg) {
+        RouteNode node = addedToFire;
+        Route route = addedToFireRoute;
+        if (node == null) {
+            return false;
+        }
+        if (McCompat.screen(client) != null) {
+            gate("the node you just added fires when the screen closes");
+            return true;
+        }
+        addedToFire = null;
+        addedToFireRoute = null;
+        if (route != RouteStore.getInstance().forRoom(frame.roomName()) || route.indexOf(node) < 0) {
+            LOGGER.info("[AutoRoutes] Added node not fired: the route changed before the chat closed");
+            return false;
+        }
+        if (!node.contains(RouteCoords.toReal(frame, node.relativePos()), cfg.getHeight(), player.getBoundingBox())) {
+            LOGGER.info("[AutoRoutes] Added node #{} not fired: you left it before the chat closed", route.indexOf(node) + 1);
+            return false;
+        }
+        latchedNode = node;
+        RouteExecutor.clearStoppedByUser();
+        RouteExecutor.clearJustFinished();
+        gate("firing node #" + (route.indexOf(node) + 1) + " (" + node.type + ") - just added");
+        RouteExecutor.start(route, frame, node);
+        return true;
     }
 
     /** {@link RouteStore#reload()} swapped the routes: drop anything pointing at the old objects. */
     static void onRoutesReloaded() {
         editBreakerNode = null;
         latchedNode = null;
+        addedToFire = null;
+        addedToFireRoute = null;
         RouteHistory.reset();
         if (editMode) {
             pickEditBreakerNode();
@@ -746,6 +802,7 @@ public final class AutoRoutesFeature {
             }
             mapWasOpen = true;
             hidden = true;
+            addedToFire = null;
             return;
         }
         if (mapWasOpen) {
@@ -773,6 +830,7 @@ public final class AutoRoutesFeature {
                 RouteExecutor.stop(BloodRush.isRunning() ? "Auto Blood Rush" : "Interactive Map teleport");
             }
             mapArrivalGuard = true;
+            addedToFire = null;
             // The teleport we are waiting on IS a room change, and the room-change branch below used to
             // clear the guard the moment it landed - handing back exactly the mid-route entry the guard
             // exists to prevent (2026-09-16 review). Latch it so that branch knows the arrival was a
@@ -817,6 +875,8 @@ public final class AutoRoutesFeature {
             LOGGER.info("[AutoRoutes] Room {} - clay {},{} rotation {}, sim y offset {}", frame.roomName(),
                     frame.clayX(), frame.clayZ(), frame.rotation(), DungeonLayout.simYOffset());
             latchedNode = null;
+            addedToFire = null;
+            addedToFireRoute = null;
             // New room, clean slate - see resetForWorld.
             RouteExecutor.clearStoppedByUser();
             if (!externalTeleport && !arrivedByTeleport) {
@@ -834,8 +894,12 @@ public final class AutoRoutesFeature {
             return;
         }
         if (RouteExecutor.isRunning()) {
+            addedToFire = null;
             gate("running");
             RouteExecutor.tick(client);
+            return;
+        }
+        if (tickAddedNode(client, player, frame, cfg)) {
             return;
         }
         if (editMode) {
@@ -856,7 +920,7 @@ public final class AutoRoutesFeature {
         }
         if (McCompat.screen(client) != null) {
             gate("a screen is open");
-            // Nothing arms under a screen, but the latch is kept: clearing it here undid latchUnderfoot every time
+            // Nothing arms under a screen, but the latch is kept: clearing it here undid /ar add's latch every time
             // the chat that typed "/ar add" was still open, so a node fired under him the moment chat closed.
             return;
         }
@@ -1008,6 +1072,8 @@ public final class AutoRoutesFeature {
         renderFailed = false;
         gotoNode = null;
         gotoRoute = null;
+        addedToFire = null;
+        addedToFireRoute = null;
     }
 
     /** Never let a tick/render exception take the frame down: switch the feature off (persisted) and say so. */

@@ -315,17 +315,15 @@ public final class RouteRecorder {
     }
 
     /**
-     * Where a node goes: the player's feet snapped exactly as AP3 places its nodes (killer560, 2026-10-04: "Make it
-     * so nodes snap to blocks the exact same as our AP3 does") - x and z to the nearest half-block line (a block
-     * centre, or the seam between two or four blocks when he stands nearer that), y kept at the feet to a thousandth
-     * so a node on carpet or a slab sits on its top. Snapped in WORLD space and then made room-relative, so the
-     * grid it lands on is the world's; a room rotation is a quarter turn about an integer clay corner, which keeps
-     * half-block lines on half-block lines either way.
+     * Where a node goes: the centre of the block the player's feet are in (killer560, 2026-10-04: "Make it so nodes
+     * need to snap to a whole block for the autoroutes" - it had been AP3's half-block grid), y kept at the feet to a
+     * thousandth so a node on carpet or a slab sits on its top ({@code Ap3Node.snapY}). Snapped in WORLD space and then
+     * made room-relative, so the grid it lands on is the world's; see {@link RouteNode#snapBlockCentre}.
      */
     static Vec3 snappedFeet(LocalPlayer player) {
         Vec3 p = player.position();
-        return new Vec3(com.killer560.hub.ap3.Ap3Node.snapCentre(p.x), com.killer560.hub.ap3.Ap3Node.snapY(p.y),
-                com.killer560.hub.ap3.Ap3Node.snapCentre(p.z));
+        return new Vec3(RouteNode.snapBlockCentre(p.x), com.killer560.hub.ap3.Ap3Node.snapY(p.y),
+                RouteNode.snapBlockCentre(p.z));
     }
 
     private static RouteNode nodeAtPlayer(LocalPlayer player, int sampleIndex) {
@@ -471,11 +469,14 @@ public final class RouteRecorder {
         if (type == RouteNode.Type.DUNGEON_BREAKER) {
             breakerBeingBuilt = node;
         }
+        boolean firing = false;
         if (!recording) {
             RouteStore.getInstance().save();
-            // He is standing on the node he just placed: it must not go off the moment chat closes, only when he
-            // walks back onto it (AP3's rule for a freshly placed node).
-            AutoRoutesFeature.latchUnderfoot(node);
+            // He is standing on the node he just placed, and it goes off now (killer560, 2026-10-04: "once I add a
+            // node it performs that action immediately, so if I add an etherwarp it will instantly warp"): the
+            // feature starts the route from it on the first tick the chat is closed, exactly as walking onto it
+            // would. While a route is already running it only latches, as before.
+            firing = AutoRoutesFeature.fireAddedNode(target, node);
         }
         if (mods.start) {
             // "setting it on a new node clears it from whatever had it (and say so in chat)" (task spec).
@@ -484,7 +485,7 @@ public final class RouteRecorder {
         if (mods.awaitEnabled) {
             extra += " [await " + node.awaitCondition.name().toLowerCase(Locale.ROOT) + " " + node.awaitAmount + "]";
         }
-        return "Added " + type.label() + extra + " to " + f.roomName();
+        return "Added " + type.label() + extra + " to " + f.roomName() + (firing ? " - firing it" : "");
     }
 
     private static String bad(String message) {

@@ -177,18 +177,26 @@ public final class RouteNode {
     }
 
     /**
+     * The centre of the whole block {@code v} is in: {@code floor(v) + 0.5} (killer560, 2026-10-04: "Make it so nodes
+     * need to snap to a whole block for the autoroutes"). Auto Routes nodes used AP3's half-block grid
+     * ({@code Ap3Node.snapCentre}) until then; AP3 keeps it. Snapped in WORLD space and then made room-relative: a room
+     * rotation is a quarter turn about an integer clay corner, which maps block centres onto block centres.
+     */
+    public static double snapBlockCentre(double v) {
+        return Math.floor(v) + 0.5;
+    }
+
+    /**
      * True when {@code other} stands on the same TILE as this node, so the two fire together as one stack
-     * ({@link Route#stackOf}). Nodes are placed snapped to the half-block grid ({@code RouteRecorder.snappedFeet}:
-     * x and z on a block centre or a seam, AP3's snapping), so "same tile" is "the same grid point": x and z rounded
-     * to the nearest half block are equal, and the feet heights fall in the same block ({@code floor(y)}, with a
-     * thousandth of slack for the snapped height). For two snapped nodes that means identical x and z - the same
-     * ring, so standing in one is standing in the other. Compared in ROOM-RELATIVE coordinates, which a room
-     * rotation (a quarter turn about an integer clay corner) and the sim's integer height shift both preserve, so
-     * the answer is the same in every rotation. An equivalence: every node of a stack agrees on who is in it.
+     * ({@link Route#stackOf}). Nodes are placed on whole-block centres ({@link #snapBlockCentre}, via
+     * {@code RouteRecorder.snappedFeet}), so "same tile" is "the same block": {@code floor} of x, of z and of the feet
+     * height (with a thousandth of slack for the snapped height) are equal. A node saved on the old half-block grid
+     * (x or z on a seam, {@code n.0}) counts as the block on its +x / +z side until it is next moved, which snaps it.
+     * Compared in ROOM-RELATIVE coordinates, as stored, so the answer is the same in every rotation. An equivalence:
+     * every node of a stack agrees on who is in it.
      */
     public boolean sameTile(RouteNode other) {
-        return other != null && Math.round(x * 2.0) == Math.round(other.x * 2.0)
-                && Math.round(z * 2.0) == Math.round(other.z * 2.0)
+        return other != null && Math.floor(x) == Math.floor(other.x) && Math.floor(z) == Math.floor(other.z)
                 && Math.floor(y + 0.001) == Math.floor(other.y + 0.001);
     }
 

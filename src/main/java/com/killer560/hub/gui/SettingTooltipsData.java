@@ -403,13 +403,12 @@ final class SettingTooltipsData {
         d.put("ar edit/type", "The node's type: boom, breaker, etherwarp, use or walk. Applied on Save.");
         d.put("ar edit/start node", "Makes this the room's start node. Only one node can be; Save moves it off the old one.");
         d.put("ar edit/await secrets", "How many secrets this node waits for before it fires, 0 to 4. None means it fires at once.");
-        d.put("ar edit/x -0.5", "Moves the node half a block west, onto the half-block grid.");
-        d.put("ar edit/x +0.5", "Moves the node half a block east, onto the half-block grid.");
-        d.put("ar edit/z -0.5", "Moves the node half a block north, onto the half-block grid.");
-        d.put("ar edit/z +0.5", "Moves the node half a block south, onto the half-block grid.");
+        d.put("ar edit/x -1", "Moves the node one block west, onto that block's centre.");
+        d.put("ar edit/x +1", "Moves the node one block east, onto that block's centre.");
+        d.put("ar edit/z -1", "Moves the node one block north, onto that block's centre.");
+        d.put("ar edit/z +1", "Moves the node one block south, onto that block's centre.");
         d.put("ar edit/y -1", "Moves the node one block down.");
         d.put("ar edit/y +1", "Moves the node one block up.");
-        d.put("ar edit/position from me", "Fills the position from where you stand, snapped like /ar add. Press Save to apply.");
         d.put("ar edit/look from me", "Fills yaw and pitch from where you look. Press Save to apply.");
         d.put("ar edit/item from hand", "Fills the Use Item from the item in your hand. Press Save to apply.");
         d.put("ar edit/pick blocks", "Saves, then turns on breaker edit mode for this node: right-click blocks to add, shift-right-click to remove.");

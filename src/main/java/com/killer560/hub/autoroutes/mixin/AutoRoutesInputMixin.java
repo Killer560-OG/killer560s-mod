@@ -38,6 +38,13 @@ public abstract class AutoRoutesInputMixin extends ClientInput {
         // (see RouteExecutor#onInputTick). An override with nothing driven installs an all-off record (plus the
         // etherwarp's sneak), so held keys move nothing while a node's action runs.
         if (!RouteExecutor.onInputTick(userKeys)) {
+            // His own keys stand, but a sneak the route is holding for the next etherwarp stays down: dropping it
+            // for the ticks he walks to that node would cost the etherwarp a tick to sneak again. Only shift
+            // changes - the movement vector is his, and vanilla applies the sneak slowdown from shift itself.
+            if (RouteExecutor.holdsSneak() && !keys.shift()) {
+                this.keyPresses = new Input(keys.forward(), keys.backward(), keys.left(), keys.right(), keys.jump(),
+                        true, keys.sprint());
+            }
             return;
         }
         this.keyPresses = RouteExecutor.drivenInput();

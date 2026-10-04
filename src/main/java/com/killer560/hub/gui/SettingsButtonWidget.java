@@ -39,6 +39,12 @@ public final class SettingsButtonWidget extends AbstractWidget {
     private static final int BG = 0xFF1A1A1A;
     private static final int BG_HOVER = 0xFF262626;
     private static final int TEXT = 0xFFFFFFFF;
+    /** The {@link Builder#primary()} style: an amber-filled box with a full-amber border, for a screen's one main
+     *  action (the Auto Routes node editor's Go To) so it reads first among plain buttons. */
+    private static final int PRIMARY_BORDER = 0xFFCC6600;
+    private static final int PRIMARY_BORDER_HOVER = 0xFFFFA040;
+    private static final int PRIMARY_BG = 0xFF4A2A08;
+    private static final int PRIMARY_BG_HOVER = 0xFF63380B;
 
     public interface OnPress {
         void onPress(SettingsButtonWidget button);
@@ -46,12 +52,14 @@ public final class SettingsButtonWidget extends AbstractWidget {
 
     private final OnPress onPress;
     private final OnPress onSecondaryPress;
+    private final boolean primary;
 
-    private SettingsButtonWidget(Component message, OnPress onPress, OnPress onSecondaryPress,
+    private SettingsButtonWidget(Component message, OnPress onPress, OnPress onSecondaryPress, boolean primary,
             int x, int y, int width, int height) {
         super(x, y, width, height, message);
         this.onPress = onPress;
         this.onSecondaryPress = onSecondaryPress;
+        this.primary = primary;
     }
 
     public static Builder builder(Component message, OnPress onPress) {
@@ -62,6 +70,7 @@ public final class SettingsButtonWidget extends AbstractWidget {
         private final Component message;
         private final OnPress onPress;
         private OnPress onSecondaryPress;
+        private boolean primary;
         private int x;
         private int y;
         private int width = 150;
@@ -87,8 +96,14 @@ public final class SettingsButtonWidget extends AbstractWidget {
             return this;
         }
 
+        /** Draws this as the screen's primary action (amber fill and border) instead of the plain dark box. */
+        public Builder primary() {
+            this.primary = true;
+            return this;
+        }
+
         public SettingsButtonWidget build() {
-            return new SettingsButtonWidget(message, onPress, onSecondaryPress, x, y, width, height);
+            return new SettingsButtonWidget(message, onPress, onSecondaryPress, primary, x, y, width, height);
         }
     }
 
@@ -96,8 +111,10 @@ public final class SettingsButtonWidget extends AbstractWidget {
     protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         int x0 = getX();
         int y0 = getY();
-        graphics.fill(x0, y0, x0 + getWidth(), y0 + getHeight(), faded(isHovered ? BG_HOVER : BG));
-        graphics.outline(x0, y0, getWidth(), getHeight(), faded(isHovered ? BORDER_HOVER : BORDER));
+        int bg = primary ? (isHovered ? PRIMARY_BG_HOVER : PRIMARY_BG) : (isHovered ? BG_HOVER : BG);
+        int border = primary ? (isHovered ? PRIMARY_BORDER_HOVER : PRIMARY_BORDER) : (isHovered ? BORDER_HOVER : BORDER);
+        graphics.fill(x0, y0, x0 + getWidth(), y0 + getHeight(), faded(bg));
+        graphics.outline(x0, y0, getWidth(), getHeight(), faded(border));
         graphics.centeredText(Minecraft.getInstance().font, getMessage(), x0 + getWidth() / 2,
                 y0 + (getHeight() - 8) / 2, faded(TEXT));
     }

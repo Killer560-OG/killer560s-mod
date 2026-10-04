@@ -128,6 +128,13 @@ public final class RouteExecutor {
     private static int stepTicks;
     private static int settleTicks;
     private static Vec3 actionOrigin;
+    /**
+     * Sneak the route holds whatever the node: set by an etherwarp and kept BETWEEN nodes while the next node is an
+     * etherwarp (killer560, 2026-10-04: "Make it so it will hold crouch if it knows the next node it is going to hit
+     * is an etherwarp. It should only uncrouch if it hits a walk node"), so the server already has the sneak when that
+     * etherwarp fires and it uses on its firing tick. {@link #planSneak} decides after every node; a WALK, UNSNEAK or
+     * USE_ITEM node, the route ending and {@link #stop} let go.
+     */
     private static boolean forceSneak;
     private static boolean unsneakOverride;
     /** Executor ticks since the active node fired: 0 on the firing tick itself. The "[AutoRoutes] Node #n ... acted"
@@ -498,6 +505,15 @@ public final class RouteExecutor {
     /** Driving the player this tick (the mixin asks this). Sneak alone (an etherwarp prep) still counts. */
     public static boolean isDriving() {
         return running && (wantForward || wantBackward || wantLeft || wantRight || wantJump || wantSneak || wantSprint);
+    }
+
+    /**
+     * The route is holding sneak between nodes ({@link #forceSneak}). The input mixin adds it to his own keys on a
+     * tick it leaves them alone (he is walking a path-less route to the next node himself), so the held sneak is not
+     * dropped for those ticks - otherwise the next etherwarp would wait a tick for a fresh one.
+     */
+    public static boolean holdsSneak() {
+        return running && forceSneak;
     }
 
     /** The {@code Input} record the mixin installs for this tick. */
@@ -899,6 +915,7 @@ public final class RouteExecutor {
     }
 
     private static void finishAction() {
+        RouteNode finished = activeNode;
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
         // Release the camera as soon as the node is done. Without this a QUOI-style path-less route (nodes
         // only, no recorded walk) kept pulling the view back to the finished node's yaw every frame while
@@ -910,6 +927,7 @@ public final class RouteExecutor {
         bestTargetDistance = Double.MAX_VALUE;
         noProgressTicks = 0;
         if (!stackQueue.isEmpty()) {
+            planSneak(finished);
             return; // the rest of the stack first - tick() begins the next node after the settle
         }
         // The stack is done: the route moves on from the trigger's place, past anything already fired this run.
@@ -919,6 +937,81 @@ public final class RouteExecutor {
             nextNode++;
         }
         stackTrigger = null;
+        planSneak(finished);
+    }
+
+    /**
+     * After every node: does the route hold sneak until the next one ({@link #forceSneak})? The next node is the one
+     * that will actually fire next - the rest of this stack; else, on a path-less route after a teleport the server
+     * confirmed, the node he landed in (the landing re-fire's own pick, {@link #nodeLandedIn}); else the next node in
+     * order. Of a stack, its first node to fire.
+     * <ul>
+     * <li>an ETHERWARP: held when it fires where he stands now (the same stack, the node he landed in, or the path
+     * already at its sample) - set even if nothing was sneaking, so a boom before an etherwarp hands over a ready
+     * sneak; and on a path-less route kept while he walks to it himself, if it was already held.</li>
+     * <li>a WALK, UNSNEAK or USE_ITEM: let go now - the walk sprints, the unsneak says so, and a use must not be a
+     * sneak-click.</li>
+     * <li>anything else (boom, breaker, rotate, command): sneak does not change them, so a held sneak stays held
+     * through them on a path-less route, ready for an etherwarp after; on a recorded route only if it fires in place
+     * (the recording's own sneak flags drive the walk in between).</li>
+     * <li>nothing left: let go; the route is about to complete.</li>
+     * </ul>
+     * Holding is just a held key: one input packet with shift down when it starts, nothing more until it ends.
+     */
+    private static void planSneak(RouteNode finished) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || route == null || !running) {
+            return;
+        }
+        if (finished != null && (finished.type == RouteNode.Type.WALK || finished.type == RouteNode.Type.UNSNEAK)) {
+            return; // they let go themselves, and a walk's held sprint must not be turned into a sneak
+        }
+        AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
+        boolean pathless = route.path().isEmpty();
+        RouteNode up = null;
+        boolean inPlace = false;
+        if (!stackQueue.isEmpty()) {
+            up = stackQueue.peek();
+            inPlace = true;
+        } else {
+            boolean teleported = finished != null && teleportPacketSeen
+                    && (finished.type == RouteNode.Type.ETHERWARP
+                    || (finished.type == RouteNode.Type.USE_ITEM && finished.hasLanding));
+            if (pathless && teleported) {
+                RouteNode landedIn = nodeLandedIn(player, cfg, finished);
+                if (landedIn != null) {
+                    up = route.stackOf(landedIn).get(0);
+                    inPlace = true;
+                }
+            }
+            if (up == null && nextNode < ordered.size()) {
+                RouteNode n = ordered.get(nextNode);
+                up = route.stackOf(n).get(0);
+                inPlace = pathless
+                        ? n.contains(RouteCoords.toReal(frame, n.relativePos()), cfg.getHeight(), player.getBoundingBox())
+                        : n.pathIndex <= cursor;
+            }
+        }
+        boolean was = forceSneak;
+        if (up == null) {
+            forceSneak = false;
+        } else {
+            forceSneak = switch (up.type) {
+                case ETHERWARP -> inPlace || (was && pathless);
+                case WALK, UNSNEAK, USE_ITEM -> false;
+                default -> was && (pathless || inPlace);
+            };
+        }
+        if (forceSneak) {
+            unsneakOverride = false;
+        }
+        wantSneak = forceSneak;
+        if (forceSneak != was) {
+            LOGGER.info("[AutoRoutes] Sneak {} after node #{}: next is {}{}", forceSneak ? "held" : "released",
+                    finished == null ? "?" : String.valueOf(route.indexOf(finished) + 1),
+                    up == null ? "nothing" : "#" + (route.indexOf(up) + 1) + " " + up.type,
+                    up == null ? "" : inPlace ? " (fires where you stand)" : " (you walk to it)");
+        }
     }
 
     private static void tickAction(Minecraft client, LocalPlayer player) {
@@ -945,6 +1038,11 @@ public final class RouteExecutor {
                 finishAction(); // a legacy AWAIT's wait already ran in tickAwait
             }
             case WALK -> {
+                // The one node that ends a held etherwarp sneak (killer560: "It should only uncrouch if it hits a
+                // walk node"). Cleared before the player's tick, so this tick's input packet carries shift up.
+                boolean wasSneaking = forceSneak;
+                forceSneak = false;
+                wantSneak = false;
                 // A recorded route's walking is the path's job, so there a walk node is just a marker. On a
                 // path-less (/ar add) route it is the sprint.
                 if (route.path().isEmpty()) {
@@ -952,7 +1050,8 @@ public final class RouteExecutor {
                     walkHoldLastPos = null;
                     walkHoldStallTicks = 0;
                 }
-                logActed(node, route.path().isEmpty() ? " (sprint starts this tick)" : "");
+                logActed(node, (route.path().isEmpty() ? " (sprint starts this tick)" : "")
+                        + (wasSneaking ? " (released the held sneak)" : ""));
                 finishAction();
             }
             case UNSNEAK -> {
@@ -1098,10 +1197,7 @@ public final class RouteExecutor {
             if (landed(player, node)) {
                 LOGGER.info("[AutoRoutes] Etherwarp: landed at {} {} tick(s) after the use ({} from firing)",
                         fmt(player.position()), stepTicks, actionAge);
-                // A next etherwarp in the same stack keeps the sneak, so the server still has it when that one fires
-                // and it uses on its own firing tick; anything else lets go.
-                RouteNode next = stackQueue.peek();
-                forceSneak = next != null && next.type == RouteNode.Type.ETHERWARP;
+                // Whether the sneak stays held for what comes next is planSneak's call, from finishAction.
                 RouteRotation.rebase();
                 cameraGraceTicks = 3;
                 rejoinPathAfterTeleport(player, node);
@@ -1130,11 +1226,20 @@ public final class RouteExecutor {
                 return;
             }
             select(client, player, slot);
+            // A held etherwarp sneak lets go here: sneaking changes what a right click does (an AOTV etherwarps
+            // instead of transmitting, a chest or lever is not opened with an item in hand).
+            forceSneak = false;
+            wantSneak = false;
             aimAt(node);
             step = Step.AIM;
             stepTicks = 0;
         }
         if (step == Step.AIM) {
+            // The mirror of the etherwarp's rule: the use goes out once the last input packet said shift UP. planSneak
+            // releases before a use node, so this only waits when one was reached still sneaking (no settle ticks).
+            if (player.getLastSentInput().shift() && stepTicks <= SNEAK_TIMEOUT) {
+                return;
+            }
             if (!aimReady()) {
                 return;
             }

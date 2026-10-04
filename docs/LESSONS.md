@@ -71,3 +71,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - The mod's own widget labels are not drawn through `GuiGraphicsExtractor.text`; they go through
   `GuiGraphicsExtractor$RenderingTextCollector.accept`. A text hook that only targets `text` misses every
   button and label in the settings GUI (found when keeping Name Changer out of the mod's own menus, 2026-10-04).
+- Chained Auto Routes etherwarps each logged "acted 1 tick(s) ... sneak went out in the firing tick's input packet"
+  (his maplogger-latest2.log, 2026-10-04) because the executor kept sneak only for a next etherwarp in the SAME
+  stack; the interact-delay settle ticks after a landing then sent shift up and the next warp re-sneaked. Held
+  sneak is now decided after every node by `RouteExecutor.planSneak` from the node that actually fires next.
