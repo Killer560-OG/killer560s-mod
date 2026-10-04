@@ -140,7 +140,8 @@ public final class SimFloorGen {
     /**
      * A planned floor: the map code and what the planner decided, with nothing built yet.
      *
-     * @param bloodDistance rooms from the entrance to blood, as actually laid out
+     * @param bloodDistance rooms on the Entrance-to-Blood path through the doors as built, counted the slider's
+     *                      way (not the Entrance, the Fairy or Blood); -1 if blood cannot be reached
      * @param bigPlaced     rooms larger than one cell
      * @param keptPins      rooms he had placed by hand that the floor was built AROUND, at his own cells
      * @param unusedPins    {@code "Name - reason"} per room he had placed that could not be used; always empty
@@ -224,9 +225,10 @@ public final class SimFloorGen {
         int wantRooms = Math.min(floor.rooms, ROOM_GRID * ROOM_GRID);
         int wantCells = Math.max(wantRooms, Math.min(floor.cells, ROOM_GRID * ROOM_GRID));
         int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(MAX_PUZZLES, puzzles));
-        // Blood sits one doorway beyond the last ordinary room, which is how he counts it: "the max is 8 if
-        // you do not count blood green room or fairy."
-        int wantDistance = Math.max(MIN_ROOMS_TO_BLOOD, Math.min(MAX_ROOMS_TO_BLOOD, roomsToBlood)) + 1;
+        // Counted his way: "the max is 8 if you do not count blood green room or fairy." So the path is the
+        // Entrance, exactly this many rooms with the Fairy among them, and Blood - SimFloorLayout lays it first.
+        // (This used to pass slider + 1 as a blood DEPTH, which had no room on it for the fairy.)
+        int wantDistance = Math.max(MIN_ROOMS_TO_BLOOD, Math.min(MAX_ROOMS_TO_BLOOD, roomsToBlood));
 
         // The "recently used rooms" memory survives restarts now - see SimRecencyStore.
         SimRecencyStore.ensureLoaded();
@@ -298,56 +300,44 @@ public final class SimFloorGen {
         // the ones he was actually complaining about, were untouched and the scenario still reported all 120.
         // The check has to be here, where the generated floor's doors are written.
         //
-        // Blood and entrance links go first and always survive, because they are the run's structure and
-        // dropping one would move where the floor starts or ends; only an ordinary link is ever refused. A link
-        // between two cells of ONE multi-tile room is not an edge between rooms at all, so it neither unions
-        // nor counts against the tree.
-        Map<Integer, Integer> connected = new HashMap<>();
+        // Which links survive as doors is decided in SimFloorLayout.doorLinks, so the offline layout tool
+        // (tools/layoutsim) measures exactly the door graph written here: the planned Entrance-to-Blood path
+        // first (which is what makes it THE path - any other link between two of its rooms is then a loop and
+        // refused), then blood and entrance links, then the rest. Its javadoc has the detail.
         int doors = 0;
-        for (int pass = 0; pass < 2; pass++) {
-            for (SimFloorLayout.Link link : laid.links()) {
-                int a = gridCell(new int[]{link.aX(), link.aZ()});
-                int bCell = gridCell(new int[]{link.bX(), link.bZ()});
-                int between = (a + bCell) / 2;
-                if (cellDoor[between] != DungeonLayout.DOOR_NONE) {
-                    continue;
-                }
-                boolean toBlood = bloodCell != null
-                        && (cellRoom[a] == cellRoom[gridCell(bloodCell)]
-                            || cellRoom[bCell] == cellRoom[gridCell(bloodCell)]);
-                boolean fromEntrance = entranceCell != null
-                        && (cellRoom[a] == cellRoom[gridCell(entranceCell)]
-                            || cellRoom[bCell] == cellRoom[gridCell(entranceCell)]);
-                boolean special = toBlood || fromEntrance;
-                if (special != (pass == 0)) {
-                    continue;
-                }
-                boolean sameRoom = cellRoom[a] != MapCode.NO_ROOM && cellRoom[a] == cellRoom[bCell];
-                if (!sameRoom) {
-                    // Checked on the special pass too. Pass 0 runs before any ordinary door exists, so the
-                    // first way into blood or out of the entrance is always kept; what this refuses is a
-                    // SECOND one, and a second blood door is a loop through the blood room - Hypixel's has
-                    // exactly one way in.
-                    if (find(connected, cellRoom[a]) == find(connected, cellRoom[bCell])) {
-                        continue;   // already reachable: a door here would be a second way in
-                    }
-                    union(connected, cellRoom[a], cellRoom[bCell]);
-                }
-                cellDoor[between] = toBlood ? DungeonLayout.DOOR_BLOOD
-                        : fromEntrance ? DungeonLayout.DOOR_ENTRANCE
-                        : DungeonLayout.DOOR_NORMAL;
-                doors++;
+        for (SimFloorLayout.Link link : SimFloorLayout.doorLinks(laid)) {
+            int a = gridCell(new int[]{link.aX(), link.aZ()});
+            int bCell = gridCell(new int[]{link.bX(), link.bZ()});
+            int between = (a + bCell) / 2;
+            if (cellDoor[between] != DungeonLayout.DOOR_NONE) {
+                continue;
             }
+            boolean toBlood = bloodCell != null
+                    && (cellRoom[a] == cellRoom[gridCell(bloodCell)]
+                        || cellRoom[bCell] == cellRoom[gridCell(bloodCell)]);
+            boolean fromEntrance = entranceCell != null
+                    && (cellRoom[a] == cellRoom[gridCell(entranceCell)]
+                        || cellRoom[bCell] == cellRoom[gridCell(entranceCell)]);
+            cellDoor[between] = toBlood ? DungeonLayout.DOOR_BLOOD
+                    : fromEntrance ? DungeonLayout.DOOR_ENTRANCE
+                    : DungeonLayout.DOOR_NORMAL;
+            doors++;
         }
 
         LOGGER.info("[SimPhase] layout planned in {} ms: {} room(s) over {}/{} cell(s), {} door(s), "
                         + "{} doorway(s) to brick up",
                 System.currentTimeMillis() - planStart, laid.rooms().size(), SimFloorLayout.cellsOf(laid),
                 wantCells, doors, laid.openDoors().size());
+        // Measured on the doors just written, not taken from the layout's own bookkeeping - the old number was
+        // the growth's depth, which is not what the doors (or SimWitherDoors) see.
+        int[] path = SimFloorLayout.pathToBlood(laid);
+        if (path[0] != wantDistance || path[1] == 0) {
+            LOGGER.warn("Sim floor: {} room(s) to blood (asked for {}), fairy {} the path", path[0], wantDistance,
+                    path[1] == 1 ? "on" : "NOT on");
+        }
         MapCode.Decoded decoded = new MapCode.Decoded(
                 nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation);
-        return new Planned(decoded, MapCode.encodeDecoded(decoded), placedPuzzles,
-                laid.bloodDepth() < 0 ? 0 : laid.bloodDepth(), bigPlaced,
+        return new Planned(decoded, MapCode.encodeDecoded(decoded), placedPuzzles, path[0], bigPlaced,
                 pinnedOut.honouredPins(), pinnedOut.unusedPins());
     }
 
