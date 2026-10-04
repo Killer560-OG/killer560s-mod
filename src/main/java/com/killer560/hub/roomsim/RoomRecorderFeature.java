@@ -586,7 +586,45 @@ public final class RoomRecorderFeature {
         if (name == null || name.isBlank() || "Unknown".equals(name)) {
             return false;
         }
-        return sweepLattice(client) > 0 || true;
+        if (sweepLattice(client) > 0) {
+            return true;
+        }
+        // The lattice sweep names every tile by its own core hash, and on a multi-tile room only some tiles have
+        // one the database knows: Ashfall's solo Altar (2026-10-04) matched one tile of four, came out "1x1",
+        // and the footprint guard refused it, so solo rooms read nothing. A practice world holds exactly ONE room
+        // and the sidebar names it, so here the extent is every roofed lattice cell around him and the name is
+        // the sidebar's. The database shape check in captureAt still has the final word.
+        RoomEntry entry = RoomDatabase.lookupByName(name);
+        if (entry == null || entry.name == null) {
+            return true;
+        }
+        final int step = RoomLibrary.TILE + 1;
+        final int reach = 160;
+        int px = client.player.blockPosition().getX();
+        int pz = client.player.blockPosition().getZ();
+        int originX = DungeonLayout.cellCenter(0).getX();
+        int originZ = DungeonLayout.cellCenter(0).getZ();
+        int firstX = originX + Math.floorDiv(px - reach - originX, step) * step;
+        int firstZ = originZ + Math.floorDiv(pz - reach - originZ, step) * step;
+        int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        for (int cz = firstZ; cz <= pz + reach; cz += step) {
+            for (int cx = firstX; cx <= px + reach; cx += step) {
+                if (LiveMapFeature.roofAt(client, cx, cz) <= 0) {
+                    continue;
+                }
+                minX = Math.min(minX, cx);
+                minZ = Math.min(minZ, cz);
+                maxX = Math.max(maxX, cx);
+                maxZ = Math.max(maxZ, cz);
+            }
+        }
+        if (minX == Integer.MAX_VALUE) {
+            return true;
+        }
+        int got = RoomLibrary.captureAt(client.level, entry.name, minX, minZ,
+                (maxX - minX) / step + 1, (maxZ - minZ) / step + 1, COLUMNS_PER_TICK);
+        roomsAddedThisRun += got;
+        return true;
     }
 
     /**
@@ -692,7 +730,7 @@ public final class RoomRecorderFeature {
 
         // Once per world: why a solo room reads nothing. Ashfall's single rooms captured 0 columns on 2026-10-04
         // with no clue which step refused them.
-        if (sweepReportedLevel != client.level) {
+        if (RoomDatabase.isReady() && sweepReportedLevel != client.level) {
             sweepReportedLevel = client.level;
             LOGGER.info("Room Recorder sweep: player {},{} lattice origin {},{} - {} cell(s) probed, {} roofed, {} with an "
                     + "unknown core, {} without a clay corner, {} placement(s) [room db ready={}]{}",
