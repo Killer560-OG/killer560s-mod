@@ -183,6 +183,8 @@ public final class ExperimentsFeature {
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ExperimentsFeature", client -> tick()));
+        // Superpairs' Adaptive Timeout extends its confirm wait by however long the server stalls.
+        ServerLagSensor.register();
         // Profit tracker (2026-09-15 roadmap) - its own tick/chat hooks, gated only on its own toggle
         // (not the solver's master toggle), since logging claimed rewards needs no solver at all.
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ExperimentsProfitTracker.tick", ExperimentsProfitTracker::tick));
@@ -514,16 +516,10 @@ public final class ExperimentsFeature {
         }
     }
 
-    /** Strips real Minecraft "§x" color codes and truncates to a short hint - full item names (e.g.
-     *  "§9Sharpness VI Enchanted Book") are far too long to fit legibly over a 16px slot, so this is
-     *  just enough to recognize at a glance; hovering the real item still shows the full name/tooltip. */
-    // Real bug found and fixed (2026-09-07) from killer560's screenshot: at the 0.5 render scale
-    // highlightSlot draws labels at, Minecraft's font runs roughly 2.5-3px per character, so the old
-    // 8-char cap (e.g. "Enchante", "Grand Ex") came out to ~20-22px wide - visibly wider than the
-    // 16-18px slot itself, spilling into the NEXT slot and merging with its own label into what looked
-    // like garbled/duplicated text. 5 chars (~13-15px) comfortably fits inside one slot, matching how
-    // short the XP-amount labels (e.g. "131k") already are.
-    private static final int SHORT_LABEL_MAX_CHARS = 5;
+    /** Strips real Minecraft "§x" color codes. No longer truncates: the old 5-character cap turned
+     *  every book into "Encha" (killer560, 2026-10-04: "If the name it needs is too long, list the whole
+     *  name and scale the text"), so {@link #drawSlotLabel} now wraps and shrinks the whole label to fit
+     *  the slot instead, and a book's label is its enchant (see {@code ExperimentSolver#itemLabel}). */
     // Real bug found and fixed (2026-09-09) from killer560's screenshot: the plain XP reward (a
     // dye-family tile, see isValuablePair's doc) is real-named like "46k Enchanting Exp" (confirmed
     // from a real log - NOT "Experience" as first assumed, which is why the first attempt at this fix
@@ -546,7 +542,74 @@ public final class ExperimentsFeature {
         if (xpMatch.matches()) {
             return xpMatch.group(1);
         }
-        return stripped.length() > SHORT_LABEL_MAX_CHARS ? stripped.substring(0, SHORT_LABEL_MAX_CHARS) : stripped;
+        return stripped;
+    }
+
+    /** Largest label scale - the size every label was drawn at before it could shrink. */
+    private static final float LABEL_MAX_SCALE = 0.5f;
+
+    /** Draws {@code label} inside the 16px slot at (x0, y0), bottom-aligned. Tries it on one line and
+     *  word-wrapped onto two or three, and keeps whichever layout allows the biggest text, capped at
+     *  {@link #LABEL_MAX_SCALE}; so a short label looks exactly as before and a long one shrinks rather
+     *  than spilling into the next slot. */
+    private static void drawSlotLabel(GuiGraphicsExtractor graphics, String label, int x0, int y0) {
+        net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+        String[] words = label.split(" ");
+        List<String> best = List.of(label);
+        float bestScale = fitScale(font, best);
+        for (int lines = 2; lines <= Math.min(3, words.length); lines++) {
+            List<String> wrapped = wrapWords(font, words, lines);
+            float scale = fitScale(font, wrapped);
+            if (scale > bestScale) {
+                best = wrapped;
+                bestScale = scale;
+            }
+        }
+        float lineHeight = font.lineHeight * bestScale;
+        float top = y0 + SLOT_SIZE - lineHeight * best.size();
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x0, top);
+        graphics.pose().scale(bestScale, bestScale);
+        for (int i = 0; i < best.size(); i++) {
+            graphics.text(font, best.get(i), 1, i * font.lineHeight, 0xFFFFFFFF, true);
+        }
+        graphics.pose().popMatrix();
+    }
+
+    /** Scale at which every line fits the slot's width and all of them its height. */
+    private static float fitScale(net.minecraft.client.gui.Font font, List<String> lines) {
+        int widest = 1;
+        for (String line : lines) {
+            widest = Math.max(widest, font.width(line) + 1);
+        }
+        float byWidth = SLOT_SIZE / (float) widest;
+        float byHeight = SLOT_SIZE / (float) (font.lineHeight * lines.size());
+        return Math.min(LABEL_MAX_SCALE, Math.min(byWidth, byHeight));
+    }
+
+    /** Splits {@code words} into exactly {@code lines} lines, greedily keeping each line under an even
+     *  share of the total width so the widest line - which sets the scale - stays as narrow as it can. */
+    private static List<String> wrapWords(net.minecraft.client.gui.Font font, String[] words, int lines) {
+        int target = font.width(String.join(" ", words)) / lines;
+        List<String> out = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (int i = 0; i < words.length; i++) {
+            int wordsLeft = words.length - i;
+            int linesLeft = lines - out.size();
+            boolean mustBreak = line.length() > 0 && wordsLeft < linesLeft;
+            boolean wouldOverflow = line.length() > 0
+                    && font.width(line + " " + words[i]) > target && linesLeft > 1;
+            if (mustBreak || wouldOverflow) {
+                out.add(line.toString());
+                line.setLength(0);
+            }
+            if (line.length() > 0) {
+                line.append(' ');
+            }
+            line.append(words[i]);
+        }
+        out.add(line.toString());
+        return out;
     }
 
     /** Per killer560's report (2026-09-07): Hypixel renders each Chronomatron note as a run of identical-
@@ -635,12 +698,7 @@ public final class ExperimentsFeature {
             int y0 = top + slot.y;
             graphics.outline(x0 - 1, y0 - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, color);
             if (label != null) {
-                float scale = 0.5f;
-                graphics.pose().pushMatrix();
-                graphics.pose().translate(x0, y0 + SLOT_SIZE - 7);
-                graphics.pose().scale(scale, scale);
-                graphics.text(Minecraft.getInstance().font, label, 1, 1, 0xFFFFFFFF, true);
-                graphics.pose().popMatrix();
+                drawSlotLabel(graphics, label, x0, y0);
             }
             return;
         }
@@ -748,9 +806,6 @@ public final class ExperimentsFeature {
                 if (chainLengthAtOrOverMax(mode, cfg)) {
                     tryExitFinishedRound(screen, menu, now);
                     return;
-                }
-                if (mode == ExperimentSolver.Mode.SUPERPAIRS && cfg.isSuperpairsAdaptiveTimeout()) {
-                    ExperimentSolver.noteTabListLatencyMs(tabListLatencyMs(client));
                 }
                 OptionalInt click = SOLVER.nextClick(cells, cfg.isSuperpairsEnabled(), cfg.isSuperpairsValuableOnly(),
                         now, lastClickAtMs, cfg.getDelayMs(), cfg.getFirstClickDelayMs());
@@ -1424,17 +1479,6 @@ public final class ExperimentsFeature {
         }
         long fireAtMs = now + ThreadLocalRandom.current().nextInt(maxJitter + 1);
         pendingActions.add(new PendingAction(action, fireAtMs));
-    }
-
-    /** @return the local player's own tab-list latency (javap-verified: ClientPacketListener#getPlayerInfo(UUID),
-     *  PlayerInfo#getLatency()), or -1 if unavailable - feeds Superpairs' adaptive confirm timeout. */
-    private static int tabListLatencyMs(Minecraft client) {
-        var connection = client.getConnection();
-        if (connection == null || client.player == null) {
-            return -1;
-        }
-        var info = connection.getPlayerInfo(client.player.getUUID());
-        return info == null ? -1 : info.getLatency();
     }
 
     /** How long a decided-but-not-yet-fired click keeps retrying against {@link ActionGate} before it

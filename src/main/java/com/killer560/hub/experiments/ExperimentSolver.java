@@ -199,32 +199,16 @@ final class ExperimentSolver {
     // within a second each), while the 3000ms timeouts observed in that same log hit on clicks whose
     // state genuinely never changed at all across the full wait, not just slow ones. So 1000ms cuts the
     // wasted wait on truly-dead clicks without risking cutting off a real still-in-flight confirm.
-    // Since the 2026-09-15 roadmap ("adaptive Superpairs confirm-timeout based on real measured ping"),
-    // this flat value is only the fallback: used whenever Adaptive Timeout is off, or on but no latency
-    // sample exists yet. See #superpairsConfirmTimeoutMs.
+    // Adaptive Timeout (reworked 2026-10-04, killer560: "it should sense when the server is lagging and
+    // auto delay by that amount until it stops lagging") no longer replaces this value - it ADDS to it
+    // whatever time the server spent stalled since the click went out. See #superpairsConfirmTimeoutMs.
     private static final long SUPERPAIRS_CONFIRM_TIMEOUT_MS = 1000;
-    /** Adaptive timeout = clamp(K * latencyEstimate + margin) - same EMA approach (0.7/0.3) and
-     *  latency-multiplier idea as {@code TerminalSolverFeature#retryTimeoutMs}, with bounds wide enough to
-     *  cover both a good connection (dead clicks give up fast) and a lag spike (slow confirms aren't cut
-     *  off). */
-    private static final double SUPERPAIRS_ADAPTIVE_LATENCY_MULTIPLIER = 2.0;
-    private static final long SUPERPAIRS_ADAPTIVE_MIN_TIMEOUT_MS = 400;
-    private static final long SUPERPAIRS_ADAPTIVE_MAX_TIMEOUT_MS = 3000;
-    /** Samples above this are clamped before entering the EMA, so one freak stall can't poison it. */
-    private static final long SUPERPAIRS_MAX_LATENCY_SAMPLE_MS = SUPERPAIRS_ADAPTIVE_MAX_TIMEOUT_MS;
-    /** Session-wide (NOT reset per board, same as TerminalSolverFeature's confirmLatencyEmaMs) EMA of real
-     *  send -> observed-slot-change latency for Superpairs clicks; -1 until the first sample. */
-    private static double superpairsConfirmLatencyEmaMs = -1;
-    /** Most recent tab-list latency for the local player (PlayerInfo#getLatency), pushed in by
-     *  ExperimentsFeature; -1 if unknown. Used as a floor under the EMA (tab ping excludes server-side
-     *  processing and tick granularity, so it can only under-estimate the real confirm round-trip). */
-    private static int superpairsTabListLatencyMs = -1;
-    /** A non-powerup click that timed out is still watched for a LATE confirm (up to the adaptive max) so
-     *  slow confirms still feed the EMA - otherwise a short timeout would censor exactly the slow samples
-     *  it needs in order to grow. Cleared once sampled, expired, re-clicked, or on board reset. */
-    private Integer superpairsLateConfirmSlot;
-    private Cell superpairsLateConfirmPriorCell;
-    private long superpairsLateConfirmSentAtMs;
+    /** Ceiling on the lag Adaptive Timeout adds, so a dead connection (no pings at all, every millisecond
+     *  of which reads as stall) still gives up eventually rather than waiting forever. */
+    private static final long SUPERPAIRS_MAX_LAG_EXTENSION_MS = 5000;
+    /** {@link ServerLagSensor#lagMs()} at the moment the awaited click was sent; the difference from the
+     *  current reading is how long the server has stalled while this click waited. */
+    private long superpairsLagAtSendMs;
     /** Real timestamp the most recently SENT Superpairs click actually went out - per killer560's explicit
      *  request (2026-09-07) after seeing genuinely-instant-confirmed reveals/matches fire back-to-back
      *  in the same second: even though that's not a bug (it's the confirm-based "click again the
@@ -483,9 +467,59 @@ final class ExperimentSolver {
             // Enchanting Exp"/"38k Enchanting Exp" (the amount is embedded in the name text itself, NOT
             // the stack count - a real log caught that assumption before it shipped), so this just strips
             // the trailing "Enchanting Exp"/"Enchanting XP" words and keeps the leading amount token.
-            names.put(slot, isSuperpairsXpTile(known) ? xpAmountLabel(known.name()) : known.name());
+            names.put(slot, isSuperpairsXpTile(known) ? xpAmountLabel(known.name()) : itemLabel(known));
         }
         return names;
+    }
+
+    private static final java.util.regex.Pattern BOOK_WRAPPER =
+            java.util.regex.Pattern.compile("^Enchanted Book \\((.+)\\)$");
+    /** An enchant line from a book's lore: "Power VI", "Ultimate Wise V", "Turbo-Wheat 5". */
+    private static final java.util.regex.Pattern ENCHANT_LINE =
+            java.util.regex.Pattern.compile("^([A-Za-z][A-Za-z' -]{0,40}?) ([IVXLC]{1,7}|\\d{1,2})$");
+
+    /** The label worth showing for a non-XP tile. killer560, 2026-10-04: "If something like power 6 shows up
+     *  in the table right now it just says 'Enchan'... I don't need to know it is an enchanted book, I want
+     *  to know if it is Power 6 or Power 7 etc." A book's display name is just "Enchanted Book" (or
+     *  "Enchanted Book (Power VI)"), and the enchant itself is in the lore, so a book shows that, with the
+     *  level as a number. Anything else shows its whole name; the overlay scales it to fit the slot. */
+    static String itemLabel(Cell cell) {
+        String name = SECTION_CODE.matcher(cell.name()).replaceAll("").trim();
+        java.util.regex.Matcher wrapped = BOOK_WRAPPER.matcher(name);
+        if (wrapped.matches()) {
+            String enchant = enchantLabel(wrapped.group(1).trim());
+            return enchant != null ? enchant : wrapped.group(1).trim();
+        }
+        if (!name.toLowerCase(java.util.Locale.ROOT).startsWith("enchanted book")) {
+            // A tile can also be named for its enchant directly ("Power VI", see bestKnownSingleTarget's
+            // doc) - same numeric level then, so books and these read alike.
+            String enchant = enchantLabel(name);
+            return enchant != null ? enchant : name;
+        }
+        for (String line : cell.lore().split("\n")) {
+            String enchant = enchantLabel(SECTION_CODE.matcher(line).replaceAll("").trim());
+            if (enchant != null) {
+                return enchant;
+            }
+        }
+        return name;
+    }
+
+    /** "Power VI" -> "Power 6"; null if {@code text} is not an enchant-and-level line. */
+    private static String enchantLabel(String text) {
+        java.util.regex.Matcher m = ENCHANT_LINE.matcher(text);
+        if (!m.matches()) {
+            return null;
+        }
+        String level = m.group(2);
+        if (!Character.isDigit(level.charAt(0))) {
+            int value = ExperimentsProfitTracker.romanToInt(level);
+            if (value <= 0) {
+                return null;
+            }
+            level = String.valueOf(value);
+        }
+        return m.group(1) + " " + level;
     }
 
     private static final java.util.regex.Pattern SECTION_CODE = java.util.regex.Pattern.compile("§.");
@@ -653,19 +687,6 @@ final class ExperimentSolver {
         // rest of this class already relies on for identity-tracking (itself switched to SkyHanni's
         // real display-name-pattern approach), so "changed" means the same thing everywhere in this
         // file: covered -> revealed, or revealed -> empty/claimed.
-        if (superpairsLateConfirmSlot != null) {
-            Cell late = bySlot.get(superpairsLateConfirmSlot);
-            long lateLatency = now - superpairsLateConfirmSentAtMs;
-            if (superpairsSlotChanged(superpairsLateConfirmPriorCell, late)) {
-                recordSuperpairsConfirmLatency(lateLatency);
-                superpairsLateConfirmSlot = null;
-                superpairsLateConfirmPriorCell = null;
-            } else if (lateLatency > SUPERPAIRS_ADAPTIVE_MAX_TIMEOUT_MS) {
-                superpairsLateConfirmSlot = null;
-                superpairsLateConfirmPriorCell = null;
-            }
-        }
-
         if (superpairsAwaitingConfirmSlot != null) {
             Cell current = bySlot.get(superpairsAwaitingConfirmSlot);
             boolean changed = superpairsSlotChanged(superpairsAwaitingConfirmPriorCell, current);
@@ -682,9 +703,6 @@ final class ExperimentSolver {
             // must never be treated as "timed out."
             boolean timedOut = superpairsClickSent
                     && now - superpairsAwaitingConfirmSinceMs > confirmTimeoutMs;
-            if (changed && superpairsClickSent) {
-                recordSuperpairsConfirmLatency(now - superpairsAwaitingConfirmSinceMs);
-            }
             if (changed || timedOut) {
                 if (timedOut && !changed) {
                     LOGGER.warn("Superpairs click on slot {} never confirmed within {}ms - prior=[itemId={}, "
@@ -742,13 +760,6 @@ final class ExperimentSolver {
                                 retries + 1, SUPERPAIRS_PAIR_FIRST_RETRIES);
                     } else if (!superpairsAwaitingConfirmSlot.equals(superpairsPowerupActivationSlot)) {
                         queuedPairSlots.remove(superpairsAwaitingConfirmSlot);
-                        // A powerup tile never visibly changes, so only real reveal/pair clicks are
-                        // worth watching for a late confirm.
-                        if (current != null) {
-                            superpairsLateConfirmSlot = superpairsAwaitingConfirmSlot;
-                            superpairsLateConfirmPriorCell = superpairsAwaitingConfirmPriorCell;
-                            superpairsLateConfirmSentAtMs = superpairsAwaitingConfirmSinceMs;
-                        }
                     }
                     superpairsPowerupActivationSlot = null;
                 }
@@ -814,11 +825,6 @@ final class ExperimentSolver {
         OptionalInt click = decideSuperpairsClickInternal(cells, valuableOnly);
         if (click.isPresent()) {
             int slot = click.getAsInt();
-            if (superpairsLateConfirmSlot != null && superpairsLateConfirmSlot == slot) {
-                // Re-clicking the same slot: a change from here on can't be attributed to the old send.
-                superpairsLateConfirmSlot = null;
-                superpairsLateConfirmPriorCell = null;
-            }
             superpairsAwaitingConfirmSlot = slot;
             superpairsAwaitingConfirmPriorCell = cell(cells, slot);
             superpairsAwaitingConfirmSinceMs = now;
@@ -839,29 +845,15 @@ final class ExperimentSolver {
                 && (isRevealedPair(current) != isRevealedPair(prior) || current.empty() != prior.empty());
     }
 
-    private static void recordSuperpairsConfirmLatency(long latencyMs) {
-        long sample = Math.max(0, Math.min(latencyMs, SUPERPAIRS_MAX_LATENCY_SAMPLE_MS));
-        superpairsConfirmLatencyEmaMs = superpairsConfirmLatencyEmaMs < 0
-                ? sample : superpairsConfirmLatencyEmaMs * 0.7 + sample * 0.3;
-        superpairsConfirmTimeoutMs();
-    }
-
-    /** Pushed by {@code ExperimentsFeature} from the local player's tab-list entry; values <= 0 (not yet
-     *  reported by the server) are treated as unknown. */
-    static void noteTabListLatencyMs(int latencyMs) {
-        superpairsTabListLatencyMs = latencyMs > 0 ? latencyMs : -1;
-    }
-
-    /** @return the effective Superpairs confirm timeout. Adaptive Timeout off, or no latency sample yet
-     *  (neither a confirmed click nor a tab-list ping): the flat {@link #SUPERPAIRS_CONFIRM_TIMEOUT_MS}.
-     *  Otherwise clamp(K * max(confirmEma, tabPing) + margin). */
-    static long superpairsConfirmTimeoutMs() {
-        ExperimentsConfig cfg = ExperimentsConfig.getInstance();
+    /** @return the effective Superpairs confirm timeout for the click being waited on: the flat
+     *  {@link #SUPERPAIRS_CONFIRM_TIMEOUT_MS}, plus - with Adaptive Timeout on - however long the server
+     *  has stalled since that click was sent (capped at {@link #SUPERPAIRS_MAX_LAG_EXTENSION_MS}). No lag
+     *  means no extension, so on a healthy server it waits exactly as long as with the setting off. */
+    private long superpairsConfirmTimeoutMs() {
         long timeout = SUPERPAIRS_CONFIRM_TIMEOUT_MS;
-        double estimate = Math.max(superpairsConfirmLatencyEmaMs, superpairsTabListLatencyMs);
-        if (cfg.isSuperpairsAdaptiveTimeout() && estimate > 0) {
-            long raw = Math.round(SUPERPAIRS_ADAPTIVE_LATENCY_MULTIPLIER * estimate) + cfg.getSuperpairsTimeoutMarginMs();
-            timeout = Math.max(SUPERPAIRS_ADAPTIVE_MIN_TIMEOUT_MS, Math.min(SUPERPAIRS_ADAPTIVE_MAX_TIMEOUT_MS, raw));
+        if (ExperimentsConfig.getInstance().isSuperpairsAdaptiveTimeout()) {
+            long lagSinceSend = ServerLagSensor.lagMs() - superpairsLagAtSendMs;
+            timeout += Math.max(0, Math.min(SUPERPAIRS_MAX_LAG_EXTENSION_MS, lagSinceSend));
         }
         return timeout;
     }
@@ -871,6 +863,7 @@ final class ExperimentSolver {
             superpairsClickSent = true;
             superpairsAwaitingConfirmSinceMs = sentAtMs;
             superpairsLastClickSentAtMs = sentAtMs;
+            superpairsLagAtSendMs = ServerLagSensor.lagMs();
         }
     }
 
@@ -1169,9 +1162,6 @@ final class ExperimentSolver {
         superpairsAwaitingConfirmPriorCell = null;
         superpairsAwaitingConfirmSinceMs = 0;
         superpairsClickSent = false;
-        superpairsLateConfirmSlot = null;
-        superpairsLateConfirmPriorCell = null;
-        superpairsLateConfirmSentAtMs = 0;
         // Real bug found and fixed (2026-09-07) from a real log: this used to reset to 0, and
         // decideSuperpairsClick's minimum-delay gate checks "now - superpairsLastClickSentAtMs <
         // minDelayMs" - with a real System.currentTimeMillis() timestamp, "now - 0" is always some huge

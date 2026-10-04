@@ -620,7 +620,7 @@ public final class ExperimentsProfitTracker {
         return alias != null ? alias : toIdToken(loreName);
     }
 
-    private static int romanToInt(String roman) {
+    static int romanToInt(String roman) {
         int total = 0;
         int prev = 0;
         for (int i = roman.length() - 1; i >= 0; i--) {

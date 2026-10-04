@@ -310,6 +310,9 @@ physics. Read the relevant one before touching either area.
   Clicking a tile that is already uncovered does not use a click (killer560, 2026-10-01). A pair's first click
   can fail to land (tile still covered, others still read "Click any button!"); clicking the partner anyway lost
   Experiment the Fish, so the first tile is now re-clicked before its partner.
+- `ServerTickClock`'s subscribers cannot measure a lag spike: a real stall drops the ping rate under 15/s,
+  the clock flips to client-tick fallback, and what it fires is the client's own ticks. Anything measuring
+  server stalls subscribes to `subscribeRawPing` instead (as `experiments/ServerLagSensor` does).
 - **Hypixel's Bazaar summaries are named the opposite of how they read.** In
   `api.hypixel.net/v2/skyblock/bazaar`, `buy_summary` is the book you INSTANT-BUY OUT OF and `sell_summary` is
   the one you instant-sell into. Verified on `VIBRANT_CORAL` (2026-09-29): `quick_status.buyPrice` 3324220.9

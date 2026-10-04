@@ -25,9 +25,11 @@ public final class ExperimentsConfig {
     public static final int MAX_AUTO_RENEW_COUNT = 3;
     public static final double MIN_TITANIC_MAX_PRICE = 0;
     public static final double MAX_TITANIC_MAX_PRICE = 3_000_000;
-    public static final int MIN_SUPERPAIRS_TIMEOUT_MARGIN_MS = 0;
-    public static final int MAX_SUPERPAIRS_TIMEOUT_MARGIN_MS = 1000;
-    public static final int DEFAULT_SUPERPAIRS_TIMEOUT_MARGIN_MS = 250;
+    /** First Click Delay had no ceiling while it was a typed box; the slider that replaced it (2026-10-04)
+     *  needs one. 3s is three times the default, and a saved value above it loads clamped. */
+    public static final int MAX_FIRST_CLICK_DELAY_MS = 3000;
+    /** Every delay slider in the Auto E-Table section moves in steps of this many ms. */
+    public static final int DELAY_STEP_MS = 50;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
@@ -107,12 +109,12 @@ public final class ExperimentsConfig {
      *  observational logging of claimed rewards/XP/Bits, independent of the solver toggle. Off by
      *  default (roadmap item, 2026-09-15). */
     private boolean profitTrackerEnabled = false;
-    /** Superpairs confirm-timeout scales with measured round-trip latency (see
-     *  {@code ExperimentSolver#superpairsConfirmTimeoutMs}) instead of the flat 1000ms. Default OFF: at
-     *  low ping the adaptive value drops BELOW the old flat 1000ms, so it is not strictly safer. */
+    /** Superpairs' flat 1000ms confirm-timeout is extended by however long the server stalls while a
+     *  click waits (see {@code ExperimentSolver#superpairsConfirmTimeoutMs} and {@link ServerLagSensor}).
+     *  With no lag it changes nothing. The fixed "Timeout Margin" it used to carry was removed on
+     *  2026-10-04 (killer560: "that shouldn't have a margin"); an old file's {@code superpairsTimeoutMarginMs}
+     *  key is simply no longer read. */
     private boolean superpairsAdaptiveTimeout = false;
-    /** Fixed margin added on top of the latency-scaled part of the adaptive Superpairs timeout. */
-    private int superpairsTimeoutMarginMs = DEFAULT_SUPERPAIRS_TIMEOUT_MARGIN_MS;
 
     private ExperimentsConfig() {
     }
@@ -140,7 +142,7 @@ public final class ExperimentsConfig {
                     ? Math.max(MIN_DELAY_MS, Math.min(MAX_DELAY_MS, obj.get("delayMs").getAsInt())) : 200;
             cfg.autonomousMode = obj.has("autonomousMode") && obj.get("autonomousMode").getAsBoolean();
             cfg.firstClickDelayMs = obj.has("firstClickDelayMs")
-                    ? Math.max(0, obj.get("firstClickDelayMs").getAsInt()) : 1000;
+                    ? Math.max(0, Math.min(MAX_FIRST_CLICK_DELAY_MS, obj.get("firstClickDelayMs").getAsInt())) : 1000;
             if (obj.has("stopStrategy")) {
                 try {
                     cfg.stopStrategy = ExperimentStopStrategy.valueOf(obj.get("stopStrategy").getAsString());
@@ -160,8 +162,6 @@ public final class ExperimentsConfig {
             cfg.notifyMaxClicksReached = !obj.has("notifyMaxClicksReached") || obj.get("notifyMaxClicksReached").getAsBoolean();
             cfg.profitTrackerEnabled = obj.has("profitTrackerEnabled") && obj.get("profitTrackerEnabled").getAsBoolean();
             cfg.superpairsAdaptiveTimeout = obj.has("superpairsAdaptiveTimeout") && obj.get("superpairsAdaptiveTimeout").getAsBoolean();
-            cfg.superpairsTimeoutMarginMs = obj.has("superpairsTimeoutMarginMs")
-                    ? clampMargin(obj.get("superpairsTimeoutMarginMs").getAsInt()) : DEFAULT_SUPERPAIRS_TIMEOUT_MARGIN_MS;
             // One-time fix-up for a file written before the 2026-09-30 solver/automation split. Back then
             // "enabled: false" meant the WHOLE Experimentation Table feature was off and "autonomousMode"
             // was a dead leftover underneath it; now the two are independent, so that file would otherwise
@@ -200,7 +200,6 @@ public final class ExperimentsConfig {
             obj.addProperty("notifyMaxClicksReached", notifyMaxClicksReached);
             obj.addProperty("profitTrackerEnabled", profitTrackerEnabled);
             obj.addProperty("superpairsAdaptiveTimeout", superpairsAdaptiveTimeout);
-            obj.addProperty("superpairsTimeoutMarginMs", superpairsTimeoutMarginMs);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -266,7 +265,7 @@ public final class ExperimentsConfig {
     }
 
     public void setFirstClickDelayMs(int firstClickDelayMs) {
-        this.firstClickDelayMs = Math.max(0, firstClickDelayMs);
+        this.firstClickDelayMs = Math.max(0, Math.min(MAX_FIRST_CLICK_DELAY_MS, firstClickDelayMs));
     }
 
     public ExperimentStopStrategy getStopStrategy() {
@@ -357,17 +356,5 @@ public final class ExperimentsConfig {
 
     public void setSuperpairsAdaptiveTimeout(boolean superpairsAdaptiveTimeout) {
         this.superpairsAdaptiveTimeout = superpairsAdaptiveTimeout;
-    }
-
-    public int getSuperpairsTimeoutMarginMs() {
-        return superpairsTimeoutMarginMs;
-    }
-
-    public void setSuperpairsTimeoutMarginMs(int superpairsTimeoutMarginMs) {
-        this.superpairsTimeoutMarginMs = clampMargin(superpairsTimeoutMarginMs);
-    }
-
-    private static int clampMargin(int ms) {
-        return Math.max(MIN_SUPERPAIRS_TIMEOUT_MARGIN_MS, Math.min(MAX_SUPERPAIRS_TIMEOUT_MARGIN_MS, ms));
     }
 }
