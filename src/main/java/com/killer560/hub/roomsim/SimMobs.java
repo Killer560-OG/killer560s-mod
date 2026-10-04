@@ -325,6 +325,9 @@ public final class SimMobs {
         tag.setNoGravity(true);
         tag.setNoBasePlate(true);
         tag.setInvulnerable(true);
+        // A marker, so the tag has no hitbox to catch hits meant for the mob (the same fix as the blaze labels).
+        byte flags = tag.getEntityData().get(ArmorStand.DATA_CLIENT_FLAGS);
+        tag.getEntityData().set(ArmorStand.DATA_CLIENT_FLAGS, (byte) (flags | ArmorStand.CLIENT_FLAG_MARKER));
         tag.setCustomName(Component.literal(" ✯ " + displayName + " " + shortHealth(health) + "❤"));
         tag.setCustomNameVisible(true);
         level.addFreshEntity(tag);
