@@ -94,6 +94,9 @@ public final class Ap3Commands {
         ADD_BLOCK("add_block", "Add Block Node", "/ap3 add block"),
         LIST("list", "List Chain", "/ap3 list"),
         UNDO("undo", "Undo Last Node", "/ap3 undo"),
+        /** The opposite of UNDO (killer560, 2026-10-04) - see {@link Ap3History}. Label distinct from Auto Routes'
+         *  "Redo Last Change" so the two tabs' tooltips cannot cross-match. */
+        REDO("redo", "Redo Chain Change", "/ap3 redo"),
         /** The command takes an optional number; the key (and the bare command) delete the node you stand nearest. */
         DELETE_NEAREST("delete", "Delete Nearest Node", "/ap3 delete|remove [n]"),
         /** The key re-places the LAST node where you now stand and look - "I added it, stepped to a better spot"
@@ -283,6 +286,7 @@ public final class Ap3Commands {
                                 }))
                         .then(ClientCommands.literal("list").executes(context -> exec(Action.LIST)))
                         .then(ClientCommands.literal("undo").executes(context -> exec(Action.UNDO)))
+                        .then(ClientCommands.literal("redo").executes(context -> exec(Action.REDO)))
                         .then(ClientCommands.literal("clear").executes(context -> exec(Action.CLEAR)))
                         .then(ClientCommands.literal("reload").executes(context -> exec(Action.RELOAD)))
                         .then(ClientCommands.literal("stop").executes(context -> exec(Action.STOP)))
@@ -551,6 +555,7 @@ public final class Ap3Commands {
             case ADD_BLOCK -> add(Ap3Node.Type.BLOCK);
             case LIST -> list();
             case UNDO -> undo();
+            case REDO -> Ap3Feature.redo();
             case DELETE_NEAREST -> deleteNearest();
             case REPLACE_LAST -> replaceLast();
             case CLEAR -> clear();
@@ -818,7 +823,7 @@ public final class Ap3Commands {
         for (int i = 0; i < nodes.size(); i++) {
             ModChat.send(FEATURE, ModChat.dim("#" + (i + 1) + " "), ModChat.value(describe(nodes.get(i))));
         }
-        ModChat.send(FEATURE, ModChat.dim("/ap3 delete <n> removes one by its number; /ap3 delete alone takes the nearest; /ap3 undo the last added."));
+        ModChat.send(FEATURE, ModChat.dim("/ap3 delete <n> removes one by its number; /ap3 delete alone takes the nearest; /ap3 undo / /ap3 redo the last change."));
     }
 
     private static void undo() {

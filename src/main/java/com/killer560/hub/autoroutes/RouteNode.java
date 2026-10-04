@@ -258,20 +258,47 @@ public final class RouteNode {
     }
 
     public RouteNode copy() {
-        RouteNode n = new RouteNode(type, x, y, z, yaw, pitch, pathIndex);
-        n.radius = radius;
-        n.colour = colour;
-        n.start = start;
-        n.awaitEnabled = awaitEnabled;
-        n.breakerBlocks.addAll(breakerBlocks);
-        n.item = item;
-        n.awaitCondition = awaitCondition;
-        n.awaitAmount = awaitAmount;
-        n.command = command;
-        n.landingX = landingX;
-        n.landingY = landingY;
-        n.landingZ = landingZ;
-        n.hasLanding = hasLanding;
+        RouteNode n = new RouteNode();
+        n.copyFrom(this);
         return n;
+    }
+
+    /** Overwrites every field of this node with {@code o}'s, keeping this object's identity - the node editor and
+     *  its undo change a node IN PLACE, because {@link RouteHistory} and the executor hold the live object. */
+    public void copyFrom(RouteNode o) {
+        type = o.type;
+        x = o.x;
+        y = o.y;
+        z = o.z;
+        yaw = o.yaw;
+        pitch = o.pitch;
+        pathIndex = o.pathIndex;
+        radius = o.radius;
+        colour = o.colour;
+        start = o.start;
+        awaitEnabled = o.awaitEnabled;
+        if (o != this) {
+            breakerBlocks.clear();
+            breakerBlocks.addAll(o.breakerBlocks);
+        }
+        item = o.item;
+        awaitCondition = o.awaitCondition;
+        awaitAmount = o.awaitAmount;
+        command = o.command;
+        landingX = o.landingX;
+        landingY = o.landingY;
+        landingZ = o.landingZ;
+        hasLanding = o.hasLanding;
+    }
+
+    /** True when every stored field matches {@code o}'s - the editor's "nothing changed, push no undo entry". */
+    public boolean sameData(RouteNode o) {
+        return o != null && type == o.type && x == o.x && y == o.y && z == o.z && yaw == o.yaw && pitch == o.pitch
+                && pathIndex == o.pathIndex && radius == o.radius && java.util.Objects.equals(colour, o.colour)
+                && start == o.start && awaitEnabled == o.awaitEnabled && breakerBlocks.equals(o.breakerBlocks)
+                && java.util.Objects.equals(item, o.item) && awaitCondition == o.awaitCondition
+                && awaitAmount == o.awaitAmount && java.util.Objects.equals(command, o.command)
+                && landingX == o.landingX && landingY == o.landingY && landingZ == o.landingZ
+                && hasLanding == o.hasLanding;
     }
 }

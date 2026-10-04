@@ -47,3 +47,6 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   not it had anything to wait for. AP3's USE node spent four ticks before the click, six or seven with a swap
   ("my use item nodes come out like half a second late"). Only two waits are real: the server must see the new
   rotation before the use, and it must have acknowledged a hotbar change. Let the rest fall through in one tick.
+- `Ap3Node.copy()` does NOT copy `useItemId` or any Path field (`pathIndex`, start/end, speed window, dir, term).
+  It is fine for `replaceNode`'s position probe, but anything that must restore a node whole (undo/redo) uses
+  `Ap3Node.snapshot()` / `copyFrom()`, added 2026-10-04 with every field.

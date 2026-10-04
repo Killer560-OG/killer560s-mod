@@ -93,6 +93,9 @@ public final class AutoRoutesCommands {
         /** AP3's UNDO (killer560, 2026-10-04: "the same node numbering system per room and the remove and delete
          *  and undo command"): the most recent add / remove / breaker edit / clear, see {@link RouteHistory}. */
         UNDO("undo", "Undo Last Node", "/ar undo"),
+        /** The opposite of UNDO (killer560, 2026-10-04: "a /ar redo where it is the opposite of undo and will
+         *  restore things I just deleted or undid"). See {@link RouteHistory}. */
+        REDO("redo", "Redo Last Change", "/ar redo"),
         /** AP3's DELETE_NEAREST, id unchanged so an existing binding keeps working. The command takes an optional
          *  number; the key (and the bare command) delete the node you stand clearly nearest. It used to delete the
          *  LAST node. Label has no ':' of its own (2026-09-20 tooltip sweep: SettingTooltips.key() cuts at the
@@ -187,8 +190,19 @@ public final class AutoRoutesCommands {
 
     /** Call once from {@code Killer560ModClient#onInitializeClient} (see INTEGRATION.md). */
     public static void register() {
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-                dispatcher.register(ClientCommands.literal("ar")
+        // "/ar and /autoroutes, both are the exact same, just different wording" (killer560, 2026-10-04). The same
+        // tree is BUILT TWICE under the two names - ProfileViewerFeature's /pv + /killer560pv pattern - rather than
+        // a Brigadier redirect, which forwards the children but not the root's own executes (bare /autoroutes
+        // would print nothing) and tab-completes through the alias less reliably.
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+            dispatcher.register(root("ar"));
+            dispatcher.register(root("autoroutes"));
+        });
+    }
+
+    /** The whole command tree under {@code name} - {@code ar} or {@code autoroutes}, identical in every branch. */
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<FabricClientCommandSource> root(String name) {
+        return ClientCommands.literal(name)
                         // Hidden from tab-completion, not merely refused, when Auto Routes is off - his request
                         // 2026-09-28. The refusal message below stays for the case where it is turned off
                         // mid-session with the command already typed.
@@ -221,18 +235,28 @@ public final class AutoRoutesCommands {
                                                             StringArgumentType.getString(context, "mods"));
                                                     return 1;
                                                 }))))
+                        // "/ar edit <n>" opens the node editor (killer560, 2026-10-04: "the same concept as the AP3
+                        // node editor but also a goto button"); "/ar edit db" is unchanged - the literals win over
+                        // the number argument, so the two cannot be confused.
                         .then(ClientCommands.literal("edit")
                                 .then(ClientCommands.literal("db").executes(context -> exec(Action.EDIT_BREAKER)))
-                                .then(ClientCommands.literal("dungeonbreaker").executes(context -> exec(Action.EDIT_BREAKER))))
+                                .then(ClientCommands.literal("dungeonbreaker").executes(context -> exec(Action.EDIT_BREAKER)))
+                                .then(ClientCommands.argument("n", IntegerArgumentType.integer(1))
+                                        .suggests(NODE_NUMBER_SUGGEST)
+                                        .executes(context -> {
+                                            int n = IntegerArgumentType.getInteger(context, "n");
+                                            return guarded(() -> openEditor(n - 1)) ? 1 : 0;
+                                        })))
                         .then(ClientCommands.literal("clear").executes(context -> exec(Action.CLEAR)))
                         .then(ClientCommands.literal("list").executes(context -> exec(Action.LIST)))
                         .then(ClientCommands.literal("reload").executes(context -> exec(Action.RELOAD)))
                         .then(ClientCommands.literal("undo").executes(context -> exec(Action.UNDO)))
+                        .then(ClientCommands.literal("redo").executes(context -> exec(Action.REDO)))
                         // "/ar delete [n]" and "/ar remove [n]" are the same command, as "/ap3 delete|remove [n]"
                         // are. <n> is the 1-based number "/ar list" and the world labels show; with no number the
                         // node you stand clearly nearest goes. Converted to 0-based exactly here.
                         .then(deleteBranch("delete"))
-                        .then(deleteBranch("remove"))));
+                        .then(deleteBranch("remove"));
     }
 
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<FabricClientCommandSource> deleteBranch(String word) {
@@ -307,6 +331,7 @@ public final class AutoRoutesCommands {
             case CLEAR -> clear();
             case LIST -> list();
             case UNDO -> AutoRoutesFeature.undo();
+            case REDO -> AutoRoutesFeature.redo();
             case DELETE_NEAREST -> deleteNearest();
             case RELOAD -> reload();
             case STOP -> stopRoute();
@@ -348,10 +373,30 @@ public final class AutoRoutesCommands {
         for (Action a : Action.values()) {
             ModChat.send(FEATURE, ModChat.value(a.command), ModChat.dim(" - " + a.label));
         }
+        ModChat.send(FEATURE, ModChat.value("/ar edit <n>"), ModChat.dim(" - Node Editor (type, start, await, position, look, item, Go To)"));
+        ModChat.send(FEATURE, ModChat.dim("/autoroutes works everywhere /ar does."));
         ModChat.send(FEATURE, ModChat.dim("Types: boom, breaker, ew (or etherwarp), use, walk. After the type, any order: "),
                 ModChat.value("start"), ModChat.dim(" (this room's start node), "), ModChat.value("await:<number>"),
                 ModChat.dim(" (wait for that many secrets first) - e.g. "), ModChat.value("/ar add ew start await:2"),
                 ModChat.dim("."));
+    }
+
+    /**
+     * {@code /ar edit <n>}: opens {@link AutoRoutesEditScreen} on node {@code index} (0-based) of this room's route.
+     * Opened through {@code client.execute}, as {@code /ap3 edit} is: a client command runs while the chat screen is
+     * still up, and setting a screen from inside it closes the new one again on the same tick.
+     */
+    private static void openEditor(int index) {
+        Route route = AutoRoutesFeature.editableRoute();
+        List<RouteNode> nodes = route == null ? List.of() : route.nodes();
+        if (index < 0 || index >= nodes.size()) {
+            ModChat.send(FEATURE, ModChat.bad("No node #" + (index + 1)),
+                    ModChat.text(nodes.isEmpty() ? " - " + roomName() + " has no route." : " - there are " + nodes.size() + "."));
+            return;
+        }
+        RouteNode node = nodes.get(index);
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> com.killer560.hub.compat.McCompat.setScreen(client, new AutoRoutesEditScreen(route, node)));
     }
 
     private static void startRecord() {
@@ -506,7 +551,7 @@ public final class AutoRoutesCommands {
         for (int i = 0; i < nodes.size(); i++) {
             ModChat.send(FEATURE, ModChat.dim("#" + (i + 1) + " "), ModChat.value(describe(nodes.get(i))));
         }
-        ModChat.send(FEATURE, ModChat.dim("/ar delete <n> removes one by its number; /ar delete alone takes the nearest; /ar undo the last change."));
+        ModChat.send(FEATURE, ModChat.dim("/ar edit <n> opens a node's editor; /ar delete <n> removes one by its number; /ar delete alone takes the nearest; /ar undo / /ar redo the last change."));
     }
 
     private static void deleteNearest() {

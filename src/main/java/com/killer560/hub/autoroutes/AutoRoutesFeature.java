@@ -294,19 +294,44 @@ public final class AutoRoutesFeature {
                 return false;
             }
             int last = nodes.size() - 1;
-            String what = nodes.get(last).type.label();
+            Route route = currentRoute();
+            RouteNode node = nodes.get(last);
             if (!deleteNode(last, false)) {
                 return false;
             }
-            chat(ModChat.text("Deleted "), ModChat.value("#" + (last + 1) + " " + what),
+            // Not an undo step of its own (or the next undo would just put it back), but /ar redo restores it.
+            RouteHistory.fallbackDeleted(route, node, last);
+            chat(ModChat.text("Deleted "), ModChat.value("#" + (last + 1) + " " + node.type.label()),
                     ModChat.dim(" from " + AutoRoutesCommands.roomName()));
             return true;
         }
+        afterHistoryStep(done);
+        return true;
+    }
+
+    /**
+     * {@code /ar redo} (killer560, 2026-10-04: "the opposite of undo and will restore things I just deleted or
+     * undid"): re-applies the most recent undone change. Anything new done since that undo has emptied the redo
+     * history, so this never replays a change onto a route it was not made against.
+     */
+    public static boolean redo() {
+        RouteHistory.Undone done = RouteHistory.redo();
+        if (done == null) {
+            chatBad("Nothing to redo.");
+            return false;
+        }
+        afterHistoryStep(done);
+        return true;
+    }
+
+    /** Shared tail of undo and redo: stop a running route, re-point breaker edit mode, save, and say what happened. */
+    private static void afterHistoryStep(RouteHistory.Undone done) {
         if (RouteExecutor.isRunning()) {
             RouteExecutor.stop("route edited");
         }
-        if (editBreakerNode != null && done.route().indexOf(editBreakerNode) < 0
-                && done.route() == RouteStore.getInstance().forRoom(done.route().roomName())) {
+        Route here = currentRoute();
+        if (editBreakerNode != null && (here == null || here.indexOf(editBreakerNode) < 0
+                || editBreakerNode.type != RouteNode.Type.DUNGEON_BREAKER)) {
             editBreakerNode = null;
         }
         if (editMode && editBreakerNode == null) {
@@ -322,7 +347,192 @@ public final class AutoRoutesFeature {
             chat(ModChat.text(done.verb() + " "), ModChat.value("#" + done.number() + " " + done.node().type.label()),
                     ModChat.dim(" in " + done.route().roomName()));
         }
+    }
+
+    // ------------------------------------------------------------------------------- /ar edit <n> (node editor)
+
+    /** The live route the node editor works on (the recording, else the saved route of the room you stand in). */
+    static Route editableRoute() {
+        return currentRoute();
+    }
+
+    /** The frame that route's room-relative coordinates resolve through, or null when the room is unknown. */
+    static RouteCoords.Frame editableFrame() {
+        return RouteRecorder.isRecording() ? RouteRecorder.recordingFrame() : RouteCoords.Frame.current();
+    }
+
+    /**
+     * The node editor's Save ({@link AutoRoutesEditScreen}): copies every field of {@code edited} onto the live
+     * {@code node} in place, through {@link RouteHistory#changed} so {@code /ar undo} reverts the whole edit and
+     * {@code /ar redo} re-applies it. Setting the start flag moves it off whichever node had it (the rule
+     * {@code /ar add ... start} follows). An edit that changed nothing records nothing.
+     * @return false (after saying why) when the node is no longer in the route
+     */
+    static boolean applyNodeEdit(Route route, RouteNode node, RouteNode edited) {
+        if (route == null || route.indexOf(node) < 0 || (route != currentRoute())) {
+            chatBad("That node is gone - the route changed or you left the room. Nothing was saved.");
+            return false;
+        }
+        if (node.sameData(edited)) {
+            return true;
+        }
+        RouteNode before = node.copy();
+        RouteNode previousStart = null;
+        if (edited.start) {
+            for (RouteNode n : route.nodes()) {
+                if (n != node && n.start) {
+                    n.start = false;
+                    previousStart = n;
+                }
+            }
+        }
+        node.copyFrom(edited);
+        RouteHistory.changed(route, node, before, previousStart);
+        if (RouteExecutor.isRunning()) {
+            RouteExecutor.stop("route edited");
+        }
+        if (editBreakerNode == node && node.type != RouteNode.Type.DUNGEON_BREAKER) {
+            editBreakerNode = null;
+            if (editMode) {
+                pickEditBreakerNode();
+            }
+        }
+        RouteStore.getInstance().save();
+        suppressAutoArm();
+        chat(ModChat.text("Saved "), ModChat.value("#" + (route.indexOf(node) + 1) + " " + node.describe()),
+                previousStart == null ? ModChat.dim(" in " + route.roomName())
+                        : ModChat.dim(" - start moved off #" + (route.indexOf(previousStart) + 1)));
         return true;
+    }
+
+    /**
+     * Breaker edit mode aimed at {@code node} (the editor's "Pick Blocks", and the end of a Go-to): the same edit
+     * mode {@code /ar edit db} toggles - nothing arms while it is on - with the right-clicks landing on this node
+     * when it is a breaker, else on the nearest breaker as {@code /ar edit db} picks. {@code node} is latched, so
+     * turning edit mode off while still standing in it does not fire it under him.
+     */
+    static void enterEditModeAt(RouteNode node) {
+        if (!AutoRoutesConfig.getInstance().isEnabled()) {
+            chatBad("Auto Routes is off (cheat build + Skyblock only).");
+            return;
+        }
+        if (RouteExecutor.isRunning()) {
+            RouteExecutor.stop("edit mode");
+        }
+        editMode = true;
+        if (node != null && node.type == RouteNode.Type.DUNGEON_BREAKER) {
+            editBreakerNode = node;
+        } else {
+            pickEditBreakerNode();
+        }
+        latchedNode = node;
+        Route route = currentRoute();
+        int number = route == null || node == null ? -1 : route.indexOf(node) + 1;
+        chat(ModChat.text("Edit mode "), ModChat.good("ON"),
+                ModChat.text(number > 0 ? " at #" + number + " " + node.type.label() : ""),
+                editBreakerNode == null ? ModChat.dim(" - no breaker node in this room to right-click blocks into.")
+                        : ModChat.dim(" - right-click blocks for breaker #" + breakerIndex()
+                        + ", shift-right-click removes. /ar edit db to finish."));
+    }
+
+    /** The node a Go-to is travelling to, until it lands or the path fails. */
+    private static RouteNode gotoNode;
+    private static Route gotoRoute;
+
+    /**
+     * The editor's "Go To" (killer560, 2026-10-04: "If I press that it should etherwarp pathfind to the node, same
+     * logic as the interactive map, and once it gets there it should put itself into edit mode"). The warp is the
+     * Interactive Map's own {@link ClearExecutor#etherPath} - the call {@link #warpToStartNode} and the map's room
+     * clicks make - so it plans with whatever planner the map has. Goal: the block under the node, or the nearest
+     * etherwarpable block to it. On arrival {@link #onGotoArrived} turns edit mode on and latches the node; a search
+     * that finds nothing is reported by the tick once {@code ClearExecutor} goes idle without calling back.
+     * @return true when the warp was started (or he was already there)
+     */
+    static boolean goToNode(Route route, RouteNode node) {
+        RouteCoords.Frame frame = editableFrame();
+        Minecraft client = Minecraft.getInstance();
+        if (route == null || node == null || route.indexOf(node) < 0 || frame == null || client.player == null) {
+            chatBad("That node is gone - the route changed or you left the room.");
+            return false;
+        }
+        int number = route.indexOf(node) + 1;
+        if (RouteRecorder.isRecording()) {
+            chatBad("Stop recording first (/ar stop record) - a warp would be recorded into the route.");
+            return false;
+        }
+        if (ClearExecutor.isBusy() || BloodRush.isRunning()) {
+            chatBad("An Interactive Map warp is already running - let it finish, then press Go To again.");
+            return false;
+        }
+        Vec3 real = RouteCoords.toReal(frame, node.relativePos());
+        BlockPos below = BlockPos.containing(real.x, real.y - 0.5, real.z);
+        BlockPos goal = TeleportUtils.etherwarpable(below) ? below : TeleportUtils.nearestEtherwarpable(below);
+        if (goal == null) {
+            chatBad("No etherwarpable block at or near node #" + number + " - no path to it.");
+            return false;
+        }
+        if (RouteExecutor.isRunning()) {
+            RouteExecutor.stop("Go To node");
+        }
+        RouteExecutor.clearStoppedByUser();
+        RouteExecutor.clearJustFinished();
+        // Edit mode swallows block right-clicks; off for the trip, and the arrival turns it back on.
+        if (editMode) {
+            editMode = false;
+            editBreakerNode = null;
+            AutoRoutesEditInput.reset();
+        }
+        gotoNode = node;
+        gotoRoute = route;
+        mapArrivalGuard = true;
+        externalTeleport = true;
+        ClearExecutor.setExternalOwner(true);
+        chat(ModChat.text("Warping to "), ModChat.value("#" + number + " " + node.type.label()),
+                ModChat.dim(" at " + goal.toShortString()));
+        ClearExecutor.etherPath(goal, () -> {
+            ClearExecutor.setExternalOwner(false);
+            externalTeleport = false;
+            onGotoArrived();
+        });
+        return true;
+    }
+
+    private static void onGotoArrived() {
+        RouteNode node = gotoNode;
+        Route route = gotoRoute;
+        gotoNode = null;
+        gotoRoute = null;
+        if (node == null) {
+            return;
+        }
+        if (route == null || route.indexOf(node) < 0 || route != currentRoute()) {
+            chatBad("Arrived, but that node is no longer in this room's route - edit mode left off.");
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        RouteCoords.Frame frame = editableFrame();
+        if (client.player != null && frame != null) {
+            double off = RouteCoords.toReal(frame, node.relativePos()).distanceTo(client.player.position());
+            if (off > 1.5) {
+                chat(ModChat.dim(String.format(java.util.Locale.US,
+                        "Landed %.1f blocks from #%d (nearest etherwarpable block to it).", off, route.indexOf(node) + 1)));
+            }
+        }
+        enterEditModeAt(node);
+    }
+
+    /** A Go-to whose warp ended without the arrival callback: the planner found no path (or it was cancelled). */
+    private static void reportGotoFailed() {
+        RouteNode node = gotoNode;
+        Route route = gotoRoute;
+        gotoNode = null;
+        gotoRoute = null;
+        if (node == null) {
+            return;
+        }
+        int number = route == null ? -1 : route.indexOf(node) + 1;
+        chatBad((ClearExecutor.lastPathFailed() ? "No etherwarp path to node " : "Go To cancelled before reaching node ")
+                + (number > 0 ? "#" + number : "") + " - edit mode not turned on.");
     }
 
     /** After an edit he may be standing in a node that is new, renumbered or back again: like AP3's
@@ -578,9 +788,10 @@ public final class AutoRoutesFeature {
             arrivedByTeleport = false;
         }
         if (externalTeleport) {
-            // Our start-node warp ended without its completion callback (no path found): release the queue.
+            // Our start-node / Go-to warp ended without its completion callback (no path found): release the queue.
             externalTeleport = false;
             ClearExecutor.setExternalOwner(false);
+            reportGotoFailed();
         }
 
         boolean inClear = DungeonState.isInDungeon() && !LiveMapFeature.isInBoss();
@@ -795,6 +1006,8 @@ public final class AutoRoutesFeature {
         mapArrivalGuard = false;
         externalTeleport = false;
         renderFailed = false;
+        gotoNode = null;
+        gotoRoute = null;
     }
 
     /** Never let a tick/render exception take the frame down: switch the feature off (persisted) and say so. */

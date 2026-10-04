@@ -434,6 +434,21 @@ public final class Ap3Store {
         return chain;
     }
 
+    /** Puts {@code chain} (the same object) back under its key - undo / redo of a clear, or of the delete that
+     *  emptied it. Never replaces a different chain already under that key. @return true when it is in the store */
+    public boolean restore(Ap3Chain chain) {
+        if (chain == null) {
+            return false;
+        }
+        Ap3Chain there = chains.get(chain.key());
+        if (there != null) {
+            return there == chain;
+        }
+        chains.put(chain.key(), chain);
+        parseFailed = false;
+        return true;
+    }
+
     public boolean remove(Ap3Chain chain) {
         boolean removed = chain != null && chains.remove(chain.key()) != null;
         if (removed) {

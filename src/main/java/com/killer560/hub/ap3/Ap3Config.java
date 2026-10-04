@@ -60,6 +60,7 @@ public final class Ap3Config {
     public static final String KEY_ADD_BLOCK = "add_block";
     public static final String KEY_LIST = "list";
     public static final String KEY_UNDO = "undo";
+    public static final String KEY_REDO = "redo";
     public static final String KEY_DELETE = "delete";
     public static final String KEY_CLEAR = "clear";
     public static final String KEY_RELOAD = "reload";
@@ -74,7 +75,7 @@ public final class Ap3Config {
 
     public static final List<String> KEYBIND_IDS = List.of(
             KEY_ADD_ALIGN, KEY_ADD_AXIS_ALIGN, KEY_ADD_WALK, KEY_ADD_RUN, KEY_ADD_LEAP, KEY_ADD_LEAP_COUNTER,
-            KEY_ADD_TERMINAL, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BOOM, KEY_ADD_STOPWATCH, KEY_ADD_JUMP, KEY_ADD_EDGE, KEY_ADD_BLOCK, KEY_ADD_FAST_ALIGN, KEY_ADD_PATH, KEY_ADD_NO_GO, KEY_ADD_TERM_AURA, KEY_LIST, KEY_UNDO,
+            KEY_ADD_TERMINAL, KEY_ADD_STOP, KEY_ADD_LOOK, KEY_ADD_BOOM, KEY_ADD_STOPWATCH, KEY_ADD_JUMP, KEY_ADD_EDGE, KEY_ADD_BLOCK, KEY_ADD_FAST_ALIGN, KEY_ADD_PATH, KEY_ADD_NO_GO, KEY_ADD_TERM_AURA, KEY_LIST, KEY_UNDO, KEY_REDO,
             KEY_DELETE, KEY_REPLACE_LAST, KEY_CLEAR, KEY_RELOAD, KEY_START, KEY_STOP, KEY_TEST_MODE,
             KEY_FREEZE_STATE, KEY_REWIND_TICK, KEY_FORWARD_TICK);
 
@@ -746,6 +747,8 @@ public final class Ap3Config {
     public void setListKey(int code) { setKeybind(KEY_LIST, code); }
     public int getUndoKey() { return getKeybind(KEY_UNDO); }
     public void setUndoKey(int code) { setKeybind(KEY_UNDO, code); }
+    public int getRedoKey() { return getKeybind(KEY_REDO); }
+    public void setRedoKey(int code) { setKeybind(KEY_REDO, code); }
     public int getDeleteKey() { return getKeybind(KEY_DELETE); }
     public void setDeleteKey(int code) { setKeybind(KEY_DELETE, code); }
     public int getReplaceLastKey() { return getKeybind(KEY_REPLACE_LAST); }

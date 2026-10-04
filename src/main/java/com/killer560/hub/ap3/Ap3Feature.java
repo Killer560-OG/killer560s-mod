@@ -92,9 +92,6 @@ public final class Ap3Feature {
     private static boolean renderFailed;
     private static Ap3Area lastArea;
     private static int lastSimRestart;
-    /** The most recently ADDED node and the chain it went into - what {@code /ap3 undo} removes. */
-    private static Ap3Node lastAdded;
-    private static Ap3Chain lastAddedChain;
     private static boolean migrationReported;
 
     private Ap3Feature() {
@@ -346,15 +343,21 @@ public final class Ap3Feature {
 
     /** Deletes node {@code index} (0-BASED here; show it to the player as {@code index + 1}). */
     public static boolean deleteNode(int index) {
+        return deleteNode(index, false);
+    }
+
+    /** {@code fromUndo}: undo's fallback delete, which redo puts back rather than undo (see {@link Ap3History}). */
+    private static boolean deleteNode(int index, boolean fromUndo) {
         Ap3Chain chain = currentChain();
         if (chain == null || index < 0 || index >= chain.nodes().size()) {
             chatBad("No node #" + (index + 1) + " in " + currentChainLabel() + ".");
             return false;
         }
         Ap3Node removed = chain.nodes().remove(index);
-        if (removed == lastAdded) {
-            lastAdded = null;
-            lastAddedChain = null;
+        if (fromUndo) {
+            Ap3History.fallbackDeleted(chain, removed, index);
+        } else {
+            Ap3History.removed(chain, removed, index);
         }
         if (Ap3Executor.isRunning()) {
             Ap3Executor.stop("chain edited");
@@ -411,37 +414,52 @@ public final class Ap3Feature {
         return deleteNode(best);
     }
 
-    /** {@code /ap3 undo}: removes the node most recently CREATED (whatever area it went into), else the last node
-     *  of the chain you stand in. */
+    /**
+     * {@code /ap3 undo}: reverts the most recent add, delete, move, edit or clear, whatever area it was in
+     * ({@link Ap3History}) - it used to remember only the one node last ADDED. With nothing left to undo it does what
+     * it always did: deletes the last node of the chain you stand in (and {@code /ap3 redo} puts that back).
+     */
     public static boolean undoLastAdded() {
-        if (lastAdded != null && lastAddedChain != null) {
-            int i = lastAddedChain.indexOf(lastAdded);
-            if (i >= 0) {
-                Ap3Chain chain = lastAddedChain;
-                Ap3Node removed = chain.nodes().remove(i);
-                lastAdded = null;
-                lastAddedChain = null;
-                if (Ap3Executor.isRunning()) {
-                    Ap3Executor.stop("chain edited");
-                }
-                Ap3Store store = Ap3Store.getInstance();
-                if (chain.isEmpty()) {
-                    store.remove(chain);
-                }
-                store.markEdited();
-                store.save();
-                suppressAutoArm();
-                chat(ModChat.text("Undone "), ModChat.value("#" + (i + 1) + " " + removed.type.label()),
-                        ModChat.dim(" from " + chain.label()));
-                return true;
-            }
+        Ap3History.Step step = Ap3History.undo();
+        if (step != null) {
+            afterHistoryStep(step);
+            return true;
         }
         List<Ap3Node> nodes = currentChainNodes();
         if (nodes.isEmpty()) {
             chatBad("Nothing to undo in " + currentChainLabel() + ".");
             return false;
         }
-        return deleteNode(nodes.size() - 1);
+        return deleteNode(nodes.size() - 1, true);
+    }
+
+    /** {@code /ap3 redo} (killer560, 2026-10-04): the opposite of undo - re-applies the most recent undone change. */
+    public static boolean redo() {
+        Ap3History.Step step = Ap3History.redo();
+        if (step == null) {
+            chatBad("Nothing to redo.");
+            return false;
+        }
+        afterHistoryStep(step);
+        return true;
+    }
+
+    private static void afterHistoryStep(Ap3History.Step step) {
+        if (Ap3Executor.isRunning()) {
+            Ap3Executor.stop("chain edited");
+        }
+        Ap3Store store = Ap3Store.getInstance();
+        store.markEdited();
+        store.save();
+        suppressAutoArm();
+        if (step.node() == null) {
+            int n = step.chain().nodes().size();
+            chat(ModChat.text(step.verb() + " "), ModChat.value(step.chain().label()),
+                    ModChat.dim(" (" + n + " node" + (n == 1 ? "" : "s") + ")"));
+        } else {
+            chat(ModChat.text(step.verb() + " "), ModChat.value("#" + step.number() + " " + step.node().type.label()),
+                    ModChat.dim(" in " + step.chain().label()));
+        }
     }
 
     /** Deletes the last node of the current chain. */
@@ -479,6 +497,7 @@ public final class Ap3Feature {
         }
         Ap3Node node = chain.nodes().remove(index);
         chain.nodes().add(target, node);
+        Ap3History.moved(chain, node, index);
         saveChains();
         chat(ModChat.text("Moved "), ModChat.value("#" + (index + 1) + " " + node.type.label()),
                 ModChat.text(" to "), ModChat.value("#" + (target + 1)), ModChat.dim(" in " + chain.label()));
@@ -531,12 +550,16 @@ public final class Ap3Feature {
             probe.yaw = Mth.wrapDegrees(Ap3FreezeState.placementYaw(player));
             probe.pitch = Mth.clamp(Ap3FreezeState.placementPitch(player), -90f, 90f);
         }
+        Ap3Node before = node.snapshot();
         node.x = probe.x;
         node.y = probe.y;
         node.z = probe.z;
         node.yaw = probe.yaw;
         node.pitch = probe.pitch;
         node.wallDir = probe.wallDir;
+        if (!node.sameData(before)) {
+            Ap3History.changed(chain, node, before);
+        }
         saveChains();
         chat(ModChat.text(position ? "Re-placed " : "Re-aimed "), ModChat.value("#" + (index + 1) + " " + node.describe()),
                 ModChat.dim(" in " + chain.label()));
@@ -555,7 +578,11 @@ public final class Ap3Feature {
             return false;
         }
         Ap3Node node = chain.nodes().get(index);
+        Ap3Node before = node.snapshot();
         edit.accept(node);
+        if (!node.sameData(before)) {
+            Ap3History.changed(chain, node, before);
+        }
         saveChains();
         chat(ModChat.text("Set "), ModChat.value("#" + (index + 1) + " " + what),
                 ModChat.dim(" - " + node.describe()));
@@ -572,12 +599,11 @@ public final class Ap3Feature {
         if (Ap3Executor.isRunning()) {
             Ap3Executor.stop("chain cleared");
         }
-        if (chain != null && chain == lastAddedChain) {
-            lastAdded = null;
-            lastAddedChain = null;
-        }
         Ap3Store store = Ap3Store.getInstance();
         boolean removed = store.remove(chain);
+        if (removed) {
+            Ap3History.cleared(chain); // /ap3 undo puts the whole chain back
+        }
         store.markEdited();
         store.save();
         suppressAutoArm();
@@ -602,8 +628,7 @@ public final class Ap3Feature {
 
     /** {@link Ap3Store#reload()} swapped the chains: drop anything pointing at the old objects. */
     static void onChainsReloaded() {
-        lastAdded = null;
-        lastAddedChain = null;
+        Ap3History.reset();
         migrationReported = false;
         suppressAutoArm();
     }
@@ -665,8 +690,7 @@ public final class Ap3Feature {
             return false;
         }
         chain.nodes().add(node);
-        lastAdded = node;
-        lastAddedChain = chain;
+        Ap3History.added(chain, node);
         store.save();
         // An `end` node is the moment a route stops being a work in progress. killer560 (2026-09-23): "The second
         // I build that end node it should start generating a route and then notify me in chat once it finishes."

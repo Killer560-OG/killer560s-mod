@@ -544,6 +544,61 @@ public final class Ap3Node {
         return v == Math.rint(v) ? Long.toString((long) v) : String.format(Locale.US, "%.1f", v);
     }
 
+    /** A copy of EVERY field (unlike {@link #copy()}, which predates the use item and the Path fields and is
+     *  kept as it is for its callers) - what {@code Ap3History} snapshots before an edit and puts back on undo. */
+    public Ap3Node snapshot() {
+        Ap3Node n = new Ap3Node();
+        n.copyFrom(this);
+        return n;
+    }
+
+    /** Overwrites every field with {@code o}'s, keeping this object's identity (the chain and the executor hold
+     *  the live node, so undo / redo restore a node in place rather than swapping it for a new one). */
+    public void copyFrom(Ap3Node o) {
+        type = o.type;
+        x = o.x;
+        y = o.y;
+        z = o.z;
+        yaw = o.yaw;
+        pitch = o.pitch;
+        length = o.length;
+        width = o.width;
+        precise = o.precise;
+        wallDir = o.wallDir;
+        waitAfterMs = o.waitAfterMs;
+        closeGate = o.closeGate;
+        jumpMod = o.jumpMod;
+        useItemId = o.useItemId;
+        name = o.name;
+        leapMode = o.leapMode;
+        leapClass = o.leapClass;
+        leapIgn = o.leapIgn;
+        leapCount = o.leapCount;
+        pathIndex = o.pathIndex;
+        pathStart = o.pathStart;
+        pathEnd = o.pathEnd;
+        minSpeed = o.minSpeed;
+        maxSpeed = o.maxSpeed;
+        hasDir = o.hasDir;
+        dirDeg = o.dirDeg;
+        dirTolDeg = o.dirTolDeg;
+        termWait = o.termWait;
+        colour = o.colour;
+    }
+
+    /** True when every field matches {@code o}'s - an edit that changed nothing records no undo step. */
+    public boolean sameData(Ap3Node o) {
+        return o != null && type == o.type && x == o.x && y == o.y && z == o.z && yaw == o.yaw && pitch == o.pitch
+                && length == o.length && width == o.width && precise == o.precise && wallDir == o.wallDir
+                && waitAfterMs == o.waitAfterMs && closeGate == o.closeGate && jumpMod == o.jumpMod
+                && java.util.Objects.equals(useItemId, o.useItemId) && java.util.Objects.equals(name, o.name)
+                && leapMode == o.leapMode && leapClass == o.leapClass && java.util.Objects.equals(leapIgn, o.leapIgn)
+                && leapCount == o.leapCount && pathIndex == o.pathIndex && pathStart == o.pathStart
+                && pathEnd == o.pathEnd && minSpeed == o.minSpeed && maxSpeed == o.maxSpeed && hasDir == o.hasDir
+                && dirDeg == o.dirDeg && dirTolDeg == o.dirTolDeg && termWait == o.termWait
+                && java.util.Objects.equals(colour, o.colour);
+    }
+
     public Ap3Node copy() {
         Ap3Node n = new Ap3Node(type, x, y, z, yaw, pitch);
         n.length = length;
