@@ -123,10 +123,11 @@ public final class AutoRoutesRenderer {
      *  z-fighting with it. */
     private static final double FACE_EPSILON = 0.002;
 
-    /** Filled style's drawn box: the node's box one block lower, inside the block the node was placed on top of,
-     *  pushed out by {@link #FACE_EPSILON} on every side. */
+    /** Filled style's drawn box: the whole block the node was placed on top of (full height, the node's width),
+     *  pushed out by {@link #FACE_EPSILON} on every side. Moving the node's own box down a block left a 0.1-high
+     *  slab buried at the bottom of that block at the default height - invisible on a normal floor. */
     private static AABB filledDisplayBox(AABB box) {
-        return box.move(0, -1, 0).inflate(FACE_EPSILON);
+        return new AABB(box.minX, box.minY - 1.0, box.minZ, box.maxX, box.minY, box.maxZ).inflate(FACE_EPSILON);
     }
 
     /** This node's place in its tile's stack - AP3's {@code Ap3Renderer.stackIndex} lift, but counted in FIRING
