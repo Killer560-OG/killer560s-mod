@@ -662,8 +662,10 @@ public final class RoomLibrary {
                     continue;
                 }
                 Room disk = fresh.get(name);
-                if (disk != null && disk.usable()) {
-                    continue; // his own capture wins; do not even decode the shipped blocks
+                if (disk != null && (disk.usable() || rescanPending(name))) {
+                    // His own capture wins; do not even decode the shipped blocks. So does a room he asked to
+                    // rescan, even half read: the shipped copy is the one he said was wrong.
+                    continue;
                 }
                 Room b = fromJson(json);
                 if (b == null) {
@@ -752,11 +754,76 @@ public final class RoomLibrary {
         Room fresh = new Room(old.name, old.sizeX, old.sizeZ);
         fresh.margin = old.margin;
         ROOMS.put(old.name, fresh);
+        // Written straight away and remembered, so a restart half way keeps the rescan instead of quietly
+        // bringing back the old copy (his file or the jar's) that he asked to replace.
+        markDirty(fresh);
+        rescanPending("");
+        synchronized (PENDING_RESCAN) {
+            PENDING_RESCAN.add(old.name);
+        }
+        savePendingRescans();
+        saveDirty();
         RoomDoors.clearCache();
         RoomCaptureRotation.clearCache();
         LOGGER.info("Rescan requested for \"{}\": the {}x{} capture is emptied and will be read again",
                 old.name, old.sizeX, old.sizeZ);
         return old.name;
+    }
+
+    /** Rooms emptied by {@link #resetForRescan} that have not been read completely again yet. */
+    private static final java.util.Set<String> PENDING_RESCAN =
+            new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    private static boolean pendingRescanLoaded;
+
+    private static Path pendingRescanFile() {
+        return DIR.resolve("rescan-pending.txt");
+    }
+
+    /** Its own lock, not the class's: mergeBundled asks from the loader thread without holding that. */
+    private static boolean rescanPending(String name) {
+        synchronized (PENDING_RESCAN) {
+        if (!pendingRescanLoaded) {
+            pendingRescanLoaded = true;
+            try {
+                if (Files.exists(pendingRescanFile())) {
+                    for (String line : Files.readAllLines(pendingRescanFile(), StandardCharsets.UTF_8)) {
+                        if (!line.isBlank()) {
+                            PENDING_RESCAN.add(line.trim());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Could not read the pending rescan list ({})", e.getClass().getSimpleName());
+            }
+        }
+        return PENDING_RESCAN.contains(name);
+        }
+    }
+
+    private static void savePendingRescans() {
+        synchronized (PENDING_RESCAN) {
+        try {
+            Files.createDirectories(DIR);
+            Files.writeString(pendingRescanFile(), String.join(System.lineSeparator(), PENDING_RESCAN), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            LOGGER.warn("Could not save the pending rescan list ({})", e.getClass().getSimpleName());
+        }
+        }
+    }
+
+    /** Drops rescans whose room is complete again; called after every write. */
+    private static void prunePendingRescans() {
+        rescanPending("");
+        boolean changed;
+        synchronized (PENDING_RESCAN) {
+            changed = PENDING_RESCAN.removeIf(n -> {
+                Room r = ROOMS.get(n);
+                return r == null || r.complete();
+            });
+        }
+        if (changed) {
+            savePendingRescans();
+        }
     }
 
     /** Whether a room of this name is known, captured or synthetic. */
@@ -1477,6 +1544,7 @@ public final class RoomLibrary {
                 written++;
             }
             DIRTY.clear();
+            prunePendingRescans();
         } catch (Exception e) {
             LOGGER.error("Could not save the changed rooms", e);
         }

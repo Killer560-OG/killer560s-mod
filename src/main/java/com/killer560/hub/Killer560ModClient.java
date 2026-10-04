@@ -462,10 +462,18 @@ public class Killer560ModClient implements ClientModInitializer {
                                                         com.killer560.hub.util.ModChat.send("Room Recorder", com.killer560.hub.util.ModChat.bad("No room called "),
                                                                 com.killer560.hub.util.ModChat.value(StringArgumentType.getString(context, "room")));
                                                     } else {
+                                                        // Capture has to be running to read it, and on Hypixel nothing
+                                                        // arms it: the first rescan (2026-10-04) emptied Balcony and
+                                                        // then recorded nothing because the recorder was off.
+                                                        boolean started = !com.killer560.hub.roomsim.RoomRecorderFeature.isRunning();
+                                                        if (started) {
+                                                            com.killer560.hub.roomsim.RoomRecorderFeature.startCaptureOnly();
+                                                        }
                                                         com.killer560.hub.util.ModChat.send("Room Recorder", com.killer560.hub.util.ModChat.value(room),
-                                                                com.killer560.hub.util.ModChat.text(" emptied - walk through it with the recorder on"
-                                                                        + " to capture it again. It is left out of"
-                                                                        + " generated floors until it is complete."));
+                                                                com.killer560.hub.util.ModChat.text(" emptied - walk through it to capture it again"
+                                                                        + (started ? " (capture turned on)" : "")
+                                                                        + ". It is left out of generated floors until it is"
+                                                                        + " complete, and the rescan survives a restart."));
                                                     }
                                                     return 1;
                                                 })))
