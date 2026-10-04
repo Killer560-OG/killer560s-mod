@@ -669,7 +669,9 @@ public final class SimItems {
                 // suffocated or never appeared - getDirection() points out towards him, so the opposite
                 // of it is the air the crypt was sealing.
                 // A slab crypt's chamber is under its lid, whichever way he was facing when he threw it.
-                SimMobs.spawnStarred(client, slabCrypt ? cryptAt.below() : cryptAt.relative(face.getOpposite()),
+                // NOT starred. killer560 (2026-10-04): "Spawned crypts shouldn't be starred." A crypt's zombie is
+                // an ordinary undead with no star tag - it does not count toward a clear.
+                SimMobs.spawn(client, slabCrypt ? cryptAt.below() : cryptAt.relative(face.getOpposite()),
                         SimMobs.Kind.ZOMBIE);
             }
             if (princeAt != null) {
@@ -677,7 +679,8 @@ public final class SimItems {
                 if (scored) {
                     SimScore.cryptBlown();
                 }
-                SimMobs.spawnStarred(client, princeAt.above(), SimMobs.Kind.ZOMBIE);
+                // The golden crypt is a crypt too, so the same rule: no star tag.
+                SimMobs.spawn(client, princeAt.above(), SimMobs.Kind.ZOMBIE);
                 client.execute(() -> ModChat.send("Sim", ModChat.text("You opened the "),
                         ModChat.value("prince"), scored ? ModChat.text("") : ModChat.dim(" (no score - "
                                 + "the run has already had its prince point)")));

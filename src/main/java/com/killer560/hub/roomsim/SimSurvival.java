@@ -48,7 +48,24 @@ public final class SimSurvival {
             if (!(entity instanceof ServerPlayer) || !SimState.isActive()) {
                 return true;
             }
-            return !source.is(net.minecraft.world.damagesource.DamageTypes.FALL);
+            // The whole fall and fire TAGS rather than DamageTypes.FALL alone: IS_FIRE is what carries lava
+            // (killer560, 2026-10-04: "Make it so lava doesn't do damage"), and IS_FALL is the set vanilla's own
+            // FALL_DAMAGE rule switches off. SimWorld.freezeWorld turns both game rules off as well.
+            return !source.is(net.minecraft.tags.DamageTypeTags.IS_FALL)
+                    && !source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE);
+        });
+
+        // Put the flames out too. Lava still sets him alight even when the burn does nothing, and a screen
+        // full of fire in a practice room is the damage's noise without the damage.
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (!SimState.isActive()) {
+                return;
+            }
+            for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
+                if (sp.isOnFire()) {
+                    sp.clearFire();
+                }
+            }
         });
 
         // Death goes back to the middle of the room instead of to a respawn screen.

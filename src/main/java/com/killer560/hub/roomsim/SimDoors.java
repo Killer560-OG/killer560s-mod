@@ -372,6 +372,18 @@ public final class SimDoors {
                 // barrier phase that is already running.
                 return InteractionResult.PASS;
             }
+            // THE BLOOD DOOR OPENS WITHOUT A KEY. killer560 (2026-10-04) had the sim's Wither Key drop removed
+            // ("we have nothing that should be dropping it right now"), and that drop was the only key the sim
+            // ever made - so a blood door that still wanted one could never be opened. A plain right-click opens
+            // it and consumes nothing; a key in hand is left alone. The off hand is ignored so one click is
+            // one open, not two.
+            if (door.type() == DungeonLayout.DOOR_BLOOD) {
+                if (hand != InteractionHand.MAIN_HAND) {
+                    return InteractionResult.PASS;
+                }
+                openDoor(client, door, null);
+                return InteractionResult.SUCCESS;
+            }
             ItemStack held = player.getItemInHand(hand);
             if (!WITHER_KEY_ID.equals(CheatUtils.skyblockId(held))) {
                 return InteractionResult.PASS;
@@ -423,7 +435,8 @@ public final class SimDoors {
         UUID uuid = client.player.getUUID();
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-            if (sp != null) {
+            // A null hand is a door that takes no key (the blood door) - nothing to consume.
+            if (sp != null && hand != null) {
                 sp.getItemInHand(hand).shrink(1);
             }
             ServerLevel level = server.overworld();
@@ -434,7 +447,8 @@ public final class SimDoors {
         // Counted down by the ServerTickEvents listener in register(), not a sleeping thread - a sleeping
         // thread would block whichever thread called this, and would not survive the sim world closing.
         PENDING.put(door, OPEN_DELAY_TICKS);
-        ModChat.send("Sim", ModChat.text("Wither door opening..."));
+        ModChat.send("Sim", ModChat.text(door.type() == DungeonLayout.DOOR_BLOOD
+                ? "Blood door opening..." : "Wither door opening..."));
     }
 
     /**
@@ -544,8 +558,11 @@ public final class SimDoors {
     }
 
     /**
-     * Drops a wither key item entity at {@code pos}, on the server. Meant to be called by whichever file
-     * tracks "the last starred mob died" - this class does not track mobs itself.
+     * Drops a wither key item entity at {@code pos}, on the server.
+     *
+     * <p>Nothing calls this any more: the last-starred-death drop was removed on 2026-10-04 (killer560: "we
+     * have nothing that should be dropping it right now"). Kept for when wither doors are built and keys drop
+     * per room again - see docs/SIM.md.
      */
     public static void dropKeyAt(Minecraft client, Vec3 pos) {
         if (!SimState.canAct(client) || pos == null) {

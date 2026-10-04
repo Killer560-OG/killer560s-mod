@@ -198,8 +198,10 @@ public final class CustomScoreboardFeature {
     private static void rebuild(CustomScoreboardConfig cfg) {
         // THE DUNGEON SIM gets its own board. killer560 (2026-10-04): in the sim the HUD should say this is his
         // personal testing sim with his Discord link, "nothing actually skyblock related". The sim's sidebar
-        // (SimSidebar) already carries that block plus the dungeon lines worth keeping - floor, secrets, keys,
-        // room, time - so it is shown as it is, under a plain title. The configured entries (purse, bits,
+        // (SimSidebar) already carries that block plus the sim lines worth keeping - secrets and room since
+        // 2026-10-04, when time, keys, the floor line and the visible "k560l4" holder names went - so it is shown
+        // as it is, under a plain title. Gated on SimState only: on Hypixel this branch never runs and the board
+        // below is built from the real sidebar exactly as before. The configured entries (purse, bits,
         // location, the hypixel footer ...) are Skyblock data that a singleplayer world can only show as filler.
         if (com.killer560.hub.roomsim.SimState.isActive()) {
             unknown = Collections.emptyList();

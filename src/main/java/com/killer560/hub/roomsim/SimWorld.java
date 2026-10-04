@@ -371,15 +371,12 @@ public final class SimWorld {
         // The saved hotbar goes back every time a dungeon opens - muscle memory for a route is partly muscle
         // memory for which slot things are in.
         SimLoadout.onSimEntered(client);
-        // The last starred mob in a wither-door room drops the key. Wiring it here keeps the two features
-        // ignorant of each other: mobs know when the last star died, doors know what a key is, and neither
-        // needs to import the other.
-        SimMobs.setOnLastStarredDeath(() -> {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.player != null) {
-                SimDoors.dropKeyAt(mc, mc.player.position());
-            }
-        });
+        // NO wither key drop. This used to wire the last starred death to SimDoors.dropKeyAt, which put a Wither
+        // Key at his feet whenever the floor's last starred mob died - a mimic or a summoned zombie. killer560
+        // (2026-10-04): "Remove the wither key dropped item, we have nothing that should be dropping it right
+        // now." The floor never builds a wither door (see docs/SIM.md), and the blood door opens on a plain
+        // right-click in SimDoors, so nothing needs a key. Cleared rather than left over from a previous call.
+        SimMobs.setOnLastStarredDeath(null);
         if (build != null) {
             // The world is real and the sim flag is on, so the builder can do its work. It takes the loading
             // screen down itself when the last block lands.
@@ -464,6 +461,13 @@ public final class SimWorld {
             rules.set(net.minecraft.world.level.gamerules.GameRules.MOB_DROPS, false, server);
             rules.set(net.minecraft.world.level.gamerules.GameRules.ENTITY_DROPS, false, server);
             rules.set(net.minecraft.world.level.gamerules.GameRules.BLOCK_DROPS, false, server);
+            // No lava, fire or fall damage. killer560 (2026-10-04): "Make it so lava doesn't do damage and there
+            // is no fall damage". Player.isInvulnerableTo reads FIRE_DAMAGE for anything in the IS_FIRE damage
+            // tag - which holds minecraft:lava as well as in_fire/on_fire - and FALL_DAMAGE for IS_FALL
+            // (checked in the 26.1.2 bytecode and tag data; both rules exist in 26.2 too). SimSurvival refuses
+            // the same damage per hit as well, so this holds even before these rules have been applied.
+            rules.set(net.minecraft.world.level.gamerules.GameRules.FIRE_DAMAGE, false, server);
+            rules.set(net.minecraft.world.level.gamerules.GameRules.FALL_DAMAGE, false, server);
         });
     }
 

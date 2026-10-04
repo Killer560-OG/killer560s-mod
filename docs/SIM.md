@@ -1402,6 +1402,34 @@ bundled coordinate as "the block", check whether it is the block or the space ab
 - The pause screen's Change Room button is a vanilla `Button` placed 4 px under the lowest button in the centre
   column, read from the screen's widgets, instead of pinned to `height - 46`.
 
+## The 2026-10-04 Map Logger round: damage, the key, crypts, landings and the sidebar
+
+- **No lava, fire or fall damage.** `SimWorld.freezeWorld` (sim world only) turns off `FIRE_DAMAGE` and
+  `FALL_DAMAGE`; `Player.isInvulnerableTo` reads them for the `IS_FIRE` tag (which holds `minecraft:lava`) and
+  `IS_FALL`. `SimSurvival`'s `ALLOW_DAMAGE` refuses both tags too (it only refused `DamageTypes.FALL` before),
+  and the flames are put out each tick so lava does not paint the screen.
+- **No Wither Key drop.** The last starred death no longer calls `SimDoors.dropKeyAt` - that was the only key
+  the sim ever made, so the **blood door now opens on a plain right-click** (main hand, nothing consumed).
+  Wither doors still need a key, but none are built. Bring the drop back with per-room keys if they ever are.
+- **Crypt zombies are not starred**, and neither is the prince's (a golden crypt is still a crypt). The
+  mimic and the sim's `/summon` still spawn starred.
+- **`/goto` for trap rooms and Teleport Maze** lands one block in from the entrance doorway (offset 14, the
+  blaze rooms' number), at the doorway's floor, facing in. "The entrance" is the doorway a BFS from the
+  Entrance over the decoded floor (`SimBuilder.floorPlan`, the room's own cells excluded) reaches first; a
+  single-room load falls back to the first measured doorway.
+- **`/goto museum` put him on the roof** because Museum is a 2x2 whose four tile centres are all inside solid
+  pillars (decoded `Museum.json`: those columns are solid y58 to the roof at y119), so the first spot with two
+  air on it was the roof. Every landing now needs cover overhead in both scan directions, and a column without
+  one gives way to the nearest covered column in the same tile (rings out to 15). A tile with no covered spot
+  at all falls back to the old uncovered scan.
+- **The sidebar showed "k560l4"** because a score holder's name is drawn after its team prefix - the holders
+  were plain `k560l0..15`. They are colour-code-only names now (`§X§r`, Hypixel's trick), the old holders and
+  teams are cleared from the saved world once, and the score numbers are blanked (`BlankFormat`). The lines are
+  only the title line, secrets, room and the Discord link: time, keys/doors, the floor line and the "not
+  Hypixel" line went. Nothing in the sim needed them - `DungeonState` gets the floor from `setRoomSim`. The
+  objective title stays `SKYBLOCK` for `SkyblockGate`. The Custom Scoreboard's sim branch is gated on
+  `SimState`, so on Hypixel it still builds from the real sidebar.
+
 ## The 2026-10-04 round: traps, the designer's doors, and the map's etherwarp
 
 **Every generated floor has a trap.** Trap rooms (database type `TRAP`, or the names Old Trap / New Trap
