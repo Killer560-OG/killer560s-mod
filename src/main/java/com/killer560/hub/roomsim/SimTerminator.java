@@ -70,8 +70,14 @@ public final class SimTerminator {
     /** Three arrows a shot: one straight, two angled. */
     private static final int ARROWS_PER_SHOT = 3;
 
-    /** Degrees either side of the look for the two outer arrows. */
-    private static final double SPREAD_DEGREES = 8.0;
+    /**
+     * Degrees either side of the look for the two outer arrows.
+     *
+     * <p>5, not 8: 5 is the angle QUOI's Auto Blaze (and this mod's port of it) checks the side arrows against,
+     * written for Hypixel's Terminator. At 8 the sim's side arrows flew where the auto had not looked, so a shot
+     * it had cleared as safe could still kill a neighbouring blaze out of order (2026-10-04).
+     */
+    private static final double SPREAD_DEGREES = 5.0;
 
     /** How far the Salvation beam's ray cast reaches before it is considered to have missed. */
     private static final double ARROW_RANGE = 40.0;
@@ -205,15 +211,21 @@ public final class SimTerminator {
     }
 
     /**
-     * One use of the Terminator: Salvation if it is armed, otherwise the three-arrow shot.
+     * One use of the Terminator: Salvation if it is armed AND this is a left click, otherwise the three-arrow
+     * shot.
+     *
+     * <p>Salvation is the Terminator's LEFT-click ability on Hypixel; a right click is always the shot. This used
+     * to cast it on whichever click came next, so Auto Blaze - which only right-clicks - fired a five-pierce beam
+     * up the blaze chain every fourth shot and killed blazes out of order ("Salvation - 2 hit" in his
+     * 2026-10-04 log), failing the puzzle.
      *
      * @return whether anything was fired
      */
-    public static boolean use(Minecraft client) {
+    public static boolean use(Minecraft client, boolean leftClick) {
         if (!SimState.canAct(client)) {
             return false;
         }
-        if (salvationArmed) {
+        if (salvationArmed && leftClick) {
             salvation(client);
             salvationArmed = false;
             MOBS_HIT.clear();

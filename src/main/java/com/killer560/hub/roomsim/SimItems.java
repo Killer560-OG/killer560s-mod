@@ -443,7 +443,7 @@ public final class SimItems {
             // the fire rate just decides whether this particular click produces one.
             case "TERMINATOR" -> {
                 if (SimTerminator.readyToFire()) {
-                    SimTerminator.use(client);
+                    SimTerminator.use(client, false);
                 }
                 yield true;
             }

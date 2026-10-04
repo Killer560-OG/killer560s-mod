@@ -176,6 +176,19 @@ public final class SimAbilities {
             if (!ours) {
                 return InteractionResult.PASS;
             }
+            // A BUTTON, LEVER OR CHEST WINS OVER THE ITEM, as vanilla and Hypixel both do: the block's own use
+            // runs first and the item is only used when you sneak. Consuming these here meant an AOTV or a
+            // Hyperion in hand turned every Tic Tac Toe button press - his and Auto Tic Tac Toe's, which never
+            // swaps item - into an Instant Transmission or a Wither Impact, so the board never changed
+            // (2026-10-04, "auto tictactoe isn't working on sim").
+            net.minecraft.world.level.block.Block clicked =
+                    level.getBlockState(hitResult.getBlockPos()).getBlock();
+            if (!player.isShiftKeyDown()
+                    && (clicked instanceof net.minecraft.world.level.block.ButtonBlock
+                    || clicked instanceof net.minecraft.world.level.block.LeverBlock
+                    || clicked instanceof net.minecraft.world.level.block.ChestBlock)) {
+                return InteractionResult.PASS;
+            }
             markAbilityUsed();
             if (!clientSide) {
                 // The server's job here is only to NOT place the block.

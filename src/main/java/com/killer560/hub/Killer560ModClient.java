@@ -158,6 +158,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.SimSidebar.register();
         com.killer560.hub.roomsim.SimClass.register();
         com.killer560.hub.roomsim.SimSpeed.register();
+        // Before SimMimic: it counts every chest click as a secret, and Fabric stops at the first non-PASS.
+        com.killer560.hub.roomsim.puzzles.SimTeleportMazePuzzle.registerChestGuard();
         com.killer560.hub.roomsim.SimMimic.register();
         com.killer560.hub.roomsim.SimScoreCommand.register();
         com.killer560.hub.roomsim.SimTeleportCommands.register();

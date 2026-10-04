@@ -97,7 +97,7 @@ public final class SimClass {
         if (held != null && SimTerminator.ITEM_ID.equals(
                 com.killer560.hub.cheatutils.CheatUtils.skyblockId(held))) {
             if (SimTerminator.readyToFire()) {
-                SimTerminator.use(client);
+                SimTerminator.use(client, true);
             }
             return;
         }
