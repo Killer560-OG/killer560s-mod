@@ -59,8 +59,14 @@ public final class SimFloorLayout {
     public record Link(int aX, int aZ, int bX, int bZ) {
     }
 
-    /** A laid-out floor. {@code openDoors} are doorways with nothing on the other side. */
-    public record Floor(List<Placement> rooms, List<Link> links, List<int[]> openDoors, int bloodDepth) {
+    /**
+     * A laid-out floor. {@code openDoors} are doorways with nothing on the other side.
+     *
+     * @param spine the links of the Entrance-to-Blood path, in order from the entrance - see {@link #doorLinks}.
+     *              Empty when the floor was not laid out along a planned path.
+     */
+    public record Floor(List<Placement> rooms, List<Link> links, List<int[]> openDoors, int bloodDepth,
+                        List<Link> spine) {
     }
 
     /**
@@ -202,13 +208,15 @@ public final class SimFloorLayout {
      *
      * @param minRooms   the fewest rooms the floor may have, so a floor of big rooms is still a floor
      * @param wantCells  how many of the {@link #GRID}x{@link #GRID} room slots to fill - the real target
-     * @param puzzles    how many puzzle rooms to try to include
-     * @param bloodDepth how many doorways from the entrance the blood room should be
+     * @param puzzles    how many puzzle rooms the floor gets (the "Puzzles" slider; see {@link #ensurePuzzles})
+     * @param roomsToBlood the "Rooms to blood" slider: rooms on the Entrance-to-Blood path NOT counting the
+     *                     Entrance, the Fairy or Blood. The path is exactly Entrance, these rooms with the Fairy
+     *                     among them, Blood - see {@link #planSpine}
      * @return the floor, or null when there is not even an entrance room captured
      */
     public static Floor generate(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
-                                 int puzzles, int bloodDepth, Random rng) {
-        PinnedFloor out = run(usable, minRooms, wantCells, puzzles, bloodDepth, null, rng);
+                                 int puzzles, int roomsToBlood, Random rng) {
+        PinnedFloor out = run(usable, minRooms, wantCells, puzzles, roomsToBlood, null, rng);
         return out == null ? null : out.floor();
     }
 
@@ -233,20 +241,20 @@ public final class SimFloorLayout {
      * @param pinned cell index {@code cellZ * GRID + cellX} to room name, as the map designer keys it
      */
     public static PinnedFloor generate(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
-                                       int puzzles, int bloodDepth, Map<Integer, String> pinned, Random rng) {
-        return run(usable, minRooms, wantCells, puzzles, bloodDepth, pinned, rng);
+                                       int puzzles, int roomsToBlood, Map<Integer, String> pinned, Random rng) {
+        return run(usable, minRooms, wantCells, puzzles, roomsToBlood, pinned, rng);
     }
 
     /** The one attempt loop both {@link #generate} overloads use. {@code pinned} may be null or empty. */
     private static PinnedFloor run(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
-                                   int puzzles, int bloodDepth, Map<Integer, String> pinned, Random rng) {
+                                   int puzzles, int roomsToBlood, Map<Integer, String> pinned, Random rng) {
         List<Candidate> pool = candidates(usable);
         if (pool.isEmpty()) {
             return null;
         }
         List<String> rejected = new ArrayList<>();
         List<Pin> pins = resolvePins(pinned, usable, rejected);
-        Grown best = attemptLoop(pool, minRooms, wantCells, puzzles, bloodDepth, pins, rng);
+        Grown best = attemptLoop(pool, minRooms, wantCells, puzzles, roomsToBlood, pins, rng);
         if (best == null) {
             return null;
         }
@@ -271,15 +279,28 @@ public final class SimFloorLayout {
                     keep.add(p);
                 }
             }
-            Grown second = attemptLoop(pool, minRooms, wantCells, puzzles, bloodDepth, keep, rng);
+            Grown second = attemptLoop(pool, minRooms, wantCells, puzzles, roomsToBlood, keep, rng);
             if (second != null) {
                 best = second;
                 unused.addAll(second.unusedNotes());
             }
         }
         Floor floor = ensureTrap(best.floor(), pool, best.reached(), rng);
-        floor = fillGaps(floor, pool, wantCells, best.reached(), rng);
+        floor = fillGaps(floor, pool, wantCells, minRooms, puzzles, best.reached(), rng);
         floor = ensureBlood(floor, pool, best.reached());
+        floor = ensurePuzzles(floor, pool, puzzles, best.reached(), rng);
+        if (!hasTrap(floor)) {
+            // ensureTrap found no ordinary 1x1 to swap: put one in an empty cell instead, past the cell target if
+            // need be (an Entrance floor whose long path is all big rooms reaches its 19 cells with no 1x1 left).
+            Filler f = new Filler(floor, pool, 0, best.reached(), rng);
+            f.only = c -> isTrap(c.name(), c.type());
+            if (f.strictOnce() || f.carveOnce()) {
+                LOGGER.info("Sim floor: the trap went into an empty cell");
+                floor = new Floor(f.rooms, f.links, f.open, floor.bloodDepth(), floor.spine());
+            } else {
+                LOGGER.warn("Sim floor: no trap room could be fitted anywhere on this floor");
+            }
+        }
         remember(floor);
         return new PinnedFloor(floor, best.reached(), unused);
     }
@@ -337,51 +358,58 @@ public final class SimFloorLayout {
             order.add(i);
         }
         java.util.Collections.shuffle(order, rng);
-        for (int i : order) {
-            Placement p = floor.rooms().get(i);
-            if (p.cellsX() != 1 || p.cellsZ() != 1 || !"NORMAL".equalsIgnoreCase(p.type())
-                    || pinnedLower.contains(p.name().toLowerCase(Locale.ROOT))) {
-                continue;
-            }
-            Set<Integer> linked = new HashSet<>();
-            for (Link l : floor.links()) {
-                if (l.aX() == p.originX() && l.aZ() == p.originZ()) {
-                    linked.add(sideTowards(l.bX() - l.aX(), l.bZ() - l.aZ()));
-                } else if (l.bX() == p.originX() && l.bZ() == p.originZ()) {
-                    linked.add(sideTowards(l.aX() - l.bX(), l.aZ() - l.bZ()));
+        Set<Long> onPath = spineCells(floor);
+        // A room off the path to blood first; only if none can take the trap, a room on it (a trap counts as
+        // one of the slider's rooms, so the path's length is unchanged) - measured with tools/layoutsim, that
+        // second pass is what an Entrance floor with a long path needs.
+        for (int pass = 0; pass < 2; pass++) {
+            for (int i : order) {
+                Placement p = floor.rooms().get(i);
+                if (p.cellsX() != 1 || p.cellsZ() != 1 || !"NORMAL".equalsIgnoreCase(p.type())
+                        || pinnedLower.contains(p.name().toLowerCase(Locale.ROOT))
+                        || (pass == 0) == onPath.contains(cellKey(p.originX(), p.originZ()))) {
+                    continue;
                 }
-            }
-            for (Candidate trap : traps) {
-                for (int r = 0; r < 4; r++) {
-                    RoomDoors.Mask m = trap.byRotation()[r];
-                    Set<Integer> sides = new HashSet<>();
-                    for (int[] door : RoomDoors.doorCells(m, p.originX(), p.originZ())) {
-                        sides.add(door[2]);
+                Set<Integer> linked = new HashSet<>();
+                for (Link l : floor.links()) {
+                    if (l.aX() == p.originX() && l.aZ() == p.originZ()) {
+                        linked.add(sideTowards(l.bX() - l.aX(), l.bZ() - l.aZ()));
+                    } else if (l.bX() == p.originX() && l.bZ() == p.originZ()) {
+                        linked.add(sideTowards(l.aX() - l.bX(), l.aZ() - l.bZ()));
                     }
-                    if (!sides.containsAll(linked)) {
-                        continue;
-                    }
-                    List<Placement> rooms = new ArrayList<>(floor.rooms());
-                    rooms.set(i, new Placement(trap.name(), r * 90, p.originX(), p.originZ(), 1, 1,
-                            p.depth(), trap.type()));
-                    List<int[]> open = new ArrayList<>();
-                    for (int[] o : floor.openDoors()) {
-                        if (o[0] != p.originX() || o[1] != p.originZ()) {
-                            open.add(o);
+                }
+                for (Candidate trap : traps) {
+                    for (int r = 0; r < 4; r++) {
+                        RoomDoors.Mask m = trap.byRotation()[r];
+                        Set<Integer> sides = new HashSet<>();
+                        for (int[] door : RoomDoors.doorCells(m, p.originX(), p.originZ())) {
+                            sides.add(door[2]);
                         }
-                    }
-                    for (int side : sides) {
-                        if (!linked.contains(side)) {
-                            open.add(new int[]{p.originX(), p.originZ(), side});
+                        if (!sides.containsAll(linked)) {
+                            continue;
                         }
+                        List<Placement> rooms = new ArrayList<>(floor.rooms());
+                        rooms.set(i, new Placement(trap.name(), r * 90, p.originX(), p.originZ(), 1, 1,
+                                p.depth(), trap.type()));
+                        List<int[]> open = new ArrayList<>();
+                        for (int[] o : floor.openDoors()) {
+                            if (o[0] != p.originX() || o[1] != p.originZ()) {
+                                open.add(o);
+                            }
+                        }
+                        for (int side : sides) {
+                            if (!linked.contains(side)) {
+                                open.add(new int[]{p.originX(), p.originZ(), side});
+                            }
+                        }
+                        LOGGER.info("Sim floor: no attempt placed a trap, so {} replaces {} at cell {},{}",
+                                trap.name(), p.name(), p.originX(), p.originZ());
+                        return new Floor(rooms, floor.links(), open, floor.bloodDepth(), floor.spine());
                     }
-                    LOGGER.info("Sim floor: no attempt placed a trap, so {} replaces {} at cell {},{}",
-                            trap.name(), p.name(), p.originX(), p.originZ());
-                    return new Floor(rooms, floor.links(), open, floor.bloodDepth());
                 }
             }
         }
-        LOGGER.warn("Sim floor: no trap room could be fitted anywhere on this floor");
+        LOGGER.info("Sim floor: no ordinary 1x1 room could be swapped for a trap; trying an empty cell later");
         return floor;
     }
 
@@ -409,18 +437,22 @@ public final class SimFloorLayout {
      *
      * <p>One WARN per floor that needed it, and a second if a cell is somehow still empty.
      */
-    private static Floor fillGaps(Floor floor, List<Candidate> pool, int wantCells, List<String> pinnedNames,
+    private static Floor fillGaps(Floor floor, List<Candidate> pool, int wantCells, int minRooms, int puzzles,
+                                  List<String> pinnedNames,
                                   Random rng) {
         int target = Math.min(wantCells, GRID * GRID);
         int before = cellsOf(floor);
-        if (before >= target) {
+        if (before >= target && floor.rooms().size() >= minRooms) {
             return floor;
         }
-        Filler f = new Filler(floor, pool, pinnedNames, rng);
+        Filler f = new Filler(floor, pool, puzzles, pinnedNames, rng);
         int strict = 0;
         int rewired = 0;
         int carved = 0;
-        while (f.filled < target) {
+        // Past the cell target too while the floor is short of its room count: too many big rooms can cover the
+        // target with a room or two fewer than the floor has, and the grid usually has a cell spare.
+        int guard = 0;
+        while ((f.filled < target || f.rooms.size() < minRooms) && guard++ < 200) {
             if (f.strictOnce()) {
                 strict++;
             } else if (f.rewireOnce()) {
@@ -431,14 +463,15 @@ public final class SimFloorLayout {
                 break;
             }
         }
-        LOGGER.warn("Sim floor: the growth left {} cell(s) empty; the fill pass put {} room(s) in ({} after "
-                        + "turning or swapping a neighbour, {} through a carved wall){}", target - before,
+        LOGGER.warn("Sim floor: the growth left {} cell(s) empty and {} room(s) short; the fill pass put {} room(s)"
+                        + " in ({} after turning or swapping a neighbour, {} through a carved wall){}",
+                Math.max(0, target - before), Math.max(0, minRooms - floor.rooms().size()),
                 strict + carved, rewired, carved, carved > 0 ? ": " + String.join(", ", f.carvedNotes) : "");
         if (f.filled < target) {
             LOGGER.warn("Sim floor: {} of the {} cell(s) this floor should cover are still EMPTY after the fill "
                     + "pass - no unused room fits them", target - f.filled, target);
         }
-        return new Floor(f.rooms, f.links, f.open, floor.bloodDepth());
+        return new Floor(f.rooms, f.links, f.open, floor.bloodDepth(), floor.spine());
     }
 
     /** The mutable floor {@link #fillGaps} works on. */
@@ -453,9 +486,13 @@ public final class SimFloorLayout {
         final List<Candidate> order = new ArrayList<>();
         final List<String> carvedNotes = new ArrayList<>();
         boolean trapOnFloor;
+        /** When set, only rooms it accepts may go in - the last steps for puzzles and the trap, past the target. */
+        java.util.function.Predicate<Candidate> only;
+        int puzzlesOwed;
         int filled;
 
-        Filler(Floor floor, List<Candidate> pool, List<String> pinnedNames, Random rng) {
+        Filler(Floor floor, List<Candidate> pool, int puzzles, List<String> pinnedNames, Random rng) {
+            puzzlesOwed = puzzles;
             rooms = new ArrayList<>(floor.rooms());
             links = new ArrayList<>(floor.links());
             for (int[] o : floor.openDoors()) {
@@ -471,6 +508,9 @@ public final class SimFloorLayout {
                 pinned.add(n.toLowerCase(Locale.ROOT));
             }
             trapOnFloor = hasTrap(floor);
+            for (Placement p : floor.rooms()) {
+                puzzlesOwed -= "PUZZLE".equalsIgnoreCase(p.type()) ? 1 : 0;
+            }
             filled = cellsOf(floor);
             // Least recent first, ordinary rooms before puzzles and the trap. The jitter is drawn once and
             // stored (a comparator must not call the RNG). Recency only ORDERS this list - every room is tried.
@@ -482,7 +522,9 @@ public final class SimFloorLayout {
                     continue;
                 }
                 order.add(c);
-                key.put(c.name(), recency(c.name()) + rng.nextDouble() + (t.equals("PUZZLE") ? 100 : 0)
+                // A puzzle still owed goes FIRST: a hole the growth left is usually a dead end, which is
+                // exactly what a puzzle is. Once none is owed, puzzles are not used at all (see available).
+                key.put(c.name(), recency(c.name()) + rng.nextDouble() + (t.equals("PUZZLE") ? -100 : 0)
                         + (isTrap(c.name(), c.type()) ? 50 : 0));
             }
             order.sort(Comparator.comparingDouble(c -> key.get(c.name())));
@@ -498,6 +540,8 @@ public final class SimFloorLayout {
 
         private boolean available(Candidate c) {
             return !used.contains(c.name()) && !excluded(c.name(), used)
+                    && !(puzzlesOwed <= 0 && "PUZZLE".equalsIgnoreCase(c.type()))
+                    && (only == null || only.test(c))
                     && !(trapOnFloor && isTrap(c.name(), c.type()));
         }
 
@@ -638,6 +682,7 @@ public final class SimFloorLayout {
             place(c, r, ox, oz, occupied, rooms, links, open, forcedSide);
             used.add(c.name());
             trapOnFloor |= isTrap(c.name(), c.type());
+            puzzlesOwed -= "PUZZLE".equalsIgnoreCase(c.type()) ? 1 : 0;
             filled += c.area(r);
         }
     }
@@ -724,9 +769,138 @@ public final class SimFloorLayout {
             }
             LOGGER.info("Sim floor: no attempt placed the blood room, so it replaces {} at cell {},{} (depth {})",
                     p.name(), p.originX(), p.originZ(), p.depth());
-            return new Floor(rooms, floor.links(), open, p.depth());
+            return new Floor(rooms, floor.links(), open, p.depth(), floor.spine());
         }
         return floor;
+    }
+
+    /**
+     * Makes the puzzle count what the "Puzzles" slider asked for: each puzzle still owed replaces an ordinary 1x1
+     * dead end (one link, not on the path to blood, not pinned) at a rotation whose doorways cover that link;
+     * any extra doorway the puzzle brings is bricked up. Floors were short of puzzles before the path was laid
+     * first (40% of floors over every slider combination, measured with tools/layoutsim) and more often after,
+     * because the path spends doorways the growth used to hang puzzles from. A puzzle is a dead end on Hypixel,
+     * which is exactly the slot this takes. Never adds more than were asked for; logs when it cannot reach it.
+     */
+    private static Floor ensurePuzzles(Floor floor, List<Candidate> pool, int wanted, List<String> pinnedNames,
+                                       Random rng) {
+        int have = 0;
+        Set<String> onFloor = new HashSet<>();
+        for (Placement p : floor.rooms()) {
+            have += "PUZZLE".equalsIgnoreCase(p.type()) ? 1 : 0;
+            onFloor.add(p.name());
+        }
+        if (have >= wanted) {
+            return floor;
+        }
+        List<Candidate> puzzles = new ArrayList<>();
+        Map<String, Double> key = new HashMap<>();
+        for (Candidate c : pool) {
+            if ("PUZZLE".equalsIgnoreCase(c.type()) && c.area(0) == 1 && !onFloor.contains(c.name())) {
+                puzzles.add(c);
+                key.put(c.name(), recency(c.name()) * RECENCY_ORDER_WEIGHT + rng.nextDouble() * 2.0);
+            }
+        }
+        puzzles.sort(Comparator.comparingDouble(c -> key.get(c.name())));
+        Set<String> pinnedLower = new HashSet<>();
+        for (String n : pinnedNames) {
+            pinnedLower.add(n.toLowerCase(Locale.ROOT));
+        }
+        Set<Long> onPath = spineCells(floor);
+        List<Placement> rooms = new ArrayList<>(floor.rooms());
+        List<int[]> open = new ArrayList<>(floor.openDoors());
+        List<Integer> order = new ArrayList<>();
+        for (int i = 0; i < rooms.size(); i++) {
+            order.add(i);
+        }
+        java.util.Collections.shuffle(order, rng);
+        int swapped = 0;
+        for (int i : order) {
+            if (have >= wanted) {
+                break;
+            }
+            Placement p = rooms.get(i);
+            if (p.cellsX() != 1 || p.cellsZ() != 1 || !"NORMAL".equalsIgnoreCase(p.type())
+                    || pinnedLower.contains(p.name().toLowerCase(Locale.ROOT))
+                    || onPath.contains(cellKey(p.originX(), p.originZ()))) {
+                continue;
+            }
+            int linkSide = -1;
+            int count = 0;
+            for (Link l : floor.links()) {
+                if (l.aX() == p.originX() && l.aZ() == p.originZ()) {
+                    linkSide = sideTowards(l.bX() - l.aX(), l.bZ() - l.aZ());
+                    count++;
+                } else if (l.bX() == p.originX() && l.bZ() == p.originZ()) {
+                    linkSide = sideTowards(l.aX() - l.bX(), l.aZ() - l.bZ());
+                    count++;
+                }
+            }
+            if (count != 1) {
+                continue;
+            }
+            Set<String> used = new HashSet<>();
+            for (Placement q : rooms) {
+                used.add(q.name());
+            }
+            boolean done = false;
+            for (Candidate puzzle : puzzles) {
+                if (used.contains(puzzle.name()) || excluded(puzzle.name(), used)) {
+                    continue;
+                }
+                for (int r = 0; r < 4 && !done; r++) {
+                    Set<Integer> sides = new HashSet<>();
+                    for (int[] door : RoomDoors.doorCells(puzzle.byRotation()[r], p.originX(), p.originZ())) {
+                        sides.add(door[2]);
+                    }
+                    if (!sides.contains(linkSide)) {
+                        continue;
+                    }
+                    rooms.set(i, new Placement(puzzle.name(), r * 90, p.originX(), p.originZ(), 1, 1, p.depth(),
+                            puzzle.type()));
+                    open.removeIf(o -> o[0] == p.originX() && o[1] == p.originZ());
+                    for (int side : sides) {
+                        if (side != linkSide) {
+                            open.add(new int[]{p.originX(), p.originZ(), side});
+                        }
+                    }
+                    done = true;
+                }
+                if (done) {
+                    break;
+                }
+            }
+            if (done) {
+                have++;
+                swapped++;
+            }
+        }
+        if (swapped > 0) {
+            LOGGER.info("Sim floor: {} puzzle(s) swapped in for ordinary dead ends to reach the {} asked for",
+                    swapped, wanted);
+        }
+        Floor out = new Floor(rooms, floor.links(), open, floor.bloodDepth(), floor.spine());
+        if (have < wanted) {
+            // Last: a puzzle in an EMPTY cell, past the cell target if need be - the small floors' targets are
+            // inferred, not measured (SimFloorGen.Floor), and a floor one cell over is better than one short of
+            // the puzzles he asked for. Through a doorway that meets one first, carved only if none does.
+            Filler f = new Filler(out, pool, wanted, pinnedNames, rng);
+            f.only = c -> "PUZZLE".equalsIgnoreCase(c.type());
+            int added = 0;
+            while (f.puzzlesOwed > 0 && (f.strictOnce() || f.carveOnce())) {
+                added++;
+            }
+            have += added;
+            out = new Floor(f.rooms, f.links, f.open, floor.bloodDepth(), floor.spine());
+            if (added > 0) {
+                LOGGER.info("Sim floor: {} puzzle(s) added in empty cells to reach the {} asked for", added, wanted);
+            }
+        }
+        if (have < wanted) {
+            LOGGER.warn("Sim floor: {} puzzle(s) of the {} asked for - no dead end or empty cell could take more",
+                    have, wanted);
+        }
+        return out;
     }
 
     /** How many of this placement's doorways meet an open doorway facing back from a room on the floor. */
@@ -882,7 +1056,7 @@ public final class SimFloorLayout {
 
     /** The best of {@link #ATTEMPTS} (or {@link #PINNED_ATTEMPTS}) layouts. */
     private static Grown attemptLoop(List<Candidate> pool, int minRooms, int wantCells, int puzzles,
-                                     int bloodDepth, List<Pin> pins, Random rng) {
+                                     int roomsToBlood, List<Pin> pins, Random rng) {
         Grown best = null;
         int bestScore = Integer.MIN_VALUE;
         int attempts = pins.isEmpty() ? ATTEMPTS : PINNED_ATTEMPTS;
@@ -890,8 +1064,19 @@ public final class SimFloorLayout {
         for (Candidate c : pool) {
             trapAvailable |= isTrap(c.name(), c.type());
         }
-        for (int attempt = 0; attempt < attempts; attempt++) {
-            Grown grown = growOnce(pool, minRooms, wantCells, puzzles, bloodDepth, pins, rng);
+        for (int attempt = 0; attempt < attempts * 2; attempt++) {
+            // The path first: every attempt lays the Entrance-to-Blood path before anything else. Only if none of
+            // them could does the floor fall back to growing and dropping blood in at the first stub deep enough,
+            // which only approximates the length and may miss the fairy - said in the log when it happens.
+            boolean spine = attempt < attempts;
+            if (!spine && best != null) {
+                break;
+            }
+            if (attempt == attempts) {
+                LOGGER.warn("Sim floor: no attempt could lay a path of {} room(s) to blood with the fairy on it;"
+                        + " falling back to an approximate one", roomsToBlood);
+            }
+            Grown grown = growOnce(pool, minRooms, wantCells, puzzles, roomsToBlood, spine, pins, rng);
             if (grown == null) {
                 continue;
             }
@@ -1065,6 +1250,177 @@ public final class SimFloorLayout {
         return cells;
     }
 
+    /**
+     * The links that become DOORS, in the order they are decided: a spanning tree of the rooms, so the floor has
+     * no loops and the Entrance-to-Blood path through its doors is unique.
+     *
+     * <p>killer560 (2026-09-30): "there should only be 1 way to enter a room for the first time". {@link #links}
+     * is every adjacency the layout found, which is not a tree; each extra link is one of his loops. A link that
+     * would join two rooms already joined is refused (both doorways stay walled), so WHICH links survive depends
+     * entirely on the order they are offered in. Three passes:
+     * <ol>
+     *   <li>the {@link Floor#spine} - the planned Entrance-to-Blood path. Going first is what makes it THE path:
+     *       every other link between two of its rooms is then a second way round and is refused. Before
+     *       2026-10-04 there was no such pass, and a loop link out of the entrance (pass 2 here) was taken
+     *       before the growth's own links, so the path through the doors could differ from the one the layout
+     *       built and counted;</li>
+     *   <li>links touching the blood room or the entrance, so neither end of the run moves;</li>
+     *   <li>everything else, in layout order.</li>
+     * </ol>
+     * A link between two cells of one multi-tile room is not an edge between rooms; it is kept and never counts
+     * against the tree. SimFloorGen writes a door for each link returned here and nothing else, and
+     * {@link SimWitherDoors} walks those doors - so this is the door graph the build uses.
+     */
+    public static List<Link> doorLinks(Floor floor) {
+        int[] owner = new int[GRID * GRID];
+        java.util.Arrays.fill(owner, -1);
+        int entrance = -1;
+        int blood = -1;
+        for (int i = 0; i < floor.rooms().size(); i++) {
+            Placement p = floor.rooms().get(i);
+            if (entrance < 0 && "ENTRANCE".equalsIgnoreCase(p.type())) {
+                entrance = i;
+            }
+            if (blood < 0 && "BLOOD".equalsIgnoreCase(p.type())) {
+                blood = i;
+            }
+            for (int a = 0; a < p.cellsX(); a++) {
+                for (int b = 0; b < p.cellsZ(); b++) {
+                    owner[(p.originZ() + b) * GRID + p.originX() + a] = i;
+                }
+            }
+        }
+        int[] parent = new int[floor.rooms().size()];
+        for (int i = 0; i < parent.length; i++) {
+            parent[i] = i;
+        }
+        Set<Long> doorAt = new HashSet<>();
+        List<Link> out = new ArrayList<>();
+        List<Link> spine = floor.spine() == null ? List.of() : floor.spine();
+        for (int pass = 0; pass < 3; pass++) {
+            for (Link link : pass == 0 ? spine : floor.links()) {
+                int a = owner[link.aZ() * GRID + link.aX()];
+                int b = owner[link.bZ() * GRID + link.bX()];
+                if (pass > 0) {
+                    boolean special = a == blood || b == blood || a == entrance || b == entrance;
+                    if (special != (pass == 1)) {
+                        continue;
+                    }
+                    if (!spine.isEmpty() && (a == blood || b == blood)) {
+                        continue;   // blood has one way in, and the path already has it
+                    }
+                }
+                int ca = link.aZ() * GRID + link.aX();
+                int cb = link.bZ() * GRID + link.bX();
+                if (!doorAt.add((long) Math.min(ca, cb) * 1000 + Math.max(ca, cb))) {
+                    continue;   // this doorway pair already has its door
+                }
+                if (a < 0 || b < 0 || a != b) {
+                    int ra = a < 0 ? -1 : root(parent, a);
+                    int rb = b < 0 ? -1 : root(parent, b);
+                    if (ra >= 0 && ra == rb) {
+                        doorAt.remove((long) Math.min(ca, cb) * 1000 + Math.max(ca, cb));
+                        continue;   // already reachable: a door here would be a second way in
+                    }
+                    if (ra >= 0 && rb >= 0) {
+                        parent[ra] = rb;
+                    }
+                }
+                out.add(link);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * The Entrance-to-Blood path through the doors {@link #doorLinks} keeps: {@code {rooms, fairy}} where rooms is
+     * how many rooms are on it NOT counting the Entrance, the Fairy or Blood (the "Rooms to blood" slider's
+     * count) and fairy is 1 when the Fairy is on it. {@code {-1, 0}} when there is no blood or no way to it.
+     */
+    public static int[] pathToBlood(Floor floor) {
+        int[] owner = new int[GRID * GRID];
+        java.util.Arrays.fill(owner, -1);
+        int entrance = -1;
+        int blood = -1;
+        int n = floor.rooms().size();
+        for (int i = 0; i < n; i++) {
+            Placement p = floor.rooms().get(i);
+            if (entrance < 0 && "ENTRANCE".equalsIgnoreCase(p.type())) {
+                entrance = i;
+            }
+            if (blood < 0 && "BLOOD".equalsIgnoreCase(p.type())) {
+                blood = i;
+            }
+            for (int a = 0; a < p.cellsX(); a++) {
+                for (int b = 0; b < p.cellsZ(); b++) {
+                    owner[(p.originZ() + b) * GRID + p.originX() + a] = i;
+                }
+            }
+        }
+        if (entrance < 0 || blood < 0) {
+            return new int[]{-1, 0};
+        }
+        List<List<Integer>> adj = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            adj.add(new ArrayList<>());
+        }
+        for (Link l : doorLinks(floor)) {
+            int a = owner[l.aZ() * GRID + l.aX()];
+            int b = owner[l.bZ() * GRID + l.bX()];
+            if (a >= 0 && b >= 0 && a != b) {
+                adj.get(a).add(b);
+                adj.get(b).add(a);
+            }
+        }
+        int[] from = new int[n];
+        java.util.Arrays.fill(from, -2);
+        from[entrance] = -1;
+        java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>();
+        queue.add(entrance);
+        while (!queue.isEmpty()) {
+            int r = queue.poll();
+            for (int next : adj.get(r)) {
+                if (from[next] == -2) {
+                    from[next] = r;
+                    queue.add(next);
+                }
+            }
+        }
+        if (from[blood] == -2) {
+            return new int[]{-1, 0};
+        }
+        int rooms = 0;
+        int fairy = 0;
+        for (int r = from[blood]; r >= 0 && r != entrance; r = from[r]) {
+            if ("FAIRY".equalsIgnoreCase(floor.rooms().get(r).type())) {
+                fairy = 1;
+            } else {
+                rooms++;
+            }
+        }
+        return new int[]{rooms, fairy};
+    }
+
+    /** Every cell at either end of a link of the planned path. */
+    private static Set<Long> spineCells(Floor floor) {
+        Set<Long> out = new HashSet<>();
+        if (floor.spine() != null) {
+            for (Link l : floor.spine()) {
+                out.add(cellKey(l.aX(), l.aZ()));
+                out.add(cellKey(l.bX(), l.bZ()));
+            }
+        }
+        return out;
+    }
+
+    private static int root(int[] parent, int i) {
+        while (parent[i] != i) {
+            parent[i] = parent[parent[i]];
+            i = parent[i];
+        }
+        return i;
+    }
+
     /** Every usable room, with its doorways pre-rotated so the inner loop never measures anything. */
     private static List<Candidate> candidates(Map<String, RoomLibrary.Room> usable) {
         List<Candidate> out = new ArrayList<>();
@@ -1114,7 +1470,7 @@ public final class SimFloorLayout {
     }
 
     private static Grown growOnce(List<Candidate> pool, int minRooms, int wantCells, int puzzles,
-                                  int bloodDepth, List<Pin> pins, Random rng) {
+                                  int roomsToBlood, boolean spineWanted, List<Pin> pins, Random rng) {
         Map<String, Candidate> byName = new HashMap<>();
         List<Candidate> normal = new ArrayList<>();
         List<Candidate> puzzleRooms = new ArrayList<>();
@@ -1139,6 +1495,10 @@ public final class SimFloorLayout {
         if (entrance == null || normal.isEmpty()) {
             return null;
         }
+        // Doorways from the entrance to blood: his rooms, plus the fairy when there is one to put on the path,
+        // plus one. Only the fallback growth below reads it; the planned path is exact by construction. (It was
+        // slider + 1 until 2026-10-04, which left no room on the path for the fairy.)
+        int bloodDepth = roomsToBlood + (byName.containsKey("fairy") ? 2 : 1);
 
         int[] occupied = new int[GRID * GRID];
         java.util.Arrays.fill(occupied, -1);
@@ -1190,6 +1550,7 @@ public final class SimFloorLayout {
         // doorway pair joins them to the rest of the floor, and only then can the floor grow through them.
         Set<Integer> dormant = new HashSet<>();
         int entrancePin = -1;
+        int entranceIdx = -1;
         int[] pinRotation = pins.isEmpty() ? new int[0] : assignPinRotations(pins, rng);
         List<String> pinsUnused = new ArrayList<>();
         List<String> pinsUnusedNames = new ArrayList<>();
@@ -1208,6 +1569,7 @@ public final class SimFloorLayout {
             filled += pm.tilesX() * pm.tilesZ();
             if ("ENTRANCE".equalsIgnoreCase(p.candidate().type()) && entrancePin < 0) {
                 entrancePin = idx;   // his own entrance cell is the seed, not a random edge
+                entranceIdx = idx;
                 pinsReached.add(p.name());
             } else {
                 dormant.add(idx);
@@ -1244,7 +1606,12 @@ public final class SimFloorLayout {
                 }
                 // With nothing pinned the edge is always free, so this is the one draw it always was and the
                 // random stream is unchanged. With pins it can land on one, and then it is re-drawn.
-                if (pins.isEmpty() || fits(occupied, ex, ez, em.tilesX(), em.tilesZ())) {
+                // A pinned Fairy or Blood is a goal the path to blood must reach at a set length, so the seat
+                // has to be within reach of it: each room on the way spans at most four cells. Without this the
+                // random seat almost never suits a short path - measured with a pinned fairy, every attempt
+                // fell back to the approximate growth.
+                if (pins.isEmpty() || (fits(occupied, ex, ez, em.tilesX(), em.tilesZ())
+                        && seatReaches(placed, placedFrom, em, ex, ez, roomsToBlood, seat))) {
                     break;
                 }
                 if (++seat >= 60) {
@@ -1255,7 +1622,8 @@ public final class SimFloorLayout {
             // every one of the four values it can hold, so the entrance was always committed unrotated while
             // its footprint and its position had been worked out at the rotation that was drawn. Entrance is
             // 1x1 so the position was right; its two doorways were simply never turned.
-            commit(entrance, entranceRotation * 90, ex, ez, 0, occupied, placed, placedFrom, stubs, used);
+            entranceIdx = commit(entrance, entranceRotation * 90, ex, ez, 0, occupied, placed, placedFrom, stubs,
+                    used);
             parentOf.add(-1);   // the seed
             filled += em.tilesX() * em.tilesZ();
         }
@@ -1263,6 +1631,92 @@ public final class SimFloorLayout {
             // A pin can be next door to the seed, so give it the chance to be reached before anything grows.
             bloodPlacedDepth = wakePins(occupied, placed, placedFrom, stubs, links, dormant, pinsReached,
                     bloodCells, bloodPlacedDepth);
+        }
+
+        // THE PATH TO BLOOD IS LAID FIRST, at exactly the length he asked for, with the fairy on it.
+        //
+        // killer560 (2026-10-04): "I just generated a map where fairy was not on the path to blood and it had far
+        // more than the 5 the slider had picked for it." Growing the floor and dropping blood in at the first
+        // stub deep enough made the depth a lower bound, not a value (it went in at depth 11 on his 5), and the
+        // fairy rule could only bias towards it. Measured with tools/layoutsim over every floor x slider x
+        // puzzle combination: 85% of floors had the wrong number of rooms to blood and 64% had the fairy off
+        // the path. Hypixel's floor has the fairy on the blood path always, so the path is planned as a whole
+        // here - Entrance, the slider's rooms with the fairy among them (never next to the entrance or blood),
+        // Blood - by a bounded search, and the rest of the floor then grows around it. doorLinks makes it THE
+        // path through the doors by deciding its links first.
+        List<Link> spineLinks = new ArrayList<>();
+        Candidate fairyRoom = byName.get("fairy");
+        Candidate bloodRoom = byName.get("blood");
+        // A Fairy or Blood he PINNED in the designer is the path's goal at its own cell instead of a room to
+        // place: the path has to arrive at it through one of its doorways, at the right length. Only while it
+        // is still dormant - a pinned blood next door to the entrance was already reached at depth 1, and then
+        // no path of his length exists.
+        int fairyPin = fairyRoom == null ? -1 : pinnedIndex(placed, fairyRoom.name());
+        int bloodPin = bloodRoom == null ? -1 : pinnedIndex(placed, bloodRoom.name());
+        boolean fairyFree = fairyRoom != null && (fairyPin >= 0 ? dormant.contains(fairyPin)
+                : !used.contains(fairyRoom.name()));
+        boolean bloodFree = bloodRoom != null && (bloodPin >= 0 ? dormant.contains(bloodPin)
+                : !used.contains(bloodRoom.name()));
+        if (spineWanted && entranceIdx >= 0 && fairyFree && bloodFree && bloodPlacedDepth < 0) {
+            int intermediates = roomsToBlood + 1;   // his rooms plus the fairy
+            // An unpinned fairy goes at a drawn position, 2..intermediates-1 (never next to the entrance or blood);
+            // a pinned one at whichever of those positions the path reaches it.
+            int fairyAt = fairyPin >= 0 ? -1 : 2 + rng.nextInt(Math.max(1, intermediates - 2));
+            List<SpineStep> spine = planSpine(placed, placedFrom, entranceIdx, occupied, normal, fairyRoom,
+                    bloodRoom, fairyPin, bloodPin, fairyCells, intermediates, fairyAt, used, rng);
+            if (spine == null) {
+                return null;   // this seat could not take the path; attemptLoop draws another
+            }
+            // The goals are taken out of `dormant` while the path is committed, so a path room that happens to
+            // face one of their doorways cannot wake it early at the wrong depth; each is adopted when the path
+            // actually arrives.
+            dormant.remove(fairyPin);
+            dormant.remove(bloodPin);
+            int prev = entranceIdx;
+            int depth = 0;
+            for (SpineStep st : spine) {
+                depth++;
+                int tx = st.fromX() + RoomDoors.DX[st.side()];
+                int tz = st.fromZ() + RoomDoors.DZ[st.side()];
+                int idx;
+                if (st.pin() >= 0) {
+                    idx = st.pin();
+                    parentOf.set(idx, prev);
+                    bloodPlacedDepth = adopt(idx, depth, placed, placedFrom, stubs, pinsReached, bloodCells,
+                            bloodPlacedDepth);
+                } else {
+                    idx = commit(st.candidate(), st.rotation() * 90, st.originX(), st.originZ(), depth,
+                            occupied, placed, placedFrom, stubs, used);
+                    parentOf.add(prev);
+                    filled += placed.get(idx).cellsX() * placed.get(idx).cellsZ();
+                }
+                Link link = new Link(st.fromX(), st.fromZ(), tx, tz);
+                links.add(link);
+                spineLinks.add(link);
+                consume(stubs, st.fromX(), st.fromZ(), st.side(), prev);
+                consume(stubs, tx, tz, (st.side() + 2) % 4, idx);
+                RoomDoors.Mask mask = st.candidate().byRotation()[st.rotation()];
+                if (st.candidate().name().equals(bloodRoom.name())) {
+                    bloodPlacedDepth = depth;
+                    fairyCellsInto(bloodCells, mask, st.originX(), st.originZ());
+                    final int bloodIdx = idx;
+                    stubs.removeIf(s -> s.owner == bloodIdx);   // blood is the end of the run, one way in
+                } else {
+                    if (st.candidate().name().equals(fairyRoom.name())) {
+                        fairyPlaced[0] = true;
+                        fairyIndex[0] = idx;
+                        fairyCellsInto(fairyCells, mask, st.originX(), st.originZ());
+                    }
+                    bloodPlacedDepth = meetNeighbours(st.candidate(), mask, st.originX(), st.originZ(), idx, depth,
+                            occupied, placed, placedFrom, stubs, links, dormant, pinsReached, bloodCells,
+                            bloodPlacedDepth);
+                }
+                prev = idx;
+            }
+            if (!dormant.isEmpty()) {
+                bloodPlacedDepth = wakePins(occupied, placed, placedFrom, stubs, links, dormant, pinsReached,
+                        bloodCells, bloodPlacedDepth);
+            }
         }
 
         for (int pass = 0; pass < 2; pass++) {
@@ -1389,7 +1843,10 @@ public final class SimFloorLayout {
                     // Asked for on a coin flip while the floor is young, and on every stub once it is nearly
                     // full, so it cannot be squeezed out by the last few cells.
                     wanted = trapRooms;
-                } else if (puzzlesLeft > 0 && !puzzleRooms.isEmpty() && rng.nextDouble() < 0.35) {
+                } else if (puzzlesLeft > 0 && !puzzleRooms.isEmpty()
+                        && (rng.nextDouble() < 0.35 || cellsLeft <= puzzlesLeft * 2 + 2)) {
+                    // On a coin flip, and on every stub once the cells left are few enough that waiting longer
+                    // risks the floor finishing short of the "Puzzles" slider (ensurePuzzles is the last resort).
                     wanted = puzzleRooms;
                 } else {
                     wanted = normal;
@@ -1418,37 +1875,12 @@ public final class SimFloorLayout {
                 stubs.remove(si);
                 consume(stubs, tx, tz, (stub.side + 2) % 4, idx);
                 // Any of the new room's other doorways that meets a doorway facing back is a door too - this
-                // is what puts loops in the floor instead of a tree.
+                // is what puts loops in the floor instead of a tree (doorLinks then keeps one way in).
                 // DEGREES divided down to an index. Best.rotation is degrees, like everything else that
                 // crosses into RoomPlacer, and indexing a four-element array with 180 is what it sounds like.
-                RoomDoors.Mask mask = best.candidate.byRotation()[best.rotation / 90];
-                for (int[] door : RoomDoors.doorCells(mask, best.originX, best.originZ)) {
-                    int nx = door[0] + RoomDoors.DX[door[2]];
-                    int nz = door[1] + RoomDoors.DZ[door[2]];
-                    if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
-                        continue;
-                    }
-                    int neighbour = occupied[nz * GRID + nx];
-                    if (neighbour < 0 || neighbour == idx) {
-                        continue;
-                    }
-                    if (forbiddenPair(best.candidate.type(), placed.get(neighbour).type())) {
-                        continue;
-                    }
-                    if (consume(stubs, nx, nz, (door[2] + 2) % 4, neighbour)) {
-                        links.add(new Link(door[0], door[1], nx, nz));
-                        consume(stubs, door[0], door[1], door[2], idx);
-                        // THIS is the doorway that reaches a room he pinned, most of the time. The loop above
-                        // was already opening a real door into a dormant pin and consuming its stub; what it
-                        // did not do was record that the pin was now part of the floor, so the pin was pruned
-                        // at the end WITH the link still pointing at its cells. Measured: 63% of single pins
-                        // honoured and 67 links to an empty cell over 200 floors, until this line went in.
-                        if (dormant.remove(neighbour)) {
-                            bloodPlacedDepth = adopt(neighbour, stub.depth + 2, placed, placedFrom, stubs,
-                                    pinsReached, bloodCells, bloodPlacedDepth);
-                        }
-                    }
-                }
+                bloodPlacedDepth = meetNeighbours(best.candidate, best.candidate.byRotation()[best.rotation / 90],
+                        best.originX, best.originZ, idx, stub.depth + 1, occupied, placed, placedFrom, stubs, links,
+                        dormant, pinsReached, bloodCells, bloodPlacedDepth);
                 if ("PUZZLE".equalsIgnoreCase(best.candidate.type())) {
                     puzzlesLeft--;
                 }
@@ -1524,7 +1956,7 @@ public final class SimFloorLayout {
         for (Stub s : failed) {
             open.add(new int[]{s.cellX, s.cellZ, s.side});
         }
-        return new Grown(new Floor(kept, links, open, bloodPlacedDepth), pinsReached, pinsUnusedNames,
+        return new Grown(new Floor(kept, links, open, bloodPlacedDepth, spineLinks), pinsReached, pinsUnusedNames,
                 pinsUnused);
     }
 
@@ -1652,6 +2084,376 @@ public final class SimFloorLayout {
             stubs.removeIf(s -> s.owner == idx);   // blood is the end of the run
         }
         return bloodDepth;
+    }
+
+    /**
+     * Every doorway of a room just committed that meets a doorway facing back becomes a link - this is what puts
+     * loops in the floor ({@link #doorLinks} then keeps one way into each room). Opening one into a dormant pin
+     * wakes it. Moved out of {@link #growOnce}'s loop unchanged so the planned path's rooms get the same pass.
+     *
+     * @param depth the new room's own depth
+     * @return the blood depth, updated if a pinned blood room woke
+     */
+    private static int meetNeighbours(Candidate c, RoomDoors.Mask mask, int originX, int originZ, int idx,
+                                      int depth, int[] occupied, List<Placement> placed,
+                                      List<Candidate> placedFrom, List<Stub> stubs, List<Link> links,
+                                      Set<Integer> dormant, List<String> pinsReached, Set<Long> bloodCells,
+                                      int bloodPlacedDepth) {
+        for (int[] door : RoomDoors.doorCells(mask, originX, originZ)) {
+            int nx = door[0] + RoomDoors.DX[door[2]];
+            int nz = door[1] + RoomDoors.DZ[door[2]];
+            if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
+                continue;
+            }
+            int neighbour = occupied[nz * GRID + nx];
+            if (neighbour < 0 || neighbour == idx) {
+                continue;
+            }
+            if (forbiddenPair(c.type(), placed.get(neighbour).type())) {
+                continue;
+            }
+            if (consume(stubs, nx, nz, (door[2] + 2) % 4, neighbour)) {
+                links.add(new Link(door[0], door[1], nx, nz));
+                consume(stubs, door[0], door[1], door[2], idx);
+                // THIS is the doorway that reaches a room he pinned, most of the time. The loop used to open a
+                // real door into a dormant pin and consume its stub without recording that the pin was now part
+                // of the floor, so the pin was pruned at the end WITH the link still pointing at its cells.
+                // Measured: 63% of single pins honoured and 67 links to an empty cell over 200 floors, until
+                // this went in.
+                if (dormant.remove(neighbour)) {
+                    bloodPlacedDepth = adopt(neighbour, depth + 1, placed, placedFrom, stubs,
+                            pinsReached, bloodCells, bloodPlacedDepth);
+                }
+            }
+        }
+        return bloodPlacedDepth;
+    }
+
+    /** The index of a room he pinned by this name, or -1. Pins are committed before anything else is. */
+    private static int pinnedIndex(List<Placement> placed, String name) {
+        for (int i = 0; i < placed.size(); i++) {
+            if (placed.get(i).name().equalsIgnoreCase(name)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * One room of the planned Entrance-to-Blood path, and the doorway (cell and side) of the room before it that
+     * leads into it. {@code pin} is the placement index when the room is one he pinned (already on the grid),
+     * else -1.
+     */
+    private record SpineStep(Candidate candidate, int rotation, int originX, int originZ,
+                             int fromX, int fromZ, int side, int pin) {
+    }
+
+    /** One way to place the next room of the path, with its sort key drawn once (no RNG in a comparator). */
+    private record SpineOption(SpineStep step, double key) {
+    }
+
+    /** How many placements the path search may try before giving the attempt up (attemptLoop draws again). */
+    private static final int SPINE_BUDGET = 4000;
+
+    /** How many different rooms per position of the path the search tries before backing up a room. */
+    private static final int SPINE_BRANCH = 4;
+
+    /**
+     * Plans the Entrance-to-Blood path: {@code intermediates} rooms - the Fairy at position {@code fairyAt}
+     * (2..intermediates-1, so never next to the Entrance or Blood), ordinary rooms with at least two doorways
+     * everywhere else - then Blood, each joined to the one before through a measured doorway in both rooms.
+     * Depth-first with backtracking, bounded by {@link #SPINE_BUDGET}. A pinned Fairy or Blood
+     * ({@code fairyPin}/{@code bloodPin} >= 0) is arrived at instead of placed, the fairy at any allowed position.
+     *
+     * @return the rooms in order, Blood last, or null when this attempt cannot take a path that long
+     */
+    private static List<SpineStep> planSpine(List<Placement> placed, List<Candidate> placedFrom, int entranceIdx,
+                                             int[] occupied, List<Candidate> normal, Candidate fairy,
+                                             Candidate blood, int fairyPin, int bloodPin, Set<Long> fairyCells,
+                                             int intermediates, int fairyAt, Set<String> used, Random rng) {
+        Map<String, Double> key = new HashMap<>();
+        List<Candidate> ordinary = new ArrayList<>();
+        for (Candidate c : normal) {
+            if (c.doorCount() >= 2) {
+                ordinary.add(c);
+                // choose()'s own ordering with small rooms preferred: area, doorways, a die, recency.
+                key.put(c.name(), c.area(0) * 0.45 - c.doorCount() * 0.9 + rng.nextDouble() * 4.0
+                        + recency(c.name()) * RECENCY_ORDER_WEIGHT);
+            }
+        }
+        key.put(fairy.name(), 0.0);
+        key.put(blood.name(), 0.0);
+        Spine search = new Spine(placed, placedFrom, occupied.clone(), ordinary, fairy, blood, fairyPin, bloodPin,
+                intermediates, fairyAt, new HashSet<>(used), key, rng);
+        search.fairyCells.addAll(fairyCells);
+        Placement start = placed.get(entranceIdx);
+        return search.extend(1, placedFrom.get(entranceIdx).byRotation()[start.rotation() / 90],
+                start.originX(), start.originZ(), entranceIdx, false) ? search.out : null;
+    }
+
+    /** The search state of {@link #planSpine}. */
+    private static final class Spine {
+        final List<Placement> placed;
+        final List<Candidate> placedFrom;
+        final int[] occ;
+        final List<Candidate> ordinary;
+        final Candidate fairy;
+        final Candidate blood;
+        final int fairyPin;
+        final int bloodPin;
+        final int intermediates;
+        final int fairyAt;
+        final Set<String> used;
+        final Map<String, Double> key;
+        final Random rng;
+        final Set<Long> fairyCells = new HashSet<>();
+        final List<SpineStep> out = new ArrayList<>();
+        int budget = SPINE_BUDGET;
+
+        Spine(List<Placement> placed, List<Candidate> placedFrom, int[] occ, List<Candidate> ordinary,
+              Candidate fairy, Candidate blood, int fairyPin, int bloodPin, int intermediates, int fairyAt,
+              Set<String> used, Map<String, Double> key, Random rng) {
+            this.placed = placed;
+            this.placedFrom = placedFrom;
+            this.occ = occ;
+            this.ordinary = ordinary;
+            this.fairy = fairy;
+            this.blood = blood;
+            this.fairyPin = fairyPin;
+            this.bloodPin = bloodPin;
+            this.intermediates = intermediates;
+            this.fairyAt = fairyAt;
+            this.used = used;
+            this.key = key;
+            this.rng = rng;
+        }
+
+        /**
+         * Extends the path by the room at position {@code step}, entered from {@code from} (placement index
+         * {@code fromIdx}, or -1 for a room only planned). {@code fairyDone} says whether the fairy is behind.
+         */
+        boolean extend(int step, RoomDoors.Mask from, int fromOx, int fromOz, int fromIdx, boolean fairyDone) {
+            boolean last = step == intermediates + 1;
+            if (last && !fairyDone) {
+                return false;
+            }
+            boolean fairyHere = !last && !fairyDone && (fairyPin >= 0
+                    ? step >= 2 && step <= intermediates - 1
+                    : step == fairyAt);
+            // A drawn fairy position is the only room allowed there; a pinned fairy may be arrived at on any
+            // allowed step, and must be by the last one.
+            boolean fairyOnly = fairyHere && (fairyPin < 0 || step == intermediates - 1);
+            List<SpineOption> options = new ArrayList<>();
+            for (int[] door : RoomDoors.doorCells(from, fromOx, fromOz)) {
+                int tx = door[0] + RoomDoors.DX[door[2]];
+                int tz = door[1] + RoomDoors.DZ[door[2]];
+                if (tx < 0 || tz < 0 || tx >= GRID || tz >= GRID) {
+                    continue;
+                }
+                int need = (door[2] + 2) % 4;
+                int there = occ[tz * GRID + tx];
+                if (there >= 0) {
+                    // Only a pinned goal may be stepped onto, through a doorway of its own facing back.
+                    int goal = last ? bloodPin : fairyHere ? fairyPin : -1;
+                    if (goal < 0 || there != goal || there == fromIdx) {
+                        continue;
+                    }
+                    Placement g = placed.get(goal);
+                    Candidate gc = placedFrom.get(goal);
+                    RoomDoors.Mask gm = gc.byRotation()[g.rotation() / 90];
+                    if (!hasDoor(gm, g.originX(), g.originZ(), tx, tz, need)
+                            || (last && touchesAny(gm, g.originX(), g.originZ(), fairyCells))) {
+                        continue;
+                    }
+                    options.add(new SpineOption(new SpineStep(gc, g.rotation() / 90, g.originX(), g.originZ(),
+                            door[0], door[1], door[2], goal), -100.0));
+                    continue;
+                }
+                List<Candidate> pool;
+                if (last) {
+                    pool = bloodPin >= 0 ? List.of() : List.of(blood);
+                } else if (fairyHere && fairyPin < 0) {
+                    pool = List.of(fairy);
+                } else if (fairyOnly) {
+                    pool = List.of();
+                } else {
+                    pool = ordinary;
+                }
+                for (Candidate c : pool) {
+                    if (used.contains(c.name()) || excluded(c.name(), used)) {
+                        continue;
+                    }
+                    for (int r = 0; r < 4; r++) {
+                        RoomDoors.Mask m = c.byRotation()[r];
+                        for (int packed : m.edges()) {
+                            if (RoomDoors.sideOf(packed) != need) {
+                                continue;
+                            }
+                            int[] o = originFor(m, packed, need, tx, tz);
+                            if (!fits(occ, o[0], o[1], m.tilesX(), m.tilesZ())) {
+                                continue;
+                            }
+                            // Blood never next to the fairy (a room always between); everything before blood
+                            // needs a doorway onward.
+                            if (last ? touchesAny(m, o[0], o[1], fairyCells)
+                                    : !hasOnward(m, o[0], o[1], tx, tz, need)) {
+                                continue;
+                            }
+                            double k = key.get(c.name()) + rng.nextDouble();
+                            boolean toFairy = !fairyDone && fairyPin >= 0;
+                            int goal = toFairy ? fairyPin : bloodPin;
+                            if (goal >= 0) {
+                                // A pinned goal must still be reachable in the rooms left before it: each room
+                                // spans at most four cells, so a room further than that per room left is a
+                                // dead branch, cut here rather than searched. Nearer rooms are tried first.
+                                int goalStep = toFairy ? intermediates - 1 : intermediates + 1;
+                                int gap = gap(m, o[0], o[1], placed.get(goal), placedFrom.get(goal));
+                                if (gap - 1 > 4 * (goalStep - step - 1)) {
+                                    continue;
+                                }
+                                k += 0.6 * gap;
+                            }
+                            options.add(new SpineOption(
+                                    new SpineStep(c, r, o[0], o[1], door[0], door[1], door[2], -1), k));
+                        }
+                    }
+                }
+            }
+            options.sort(Comparator.comparingDouble(SpineOption::key));
+            // At most SPINE_BRANCH different ROOMS per position, so backing up tries other rooms rather than the
+            // same room at every rotation; every placement of a room already chosen is still tried.
+            Set<String> tried = new HashSet<>();
+            for (SpineOption opt : options) {
+                if (budget-- <= 0) {
+                    return false;
+                }
+                SpineStep st = opt.step();
+                if (tried.add(st.candidate().name()) && tried.size() > SPINE_BRANCH) {
+                    return false;
+                }
+                RoomDoors.Mask m = st.candidate().byRotation()[st.rotation()];
+                boolean isPin = st.pin() >= 0;
+                if (!isPin) {
+                    mark(m, st.originX(), st.originZ(), Integer.MAX_VALUE);
+                }
+                out.add(st);
+                if (last) {
+                    return true;
+                }
+                used.add(st.candidate().name());
+                boolean isFairy = st.candidate().name().equals(fairy.name());   // a pin is its own Candidate object
+                Set<Long> fairyBefore = isFairy ? new HashSet<>(fairyCells) : null;
+                if (isFairy) {
+                    fairyCellsInto(fairyCells, m, st.originX(), st.originZ());
+                }
+                if (extend(step + 1, m, st.originX(), st.originZ(), isPin ? st.pin() : Integer.MAX_VALUE,
+                        fairyDone || isFairy)) {
+                    return true;
+                }
+                if (isFairy) {
+                    fairyCells.clear();
+                    fairyCells.addAll(fairyBefore);
+                }
+                if (!isPin) {
+                    used.remove(st.candidate().name());
+                    mark(m, st.originX(), st.originZ(), -1);
+                }
+                out.remove(out.size() - 1);
+            }
+            return false;
+        }
+
+        private void mark(RoomDoors.Mask m, int ox, int oz, int value) {
+            for (int a = 0; a < m.tilesX(); a++) {
+                for (int b = 0; b < m.tilesZ(); b++) {
+                    occ[(oz + b) * GRID + ox + a] = value;
+                }
+            }
+        }
+
+        /** Whether this placement has a doorway, other than the one it is entered by, the path can go on through. */
+        private boolean hasOnward(RoomDoors.Mask m, int ox, int oz, int tx, int tz, int need) {
+            for (int[] door : RoomDoors.doorCells(m, ox, oz)) {
+                if (door[0] == tx && door[1] == tz && door[2] == need) {
+                    continue;
+                }
+                int nx = door[0] + RoomDoors.DX[door[2]];
+                int nz = door[1] + RoomDoors.DZ[door[2]];
+                if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
+                    continue;
+                }
+                if (nx >= ox && nx < ox + m.tilesX() && nz >= oz && nz < oz + m.tilesZ()) {
+                    continue;   // its own other half
+                }
+                int there = occ[nz * GRID + nx];
+                if (there < 0 || (there != Integer.MAX_VALUE && (there == fairyPin || there == bloodPin))) {
+                    return true;   // a free cell, or a pinned goal the path may step onto
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Whether an entrance seat is near enough to a pinned Fairy and Blood for the path to reach each at the
+     * length asked for. Gives up being picky after 40 draws, so a seat is always found.
+     */
+    private static boolean seatReaches(List<Placement> placed, List<Candidate> placedFrom, RoomDoors.Mask em,
+                                       int ex, int ez, int roomsToBlood, int draw) {
+        if (draw >= 40) {
+            return true;
+        }
+        int intermediates = roomsToBlood + 1;
+        for (int i = 0; i < placed.size(); i++) {
+            String t = placed.get(i).type();
+            int roomsBefore = "FAIRY".equalsIgnoreCase(t) ? intermediates - 2
+                    : "BLOOD".equalsIgnoreCase(t) ? intermediates : -1;
+            if (roomsBefore >= 0 && gap(em, ex, ez, placed.get(i), placedFrom.get(i)) - 1 > 4 * roomsBefore) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Manhattan distance between the nearest cells of a placement and a placed room (1 = next door). */
+    private static int gap(RoomDoors.Mask m, int ox, int oz, Placement g, Candidate gc) {
+        RoomDoors.Mask gm = gc.byRotation()[g.rotation() / 90];
+        int dx = Math.max(0, Math.max(g.originX() - (ox + m.tilesX() - 1), ox - (g.originX() + gm.tilesX() - 1)));
+        int dz = Math.max(0, Math.max(g.originZ() - (oz + m.tilesZ() - 1), oz - (g.originZ() + gm.tilesZ() - 1)));
+        return dx + dz;
+    }
+
+    /** Whether a placement has a doorway at cell (x, z) on {@code side}. */
+    private static boolean hasDoor(RoomDoors.Mask m, int ox, int oz, int x, int z, int side) {
+        for (int[] door : RoomDoors.doorCells(m, ox, oz)) {
+            if (door[0] == x && door[1] == z && door[2] == side) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether any cell of this placement is, or is next door to, one of {@code cells}. */
+    private static boolean touchesAny(RoomDoors.Mask m, int ox, int oz, Set<Long> cells) {
+        for (int a = 0; a < m.tilesX(); a++) {
+            for (int b = 0; b < m.tilesZ(); b++) {
+                if (touchesFairy(ox + a, oz + b, cells)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** The origin that puts doorway {@code packed} (on side {@code need}) of {@code mask} on cell (tx, tz). */
+    private static int[] originFor(RoomDoors.Mask mask, int packed, int need, int tx, int tz) {
+        int index = RoomDoors.indexOf(packed);
+        return switch (need) {
+            case RoomDoors.NORTH -> new int[]{tx - index, tz};
+            case RoomDoors.SOUTH -> new int[]{tx - index, tz - mask.tilesZ() + 1};
+            case RoomDoors.WEST -> new int[]{tx, tz - index};
+            default -> new int[]{tx - mask.tilesX() + 1, tz - index};
+        };
     }
 
     private record Best(Candidate candidate, int rotation, int originX, int originZ) {

@@ -1016,6 +1016,9 @@ restriction - when that side has nothing open the draw falls back to the whole l
 
 This is ancestry, not every route: the floor deliberately grows loops, and a second way round is what a loop is.
 
+(Superseded 2026-10-04: the bias still never made it reliable - 64% of floors had the fairy off the path through
+the doors. The path is now laid first; see "The path to blood is laid first" at the end of this file.)
+
 ## A single-room load never armed anything
 
 `SimBuilder.buildSingleRoom` pasted the room, placed its secrets, published its map - and never called
@@ -1778,3 +1781,66 @@ branches in `ClearNode`, `ClearExecutor`, `EtherwarpPathfinder` and `EtherSearch
 - **Auto Routes recording warning.** Starting a recording or `/ar add` in the sim in a room whose capture rotation
   is uncertain (`RoomCaptureRotation.uncertainForRecording`: no marker, ambiguous, or overruled) says once that the
   route may come out rotated on Hypixel until the room is rescanned.
+
+## The path to blood is laid first (2026-10-04)
+
+killer560: "I just generated a map where fairy was not on the path to blood and it had far more than the 5 the
+slider had picked for it" (his log: `blood went in at depth 11 WITHOUT the fairy on the way to it`).
+
+**The definition, unchanged:** "Rooms to blood" counts the rooms on the Entrance-to-Blood path NOT counting the
+Entrance, the Fairy or Blood ("Do not count blood, green room, or fairy those are given", 2026-09-28). So the path
+is exactly Entrance, the slider's N rooms with the Fairy among them, Blood - N + 3 rooms, N + 2 doors. The path is
+measured through the doors the build writes, which is also what `SimWitherDoors` walks.
+
+**Root cause, three parts.**
+- The growth dropped blood in at the first stub whose depth was AT LEAST the target (`stub.depth + 1 >=
+  bloodDepth`), so the slider was a lower bound; and only "while blood is still owed" did anything steer it.
+- `SimFloorGen.plan` passed slider + 1 as the blood DEPTH, which has no room on the path for the fairy - a
+  floor that did put the fairy on the path came out one short.
+- The door pass (which turns layout links into a loop-free tree) took every link touching the entrance or blood
+  first, then the rest in layout order. A loop link from the entrance to a deep room became that room's door,
+  so the path through the doors was not the one the layout built and counted - usually shorter, sometimes
+  longer, and the fairy fell off it.
+
+Measured with `tools/layoutsim -Dsweep=true` (every floor size x slider 2..8 x puzzles 2..5, his Map Logger
+library of 134 rooms and his saved recency, judged through the real door graph), 4,480 floors BEFORE: path
+length wrong on 84.8% (from 6 short to 9 long; right on 15%), fairy off the path on 64.1%, puzzle count not the
+slider's on 40.2%, room minimum missed 0.18%, no blood 0.02%.
+
+**The fix.** `SimFloorLayout.growOnce` plans the path before anything else grows (`planSpine`): a bounded
+depth-first search with backtracking from the entrance, ordinary rooms with at least two doorways, the fairy at a
+drawn position 2..N (never next to the entrance or blood), blood last and not touching the fairy's cells, each
+joined to the one before through a measured doorway in both rooms. The rest of the floor then grows around it.
+The `Floor` record carries the path's links (`spine`), and `SimFloorLayout.doorLinks` - now the ONE place the
+door tree is decided, called by `SimFloorGen.plan` and by `tools/layoutsim` - takes them first, so any other link
+between two path rooms is a loop and is refused, and no other link to blood is ever a door. Path rooms are never
+the room `ensureTrap` swaps (unless nothing else can take the trap; a trap still counts as one of the slider's
+rooms) or `ensurePuzzles` swaps. A pinned Fairy or Blood is the path's goal at its own cell (reached through one
+of its own doorways, at an allowed step), and the entrance seat is drawn within reach of it. If no attempt can
+lay the path the old growth runs as a fallback and says so in the log; it never fired in the runs below.
+
+**Puzzles had to be fixed with it.** The path spends the doorways the growth used to hang puzzles from, and the
+miss rate went from 40% to 64%. Now: the growth asks for a puzzle on every stub once the cells left are few
+(`cellsLeft <= puzzlesLeft * 2 + 2`), the fill pass uses an owed puzzle first and no puzzle once none is owed,
+then `ensurePuzzles` swaps owed puzzles in for ordinary 1x1 dead ends off the path, and last puts one in an empty
+cell, past the cell target if need be. The fill pass also keeps going past the cell target while the floor is
+short of its room minimum, and a trap that `ensureTrap` cannot swap in goes into an empty cell.
+
+AFTER, 22,400 floors (100 per combination, his recency): path length right on 100%, fairy on the path 100%,
+`SimWitherDoors` exactly the path's ordinary doors 100%, every cell target met, one blood, one trap, one fairy,
+every room reachable through doors, puzzles right on 99.99% (3 floors one short), room minimum missed 0.12% (27,
+all full 36-cell F5/F7 grids where big rooms covered every cell with 20 rooms - the same failure as before).
+Recency off, 11,200 floors: the same, 0.07% room minimum. One ordinary room pinned (2,240), a pinned Fairy (672)
+and a pinned Blood (672): path and fairy 100%. Variety unchanged: consecutive F7s share 3.6 rooms (3.9 before),
+123 of 134 rooms used. Cost: 3.7 ms a floor (1.2 before), 99 ms with a pinned fairy, 260 ms with a pinned blood.
+
+**Slider values that cannot be met:** none in these runs - every floor size takes every slider value 2..8 with
+2..5 puzzles. Pins can make it impossible - a Blood pinned next door to a pinned Entrance is reached at
+one room, and no attempt can lay a longer path to it - though a Fairy or Blood pinned at a random cell never did
+in 1,344 floors. Then the floor falls back to the old growth (approximate length, fairy maybe off the path) with
+a WARN, and `SimFloorGen.plan` WARNs the length it got against the one asked for. The designer's status line shows
+the measured count, not the request.
+
+A trap found on the way: a pinned room's `Candidate` is a separate object from the pool's (`resolvePins` builds its
+own through `candidateOf`), so `candidate == fairyRoom` is false for a pinned Fairy. The first pinned-fairy runs
+fell back on every attempt because of it. Compare given rooms by name.

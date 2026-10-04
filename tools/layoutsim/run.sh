@@ -23,5 +23,6 @@ rm -rf build/layoutsim
 javac -nowarn -proc:none -cp "$GSON$SEP$SLF" -d build/layoutsim \
   $(find tools/layoutsim/stubs -name '*.java') \
   src/main/java/com/killer560/hub/roomsim/SimFloorLayout.java \
-  src/main/java/com/killer560/hub/roomsim/RoomDoors.java tools/layoutsim/LayoutSim.java
+  src/main/java/com/killer560/hub/roomsim/RoomDoors.java \
+  src/main/java/com/killer560/hub/roomsim/SimWitherDoors.java tools/layoutsim/LayoutSim.java
 java "$@" -cp "build/layoutsim$SEP$GSON$SEP$SLF" LayoutSim src/main/resources/assets/killer560smod/rooms "$FLOORS"
