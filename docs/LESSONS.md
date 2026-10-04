@@ -71,3 +71,6 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - The mod's own widget labels are not drawn through `GuiGraphicsExtractor.text`; they go through
   `GuiGraphicsExtractor$RenderingTextCollector.accept`. A text hook that only targets `text` misses every
   button and label in the settings GUI (found when keeping Name Changer out of the mod's own menus, 2026-10-04).
+- A test script that pipes its runner into `grep` exits with grep's status, so it passes when the runner cannot even
+  compile. `tools/bench/regress.sh` did exactly that after the 2026-10-04 path-to-blood merge (two javac errors,
+  exit 0). Write the run to a file, check its exit status, and require a line only a finished run prints.

@@ -124,6 +124,28 @@ public final class FloorBench {
             findSpots();
         }
 
+        /** Rooms the door graph does not join to {@code from} - clicks into them fail for every planner. */
+        int unreachableFrom(int from) {
+            if (rooms.isEmpty()) {
+                return 0;
+            }
+            boolean[] seen = new boolean[rooms.size()];
+            ArrayDeque<Integer> q = new ArrayDeque<>();
+            seen[from] = true;
+            q.add(from);
+            int n = 1;
+            while (!q.isEmpty()) {
+                for (int nb : adj.get(q.poll())) {
+                    if (!seen[nb]) {
+                        seen[nb] = true;
+                        n++;
+                        q.add(nb);
+                    }
+                }
+            }
+            return rooms.size() - n;
+        }
+
         int idx(int x, int y, int z) {
             return (y * SIZE + z) * SIZE + x;
         }
@@ -415,7 +437,8 @@ public final class FloorBench {
                 links.add(l);
             }
         }
-        return new SimFloorLayout.Floor(keep, links, List.of(), 0);
+        // No path to blood in a cut-out window: the bench only needs the rooms and their links.
+        return new SimFloorLayout.Floor(keep, links, List.of(), 0, List.of());
     }
 
     static boolean inKept(List<SimFloorLayout.Placement> keep, int cx, int cz) {
@@ -910,8 +933,9 @@ public final class FloorBench {
             EtherSearch probe = new EtherSearch(grid);
             List<Click> cs = clicks(f, rng, perFloor);
             int spots = f.spots.stream().mapToInt(List::size).sum();
-            System.out.printf(Locale.ROOT, "floor %d: %d rooms, %d doors carved, %d sealed, %d walkable spots%n", fi,
-                    f.rooms.size(), f.carved, f.sealed, spots);
+            System.out.printf(Locale.ROOT, "floor %d: %d rooms, %d doors carved, %d sealed, %d walkable spots,"
+                            + " %d room(s) not reachable from room 0 through the carved doors%n", fi,
+                    f.rooms.size(), f.carved, f.sealed, spots, f.unreachableFrom(0));
 
             // Warm-up for the JIT on this floor's first few clicks, untimed.
             if (fi == 0) {

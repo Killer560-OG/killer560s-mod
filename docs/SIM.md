@@ -1941,3 +1941,105 @@ warps, a lower found rate, any invalid hop, any click the old planner finds and 
 heuristics changing a warp count. Not covered: the bench's block flags come from palette names, its grid is a flat
 array, and nothing here has run in the game yet - the `[Path]` lines (one per click, one when a floor goes warm)
 are the in-game numbers.
+
+## The map's executor checks its landings; Tic Tac Toe, and the Teleport Maze's one loop (2026-10-04, fix-map3)
+
+killer560 (Map Logger log `maplogger-latest2.log`, 18:02-18:11): "The interactive map is working really well, just
+sometimes it is getting stuck and breaking. Also it does something really funny in tictactoe." Then three Teleport
+Maze items: the map does not hand over to the auto at the maze, the auto walks into fences, and "make sure tp maze
+only has one closed loop, not multiple."
+
+**The executor trusted its prediction completely.** `ClearExecutor` fires one hop a tick from where the previous hop
+was PREDICTED to land (QUOI's design, and the reason a 20-warp path takes one second). Nothing compared that with
+the server: a hop it refused was "done" anyway, every later hop was cast from the wrong spot, and the path ran to its
+end with him somewhere else (18:08:17: nine `[Sim] no etherwarp target there` in one second, then nothing). And a
+path whose first spot he was no longer on when it arrived (it starts at his position when the click was planned)
+sat in the queue for ever: `isBusy()` true, Auto Routes inert, every later click retargeting onto the same dead
+queue. 18:07:53-18:08:16 is eight clicks, each "Found path", with no room change in between. The executor logged
+nothing per hop, so WHICH wait held that one cannot be read off the log; every wait now names itself.
+- Every hop's expected landing is recorded; each server position packet is matched against them (0.6 horizontally,
+  1.3 vertically, so the first ticks of the fall still match). A packet leaving him where he already was is ignored
+  (a rotation-only correction); one that puts him anywhere else aborts the rest - the automation rule "abort on any
+  server correction" - and the same goal is planned again from where he really is, at most twice a click, with a
+  chat line saying why ("Warp 4 put you 12.3 blocks from where it was aimed - planning again from here (1/2)").
+- At most 6 hops in flight unanswered; 20 ticks with no progress (no hop issued or answered) gives up with the
+  reason (`warp N never landed`, `the sneak never reached the server`, `not on the path's first spot (x blocks
+  off)` - that one after 5 ticks on the ground). The arrival sync waits for every hop to be answered, and the
+  "arrived" callback only runs if he ends within 1.5 blocks of the last landing. A replan waits up to 3 s for the
+  ground and a room a path may start from (`canPath`), then stops with a message.
+- The planner thread's result is handed back even on an `Error` (it caught `RuntimeException` only, and anything
+  else left `pathPending` set for good); a search that does not answer in 10 s is dropped with a message.
+- `[Path] running N warp(s) from ... to ...` and `[Path] off the plan: ...` are the new log lines.
+- **On Hypixel:** the same. An etherwarp there is answered by one position packet to the landing (what QUOI's
+  executor syncs on), so a correct path confirms hop by hop exactly as in the sim; a lagback or a refused warp now
+  stops the chain within a tick or a second instead of firing the rest blind.
+
+**Tic Tac Toe's "funny" thing was the chest trip.** With "aura the chest" on, the first placed move sends him off to
+the room's secret chest (his own 2026-09-27 design: click, chest, back, carry on). 18:08:55: first click, a 2-warp
+path that could only land NEAR the chest (`near: the block itself cannot be reached`), then about a hundred
+`already there` searches and chat lines in four seconds: the leg re-asked the map for the chest every tick, the
+planner answered "you are on the nearest landing already", and the leg only ended on "standing on it" or "in reach",
+neither of which became true from there. The auto never clicked again (one `clicked` line in the log); he finished
+the board by hand ("Draw"). Now each leg of the trip asks for ONE path and is over when that path is; the aura stage
+works out whether the chest is reachable and moves on after three tries; every stage change is an INFO line; and the
+executor says "Already there" once per goal per 2 s. Nothing in the log points at the map planning into or through
+the board itself: the click into the room went to the room's recorded spot (`15 warp(s) (exact)`) and the auto
+clicked from there. **On Hypixel:** identical code path.
+
+**Teleport Maze: the map now hands over.** The auto only ever reacted to a maze teleport (QUOI: you step on the start
+pad yourself), and the map's spot for this room is the doorway, relative (15,68,-2). `ClearExecutor.arrivalSeq`
+moves when a path ends where it planned; within 3 s of one, standing within 3 blocks of the arrival and either at
+the maze's doorway spot or inside the maze, before any maze teleport, Auto Teleport Maze walks onto the start pad
+(15,69,12) and runs from its teleport as before. Walking in yourself does not trigger it. **On Hypixel:** the same -
+the map lands on the doorway, and the walk is the forward key and the camera.
+
+**Teleport Maze: round the walls.** The capture has a cobblestone wall (collision 1.5) in the middle of two sides of
+every chamber, right between the two pads on that side, so a straight walk to the pad beside you hit it and timed
+out ("no teleport after 3000ms of walking"). `autopuzzles/MazeWalk` is a grid Dijkstra at the pad's feet level (8
+neighbours, no corner cutting, 0.6 step-up, nothing solid in the body's 1.8), thinned to straight legs, steered with
+the camera and the forward key only; it re-plans if pushed 1.6 blocks off its line, falls back to the old straight
+walk if it finds no way, and the timeout grows with the planned length. The mod's walking pathfinder
+(`pathfinding.GraphPathfinder`) runs on recorded island graphs, of which a dungeon room has none, which is why it is
+not used here. `tools/mazecheck/walkcheck.py` on the capture: 84 pad-to-pad walks inside chambers, 28 blocked going
+straight (exactly the same-side pairs), 0 without a way round; doorway to start pad 13 blocks, straight is clear.
+**On Hypixel:** the room is the same capture, so the same walls.
+
+**Teleport Maze: one closed loop.** Reading of the structure: seven chambers of four corner pads, every pad a two-way
+link to a pad in another chamber, the start linked to one, one exit to the centre (wiki, Dungeon Puzzle Rooms:
+"seven rooms with four teleport pads each, all leading to different rooms"). The wiki's way through (Catacombs
+Puzzle Rooms) is to take the pad diagonal to the one you arrived on until you land facing a pad in the same room,
+and Auto Teleport Maze's fallback does the same. Pair each pad with its diagonal: the fourteen diagonals and the
+links between them make paths and closed loops. The old draw paired pads at random, which split them into several
+loops; a walk that entered one off the start-to-exit line (any non-diagonal pad, the auto's "best"/"farthest" picks,
+or a human) could go round it for ever. `TeleportMazeLinks.draw` now lays all fourteen diagonals in one chain
+(start, d1..d14, exit), no two neighbours in the same chamber, each entered by a random one of its two pads. The
+centre pad returns him beside the start, so start-chain-centre-start is the one loop. `tools/mazecheck/run.sh`,
+100,000 draws each:
+
+| | closed loops (1 / 2 / 3 / 4+) | landings from which following diagonals never reaches the centre |
+|-|-------------------------------|---------------------------------------------------------------|
+| old random pairing | 39.4% / 42.1% / 15.7% / 2.7% | 26.6% |
+| one chain | 100% / 0 / 0 / 0 | 0% |
+
+Both: no structural faults (every link two-way and across chambers, one exit, start linked). From the start pad,
+diagonals reach the centre in 15 pads now (11.3 on average before: the random pairing's start-to-exit line was
+shorter, and the rest of the pads were in the separate loops). Only the sim is changed; on Hypixel the pairing is
+the server's own, and nothing in the client assumes either.
+
+**`tools/bench/regress.sh` was not running.** The path-to-blood merge changed `SimFloorLayout.Floor` (a `spine`
+field) and made `LayoutSim` need `SimWitherDoors`; `floor.sh` stopped compiling, and `regress.sh` piped the bench
+straight into `grep`, so it printed two javac errors and exited 0. Fixed both, and `regress.sh` now checks the
+bench's own exit status and requires its `SELF-CHECK` line before reporting anything.
+
+**And once it runs, it fails - on main, not on this change.** None of the files the bench compiles was touched here
+(SimFloorLayout, RoomDoors, SimWitherDoors, EtherSearch, WarpGraph, the stubs). The same seed now draws different
+floors, because the path-to-blood generator lays them differently ("0 puzzle(s) of the 3 asked for" on every one),
+and on those floors many clicks are impossible for every planner even though the door graph is connected (the floor
+line now prints how many rooms the carved doors leave unreachable: 0 on all three whole floors). Whole floors: old
+67.3% found, new 83.6%, 8.25 warps against old 13.21, nothing the old planner found that the new one did not,
+INVALID 0, SELF-CHECK 0 of 97 different; the thresholds (100% found, 7.55 warps, p99 12 ms) fail. Small floors: new
+finds exactly what the every-landing reference finds (87.25% both), 3.14 warps against 3.03 (limit x1.045), 40 of
+347 worse (limit 16%); only the absolute 89.7% found fails. The tree at d17520c (WarpGraph before the merge) passes
+with the same script: 100% / 7.53 warps, small 89.75%. So the planner is unchanged and the floors are what moved -
+most likely doorways the new generator joins that the bench's standard seam carve does not open the way SimDoors
+does. Re-baselining the thresholds, or modelling those doorways, is his call and is not done here.
