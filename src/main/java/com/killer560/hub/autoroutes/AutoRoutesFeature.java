@@ -87,6 +87,8 @@ public final class AutoRoutesFeature {
     private static String lastRoom;
     private static Object lastLevel;
     private static boolean renderFailed;
+    /** The last arming state logged by {@link #gate}, so each gate decision is logged once per change, not per tick. */
+    private static String lastGate;
 
     private AutoRoutesFeature() {
     }
@@ -386,6 +388,7 @@ public final class AutoRoutesFeature {
             resetForWorld("world change");
         }
         if (!cfg.isEnabled()) {
+            gate("Auto Routes is off");
             if (RouteExecutor.isRunning() || RouteRecorder.isRecording() || editMode) {
                 resetForWorld("Auto Routes turned off");
                 editMode = false;
@@ -395,12 +398,14 @@ public final class AutoRoutesFeature {
         }
         if (player == null || client.level == null) {
             hidden = true;
+            gate("no player / level");
             return;
         }
 
         // Interlock 1: Interactive Map open -> hidden and inert.
         boolean mapOpen = McCompat.screen(client) instanceof InteractiveMapScreen;
         if (mapOpen) {
+            gate("Interactive Map open");
             if (!mapWasOpen && RouteExecutor.isRunning()) {
                 RouteExecutor.stop("Interactive Map opened");
             }
@@ -427,6 +432,8 @@ public final class AutoRoutesFeature {
         // is about to start (killer560, 2026-09-29: "it'll use the interactive map portion instead of the
         // secret route portion").
         if (BloodRush.isRunning() || ClearExecutor.isBusy() || InteractiveMapFeature.isSteering()) {
+            gate("inert: " + (BloodRush.isRunning() ? "Auto Blood Rush" : ClearExecutor.isBusy()
+                    ? "Interactive Map teleport in flight" : "Interactive Map steering"));
             if (RouteExecutor.isRunning()) {
                 RouteExecutor.stop(BloodRush.isRunning() ? "Auto Blood Rush" : "Interactive Map teleport");
             }
@@ -454,6 +461,9 @@ public final class AutoRoutesFeature {
         boolean inClear = DungeonState.isInDungeon() && !LiveMapFeature.isInBoss();
         RouteCoords.Frame frame = inClear ? RouteCoords.Frame.current() : null;
         if (frame == null) {
+            gate(inClear ? "room not identified (no Frame from the live map)"
+                    : "not in a dungeon clear (isInDungeon=" + DungeonState.isInDungeon() + ", boss="
+                    + LiveMapFeature.isInBoss() + ")");
             if (RouteExecutor.isRunning()) {
                 RouteExecutor.stop(inClear ? "room unknown" : "not in a dungeon room");
             }
@@ -468,6 +478,8 @@ public final class AutoRoutesFeature {
                 RouteExecutor.stop("left the room");
             }
             lastRoom = frame.roomName();
+            LOGGER.info("[AutoRoutes] Room {} - clay {},{} rotation {}, sim y offset {}", frame.roomName(),
+                    frame.clayX(), frame.clayZ(), frame.rotation(), DungeonLayout.simYOffset());
             latchedNode = null;
             // New room, clean slate - see resetForWorld.
             RouteExecutor.clearStoppedByUser();
@@ -481,14 +493,17 @@ public final class AutoRoutesFeature {
         }
 
         if (RouteRecorder.isRecording()) {
+            gate("recording");
             RouteRecorder.tick(client);
             return;
         }
         if (RouteExecutor.isRunning()) {
+            gate("running");
             RouteExecutor.tick(client);
             return;
         }
         if (editMode) {
+            gate("edit mode");
             return;
         }
         arm(client, player, frame, cfg);
@@ -498,10 +513,12 @@ public final class AutoRoutesFeature {
     private static void arm(Minecraft client, LocalPlayer player, RouteCoords.Frame frame, AutoRoutesConfig cfg) {
         Route route = RouteStore.getInstance().forRoom(frame.roomName());
         if (route == null || route.nodes().isEmpty()) {
+            gate("no route for " + frame.roomName());
             latchedNode = null;
             return;
         }
         if (McCompat.screen(client) != null) {
+            gate("a screen is open");
             // Nothing arms under a screen, but the latch is kept: clearing it here undid latchUnderfoot every time
             // the chat that typed "/ar add" was still open, so a node fired under him the moment chat closed.
             return;
@@ -520,6 +537,7 @@ public final class AutoRoutesFeature {
             }
         }
         if (inside == null) {
+            gate(idleGate(route, frame, startOnly));
             latchedNode = null;
             // Clear of every node: a route the player stopped by hand - or that just finished on top of one -
             // may arm again from here.
@@ -528,15 +546,19 @@ public final class AutoRoutesFeature {
             return;
         }
         if (inside == latchedNode) {
+            gate("in node #" + (route.indexOf(inside) + 1) + " but latched (just placed it, or the last run "
+                    + "started / ended here) - step off and back on");
             return; // still standing where the last run started / ended
         }
         if (RouteExecutor.justFinished()) {
+            gate("in node #" + (route.indexOf(inside) + 1) + " where the last run finished - latched");
             // Latch where the route ended without starting anything: otherwise the last node's action runs
             // a second time the moment it finishes (2026-09-16 review).
             latchedNode = inside;
             return;
         }
         if (RouteExecutor.wasStoppedByUser()) {
+            gate("in node #" + (route.indexOf(inside) + 1) + " after you stopped the route - walk clear first");
             // The player took the controls back while standing inside a node. Re-arming here would mean
             // every W tap stops the route and every release restarts it (2026-09-16 review) - they have to
             // walk clear of the route first.
@@ -547,6 +569,7 @@ public final class AutoRoutesFeature {
         if (inside.start) {
             mapArrivalGuard = false;
         }
+        gate("armed node #" + (route.indexOf(inside) + 1) + " (" + inside.type + (inside.start ? ", start" : "") + ")");
         RouteExecutor.start(route, frame, inside);
     }
 
@@ -594,6 +617,26 @@ public final class AutoRoutesFeature {
     }
 
     // ------------------------------------------------------------------------------------------- helpers
+
+    /** Logs an arming decision once per change - every gate between "standing on a node" and "the route started"
+     *  says which one it is, so a node that never fires names its own reason in the log. */
+    private static void gate(String state) {
+        if (!state.equals(lastGate)) {
+            lastGate = state;
+            LOGGER.info("[AutoRoutes] Arming: {}", state);
+        }
+    }
+
+    /** Standing in no node: name the start node and where it really is, so a coordinate mismatch shows. Built only
+     *  from the route, never the player's position, so it does not change every tick. */
+    private static String idleGate(Route route, RouteCoords.Frame frame, boolean startOnly) {
+        RouteNode start = route.startNode();
+        String where = start == null ? "no start node"
+                : String.format(java.util.Locale.US, "start node #%d at %s", route.indexOf(start) + 1,
+                        RouteCoords.toReal(frame, start.relativePos()));
+        return "in no node of " + frame.roomName() + " (" + route.nodes().size() + " node(s), "
+                + (startOnly ? "start only" : "any node") + ", " + where + ")";
+    }
 
     private static void resetForWorld(String reason) {
         if (RouteExecutor.isRunning()) {

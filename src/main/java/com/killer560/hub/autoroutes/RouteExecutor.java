@@ -122,6 +122,9 @@ public final class RouteExecutor {
     private static boolean forceSneak;
     private static boolean unsneakOverride;
     private static boolean swapSent;
+    /** Bumped whenever a node begins or the route stops, so a sim etherwarp's late result for an action that is
+     *  already over is dropped instead of stopping whatever runs now. */
+    private static int actionGeneration;
     private static List<BlockPos> breakerQueue = new ArrayList<>();
     private static final Set<BlockPos> breakerSent = new HashSet<>();
     private static BlockPos boomTarget;
@@ -215,6 +218,7 @@ public final class RouteExecutor {
         }
         running = false;
         stopReason = reason;
+        actionGeneration++;
         activeNode = null;
         step = null;
         forceSneak = false;
@@ -692,6 +696,17 @@ public final class RouteExecutor {
     // ------------------------------------------------------------------------------------------- actions
 
     private static void beginAction(RouteNode node) {
+        actionGeneration++;
+        LocalPlayer self = Minecraft.getInstance().player;
+        if (node.type == RouteNode.Type.ETHERWARP) {
+            Vec3 at = RouteCoords.toReal(frame, node.relativePos());
+            LOGGER.info("[AutoRoutes] Node #{} ETHERWARP begins: player {} node {} landing {} (room {}, sim={}, {} mode)",
+                    route.indexOf(node) + 1, fmt(self.position()), fmt(at),
+                    node.hasLanding ? fmt(RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ))
+                            : "not recorded",
+                    frame.roomName(), com.killer560.hub.roomsim.SimState.isActive(),
+                    AutoRoutesConfig.getInstance().isLegitMode() ? "legit" : "obvious");
+        }
         activeNode = node;
         step = Step.PREP;
         stepTicks = 0;
@@ -835,9 +850,12 @@ public final class RouteExecutor {
                 wantSneak = true;
                 // QUOI ClearExecutor: don't warp until the SERVER has seen the sneak, or the warp is a plain AOTV hop.
                 if (player.getLastSentInput().shift()) {
+                    LOGGER.info("[AutoRoutes] Etherwarp: server has the sneak after {} tick(s)", stepTicks);
                     step = Step.SWAP;
                     stepTicks = 0;
                 } else if (stepTicks > SNEAK_TIMEOUT) {
+                    LOGGER.info("[AutoRoutes] Etherwarp: sneak never reached the server (client shift={}, input mixin={})",
+                            player.isShiftKeyDown(), mixinApplied);
                     stop("couldn't start sneaking for the etherwarp");
                 }
             }
@@ -845,10 +863,13 @@ public final class RouteExecutor {
                 wantSneak = true;
                 int slot = ItemIdentity.findEtherwarpSlot(player);
                 if (slot < 0) {
+                    LOGGER.info("[AutoRoutes] Etherwarp: no hotbar item with ethermerge / ETHERWARP_CONDUIT");
                     stop("no etherwarp item in the hotbar");
                     return;
                 }
                 if (ensureSelected(player, slot)) {
+                    LOGGER.info("[AutoRoutes] Etherwarp: slot {} selected ({})", slot,
+                            ItemIdentity.skyblockId(player.getInventory().getItem(slot)));
                     step = Step.AIM;
                     stepTicks = 0;
                     aimAt(node);
@@ -874,12 +895,18 @@ public final class RouteExecutor {
             case CONFIRM -> {
                 wantSneak = true;
                 if (landed(player, node)) {
+                    LOGGER.info("[AutoRoutes] Etherwarp: landed at {} after {} tick(s)", fmt(player.position()), stepTicks);
                     forceSneak = false;
                     RouteRotation.rebase();
                     cameraGraceTicks = 3;
                     rejoinPathAfterTeleport(player, node);
                     finishAction();
                 } else if (stepTicks > LANDING_TIMEOUT) {
+                    LOGGER.info("[AutoRoutes] Etherwarp: no landing after {} ticks - player {} (moved {} from {}), "
+                            + "recorded landing {}", stepTicks, fmt(player.position()),
+                            String.format(Locale.US, "%.2f", actionOrigin == null ? 0.0 : player.position().distanceTo(actionOrigin)),
+                            fmt(actionOrigin),
+                            node.hasLanding ? fmt(RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ)) : "none");
                     stop("etherwarp didn't land where it was recorded");
                 }
             }
@@ -1147,7 +1174,12 @@ public final class RouteExecutor {
      *  QUOI's plain {@code gameMode.useItem}. Obvious: the rotated use packet without touching the camera
      *  ({@code ClearExecutor.doInteract}). */
     private static void useHeldItem(Minecraft client, LocalPlayer player, RouteNode node, boolean blockInteraction) {
-        if (AutoRoutesConfig.getInstance().isLegitMode()) {
+        boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
+        if (com.killer560.hub.roomsim.SimState.isActive()) {
+            useHeldItemInSim(client, player, node, blockInteraction, legit);
+            return;
+        }
+        if (legit) {
             InteractionResult result = InteractionResult.PASS;
             if (blockInteraction) {
                 HitResult hit = player.pick(4.5, 1f, false);
@@ -1180,14 +1212,106 @@ public final class RouteExecutor {
         player.swing(InteractionHand.MAIN_HAND);
     }
 
-    /** Real confirmation of a teleport: at the recorded landing, or (no landing recorded) clearly moved. */
+    /**
+     * THE SIM HAS NO SERVER-SIDE ETHERWARP, so the raw use packet above teleports nobody there.
+     * <p>
+     * The obvious-mode branch hands a {@code ServerboundUseItemPacket} to the connection. On Hypixel that packet IS
+     * the ability. The sim's abilities live in {@code SimAbilities} behind Fabric's {@code UseItemCallback}, which
+     * fires on the CLIENT's {@code gameMode.useItem} and refuses the integrated server's copy of the player - so the
+     * packet was sent, accepted and did nothing, and every etherwarp node sat in CONFIRM until "etherwarp didn't land
+     * where it was recorded" (his 2026-10-04 13:59 log, twice). {@code ClearExecutor.doInteract} hit exactly this on
+     * 2026-10-01 and was fixed; this copy of the same send was not.
+     * <p>
+     * An etherwarp goes through {@code SimAbilities.etherwarpAlong}, which resolves the hop from the server's copy of
+     * him along the given yaw/pitch exactly as Hypixel does - the node's recorded look in obvious mode (no camera
+     * turn, same as on Hypixel), the live camera in legit mode. Anything else (or an etherwarp the sim refuses, e.g.
+     * not sneaking yet) takes the client-side {@code gameMode.useItem} with the rotation set for the call, which is
+     * what {@code ClearExecutor} and {@code AutoPuzzleUtil.useItemRotated} do in here.
+     */
+    private static void useHeldItemInSim(Minecraft client, LocalPlayer player, RouteNode node, boolean blockInteraction,
+                                         boolean legit) {
+        float targetYaw = legit ? player.getYRot() : RouteCoords.toRealYaw(frame, node.yaw);
+        float yaw = player.getYRot() + Mth.wrapDegrees(targetYaw - player.getYRot());
+        float pitch = Mth.clamp(legit ? player.getXRot() : node.pitch, -90f, 90f);
+        if (node.type == RouteNode.Type.ETHERWARP) {
+            BlockPos expected = null;
+            if (node.hasLanding) {
+                Vec3 l = RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ);
+                expected = BlockPos.containing(l.x, l.y - 0.5, l.z);
+            }
+            int gen = actionGeneration;
+            BlockPos want = expected;
+            if (com.killer560.hub.roomsim.SimAbilities.etherwarpAlong(client, yaw, pitch, expected,
+                    result -> onSimEtherwarp(gen, result, want))) {
+                LOGGER.info("[AutoRoutes] Etherwarp sent (sim, server-side hop): yaw {} pitch {} expecting block {}",
+                        String.format(Locale.US, "%.2f", yaw), String.format(Locale.US, "%.2f", pitch),
+                        expected == null ? "any" : expected.toShortString());
+                player.swing(InteractionHand.MAIN_HAND);
+                return;
+            }
+            LOGGER.info("[AutoRoutes] Etherwarp: sim refused the hop (held {}, client shift={}) - plain use instead",
+                    ItemIdentity.skyblockId(player.getMainHandItem()), player.isShiftKeyDown());
+        }
+        InteractionResult result = InteractionResult.PASS;
+        if (legit && blockInteraction) {
+            HitResult hit = player.pick(4.5, 1f, false);
+            if (hit instanceof BlockHitResult blockHit && hit.getType() == HitResult.Type.BLOCK) {
+                result = client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, blockHit);
+            }
+        }
+        if (!result.consumesAction()) {
+            float oldYaw = player.getYRot();
+            float oldPitch = player.getXRot();
+            player.setYRot(yaw);
+            player.setXRot(pitch);
+            client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+            player.setYRot(oldYaw);
+            player.setXRot(oldPitch);
+        }
+        LOGGER.info("[AutoRoutes] {} used (sim, client-side use): yaw {} pitch {}", node.type,
+                String.format(Locale.US, "%.2f", yaw), String.format(Locale.US, "%.2f", pitch));
+        player.swing(InteractionHand.MAIN_HAND);
+    }
+
+    /** {@code SimAbilities.etherwarpAlong}'s verdict, on the client thread. A hop with no target stops the route at
+     *  once instead of sitting out the three-second landing timeout. */
+    private static void onSimEtherwarp(int gen, com.killer560.hub.roomsim.SimAbilities.HopResult result, BlockPos expected) {
+        if (gen != actionGeneration || !running) {
+            return;
+        }
+        switch (result) {
+            case LANDED -> LOGGER.info("[AutoRoutes] Sim etherwarp: landed on the expected block");
+            case LANDED_ELSEWHERE -> LOGGER.info("[AutoRoutes] Sim etherwarp: landed, but not on {} - the landing "
+                    + "check decides", expected == null ? "?" : expected.toShortString());
+            case NO_TARGET -> {
+                LOGGER.info("[AutoRoutes] Sim etherwarp: no etherwarpable block along the node's look");
+                stop("etherwarp found no target");
+            }
+        }
+    }
+
+    /**
+     * Real confirmation of a teleport: at the recorded landing, or (no landing recorded) clearly moved.
+     * <p>
+     * Being within {@link #LANDING_TOLERANCE} of the landing is not enough on its own: a node whose landing is close
+     * to where it stands (a short warp, or one aimed down) read as "landed" the tick the use was sent, whether or not
+     * anything teleported him - which is how his third 2026-10-04 attempt "completed" in the same second it started
+     * without warping. The player must also have actually moved off the spot the use was sent from, unless that spot
+     * already was the landing.
+     */
     private static boolean landed(LocalPlayer player, RouteNode node) {
         Vec3 pos = player.position();
+        boolean moved = actionOrigin == null || pos.distanceTo(actionOrigin) > 0.5;
         if (node.hasLanding) {
             Vec3 landing = RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ);
-            return pos.distanceTo(landing) <= LANDING_TOLERANCE;
+            boolean originWasLanding = actionOrigin != null && actionOrigin.distanceTo(landing) <= 0.5;
+            return pos.distanceTo(landing) <= LANDING_TOLERANCE && (moved || originWasLanding);
         }
         return actionOrigin != null && pos.distanceTo(actionOrigin) > 3.0;
+    }
+
+    private static String fmt(Vec3 v) {
+        return v == null ? "null" : String.format(Locale.US, "(%.2f, %.2f, %.2f)", v.x, v.y, v.z);
     }
 
     /** After a teleport the player is somewhere past the node's sample: continue from the nearest one there. */
