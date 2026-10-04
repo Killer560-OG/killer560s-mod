@@ -292,8 +292,41 @@ public final class SimFloorLayout {
      */
     private static final Map<String, Double> RECENT = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /**
+     * How much of a room's recency survives each new floor.
+     *
+     * <p>killer560 (2026-10-04): "It still feels like just about the exact same rooms every run." Three things
+     * were found. The RNG is NOT the cause - {@code SimFloorGen.RNG} is an unseeded {@code new Random()}, so it
+     * differs every launch and every floor. The memory was: {@link #RECENT} lived only in memory, so every game
+     * launch started with no recency at all and the first floors of each session fell back to the same
+     * favourites - and he restarts often. And the penalty was too weak to beat the deterministic part of
+     * {@link #choose}'s ordering: doorways at 0.9 each and size at up to 2.2 against a 0..2.5 die meant the
+     * many-doored big rooms still led the shortlist, and {@code choose} stops at the first placement that
+     * scores "good enough", so the head of that list is what goes on the floor. Now the recency is persisted
+     * by {@code SimRecencyStore}, decays more slowly (0.6, so a room on every floor settles at 2.5 rather
+     * than 2), and weighs more in both the ordering and the placement score, with a wider die.
+     */
+    private static final double RECENCY_DECAY = 0.6;
+
+    /** The recency map, for saving across restarts. A copy. */
+    public static Map<String, Double> recencySnapshot() {
+        return new HashMap<>(RECENT);
+    }
+
+    /** Puts back a saved recency map. Called once, before the first floor of a session. */
+    public static void restoreRecency(Map<String, Double> saved) {
+        if (saved == null) {
+            return;
+        }
+        for (Map.Entry<String, Double> e : saved.entrySet()) {
+            if (e.getKey() != null && e.getValue() != null && e.getValue() > 0 && e.getValue() < 100) {
+                RECENT.put(e.getKey(), e.getValue());
+            }
+        }
+    }
+
     private static void remember(Floor floor) {
-        RECENT.replaceAll((k, v) -> v * 0.5);
+        RECENT.replaceAll((k, v) -> v * RECENCY_DECAY);
         RECENT.values().removeIf(v -> v < 0.05);
         for (Placement p : floor.rooms()) {
             RECENT.merge(p.name(), 1.0, Double::sum);
@@ -1128,8 +1161,8 @@ public final class SimFloorLayout {
         Map<String, Double> key = new HashMap<>();
         for (Candidate c : shortlist) {
             // A wider die and a cost for having been on recent floors - see RECENT.
-            key.put(c.name(), c.area(0) * areaWeight - c.doorCount() * 0.9 + rng.nextDouble() * 2.5
-                    + recency(c.name()) * 2.0);
+            key.put(c.name(), c.area(0) * areaWeight - c.doorCount() * 0.9 + rng.nextDouble() * 4.0
+                    + recency(c.name()) * 3.0);
         }
         shortlist.sort(Comparator.comparingDouble(c -> key.get(c.name())));
 
@@ -1171,7 +1204,7 @@ public final class SimFloorLayout {
                         continue;
                     }
                     double score = score(mask, originX, originZ, tx, tz, need, occupied, stubs,
-                            cellsLeft, preferBig, dormant, rng) - recency(c.name()) * 1.5;
+                            cellsLeft, preferBig, dormant, rng) - recency(c.name()) * 2.0;
                     if (score > bestScore) {
                         bestScore = score;
                         best = new Best(c, rotation * 90, originX, originZ);

@@ -228,8 +228,13 @@ public final class SimFloorGen {
         // you do not count blood green room or fairy."
         int wantDistance = Math.max(MIN_ROOMS_TO_BLOOD, Math.min(MAX_ROOMS_TO_BLOOD, roomsToBlood)) + 1;
 
+        // The "recently used rooms" memory survives restarts now - see SimRecencyStore.
+        SimRecencyStore.ensureLoaded();
         SimFloorLayout.PinnedFloor pinnedOut = SimFloorLayout.generate(
                 usable, wantRooms, wantCells, wantPuzzles, wantDistance, pinned, RNG);
+        if (pinnedOut != null) {
+            SimRecencyStore.save();
+        }
         SimFloorLayout.Floor laid = pinnedOut == null ? null : pinnedOut.floor();
         if (laid == null || laid.rooms().size() < 3) {
             ModChat.send("Sim", ModChat.text("Could not lay out a floor that size - "),

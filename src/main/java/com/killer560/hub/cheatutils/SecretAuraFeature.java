@@ -112,8 +112,10 @@ public final class SecretAuraFeature {
             gate = "disabled";
         } else if (client.level == null || client.player == null || client.gameMode == null) {
             gate = "no-player";
-        } else if (!CheatUtils.isOnDungeonServer(client)) {
-            gate = "not on hypixel/p3sim";
+        } else if (!CheatUtils.isOnDungeonServer(client) && !inSim(client)) {
+            // Or the dungeon sim. killer560 (2026-10-04): "My secret auras are not working on sim." The sim is
+            // a singleplayer world, so getCurrentServer() is null and this gate refused every tick there.
+            gate = "not on hypixel/p3sim/sim";
         } else if (!inDungeon) {
             gate = "not in dungeon";
         } else if (com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
@@ -254,7 +256,12 @@ public final class SecretAuraFeature {
             return leversAllowed ? "lever" : null;
         }
         if (block instanceof AbstractSkullBlock) {
-            return cfg.isAuraEssence() && SecretsFeature.isWitherEssence(client.level, pos) ? "essence" : null;
+            // The sim's essence is a plain wither skeleton skull with no Hypixel skin profile, so the profile
+            // check can never pass there; the sim's own list of placed essences answers instead.
+            boolean essence = inSim(client)
+                    ? com.killer560.hub.roomsim.SimSecrets.PLACED_WITHER.contains(pos)
+                    : SecretsFeature.isWitherEssence(client.level, pos);
+            return cfg.isAuraEssence() && essence ? "essence" : null;
         }
         return null;
     }
@@ -325,6 +332,11 @@ public final class SecretAuraFeature {
 
     private static void markDone(long key, String why) {
         done.add(key);
+    }
+
+    /** The dungeon sim: a local singleplayer world, never a remote server (see {@code SimState.canAct}). */
+    private static boolean inSim(Minecraft client) {
+        return com.killer560.hub.roomsim.SimState.isActive() && com.killer560.hub.roomsim.SimState.canAct(client);
     }
 
     private static boolean heldItemPaused(CheatUtilsConfig cfg, ItemStack held) {

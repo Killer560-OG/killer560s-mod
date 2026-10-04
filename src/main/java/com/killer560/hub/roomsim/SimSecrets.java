@@ -95,6 +95,9 @@ public final class SimSecrets {
                 return net.minecraft.world.InteractionResult.PASS;
             }
             SimScore.secretFound();
+            // Told directly: this listener consumes the click, so Secret Waypoints' own UseBlockCallback
+            // (registered later) never sees it and the essence's highlight stayed up.
+            com.killer560.hub.secretwaypoints.SecretWaypointsFeature.markSimEssenceCollected(at);
             ModChat.send("Sim", ModChat.good("Wither essence collected"));
             var server = client.getSingleplayerServer();
             if (server != null) {

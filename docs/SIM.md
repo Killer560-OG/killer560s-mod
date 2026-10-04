@@ -1362,3 +1362,37 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   The handoff said `SimBuilder` warns when a 1x2's reserved cells disagree with its long axis; no such warning
   exists in the code.
 
+
+## The 2026-10-04 list
+
+- **A sim listener that returns SUCCESS hides the click from every listener registered after it.** Fabric's
+  `UseBlockCallback` stops at the first non-PASS result. `SimSecrets`' essence handler is registered before
+  `SecretWaypointsFeature`, consumed the skull click, and so the essence's waypoint never cleared. It now calls
+  `SecretWaypointsFeature.markSimEssenceCollected` itself (nearest WITHER waypoint within 3 blocks, because a
+  buried essence is placed up to two blocks above its database spot).
+- **Secret Aura gated on `getCurrentServer()` being Hypixel/p3sim**, which is null in singleplayer, so it never
+  acted in the sim. It also accepts `SimState.canAct` now, and treats `SimSecrets.PLACED_WITHER` as essences there
+  (the sim's essence is a plain wither skeleton skull with no Hypixel skin, so `isWitherEssence` cannot match it).
+- **A client command's `requires()` is evaluated when the command tree arrives on join**, not when typed - Fabric
+  copies only the nodes that pass at that moment into the suggestion tree. `/start` required
+  `isGeneratedFloor()`, which `SimBuilder.build` sets after the join, so it never tab-completed. The floor check
+  lives in `SimRun.begin` only now. Any sim command gated on per-map state has the same trap.
+- **`freezeWorld` ran for every singleplayer world**, not only the sim: it sat above the pending-code check in
+  `SimWorld.onWorldLoaded`. Moved after `SimState.enter`. It also turns off `MOB_DROPS` (loot and XP orbs - read
+  in `LivingEntity.dropExperience`), `ENTITY_DROPS` and `BLOCK_DROPS`; the sim's own drops are spawned directly
+  and unaffected.
+- **Picked-up item secrets are deleted from the inventory** the tick after they are counted. Only stacks
+  carrying the `killer560_sim_secret` CUSTOM_DATA mark go, so `/item` copies are never touched; Architect's First
+  Draft is not in the secret pool and is excluded from the purge by id anyway. `SimArchitect`'s auto-get on a
+  puzzle fail still hands one over (his earlier request) - drop that if "only from /item" is meant literally.
+- **Room variety**: the RNG was never the problem (`SimFloorGen.RNG` is an unseeded `new Random()`). `RECENT` was
+  in memory only, so every launch started with no recency, and its weight lost to `choose`'s deterministic
+  doorway/size ordering, whose head wins because `choose` stops at the first "good enough" placement. Now saved to
+  `config/killer560smod-sim-recent.json` by `SimRecencyStore` (kept out of `SimFloorLayout` so the generator stays
+  runnable outside the game), decay 0.6, key weight 3.0, score weight 2.0, die 0..4. Not measured over many floors.
+- The sim's sidebar, the Custom Scoreboard (which shows the sim sidebar under a plain title instead of its Skyblock
+  entries) and the vanilla tab list header/footer carry "killer560's personal testing sim" and
+  `discord.gg/hkQMF5fE84`. The sidebar objective's title stays `SKYBLOCK`: `SkyblockGate` reads it, and every
+  "Skyblock Only" feature in the sim depends on that.
+- The pause screen's Change Room button is a vanilla `Button` placed 4 px under the lowest button in the centre
+  column, read from the screen's widgets, instead of pinned to `height - 46`.

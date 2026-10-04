@@ -328,7 +328,6 @@ public final class SimWorld {
      */
     public static void onWorldLoaded(Minecraft client) {
         LOGGER.info("[SimPhase] world loaded, starting the build");
-        freezeWorld(client);
         if (pendingCode == null) {
             return;
         }
@@ -342,6 +341,10 @@ public final class SimWorld {
             return;
         }
         SimState.enter(code);
+        // Only once this is known to be the sim. It ran at the top of this method, before the pending-code
+        // check, so ANY singleplayer world he joined had its random ticks, clock, weather - and now its drops -
+        // switched off as well.
+        freezeWorld(client);
         // Forced every time, not just at creation: the sim world was made in creative before he asked for
         // survival, and a level that already exists keeps the mode it was made with.
         var server = client.getSingleplayerServer();
@@ -399,6 +402,7 @@ public final class SimWorld {
             // saw "starred mobs all dead" and dropped a Wither Key at his feet in a fresh map.
             resetPerMapState(Minecraft.getInstance());
             SimAbilities.reset();
+            SimSidebar.clearTabInfo(Minecraft.getInstance());
             SimState.leave();
         }
         // Outside the isActive() branch: a build abandoned mid-flight leaves jobs holding the OLD ServerLevel,
@@ -452,6 +456,14 @@ public final class SimWorld {
             rules.set(net.minecraft.world.level.gamerules.GameRules.ADVANCE_WEATHER, false, server);
             rules.set(net.minecraft.world.level.gamerules.GameRules.SPAWN_MOBS, false, server);
             rules.set(net.minecraft.world.level.gamerules.GameRules.SPAWN_MONSTERS, false, server);
+            // No loot. killer560 (2026-10-04): "Make it so mobs and things no longer drop loot on the sim."
+            // MOB_DROPS is vanilla's doMobLoot and gates BOTH the death loot and the XP orbs (LivingEntity.
+            // dropExperience reads it - checked in the 26.1.2 bytecode). ENTITY_DROPS covers non-mob entities
+            // and BLOCK_DROPS anything broken by hand. The sim's own items (secret drops, the wither key) are
+            // spawned directly as ItemEntity and are not touched by any of these rules.
+            rules.set(net.minecraft.world.level.gamerules.GameRules.MOB_DROPS, false, server);
+            rules.set(net.minecraft.world.level.gamerules.GameRules.ENTITY_DROPS, false, server);
+            rules.set(net.minecraft.world.level.gamerules.GameRules.BLOCK_DROPS, false, server);
         });
     }
 

@@ -904,7 +904,8 @@ public final class SimItems {
             return false;
         }
         if (isSecretBlock(client, target)) {
-            fail(client, "that is a secret - the Dungeonbreaker cannot mine it");
+            // Silent. killer560 (2026-10-04) asked for this chat line to go; the refusal itself stays, and the
+            // block not breaking is the answer.
             return false;
         }
         if (!SimBreakerState.trySpend()) {

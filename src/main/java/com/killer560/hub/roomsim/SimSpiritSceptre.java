@@ -57,11 +57,16 @@ public final class SimSpiritSceptre {
     /** Ticks between one bat leaving and the next, so it reads as a burst rather than one clump. */
     private static final int LAUNCH_GAP = 2;
 
-    /** Blocks a bat covers per client tick. */
-    private static final double SPEED = 1.2;
+    /**
+     * Blocks a bat covers per client tick.
+     *
+     * <p>killer560 (2026-10-04): "it should just be a hair slower with how fast the bats go out." 15% off the
+     * old 1.2, with {@link #MAX_FLIGHT_TICKS} raised to match so the range stays about 30 blocks.
+     */
+    private static final double SPEED = 1.02;
 
     /** How many ticks a bat may fly before it gives up - {@code SPEED * this} is its range in blocks. */
-    private static final int MAX_FLIGHT_TICKS = 25;
+    private static final int MAX_FLIGHT_TICKS = 29;
 
     /** How far off the look vector a bat may wander, per axis, at launch. */
     private static final double SPREAD = 0.06;

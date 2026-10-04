@@ -42,6 +42,20 @@ public final class SimSidebar {
     /** Holder names: short, no spaces, and stable so lines are rewritten rather than re-added. */
     private static final String HOLDER = "k560l";
 
+    /** Top line of the sidebar and the tab list header. */
+    public static final String INFO_TITLE = "killer560's personal testing sim";
+
+    /** Said plainly, so a screenshot of the sim is never mistaken for a Hypixel run. */
+    public static final String INFO_NOT_HYPIXEL = "Local practice world - not Hypixel";
+
+    /** His Discord invite - the same one README.md, HomeMainTab and ChatCommandsFeature carry. */
+    public static final String DISCORD = "discord.gg/hkQMF5fE84";
+
+    /** Client ticks between re-asserting the tab list header and footer. */
+    private static final int TAB_INFO_EVERY = 40;
+
+    private static int tabInfoTicks;
+
     /** What the sidebar said last tick, so the scoreboard is only touched when something changed. */
     private static List<String> lastLines = List.of();
 
@@ -58,6 +72,35 @@ public final class SimSidebar {
     public static void reset() {
         built = false;
         lastLines = List.of();
+        tabInfoTicks = 0;
+    }
+
+    /**
+     * The tab list's header and footer in the sim: who this world belongs to and where to find him.
+     *
+     * <p>Set on the CLIENT's tab overlay directly. A singleplayer server never sends a tab-list packet, so
+     * nothing overwrites it while he is in here; it is re-asserted every two seconds anyway, and cleared by
+     * {@link #clearTabInfo} when he leaves so it cannot follow him onto a server that sends none of its own.
+     */
+    private static void applyTabInfo(Minecraft client) {
+        if (client.gui == null) {
+            return;
+        }
+        var tab = com.killer560.hub.compat.McCompat.tabList(client);
+        tab.setHeader(Component.literal(INFO_TITLE).withStyle(net.minecraft.ChatFormatting.GOLD));
+        tab.setFooter(Component.literal(INFO_NOT_HYPIXEL).withStyle(net.minecraft.ChatFormatting.GRAY)
+                .append(Component.literal("\nDiscord: ").withStyle(net.minecraft.ChatFormatting.GRAY))
+                .append(Component.literal(DISCORD).withStyle(net.minecraft.ChatFormatting.AQUA)));
+    }
+
+    /** Takes the sim's header and footer back off the tab list. Called as the sim world unloads. */
+    public static void clearTabInfo(Minecraft client) {
+        if (client == null || client.gui == null) {
+            return;
+        }
+        var tab = com.killer560.hub.compat.McCompat.tabList(client);
+        tab.setHeader(null);
+        tab.setFooter(null);
     }
 
     private static void tick(Minecraft client) {
@@ -67,6 +110,10 @@ public final class SimSidebar {
         MinecraftServer server = client.getSingleplayerServer();
         if (server == null) {
             return;
+        }
+        if (tabInfoTicks-- <= 0) {
+            tabInfoTicks = TAB_INFO_EVERY;
+            applyTabInfo(client);
         }
         List<String> lines = compose(client);
         if (lines.equals(lastLines)) {
@@ -86,7 +133,10 @@ public final class SimSidebar {
      */
     private static List<String> compose(Minecraft client) {
         List<String> lines = new ArrayList<>();
-        lines.add("Practice Dungeon");
+        // killer560 (2026-10-04): in the sim the HUD should say this is his personal testing sim and carry his
+        // Discord link, "nothing actually skyblock related". The dungeon lines below stay - they are the sim's
+        // own state, and DungeonState needs the Catacombs line to detect the floor.
+        lines.add(INFO_TITLE);
         lines.add("The Catacombs (" + SimState.floorLabel() + ")");
         lines.add("Secrets: " + SimScore.secretsFound() + "/" + SimScore.secretsTotal());
         lines.add(keysLine());
@@ -99,6 +149,9 @@ public final class SimSidebar {
             int seconds = (SimRun.countdownTicks() + 19) / 20;
             lines.add("Starting in " + seconds);
         }
+        lines.add("");
+        lines.add(INFO_NOT_HYPIXEL);
+        lines.add(DISCORD);
         return lines;
     }
 

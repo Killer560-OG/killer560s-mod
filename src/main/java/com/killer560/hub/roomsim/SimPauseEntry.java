@@ -1,11 +1,10 @@
 package com.killer560.hub.roomsim;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
-
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -28,7 +27,32 @@ public final class SimPauseEntry {
     private static WeakReference<Screen> ownerScreen = new WeakReference<>(null);
     private static WeakReference<AbstractWidget> ownButton = new WeakReference<>(null);
 
+    /** Vanilla's pause-menu button width. */
+    private static final int WIDTH = 204;
+
+    /** Vanilla's row spacing in that column. */
+    private static final int GAP = 4;
+
     private SimPauseEntry() {
+    }
+
+    /**
+     * The y just under the lowest button in the centre column, or the old bottom-of-screen spot when the
+     * menu has no buttons (F3+Esc opens it without them).
+     */
+    private static int belowVanillaColumn(Screen screen, AbstractWidget own) {
+        int centre = screen.width / 2;
+        int bottom = -1;
+        for (AbstractWidget w : Screens.getWidgets(screen)) {
+            // Buttons only: a text label another mod parks at the bottom of the screen must not drag this down.
+            if (w == own || !w.visible || !(w instanceof Button)) {
+                continue;
+            }
+            if (w.getX() <= centre && centre < w.getX() + w.getWidth()) {
+                bottom = Math.max(bottom, w.getY() + w.getHeight());
+            }
+        }
+        return bottom < 0 ? screen.height - 46 : bottom + GAP;
     }
 
     public static void register() {
@@ -39,11 +63,15 @@ public final class SimPauseEntry {
         if (!(screen instanceof PauseScreen) || !SimState.canAct(client)) {
             return;
         }
-        // Under the button column, clear of it. The pause screen's own rows are laid out by a layout this has
-        // no business joining, so this sits below rather than trying to become one of them.
-        int width = 204;
+        // DIRECTLY UNDER THE LAST VANILLA BUTTON, at vanilla's own width and spacing.
+        //
+        // killer560 (2026-10-04): it "sits alone at the very bottom of the Game Menu screen, far below the
+        // vanilla button column". It was pinned to screen.height - 46 whatever the column did. The column's
+        // positions are read off the screen's own widgets now, so it lands 4 px under Save and Quit (or
+        // whatever is lowest in the centre column) and moves with it at any GUI scale.
+        int width = WIDTH;
         int x = screen.width / 2 - width / 2;
-        int y = screen.height - 46;
+        int y = belowVanillaColumn(screen, ownerScreen.get() == screen ? ownButton.get() : null);
 
         AbstractWidget existing = ownerScreen.get() == screen ? ownButton.get() : null;
         if (existing != null && Screens.getWidgets(screen).contains(existing)) {
@@ -52,7 +80,9 @@ public final class SimPauseEntry {
             return;
         }
 
-        SettingsButtonWidget button = SettingsButtonWidget.builder(
+        // A vanilla Button, not the mod's amber SettingsButtonWidget, so it looks like the rest of the menu.
+        // Button.builder/bounds/build checked identical in the 26.1.2 and 26.2 jars with javap.
+        Button button = Button.builder(
                         Component.literal("Change Room"), btn -> {
                             // Straight to the picker. It opens the world it needs, so there is nothing to tear
                             // down here - and leaving the sim first would drop him to the title screen, which

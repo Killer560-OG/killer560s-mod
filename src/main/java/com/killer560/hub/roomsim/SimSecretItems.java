@@ -50,6 +50,9 @@ public final class SimSecretItems {
      * <p>Real Catacombs secret items, chosen per position from the position itself so a room gives the same
      * item every time it is built - a secret that is a different item on the second run is a detail that
      * teaches the wrong thing. The base item is PAPER for all of them, which is what Hypixel itself sends.
+     *
+     * <p>Architect's First Draft is deliberately NOT in this pool. killer560 (2026-10-04): drafts must not
+     * drop as secrets from anything; the only way to get one in the sim is {@code /item}.
      */
     private static final String[][] ITEMS = {
         {"DECOY", "Decoy"},
@@ -78,6 +81,19 @@ public final class SimSecretItems {
     private static final org.slf4j.Logger LOGGER =
             com.killer560.hub.util.ModLog.get("killer560smod-roomsim");
 
+    /**
+     * The CUSTOM_DATA key that marks a stack as a picked-up secret rather than an item he asked for.
+     *
+     * <p>killer560 (2026-10-04): secret items "are picked up but then instantly deleted from my inventory", with
+     * Architect's First Draft the exception - obtainable only from {@code /item} and never deleted. The mark is
+     * what makes that safe: a Spirit Leap or Inflatable Jerry from {@code /item} carries no mark and is never
+     * touched, and because the mark is part of CUSTOM_DATA the two kinds never stack together either.
+     */
+    private static final String SECRET_MARK = "killer560_sim_secret";
+
+    /** Set when a drop is collected; the next tick sweeps the player's inventory for marked stacks. */
+    private static volatile boolean purgeOwed;
+
     /** So a throw in the tick handler is reported once rather than twenty times a second, or never. */
     private static boolean warnedOnce;
 
@@ -96,6 +112,7 @@ public final class SimSecretItems {
         PENDING.clear();
         LIVE.clear();
         warnedOnce = false;
+        purgeOwed = false;
     }
 
     /** How many item secrets are still waiting to be found, for anything that wants to report progress. */
@@ -132,7 +149,7 @@ public final class SimSecretItems {
 
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (!SimState.isActive() || (PENDING.isEmpty() && LIVE.isEmpty())) {
+            if (!SimState.isActive() || (PENDING.isEmpty() && LIVE.isEmpty() && !purgeOwed)) {
                 return;
             }
             try {
@@ -148,6 +165,10 @@ public final class SimSecretItems {
                     tickPending(level, player.getX(), player.getY(), player.getZ());
                 }
                 tickCollected(level);
+                if (player != null && purgeOwed) {
+                    purgeOwed = false;
+                    purgeCollected(player);
+                }
             } catch (RuntimeException e) {
                 // One bad secret must never stall the server tick - but it must not vanish either. This was an
                 // empty catch, and an empty catch on a per-tick handler is a feature that can stop working with
@@ -207,6 +228,7 @@ public final class SimSecretItems {
             if (entity == null || entity.isRemoved()) {
                 LIVE.remove(id);
                 SimScore.secretFound();
+                purgeOwed = true;
             } else {
                 pin(entity, entry.getValue());
                 reportWhyNotCollected(level, entity, entry.getValue());
@@ -316,6 +338,7 @@ public final class SimSecretItems {
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(kind[1]));
         CompoundTag tag = new CompoundTag();
         tag.putString("id", kind[0]);
+        tag.putString(SECRET_MARK, "1");
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
         SimItems.applySkyblockTooltip(stack, kind[0]);
 
@@ -329,10 +352,40 @@ public final class SimSecretItems {
         level.addFreshEntity(drop);
         LIVE.put(drop.getUUID(), at.immutable());
         SimBuildQueue.touched(at.getX(), at.getZ());
-        Minecraft client = Minecraft.getInstance();
-        if (client != null) {
-            client.execute(() -> com.killer560.hub.util.ModChat.send("Sim",
-                    com.killer560.hub.util.ModChat.dim("A secret item is here.")));
+        // No "A secret item is here." line any more - killer560 (2026-10-04) asked for it to go. The drop
+        // appearing at his feet already says it.
+    }
+
+    /**
+     * Removes every picked-up secret from the player's inventory.
+     *
+     * <p>Counted first, deleted second: {@link #tickCollected} has already scored the secret by the time this
+     * runs, so deleting the stack loses nothing but the clutter. Only stacks carrying {@link #SECRET_MARK} go,
+     * and never an Architect's First Draft even if one were ever marked - drafts come from {@code /item} only
+     * and are his to keep.
+     */
+    private static void purgeCollected(net.minecraft.server.level.ServerPlayer player) {
+        var inv = player.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack stack = inv.getItem(i);
+            if (isCollectedSecret(stack)) {
+                inv.setItem(i, ItemStack.EMPTY);
+            }
         }
+    }
+
+    private static boolean isCollectedSecret(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null) {
+            return false;
+        }
+        CompoundTag tag = data.copyTag();
+        if (!tag.contains(SECRET_MARK)) {
+            return false;
+        }
+        return !SimItems.ARCHITECT_DRAFT_ID.equals(tag.getStringOr("id", ""));
     }
 }
