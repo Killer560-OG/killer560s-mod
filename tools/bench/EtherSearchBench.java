@@ -59,7 +59,7 @@ public final class EtherSearchBench {
 
     static final Pattern NUM = Pattern.compile("\"(sizeX|sizeZ|minY|maxY|margin)\":\\s*(-?\\d+)");
     static final Pattern BLOCKS = Pattern.compile("\"blocksZ\":\\s*\"([^\"]+)\"");
-    static final Pattern PALETTE = Pattern.compile("\"palette\":\\s*\\[(.*?)\\]", Pattern.DOTALL);
+    static final Pattern PALETTE = Pattern.compile("\"palette\":\\s*\\[");
     static final Pattern STR = Pattern.compile("\"((?:[^\"\\\\]|\\\\.)*)\"");
 
     static int flagsForName(String full) {
@@ -127,10 +127,21 @@ public final class EtherSearchBench {
         if (!pm.find()) {
             return false;
         }
+        // The array of STRINGS, read string by string up to the ] that closes it. It used to be "everything up to
+        // the first ]", and a block state such as chest[facing=north] carries its own ] - so every palette was
+        // cut at its first bracketed state and every later entry, most of each room, read as AIR.
         List<Integer> pal = new ArrayList<>();
-        Matcher sm = STR.matcher(pm.group(1));
-        while (sm.find()) {
+        Matcher sm = STR.matcher(json);
+        int at = pm.end();
+        while (true) {
+            while (at < json.length() && (Character.isWhitespace(json.charAt(at)) || json.charAt(at) == ',')) {
+                at++;
+            }
+            if (at >= json.length() || json.charAt(at) != '"' || !sm.find(at) || sm.start() != at) {
+                break;
+            }
             pal.add(flagsForName(sm.group(1)));
+            at = sm.end();
         }
         Matcher bm = BLOCKS.matcher(json);
         if (!bm.find()) {
@@ -339,6 +350,52 @@ public final class EtherSearchBench {
         return seen;
     }
 
+    /**
+     * -Dttt=PATH/Tic_Tac_Toe.json: his 2026-10-04 failing click, rebuilt. In the sim he stood in Tic Tac Toe and
+     * clicked its chest 14 blocks away; the single-room search ran its 670 ms out ten times. In the capture's own
+     * coordinates (the room was pasted at 90 degrees; reachability does not care) he stands on (20, 68, 20) and
+     * the chest is (22, 69, 6).
+     */
+    static void singleRoomCase(Path ttt) throws Exception {
+        System.out.println("pasted: " + paste(ttt, 1, 1));
+        for (int y = 66; y < 73; y++) {
+            System.out.println("  y" + y + " chest col " + flagsAt(22, y, 6) + ", his col " + flagsAt(20, y, 20));
+        }
+        EtherSearch search = new EtherSearch(EtherSearchBench::flagsAt);
+        System.out.println("chest etherwarpable: " + search.etherwarpable(22, 69, 6));
+        for (int[] st : new int[][]{{20, 68, 20}, {14, 68, 20}, {16, 68, 22}, {26, 68, 26}, {10, 68, 10}}) {
+            if (!search.etherwarpable(st[0], st[1], st[2])) {
+                System.out.println("start " + Arrays.toString(st) + " is not standable");
+                continue;
+            }
+            EtherSearch.Leg leg = new EtherSearch.Leg();
+            leg.fan = EtherSearch.fan(57.0, 6f, 7f);
+            leg.hWeight = 6.7;
+            leg.standOffset = 1.0;
+            leg.deadlineNanos = System.nanoTime() + 670_000_000L;
+            leg.goalX = 22;
+            leg.goalY = 69;
+            leg.goalZ = 6;
+            leg.isGoal = (x, y, z) -> x == 22 && y == 69 && z == 6;
+            long t0 = System.nanoTime();
+            List<EtherSearch.Hop> path = search.searchLeg(new EtherSearch.Hop(st[0] + 0.5, st[1] + 1.0, st[2] + 0.5,
+                    st[0], st[1], st[2], 0, 0), leg);
+            System.out.printf("from %s: %s, %d expanded, %.1f ms%n", Arrays.toString(st),
+                    path == null ? "NO PATH" : path.size() - 1 + " hop(s)", search.expanded,
+                    (System.nanoTime() - t0) / 1e6);
+            // EtherwarpPathfinder.sameRoomPath's second pass: anywhere within NEAR_RADIUS (5) of it.
+            leg.directRadiusSq = 25;
+            leg.isGoal = (x, y, z) -> Math.abs(x - 22) <= 5 && Math.abs(z - 6) <= 5 && Math.abs(y - 69) <= 5;
+            t0 = System.nanoTime();
+            path = search.searchLeg(new EtherSearch.Hop(st[0] + 0.5, st[1] + 1.0, st[2] + 0.5,
+                    st[0], st[1], st[2], 0, 0), leg);
+            EtherSearch.Hop end = path == null ? null : path.get(path.size() - 1);
+            System.out.printf("  near: %s, %d expanded, %.1f ms%n", path == null ? "NO PATH"
+                    : (path.size() - 1) + " hop(s), lands on " + end.bx + "," + end.by + "," + end.bz,
+                    search.expanded, (System.nanoTime() - t0) / 1e6);
+        }
+    }
+
     static void report(String what, long[] t, int n) {
         if (n == 0) {
             System.out.println(what + ": none");
@@ -353,6 +410,10 @@ public final class EtherSearchBench {
 
     public static void main(String[] args) throws Exception {
         Arrays.fill(grid, (byte) AIRF);
+        if (System.getProperty("ttt") != null) {
+            singleRoomCase(Path.of(System.getProperty("ttt")));
+            return;
+        }
         Path dir = Path.of(args.length > 0 ? args[0] : "src/main/resources/assets/killer560smod/rooms");
         List<Path> files = new ArrayList<>();
         try (var s = Files.list(dir)) {
@@ -439,6 +500,7 @@ public final class EtherSearchBench {
             }
         }
         List<List<int[]>> spots = new ArrayList<>();
+        List<List<int[]>> goalSets = new ArrayList<>();
         for (java.util.Set<Long> set : spotSets) {
             List<int[]> l = new ArrayList<>();
             for (long k : set) {
@@ -448,6 +510,36 @@ public final class EtherSearchBench {
             spots.add(l);
         }
         System.out.println("doors that really join two rooms: " + doors + " of " + (2 * ROOMS * (ROOMS - 1)));
+        // -Dgoals=raised: click a RAISED block instead of a floor spot - etherwarpable, one to three above a spot
+        // he can walk to and right next to it (a chest, a step, a pedestal). One block on its own is what the
+        // fan can miss from every node; a floor spot is surrounded by more floor that it does not miss.
+        if ("raised".equals(System.getProperty("goals"))) {
+            int total = 0;
+            for (int r = 0; r < spots.size(); r++) {
+                java.util.Set<Long> raised = new java.util.LinkedHashSet<>();
+                for (int[] sp : spots.get(r)) {
+                    for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                        for (int up = 1; up <= 3; up++) {
+                            int x = sp[0] + d[0];
+                            int y = sp[1] + up;
+                            int z = sp[2] + d[1];
+                            if (roomOf(x, z) == r && probe.etherwarpable(x, y, z)) {
+                                raised.add(EtherSearch.pack(x, y, z));
+                            }
+                        }
+                    }
+                }
+                List<int[]> l = new ArrayList<>();
+                for (long k : raised) {
+                    l.add(new int[]{(int) (k >> 38), (int) (k << 52 >> 52), (int) (k << 26 >> 38)});
+                }
+                total += l.size();
+                goalSets.add(l);
+            }
+            System.out.println("raised goal blocks: " + total);
+        } else {
+            goalSets.addAll(spots);
+        }
 
         int warm = 400;
         int trials = 2000;
@@ -496,7 +588,7 @@ public final class EtherSearchBench {
                     rooms.add(at);
                 }
                 startSpots = spots.get(rooms.get(0));
-                goalSpots = spots.get(rooms.get(rooms.size() - 1));
+                goalSpots = goalSets.get(rooms.get(rooms.size() - 1));
             } while (startSpots.isEmpty() || goalSpots.isEmpty());
             int[] s = startSpots.get(rng.nextInt(startSpots.size()));
             int[] goal = goalSpots.get(rng.nextInt(goalSpots.size()));

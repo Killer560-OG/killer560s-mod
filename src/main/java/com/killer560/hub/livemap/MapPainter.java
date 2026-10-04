@@ -706,9 +706,14 @@ public final class MapPainter {
             if (type == DungeonLayout.DOOR_NONE || !cellRevealed(idx)) {
                 continue;
             }
+            // SIM ONLY (isTheoretical is false unless SimState.isActive()): an ordinary sim door where a real
+            // floor would have a wither door. Drawn in the wither colour with a SINGLE amber outline, against the
+            // double one a real locked wither door gets, because it is passable and the pathfinders treat it so.
+            boolean theoreticalWither = type == DungeonLayout.DOOR_NORMAL
+                    && com.killer560.hub.roomsim.SimWitherDoors.isTheoretical(idx);
             int gx = idx % LiveMapFeature.GRID;
             int gz = idx / LiveMapFeature.GRID;
-            int color = switch (type) {
+            int color = theoreticalWither ? cfg.getColorWitherDoor() : switch (type) {
                 case DungeonLayout.DOOR_WITHER -> locked ? cfg.getColorWitherDoor() : connectorColor(idx, cfg);
                 case DungeonLayout.DOOR_BLOOD -> locked ? cfg.getColorBlood() : connectorColor(idx, cfg);
                 case DungeonLayout.DOOR_ENTRANCE -> cfg.getColorEntrance();
@@ -736,6 +741,9 @@ public final class MapPainter {
                 // A double amber outline (the mod's own accent colour) makes it read as a warning at a glance
                 // without touching the fill colour itself, which is still the real map's own and still a picker.
                 graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
+                graphics.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
+            }
+            if (theoreticalWither) {
                 graphics.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
             }
             if (idx == hoveredDoor) {

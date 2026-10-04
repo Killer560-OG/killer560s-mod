@@ -535,6 +535,14 @@ public final class EtherSearch {
                 -1, 0f, 0f);
         mapPut(pack(start.bx, start.by, start.bz), s);
         push(s, nf[s]);
+        // AIM AT THE GOAL FROM EVERY NODE, not only from the start. The fan is 6 degrees of yaw by 7 of pitch, so
+        // a single block 14 blocks away (about 4 degrees across) can fall between every ray of every node the
+        // search reaches, and a leg whose goal IS one block - a click on a chest, a raised step - then expands
+        // the whole floor until the deadline. killer560's log (2026-10-04): "No single-room path ... within
+        // 57.0 blocks a hop" for a Tic Tac Toe chest 14 blocks from him, ten times in a row, 670 ms each. The
+        // aim is the same verified one directHop uses (the real float yaw/pitch is cast and must land on it).
+        boolean goalAimable = etherwarpable(leg.goalX, leg.goalY, leg.goalZ)
+                && leg.isGoal.test(leg.goalX, leg.goalY, leg.goalZ);
         while (heapSize > 0) {
             int cur = pop();
             if (nclosed[cur]) {
@@ -547,6 +555,12 @@ public final class EtherSearch {
             double eyeX = px[cur];
             double eyeY = py[cur] + SNEAK_EYE;
             double eyeZ = pz[cur];
+            if (goalAimable && cur != s
+                    && aim(eyeX, eyeY, eyeZ, leg.goalX, leg.goalY, leg.goalZ, range)) {
+                int node = newNode(leg.goalX, leg.goalY, leg.goalZ, leg.goalX + 0.5, leg.goalY + leg.standOffset,
+                        leg.goalZ + 0.5, ng[cur] + 1.0, ng[cur] + 1.0, cur, aimYaw, aimPitch);
+                return reconstruct(node);
+            }
             double vx = gx + 0.5 - px[cur];
             double vy = gy - py[cur];
             double vz = gz + 0.5 - pz[cur];

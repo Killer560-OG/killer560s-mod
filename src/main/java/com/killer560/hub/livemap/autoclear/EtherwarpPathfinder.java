@@ -114,6 +114,13 @@ public final class EtherwarpPathfinder {
         }
         int startRoom = layout.roomAtWorld(from.x, from.z);
         int goalRoom = layout.roomAtWorld(to.getX(), to.getZ());
+        if (startRoom >= 0 && startRoom == goalRoom) {
+            List<Node> same = sameRoomPath(grid, search, level, from, to, cfg, dist, offset, layout, startRoom,
+                    searchStart);
+            if (same != null) {
+                return same;
+            }
+        }
         if (startRoom < 0 || goalRoom < 0 || startRoom == goalRoom) {
             List<Node> direct = findPath(from, to, cfg, dist, offset, false, layout);
             if (direct == null) {
@@ -191,6 +198,23 @@ public final class EtherwarpPathfinder {
                 expanded += search.expanded;
                 widenedLegs++;
             }
+            if (seg == null && step.door() < 0 && System.nanoTime() < deadline) {
+                // The last leg aims at one block. If that block cannot be reached at all (a chest in a sealed
+                // alcove - see sameRoomPath), land as near it as the room allows rather than fail the click.
+                int tx = to.getX();
+                int ty = to.getY();
+                int tz = to.getZ();
+                int goalRoomFinal = room;
+                leg.directRadiusSq = NEAR_RADIUS * NEAR_RADIUS;
+                leg.isGoal = (x, y, z) -> Math.abs(x - tx) <= NEAR_RADIUS && Math.abs(z - tz) <= NEAR_RADIUS
+                        && Math.abs(y - ty) <= NEAR_RADIUS && layout.roomAtWorld(x, z) == goalRoomFinal;
+                seg = search.searchLeg(cur, leg);
+                expanded += search.expanded;
+                if (seg != null) {
+                    LOGGER.info("[Path] {} itself cannot be reached; the last hop lands within {} block(s) of it",
+                            to, NEAR_RADIUS);
+                }
+            }
             if (seg == null) {
                 LOGGER.info("[Path] Room hop {} of {} failed: no warp chain from {} to {},{},{} (room {}, door {})."
                         + " The room route exists; this leg of it does not.", i + 1, roomPath.size(),
@@ -221,6 +245,63 @@ public final class EtherwarpPathfinder {
                 roomPath.size(), directLegs, searchedLegs, widenedLegs, expanded, search.rays, grid.filled,
                 ms(smoothStart - searchStart), ms(end - smoothStart), ms(end - searchStart), smoothed.size());
         return toNodes(smoothed);
+    }
+
+    /** How close a same-room fallback landing must be to an unreachable target: blocks across, and up or down. */
+    private static final int NEAR_RADIUS = 5;
+
+    /**
+     * A target in the room he is standing in: first exactly, kept inside the room; then, if the exact block
+     * cannot be reached, the nearest landing within {@link #NEAR_RADIUS} of it, still inside the room.
+     *
+     * <p>killer560's log (2026-10-04): ten "No single-room path ... the warp search found nothing within 57.0
+     * blocks a hop" lines at 670 ms each, for a target 14 blocks away. The target was Tic Tac Toe's chest, which
+     * in that capture sits in a walled-off alcove: it is "etherwarpable" (solid, two air above) and no ray from
+     * anywhere reaches it, so the unbounded search expanded the whole floor until the deadline - rebuilt from
+     * the capture in {@code tools/bench} ({@code -Dttt=}), where the room alone is exhausted after 295 nodes.
+     * Bounded to the room it fails in a few milliseconds, and the near search then puts him at the alcove wall.
+     *
+     * <p>Returns null when neither finds anything, and the caller then runs the old unbounded exact search, so a
+     * target that could only be reached by leaving the room and coming back still works as it did.
+     */
+    private static List<Node> sameRoomPath(LevelEtherGrid grid, EtherSearch search, Level level, Vec3 from,
+                                           BlockPos to, PathConfig cfg, double dist, boolean offset,
+                                           DungeonLayout layout, int room, long searchStart) {
+        long deadline = searchStart + cfg.timeout() * 1_000_000L;
+        EtherSearch.CellTest cover = coverTest(grid, level);
+        EtherSearch.CellTest inRoom = (x, y, z) -> layout.roomAtWorld(x, z) == room && cover.test(x, y, z);
+        int tx = to.getX();
+        int ty = to.getY();
+        int tz = to.getZ();
+        for (int pass = 0; pass < 2; pass++) {
+            EtherSearch.Leg leg = leg(cfg, dist, offset, deadline);
+            leg.goalX = tx;
+            leg.goalY = ty;
+            leg.goalZ = tz;
+            leg.landingOk = inRoom;
+            if (pass == 0) {
+                leg.directRadiusSq = 0;
+                leg.isGoal = (x, y, z) -> x == tx && y == ty && z == tz;
+            } else {
+                leg.directRadiusSq = NEAR_RADIUS * NEAR_RADIUS;
+                leg.isGoal = (x, y, z) -> Math.abs(x - tx) <= NEAR_RADIUS && Math.abs(z - tz) <= NEAR_RADIUS
+                        && Math.abs(y - ty) <= NEAR_RADIUS && layout.roomAtWorld(x, z) == room;
+            }
+            List<EtherSearch.Hop> path = search.searchLeg(startHop(from), leg);
+            if (path != null && path.size() >= 2) {
+                List<EtherSearch.Hop> smoothed = search.smooth(path, dist, false);
+                EtherSearch.Hop last = path.get(path.size() - 1);
+                LOGGER.info("[Path] same room: {} in {} ms, {} warp(s){}", pass == 0 ? "exact" : "near",
+                        ms(System.nanoTime() - searchStart), smoothed.size(),
+                        pass == 0 ? "" : " - " + to + " itself cannot be reached, landing on " + last.bx + ","
+                                + last.by + "," + last.bz);
+                return toNodes(smoothed);
+            }
+            if (System.nanoTime() > deadline) {
+                break;
+            }
+        }
+        return null;
     }
 
     // ------------------------------------------------------------------------------------------- helpers

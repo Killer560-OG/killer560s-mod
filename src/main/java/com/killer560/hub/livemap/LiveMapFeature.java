@@ -331,6 +331,8 @@ public final class LiveMapFeature {
             };
         }
         groupsDirty = true;
+        // Where Hypixel would have put wither doors on this floor - the sim builds none. Drawn only in the sim.
+        com.killer560.hub.roomsim.SimWitherDoors.publish(roomCells, doorCells, names);
         LOGGER.info("[LiveMap] Sim floor published: {} room(s)", names.length);
     }
 
