@@ -625,6 +625,11 @@ public final class RoomRecorderFeature {
      * trick - three Altars in a row share a name, and merging them would produce one 3-tile "Altar" made of
      * three different rooms, which is the same class of bug that put half of two rooms in one file before.
      */
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-roomrecorder");
+
+    /** The world the sweep diagnostic was last logged for, so it says it once per world. */
+    private static Object sweepReportedLevel;
+
     private static int sweepLattice(Minecraft client) {
         if (client.level == null || client.player == null) {
             return 0;
@@ -642,20 +647,34 @@ public final class RoomRecorderFeature {
 
         // corner key -> {name, minCentreX, minCentreZ, maxCentreX, maxCentreZ}
         java.util.Map<Long, Object[]> placements = new java.util.LinkedHashMap<>();
+        int cells = 0, roofed = 0, unknownCore = 0, noCorner = 0;
+        StringBuilder seen = new StringBuilder();
         for (int cz = firstZ; cz <= pz + reach; cz += step) {
             for (int cx = firstX; cx <= px + reach; cx += step) {
+                cells++;
                 int roof = LiveMapFeature.roofAt(client, cx, cz);
                 if (roof <= 0) {
                     continue;
                 }
+                roofed++;
                 int core = RoomDatabase.getCore(client.level, cx, cz);
                 RoomEntry entry = RoomDatabase.lookup(core);
                 if (entry == null || entry.name == null || entry.name.isBlank()) {
+                    unknownCore++;
+                    if (seen.length() < 300) {
+                        seen.append(" (").append(cx).append(',').append(cz).append(" roof ").append(roof)
+                                .append(" core ").append(core).append(" unknown)");
+                    }
                     continue;
                 }
                 int[] rot = RoomDatabase.findRotationAndCorner(client.level, cx, cz, roof);
                 if (rot == null) {
                     // No clay corner: cannot tell this placement from another of the same room, so leave it.
+                    noCorner++;
+                    if (seen.length() < 300) {
+                        seen.append(" (").append(cx).append(',').append(cz).append(' ').append(entry.name)
+                                .append(" no clay corner)");
+                    }
                     continue;
                 }
                 long key = ((long) rot[1] << 32) ^ (rot[2] & 0xffffffffL);
@@ -671,6 +690,18 @@ public final class RoomRecorderFeature {
             }
         }
 
+        // Once per world: why a solo room reads nothing. Ashfall's single rooms captured 0 columns on 2026-10-04
+        // with no clue which step refused them.
+        if (sweepReportedLevel != client.level) {
+            sweepReportedLevel = client.level;
+            LOGGER.info("Room Recorder sweep: player {},{} lattice origin {},{} - {} cell(s) probed, {} roofed, {} with an "
+                    + "unknown core, {} without a clay corner, {} placement(s) [room db ready={}]{}",
+                    px, pz, originX, originZ, cells, roofed, unknownCore, noCorner, placements.size(),
+                    RoomDatabase.isReady(), seen);
+            for (Object[] p : placements.values()) {
+                LOGGER.info("Room Recorder sweep: {} at centres {},{}..{},{}", p[0], p[1], p[2], p[3], p[4]);
+            }
+        }
         int budget = COLUMNS_PER_TICK;
         int added = 0;
         for (Object[] p : placements.values()) {
