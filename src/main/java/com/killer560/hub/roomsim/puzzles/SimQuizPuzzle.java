@@ -114,6 +114,25 @@ public final class SimQuizPuzzle {
     /** Set while the bound room is Three Weirdos rather than the Quiz. */
     private static volatile boolean weirdosRoom = false;
 
+    /**
+     * The weirdos themselves: stand UUID -> which of the three it is. Both the visible NPC stand and the
+     * "CLICK" stand under it are in here, so clicking either one talks to that weirdo.
+     *
+     * <p>killer560 (2026-10-02): "put armor stands where the NPCs would normally be and the solver/auto puzzle
+     * isn't working for three weirdos either." Both halves had one cause. The stands used to be invisible name
+     * tags sunk 0.7 into the floor, so there was nothing standing there to see; and they were spawned by
+     * {@code server.execute} in the same call that sent all three {@code [NPC]} lines on the client - so when
+     * {@code WeirdosSolverFeature} read each line and went looking for an ArmorStand of that name, the stand had
+     * not reached the client yet. Its own log line for that case is "No ArmorStand named ...", and it gives up,
+     * so nothing was ever highlighted and Auto Three Weirdos, which acts only on the solver, never had a chest.
+     *
+     * <p>Now the three are real visible stands placed when the room is armed, each with a "CLICK" stand under
+     * its name the way Hypixel's NPCs carry one, and a weirdo speaks when he (or Auto Three Weirdos, which looks
+     * for exactly that "CLICK" name within reach) talks to it - which is also how the real room works. A stand
+     * is on the client long before anyone can click it, so the solver always finds it.
+     */
+    private static final Map<UUID, Integer> NPC_STANDS = new ConcurrentHashMap<>();
+
 
     /** When the question was announced. Kept for the chat line and for tests; nothing gates on it. */
     private static volatile long askedAtMs = 0L;
@@ -150,6 +169,30 @@ public final class SimQuizPuzzle {
                     .getBlock() instanceof net.minecraft.world.level.block.ButtonBlock
                     ? InteractionResult.PASS : InteractionResult.SUCCESS;
         });
+        // TALKING TO A WEIRDO. Both sides return non-PASS for our stands, so the server never runs the armour
+        // stand's own interaction (which would hang whatever he is holding on it); only the client speaks.
+        net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register(
+                (player, level, hand, entity, hitResult) -> {
+                    Integer who = entity == null ? null : NPC_STANDS.get(entity.getUUID());
+                    if (who == null) {
+                        return InteractionResult.PASS;
+                    }
+                    if (level.isClientSide()) {
+                        speak(Minecraft.getInstance(), who);
+                    }
+                    return InteractionResult.SUCCESS;
+                });
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register(
+                (player, level, hand, entity, hitResult) -> {
+                    Integer who = entity == null ? null : NPC_STANDS.get(entity.getUUID());
+                    if (who == null) {
+                        return InteractionResult.PASS;
+                    }
+                    if (level.isClientSide()) {
+                        speak(Minecraft.getInstance(), who);
+                    }
+                    return InteractionResult.FAIL;
+                });
     }
 
     /** Builds a fresh question: picks a random real question from {@code quiz-answers.json}, places its real
@@ -292,7 +335,100 @@ public final class SimQuizPuzzle {
             }
         }
         newQuestion(level, positions, false, true);
+        if (weirdos) {
+            spawnNpcs(level, positions, p.anchor());
+        }
         return true;
+    }
+
+    /**
+     * The three weirdos, standing where the solver looks for them: one database block of -x from each chest,
+     * which is the exact step {@code WeirdosSolverFeature.findChestPos} takes back ({@code relative.x += 1}).
+     * Through the room's recorded anchor, which is the same clay corner and rotation {@code SimRoomIndex}
+     * publishes to the live map - see "one room must not have two answers" in CLAUDE.md. {@link #spawnWeirdos}
+     * re-checks it against the live map once he walks in and moves them if the two ever disagree.
+     */
+    private static void spawnNpcs(ServerLevel level, BlockPos[] chests, SimRoomPuzzles.Anchor a) {
+        NPC_STANDS.clear();
+        NPC_IDS.clear();
+        for (int i = 0; i < 3 && i < chests.length; i++) {
+            com.killer560.hub.roomdatabase.RoomEntry.Pos rel =
+                    com.killer560.hub.roomdatabase.RoomDatabase.toRelativeCoord(
+                            chests[i], a.clayX(), a.clayZ(), a.rotation());
+            rel.x -= 1;
+            BlockPos spot = com.killer560.hub.roomdatabase.RoomDatabase.toRealCoord(
+                    rel, a.clayX(), a.clayZ(), a.rotation());
+            spot = new BlockPos(spot.getX(), chests[i].getY(), spot.getZ());
+            placeNpc(level, i, spot, chests[i]);
+        }
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                "Sim three weirdos: {} stand(s) placed for {} NPC(s), correct chest is #{}",
+                NPC_STANDS.size(), NPC_IDS.size(), correctIndex);
+    }
+
+    /** One weirdo: a visible named stand facing away from its chest, and a "CLICK" stand under its name. */
+    private static void placeNpc(ServerLevel level, int index, BlockPos spot, BlockPos chest) {
+        double x = spot.getX() + 0.5;
+        double y = spot.getY();
+        double z = spot.getZ() + 0.5;
+        double dx = x - (chest.getX() + 0.5);
+        double dz = z - (chest.getZ() + 0.5);
+        float yaw = (dx == 0 && dz == 0) ? 0f : (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90f;
+        ArmorStand npc = new ArmorStand(level, x, y, z);
+        npc.snapTo(x, y, z, yaw, 0f);
+        npc.setNoGravity(true);
+        npc.setInvulnerable(true);
+        npc.setShowArms(true);
+        npc.setCustomName(Component.literal(WEIRDO_NAMES[index]));
+        npc.setCustomNameVisible(true);
+        if (level.addFreshEntity(npc)) {
+            NPC_STANDS.put(npc.getUUID(), index);
+            NPC_IDS.add(new UUID[]{npc.getUUID(), null});
+        }
+        // Hypixel's NPCs carry a second line reading CLICK under the name, on its own stand - and that word is
+        // what Auto Three Weirdos looks for. A third of a block lower so the two names do not sit on each other.
+        ArmorStand click = new ArmorStand(level, x, y - 0.3, z);
+        click.snapTo(x, y - 0.3, z, yaw, 0f);
+        click.setInvisible(true);
+        click.setNoGravity(true);
+        click.setInvulnerable(true);
+        click.setNoBasePlate(true);
+        click.setCustomName(Component.literal("CLICK"));
+        click.setCustomNameVisible(true);
+        if (level.addFreshEntity(click)) {
+            NPC_STANDS.put(click.getUUID(), index);
+            if (!NPC_IDS.isEmpty() && NPC_IDS.get(NPC_IDS.size() - 1)[1] == null) {
+                NPC_IDS.get(NPC_IDS.size() - 1)[1] = click.getUUID();
+            } else {
+                NPC_IDS.add(new UUID[]{null, click.getUUID()});
+            }
+        }
+    }
+
+    /** {npc stand, click stand} per weirdo, in index order, for moving and removing them. */
+    private static final List<UUID[]> NPC_IDS = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * A weirdo's line, in the server's own {@code [NPC] Name: line} shape, when he talks to it. The one at the
+     * correct chest says a SOLUTION line and the other two WRONG lines - the rule the solver implements.
+     */
+    private static void speak(Minecraft client, int index) {
+        if (!weirdosRoom || correctIndex < 0 || complete) {
+            return;
+        }
+        String line;
+        if (index == correctIndex) {
+            line = WEIRDO_SOLUTION;
+        } else {
+            int rank = 0;
+            for (int i = 0; i < index; i++) {
+                if (i != correctIndex) {
+                    rank++;
+                }
+            }
+            line = WEIRDO_WRONG[Math.min(rank, WEIRDO_WRONG.length - 1)];
+        }
+        raw(client, "[NPC] " + WEIRDO_NAMES[index] + ": " + line);
     }
 
     /**
@@ -387,6 +523,11 @@ public final class SimQuizPuzzle {
         pendingQuestion = question;
         pendingOptions = lines;
         announced = false;
+        if (weirdosRoom) {
+            // A new round asks the same three again with a new answer, so the last round's highlights go.
+            Minecraft.getInstance().execute(
+                    com.killer560.hub.puzzlesolvers.WeirdosSolverFeature::clearForNewRound);
+        }
     }
 
     /** The question and its lettered options, waiting for him to enter the room. Null once announced. */
@@ -480,9 +621,8 @@ public final class SimQuizPuzzle {
         unmappedTicks = 0;
         askedAtMs = System.currentTimeMillis();
         if (weirdosRoom) {
-            // Hypixel's weirdos speak once per room, so the solver has no "new round" of its own. The sim's do
-            // speak again after a wrong chest, and the last round's three highlights would otherwise still be up.
-            com.killer560.hub.puzzlesolvers.WeirdosSolverFeature.clearForNewRound();
+            // No clearForNewRound here any more: newQuestion does it when a round starts, and the weirdos only
+            // speak when talked to, so clearing at walk-in could only throw away a line he had already heard.
             sayWeirdos(client);
             return;
         }
@@ -515,14 +655,10 @@ public final class SimQuizPuzzle {
      */
     private static void sayWeirdos(Minecraft client) {
         spawnWeirdos(client);
-        int wrong = 0;
-        for (int i = 0; i < 3; i++) {
-            String line = i == correctIndex
-                    ? WEIRDO_SOLUTION
-                    : WEIRDO_WRONG[Math.min(wrong++, WEIRDO_WRONG.length - 1)];
-            raw(client, "[NPC] " + WEIRDO_NAMES[i] + ": " + line);
-        }
-        ModChat.send("Sim", ModChat.dim("Three Weirdos - open the chest of whoever is telling the truth."));
+        // They no longer all speak at once from here - each one speaks when talked to (see speak). Sending the
+        // lines from here is what raced the stands to the client and left the solver with nobody to point at.
+        ModChat.send("Sim", ModChat.dim("Three Weirdos - talk to each of them, then open the chest of whoever"
+                + " is telling the truth."));
     }
 
     /** A line with no mod prefix at all, so an anchored solver pattern matches it. It still goes through
@@ -567,12 +703,32 @@ public final class SimQuizPuzzle {
             rel.x -= 1;
             spots[i] = com.killer560.hub.roomdatabase.RoomDatabase.toRealCoord(rel, cr[0], cr[1], cr[2]);
         }
+        List<UUID[]> ids = List.copyOf(NPC_IDS);
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            for (int i = 0; i < 3; i++) {
-                if (spots[i] != null) {
-                    LABELS.add(spawnLabel(level, spots[i], WEIRDO_NAMES[i]));
+            int moved = 0;
+            for (int i = 0; i < 3 && i < ids.size(); i++) {
+                if (spots[i] == null) {
+                    continue;
                 }
+                double x = spots[i].getX() + 0.5;
+                double z = spots[i].getZ() + 0.5;
+                double feet = positions[i].getY();
+                UUID[] pair = ids.get(i);
+                Entity npc = pair[0] == null ? null : level.getEntity(pair[0]);
+                if (npc != null && (Math.abs(npc.getX() - x) > 1.0e-3 || Math.abs(npc.getZ() - z) > 1.0e-3)) {
+                    npc.snapTo(x, feet, z, npc.getYRot(), 0f);
+                    moved++;
+                }
+                Entity click = pair[1] == null ? null : level.getEntity(pair[1]);
+                if (click != null) {
+                    click.snapTo(x, feet - 0.3, z, click.getYRot(), 0f);
+                }
+            }
+            if (moved > 0) {
+                com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
+                        "Sim three weirdos: {} NPC(s) moved to where the solver's live-map transform puts them -"
+                                + " the bind anchor and the published room disagree", moved);
             }
         });
     }
@@ -690,6 +846,8 @@ public final class SimQuizPuzzle {
         chestPos = null;
         CELL_INDEX.clear();
         LABELS.clear();
+        NPC_STANDS.clear();
+        NPC_IDS.clear();
         built = false;
         complete = false;
         correctIndex = -1;
@@ -697,7 +855,16 @@ public final class SimQuizPuzzle {
 
     public static void reset() {
         BlockPos[] positions = chestPos;
-        List<UUID> labels = List.copyOf(LABELS);
+        List<UUID> labels = new ArrayList<>(LABELS);
+        for (UUID[] pair : NPC_IDS) {
+            for (UUID id : pair) {
+                if (id != null) {
+                    labels.add(id);
+                }
+            }
+        }
+        NPC_STANDS.clear();
+        NPC_IDS.clear();
         Minecraft client = Minecraft.getInstance();
         if ((positions != null || !labels.isEmpty()) && SimState.canAct(client)) {
             MinecraftServer server = client.getSingleplayerServer();

@@ -179,6 +179,26 @@ public final class SimIcePathPuzzle {
 
     private static volatile UUID fishId = null;
 
+    /**
+     * The cell this arm started the silverfish on, so a lost one can be put back even before it has moved.
+     *
+     * <p>killer560 (2026-10-02): "sometimes icepath generates without the silverfish." The fish is spawned from
+     * the build's completion callback, wherever he happens to be - and the tick below asked
+     * {@code level.getEntity(fishId)} every tick from then on. That lookup only sees entities in sections the
+     * server is currently tracking, so while Ice Path sat beyond his entity range it answered null, and the
+     * old "gone for a reason this class did not cause" branch then dropped {@code fishId} and {@code cell} for
+     * good. Whether that happened depended on how far Ice Path landed from where he stood when the floor
+     * finished - "sometimes". A spawn the level refused outright ended the same way, as an unarmed room.
+     * Now a missing fish is only acted on when he is close enough that it would certainly be loaded, and then
+     * it is put back on its last resting cell.
+     */
+    private static volatile int[] startCell = null;
+
+    /** Within this distance of the fish's cell, a fish that is not found really is missing. */
+    private static final double RESPAWN_RANGE = 24.0;
+    /** Ticks between respawn attempts when the level refuses one, so a refusal is not retried every tick. */
+    private static volatile int respawnCooldown = 0;
+
     /** The cell the silverfish is resting on, as {row, col}. */
     private static volatile int[] cell = null;
 
@@ -277,7 +297,8 @@ public final class SimIcePathPuzzle {
         all.addAll(ice);
         all.addAll(stone);
         placedBlocks = List.copyOf(all);
-        final int[] startCell = start;
+        startCell = start;
+        final int[] firstCell = start;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             for (BlockPos pos : ice) {
@@ -286,7 +307,7 @@ public final class SimIcePathPuzzle {
             for (BlockPos pos : stone) {
                 level.setBlockAndUpdate(pos, Blocks.POLISHED_ANDESITE.defaultBlockState());
             }
-            spawn(level, startCell);
+            spawn(level, firstCell);
         });
         ModChat.send("Sim", ModChat.text("Ice Path built - punch the silverfish out through the gap ("),
                 ModChat.value(shoveCount(built, start) + " shoves"), ModChat.text(")."));
@@ -365,10 +386,14 @@ public final class SimIcePathPuzzle {
             return false;
         }
         board = read;
+        startCell = start;
+        cell = new int[]{start[0], start[1]};
         spawn(level, start);
         if (fishId == null) {
-            forget();
-            return false;
+            // Armed anyway: the tick puts a fish back on this cell as soon as he is near enough for the level
+            // to take it. Refusing to arm here is what left a silverfish-less Ice Path for the rest of the run.
+            LOGGER.warn("Sim ice path: the level refused the silverfish at arm time - it will be placed when the "
+                    + "player comes within {} blocks", (int) RESPAWN_RANGE);
         }
         LOGGER.info("Sim ice path: armed in {} - {} wall cell(s), {} corrected from the capture, silverfish at "
                         + "cell ({},{}), {} shove(s) to the exit",
@@ -402,8 +427,10 @@ public final class SimIcePathPuzzle {
         standaloneCentre = null;
         fishId = null;
         cell = null;
+        startCell = null;
         targetCell = null;
         complete = false;
+        respawnCooldown = 0;
     }
 
     /** Takes a standalone arena away again and clears progress. A bound room's blocks are the room's. */
@@ -689,30 +716,30 @@ public final class SimIcePathPuzzle {
     }
 
     private static void tick(Minecraft client) {
-        if (!SimState.canAct(client) || fishId == null || complete) {
+        if (!SimState.canAct(client) || board == null || complete || client.player == null) {
             return;
         }
         MinecraftServer server = client.getSingleplayerServer();
         if (server == null) {
             return;
         }
-        server.execute(() -> step(server));
+        final double px = client.player.getX();
+        final double py = client.player.getY();
+        final double pz = client.player.getZ();
+        server.execute(() -> step(server, px, py, pz));
     }
 
     /** One tick of the slide, or a look for an arrow while at rest. Server thread only. */
-    private static void step(MinecraftServer server) {
+    private static void step(MinecraftServer server, double px, double py, double pz) {
         ServerLevel level = server.overworld();
-        UUID id = fishId;
-        if (id == null) {
+        if (board == null || complete) {
             return;
         }
-        Entity entity = level.getEntity(id);
+        UUID id = fishId;
+        Entity entity = id == null ? null : level.getEntity(id);
         if (!(entity instanceof Silverfish fish) || !fish.isAlive()) {
-            // Gone for a reason this class did not cause. Cleared rather than chased, so a dead arena stops
-            // ticking instead of looking for an entity that is not coming back.
-            fishId = null;
-            cell = null;
-            targetCell = null;
+            // NOT cleared: a null here usually means "not loaded where he is", not "gone" - see startCell.
+            respawnIfNear(level, px, py, pz);
             return;
         }
         int[] to = targetCell;
@@ -745,6 +772,48 @@ public final class SimIcePathPuzzle {
             return;
         }
         fish.setPos(fish.getX() + dx / left * SLIDE_SPEED, ty, fish.getZ() + dz / left * SLIDE_SPEED);
+    }
+
+    /**
+     * Puts a missing silverfish back on its last resting cell, once he is near enough that "not found" can only
+     * mean missing. Any stray sim silverfish on the board is cleared first, so a fish that was merely out of
+     * range and is found again later can never end up beside a second one.
+     */
+    private static void respawnIfNear(ServerLevel level, double px, double py, double pz) {
+        int[] at = cell != null ? cell : startCell;
+        if (at == null) {
+            return;
+        }
+        BlockPos ice = iceOf(at[0], at[1]);
+        if (ice == null) {
+            return;
+        }
+        double dx = ice.getX() + 0.5 - px;
+        double dy = ice.getY() + 1 - py;
+        double dz = ice.getZ() + 0.5 - pz;
+        if (dx * dx + dy * dy + dz * dz > RESPAWN_RANGE * RESPAWN_RANGE) {
+            return;
+        }
+        if (respawnCooldown > 0) {
+            respawnCooldown--;
+            return;
+        }
+        BlockPos centre = iceOf(BOARD_SIZE / 2, BOARD_SIZE / 2);
+        if (centre != null) {
+            net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(centre)
+                    .inflate(BOARD_SIZE, 4, BOARD_SIZE);
+            for (SimSilverfish stray : level.getEntitiesOfClass(SimSilverfish.class, box, e -> !e.isRemoved())) {
+                stray.discard();
+            }
+        }
+        targetCell = null;
+        spawn(level, at);
+        if (fishId == null) {
+            respawnCooldown = 40;
+        } else {
+            LOGGER.info("Sim ice path: the silverfish was missing with the player {} blocks away - put back on "
+                    + "cell ({},{})", (int) Math.sqrt(dx * dx + dy * dy + dz * dz), at[0], at[1]);
+        }
     }
 
     /**

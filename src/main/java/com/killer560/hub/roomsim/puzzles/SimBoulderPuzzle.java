@@ -1,7 +1,10 @@
 package com.killer560.hub.roomsim.puzzles;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.killer560.hub.roomsim.SimState;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ModLog;
 
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.client.Minecraft;
@@ -10,238 +13,158 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.level.block.ButtonBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ButtonBlock;
 import net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 
+import org.slf4j.Logger;
+
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Practice version of the real dungeon "Boulder" puzzle, for the room sim.
+ * The dungeon "Boulder" puzzle, for the room sim: a random one of the eight known arrangements of 3x3x3 plank
+ * boxes, with a button on every face that can be pushed, and a press that really moves the box.
  *
- * <p>The floor pattern and the button positions are one real bundled layout, read verbatim from
- * {@code data/killer560smod/puzzles/boulder-solutions.json} - the same file
- * {@link com.killer560.hub.puzzlesolvers.BoulderSolverFeature} loads on Hypixel. That solver's own class doc
- * spells out the geometry this copies: "a real 6x7 grid of pressure-plate-sized tiles at y=66 ... either solid
- * or air", and each solution entry is a real {@code [renderX, renderZ, clickX, clickZ]} quadruple at y=65 -
- * {@code renderX/Z} is the boulder tile, {@code clickX/Z} is the stone button actually clicked. This file uses
- * one fixed real pattern, key {@code "010000010111101001010011100000101110000111"}, whose real solution is two
- * buttons: {@code [22,15 -> 23,15]} and {@code [19,21 -> 20,21]}. Like the sim's Water Board, there is no live
- * scan here (no real room to scan) - it always practises this one real layout, not every one of the 8 bundled.
+ * <h2>The rule, and how it was settled</h2>
  *
- * <p>What IS invented: the real solver comment says plainly "the player must click each listed position in any
- * order" and tracks nothing about what a WRONG click does - there is no Hypixel fact anywhere in this codebase
- * about a Boulder failure state. So the fail rule below is generated for practice value, not measured: each
- * button is real and one-shot (matches the real solver, which removes a clicked position from its own list and
- * never re-adds it) - pressing the SAME button again after that, once its boulder has already rolled away, has
- * nothing left to press correctly and is treated here as a fumble that resets the whole board. That reset
- * behaviour is this file's own invention, called out here rather than implied to be real.
+ * <p>killer560 (2026-10-02): "Boulder is still very wrong. It should have those boulders randomly generated, then
+ * by pushing the buttons they move in that direction." The wiki (hypixelskyblock.minecraft.wiki, Catacombs
+ * Puzzle Rooms) gives the shape: the room "is filled with 'boxes' (3x3x3 blocks of wood planks with buttons)",
+ * the buttons move a box in the opposite direction from where it was pressed, and "if the box is at the very
+ * back and you press the button, the box will disappear."
+ *
+ * <p>The bundled {@code boulder-solutions.json} pins down the rest, and it was checked against all of it rather
+ * than read off the wiki alone. Model: a press moves its box ONE cell away from the button; if that cell is off
+ * the grid or already holds a box, the box disappears instead. Played out over all eight patterns, every one of
+ * the 18 solution steps finds its box where the step says, its button in an empty cell, and each pattern goes
+ * from no path of empty cells between grid rows z=9 and z=24 to an open one. Pure "push one cell" fails 6 of the
+ * 18 steps (the destination is occupied) and "pull towards the button" fails 4, so the disappearing box is not a
+ * corner case: it is how half the solutions open the path.
+ *
+ * <h2>Geometry</h2>
+ *
+ * <p>The grid is {@code BoulderSolverFeature}'s own: cell centres at x 24..6 and z 24..9 in steps of 3, the
+ * arrangement sampled at y 66. Decoding {@code Boulder.json} at database rotation 270 shows each box is the full
+ * 3x3 around its centre on y 64, 65 and 66, and each button is a wall button at y 65 on a face centre, one block
+ * out into the neighbouring cell - which is exactly the {@code [renderX, renderZ, clickX, clickZ]} pair the
+ * solver's data gives (render = the face, click = the button). The capture's 31 buttons are the faces whose
+ * neighbouring cell is on the grid and empty, so that is the rule the buttons are placed by, and they are placed
+ * again after every move.
+ *
+ * <p>The old version wrote a one-block-wide column per cell (a box is three wide), always used the same pattern,
+ * rolled a pushed column until it hit something, and failed the puzzle on a second press of a button - none of
+ * which is the real room. The puzzle cannot be failed now: a box that disappears is the mechanic, not a mistake.
  *
  * <p>Same safety story as the rest of {@code roomsim}: gated on {@link SimState#canAct}, and every world write
- * happens on the integrated server's own thread - see {@link com.killer560.hub.roomsim.SimDoors}'s class doc.
+ * happens on the integrated server's own thread.
  */
 public final class SimBoulderPuzzle {
 
-    /** Real floor-scan order (BoulderSolverFeature#scanFloor): z outer 24..9 step -3, x inner 24..6 step -3. */
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
+
+    /** {@code BoulderSolverFeature.scanFloor}'s order: z outer 24..9, x inner 24..6, both step -3. */
     private static final int[] Z_VALUES = {24, 21, 18, 15, 12, 9};
     private static final int[] X_VALUES = {24, 21, 18, 15, 12, 9, 6};
-    /** The y the ARRANGEMENT is sampled at - BoulderSolverFeature#scanFloor reads relative y 66. */
-    private static final int FLOOR_Y = 66;
-    /** The y the buttons are on, and the y the bundled solution's render/click pairs are both given at
-     *  ({@code renderPos.y = 65}, {@code clickPos.y = 65} in the solver). The capture agrees: all 31 of this
-     *  room's stone buttons are at y 65. */
+    private static final int COLS = X_VALUES.length;
+    private static final int ROWS = Z_VALUES.length;
+
+    /** A box is three blocks tall, y 64..66; the solver samples 66 and every button sits at 65. */
+    private static final int BOX_BOTTOM_Y = 64;
+    private static final int BOX_TOP_Y = 66;
     private static final int BUTTON_Y = 65;
-    /** A boulder is a three-block column of planks, y 64..66 - measured off the capture, which holds 90
-     *  jungle and 72 birch planks on each of those three layers and nothing on 67. */
-    private static final int BOULDER_BOTTOM_Y = 64;
 
-    /** One real bundled pattern - see class doc. */
-    private static final String PATTERN_KEY = "010000010111101001010011100000101110000111";
-    /** [renderX, renderZ, clickX, clickZ] - real, from the same bundled entry as PATTERN_KEY. */
-    private static final int[][] SOLUTION = {
-            {22, 15, 23, 15},
-            {19, 21, 20, 21},
-    };
+    /** Writes tell the client and nothing else, so clearing a box never pops its buttons off as items. */
+    private static final int WRITE_FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_SKIP_ALL_SIDEEFFECTS;
 
-    private record Button(BlockPos render, BlockPos click) {
-    }
-
-    /**
-     * Room-relative to world, for the two places a board can live: bound to a captured room (an
-     * {@link com.killer560.hub.roomsim.SimRoomPuzzles.Anchor}) or a standalone arena (a plain origin).
-     * Both write the same three-layer boulders, so neither may own its own copy of the write loop.
-     */
+    /** Room-relative to world. A bound room uses its anchor; a standalone board an origin. */
     private interface Grid {
         BlockPos at(int x, int y, int z);
     }
 
-    /**
-     * The block this room's boulders are made of, copied from one of them.
-     *
-     * <p>The capture has both jungle and birch planks on the board, so there is no single right literal -
-     * and a literal is the thing CLAUDE.md says not to reach for. Whatever is standing on the grid is what a
-     * rewritten boulder is made of; only an empty board falls back, and then to jungle because that is the
-     * one the capture has more of.
-     */
-    private static BlockState boulderBlock(ServerLevel level, Grid grid) {
-        for (int z : Z_VALUES) {
-            for (int x : X_VALUES) {
-                BlockState state = level.getBlockState(grid.at(x, BUTTON_Y, z));
-                if (!state.isAir()) {
-                    return state;
-                }
-            }
-        }
-        return Blocks.JUNGLE_PLANKS.defaultBlockState();
-    }
+    /** The eight bundled arrangements, as 42-character keys. */
+    private static final List<String> PATTERNS = loadPatterns();
 
-    /** Writes {@link #PATTERN_KEY} onto the grid as three-block boulders. Server thread. */
-    private static void writePattern(ServerLevel level, Grid grid, BlockState boulder) {
-        int charIndex = 0;
-        for (int z : Z_VALUES) {
-            for (int x : X_VALUES) {
-                boolean solid = PATTERN_KEY.charAt(charIndex++) == '1';
-                for (int y = BOULDER_BOTTOM_Y; y <= FLOOR_Y; y++) {
-                    level.setBlockAndUpdate(grid.at(x, y, z), solid
-                            ? boulder : Blocks.AIR.defaultBlockState());
-                }
-            }
-        }
-    }
+    /** The four push directions in room-relative steps: {dx, dz}. */
+    private static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
-    /** How far a pushed boulder may roll before it stops on its own - the board is seven wide. */
-    private static final int BOULDER_MAX_ROLL = 7;
+    /** Per cell, row-major over {@link #Z_VALUES} x {@link #X_VALUES}: the box's block, or null when empty. */
+    private static volatile BlockState[] cells = new BlockState[0];
+    /** The arrangement this board was generated with, so a reset puts back the same one. */
+    private static volatile String pattern = null;
+    /** The material each starting box had, so a reset does not reshuffle jungle and birch. */
+    private static volatile BlockState[] startCells = new BlockState[0];
+    private static volatile Grid grid = null;
+    private static volatile boolean bound = false;
 
-    /** The column's extent around {@link #BUTTON_Y}, which is the y every world position in here is taken at.
-     *  Expressed as a distance, not as a y: {@code Anchor.world} is the only thing that knows where relative
-     *  64..66 actually landed, and the offsets survive that translation where the raw numbers do not. */
-    private static final int COLUMN_BELOW = BUTTON_Y - BOULDER_BOTTOM_Y;
-    private static final int COLUMN_ABOVE = FLOOR_Y - BUTTON_Y;
+    /** World button position -> {cell index, direction index}: the box it is on and the side it is on. */
+    private static final Map<BlockPos, int[]> BUTTONS = new ConcurrentHashMap<>();
+    /** Every button position this board has written, so a re-layout can take the old ones away. */
+    private static final Set<BlockPos> PLACED_BUTTONS = ConcurrentHashMap.newKeySet();
 
-    /** Whether a whole boulder could stand at {@code at} (given at {@link #BUTTON_Y}'s world height). */
-    private static boolean columnIsClear(ServerLevel level, BlockPos at) {
-        for (int dy = -COLUMN_BELOW; dy <= COLUMN_ABOVE; dy++) {
-            if (!level.getBlockState(at.above(dy)).isAir()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static final List<Button> BUTTONS = new ArrayList<>();
-    private static final Map<BlockPos, Button> BLOCK_INDEX = new ConcurrentHashMap<>();
-    /** Click positions already pressed once - a second press on one of these is the fail condition. */
-    private static final Set<BlockPos> PRESSED = ConcurrentHashMap.newKeySet();
-
-    /** Non-null only once {@link #build} has placed the board for this sim session. */
-    private static volatile BlockPos builtOrigin = null;
-    private static boolean complete = false;
+    private static volatile boolean complete = false;
+    private static boolean registered = false;
 
     private SimBoulderPuzzle() {
     }
 
-    /** Hooks the button right-click. Wiring: call once from mod init, alongside the other roomsim puzzle
-     *  registrations. */
+    /** Hooks the button right-click. */
     public static void register() {
+        if (registered) {
+            return;
+        }
+        registered = true;
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
             Minecraft client = Minecraft.getInstance();
-            // level.isClientSide(): this event also fires server-side; without the check a real click would be
-            // evaluated twice, same double-fire guard SimDoors uses for its own UseBlockCallback registration.
-            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player || builtOrigin == null) {
+            // Client side only - this event also fires server-side, and a press must be one push.
+            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player || grid == null) {
                 return InteractionResult.PASS;
             }
-            Button button = BLOCK_INDEX.get(hitResult.getBlockPos());
-            if (button == null || complete) {
+            int[] hit = BUTTONS.get(hitResult.getBlockPos());
+            if (hit == null) {
                 return InteractionResult.PASS;
             }
-            if (!PRESSED.add(button.click())) {
-                // add() returned false: already pressed once - the fail condition (see class doc).
-                fail(client, "the same button twice");
-            } else {
-                pressButton(client, button);
+            MinecraftServer server = client.getSingleplayerServer();
+            if (server != null) {
+                final int cell = hit[0];
+                final int dir = hit[1];
+                server.execute(() -> press(server.overworld(), cell, dir));
             }
-            // PASS, not SUCCESS: vanilla's own button press (sound, redstone pulse, animation) is what makes
-            // this read as a real button - we only observe the click, never fake or consume it.
+            // PASS: vanilla's own press (click, animation) is what makes it read as a button, and the
+            // solver's own interact hook (BoulderSolverMixin) needs the click to go through.
             return InteractionResult.PASS;
         });
     }
 
-    /** Places the floor pattern and both buttons relative to {@code origin}. Server thread only - see
-     *  SimMobs/SimDoors class docs for why world writes happen there. */
-    public static void build(Minecraft client, BlockPos origin) {
-        if (!SimState.canAct(client) || origin == null) {
-            return;
-        }
-        MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
-        List<Button> buttons = new ArrayList<>();
-        for (int[] sol : SOLUTION) {
-            BlockPos render = origin.offset(sol[0], BUTTON_Y, sol[1]);
-            BlockPos click = origin.offset(sol[2], BUTTON_Y, sol[3]);
-            buttons.add(new Button(render, click));
-        }
-        server.execute(() -> {
-            ServerLevel level = server.overworld();
-            // Three-layer boulders, same as a bound board - see writePattern. The boulder IS the '1' cell;
-            // there is no separate block placed on top of it (that was the "floating stone" killer560 saw).
-            Grid grid = (x, y, z) -> origin.offset(x, y, z);
-            writePattern(level, grid, Blocks.JUNGLE_PLANKS.defaultBlockState());
-            for (Button button : buttons) {
-                // The button needs a solid block to attach to, same reasoning SimWaterPuzzle's levers use.
-                level.setBlockAndUpdate(button.click().below(), Blocks.STONE.defaultBlockState());
-                BlockState buttonState = Blocks.STONE_BUTTON.defaultBlockState()
-                        .setValue(HorizontalDirectionalBlock.FACING, Direction.NORTH)
-                        .setValue(ButtonBlock.POWERED, Boolean.FALSE)
-                        .setValue(FaceAttachedHorizontalDirectionalBlock.FACE, AttachFace.FLOOR);
-                level.setBlockAndUpdate(button.click(), buttonState);
-            }
-        });
-        BUTTONS.clear();
-        BUTTONS.addAll(buttons);
-        BLOCK_INDEX.clear();
-        for (Button button : buttons) {
-            BLOCK_INDEX.put(button.click(), button);
-        }
-        PRESSED.clear();
-        builtOrigin = origin;
-        boundAnchor = null;   // a standalone board, not a bind to a captured room
-        complete = false;
-    }
+    // ------------------------------------------------------------------------------------------- binding
 
     /**
-     * Arms this puzzle on a REAL captured Boulder room, on the room's own grid and buttons.
+     * Arms the puzzle on a REAL captured Boulder room: identifies the room by its own button row, clears the
+     * captured boxes and buttons off the 42-cell grid, and lays a random bundled arrangement in their place.
      *
-     * <p>{@link #X_VALUES}, {@link #Z_VALUES}, {@link #FLOOR_Y} and {@link #BUTTON_Y} are
-     * {@code BoulderSolverFeature}'s own room-relative scan grid, and the capture holds the push buttons:
-     * a clean row of seven at relative {@code z=10}, {@code x} 6/9/12/15/18/21/24, which is {@code X_VALUES}
-     * exactly. That row is what pins the rotation - it only reads as a row of seven along x at database
-     * rotation 270; at rotation 0 the same blocks read as a column of seven along z, which is the wrong axis
-     * because {@code Z_VALUES} has six entries, not seven.
-     *
-     * <p><b>Why this one writes the floor.</b> The capture's own boulder arrangement is NOT one of the eight
-     * bundled patterns - read off the pasted room at all four rotations and all five nearby heights, the
-     * closest bundled key is 10 of 42 tiles away - so there is no known solution for it and nothing could be
-     * armed. So the live arrangement is read first, the way the real solver reads it, and used when it is
-     * known; when it is not, {@link #PATTERN_KEY}'s real arrangement is written into the room's own 42 grid
-     * positions and its real solution used. That is the puzzle's state, not a second arena: the 42 positions
-     * written are exactly the 42 the real solver samples.
+     * <p>The capture's own arrangement is not one of the eight, so it has no known solution - and he asked for a
+     * random one each time anyway.
      *
      * <p>Server thread only; called from {@code SimBuilder}'s post-build block.
-     *
-     * @return whether the puzzle was armed
      */
     public static boolean bindAt(ServerLevel level, com.killer560.hub.roomsim.SimRoomPuzzles.Placement p) {
-        // The seven push buttons are the room's fingerprint, and the only thing here that can tell one
-        // rotation from another - the boulder floor itself is stone at most positions at every rotation.
+        // The capture's seven buttons on the south faces of its z=12 row are the room's fingerprint - the only
+        // thing that tells one rotation from another, since the floor is stone at most positions at all four.
         List<int[]> buttonRow = new ArrayList<>();
         for (int x : X_VALUES) {
             buttonRow.add(new int[]{x, BUTTON_Y, 10});
@@ -249,214 +172,295 @@ public final class SimBoulderPuzzle {
         com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor =
                 com.killer560.hub.roomsim.SimRoomPuzzles.bestAnchor(level, p, buttonRow,
                         com.killer560.hub.roomsim.SimRoomPuzzles.is(Blocks.STONE_BUTTON), new int[]{0}, 5);
-        if (anchor == null) {
+        if (anchor == null || PATTERNS.isEmpty()) {
             return false;
         }
-        // Read the arrangement the way BoulderSolverFeature.scanFloor does, so a room that HAS a bundled
-        // arrangement is played as it stands rather than overwritten.
-        StringBuilder live = new StringBuilder(42);
-        for (int z : Z_VALUES) {
-            for (int x : X_VALUES) {
-                live.append(level.getBlockState(anchor.world(x, FLOOR_Y, z)).isAir() ? '0' : '1');
-            }
-        }
-        boolean known = PATTERN_KEY.contentEquals(live);
-        if (!known) {
-            // WHOLE BOULDERS, not a layer of stone. killer560 (2026-10-01): "boulder still has a bunch of
-            // random floating stone blocks on the top layer of the wood boulders."
-            //
-            // That was exactly what this did. A boulder is three blocks of planks tall (y 64..66) and the
-            // arrangement is sampled at its TOP, 66 - so writing Blocks.STONE at 66 dropped a stone cap onto
-            // every real boulder, and writing AIR at 66 beheaded the ones the pattern did not want. Writing
-            // all three layers, in the room's own plank, is the same statement made properly.
-            //
-            // It has to be written at all: this room's captured arrangement is
-            // 011110001011000101100000010000101000001100, which is not one of the eight in
-            // boulder-solutions.json, so there is no solution for the board as it stands. Rewriting it to a
-            // bundled one is what gives both this class and BoulderSolverFeature something to solve.
-            com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
-                    "Sim boulder: this room's arrangement ({}) is not one of the bundled eight, so the "
-                            + "bundled pattern was written into its 42 grid positions", live);
-            Grid grid = anchor::world;
-            writePattern(level, grid, boulderBlock(level, grid));
-        }
-        // THE BOULDER IS AT FLOOR LEVEL, AND IT IS THE ROOM'S OWN BLOCK.
-        //
-        // killer560 (2026-10-01): "boulder is very broken looking. There are random stone blocks floating
-        // everywhere." Three writes made that mess, and all three are gone:
-        //
-        //   - the boulder was placed at BUTTON_Y (65) while the grid the pattern is written to is FLOOR_Y
-        //     (66), so every "boulder" was a cobblestone block hanging one under the floor;
-        //   - it was placed at all, when the pattern written above already puts a solid block at every '1'
-        //     cell - the boulder IS that block, and a second one on top of it is scenery;
-        //   - a missing button got a STONE PEDESTAL under it, in mid-air, because the click row sits above
-        //     nothing. A solution step with no button is now reported instead of propped up.
-        // BOTH at BUTTON_Y, which is what the solver itself uses: renderPos.y = 65 and clickPos.y = 65 in
-        // BoulderSolverFeature. An earlier "fix" moved render to FLOOR_Y on the reasoning that the grid is
-        // sampled there - true of the ARRANGEMENT, not of the solution's coordinates.
-        List<Button> buttons = new ArrayList<>();
-        for (int[] sol : SOLUTION) {
-            buttons.add(new Button(anchor.world(sol[0], BUTTON_Y, sol[1]),
-                    anchor.world(sol[2], BUTTON_Y, sol[3])));
-        }
-        for (Button button : buttons) {
-            if (!level.getBlockState(button.click()).is(Blocks.STONE_BUTTON)) {
-                com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
-                        "Sim boulder: the solution wants a button at {} and the room has {} there - that step"
-                                + " cannot be pressed", button.click(),
-                        level.getBlockState(button.click()).getBlock());
-            }
-        }
-        BUTTONS.clear();
-        BUTTONS.addAll(buttons);
-        BLOCK_INDEX.clear();
-        for (Button button : buttons) {
-            BLOCK_INDEX.put(button.click(), button);
-        }
-        PRESSED.clear();
-        builtOrigin = anchor.world(X_VALUES[0], BUTTON_Y, Z_VALUES[0]);
-        boundAnchor = anchor;
-        complete = false;
+        forget();
+        bound = true;
+        grid = anchor::world;
+        // The capture's own plank, for the boxes - it mixes jungle and birch, so both are offered.
+        generate(level, PATTERNS.get(ThreadLocalRandom.current().nextInt(PATTERNS.size())));
         return true;
     }
 
-    /** Non-null while this puzzle is bound to a real captured room rather than a standalone arena. */
-    private static volatile com.killer560.hub.roomsim.SimRoomPuzzles.Anchor boundAnchor = null;
-
-    /**
-     * Pushes the pressed button's boulder one square, and checks for completion.
-     *
-     * <p>killer560 (2026-10-01): "pressing the buttons doesnt move the boulders anywhere." It deleted the
-     * boulder instead, which is not what a push looks like - on the real board the boulder rolls away from
-     * the button along the row the button is on, and watching it move is the feedback that tells you whether
-     * the press was the right one.
-     *
-     * <p>The direction is READ OFF THE SOLUTION, not chosen: every entry pairs a boulder with the click one
-     * square away from it, so the push runs from the button towards the boulder and onward. The boulder rolls
-     * until something stops it, which is what a boulder does; if the very first square is blocked it stays
-     * put and says so.
-     *
-     * <p>killer560 (2026-10-01, second report): "the buttons still dont push them." A boulder is a
-     * THREE-BLOCK column (y 64..66, {@link #BOULDER_BOTTOM_Y}..{@link #FLOOR_Y}) and this moved one block of
-     * it, from y 65 - so the press carved the middle out of a boulder and left its top and bottom standing,
-     * which from the floor looks like nothing moved. Worse, the clearance test only looked at y 65 too, so a
-     * neighbouring boulder's own gap-free column still read as "air" at the only height being checked and the
-     * roll walked straight through it. Clearance is now all three layers, and all three move.
-     */
-    private static void pressButton(Minecraft client, Button button) {
-        MinecraftServer server = client.getSingleplayerServer();
-        if (server != null) {
-            BlockPos from = button.render();
-            int dx = Integer.signum(from.getX() - button.click().getX());
-            int dz = Integer.signum(from.getZ() - button.click().getZ());
-            server.execute(() -> {
-                ServerLevel level = server.overworld();
-                BlockPos at = from;
-                BlockPos next = at.offset(dx, 0, dz);
-                int rolled = 0;
-                while (rolled < BOULDER_MAX_ROLL && columnIsClear(level, next)) {
-                    at = next;
-                    next = at.offset(dx, 0, dz);
-                    rolled++;
-                }
-                if (rolled == 0) {
-                    return;   // hard against something - nothing moves
-                }
-                // Read the column before clearing it, so the boulder arrives as whatever it actually was
-                // (this room mixes jungle and birch planks).
-                BlockState[] column = new BlockState[COLUMN_BELOW + COLUMN_ABOVE + 1];
-                for (int i = 0; i < column.length; i++) {
-                    BlockState state = level.getBlockState(from.above(i - COLUMN_BELOW));
-                    column[i] = state.isAir() ? Blocks.JUNGLE_PLANKS.defaultBlockState() : state;
-                }
-                for (int i = 0; i < column.length; i++) {
-                    level.setBlockAndUpdate(from.above(i - COLUMN_BELOW), Blocks.AIR.defaultBlockState());
-                }
-                for (int i = 0; i < column.length; i++) {
-                    level.setBlockAndUpdate(at.above(i - COLUMN_BELOW), column[i]);
-                }
-            });
-        }
-        if (PRESSED.size() >= BUTTONS.size()) {
-            complete = true;
-            ModChat.send("Sim", ModChat.good("Boulder"), ModChat.text(" solved."));
-        }
-    }
-
-    private static void fail(Minecraft client, String what) {
-        // Tells the Architect's First Draft feature a puzzle failed, so his existing
-        // auto-get setting works in here the same as it does on Hypixel.
-        // Room name as well as puzzle name: a failed puzzle turns its room red on the map (SimRoomState),
-        // and this puzzle only ever lives in the room of the same name.
-        SimPuzzles.reportFail("Boulder", "Boulder");
-        ModChat.send("Sim", ModChat.bad("Boulder"), ModChat.text(" failed - pressed " + what + ". Resetting."));
-        if (boundAnchor != null && SimState.canAct(client)) {
-            // Bound to a real room: put the boulders back and unpress, rather than rebuilding an arena the
-            // room does not need. build() here would paste the standalone board inside the captured one.
-            rearmBound(client);
+    /** A standalone board in front of him, for {@code /simpuzzle boulder}: the same grid on a stone floor. */
+    public static void build(Minecraft client, BlockPos origin) {
+        if (!SimState.canAct(client) || origin == null || PATTERNS.isEmpty()) {
             return;
         }
-        if (builtOrigin != null && SimState.canAct(client)) {
-            build(client, builtOrigin);
-        }
-    }
-
-    /** Boulders back, buttons unpressed, for a board bound to a real captured room. */
-    private static void rearmBound(Minecraft client) {
         MinecraftServer server = client.getSingleplayerServer();
-        PRESSED.clear();
-        complete = false;
         if (server == null) {
             return;
         }
-        com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor = boundAnchor;
-        if (anchor == null) {
-            return;
-        }
-        // THE WHOLE GRID, not just the two boulders the solution names. A push can roll a boulder several
-        // squares and onto a cell the pattern wanted empty, so putting back only the two it started on leaves
-        // the rest of the board as the last attempt left it. Re-writing all 42 is the same work bindAt does
-        // and it is the only thing that actually restores the arrangement.
+        // Relative (15, 64, 7) - the middle of the grid's near edge - lands on the block in front of him.
+        BlockPos base = origin.immutable();
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            Grid grid = anchor::world;
-            writePattern(level, grid, boulderBlock(level, grid));
+            forget();
+            bound = false;
+            grid = (x, y, z) -> base.offset(x - 15, y - BOX_BOTTOM_Y, z - 7);
+            for (int x = 4; x <= 26; x++) {
+                for (int z = 7; z <= 26; z++) {
+                    level.setBlock(grid.at(x, BOX_BOTTOM_Y - 1, z), Blocks.STONE.defaultBlockState(), WRITE_FLAGS);
+                }
+            }
+            generate(level, PATTERNS.get(ThreadLocalRandom.current().nextInt(PATTERNS.size())));
         });
+    }
+
+    /** Clears the grid and lays {@code key}, each box in a random one of the room's two planks. Server thread. */
+    private static void generate(ServerLevel level, String key) {
+        BlockState[] start = new BlockState[ROWS * COLS];
+        for (int i = 0; i < start.length; i++) {
+            if (key.charAt(i) == '1') {
+                start[i] = ThreadLocalRandom.current().nextBoolean()
+                        ? Blocks.JUNGLE_PLANKS.defaultBlockState() : Blocks.BIRCH_PLANKS.defaultBlockState();
+            }
+        }
+        pattern = key;
+        startCells = start;
+        lay(level, start.clone());
+        LOGGER.info("Sim boulder: laid bundled arrangement {} - {} box(es), {} button(s)", key,
+                countBoxes(start), BUTTONS.size());
+    }
+
+    /** Puts {@code layout} into the world over whatever is there, and re-places every button. Server thread. */
+    private static void lay(ServerLevel level, BlockState[] layout) {
+        Grid g = grid;
+        if (g == null) {
+            return;
+        }
+        // Every block of every cell, top to bottom, so the captured boxes and the captured buttons both go.
+        BlockState air = Blocks.AIR.defaultBlockState();
+        for (int i = 0; i < layout.length; i++) {
+            int cx = X_VALUES[i % COLS];
+            int cz = Z_VALUES[i / COLS];
+            BlockState want = layout[i] == null ? air : layout[i];
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    for (int y = BOX_BOTTOM_Y; y <= BOX_TOP_Y; y++) {
+                        BlockPos pos = g.at(cx + dx, y, cz + dz);
+                        if (!level.getBlockState(pos).equals(want)) {
+                            level.setBlock(pos, want, WRITE_FLAGS);
+                        }
+                    }
+                }
+            }
+        }
+        cells = layout;
+        placeButtons(level);
+    }
+
+    /**
+     * A wall button on the middle of every box face whose neighbouring cell is on the grid and empty - the rule
+     * the capture's own 31 buttons follow. Old buttons that no longer qualify are removed first.
+     */
+    private static void placeButtons(ServerLevel level) {
+        Grid g = grid;
+        BlockState[] c = cells;
+        Map<BlockPos, int[]> fresh = new java.util.HashMap<>();
+        for (int i = 0; i < c.length; i++) {
+            if (c[i] == null) {
+                continue;
+            }
+            int col = i % COLS;
+            int row = i / COLS;
+            for (int d = 0; d < DIRS.length; d++) {
+                int n = neighbour(col, row, d);
+                if (n < 0 || c[n] != null) {
+                    continue;
+                }
+                int fx = X_VALUES[col] + DIRS[d][0];
+                int fz = Z_VALUES[row] + DIRS[d][1];
+                BlockPos face = g.at(fx, BUTTON_Y, fz);
+                BlockPos button = g.at(fx + DIRS[d][0], BUTTON_Y, fz + DIRS[d][1]);
+                fresh.put(button.immutable(), new int[]{i, d});
+                Direction facing = horizontal(button.getX() - face.getX(), button.getZ() - face.getZ());
+                if (facing == null) {
+                    continue;
+                }
+                BlockState state = Blocks.STONE_BUTTON.defaultBlockState()
+                        .setValue(FaceAttachedHorizontalDirectionalBlock.FACE, AttachFace.WALL)
+                        .setValue(HorizontalDirectionalBlock.FACING, facing)
+                        .setValue(ButtonBlock.POWERED, Boolean.FALSE);
+                level.setBlock(button, state, WRITE_FLAGS);
+            }
+        }
+        for (BlockPos old : PLACED_BUTTONS) {
+            if (!fresh.containsKey(old) && level.getBlockState(old).is(Blocks.STONE_BUTTON)) {
+                level.setBlock(old, Blocks.AIR.defaultBlockState(), WRITE_FLAGS);
+            }
+        }
+        PLACED_BUTTONS.clear();
+        PLACED_BUTTONS.addAll(fresh.keySet());
+        BUTTONS.clear();
+        BUTTONS.putAll(fresh);
+    }
+
+    /** The world direction of a one-block step, or null when it is not a single horizontal step. */
+    private static Direction horizontal(int dx, int dz) {
+        if (dx == 1 && dz == 0) {
+            return Direction.EAST;
+        }
+        if (dx == -1 && dz == 0) {
+            return Direction.WEST;
+        }
+        if (dx == 0 && dz == 1) {
+            return Direction.SOUTH;
+        }
+        if (dx == 0 && dz == -1) {
+            return Direction.NORTH;
+        }
+        return null;
+    }
+
+    /** The cell one step from (col, row) in direction {@code d}, or -1 off the grid. */
+    private static int neighbour(int col, int row, int d) {
+        int x = X_VALUES[col] + 3 * DIRS[d][0];
+        int z = Z_VALUES[row] + 3 * DIRS[d][1];
+        int nc = indexOf(X_VALUES, x);
+        int nr = indexOf(Z_VALUES, z);
+        return nc < 0 || nr < 0 ? -1 : nr * COLS + nc;
+    }
+
+    private static int indexOf(int[] values, int v) {
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] == v) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // ------------------------------------------------------------------------------------------ pressing
+
+    /**
+     * A button on side {@code d} of box {@code cell} was pressed: the box goes one cell the other way, or
+     * disappears when that cell is off the grid or taken. Server thread.
+     */
+    private static void press(ServerLevel level, int cell, int d) {
+        BlockState[] c = cells;
+        if (cell < 0 || cell >= c.length || c[cell] == null || complete) {
+            return;
+        }
+        int away = d ^ 1;   // DIRS pairs opposites: 0/1 and 2/3
+        int dest = neighbour(cell % COLS, cell / COLS, away);
+        BlockState[] next = c.clone();
+        BlockState box = next[cell];
+        next[cell] = null;
+        boolean moved = dest >= 0 && next[dest] == null;
+        if (moved) {
+            next[dest] = box;
+        }
+        lay(level, next);
+        if (pathOpen(next)) {
+            complete = true;
+            Minecraft.getInstance().execute(() ->
+                    ModChat.send("Sim", ModChat.good("Boulder"), ModChat.text(" solved - the way through is open.")));
+        }
+    }
+
+    /**
+     * Whether empty cells join grid row z=9 to row z=24. Measured against the bundled data: all eight patterns
+     * are closed before their solution and open after it, so this is the solved test.
+     */
+    private static boolean pathOpen(BlockState[] c) {
+        ArrayDeque<Integer> q = new ArrayDeque<>();
+        Set<Integer> seen = new HashSet<>();
+        int nearRow = ROWS - 1;   // z = 9
+        for (int col = 0; col < COLS; col++) {
+            int i = nearRow * COLS + col;
+            if (c[i] == null) {
+                q.add(i);
+                seen.add(i);
+            }
+        }
+        while (!q.isEmpty()) {
+            int i = q.poll();
+            if (i / COLS == 0) {   // z = 24
+                return true;
+            }
+            for (int d = 0; d < DIRS.length; d++) {
+                int n = neighbour(i % COLS, i / COLS, d);
+                if (n >= 0 && c[n] == null && seen.add(n)) {
+                    q.add(n);
+                }
+            }
+        }
+        return false;
+    }
+
+    private static int countBoxes(BlockState[] c) {
+        int n = 0;
+        for (BlockState s : c) {
+            if (s != null) {
+                n++;
+            }
+        }
+        return n;
     }
 
     public static boolean isComplete() {
         return complete;
     }
 
-    /** Rebuilds the board fresh (boulders back, buttons unpressed) without needing a caller-supplied origin. */
     /**
-     * Drops this puzzle's bookkeeping WITHOUT touching the world.
-     *
-     * <p>{@link #reset} is the right thing while the arena is still standing: it puts blocks back, un-presses,
-     * re-lights. It is the wrong thing when the floor those blocks belonged to no longer exists, which is
-     * exactly the case {@code SimRoomPuzzles.armFloor} has to handle - the positions it holds are absolute and
-     * the next floor is built over them, so a queued "set it back to air" lands inside the new floor and
-     * punches a hole in it. Just as bad the other way: a stale click index left in place makes a click on some
-     * unrelated block on the new floor count as a move in a puzzle that is not on it.
+     * Drops this puzzle's bookkeeping WITHOUT touching the world - for a floor about to be rebuilt, where the
+     * positions held here are absolute and would land inside the new floor.
      */
     public static void forget() {
         BUTTONS.clear();
-        BLOCK_INDEX.clear();
-        PRESSED.clear();
-        builtOrigin = null;
-        boundAnchor = null;
+        PLACED_BUTTONS.clear();
+        cells = new BlockState[0];
+        startCells = new BlockState[0];
+        pattern = null;
+        grid = null;
+        bound = false;
         complete = false;
     }
 
+    /** The same arrangement back, boxes and buttons, for an Architect's First Draft or {@code /simpuzzle reset}. */
     public static void reset() {
         Minecraft client = Minecraft.getInstance();
-        if (boundAnchor != null && SimState.canAct(client)) {
-            rearmBound(client);
-        } else if (builtOrigin != null && SimState.canAct(client)) {
-            build(client, builtOrigin);
-        } else {
-            PRESSED.clear();
+        if (grid == null || !SimState.canAct(client)) {
+            return;
+        }
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        BlockState[] start = startCells.clone();
+        server.execute(() -> {
             complete = false;
+            lay(server.overworld(), start);
+        });
+    }
+
+    /** The keys of {@code boulder-solutions.json} - the same file and the same loading as the solver. */
+    private static List<String> loadPatterns() {
+        try (InputStream stream = SimBoulderPuzzle.class.getClassLoader()
+                .getResourceAsStream("data/killer560smod/puzzles/boulder-solutions.json")) {
+            if (stream == null) {
+                return List.of();
+            }
+            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+                Type type = new TypeToken<Map<String, List<List<Integer>>>>() {
+                }.getType();
+                Map<String, List<List<Integer>>> parsed = new Gson().fromJson(reader, type);
+                if (parsed == null) {
+                    return List.of();
+                }
+                List<String> out = new ArrayList<>();
+                for (String key : parsed.keySet()) {
+                    if (key.length() == ROWS * COLS) {
+                        out.add(key);
+                    }
+                }
+                return List.copyOf(out);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[SimBoulderPuzzle] Failed to load boulder-solutions.json", e);
+            return List.of();
         }
     }
 }

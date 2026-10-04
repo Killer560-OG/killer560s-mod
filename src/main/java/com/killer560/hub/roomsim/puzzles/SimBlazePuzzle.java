@@ -172,8 +172,20 @@ public final class SimBlazePuzzle {
      * before the empty-list check, turning him towards the middle; everything after that was skipped.
      *
      * <p>This is also how the real room is built - Hypixel renders a mob's name on a separate stand - and how
-     * {@code SimMobs} already tags its starred mobs, so the shape is proven rather than invented. The blaze keeps
-     * its own custom name as well: it costs nothing, and it is what shows if a stand is ever missing.
+     * {@code SimMobs} already tags its starred mobs, so the shape is proven rather than invented.
+     *
+     * <p><b>The stand is a MARKER, and the blaze carries no name of its own.</b> killer560 (2026-10-02): "the
+     * blazes have the actual blaze then a hidden one above it. Remove that hidden one. It is just the nametag but
+     * I cannot hit it." A plain invisible stand keeps its full 0.5 x 1.975 hitbox, so it sat on top of every
+     * blaze catching arrows and punches meant for it, and the blaze's own visible name made a second label. A
+     * marker stand has zero size, is not pickable and is skipped by projectiles, so every hit goes through to the
+     * blaze. {@code setMarker} is private, so the flag is set through {@code DATA_CLIENT_FLAGS}, which is public
+     * and identical in 26.1.2 and 26.2 (javap); {@code ArmorStand.onSyncedDataUpdated} calls
+     * {@code refreshDimensions()} on exactly that key, so the box really does collapse.
+     *
+     * <p>A marker also fits Odin's offsets better than a full stand did: its box centre IS its position, so
+     * "1 block under the stand" from {@code getY() + bbHeight + 0.1} lands at blaze y + 0.9 - the blaze's own
+     * centre (it is 1.8 tall). The full stand put that point a block higher, at the blaze's head.
      *
      * <p><b>The one dial here, said out loud.</b> The stand sits just above the blaze, which is
      * {@code SimMobs}' own star-tag placement and the only one in this codebase shown not to swallow a kill.
@@ -191,6 +203,9 @@ public final class SimBlazePuzzle {
         tag.setNoGravity(true);
         tag.setNoBasePlate(true);
         tag.setInvulnerable(true);
+        byte flags = tag.getEntityData().get(net.minecraft.world.entity.decoration.ArmorStand.DATA_CLIENT_FLAGS);
+        tag.getEntityData().set(net.minecraft.world.entity.decoration.ArmorStand.DATA_CLIENT_FLAGS,
+                (byte) (flags | net.minecraft.world.entity.decoration.ArmorStand.CLIENT_FLAG_MARKER));
         tag.setCustomName(blazeLabel(health));
         tag.setCustomNameVisible(true);
         if (level.addFreshEntity(tag)) {
@@ -308,9 +323,8 @@ public final class SimBlazePuzzle {
                 blaze.setHealth(HEALTHS[i]);
                 blaze.setPersistenceRequired();
                 blaze.setNoAi(true);
-                // The label is what BlazeSolverFeature reads - see blazeLabel.
-                blaze.setCustomName(blazeLabel(HEALTHS[i]));
-                blaze.setCustomNameVisible(true);
+                // No name on the blaze itself: the label stand carries it, and two names on one blaze read as
+                // two blazes - see attachLabel.
                 blaze.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
                 if (!level.addFreshEntity(blaze)) {
                     // Said out loud rather than silently skipped. A blaze arena with no blazes in it looks
@@ -431,8 +445,6 @@ public final class SimBlazePuzzle {
             blaze.setHealth(HEALTHS[i]);
             blaze.setPersistenceRequired();
             blaze.setNoAi(true);
-            blaze.setCustomName(blazeLabel(HEALTHS[i]));
-            blaze.setCustomNameVisible(true);
             blaze.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
             if (!level.addFreshEntity(blaze)) {
                 com.killer560.hub.util.ModLog.get("killer560smod-roomsim")

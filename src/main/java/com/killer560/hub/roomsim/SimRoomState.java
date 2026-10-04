@@ -45,6 +45,12 @@ public final class SimRoomState {
 
     /** This room's puzzle was failed: paint it red. */
     public static void markFailed(String roomName) {
+        // Ice Fill and Ice Path have no failed state on Hypixel - a slip regenerates or the fish just stops -
+        // so they are never painted red, whoever asks. killer560 (2026-10-02): "ice fill should never be red
+        // on the map."
+        if ("Ice Fill".equalsIgnoreCase(roomName) || "Ice Path".equalsIgnoreCase(roomName)) {
+            return;
+        }
         if (roomName != null && !roomName.isBlank()) {
             STATES.put(roomName, STATE_FAILED);
         }

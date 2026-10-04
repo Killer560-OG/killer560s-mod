@@ -774,9 +774,10 @@ click that also toggles the flow. Both of those are the sim's own choice and are
 `SimWaterPuzzle`'s class doc.
 
 **Starting and stopping the water needs no fluid simulation.** Letting water out into the room would flood the
-floor within seconds. Instead the sealed column itself is removed when the flow is off and put back when it is
-on, with `UPDATE_CLIENTS | UPDATE_SKIP_ALL_SIDEEFFECTS` so nothing schedules a fluid tick. Binding turns it off,
-so the first click of every attempt is the back lever - which is what every bundled solution says anyway.
+floor within seconds. Instead the water is removed when the flow is off and put back when it is on, with
+`UPDATE_CLIENTS | UPDATE_SKIP_ALL_SIDEEFFECTS` so nothing schedules a fluid tick. Binding turns it off, so the
+first click of every attempt is the back lever - which is what every bundled solution says anyway. **Which water
+was corrected on 2026-10-02** - see "The 2026-10-02 puzzle round": it is the board's top feed, not this column.
 
 ## A failed sim puzzle can now turn its room red
 
@@ -856,6 +857,8 @@ now sends those lines raw through `sendSystemMessage` - they still reach `ChatOb
 solver subscribes to.
 
 ## Three Weirdos is three weirdos now
+
+*The stands and the speaking changed on 2026-10-02 - see "The 2026-10-02 puzzle round".*
 
 The capture's three chests sit at local (25,69,12), (26,69,14) and (25,69,17), and the chamber's cauldron at
 (29,69,16) - so the middle chest was two short of its line. All three move the same two blocks rather than being
@@ -1241,6 +1244,8 @@ correct answers is rejected, because the option test is `anyMatch(trimmed::endsW
 
 ## Boulder: a boulder is three blocks tall
 
+*Superseded 2026-10-02: a box is 3x3x3, not a one-wide column - see "The 2026-10-02 puzzle round".*
+
 "boulder still has a bunch of random floating stone blocks on the top layer of the wood boulders and the buttons
 still dont push them."
 
@@ -1361,4 +1366,65 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   the only two rooms whose captures have no roof marker, which is the code's own sign of a missing roof corner.
   The handoff said `SimBuilder` warns when a 1x2's reserved cells disagree with its long axis; no such warning
   exists in the code.
+
+## The 2026-10-02 puzzle round
+
+Eight reports, one fix each. Where a rule came from somewhere other than the code, it says where.
+
+- **Water Board: the back lever drives the TOP water.** It used to cut the sealed column right behind it at
+  `(15, 59..62, 4)`, which on Hypixel just runs. Decoding `Water_Board.json` at rotation 270 puts the board's
+  own feed far above: sources at `(15, 91|95, 20)`, a channel along y 89 to z 26 and the fall down the board's
+  face at `x 14..16, y 82..88, z 26` - 31 blocks, all at y >= 82. Everything from relative y 75 up is read at
+  arm time with its exact level and is what the lever removes and restores; the column behind the lever is
+  never touched. A restore never writes over a piston slot that has been pushed into the fall.
+- **Blaze: the label stand is a MARKER.** A plain invisible stand keeps its 0.5 x 1.975 hitbox, so it sat on
+  every blaze catching his arrows and punches ("a hidden one above it... I cannot hit it"), and the blaze's own
+  visible name made a second label. `setMarker` is private; the flag goes through `ArmorStand.DATA_CLIENT_FLAGS`
+  / `CLIENT_FLAG_MARKER`, public and identical in 26.1.2 and 26.2, and `onSyncedDataUpdated` refreshes the box
+  on that key. A marker also fits Odin's "1 under the stand" offsets better: from `bbHeight + 0.1` it lands on
+  the blaze's centre, where the full stand put it at the head. `SimMobs`' star tags are still full stands.
+- **Teleport Maze: the route to the centre is checked pad by pad.** On paper the pairing was already right
+  (20,000 simulated draws: every successful one reached the exit), but nothing verified it at bind and a draw
+  that failed 500 times left `link` empty, which makes every pad dead. `routeToCentre` now walks exactly what he
+  does - walk to any pad of the chamber, step on it, land where it links - and a draw is only kept if it reaches
+  the end pad; the shortest route is logged at bind. A fixed chamber chain is the fallback, never an empty table.
+  The decoded floor confirms the start pad is alone in the entrance chamber and the end pad alone in the centre.
+  **Not reproduced**: no defect was found in the pairing itself, so if a run still never reaches the middle,
+  the bind log line now names the route to compare against.
+- **Ice Path: a silverfish out of range is not a dead one.** `level.getEntity(uuid)` only sees entities in
+  sections the server is tracking, so while Ice Path was beyond his range the tick read null and the old
+  branch dropped `fishId` and `cell` for good - "sometimes", depending on where Ice Path landed relative to him
+  when the floor finished. A refused spawn also left the room unarmed. Now the state is kept, and a fish that is
+  missing while he is within 24 blocks of its cell is put back there (strays on the board are cleared first).
+- **Creeper Beams: a second lantern always draws a beam.** A held button re-fired the pick every third tick
+  (the stamp was only written on a pick), so the second shot of a pair flickered between "not that pair", a new
+  hold and a drop. The stamp is now refreshed on every re-entry, so one hold is one click. Any second lantern
+  draws the beam and burns both to prismarine; a wrong pair is drawn red and costs those two lanterns. The wiki
+  calls the room non-failable and wants "four different beams" through the creeper, so a wrong pair does not
+  fail it and four right pairs solve it.
+- **Ice Fill: the auto overshot, and a slip painted the room red.** Auto Ice Fill hops one tile by aiming from
+  the eye at the next tile's feet point. `SimAbilities.dashTarget`, once the look drove the box into the floor,
+  slid at that height for the full range - six blocks at that angle - so the hop left the path (the auto then
+  finds no path point under him and stops) and the puzzle read it as "teleported off the ice". A settled walk
+  now ends where the EYE ray meets a block, which is also what the cited measurement says (35 degrees down
+  moved 1.6 blocks; the eye ray meets the floor 2.3 out, the old slide went 9.8), and it may step up one block
+  the eye can see over, which is how the auto climbs between sections. Separately, `breakSection` called
+  `SimPuzzles.reportFail`, which is what turned the room red; a broken section regenerates, so it reports
+  nothing now, and `SimRoomState.markFailed` refuses Ice Fill and Ice Path outright.
+- **Boulder: random known pattern, 3x3x3 boxes, buttons that push.** The wiki: boxes are "3x3x3 blocks of wood
+  planks with buttons", a press moves the box away from the button, and "if the box is at the very back... the
+  box will disappear". The bundled data settles the rest: a press moves the box ONE cell; if that cell is off
+  the grid or taken, the box disappears. Played over all eight patterns, all 18 solution steps find their box
+  and an empty button cell, and every pattern goes from no row-9-to-row-24 path to an open one - which is the
+  solved test. Plain push fails 6 of the 18 steps, pull fails 4. Buttons are wall buttons at y 65, one block
+  out from the middle of each face whose neighbour cell is on the grid and empty (the capture's 31 follow that
+  rule), and are laid again after every move. The puzzle cannot be failed.
+- **Three Weirdos: visible NPCs, and they speak when talked to.** The three `[NPC]` lines were sent on the
+  client in the same call that queued the stands' spawn on the server, so the solver read each line before its
+  stand existed client-side, logged "No ArmorStand named ...", and gave up - no highlight, so the auto had
+  nothing. Now three visible stands (arms, name shown) are placed at bind, one database block of -x from each
+  chest through the room's anchor, each with an invisible "CLICK" stand under its name - the word Auto Three
+  Weirdos looks for. Talking to either (right or left click) sends that weirdo's line, and the walk-in check
+  moves them if the live map's transform disagrees with the anchor. **Lesson: never send a chat line that
+  refers to an entity in the same tick as queuing that entity's spawn** - the solver reads the line first.
 
