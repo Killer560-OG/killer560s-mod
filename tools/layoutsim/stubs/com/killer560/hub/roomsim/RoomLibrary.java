@@ -43,5 +43,23 @@ public final class RoomLibrary {
         public boolean usable() {
             return usable;
         }
+
+        /** As the real Room: -1 outside the capture. Read by RoomTileAudit and RoomCaptureRotation. */
+        public short at(int x, int y, int z) {
+            if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ || y < minY || y > maxY) {
+                return -1;
+            }
+            return blocks[index(x, y, z)];
+        }
+
+        /** As the real Room. */
+        public boolean currentFormat() {
+            return margin == WALL_MARGIN
+                    && sizeX >= TILE + WALL_MARGIN * 2 && (sizeX - 1) % (TILE + 1) == 0
+                    && sizeZ >= TILE + WALL_MARGIN * 2 && (sizeZ - 1) % (TILE + 1) == 0;
+        }
+
+        /** Set by RoomTileAudit when the capture holds another room's tile. */
+        public String corruptReason;
     }
 }
