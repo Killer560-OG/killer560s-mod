@@ -112,6 +112,8 @@ public final class SimBuilder {
             ModChat.send("Sim", ModChat.text("That map code is not valid."));
             return;
         }
+        // Kept for /goto, which needs to know which of a room's doorways is the way IN - see entranceSide.
+        floorPlan = decoded;
         var server = client.getSingleplayerServer();
         if (server == null) {
             // Reached from the main menu, where there is no world yet. It used to return silently here, which
@@ -620,9 +622,13 @@ public final class SimBuilder {
      * otherwise comes UP from the bottom of the world and finds the lowest floor - right for every room but
      * Higher Blaze, which is entered near its ceiling and whose "that level" is the top one.
      */
-    private record Spawn(int dx, int dz, boolean fromTop, int doorDx, int doorDz) {
+    private record Spawn(int dx, int dz, boolean fromTop, int doorDx, int doorDz, Float yaw) {
         Spawn(int dx, int dz, boolean fromTop) {
-            this(dx, dz, fromTop, 0, 0);
+            this(dx, dz, fromTop, 0, 0, null);
+        }
+
+        Spawn(int dx, int dz, boolean fromTop, int doorDx, int doorDz) {
+            this(dx, dz, fromTop, doorDx, doorDz, null);
         }
 
         /** Whether the landing height is the doorway's floor rather than a scan of this column. */
@@ -652,6 +658,35 @@ public final class SimBuilder {
             return null;
         }
         String name = room.name.toLowerCase(Locale.ROOT);
+        com.killer560.hub.roomdatabase.RoomEntry dbEntry =
+                com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room.name);
+        if (name.equals("teleport maze")
+                || SimFloorLayout.isTrap(room.name, dbEntry == null ? null : dbEntry.type)) {
+            // ONE BLOCK IN FROM THE ENTRANCE DOORWAY, AT ITS FLOOR, FACING IN. killer560 (2026-10-04): "/goto trap
+            // puts me 1 block inside of the entrance at that level. Same for teleport maze." A trap is a corridor
+            // with a way in and a way out, so "the entrance" is the doorway that leads back towards the green
+            // room on this floor (entranceSide); a single-room load has no floor and falls back to the room's
+            // first measured doorway, like Ice Fill. 14 is the wall (15) stepped back in one, the blaze rooms'
+            // number; the height is read in the doorway itself (15).
+            int side = entranceSide(gridX, gridZ);
+            if (side < 0) {
+                RoomDoors.Mask mask = doorsAsPasted(room, gridX, gridZ);
+                if (mask != null) {
+                    for (int packed : mask.edges()) {
+                        side = RoomDoors.sideOf(packed);
+                        break;
+                    }
+                }
+            }
+            if (side >= 0) {
+                // Facing back from the doorway towards the middle: direction (-DX, -DZ), and Minecraft's yaw for
+                // a direction (fx, fz) is atan2(-fx, fz) - the form Ap3Executor uses.
+                float yaw = (float) Math.toDegrees(Math.atan2(RoomDoors.DX[side], -RoomDoors.DZ[side]));
+                return new Spawn(RoomDoors.DX[side] * 14, RoomDoors.DZ[side] * 14, false,
+                        RoomDoors.DX[side] * 15, RoomDoors.DZ[side] * 15, yaw);
+            }
+            return null;
+        }
         if (name.equals("ice fill")) {
             // TWO BLOCKS IN FROM THE DOORWAY, AT THE DOORWAY'S OWN HEIGHT. killer560 (2026-10-01): "make it so
             // when I spawn into ice fill it is 2 blocks infront of the entrance on that same y level." 13 is the
@@ -687,6 +722,145 @@ public final class SimBuilder {
             return new Spawn(0, 0, name.startsWith("higher"));
         }
         return null;
+    }
+
+    /**
+     * The generated floor's map, for {@link #entranceSide}. Null after a single-room load, which has no doors on
+     * its map to choose between.
+     */
+    private static volatile MapCode.Decoded floorPlan;
+
+    /**
+     * Which side of the 1x1 room at {@code (gridX, gridZ)} its way IN is on, as a {@link RoomDoors#DX} index,
+     * or -1 when the floor does not say.
+     *
+     * <p>A breadth-first walk from the Entrance over the floor's room and door cells, with this room's own
+     * cells left out so the way out cannot be reached THROUGH the room; the doorway whose door cell the walk
+     * reaches first is the one a run walks in by. A doorway the walk cannot reach is used only when no other
+     * doorway is reachable.
+     */
+    private static int entranceSide(int gridX, int gridZ) {
+        MapCode.Decoded plan = floorPlan;
+        int g = DungeonLayout.GRID;
+        if (plan == null || gridX < 0 || gridZ < 0 || gridX >= g || gridZ >= g) {
+            return -1;
+        }
+        int[] cellRoom = plan.cellRoom();
+        int[] cellDoor = plan.cellDoor();
+        int mine = cellRoom[gridZ * g + gridX];
+        if (mine < 0) {
+            return -1;
+        }
+        int[] dist = new int[g * g];
+        java.util.Arrays.fill(dist, Integer.MAX_VALUE);
+        java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>();
+        for (int c = 0; c < cellRoom.length; c++) {
+            int r = cellRoom[c];
+            if (r >= 0 && r != mine && "Entrance".equalsIgnoreCase(plan.nameTable()[r])) {
+                dist[c] = 0;
+                queue.add(c);
+            }
+        }
+        while (!queue.isEmpty()) {
+            int at = queue.poll();
+            int ax = at % g;
+            int az = at / g;
+            for (int s = 0; s < 4; s++) {
+                int nx = ax + RoomDoors.DX[s];
+                int nz = az + RoomDoors.DZ[s];
+                if (nx < 0 || nz < 0 || nx >= g || nz >= g) {
+                    continue;
+                }
+                int n = nz * g + nx;
+                boolean passable = cellRoom[n] >= 0 || cellDoor[n] != DungeonLayout.DOOR_NONE;
+                if (!passable || cellRoom[n] == mine || dist[n] != Integer.MAX_VALUE) {
+                    continue;
+                }
+                dist[n] = dist[at] + 1;
+                queue.add(n);
+            }
+        }
+        int best = -1;
+        int bestDist = Integer.MAX_VALUE;
+        int anyDoor = -1;
+        for (int s = 0; s < 4; s++) {
+            int dx = gridX + RoomDoors.DX[s];
+            int dz = gridZ + RoomDoors.DZ[s];
+            if (dx < 0 || dz < 0 || dx >= g || dz >= g) {
+                continue;
+            }
+            int door = dz * g + dx;
+            if (cellDoor[door] == DungeonLayout.DOOR_NONE || cellRoom[door] == mine) {
+                continue;
+            }
+            if (anyDoor < 0) {
+                anyDoor = s;
+            }
+            if (dist[door] < bestDist) {
+                bestDist = dist[door];
+                best = s;
+            }
+        }
+        return best >= 0 ? best : anyDoor;
+    }
+
+    /**
+     * The landing height in one column: the first block with two of air on it that has something overhead, or
+     * {@code Integer.MIN_VALUE}. Upwards from the bottom of the world finds the floor; downwards (Higher Blaze)
+     * finds the top level. Either way the covered test is what rejects a ROOF, which has open sky over it.
+     */
+    private static int coveredStandable(ServerLevel level, int x, int z, boolean fromTop) {
+        int first = fromTop ? SimAltitude.maxWorldY() - 3 : SimAltitude.minWorldY();
+        int last = fromTop ? SimAltitude.minWorldY() : SimAltitude.maxWorldY() - 3;
+        int step = fromTop ? -1 : 1;
+        for (int y = first; fromTop ? y >= last : y <= last; y += step) {
+            if (!level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()
+                    && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 1, z)).isAir()
+                    && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 2, z)).isAir()
+                    && coveredAbove(level, x, y + 3, z)) {
+                return y + 1;
+            }
+        }
+        return Integer.MIN_VALUE;
+    }
+
+    /**
+     * The nearest column to {@code (x, z)} with a covered landing, searched ring by ring out to 15 blocks - the
+     * tile's own wall, so it never leaves the room's tile for a neighbour. Writes {@code {x, z, y}} into
+     * {@code out} and returns true, or returns false when the whole tile has nowhere covered to stand.
+     */
+    private static boolean nearestCovered(ServerLevel level, int x, int z, boolean fromTop, int[] out) {
+        for (int r = 1; r <= 15; r++) {
+            int bestY = Integer.MIN_VALUE;
+            int bestX = 0;
+            int bestZ = 0;
+            int bestD = Integer.MAX_VALUE;
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) {
+                        continue;   // the ring only; the inside was searched at a smaller r
+                    }
+                    int d = dx * dx + dz * dz;
+                    if (d >= bestD) {
+                        continue;
+                    }
+                    int y = coveredStandable(level, x + dx, z + dz, fromTop);
+                    if (y != Integer.MIN_VALUE) {
+                        bestY = y;
+                        bestX = x + dx;
+                        bestZ = z + dz;
+                        bestD = d;
+                    }
+                }
+            }
+            if (bestY != Integer.MIN_VALUE) {
+                out[0] = bestX;
+                out[1] = bestZ;
+                out[2] = bestY;
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Whether anything solid stands anywhere above {@code fromY} in this column - a ceiling, not sky. */
@@ -736,35 +910,56 @@ public final class SimBuilder {
         // bug and nothing to do with its cause.
         int landing = 0;
         boolean found = false;
-        int first = fromTop ? SimAltitude.maxWorldY() - 3 : SimAltitude.minWorldY();
-        int last = fromTop ? SimAltitude.minWorldY() : SimAltitude.maxWorldY() - 3;
-        int step = fromTop ? -1 : 1;
-        for (int y = first; fromTop ? y >= last : y <= last; y += step) {
-            if (!level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()
-                    && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 1, z)).isAir()
-                    && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 2, z)).isAir()
-                    // Coming DOWN, the first standable spot is the roof. killer560 (2026-10-01): "if i use
-                    // /goto higher blaze it puts me on the roof of the sim." Inside the room is the first spot
-                    // with something over it; the roof has open sky.
-                    && (!fromTop || coveredAbove(level, x, y + 3, z))) {
-                landing = y + 1;
-                found = true;
-                break;
-            }
-        }
         if (doorLevel != null) {
             landing = doorLevel;
             found = true;
+        } else {
+            // Coming DOWN, the first standable spot is the roof - killer560 (2026-10-01): "if i use /goto higher
+            // blaze it puts me on the roof of the sim." Coming UP can end there too - killer560 (2026-10-04):
+            // "/goto museum puts me on the roof." Museum is a 2x2 whose tile centres are all inside solid
+            // pillars (decoded from Museum.json: capture columns (16,16), (16,48), (48,16) and (48,48) are solid
+            // from y58 to the roof at y119), so the first spot with two blocks of air on it WAS the roof. Both
+            // directions now need cover overhead, and a column with none gives way to the nearest covered one in
+            // the same tile.
+            int y0 = coveredStandable(level, x, z, fromTop);
+            if (y0 != Integer.MIN_VALUE) {
+                landing = y0;
+                found = true;
+            } else {
+                int[] near = new int[3];
+                if (nearestCovered(level, x, z, fromTop, near)) {
+                    x = near[0];
+                    z = near[1];
+                    landing = near[2];
+                    found = true;
+                }
+            }
+        }
+        if (!found && !fromTop) {
+            // No covered spot anywhere in the tile - a room captured without its roof. The old rule, uncovered:
+            // the first standable block coming up the centre column, which is that room's floor.
+            for (int yy = SimAltitude.minWorldY(); yy <= SimAltitude.maxWorldY() - 3; yy++) {
+                if (!level.getBlockState(new net.minecraft.core.BlockPos(x, yy, z)).isAir()
+                        && level.getBlockState(new net.minecraft.core.BlockPos(x, yy + 1, z)).isAir()
+                        && level.getBlockState(new net.minecraft.core.BlockPos(x, yy + 2, z)).isAir()) {
+                    landing = yy + 1;
+                    found = true;
+                    break;
+                }
+            }
         }
         if (!found) {
-            // Nothing to stand on at the centre - a doorway column, or a room whose middle is a pit. Put him
-            // above it rather than inside the floor; falling a few blocks is recoverable, suffocating is not.
+            // Nothing to stand on at all. Put him above it rather than inside the floor; falling a few blocks is
+            // recoverable, suffocating is not.
             landing = SimAltitude.maxWorldY();
         }
         final int y = landing;
+        final int fx = x;
+        final int fz = z;
+        final Float faceYaw = spawn == null ? null : spawn.yaw();
         // The same spot death sends him back to - one definition of "the middle of the room", so the place he
         // starts and the place he returns to cannot drift apart.
-        SimSurvival.setHome(new net.minecraft.core.BlockPos(x, y, z));
+        SimSurvival.setHome(new net.minecraft.core.BlockPos(fx, y, fz));
         var uuid = client.player == null ? null : client.player.getUUID();
         if (uuid == null) {
             return;
@@ -772,7 +967,15 @@ public final class SimBuilder {
         level.getServer().execute(() -> {
             ServerPlayer sp = level.getServer().getPlayerList().getPlayer(uuid);
             if (sp != null) {
-                sp.teleportTo(level, x + 0.5, y, z + 0.5, java.util.Set.of(), sp.getYRot(), sp.getXRot(), false);
+                // A room that names a facing (the trap rooms and Teleport Maze face in from their doorway) is
+                // turned by the shortest way from where he was looking - the yaw stays a running value rather
+                // than being reset into 0..360. Every other room keeps his own yaw.
+                float yaw = sp.getYRot();
+                if (faceYaw != null) {
+                    float delta = ((faceYaw - yaw) % 360f + 540f) % 360f - 180f;
+                    yaw += delta;
+                }
+                sp.teleportTo(level, fx + 0.5, y, fz + 0.5, java.util.Set.of(), yaw, sp.getXRot(), false);
             }
         });
     }
@@ -1145,6 +1348,7 @@ public final class SimBuilder {
      */
     public static void buildSingleRoom(Minecraft client, String roomName) {
         SimState.setGeneratedFloor(false);
+        floorPlan = null;   // a lone room has no doors on the map; spawnFor falls back to its measured doorway
         RoomLibrary.Room room = RoomLibrary.get(roomName);
         if (room == null) {
             ModChat.send("Sim", ModChat.text("No captured room called " + roomName));

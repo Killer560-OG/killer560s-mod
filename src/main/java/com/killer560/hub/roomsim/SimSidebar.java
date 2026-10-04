@@ -14,7 +14,6 @@ import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * The Catacombs sidebar, inside the sim.
@@ -28,9 +27,9 @@ import java.util.Locale;
  * gates were open before this existed.
  *
  * <p>What it adds is the sidebar TEXT, which several things read rather than infer: {@code sidebarRoomName}
- * for the room he is in, the secrets count, and the run clock. And it makes the sim look like a run, which is
- * what he actually asked for. The integrated server is ours, so this is an ordinary scoreboard on it and
- * anything that reads a Hypixel sidebar reads this one the same way.
+ * for the room he is in, and the secrets count (the clock, keys and floor lines went on 2026-10-04 - see
+ * {@link #compose}). It is an ordinary scoreboard on the integrated server, which is ours, so anything that
+ * reads a Hypixel sidebar reads this one the same way.
  *
  * <p>The lines are TEAM PREFIXES on short holder names, not the holder names themselves, because a score
  * holder name cannot contain a space - the same trick the anticheat harness uses for the same reason.
@@ -39,8 +38,24 @@ public final class SimSidebar {
 
     private static final String OBJECTIVE = "k560sim";
 
-    /** Holder names: short, no spaces, and stable so lines are rewritten rather than re-added. */
-    private static final String HOLDER = "k560l";
+    /**
+     * The holder names the sidebar used before 2026-10-04. A holder name is DRAWN after the team prefix, so these
+     * showed up on every line as "k560l4" and the like - killer560: "there still shows a lot of stuff like time,
+     * keys, k560l4". The sim world's scoreboard is saved with the world, so the old ones are cleared out once.
+     */
+    private static final String OLD_HOLDER = "k560l";
+
+    /** Team name per line. Teams carry the visible text as a prefix. */
+    private static final String TEAM = "k560t";
+
+    /**
+     * Line {@code i}'s holder: a colour code and a reset and nothing else, which draws as nothing - what Hypixel
+     * does. {@code ScoreboardData.lineText} already drops an owner that is blank once formatting is stripped,
+     * so the Custom Scoreboard and every sidebar reader see the prefix alone.
+     */
+    private static String holder(int i) {
+        return "\u00a7" + "0123456789abcdef".charAt(i & 15) + "\u00a7r";
+    }
 
     /** Top line of the sidebar and the tab list header. */
     public static final String INFO_TITLE = "killer560's personal testing sim";
@@ -128,44 +143,23 @@ public final class SimSidebar {
     /**
      * The sidebar text, top line first.
      *
-     * <p>Shaped like Hypixel's, because that is what every reader in this mod was written against - the floor
-     * line has to contain "The Catacombs (F7)" for {@code DungeonState} to detect the floor at all.
+     * <p>killer560 (2026-10-04): "For the sim scoreboard there still shows a lot of stuff like time, keys,
+     * k560l4 and stuff like that." So: who this world belongs to, the two things worth glancing at while
+     * practising - secrets and the room he is in - and the Discord link. No clock, no keys/doors, no floor
+     * line, no "not Hypixel" line (the tab list footer still says that). Nothing reads these lines in the sim:
+     * {@code DungeonState} answers floor and in-dungeon from {@code setRoomSim} without the Catacombs line, and
+     * {@code SkyblockGate} reads only the objective TITLE, which stays "SKYBLOCK".
      */
     private static List<String> compose(Minecraft client) {
         List<String> lines = new ArrayList<>();
-        // killer560 (2026-10-04): in the sim the HUD should say this is his personal testing sim and carry his
-        // Discord link, "nothing actually skyblock related". The dungeon lines below stay - they are the sim's
-        // own state, and DungeonState needs the Catacombs line to detect the floor.
         lines.add(INFO_TITLE);
-        lines.add("The Catacombs (" + SimState.floorLabel() + ")");
-        lines.add("Secrets: " + SimScore.secretsFound() + "/" + SimScore.secretsTotal());
-        lines.add(keysLine());
         lines.add("");
+        lines.add("Secrets: " + SimScore.secretsFound() + "/" + SimScore.secretsTotal());
         String room = SimState.currentRoomName();
         lines.add("Room: " + (room == null || room.isBlank() ? "Entrance" : room));
-        if (SimRun.isRunning()) {
-            lines.add("Time: " + SimRun.elapsedText());
-        } else if (SimRun.isArmed()) {
-            int seconds = (SimRun.countdownTicks() + 19) / 20;
-            lines.add("Starting in " + seconds);
-        }
         lines.add("");
-        lines.add(INFO_NOT_HYPIXEL);
         lines.add(DISCORD);
         return lines;
-    }
-
-    /**
-     * Keys held and doors still shut.
-     *
-     * <p>Not Hypixel's exact glyph line. That reads wither-door / blood-door / key-count, and a Door here does
-     * not record which kind it is - so two of those three markers would have been decoration that never
-     * changed. Both numbers below are read from real state, which is worth more than a familiar shape that
-     * lies.
-     */
-    private static String keysLine() {
-        int doors = SimDoors.doorsRemaining();
-        return String.format(Locale.US, "Keys: %dx   Doors: %d", SimDoors.keysHeld(), doors);
     }
 
     private static void apply(MinecraftServer server, List<String> lines) {
@@ -177,21 +171,35 @@ public final class SimSidebar {
         Objective objective = board.getObjective(OBJECTIVE);
         if (objective == null) {
             objective = board.addObjective(OBJECTIVE, ObjectiveCriteria.DUMMY,
-                    Component.literal("SKYBLOCK"), ObjectiveCriteria.RenderType.INTEGER, true, null);
+                    Component.literal("SKYBLOCK"), ObjectiveCriteria.RenderType.INTEGER, true,
+                    net.minecraft.network.chat.numbers.BlankFormat.INSTANCE);
         }
+        // No red score numbers down the right - they are only the line order. Set every time, because an
+        // objective saved with the world before this existed has none.
+        objective.setNumberFormat(net.minecraft.network.chat.numbers.BlankFormat.INSTANCE);
         board.setDisplayObjective(DisplaySlot.SIDEBAR, objective);
+
+        if (!built) {
+            // The visible "k560l0".."k560l15" holders and their teams, from sidebars saved before 2026-10-04.
+            for (int i = 0; i < 16; i++) {
+                board.resetAllPlayerScores(net.minecraft.world.scores.ScoreHolder.forNameOnly(OLD_HOLDER + i));
+                PlayerTeam old = board.getPlayerTeam(OLD_HOLDER + i);
+                if (old != null) {
+                    board.removePlayerTeam(old);
+                }
+            }
+        }
 
         // Clear the lines that are no longer used before writing the new ones, or a shorter sidebar keeps the
         // tail of the longer one it replaced.
         for (int i = lines.size(); i < 16; i++) {
-            String holder = HOLDER + i;
-            board.resetSinglePlayerScore(net.minecraft.world.scores.ScoreHolder.forNameOnly(holder), objective);
+            board.resetSinglePlayerScore(net.minecraft.world.scores.ScoreHolder.forNameOnly(holder(i)), objective);
         }
         for (int i = 0; i < lines.size(); i++) {
-            String holder = HOLDER + i;
-            PlayerTeam team = board.getPlayerTeam(holder);
+            String holder = holder(i);
+            PlayerTeam team = board.getPlayerTeam(TEAM + i);
             if (team == null) {
-                team = board.addPlayerTeam(holder);
+                team = board.addPlayerTeam(TEAM + i);
             }
             team.setPlayerPrefix(Component.literal(lines.get(i)));
             if (!team.getPlayers().contains(holder)) {
