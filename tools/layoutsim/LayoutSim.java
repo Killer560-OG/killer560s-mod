@@ -173,10 +173,13 @@ public final class LayoutSim {
             {"F4", 19, 33}, {"F5", 21, 36}, {"F6", 19, 33}, {"F7", 21, 36}};
 
     private static final Map<Integer, Integer> PUZZLE_DIFF = new TreeMap<>();
+    private static final Map<String, Integer> PUZZLE_DOORS = new TreeMap<>();
+    private static final Map<Integer, Integer> TRAP_DOORS = new TreeMap<>();
 
     private static final String[] FAILS = {"path length != slider", "fairy not on path", "wither doors != path",
             "cells short of target", "rooms < minimum", "blood != 1", "trap != 1", "fairy != 1",
-            "puzzles != slider", "room unreachable by doors", "structure check"};
+            "puzzles != slider", "room unreachable by doors", "structure check", "puzzle with != 1 door",
+            "trap with != 2 doors (info)"};
 
     private static void sweep(Map<String, RoomLibrary.Room> rooms, int perCombo, boolean noRecency)
             throws Exception {
@@ -239,7 +242,7 @@ public final class LayoutSim {
                         for (int i = 0; i < bad.length; i++) {
                             if (bad[i]) {
                                 fails[i]++;
-                                any = true;
+                                any |= !FAILS[i].endsWith("(info)");
                             }
                         }
                         anyFail += any ? 1 : 0;
@@ -297,6 +300,8 @@ public final class LayoutSim {
         }
         System.out.println("path length minus slider -> floors (-99 = no path): " + lengthHist);
         System.out.println("puzzles placed minus slider -> floors: " + PUZZLE_DIFF);
+        System.out.println("puzzle rooms with != 1 door (name:doors -> count): " + PUZZLE_DOORS);
+        System.out.println("trap rooms by door count when != 2 (doors -> count): " + TRAP_DOORS);
         System.out.printf("variety: consecutive F7s share %.1f rooms; %d distinct rooms used of %d%n",
                 pairs > 0 ? (double) shared / pairs : 0.0, distinct.size(), rooms.size());
     }
@@ -398,6 +403,22 @@ public final class LayoutSim {
             }
         }
         bad[9] = reached != f.rooms().size();
+        // Doors per room, counted from the same door graph: a puzzle on Hypixel has exactly one.
+        int[] doorCount = new int[f.rooms().size()];
+        for (int i = 0; i < f.rooms().size(); i++) {
+            doorCount[i] = adj.get(i).size();
+        }
+        for (int i = 0; i < f.rooms().size(); i++) {
+            String t = f.rooms().get(i).type().toUpperCase();
+            if ("PUZZLE".equals(t) && doorCount[i] != 1) {
+                bad[11] = true;
+                PUZZLE_DOORS.merge(f.rooms().get(i).name() + ":" + doorCount[i], 1, Integer::sum);
+            }
+            if ("TRAP".equals(t) && doorCount[i] != 2) {
+                bad[12] = true;
+                TRAP_DOORS.merge(doorCount[i], 1, Integer::sum);
+            }
+        }
         boolean[] expectWither = new boolean[big * big];
         if (blood >= 0 && from[blood] != -2) {
             int count = 0;

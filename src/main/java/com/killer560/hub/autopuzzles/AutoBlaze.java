@@ -200,13 +200,16 @@ final class AutoBlaze {
             }
             return;
         }
-        if (!AutoPuzzleUtil.isShortbow(player.getMainHandItem())) {
+        AutoPuzzleUtil.BowState bow = AutoPuzzleUtil.holdShortbow(client, player);
+        if (bow != AutoPuzzleUtil.BowState.HELD) {
             if (!loggedNotShortbow) {
                 loggedNotShortbow = true;
-                LOGGER.info("[AutoPuzzles] Blaze: holding '{}', which is not a shortbow - not shooting",
-                        player.getMainHandItem().getHoverName().getString());
+                LOGGER.info("[AutoPuzzles] Blaze: holding '{}', which is not a shortbow - {}",
+                        player.getMainHandItem().getHoverName().getString(),
+                        bow == AutoPuzzleUtil.BowState.NONE ? "and no shortbow in the hotbar, not shooting"
+                                : "swapping to the shortbow");
             }
-            return;
+            return; // shoot on a later tick, once the swap has gone through
         }
         loggedNotShortbow = false;
         if (now - lastShotTime < cfg.getShootCooldownMs()) {

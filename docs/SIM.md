@@ -1874,6 +1874,58 @@ fell back on every attempt because of it. Compare given rooms by name.
   chest position is still unverified; the scan does not depend on it. If the chest is already within 4.5 blocks
   it auras without walking.
 
+## The 2026-10-04 puzzle round (Map Logger log 18:01, fix-puz3)
+
+- **No auto ever held a bow, because his Terminator was older than its tooltip.** The log repeats "[AutoIcePath]
+  waiting: no shortbow ... in the hotbar" and Auto Blaze "holding 'Aspect of the Void', which is not a shortbow".
+  `SimItemLore`'s table has had the `§6Shortbow: Instantly shoots!` line since 2026-10-01 and `loreContains`
+  strips colour codes correctly - but the sim's save is reused (`SimWorld`), so the player's inventory is too, and
+  the Terminator in his hotbar (read out of `saves/killer560s-dungeon-sim/players/data/<uuid>.dat`) still carries
+  the pre-10-01 lore: "Ability: Salvation / Shoots 3 arrows at once. / (blank) / LEGENDARY BOW". **Fixing the
+  item table fixes no item already in a saved inventory.** `SimItemLore.register` now re-applies the table, every
+  20 server ticks while the sim is active, to any stack whose id is in it and whose lore reads differently (the
+  Dungeon Breaker's "Charges" line is ignored in the comparison and kept) - what Hypixel's server does whenever an
+  item's lore changes. Separately, only Auto Ice Path swapped; Auto Blaze and Auto Creeper Beams only checked the
+  hand. All three now call `AutoPuzzleUtil.holdShortbow` (HELD / SWAPPING / NONE: any hotbar item whose
+  colour-stripped lore contains the phrase, one swap a tick, shoot on a later tick). The real Hypixel Terminator
+  carries the same line, so it is one rule in both places.
+- **Higher Blaze's blazes sat above the top landing.** `SimBlazePuzzle.bindAt` searched for the floor DOWN from
+  Higher Blaze's top, and the first air-over-solid on the way down is the cobblestone landing at capture y 118, so
+  all ten went into the 11 blocks between it and the ceiling, one apart (log: "heights [1..10]", first stand at
+  y 310.9 while Auto Blaze stood on relative 88). Decoded, Higher Blaze (y 65..133) and Lower Blaze (15..83) are the
+  same shaft 50 blocks apart: floor block at 69 / 19, air from 70 / 20 to a polished-andesite ceiling at 130 / 80,
+  iron bars up the middle (Higher's bar runs 71..129). On Hypixel the blazes float through that shaft around the
+  bar ("a tall chamber with blazes" - wiki; exact heights are not published and cannot be captured, a blaze is an
+  entity). Both rooms now start on the shaft floor and spread up to 5 apart through the clear air above it,
+  relative 71..116 in Higher Blaze - the band QUOI's `HIGHER_SPOTS` (85..118) shoot into. Kill order unchanged.
+- **Creeper Beams cannot be failed.** A wrong second lantern used to burn both to prismarine and leave a red line,
+  using up a pair the room needed. Now it flashes a red line for 2 s, drops the held end and changes nothing (no
+  block, no sound), so the solver and Auto Creeper Beams see nothing happen. On Hypixel the room is non-failable
+  (wiki: "Failable: No"); four beams through the creeper solve it. In the log the pair-0 join at 18:09:45 had worked;
+  that round's "nothing fires" was the bow above.
+- **Auto Tic Tac Toe stopped after one move because of its own chest trip, not the board.** His config has
+  `ticTacToeAuraChestEnabled: true`, so the first click starts the walk to the room's chest; the click logic waits
+  for that trip. The walk stopped short ("the block itself cannot be reached"), then re-asked for a path every tick
+  (about seventy "Already there" in four seconds), and the trip's 15 s timeout sat behind `if (ClearExecutor.isBusy())
+  return`, so it could also outlive a stuck walk; he finished the game by hand (Draw at 18:09:19). The timeout is now
+  checked first and cancels a running walk, a leg that has asked for 3 paths and is still not there gives up, every
+  trip transition is an INFO line, and a move out of reach or a cell that used its three clicks says so once. The
+  sim's board and the solver's reading of it were not at fault. Hypixel identical (the AI opens; the sim does too).
+- **Puzzle rooms have exactly one door.** "quiz having two doors": the log has "the fill pass put ... Redstone
+  Crypt at 5,0 through Quiz" - the carve cut a door through Quiz's wall, so a room hung off Quiz and the door tree
+  (which only refuses loops) had to keep both. `tools/layoutsim -Dsweep=true` now judges "puzzle with != 1 door"
+  (and reports trap door counts as info). BEFORE, 22,400 floors (100 per combination, his Map Logger library and
+  recency, seed 1): **15.41%** of floors had a puzzle with 2 or 3 doors, every puzzle affected. Every route that
+  links rooms now asks `SimFloorLayout.isOneDoor`: the growth sends a puzzle's other doorways straight to the
+  bricked-up list, the loop pass skips puzzles, the fill pass never meets or carves into a puzzle and a puzzle it
+  places takes one door, a woken pinned puzzle loses its stubs, and `doorLinks` joins puzzles last, one door each.
+  A cell whose only neighbours are puzzles is filled by swapping the puzzle for an ordinary room (last step, after
+  the carve) and the puzzle is owed again. AFTER, same sweep: **0** puzzles with != 1 door in 22,400 floors with
+  recency and 22,400 without; path, fairy, wither doors, cells, blood/trap/fairy counts and reachability all 100%;
+  puzzle count right on 99.96% (8 short, was 1) and room minimum missed 0.19% (42, was 15) - the same full F5/F7
+  grids as before, slightly more often now that a puzzle can no longer be a hub. Traps untouched: 95-97% of traps
+  are one-door dead ends here, as before.
+
 ## The map's etherwarp plans the whole floor at once, by warps (2026-10-04, fix-path)
 
 killer560: "it is taking a lot of warps and taking like 40ms [...] Get it to the point where it is only a few ms

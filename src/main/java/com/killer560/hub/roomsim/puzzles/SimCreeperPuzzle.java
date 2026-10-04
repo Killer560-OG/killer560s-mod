@@ -295,25 +295,23 @@ public final class SimCreeperPuzzle {
      * is working out which far lantern a near one belongs to, and a one-click solve removes exactly that.
      *
      * <p>So the first shot lights one end and leaves it waiting; the second decides. The same lantern again
-     * cancels. ANY other lantern of the puzzle draws the beam between the two and burns both to prismarine, the
-     * way the real room does: the partner completes the pair; anything else is a wrong beam, drawn in red, and
-     * those two lanterns are used up - which is exactly the state {@code BeamsSolverFeature} paints red as
-     * "burned on the wrong partner". The puzzle is NOT failed by it: the wiki (Catacombs Puzzle Rooms) calls
-     * Creeper Beams non-failable and asks for "four different beams to pass through the Creeper", so it is
-     * solved by any four right pairs and a wrong one only costs those two lanterns.
+     * cancels. Its partner completes the pair: the beam is drawn and both ends turn to prismarine.
      *
-     * <p>It used to be "Not that pair - the beam goes out" with nothing drawn and nothing changed, which from in
-     * front of it is a second shot that did nothing at all (killer560, 2026-10-02).
+     * <p><b>A wrong second lantern costs nothing.</b> killer560 (2026-10-04): "for sim there should be no way of
+     * failing creeper beams." Until then a wrong pair burned both lanterns to prismarine and drew a permanent red
+     * line, so a misclick could use up a pair the room needed. The wiki (Catacombs Puzzle Rooms) calls Creeper Beams
+     * non-failable - it is solved by any four beams through the creeper and there is no fail message or penalty on
+     * Hypixel. Now a wrong pair flashes a red line for {@link #WRONG_BEAM_TICKS} ticks, drops the held end, and
+     * leaves both lanterns lit and shootable; no block changes and no sound, so neither the solver (which reads
+     * prismarine as "burned") nor Auto Creeper Beams (which reads the hurt sound) sees anything happen.
+     *
+     * <p>It used to be "Not that pair - the beam goes out" with nothing drawn at all, which from in front of it is a
+     * second shot that did nothing (killer560, 2026-10-02) - hence the brief line and the chat message.
      */
     private static void pick(Minecraft client, int idx, BlockPos pos) {
         boolean[] c = connected;
         if (idx < 0 || idx >= c.length || c[idx]) {
             return;   // already joined - its beam is already drawn
-        }
-        for (Pair wrong : wrongBeams) {
-            if (wrong.a().equals(pos) || wrong.b().equals(pos)) {
-                return;   // burned on a wrong beam
-            }
         }
         BlockPos held = pendingPos;
         if (held == null) {
@@ -337,27 +335,24 @@ public final class SimCreeperPuzzle {
             connectPair(client, idx);
             return;
         }
-        // A wrong beam. Both ends are used up and the line is drawn, in red.
-        BlockPos from = held;
+        // Not its partner: show the miss, let go of the held end, change nothing in the room.
         pendingPos = null;
         pendingIndex = -1;
-        hitSound(client, pos, PAIR_DONE_PITCH);
-        wrongBeams.add(new Pair(from, pos));
-        MinecraftServer server = client.getSingleplayerServer();
-        if (server != null) {
-            server.execute(() -> {
-                ServerLevel level = server.overworld();
-                BlockState burned = Blocks.PRISMARINE.defaultBlockState();
-                level.setBlockAndUpdate(from, burned);
-                level.setBlockAndUpdate(pos, burned);
-            });
-        }
-        com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.bad("Wrong pair"),
-                com.killer560.hub.util.ModChat.dim(" - that beam misses the creeper and both lanterns are used up."));
+        long now = client.level == null ? 0L : client.level.getGameTime();
+        wrongBeams.add(new WrongBeam(new Pair(held, pos), now + WRONG_BEAM_TICKS));
+        com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.bad("Not a pair"),
+                com.killer560.hub.util.ModChat.dim(" - that beam misses the creeper. Both lanterns are still lit; "
+                        + "shoot a lantern to start again."));
     }
 
-    /** Beams drawn between two lanterns that were not a pair, in red, until a reset. */
-    private static final List<Pair> wrongBeams = new java.util.concurrent.CopyOnWriteArrayList<>();
+    /** How long a wrong pair's red line stays up: two seconds. */
+    private static final int WRONG_BEAM_TICKS = 40;
+
+    private record WrongBeam(Pair pair, long untilTick) {
+    }
+
+    /** Wrong pairs, drawn in red until their tick runs out. Nothing about the room changes for them. */
+    private static final List<WrongBeam> wrongBeams = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /** Right beams through the creeper that solve the room - the wiki's "four different beams". */
     private static final int BEAMS_TO_SOLVE = 4;
@@ -405,7 +400,11 @@ public final class SimCreeperPuzzle {
                         com.killer560.hub.puzzlesolvers.SolverEspRender.renderWaypoint(context,
                                 new net.minecraft.world.phys.AABB(held), 1.0f, 1.0f, 0.4f, 2f);
                     }
-                    for (Pair wrong : wrongBeams) {
+                    long nowTick = Minecraft.getInstance().level == null ? 0L
+                            : Minecraft.getInstance().level.getGameTime();
+                    wrongBeams.removeIf(w -> w.untilTick() < nowTick);
+                    for (WrongBeam w : wrongBeams) {
+                        Pair wrong = w.pair();
                         com.killer560.hub.puzzlesolvers.SolverEspRender.renderLineStrip(context, List.of(
                                 new net.minecraft.world.phys.Vec3(wrong.a().getX() + 0.5,
                                         wrong.a().getY() + 0.5, wrong.a().getZ() + 0.5),

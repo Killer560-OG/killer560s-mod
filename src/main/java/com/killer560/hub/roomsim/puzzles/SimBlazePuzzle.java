@@ -391,8 +391,21 @@ public final class SimBlazePuzzle {
         // the chain in the roof. killer560 (2026-10-01): "The blazes are now in lower blaze but they are way up
         // in the ceeling". Every room carries its own band (RoomLibrary.Room.minY/maxY) and has since captures
         // stopped being indexed against a global constant; starting there is the same fix that file documents.
-        int from = higher ? p.room().maxY : p.room().minY;
-        int step = higher ? -1 : 1;
+        //
+        // FROM THE BOTTOM IN BOTH ROOMS. Higher Blaze used to search down from the room's top, and the first
+        // air-over-solid on the way down is the cobblestone landing at capture y 118 - so all ten blazes went in
+        // the 11 blocks between that landing and the ceiling (capture 119..129), stacked one apart. killer560's
+        // log, 2026-10-04 18:06: Auto Blaze repositioned onto relative y 88 (one of QUOI's HIGHER_SPOTS, 85..118)
+        // and its first target's stand was 37 blocks over his head - "they were all way too high and it made the
+        // auto solver bug out". Decoding the two captures settles the shape: Higher Blaze (y 65..133) and Lower
+        // Blaze (y 15..83) are the same shaft 50 blocks apart - floor block at 69 / 19, open air from 70 / 20 up to
+        // a polished-andesite ceiling at 130 / 80, the middle bar of iron bars running up the centre. On Hypixel
+        // the blazes float at different heights through that shaft, around the bar ("a tall chamber with blazes",
+        // wiki); only the kill order differs between the two rooms. So both now start on the shaft's floor and
+        // spread up through the clear air above it (layoutAround, up to 5 apart: relative 71..116 in Higher Blaze),
+        // which is the band QUOI's standing spots were chosen to shoot into.
+        int from = p.room().minY;
+        int step = 1;
         int span = p.room().maxY - p.room().minY + 1;
         BlockPos floorTop = null;
         for (int i = 0; i < span && floorTop == null; i++) {

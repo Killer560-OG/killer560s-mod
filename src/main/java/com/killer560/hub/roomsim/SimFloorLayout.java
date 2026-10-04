@@ -459,6 +459,8 @@ public final class SimFloorLayout {
                 rewired++;
             } else if (f.carveOnce()) {
                 carved++;
+            } else if (f.rewireOnce(true)) {
+                rewired++;
             } else {
                 break;
             }
@@ -583,6 +585,11 @@ public final class SimFloorLayout {
 
         /** Step 2: give a 1x1 neighbour of an empty cell a doorway facing it, keeping all its doors. */
         boolean rewireOnce() {
+            return rewireOnce(false);
+        }
+
+        /** @param puzzles whether a puzzle neighbour may be swapped out too - the last step, after the carve */
+        boolean rewireOnce(boolean puzzles) {
             for (int cell = 0; cell < GRID * GRID; cell++) {
                 if (occupied[cell] >= 0) {
                     continue;
@@ -593,8 +600,13 @@ public final class SimFloorLayout {
                     int nx = cx + RoomDoors.DX[side];
                     int nz = cz + RoomDoors.DZ[side];
                     Placement nb = at(nx, nz);
+                    // A PUZZLE neighbour too: it cannot take a second door (isOneDoor), so it is swapped for an
+                    // ordinary room that can, and owed again - the fill pass or ensurePuzzles puts it in a dead end.
+                    // Without this, an empty cell whose only neighbours were puzzles stayed empty: 2% of floors
+                    // (F5/F7 sizes) once puzzles stopped taking extra doors.
+                    boolean puzzleNb = puzzles && nb != null && isOneDoor(nb.type());
                     if (nb == null || nb.cellsX() != 1 || nb.cellsZ() != 1
-                            || !"NORMAL".equalsIgnoreCase(nb.type())
+                            || !("NORMAL".equalsIgnoreCase(nb.type()) || puzzleNb)
                             || pinned.contains(nb.name().toLowerCase(Locale.ROOT))) {
                         continue;
                     }
@@ -612,7 +624,7 @@ public final class SimFloorLayout {
                     // Its own room at another turn first, then any unused 1x1 ordinary room.
                     List<Candidate> tries = new ArrayList<>();
                     Candidate self = byName.get(nb.name());
-                    if (self != null) {
+                    if (self != null && !puzzleNb) {
                         tries.add(self);
                     }
                     for (Candidate c : order) {
@@ -638,6 +650,9 @@ public final class SimFloorLayout {
                             used.remove(nb.name());
                             used.add(c.name());
                             rooms.set(idx, new Placement(c.name(), r * 90, nx, nz, 1, 1, nb.depth(), c.type()));
+                            if (puzzleNb) {
+                                puzzlesOwed++;
+                            }
                             return true;
                         }
                     }
@@ -657,9 +672,9 @@ public final class SimFloorLayout {
                 for (int tryNo = 0; tryNo < 8; tryNo++) {
                     int side = tryNo % 4;
                     Placement nb = at(cx + RoomDoors.DX[side], cz + RoomDoors.DZ[side]);
-                    if (nb == null || "BLOOD".equalsIgnoreCase(nb.type())
+                    if (nb == null || "BLOOD".equalsIgnoreCase(nb.type()) || isOneDoor(nb.type())
                             || (tryNo < 4 && "ENTRANCE".equalsIgnoreCase(nb.type()))) {
-                        continue;   // blood has exactly one way in; the green room only as a last resort
+                        continue;   // blood and a puzzle have exactly one way in; the green room only as a last resort
                     }
                     for (Candidate c : order) {
                         if (c.area(0) != 1 || !available(c) || forbiddenPair(c.type(), nb.type())) {
@@ -914,7 +929,7 @@ public final class SimFloorLayout {
                 continue;
             }
             Placement nb = rooms.get(occupied[nz * GRID + nx]);
-            if ("BLOOD".equalsIgnoreCase(nb.type()) || forbiddenPair(type, nb.type())) {
+            if ("BLOOD".equalsIgnoreCase(nb.type()) || forbiddenPair(type, nb.type()) || isOneDoor(nb.type())) {
                 continue;
             }
             if (openIndex(open, nx, nz, (door[2] + 2) % 4) >= 0) {
@@ -950,9 +965,12 @@ public final class SimFloorLayout {
             int nz = door[1] + RoomDoors.DZ[door[2]];
             boolean inGrid = nx >= 0 && nz >= 0 && nx < GRID && nz < GRID;
             Placement nb = inGrid && occupied[nz * GRID + nx] >= 0 ? rooms.get(occupied[nz * GRID + nx]) : null;
+            // A puzzle being placed takes the first door it meets and no other; nothing links into a puzzle.
+            boolean puzzleHasDoor = isOneDoor(c.type()) && depth != Integer.MAX_VALUE;
             int back = nb == null || "BLOOD".equalsIgnoreCase(nb.type()) || forbiddenPair(c.type(), nb.type())
+                    || isOneDoor(nb.type()) || puzzleHasDoor
                     ? -1 : openIndex(open, nx, nz, (door[2] + 2) % 4);
-            if (back >= 0 || (door[2] == forcedSide && nb != null)) {
+            if (back >= 0 || (door[2] == forcedSide && nb != null && !isOneDoor(nb.type()) && !puzzleHasDoor)) {
                 if (back >= 0) {
                     open.remove(back);
                 }
@@ -1297,11 +1315,28 @@ public final class SimFloorLayout {
         Set<Long> doorAt = new HashSet<>();
         List<Link> out = new ArrayList<>();
         List<Link> spine = floor.spine() == null ? List.of() : floor.spine();
-        for (int pass = 0; pass < 3; pass++) {
+        // A puzzle has one door (isOneDoor): its links are left to a last pass, after every other room is joined,
+        // and the first that reaches the tree is its door - so a puzzle is always a leaf and never the only way
+        // to anything. A room reachable ONLY through a puzzle would come out unreachable, which tools/layoutsim
+        // reports; the layout no longer builds one.
+        boolean[] oneDoor = new boolean[floor.rooms().size()];
+        for (int i = 0; i < oneDoor.length; i++) {
+            oneDoor[i] = isOneDoor(floor.rooms().get(i).type());
+        }
+        boolean[] hasDoor = new boolean[floor.rooms().size()];
+        for (int pass = 0; pass < 4; pass++) {
             for (Link link : pass == 0 ? spine : floor.links()) {
                 int a = owner[link.aZ() * GRID + link.aX()];
                 int b = owner[link.bZ() * GRID + link.bX()];
-                if (pass > 0) {
+                boolean puzzleLink = (a >= 0 && oneDoor[a]) || (b >= 0 && oneDoor[b]);
+                if (pass > 0 && puzzleLink != (pass == 3)) {
+                    continue;
+                }
+                if (pass == 3 && ((a >= 0 && oneDoor[a] && (hasDoor[a] || (b >= 0 && oneDoor[b])))
+                        || (b >= 0 && oneDoor[b] && hasDoor[b]) || a == blood || b == blood)) {
+                    continue;   // this puzzle has its door, the link is puzzle to puzzle, or it is into blood
+                }
+                if (pass == 1 || pass == 2) {
                     boolean special = a == blood || b == blood || a == entrance || b == entrance;
                     if (special != (pass == 1)) {
                         continue;
@@ -1327,6 +1362,12 @@ public final class SimFloorLayout {
                     }
                 }
                 out.add(link);
+                if (a >= 0) {
+                    hasDoor[a] = true;
+                }
+                if (b >= 0) {
+                    hasDoor[b] = true;
+                }
             }
         }
         return out;
@@ -1883,6 +1924,13 @@ public final class SimFloorLayout {
                         dormant, pinsReached, bloodCells, bloodPlacedDepth);
                 if ("PUZZLE".equalsIgnoreCase(best.candidate.type())) {
                     puzzlesLeft--;
+                    // ONE DOOR. Nothing grows out of a puzzle: its other doorways go straight to the bricked-up
+                    // list instead of becoming stubs - see isOneDoor.
+                    for (int k = stubs.size() - 1; k >= 0; k--) {
+                        if (stubs.get(k).owner == idx) {
+                            failed.add(stubs.remove(k));
+                        }
+                    }
                 }
                 // WHAT WENT IN, not what was asked for. Both these blocks used to fire on the REQUEST: when
                 // blood was wanted but could not fit at that stub, `choose` returned null, the fallback below
@@ -2083,6 +2131,9 @@ public final class SimFloorLayout {
                     p.originX(), p.originZ());
             stubs.removeIf(s -> s.owner == idx);   // blood is the end of the run
         }
+        if (isOneDoor(p.type())) {
+            stubs.removeIf(s -> s.owner == idx);   // and so is a puzzle - see isOneDoor
+        }
         return bloodDepth;
     }
 
@@ -2109,8 +2160,9 @@ public final class SimFloorLayout {
             if (neighbour < 0 || neighbour == idx) {
                 continue;
             }
-            if (forbiddenPair(c.type(), placed.get(neighbour).type())) {
-                continue;
+            if (forbiddenPair(c.type(), placed.get(neighbour).type())
+                    || isOneDoor(c.type()) || isOneDoor(placed.get(neighbour).type())) {
+                continue;   // a puzzle keeps the one door it came in by - see isOneDoor
             }
             if (consume(stubs, nx, nz, (door[2] + 2) % 4, neighbour)) {
                 links.add(new Link(door[0], door[1], nx, nz));
@@ -2479,6 +2531,25 @@ public final class SimFloorLayout {
         return ("FAIRY".equalsIgnoreCase(a) && ("ENTRANCE".equalsIgnoreCase(b) || "BLOOD".equalsIgnoreCase(b)))
                 || ("FAIRY".equalsIgnoreCase(b)
                     && ("ENTRANCE".equalsIgnoreCase(a) || "BLOOD".equalsIgnoreCase(a)));
+    }
+
+    /**
+     * Whether a room of this type has exactly ONE door - a puzzle.
+     *
+     * <p>killer560 (2026-10-04): "Somehow my map just generated with quiz having two doors in it when it can only have
+     * one." On Hypixel every puzzle room is a dead end: one door in, and the puzzle's other wall openings are walls.
+     * His log names the floor: "the fill pass put 2 room(s) in (... 2 through a carved wall): ... Redstone Crypt at
+     * 5,0 through Quiz" - the fill pass cut a door through Quiz's wall to reach an empty cell, so Redstone Crypt
+     * hung off Quiz and the door tree, which only refuses loops, had to keep both. Measured with
+     * {@code tools/layoutsim -Dsweep=true} (30 floors per combination, his library and recency), 15% of floors had a
+     * puzzle with two or three doors, through every route that links rooms: the growth hanging rooms off a puzzle's
+     * other doorways, the loop pass, the fill pass meeting a puzzle's open doorway, and the carve. Every one of
+     * them now asks this, and {@link #doorLinks} gives a puzzle one door at most as the last word.
+     *
+     * <p>Traps are left as they are (the trap rule is separate and he asked for it unchanged).
+     */
+    static boolean isOneDoor(String type) {
+        return "PUZZLE".equalsIgnoreCase(type);
     }
 
     /** Whether a cell is next door to the fairy room - blood may not be, so a room always sits between. */
