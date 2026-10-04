@@ -167,6 +167,51 @@ public final class SimCreeperPuzzle {
     }
 
     /**
+     * A SHOT at a lantern from any distance - the Terminator's arrows, Salvation, the Mage beam.
+     *
+     * <p>killer560 (2026-10-04): "I still cannot shoot the second lantern." Until this, the only ways in were a
+     * LEFT click on the block ({@code SimItems}' {@code AttackBlockCallback}) and a right click on it - and both
+     * of those only exist when the crosshair's block pick found the lantern, which vanilla does out to the
+     * player's block interaction range (4.5 blocks) and no further. The Terminator's arrows are real entities
+     * that hit nothing this class listens to, and the Mage beam only ever looked for mobs. So the near end of a
+     * pair, which he could walk up to, picked; the far end, across the room, was a click on nothing at all.
+     * The 14:08 log shows exactly that: "Beam held" twice, and no second shot ever arriving.
+     *
+     * <p>Resolved as a ray on the CLIENT's level at the moment of the shot, along the aim, stopping at the first
+     * block - so a pane or a wall in the way blocks it as an arrow would. Hitscan rather than waiting for an
+     * arrow to land: an arrow drops and the outer two fly 8 degrees off, so a correctly aimed shot at the far
+     * end of the room could miss or, worse, burn a neighbouring lantern as a wrong pair. The same-lantern
+     * three-tick guard in {@link #tryConnectAt} absorbs the case where this and a left click on a lantern in
+     * reach arrive in the same tick.
+     *
+     * @return whether the shot landed on one of this puzzle's lanterns
+     */
+    public static boolean shotAlong(Minecraft client, net.minecraft.world.phys.Vec3 eye,
+                                    net.minecraft.world.phys.Vec3 dir, double range) {
+        if (!SimState.canAct(client) || client.level == null || client.player == null
+                || lanternToPairIndex.isEmpty() || eye == null || dir == null || dir.lengthSqr() < 1.0e-8) {
+            return false;
+        }
+        net.minecraft.world.phys.Vec3 end = eye.add(dir.normalize().scale(range));
+        net.minecraft.world.phys.BlockHitResult hit = client.level.clip(new net.minecraft.world.level.ClipContext(
+                eye, end, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, client.player));
+        if (hit == null || hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
+            return false;
+        }
+        BlockPos pos = hit.getBlockPos().immutable();
+        if (!lanternToPairIndex.containsKey(pos)) {
+            return false;
+        }
+        LOGGER.info("Sim creeper beams: shot landed on lantern {} (pair {}) from {} blocks", pos,
+                lanternToPairIndex.get(pos), String.format(java.util.Locale.ROOT, "%.1f",
+                        Math.sqrt(eye.distanceToSqr(hit.getLocation()))));
+        return tryConnectAt(pos);
+    }
+
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-roomsim");
+
+    /**
      * Says so when he shoots a sea lantern that is not one of the puzzle's, once per lantern.
      *
      * <p>Decoding the capture settles that this is a real thing to be confused by rather than a bug: the room

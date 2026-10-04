@@ -250,6 +250,10 @@ public final class SimTerminator {
         final float yaw = client.player.getYRot();
         final float pitch = client.player.getXRot();
         final UUID who = client.player.getUUID();
+        // The puzzle half of the shot: a lantern in Creeper Beams answers to the centre arrow's line, from any
+        // distance. The arrows themselves hit nothing the puzzle listens to - see SimCreeperPuzzle.shotAlong.
+        com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.shotAlong(client, client.player.getEyePosition(),
+                fromAngles(yaw, pitch), ARROW_RANGE);
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(who);
             if (sp == null || !(sp.level() instanceof ServerLevel level)) {
@@ -316,6 +320,9 @@ public final class SimTerminator {
         Vec3 eye = client.player.getEyePosition();
         Vec3 dir = fromAngles(client.player.getYRot(), client.player.getXRot());
         List<Entity> pierced = firstAlong(client, eye, dir, SALVATION_RANGE, SALVATION_PIERCE);
+        if (pierced.isEmpty()) {
+            com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.shotAlong(client, eye, dir, SALVATION_RANGE);
+        }
         applyDamage(client, pierced.stream().map(Entity::getUUID).toList());
         // The visible half, in red.
         var server = client.getSingleplayerServer();

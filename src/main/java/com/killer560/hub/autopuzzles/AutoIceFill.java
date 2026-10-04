@@ -41,6 +41,25 @@ final class AutoIceFill {
     private static boolean optimizedWarned = false;
     private static boolean wasInRoom = false;
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autopuzzles");
+
+    /**
+     * The last thing {@link #note} logged, so a state that holds for many ticks is one line, not twenty a second.
+     *
+     * <p>killer560 (2026-10-04): "Ice fill still does that thing where it starts completing it then freezes part
+     * way through on sim." His log had nothing to say where: every return in {@link #tick} was silent. Each one
+     * now names itself the first tick it applies, and each hop is logged with where it aimed from and to.
+     */
+    private static String lastNote = "";
+
+    private static void note(String key, String message, Object... args) {
+        if (key.equals(lastNote)) {
+            return;
+        }
+        lastNote = key;
+        LOGGER.info("[AutoIceFill] " + message, args);
+    }
+
     private AutoIceFill() {
     }
 
@@ -79,12 +98,17 @@ final class AutoIceFill {
             path = fillGaps(stupidStairs(raw));
             lastIndex = -1;
             ticks = 0;
+            lastNote = "";
+            note("path", "path built: {} solver point(s) -> {} hop point(s), {} to {}", raw.size(), path.size(),
+                    path.get(0), path.get(path.size() - 1));
         }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (cr == null) {
+            note("noroom", "waiting: the live map has no clay corner/rotation for this room yet");
             return;
         }
         if (client.level.getBlockState(PuzzleCoords.real(15, 71, 26, cr)).is(Blocks.PACKED_ICE)) {
+            note("done", "done: the finish tile {} is packed ice", PuzzleCoords.real(15, 71, 26, cr));
             done = true;
             REPOSITION.cancel(client);
             AutoReposition.releaseSneak(client);
@@ -107,12 +131,15 @@ final class AutoIceFill {
             for (Vec3 vec : path) {
                 BlockPos below = BlockPos.containing(vec).below();
                 if (client.level.getBlockState(below).is(Blocks.ICE)) {
+                    note("repos" + below, "off the ice band at y {} (band {}..{}) - etherwarp reposition onto {}",
+                            player.getY(), 69.5 + floor, 72.5 + floor, below);
                     REPOSITION.start(client, below, false, true, true);
                     return;
                 }
             }
         }
         if (!AutoPuzzleUtil.isAotv(player.getMainHandItem())) {
+            note("aotv", "waiting: no Aspect of the Void/End in the main hand");
             return;
         }
         int index = -1;
@@ -124,6 +151,29 @@ final class AutoIceFill {
             }
         }
         if (index == -1 || index >= path.size() - 1) {
+            if (index == -1) {
+                // The case that reads as "it froze": the last hop did not land on the next path point. Say where
+                // he is, which point the auto expected, and the nearest one, so a stall names its own cause.
+                int nearest = -1;
+                double best = Double.MAX_VALUE;
+                for (int i = 0; i < path.size(); i++) {
+                    double d = path.get(i).distanceToSqr(player.getX(), player.getY() + 0.1, player.getZ());
+                    if (d < best) {
+                        best = d;
+                        nearest = i;
+                    }
+                }
+                String expected = lastIndex >= 0 && lastIndex < path.size() ? String.valueOf(path.get(lastIndex)) : "none";
+                note("off" + lastIndex, "stopped: standing at ({}, {}, {}), which is no path point - "
+                                + "expected point {} {}, nearest is point {} at {} block(s)",
+                        String.format(java.util.Locale.ROOT, "%.3f", player.getX()),
+                        String.format(java.util.Locale.ROOT, "%.3f", player.getY()),
+                        String.format(java.util.Locale.ROOT, "%.3f", player.getZ()),
+                        lastIndex, expected, nearest,
+                        String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(best)));
+            } else {
+                note("end", "at the last path point ({}) - nothing left to hop", index);
+            }
             lastIndex = -1;
             return;
         }
@@ -143,6 +193,7 @@ final class AutoIceFill {
             // not ice at all and go straight away.
             Vec3 here = path.get(lastIndex);
             if (client.level.getBlockState(BlockPos.containing(here).below()).is(Blocks.ICE)) {
+                note("wait" + lastIndex, "adaptive: waiting for point {}'s tile to turn to packed ice", lastIndex);
                 return;
             }
             ticks = Integer.MAX_VALUE - 1;
@@ -153,8 +204,12 @@ final class AutoIceFill {
             Vec3 from = new Vec3(current.x, current.y - 0.1 + player.getEyeHeight(), current.z);
             float[] dir = AutoPuzzleUtil.direction(from, next);
             if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
+                note("gate" + lastIndex, "hop {} held back by the action gate this tick", lastIndex);
                 return; // gate held this tick back - nothing warped, so lastIndex / ticks must not move
             }
+            note("hop" + lastIndex, "hop {} -> {}: from {} to {} (yaw {}, pitch {})", lastIndex, lastIndex + 1,
+                    current, next, String.format(java.util.Locale.ROOT, "%.1f", dir[0]),
+                    String.format(java.util.Locale.ROOT, "%.1f", dir[1]));
             // This warp is our own, so waive the gate's teleport stand-down for the next hop - otherwise the
             // 6-tick teleport window would override the 2-tick Delay setting on every single step of the path.
             com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
@@ -231,5 +286,6 @@ final class AutoIceFill {
         ticks = 0;
         done = false;
         optimizedWarned = false;
+        lastNote = "";
     }
 }

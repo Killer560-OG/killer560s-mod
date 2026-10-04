@@ -493,7 +493,7 @@ public final class SimItems {
             return false;
         }
         Vec3 eye = client.player.getEyePosition();
-        Vec3 look = client.player.getViewVector(1.0f);
+        Vec3 look = client.player.getLookAngle();
         Vec3 center = eye.add(look.scale(SCEPTRE_RANGE / 2.0));
         var uuid = client.player.getUUID();
         server.execute(() -> {
@@ -1006,7 +1006,7 @@ public final class SimItems {
      *  the world; only {@link #breakIfBreakable} does that, on the server thread. */
     private static BlockHitResult lookedAtBlock(Minecraft client) {
         Vec3 eye = client.player.getEyePosition();
-        Vec3 look = client.player.getViewVector(1.0f);
+        Vec3 look = client.player.getLookAngle();
         Vec3 end = eye.add(look.scale(LOOK_RANGE));
         BlockHitResult hit = client.level.clip(new ClipContext(
                 eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));

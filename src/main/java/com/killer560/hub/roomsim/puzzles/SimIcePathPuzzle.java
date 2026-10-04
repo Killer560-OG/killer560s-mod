@@ -672,10 +672,40 @@ public final class SimIcePathPuzzle {
             LOGGER.warn("Sim ice path: the level refused the silverfish at {}", ice);
             return;
         }
+        noPushTeam(level, fish);
         fishId = fish.getUUID();
         cell = new int[]{at[0], at[1]};
         targetCell = null;
         complete = false;
+    }
+
+    /** The scoreboard team the silverfish is put in so it cannot push him - see {@link #noPushTeam}. */
+    private static final String NO_PUSH_TEAM = "k560_icepath_fish";
+
+    /**
+     * Puts the silverfish in a team whose collision rule is NEVER, which the CLIENT obeys too.
+     *
+     * <p>killer560 (2026-10-04): "make it so the silverfish cannot push me around" - after {@link SimSilverfish}
+     * already overrode {@code pushEntities} and {@code isPushable}. Those overrides only exist on the SERVER: the
+     * client builds a plain {@code Silverfish} from the spawn packet, and the push that moves him is the client's,
+     * because the local player's movement is client-side. Read in the 26.1.2 bytecode of
+     * {@code EntitySelector.pushableBy}: on the client a non-player entity's {@code pushEntities} only ever
+     * selects the LOCAL player, so it was the client copy of the fish shoving him every tick. The same method
+     * returns "push nothing" outright when the pusher's team rule is NEVER, and a team, unlike a subclass
+     * override, is synced to the client.
+     */
+    private static void noPushTeam(ServerLevel level, Entity fish) {
+        var board = level.getServer().getScoreboard();
+        net.minecraft.world.scores.PlayerTeam team = board.getPlayerTeam(NO_PUSH_TEAM);
+        if (team == null) {
+            team = board.addPlayerTeam(NO_PUSH_TEAM);
+        }
+        team.setCollisionRule(net.minecraft.world.scores.Team.CollisionRule.NEVER);
+        // The old fish's entries go, so the saved scoreboard does not collect one UUID per floor.
+        for (String old : List.copyOf(team.getPlayers())) {
+            board.removePlayerFromTeam(old, team);
+        }
+        board.addPlayerToTeam(fish.getScoreboardName(), team);
     }
 
     /** A punch landed. Client thread; the shove itself is the server's. */

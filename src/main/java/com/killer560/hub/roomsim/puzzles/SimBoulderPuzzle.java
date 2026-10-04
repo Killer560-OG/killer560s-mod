@@ -180,7 +180,48 @@ public final class SimBoulderPuzzle {
         grid = anchor::world;
         // The capture's own plank, for the boxes - it mixes jungle and birch, so both are offered.
         generate(level, PATTERNS.get(ThreadLocalRandom.current().nextInt(PATTERNS.size())));
+        placeRewardChest(level, p);
         return true;
+    }
+
+    /**
+     * Where the reward chest goes, capture-local: the back middle of the little staircase past the far edge of
+     * the box grid. killer560 (2026-10-04): "Boulder is now great just missing the chest. It should go kind of in
+     * the back middle of that staircase on the opposite side of the entrance."
+     *
+     * <p>Decoded from {@code Boulder.json}: the room's raised doorway side is low capture x (a platform at y 68,
+     * the doorway at x 0, y 69..72), and the far side is a three-step staircase across z 14..18 - a stair at
+     * (28, 64), a stair at (29, 65), and stone bricks at (30, 65) against the back wall at x 31 - with air over
+     * all of it up to the barrier at y 68. So "back middle" is standing on the top step at (30, 66, 16), which
+     * the capture holds as air. The box grid lies between it and the doorway, under a barrier ceiling one block
+     * above the boxes, so the chest is reached by opening the path, as the puzzle intends.
+     */
+    private static final int[] CHEST_SPOT = {30, 66, 16};
+    /** One block toward the room from {@link #CHEST_SPOT}, capture-local - the way the chest's front faces. */
+    private static final int[] CHEST_FRONT = {29, 66, 16};
+
+    /**
+     * Places the reward chest, turned with the room. Server thread, at bind.
+     *
+     * <p>The facing is taken from where the paste put two capture cells rather than from a rotation table, so it
+     * is right at every paste rotation by the same transform that put the room down. Only written into air,
+     * and the outcome is logged either way - a re-captured Boulder that moved the staircase reports it instead
+     * of burying a chest in a wall (the Ice Fill reward chests' rule).
+     */
+    private static void placeRewardChest(ServerLevel level, com.killer560.hub.roomsim.SimRoomPuzzles.Placement p) {
+        BlockPos spot = com.killer560.hub.roomsim.SimRoomPuzzles.capturedPos(p, CHEST_SPOT[0], CHEST_SPOT[1],
+                CHEST_SPOT[2]);
+        BlockPos front = com.killer560.hub.roomsim.SimRoomPuzzles.capturedPos(p, CHEST_FRONT[0], CHEST_FRONT[1],
+                CHEST_FRONT[2]);
+        Direction facing = horizontal(front.getX() - spot.getX(), front.getZ() - spot.getZ());
+        if (!level.getBlockState(spot).isAir() || facing == null) {
+            LOGGER.warn("Sim boulder: no reward chest - the spot {} (capture 30,66,16) holds {}. If Boulder has "
+                    + "been re-captured that coordinate needs re-measuring.", spot, level.getBlockState(spot).getBlock());
+            return;
+        }
+        level.setBlockAndUpdate(spot, Blocks.CHEST.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.ChestBlock.FACING, facing));
+        LOGGER.info("Sim boulder: reward chest at {} facing {} (pasted at {})", spot, facing, p.pasteRotation());
     }
 
     /** A standalone board in front of him, for {@code /simpuzzle boulder}: the same grid on a stone floor. */

@@ -1578,3 +1578,45 @@ Eight reports, one fix each. Where a rule came from somewhere other than the cod
 - **Auto Teleport Maze holds the free camera** (`ViewFreeze`) every tick from the first maze teleport until it
   stops or finishes, starting from the view of the tick before that teleport. `rotateCamera`'s per-hop lease was
   400 ms against walks of up to 3 s.
+
+## The 2026-10-04 puzzle round (Map Logger log 14:12)
+
+- **Auto Ice Fill froze because the sim teleported along the CAMERA, not the aim.** `SimAbilities.dashTarget`
+  read `player.getViewVector(1f)`, which goes through `getViewXRot/getViewYRot` - and `Ap3ViewYawMixin` answers
+  those with `ViewFreeze`'s held view while an auto is turning him. So every auto hop went where his camera
+  pointed (his own look, or after a lapsed lease the previous hop's aim): fine on a straight run, off the path
+  at the first turn, where the auto finds no path point and stops. Verified in the 26.1.2 bytecode:
+  `getViewVector` calls `getViewXRot/getViewYRot`, `getLookAngle` calls `getXRot/getYRot`. **Anything in the sim
+  that resolves an aim uses `getLookAngle`** (dash, Mage beam, Spirit Sceptre, Superboom/breaker pick); the
+  etherwarp resolver and the Terminator already read the real rotation. The 2026-10-02 "stop where the eye ray
+  meets the floor" fix was geometry and was right, but never the cause. Auto Ice Fill now logs every hop and
+  every stop reason as `[AutoIceFill]` INFO lines, so the next stall names itself.
+- **Water Board: the back lever is the lapis slot.** Decoded `Water_Board.json` (capture x,z = relative z+1,
+  x+1): the top water always runs and rests on a `lapis_block` at relative (15, 82, 26), pushed by an extended
+  sticky piston at (15, 82, 28) with a redstone block behind it - the one board slot no ore lever owns. Pulling
+  it back drops the water down the one-wide shaft at x 15, y 78..81 into the maze plane (z 26), front glass at
+  z 25. The lever now moves that slot; the old version deleted and restored the top water with no fluid
+  updates, so nothing ever flowed. Slot moves write the maze-plane cell with `UPDATE_ALL` (water re-ticks and
+  flows or drains) and everything else with no updates; each slot's power block (relative z 29: redstone when
+  out, polished andesite when in, as every slot in the capture is) moves with it, so a piston head next to
+  flowing water that forwards an update to its base finds it already agreeing. No piston sits directly under
+  another, so nothing is quasi-powered. **The puzzle cannot fail any more** and the back lever always works;
+  an off-script click is named in chat and nothing else. Water leaving the maze's five bottom gaps spreads on
+  the room floor at y 59 - not measured in game.
+- **Ice Path's silverfish pushed him from the CLIENT.** The `SimSilverfish` overrides exist only server-side;
+  the client builds a plain `Silverfish`, and on the client a non-player entity's `pushEntities` selects
+  exactly the local player (`EntitySelector.pushableBy`, 26.1.2 bytecode). The fish now joins a scoreboard team
+  (`k560_icepath_fish`) with collision rule NEVER, which is synced and makes `pushableBy` return push-nothing.
+  **A behaviour override on a server-side entity subclass does nothing on the client.**
+- **Creeper Beams: the far lantern was out of reach, not refused.** The only ways in were a left or right
+  click ON the block, which vanilla only produces within 4.5 blocks; the Terminator's arrows hit nothing the
+  puzzle listened to and the Mage beam only looked for mobs. `SimCreeperPuzzle.shotAlong` now resolves a shot
+  (Terminator centre arrow, Salvation, Mage beam with no mob in the way) as a block ray at fire time; the
+  three-tick same-lantern guard absorbs a shot and a click on the same lantern in one tick.
+- **Boulder: reward chest and no etherwarp.** The chest goes on the top step of the far staircase, capture
+  (30, 66, 16) - three steps at x 28..30 across z 14..18, back wall at x 31, opposite the raised doorway side
+  at low x - facing back into the room, the facing taken from where the paste put (29, 66, 16). Written only
+  into air and logged. The box grid and its barrier ceiling are what keep it until solved. Etherwarp (sneak +
+  etherwarp item, and the Interactive Map's `etherwarpAlong`) is refused while standing in Boulder, with
+  "No etherwarp in Boulder"; Instant Transmission is not. Auto Boulder still says "no chest position known":
+  it reads the room database's chest secrets, which do not list this chest on Hypixel either - untouched.
