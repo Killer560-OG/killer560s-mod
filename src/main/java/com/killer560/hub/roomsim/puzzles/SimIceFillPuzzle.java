@@ -696,10 +696,11 @@ public final class SimIceFillPuzzle {
         if (section < 0 || section >= all.size()) {
             return;
         }
-        // Tells the Architect's First Draft feature a puzzle failed, so his existing auto-get setting works in
-        // here the same as it does on Hypixel.
-        // Room name as well as puzzle name - see SimRoomState; this puzzle's room is named for it.
-        SimPuzzles.reportFail("Ice Fill", "Ice Fill");
+        // NOT a puzzle failure, and so no SimPuzzles.reportFail. killer560 (2026-10-02): "ice fill should never be
+        // red on the map." A broken section regenerates in two seconds and he tries again - nothing is lost, so
+        // there is nothing for the map to mark and nothing for an Architect's First Draft to fix. This call is
+        // what turned the room red (SimRoomState.markFailed) on every slip, including the overshooting hops that
+        // broke Auto Ice Fill - see SimAbilities.dashTarget.
         ModChat.send("Sim", ModChat.bad("Ice Fill - " + why + ": section "),
                 ModChat.value(String.valueOf(section + 1)), ModChat.bad(" breaks, back in 2s."));
         brokenSection = section;

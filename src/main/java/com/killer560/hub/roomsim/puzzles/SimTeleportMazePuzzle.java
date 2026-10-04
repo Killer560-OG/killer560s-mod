@@ -391,12 +391,126 @@ public final class SimTeleportMazePuzzle {
             if (!ok || !reachable(l, chamberOf(entry), chamberOf(exit))) {
                 continue;
             }
+            List<Integer> route = routeToCentre(l);
+            if (route == null) {
+                continue;
+            }
             link = l;
             exitPad = exit;
+            logRoute(route);
             return;
         }
+        // Never leave the maze dead. An empty link table makes every pad in the room do nothing, which is a
+        // worse failure than a predictable maze: chain the chambers in order instead, so the route is long but
+        // certain. ~11% of draws fail on pairing alone, so 500 in a row failing should never happen - this is
+        // the floor under "one of the pads takes me to the middle", not the normal path.
+        int[] l = fallbackLinks();
+        link = l;
+        exitPad = 27;
         com.killer560.hub.util.ModLog.get("killer560smod-roomsim")
-                .warn("Sim teleport maze: could not draw a connected pairing in 500 tries");
+                .warn("Sim teleport maze: no random pairing in 500 tries - using the fixed chamber chain");
+        List<Integer> route = routeToCentre(l);
+        if (route != null) {
+            logRoute(route);
+        }
+    }
+
+    /**
+     * A pairing that always works: start to chamber 0, each chamber's pad 3 to the next chamber's pad 0, and
+     * chamber 6's pad 3 to the centre. The spare pads pair across chambers 0-1, 2-3 and 4-5 so every pad still
+     * goes somewhere.
+     */
+    private static int[] fallbackLinks() {
+        int[] l = new int[30];
+        java.util.Arrays.fill(l, -1);
+        l[START] = 0;
+        l[0] = START;
+        for (int c = 0; c + 1 < CELL_COUNT; c++) {
+            int out = c * PADS_PER_CELL + 3;
+            int in = (c + 1) * PADS_PER_CELL;
+            l[out] = in;
+            l[in] = out;
+        }
+        l[27] = END;
+        for (int c = 0; c + 1 < CELL_COUNT - 1; c += 2) {
+            for (int i = 1; i <= 2; i++) {
+                int a = c * PADS_PER_CELL + i;
+                int b = (c + 1) * PADS_PER_CELL + i;
+                l[a] = b;
+                l[b] = a;
+            }
+        }
+        // Chamber 6's two spares have no chamber left to pair with, so they send him back to the entrance.
+        l[6 * PADS_PER_CELL + 1] = START;
+        l[6 * PADS_PER_CELL + 2] = START;
+        return l;
+    }
+
+    /**
+     * The pads he steps on, in order, to get from the start pad to the CENTRE (the end pad), or null if there is
+     * no way.
+     *
+     * <p>killer560 (2026-10-02): "make sure one of the pads actually takes me to the middle." The chamber check
+     * above already implies this, but it reasons about chambers; this walks the thing he actually does - stand
+     * in a chamber, walk to any of its pads (free: a chamber's four pads share one floor, checked against the
+     * decoded capture), step on one, land where its link says - and so it is the check that matches the
+     * complaint word for word. The start pad stands alone in the entrance chamber and the end pad alone in the
+     * centre one, both read off {@code Teleport_Maze.json} at y 69.
+     */
+    private static List<Integer> routeToCentre(int[] l) {
+        // Search over the pad he is standing next to; the "chamber" of START is the entrance (-1 here).
+        int[] cameFrom = new int[30];
+        java.util.Arrays.fill(cameFrom, -2);
+        java.util.ArrayDeque<Integer> q = new java.util.ArrayDeque<>();
+        // Standing in the entrance: the only pad there is START itself.
+        cameFrom[START] = -1;
+        q.add(START);
+        while (!q.isEmpty()) {
+            int stepped = q.poll();
+            int landed = l[stepped];
+            if (landed < 0) {
+                continue;
+            }
+            if (landed == END) {
+                List<Integer> out = new ArrayList<>();
+                for (int p = stepped; p >= 0; p = cameFrom[p]) {
+                    out.add(0, p);
+                }
+                return out;
+            }
+            // From where he landed he can walk to (and step on) any OTHER pad of that chamber - the landing pad
+            // is inert until he steps off it, and stepping back on it just undoes the hop.
+            int c = landed == START ? -1 : chamberOf(landed);
+            List<Integer> next = new ArrayList<>();
+            if (c < 0) {
+                next.add(START);
+            } else {
+                for (int i = 0; i < PADS_PER_CELL; i++) {
+                    next.add(c * PADS_PER_CELL + i);
+                }
+            }
+            for (int n : next) {
+                if (cameFrom[n] == -2) {
+                    cameFrom[n] = stepped;
+                    q.add(n);
+                }
+            }
+        }
+        return null;
+    }
+
+    private static void logRoute(List<Integer> route) {
+        StringBuilder sb = new StringBuilder();
+        for (int pad : route) {
+            int[] rel = REAL_PADS[pad];
+            sb.append(sb.isEmpty() ? "" : " -> ")
+                    .append(pad == START ? "start" : "chamber " + chamberOf(pad))
+                    .append(" (").append(rel[0]).append(',').append(rel[2]).append(')');
+        }
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                "Sim teleport maze: exit pad is relative ({},{}) in chamber {}; shortest way to the centre is {} "
+                        + "pad(s): {} -> centre", REAL_PADS[exitPad][0], REAL_PADS[exitPad][2],
+                chamberOf(exitPad), route.size(), sb);
     }
 
     private static boolean reachable(int[] l, int from, int to) {

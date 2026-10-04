@@ -50,10 +50,12 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li><b>An ore lever moves blocks.</b> Each of the six ore levers owns a gate - the run of three blocks at
  *       the foot of its own plinth, at the level the water runs - and flipping it takes them out or puts them
  *       back. Every flip moves them, right or wrong, because that is what a lever does.</li>
- *   <li><b>The back lever starts or stops the water.</b> The room's own water column behind the entrance wall
- *       ({@code (15, 59..62, 4)}, fed by the source at {@code (15, 62, 3)}) is REMOVED when the flow is off and
- *       put back when it is on. The capture was taken with it running, so binding turns it off and he starts
- *       it himself, which is the real first click of every solution.</li>
+ *   <li><b>The back lever starts or stops the water.</b> The water at the TOP of the board - the sources at
+ *       {@code (15, 91|95, 20)}, the channel along {@code y 89} and the fall down the board's face at
+ *       {@code z 26} - is REMOVED when the flow is off and put back when it is on. The column right behind the
+ *       lever ({@code (15, 59..62, 4)}) is never touched; it runs on Hypixel too. The capture was taken with the
+ *       top running, so binding turns it off and he starts it himself, which is the real first click of every
+ *       solution.</li>
  *   <li><b>Water reaching a colour's column moves that wool.</b> The five colours each own a column at
  *       {@code x=15}; the wool sits at {@code (15, 55, z)} and is pushed up to {@code (15, 56, z)}. That upper
  *       block is exactly what {@code WaterSolverFeature.scan} reads to decide which three are "extended", so
@@ -124,9 +126,44 @@ public final class SimWaterPuzzle {
     private static final int WOOL_IN_Y = 55;
     private static final int WOOL_OUT_Y = 56;
 
-    /** The room's own water: a source and the column it feeds, all at {@code x=15} behind the entrance wall. */
-    private static final int[] WATER_SOURCE = {15, 62, 3};
-    private static final int[][] WATER_COLUMN = {{15, 62, 4}, {15, 61, 4}, {15, 60, 4}, {15, 59, 4}};
+    /**
+     * The water the back lever controls: everything at the TOP of the board, room-relative y {@value #TOP_WATER_MIN_Y}
+     * and up.
+     *
+     * <p>killer560 (2026-10-02): "Make it so the lever by water does not update the water running right behind it
+     * to flow down forward, but instead the water at the top of the puzzle should be turned on and off with it."
+     * The first version toggled the sealed column at {@code (15, 59..62, 4)} directly behind the lever, which on
+     * Hypixel just runs. Decoding {@code Water_Board.json} at database rotation 270 puts the board's own feed far
+     * above it: sources at {@code (15, 91, 20)} and {@code (15, 95, 20)}, a channel along {@code y 89} from
+     * {@code z 20} to {@code 26}, and the fall down the face of the board at {@code x 14..16, y 82..88, z 26} -
+     * 31 water blocks, every one at y 82 or above, while the lower column tops out at y 62. So the cut at 75 has
+     * twenty blocks of margin either way. The positions and exact states are read off the room at arm time, so a
+     * restore puts back the capture's own levels rather than a guessed shape.
+     */
+    private static final int TOP_WATER_MIN_Y = 75;
+    private static final int TOP_WATER_MAX_Y = 100;
+    /** The top water as the room had it at arm time: world position to its exact fluid state. */
+    private static final Map<BlockPos, BlockState> TOP_WATER = new ConcurrentHashMap<>();
+
+    /** Reads the board's top water into {@link #TOP_WATER}. Server thread, at arm time, before anything is cut. */
+    private static void readTopWater(ServerLevel level) {
+        TOP_WATER.clear();
+        for (int x = 0; x <= 30; x++) {
+            for (int z = 0; z <= 30; z++) {
+                for (int y = TOP_WATER_MIN_Y; y <= TOP_WATER_MAX_Y; y++) {
+                    BlockPos pos = at(x, y, z);
+                    if (pos == null) {
+                        continue;
+                    }
+                    BlockState state = level.getBlockState(pos);
+                    if (state.is(Blocks.WATER)) {
+                        TOP_WATER.put(pos.immutable(), state);
+                    }
+                }
+            }
+        }
+        LOGGER.info("Sim Water Board: {} block(s) of top water under the back lever", TOP_WATER.size());
+    }
 
     // ------------------------------------------------------------------------------------- where it is bound
 
@@ -417,6 +454,11 @@ public final class SimWaterPuzzle {
         // The back wall IS the gates - see Slot. A standalone arena has no wall, so it reads nothing and the
         // levers simply have nothing to move; the rules still work.
         readBoard(level);
+        if (withWater) {
+            // Read before setFlowing(false) below cuts it - and only once per bind: a re-arm after the water has
+            // been cut would read nothing and leave the lever controlling nothing.
+            readTopWater(level);
+        }
 
         int identifier = identifierAt(level);
         if (identifier < 0) {
@@ -698,16 +740,17 @@ public final class SimWaterPuzzle {
         if (!hasWater) {
             return;
         }
-        BlockState water = Blocks.WATER.defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();
-        BlockPos source = at(WATER_SOURCE[0], WATER_SOURCE[1], WATER_SOURCE[2]);
-        if (source != null) {
-            level.setBlock(source, on ? water : air, WRITE_FLAGS);
-        }
-        for (int[] rel : WATER_COLUMN) {
-            BlockPos pos = at(rel[0], rel[1], rel[2]);
-            if (pos != null) {
-                level.setBlock(pos, on ? water : air, WRITE_FLAGS);
+        // Only the top water; the column behind the lever is left exactly as the capture had it, running.
+        for (Map.Entry<BlockPos, BlockState> e : TOP_WATER.entrySet()) {
+            BlockState current = level.getBlockState(e.getKey());
+            if (on) {
+                // Never over a block: a piston slot pushed out into the fall's z=26 owns that cell now.
+                if (current.isAir() || current.is(Blocks.WATER)) {
+                    level.setBlock(e.getKey(), e.getValue(), WRITE_FLAGS);
+                }
+            } else if (current.is(Blocks.WATER)) {
+                level.setBlock(e.getKey(), air, WRITE_FLAGS);
             }
         }
     }
@@ -895,6 +938,7 @@ public final class SimWaterPuzzle {
         boundRoom = null;
         hasWater = false;
         flowing = false;
+        TOP_WATER.clear();
         POSITIONS.clear();
         BLOCK_INDEX.clear();
         GATES.clear();

@@ -500,7 +500,27 @@ public final class SimAbilities {
         // rest of the walk, so the remaining steps run along that level rather than re-testing a climb or a
         // descent that can only fail again. Null until that happens.
         Double lockedY = null;
+        // HOW FAR A SETTLED WALK MAY RUN: to where the EYE's look meets a block, and no further.
+        //
+        // Once the look drove the box into the floor, the walk used to carry on at that height for the whole
+        // range - so aiming 58 degrees down at the tile one block ahead slid him six blocks across the floor.
+        // That is what broke Auto Ice Fill (killer560, 2026-10-02: "auto ice fill tends to start working but
+        // then it'll stop after only a few teleports"): QUOI's auto hops one tile at a time by aiming from the
+        // eye at the next tile's feet position, which on Hypixel lands exactly there, and in here overshot to
+        // the next wall - off the path, so the auto found no path point under it and stopped, and the puzzle
+        // read the hop as "teleported off the ice". It also contradicted the measurement this method cites:
+        // 35 degrees down moved him 1.6 blocks on Hypixel, and the eye ray from 1.62 up meets the floor 2.3
+        // blocks out at that angle, where the old slide went the full 9.8. A shallow aim is unchanged - at 5
+        // degrees down the eye ray is still in the air at twelve blocks.
+        Vec3 eye = player.getEyePosition();
+        BlockHitResult eyeHit = client.level.clip(new ClipContext(eye, eye.add(look.scale(range)),
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        double settledLimit = eyeHit != null && eyeHit.getType() == HitResult.Type.BLOCK
+                ? eyeHit.getLocation().distanceTo(eye) : range;
         for (double d = STEP; d <= range + 1.0e-6; d += STEP) {
+            if (lockedY != null && d > settledLimit + 1.0e-6) {
+                break;
+            }
             Vec3 full = from.add(look.scale(d));
             Vec3 candidate = snap(lockedY == null ? full : new Vec3(full.x, lockedY, full.z));
             if (candidate.equals(best)) {
@@ -509,6 +529,20 @@ public final class SimAbilities {
             if (fits(client, player, box, from, candidate)) {
                 best = candidate;
                 continue;
+            }
+            if (lockedY != null) {
+                // ONE BLOCK UP, but only onto something the eye's look passes over. Auto Ice Fill climbs from
+                // one slab to the next by aiming at a midpoint just over the step, and Hypixel lands it on the
+                // step; a walk locked to the lower floor could only stop against it, so the auto stalled at
+                // the end of the first section. Bounded by the look itself - the step top must be under the
+                // eye's ray at this distance, and settledLimit has already cut the walk where that ray lands -
+                // so this cannot become the old origin-raising step-up that stacked into a six-block climb.
+                Vec3 up = new Vec3(candidate.x, lockedY + 1.0, candidate.z);
+                if (up.y <= full.y + player.getEyeHeight() && fits(client, player, box, from, up)) {
+                    lockedY = up.y;
+                    best = up;
+                    continue;
+                }
             }
             if (lockedY == null) {
                 // A BLOCKED VERTICAL SETTLES AT THE NEAREST HEIGHT THAT FITS, between where the look wanted

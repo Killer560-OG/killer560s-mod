@@ -150,12 +150,18 @@ public final class SimCreeperPuzzle {
         // They are one fault. A cancelled block break re-enters AttackBlockCallback every TICK rather than
         // once per click (see CLAUDE.md), so a single held shot picked the lantern, cancelled it, picked it
         // again - twenty times a second. From in front of it that is a lantern that mostly does not respond.
+        //
+        // And a HELD button is one click, however long it is held. The stamp is refreshed on every re-entry,
+        // ignored or not, so while the button stays down the gap is always one tick and nothing fires again.
+        // With the stamp only written on a pick, a hold on a lantern re-fired every third tick - which on the
+        // SECOND lantern of a pair meant "Not that pair", then three ticks later that lantern picked as a new
+        // first end, then dropped, and so on: killer560 (2026-10-02) "if I hit another light then it will not
+        // light up and draw a beam between them."
         long now = client.level == null ? 0L : client.level.getGameTime();
-        Long last = lastPickTick.get(pos);
+        Long last = lastPickTick.put(pos.immutable(), now);
         if (last != null && now - last < REPICK_DELAY_TICKS) {
             return true;   // ours, and deliberately ignored - never falls through to a block break
         }
-        lastPickTick.put(pos.immutable(), now);
         pick(client, idx, pos.immutable());
         return true;
     }
@@ -243,14 +249,26 @@ public final class SimCreeperPuzzle {
      * turn BOTH ends of its pair at once, which answers the puzzle for him - the whole skill in the real room
      * is working out which far lantern a near one belongs to, and a one-click solve removes exactly that.
      *
-     * <p>So the first shot lights one end and leaves it waiting; the second decides. The partner completes the
-     * pair and draws the beam. The same lantern again cancels. Any other lantern is a miss: the held end goes
-     * dark and nothing is connected, which is the cost of guessing.
+     * <p>So the first shot lights one end and leaves it waiting; the second decides. The same lantern again
+     * cancels. ANY other lantern of the puzzle draws the beam between the two and burns both to prismarine, the
+     * way the real room does: the partner completes the pair; anything else is a wrong beam, drawn in red, and
+     * those two lanterns are used up - which is exactly the state {@code BeamsSolverFeature} paints red as
+     * "burned on the wrong partner". The puzzle is NOT failed by it: the wiki (Catacombs Puzzle Rooms) calls
+     * Creeper Beams non-failable and asks for "four different beams to pass through the Creeper", so it is
+     * solved by any four right pairs and a wrong one only costs those two lanterns.
+     *
+     * <p>It used to be "Not that pair - the beam goes out" with nothing drawn and nothing changed, which from in
+     * front of it is a second shot that did nothing at all (killer560, 2026-10-02).
      */
     private static void pick(Minecraft client, int idx, BlockPos pos) {
         boolean[] c = connected;
         if (idx < 0 || idx >= c.length || c[idx]) {
             return;   // already joined - its beam is already drawn
+        }
+        for (Pair wrong : wrongBeams) {
+            if (wrong.a().equals(pos) || wrong.b().equals(pos)) {
+                return;   // burned on a wrong beam
+            }
         }
         BlockPos held = pendingPos;
         if (held == null) {
@@ -274,11 +292,30 @@ public final class SimCreeperPuzzle {
             connectPair(client, idx);
             return;
         }
+        // A wrong beam. Both ends are used up and the line is drawn, in red.
+        BlockPos from = held;
         pendingPos = null;
         pendingIndex = -1;
-        com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.bad("Not that pair"),
-                com.killer560.hub.util.ModChat.dim(" - the beam goes out."));
+        hitSound(client, pos, PAIR_DONE_PITCH);
+        wrongBeams.add(new Pair(from, pos));
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server != null) {
+            server.execute(() -> {
+                ServerLevel level = server.overworld();
+                BlockState burned = Blocks.PRISMARINE.defaultBlockState();
+                level.setBlockAndUpdate(from, burned);
+                level.setBlockAndUpdate(pos, burned);
+            });
+        }
+        com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.bad("Wrong pair"),
+                com.killer560.hub.util.ModChat.dim(" - that beam misses the creeper and both lanterns are used up."));
     }
+
+    /** Beams drawn between two lanterns that were not a pair, in red, until a reset. */
+    private static final List<Pair> wrongBeams = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Right beams through the creeper that solve the room - the wiki's "four different beams". */
+    private static final int BEAMS_TO_SOLVE = 4;
 
     /**
      * The lantern this run is holding, and its pair, or null/-1 when nothing is held.
@@ -323,6 +360,14 @@ public final class SimCreeperPuzzle {
                         com.killer560.hub.puzzlesolvers.SolverEspRender.renderWaypoint(context,
                                 new net.minecraft.world.phys.AABB(held), 1.0f, 1.0f, 0.4f, 2f);
                     }
+                    for (Pair wrong : wrongBeams) {
+                        com.killer560.hub.puzzlesolvers.SolverEspRender.renderLineStrip(context, List.of(
+                                new net.minecraft.world.phys.Vec3(wrong.a().getX() + 0.5,
+                                        wrong.a().getY() + 0.5, wrong.a().getZ() + 0.5),
+                                new net.minecraft.world.phys.Vec3(wrong.b().getX() + 0.5,
+                                        wrong.b().getY() + 0.5, wrong.b().getZ() + 0.5)),
+                                1.0f, 0.25f, 0.25f, 1f, 3f);
+                    }
                     for (int i = 0; i < c.length && i < world.size(); i++) {
                         if (!c[i]) {
                             continue;
@@ -359,6 +404,7 @@ public final class SimCreeperPuzzle {
         connected = new boolean[pairs.size()];
         pendingPos = null;
         pendingIndex = -1;
+        wrongBeams.clear();
         Map<BlockPos, Integer> lookup = new HashMap<>();
         for (int i = 0; i < world.size(); i++) {
             lookup.put(world.get(i).a(), i);
@@ -418,6 +464,7 @@ public final class SimCreeperPuzzle {
         connected = new boolean[pairs.size()];
         pendingPos = null;
         pendingIndex = -1;
+        wrongBeams.clear();
         Map<BlockPos, Integer> lookup = new HashMap<>();
         for (int i = 0; i < world.size(); i++) {
             lookup.put(world.get(i).a(), i);
@@ -443,12 +490,13 @@ public final class SimCreeperPuzzle {
         if (!built || c.length == 0) {
             return false;
         }
+        int joined = 0;
         for (boolean b : c) {
-            if (!b) {
-                return false;
+            if (b) {
+                joined++;
             }
         }
-        return true;
+        return joined >= Math.min(BEAMS_TO_SOLVE, c.length);
     }
 
     /** Puts every lantern in the current arena back to unconnected (Sea Lantern) without moving anything. Takes
@@ -474,6 +522,7 @@ public final class SimCreeperPuzzle {
         NOT_A_PAIR_SAID.clear();
         pendingPos = null;
         pendingIndex = -1;
+        wrongBeams.clear();
     }
 
     public static void reset() {
@@ -489,6 +538,8 @@ public final class SimCreeperPuzzle {
         connected = new boolean[world.size()];
         pendingPos = null;
         pendingIndex = -1;
+        wrongBeams.clear();
+        lastPickTick.clear();
         server.execute(() -> {
             ServerLevel level = server.overworld();
             BlockState lit = Blocks.SEA_LANTERN.defaultBlockState();
@@ -506,6 +557,10 @@ public final class SimCreeperPuzzle {
             return;
         }
         c[idx] = true;
+        if (isComplete()) {
+            com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.good("Creeper Beams"),
+                    com.killer560.hub.util.ModChat.text(" solved - four beams through the creeper."));
+        }
         MinecraftServer server = client.getSingleplayerServer();
         if (server == null) {
             return;
