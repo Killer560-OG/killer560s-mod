@@ -108,7 +108,7 @@ public final class TeleportUtils {
         return out;
     }
 
-    private static int flagsOf(BlockState state) {
+    static int flagsOf(BlockState state) {
         int[] f = flags();
         int id = Block.getId(state);
         return id >= 0 && id < f.length ? f[id] : 0;

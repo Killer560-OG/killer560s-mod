@@ -1433,11 +1433,29 @@ grazing an edge flips to the neighbour on any rounding. `getEtherwarpDirection` 
 and only returns an aim after casting the real float yaw/pitch for exactly the hop range and seeing it land on
 the block.
 
-**Path search speed is not measured in game yet.** Each leg now tries a straight warp into the door (up to
-eight landing blocks, face-centre aims only) before the A* fan, and the smoother uses the 18 face-centre points
-rather than 48. Each search logs one `[Path] N leg(s): d direct, s searched ...` line with the leg, smoothing
-and total milliseconds; read those before deciding whether the A* itself needs the next round (a per-search
-block-flag snapshot is the obvious one).
+**Path search speed, measured outside the game.** The search was rewritten (`EtherSearch`) over a byte-per-
+block grid (`LevelEtherGrid`): flags read once per chunk section straight from the `LevelChunkSection`, kept
+across searches and dropped by packet hooks (`LiveMapPacketListenerMixin`, at RETURN of the block, section and
+chunk handlers) or after 15 s; a primitive heap and open-addressed node map instead of `PriorityQueue`/`HashMap`
+and four threads on one lock; a leg ends the moment any landing satisfies it; each leg is bounded to the two
+rooms it joins (and re-run unbounded if that fails, so the bound can only make a search faster). The search has
+no Minecraft imports, so `tools/bench/run.sh` times it on a 6x6 floor of the shipped 1x1 captures with a 3x4
+doorway carved through every seam, keeping only the 31 of 60 seams that a walk proves join both rooms (a
+capture's own doorways are wherever they were in the instance he walked). 2,000 clicks of 1 to 7 rooms, warm
+JIT, his default 6/7 fan (995 rays), through the game's section-table grid:
+
+| | mean | median | p90 | p99 | worst |
+|-|------|--------|-----|-----|-------|
+| sections cached | 0.47 ms | 0.32 | 0.91 | 3.5 | 10 |
+| every section filled fresh | 0.60 ms | 0.45 | 1.15 | 3.8 | 10 |
+
+99.8% of clicks found a path. Before, from his own Map Logger log (2026-10-01, 19 successful clicks timed
+by the old chat line): median 6 ms, worst 153 ms, and eight "Failed after ~675ms" timeouts. The tail that is
+still over 2 ms is legs where weighted A* needs 60-300 expansions (about 30 us each) to find a way round a
+wall; a click reads a median of 38 sections (p90 92). Not covered: the bench's flags come from palette NAMES,
+not `TeleportUtils`' instanceof rules, and the "fresh" row fills by copying an array, which is cheaper than
+reading a real section - so a first click in a new area costs somewhat more in game than that row. The
+`[Path] ... total N ms` log line is the in-game number.
 
 ## The 2026-10-02 puzzle round
 

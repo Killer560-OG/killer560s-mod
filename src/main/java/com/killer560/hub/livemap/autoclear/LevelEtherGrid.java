@@ -1,0 +1,287 @@
+package com.killer560.hub.livemap.autoclear;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BannerBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.CarpetBlock;
+import net.minecraft.world.level.block.CauldronBlock;
+import net.minecraft.world.level.block.FenceBlock;
+import net.minecraft.world.level.block.FenceGateBlock;
+import net.minecraft.world.level.block.HopperBlock;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.WallBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.SlabType;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+
+import java.util.Arrays;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * The world as {@link EtherSearch} reads it: one byte of flags per block, a 4096-byte array per chunk section.
+ *
+ * <p>Filled a section at a time, straight from the section ({@code hasOnlyAir()} first, then
+ * {@code LevelChunkSection.getBlockState} with the flags of the previous state reused while the state repeats),
+ * because a ray walk is a section scan in disguise - see the CLAUDE.md lesson about Secret Waypoints. And KEPT
+ * between searches: a click reads a few dozen sections (median 38, p90 92 measured by
+ * {@code tools/bench/EtherSearchBench}), about a millisecond to fill, and the next click reads mostly the same
+ * ones. An entry is only reused while the chunk still holds the very same section object, and the packet hooks
+ * in {@code LiveMapPacketListenerMixin} drop a section the moment a block in it changes ({@link #invalidate}) or
+ * its chunk is resent or forgotten ({@link #invalidateColumn}); anything older than {@link #MAX_AGE_MS} is
+ * refilled regardless, so a change that slips past the hooks cannot outlive a few seconds.
+ *
+ * <p>One instance per search and one thread per instance; the shared cache is the only concurrent part.
+ */
+public final class LevelEtherGrid implements EtherSearch.Grid {
+
+    private static final long MAX_AGE_MS = 15_000;
+    private static final int MAX_ENTRIES = 8192;
+
+    /** A section with nothing in it, and anything outside the world: all air. */
+    private static final byte[] AIR_SECTION = new byte[4096];
+
+    static {
+        Arrays.fill(AIR_SECTION, (byte) (EtherSearch.PASSABLE | EtherSearch.AIR));
+    }
+
+    private record Entry(LevelChunkSection section, byte[] flags, long madeAtMs) {
+    }
+
+    private static final ConcurrentHashMap<Long, Entry> CACHE = new ConcurrentHashMap<>();
+    private static volatile Level cacheLevel;
+
+    /** Flags per block-state id, -1 until first seen. Racy writes are harmless: every writer writes the same. */
+    private static volatile int[] stateFlags;
+
+    private final Level level;
+
+    // A small per-search open-addressing table: section key -> flags array.
+    private long[] keys = new long[256];
+    private byte[][] vals = new byte[256][];
+    private int size;
+    private long lastKey = Long.MIN_VALUE;
+    private byte[] last;
+    // A direct window of section refs around where the search starts - 33 x 33 columns by 32 sections, which
+    // covers any dungeon - so the common case is an array index rather than a hash probe. Outside it, the table.
+    private static final int WIN_XZ = 33;
+    private static final int WIN_Y = 32;
+    private byte[][] window;
+    private int winX;
+    private int winY;
+    private int winZ;
+
+    /** Sections this search had to fill rather than take from the cache, for the timing log. */
+    int filled;
+
+    LevelEtherGrid(Level level) {
+        this.level = level;
+        Arrays.fill(keys, Long.MIN_VALUE);
+        if (cacheLevel != level) {
+            CACHE.clear();
+            cacheLevel = level;
+        }
+    }
+
+    private static long sectionKey(int sx, int sy, int sz) {
+        return ((long) (sx & 0x3FFFFF) << 42) | ((long) (sz & 0x3FFFFF) << 20) | (sy & 0xFFFFFL);
+    }
+
+    @Override
+    public int flags(int x, int y, int z) {
+        int sx = x >> 4;
+        int sy = y >> 4;
+        int sz = z >> 4;
+        long key = sectionKey(sx, sy, sz);
+        byte[] arr;
+        if (key == lastKey) {
+            arr = last;
+        } else {
+            if (window == null) {
+                window = new byte[WIN_XZ * WIN_XZ * WIN_Y][];
+                winX = sx - WIN_XZ / 2;
+                winY = sy - WIN_Y / 2;
+                winZ = sz - WIN_XZ / 2;
+            }
+            int wx = sx - winX;
+            int wy = sy - winY;
+            int wz = sz - winZ;
+            int wi = (wx | wy | wz) >= 0 && wx < WIN_XZ && wz < WIN_XZ && wy < WIN_Y
+                    ? (wy * WIN_XZ + wz) * WIN_XZ + wx : -1;
+            arr = wi >= 0 ? window[wi] : null;
+            if (arr == null) {
+                arr = localGet(key);
+                if (arr == null) {
+                    arr = load(sx, sy, sz, key);
+                    localPut(key, arr);
+                }
+                if (wi >= 0) {
+                    window[wi] = arr;
+                }
+            }
+            lastKey = key;
+            last = arr;
+        }
+        return arr[((y & 15) << 8) | ((z & 15) << 4) | (x & 15)] & 0xFF;
+    }
+
+    private byte[] localGet(long key) {
+        int mask = keys.length - 1;
+        int i = (int) (key ^ (key >>> 29) ^ (key >>> 43)) & mask;
+        while (keys[i] != Long.MIN_VALUE) {
+            if (keys[i] == key) {
+                return vals[i];
+            }
+            i = (i + 1) & mask;
+        }
+        return null;
+    }
+
+    private void localPut(long key, byte[] val) {
+        if ((size + 1) * 2 > keys.length) {
+            long[] oldK = keys;
+            byte[][] oldV = vals;
+            keys = new long[oldK.length * 2];
+            vals = new byte[oldK.length * 2][];
+            Arrays.fill(keys, Long.MIN_VALUE);
+            size = 0;
+            for (int i = 0; i < oldK.length; i++) {
+                if (oldK[i] != Long.MIN_VALUE) {
+                    localPut(oldK[i], oldV[i]);
+                }
+            }
+        }
+        int mask = keys.length - 1;
+        int i = (int) (key ^ (key >>> 29) ^ (key >>> 43)) & mask;
+        while (keys[i] != Long.MIN_VALUE && keys[i] != key) {
+            i = (i + 1) & mask;
+        }
+        if (keys[i] == Long.MIN_VALUE) {
+            size++;
+        }
+        keys[i] = key;
+        vals[i] = val;
+    }
+
+    private byte[] load(int sx, int sy, int sz, long key) {
+        LevelChunk chunk = level.getChunk(sx, sz);
+        if (chunk == null) {
+            return AIR_SECTION;
+        }
+        LevelChunkSection[] sections = chunk.getSections();
+        int idx = chunk.getSectionIndex(sy << 4);
+        if (idx < 0 || idx >= sections.length) {
+            return AIR_SECTION;
+        }
+        LevelChunkSection section = sections[idx];
+        if (section == null || section.hasOnlyAir()) {
+            return AIR_SECTION;
+        }
+        long now = System.currentTimeMillis();
+        Entry e = CACHE.get(key);
+        if (e != null && e.section() == section && now - e.madeAtMs() < MAX_AGE_MS) {
+            return e.flags();
+        }
+        byte[] out = fill(section, sx << 4, sy << 4, sz << 4);
+        filled++;
+        if (CACHE.size() > MAX_ENTRIES) {
+            CACHE.clear();
+        }
+        CACHE.put(key, new Entry(section, out, now));
+        return out;
+    }
+
+    private byte[] fill(LevelChunkSection section, int bx, int by, int bz) {
+        byte[] out = new byte[4096];
+        BlockState lastState = null;
+        int lastFlags = 0;
+        BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
+        for (int ly = 0; ly < 16; ly++) {
+            for (int lz = 0; lz < 16; lz++) {
+                for (int lx = 0; lx < 16; lx++) {
+                    BlockState s = section.getBlockState(lx, ly, lz);
+                    if (s != lastState) {
+                        lastState = s;
+                        lastFlags = flagsFor(s, mut.set(bx + lx, by + ly, bz + lz));
+                    }
+                    out[(ly << 8) | (lz << 4) | lx] = (byte) lastFlags;
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * The byte for one state: {@link TeleportUtils}' passable/feet flags, the blacklist
+     * {@code EtherwarpPathfinder} used to apply per hit, air, and the collision top {@code traverseVoxels} reads
+     * off the shape on every hit. Worked out once per state and remembered - the collision top is taken at the
+     * first position the state is met at, which is exact for every block whose shape does not depend on where it
+     * stands (all but a handful of plants nobody lands on).
+     */
+    private int flagsFor(BlockState state, BlockPos pos) {
+        int id = Block.getId(state);
+        int[] table = stateFlags;
+        if (table == null || id >= table.length) {
+            int[] fresh = new int[Math.max(id + 1, Block.BLOCK_STATE_REGISTRY.size())];
+            Arrays.fill(fresh, -1);
+            if (table != null) {
+                System.arraycopy(table, 0, fresh, 0, table.length);
+            }
+            stateFlags = table = fresh;
+        }
+        int known = id >= 0 ? table[id] : -1;
+        if (known >= 0) {
+            return known;
+        }
+        int f = TeleportUtils.flagsOf(state) & (EtherSearch.PASSABLE | EtherSearch.BLOCKS_FEET);
+        if (state.isAir()) {
+            f |= EtherSearch.AIR;
+        }
+        if (blackListed(state)) {
+            f |= EtherSearch.BLACKLIST;
+        }
+        if ((f & EtherSearch.PASSABLE) == 0) {
+            double top = state.getCollisionShape(level, pos).max(Direction.Axis.Y);
+            int ceil = (int) Math.max(1.0, Math.ceil(top));
+            f |= Math.min(3, ceil) << EtherSearch.TOP_SHIFT;
+        }
+        if (id >= 0) {
+            table[id] = f;
+        }
+        return f;
+    }
+
+    /** QUOI's landing blacklist, formerly {@code EtherwarpPathfinder.blackListed}. */
+    static boolean blackListed(BlockState state) {
+        if (state == null) {
+            return true;
+        }
+        var block = state.getBlock();
+        boolean bottomSlab = block instanceof SlabBlock && state.hasProperty(SlabBlock.TYPE)
+                && state.getValue(SlabBlock.TYPE) == SlabType.BOTTOM;
+        return bottomSlab || block instanceof CarpetBlock || block instanceof WallBlock || block instanceof FenceBlock
+                || block instanceof FenceGateBlock || block instanceof HopperBlock || block instanceof CauldronBlock
+                || block instanceof BannerBlock;
+    }
+
+    // ------------------------------------------------------------------------------------------- invalidation
+
+    /** A block changed: forget its section. Called on the client thread after vanilla has applied it. */
+    public static void invalidate(BlockPos pos) {
+        CACHE.remove(sectionKey(pos.getX() >> 4, pos.getY() >> 4, pos.getZ() >> 4));
+    }
+
+    /** A batch of block changes in one section. Kept out of the mixin so the mixin holds no lambda. */
+    public static void invalidate(net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket packet) {
+        packet.runUpdates((pos, state) -> invalidate(pos));
+    }
+
+    /** A chunk was resent or forgotten: forget every section of the column. */
+    public static void invalidateColumn(int chunkX, int chunkZ) {
+        long sx = chunkX & 0x3FFFFF;
+        long sz = chunkZ & 0x3FFFFF;
+        CACHE.keySet().removeIf(k -> ((k >>> 42) & 0x3FFFFF) == sx && ((k >>> 20) & 0x3FFFFF) == sz);
+    }
+}
