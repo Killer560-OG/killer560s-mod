@@ -62,6 +62,19 @@ final class AutoTeleportMaze {
     private static int pendingTicks = -1;
     private static boolean walking = false;
     private static long walkStartMs = 0L;
+    private static long walkTimeoutMs = WALK_TIMEOUT_MS;
+    private static BlockPos walkTarget = null;
+    /** True when the grid found no way round and the walk is the old straight one. */
+    private static boolean walkStraight = false;
+    private static final MazeWalk WALK = new MazeWalk();
+    /** Blocks a second, walking - a little under a player's 4.3 so the timeout is generous. */
+    private static final double WALK_SPEED = 3.5;
+    /** The last Interactive Map arrival this auto has acted on (or chosen to ignore). */
+    private static int consumedArrival = -1;
+    /** Walking onto the start pad after a map arrival. */
+    private static boolean startWalking = false;
+    /** The teleport count when that walk began, or -1. */
+    private static int startSeq = -1;
     private static boolean wasInRoom = false;
 
     private enum FinishStage { NONE, AURA_CHEST, WALK_TO_EXIT_PAD, STEP_OFF_END_PAD, STEP_ON_END_PAD, WALK_OUT, DONE }
@@ -97,12 +110,32 @@ final class AutoTeleportMaze {
     static void levelChanged(Minecraft client) {
         GUARD.levelChanged();
         reset(client);
+        consumedArrival = com.killer560.hub.livemap.autoclear.ClearExecutor.arrivalSeq();
+        startSeq = -1;
     }
 
     static void tick(Minecraft client, String roomName) {
         Set<BlockPos> visited = TeleportMazeSolverFeature.getVisited();
         GUARD.observe(visited.isEmpty());
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
+        // The walk onto the start pad after a map arrival runs before the room test: the map's spot for this room
+        // is its doorway (AutoClearUtils' relative 15,68,-2), which the live map can file under the corridor or the
+        // room next door rather than the maze.
+        if (cfg.isAutoTeleportMazeEnabled() && finishStage == FinishStage.NONE && visited.isEmpty()
+                && McCompat.screen(client) == null && client.player != null) {
+            tickStartWalk(client, client.player);
+        } else if (startWalking) {
+            stop(client);
+            if (visited.isEmpty()) {
+                disengage(); // a screen opened; with a teleport in, the maze walk below keeps the camera
+            }
+        }
+        if (startWalking) {
+            if (engaged) {
+                ViewFreeze.hold(client.player.getYRot(), client.player.getXRot());
+            }
+            return;
+        }
         if (!cfg.isAutoTeleportMazeEnabled() || !ROOM.equals(roomName)) {
             if (wasInRoom) {
                 reset(client);
@@ -112,7 +145,10 @@ final class AutoTeleportMaze {
             return;
         }
         if (!wasInRoom) {
-            lastSeq = TeleportMazeSolverFeature.getTeleportSeq(); // only react to teleports made while in the room
+            // Only react to teleports made while in the room - or, after a start-pad walk, from when that walk
+            // began, so the start pad's own teleport counts even if the room only read as the maze afterwards.
+            lastSeq = startSeq >= 0 ? startSeq : TeleportMazeSolverFeature.getTeleportSeq();
+            startSeq = -1;
         }
         wasInRoom = true;
 
@@ -129,7 +165,8 @@ final class AutoTeleportMaze {
             return;
         }
 
-        if (!GUARD.solverOn(TeleportMazeSolverConfig.getInstance().isEnabled()) || !GUARD.fresh() || visited.isEmpty()) {
+        boolean ready = GUARD.solverOn(TeleportMazeSolverConfig.getInstance().isEnabled()) && GUARD.fresh();
+        if (!ready || visited.isEmpty()) {
             stop(client);
             disengage();
             rememberView(client);
@@ -155,11 +192,7 @@ final class AutoTeleportMaze {
             pendingTicks = -1;
             BlockPos target = getPad(player.position());
             if (target != null) {
-                float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), Vec3.atCenterOf(target));
-                AutoPuzzleUtil.rotateCamera(player, dir[0], dir[1]);
-                client.options.keyUp.setDown(true);
-                walking = true;
-                walkStartMs = System.currentTimeMillis();
+                startWalk(client, player, target, "pad " + AutoPuzzleUtil.fmt(target));
             } else {
                 stop(client);
                 if (isAtEndPad(player.position())) {
@@ -172,15 +205,102 @@ final class AutoTeleportMaze {
                 }
             }
         } else if (walking) {
-            if (System.currentTimeMillis() - walkStartMs > WALK_TIMEOUT_MS) {
-                LOGGER.info("[AutoPuzzles] TeleportMaze: no teleport after {}ms of walking - stopped", WALK_TIMEOUT_MS);
-                stop(client);
-                disengage();
-            } else {
-                client.options.keyUp.setDown(true);
-            }
+            tickWalk(client, player);
         }
         rememberView(client);
+    }
+
+    /**
+     * Starts a walk onto {@code pad}: round whatever is in the way ({@link MazeWalk}), or - if the grid finds no way
+     * at all - straight at it as before. The timeout grows with the planned length.
+     */
+    private static void startWalk(Minecraft client, LocalPlayer player, BlockPos pad, String label) {
+        // The pad's own block is where his feet are once he is on it (an end portal frame is 13/16 tall).
+        boolean planned = WALK.plan(client.level, player.position(), pad);
+        walkStraight = !planned;
+        walkTarget = pad;
+        walkStartMs = System.currentTimeMillis();
+        walkTimeoutMs = planned
+                ? Math.max(WALK_TIMEOUT_MS, (long) (WALK.length(player.position()) / WALK_SPEED * 1000.0) + 1500L)
+                : WALK_TIMEOUT_MS;
+        walking = true;
+        LOGGER.info("[AutoPuzzles] TeleportMaze: walking to {} - {}", label, planned
+                ? WALK.legs() + " straight leg(s), " + String.format(java.util.Locale.US, "%.1f",
+                WALK.length(player.position())) + " blocks"
+                : "no way round found, straight at it");
+        tickWalk(client, player);
+    }
+
+    private static void tickWalk(Minecraft client, LocalPlayer player) {
+        if (System.currentTimeMillis() - walkStartMs > walkTimeoutMs) {
+            LOGGER.info("[AutoPuzzles] TeleportMaze: no teleport after {}ms of walking - stopped", walkTimeoutMs);
+            ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Teleport Maze: "),
+                    ModChat.bad("could not reach the pad"), ModChat.text(" - stopped."));
+            startSeq = -1;
+            stop(client);
+            disengage();
+            return;
+        }
+        if (!walkStraight && WALK.tick(client)) {
+            return;
+        }
+        // No planned way (or the planned points are used up, i.e. he is at the pad): straight at it, as QUOI does.
+        float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), Vec3.atCenterOf(walkTarget));
+        AutoPuzzleUtil.rotateCamera(player, dir[0], dir[1]);
+        client.options.keyUp.setDown(true);
+    }
+
+    /**
+     * Walks from where the Interactive Map put him onto the start pad, which is what starts the maze.
+     *
+     * <p>killer560 (2026-10-04): "When I teleport to tp maze using interactive map it doesn't auto run to the first
+     * tp node." The auto only ever reacted to a maze teleport - QUOI's design, where you step on the start pad
+     * yourself - so a map path ending at this room's doorway spot left him standing there. Now an arrival by the
+     * map ({@code ClearExecutor.arrivalSeq}, which only moves when a path ends with him where it planned) inside
+     * this room, before any maze teleport, walks him onto the start pad; from its teleport on the auto runs as
+     * before. Walking in yourself does not trigger it, so it never fights his own keys.
+     */
+    private static void tickStartWalk(Minecraft client, LocalPlayer player) {
+        int arrival = com.killer560.hub.livemap.autoclear.ClearExecutor.arrivalSeq();
+        if (arrival != consumedArrival && !startWalking) {
+            if (System.currentTimeMillis() - com.killer560.hub.livemap.autoclear.ClearExecutor.arrivalMs() > 3000L) {
+                consumedArrival = arrival; // too old to act on
+                return;
+            }
+            if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy() || !player.onGround()) {
+                return; // not settled yet - the 3 s window allows for it
+            }
+            consumedArrival = arrival;
+            Vec3 arrivedAt = com.killer560.hub.livemap.autoclear.ClearExecutor.arrivalPos();
+            int[] cr = mazeClayRotation();
+            if (cr == null || arrivedAt == null || arrivedAt.distanceToSqr(player.position()) > 9.0) {
+                return; // no maze on this floor, or he has moved since - his walk, not ours
+            }
+            BlockPos startPad = roomBlock(START_PAD_RELATIVE, cr);
+            BlockPos door = roomBlock(AutoClearUtils.roomOverride(ROOM), cr).above();
+            BlockPos feet = player.blockPosition();
+            boolean atDoor = Math.abs(feet.getX() - door.getX()) <= 3 && Math.abs(feet.getZ() - door.getZ()) <= 3;
+            boolean inMaze = ROOM.equals(LiveMapFeature.currentRoomEntry() == null ? null
+                    : LiveMapFeature.currentRoomEntry().name);
+            if (!atDoor && !inMaze) {
+                return; // the map took him somewhere else
+            }
+            if (!TeleportMazeSolverConfig.getInstance().isEnabled() || !GUARD.fresh()) {
+                GUARD.solverOn(TeleportMazeSolverConfig.getInstance().isEnabled());
+                return;
+            }
+            startWalking = true;
+            startSeq = TeleportMazeSolverFeature.getTeleportSeq();
+            engage(client);
+            startWalk(client, player, startPad, "the start pad (arrived by the Interactive Map)");
+            return;
+        }
+        if (startWalking && walking) {
+            tickWalk(client, player);
+            if (!walking) {
+                startWalking = false;
+            }
+        }
     }
 
     /** Takes the free camera from the view he had on the tick before this teleport - see {@link #engaged}. */
@@ -209,6 +329,31 @@ final class AutoTeleportMaze {
             lastYaw = client.player.getYRot();
             lastPitch = client.player.getXRot();
         }
+    }
+
+    /** The maze room's {@code [clayX, clayZ, rotation]} from the floor's layout - he need not be standing in it. */
+    private static int[] mazeClayRotation() {
+        com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
+        if (layout == null) {
+            return null;
+        }
+        for (int r = 0; r < layout.roomCount(); r++) {
+            if (ROOM.equals(layout.name(r))) {
+                return layout.clayRotation(r);
+            }
+        }
+        return null;
+    }
+
+    /** A database-relative block of the maze in the world, shifted with the sim's floor (zero on Hypixel) - the
+     *  conversion AutoClearUtils.pathToRoom makes, which does not depend on the room he is standing in. */
+    private static BlockPos roomBlock(int[] rel, int[] cr) {
+        com.killer560.hub.roomdatabase.RoomEntry.Pos p = new com.killer560.hub.roomdatabase.RoomEntry.Pos();
+        p.x = rel[0];
+        p.y = rel[1];
+        p.z = rel[2];
+        return com.killer560.hub.roomdatabase.RoomDatabase.toRealCoord(p, cr[0], cr[1], cr[2])
+                .above(com.killer560.hub.livemap.DungeonLayout.simYOffset());
     }
 
     private static boolean isAtEndPad(Vec3 pos) {
@@ -406,6 +551,7 @@ final class AutoTeleportMaze {
     }
 
     private static void stop(Minecraft client) {
+        startWalking = false;
         if (walking) {
             client.options.keyUp.setDown(false);
             walking = false;

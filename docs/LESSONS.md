@@ -75,3 +75,6 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   (his maplogger-latest2.log, 2026-10-04) because the executor kept sneak only for a next etherwarp in the SAME
   stack; the interact-delay settle ticks after a landing then sent shift up and the next warp re-sneaked. Held
   sneak is now decided after every node by `RouteExecutor.planSneak` from the node that actually fires next.
+- A test script that pipes its runner into `grep` exits with grep's status, so it passes when the runner cannot even
+  compile. `tools/bench/regress.sh` did exactly that after the 2026-10-04 path-to-blood merge (two javac errors,
+  exit 0). Write the run to a file, check its exit status, and require a line only a finished run prints.

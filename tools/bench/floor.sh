@@ -16,7 +16,8 @@ rm -rf build/floorbench
 javac -nowarn -proc:none -cp "$GSON$SEP$SLF" -d build/floorbench \
   $(find tools/layoutsim/stubs -name '*.java') \
   src/main/java/com/killer560/hub/roomsim/SimFloorLayout.java \
-  src/main/java/com/killer560/hub/roomsim/RoomDoors.java tools/layoutsim/LayoutSim.java \
+  src/main/java/com/killer560/hub/roomsim/RoomDoors.java \
+  src/main/java/com/killer560/hub/roomsim/SimWitherDoors.java tools/layoutsim/LayoutSim.java \
   src/main/java/com/killer560/hub/livemap/autoclear/EtherSearch.java \
   src/main/java/com/killer560/hub/livemap/autoclear/WarpGraph.java \
   tools/bench/EtherSearchBench.java tools/bench/FloorBench.java

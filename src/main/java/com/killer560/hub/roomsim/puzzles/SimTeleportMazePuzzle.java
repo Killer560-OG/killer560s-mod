@@ -344,107 +344,24 @@ public final class SimTeleportMazePuzzle {
     }
 
     /**
-     * Draws a fresh pairing: the start linked to one chamber pad, one exit pad, the other 26 paired two by two
-     * across different chambers. Redrawn until the exit's chamber can be reached from the start's, walking inside
-     * a chamber being free.
+     * Draws a fresh pairing: the start linked to one chamber pad, one exit pad to the centre, every other pad
+     * linked two-way to a pad in another chamber - laid as ONE chain through all fourteen diagonals, so the pads
+     * make a single closed loop (start, every diagonal, the centre, back beside the start) and following diagonals
+     * always reaches the centre. See {@link TeleportMazeLinks} for the structure and why.
      */
     private static void drawLinks() {
-        ThreadLocalRandom rng = ThreadLocalRandom.current();
-        for (int attempt = 0; attempt < 500; attempt++) {
-            List<Integer> pads = new ArrayList<>();
-            for (int i = 0; i < END; i++) {
-                pads.add(i);
-            }
-            java.util.Collections.shuffle(pads, rng);
-            int[] l = new int[30];
-            java.util.Arrays.fill(l, -1);
-            int entry = pads.remove(0);
-            int exit = -1;
-            for (int i = 0; i < pads.size(); i++) {
-                if (chamberOf(pads.get(i)) != chamberOf(entry)) {
-                    exit = pads.remove(i);
-                    break;
-                }
-            }
-            if (exit < 0) {
-                continue;
-            }
-            l[START] = entry;
-            l[entry] = START;
-            l[exit] = END;
-            boolean ok = true;
-            while (!pads.isEmpty() && ok) {
-                int a = pads.remove(0);
-                int partner = -1;
-                for (int i = 0; i < pads.size(); i++) {
-                    if (chamberOf(pads.get(i)) != chamberOf(a)) {
-                        partner = pads.remove(i);
-                        break;
-                    }
-                }
-                if (partner < 0) {
-                    ok = false;
-                } else {
-                    l[a] = partner;
-                    l[partner] = a;
-                }
-            }
-            if (!ok || !reachable(l, chamberOf(entry), chamberOf(exit))) {
-                continue;
-            }
-            List<Integer> route = routeToCentre(l);
-            if (route == null) {
-                continue;
-            }
-            link = l;
-            exitPad = exit;
-            logRoute(route);
-            return;
-        }
-        // Never leave the maze dead. An empty link table makes every pad in the room do nothing, which is a
-        // worse failure than a predictable maze: chain the chambers in order instead, so the route is long but
-        // certain. ~11% of draws fail on pairing alone, so 500 in a row failing should never happen - this is
-        // the floor under "one of the pads takes me to the middle", not the normal path.
-        int[] l = fallbackLinks();
+        TeleportMazeLinks.Maze maze = TeleportMazeLinks.draw(ThreadLocalRandom.current(), REAL_PADS);
+        int[] l = maze.link();
         link = l;
-        exitPad = 27;
-        com.killer560.hub.util.ModLog.get("killer560smod-roomsim")
-                .warn("Sim teleport maze: no random pairing in 500 tries - using the fixed chamber chain");
+        exitPad = maze.exitPad();
         List<Integer> route = routeToCentre(l);
+        List<Integer> diagonal = TeleportMazeLinks.diagonalWalk(l, REAL_PADS);
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                "Sim teleport maze: {} closed loop(s); following diagonals reaches the centre in {} pad(s)",
+                TeleportMazeLinks.loops(l, REAL_PADS), diagonal == null ? "never" : String.valueOf(diagonal.size()));
         if (route != null) {
             logRoute(route);
         }
-    }
-
-    /**
-     * A pairing that always works: start to chamber 0, each chamber's pad 3 to the next chamber's pad 0, and
-     * chamber 6's pad 3 to the centre. The spare pads pair across chambers 0-1, 2-3 and 4-5 so every pad still
-     * goes somewhere.
-     */
-    private static int[] fallbackLinks() {
-        int[] l = new int[30];
-        java.util.Arrays.fill(l, -1);
-        l[START] = 0;
-        l[0] = START;
-        for (int c = 0; c + 1 < CELL_COUNT; c++) {
-            int out = c * PADS_PER_CELL + 3;
-            int in = (c + 1) * PADS_PER_CELL;
-            l[out] = in;
-            l[in] = out;
-        }
-        l[27] = END;
-        for (int c = 0; c + 1 < CELL_COUNT - 1; c += 2) {
-            for (int i = 1; i <= 2; i++) {
-                int a = c * PADS_PER_CELL + i;
-                int b = (c + 1) * PADS_PER_CELL + i;
-                l[a] = b;
-                l[b] = a;
-            }
-        }
-        // Chamber 6's two spares have no chamber left to pair with, so they send him back to the entrance.
-        l[6 * PADS_PER_CELL + 1] = START;
-        l[6 * PADS_PER_CELL + 2] = START;
-        return l;
     }
 
     /**
@@ -512,28 +429,6 @@ public final class SimTeleportMazePuzzle {
                 "Sim teleport maze: exit pad is relative ({},{}) in chamber {}; shortest way to the centre is {} "
                         + "pad(s): {} -> centre", REAL_PADS[exitPad][0], REAL_PADS[exitPad][2],
                 chamberOf(exitPad), route.size(), sb);
-    }
-
-    private static boolean reachable(int[] l, int from, int to) {
-        boolean[] seen = new boolean[CELL_COUNT];
-        java.util.ArrayDeque<Integer> q = new java.util.ArrayDeque<>();
-        seen[from] = true;
-        q.add(from);
-        while (!q.isEmpty()) {
-            int c = q.poll();
-            if (c == to) {
-                return true;
-            }
-            for (int i = 0; i < PADS_PER_CELL; i++) {
-                int other = l[c * PADS_PER_CELL + i];
-                int oc = other >= 0 ? chamberOf(other) : -1;
-                if (oc >= 0 && !seen[oc]) {
-                    seen[oc] = true;
-                    q.add(oc);
-                }
-            }
-        }
-        return false;
     }
 
     // ---------------------------------------------------------------- the centre: its chest and its way out
