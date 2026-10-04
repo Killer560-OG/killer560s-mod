@@ -95,9 +95,9 @@ import java.util.UUID;
  *
  * <p>An arrow is picked up separately, by looking for an {@link AbstractArrow} against the silverfish while it
  * is at rest. That is there so <b>Auto Ice Path drives this puzzle</b>: it shoots straight down (pitch 90) from
- * on top of the silverfish with the yaw pointing at the next stop, so the shove direction is the ARROW's yaw,
- * which is the one reading that works for a shot fired from directly overhead as well as one fired across the
- * room. Untested in game - no shortbow has been fired at a sim silverfish yet.
+ * on top of the silverfish with the yaw pointing at the next stop, so the shove direction is the yaw the SHOT WAS
+ * AIMED with (not the arrow entity's own yaw - see {@link #pollForArrow}), which is the one reading that works for
+ * a shot fired from directly overhead as well as one fired across the room.
  *
  * <p>Either way the direction is snapped to the nearest of the four board directions by comparing the shove
  * vector against the world offsets of the board's own four neighbours, so it stays correct at every rotation
@@ -734,8 +734,13 @@ public final class SimIcePathPuzzle {
         }
         int[] to = slide(b, at[0], at[1], d[0], d[1]);
         if (to[0] == at[0] && to[1] == at[1]) {
-            return;   // shoved straight into a wall: nothing moves, and nothing is said - as on Hypixel
+            // Nothing moves and nothing is said in game - as on Hypixel - but the log says it.
+            LOGGER.info("Sim ice path: shove from cell ({},{}) direction ({},{}) is straight into a wall",
+                    at[0], at[1], d[0], d[1]);
+            return;
         }
+        LOGGER.info("Sim ice path: shove from cell ({},{}) direction ({},{}) - sliding to ({},{})",
+                at[0], at[1], d[0], d[1], to[0], to[1]);
         Entity entity = level.getEntity(fishId);
         Float facing = facingYaw(d);
         if (entity != null && facing != null) {
@@ -847,11 +852,18 @@ public final class SimIcePathPuzzle {
     }
 
     /**
-     * An arrow against a resting silverfish is a shove, with the ARROW's yaw as the direction.
+     * An arrow against a resting silverfish is a shove, in the direction the SHOT WAS AIMED.
      *
-     * <p>Auto Ice Path shoots straight down from on top of it, so the arrow's flight direction says nothing
-     * about which way to push and its yaw says everything - that is the reading QUOI's auto relies on. The
-     * arrow is discarded so one shot cannot shove twice.
+     * <p>Auto Ice Path shoots straight down from on top of it, so the arrow's flight says nothing about which way to
+     * push and the aim's yaw says everything - that is the reading QUOI's auto relies on, on Hypixel. The aim is
+     * NOT {@code arrow.getYRot()}: that is the projectile's own yaw, which is mirrored against a look yaw, near
+     * meaningless for a vertical shot, and turned ~180 degrees when the arrow bounces off this invulnerable fish -
+     * so the shove went backwards along one board axis or the other, usually into a wall where nothing moves and
+     * nothing is said (2026-10-04, "auto ice path isn't working"). A Terminator arrow carries its aim
+     * ({@link com.killer560.hub.roomsim.SimTerminator#shotYaw}); any other arrow uses its shooter's current yaw.
+     *
+     * <p>Every arrow at the fish is discarded, not just the one read: a shot is three arrows, and the other two
+     * would otherwise bounce on the fish and shove it again once the first slide ends.
      */
     private static void pollForArrow(ServerLevel level, Silverfish fish) {
         List<AbstractArrow> arrows = level.getEntitiesOfClass(AbstractArrow.class,
@@ -859,9 +871,27 @@ public final class SimIcePathPuzzle {
         if (arrows.isEmpty()) {
             return;
         }
-        AbstractArrow arrow = arrows.get(0);
-        float yaw = arrow.getYRot();
-        arrow.discard();
+        Float yaw = null;
+        String from = null;
+        for (AbstractArrow arrow : arrows) {
+            if (yaw == null) {
+                Float aimed = com.killer560.hub.roomsim.SimTerminator.shotYaw(arrow);
+                if (aimed != null) {
+                    yaw = aimed;
+                    from = "Terminator aim";
+                } else if (arrow.getOwner() != null) {
+                    yaw = arrow.getOwner().getYRot();
+                    from = "shooter's yaw";
+                }
+            }
+            arrow.discard();
+        }
+        if (yaw == null) {
+            LOGGER.info("Sim ice path: an arrow with no shooter reached the silverfish - ignored");
+            return;
+        }
+        LOGGER.info("Sim ice path: {} arrow(s) at the silverfish, shove yaw {} ({})", arrows.size(),
+                String.format(java.util.Locale.US, "%.1f", yaw), from);
         shove(level, yaw);
     }
 

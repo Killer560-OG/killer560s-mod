@@ -174,6 +174,11 @@ public final class AutoPuzzleUtil {
         player.setXRot(Mth.clamp(targetPitch, -90f, 90f));
     }
 
+    /** "x, y, z" for log lines. */
+    public static String fmt(BlockPos pos) {
+        return pos == null ? "null" : pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
+    }
+
     // ------------------------------------------------------------------ player state
 
     public static Vec3 eyePosition(LocalPlayer player, boolean forceSneak) {
@@ -344,6 +349,25 @@ public final class AutoPuzzleUtil {
         return etherwarpDirection(level, eyePosition(player, true), to, 61.0);
     }
 
+    /**
+     * The aim for an etherwarp that will actually LAND on {@code to}, for {@link AutoReposition}.
+     *
+     * <p>{@link #etherwarpDirection} is QUOI's: its top-centre point sits exactly on the top face, which the voxel
+     * walk files under the air block above, so from above it never matches and what gets used is a point 0.001
+     * from an edge - a grazing aim that a rounding can put on the neighbour (the same fault
+     * {@code TeleportUtils.getEtherwarpDirection} documents and fixes). That one aims inside the face and checks the
+     * real hop, so it is tried first; the QUOI answer is the fallback so nothing that warped before stops warping.
+     */
+    public static float[] etherwarpAim(Level level, LocalPlayer player, BlockPos to) {
+        Vec3 eye = eyePosition(player, true);
+        com.killer560.hub.livemap.autoclear.TeleportUtils.Rotation r =
+                com.killer560.hub.livemap.autoclear.TeleportUtils.getEtherwarpDirection(eye, to, 57.0);
+        if (r != null) {
+            return new float[]{r.yaw(), r.pitch()};
+        }
+        return etherwarpDirection(level, eye, to, 61.0);
+    }
+
     private static final double[][] VISIBLE_OFFSETS = {
             {0.5, 1.0, 0.5}, {0.0, 0.5, 0.5}, {1.0, 0.5, 0.5}, {0.5, 0.5, 0.0}, {0.5, 0.5, 1.0}, {0.5, 0.0, 0.5},
             {0.0, 0.001, 0.001}, {0.0, 0.001, 0.999}, {0.0, 0.999, 0.001}, {0.0, 0.999, 0.999},
@@ -504,6 +528,67 @@ public final class AutoPuzzleUtil {
             }
         }
         return best;
+    }
+
+    /**
+     * Every CHEST / TRAPPED_CHEST inside a room-relative box, as world positions.
+     *
+     * <p>The corners go through {@link com.killer560.hub.puzzlesolvers.PuzzleCoords}, so the band carries the sim's
+     * floor shift and the room's rotation; the same call finds the same chest on Hypixel and in the sim. Asks each
+     * chunk section's palette first ({@code maybeHas}), the way Secret Waypoints' lever scan does, so a room with no
+     * chest costs a handful of palette checks rather than ~20,000 block reads.
+     */
+    public static java.util.List<BlockPos> chestsInRoom(Level level, int[] clayAndRotation, int relMinX, int relMinY,
+                                                        int relMinZ, int relMaxX, int relMaxY, int relMaxZ) {
+        BlockPos a = com.killer560.hub.puzzlesolvers.PuzzleCoords.real(relMinX, relMinY, relMinZ, clayAndRotation);
+        BlockPos b = com.killer560.hub.puzzlesolvers.PuzzleCoords.real(relMaxX, relMaxY, relMaxZ, clayAndRotation);
+        int minX = Math.min(a.getX(), b.getX());
+        int maxX = Math.max(a.getX(), b.getX());
+        int minY = Math.min(a.getY(), b.getY());
+        int maxY = Math.max(a.getY(), b.getY());
+        int minZ = Math.min(a.getZ(), b.getZ());
+        int maxZ = Math.max(a.getZ(), b.getZ());
+        java.util.List<BlockPos> found = new java.util.ArrayList<>();
+        for (int cx = minX >> 4; cx <= maxX >> 4; cx++) {
+            for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++) {
+                if (!level.hasChunk(cx, cz)) {
+                    continue;
+                }
+                net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunk(cx, cz);
+                int x0 = Math.max(minX, cx << 4);
+                int x1 = Math.min(maxX, (cx << 4) + 15);
+                int z0 = Math.max(minZ, cz << 4);
+                int z1 = Math.min(maxZ, (cz << 4) + 15);
+                var sections = chunk.getSections();
+                for (int i = 0; i < sections.length; i++) {
+                    int sectionMinY = chunk.getSectionYFromSectionIndex(i) << 4;
+                    int sectionMaxY = sectionMinY + 15;
+                    if (sectionMaxY < minY || sectionMinY > maxY) {
+                        continue;
+                    }
+                    var section = sections[i];
+                    if (section == null || section.hasOnlyAir() || !section.maybeHas(state ->
+                            state.is(net.minecraft.world.level.block.Blocks.CHEST)
+                                    || state.is(net.minecraft.world.level.block.Blocks.TRAPPED_CHEST))) {
+                        continue;
+                    }
+                    int y0 = Math.max(minY, sectionMinY);
+                    int y1 = Math.min(maxY, sectionMaxY);
+                    for (int x = x0; x <= x1; x++) {
+                        for (int z = z0; z <= z1; z++) {
+                            for (int y = y0; y <= y1; y++) {
+                                Block block = section.getBlockState(x & 15, y & 15, z & 15).getBlock();
+                                if (block == net.minecraft.world.level.block.Blocks.CHEST
+                                        || block == net.minecraft.world.level.block.Blocks.TRAPPED_CHEST) {
+                                    found.add(new BlockPos(x, y, z));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return found;
     }
 
     // ------------------------------------------------------------------ block interact

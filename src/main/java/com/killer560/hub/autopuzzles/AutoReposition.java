@@ -31,6 +31,8 @@ final class AutoReposition {
     private boolean awaitStand;
     private int wait;
     private boolean swapOk;
+    /** The last "not started" reason logged, so a per-tick refusal is one line, not twenty a second. */
+    private String lastRefusal;
 
     AutoReposition(String tag) {
         this.tag = tag;
@@ -40,18 +42,29 @@ final class AutoReposition {
         return stage != Stage.IDLE;
     }
 
-    /** QUOI {@code reposition(spot, bow, stand, awaitStand)}. No-op if already running / no direction. */
-    void start(Minecraft client, BlockPos target, boolean bowAfter, boolean stand, boolean awaitStandStill) {
+    /** QUOI {@code reposition(spot, bow, stand, awaitStand)}. No-op if already running / no direction.
+     *  @return true if a reposition is now running (started now or already was) */
+    boolean start(Minecraft client, BlockPos target, boolean bowAfter, boolean stand, boolean awaitStandStill) {
         LocalPlayer player = client.player;
-        if (isActive() || player == null || client.level == null) {
-            return;
+        if (isActive()) {
+            return true;
+        }
+        if (player == null || client.level == null) {
+            return false;
         }
         if (stand && AutoPuzzleUtil.isMoving(player)) {
-            return;
+            return false;
         }
-        if (AutoPuzzleUtil.etherwarpDirection(client.level, player, target) == null) {
-            return;
+        if (AutoPuzzleUtil.etherwarpAim(client.level, player, target) == null) {
+            // Was silent: an auto whose reposition target cannot be seen just sat there with nothing in the log.
+            String why = "no etherwarp aim onto " + AutoPuzzleUtil.fmt(target) + " from where you stand";
+            if (!why.equals(lastRefusal)) {
+                lastRefusal = why;
+                LOGGER.info("[AutoPuzzles] {}: reposition not started - {}", tag, why);
+            }
+            return false;
         }
+        lastRefusal = null;
         spot = target;
         bow = bowAfter;
         awaitStand = awaitStandStill;
@@ -64,7 +77,10 @@ final class AutoReposition {
         } else {
             stage = awaitStand ? Stage.AWAIT_STAND : Stage.USE;
         }
+        LOGGER.info("[AutoPuzzles] {}: repositioning onto {} (swap to AOTV {})", tag, AutoPuzzleUtil.fmt(target),
+                swapOk ? "ok" : "pending");
         tick(client);
+        return true;
     }
 
     /** Runs the sequence; call every tick while {@link #isActive()}. */
@@ -91,7 +107,7 @@ final class AutoReposition {
                 if (!swapOk) {
                     swapOk = AutoPuzzleUtil.swapTo(client, player, AutoPuzzleUtil::isAotv);
                 }
-                float[] dir = AutoPuzzleUtil.etherwarpDirection(client.level, player, spot);
+                float[] dir = AutoPuzzleUtil.etherwarpAim(client.level, player, spot);
                 if (!swapOk || dir == null || !AutoPuzzleUtil.isAotv(player.getMainHandItem())) {
                     LOGGER.info("[AutoPuzzles] {}: reposition cancelled (swapOk={} dir={} held={})", tag, swapOk,
                             dir != null, AutoPuzzleUtil.skyblockId(player.getMainHandItem()));
@@ -108,6 +124,7 @@ final class AutoReposition {
             }
             case AWAIT_ARRIVE -> {
                 if (AutoPuzzleUtil.at(player, spot)) {
+                    LOGGER.info("[AutoPuzzles] {}: arrived on {}", tag, AutoPuzzleUtil.fmt(spot));
                     stage = bow ? Stage.AFTER_BOW : Stage.RELEASE_DELAY;
                     wait = 2;
                     if (!bow) {

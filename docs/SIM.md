@@ -1844,3 +1844,32 @@ the measured count, not the request.
 A trap found on the way: a pinned room's `Candidate` is a separate object from the pool's (`resolvePins` builds its
 own through `candidateOf`), so `candidate == fairyRoom` is false for a pinned Fairy. The first pinned-fairy runs
 fell back on every attempt because of it. Compare given rooms by name.
+
+## Auto Ice Path never shoved, and Auto Boulder had no chest (2026-10-04, Map Logger log 17:23)
+
+- **The sim read the shove direction off the arrow entity, which is never the aim.** `Projectile.shoot` sets an
+  arrow's yaw to `atan2(x, z)` of its velocity (26.1.2 bytecode) - the mirror of a look yaw's `atan2(-x, z)`; a
+  shot at pitch 90 has almost no horizontal velocity, and `SimTerminator.fromAngles` even points that sliver
+  backwards (`cos` of the float pi/2 is -4.4e-8); and an arrow hitting the invulnerable silverfish is deflected
+  with `ProjectileDeflection.REVERSE` (about 180 degrees). So every Auto Ice Path shot shoved along a flipped
+  board axis - into a wall, where nothing moves and nothing was logged. `TerminatorArrow` now carries the aim
+  (`SimTerminator.shotYaw`), `pollForArrow` shoves with that (any other arrow: its shooter's yaw), discards all
+  three arrows of the shot, and every shove or wall-shove is an INFO line. **An arrow's `getYRot()` is not where
+  it was aimed.**
+- **Auto Ice Path's shot yaw was an etherwarp aim.** It took the yaw of `etherwarpDirection(nextSpot)`, whose
+  top-centre point never matches from above (filed under the air block), so the point used was 0.001 from an edge
+  of the next block - up to 45 degrees off the board axis for a one-cell stop, on Hypixel too, and no shot at all
+  when nothing was visible. The yaw is now cell centre to cell centre. `AutoReposition` aims with
+  `AutoPuzzleUtil.etherwarpAim` (TeleportUtils' verified face-centre aim, QUOI's as fallback) and logs start,
+  arrival and refusal. Every Auto Ice Path gate logs once per change as `[AutoIcePath] ...`, each shot as
+  `[AutoIcePath] shot N from ... toward ...`, and three shots from one cell without a slide WARN.
+- **Not proven from the log which gate stopped it** - the old code had no log line in any of them. The sim fault
+  above is certain from the bytecode and would have stopped it on its own; the next log names the rest.
+- **Auto Boulder finds the chest block.** The room database lists no Boulder chest (Hypixel or sim) and the
+  capture holds none either (taken before a solve), so the old "no chest position known" stop is gone: with no
+  database chest it scans the room (relative -1..31, y 60..75, through `PuzzleCoords`; section palettes first)
+  every 20 ticks for a CHEST/TRAPPED_CHEST and takes the back-most. Identical on Hypixel and in the sim. The
+  sim's chest, capture (30,66,16), is relative (15, 66, 29): the alcove at the back middle, up the three steps
+  at relative z 27..28, under the oak-log mantle at y 69 - the only alcove in the decoded room. Hypixel's real
+  chest position is still unverified; the scan does not depend on it. If the chest is already within 4.5 blocks
+  it auras without walking.

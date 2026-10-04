@@ -20,9 +20,9 @@ import com.killer560.hub.compat.McCompat;
  * {@link com.killer560.hub.puzzlesolvers.BoulderSolverFeature} highlights (that solver still draws its own
  * highlights for you to click by hand) - this is now purely "grab the room's secret chest and get back out":
  * <ol>
- *   <li>On entering the room, find its chest secret from the real room database
- *   ({@link RoomEntry#secretCoords}, the same per-room data {@code SecretWaypointsFeature} already draws from -
- *   NOT a guessed coordinate).</li>
+ *   <li>On entering the room, find its chest: the room database's chest secret ({@link RoomEntry#secretCoords})
+ *   if it lists one, otherwise the chest BLOCK found by scanning the room ({@link AutoPuzzleUtil#chestsInRoom}) -
+ *   the database has no Boulder chest on Hypixel either (2026-10-04). NOT a guessed coordinate.</li>
  *   <li>Etherwarp-path (via {@link AutoPuzzleUtil#pathIfMapOn}, so this only runs while Interactive Map is on) to
  *   the standing spot killer560 gave: "The relative spot is 3 blocks towards the entrance and 3 blocks up from
  *   the chest" - relative -z (this room's own doorway-side override is at negative z; see
@@ -62,6 +62,17 @@ final class AutoBoulder {
     private static boolean noChestWarned = false;
     private static boolean mapOffWarned = false;
     private static boolean wasInRoom = false;
+    private static int scanCooldown = 0;
+
+    /** How often the room is scanned for its chest while none has been found, in client ticks. */
+    private static final int SCAN_EVERY_TICKS = 20;
+    /** The room-relative box scanned: a 1x1 room's 31 blocks plus one either side, and a band around its floor
+     *  (the boxes stand on relative y 64..66 and the far alcove is at 66). Heights are relative, so PuzzleCoords
+     *  shifts them in the sim. */
+    private static final int SCAN_MIN_REL = -1;
+    private static final int SCAN_MAX_REL = 31;
+    private static final int SCAN_MIN_Y = 60;
+    private static final int SCAN_MAX_Y = 75;
 
     private AutoBoulder() {
     }
@@ -105,26 +116,54 @@ final class AutoBoulder {
         if (entry == null || cr == null) {
             return; // room identity/rotation not known yet - retry next tick
         }
+        // 1. The room database's chest secret, when it has one. For Boulder it has none - on Hypixel as well as in
+        //    the sim - which is why this used to stop here with "no chest position known" every visit.
+        // 2. Otherwise the chest BLOCK itself, found by scanning the room. Boulder has no secret chests and no
+        //    mimic, so a chest inside its walls is the reward chest - however Hypixel places it, before the solve or
+        //    on it. The scan is the same code on Hypixel and in the sim (PuzzleCoords carries the floor shift).
+        RoomEntry.Pos chestRel = null;
+        String source = null;
         var chests = entry.secretCoords == null ? null : entry.secretCoords.chest;
-        if (chests == null || chests.isEmpty()) {
-            if (!noChestWarned) {
-                noChestWarned = true;
-                LOGGER.warn("[AutoPuzzles] Boulder: no chest secret coordinates known for this room in the room "
-                        + "database - Auto Boulder can't find the chest, stopping for this room visit");
-                ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Boulder: "),
-                        ModChat.bad("no chest position known"), ModChat.text(" for this room."));
+        if (chests != null && !chests.isEmpty()) {
+            // Back-most known chest (largest relative z) - the doorway override below sits at negative z, so "back"
+            // (away from the door) is the larger z, same axis convention every fixed puzzle coordinate in this
+            // room already uses (see BoulderSolverFeature's own floor grid, z 9..24).
+            chestRel = chests.get(0);
+            for (RoomEntry.Pos p : chests) {
+                if (p.z > chestRel.z) {
+                    chestRel = p;
+                }
             }
-            stage = Stage.DONE;
-            return;
-        }
-        // Back-most known chest (largest relative z) - the doorway override below sits at negative z, so "back"
-        // (away from the door) is the larger z, same axis convention every fixed puzzle coordinate in this room
-        // already uses (see BoulderSolverFeature's own floor grid, z 9..24).
-        RoomEntry.Pos chestRel = chests.get(0);
-        for (RoomEntry.Pos p : chests) {
-            if (p.z > chestRel.z) {
-                chestRel = p;
+            source = "room database";
+        } else {
+            if (scanCooldown > 0) {
+                scanCooldown--;
+                return;
             }
+            scanCooldown = SCAN_EVERY_TICKS;
+            BlockPos best = null;
+            BlockPos bestRel = null;
+            for (BlockPos real : AutoPuzzleUtil.chestsInRoom(client.level, cr, SCAN_MIN_REL, SCAN_MIN_Y, SCAN_MIN_REL,
+                    SCAN_MAX_REL, SCAN_MAX_Y, SCAN_MAX_REL)) {
+                BlockPos rel = PuzzleCoords.relative(real, cr);
+                if (bestRel == null || rel.getZ() > bestRel.getZ()) {
+                    best = real;
+                    bestRel = rel;
+                }
+            }
+            if (best == null) {
+                if (!noChestWarned) {
+                    noChestWarned = true;
+                    LOGGER.info("[AutoPuzzles] Boulder: no chest secret in the room database and no chest block in "
+                            + "the room yet - looking again every {} ticks", SCAN_EVERY_TICKS);
+                }
+                return;
+            }
+            chestRel = new RoomEntry.Pos();
+            chestRel.x = bestRel.getX();
+            chestRel.y = bestRel.getY();
+            chestRel.z = bestRel.getZ();
+            source = "chest block found in the room";
         }
         RoomEntry.Pos standRel = new RoomEntry.Pos();
         standRel.x = chestRel.x;
@@ -137,6 +176,15 @@ final class AutoBoulder {
         int[] exitRel = AutoClearUtils.roomOverride(ROOM);
         exitReal = exitRel == null ? null : PuzzleCoords.real(exitRel[0], exitRel[1], exitRel[2], cr);
         legStartMs = System.currentTimeMillis();
+        LOGGER.info("[AutoPuzzles] Boulder: chest at {} (relative {}, {}, {}) from the {}; standing spot {}",
+                AutoPuzzleUtil.fmt(chestReal), chestRel.x, chestRel.y, chestRel.z, source,
+                AutoPuzzleUtil.fmt(standReal));
+        // Already in reach (he walked up to it, or Hypixel's chest is reachable from where he stands): no walk.
+        if (client.player != null && com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(),
+                chestReal) <= AURA_REACH_SQ) {
+            stage = Stage.AURA;
+            return;
+        }
         stage = Stage.WALK_TO_STAND;
     }
 
@@ -186,7 +234,7 @@ final class AutoBoulder {
         }
         BlockPos target = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
         if (target == null) {
-            target = chestReal; // fall back to the known database position itself
+            target = chestReal; // fall back to the position found on entry
         }
         // To the box, like the picker above - measuring the gate one way and the choice another is how a
         // module ends up clicking at something it cannot reach.
@@ -233,5 +281,6 @@ final class AutoBoulder {
         waitStartMs = 0L;
         noChestWarned = false;
         mapOffWarned = false;
+        scanCooldown = 0;
     }
 }

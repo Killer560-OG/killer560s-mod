@@ -264,6 +264,7 @@ public final class SimTerminator {
                 double offset = (i - (ARROWS_PER_SHOT - 1) / 2.0) * SPREAD_DEGREES;
                 Vec3 dir = fromAngles(yaw + (float) offset, pitch);
                 TerminatorArrow arrow = new TerminatorArrow(level, sp);
+                arrow.shotYaw = yaw + (float) offset;
                 arrow.shoot(dir.x, dir.y, dir.z, ARROW_VELOCITY, ARROW_INACCURACY);
                 if (level.addFreshEntity(arrow)) {
                     arrowsFired++;
@@ -396,6 +397,20 @@ public final class SimTerminator {
         });
     }
 
+    /**
+     * The yaw a Terminator arrow was fired with - the aim the use packet carried - or null for any other entity.
+     *
+     * <p>An arrow's own {@code getYRot()} is not that. {@code Projectile.shoot} sets it to {@code atan2(x, z)} of the
+     * velocity (26.1.2 bytecode), the mirror of a look yaw's {@code atan2(-x, z)}; a shot fired straight down has
+     * next to no horizontal velocity, and {@link #fromAngles} at pitch 90 even points that sliver BACKWARDS
+     * ({@code cos} of the float pi/2 is -4.4e-8); and an arrow that hits something invulnerable is deflected with
+     * {@code ProjectileDeflection.REVERSE}, which turns it about 180 degrees. Anything that needs "which way was
+     * this shot aimed" - Ice Path's shove - reads this instead.
+     */
+    public static Float shotYaw(Entity entity) {
+        return entity instanceof TerminatorArrow arrow ? arrow.shotYaw : null;
+    }
+
     /** Vanilla's own yaw/pitch to direction, so an angled arrow goes where the crosshair says it would. */
     private static Vec3 fromAngles(float yaw, float pitch) {
         float y = -yaw * ((float) Math.PI / 180f);
@@ -420,6 +435,9 @@ public final class SimTerminator {
     private static final class TerminatorArrow extends Arrow {
 
         private int livedTicks;
+
+        /** The yaw the shot was AIMED with, in an entity's look convention - see {@link #shotYaw(Entity)}. */
+        private float shotYaw;
 
         TerminatorArrow(Level level, LivingEntity owner) {
             // Positions itself at the owner's eye and calls setOwner - both verified in the 26.1.2 bytecode.
