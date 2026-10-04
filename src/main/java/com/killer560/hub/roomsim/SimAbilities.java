@@ -114,6 +114,10 @@ public final class SimAbilities {
                 // vanilla all the way down - it would still throw and still teleport him out of the trap.
                 return InteractionResult.FAIL;
             }
+            if (ETHERWARP_ITEMS.contains(id) && player.isShiftKeyDown() && etherwarpLocked()) {
+                sayEtherwarpLocked();
+                return InteractionResult.FAIL;
+            }
             markAbilityUsed();
             if (ETHERWARP_ITEMS.contains(id) && player.isShiftKeyDown()) {
                 return etherwarp(client) ? InteractionResult.SUCCESS : InteractionResult.PASS;
@@ -182,7 +186,9 @@ public final class SimAbilities {
                 return InteractionResult.SUCCESS;
             }
             if (ETHERWARP_ITEMS.contains(id)) {
-                if (player.isShiftKeyDown()) {
+                if (player.isShiftKeyDown() && etherwarpLocked()) {
+                    sayEtherwarpLocked();
+                } else if (player.isShiftKeyDown()) {
                     etherwarp(client);
                 } else {
                     instantTransmission(client, held);
@@ -266,6 +272,10 @@ public final class SimAbilities {
         }
         String id = CheatUtils.skyblockId(client.player.getMainHandItem());
         if (id == null || !ETHERWARP_ITEMS.contains(id) || !client.player.isShiftKeyDown() || trapLocked(id)) {
+            return false;
+        }
+        if (etherwarpLocked()) {
+            sayEtherwarpLocked();
             return false;
         }
         var server = client.getSingleplayerServer();
@@ -492,7 +502,15 @@ public final class SimAbilities {
         if (player == null || client.level == null) {
             return null;
         }
-        Vec3 look = player.getViewVector(1.0f);
+        // THE BODY'S AIM, NOT THE CAMERA'S. getViewVector reads getViewXRot/getViewYRot, and Ap3ViewYawMixin
+        // answers those with ViewFreeze's held view whenever an auto is turning him - so every Instant
+        // Transmission an auto fired went where his CAMERA pointed, not where the auto aimed. That is the real
+        // cause of "ice fill starts completing it then freezes part way through" (killer560, 2026-10-04):
+        // the held view is his own look from before the first hop (or, after a pause long enough for the lease
+        // to lapse, the PREVIOUS hop's aim), so hops landed only while the path ran the way that view happened
+        // to point, and the first turn put him off the path, where the auto stops. getLookAngle reads
+        // getXRot/getYRot, which is what Hypixel receives in the use packet's rotation.
+        Vec3 look = player.getLookAngle();
         Vec3 from = player.position();
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
         Vec3 best = null;
@@ -673,6 +691,30 @@ public final class SimAbilities {
         return type == null
                 ? room.toLowerCase(java.util.Locale.ROOT).contains("trap")
                 : type.equalsIgnoreCase("trap");
+    }
+
+    /**
+     * No etherwarp inside Boulder. killer560 (2026-10-04): "I should not be able to etherwarp in that room."
+     *
+     * <p>Etherwarp only - a sneaking right-click with an etherwarp item, and the Interactive Map's hops, which are
+     * the same thing - and only while he is STANDING in the room, the rule {@link #trapLocked} uses. A warp from
+     * outside that lands in it is allowed, so walking in is unaffected. Instant Transmission is left alone: it
+     * stops at a box like any wall, while an etherwarp lands on top of one, and the boxes' barrier ceiling is
+     * what keeps the far side of the room behind the puzzle.
+     */
+    static boolean etherwarpLocked() {
+        String room = SimState.currentRoomName();
+        return room != null && room.equalsIgnoreCase("Boulder");
+    }
+
+    private static void sayEtherwarpLocked() {
+        long now = System.currentTimeMillis();
+        if (now - lastTrapMessageMs < 1000L) {
+            return;
+        }
+        lastTrapMessageMs = now;
+        com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.bad("No etherwarp in Boulder"),
+                com.killer560.hub.util.ModChat.dim(" - solve it and walk."));
     }
 
     static boolean isTeleportMaze(String room) {

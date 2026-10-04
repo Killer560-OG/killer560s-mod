@@ -47,15 +47,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>So there are three visible things, and this file drives all three:
  *
  * <ol>
- *   <li><b>An ore lever moves blocks.</b> Each of the six ore levers owns a gate - the run of three blocks at
- *       the foot of its own plinth, at the level the water runs - and flipping it takes them out or puts them
- *       back. Every flip moves them, right or wrong, because that is what a lever does.</li>
- *   <li><b>The back lever starts or stops the water.</b> The water at the TOP of the board - the sources at
- *       {@code (15, 91|95, 20)}, the channel along {@code y 89} and the fall down the board's face at
- *       {@code z 26} - is REMOVED when the flow is off and put back when it is on. The column right behind the
- *       lever ({@code (15, 59..62, 4)}) is never touched; it runs on Hypixel too. The capture was taken with the
- *       top running, so binding turns it off and he starts it himself, which is the real first click of every
- *       solution.</li>
+ *   <li><b>An ore lever moves blocks.</b> Each of the six ore levers owns its slots on the piston board at
+ *       the back wall, and flipping it pushes them into the water's plane or pulls them back. Every flip moves
+ *       them, right or wrong, because that is what a lever does.</li>
+ *   <li><b>The back lever starts or stops the water.</b> It moves the board's lapis slot, the one block the
+ *       always-running top water rests on - see {@link #WATER_GATE}. Open, the water falls into the maze and
+ *       vanilla fluid ticks carry it down; shut, it drains. The column right behind the lever
+ *       ({@code (15, 59..62, 4)}) is never touched; it runs on Hypixel too.</li>
  *   <li><b>Water reaching a colour's column moves that wool.</b> The five colours each own a column at
  *       {@code x=15}; the wool sits at {@code (15, 55, z)} and is pushed up to {@code (15, 56, z)}. That upper
  *       block is exactly what {@code WaterSolverFeature.scan} reads to decide which three are "extended", so
@@ -87,19 +85,18 @@ import java.util.concurrent.ConcurrentHashMap;
  *       it and cannot be replayed. So the colours open in the order the water would reach them - nearest the
  *       entrance first - spread evenly across the timed clicks. Three colours and two timed clicks means one
  *       opens per third of the sequence.</li>
- *   <li><b>How you fail.</b> He asked for a way to fail, and the mechanic gives an honest one: a click at the
- *       wrong moment sends the water down the wrong column, and a column whose wool is already in gets pushed
- *       back out. Three such mistakes and the puzzle is failed - chat, the room red on the map and the
- *       Architect's First Draft offer, the same as every other sim puzzle
- *       ({@link SimPuzzles#reportFail(String, String)}).</li>
+ *   <li><b>It cannot be failed.</b> killer560 (2026-10-04): "should not be failable". A click the board did
+ *       not ask for still moves its blocks - that is the lever's job - and is named in chat, but nothing is
+ *       counted, nothing is pushed back and the room never goes red. (It used to fail after three, and the
+ *       back lever refused to start the water until every gate was set - the other half of that report.)</li>
  * </ul>
  *
  * <h2>Safety</h2>
  *
  * <p>Same as the rest of {@code roomsim}: gated on {@link SimState#canAct}, and every world write happens on
- * the integrated server's own thread - see {@code SimDoors}'s class doc. The writes use
- * {@link #WRITE_FLAGS}, which tells the client but schedules no neighbour or fluid updates: the room's water
- * is a sealed column and a cascade out of it would flood the floor.
+ * the integrated server's own thread - see {@code SimDoors}'s class doc. Piston, power and wall-face writes use
+ * {@link #WRITE_FLAGS} (no neighbour updates); only the cell IN the water's plane is written with
+ * {@link Block#UPDATE_ALL}, so vanilla water reacts to it - see {@link #setSlot}.
  */
 public final class SimWaterPuzzle {
 
@@ -118,8 +115,6 @@ public final class SimWaterPuzzle {
     /** How far off a required click time may be. A second each way: this is practice, not a frame-perfect run. */
     private static final double TOLERANCE_SECONDS = 1.0;
 
-    /** Mistakes before the puzzle is failed. */
-    private static final int MAX_MISTAKES = 3;
 
 
     /** The colour wool's two positions: retracted, and pushed up into the walkway where the solver reads it. */
@@ -127,43 +122,25 @@ public final class SimWaterPuzzle {
     private static final int WOOL_OUT_Y = 56;
 
     /**
-     * The water the back lever controls: everything at the TOP of the board, room-relative y {@value #TOP_WATER_MIN_Y}
-     * and up.
+     * THE BACK LEVER IS THE LAPIS SLOT.
      *
-     * <p>killer560 (2026-10-02): "Make it so the lever by water does not update the water running right behind it
-     * to flow down forward, but instead the water at the top of the puzzle should be turned on and off with it."
-     * The first version toggled the sealed column at {@code (15, 59..62, 4)} directly behind the lever, which on
-     * Hypixel just runs. Decoding {@code Water_Board.json} at database rotation 270 puts the board's own feed far
-     * above it: sources at {@code (15, 91, 20)} and {@code (15, 95, 20)}, a channel along {@code y 89} from
-     * {@code z 20} to {@code 26}, and the fall down the face of the board at {@code x 14..16, y 82..88, z 26} -
-     * 31 water blocks, every one at y 82 or above, while the lower column tops out at y 62. So the cut at 75 has
-     * twenty blocks of margin either way. The positions and exact states are read off the room at arm time, so a
-     * restore puts back the capture's own levels rather than a guessed shape.
+     * <p>killer560 (2026-10-04): "flipping the lever by water does not actually release water up top of the maze
+     * part." Decoding {@code Water_Board.json} (capture x,z = room-relative z+1, x+1) settles what it does. The
+     * top water runs all the time - sources feeding a fall down the board's water plane (relative {@code z 26})
+     * at {@code x 14..16} - and it stops on ONE block: a {@code lapis_block} at relative {@code (15, 82, 26)},
+     * pushed there by an extended sticky piston at {@code (15, 82, 28)} powered by a redstone block behind it.
+     * It is the one board slot no ore lever owns. Pull it back and the water falls through the one-wide shaft at
+     * {@code x 15, y 78..81} into the maze. So that is what the lever moves now. The 2026-10-02 version removed
+     * and restored the top water blocks with no fluid updates, so the top water blinked in and out and not one
+     * drop ever went down the maze.
      */
-    private static final int TOP_WATER_MIN_Y = 75;
-    private static final int TOP_WATER_MAX_Y = 100;
-    /** The top water as the room had it at arm time: world position to its exact fluid state. */
-    private static final Map<BlockPos, BlockState> TOP_WATER = new ConcurrentHashMap<>();
+    private static final List<Slot> WATER_GATE = new ArrayList<>();
 
-    /** Reads the board's top water into {@link #TOP_WATER}. Server thread, at arm time, before anything is cut. */
-    private static void readTopWater(ServerLevel level) {
-        TOP_WATER.clear();
-        for (int x = 0; x <= 30; x++) {
-            for (int z = 0; z <= 30; z++) {
-                for (int y = TOP_WATER_MIN_Y; y <= TOP_WATER_MAX_Y; y++) {
-                    BlockPos pos = at(x, y, z);
-                    if (pos == null) {
-                        continue;
-                    }
-                    BlockState state = level.getBlockState(pos);
-                    if (state.is(Blocks.WATER)) {
-                        TOP_WATER.put(pos.immutable(), state);
-                    }
-                }
-            }
-        }
-        LOGGER.info("Sim Water Board: {} block(s) of top water under the back lever", TOP_WATER.size());
-    }
+    /** The room-relative z of the block that powers each slot's piston - a redstone block when it is out. */
+    private static final int BOARD_POWER_Z = 29;
+    /** The power cell's two states, copied off the room: behind an extended piston, and behind a retracted one. */
+    private static volatile BlockState powerOn = null;
+    private static volatile BlockState powerOff = null;
 
     // ------------------------------------------------------------------------------------- where it is bound
 
@@ -197,7 +174,7 @@ public final class SimWaterPuzzle {
      * extended, which is the "some amount of blocks need to start out" he asked for - it is the room's own
      * starting pattern, not one invented here.
      */
-    private record Slot(BlockPos piston, BlockPos face, BlockPos behind, BlockState ore) {
+    private record Slot(BlockPos piston, BlockPos face, BlockPos behind, BlockPos power, BlockState ore) {
     }
 
     private static final Map<LeverBlock, List<Slot>> GATES = new EnumMap<>(LeverBlock.class);
@@ -246,10 +223,14 @@ public final class SimWaterPuzzle {
     /** Reads the room's piston board into {@link #GATES}. Server thread, at arm time. */
     private static void readBoard(ServerLevel level) {
         GATES.clear();
+        WATER_GATE.clear();
         SLOT_OUT.clear();
+        STARTED_OUT.clear();
         headState = null;
         pistonOut = null;
         pistonIn = null;
+        powerOn = null;
+        powerOff = null;
         int found = 0;
         for (int x = BOARD_MIN_X; x <= BOARD_MAX_X; x++) {
             for (int y = BOARD_MIN_Y; y <= BOARD_MAX_Y; y++) {
@@ -262,9 +243,11 @@ public final class SimWaterPuzzle {
                 BlockState atFace = level.getBlockState(face);
                 boolean out = atFace.is(Blocks.PISTON_HEAD);
                 BlockState ore = out ? level.getBlockState(behind) : atFace;
+                BlockPos power = at(x, y, BOARD_POWER_Z);
                 LeverBlock lever = leverForOre(ore);
-                if (lever == null) {
-                    continue;   // the lapis slot, or a cell the capture never read
+                boolean waterGate = lever == null && ore.is(Blocks.LAPIS_BLOCK);
+                if (lever == null && !waterGate) {
+                    continue;   // a cell the capture never read
                 }
                 if (out && headState == null) {
                     headState = atFace;
@@ -272,15 +255,26 @@ public final class SimWaterPuzzle {
                 } else if (!out && pistonIn == null) {
                     pistonIn = level.getBlockState(piston);
                 }
-                GATES.computeIfAbsent(lever, k -> new ArrayList<>())
-                        .add(new Slot(piston, face, behind, ore));
+                if (out && powerOn == null) {
+                    powerOn = level.getBlockState(power);
+                } else if (!out && powerOff == null) {
+                    powerOff = level.getBlockState(power);
+                }
+                Slot slot = new Slot(piston, face, behind, power, ore);
                 SLOT_OUT.put(face, out);
                 STARTED_OUT.put(face, out);
+                if (waterGate) {
+                    WATER_GATE.add(slot);
+                    continue;
+                }
+                GATES.computeIfAbsent(lever, k -> new ArrayList<>()).add(slot);
                 found++;
             }
         }
-        LOGGER.info("Sim Water Board: back wall read - {} slot(s) over {} lever(s), {} starting out",
-                found, GATES.size(), SLOT_OUT.values().stream().filter(Boolean::booleanValue).count());
+        LOGGER.info("Sim Water Board: back wall read - {} slot(s) over {} lever(s), {} starting out; {} water"
+                        + " gate (lapis) slot(s), power {} / {}", found, GATES.size(),
+                SLOT_OUT.values().stream().filter(Boolean::booleanValue).count(), WATER_GATE.size(),
+                powerOn == null ? "none" : powerOn.getBlock(), powerOff == null ? "none" : powerOff.getBlock());
     }
 
     // ------------------------------------------------------------------------------------------- the board
@@ -298,7 +292,6 @@ public final class SimWaterPuzzle {
     private static volatile List<Map.Entry<LeverBlock, Double>> timed = List.of();
     private static volatile int timedDone = 0;
 
-    private static volatile int mistakes = 0;
     private static volatile boolean complete = false;
     private static volatile boolean flowing = false;
 
@@ -454,11 +447,6 @@ public final class SimWaterPuzzle {
         // The back wall IS the gates - see Slot. A standalone arena has no wall, so it reads nothing and the
         // levers simply have nothing to move; the rules still work.
         readBoard(level);
-        if (withWater) {
-            // Read before setFlowing(false) below cuts it - and only once per bind: a re-arm after the water has
-            // been cut would read nothing and leave the lever controlling nothing.
-            readTopWater(level);
-        }
 
         int identifier = identifierAt(level);
         if (identifier < 0) {
@@ -489,7 +477,6 @@ public final class SimWaterPuzzle {
         }
         timed = List.copyOf(timedOrder);
         timedDone = 0;
-        mistakes = 0;
         complete = false;
         openedTick = -1;
         tickCounter = 0;
@@ -579,9 +566,6 @@ public final class SimWaterPuzzle {
     // ---------------------------------------------------------------------------------------- the mechanic
 
     private static void onLeverClicked(Minecraft client, LeverBlock lever) {
-        if (complete) {
-            return;
-        }
         MinecraftServer server = client.getSingleplayerServer();
         if (server == null) {
             return;
@@ -590,49 +574,60 @@ public final class SimWaterPuzzle {
             onWaterLever(server);
             return;
         }
-        // The blocks move whatever the click turns out to be worth. That is the lever's job, and seeing them
-        // move is how he knows which lever he just pulled.
+        // The blocks move whatever the click turns out to be worth - also after the board is solved. That is the
+        // lever's job, and seeing them move is how he knows which lever he just pulled.
         toggleGate(server, lever);
+        if (complete) {
+            return;
+        }
 
         if (!preFlowDone.containsAll(preFlow)) {
             // Still setting the gates. Order does not matter among these - they are all "time 0", i.e. before
             // the water is running at all - so any lever the board still wants is right.
             if (!preFlow.contains(lever)) {
-                mistake(server, "the " + label(lever) + " lever - this board does not use it");
+                offScript("the " + label(lever) + " lever - this board does not use it");
                 return;
             }
             if (!preFlowDone.add(lever)) {
-                mistake(server, "the " + label(lever) + " lever twice before opening the water");
+                offScript("the " + label(lever) + " lever twice before opening the water");
                 return;
             }
             int left = preFlow.size() - preFlowDone.size();
+            if (left == 0 && flowing && openedTick == -1) {
+                // The water was already let in before the last gate went - fine, it cannot be failed; the clock
+                // starts from the moment the board is complete instead.
+                openedTick = tickCounter;
+                ModChat.send("Sim", ModChat.text("Gates set. "), ModChat.good("Water running"),
+                        ModChat.dim(" - the clock starts now."));
+                syncWool(server);
+                return;
+            }
             ModChat.send("Sim", ModChat.text("Gate set. "), ModChat.dim(left == 0
                     ? "Now pull the back lever to start the water."
                     : left + " more gate(s), then the back lever."));
             return;
         }
         if (openedTick == -1) {
-            mistake(server, "the " + label(lever) + " lever before the water was running");
+            offScript("the " + label(lever) + " lever before the water was running");
             return;
         }
         if (timedDone >= timed.size()) {
-            mistake(server, "the " + label(lever) + " lever - the board is already done with it");
+            offScript("the " + label(lever) + " lever - the board is already done with it");
             return;
         }
         Map.Entry<LeverBlock, Double> due = timed.get(timedDone);
         if (due.getKey() != lever) {
-            mistake(server, "the " + label(lever) + " lever - the water is waiting on "
-                    + label(due.getKey()));
+            offScript("the " + label(lever) + " lever - the water is waiting on " + label(due.getKey()));
             return;
         }
         double elapsed = (tickCounter - openedTick) / 20.0;
         double off = elapsed - due.getValue();
         if (off < -TOLERANCE_SECONDS) {
-            mistake(server, "the " + label(lever) + " lever " + fmt(-off) + "s too early");
+            offScript("the " + label(lever) + " lever " + fmt(-off) + "s too early");
             return;
         }
         if (off > TOLERANCE_SECONDS) {
-            mistake(server, "the " + label(lever) + " lever " + fmt(off) + "s too late");
+            offScript("the " + label(lever) + " lever " + fmt(off) + "s too late");
             return;
         }
         timedDone++;
@@ -640,51 +635,54 @@ public final class SimWaterPuzzle {
     }
 
     /**
-     * The back lever: starts or stops the water.
+     * The back lever: starts or stops the water, every time, whatever else is going on.
      *
-     * <p>Its first flip is the solution's own start signal, and every bundled time is measured from it. A later
-     * flip that the board asks for (several boards do ask for one) is scored like any other timed click and
-     * stops the flow on the way through. A flip the board did not ask for is not a mistake - it is him deciding
-     * to start over, which is what the lever is for - so the flow stops, the clock clears and the timed half of
-     * the sequence goes back to the beginning with the gates left as they are.
+     * <p>It used to refuse - "Wrong - the back lever with 3 gate(s) still to set" in his 2026-10-04 log - which
+     * from the room is a lever that does nothing. It now always moves the lapis gate. Its first start once the
+     * gates are set is the solution's own start signal, and every bundled time is measured from it. A later
+     * flip the board asks for (several boards do) is scored like any other timed click. A flip the board did not
+     * ask for is him deciding to start over: the flow stops, the clock clears and the timed half of the sequence
+     * goes back to the beginning with the gates left as they are.
      */
     private static void onWaterLever(MinecraftServer server) {
+        boolean turnOn = !flowing;
+        setFlowingOn(server, turnOn);
+        if (complete) {
+            return;
+        }
         if (!preFlowDone.containsAll(preFlow)) {
-            mistake(server, "the back lever with " + (preFlow.size() - preFlowDone.size())
-                    + " gate(s) still to set");
+            ModChat.send("Sim", ModChat.text(turnOn ? "Water running. " : "Water stopped. "),
+                    ModChat.dim((preFlow.size() - preFlowDone.size())
+                            + " gate(s) still to set before the clock starts."));
             return;
         }
         if (openedTick == -1) {
-            openedTick = tickCounter;
-            setFlowingOn(server, true);
-            ModChat.send("Sim", ModChat.good("Water running"),
-                    ModChat.dim(" - the clock starts now."));
-            syncWool(server);
+            if (turnOn) {
+                openedTick = tickCounter;
+                ModChat.send("Sim", ModChat.good("Water running"), ModChat.dim(" - the clock starts now."));
+                syncWool(server);
+            }
             return;
         }
         if (timedDone < timed.size() && timed.get(timedDone).getKey() == LeverBlock.WATER) {
             double elapsed = (tickCounter - openedTick) / 20.0;
             double off = elapsed - timed.get(timedDone).getValue();
-            if (off < -TOLERANCE_SECONDS) {
-                mistake(server, "the back lever " + fmt(-off) + "s too early");
+            if (Math.abs(off) <= TOLERANCE_SECONDS) {
+                timedDone++;
+                syncWool(server);
                 return;
             }
-            if (off > TOLERANCE_SECONDS) {
-                mistake(server, "the back lever " + fmt(off) + "s too late");
-                return;
-            }
-            timedDone++;
-            setFlowingOn(server, !flowing);
-            syncWool(server);
+            offScript("the back lever " + fmt(Math.abs(off)) + "s too " + (off < 0 ? "early" : "late"));
             return;
         }
-        // A restart, not a mistake.
-        setFlowingOn(server, false);
-        openedTick = -1;
-        timedDone = 0;
-        syncWool(server);
-        ModChat.send("Sim", ModChat.text("Water stopped. "),
-                ModChat.dim("Pull the back lever again to restart the timing."));
+        if (!turnOn) {
+            // A restart, not a mistake.
+            openedTick = -1;
+            timedDone = 0;
+            syncWool(server);
+            ModChat.send("Sim", ModChat.text("Water stopped. "),
+                    ModChat.dim("Pull the back lever again to restart the timing."));
+        }
     }
 
     /**
@@ -717,16 +715,33 @@ public final class SimWaterPuzzle {
         });
     }
 
-    /** One slot pushed out or pulled in. Server thread. */
+    /**
+     * One slot pushed out or pulled in. Server thread.
+     *
+     * <p><b>The power goes with it.</b> Every extended piston in the capture has a redstone block behind it and
+     * every retracted one has polished andesite, so the block at {@link #BOARD_POWER_Z} is swapped to match.
+     * That matters now that water moves: a piston head beside flowing water forwards each neighbour update to
+     * its base, and a base whose power disagreed with its state would move itself and undo the lever. Checked
+     * on the capture: no piston sits directly under another, so a redstone block cannot quasi-power a neighbour.
+     *
+     * <p><b>Only the cell in the water's plane is written with updates</b> ({@link Block#UPDATE_ALL}), and it is
+     * written last, so the water beside it re-ticks and flows into a slot that opened or drains below one that
+     * closed - which is the whole maze. Everything else keeps {@link #WRITE_FLAGS}, so a write cannot set a
+     * piston off. A standalone arena has no board, so this is never reached there.
+     */
     private static void setSlot(ServerLevel level, Slot slot, boolean out) {
         BlockState head = headState;
         BlockState pistonState = out ? pistonOut : pistonIn;
         if (head == null || pistonState == null) {
             return;   // the room showed neither an extended nor a retracted slot to copy from
         }
-        level.setBlock(slot.face(), out ? head : slot.ore(), WRITE_FLAGS);
-        level.setBlock(slot.behind(), out ? slot.ore() : Blocks.AIR.defaultBlockState(), WRITE_FLAGS);
+        BlockState power = out ? powerOn : powerOff;
+        if (power != null) {
+            level.setBlock(slot.power(), power, WRITE_FLAGS);
+        }
         level.setBlock(slot.piston(), pistonState, WRITE_FLAGS);
+        level.setBlock(slot.face(), out ? head : slot.ore(), WRITE_FLAGS);
+        level.setBlock(slot.behind(), out ? slot.ore() : Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         SLOT_OUT.put(slot.face(), out);
     }
 
@@ -735,24 +750,21 @@ public final class SimWaterPuzzle {
         server.execute(() -> setFlowing(server.overworld(), on));
     }
 
+    /**
+     * Opens or shuts the lapis gate - see {@link #WATER_GATE}. Open lets the top water fall into the maze, and
+     * vanilla water does the rest: it runs down every open channel, is turned by every ore pushed into its plane,
+     * and drains away from the gate down when its supply is cut.
+     */
     private static void setFlowing(ServerLevel level, boolean on) {
         flowing = on;
         if (!hasWater) {
             return;
         }
-        BlockState air = Blocks.AIR.defaultBlockState();
-        // Only the top water; the column behind the lever is left exactly as the capture had it, running.
-        for (Map.Entry<BlockPos, BlockState> e : TOP_WATER.entrySet()) {
-            BlockState current = level.getBlockState(e.getKey());
-            if (on) {
-                // Never over a block: a piston slot pushed out into the fall's z=26 owns that cell now.
-                if (current.isAir() || current.is(Blocks.WATER)) {
-                    level.setBlock(e.getKey(), e.getValue(), WRITE_FLAGS);
-                }
-            } else if (current.is(Blocks.WATER)) {
-                level.setBlock(e.getKey(), air, WRITE_FLAGS);
-            }
+        for (Slot slot : WATER_GATE) {
+            setSlot(level, slot, !on);   // the lapis OUT is the water stopped
         }
+        LOGGER.info("Sim Water Board: water {} ({} gate slot(s) moved)", on ? "released" : "stopped",
+                WATER_GATE.size());
     }
 
     /**
@@ -787,7 +799,6 @@ public final class SimWaterPuzzle {
             return;
         }
         complete = true;
-        setFlowingOn(server, false);
         ModChat.send("Sim", ModChat.good("Water Board"), ModChat.text(" solved."));
     }
 
@@ -838,50 +849,17 @@ public final class SimWaterPuzzle {
     }
 
     /**
-     * A click that sent the water somewhere it should not have gone.
-     *
-     * <p>The nearest column whose wool is already in gets pushed back out, which is the mechanic's own
-     * punishment and visible from where he is standing. Three of them fails the puzzle.
+     * A click the board did not ask for. Named, and nothing else: the puzzle cannot be failed (killer560,
+     * 2026-10-04), so no count, no wool pushed back and no red room.
      */
-    private static void mistake(MinecraftServer server, String what) {
-        mistakes++;
-        if (!openColours.isEmpty()) {
-            // The last one opened is the one the stream was pointed at, so it is the one that closes.
-            WoolColor lost = null;
-            for (WoolColor colour : board) {
-                if (openColours.contains(colour)) {
-                    lost = colour;
-                }
-            }
-            if (lost != null) {
-                openColours.remove(lost);
-                timedDone = Math.max(0, timedDone - 1);
-                final WoolColor pushedBack = lost;
-                server.execute(() -> setWool(server.overworld(), pushedBack, true));
-            }
-        }
-        if (mistakes >= MAX_MISTAKES) {
-            fail(server, what);
-            return;
-        }
-        ModChat.send("Sim", ModChat.bad("Wrong"), ModChat.text(" - " + what + ". "),
-                ModChat.dim((MAX_MISTAKES - mistakes) + " mistake(s) left."));
-    }
-
-    private static void fail(MinecraftServer server, String what) {
-        // Tells the Architect's First Draft feature a puzzle failed, so his existing auto-get setting works in
-        // here the same as it does on Hypixel, and turns the room red on the map - see SimRoomState.
-        SimPuzzles.reportFail("Water Board", boundRoom == null ? "Water Board" : boundRoom);
-        ModChat.send("Sim", ModChat.bad("Water Board"),
-                ModChat.text(" failed - " + what + ". Resetting."));
-        restart(server);
+    private static void offScript(String what) {
+        ModChat.send("Sim", ModChat.dim("Not in this board's solution: " + what + "."));
     }
 
     /** Back to the starting state without rebuilding: levers down, gates closed, water off, wool out. */
     private static void restart(MinecraftServer server) {
         preFlowDone.clear();
         timedDone = 0;
-        mistakes = 0;
         complete = false;
         openedTick = -1;
         tickCounter = 0;
@@ -938,7 +916,9 @@ public final class SimWaterPuzzle {
         boundRoom = null;
         hasWater = false;
         flowing = false;
-        TOP_WATER.clear();
+        WATER_GATE.clear();
+        powerOn = null;
+        powerOff = null;
         POSITIONS.clear();
         BLOCK_INDEX.clear();
         GATES.clear();
@@ -954,7 +934,6 @@ public final class SimWaterPuzzle {
         preFlowDone.clear();
         timed = List.of();
         timedDone = 0;
-        mistakes = 0;
         complete = false;
         openedTick = -1;
         tickCounter = 0;

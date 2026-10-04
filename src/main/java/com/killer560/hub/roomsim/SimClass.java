@@ -185,7 +185,9 @@ public final class SimClass {
     private static void fire(Minecraft client) {
         var player = client.player;
         Vec3 eye = player.getEyePosition();
-        Vec3 look = player.getViewVector(1.0f);
+        // getLookAngle, not getViewVector: the view vector answers with ViewFreeze's held CAMERA while an auto is
+        // aiming, and a shot goes where the body is aimed - see SimAbilities.dashTarget.
+        Vec3 look = player.getLookAngle();
         Vec3 end = eye.add(look.scale(BEAM_RANGE));
 
         // The wall first: nothing past it can be hit, so it shortens the search as well as stopping the beam.
@@ -226,6 +228,9 @@ public final class SimClass {
         lingerTicks = BEAM_LINGER_TICKS;
 
         if (nearest == null) {
+            // Nothing living in the way, so the beam ends on a block - which may be a Creeper Beams lantern
+            // across the room, out of reach of a left click on the block itself.
+            com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.shotAlong(client, eye, look, BEAM_RANGE);
             return;
         }
         var server = client.getSingleplayerServer();
@@ -258,7 +263,7 @@ public final class SimClass {
             return null;
         }
         Vec3 eye = client.player.getEyePosition();
-        Vec3 end = eye.add(client.player.getViewVector(1.0f).scale(BEAM_RANGE));
+        Vec3 end = eye.add(client.player.getLookAngle().scale(BEAM_RANGE));
         BlockHitResult wall = client.level.clip(new ClipContext(
                 eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));
         return wall == null ? null : wall.getBlockPos();

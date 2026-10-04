@@ -183,7 +183,7 @@ public final class SimSpiritSceptre {
             return false;
         }
         Vec3 eye = client.player.getEyePosition();
-        Vec3 look = client.player.getViewVector(1.0f);
+        Vec3 look = client.player.getLookAngle();
         for (int i = 0; i < BATS; i++) {
             Bat bat = new Bat();
             bat.delay = i * LAUNCH_GAP;
