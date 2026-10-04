@@ -282,6 +282,7 @@ final class SettingTooltipsData {
         d.put("label scale", "Size of the labels above AP3 nodes.");
         d.put("label height", "How many blocks above the node its label floats.");
         d.put("ap3/edit", "Opens this node's page to move it, re-place it, or change its settings.");
+        d.put("ap3/nodes", "Default size of new AP3 nodes, the stopwatch, and whether nodes and their lines are drawn.");
         d.put("ap3/delete", "Removes this node from the chain (/ap3 delete <n>).");
         d.put("edit node", "This node's own settings; its number is its position in the chain.");
         d.put("ap3/move up", "Moves this node one step earlier in the chain (/ap3 move <n> up).");
@@ -365,12 +366,7 @@ final class SettingTooltipsData {
         d.put("recording", "Cheat build: record a route with /ar start record and /ar stop record, or the keys under the buttons.");
         d.put("start recording", "Starts recording your movement, camera and actions in this room (/ar start record).");
         d.put("stop recording", "Stops recording and saves it as this room's route (/ar stop record).");
-        d.put("nodes", "The nodes of this room's route, in order; /ar list prints them in chat.");
-        d.put("list in chat", "Prints this room's nodes in chat with their numbers.");
-        d.put("new/clear route", "Deletes every node in this room's route (same as /ar clear).");
-        d.put("auto routes/delete", "Removes this node from the route.");
-        d.put("routes file", "Cheat build: keeps all your routes in one file you can edit and share.");
-        d.put("open routes folder", "Opens the config folder holding your routes file.");
+        d.put("open routes folder", "Opens the folder holding your routes file - the one JSON with every room's route, to edit or share.");
         d.put("reload routes", "Re-reads the routes file from disk (same as /ar reload).");
         d.put("colours", "Cheat build: node marker colours in the world.");
         d.put("uniform colour", "ON: all node markers use one colour. OFF: each node type gets its own.");

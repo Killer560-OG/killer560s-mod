@@ -13,4 +13,10 @@ public interface MultiPlayerGameModeInvoker {
 
     @Invoker("startPrediction")
     void killer560smod$invokeStartPrediction(ClientLevel level, PredictiveAction action);
+
+    /** Auto Routes: {@code private void ensureHasSentCarriedItem()} (javap-verified on 26.1.2 and 26.2) - sends the
+     *  held-item packet for the client's selected slot if the server has not been told yet, and records it in
+     *  {@code carriedIndex} so {@code MultiPlayerGameMode.tick()} does not send the same slot a second time. */
+    @Invoker("ensureHasSentCarriedItem")
+    void killer560smod$invokeEnsureHasSentCarriedItem();
 }

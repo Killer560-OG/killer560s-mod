@@ -68,6 +68,14 @@ import com.killer560.hub.compat.McCompat;
  * <b>The {@code await} modifier</b> (any node may carry one - see {@link RouteNode#awaitEnabled}, and
  * {@link #tickAwait}) gates a node's own action behind "wait for N secrets" or "wait a fixed delay" FIRST -
  * killer560's old {@code AWAIT} node, folded onto whichever node needs it instead of taking a slot of its own.
+ * <p>
+ * <b>Timing</b> (killer560, 2026-10-04: "Each action should be done in 1 tick unless it is something like waiting on a
+ * bat"). The executor ticks on {@code START_CLIENT_TICK}, before the player's own tick, and a node's action runs on
+ * the tick it fires. Everything it needs is asked for at once: the hotbar slot (held-item packet, sent now), the
+ * sneak (installed by the input mixin into THIS tick's {@code ServerboundPlayerInputPacket}) and the aim. The only
+ * waits left are real ones: an etherwarp that needs a fresh sneak uses on the next tick, so the stream reads
+ * held-item, input(shift), move, use - the server handles them in that order, sneak before use; a legit-mode camera
+ * turn; an await gate; and the server's own answer (the landing, the broken block).
  */
 public final class RouteExecutor {
 
@@ -80,7 +88,6 @@ public final class RouteExecutor {
     private static final int SEEK_WINDOW = 60;
     private static final double LOOKAHEAD = 0.7;
     private static final int SNEAK_TIMEOUT = 20;
-    private static final int SWAP_TIMEOUT = 10;
     private static final int AIM_TIMEOUT = 80;
     private static final int LANDING_TIMEOUT = 60;
     private static final int BOOM_TIMEOUT = 40;
@@ -98,7 +105,9 @@ public final class RouteExecutor {
     private static final String BREAKER_ID = "DUNGEONBREAKER";
     private static final Pattern CHARGES = Pattern.compile("Charges: (\\d+)/(\\d+)");
 
-    private enum Step { PREP, SWAP, AIM, DO, CONFIRM, SETTLE }
+    /** PREP runs on the tick a node fires and asks for everything at once (hotbar slot, sneak, aim); AIM waits only
+     *  for what has a real wait (the server having the sneak, a legit-mode camera turn); DO / CONFIRM as named. */
+    private enum Step { PREP, AIM, DO, CONFIRM }
 
     // ---- session ----
     private static boolean running;
@@ -121,7 +130,15 @@ public final class RouteExecutor {
     private static Vec3 actionOrigin;
     private static boolean forceSneak;
     private static boolean unsneakOverride;
-    private static boolean swapSent;
+    /** Executor ticks since the active node fired: 0 on the firing tick itself. The "[AutoRoutes] Node #n ... acted"
+     *  log line reports it, so a log shows directly how long every action took. */
+    private static int actionAge;
+    /** {@link #actionAge} when the node's await gate opened (0 without one) - the action's own time starts there. */
+    private static int awaitDoneAge;
+    /** This node had to change the hotbar slot (for the log). */
+    private static boolean nodeSwapped;
+    /** {@link #actionAge} at which the server was known to have the etherwarp's sneak, or -1. */
+    private static int sneakReadyAge;
     /** Set by the position-packet hook ({@code LiveMapPacketListenerMixin}) when the server moves the player, cleared
      *  when a teleport's use is sent - Hypixel and the sim both teleport with that packet, so it is the landing check's
      *  proof that a teleport really happened, however short. */
@@ -356,6 +373,8 @@ public final class RouteExecutor {
         // him inside the ring again, and on a path-less route a player still walking could be out of it by then.
         // Every node stacked on the start node's tile goes with it.
         beginStack(startNode);
+        // tick() does this for every later tick; the firing tick runs from the arming code instead.
+        applyFallbackKeys(client);
         return true;
     }
 
@@ -509,8 +528,9 @@ public final class RouteExecutor {
 
     // ------------------------------------------------------------------------------------------- ticking
 
-    /** Call at the END of every client tick while {@link #isRunning()}; the feature has already applied its own
-     *  interlocks (map open, Blood Rush, room known) before this runs. */
+    /** Call at the START of every client tick while {@link #isRunning()} (before the player's tick sends this tick's
+     *  input and movement packets); the feature has already applied its own interlocks (map open, Blood Rush, room
+     *  known) before this runs. */
     static void tick(Minecraft client) {
         if (!running) {
             releaseKeys();
@@ -848,7 +868,10 @@ public final class RouteExecutor {
         activeNode = node;
         step = Step.PREP;
         stepTicks = 0;
-        swapSent = false;
+        actionAge = -1;
+        awaitDoneAge = 0;
+        nodeSwapped = false;
+        sneakReadyAge = -1;
         firedInRun.add(node);
         actionOrigin = Minecraft.getInstance().player.position();
         // Any node firing ends a held walk ("keep me walking until I hit a different node", AP3's rule), and the
@@ -864,6 +887,15 @@ public final class RouteExecutor {
         breakerSent.clear();
         boomTarget = null;
         boomBefore.clear();
+        // The node acts NOW, on the tick it fired - not on the next tick's pass through tick(). Waiting for that pass
+        // was one of the dead ticks in his 2026-10-04 log (an etherwarp took 3-4 ticks from "begins" to the use).
+        Minecraft client = Minecraft.getInstance();
+        try {
+            tickAction(client, self);
+        } catch (Exception e) {
+            LOGGER.error("[AutoRoutes] Playback error", e);
+            stop("internal error (see log)");
+        }
     }
 
     private static void finishAction() {
@@ -892,14 +924,26 @@ public final class RouteExecutor {
     private static void tickAction(Minecraft client, LocalPlayer player) {
         RouteNode node = activeNode;
         stepTicks++;
+        actionAge++;
         if (!awaitPhaseDone) {
             // The node's own action (etherwarp, use, boom, ...) doesn't start until this clears - see
-            // tickAwait, which is this gate for any node now that AWAIT isn't its own type any more.
+            // tickAwait, which is this gate for any node now that AWAIT isn't its own type any more. Once it
+            // clears, the action starts in this same tick.
             tickAwait(client, player, node);
-            return;
+            if (!awaitPhaseDone || activeNode != node) {
+                return;
+            }
+            awaitDoneAge = actionAge;
+            if (actionAge > 0) {
+                LOGGER.info("[AutoRoutes] Node #{} {}: await held it {} tick(s)", route.indexOf(node) + 1, node.type,
+                        actionAge);
+            }
         }
         switch (node.type) {
-            case START, AWAIT -> finishAction(); // a legacy AWAIT's wait already ran in tickAwait
+            case START, AWAIT -> {
+                logActed(node, "");
+                finishAction(); // a legacy AWAIT's wait already ran in tickAwait
+            }
             case WALK -> {
                 // A recorded route's walking is the path's job, so there a walk node is just a marker. On a
                 // path-less (/ar add) route it is the sprint.
@@ -908,11 +952,15 @@ public final class RouteExecutor {
                     walkHoldLastPos = null;
                     walkHoldStallTicks = 0;
                 }
+                logActed(node, route.path().isEmpty() ? " (sprint starts this tick)" : "");
                 finishAction();
             }
             case UNSNEAK -> {
+                // Cleared before the player's tick, so this tick's input packet already carries shift up.
                 unsneakOverride = true;
                 forceSneak = false;
+                wantSneak = false;
+                logActed(node, "");
                 finishAction();
             }
             case COMMAND -> {
@@ -927,6 +975,7 @@ public final class RouteExecutor {
                         player.connection.sendChat(cmd);
                     }
                 }
+                logActed(node, "");
                 finishAction();
             }
             case ROTATE -> tickRotate(node);
@@ -941,12 +990,13 @@ public final class RouteExecutor {
         if (step == Step.PREP) {
             aimAt(node);
             step = Step.AIM;
-            return;
+            stepTicks = 0;
         }
         // !isActive() covers obvious mode, where aimAt() snaps and clears the controller instead of
         // running an approach - settled() is false forever in that case, so the node used to sit out the
-        // whole AIM_TIMEOUT before moving on (2026-09-16 review).
+        // whole AIM_TIMEOUT before moving on (2026-09-16 review). It now finishes on the tick it fired.
         if (!RouteRotation.isActive() || RouteRotation.settled(1.5f) || stepTicks > AIM_TIMEOUT) {
+            logActed(node, RouteRotation.isActive() ? " (legit camera turn)" : "");
             finishAction();
         }
     }
@@ -991,297 +1041,282 @@ public final class RouteExecutor {
         }
     }
 
+    /**
+     * Fire tick: slot, sneak and aim are all asked for at once. The use goes out as soon as the server has the
+     * sneak - this very tick when the last input packet already carried shift, otherwise the next tick, after this
+     * tick's input packet has carried it. A swap costs no tick: the held-item packet is sent before either.
+     */
     private static void tickEtherwarp(Minecraft client, LocalPlayer player, RouteNode node) {
-        switch (step) {
-            case PREP -> {
-                forceSneak = true;
-                unsneakOverride = false;
-                wantSneak = true;
-                // QUOI ClearExecutor: don't warp until the SERVER has seen the sneak, or the warp is a plain AOTV hop.
-                if (player.getLastSentInput().shift()) {
-                    LOGGER.info("[AutoRoutes] Etherwarp: server has the sneak after {} tick(s)", stepTicks);
-                    step = Step.SWAP;
-                    stepTicks = 0;
-                } else if (stepTicks > SNEAK_TIMEOUT) {
+        if (step == Step.PREP) {
+            int slot = ItemIdentity.findEtherwarpSlot(player);
+            if (slot < 0) {
+                LOGGER.info("[AutoRoutes] Etherwarp: no hotbar item with ethermerge / ETHERWARP_CONDUIT");
+                stop("no etherwarp item in the hotbar");
+                return;
+            }
+            select(client, player, slot);
+            forceSneak = true;
+            unsneakOverride = false;
+            wantSneak = true;
+            aimAt(node);
+            step = Step.AIM;
+            stepTicks = 0;
+        }
+        if (step == Step.AIM) {
+            wantSneak = true;
+            // QUOI ClearExecutor's rule, kept: never use before the SERVER has the sneak, or the warp is a plain AOTV
+            // hop. lastSentInput is what the last ServerboundPlayerInputPacket said, and that packet was sent before
+            // anything this tick sends, so the server applies the sneak first (handlePlayerInput -> setShiftKeyDown).
+            // No round trip to wait for.
+            if (!player.getLastSentInput().shift()) {
+                if (stepTicks > SNEAK_TIMEOUT) {
                     LOGGER.info("[AutoRoutes] Etherwarp: sneak never reached the server (client shift={}, input mixin={})",
                             player.isShiftKeyDown(), mixinApplied);
                     stop("couldn't start sneaking for the etherwarp");
                 }
+                return;
             }
-            case SWAP -> {
-                wantSneak = true;
-                int slot = ItemIdentity.findEtherwarpSlot(player);
-                if (slot < 0) {
-                    LOGGER.info("[AutoRoutes] Etherwarp: no hotbar item with ethermerge / ETHERWARP_CONDUIT");
-                    stop("no etherwarp item in the hotbar");
-                    return;
-                }
-                if (ensureSelected(player, slot)) {
-                    LOGGER.info("[AutoRoutes] Etherwarp: slot {} selected ({})", slot,
-                            ItemIdentity.skyblockId(player.getInventory().getItem(slot)));
-                    step = Step.AIM;
-                    stepTicks = 0;
-                    aimAt(node);
-                } else if (stepTicks > SWAP_TIMEOUT) {
-                    stop("couldn't switch to the etherwarp item");
-                }
+            if (sneakReadyAge < 0) {
+                sneakReadyAge = actionAge;
             }
-            case AIM -> {
-                wantSneak = true;
-                if (aimReady()) {
-                    step = Step.DO;
-                    stepTicks = 0;
-                }
+            if (!aimReady()) {
+                return;
             }
-            case DO -> {
-                wantSneak = true;
-                actionOrigin = player.position();
-                teleportPacketSeen = false;
-                useHeldItem(client, player, node, false);
-                step = Step.CONFIRM;
-                stepTicks = 0;
-                cameraGraceTicks = LANDING_TIMEOUT + 5;
+            actionOrigin = player.position();
+            teleportPacketSeen = false;
+            useHeldItem(client, player, node, false);
+            logActed(node, " (sneak " + (sneakReadyAge == awaitDoneAge ? "already held"
+                    : "went out in the firing tick's input packet") + ", "
+                    + ItemIdentity.skyblockId(player.getMainHandItem()) + ")");
+            step = Step.CONFIRM;
+            stepTicks = 0;
+            cameraGraceTicks = LANDING_TIMEOUT + 5;
+            return;
+        }
+        if (step == Step.CONFIRM) {
+            wantSneak = true;
+            if (landed(player, node)) {
+                LOGGER.info("[AutoRoutes] Etherwarp: landed at {} {} tick(s) after the use ({} from firing)",
+                        fmt(player.position()), stepTicks, actionAge);
+                // A next etherwarp in the same stack keeps the sneak, so the server still has it when that one fires
+                // and it uses on its own firing tick; anything else lets go.
+                RouteNode next = stackQueue.peek();
+                forceSneak = next != null && next.type == RouteNode.Type.ETHERWARP;
+                RouteRotation.rebase();
+                cameraGraceTicks = 3;
+                rejoinPathAfterTeleport(player, node);
+                finishAction();
+                noteLanding(node);
+            } else if (stepTicks > LANDING_TIMEOUT) {
+                LOGGER.info("[AutoRoutes] Etherwarp: no landing after {} ticks - player {} (moved {} from {}), "
+                        + "recorded landing {}", stepTicks, fmt(player.position()),
+                        String.format(Locale.US, "%.2f", actionOrigin == null ? 0.0 : player.position().distanceTo(actionOrigin)),
+                        fmt(actionOrigin),
+                        node.hasLanding ? fmt(RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ)) : "none");
+                stop("etherwarp didn't land where it was recorded");
             }
-            case CONFIRM -> {
-                wantSneak = true;
-                if (landed(player, node)) {
-                    LOGGER.info("[AutoRoutes] Etherwarp: landed at {} after {} tick(s)", fmt(player.position()), stepTicks);
-                    forceSneak = false;
-                    RouteRotation.rebase();
-                    cameraGraceTicks = 3;
-                    rejoinPathAfterTeleport(player, node);
-                    finishAction();
-                    noteLanding(node);
-                } else if (stepTicks > LANDING_TIMEOUT) {
-                    LOGGER.info("[AutoRoutes] Etherwarp: no landing after {} ticks - player {} (moved {} from {}), "
-                            + "recorded landing {}", stepTicks, fmt(player.position()),
-                            String.format(Locale.US, "%.2f", actionOrigin == null ? 0.0 : player.position().distanceTo(actionOrigin)),
-                            fmt(actionOrigin),
-                            node.hasLanding ? fmt(RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ)) : "none");
-                    stop("etherwarp didn't land where it was recorded");
-                }
-            }
-            default -> finishAction();
         }
     }
 
     private static void tickUseItem(Minecraft client, LocalPlayer player, RouteNode node) {
-        switch (step) {
-            case PREP -> {
-                if (node.item == null) {
-                    stop("use-item node has no item");
-                    return;
-                }
-                step = Step.SWAP;
-                stepTicks = 0;
+        if (step == Step.PREP) {
+            if (node.item == null) {
+                stop("use-item node has no item");
+                return;
             }
-            case SWAP -> {
-                int slot = ItemIdentity.findHotbarSlot(player, node.item);
-                if (slot < 0) {
-                    stop(node.item + " is not in the hotbar");
-                    return;
-                }
-                if (ensureSelected(player, slot)) {
-                    step = Step.AIM;
-                    stepTicks = 0;
-                    aimAt(node);
-                } else if (stepTicks > SWAP_TIMEOUT) {
-                    stop("couldn't switch to " + node.item);
-                }
+            int slot = ItemIdentity.findHotbarSlot(player, node.item);
+            if (slot < 0) {
+                stop(node.item + " is not in the hotbar");
+                return;
             }
-            case AIM -> {
-                if (aimReady()) {
-                    step = Step.DO;
-                    stepTicks = 0;
-                }
+            select(client, player, slot);
+            aimAt(node);
+            step = Step.AIM;
+            stepTicks = 0;
+        }
+        if (step == Step.AIM) {
+            if (!aimReady()) {
+                return;
             }
-            case DO -> {
-                actionOrigin = player.position();
-                teleportPacketSeen = false;
-                useHeldItem(client, player, node, true);
-                step = Step.CONFIRM;
-                stepTicks = 0;
-                if (node.hasLanding) {
-                    cameraGraceTicks = LANDING_TIMEOUT + 5;
-                }
+            actionOrigin = player.position();
+            teleportPacketSeen = false;
+            useHeldItem(client, player, node, true);
+            logActed(node, " (" + node.item + ")");
+            step = Step.CONFIRM;
+            stepTicks = 0;
+            if (!node.hasLanding) {
+                // Nothing generic to wait for from the server for an arbitrary item: the use call itself, with
+                // the right item in hand, is the confirmation; the interact delay follows.
+                finishAction();
+                return;
             }
-            case CONFIRM -> {
-                if (!node.hasLanding) {
-                    // Nothing generic to wait for from the server for an arbitrary item: the use call itself, with
-                    // the right item confirmed in hand, is the confirmation; the interact delay follows.
-                    finishAction();
-                } else if (landed(player, node)) {
-                    RouteRotation.rebase();
-                    cameraGraceTicks = 3;
-                    rejoinPathAfterTeleport(player, node);
-                    finishAction();
-                    noteLanding(node);
-                } else if (stepTicks > LANDING_TIMEOUT) {
-                    stop(node.item + " didn't teleport where it was recorded");
-                }
+            cameraGraceTicks = LANDING_TIMEOUT + 5;
+            return;
+        }
+        if (step == Step.CONFIRM) {
+            if (landed(player, node)) {
+                LOGGER.info("[AutoRoutes] Use: landed {} tick(s) after the use", stepTicks);
+                RouteRotation.rebase();
+                cameraGraceTicks = 3;
+                rejoinPathAfterTeleport(player, node);
+                finishAction();
+                noteLanding(node);
+            } else if (stepTicks > LANDING_TIMEOUT) {
+                stop(node.item + " didn't teleport where it was recorded");
             }
-            default -> finishAction();
         }
     }
 
     private static void tickBoom(Minecraft client, LocalPlayer player, RouteNode node) {
-        switch (step) {
-            case PREP -> {
-                step = Step.SWAP;
-                stepTicks = 0;
+        if (step == Step.PREP) {
+            int slot = ItemIdentity.findHotbarSlotById(player, BOOM_IDS);
+            if (slot < 0) {
+                stop("no Superboom in the hotbar");
+                return;
             }
-            case SWAP -> {
-                int slot = ItemIdentity.findHotbarSlotById(player, BOOM_IDS);
-                if (slot < 0) {
-                    stop("no Superboom in the hotbar");
-                    return;
-                }
-                if (ensureSelected(player, slot)) {
-                    step = Step.AIM;
-                    stepTicks = 0;
-                    aimAt(node);
-                } else if (stepTicks > SWAP_TIMEOUT) {
-                    stop("couldn't switch to the Superboom");
-                }
+            select(client, player, slot);
+            aimAt(node);
+            step = Step.AIM;
+            stepTicks = 0;
+        }
+        if (step == Step.AIM) {
+            if (!aimReady()) {
+                return;
             }
-            case AIM -> {
-                if (aimReady()) {
-                    step = Step.DO;
-                    stepTicks = 0;
-                }
+            BlockHitResult hit = blockInSight(client, player, node, 4.5);
+            if (hit == null) {
+                stop("superboom node isn't looking at a block");
+                return;
             }
-            case DO -> {
-                BlockHitResult hit = blockInSight(client, player, node, 4.5);
-                if (hit == null) {
-                    stop("superboom node isn't looking at a block");
-                    return;
-                }
-                boomTarget = hit.getBlockPos();
-                boomBefore.clear();
-                boomBefore.put(boomTarget, client.level.getBlockState(boomTarget));
-                for (Direction d : Direction.values()) {
-                    BlockPos p = boomTarget.relative(d);
-                    boomBefore.put(p, client.level.getBlockState(p));
-                }
-                // The same in the dungeon sim: its integrated server answers these packets the way Hypixel's does.
-                if (AutoRoutesConfig.getInstance().isLegitMode()) {
-                    // A real left click: vanilla start + abort, the same packets a tap on an unbreakable block sends.
-                    client.gameMode.startDestroyBlock(boomTarget, hit.getDirection());
-                    client.gameMode.stopDestroyBlock();
-                } else {
-                    player.connection.send(new ServerboundPlayerActionPacket(
-                            ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, boomTarget, hit.getDirection()));
-                    player.connection.send(new ServerboundPlayerActionPacket(
-                            ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, boomTarget, hit.getDirection()));
-                }
-                player.swing(InteractionHand.MAIN_HAND);
-                step = Step.CONFIRM;
-                stepTicks = 0;
+            boomTarget = hit.getBlockPos();
+            boomBefore.clear();
+            boomBefore.put(boomTarget, client.level.getBlockState(boomTarget));
+            for (Direction d : Direction.values()) {
+                BlockPos p = boomTarget.relative(d);
+                boomBefore.put(p, client.level.getBlockState(p));
             }
-            case CONFIRM -> {
-                boolean changed = false;
-                for (Map.Entry<BlockPos, BlockState> e : boomBefore.entrySet()) {
-                    if (client.level.getBlockState(e.getKey()) != e.getValue()) {
-                        changed = true;
-                        break;
-                    }
-                }
-                if (changed) {
-                    finishAction();
-                } else if (stepTicks > BOOM_TIMEOUT) {
-                    stop("superboom didn't break anything");
+            // The same in the dungeon sim: its integrated server answers these packets the way Hypixel's does.
+            if (AutoRoutesConfig.getInstance().isLegitMode()) {
+                // A real left click: vanilla start + abort, the same packets a tap on an unbreakable block sends.
+                client.gameMode.startDestroyBlock(boomTarget, hit.getDirection());
+                client.gameMode.stopDestroyBlock();
+            } else {
+                player.connection.send(new ServerboundPlayerActionPacket(
+                        ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, boomTarget, hit.getDirection()));
+                player.connection.send(new ServerboundPlayerActionPacket(
+                        ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, boomTarget, hit.getDirection()));
+            }
+            player.swing(InteractionHand.MAIN_HAND);
+            logActed(node, "");
+            step = Step.CONFIRM;
+            stepTicks = 0;
+            return;
+        }
+        if (step == Step.CONFIRM) {
+            boolean changed = false;
+            for (Map.Entry<BlockPos, BlockState> e : boomBefore.entrySet()) {
+                if (client.level.getBlockState(e.getKey()) != e.getValue()) {
+                    changed = true;
+                    break;
                 }
             }
-            default -> finishAction();
+            if (changed) {
+                LOGGER.info("[AutoRoutes] Boom: blocks changed {} tick(s) after the click", stepTicks);
+                finishAction();
+            } else if (stepTicks > BOOM_TIMEOUT) {
+                stop("superboom didn't break anything");
+            }
         }
     }
 
     private static void tickBreaker(Minecraft client, LocalPlayer player, RouteNode node) {
-        switch (step) {
-            case PREP -> {
-                if (node.breakerBlocks.isEmpty()) {
-                    finishAction(); // nothing to break (a fresh node before /ar edit db)
-                    return;
-                }
-                breakerQueue = new ArrayList<>();
-                for (BlockPos rel : node.breakerBlocks) {
-                    breakerQueue.add(RouteCoords.toRealBlock(frame, rel));
-                }
-                step = Step.SWAP;
-                stepTicks = 0;
+        if (step == Step.PREP) {
+            if (node.breakerBlocks.isEmpty()) {
+                logActed(node, " (no blocks)");
+                finishAction(); // nothing to break (a fresh node before /ar edit db)
+                return;
             }
-            case SWAP -> {
-                int slot = ItemIdentity.findHotbarSlotById(player, BREAKER_ID);
-                if (slot < 0) {
-                    stop("no Dungeon Breaker in the hotbar");
-                    return;
-                }
-                if (ensureSelected(player, slot)) {
-                    // The item's lore, in the sim too: the sim's server keeps that line current as Hypixel's does.
-                    int charges = breakerCharges(player.getMainHandItem());
-                    LOGGER.info("[AutoRoutes] Breaker: {} block(s) queued, {} charge(s)", breakerQueue.size(), charges);
-                    if (charges <= 0) {
-                        stop("Dungeon Breaker has no charges");
-                        return;
-                    }
-                    step = Step.DO;
-                    stepTicks = 0;
-                } else if (stepTicks > SWAP_TIMEOUT) {
-                    stop("couldn't switch to the Dungeon Breaker");
-                }
+            breakerQueue = new ArrayList<>();
+            for (BlockPos rel : node.breakerBlocks) {
+                breakerQueue.add(RouteCoords.toRealBlock(frame, rel));
             }
-            case DO -> {
-                // QUOI DungeonBreakerAction: one START_DESTROY_BLOCK per block, interact-delay ticks apart, no
-                // rotation (block breaking is range-checked, not look-checked). Air / unloaded / far blocks skip.
-                int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
-                if (stepTicks % delay != 0) {
-                    return;
+            int slot = ItemIdentity.findHotbarSlotById(player, BREAKER_ID);
+            if (slot < 0) {
+                stop("no Dungeon Breaker in the hotbar");
+                return;
+            }
+            select(client, player, slot);
+            // The item's lore, in the sim too: the sim's server keeps that line current as Hypixel's does. The
+            // client's selected slot changed above, so this already reads the breaker.
+            int charges = breakerCharges(player.getMainHandItem());
+            LOGGER.info("[AutoRoutes] Breaker: {} block(s) queued, {} charge(s)", breakerQueue.size(), charges);
+            if (charges <= 0) {
+                stop("Dungeon Breaker has no charges");
+                return;
+            }
+            step = Step.DO;
+            stepTicks = 0;
+        }
+        if (step == Step.DO) {
+            // QUOI DungeonBreakerAction: one START_DESTROY_BLOCK per block, interact-delay ticks apart, no
+            // rotation (block breaking is range-checked, not look-checked). Air / unloaded / far blocks skip. The
+            // first block goes on the firing tick (stepTicks is 0 there), right behind the held-item packet.
+            int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
+            if (stepTicks % delay != 0) {
+                return;
+            }
+            Vec3 eye = player.getEyePosition();
+            while (!breakerQueue.isEmpty()) {
+                BlockPos pos = breakerQueue.remove(0);
+                if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()) {
+                    continue;
                 }
-                Vec3 eye = player.getEyePosition();
-                while (!breakerQueue.isEmpty()) {
-                    BlockPos pos = breakerQueue.remove(0);
-                    if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()) {
-                        continue;
-                    }
-                    // To the BOX, not the centre. The constant above was tightened to the real 4.5 and this
-                    // measure was left on distToCenterSqr, which reads up to sqrt(0.75) further - so the gate
-                    // its own javadoc describes was still off by that much, refusing blocks well inside reach.
-                    if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) > BREAKER_RANGE_SQ) {
-                        LOGGER.info("[AutoRoutes] Breaker block {} out of range - skipped", pos);
-                        continue;
-                    }
-                    player.connection.send(new ServerboundPlayerActionPacket(
-                            ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, Direction.UP));
-                    player.swing(InteractionHand.MAIN_HAND);
-                    breakerSent.add(pos);
+                // To the BOX, not the centre. The constant above was tightened to the real 4.5 and this
+                // measure was left on distToCenterSqr, which reads up to sqrt(0.75) further - so the gate
+                // its own javadoc describes was still off by that much, refusing blocks well inside reach.
+                if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) > BREAKER_RANGE_SQ) {
+                    LOGGER.info("[AutoRoutes] Breaker block {} out of range - skipped", pos);
+                    continue;
+                }
+                player.connection.send(new ServerboundPlayerActionPacket(
+                        ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, Direction.UP));
+                player.swing(InteractionHand.MAIN_HAND);
+                if (breakerSent.isEmpty()) {
+                    logActed(node, "");
+                }
+                breakerSent.add(pos);
+                if (!breakerQueue.isEmpty()) {
                     return; // next block on the next delay tick
                 }
-                step = Step.CONFIRM;
-                stepTicks = 0;
+                break;
             }
-            case CONFIRM -> {
-                if (breakerSent.isEmpty()) {
-                    finishAction();
-                    return;
-                }
-                int gone = 0;
-                for (BlockPos pos : breakerSent) {
-                    if (client.level.getBlockState(pos).isAir()) {
-                        gone++;
-                    }
-                }
-                if (gone == breakerSent.size()) {
-                    finishAction();
-                } else if (stepTicks > BREAKER_TIMEOUT) {
-                    if (gone == 0) {
-                        stop("dungeon breaker didn't break the blocks");
-                    } else {
-                        LOGGER.info("[AutoRoutes] Breaker: {} of {} blocks broke - continuing", gone, breakerSent.size());
-                        finishAction();
-                    }
+            step = Step.CONFIRM;
+            stepTicks = 0;
+            return;
+        }
+        if (step == Step.CONFIRM) {
+            if (breakerSent.isEmpty()) {
+                logActed(node, " (nothing in range to break)");
+                finishAction();
+                return;
+            }
+            int gone = 0;
+            for (BlockPos pos : breakerSent) {
+                if (client.level.getBlockState(pos).isAir()) {
+                    gone++;
                 }
             }
-            default -> finishAction();
+            if (gone == breakerSent.size()) {
+                LOGGER.info("[AutoRoutes] Breaker: all {} block(s) gone {} tick(s) after the last break", gone, stepTicks);
+                finishAction();
+            } else if (stepTicks > BREAKER_TIMEOUT) {
+                if (gone == 0) {
+                    stop("dungeon breaker didn't break the blocks");
+                } else {
+                    LOGGER.info("[AutoRoutes] Breaker: {} of {} blocks broke - continuing", gone, breakerSent.size());
+                    finishAction();
+                }
+            }
         }
     }
 
@@ -1312,19 +1347,33 @@ public final class RouteExecutor {
                 || stepTicks > AIM_TIMEOUT;
     }
 
-    /** Selects the hotbar slot (client + {@code ServerboundSetCarriedItemPacket}) and reports true once it is the
-     *  selected slot - at most one swap per action, the tick after it the server has seen it. */
-    private static boolean ensureSelected(LocalPlayer player, int slot) {
+    /**
+     * Selects the hotbar slot and tells the server NOW, through vanilla's own
+     * {@code MultiPlayerGameMode.ensureHasSentCarriedItem}, so its {@code carriedIndex} agrees and its
+     * {@code tick()} does not send the same slot again. (The old code sent the packet by hand and left
+     * {@code carriedIndex} stale, so every route swap went out twice - a same-slot repeat a vanilla client never
+     * sends.) The server handles the held-item packet before anything sent after it, so the use / click that follows
+     * in the same tick is made with the new item: a swap costs no tick.
+     */
+    private static void select(Minecraft client, LocalPlayer player, int slot) {
         if (player.getInventory().getSelectedSlot() == slot) {
-            return swapSent ? stepTicks >= 2 : true;
+            return;
         }
-        if (!swapSent) {
-            player.getInventory().setSelectedSlot(slot);
+        player.getInventory().setSelectedSlot(slot);
+        nodeSwapped = true;
+        if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
+            invoker.killer560smod$invokeEnsureHasSentCarriedItem();
+        } else {
+            // The invoker config did not load: vanilla's next ensureHasSentCarriedItem will send it again.
             player.connection.send(new ServerboundSetCarriedItemPacket(slot));
-            swapSent = true;
-            stepTicks = 0;
         }
-        return false;
+    }
+
+    /** The per-node timing line: how many ticks the node's action took from firing (after any await), 0 = the
+     *  firing tick itself. */
+    private static void logActed(RouteNode node, String detail) {
+        LOGGER.info("[AutoRoutes] Node #{} {} acted {} tick(s) after firing{}{}", route == null ? "?" : route.indexOf(node) + 1,
+                node.type, actionAge - awaitDoneAge, nodeSwapped ? " (hotbar swap, same tick)" : "", detail);
     }
 
     /** Legit: a real right click at the live (already turned) rotation - for a use-item node the block in the
