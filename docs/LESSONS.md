@@ -57,6 +57,17 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   matching the exact top of book on only 628 of 1833 products, so anything sizing a real purchase must walk the
   levels. Scale check for the Bazaar-to-NPC flipper: of 819 products with an `npc_sell_price` only ~46 profit at
   all and the worthwhile margins are 0.4%-1.5% - a result far outside that band means the book is backwards.
+- A hotbar swap sent as `setSelectedSlot` + a hand-made `ServerboundSetCarriedItemPacket` goes out TWICE:
+  `MultiPlayerGameMode.tick()` calls `ensureHasSentCarriedItem()`, which compares against its own `carriedIndex`
+  (never updated by the hand-made packet) and sends the same slot again (javap, 26.1.2 and 26.2). Swap through
+  `MultiPlayerGameModeInvoker.killer560smod$invokeEnsureHasSentCarriedItem()` instead, as `RouteExecutor.select`
+  does since 2026-10-04. AutoI4, Breaker Aura, ClearExecutor, AP3, Secret Triggerbot, MaskSwapper and Auto Debuff
+  still use the hand-made form.
+- Packet order inside one client tick (javap, 26.1.2): `START_CLIENT_TICK`, `gameMode.tick()`, `handleKeybinds`
+  (vanilla clicks), the player tick (`ServerboundPlayerInputPacket` if the input changed, then `sendPosition`),
+  `ServerboundClientTickEndPacket`, then `END_CLIENT_TICK`. The server applies the input packet's shift on arrival
+  and `handleUseItem` snaps to the use packet's own yaw/pitch before using, so a sneak installed by the input mixin
+  is in force for a use sent at the next START - no round trip to wait for.
 - The mod's own widget labels are not drawn through `GuiGraphicsExtractor.text`; they go through
   `GuiGraphicsExtractor$RenderingTextCollector.accept`. A text hook that only targets `text` misses every
   button and label in the settings GUI (found when keeping Name Changer out of the mod's own menus, 2026-10-04).

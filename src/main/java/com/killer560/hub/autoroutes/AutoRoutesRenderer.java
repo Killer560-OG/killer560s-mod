@@ -60,16 +60,21 @@ public final class AutoRoutesRenderer {
                 alpha = 1f;
             }
             AABB box = node.boundingBox(real, height);
-            switch (cfg.getRenderStyle()) {
+            AutoRoutesConfig.RenderStyle style = cfg.getRenderStyle();
+            double ringRadius = Math.max(0.1, node.radius) / 2.0;
+            switch (style) {
                 case FILLED -> {
+                    // killer560, 2026-10-04: "shift all node waypoints down by one so they are actually inside of the
+                    // block that I placed it on top of ... only for the filled setting". Drawn only - the trigger box
+                    // (node.contains) and everything else about the node stay where they were.
+                    box = filledDisplayBox(box);
                     WorldRenderUtils.renderFilledBox(ctx, box, c[0], c[1], c[2], alpha * 0.35f);
                     WorldRenderUtils.renderOutlineBox(ctx, box, c[0], c[1], c[2], alpha, thickness);
                 }
                 case CYLINDER -> {
-                    double r = Math.max(0.1, node.radius) / 2.0;
-                    WorldRenderUtils.renderLineStrip(ctx, ring(real, r, GROUND_OFFSET), c[0], c[1], c[2], alpha, thickness);
+                    WorldRenderUtils.renderLineStrip(ctx, ring(real, ringRadius, GROUND_OFFSET), c[0], c[1], c[2], alpha, thickness);
                     if (height > 0.15) {
-                        WorldRenderUtils.renderLineStrip(ctx, ring(real, r, height), c[0], c[1], c[2], alpha * 0.6f,
+                        WorldRenderUtils.renderLineStrip(ctx, ring(real, ringRadius, height), c[0], c[1], c[2], alpha * 0.6f,
                                 Math.max(0.5f, thickness * 0.6f));
                     }
                 }
@@ -79,8 +84,15 @@ public final class AutoRoutesRenderer {
                 // killer560, 2026-10-04: "if something is a start node the outline is filled in so I know it is
                 // special". Filled in every style; in Filled style, where every node already is, it is filled
                 // twice as solid so it still stands out.
-                float fill = cfg.getRenderStyle() == AutoRoutesConfig.RenderStyle.FILLED ? 0.7f : 0.45f;
-                WorldRenderUtils.renderFilledBox(ctx, box, c[0], c[1], c[2], alpha * fill);
+                if (style == AutoRoutesConfig.RenderStyle.CYLINDER) {
+                    // The cylinder's own shape, between its two rings. A box fill put its corners outside the circle
+                    // (killer560: "make sure the fill is only inside the cylinder").
+                    WorldRenderUtils.renderFilledCylinder(ctx, real, ringRadius, real.y + GROUND_OFFSET,
+                            real.y + Math.max(GROUND_OFFSET, height), RING_SEGMENTS, c[0], c[1], c[2], alpha * 0.45f);
+                } else {
+                    float fill = style == AutoRoutesConfig.RenderStyle.FILLED ? 0.7f : 0.45f;
+                    WorldRenderUtils.renderFilledBox(ctx, box, c[0], c[1], c[2], alpha * fill);
+                }
             }
             if ((editMode || cfg.isShowNodeNumbers()) && playerPos.distanceTo(real) <= LABEL_DISTANCE) {
                 // AP3's numbering (killer560, 2026-10-04: "the same node numbering system per room"): 1-based
@@ -105,6 +117,16 @@ public final class AutoRoutesRenderer {
             renderPath(ctx, route, frame, thickness);
             renderBreakerBlocks(ctx, client, route, frame);
         }
+    }
+
+    /** Lifts a face this far off any block face it lies on, so the fill draws in front of the block instead of
+     *  z-fighting with it. */
+    private static final double FACE_EPSILON = 0.002;
+
+    /** Filled style's drawn box: the node's box one block lower, inside the block the node was placed on top of,
+     *  pushed out by {@link #FACE_EPSILON} on every side. */
+    private static AABB filledDisplayBox(AABB box) {
+        return box.move(0, -1, 0).inflate(FACE_EPSILON);
     }
 
     /** This node's place in its tile's stack - AP3's {@code Ap3Renderer.stackIndex} lift, but counted in FIRING

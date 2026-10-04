@@ -37,6 +37,49 @@ public final class WorldRenderUtils {
         });
     }
 
+    /**
+     * Draws a solid upright cylinder (sides and both caps) around a vertical axis, depth-tested like
+     * {@link #renderFilledBox}. Every face is emitted in both windings so it reads the same from inside and outside
+     * whatever the pipeline's culling; a cap is a fan of quads whose last two corners coincide (one triangle each),
+     * which is how a disc is drawn in a QUADS format. Nothing is drawn outside the circle, unlike a box fill.
+     */
+    public static void renderFilledCylinder(LevelRenderContext context, Vec3 centre, double radius, double y0, double y1,
+                                            int segments, float r, float g, float b, float a) {
+        int n = Math.max(3, segments);
+        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+            var matrix = pose.pose();
+            float cx = (float) centre.x, cz = (float) centre.z;
+            float bottom = (float) y0, top = (float) y1;
+            for (int i = 0; i < n; i++) {
+                double t0 = (Math.PI * 2 * i) / n;
+                double t1 = (Math.PI * 2 * (i + 1)) / n;
+                float x0 = (float) (centre.x + Math.cos(t0) * radius), z0 = (float) (centre.z + Math.sin(t0) * radius);
+                float x1 = (float) (centre.x + Math.cos(t1) * radius), z1 = (float) (centre.z + Math.sin(t1) * radius);
+                // side
+                twoSidedQuad(buffer, matrix, x0, bottom, z0, x1, bottom, z1, x1, top, z1, x0, top, z0, r, g, b, a);
+                // caps
+                twoSidedQuad(buffer, matrix, cx, top, cz, x0, top, z0, x1, top, z1, x1, top, z1, r, g, b, a);
+                if (top - bottom > 1.0e-4f) {
+                    twoSidedQuad(buffer, matrix, cx, bottom, cz, x0, bottom, z0, x1, bottom, z1, x1, bottom, z1, r, g, b, a);
+                }
+            }
+        });
+    }
+
+    private static void twoSidedQuad(VertexConsumer buffer, org.joml.Matrix4f matrix,
+                                     float ax, float ay, float az, float bx, float by, float bz,
+                                     float cx, float cy, float cz, float dx, float dy, float dz,
+                                     float r, float g, float b, float a) {
+        vertex(buffer, matrix, ax, ay, az, r, g, b, a);
+        vertex(buffer, matrix, bx, by, bz, r, g, b, a);
+        vertex(buffer, matrix, cx, cy, cz, r, g, b, a);
+        vertex(buffer, matrix, dx, dy, dz, r, g, b, a);
+        vertex(buffer, matrix, dx, dy, dz, r, g, b, a);
+        vertex(buffer, matrix, cx, cy, cz, r, g, b, a);
+        vertex(buffer, matrix, bx, by, bz, r, g, b, a);
+        vertex(buffer, matrix, ax, ay, az, r, g, b, a);
+    }
+
     /** Draws a wireframe outline box. */
     public static void renderOutlineBox(LevelRenderContext context, AABB box, float r, float g, float b, float a,
                                          float thickness) {

@@ -94,7 +94,10 @@ public final class AutoRoutesFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoRoutesFeature.tick", AutoRoutesFeature::tick));
+        // START, not END (docs/AP3.md: interaction features tick on START_CLIENT_TICK). A node's held-item / use /
+        // break packets then go out ahead of this tick's input and movement packets, as vanilla's handleKeybinds
+        // sends a click, and the sneak or keys the executor asks for are read by the input mixin in this same tick.
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoRoutesFeature.tick", AutoRoutesFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(AutoRoutesFeature::onRenderFrame);
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (overlay) {
@@ -438,8 +441,8 @@ public final class AutoRoutesFeature {
      *
      * <p>Interlock 1 already stops a route when the map SCREEN opens, and interlock 5 keeps it stopped while a
      * map teleport is in flight. This is the press itself saying so, which matters for two cases neither covers:
-     * a press landing in the same tick the screen opened (both features tick on {@code END_CLIENT_TICK}, so
-     * which one sees the other first is just registration order), and the ticks a map goal spends QUEUED, where
+     * a press landing in the same tick the screen opened (the two features tick in different phases of the
+     * client tick, so which one sees the other first is not something to rely on), and the ticks a map goal spends QUEUED, where
      * {@code ClearExecutor.isBusy()} is deliberately false - see {@link InteractiveMapFeature#isSteering()},
      * which interlock 5 now also checks.
      *

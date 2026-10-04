@@ -7,7 +7,8 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   after the player's own movement packet, and GrimAC flags every resulting interaction as `Post`. Measured
   2026-09-27 — Breaker Aura drew 808 violations on END and zero on START; Secret Triggerbot 17 and 17.
   Fixed for Breaker Aura in `825f319`. Audited properly 2026-09-29: of 111 END registrations, exactly
-  **three** reach a block/item/container packet — `Ap3Feature:95`, `AutoRoutesFeature:87`, `FastLeapFeature:105`
+  **three** reach a block/item/container packet — `Ap3Feature:95`, `AutoRoutesFeature:87` (moved to START
+  2026-10-04), `FastLeapFeature:105`
   — and about 17 more send only chat or a server command. The "about twenty" figure counted those. Separately,
   three features click from a RENDER FRAME, which is also after the movement packet: Goldor Triggerbot, Arrow
   Align and Auto I4. `ActionGate` does not help — `tryAct` returns immediately and the caller sends
