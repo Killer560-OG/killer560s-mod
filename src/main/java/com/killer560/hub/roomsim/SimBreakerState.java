@@ -70,7 +70,7 @@ public final class SimBreakerState {
     }
 
     public static void register() {
-        ServerTickEvents.END_SERVER_TICK.register(server -> tick());
+        ServerTickEvents.END_SERVER_TICK.register(SimBreakerState::tick);
     }
 
     /** Wipes charges and pending restores - for a new room or leaving the sim. */
@@ -106,8 +106,9 @@ public final class SimBreakerState {
         PENDING.add(new Broken(level, pos.immutable(), state, tickCounter + RESTORE_TICKS));
     }
 
-    private static void tick() {
+    private static void tick(net.minecraft.server.MinecraftServer server) {
         java.util.List<Broken> due = new java.util.ArrayList<>();
+        int chargesNow;
         synchronized (SimBreakerState.class) {
             tickCounter++;
             if (charges < MAX_CHARGES && ++rechargeCounter >= RECHARGE_TICKS) {
@@ -117,6 +118,11 @@ public final class SimBreakerState {
             while (!PENDING.isEmpty() && PENDING.peek().dueAtTick() <= tickCounter) {
                 due.add(PENDING.poll());
             }
+            chargesNow = charges;
+        }
+        if (SimState.isActive() && (chargesNow != loreCharges || tickCounter % 20 == 0)) {
+            loreCharges = chargesNow;
+            writeChargesToLore(server, chargesNow);
         }
         // Restored outside the lock: setBlock can run arbitrary block logic and holding a lock across that is
         // how a deadlock gets written.
@@ -125,6 +131,51 @@ public final class SimBreakerState {
                 // Only if nothing has taken its place. Putting a block back on top of something he built, or
                 // inside him, would be worse than leaving the hole.
                 b.level().setBlockAndUpdate(b.pos(), b.state());
+            }
+        }
+    }
+
+    /** The charge count last written into the item's lore, or -1 before the first write. Server thread. */
+    private static int loreCharges = -1;
+
+    private static final java.util.regex.Pattern CHARGES_LINE = java.util.regex.Pattern.compile("Charges: \\d+/\\d+");
+
+    /**
+     * Keeps the "Charges: N/M" line of every Dungeon Breaker the player holds equal to the real count.
+     *
+     * <p>On Hypixel the charge count lives in the item's lore and nowhere else, and that is where Auto Routes'
+     * breaker node and the 0-ping Dungeon Breaker read it. The sim's item carried a static "Charges" line, so Auto
+     * Routes had a sim-only branch reading this class instead. The sim now updates the lore the way Hypixel's server
+     * does, and both read the same line in both places. Changed on the server's stack, so the ordinary inventory sync
+     * carries it to the client.
+     */
+    private static void writeChargesToLore(net.minecraft.server.MinecraftServer server, int count) {
+        net.minecraft.network.chat.Component line = com.killer560.hub.profileviewer.item.LegacyText.parse(
+                "§8Charges: " + count + "/" + MAX_CHARGES);
+        String want = line.getString();
+        for (net.minecraft.server.level.ServerPlayer sp : server.getPlayerList().getPlayers()) {
+            for (net.minecraft.world.item.ItemStack stack : sp.getInventory().getNonEquipmentItems()) {
+                if (stack.isEmpty() || !"DUNGEONBREAKER".equals(
+                        com.killer560.hub.cheatutils.CheatUtils.skyblockId(stack))) {
+                    continue;
+                }
+                var lore = stack.get(net.minecraft.core.component.DataComponents.LORE);
+                if (lore == null) {
+                    continue;
+                }
+                java.util.List<net.minecraft.network.chat.Component> lines = new java.util.ArrayList<>(lore.lines());
+                boolean changed = false;
+                for (int i = 0; i < lines.size(); i++) {
+                    String text = lines.get(i).getString();
+                    if (CHARGES_LINE.matcher(text).find() && !text.equals(want)) {
+                        lines.set(i, line);
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    stack.set(net.minecraft.core.component.DataComponents.LORE,
+                            new net.minecraft.world.item.component.ItemLore(lines, lines));
+                }
             }
         }
     }

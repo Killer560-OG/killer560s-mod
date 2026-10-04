@@ -58,10 +58,6 @@ public final class ClearExecutor {
     private static int hypeDelay = 0;
     private static boolean active = false;
     private static float[] pendingInteract = null;
-    /** The block the queued interact is expected to land on (etherwarp hops only), for the sim's check. */
-    private static BlockPos pendingExpected = null;
-    /** Sim only: ticks the queue has gone without any node matching his position. See {@link #handleQueue}. */
-    private static int lostTicks = 0;
     private static double[] position = null;
     private static ClearNode activeNode = null;
     private static Runnable onComplete = null;
@@ -156,13 +152,10 @@ public final class ClearExecutor {
         Vec3 from = player.position();
         DungeonLayout layout = DungeonLayout.capture();
         EtherwarpPathfinder.PathConfig cfg = pathConfig();
-        // THE RANGE THE HOP WILL ACTUALLY HAVE. killer560 (2026-10-01): "if it is far away then it fails."
-        // The planner has always used 60, but Hypixel's etherwarp is 57 (see CLAUDE.md on EtherwarpHopper)
-        // and the sim's SimAbilities enforces exactly that - so a hop planned at 58-60 blocks was accepted by
-        // the search and refused by the ability, leaving the queue stuck on a node that could never fire. The
-        // real game is left on the number it has always used; only the sim plans to its own limit.
-        double hopRange = com.killer560.hub.roomsim.SimState.isActive()
-                ? com.killer560.hub.roomsim.SimAbilities.etherwarpRange() : 60.0;
+        // The planner's hop range. One number in the sim and on Hypixel: the sim's server gives an etherwarp
+        // 57 blocks plus one per Transmission Tuner, as Hypixel does, so a fully tuned item (the sim's default)
+        // reaches 61 and a hop planned to 60 is one it accepts - and an under-tuned one refuses it in both places.
+        double hopRange = 60.0;
         int gen = generation;
         pathPending = true;
         lastPathFailed = false;
@@ -170,13 +163,9 @@ public final class ClearExecutor {
             long start = System.currentTimeMillis();
             List<EtherwarpPathfinder.Node> path = null;
             try {
-                // The landing offset is the height his feet actually end up at. Hypixel's is planned at
-                // block top + 1.05 as QUOI does; the sim's etherwarp puts him at exactly + 1.0
-                // (EtherwarpOverlayFeature.standYOn), and planning from 0.05 too high aims every hop from a
-                // twentieth of a block above the eye he really has - enough to tip a ray aimed at a block's
-                // edge onto its neighbour.
-                boolean offset = !com.killer560.hub.roomsim.SimState.isActive();
-                path = EtherwarpPathfinder.findDungeonPath(from, to, cfg, hopRange, offset, layout);
+                // Landings are planned at block top + 1.05, QUOI's figure for Hypixel - and the sim's server now
+                // lands an etherwarp there too (SimAbilities.ETHERWARP_LANDING_OFFSET), so there is one value.
+                path = EtherwarpPathfinder.findDungeonPath(from, to, cfg, hopRange, layout);
             } catch (RuntimeException e) {
                 LOGGER.warn("[InteractiveMap] Path search failed: {}", e.toString());
             }
@@ -207,8 +196,6 @@ public final class ClearExecutor {
         nodes = new ArrayList<>(path);
         position = null;
         pendingInteract = null;
-        pendingExpected = null;
-        lostTicks = 0;
         onComplete = complete;
         pendingCompletion = null;
     }
@@ -219,39 +206,7 @@ public final class ClearExecutor {
     }
 
     public static void queueInteract(float yaw, float pitch) {
-        queueInteract(yaw, pitch, null);
-    }
-
-    /** @param expected the block an etherwarp hop is predicted to land on, or null for any other teleport */
-    public static void queueInteract(float yaw, float pitch, BlockPos expected) {
         pendingInteract = new float[]{yaw, pitch};
-        pendingExpected = expected;
-    }
-
-    /**
-     * How a sim hop went, from {@code SimAbilities.etherwarpAlong} on the client thread.
-     *
-     * <p>A hop that landed where it was planned needs nothing. One that landed somewhere else means the
-     * predicted position the queue is chaining from is wrong, so the cache is dropped and the next tick reads
-     * where he really is - the old wait-to-land behaviour, but only after a miss rather than before every hop.
-     * One that found no target at all cannot be recovered from and stops the path, saying so.
-     */
-    private static void onSimHop(int gen, com.killer560.hub.roomsim.SimAbilities.HopResult result) {
-        if (gen != generation || nodes == null) {
-            return;
-        }
-        switch (result) {
-            case LANDED -> {
-            }
-            case LANDED_ELSEWHERE -> {
-                LOGGER.info("[InteractiveMap] Sim hop landed off its planned block - resyncing to the real position");
-                position = null;
-            }
-            case NO_TARGET -> {
-                ModChat.send(CHAT, ModChat.bad("Etherwarp found no target"), ModChat.dim(" - path stopped"));
-                cancel();
-            }
-        }
     }
 
     public static void cancel() {
@@ -366,15 +321,8 @@ public final class ClearExecutor {
         }
         if (node == null) {
             position = null;
-            // Sim only: a queue that cannot find him on any node is waiting for nothing, and isBusy() stays
-            // true for as long as it waits. Two seconds is far longer than any landing takes in here.
-            if (com.killer560.hub.roomsim.SimState.isActive() && ++lostTicks > 40) {
-                ModChat.send(CHAT, ModChat.bad("Lost the path"), ModChat.dim(" - you are not on any planned hop"));
-                cancel();
-            }
             return;
         }
-        lostTicks = 0;
         active = true;
         activeNode = node;
         if (node instanceof ClearNode.HypeNode && hypeDelay > 0) {
@@ -387,19 +335,6 @@ public final class ClearExecutor {
             clearNodes.remove(node);
             if (node instanceof ClearNode.HypeNode) {
                 hypeDelay = 3;
-            }
-            // IN THE SIM, ONLY NON-ETHERWARP HOPS WAIT TO LAND.
-            //
-            // The 2026-10-01 fix dropped the predicted position after EVERY hop, because the sim's etherwarp
-            // resolved from the client player's position and the previous teleport had not arrived yet. That
-            // stopped the misses and made every hop wait for a landing - about three ticks each, which is
-            // killer560's 2026-10-04 "really slow". Etherwarp hops now go through
-            // SimAbilities.etherwarpAlong, which resolves from the SERVER's copy of him exactly as Hypixel does,
-            // so they chain from the prediction one a tick again; a hop that lands anywhere else reports back
-            // (onSimHop) and only then is the cache dropped. Other teleports still use the camera-and-client
-            // path and still wait.
-            if (com.killer560.hub.roomsim.SimState.isActive() && !(node instanceof ClearNode.EtherNode)) {
-                position = null;
             }
             if (clearNodes.isEmpty()) {
                 nodes = null;
@@ -416,9 +351,7 @@ public final class ClearExecutor {
 
     private static void doInteract(Minecraft client) {
         float[] interact = pendingInteract;
-        BlockPos expected = pendingExpected;
         pendingInteract = null;
-        pendingExpected = null;
         if (interact == null || client.player == null || client.level == null || client.gameMode == null) {
             return;
         }
@@ -426,30 +359,10 @@ public final class ClearExecutor {
         // Same direction as the target, expressed relative to the running (unwrapped) yaw.
         float yaw = player.getYRot() + Mth.wrapDegrees(interact[0] - player.getYRot());
         float pitch = Mth.clamp(interact[1], -90f, 90f);
-        // THE SIM HAS NO SERVER-SIDE ETHERWARP, so a raw use PACKET teleports nobody.
-        //
-        // killer560 (2026-10-01): "Etherwarp is now saying found path but not actually etherwarping." The
-        // path was fine; the hop was not. startPrediction below builds a ServerboundUseItemPacket and hands
-        // it to the connection - on Hypixel that IS the ability, because Hypixel's server implements it. The
-        // sim's ability lives in SimAbilities behind Fabric's UseItemCallback, and nothing on the integrated
-        // server turns an inbound use packet into one. So the hop was sent, accepted and did nothing.
-        //
-        // gameMode.useItem is the client-side path that callback is injected into, and it is already the
-        // fallback branch below for a missing mixin - so the sim takes that branch deliberately rather than
-        // getting a third copy of it. AutoPuzzleUtil.useItemRotated fires its shots the same way, which is
-        // why the puzzle autos worked in here when this did not.
-        boolean sim = com.killer560.hub.roomsim.SimState.isActive();
-        if (sim && expected != null) {
-            int gen = generation;
-            if (com.killer560.hub.roomsim.SimAbilities.etherwarpAlong(client, interact[0], interact[1], expected,
-                    result -> onSimHop(gen, result))) {
-                return;
-            }
-            // Not an etherwarp after all (wrong item in hand, not sneaking yet): fall through to the ordinary
-            // client-side use, and resync to wherever that leaves him.
-            position = null;
-        }
-        if (!sim && client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
+        // The same packet in the dungeon sim: its integrated server answers a use packet the way Hypixel's does
+        // (roomsim.SimAbilities), resolving the hop from its own copy of him, so hops chain from the prediction
+        // one a tick there too.
+        if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
             invoker.killer560smod$invokeStartPrediction(client.level,
                     sequence -> new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch));
         } else {

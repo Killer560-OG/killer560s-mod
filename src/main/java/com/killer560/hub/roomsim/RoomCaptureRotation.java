@@ -76,6 +76,20 @@ public final class RoomCaptureRotation {
         return CACHE.computeIfAbsent(room.name, name -> derive(room));
     }
 
+    /**
+     * Whether {@link #of} could not read this capture's turn with confidence: no roof marker (rotation 0 assumed),
+     * an ambiguous marker the secrets did not settle, or a marker the secrets overruled. A read-only view of the
+     * same derivation's own warnings - nothing here decides a rotation. Used by Auto Routes to warn that a route
+     * recorded in such a room in the sim may come out rotated on Hypixel.
+     */
+    public static boolean uncertainForRecording(RoomLibrary.Room room) {
+        if (room == null) {
+            return false;
+        }
+        of(room);
+        return WARNED.contains(room.name) || OVERRULED.contains(room.name);
+    }
+
     /** Forget everything - for a room library reload, and for tests that rewrite captures. */
     public static void clearCache() {
         CACHE.clear();

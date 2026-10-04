@@ -20,7 +20,7 @@ import java.util.List;
  * its own and time it against the real room captures without booting a game. Every rule here is a straight
  * port of {@link TeleportUtils#traverseVoxels}, {@code etherwarpable} and {@code getEtherwarpDirection}, and the
  * look vector is computed with exactly the float arithmetic of {@link TeleportUtils#getLook} - the executor and
- * the sim's ability cast with that, so an aim found here lands where it was planned.
+ * the sim's server-side etherwarp cast with that, so an aim found here lands where it was planned.
  */
 public final class EtherSearch {
 
@@ -331,7 +331,7 @@ public final class EtherSearch {
         public CellTest landingOk;
         public Fan fan;
         public double hWeight;
-        /** Feet height above the block top: 1.05 for Hypixel, 1.0 in the sim. */
+        /** Feet height above the block top: 1.05, Hypixel's landing and the sim's (EtherwarpPathfinder.STAND_OFFSET). */
         public double standOffset;
         public long deadlineNanos;
         public int maxDirectCandidates = 8;

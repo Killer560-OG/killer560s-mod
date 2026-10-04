@@ -273,12 +273,14 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   mixin used to return before installing the route's input whenever any movement key was down, so walking onto
   an `/ar add ew start` node never got the etherwarp's sneak out and timed out (and a driven route stopped on its
   first tick) - traced in the code 2026-10-04. `RouteExecutor.onInputTick` now overrides keys held since the route took over and treats only a
-  press after a release as "you moved" - AP3's align rule. That was NOT why his sim etherwarps never fired: his log showed
-  the route arming, sneaking and timing out in CONFIRM. **A raw use packet does nothing in the sim** - `SimAbilities` acts
-  on the client's `gameMode.useItem` (UseItemCallback), so obvious mode's `ServerboundUseItemPacket` teleported nobody.
-  `ClearExecutor` had been fixed for this on 2026-10-01; `RouteExecutor` now sends sim etherwarps through
-  `SimAbilities.etherwarpAlong` too, and BOOM/BREAKER (raw `START_DESTROY_BLOCK`) through `SimItems.superboomAt` /
-  `dungeonBreakAt`. Any new sender of a use/attack PACKET needs the same `SimState.isActive()` branch.
+  press after a release as "you moved" - AP3's align rule. (His sim etherwarps not firing was a different cause - the
+  sim ignored raw use packets - and is fixed by the rule below, not by a branch.)
+- **The sim emulates Hypixel's SERVER; client features never special-case it.** Abilities in `roomsim` answer the
+  use / use-on / START_DESTROY_BLOCK packets on the integrated server (Fabric's common `UseItemCallback`,
+  `UseBlockCallback`, `AttackBlockCallback`, whose server copies fire for the `ServerPlayer`), from the server
+  player's position, packet rotation, sneak and held item, and teleport with a real position packet. Until
+  2026-10-04 they reacted to the client's `gameMode` calls instead, and `RouteExecutor`/`ClearExecutor` grew sim
+  branches to cope - the opposite of why the sim exists. If a feature behaves differently in the sim, fix the sim.
 - **Moving a setting to a different sub-tab silently orphans its scoped tooltip.** `SettingTooltips.describe`
   looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
   entry stops being found the moment that button is built by a different tab - no error, the hover text just

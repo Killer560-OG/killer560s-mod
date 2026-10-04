@@ -71,6 +71,44 @@ public final class RouteRecorder {
         return recording ? frame : null;
     }
 
+    /** The room the rotation warning was last given for, so /ar add in the same room says it once. */
+    private static String rotationWarnedRoom;
+
+    /**
+     * SIM ONLY: one chat warning when a route is started (or a node added) in a room whose capture rotation the sim
+     * could not determine with confidence - see {@link #simCaptureRotationUncertain}. A route stores coordinates
+     * relative to the room's rotation, so in such a room what the sim calls "relative" may be a quarter or half
+     * turn off what Hypixel will call it.
+     *
+     * @param always true for a recording start, which always says it; false for /ar add, which says it once a room
+     */
+    private static void warnIfSimRotationUncertain(String roomName, boolean always) {
+        if (!simCaptureRotationUncertain(roomName)) {
+            return;
+        }
+        if (!always && roomName.equals(rotationWarnedRoom)) {
+            return;
+        }
+        rotationWarnedRoom = roomName;
+        AutoRoutesFeature.chat(com.killer560.hub.util.ModChat.bad("Warning: "),
+                com.killer560.hub.util.ModChat.text("the sim is not sure which way " + roomName
+                        + "'s capture is turned. A route recorded here may come out rotated on Hypixel until the "
+                        + "room is rescanned."));
+    }
+
+    /**
+     * Whether the sim is running and {@code roomName}'s capture rotation is uncertain (no roof marker, or an
+     * ambiguous or overruled one). The one place Auto Routes asks; it reads RoomCaptureRotation's own verdict
+     * rather than a list of names.
+     */
+    static boolean simCaptureRotationUncertain(String roomName) {
+        if (roomName == null || !com.killer560.hub.roomsim.SimState.isActive()) {
+            return false;
+        }
+        com.killer560.hub.roomsim.RoomLibrary.Room room = com.killer560.hub.roomsim.RoomLibrary.get(roomName);
+        return room != null && com.killer560.hub.roomsim.RoomCaptureRotation.uncertainForRecording(room);
+    }
+
     /** @return chat status, or null when recording could not start (the message says why via ModChat). */
     public static String startRecording() {
         Minecraft client = Minecraft.getInstance();
@@ -120,6 +158,7 @@ public final class RouteRecorder {
                 RouteCoords.toRelativeYaw(f, player.getYRot()), player.getXRot(), 0);
         startNode.start = true;
         route.nodes().add(startNode);
+        warnIfSimRotationUncertain(f.roomName(), true);
         return "Recording " + f.roomName() + (existing != null ? " (will replace the saved route)" : "")
                 + " - move, then /ar stop record";
     }
@@ -357,6 +396,9 @@ public final class RouteRecorder {
             return bad("Room not identified yet - stand in a scanned room.");
         }
         Route target = recording ? route : RouteStore.getInstance().forRoomOrCreate(f.roomName());
+        if (!recording) {
+            warnIfSimRotationUncertain(f.roomName(), false);
+        }
         if (target.nodes().size() >= RouteStore.MAX_NODES) {
             return bad("This route already has " + RouteStore.MAX_NODES + " nodes.");
         }

@@ -944,6 +944,8 @@ for a room the database does not know.
 
 ## A use PACKET is not an ability in here
 
+**Superseded 2026-10-04** - see "The sim answers packets, like Hypixel's server" at the end. Kept for the history.
+
 `ClearExecutor` sends its etherwarp hops as a `ServerboundUseItemPacket` through `startPrediction`. On Hypixel
 that IS the ability, because Hypixel's server implements it. The sim's abilities live in `SimAbilities` behind
 Fabric's `UseItemCallback`, and nothing on the integrated server turns an inbound use packet into one - so the
@@ -1454,6 +1456,7 @@ integrated server from the server's own copy of him with the planner's ray (`Tel
 one hop a tick again. A hop that lands off its planned block reports back and only then is the position
 re-read; a hop with no target stops the path; a queue that cannot find him on any hop for two seconds cancels.
 
+(Superseded 2026-10-04: the sim now lands at + 1.05 too and the planner uses one value - see the end of this file.)
 **"Off by one" had two causes.** The planner stood him at block top + 1.05 (QUOI's Hypixel number) while the
 sim stands him at + 1.0, so every sim hop was aimed from an eye 0.05 too high; the sim now plans at + 1.0. And
 QUOI's aim points are mostly 0.001 from a block's edge, with its top-centre point exactly ON the top face, which
@@ -1668,3 +1671,52 @@ Eight reports, one fix each. Where a rule came from somewhere other than the cod
   etherwarp item, and the Interactive Map's `etherwarpAlong`) is refused while standing in Boulder, with
   "No etherwarp in Boulder"; Instant Transmission is not. Auto Boulder still says "no chest position known":
   it reads the room database's chest secrets, which do not list this chest on Hypixel either - untouched.
+
+## The sim answers packets, like Hypixel's server (2026-10-04)
+
+killer560: "If I make an auto route on sim it will still work the exact same on main, right? That is my entire
+reason for creating the sim." It did not: `SimAbilities` and `SimItems` reacted to the CLIENT's `gameMode` calls,
+so a raw packet did nothing, and `RouteExecutor`/`ClearExecutor` had grown sim-only branches calling
+`etherwarpAlong` / `superboomAt` / `dungeonBreakAt` directly, plus a sim landing height (+ 1.0) with matching sim
+branches in `ClearNode`, `ClearExecutor`, `EtherwarpPathfinder` and `EtherSearch`.
+
+- **Where the abilities live now.** Fabric's `UseItemCallback`, `UseBlockCallback` and `AttackBlockCallback` are
+  common events; their server copies fire inside `ServerPlayerGameMode.useItem` / `useItemOn` /
+  `handleBlockBreakAction(START_DESTROY_BLOCK)` with the `ServerPlayer` (checked with javap in
+  fabric-events-interaction 5.2.2 and 5.2.8; `handleUseItem` snaps the server player to the packet's rotation
+  before `useItem`, 26.1.2 and 26.2). The sim's abilities run there, from the server player's position, rotation,
+  `isShiftKeyDown` (set by `ServerboundPlayerInputPacket`) and held item, and teleport with
+  `teleportTo(..., {Y_ROT, X_ROT} relative, 0, 0)` so the client gets a position packet and keeps its camera.
+  No new mixins.
+- **The client halves only stop vanilla prediction.** For an item the server handles, the client callback returns
+  SUCCESS, which makes Fabric send the same packet vanilla would and skip the client-side use (no predicted TNT
+  placement, no bow draw); left clicks in the sim return SUCCESS (START goes to the server, no local mining),
+  except a Creeper Beams lantern, which returns FAIL so no START follows the connect.
+- **Rules kept, now checked against the server player:** trap rooms and the Teleport Maze (room at the server
+  position), no etherwarp in Boulder, breaker locked before a generated floor starts, no breaker in puzzle rooms
+  or on secrets, one charge per block. The held-button "one charge per press" guard moved to the server: a START
+  for the block just broken within 3 server ticks of the last START for it is the same press.
+- **Charges are in the lore.** `SimBreakerState` keeps the Dungeon Breaker's "Charges: N/20" lore line current on
+  the server, so Auto Routes reads charges from the lore as on Hypixel (the 0-ping breaker reads the same line).
+- **Landing height is one value.** Etherwarp lands at the collision top + 1.05 (`SimAbilities.
+  ETHERWARP_LANDING_OFFSET`), then falls; the planner always plans 1.05 (`EtherwarpPathfinder.STAND_OFFSET`).
+  Instant Transmission still lands on a whole y - that is the measured Hypixel behaviour and what
+  `ClearNode.AotvNode` (+ 1.0) already predicts. The ray is the planner's (`TeleportUtils.traverseVoxels` with a
+  `Level` argument, eye 1.27, `getLook`), run on the server level.
+- **Weapons aimed by the packet.** Spirit Sceptre and Terminator right clicks are resolved on the server too, which
+  hands the client-side flight code the server player's eye and rotation through `SimAim`. Their LEFT clicks (Mage
+  beam, Salvation, Terminator left shot) are still read off the client's attack key in `SimClass`: a left click in
+  the air sends no packet but a swing, and nothing in the mod automates those.
+- **Removed client branches:** `RouteExecutor` (sim etherwarp, sim BOOM, sim BREAKER, sim charges),
+  `ClearExecutor` (sim range 57, sim landing 1.0, `etherwarpAlong` hop + result callback, sim "lost the path"
+  40-tick cancel, sim wait-to-land after non-etherwarp hops), `ClearNode` (sim 1.0 / 57),
+  `EtherwarpPathfinder` (the `offset` parameter), `DungeonBreakerFeature` (sim gate; dead anyway, since the sim's
+  client callback cancels `startDestroyBlock` at HEAD before its TAIL hook).
+- **Still different, and why:** `TeleportUtils.underCover` / `EtherwarpPathfinder.coverTest` (the sim's rooms are
+  separate towers with open sky between them; Hypixel's dungeon is solid rock), `AutoTeleportMaze.afterChest` (the
+  capture walls the centre chamber off from the start pad), Secret Aura's essence test (the sim's skulls carry no
+  Hypixel skin profile) and the y offset everywhere (`SimAltitude`). Each is the sim's WORLD differing, not its
+  server; fixing them means changing what the sim builds.
+- **Auto Routes recording warning.** Starting a recording or `/ar add` in the sim in a room whose capture rotation
+  is uncertain (`RoomCaptureRotation.uncertainForRecording`: no marker, ambiguous, or overruled) says once that the
+  route may come out rotated on Hypixel until the room is rescanned.

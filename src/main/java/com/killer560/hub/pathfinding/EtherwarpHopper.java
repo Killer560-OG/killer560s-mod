@@ -190,7 +190,7 @@ public final class EtherwarpHopper {
             try {
                 // no dungeon layout - this is the plain single-goal search (findDungeonPath's room chaining is
                 // Catacombs-only), so the layout argument is never touched
-                path = EtherwarpPathfinder.findPath(from, target, cfg, range, true, false, null);
+                path = EtherwarpPathfinder.findPath(from, target, cfg, range, false, null);
             } catch (RuntimeException ignored) {
                 // a chunk swapped out mid-search
             }

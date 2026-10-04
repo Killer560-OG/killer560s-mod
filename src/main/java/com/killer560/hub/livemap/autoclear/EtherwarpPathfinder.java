@@ -64,7 +64,7 @@ public final class EtherwarpPathfinder {
     // ------------------------------------------------------------------------------------------- public API
 
     /** QUOI {@code findPath}: a single search, no room chaining. {@code layout} is unused and may be null. */
-    public static List<Node> findPath(Vec3 from, BlockPos to, PathConfig cfg, double dist, boolean offset, boolean withLast,
+    public static List<Node> findPath(Vec3 from, BlockPos to, PathConfig cfg, double dist, boolean withLast,
                                       DungeonLayout layout) {
         Level level = Minecraft.getInstance().level;
         if (level == null) {
@@ -76,7 +76,7 @@ public final class EtherwarpPathfinder {
             return null;
         }
         long deadline = System.nanoTime() + cfg.timeout() * 1_000_000L;
-        EtherSearch.Leg leg = leg(cfg, dist, offset, deadline);
+        EtherSearch.Leg leg = leg(cfg, dist, deadline);
         leg.goalX = to.getX();
         leg.goalY = to.getY();
         leg.goalZ = to.getZ();
@@ -98,7 +98,7 @@ public final class EtherwarpPathfinder {
      * for an unetherwarpable target, a room graph with no route, and a leg search that ran out of time. One
      * line per refusal settles it in a single run instead of a round of guesses.
      */
-    public static List<Node> findDungeonPath(Vec3 from, BlockPos to, PathConfig cfg, double dist, boolean offset,
+    public static List<Node> findDungeonPath(Vec3 from, BlockPos to, PathConfig cfg, double dist,
                                              DungeonLayout layout) {
         Level level = Minecraft.getInstance().level;
         if (level == null) {
@@ -115,14 +115,14 @@ public final class EtherwarpPathfinder {
         int startRoom = layout.roomAtWorld(from.x, from.z);
         int goalRoom = layout.roomAtWorld(to.getX(), to.getZ());
         if (startRoom >= 0 && startRoom == goalRoom) {
-            List<Node> same = sameRoomPath(grid, search, level, from, to, cfg, dist, offset, layout, startRoom,
+            List<Node> same = sameRoomPath(grid, search, level, from, to, cfg, dist, layout, startRoom,
                     searchStart);
             if (same != null) {
                 return same;
             }
         }
         if (startRoom < 0 || goalRoom < 0 || startRoom == goalRoom) {
-            List<Node> direct = findPath(from, to, cfg, dist, offset, false, layout);
+            List<Node> direct = findPath(from, to, cfg, dist, false, layout);
             if (direct == null) {
                 LOGGER.info("[Path] No single-room path from {} to {} (startRoom {}, goalRoom {}) - the"
                         + " warp search found nothing within {} blocks a hop.", BlockPos.containing(from), to,
@@ -151,7 +151,7 @@ public final class EtherwarpPathfinder {
         long expanded = 0;
         for (int i = 0; i < roomPath.size(); i++) {
             DungeonMapPathfinder.RoomStep step = roomPath.get(i);
-            EtherSearch.Leg leg = leg(cfg, dist, offset, deadline);
+            EtherSearch.Leg leg = leg(cfg, dist, deadline);
             int room = step.room();
             int nextRoom = -1;
             if (step.door() >= 0) {
@@ -265,7 +265,7 @@ public final class EtherwarpPathfinder {
      * target that could only be reached by leaving the room and coming back still works as it did.
      */
     private static List<Node> sameRoomPath(LevelEtherGrid grid, EtherSearch search, Level level, Vec3 from,
-                                           BlockPos to, PathConfig cfg, double dist, boolean offset,
+                                           BlockPos to, PathConfig cfg, double dist,
                                            DungeonLayout layout, int room, long searchStart) {
         long deadline = searchStart + cfg.timeout() * 1_000_000L;
         EtherSearch.CellTest cover = coverTest(grid, level);
@@ -274,7 +274,7 @@ public final class EtherwarpPathfinder {
         int ty = to.getY();
         int tz = to.getZ();
         for (int pass = 0; pass < 2; pass++) {
-            EtherSearch.Leg leg = leg(cfg, dist, offset, deadline);
+            EtherSearch.Leg leg = leg(cfg, dist, deadline);
             leg.goalX = tx;
             leg.goalY = ty;
             leg.goalZ = tz;
@@ -310,11 +310,17 @@ public final class EtherwarpPathfinder {
         return String.format(java.util.Locale.ROOT, "%.2f", nanos / 1e6);
     }
 
-    private static EtherSearch.Leg leg(PathConfig cfg, double dist, boolean offset, long deadline) {
+    /** Feet height above the top of the block an etherwarp lands on. */
+    public static final double STAND_OFFSET = 1.05;
+
+    private static EtherSearch.Leg leg(PathConfig cfg, double dist, long deadline) {
         EtherSearch.Leg leg = new EtherSearch.Leg();
         leg.fan = EtherSearch.fan(dist, cfg.yawStep(), cfg.pitchStep());
         leg.hWeight = cfg.hWeight();
-        leg.standOffset = offset ? 1.05 : 1.0;
+        // Block top + 1.05: QUOI's figure for where Hypixel's etherwarp lands the feet, and the dungeon sim's
+        // server lands there too (SimAbilities.ETHERWARP_LANDING_OFFSET). The sim used to land at + 1.0 and
+        // planned with that; one value now.
+        leg.standOffset = STAND_OFFSET;
         leg.deadlineNanos = deadline;
         return leg;
     }

@@ -19,8 +19,10 @@ import net.minecraft.world.phys.Vec3;
  * {@code RoomDatabase.toRealCoord} puts block {@code 0}. Verified against the integer version: for every rotation,
  * {@code containing(toReal(block + 0.5))} equals {@code RoomDatabase.toRealCoord(block)}.
  * <p>
- * Yaw: rotating a direction {@code (-sin yaw, cos yaw)} by the same 90-degree steps gives {@code real = rel -
- * rotation}. Only ever used to build a target that is then applied as a wrapped DELTA onto the live yaw (Rotation
+ * Yaw: rotating a direction {@code (-sin yaw, cos yaw)} by the same 90-degree steps gives {@code real = rel +
+ * rotation} (and so {@code rel = real - rotation}), which is what {@link #toRealYaw} and {@link #toRelativeYaw} do.
+ * Checked by hand for rotation 90: the point rotation is {@code (x, z) -> (-z, x)}, which turns
+ * {@code (-sin y, cos y)} into {@code (-cos y, -sin y)} = {@code (-sin(y + 90), cos(y + 90))}. Only ever used to build a target that is then applied as a wrapped DELTA onto the live yaw (Rotation
  * 360 rule) - a stored relative yaw is data, the live yaw is never assigned from it.
  */
 public final class RouteCoords {

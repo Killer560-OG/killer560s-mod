@@ -247,12 +247,13 @@ public final class SimTerminator {
         if (server == null || client.player == null) {
             return;
         }
-        final float yaw = client.player.getYRot();
-        final float pitch = client.player.getXRot();
+        // SimAim: the rotation the use packet carried when the server fired this shot, his own otherwise.
+        final float yaw = SimAim.yaw(client.player);
+        final float pitch = SimAim.pitch(client.player);
         final UUID who = client.player.getUUID();
         // The puzzle half of the shot: a lantern in Creeper Beams answers to the centre arrow's line, from any
         // distance. The arrows themselves hit nothing the puzzle listens to - see SimCreeperPuzzle.shotAlong.
-        com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.shotAlong(client, client.player.getEyePosition(),
+        com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.shotAlong(client, SimAim.eye(client.player),
                 fromAngles(yaw, pitch), ARROW_RANGE);
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(who);

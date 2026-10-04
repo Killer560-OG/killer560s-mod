@@ -36,7 +36,7 @@ import java.util.Random;
  * out of range. The explosion is what damages, in a sphere, which is what the real ability's bats do.
  *
  * <p>Split out of {@code SimItems} rather than rewritten in place so the flight can own a client tick without
- * that file growing a second lifecycle. {@code SimItems.tryUse} still routes {@code BAT_WAND} here, which
+ * that file growing a second lifecycle. {@code SimItems.useOnServer} still routes {@code BAT_WAND} here, which
  * keeps "exactly one place a right-click is resolved" true.
  *
  * <p>Same safety story as the rest of {@code roomsim}: everything is gated on {@link SimState#canAct}, the
@@ -182,8 +182,9 @@ public final class SimSpiritSceptre {
         if (!SimState.canAct(client) || client.player == null || client.level == null) {
             return false;
         }
-        Vec3 eye = client.player.getEyePosition();
-        Vec3 look = client.player.getLookAngle();
+        // SimAim: the aim the use packet carried when the server fired this, his own otherwise.
+        Vec3 eye = SimAim.eye(client.player);
+        Vec3 look = SimAim.look(client.player);
         for (int i = 0; i < BATS; i++) {
             Bat bat = new Bat();
             bat.delay = i * LAUNCH_GAP;
