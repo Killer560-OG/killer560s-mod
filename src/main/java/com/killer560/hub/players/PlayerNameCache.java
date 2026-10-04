@@ -1,11 +1,11 @@
 package com.killer560.hub.players;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -21,7 +21,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Persisted UUID -&gt; last-known-name cache backing {@link PlayerNames}, {@code config/killer560smod-playernames.json}.
+ * Persisted UUID -&gt; last-known-name cache backing {@link PlayerNames}, {@code config/killer560/social/playernames/killer560smod-playernames.json}.
  * Same load/save shape as this mod's other {@code killer560smod-*.json} configs, except there is nothing here for
  * a user to actually configure - every write comes from a resolved lookup, so {@link #load()}/{@link #save()} are
  * driven by {@link PlayerNames} itself rather than a GUI tab.
@@ -38,7 +38,7 @@ final class PlayerNameCache {
     private static final Logger LOGGER = ModLog.get("killer560smod-players");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-playernames.json");
+            ModPaths.config("killer560smod-playernames.json");
 
     /** Hard cap so years of sessions (parties, class overrides, leap order, the friends/bestfriends trackers)
      *  can't grow this file without bound; the oldest-refreshed entries are trimmed first. */

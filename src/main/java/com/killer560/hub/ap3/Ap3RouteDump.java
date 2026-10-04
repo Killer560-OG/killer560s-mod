@@ -158,8 +158,7 @@ final class Ap3RouteDump {
             }
             root.add("surface", gr);
 
-            Path f = Minecraft.getInstance().gameDirectory.toPath()
-                    .resolve("config").resolve("killer560smod").resolve(name);
+            Path f = com.killer560.hub.util.ModPaths.config("killer560smod/" + name);
             Files.createDirectories(f.getParent());
             Files.writeString(f, root.toString(), StandardCharsets.UTF_8);
             LOGGER.info("[AP3 route] dumped {} boxes and {} gates to {}", boxes.size(), gates.size(), f.getFileName());

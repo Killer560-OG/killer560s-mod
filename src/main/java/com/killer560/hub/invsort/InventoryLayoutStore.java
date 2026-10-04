@@ -1,11 +1,11 @@
 package com.killer560.hub.invsort;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
  * layout in the folder is loaded and available by name at once, closer to how {@code autoroutes/RouteStore} keeps
  * every route addressable by name (just split one-per-file instead of one-per-room-inside-a-shared-file).
  * <p>
- * Folder: {@code config/killer560smod-invsort/<name>.json}. Layout shape:
+ * Folder: {@code config/killer560/skyblock/invsort/killer560smod-invsort/<name>.json}. Layout shape:
  * <pre>
  * { "version": 1, "name": "Dungeon Kit",
  *   "slots": { "9": "ASPECT_OF_THE_END", "10": "SPIRIT_BOOTS", ... } }
@@ -70,7 +70,7 @@ public final class InventoryLayoutStore {
 
     /** The folder every layout file lives in (an "Open Folder" button could point here); created if missing. */
     public static Path directory() {
-        Path dir = FabricLoader.getInstance().getConfigDir().resolve(FOLDER_NAME);
+        Path dir = ModPaths.config(FOLDER_NAME);
         try {
             Files.createDirectories(dir);
         } catch (Exception ignored) {

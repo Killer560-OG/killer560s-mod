@@ -1,10 +1,10 @@
 package com.killer560.hub.itembrowser;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -55,7 +55,7 @@ public final class SkyblockItemRepository {
     private static final Logger LOGGER = ModLog.get("killer560smod-itembrowser");
     private static final String ITEMS_URL = "https://api.hypixel.net/v2/resources/skyblock/items";
     private static final Path CACHE_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-itembrowser-items-cache.json");
+            ModPaths.config("killer560smod-itembrowser-items-cache.json");
     private static final long CACHE_TTL_MS = 12L * 60 * 60 * 1000;
 
     private static final HttpClient HTTP = HttpClient.newBuilder()

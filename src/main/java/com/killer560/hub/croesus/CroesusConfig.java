@@ -1,11 +1,11 @@
 package com.killer560.hub.croesus;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -41,7 +41,7 @@ public final class CroesusConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-croesus.json");
+            ModPaths.config("killer560smod-croesus.json");
 
     public static final int MIN_DELAY_BOUND_MS = 100;
     public static final int MAX_DELAY_BOUND_MS = 2000;

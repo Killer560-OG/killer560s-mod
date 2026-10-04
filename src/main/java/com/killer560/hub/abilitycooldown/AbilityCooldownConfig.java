@@ -1,12 +1,12 @@
 package com.killer560.hub.abilitycooldown;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.SkyblockGate;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -32,7 +32,7 @@ public final class AbilityCooldownConfig {
     private static final Logger LOGGER = ModLog.get("killer560smod-abilitycooldown");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-abilitycooldown.json");
+            ModPaths.config("killer560smod-abilitycooldown.json");
 
     /** SkyHanni's own window: a heard ability sound only starts YOUR timer if YOU clicked an item within
      *  this long, so another player's Hyperion next to you can't start your cooldown

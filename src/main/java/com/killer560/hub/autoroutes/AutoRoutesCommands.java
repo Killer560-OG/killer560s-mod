@@ -498,7 +498,7 @@ public final class AutoRoutesCommands {
 
     /**
      * "/ar reload ... in case you change your folder" (killer560, 2026-09-16): re-reads the one routes file
-     * ({@code config/killer560smod-autoroutes.json} - "I should only have to share one file") so a friend's copy
+     * ({@code config/killer560/dungeons/autoroutes/killer560smod-autoroutes.json} - "I should only have to share one file") so a friend's copy
      * dropped in, or a Notepad edit, works without a restart. The JSON syntax check is done here first so a broken
      * file gets NAMED in chat instead of quietly loading as zero routes - a route that "just doesn't trigger" is
      * far harder to debug than "killer560smod-autoroutes.json failed to parse: ...". Only syntax is checked here;
@@ -538,7 +538,7 @@ public final class AutoRoutesCommands {
 
     /** The one routes file - {@link RouteStore#routesDirectory()} is the folder the "Open Routes Folder" button opens. */
     public static Path routesFile() {
-        return RouteStore.routesDirectory().resolve(ROUTES_FILE_NAME);
+        return RouteStore.routesFile();
     }
 
     // ---- small shared helpers (also used by the tab) ----

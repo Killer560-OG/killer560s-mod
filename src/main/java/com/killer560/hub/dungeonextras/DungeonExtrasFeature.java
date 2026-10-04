@@ -13,7 +13,7 @@ public final class DungeonExtrasFeature {
     public static void register() {
         AutoDialogueFeature.register();
         DungeonExtrasConfig.getInstance();
-        // Migrates his old breakerAuraSelected picks into config/killer560smod-breakeraura/default.json (if that
+        // Migrates his old breakerAuraSelected picks into config/killer560/dungeons/breakeraura/killer560smod-breakeraura/default.json (if that
         // folder has no file yet) before anything ticks, and loads whichever config is active.
         BreakerAuraStore.getInstance();
         BreakerAuraCommands.register();

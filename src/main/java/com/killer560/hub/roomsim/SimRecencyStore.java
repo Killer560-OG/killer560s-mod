@@ -1,11 +1,11 @@
 package com.killer560.hub.roomsim;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -24,7 +24,7 @@ import java.util.Map;
 public final class SimRecencyStore {
 
     private static final Path PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-sim-recent.json");
+            ModPaths.config("killer560smod-sim-recent.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static boolean loaded;

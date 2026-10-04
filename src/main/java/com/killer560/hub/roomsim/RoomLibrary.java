@@ -1,5 +1,6 @@
 package com.killer560.hub.roomsim;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -47,7 +48,7 @@ public final class RoomLibrary {
     private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path DIR =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-rooms");
+            ModPaths.config("killer560smod-rooms");
 
     private static final String MOD_ID = "killer560smod";
 

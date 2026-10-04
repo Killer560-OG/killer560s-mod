@@ -1,5 +1,6 @@
 package com.killer560.hub.fastleap;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -7,7 +8,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.dungeonclass.DungeonClass;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,13 +19,13 @@ import java.util.Map;
  * Persisted Fast Leap settings (QUOI {@code AutoLeap.kt} port) - see {@link FastLeapFeature}. Real automation
  * (uses the Spirit Leap item and clicks the leap menu), so every getter is gated on
  * {@link BuildVariant#CHEAT_FEATURES_ENABLED}. Every switch defaults OFF. Saved to
- * {@code config/killer560smod-fastleap.json}.
+ * {@code config/killer560/dungeons/runs/killer560smod-fastleap.json}.
  */
 public final class FastLeapConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-fastleap.json");
+            ModPaths.config("killer560smod-fastleap.json");
 
     public static final int MIN_CLICK_DELAY_MS = 100;
     public static final int MAX_CLICK_DELAY_MS = 500;

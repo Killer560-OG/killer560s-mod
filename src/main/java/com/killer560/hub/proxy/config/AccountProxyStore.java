@@ -1,11 +1,11 @@
 package com.killer560.hub.proxy.config;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +27,7 @@ public final class AccountProxyStore {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path STORE_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-account-proxies.json");
+            ModPaths.config("killer560smod-account-proxies.json");
 
     private static Map<String, AccountProxyProfile> cache;
 

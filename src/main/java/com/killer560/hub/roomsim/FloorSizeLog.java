@@ -1,5 +1,6 @@
 package com.killer560.hub.roomsim;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -12,7 +13,6 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 
 import org.slf4j.Logger;
@@ -54,7 +54,7 @@ public final class FloorSizeLog {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static final Path FILE =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-floor-sizes.json");
+            ModPaths.config("killer560smod-floor-sizes.json");
 
     /** One sample per dungeon, so re-entering the same run does not count twice. */
     private static String lastSampledKey;

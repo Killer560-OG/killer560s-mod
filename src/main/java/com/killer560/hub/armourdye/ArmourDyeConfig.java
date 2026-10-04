@@ -1,5 +1,6 @@
 package com.killer560.hub.armourdye;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -9,7 +10,6 @@ import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.SkyblockGate;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,7 +35,7 @@ public final class ArmourDyeConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-armourdye.json");
+            ModPaths.config("killer560smod-armourdye.json");
 
     private static ArmourDyeConfig instance;
 

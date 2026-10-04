@@ -1,5 +1,6 @@
 package com.killer560.hub.roomsim;
 
+import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.ModChat;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -41,8 +42,7 @@ public final class SimSpeed {
      * 550 to 600, so a sim that comes back at 100 is not merely inconvenient - the first run after every
      * restart is at the wrong speed, and a route rehearsed at walking pace is a different route.
      */
-    private static final java.nio.file.Path FILE = net.fabricmc.loader.api.FabricLoader.getInstance()
-            .getConfigDir().resolve("killer560smod-sim-speed.txt");
+    private static final java.nio.file.Path FILE = ModPaths.config("killer560smod-sim-speed.txt");
 
     private static int savedSpeed = -1;
 

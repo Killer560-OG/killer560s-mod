@@ -34,7 +34,7 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   and Chambers and Raccoon match at no rotation. Re-capturing is the only fix.
 - **A room stored at the OLD footprint silently HIDES a good copy of the same room.** `RoomLibrary.Room.
   currentFormat()` filters it out of every count and every paste, but it still sits in the `ROOMS` map under the
-  right name, so nothing else can occupy that name. Measured 2026-09-29: `Map Logger`'s `config/killer560smod-rooms`
+  right name, so nothing else can occupy that name. Measured 2026-09-29: `Map Logger`'s `config/killer560/dungeons/sim/killer560smod-rooms`
   held 110 files, 60 usable, and every usable one 1x1 - all 43 old-footprint files were the multi-tile rooms, so
   generated floors there were entirely 1x1 while `26.1.2 (Mod Only Test)` had all 135 rooms and 47 multi-tile. Same
   jar, wildly different sim, nothing on screen saying why. Fixed by shipping the 135 good rooms in the jar
@@ -1393,7 +1393,7 @@ bundled coordinate as "the block", check whether it is the block or the space ab
 - **Room variety**: the RNG was never the problem (`SimFloorGen.RNG` is an unseeded `new Random()`). `RECENT` was
   in memory only, so every launch started with no recency, and its weight lost to `choose`'s deterministic
   doorway/size ordering, whose head wins because `choose` stops at the first "good enough" placement. Now saved to
-  `config/killer560smod-sim-recent.json` by `SimRecencyStore` (kept out of `SimFloorLayout` so the generator stays
+  `config/killer560/dungeons/sim/killer560smod-sim-recent.json` by `SimRecencyStore` (kept out of `SimFloorLayout` so the generator stays
   runnable outside the game), decay 0.6, key weight 3.0, score weight 2.0, die 0..4. Not measured over many floors.
 - The sim's sidebar, the Custom Scoreboard (which shows the sim sidebar under a plain title instead of its Skyblock
   entries) and the vanilla tab list header/footer carry "killer560's personal testing sim" and

@@ -6,7 +6,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
@@ -35,7 +34,7 @@ public final class SkyblockGate {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-skyblockgate");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-skyblockonly.json");
+    private static final Path CONFIG_PATH = ModPaths.config("killer560smod-skyblockonly.json");
     private static final long NO_SIDEBAR_HOLD_MS = 10_000L;
 
     // volatile: allows()/isEnabled() are also read off the client thread (integrated-server block-shape mixins).

@@ -1,11 +1,11 @@
 package com.killer560.hub.spotify;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -50,7 +50,7 @@ public final class SpotifyLyricsFeature {
     // Same filename the old standalone mod's companion server used to read, so an existing
     // Last.fm login carries over without re-entering it.
     private static final Path CONFIG_FILE =
-            FabricLoader.getInstance().getConfigDir().resolve("spotify-lyrics-lastfm.json");
+            ModPaths.config("spotify-lyrics-lastfm.json");
 
     private static final LyricsEngine ENGINE = new LyricsEngine();
     private static final SpotifyDesktopSource DESKTOP = new SpotifyDesktopSource();

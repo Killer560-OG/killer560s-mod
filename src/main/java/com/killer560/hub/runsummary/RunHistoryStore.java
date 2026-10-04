@@ -1,5 +1,6 @@
 package com.killer560.hub.runsummary;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -7,7 +8,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -23,11 +23,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The persisted run history: {@code config/killer560smod-runs/history.json}.
+ * The persisted run history: {@code config/killer560/dungeons/runs/killer560smod-runs/history.json}.
  * <p>
  * A SUBFOLDER, deliberately - exactly the reason {@code pathfinding/FairySoulStore} lives in
- * {@code config/killer560smod-pathfinding/}: {@code profiles/ProfileManager} snapshots, applies and
- * overwrites every {@code config/killer560smod-*.json} file, and a run history is real run data, not a
+ * {@code config/killer560/skyblock/pathfinding/killer560smod-pathfinding/}: {@code profiles/ProfileManager} snapshots, applies and
+ * overwrites every {@code killer560smod-*.json} file, and a run history is real run data, not a
  * setting. A file inside a folder never matches that pattern, so applying or importing a settings profile
  * can't wipe it (unlike the Croesus/Experiments logs, which had to be hand-added to ProfileManager's
  * {@code EXCLUDED_FILES} to survive).
@@ -44,8 +44,8 @@ public final class RunHistoryStore {
     private static final Logger LOGGER = ModLog.get("killer560smod-runsummary");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    /** {@code config/killer560smod-runs/history.json}. */
-    private static final Path DIR = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-runs");
+    /** {@code config/killer560/dungeons/runs/killer560smod-runs/history.json}. */
+    private static final Path DIR = ModPaths.config("killer560smod-runs");
     private static final Path FILE = DIR.resolve("history.json");
 
     private static final int FILE_VERSION = 1;

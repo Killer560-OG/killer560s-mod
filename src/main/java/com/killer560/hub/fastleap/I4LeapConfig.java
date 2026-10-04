@@ -1,24 +1,24 @@
 package com.killer560.hub.fastleap;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.dungeonclass.DungeonClass;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted I4 Leap settings - see {@link I4LeapFeature}. Cheat-gated getters, everything defaults OFF. Saved to
- *  {@code config/killer560smod-i4leap.json}. */
+ *  {@code config/killer560/dungeons/terminals/killer560smod-i4leap.json}. */
 public final class I4LeapConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-i4leap.json");
+            ModPaths.config("killer560smod-i4leap.json");
 
     public enum TargetType {
         CLASS("Class"), PLAYER("Player"), MELODY("Melody");

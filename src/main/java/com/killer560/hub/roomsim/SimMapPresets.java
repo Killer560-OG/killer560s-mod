@@ -1,8 +1,8 @@
 package com.killer560.hub.roomsim;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 
 import java.nio.charset.StandardCharsets;
@@ -31,7 +31,7 @@ public final class SimMapPresets {
     private static final Logger LOGGER = ModLog.get("killer560smod-simmaps");
 
     private static final Path FILE =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-simmaps.json");
+            ModPaths.config("killer560smod-simmaps.json");
 
     /** Name to (slot to room). A TreeMap so the list is stable and alphabetical without sorting at draw time. */
     private static final Map<String, Map<Integer, String>> MAPS =

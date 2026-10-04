@@ -7,7 +7,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
+import com.killer560.hub.util.ModPaths;
 import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -23,7 +23,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * All Auto Routes, in ONE shareable file: {@code config/killer560smod-autoroutes.json} - killer560: "I am fine
+ * All Auto Routes, in ONE shareable file: {@code config/killer560/dungeons/autoroutes/killer560smod-autoroutes.json} - killer560: "I am fine
  * with it being a json file as long as it is easy to edit in notepad and share really easily. I should only have to
  * share one file." Settings live in their own file ({@link AutoRoutesConfig}), so this one is nothing but routes.
  * <p>
@@ -85,18 +85,14 @@ public final class RouteStore {
         return instance;
     }
 
-    /** Folder containing the routes file (for the tab's "Open Routes Folder" button); created if missing. */
+    /** Folder containing the routes file (for the tab's "Open Routes Folder" button) - {@code dungeons/autoroutes}
+     *  under {@link ModPaths#root()}; {@link ModPaths#config} creates it if missing. */
     public static Path routesDirectory() {
-        Path dir = FabricLoader.getInstance().getConfigDir();
-        try {
-            Files.createDirectories(dir);
-        } catch (Exception ignored) {
-        }
-        return dir;
+        return routesFile().getParent();
     }
 
     public static Path routesFile() {
-        return routesDirectory().resolve(FILE_NAME);
+        return ModPaths.config(FILE_NAME);
     }
 
     /** {@code /ar reload}: re-read the file, replacing what is in memory. Stops a running route first rather than

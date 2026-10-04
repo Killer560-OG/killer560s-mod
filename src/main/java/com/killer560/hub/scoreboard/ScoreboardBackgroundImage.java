@@ -13,7 +13,7 @@ import java.nio.file.Path;
 
 /**
  * "Custom Background Image" - SkyHanni's {@code useCustomBackgroundImage} / SkyBlock Custom Scoreboard's
- * {@code CustomScoreboardBackground}: a PNG dropped into {@code config/killer560smod-customscoreboard/background.png}
+ * {@code CustomScoreboardBackground}: a PNG dropped into {@code config/killer560/interface/customscoreboard/killer560smod-customscoreboard/background.png}
  * is loaded into a dynamic texture and stretched over the board. The file's modification time is re-checked every
  * 2 seconds, so replacing the image applies without a restart. Must only be used from the render thread.
  */

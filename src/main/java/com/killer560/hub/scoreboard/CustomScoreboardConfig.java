@@ -1,5 +1,6 @@
 package com.killer560.hub.scoreboard;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -7,7 +8,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -235,9 +235,9 @@ public final class CustomScoreboardConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-customscoreboard.json");
+            ModPaths.config("killer560smod-customscoreboard.json");
     /** Folder for the background image ({@code background.png}) and {@link ScoreboardExtraData}'s cache. */
-    public static final Path DATA_DIR = FabricLoader.getInstance().getConfigDir().resolve("killer560smod-customscoreboard");
+    public static final Path DATA_DIR = ModPaths.config("killer560smod-customscoreboard");
 
     private static CustomScoreboardConfig instance;
 

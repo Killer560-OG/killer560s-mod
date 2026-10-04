@@ -1,6 +1,6 @@
 package com.killer560.hub.roomsim;
 
-import net.fabricmc.loader.api.FabricLoader;
+import com.killer560.hub.util.ModPaths;
 
 import org.slf4j.Logger;
 
@@ -28,7 +28,7 @@ public final class SimWorldVersion {
     private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
 
     private static final Path FILE =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-sim-world.txt");
+            ModPaths.config("killer560smod-sim-world.txt");
 
     /** Bumped when the world has to be regenerated for a reason a rebuild cannot fix. 1 = void world. */
     private static final int CURRENT = 1;

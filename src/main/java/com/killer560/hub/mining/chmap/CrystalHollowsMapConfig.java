@@ -1,5 +1,6 @@
 package com.killer560.hub.mining.chmap;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -7,7 +8,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -31,7 +31,7 @@ public final class CrystalHollowsMapConfig {
     private static final Logger LOGGER = ModLog.get("killer560smod-chmap");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-chmap.json");
+            ModPaths.config("killer560smod-chmap.json");
 
     public static final float MIN_SCALE = 0.5f;
     public static final float MAX_SCALE = 4f;

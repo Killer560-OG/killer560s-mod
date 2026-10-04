@@ -1,5 +1,6 @@
 package com.killer560.hub.mapping;
 
+import com.killer560.hub.util.ModPaths;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ItemStack;
@@ -64,7 +65,7 @@ public final class MappingFeature {
             sb.append('\n');
         }
 
-        Path dir = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("killer560smod-mapdumps");
+        Path dir = ModPaths.config("killer560smod-mapdumps");
         String filename = "mapdump-" + LocalDateTime.now().format(FILE_TIMESTAMP) + "-id" + held.mapId + ".txt";
         Path file = dir.resolve(filename);
         try {

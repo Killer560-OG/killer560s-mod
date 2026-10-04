@@ -1,12 +1,12 @@
 package com.killer560.hub.autosell;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -29,7 +29,7 @@ public final class AutoSellConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-autosell.json");
+            ModPaths.config("killer560smod-autosell.json");
 
     /** killer560, "add an auto sell feature": no QUOI source to port a real screen title from (see
      *  {@code AutoSellFeature}'s class doc) - this is deliberately loose (matches anything with "sell" in the

@@ -1,10 +1,10 @@
 package com.killer560.hub.i4sensors;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -20,7 +20,7 @@ public final class I4SensorsConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-i4sensors.json");
+            ModPaths.config("killer560smod-i4sensors.json");
 
     // killer560 (2026-09-14): "Add a slider to adjust how fast it rotates" - 0-400ms, used in Rotate mode even
     // with Predictions on (Noamm forces 170ms there; that override is gone).

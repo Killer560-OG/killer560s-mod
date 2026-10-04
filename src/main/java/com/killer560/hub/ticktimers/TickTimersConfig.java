@@ -1,11 +1,11 @@
 package com.killer560.hub.ticktimers;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -35,11 +35,11 @@ public final class TickTimersConfig {
     private static final Logger LOGGER = ModLog.get("killer560smod-ticktimers");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-ticktimers.json");
+            ModPaths.config("killer560smod-ticktimers.json");
     private static final Path OLD_GOLDOR_FRENZY_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-goldorfrenzy.json");
+            ModPaths.config("killer560smod-goldorfrenzy.json");
     private static final Path OLD_F7SPOTS_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-f7spots.json");
+            ModPaths.config("killer560smod-f7spots.json");
 
     /** Storm's purple pad, matching the mod's existing P2 pad box (QUOI {@code AutoLeap.kt} via FastLeapFeature) -
      *  same default F7 Spots' {@code CrushTimer} shipped before the 2026-09-21 move. */

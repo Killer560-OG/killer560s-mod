@@ -1,8 +1,8 @@
 package com.killer560.hub.roomsim;
 
+import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.livemap.DungeonLayout;
 
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -41,7 +41,7 @@ public final class SimMeasure {
     private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
 
     private static final Path FILE =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-measurements.txt");
+            ModPaths.config("killer560smod-measurements.txt");
 
     /** How far around the door's own block to look. Generous: the point is to find the edges, not to assume them. */
     private static final int PROBE = 6;

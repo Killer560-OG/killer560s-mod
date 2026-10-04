@@ -1,5 +1,6 @@
 package com.killer560.hub.itemprotect;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -8,7 +9,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,7 +35,7 @@ public final class ItemProtectConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-itemprotect.json");
+            ModPaths.config("killer560smod-itemprotect.json");
 
     /** Player {@code Inventory} container slots: 0-8 hotbar, 9-35 main, 36-39 armor, 40 offhand. */
     public static final int INVENTORY_SLOTS = 41;

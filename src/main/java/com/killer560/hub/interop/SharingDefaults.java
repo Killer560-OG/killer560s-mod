@@ -1,9 +1,9 @@
 package com.killer560.hub.interop;
 
+import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.bridge.BridgeConfig;
 import com.killer560.hub.melody.MelodyHudConfig;
 import com.killer560.hub.partydata.PartyDataConfig;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -24,10 +24,10 @@ public final class SharingDefaults {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-interop");
     static final String MARKER_FILE = "killer560smod-sharing-defaults-v1.json";
-    private static final Path MARKER = FabricLoader.getInstance().getConfigDir().resolve(MARKER_FILE);
+    private static final Path MARKER = ModPaths.config(MARKER_FILE);
     /** Second one-time step: Mod Chat on by default (killer560, 2026-09-21, after v1 had already run). */
     static final String MARKER_FILE_V2 = "killer560smod-sharing-defaults-v2.json";
-    private static final Path MARKER_V2 = FabricLoader.getInstance().getConfigDir().resolve(MARKER_FILE_V2);
+    private static final Path MARKER_V2 = ModPaths.config(MARKER_FILE_V2);
 
     private SharingDefaults() {
     }

@@ -1,5 +1,6 @@
 package com.killer560.hub.configversion;
 
+import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -38,7 +39,7 @@ public final class ConfigMigrations {
     private static final Logger LOGGER = ModLog.get("killer560smod-config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path STAMP =
-            FabricLoader.getInstance().getConfigDir().resolve("killer560smod-configversion.json");
+            ModPaths.config("killer560smod-configversion.json");
 
     /** One fix: the version it belongs to, why it exists, and what it does. */
     public record Migration(String version, String reason, Runnable apply) {
