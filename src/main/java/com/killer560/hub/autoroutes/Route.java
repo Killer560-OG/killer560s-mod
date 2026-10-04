@@ -61,6 +61,34 @@ public final class Route {
         return sorted;
     }
 
+    /**
+     * Every node on {@code trigger}'s tile ({@link RouteNode#sameTile}), trigger included, in the order they fire:
+     * by {@link RouteNode#stackRank}, then a {@code start} node before the rest of its type, then by node number.
+     * A lone node is a stack of one. Recomputed from the live list each time, so a delete, an undo or a renumber
+     * is simply what the next stack sees.
+     */
+    public List<RouteNode> stackOf(RouteNode trigger) {
+        List<RouteNode> stack = new ArrayList<>();
+        if (trigger == null) {
+            return stack;
+        }
+        for (RouteNode n : nodes) {
+            if (n == trigger || n.sameTile(trigger)) {
+                stack.add(n);
+            }
+        }
+        if (!stack.contains(trigger)) {
+            stack.add(trigger); // not (or no longer) in the list: it still fires itself
+        }
+        stack.sort(Comparator.comparingInt(RouteNode::stackRank)
+                .thenComparing(n -> !n.start)
+                .thenComparingInt(n -> {
+                    int i = nodes.indexOf(n);
+                    return i < 0 ? Integer.MAX_VALUE : i;
+                }));
+        return stack;
+    }
+
     /** Re-anchors nodes that point past the end of a (re)recorded path so playback can still reach them. */
     public void clampNodeAnchors() {
         int max = Math.max(0, path.size() - 1);

@@ -649,6 +649,8 @@ public final class AutoRoutesFeature {
         AABB playerBox = player.getBoundingBox();
         double height = cfg.getHeight();
         boolean startOnly = cfg.isStartFromStartNodeOnly() || mapArrivalGuard;
+        // The first node (path order) whose ring he is in. Every node on that node's tile then fires with it, as one
+        // stack in the approved type order - RouteExecutor.beginStack / Route#stackOf.
         RouteNode inside = null;
         for (RouteNode node : route.nodesInPathOrder()) {
             if (startOnly && !node.start) {
@@ -676,7 +678,10 @@ public final class AutoRoutesFeature {
             RouteExecutor.clearJustFinished();
             return;
         }
-        if (inside == latchedNode) {
+        // Latched per TILE: every node on it fires as one stack (Route#stackOf), and the node found first above
+        // need not be the one latched - "/ar add" latches the node it just placed, which on an occupied tile is
+        // the second one there, and comparing nodes fired the whole tile under him the moment chat closed.
+        if (inside == latchedNode || inside.sameTile(latchedNode)) {
             gate("in node #" + (route.indexOf(inside) + 1) + " but latched (just placed it, or the last run "
                     + "started / ended here) - step off and back on");
             return; // still standing where the last run started / ended

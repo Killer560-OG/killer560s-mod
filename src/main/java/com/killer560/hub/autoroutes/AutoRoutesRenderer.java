@@ -31,9 +31,7 @@ public final class AutoRoutesRenderer {
     private static final double LABEL_DISTANCE = 40.0;
     private static final float BREAKER_ALPHA = 0.28f;
     private static final float PATH_ALPHA = 0.35f;
-    /** AP3's label stacking: two nodes closer than this on the ground share a spot... */
-    private static final double STACK_RADIUS = 0.35;
-    /** ...and each later one lifts its label this much. */
+    /** AP3's label stacking: each later node of a tile's stack ({@link RouteNode#sameTile}) lifts its label this much. */
     private static final double STACK_STEP = 0.3;
 
     private AutoRoutesRenderer() {
@@ -92,8 +90,9 @@ public final class AutoRoutesRenderer {
                 // " [await ...]" - the same tag /ar list shows.
                 int index = route.indexOf(node) + 1;
                 String text = (cfg.isShowNodeNumbers() ? "#" + index + " " : "") + node.type.label() + node.modifierTag();
-                // Nodes on the same spot lift their labels a step each, AP3's stacking rule, so both numbers read.
-                double lift = stackIndex(route.nodes(), node) * STACK_STEP;
+                // Nodes on the same tile lift their labels a step each, AP3's stacking rule, so every number reads;
+                // the lowest label fires first.
+                double lift = stackIndex(route, node) * STACK_STEP;
                 renderLabel(ctx, real.x, real.y + height + 0.35 + lift, real.z, text, argb | 0xFF000000);
             }
         }
@@ -108,19 +107,11 @@ public final class AutoRoutesRenderer {
         }
     }
 
-    /** How many nodes EARLIER in the room's list share this node's spot - AP3's {@code Ap3Renderer.stackIndex}. */
-    private static int stackIndex(List<RouteNode> nodes, RouteNode me) {
-        int stack = 0;
-        for (RouteNode other : nodes) {
-            if (other == me) {
-                break;
-            }
-            if (Math.abs(other.y - me.y) <= 0.5 && Math.abs(other.x - me.x) <= STACK_RADIUS
-                    && Math.abs(other.z - me.z) <= STACK_RADIUS) {
-                stack++;
-            }
-        }
-        return stack;
+    /** This node's place in its tile's stack - AP3's {@code Ap3Renderer.stackIndex} lift, but counted in FIRING
+     *  order ({@link Route#stackOf}, the same tile test playback uses), so the labels read bottom-up in the order
+     *  the stack goes off. A lone node is 0. */
+    private static int stackIndex(Route route, RouteNode me) {
+        return Math.max(0, route.stackOf(me).indexOf(me));
     }
 
     /** The recorded movement as a faint polyline - where playback will actually walk. */

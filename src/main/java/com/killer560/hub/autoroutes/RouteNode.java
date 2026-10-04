@@ -176,6 +176,43 @@ public final class RouteNode {
         return boundingBox(real, height).intersects(playerBox);
     }
 
+    /**
+     * True when {@code other} stands on the same TILE as this node, so the two fire together as one stack
+     * ({@link Route#stackOf}). Nodes are placed snapped to the half-block grid ({@code RouteRecorder.snappedFeet}:
+     * x and z on a block centre or a seam, AP3's snapping), so "same tile" is "the same grid point": x and z rounded
+     * to the nearest half block are equal, and the feet heights fall in the same block ({@code floor(y)}, with a
+     * thousandth of slack for the snapped height). For two snapped nodes that means identical x and z - the same
+     * ring, so standing in one is standing in the other. Compared in ROOM-RELATIVE coordinates, which a room
+     * rotation (a quarter turn about an integer clay corner) and the sim's integer height shift both preserve, so
+     * the answer is the same in every rotation. An equivalence: every node of a stack agrees on who is in it.
+     */
+    public boolean sameTile(RouteNode other) {
+        return other != null && Math.round(x * 2.0) == Math.round(other.x * 2.0)
+                && Math.round(z * 2.0) == Math.round(other.z * 2.0)
+                && Math.floor(y + 0.001) == Math.floor(other.y + 0.001);
+    }
+
+    /**
+     * Where this node fires within a stack of nodes on one tile (killer560, 2026-10-04, approved order): breaker,
+     * superboom, use, command, rotate, unsneak, etherwarp, walk - the things that need you standing still and
+     * aimed first, the things that move you last. The two legacy types (only ever seen in a file that has not been
+     * migrated yet): a standalone {@link Type#AWAIT} is a wait, so it goes first and holds everything after it; a
+     * {@link Type#START} marker fires nothing, so it goes first too and costs nothing.
+     */
+    public int stackRank() {
+        return switch (type) {
+            case AWAIT, START -> 0;
+            case DUNGEON_BREAKER -> 1;
+            case BOOM -> 2;
+            case USE_ITEM -> 3;
+            case COMMAND -> 4;
+            case ROTATE -> 5;
+            case UNSNEAK -> 6;
+            case ETHERWARP -> 7;
+            case WALK -> 8;
+        };
+    }
+
     /** Discrete actions wait for confirmation during playback; markers just get passed through. */
     public boolean isDiscreteAction() {
         return switch (type) {

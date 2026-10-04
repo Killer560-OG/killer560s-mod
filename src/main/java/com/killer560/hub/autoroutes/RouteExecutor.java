@@ -186,6 +186,22 @@ public final class RouteExecutor {
     /** A held walk that has not moved for this many ticks has hit something and lets go. */
     private static final int WALK_HOLD_STALL_TICKS = 10;
 
+    // ---- stack ----
+    /**
+     * Every node on one tile fires, as one unit (killer560, 2026-10-04): the nodes still to run in the stack being
+     * performed, in firing order ({@link Route#stackOf}). Each waits for the one before it to finish and for
+     * {@code settleTicks} after it, exactly as consecutive nodes always have. Any {@link #stop} - a node failing,
+     * the player taking over, {@code /ar stop} - drops whatever is left.
+     */
+    private static final java.util.ArrayDeque<RouteNode> stackQueue = new java.util.ArrayDeque<>();
+    /** The node whose tile the running stack is: its place in the route is the stack's place, so the route moves on
+     *  from it once the stack is done. */
+    private static RouteNode stackTrigger;
+    /** Nodes performed since this run started. The route's walk-on progression skips them, so a node that already
+     *  went off as part of an earlier node's stack is not fired a second time when the order reaches its own number.
+     *  A landing re-fire ignores this - a ping-pong is meant to fire the same nodes again and again. */
+    private static final Set<RouteNode> firedInRun = new HashSet<>();
+
     private RouteExecutor() {
     }
 
@@ -246,6 +262,11 @@ public final class RouteExecutor {
         }
         running = false;
         stopReason = reason;
+        if (wasRunning && !stackQueue.isEmpty()) {
+            LOGGER.info("[AutoRoutes] {} stacked node(s) not run: {}", stackQueue.size(), describeStack(stackQueue));
+        }
+        stackQueue.clear();
+        stackTrigger = null;
         activeNode = null;
         step = null;
         landedFrom = null;
@@ -317,6 +338,9 @@ public final class RouteExecutor {
         awaitPhaseDone = true;
         landedFrom = null;
         arrivalChain = false;
+        stackQueue.clear();
+        stackTrigger = null;
+        firedInRun.clear();
         endWalkHold();
         RouteRotation.clear();
         running = true;
@@ -330,7 +354,8 @@ public final class RouteExecutor {
         // The node he stepped onto goes off NOW (killer560, 2026-10-04: "If I do /ar add ew start, that means that
         // the second I hit that node it should go off"). This used to wait for the next tick's walk step to find
         // him inside the ring again, and on a path-less route a player still walking could be out of it by then.
-        beginAction(startNode);
+        // Every node stacked on the start node's tile goes with it.
+        beginStack(startNode);
         return true;
     }
 
@@ -430,8 +455,10 @@ public final class RouteExecutor {
             handsLatched = false;
             return isDriving();
         }
+        // Between two nodes of one stack the route still owns the input: the stack is one unit.
+        boolean acting = activeNode != null || !stackQueue.isEmpty();
         if (handsLatched) {
-            return driven || activeNode != null || walkHoldYaw != null;
+            return driven || acting || walkHoldYaw != null;
         }
         if (arrivalChain) {
             stop("you moved");
@@ -446,7 +473,7 @@ public final class RouteExecutor {
             RouteRotation.clear();
             return false;
         }
-        return activeNode != null;
+        return acting;
     }
 
     /** Driving the player this tick (the mixin asks this). Sneak alone (an etherwarp prep) still counts. */
@@ -509,7 +536,7 @@ public final class RouteExecutor {
         if (cameraGraceTicks > 0) {
             cameraGraceTicks--;
         } else if (RouteRotation.userMovedCamera(player)) {
-            if (!route.path().isEmpty() || activeNode != null) {
+            if (!route.path().isEmpty() || activeNode != null || !stackQueue.isEmpty()) {
                 stop("you moved the camera");
                 return;
             }
@@ -535,6 +562,10 @@ public final class RouteExecutor {
             if (activeNode != null) {
                 clearMovement();
                 tickAction(client, player);
+            } else if (!stackQueue.isEmpty()) {
+                // The next node of the stack, now the one before it has finished and settled.
+                clearMovement();
+                beginAction(stackQueue.poll());
             } else {
                 tickWalk(client, player);
             }
@@ -572,7 +603,7 @@ public final class RouteExecutor {
                     nextNode = at;
                     LOGGER.info("[AutoRoutes] Landed in node #{} ({}) from #{} - firing it", route.indexOf(arrived) + 1,
                             arrived.type, route.indexOf(from) + 1);
-                    beginAction(arrived);
+                    beginStack(arrived);
                     return;
                 }
             }
@@ -584,7 +615,7 @@ public final class RouteExecutor {
             }
             RouteNode node = ordered.get(nextNode);
             if (node.contains(RouteCoords.toReal(frame, node.relativePos()), cfg.getHeight(), player.getBoundingBox())) {
-                beginAction(node);
+                beginStack(node);
             }
             return;
         }
@@ -606,7 +637,7 @@ public final class RouteExecutor {
         }
         if (nextNode < ordered.size() && cursor >= ordered.get(nextNode).pathIndex) {
             clearMovement();
-            beginAction(ordered.get(nextNode));
+            beginStack(ordered.get(nextNode));
             return;
         }
         if (cursor >= path.size() - 1) {
@@ -615,7 +646,7 @@ public final class RouteExecutor {
             } else {
                 // Nodes anchored past the end of the path (hand-edited file) - run them where we stand.
                 clearMovement();
-                beginAction(ordered.get(nextNode));
+                beginStack(ordered.get(nextNode));
             }
             return;
         }
@@ -710,17 +741,18 @@ public final class RouteExecutor {
     }
 
     /** The node a route-made teleport landed the player in: the next node in order if it is that one, else the first
-     *  in path order he is inside - never {@code from}, the node that warped him. */
+     *  in path order he is inside - never {@code from}, the node that warped him, nor anything stacked on its tile
+     *  (a warp onto its own tile would otherwise fire that stack in place forever). */
     private static RouteNode nodeLandedIn(LocalPlayer player, AutoRoutesConfig cfg, RouteNode from) {
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
         if (nextNode < ordered.size()) {
             RouteNode next = ordered.get(nextNode);
-            if (next != from && next.contains(RouteCoords.toReal(frame, next.relativePos()), cfg.getHeight(), box)) {
+            if (next != from && !next.sameTile(from) && next.contains(RouteCoords.toReal(frame, next.relativePos()), cfg.getHeight(), box)) {
                 return next;
             }
         }
         for (RouteNode node : ordered) {
-            if (node != from && node.contains(RouteCoords.toReal(frame, node.relativePos()), cfg.getHeight(), box)) {
+            if (node != from && !node.sameTile(from) && node.contains(RouteCoords.toReal(frame, node.relativePos()), cfg.getHeight(), box)) {
                 return node;
             }
         }
@@ -771,6 +803,37 @@ public final class RouteExecutor {
 
     // ------------------------------------------------------------------------------------------- actions
 
+    /**
+     * Fires {@code trigger} and every node stacked on its tile, in {@link Route#stackOf} order. The first node begins
+     * now; {@link #tick} begins each later one once the one before it has finished and settled, and
+     * {@link #finishAction} moves the route on from the trigger's place once the last is done.
+     */
+    private static void beginStack(RouteNode trigger) {
+        List<RouteNode> stack = route.stackOf(trigger);
+        stackQueue.clear();
+        stackQueue.addAll(stack);
+        stackTrigger = trigger;
+        // The landing re-fire is armed by the LAST teleport of a stack, so it is cleared once here, not per node.
+        landedFrom = null;
+        if (stack.size() > 1) {
+            LOGGER.info("[AutoRoutes] Stack of {} on node #{}'s tile - firing in order: {}", stack.size(),
+                    route.indexOf(trigger) + 1, describeStack(stack));
+        }
+        beginAction(stackQueue.poll());
+    }
+
+    private static String describeStack(java.util.Collection<RouteNode> nodes) {
+        StringBuilder sb = new StringBuilder();
+        for (RouteNode n : nodes) {
+            if (sb.length() > 0) {
+                sb.append(", ");
+            }
+            sb.append('#').append(route == null ? "?" : String.valueOf(route.indexOf(n) + 1)).append(' ')
+                    .append(n.type).append(n.start ? " (start)" : "");
+        }
+        return sb.toString();
+    }
+
     private static void beginAction(RouteNode node) {
         LocalPlayer self = Minecraft.getInstance().player;
         if (node.type == RouteNode.Type.ETHERWARP) {
@@ -786,7 +849,7 @@ public final class RouteExecutor {
         step = Step.PREP;
         stepTicks = 0;
         swapSent = false;
-        landedFrom = null;
+        firedInRun.add(node);
         actionOrigin = Minecraft.getInstance().player.position();
         // Any node firing ends a held walk ("keep me walking until I hit a different node", AP3's rule), and the
         // node owns the input from here: keys he is already holding are overridden, not read as a takeover.
@@ -795,7 +858,8 @@ public final class RouteExecutor {
         handsLatched = true;
         // The await modifier (if this node has one) runs FIRST, as its own PREP/CONFIRM cycle through
         // tickAwait - see tickAction. Nothing else about the node starts until that gate opens.
-        awaitPhaseDone = !node.awaitEnabled;
+        // A legacy standalone AWAIT node (an unmigrated file) is nothing but this wait.
+        awaitPhaseDone = !node.awaitEnabled && node.type != RouteNode.Type.AWAIT;
         breakerQueue = new ArrayList<>();
         breakerSent.clear();
         boomTarget = null;
@@ -810,10 +874,19 @@ public final class RouteExecutor {
         RouteRotation.clear();
         activeNode = null;
         step = null;
-        nextNode++;
         settleTicks = cfg.getInteractDelayTicks();
         bestTargetDistance = Double.MAX_VALUE;
         noProgressTicks = 0;
+        if (!stackQueue.isEmpty()) {
+            return; // the rest of the stack first - tick() begins the next node after the settle
+        }
+        // The stack is done: the route moves on from the trigger's place, past anything already fired this run.
+        int at = stackTrigger == null ? -1 : ordered.indexOf(stackTrigger);
+        nextNode = (at >= 0 ? at : nextNode) + 1;
+        while (nextNode < ordered.size() && firedInRun.contains(ordered.get(nextNode))) {
+            nextNode++;
+        }
+        stackTrigger = null;
     }
 
     private static void tickAction(Minecraft client, LocalPlayer player) {
@@ -826,7 +899,7 @@ public final class RouteExecutor {
             return;
         }
         switch (node.type) {
-            case START -> finishAction();
+            case START, AWAIT -> finishAction(); // a legacy AWAIT's wait already ran in tickAwait
             case WALK -> {
                 // A recorded route's walking is the path's job, so there a walk node is just a marker. On a
                 // path-less (/ar add) route it is the sprint.
@@ -1222,7 +1295,8 @@ public final class RouteExecutor {
             return;
         }
         float yaw = RouteCoords.toRealYaw(frame, node.yaw);
-        RouteNode next = nextNode + 1 < ordered.size() ? ordered.get(nextNode + 1) : null;
+        RouteNode next = !stackQueue.isEmpty() ? stackQueue.peek()
+                : nextNode + 1 < ordered.size() ? ordered.get(nextNode + 1) : null;
         boolean hasNext = next != null && next.isDiscreteAction();
         RouteRotation.beginApproach(yaw, node.pitch, hasNext, hasNext ? RouteCoords.toRealYaw(frame, next.yaw) : 0f,
                 hasNext ? next.pitch : 0f);
