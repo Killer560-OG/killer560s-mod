@@ -457,6 +457,26 @@ public class Killer560ModClient implements ClientModInitializer {
                                         }))
                                 // Empties one room so the recorder reads it again - see RoomLibrary.resetForRescan.
                                 .then(ClientCommands.literal("rescan")
+                                        // Every room the audit refused or whose rotation is uncertain, in one go.
+                                        .then(ClientCommands.literal("broken")
+                                                .executes(context -> {
+                                                    if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
+                                                        return 1;
+                                                    }
+                                                    java.util.List<String> rooms =
+                                                            com.killer560.hub.roomsim.RoomLibrary.resetAllBroken();
+                                                    if (!rooms.isEmpty()
+                                                            && !com.killer560.hub.roomsim.RoomRecorderFeature.isRunning()) {
+                                                        com.killer560.hub.roomsim.RoomRecorderFeature.startCaptureOnly();
+                                                    }
+                                                    com.killer560.hub.util.ModChat.send("Room Recorder",
+                                                            com.killer560.hub.util.ModChat.value(String.valueOf(rooms.size())),
+                                                            com.killer560.hub.util.ModChat.text(rooms.isEmpty()
+                                                                    ? " rooms needed it - nothing to rescan."
+                                                                    : " room(s) emptied for rescan: " + String.join(", ", rooms)
+                                                                    + ". Walk them (or load a map holding them) to capture them again."));
+                                                    return 1;
+                                                }))
                                         .then(ClientCommands.argument("room", StringArgumentType.greedyString())
                                                 .executes(context -> {
                                                     if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {

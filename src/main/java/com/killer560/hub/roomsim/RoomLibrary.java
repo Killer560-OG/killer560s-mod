@@ -771,6 +771,28 @@ public final class RoomLibrary {
         return old.name;
     }
 
+    /**
+     * Empties every room that cannot be trusted as it stands - one the tile audit refused (it holds another
+     * room's tile) or one whose capture rotation is still uncertain - so one walk through a floor that holds
+     * them all re-reads the lot. killer560 (2026-10-04): "is there a command I can run to just capture all of
+     * them if I boot a map with all of them at once?"
+     *
+     * @return the names emptied, in order
+     */
+    public static synchronized java.util.List<String> resetAllBroken() {
+        load();
+        java.util.List<String> broken = new java.util.ArrayList<>();
+        for (Room r : ROOMS.values()) {
+            if (r.corruptReason != null || RoomCaptureRotation.isUncertain(r.name)) {
+                broken.add(r.name);
+            }
+        }
+        for (String name : broken) {
+            resetForRescan(name);
+        }
+        return broken;
+    }
+
     /** Rooms emptied by {@link #resetForRescan} that have not been read completely again yet. */
     private static final java.util.Set<String> PENDING_RESCAN =
             new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
