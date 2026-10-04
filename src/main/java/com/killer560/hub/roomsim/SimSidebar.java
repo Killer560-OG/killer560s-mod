@@ -145,15 +145,17 @@ public final class SimSidebar {
      *
      * <p>killer560 (2026-10-04): "For the sim scoreboard there still shows a lot of stuff like time, keys,
      * k560l4 and stuff like that." So: who this world belongs to, the two things worth glancing at while
-     * practising - secrets and the room he is in - and the Discord link. No clock, no keys/doors, no floor
-     * line, no "not Hypixel" line (the tab list footer still says that). Nothing reads these lines in the sim:
-     * {@code DungeonState} answers floor and in-dungeon from {@code setRoomSim} without the Catacombs line, and
+     * practising - secrets and the room he is in - and the Discord link. No clock, no keys/doors, no "not
+     * Hypixel" line (the tab list footer still says that). The Catacombs line STAYS: the floor change it
+     * produces in {@code DungeonState} is what starts the run timer, Score Calc's run and the Live Map's grid
+     * reset (his 2026-10-04 log, the three lines right after "Dungeon floor changed"), and Hypixel shows it too.
      * {@code SkyblockGate} reads only the objective TITLE, which stays "SKYBLOCK".
      */
     private static List<String> compose(Minecraft client) {
         List<String> lines = new ArrayList<>();
         lines.add(INFO_TITLE);
         lines.add("");
+        lines.add("The Catacombs (" + SimState.floorLabel() + ")");
         lines.add("Secrets: " + SimScore.secretsFound() + "/" + SimScore.secretsTotal());
         String room = SimState.currentRoomName();
         lines.add("Room: " + (room == null || room.isBlank() ? "Entrance" : room));
