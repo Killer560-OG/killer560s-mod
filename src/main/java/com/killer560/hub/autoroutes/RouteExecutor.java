@@ -60,8 +60,10 @@ import com.killer560.hub.compat.McCompat;
  * <b>Discrete actions wait for real confirmation</b> (never a timer alone): an etherwarp / teleporting item is done
  * when the player actually arrives at the recorded landing, a dungeon-breaker node when its blocks are actually air,
  * a superboom when the block it hit changed. Anything that cannot be confirmed within a generous timeout, any
- * drift off the recorded path, any user input, and any screen opening <b>stops the route with a chat message</b> -
- * "a stuck bot in a real run is worse than a stopped one".
+ * drift off the recorded path, the player taking the movement keys or the camera back, and any screen opening
+ * <b>stops the route with a chat message</b> - "a stuck bot in a real run is worse than a stopped one". Mouse CLICKS
+ * never stop it (killer560, 2026-10-04: "Auto routes should not stop if I click") - he clicks chests and levers
+ * while a route runs.
  * <p>
  * <b>The {@code await} modifier</b> (any node may carry one - see {@link RouteNode#awaitEnabled}, and
  * {@link #tickAwait}) gates a node's own action behind "wait for N secrets" or "wait a fixed delay" FIRST -
@@ -131,7 +133,6 @@ public final class RouteExecutor {
     private static int awaitBatSecrets;
     private static long awaitStartMs;
     private static final Set<Integer> countedBats = new HashSet<>();
-    private static boolean awaitSkip;
     /** True once the CURRENT node's {@code awaitEnabled} gate (if it has one) has been satisfied - the node's
      *  own type-specific action (etherwarp, use, boom, ...) only starts once this is true. Set in
      *  {@link #beginAction}, read/advanced in {@link #tickAction}. AWAIT stopped being its own node type
@@ -143,7 +144,6 @@ public final class RouteExecutor {
     private static boolean fallbackKeysHeld;
     private static boolean warnedFallback;
     private static boolean warnedNoKeyAccessor;
-    private static boolean warnedCommandBlocked;
     private static boolean wantForward;
     private static boolean wantBackward;
     private static boolean wantLeft;
@@ -151,6 +151,21 @@ public final class RouteExecutor {
     private static boolean wantJump;
     private static boolean wantSneak;
     private static boolean wantSprint;
+    /**
+     * True from the moment the route takes the input (it starts, or a node begins) until the player's own movement
+     * keys are next seen all up. Keys still held from before that moment are the walk that carried him onto the
+     * node, not a request to take over, so they are overridden instead of stopping the route; only a press that
+     * comes AFTER a release counts as "you moved". Without this, walking onto a start node with W held stopped a
+     * driven route on its first tick, and on a path-less route the held key kept the input mixin from ever
+     * installing the etherwarp's sneak, so "/ar add ew start" never warped (2026-10-04).
+     */
+    private static boolean handsLatched;
+    /** A path-less route's WALK node: the real-world yaw it holds a sprint along until the next node fires, or null. */
+    private static Float walkHoldYaw;
+    private static Vec3 walkHoldLastPos;
+    private static int walkHoldStallTicks;
+    /** A held walk that has not moved for this many ticks has hit something and lets go. */
+    private static final int WALK_HOLD_STALL_TICKS = 10;
 
     private RouteExecutor() {
     }
@@ -167,7 +182,7 @@ public final class RouteExecutor {
      *  review: tapping W stopped a route and releasing W restarted it, because the player was still
      *  standing inside the ring the bot had just walked them through). */
     private static final java.util.Set<String> USER_STOP_REASONS =
-            java.util.Set.of("you moved", "you moved the camera", "you clicked");
+            java.util.Set.of("you moved", "you moved the camera");
 
     private static boolean stoppedByUser;
     /** Set when a route runs to its end. The player is then standing IN the last node, which with
@@ -204,6 +219,8 @@ public final class RouteExecutor {
         step = null;
         forceSneak = false;
         unsneakOverride = false;
+        endWalkHold();
+        handsLatched = false;
         releaseKeys();
         RouteRotation.clear();
         if (wasRunning) {
@@ -240,7 +257,6 @@ public final class RouteExecutor {
      *  logic calls this, after every interlock in {@link AutoRoutesFeature} has passed. */
     static boolean start(Route r, RouteCoords.Frame f, RouteNode startNode) {
         justFinished = false;
-        warnedCommandBlocked = false; // per run, not per session (2026-09-16 review)
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null || r == null || f == null || startNode == null) {
@@ -266,14 +282,20 @@ public final class RouteExecutor {
         unsneakOverride = false;
         secretsFound = -1;
         awaitPhaseDone = true;
+        endWalkHold();
         RouteRotation.clear();
         running = true;
+        handsLatched = true;
         LOGGER.info("[AutoRoutes] Started \"{}\" from node {} ({}) at sample {} of {}", r.roomName(),
                 r.indexOf(startNode), startNode.type, cursor, r.path().size());
         if (AutoRoutesConfig.getInstance().isChatFeedback()) {
             AutoRoutesFeature.chat(com.killer560.hub.util.ModChat.good("Started"),
                     com.killer560.hub.util.ModChat.dim(" - " + r.roomName()));
         }
+        // The node he stepped onto goes off NOW (killer560, 2026-10-04: "If I do /ar add ew start, that means that
+        // the second I hit that node it should go off"). This used to wait for the next tick's walk step to find
+        // him inside the ring again, and on a path-less route a player still walking could be out of it by then.
+        beginAction(startNode);
         return true;
     }
 
@@ -308,8 +330,8 @@ public final class RouteExecutor {
      * once when the fallback is first used: the mixin config is {@code required:false} by design, and
      * without a line in the log a non-applying mixin would be completely invisible.
      */
-    private static boolean userPressedMovementKeyInFallback(Minecraft client) {
-        if (mixinApplied || !fallbackKeysHeld) {
+    private static boolean physicalMovementKeysInFallback(Minecraft client) {
+        if (mixinApplied) {
             return false;
         }
         if (!warnedFallback) {
@@ -342,18 +364,45 @@ public final class RouteExecutor {
             if (!warnedNoKeyAccessor) {
                 warnedNoKeyAccessor = true;
                 LOGGER.warn("[AutoRoutes] Key accessor unavailable ({}) - movement keys cannot stop a route on "
-                        + "the fallback path. Use the mouse, a click, or open a screen.", t.toString());
+                        + "the fallback path. Move the mouse or open a screen.", t.toString());
             }
             return false;
         }
     }
 
-    /** From the input mixin: the player pressed a movement key themselves. A route with no recorded path is
-     *  QUOI-style (the player walks between nodes), so only a driven route stops on it. */
-    public static void onUserMovementInput() {
-        if (running && route != null && !route.path().isEmpty()) {
-            stop("you moved");
+    /**
+     * From the input mixin every tick while a route runs (and from {@link #tick} on the fallback path):
+     * {@code userKeys} is whether the player is holding a movement key himself this tick.
+     * <p>
+     * Keys held since the route took the input ({@link #handsLatched}) are overridden while the route owns the
+     * input - a driven route, a node's action, or a held walk - and left alone otherwise, so he can keep walking
+     * between the nodes of a path-less route. A FRESH press stops a driven route ("you moved"), hands a held walk
+     * back to him, and is overridden for the few ticks a path-less node's own action needs (the etherwarp's sneak).
+     *
+     * @return true when the route's input replaces his this tick
+     */
+    public static boolean onInputTick(boolean userKeys) {
+        if (!running) {
+            return false;
         }
+        boolean driven = route != null && !route.path().isEmpty();
+        if (!userKeys) {
+            handsLatched = false;
+            return isDriving();
+        }
+        if (handsLatched) {
+            return driven || activeNode != null || walkHoldYaw != null;
+        }
+        if (driven) {
+            stop("you moved");
+            return false;
+        }
+        if (walkHoldYaw != null) {
+            endWalkHold();
+            RouteRotation.clear();
+            return false;
+        }
+        return activeNode != null;
     }
 
     /** Driving the player this tick (the mixin asks this). Sneak alone (an etherwarp prep) still counts. */
@@ -405,28 +454,28 @@ public final class RouteExecutor {
             stop("a screen opened");
             return;
         }
-        // Only a DRIVEN route is the bot's alone. A path-less, nodes-only route expects the player to walk
-        // between rings, so their movement keys must not abort it - the mixin path already knew that and the
-        // fallback did not (2026-09-16 review).
-        if (route != null && !route.path().isEmpty() && userPressedMovementKeyInFallback(client)) {
-            stop("you moved");
-            return;
+        // Without the input mixin the same hand-over rules run off the physical keys (onInputTick). The fallback
+        // cannot hide held keys from the game, but applyFallbackKeys re-asserts the mappings every tick.
+        if (!mixinApplied) {
+            onInputTick(physicalMovementKeysInFallback(client));
+            if (!running) {
+                return;
+            }
         }
         if (cameraGraceTicks > 0) {
             cameraGraceTicks--;
         } else if (RouteRotation.userMovedCamera(player)) {
-            stop("you moved the camera");
-            return;
+            if (!route.path().isEmpty() || activeNode != null) {
+                stop("you moved the camera");
+                return;
+            }
+            // A path-less route between nodes: only a held walk was turning the camera - hand it back.
+            endWalkHold();
+            RouteRotation.clear();
         }
-        boolean attack = client.options.keyAttack.isDown();
-        boolean driven = !route.path().isEmpty();
-        if (attack && activeNode != null && !awaitPhaseDone) {
-            awaitSkip = true; // QUOI: a click while waiting skips the await (now any node's await modifier)
-        } else if ((attack || client.options.keyUse.isDown()) && (driven || activeNode != null)) {
-            // A driven route is the bot's alone; a QUOI-style path-less route only minds clicks mid-action.
-            stop("you clicked");
-            return;
-        }
+        // No click check (killer560, 2026-10-04: "Auto routes should not stop if I click"). A click used to stop a
+        // driven route outright and skip an await on any route, so clicking the chest an await:2 was waiting on
+        // fired the node early.
         RouteCoords.Frame now = RouteCoords.Frame.current();
         if (now == null || !now.sameRoom(frame)) {
             stop("left the room");
@@ -462,8 +511,13 @@ public final class RouteExecutor {
         if (path.isEmpty()) {
             // No recorded movement: QUOI-style, the next node fires when the player walks into its ring.
             clearMovement();
+            if (walkHoldYaw != null) {
+                tickWalkHold(player);
+            }
             if (nextNode >= ordered.size()) {
-                complete();
+                if (walkHoldYaw == null) {
+                    complete(); // a walk node at the end keeps going until it runs into something
+                }
                 return;
             }
             RouteNode node = ordered.get(nextNode);
@@ -557,6 +611,48 @@ public final class RouteExecutor {
         wantSprint = !wantSneak && wantForward && (at.sprint() || target.sprint()) && !player.isInWater();
     }
 
+    /**
+     * A path-less route's WALK node: sprint along its recorded direction (killer560, 2026-10-04: "the walk should be
+     * a sprint as well even though it is titled walk"). Discrete keys picked against the live yaw exactly like
+     * {@link #steer}, with the camera eased onto the walk direction so the pick settles on W and the sprint holds.
+     * The hold ends when the next node fires, he takes the keys or the mouse back, or he stops moving.
+     */
+    private static void tickWalkHold(LocalPlayer player) {
+        Vec3 pos = player.position();
+        if (walkHoldLastPos != null) {
+            double mx = pos.x - walkHoldLastPos.x;
+            double mz = pos.z - walkHoldLastPos.z;
+            walkHoldStallTicks = mx * mx + mz * mz < 0.03 * 0.03 ? walkHoldStallTicks + 1 : 0;
+        }
+        walkHoldLastPos = pos;
+        if (walkHoldStallTicks > WALK_HOLD_STALL_TICKS) {
+            endWalkHold();
+            RouteRotation.clear();
+            clearMovement();
+            return;
+        }
+        double r = Math.toRadians(walkHoldYaw);
+        double dx = -Math.sin(r);
+        double dz = Math.cos(r);
+        double yr = Math.toRadians(player.getYRot());
+        double fwd = dx * -Math.sin(yr) + dz * Math.cos(yr);
+        double lft = dx * Math.cos(yr) + dz * Math.sin(yr);
+        wantForward = fwd > 0.38;
+        wantBackward = fwd < -0.38;
+        wantLeft = lft > 0.38;
+        wantRight = lft < -0.38;
+        wantJump = false;
+        wantSneak = forceSneak;
+        wantSprint = !wantSneak && wantForward && !player.isInWater();
+        RouteRotation.follow(walkHoldYaw, player.getXRot());
+    }
+
+    private static void endWalkHold() {
+        walkHoldYaw = null;
+        walkHoldLastPos = null;
+        walkHoldStallTicks = 0;
+    }
+
     private static void clearMovement() {
         wantForward = wantBackward = wantLeft = wantRight = wantJump = wantSprint = false;
         wantSneak = forceSneak;
@@ -601,7 +697,11 @@ public final class RouteExecutor {
         stepTicks = 0;
         swapSent = false;
         actionOrigin = Minecraft.getInstance().player.position();
-        awaitSkip = false;
+        // Any node firing ends a held walk ("keep me walking until I hit a different node", AP3's rule), and the
+        // node owns the input from here: keys he is already holding are overridden, not read as a takeover.
+        endWalkHold();
+        clearMovement();
+        handsLatched = true;
         // The await modifier (if this node has one) runs FIRST, as its own PREP/CONFIRM cycle through
         // tickAwait - see tickAction. Nothing else about the node starts until that gate opens.
         awaitPhaseDone = !node.awaitEnabled;
@@ -635,29 +735,26 @@ public final class RouteExecutor {
             return;
         }
         switch (node.type) {
-            case START, WALK -> finishAction();
+            case START -> finishAction();
+            case WALK -> {
+                // A recorded route's walking is the path's job, so there a walk node is just a marker. On a
+                // path-less (/ar add) route it is the sprint.
+                if (route.path().isEmpty()) {
+                    walkHoldYaw = RouteCoords.toRealYaw(frame, node.yaw);
+                    walkHoldLastPos = null;
+                    walkHoldStallTicks = 0;
+                }
+                finishAction();
+            }
             case UNSNEAK -> {
                 unsneakOverride = true;
                 forceSneak = false;
                 finishAction();
             }
             case COMMAND -> {
-                // Gated behind an explicit opt-in (default OFF). The routes file is meant to be handed
-                // around between friends, and a COMMAND node runs whatever string is in that file from
-                // YOUR account the moment you step on a start node - /pay, /p leave, chat spam, anything
-                // (2026-09-16 review). QUOI has the same action ungated; we don't, because killer560
-                // specifically intends to share these files.
-                if (!AutoRoutesConfig.getInstance().isAllowCommandNodes()) {
-                    if (!warnedCommandBlocked) {
-                        warnedCommandBlocked = true;
-                        AutoRoutesFeature.chat(com.killer560.hub.util.ModChat.bad("Skipped a command node"),
-                                com.killer560.hub.util.ModChat.dim(
-                                        " - turn on \"Allow Command Nodes\" if this route is yours."));
-                        LOGGER.warn("[AutoRoutes] Blocked COMMAND node: {}", node.command);
-                    }
-                    finishAction();
-                    return;
-                }
+                // Always allowed (killer560, 2026-10-04: "Remove the option for allow command nodes, those should
+                // always be an option"). The old opt-in existed because a shared routes file can carry one; /ar add
+                // cannot make a command node, so one only arrives by hand-editing or receiving the file.
                 if (node.command != null && !node.command.isBlank()) {
                     String cmd = node.command.trim();
                     if (cmd.startsWith("/")) {
@@ -694,7 +791,7 @@ public final class RouteExecutor {
      * The {@code awaitEnabled} modifier's own PREP/CONFIRM cycle - "wait for {@link RouteNode#awaitAmount}
      * secrets (or a delay) before this node fires", the old {@code AWAIT} node's behaviour, now gating
      * whatever real action {@code node} is instead of being a node of its own (see {@link #tickAction}).
-     * On success (or a click, {@link #awaitSkip}) it clears {@link #awaitPhaseDone} and resets {@link #step}
+     * On success it clears {@link #awaitPhaseDone} and resets {@link #step}
      * so the node's own action starts fresh the very next tick, rather than finishing the node outright.
      */
     private static void tickAwait(Minecraft client, LocalPlayer player, RouteNode node) {
@@ -723,9 +820,8 @@ public final class RouteExecutor {
             int fromBar = secretsFound < 0 || awaitBaselineSecrets < 0 ? 0 : Math.max(0, secretsFound - awaitBaselineSecrets);
             done = fromBar + awaitBatSecrets >= Math.max(1, node.awaitAmount);
         }
-        if (done || awaitSkip) {
+        if (done) {
             awaitPhaseDone = true;
-            awaitSkip = false;
             step = Step.PREP;
             stepTicks = 0;
         }

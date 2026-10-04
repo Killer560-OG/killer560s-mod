@@ -87,9 +87,10 @@ public final class AutoRoutesConfig {
     private double maxDriftDistance = 2.5;
     /** No progress along the path for this many ticks and playback gives up. */
     private int reachTimeoutTicks = 60;
-    /** COMMAND nodes send chat/commands from the player's own account. Default OFF because the routes file
-     *  is meant to be shared - see RouteExecutor's COMMAND case (2026-09-16 review). */
-    private boolean allowCommandNodes = false;
+    /** The settings tab's two collapsible sections (killer560, 2026-10-04: "make a dropdown for the keybinds and
+     *  colors"). Closed by default, remembered across restarts like AP3's. */
+    private boolean colorsSectionOpen = false;
+    private boolean keybindsSectionOpen = false;
     private boolean chatFeedback = true;
     private final Map<String, Integer> keybinds = new LinkedHashMap<>();
 
@@ -149,7 +150,8 @@ public final class AutoRoutesConfig {
                 cfg.setInteractDelayTicks(ConfigJson.getInt(o, "interactDelayTicks", cfg.interactDelayTicks));
                 cfg.setMaxDriftDistance(ConfigJson.getDouble(o, "maxDriftDistance", cfg.maxDriftDistance));
                 cfg.setReachTimeoutTicks(ConfigJson.getInt(o, "reachTimeoutTicks", cfg.reachTimeoutTicks));
-                cfg.allowCommandNodes = ConfigJson.getBool(o, "allowCommandNodes", cfg.allowCommandNodes);
+                cfg.colorsSectionOpen = ConfigJson.getBool(o, "colorsSectionOpen", cfg.colorsSectionOpen);
+                cfg.keybindsSectionOpen = ConfigJson.getBool(o, "keybindsSectionOpen", cfg.keybindsSectionOpen);
                 cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
                 JsonObject keys = ConfigJson.getObject(o, "keybinds");
                 if (keys != null) {
@@ -172,7 +174,8 @@ public final class AutoRoutesConfig {
             o.addProperty("legitMode", legitMode);
             o.addProperty("startFromStartNodeOnly", startFromStartNodeOnly);
             o.addProperty("uniformColor", uniformColor);
-            o.addProperty("allowCommandNodes", allowCommandNodes);
+            o.addProperty("colorsSectionOpen", colorsSectionOpen);
+            o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
             o.addProperty("uniformColorArgb", uniformColorArgb);
             o.addProperty("activeColorArgb", activeColorArgb);
             JsonObject colors = new JsonObject();
@@ -321,11 +324,11 @@ public final class AutoRoutesConfig {
         return t.toLowerCase(Locale.ROOT);
     }
 
-    public boolean isAllowCommandNodes() {
-        return allowCommandNodes;
-    }
+    // ------------------------------------------------------------------------------------------- tab layout
 
-    public void setAllowCommandNodes(boolean allowCommandNodes) {
-        this.allowCommandNodes = allowCommandNodes;
-    }
+    public boolean isColorsSectionOpen() { return colorsSectionOpen; }
+    public void setColorsSectionOpen(boolean v) { colorsSectionOpen = v; }
+
+    public boolean isKeybindsSectionOpen() { return keybindsSectionOpen; }
+    public void setKeybindsSectionOpen(boolean v) { keybindsSectionOpen = v; }
 }

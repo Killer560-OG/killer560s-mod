@@ -346,6 +346,12 @@ public final class AutoRoutesFeature {
         teleportSettleTicks = TELEPORT_SETTLE_TICKS;
     }
 
+    /** A node was just placed at his feet ({@code /ar add}): treat him as already standing in it, so it fires when
+     *  he walks back onto it rather than the instant chat closes. Leaving it clears the latch as usual. */
+    static void latchUnderfoot(RouteNode node) {
+        latchedNode = node;
+    }
+
     /** {@link RouteStore#reload()} swapped the routes: drop anything pointing at the old objects. */
     static void onRoutesReloaded() {
         editBreakerNode = null;
@@ -491,8 +497,13 @@ public final class AutoRoutesFeature {
     /** Starts the room's route when the player stands in its START node (or, when allowed, any node). */
     private static void arm(Minecraft client, LocalPlayer player, RouteCoords.Frame frame, AutoRoutesConfig cfg) {
         Route route = RouteStore.getInstance().forRoom(frame.roomName());
-        if (route == null || route.nodes().isEmpty() || McCompat.screen(client) != null) {
+        if (route == null || route.nodes().isEmpty()) {
             latchedNode = null;
+            return;
+        }
+        if (McCompat.screen(client) != null) {
+            // Nothing arms under a screen, but the latch is kept: clearing it here undid latchUnderfoot every time
+            // the chat that typed "/ar add" was still open, so a node fired under him the moment chat closed.
             return;
         }
         AABB playerBox = player.getBoundingBox();

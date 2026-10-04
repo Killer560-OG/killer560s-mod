@@ -45,6 +45,12 @@ import com.killer560.hub.compat.McCompat;
  * <p>
  * Every button that changes a route or the recorder goes through {@link AutoRoutesCommands.Action#run()} - the
  * same path as the chat command - so the GUI can't do anything a command can't, and vice versa.
+ * <p>
+ * Re-laid out 2026-10-04 (killer560): Render Style is the first section under the Auto Routes header, with the
+ * Colours dropdown right below it; then Recording (its Start / Stop keys sit under its buttons, and the idle status
+ * line is gone), Nodes (no breaker edit button), Routes File, and the Keybinds dropdown last. Both dropdowns are
+ * {@link CollapsibleSection}s, closed by default and remembered, the same as AP3's. "Allow Command Nodes" is gone:
+ * command nodes always run.
  */
 public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
 
@@ -60,6 +66,13 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
 
     /** Which keybind row is waiting for a key, or null. */
     private Action capturing;
+    /** Set only while {@link #matchesSearch} builds: the collapsible sections are laid out open so search can see
+     *  the settings in them without forcing them open on screen (AP3's rule). */
+    private boolean scanningForSearch;
+    /** Bound under the Recording buttons, so the Keybinds dropdown leaves them out; and the breaker edit row, whose
+     *  button left the Nodes section (the /ar edit db command still works). */
+    private static final java.util.Set<Action> NOT_IN_KEYBIND_LIST =
+            java.util.EnumSet.of(Action.START_RECORD, Action.STOP_RECORD, Action.EDIT_BREAKER);
 
     public AutoRoutesTab() {
         super("Auto Routes");
@@ -137,26 +150,18 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         y[0] += 24;
         // Already covered by the "Start From Start Node Only" tooltip.
 
-        w.add(SettingsButtonWidget.builder(onOff("Allow Command Nodes", cfg.isAllowCommandNodes()), btn -> {
-                    cfg.setAllowCommandNodes(!cfg.isAllowCommandNodes());
-                    cfg.save();
-                    btn.setMessage(onOff("Allow Command Nodes", cfg.isAllowCommandNodes()));
-                }).bounds(contentX, y[0], BTN_W, 20).build());
-        y[0] += 24;
-        // Command-injection warning already covered by the "Allow Command Nodes" tooltip.
-
-        buildRecordingSection(w, contentX, y, contentWidth, half, requestRebuild);
+        buildRenderSection(w, cfg, contentX, y, contentWidth, half);
+        buildColourSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
+        buildRecordingSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         buildNodesSection(w, contentX, y, contentWidth, requestRebuild);
         buildRoutesFileSection(w, contentX, y, contentWidth, half, requestRebuild);
-        buildColourSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
-        buildRenderSection(w, cfg, contentX, y, contentWidth, half);
-        buildKeybindSection(w, cfg, contentX, y, contentWidth);
+        buildKeybindSection(w, cfg, contentX, y, contentWidth, requestRebuild);
         return w;
     }
 
-    private void buildRecordingSection(List<AbstractWidget> w, int x, int[] y, int width, int half, Runnable rebuild) {
+    private void buildRecordingSection(List<AbstractWidget> w, AutoRoutesConfig cfg, int x, int[] y, int width, int half,
+                                       Runnable rebuild) {
         header(w, x, y, width, "Recording");
-        label(w, x, y, width, statusLine());
 
         boolean recording = safe(RouteRecorder::isRecording);
         SettingsButtonWidget start = SettingsButtonWidget.builder(Component.literal("Start Recording"), btn -> {
@@ -172,6 +177,10 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         stop.active = recording;
         w.add(stop);
         y[0] += 24;
+        // killer560, 2026-10-04: "Add keybinds to the stop and start recording buttons" - right under them.
+        keybindRow(w, cfg, Action.START_RECORD, x, y[0], half);
+        keybindRow(w, cfg, Action.STOP_RECORD, x + half + GAP, y[0], half);
+        y[0] += ROW + GAP;
 
         // No "Stop Route" button here on purpose: RouteExecutor stops on ANY screen opening, this one
         // included, so a route can never still be running by the time this tab draws. The button was
@@ -190,26 +199,21 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
             nodes = List.of();
         }
 
-        int colW = (width - GAP * 2) / 3;
-        w.add(SettingsButtonWidget.builder(onOff("Edit Breaker Blocks", safe(AutoRoutesFeature::isEditMode)), btn -> {
-                    Action.EDIT_BREAKER.run();
-                    rebuild.run();
-                }).bounds(x, y[0], colW, ROW).build());
+        int colW = (width - GAP) / 2;
         w.add(SettingsButtonWidget.builder(Component.literal("List In Chat"), btn -> Action.LIST.run())
-                .bounds(x + colW + GAP, y[0], colW, ROW).build());
+                .bounds(x, y[0], colW, ROW).build());
         SettingsButtonWidget clear = SettingsButtonWidget.builder(Component.literal("§cClear Route"), btn -> {
                     Action.CLEAR.run();
                     rebuild.run();
-                }).bounds(x + (colW + GAP) * 2, y[0], Math.max(1, width - (colW + GAP) * 2), ROW).build();
+                }).bounds(x + colW + GAP, y[0], Math.max(1, width - colW - GAP), ROW).build();
         clear.active = !nodes.isEmpty();
         w.add(clear);
         y[0] += ROW + GAP;
 
         if (nodes.isEmpty()) {
-            label(w, x, y, width, "§7No route here yet. Record one, or /ar add ew / breaker / use / walk / boom / await / start.");
+            label(w, x, y, width, "§7No route here yet. Record one, or /ar add boom / breaker / ew / use / walk.");
             return;
         }
-        // Already covered by the "Edit Breaker Blocks" tooltip.
 
         int delW = 60;
         int labelW = Math.max(1, width - delW - GAP);
@@ -246,7 +250,15 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
 
     private void buildColourSection(List<AbstractWidget> w, AutoRoutesConfig cfg, int x, int[] y, int width, int half,
                                     Runnable rebuild) {
-        header(w, x, y, width, "Colours");
+        boolean open = scanningForSearch || cfg.isColorsSectionOpen();
+        y[0] = CollapsibleSection.header(w, x, y[0], width, "Colours", true, open, () -> {
+            cfg.setColorsSectionOpen(!cfg.isColorsSectionOpen());
+            cfg.save();
+            rebuild.run();
+        });
+        if (!open) {
+            return;
+        }
         // "Colour options per node type (superboom nodes red, bat nodes bat-coloured, etc.) or one uniform colour."
         toggle(w, x, y, "Uniform Colour", cfg::isUniformColor, cfg::setUniformColor, rebuild);
         if (cfg.isUniformColor()) {
@@ -290,30 +302,62 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         y[0] += 24;
     }
 
-    private void buildKeybindSection(List<AbstractWidget> w, AutoRoutesConfig cfg, int x, int[] y, int width) {
-        header(w, x, y, width, "Keybinds");
-        // Already covered by the "Keybinds" tooltip.
+    private void buildKeybindSection(List<AbstractWidget> w, AutoRoutesConfig cfg, int x, int[] y, int width,
+                                     Runnable rebuild) {
+        boolean open = scanningForSearch || cfg.isKeybindsSectionOpen();
+        y[0] = CollapsibleSection.header(w, x, y[0], width, "Keybinds", true, open, () -> {
+            cfg.setKeybindsSectionOpen(!cfg.isKeybindsSectionOpen());
+            cfg.save();
+            rebuild.run();
+        });
+        if (!open) {
+            return;
+        }
         for (Action action : Action.values()) {
-            w.add(SettingsButtonWidget.builder(keyText(action, cfg.getKeybind(action.id)), btn -> {
-                        capturing = action;
-                        btn.setMessage(Component.literal(action.label + " Key: §ePress any key..."));
-                    }).bounds(x, y[0], width, ROW).build());
+            if (NOT_IN_KEYBIND_LIST.contains(action)) {
+                continue;
+            }
+            keybindRow(w, cfg, action, x, y[0], width);
             y[0] += ROW + 4;
         }
         y[0] += GAP;
     }
 
-    // ---- text helpers ----
-
-    private static String statusLine() {
-        if (safe(RouteRecorder::isRecording)) {
-            return "§aRecording " + AutoRoutesCommands.roomName() + "... §7Stop when you've finished the room.";
-        }
-        if (safe(AutoRoutesFeature::isEditMode)) {
-            return "§eBreaker edit mode - right-click blocks to add, shift-right-click to remove.";
-        }
-        return "§7Idle - " + AutoRoutesCommands.roomName();
+    private void keybindRow(List<AbstractWidget> w, AutoRoutesConfig cfg, Action action, int x, int y, int width) {
+        w.add(SettingsButtonWidget.builder(keyText(action, cfg.getKeybind(action.id)), btn -> {
+                    capturing = action;
+                    btn.setMessage(Component.literal(action.label + " Key: §ePress any key..."));
+                }).bounds(x, y, width, ROW).build());
     }
+
+    /** Search has to see the settings inside a collapsed section without opening it on screen, so the scan builds
+     *  with both laid out open (Ap3Tab's approach). Only ever run from the search field's responder. */
+    @Override
+    public boolean matchesSearch(String query) {
+        if (query.isBlank() || nameMatches(query)) {
+            return true;
+        }
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return false;
+        }
+        List<AbstractWidget> scan;
+        scanningForSearch = true;
+        try {
+            scan = buildWidgets(0, 0, 200, () -> {});
+        } finally {
+            scanningForSearch = false;
+        }
+        String q = query.toLowerCase(Locale.US);
+        for (AbstractWidget widget : scan) {
+            String text = net.minecraft.ChatFormatting.stripFormatting(widget.getMessage().getString());
+            if (text != null && text.toLowerCase(Locale.US).contains(q)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ---- text helpers ----
 
     private static Component modeText(AutoRoutesConfig cfg) {
         return Component.literal("Mode: " + (cfg.isLegitMode() ? "§aLegit" : "§cObvious"));

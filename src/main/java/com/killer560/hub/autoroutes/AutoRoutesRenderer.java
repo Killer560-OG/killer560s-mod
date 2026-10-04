@@ -73,6 +73,13 @@ public final class AutoRoutesRenderer {
                 }
                 default -> WorldRenderUtils.renderOutlineBox(ctx, box, c[0], c[1], c[2], alpha, thickness);
             }
+            if (node.start) {
+                // killer560, 2026-10-04: "if something is a start node the outline is filled in so I know it is
+                // special". Filled in every style; in Filled style, where every node already is, it is filled
+                // twice as solid so it still stands out.
+                float fill = cfg.getRenderStyle() == AutoRoutesConfig.RenderStyle.FILLED ? 0.7f : 0.45f;
+                WorldRenderUtils.renderFilledBox(ctx, box, c[0], c[1], c[2], alpha * fill);
+            }
             if (editMode && playerPos.distanceTo(real) <= LABEL_DISTANCE) {
                 // 1-based, same as /ar list and /ar delete - the number on the label has to be the number
                 // you can type (2026-09-16 review).
