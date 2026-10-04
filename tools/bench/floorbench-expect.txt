@@ -1,0 +1,17 @@
+# Thresholds for tools/bench/regress.sh (FloorBench -Dcheck=this file). Set 2026-10-04 from the run that introduced
+# WarpGraph. The warp counts and found rates are seeded and do not move unless the code does, so their limits are
+# tight; the times depend on the machine and only catch a gross slowdown. Any invalid hop, any click the old
+# planner finds and the new one does not, and any click where the exact heuristics change the warp count also fail.
+#
+# Whole floors (3 x 150 clicks). Measured: found 100%, mean 7.53 warps (old planner 13.50), warm median 0.77 ms,
+# p99 5.4 ms.
+full.minFoundPercent=100
+full.maxMeanWarps=7.55
+full.maxMeanWarpsOverOld=0.60
+full.maxWarmMedianMs=2.0
+full.maxWarmP99Ms=12
+# Small floors against every landing with the full aim (4 x 100 clicks). Measured: found 89.75% (one window is
+# two unconnected halves, which every planner fails), mean 4.20 against 4.05, 52 of 358 clicks one worse, 1 two.
+small.minFoundPercent=89.7
+small.maxMeanOverRef=1.045
+small.maxWorseThanRefPercent=16

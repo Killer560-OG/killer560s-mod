@@ -10,21 +10,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Etherwarp paths for the Interactive Map and the Etherwarp Hopper: QUOI's {@code EtherwarpPathfinder} in
- * behaviour - A* whose moves are etherwarp rays from a fixed yaw/pitch fan, then {@code smoothPath} merging hops
- * that one warp can skip - and, for a dungeon, one search per room along {@link DungeonMapPathfinder}'s room
- * path, each targeting the door with a 3-block radius (or any landing inside the next room within 3 blocks of
- * door height).
+ * Etherwarp paths for the Interactive Map and the Etherwarp Hopper.
  *
- * <p>killer560 (2026-10-04): "the found path needs to be faster, like 1-2 ms every time it has to calculate."
- * The search itself now lives in {@link EtherSearch} over a byte-per-block {@link LevelEtherGrid}; this class
- * only turns a room route into legs, bounds each leg to the two rooms it joins, and adapts the result to the
- * {@link Node} list everything downstream already reads. His own log before the change (Map Logger,
- * 2026-10-01, 19 successful clicks): median 6 ms, worst 153 ms, and eight "Failed after ~675ms" timeouts. On
- * {@code tools/bench/EtherSearchBench} - a 6x6 floor of the shipped 1x1 captures, 2,000 clicks of 1 to 7 rooms -
- * the new search, through the same section-table grid the game uses, takes a mean of 0.47 ms, median 0.32,
- * p90 0.91, p99 3.5 and worst 10 ms with sections already cached, and a mean of 0.6 ms with every section filled
- * fresh. See docs/SIM.md for the method and what it does not cover.
+ * <p><b>Dungeon clicks</b> ({@link #findDungeonPath}, {@link #findDungeonPathToTile}) search the whole floor as one
+ * graph by the number of warps ({@link WarpGraph}), kept between clicks, warmed in the background while he is in a
+ * dungeon ({@link #tickWarm}) and told about block changes by {@link LevelEtherGrid}. killer560 (2026-10-04): "it is
+ * taking a lot of warps and taking like 40ms [...] prioritize using as few warps as physically possible." His log
+ * had "11 leg(s) ... total 94.02 ms, 40 warp(s)" from the room-by-room planner this replaced; on
+ * {@code tools/bench/FloorBench} (whole sim-style floors of the shipped captures) the graph takes 40% fewer warps
+ * than that planner and a warm click a median of under a millisecond - see docs/SIM.md for the numbers and the
+ * method. The room-by-room planner ({@link #legacyDungeonPath}: QUOI's {@code findDungeonPath}, one weighted-A*
+ * leg per room along {@link DungeonMapPathfinder}'s route) is kept as the fallback for when the graph finds nothing,
+ * so no click that used to find a path stops finding one.
+ *
+ * <p><b>Single searches</b> ({@link #findPath}, the Etherwarp Hopper) are QUOI's {@code EtherwarpPathfinder} in
+ * behaviour - A* whose moves are etherwarp rays from a fixed yaw/pitch fan, then {@code smoothPath} - over
+ * {@link EtherSearch} and a byte-per-block {@link LevelEtherGrid}.
  */
 public final class EtherwarpPathfinder {
 
@@ -90,16 +91,336 @@ public final class EtherwarpPathfinder {
         return toNodes(search.smooth(path, dist, withLast));
     }
 
+    // ------------------------------------------------------------------------------------------- the floor graph
+
     /**
-     * QUOI {@code findDungeonPath}: room-by-room legs via {@link DungeonMapPathfinder}.
+     * Fewest warps to one block, over the whole floor at once ({@link WarpGraph}). When the graph finds nothing
+     * (or the floor is not warm yet and the search runs out of its short budget) the old room-by-room legs run
+     * instead, so nothing that used to find a path stops finding one.
+     */
+    public static List<Node> findDungeonPath(Vec3 from, BlockPos to, PathConfig cfg, double dist,
+                                             DungeonLayout layout) {
+        return planFloor(from, to, -1, cfg, dist, layout);
+    }
+
+    /**
+     * Fewest warps into one map tile: any landing in the clicked tile at its floor height, as
+     * {@link TeleportUtils#etherwarpableInTile} defines it - killer560 (2026-10-01): "it just needs to go to that
+     * room [...] It can choose anywhere in that room whatever is fastest." {@code to} is the block
+     * etherwarpableInTile picked, used if no landing of the tile can be reached.
+     *
+     * @param tileIdx the 11x11 map index of the clicked tile (as {@link DungeonLayout#cellCenter(int)} takes it)
+     */
+    public static List<Node> findDungeonPathToTile(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
+                                                   DungeonLayout layout) {
+        return planFloor(from, to, tileIdx, cfg, dist, layout);
+    }
+
+    /** How long a click searches a graph that is not warm yet before handing over to the room-by-room legs. */
+    private static final long COLD_BUDGET_MS = 40;
+    /** No path is longer than this. */
+    private static final int MAX_WARPS = 48;
+    /** Bucket width: one node per 3x3 columns and height (doorways: every landing). See docs/SIM.md. */
+    private static final int BUCKET = 3;
+    /** A line blocked past this fraction of the way to a landing gets the full 18-point aim (WarpGraph). */
+    private static final double PARTIAL_FROM = 0.6;
+
+    private static List<Node> planFloor(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
+                                        DungeonLayout layout) {
+        Level level = Minecraft.getInstance().level;
+        if (level == null) {
+            return null;
+        }
+        long t0 = System.nanoTime();
+        LevelEtherGrid grid = new LevelEtherGrid(level);
+        if (tileIdx < 0 && !new EtherSearch(grid).etherwarpable(to.getX(), to.getY(), to.getZ())) {
+            LOGGER.info("[Path] {} is not etherwarpable - it is not solid, or there is no standing room over"
+                    + " it. Nothing searched.", to);
+            return null;
+        }
+        WarpGraph graph = graphFor(level, dist);
+        boolean warm = graph.warmDone();
+        WarpGraph.Goal goal = new WarpGraph.Goal();
+        goal.x = to.getX();
+        goal.y = to.getY();
+        goal.z = to.getZ();
+        goal.deadEnd = deadEnds(layout);
+        int tile6 = tileIdx < 0 ? -1 : ((tileIdx / DungeonLayout.GRID) / 2) * 6 + (tileIdx % DungeonLayout.GRID) / 2;
+        String kind;
+        if (tile6 >= 0) {
+            FloorTiles tiles = graphTiles;
+            int t = tile6;
+            goal.region = (x, y, z) -> tiles.tileOf(x, y, z) == t;
+            goal.tile = t;
+            kind = "tile";
+        } else {
+            int room = layout.roomAtWorld(to.getX(), to.getZ());
+            int tx = to.getX();
+            int ty = to.getY();
+            int tz = to.getZ();
+            goal.near = (x, y, z) -> Math.abs(x - tx) <= NEAR_RADIUS && Math.abs(z - tz) <= NEAR_RADIUS
+                    && Math.abs(y - ty) <= NEAR_RADIUS && layout.roomAtWorld(x, z) == room;
+            kind = "exact";
+        }
+        long deadline = t0 + (warm ? cfg.timeout() : Math.min(cfg.timeout(), COLD_BUDGET_MS)) * 1_000_000L;
+        EtherSearch.Hop start = startHop(from);
+        List<EtherSearch.Hop> path = graph.plan(grid, start, goal, deadline, MAX_WARPS);
+        if (path == null && tile6 >= 0 && !graph.timedOut
+                && new EtherSearch(grid).etherwarpable(to.getX(), to.getY(), to.getZ())) {
+            // No landing of the tile's floor band is reachable: the block etherwarpableInTile picked, exactly.
+            WarpGraph.Goal exact = new WarpGraph.Goal();
+            exact.x = to.getX();
+            exact.y = to.getY();
+            exact.z = to.getZ();
+            exact.deadEnd = goal.deadEnd;
+            path = graph.plan(grid, start, exact, deadline, MAX_WARPS);
+            kind = "tile, then its block";
+        }
+        long end = System.nanoTime();
+        if (path != null && path.isEmpty()) {
+            LOGGER.info("[Path] already there ({}), {} ms", kind, ms(end - t0));
+            return new ArrayList<>();
+        }
+        if (path == null) {
+            LOGGER.info("[Path] fewest-warps graph found nothing for {} {} in {} ms ({}; {} node(s) worked out"
+                            + " now, graph {} node(s), warm-up {}) - room by room instead", kind, to, ms(end - t0),
+                    graph.timedOut ? "out of time" : "no way", graph.expandedCold, graph.nodeCount(),
+                    warm ? "done" : "still running");
+            return legacyDungeonPath(from, to, cfg, dist, layout);
+        }
+        // One line a click, so the cost can be read off his log rather than guessed at.
+        LOGGER.info("[Path] {} warp(s) ({}{}), total {} ms: start {} ms, aim set {} ms ({} node(s)), backward"
+                        + " labels {} ms ({} node(s)); {} node(s) worked out now, {} known, {} edge(s), {} ray(s);"
+                        + " exact heuristic {}; graph {} node(s), warm-up {}; {} section(s) filled",
+                path.size(), kind, graph.endedNear ? ", near: the block itself cannot be reached" : "",
+                ms(end - t0), ms(graph.nanosStart), ms(graph.nanosAimSet), graph.goalSetSize, ms(graph.nanosLabels),
+                graph.labelled, graph.expandedCold, graph.expandedWarm, graph.edgesScanned, graph.rays,
+                graph.usedFields ? "yes" : "no", graph.nodeCount(), warm ? "done" : "still running", grid.filled);
+        return toNodes(path);
+    }
+
+    /**
+     * Rooms an etherwarp cannot be used FROM: the rooms {@link AutoClearUtils#canPath} refuses to start in (QUOI's
+     * rule: a maze, Boulder, a trap), which the sim enforces too (SimAbilities: traps, Teleport Maze, Boulder). A
+     * path may land in one - the goal can be there - but never warp on from it.
+     */
+    private static EtherSearch.CellTest deadEnds(DungeonLayout layout) {
+        boolean[] dead = new boolean[layout.roomCount()];
+        boolean any = false;
+        for (int r = 0; r < dead.length; r++) {
+            String name = layout.name(r);
+            var entry = layout.entry(r);
+            boolean trap = entry != null && entry.type != null ? entry.type.equalsIgnoreCase("trap")
+                    : name != null && name.contains("Trap");
+            dead[r] = trap || (name != null && (name.contains("Maze") || name.contains("Boulder")));
+            any |= dead[r];
+        }
+        if (!any) {
+            return null;
+        }
+        return (x, y, z) -> {
+            int r = layout.roomAtWorld(x, z);
+            return r >= 0 && r < dead.length && dead[r];
+        };
+    }
+
+    // The graph lives as long as its floor: same level, same hop range, same sim state and altitude. Only the
+    // planner thread ever touches it.
+    private static volatile WarpGraph graph;
+    private static FloorTiles graphTiles;
+    private static volatile Level graphLevel;
+    private static volatile double graphRange;
+    private static boolean graphSim;
+    private static int graphYOffset;
+
+    /** The 6x6 room tiles, each one's click region being etherwarpableInTile's first band. */
+    private static final class FloorTiles implements WarpGraph.Tiles {
+        final int x0;
+        final int z0;
+        final int floorY;
+
+        FloorTiles(int x0, int z0, int floorY) {
+            this.x0 = x0;
+            this.z0 = z0;
+            this.floorY = floorY;
+        }
+
+        @Override
+        public int tileOf(int x, int y, int z) {
+            int i = Math.floorDiv(x - x0 + 16, 32);
+            int j = Math.floorDiv(z - z0 + 16, 32);
+            if (i < 0 || j < 0 || i > 5 || j > 5) {
+                return -1;
+            }
+            // TeleportUtils.etherwarpableInTile: 14 either side of the centre, the centre's y (70) +- 2.
+            if (Math.abs(x - (x0 + 32 * i)) > 14 || Math.abs(z - (z0 + 32 * j)) > 14
+                    || y < floorY + 1 - 2 || y > floorY + 1 + 2) {
+                return -1;
+            }
+            return j * 6 + i;
+        }
+
+        @Override
+        public int count() {
+            return 36;
+        }
+    }
+
+    /** Planner thread. The floor's graph, made fresh when the floor changes, with any block changes applied. */
+    private static WarpGraph graphFor(Level level, double range) {
+        boolean sim = com.killer560.hub.roomsim.SimState.isActive();
+        int off = DungeonLayout.simYOffset();
+        if (graph == null || graphLevel != level || graphRange != range || graphSim != sim || graphYOffset != off) {
+            BlockPos first = DungeonLayout.cellCenter(0);
+            BlockPos last = DungeonLayout.cellCenter(DungeonLayout.GRID * DungeonLayout.GRID - 1);
+            int minX = first.getX() - 16;
+            int minZ = first.getZ() - 16;
+            int maxX = last.getX() + 16;
+            int maxZ = last.getZ() + 16;
+            int floor = 69 + off;
+            int topY = level.getMaxY();
+            WarpGraph.LandingRule rule = (g, x, y, z) -> x >= minX && x <= maxX && z >= minZ && z <= maxZ
+                    && (!sim || covered(g, x, y, z, floor, topY));
+            WarpGraph made = new WarpGraph(range, STAND_OFFSET, BUCKET, rule, floor - 20, floor + 45);
+            FloorTiles tiles = new FloorTiles(first.getX(), first.getZ(), floor);
+            made.setTiles(tiles);
+            made.setFine(EtherwarpPathfinder::doorwayColumn);
+            made.partialFrom = PARTIAL_FROM;
+            graph = made;
+            graphTiles = tiles;
+            graphLevel = level;
+            graphRange = range;
+            graphSim = sim;
+            graphYOffset = off;
+            LevelEtherGrid.listener = made;
+        }
+        LevelEtherGrid.processChanges(level);
+        return graph;
+    }
+
+    /**
+     * Where the graph keeps every landing as its own node rather than one per 3x3: the doorway boxes between
+     * neighbouring tiles (3 wide along the seam, 7 deep across it - SimDoors' carve and the real doorways) and
+     * the tile centre lines every doorway's axis runs along. Every Catacombs door sits on a seam at a tile's centre
+     * line, so the long sights from one room into the next pass through a doorway along that line, and whether
+     * one passes is decided by a block either way. On tools/bench/FloorBench (small floors, against every
+     * landing with the full aim) this took the extra warps over the reference from 12% to under 5%.
+     */
+    private static boolean doorwayColumn(int x, int z) {
+        BlockPos first = DungeonLayout.cellCenter(0);
+        int wx = x - first.getX();
+        int wz = z - first.getZ();
+        int offX = Math.floorMod(wx + 16, 32) - 16;   // from the nearest tile centre line
+        int offZ = Math.floorMod(wz + 16, 32) - 16;
+        int seamX = Math.floorMod(wx, 32) - 16;       // from the nearest seam
+        int seamZ = Math.floorMod(wz, 32) - 16;
+        return offX == 0 || offZ == 0 || (Math.abs(seamX) <= 3 && Math.abs(offZ) <= 1)
+                || (Math.abs(seamZ) <= 3 && Math.abs(offX) <= 1);
+    }
+
+    /** {@link #coverTest} through any grid (warm-up workers read through their own). */
+    private static boolean covered(EtherSearch.Grid grid, int x, int y, int z, int floor, int topY) {
+        if (y <= floor + COVER_FLOOR_SLACK) {
+            return true;
+        }
+        int top = Math.min(topY, y + COVER_SCAN);
+        for (int yy = y + 3; yy <= top; yy++) {
+            if ((grid.flags(x, yy, z) & EtherSearch.AIR) == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ------------------------------------------------------------------------------------------- warming
+
+    private static volatile boolean warmInFlight;
+    private static java.util.concurrent.ExecutorService workers;
+    private static int workerCount;
+
+    /** Worker threads for warming: a quarter of the cores, one to six. One means the planner thread alone. */
+    private static java.util.concurrent.ExecutorService workers() {
+        if (workers == null) {
+            workerCount = Math.max(1, Math.min(6, Runtime.getRuntime().availableProcessors() / 4));
+            if (workerCount > 1) {
+                workers = java.util.concurrent.Executors.newFixedThreadPool(workerCount, r -> {
+                    Thread t = new Thread(r, "killer560smod-etherwarm");
+                    t.setDaemon(true);
+                    t.setPriority(Thread.MIN_PRIORITY);
+                    return t;
+                });
+            }
+        }
+        return workers;
+    }
+
+    /** One warm-up slice: a waiting click gets the planner thread after at most one of these (plus one batch). */
+    private static final long WARM_SLICE_NANOS = 10_000_000L;
+    /** A warm-up task gives the planner thread back after this long even with no click waiting. */
+    private static final long WARM_TASK_NANOS = 250_000_000L;
+
+    /**
+     * Client thread, every tick: while he is in a dungeon with the Interactive Map on, keeps one warm-up slice
+     * queued on the planner thread until every landing he can reach has its edges - so the click itself only has
+     * to search. Stops on its own when the graph is warm; a block change that drops nodes starts it again.
+     *
+     * @param planner      the Interactive Map's planner thread
+     * @param clickWaiting true while a click is waiting for or using the planner thread
+     */
+    public static void tickWarm(java.util.concurrent.ExecutorService planner,
+                                java.util.function.BooleanSupplier clickWaiting, double range) {
+        if (warmInFlight || clickWaiting.getAsBoolean()) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        Level level = mc.level;
+        if (level == null || mc.player == null) {
+            return;
+        }
+        WarpGraph g = graph;
+        if (g != null && graphLevel == level && graphRange == range && g.warmDone()
+                && !LevelEtherGrid.hasPendingChanges()) {
+            return;
+        }
+        Vec3 p = mc.player.position();
+        warmInFlight = true;
+        planner.submit(() -> {
+            try {
+                WarpGraph gr = graphFor(level, range);
+                long t0 = System.nanoTime();
+                boolean wasDone = gr.warmDone();
+                boolean more = true;
+                while (more && !clickWaiting.getAsBoolean() && System.nanoTime() - t0 < WARM_TASK_NANOS) {
+                    more = gr.warm(new LevelEtherGrid(level), () -> new LevelEtherGrid(level), workers(),
+                            workerCount, p.x, p.y, p.z, WARM_SLICE_NANOS);
+                }
+                warmNanos += System.nanoTime() - t0;
+                if (!more && !wasDone) {
+                    LOGGER.info("[Path] floor graph warm: {} node(s), {} ms of planner time on {} thread(s)",
+                            gr.nodeCount(), ms(warmNanos), workerCount);
+                    warmNanos = 0;
+                }
+            } catch (RuntimeException e) {
+                LOGGER.warn("[Path] warm-up failed: {}", e.toString());
+            } finally {
+                warmInFlight = false;
+            }
+        });
+    }
+
+    private static long warmNanos;
+
+    /**
+     * The planner before the floor graph, kept as its fallback: QUOI {@code findDungeonPath}, room-by-room legs
+     * via {@link DungeonMapPathfinder}.
      *
      * <p><b>Every refusal says which one it is.</b> killer560 (2026-10-01): "interactive map fails anytime I
      * try to use it on sim", and all the feature printed was "Failed after 671ms" - which is the same message
      * for an unetherwarpable target, a room graph with no route, and a leg search that ran out of time. One
      * line per refusal settles it in a single run instead of a round of guesses.
      */
-    public static List<Node> findDungeonPath(Vec3 from, BlockPos to, PathConfig cfg, double dist,
-                                             DungeonLayout layout) {
+    private static List<Node> legacyDungeonPath(Vec3 from, BlockPos to, PathConfig cfg, double dist,
+                                                DungeonLayout layout) {
         Level level = Minecraft.getInstance().level;
         if (level == null) {
             return null;
@@ -240,7 +561,7 @@ public final class EtherwarpPathfinder {
         List<EtherSearch.Hop> smoothed = search.smooth(path, dist, false);
         long end = System.nanoTime();
         // One line a search, so the cost can be read off his log rather than guessed at.
-        LOGGER.info("[Path] {} leg(s): {} direct, {} searched ({} widened, {} node(s) expanded, {} ray(s));"
+        LOGGER.info("[Path] room by room: {} leg(s): {} direct, {} searched ({} widened, {} node(s) expanded, {} ray(s));"
                         + " {} section(s) filled; legs {} ms, smoothing {} ms, total {} ms, {} warp(s)",
                 roomPath.size(), directLegs, searchedLegs, widenedLegs, expanded, search.rays, grid.filled,
                 ms(smoothStart - searchStart), ms(end - smoothStart), ms(end - searchStart), smoothed.size());

@@ -1873,3 +1873,71 @@ fell back on every attempt because of it. Compare given rooms by name.
   at relative z 27..28, under the oak-log mantle at y 69 - the only alcove in the decoded room. Hypixel's real
   chest position is still unverified; the scan does not depend on it. If the chest is already within 4.5 blocks
   it auras without walking.
+
+## The map's etherwarp plans the whole floor at once, by warps (2026-10-04, fix-path)
+
+killer560: "it is taking a lot of warps and taking like 40ms [...] Get it to the point where it is only a few ms
+every time and prioritize using as few warps as physically possible." His Map Logger log: "11 leg(s) ... total
+94.02 ms, 40 warp(s)", and other clicks at 13-40 ms with 32-40 warps.
+
+**Two reasons it took so many warps.** The planner went room by room - one weighted-A* leg per doorway on the
+room route, each bounded to the two rooms it joins - so it could never skip a room. And every move was a ray of
+the 6 x 7 degree fan: from an eye 2.32 above the floor, pitch -6 lands on a flat floor about 22 blocks out and
+pitch -13 about 10, and nothing between 22 and 57 blocks along a floor is ever hit, so long rooms were crossed in
+9-to-20-block hops. A bench run with a 2-degree fan cut the warps by 30% on its own.
+
+**Now** (`WarpGraph`, wired in `EtherwarpPathfinder.findDungeonPath` / `findDungeonPathToTile`):
+- Nodes are the floor's landings thinned to one per 3x3 columns and height (the one nearest the square's centre),
+  except along every tile's centre lines and in every doorway box, where each landing is its own node: every
+  door sits on a seam at a centre line, and whether a long sight through it passes is decided by a block either
+  way. Without those the graph took 12% more warps than every-landing; with them under 5%.
+- An edge is a verified aim at a node within reach: the real float yaw/pitch is cast for exactly the hop range and
+  must land on the block, the same rule as before. A line to the block's top centre that is stopped in its first
+  60% is refused without trying the other 17 aim points (they are inside the same block); stopped later, the full
+  aim runs. That cheap refusal misses 1.4-4% of the pairs the full aim accepts (bench `-Daimcheck`).
+- A click is A* on (warps, distance). Once the floor is warm the heuristic is exact: a room click reads a per-tile
+  distance field (breadth first backwards from the tile's floor band, built when warming completes), an exact
+  block gets a backward breadth-first search from the nodes that can aim at it, stopped at his own landings.
+- A node's edges are kept. Every section its rays read is recorded; `LevelEtherGrid` sets a touched section's old
+  flags aside and the planner thread reports it to the graph only if the FLAGS changed (`processChanges`), so a
+  lever or a chunk re-sent unchanged costs nothing and a door opening drops exactly the nodes that looked through
+  it. Air sections are cached too now, so a chunk arriving can be compared.
+- `EtherwarpPathfinder.tickWarm` (from `ClearExecutor`'s tick, Interactive Map on, in a dungeon) keeps warm-up
+  slices running on the planner thread, the rays on up to six low-priority worker threads (a quarter of the
+  cores), yielding to any click. A click before the floor is warm gets 40 ms on the graph and then the old
+  room-by-room planner, which is kept as the fallback whenever the graph finds nothing.
+- A room click now goes to ANY landing in the clicked tile's floor band (`etherwarpableInTile`'s first band), not
+  the one block nearest him; his own words were "it can choose anywhere in that room whatever is fastest". An
+  exact block that nothing can aim at falls back to the nearest landing within 5 blocks in its room.
+- Nodes in a trap, a maze or Boulder may be landed on but never warped from (`AutoClearUtils.canPath`'s rooms).
+- Hop range is the held item's 57 + tuners, minus one block, at most 60 (`ClearExecutor.hopRange`); it was 60 for
+  everyone, which an item with fewer than three tuners cannot do.
+
+**Measured** with `tools/bench/floor.sh` (`FloorBench`): whole floors from `SimFloorLayout.generate` over the
+shipped captures, pasted with `RoomPlacer`'s transform, links carved and unlinked doorways sealed as `SimDoors`
+does, the sim's roof rule on; random clicks from walkable spots, half tile clicks and half exact blocks; every
+returned path replayed ray by ray. 5 floors x 300 clicks, seed 560, warm graph, 6 warm-up threads:
+
+| | found | warps mean / median / max | mean | median | p90 | p99 | max |
+|-|-------|---------------------------|------|--------|-----|-----|-----|
+| old, room by room | 93.9% | 13.56 / 14 / 41 | 91 ms | 5.4 | 374 | 670 | 670 |
+| new, warm | 99.9% | 7.62 / 7 / 21 | 1.33 ms | 0.76 | 3.3 | 5.3 | 9.8 |
+
+Room (tile) clicks alone: median 0.38 ms, p99 1.4; exact blocks: median 1.9, p99 5.3 (the backward search is most
+of it). The one click the new planner failed, the old one failed too (a start on a sealed ledge). No path was
+invalid. Warm-up: about 15,000 nodes and 3 s a floor on the bench's flat array with 6 threads; the game's
+section grid is slower, so expect several seconds in game, during which clicks fall back as above. Without
+warm-up (a fresh graph each click) the graph search is useless - 21% found in 670 ms - which is why warm-up exists.
+
+**Minimality.** Within its graph the search is exact: re-planning 200 clicks on the same graph with only the
+geometric bound gave the same warp count every time (`SELF-CHECK`). Against a reference graph of EVERY landing
+with the full 18-point aim, on 3x2-tile windows of generated floors (900 clicks): reference 3.48 warps, new 3.60,
+728 identical, 95 one more, 3 two more; the old planner was 5.24, and 11 of its paths did not replay (a hop that
+did not land where the next one started). The reference is not "physically" minimal either: it is still a fixed
+set of 18 aim points per block.
+
+**Regression test:** `tools/bench/regress.sh` (thresholds in `tools/bench/floorbench-expect.txt`) fails on more
+warps, a lower found rate, any invalid hop, any click the old planner finds and the new one does not, or exact
+heuristics changing a warp count. Not covered: the bench's block flags come from palette names, its grid is a flat
+array, and nothing here has run in the game yet - the `[Path]` lines (one per click, one when a floor goes warm)
+are the in-game numbers.

@@ -132,8 +132,33 @@ public final class ClearExecutor {
         return out;
     }
 
+    /**
+     * The planner's hop range: the held etherwarp item's own reach (57 plus one per Transmission Tuner, read the
+     * way {@link com.killer560.hub.pathfinding.EtherwarpHopper#range} reads it) less one block of margin, and never
+     * more than 60. It used to be 60 for everyone, which is 61 - 1 for a fully tuned item; with fewer tuners a
+     * 58-60 block hop was planned that Hypixel refuses, and the floor-wide planner reaches for long hops far more
+     * often than the room-by-room one did. The sim's server applies the same 57 + tuners rule.
+     */
+    public static double hopRange() {
+        double item = com.killer560.hub.pathfinding.EtherwarpHopper.range();
+        return item > 0 ? Math.min(60.0, item - 1.0) : 56.0;
+    }
+
     /** QUOI {@code etherPath}: search on a background thread, then run the smoothed path. */
     public static void etherPath(BlockPos to, Runnable complete) {
+        etherPath(to, -1, complete);
+    }
+
+    /**
+     * A map click on a tile: fewest warps to ANY landing in that tile at its floor height (see
+     * {@link EtherwarpPathfinder#findDungeonPathToTile}); {@code to} is the tile's own block, used if none of
+     * them can be reached.
+     */
+    public static void etherPathToTile(BlockPos to, int tileIdx, Runnable complete) {
+        etherPath(to, tileIdx, complete);
+    }
+
+    private static void etherPath(BlockPos to, int tileIdx, Runnable complete) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null || client.level == null) {
@@ -153,9 +178,8 @@ public final class ClearExecutor {
         DungeonLayout layout = DungeonLayout.capture();
         EtherwarpPathfinder.PathConfig cfg = pathConfig();
         // The planner's hop range. One number in the sim and on Hypixel: the sim's server gives an etherwarp
-        // 57 blocks plus one per Transmission Tuner, as Hypixel does, so a fully tuned item (the sim's default)
-        // reaches 61 and a hop planned to 60 is one it accepts - and an under-tuned one refuses it in both places.
-        double hopRange = 60.0;
+        // 57 blocks plus one per Transmission Tuner, as Hypixel does - see hopRange().
+        double hopRange = hopRange();
         int gen = generation;
         pathPending = true;
         lastPathFailed = false;
@@ -165,7 +189,9 @@ public final class ClearExecutor {
             try {
                 // Landings are planned at block top + 1.05, QUOI's figure for Hypixel - and the sim's server now
                 // lands an etherwarp there too (SimAbilities.ETHERWARP_LANDING_OFFSET), so there is one value.
-                path = EtherwarpPathfinder.findDungeonPath(from, to, cfg, hopRange, layout);
+                path = tileIdx >= 0
+                        ? EtherwarpPathfinder.findDungeonPathToTile(from, to, tileIdx, cfg, hopRange, layout)
+                        : EtherwarpPathfinder.findDungeonPath(from, to, cfg, hopRange, layout);
             } catch (RuntimeException e) {
                 LOGGER.warn("[InteractiveMap] Path search failed: {}", e.toString());
             }
@@ -176,7 +202,15 @@ public final class ClearExecutor {
                 if (gen != generation) {
                     return;
                 }
-                if (result == null || result.isEmpty()) {
+                if (result != null && result.isEmpty()) {
+                    // Already standing where the click asked for (in the clicked tile, or on the block).
+                    ModChat.send(CHAT, ModChat.text("Already there"));
+                    if (complete != null) {
+                        complete.run();
+                    }
+                    return;
+                }
+                if (result == null) {
                     lastPathFailed = true;
                     ModChat.send(CHAT, ModChat.bad("Failed"), ModChat.dim(" after "), ModChat.value(took + "ms"));
                     return;
@@ -260,6 +294,10 @@ public final class ClearExecutor {
         // pathing toggle any more, so Interactive Map itself being on is what keeps a queued path alive.
         if (!externalOwner && !cfg.isInteractiveMapEnabled() && !cfg.isBloodRushEnabled() && (nodes != null || pathPending)) {
             cancel();
+        }
+        // Keep the floor-wide etherwarp graph warm while he is in a dungeon, so a click only has to search it.
+        if (cfg.isInteractiveMapEnabled() && client.level != null && DungeonLayout.current().roomCount() > 0) {
+            EtherwarpPathfinder.tickWarm(PLANNER, () -> pathPending, hopRange());
         }
         doInteract(client);
         updateDelays();
