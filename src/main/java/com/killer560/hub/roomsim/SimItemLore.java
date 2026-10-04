@@ -224,6 +224,89 @@ public final class SimItemLore {
         return true;
     }
 
+    // ------------------------------------------------------------------ stale tooltips in a reused save
+
+    private static int refreshCounter;
+
+    /**
+     * Keeps every sim item the player carries on the CURRENT tooltip, the way Hypixel's server re-sends an item's
+     * lore whenever it changes.
+     *
+     * <p>killer560's log, 2026-10-04 18:07: "[AutoIcePath] waiting: no shortbow ("Shortbow: Instantly shoots!" in
+     * its lore) in the hotbar", over and over, with a Terminator in slot 5. The sim's save is reused
+     * ({@link SimWorld}), so the player's inventory is too, and the Terminator in it had been built before the
+     * Shortbow line was added on 2026-10-01: its saved lore, read out of the world's player file, is "Ability:
+     * Salvation / Shoots 3 arrows at once. / (blank) / LEGENDARY BOW" - no Shortbow line. Fixing the table fixed
+     * every Terminator handed out after that, and none already in his hotbar. Every 20 server ticks while the sim
+     * is active, any stack whose id is in the table and whose lore reads differently from the table gets the table's
+     * tooltip again. The Dungeon Breaker's "Charges" line is the one line the server changes on purpose
+     * ({@link SimBreakerState}), so it is left out of the comparison and kept.
+     */
+    public static void register() {
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (++refreshCounter % 20 != 0 || !SimState.isActive()) {
+                return;
+            }
+            for (net.minecraft.server.level.ServerPlayer sp : server.getPlayerList().getPlayers()) {
+                for (ItemStack stack : sp.getInventory().getNonEquipmentItems()) {
+                    refreshIfStale(stack);
+                }
+            }
+        });
+    }
+
+    /** @return true when the stack's tooltip was out of date and has been rewritten. Server thread. */
+    static boolean refreshIfStale(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(stack);
+        if (id == null) {
+            return false;
+        }
+        String[] text = LORE.get(id.toUpperCase(Locale.ROOT));
+        if (text == null || text.length < 2) {
+            return false;
+        }
+        ItemLore lore = stack.get(DataComponents.LORE);
+        List<Component> have = lore == null ? List.of() : lore.lines();
+        boolean stale = have.size() != text.length - 1;
+        String keptCharges = null;
+        for (int i = 0; !stale && i < have.size(); i++) {
+            String got = have.get(i).getString();
+            String want = LegacyText.strip(text[i + 1]);
+            if (got.equals(want)) {
+                continue;
+            }
+            if (got.startsWith("Charges: ") && want.startsWith("Charges: ")) {
+                continue;
+            }
+            stale = true;
+        }
+        if (!stale) {
+            return false;
+        }
+        for (Component line : have) {
+            if (line.getString().startsWith("Charges: ")) {
+                keptCharges = line.getString();
+            }
+        }
+        apply(stack, id);
+        if (keptCharges != null) {
+            ItemLore fresh = stack.get(DataComponents.LORE);
+            if (fresh != null) {
+                List<Component> lines = new ArrayList<>(fresh.lines());
+                for (int i = 0; i < lines.size(); i++) {
+                    if (lines.get(i).getString().startsWith("Charges: ")) {
+                        lines.set(i, LegacyText.parse("§8" + keptCharges));
+                    }
+                }
+                stack.set(DataComponents.LORE, new ItemLore(lines, lines));
+            }
+        }
+        return true;
+    }
+
     /** Whether there is a tooltip for this id at all - for tests, which should not assert on a typo. */
     public static boolean knows(String skyblockId) {
         return skyblockId != null && LORE.containsKey(skyblockId.toUpperCase(Locale.ROOT));

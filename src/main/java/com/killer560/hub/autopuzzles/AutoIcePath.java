@@ -149,10 +149,11 @@ final class AutoIcePath {
             }
             return;
         }
-        if (!AutoPuzzleUtil.isShortbow(player.getMainHandItem())) {
-            if (!AutoPuzzleUtil.swapTo(client, player, AutoPuzzleUtil::isShortbow)) {
-                say("waiting: no shortbow (\"" + AutoPuzzleUtil.SHORTBOW_LORE + "\" in its lore) in the hotbar");
-            }
+        AutoPuzzleUtil.BowState bow = AutoPuzzleUtil.holdShortbow(client, player);
+        if (bow != AutoPuzzleUtil.BowState.HELD) {
+            say(bow == AutoPuzzleUtil.BowState.NONE
+                    ? "waiting: no shortbow (\"" + AutoPuzzleUtil.SHORTBOW_LORE + "\" in its lore) in the hotbar"
+                    : "swapping to the shortbow");
             return; // fire on a later tick, once the swap has gone through
         }
         // The yaw of the BOARD direction, cell centre to cell centre - exactly along a row or a column.

@@ -234,6 +234,41 @@ public final class AutoPuzzleUtil {
         return loreContains(stack, SHORTBOW_LORE);
     }
 
+    /** What {@link #holdShortbow} found. */
+    public enum BowState {
+        /** A shortbow is in the main hand now - shoot. */
+        HELD,
+        /** One is in the hotbar and the swap to it was sent (or held back to next tick) - shoot on a later tick. */
+        SWAPPING,
+        /** No hotbar slot holds a shortbow. */
+        NONE
+    }
+
+    /**
+     * Finds a shortbow in the hotbar and swaps to it - the ONE way Auto Ice Path, Auto Blaze and Auto Creeper Beams
+     * get a bow into his hand.
+     *
+     * <p>A shortbow is any item whose lore has {@value #SHORTBOW_LORE} once colour codes are stripped
+     * ({@link #loreContains}), which is how Hypixel marks every shortbow - the Terminator's lore carries it as a gold
+     * line under the name. Before 2026-10-04 only Auto Ice Path swapped; Auto Blaze and Auto Beams only checked the
+     * hand, so with the AOTV still held from the reposition they logged "not a shortbow" and never fired.
+     *
+     * <p>The swap is a plain selected-slot change ({@link #swapTo}, at most one a tick), so the shot belongs on a
+     * LATER tick: the slot packet goes out with this tick and a use sent in the same tick would race it.
+     */
+    public static BowState holdShortbow(Minecraft client, LocalPlayer player) {
+        if (isShortbow(player.getMainHandItem())) {
+            return BowState.HELD;
+        }
+        for (int i = 0; i < 9; i++) {
+            if (isShortbow(player.getInventory().getItem(i))) {
+                swapTo(client, player, AutoPuzzleUtil::isShortbow);
+                return BowState.SWAPPING;
+            }
+        }
+        return BowState.NONE;
+    }
+
     public static boolean isAotv(ItemStack stack) {
         String id = skyblockId(stack);
         return "ASPECT_OF_THE_VOID".equals(id) || "ASPECT_OF_THE_END".equals(id);

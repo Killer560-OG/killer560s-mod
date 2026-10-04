@@ -57,6 +57,9 @@ public final class AutoBeams {
     private static int lastPairCount = -1;
     private static boolean wasInRoom = false;
     private static boolean active = false;
+    /** What the log last said about the bow, so it is said once per change. */
+    private static AutoPuzzleUtil.BowState loggedBow = null;
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autopuzzles");
 
     private AutoBeams() {
     }
@@ -173,7 +176,18 @@ public final class AutoBeams {
         }
 
         long now = System.currentTimeMillis();
-        if (!AutoPuzzleUtil.isShortbow(player.getMainHandItem()) || now - lastShotTime < cfg.getShootCooldownMs()) {
+        // Swap to the bow here too - it only ever checked the hand, so with the AOTV still held from the reposition
+        // it aimed and never fired (killer560, 2026-10-04: "the auto solver isn't swapping to terminator to shoot").
+        AutoPuzzleUtil.BowState bow = AutoPuzzleUtil.holdShortbow(client, player);
+        if (bow != loggedBow) {
+            loggedBow = bow;
+            if (bow != AutoPuzzleUtil.BowState.HELD) {
+                LOGGER.info("[AutoPuzzles] Beams: {}", bow == AutoPuzzleUtil.BowState.NONE
+                        ? "no shortbow (\"" + AutoPuzzleUtil.SHORTBOW_LORE + "\" in its lore) in the hotbar - not shooting"
+                        : "swapping to the shortbow");
+            }
+        }
+        if (bow != AutoPuzzleUtil.BowState.HELD || now - lastShotTime < cfg.getShootCooldownMs()) {
             return;
         }
         float[] dir = AutoPuzzleUtil.etherwarpDirection(client.level, player, lantern);

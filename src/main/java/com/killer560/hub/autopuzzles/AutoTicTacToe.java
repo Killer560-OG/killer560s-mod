@@ -154,10 +154,13 @@ final class AutoTicTacToe {
         }
         LocalPlayer player = client.player;
         long now = System.currentTimeMillis();
-        if (McCompat.screen(client) != null || player.isShiftKeyDown()
-                // To the BOX, matching the limit - see the note in AutoWater.
-                || com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), best) > REACH_SQ
-                || now - lastClickMs < CLICK_GAP_MS) {
+        if (McCompat.screen(client) != null || player.isShiftKeyDown() || now - lastClickMs < CLICK_GAP_MS) {
+            return;
+        }
+        // To the BOX, matching the limit - see the note in AutoWater.
+        if (com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), best) > REACH_SQ) {
+            waitFor("next move " + AutoPuzzleUtil.fmt(best) + " is out of reach from "
+                    + AutoPuzzleUtil.fmt(player.blockPosition()));
             return;
         }
         // Reset on a new ROUND as well as a new cell.
@@ -171,6 +174,7 @@ final class AutoTicTacToe {
             attempts = 0;
         }
         if (attempts >= MAX_ATTEMPTS) {
+            waitFor("used all " + MAX_ATTEMPTS + " clicks on " + AutoPuzzleUtil.fmt(best) + " and the board did not change");
             return;
         }
         if (!AutoPuzzleUtil.gateWorldClick()) {
@@ -188,9 +192,18 @@ final class AutoTicTacToe {
                 client.level.getBlockState(best),
                 player.getMainHandItem().getHoverName().getString(), attempts, MAX_ATTEMPTS);
         if (totalPlaced == 1 && cfg.isTicTacToeAuraChestEnabled()) {
-            chestStage = ChestStage.WALK_TO_CHEST;
-            chestLegStartMs = now;
+            advanceChest(ChestStage.WALK_TO_CHEST, "first move placed");
             chestAuraAttempts = 0;
+        }
+    }
+
+    /** What the auto last said it was waiting for, so a reason is logged once per change. */
+    private static String loggedWait = null;
+
+    private static void waitFor(String why) {
+        if (!why.equals(loggedWait)) {
+            loggedWait = why;
+            LOGGER.info("[AutoPuzzles] TicTacToe: waiting - {}", why);
         }
     }
 
@@ -246,19 +259,41 @@ final class AutoTicTacToe {
         return true;
     }
 
+    /** Paths issued on the current leg; reset whenever the stage moves on. */
+    private static int legPaths = 0;
+    /** A leg that has asked for this many paths and is still not there cannot get closer. */
+    private static final int MAX_LEG_PATHS = 3;
+
+    private static void advanceChest(ChestStage next, String why) {
+        LOGGER.info("[AutoPuzzles] TicTacToe: chest trip {} -> {} ({})", chestStage, next, why);
+        chestStage = next;
+        chestLegStartMs = System.currentTimeMillis();
+        legPaths = 0;
+        chestMapOffWarned = false;
+    }
+
+    /**
+     * One leg of the chest side trip.
+     *
+     * <p>killer560 (2026-10-04): "It also did the first button for tictactoe but none after that." His log: one
+     * click at 18:08:55, then the trip's walk to the chest - two warps that stopped short ("the block itself cannot
+     * be reached"), then about seventy "Already there" in four seconds, one more warp, and silence; he played the
+     * rest by hand (a Draw at 18:09:19), and the auto never clicked again. The board itself was fine - the click
+     * logic simply never ran, because it waits for the trip and the trip could not end: it ended on standing ON the
+     * target, on the chest being in reach, or on the 15 s timeout - and that timeout sat BEHIND
+     * {@code if (ClearExecutor.isBusy()) return}, so a walk that kept the executor busy kept the trip alive with
+     * it, and a walk that ended short re-asked for a path every tick ("Already there" each time) without ever
+     * counting as done. Now the timeout is checked first and cancels a walk still running, and a leg that has
+     * asked for {@link #MAX_LEG_PATHS} paths and is still not there gives up - it cannot get closer. Each
+     * transition is an INFO line. The same on Hypixel: none of this depends on the sim.
+     */
     private static void walkChestLeg(LocalPlayer player, BlockPos target, ChestStage nextStage, String label) {
         if (target == null) {
-            chestStage = nextStage;
-            chestLegStartMs = System.currentTimeMillis();
+            advanceChest(nextStage, "no target for " + label);
             return;
         }
         if (AutoPuzzleUtil.at(player, target)) {
-            chestMapOffWarned = false;
-            chestStage = nextStage;
-            chestLegStartMs = System.currentTimeMillis();
-            return;
-        }
-        if (ClearExecutor.isBusy()) {
+            advanceChest(nextStage, "standing on " + label);
             return;
         }
         // The chest leg is over once the chest is in aura reach. at() above only matches when standing ON the
@@ -266,18 +301,27 @@ final class AutoTicTacToe {
         // 15 s timeout before the aura - "walk to the chest timed out" in his 2026-10-04 sim log.
         if (nextStage == ChestStage.AURA
                 && com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target) <= AURA_REACH_SQ) {
-            chestMapOffWarned = false;
-            chestStage = nextStage;
-            chestLegStartMs = System.currentTimeMillis();
+            advanceChest(nextStage, "the chest is in reach");
             return;
         }
         if (System.currentTimeMillis() - chestLegStartMs > WALK_TIMEOUT_MS) {
             LOGGER.warn("[AutoPuzzles] TicTacToe: walk to {} timed out - continuing anyway", label);
-            chestStage = nextStage;
-            chestLegStartMs = System.currentTimeMillis();
+            if (ClearExecutor.isBusy()) {
+                ClearExecutor.cancel();
+            }
+            advanceChest(nextStage, "timed out");
             return;
         }
-        if (!AutoPuzzleUtil.pathIfMapOn(target, null) && !chestMapOffWarned) {
+        if (ClearExecutor.isBusy()) {
+            return;
+        }
+        if (legPaths >= MAX_LEG_PATHS) {
+            advanceChest(nextStage, "cannot get closer to " + label + " after " + legPaths + " path(s)");
+            return;
+        }
+        if (AutoPuzzleUtil.pathIfMapOn(target, null)) {
+            legPaths++;
+        } else if (!chestMapOffWarned) {
             chestMapOffWarned = true;
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Tic Tac Toe needs "), ModChat.value("Interactive Map"),
                     ModChat.text(" on to walk to " + label + "."));
@@ -286,8 +330,7 @@ final class AutoTicTacToe {
 
     private static void auraChest(Minecraft client, LocalPlayer player) {
         if (chestAuraAttempts >= MAX_AURA_ATTEMPTS) {
-            chestStage = ChestStage.WALK_BACK;
-            chestLegStartMs = System.currentTimeMillis();
+            advanceChest(ChestStage.WALK_BACK, "no chest in reach after " + chestAuraAttempts + " tries");
             return;
         }
         BlockPos target = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
@@ -311,8 +354,7 @@ final class AutoTicTacToe {
         }
         ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Tic Tac Toe: aura'd the "), ModChat.good("secret chest"),
                 ModChat.text("."));
-        chestStage = ChestStage.WALK_BACK;
-        chestLegStartMs = System.currentTimeMillis();
+        advanceChest(ChestStage.WALK_BACK, "aura'd the chest");
     }
 
     private static void reset() {
@@ -328,5 +370,7 @@ final class AutoTicTacToe {
         chestAuraAttempts = 0;
         noChestWarned = false;
         chestMapOffWarned = false;
+        legPaths = 0;
+        loggedWait = null;
     }
 }
