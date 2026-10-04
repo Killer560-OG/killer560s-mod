@@ -285,3 +285,7 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.- Agent worktrees are cut from `main`, not from the branch checked out here. On 2026-10-04 six were started
   while work sat on a feature branch 26 commits ahead of `main`, and every one began on stale code. Get the
   work onto `main` (or tell each agent its base) before fanning out.
+- `Level.isLoaded(pos)` is false for any y outside the level's build height, before chunks are even looked at.
+  Hypixel's dungeon world starts at y 0, so the Room Recorder's load check, asked at the full-height band's -64,
+  rejected every column there and captured nothing on Hypixel from 2026-09-29 to 2026-10-04 while Ashfall (min
+  -64) kept working. Ask load questions at a y clamped into `level.getMinY()..getMaxY()`.
