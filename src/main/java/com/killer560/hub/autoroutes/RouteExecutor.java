@@ -713,7 +713,7 @@ public final class RouteExecutor {
                     route.indexOf(node) + 1, fmt(self.position()), fmt(at),
                     node.hasLanding ? fmt(RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ))
                             : "not recorded",
-                    frame.roomName(), com.killer560.hub.roomsim.SimState.isActive(),
+                    frame.roomName(), com.killer560.hub.roomsim.SimState.canAct(Minecraft.getInstance()),
                     AutoRoutesConfig.getInstance().isLegitMode() ? "legit" : "obvious");
         }
         activeNode = node;
@@ -1021,7 +1021,7 @@ public final class RouteExecutor {
                     BlockPos p = boomTarget.relative(d);
                     boomBefore.put(p, client.level.getBlockState(p));
                 }
-                if (com.killer560.hub.roomsim.SimState.isActive()) {
+                if (com.killer560.hub.roomsim.SimState.canAct(client)) {
                     // The sim has no server-side Superboom: raw START/ABORT packets (and a client
                     // startDestroyBlock aimed by a look the camera doesn't have) blew nothing up in here. The sim's
                     // own entry point takes the block and face directly, in both modes.
@@ -1082,7 +1082,7 @@ public final class RouteExecutor {
                 }
                 if (ensureSelected(player, slot)) {
                     // In the sim the charges live in SimBreakerState; the item's lore is a static tooltip.
-                    int charges = com.killer560.hub.roomsim.SimState.isActive()
+                    int charges = com.killer560.hub.roomsim.SimState.canAct(client)
                             ? com.killer560.hub.roomsim.SimBreakerState.charges()
                             : breakerCharges(player.getMainHandItem());
                     LOGGER.info("[AutoRoutes] Breaker: {} block(s) queued, {} charge(s)", breakerQueue.size(), charges);
@@ -1116,7 +1116,7 @@ public final class RouteExecutor {
                         LOGGER.info("[AutoRoutes] Breaker block {} out of range - skipped", pos);
                         continue;
                     }
-                    if (com.killer560.hub.roomsim.SimState.isActive()) {
+                    if (com.killer560.hub.roomsim.SimState.canAct(client)) {
                         // The sim has no server-side Dungeonbreaker - a raw START_DESTROY_BLOCK broke nothing here.
                         if (!com.killer560.hub.roomsim.SimItems.dungeonBreakAt(client, pos)) {
                             LOGGER.info("[AutoRoutes] Breaker block {} refused by the sim (puzzle room, secret, "
@@ -1208,7 +1208,7 @@ public final class RouteExecutor {
      *  ({@code ClearExecutor.doInteract}). */
     private static void useHeldItem(Minecraft client, LocalPlayer player, RouteNode node, boolean blockInteraction) {
         boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
-        if (com.killer560.hub.roomsim.SimState.isActive()) {
+        if (com.killer560.hub.roomsim.SimState.canAct(client)) {
             useHeldItemInSim(client, player, node, blockInteraction, legit);
             return;
         }
