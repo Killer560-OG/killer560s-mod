@@ -44,100 +44,92 @@ public final class MapPainter {
     static final int MAP_UNITS = 116;
 
     /**
-     * How much to blow the map up so a small floor fills the panel, and where to put it.
+     * Room slots, {@code {across, down}}, of the grid each Catacombs floor is generated on.
      *
-     * <p>killer560 (2026-09-28): "See how the map needs to upscale to take up the whole area on smaller
-     * floors. It should do that automatically. No setting to turn it on or off."
+     * <p>killer560 (2026-10-04): "It should always have the same outline, it should auto know the scale based on
+     * the floor I am playing to adjust that. It shouldn't do this weird fill in and shrink in real dungeons." The
+     * map used to zoom to the bounding box of the rooms REVEALED so far ({@code autoFit}/{@code panelUnits}, removed
+     * here), so the box changed shape and the rooms shrank every time a far room came into view. The scale now
+     * comes from the floor alone and is fixed from the moment the run starts.
      *
-     * <p>The panel is sized for the full 11x11 grid, but a floor rarely uses it - his own measurements have
-     * the Entrance at 4x4 cells against F7's 6x6. Drawn at a fixed scale, an Entrance map is a small diagram
-     * in the corner of a large empty box, which wastes the space exactly where the rooms are smallest and
-     * hardest to read.
+     * <p>Where the numbers come from. {@link DungeonMapScanner#calibrate}'s per-floor start corners (NoammAddons'
+     * {@code MapUtils}) put the Entrance at 4x4 (corner 22,22), Floor 1 at 4 across by 5 down (22,11), and Floors
+     * 2-3 at 5x5 (11,11); everything above that is the 16px-room map, i.e. a 6-wide grid. {@code FloorSizeLog}'s
+     * fully-revealed samples from his own runs agree (E 4x4, F1 4x5, F2/F3 5x5, F4 6x5, F5-F7 and M7 6x6) and
+     * settle F4's 6 across by 5 down. Master Mode floors are the same grid as the floor of the same number - the
+     * scanner's {@code floorNumber()} already calibrates M1 exactly like F1. Hypixel always lays a floor out from
+     * the dungeon's north-west corner, so a small floor occupies slots {@code 0..across-1, 0..down-1}.
      *
-     * <p>Returned as {@code {scale, offsetUnitsX, offsetUnitsY}}. Computed from the rooms that are REVEALED,
-     * so it grows into the space as the floor is discovered rather than jumping to a final layout the moment
-     * one far room appears.
-     *
-     * <p><b>No centring any more.</b> It used to centre the fitted floor inside a fixed 116x116 square, which
-     * left a dead band down one pair of edges on every floor that is not square - the thing killer560 then
-     * asked to go ({@code 2026-10-01}: "if it sees i go into f7 have it auto size to the f7 size. same for
-     * other floors"). The PANEL is now the shape of the floor instead - see {@link #panelUnits} - so the fit
-     * lands at the top-left of it and fills it on both axes.
-     *
-     * @return the zoom to apply and the unit offset that puts the floor at the panel's corner, or a 1x
-     *         identity when there is nothing sensible to fit
+     * <p>The sim reports M7 ({@link com.killer560.hub.secrets.DungeonState#getFloor}) and its generator lays
+     * every floor out on the full 6x6 ({@code SimFloorGen.ROOM_GRID}), so 6x6 is also its true size. Unknown or
+     * unparseable floor: 6x6, the largest, so nothing can fall outside it.
      */
-    static float[] autoFit(java.util.List<LiveMapFeature.RoomGroup> groups) {
-        int[] box = usedBox(groups);
-        if (box == null) {
-            return new float[]{1f, 0f, 0f};
+    static int[] floorRooms(String floor) {
+        int number = -1;
+        if (floor != null && !floor.isEmpty()) {
+            if (floor.equals("E")) {
+                number = 0;
+            } else {
+                char last = floor.charAt(floor.length() - 1);
+                number = Character.isDigit(last) ? last - '0' : -1;
+            }
         }
-        return new float[]{fitScale(box), -box[0], -box[1]};
+        return switch (number) {
+            case 0 -> new int[]{4, 4};
+            case 1 -> new int[]{4, 5};
+            case 2, 3 -> new int[]{5, 5};
+            case 4 -> new int[]{6, 5};
+            default -> new int[]{6, 6};
+        };
+    }
+
+    /** Map units a run of {@code rooms} room slots covers: rooms of 16 with 4-unit gaps between them. */
+    private static int roomsToUnits(int rooms) {
+        return rooms * (ROOM_UNITS + GAP_UNITS) - GAP_UNITS;
     }
 
     /**
-     * The map's own size, in units, for the floor currently on it: {@code {unitsX, unitsY}}.
+     * The grid being drawn, in map units: {@code {unitsX, unitsZ}}.
      *
-     * <p>The long axis is always {@link #MAP_UNITS} - that is what "upscale to take up the whole area" means
-     * and it is why a fully-walked F7, which uses the whole 6x6 grid, comes out at exactly the 116x116 it
-     * always was. The short axis is however long the floor actually is at that same zoom, so there is no empty
-     * band: a floor six rooms wide and four tall gives a map six wide and four tall.
-     *
-     * <p>Falls back to the full square before anything is revealed, so the HUD element has a box to show in
-     * the editor rather than collapsing to nothing.
+     * <p>The floor's own grid ({@link #floorRooms}). The one exception is a drawn room that lies OUTSIDE it, which
+     * only happens if the table above is wrong for some floor: the grid is then widened to take that room in
+     * rather than painting it over the outline. That can only ever grow the grid, never cut it down to the rooms
+     * found so far, so it is not the old fit-to-revealed behaviour; on a correct table it never fires.
      */
-    static float[] panelUnits(java.util.List<LiveMapFeature.RoomGroup> groups) {
-        int[] box = usedBox(groups);
-        if (box == null) {
-            return new float[]{MAP_UNITS, MAP_UNITS};
-        }
-        float scale = fitScale(box);
-        return new float[]{box[2] * scale, box[3] * scale};
-    }
-
-    /**
-     * The drawn floor's bounding box in units: {@code {minU, minV, usedU, usedV}}, or null when empty.
-     *
-     * <p>Teammate-reported cells count, not just locally revealed ones. They are drawn
-     * ({@link #drawReportedRoom}) and the panel is now cut to this box, so a reported room left out here would
-     * be painted outside the HUD element's own edges.
-     */
-    private static int[] usedBox(java.util.List<LiveMapFeature.RoomGroup> groups) {
-        int minU = Integer.MAX_VALUE;
-        int minV = Integer.MAX_VALUE;
-        int maxU = Integer.MIN_VALUE;
-        int maxV = Integer.MIN_VALUE;
+    static int[] gridUnits(java.util.List<LiveMapFeature.RoomGroup> groups) {
+        int[] rooms = floorRooms(com.killer560.hub.secrets.DungeonState.getFloor());
+        int across = rooms[0];
+        int down = rooms[1];
         for (LiveMapFeature.RoomGroup group : groups) {
             if (!isRevealed(group)) {
                 continue;
             }
             for (int cell : group.cells) {
-                int gx = cell % LiveMapFeature.GRID;
-                int gz = cell / LiveMapFeature.GRID;
-                minU = Math.min(minU, cellPos(gx));
-                minV = Math.min(minV, cellPos(gz));
-                maxU = Math.max(maxU, cellPos(gx) + cellSize(gx));
-                maxV = Math.max(maxV, cellPos(gz) + cellSize(gz));
+                across = Math.max(across, (cell % LiveMapFeature.GRID) / 2 + 1);
+                down = Math.max(down, (cell / LiveMapFeature.GRID) / 2 + 1);
             }
         }
         for (PartyMapIntel.ReportedRoom rr : PartyMapIntel.reportedRoomsView()) {
-            minU = Math.min(minU, cellPos(rr.col()));
-            minV = Math.min(minV, cellPos(rr.row()));
-            maxU = Math.max(maxU, cellPos(rr.col()) + cellSize(rr.col()));
-            maxV = Math.max(maxV, cellPos(rr.row()) + cellSize(rr.row()));
+            across = Math.max(across, rr.col() / 2 + 1);
+            down = Math.max(down, rr.row() / 2 + 1);
         }
-        if (minU > maxU || minV > maxV) {
-            return null;
-        }
-        return new int[]{minU, minV, Math.max(1, maxU - minU), Math.max(1, maxV - minV)};
+        return new int[]{roomsToUnits(Math.min(across, 6)), roomsToUnits(Math.min(down, 6))};
     }
 
-    /** One zoom for both axes - a per-axis scale would stretch the map and stop it matching the real one. */
-    private static float fitScale(int[] box) {
-        float scale = MAP_UNITS / (float) Math.max(box[2], box[3]);
-        // Never shrink. A floor that somehow reaches past the grid should overflow rather than be squashed
-        // into something that no longer lines up with the room positions he has learned.
-        return Math.max(1f, scale);
+    /**
+     * How to draw the floor's grid inside the fixed {@link #MAP_UNITS}-square outline:
+     * {@code {scale, offsetUnitsX, offsetUnitsY}}.
+     *
+     * <p>{@code scale} blows the floor's grid up until its long side fills the outline (1 on a 6x6 floor, about
+     * 1.5 on the Entrance's 4x4); the offsets, in the floor's own units, centre the short side so a 4x5 or 6x5
+     * floor sits in the middle of the square instead of against one edge. Multiply the pixels-per-unit by the
+     * scale and add the offsets times that ppu to the origin, and every drawing call stays untouched.
+     */
+    static float[] floorFit(java.util.List<LiveMapFeature.RoomGroup> groups) {
+        int[] units = gridUnits(groups);
+        float scale = MAP_UNITS / (float) Math.max(units[0], units[1]);
+        float inner = MAP_UNITS / scale;
+        return new float[]{scale, (inner - units[0]) / 2f, (inner - units[1]) / 2f};
     }
 
     static final int ROOM_UNITS = 16;

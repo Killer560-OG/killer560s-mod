@@ -971,34 +971,34 @@ public final class LiveMapFeature {
         }
 
         /**
-         * The map's drawn size, plus a 2px margin each side.
+         * The map's outline: a fixed square, plus a 2px margin each side.
          *
          * <p>It is NOT an 11x11 grid of equal cells - rooms are 16 units and gaps 4, exactly like the real
-         * dungeon map - and since 2026-10-01 it is not a fixed square either. killer560: "if it sees i go into
-         * f7 have it auto size to the f7 size. same for other floors." {@link MapPainter#panelUnits} gives the
-         * floor's own shape at the zoom {@link MapPainter#autoFit} will draw it at, so a fully-walked F7 is the
-         * 116x116 it always was and a shorter floor gets a shorter map instead of a square with a dead band
-         * across it.
+         * dungeon map. Since 2026-10-04 it is also the SAME size for the whole run and on every floor:
+         * killer560, "It should always have the same outline ... It shouldn't do this weird fill in and shrink
+         * in real dungeons." It is {@link MapPainter#MAP_UNITS} (F7's full 6x6) at the Room Size setting, so
+         * Room Size and the HUD editor's scale set the outline, and the floor only sets how big the grid is
+         * drawn inside it ({@link MapPainter#floorFit}). Before this it was cut to the rooms revealed so far,
+         * which is why the box changed shape as the floor was discovered.
          *
          * <p>Both {@link #width()}/{@link #height()} and the background {@link #renderMap} fills go through
          * here, which is the rule that matters: {@code HudElementRegistry} defines the element's on-screen size
          * as {@code width() * scale}, and a panel measured one way and drawn another is the bug that made the
-         * Storage Overlay unclampable (see CLAUDE.md).
+         * Storage Overlay unclampable (see docs/LESSONS.md).
          */
-        private static int mapPx(int axis) {
-            float[] units = MapPainter.panelUnits(groups);
-            return Math.round(units[axis] * LiveMapConfig.getInstance().getRoomPx() / 16f) + 4;
+        private static int mapPx() {
+            return Math.round(MapPainter.MAP_UNITS * LiveMapConfig.getInstance().getRoomPx() / 16f) + 4;
         }
 
         @Override
         public int width() {
-            return mapPx(0);
+            return mapPx();
         }
 
         @Override
         public int height() {
             // killer560, 2026-09-20: "remove room name below map" - the HUD is exactly the map now, no extra row.
-            return mapPx(1);
+            return mapPx();
         }
 
         @Override
@@ -1056,18 +1056,19 @@ public final class LiveMapFeature {
          *  checkmarks - the same geometry and palette as the held map itself. */
         private void renderMap(GuiGraphicsExtractor graphics, int x, int y, LiveMapConfig cfg, Minecraft client) {
             float ppu = cfg.getRoomPx() / 16f;
-            int sizeW = mapPx(0);
-            int sizeH = mapPx(1);
+            int sizeW = mapPx();
+            int sizeH = mapPx();
             graphics.fill(x, y, x + sizeW, y + sizeH, cfg.getMapBackground());
             int border = cfg.getMapBorderColor();
             if ((border >>> 24) != 0) {
                 graphics.outline(x, y, sizeW, sizeH, border);
             }
-            // Automatic zoom for small floors - no toggle, on his instruction. Applied by moving the origin
-            // and multiplying the pixels-per-unit, so every drawing call below is untouched: doors, rooms,
-            // labels, teammates and the player arrow all scale together because they all go through ppu.
+            // The floor's whole grid, scaled to fill the fixed outline and centred in it - chosen from the
+            // floor being played, never from what has been revealed, so nothing moves or shrinks during a run.
+            // Applied by moving the origin and multiplying the pixels-per-unit, so every drawing call below is
+            // untouched: doors, rooms, labels, teammates and the player arrow all scale together through ppu.
             DungeonLayout fitLayout = DungeonLayout.current();
-            float[] fit = MapPainter.autoFit(groups);
+            float[] fit = MapPainter.floorFit(groups);
             ppu *= fit[0];
             float ox = x + 2 + fit[1] * ppu;
             float oy = y + 2 + fit[2] * ppu;

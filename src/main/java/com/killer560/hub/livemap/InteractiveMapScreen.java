@@ -93,20 +93,29 @@ public class InteractiveMapScreen extends Screen {
         return LiveMapConfig.getInstance().getMapScale() * 0.5f;
     }
 
+    /**
+     * Pixels per map unit. The panel is sized for {@link MapPainter#MAP_UNITS} (F7's 6x6) and the floor being
+     * played is blown up to fill it - the same {@link MapPainter#floorFit} the HUD map uses, so both maps show
+     * the same fixed grid for the floor and never re-fit to the rooms revealed so far.
+     *
+     * <p>Every screen-to-cell conversion ({@link #cellAt}, the scroll zoom) goes through this and the two origins
+     * below, so clicks keep landing on the room drawn under the cursor.
+     */
     private float ppu() {
         int[] p = panel();
         float fit = (p[2] - p[0] - 12) / (float) MapPainter.MAP_UNITS;
-        return Math.min(basePpu(), fit) * zoom;
+        return Math.min(basePpu(), fit) * MapPainter.floorFit(LiveMapFeature.groupsView())[0] * zoom;
     }
 
+    /** The floor's grid is centred in the panel, so a 4x5 or 6x5 floor sits in the middle of the square. */
     private float originX() {
         int[] p = panel();
-        return (p[0] + p[2]) / 2f - MapPainter.MAP_UNITS * ppu() / 2f + panX;
+        return (p[0] + p[2]) / 2f - MapPainter.gridUnits(LiveMapFeature.groupsView())[0] * ppu() / 2f + panX;
     }
 
     private float originY() {
         int[] p = panel();
-        return (p[1] + p[3]) / 2f - MapPainter.MAP_UNITS * ppu() / 2f + panY;
+        return (p[1] + p[3]) / 2f - MapPainter.gridUnits(LiveMapFeature.groupsView())[1] * ppu() / 2f + panY;
     }
 
     /** @return grid index of the cell under a screen point, or -1. */

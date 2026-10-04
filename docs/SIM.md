@@ -814,16 +814,17 @@ that could have been the mimic. It is a different quantity, and it ignores bats,
 `SimBuilder` now sums each placed room's `RoomEntry.secrets` - the same number the map prints beside a room's
 name.
 
-## The map is the shape of the floor now, not a fixed square
+## The map is a fixed square with the floor's grid inside it
 
-`MAP_UNITS` (116 = 6 rooms of 16 units + 5 gaps of 4) is F7's size, and `autoFit` already blew smaller floors up
-to fill it - but it CENTRED them inside a square panel, which left a dead band down one pair of edges on every
-floor that is not square. `MapPainter.panelUnits` now gives the floor's own shape at that same zoom and the HUD
-element measures AND draws itself from it, so a fully-walked F7 is the 116x116 it always was and a shorter floor
-gets a shorter map. The long axis is still always 116, so the panel never grows past what it used to be and no
-saved HUD position can be stranded off screen (which is the failure mode CLAUDE.md records for the Storage
-Overlay). Teammate-reported cells are counted in the box as well as locally revealed ones, because they are
-drawn and the panel is now cut to that box.
+The 2026-10-01 version cut the HUD panel to the bounding box of the rooms REVEALED so far (`MapPainter.panelUnits`
+/`autoFit`), so on a real floor the box changed shape and every room shrank each time a far room came into view -
+killer560, 2026-10-04: "It shouldn't do this weird fill in and shrink in real dungeons." Both are gone. The outline
+is always `MAP_UNITS` square at the Room Size setting, and `MapPainter.floorFit` scales and centres the floor's
+whole grid inside it from `DungeonState.getFloor()` alone (`MapPainter.floorRooms`: E 4x4, F1 4x5, F2/F3 5x5, F4
+6x5, rest 6x6, M floors as their number - from `DungeonMapScanner.calibrate`'s start corners and the FloorSizeLog
+samples). The sim reports M7 and always lays out on the 6x6, so it gets 6x6. A drawn room outside the floor's grid
+widens it rather than overflowing the outline; that only fires if the table is wrong. The Interactive Map's
+`ppu()`/`originX()`/`originY()` use the same fit, and `cellAt` goes through them, so clicks still map correctly.
 
 ## The green room's open faces
 
