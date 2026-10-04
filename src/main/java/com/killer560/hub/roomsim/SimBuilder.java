@@ -572,6 +572,14 @@ public final class SimBuilder {
                         }
                     }
                 }
+                // The pathfinder's view of the NEW floor for every chunk his client has not been sent since the
+                // build - see LevelEtherGrid.mirror. Last, so the doors, secrets and puzzles are all in it.
+                int[] mirrorBox = SimBuildQueue.touchedBounds();
+                if (mirrorBox != null) {
+                    int sections = com.killer560.hub.livemap.autoclear.LevelEtherGrid.mirror(level,
+                            mirrorBox[0], mirrorBox[1], mirrorBox[2], mirrorBox[3]);
+                    LOGGER.info("Sim build: {} section(s) mirrored for the etherwarp pathfinder", sections);
+                }
                 client.execute(() -> {
                 // The map, on the client thread where LiveMapFeature's arrays live. Without this the live
                 // map, the interactive map and every pathfinder that reads the layout are blank in the sim -
@@ -1482,6 +1490,9 @@ public final class SimBuilder {
                 break;
             }
         }
+        // A single room has no mirror of its own; the last floor's would be stale, so the grid goes back to the
+        // client's world (see LevelEtherGrid.mirror).
+        com.killer560.hub.livemap.autoclear.LevelEtherGrid.dropMirror();
         com.killer560.hub.livemap.LiveMapFeature.publishSimFloor(cellRoom, cellDoor,
                 new String[]{room.name}, new int[][]{{clayX, clayZ, dbRotation}});
     }

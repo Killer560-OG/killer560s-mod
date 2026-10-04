@@ -1394,7 +1394,8 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   in memory only, so every launch started with no recency, and its weight lost to `choose`'s deterministic
   doorway/size ordering, whose head wins because `choose` stops at the first "good enough" placement. Now saved to
   `config/killer560/dungeons/sim/killer560smod-sim-recent.json` by `SimRecencyStore` (kept out of `SimFloorLayout` so the generator stays
-  runnable outside the game), decay 0.6, key weight 3.0, score weight 2.0, die 0..4. Not measured over many floors.
+  runnable outside the game), decay 0.6, key weight 3.0, score weight 2.0, die 0..4. Not measured over many floors -
+  and that was the mistake: see "Blank cells" below, the same day.
 - The sim's sidebar, the Custom Scoreboard (which shows the sim sidebar under a plain title instead of its Skyblock
   entries) and the vanilla tab list header/footer carry "killer560's personal testing sim" and
   `discord.gg/hkQMF5fE84`. The sidebar objective's title stays `SKYBLOCK`: `SkyblockGate` reads it, and every
@@ -1477,13 +1478,60 @@ JIT, his default 6/7 fan (995 rays), through the game's section-table grid:
 | sections cached | 0.47 ms | 0.32 | 0.91 | 3.5 | 10 |
 | every section filled fresh | 0.60 ms | 0.45 | 1.15 | 3.8 | 10 |
 
-99.8% of clicks found a path. Before, from his own Map Logger log (2026-10-01, 19 successful clicks timed
+(Superseded - these numbers were on a bench that read most of every room as air; see "The path search, round
+two" below.) 99.8% of clicks found a path. Before, from his own Map Logger log (2026-10-01, 19 successful clicks timed
 by the old chat line): median 6 ms, worst 153 ms, and eight "Failed after ~675ms" timeouts. The tail that is
 still over 2 ms is legs where weighted A* needs 60-300 expansions (about 30 us each) to find a way round a
 wall; a click reads a median of 38 sections (p90 92). Not covered: the bench's flags come from palette NAMES,
 not `TeleportUtils`' instanceof rules, and the "fresh" row fills by copying an array, which is cheaper than
 reading a real section - so a first click in a new area costs somewhat more in game than that row. The
 `[Path] ... total N ms` log line is the in-game number.
+
+## Blank cells, theoretical wither doors, and the path search, round two (2026-10-04, later)
+
+**Blank cells were the recency change.** "the more maps I generate the more it seems to not put rooms in."
+`tools/layoutsim/run.sh` runs the real `SimFloorLayout` + `RoomDoors` outside the game over his own library (his
+Map Logger rooms folder plus the shipped captures, minus the 28 the tile audit refused - 106 usable, exactly what
+his log says). Starting from his saved `killer560smod-sim-recent.json`, 1000 F7s: 63% had an empty cell and 16%
+failed `LayoutSim`'s structure check (one blood, one trap, no overlap, every room reachable); with recency off, 18% and 1.4%. The cause: `choose` subtracted
+`recency * 2.0` from the PLACEMENT score, as much as two stranded cells cost, so a fresh room that walled a cell
+in beat a recent one that fitted. Variety also went past the point of usefulness: consecutive floors shared 0.6
+rooms, against about 3.5 by pure chance. Now recency only orders the shortlist (weight 1.5; table in the javadoc
+of `RECENCY_ORDER_WEIGHT`), the sixty-room shortlist cap only ends a search that has found something, and
+`fillGaps` fills whatever the growth leaves: an unused room meeting an open doorway; else a 1x1 neighbour turned
+or swapped so a measured doorway faces the hole (all its doors kept); else, last, a 1x1 whose door is carved
+through the neighbour's wall. One WARN per floor that needed it, another if a cell is still empty. `ensureBlood`
+swaps the blood room in for the deepest 1x1 dead end when no attempt placed one. Result, 2000 floors from his
+file: 0 with an empty cell, 1 without blood, consecutive floors share 5.0 rooms. Most holes the growth leaves are
+corner cells walled in by 2x2 rooms, which only a carve fills - about a quarter of floors get one carved door.
+
+**Theoretical wither doors.** `SimWitherDoors`: every ordinary door on the room path from the Entrance to Blood
+(the wiki: "The path to the Blood Room is guarded by a series of Wither Doors"), worked out when the floor is
+published. Drawn on the sim's live map in the wither colour with a SINGLE amber outline (a real locked one has
+two) and in the Map Designer like a wither door. `isTheoretical` is false unless `SimState.isActive()`, and the
+table is only filled by `publishSimFloor`, so a Hypixel map never shows one. They stay ordinary doors to every
+pathfinder.
+
+**The path search, round two.** Three causes, from his log:
+- *"Room hop N failed" right after a build, fine after teleporting there*: the sim writes a floor without telling
+  clients, and with Keep Chunks Loaded / the Chunk Cache his client keeps every chunk it ever had - so every chunk
+  not re-sent since the rebuild held the PREVIOUS floor (at its own altitude). `LevelEtherGrid.mirror` snapshots
+  the built floor from the server level at the end of the build; a column reads from it until his client
+  receives that chunk or a block change in it. Sim only; dropped on leaving and on a single-room load. Not
+  reproduced offline - the reasoning is the log pattern plus `ChunkCacheManager`'s own "Known limitation".
+- *"No single-room path ... within 57.0 blocks a hop", 670 ms, ten times*: the target was Tic Tac Toe's chest
+  (Auto Tic Tac Toe walking to it), which in his capture sits in a walled alcove - solid with two air above, so
+  "etherwarpable", and unreachable. Rebuilt in `tools/bench` (`-Dttt=`): the room alone is exhausted after 295
+  nodes. A same-room target is now searched inside the room, exact first and then any landing within 5 blocks,
+  and the last leg of a multi-room path gets the same near fallback; the old unbounded search still runs if both
+  fail. On Hypixel this only changes a click that used to fail.
+- The fan (6 x 7 degrees) can miss a single goal block from every node; the A* now also tries a verified `aim`
+  at the goal from every node it expands.
+
+**The bench was reading most of every room as air.** `EtherSearchBench` cut each palette at its first `]` -
+the one inside `chest[facing=north]` - so every later state was air. Fixed; the 2026-10-04 table above is too
+optimistic. On the fixed bench (2,000 clicks, sections cached): before mean 2.21 ms, median 0.84, p99 16, max 33,
+99.5% found; after mean 1.96 ms, median 0.76, p99 13, max 20, 100% found.
 
 ## The 2026-10-02 puzzle round
 

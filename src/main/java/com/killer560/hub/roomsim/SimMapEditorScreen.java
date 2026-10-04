@@ -112,6 +112,10 @@ public class SimMapEditorScreen extends Screen {
      */
     private MapCode.Decoded drawnPlan;
 
+    /** The plan {@link #witherDoors} was worked out for, and the theoretical wither doors on it. */
+    private MapCode.Decoded witherFor;
+    private boolean[] witherDoors = new boolean[0];
+
     private SimFloorGen.Floor floor = SimFloorGen.Floor.F7;
     private int roomsToBlood = 5;
     private int puzzleCount = 3;
@@ -721,6 +725,12 @@ public class SimMapEditorScreen extends Screen {
             return;
         }
         com.killer560.hub.livemap.LiveMapConfig cfg = com.killer560.hub.livemap.LiveMapConfig.getInstance();
+        // Where a real floor would have its wither doors (the sim builds none) - see SimWitherDoors. Worked out
+        // once per plan, not per frame.
+        if (plan != witherFor) {
+            witherFor = plan;
+            witherDoors = SimWitherDoors.compute(plan.cellRoom(), plan.cellDoor(), plan.nameTable());
+        }
         int big = GRID * 2 - 1;
         for (int gz = 0; gz < big; gz++) {
             for (int gx = 0; gx < big; gx++) {
@@ -737,8 +747,9 @@ public class SimMapEditorScreen extends Screen {
                 if (type == com.killer560.hub.livemap.DungeonLayout.DOOR_NONE) {
                     continue;
                 }
-                boolean normal = type == com.killer560.hub.livemap.DungeonLayout.DOOR_NORMAL;
-                int colour = switch (type) {
+                boolean theoretical = idx < witherDoors.length && witherDoors[idx];
+                boolean normal = type == com.killer560.hub.livemap.DungeonLayout.DOOR_NORMAL && !theoretical;
+                int colour = theoretical ? cfg.getColorWitherDoor() : switch (type) {
                     case com.killer560.hub.livemap.DungeonLayout.DOOR_WITHER -> cfg.getColorWitherDoor();
                     case com.killer560.hub.livemap.DungeonLayout.DOOR_BLOOD -> cfg.getColorBlood();
                     case com.killer560.hub.livemap.DungeonLayout.DOOR_ENTRANCE -> cfg.getColorEntrance();
@@ -759,7 +770,9 @@ public class SimMapEditorScreen extends Screen {
                 int x1 = x0 + (betweenX ? along : across);
                 int y1 = y0 + (betweenX ? across : along);
                 g.fill(x0, y0, x1, y1, colour);
-                if (type == com.killer560.hub.livemap.DungeonLayout.DOOR_WITHER) {
+                if (type == com.killer560.hub.livemap.DungeonLayout.DOOR_WITHER || theoretical) {
+                    // A theoretical one (an ordinary door in the build) gets the same amber outline as on the
+                    // live map; the designer never shows a real one, since the sim builds none.
                     g.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
                 } else if (!normal) {
                     g.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFF000000);

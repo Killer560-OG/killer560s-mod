@@ -312,6 +312,10 @@ public class InteractiveMapScreen extends Screen {
             default -> "Door";
         };
         lines.add(Component.literal(name).withColor(0xF0E6DC));
+        if (com.killer560.hub.roomsim.SimWitherDoors.isTheoretical(idx)) {
+            // Sim only - see SimWitherDoors. On Hypixel this is never true.
+            lines.add(Component.literal("A wither door on a real floor").withColor(DIM & 0xFFFFFF));
+        }
         int t = layout.doorType(idx);
         if (t == DungeonLayout.DOOR_WITHER || t == DungeonLayout.DOOR_BLOOD) {
             lines.add(layout.isLocked(idx) ? Component.literal("Locked").withColor(0xFF5555)

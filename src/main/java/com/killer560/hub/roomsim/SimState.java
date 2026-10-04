@@ -64,6 +64,8 @@ public final class SimState {
 
     public static void leave() {
         generatedFloor = false;
+        SimWitherDoors.clear();
+        com.killer560.hub.livemap.autoclear.LevelEtherGrid.dropMirror();
         active = false;
         mapCode = "";
         com.killer560.hub.secrets.DungeonState.setRoomSim(false);

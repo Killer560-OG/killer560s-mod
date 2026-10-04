@@ -278,6 +278,8 @@ public final class SimFloorLayout {
             }
         }
         Floor floor = ensureTrap(best.floor(), pool, best.reached(), rng);
+        floor = fillGaps(floor, pool, wantCells, best.reached(), rng);
+        floor = ensureBlood(floor, pool, best.reached());
         remember(floor);
         return new PinnedFloor(floor, best.reached(), unused);
     }
@@ -383,6 +385,419 @@ public final class SimFloorLayout {
         return floor;
     }
 
+    /**
+     * The last pass: puts a room into every cell the growth left empty, until the floor reaches its cell target.
+     *
+     * <p>killer560 (2026-10-04): "I just generated a map that has one of the spots blank" and "the more maps I
+     * generate the more it seems to not put rooms in." The growth is greedy and can strand a cell - every
+     * neighbour shows it a blank wall - or run out of stubs while a cell is still free. Measured offline with
+     * {@code tools/layoutsim} over his own 106-room library: 15% of F7s had a hole with no recency at all, and
+     * 63% with his saved recency and the 2026-10-04 weights. Three steps, repeated until nothing changes:
+     *
+     * <ol>
+     *   <li><b>Strict.</b> An unused room (least recent first, ordinary before puzzle, never a given room or a
+     *       second trap) at any rotation and position covering the cell, with a doorway meeting an open doorway
+     *       of a room already on the floor - the both-sides rule the growth uses.</li>
+     *   <li><b>Rewire a neighbour.</b> A 1x1 ordinary neighbour nobody pinned is turned, or swapped for an unused
+     *       1x1, so that its doorways still cover every door it already has AND one faces the empty cell - the
+     *       same test {@link #ensureTrap} uses - and step 1 then fills the cell. Every door stays a measured
+     *       doorway in both rooms.</li>
+     *   <li><b>Carve.</b> Only when neither works: a 1x1 whose own doorway faces a neighbour, with the door cut
+     *       through the neighbour's wall (the carve lays its own floor). Never into blood; into the green room
+     *       only when nothing else borders the cell.</li>
+     * </ol>
+     *
+     * <p>One WARN per floor that needed it, and a second if a cell is somehow still empty.
+     */
+    private static Floor fillGaps(Floor floor, List<Candidate> pool, int wantCells, List<String> pinnedNames,
+                                  Random rng) {
+        int target = Math.min(wantCells, GRID * GRID);
+        int before = cellsOf(floor);
+        if (before >= target) {
+            return floor;
+        }
+        Filler f = new Filler(floor, pool, pinnedNames, rng);
+        int strict = 0;
+        int rewired = 0;
+        int carved = 0;
+        while (f.filled < target) {
+            if (f.strictOnce()) {
+                strict++;
+            } else if (f.rewireOnce()) {
+                rewired++;
+            } else if (f.carveOnce()) {
+                carved++;
+            } else {
+                break;
+            }
+        }
+        LOGGER.warn("Sim floor: the growth left {} cell(s) empty; the fill pass put {} room(s) in ({} after "
+                        + "turning or swapping a neighbour, {} through a carved wall){}", target - before,
+                strict + carved, rewired, carved, carved > 0 ? ": " + String.join(", ", f.carvedNotes) : "");
+        if (f.filled < target) {
+            LOGGER.warn("Sim floor: {} of the {} cell(s) this floor should cover are still EMPTY after the fill "
+                    + "pass - no unused room fits them", target - f.filled, target);
+        }
+        return new Floor(f.rooms, f.links, f.open, floor.bloodDepth());
+    }
+
+    /** The mutable floor {@link #fillGaps} works on. */
+    private static final class Filler {
+        final List<Placement> rooms;
+        final List<Link> links;
+        final List<int[]> open = new ArrayList<>();
+        final int[] occupied = new int[GRID * GRID];
+        final Set<String> used = new HashSet<>();
+        final Set<String> pinned = new HashSet<>();
+        final Map<String, Candidate> byName = new HashMap<>();
+        final List<Candidate> order = new ArrayList<>();
+        final List<String> carvedNotes = new ArrayList<>();
+        boolean trapOnFloor;
+        int filled;
+
+        Filler(Floor floor, List<Candidate> pool, List<String> pinnedNames, Random rng) {
+            rooms = new ArrayList<>(floor.rooms());
+            links = new ArrayList<>(floor.links());
+            for (int[] o : floor.openDoors()) {
+                open.add(o.clone());
+            }
+            java.util.Arrays.fill(occupied, -1);
+            for (int i = 0; i < rooms.size(); i++) {
+                Placement p = rooms.get(i);
+                used.add(p.name());
+                mark(p, i);
+            }
+            for (String n : pinnedNames) {
+                pinned.add(n.toLowerCase(Locale.ROOT));
+            }
+            trapOnFloor = hasTrap(floor);
+            filled = cellsOf(floor);
+            // Least recent first, ordinary rooms before puzzles and the trap. The jitter is drawn once and
+            // stored (a comparator must not call the RNG). Recency only ORDERS this list - every room is tried.
+            Map<String, Double> key = new HashMap<>();
+            for (Candidate c : pool) {
+                byName.put(c.name(), c);
+                String t = c.type().toUpperCase(Locale.ROOT);
+                if (t.equals("BLOOD") || t.equals("ENTRANCE") || t.equals("FAIRY")) {
+                    continue;
+                }
+                order.add(c);
+                key.put(c.name(), recency(c.name()) + rng.nextDouble() + (t.equals("PUZZLE") ? 100 : 0)
+                        + (isTrap(c.name(), c.type()) ? 50 : 0));
+            }
+            order.sort(Comparator.comparingDouble(c -> key.get(c.name())));
+        }
+
+        private void mark(Placement p, int idx) {
+            for (int a = 0; a < p.cellsX(); a++) {
+                for (int b = 0; b < p.cellsZ(); b++) {
+                    occupied[(p.originZ() + b) * GRID + p.originX() + a] = idx;
+                }
+            }
+        }
+
+        private boolean available(Candidate c) {
+            return !used.contains(c.name()) && !excluded(c.name(), used)
+                    && !(trapOnFloor && isTrap(c.name(), c.type()));
+        }
+
+        private Placement at(int x, int z) {
+            if (x < 0 || z < 0 || x >= GRID || z >= GRID || occupied[z * GRID + x] < 0) {
+                return null;
+            }
+            return rooms.get(occupied[z * GRID + x]);
+        }
+
+        /** Step 1, for the first empty cell that takes a room. */
+        boolean strictOnce() {
+            for (int cell = 0; cell < GRID * GRID; cell++) {
+                if (occupied[cell] >= 0) {
+                    continue;
+                }
+                int cx = cell % GRID;
+                int cz = cell / GRID;
+                for (Candidate c : order) {
+                    if (!available(c)) {
+                        continue;
+                    }
+                    for (int r = 0; r < 4; r++) {
+                        RoomDoors.Mask m = c.byRotation()[r];
+                        for (int ox = cx - m.tilesX() + 1; ox <= cx; ox++) {
+                            for (int oz = cz - m.tilesZ() + 1; oz <= cz; oz++) {
+                                if (fits(occupied, ox, oz, m.tilesX(), m.tilesZ())
+                                        && meets(m, ox, oz, c.type(), occupied, rooms, open) > 0) {
+                                    commitFill(c, r, ox, oz, -1);
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        /** Step 2: give a 1x1 neighbour of an empty cell a doorway facing it, keeping all its doors. */
+        boolean rewireOnce() {
+            for (int cell = 0; cell < GRID * GRID; cell++) {
+                if (occupied[cell] >= 0) {
+                    continue;
+                }
+                int cx = cell % GRID;
+                int cz = cell / GRID;
+                for (int side = 0; side < 4; side++) {
+                    int nx = cx + RoomDoors.DX[side];
+                    int nz = cz + RoomDoors.DZ[side];
+                    Placement nb = at(nx, nz);
+                    if (nb == null || nb.cellsX() != 1 || nb.cellsZ() != 1
+                            || !"NORMAL".equalsIgnoreCase(nb.type())
+                            || pinned.contains(nb.name().toLowerCase(Locale.ROOT))) {
+                        continue;
+                    }
+                    int idx = occupied[nz * GRID + nx];
+                    Set<Integer> linked = new HashSet<>();
+                    for (Link l : links) {
+                        if (l.aX() == nx && l.aZ() == nz) {
+                            linked.add(sideTowards(l.bX() - l.aX(), l.bZ() - l.aZ()));
+                        } else if (l.bX() == nx && l.bZ() == nz) {
+                            linked.add(sideTowards(l.aX() - l.bX(), l.aZ() - l.bZ()));
+                        }
+                    }
+                    Set<Integer> need = new HashSet<>(linked);
+                    need.add((side + 2) % 4);
+                    // Its own room at another turn first, then any unused 1x1 ordinary room.
+                    List<Candidate> tries = new ArrayList<>();
+                    Candidate self = byName.get(nb.name());
+                    if (self != null) {
+                        tries.add(self);
+                    }
+                    for (Candidate c : order) {
+                        if (c.area(0) == 1 && "NORMAL".equalsIgnoreCase(c.type()) && available(c)) {
+                            tries.add(c);
+                        }
+                    }
+                    for (Candidate c : tries) {
+                        for (int r = 0; r < 4; r++) {
+                            Set<Integer> sides = new HashSet<>();
+                            for (int[] door : RoomDoors.doorCells(c.byRotation()[r], nx, nz)) {
+                                sides.add(door[2]);
+                            }
+                            if (!sides.containsAll(need)) {
+                                continue;
+                            }
+                            open.removeIf(o -> o[0] == nx && o[1] == nz);
+                            for (int s : sides) {
+                                if (!linked.contains(s)) {
+                                    open.add(new int[]{nx, nz, s});
+                                }
+                            }
+                            used.remove(nb.name());
+                            used.add(c.name());
+                            rooms.set(idx, new Placement(c.name(), r * 90, nx, nz, 1, 1, nb.depth(), c.type()));
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        /** Step 3: a 1x1 whose own doorway faces a neighbour, the door carved through that neighbour's wall. */
+        boolean carveOnce() {
+            for (int cell = 0; cell < GRID * GRID; cell++) {
+                if (occupied[cell] >= 0) {
+                    continue;
+                }
+                int cx = cell % GRID;
+                int cz = cell / GRID;
+                for (int tryNo = 0; tryNo < 8; tryNo++) {
+                    int side = tryNo % 4;
+                    Placement nb = at(cx + RoomDoors.DX[side], cz + RoomDoors.DZ[side]);
+                    if (nb == null || "BLOOD".equalsIgnoreCase(nb.type())
+                            || (tryNo < 4 && "ENTRANCE".equalsIgnoreCase(nb.type()))) {
+                        continue;   // blood has exactly one way in; the green room only as a last resort
+                    }
+                    for (Candidate c : order) {
+                        if (c.area(0) != 1 || !available(c) || forbiddenPair(c.type(), nb.type())) {
+                            continue;
+                        }
+                        for (int r = 0; r < 4; r++) {
+                            if (c.byRotation()[r].edges().contains(RoomDoors.edge(side, 0))) {
+                                commitFill(c, r, cx, cz, side);
+                                carvedNotes.add(c.name() + " at " + cx + "," + cz + " through " + nb.name());
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        private void commitFill(Candidate c, int r, int ox, int oz, int forcedSide) {
+            place(c, r, ox, oz, occupied, rooms, links, open, forcedSide);
+            used.add(c.name());
+            trapOnFloor |= isTrap(c.name(), c.type());
+            filled += c.area(r);
+        }
+    }
+
+    /**
+     * The last resort for "every floor has a blood room": the deepest ordinary 1x1 dead end becomes blood.
+     *
+     * <p>When none of the attempts managed blood, {@link #attemptLoop} keeps the best bloodless one - measured
+     * with {@code tools/layoutsim}, 1.4% of F7s with no recency and 2.5% with it, every one otherwise a full
+     * floor. Blood is one doorway and rotates freely, so any 1x1 room with exactly one door on the floor can be
+     * swapped for it at the rotation that faces that door; its other doorways are bricked up. Not next to the
+     * fairy room, and never a room he pinned.
+     */
+    private static Floor ensureBlood(Floor floor, List<Candidate> pool, List<String> pinnedNames) {
+        if (floor.bloodDepth() >= 0) {
+            return floor;
+        }
+        Candidate blood = null;
+        for (Candidate c : pool) {
+            if ("BLOOD".equalsIgnoreCase(c.type())) {
+                blood = c;
+            }
+        }
+        if (blood == null) {
+            return floor;
+        }
+        Set<String> pinnedLower = new HashSet<>();
+        for (String n : pinnedNames) {
+            pinnedLower.add(n.toLowerCase(Locale.ROOT));
+        }
+        Set<Long> fairyCells = new HashSet<>();
+        for (Placement p : floor.rooms()) {
+            if ("FAIRY".equalsIgnoreCase(p.type())) {
+                for (int a = 0; a < p.cellsX(); a++) {
+                    for (int b = 0; b < p.cellsZ(); b++) {
+                        fairyCells.add(cellKey(p.originX() + a, p.originZ() + b));
+                    }
+                }
+            }
+        }
+        int pick = -1;
+        int pickSide = -1;
+        for (int i = 0; i < floor.rooms().size(); i++) {
+            Placement p = floor.rooms().get(i);
+            if (p.cellsX() != 1 || p.cellsZ() != 1 || !"NORMAL".equalsIgnoreCase(p.type()) || p.depth() < 2
+                    || pinnedLower.contains(p.name().toLowerCase(Locale.ROOT))
+                    || touchesFairy(p.originX(), p.originZ(), fairyCells)
+                    || (pick >= 0 && p.depth() <= floor.rooms().get(pick).depth())) {
+                continue;
+            }
+            int linkSide = -1;
+            int count = 0;
+            for (Link l : floor.links()) {
+                if (l.aX() == p.originX() && l.aZ() == p.originZ()) {
+                    linkSide = sideTowards(l.bX() - l.aX(), l.bZ() - l.aZ());
+                    count++;
+                } else if (l.bX() == p.originX() && l.bZ() == p.originZ()) {
+                    linkSide = sideTowards(l.aX() - l.bX(), l.aZ() - l.bZ());
+                    count++;
+                }
+            }
+            if (count == 1) {
+                pick = i;
+                pickSide = linkSide;
+            }
+        }
+        if (pick < 0) {
+            LOGGER.warn("Sim floor: no attempt placed the blood room and no dead end could take it");
+            return floor;
+        }
+        Placement p = floor.rooms().get(pick);
+        for (int r = 0; r < 4; r++) {
+            if (!blood.byRotation()[r].edges().contains(RoomDoors.edge(pickSide, 0))) {
+                continue;
+            }
+            List<Placement> rooms = new ArrayList<>(floor.rooms());
+            rooms.set(pick, new Placement(blood.name(), r * 90, p.originX(), p.originZ(), 1, 1, p.depth(),
+                    blood.type()));
+            List<int[]> open = new ArrayList<>();
+            for (int[] o : floor.openDoors()) {
+                if (o[0] != p.originX() || o[1] != p.originZ()) {
+                    open.add(o);
+                }
+            }
+            LOGGER.info("Sim floor: no attempt placed the blood room, so it replaces {} at cell {},{} (depth {})",
+                    p.name(), p.originX(), p.originZ(), p.depth());
+            return new Floor(rooms, floor.links(), open, p.depth());
+        }
+        return floor;
+    }
+
+    /** How many of this placement's doorways meet an open doorway facing back from a room on the floor. */
+    private static int meets(RoomDoors.Mask m, int ox, int oz, String type, int[] occupied,
+                             List<Placement> rooms, List<int[]> open) {
+        int n = 0;
+        for (int[] door : RoomDoors.doorCells(m, ox, oz)) {
+            int nx = door[0] + RoomDoors.DX[door[2]];
+            int nz = door[1] + RoomDoors.DZ[door[2]];
+            if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID || occupied[nz * GRID + nx] < 0) {
+                continue;
+            }
+            Placement nb = rooms.get(occupied[nz * GRID + nx]);
+            if ("BLOOD".equalsIgnoreCase(nb.type()) || forbiddenPair(type, nb.type())) {
+                continue;
+            }
+            if (openIndex(open, nx, nz, (door[2] + 2) % 4) >= 0) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private static int openIndex(List<int[]> open, int x, int z, int side) {
+        for (int i = 0; i < open.size(); i++) {
+            int[] o = open.get(i);
+            if (o[0] == x && o[1] == z && o[2] == side) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Commits one fill-pass room: every doorway that meets an open doorway facing back becomes a link (and both
+     * stop being open), the rest join the open list to be bricked up or met later. {@code forcedSide} >= 0 also
+     * links that side of a 1x1 to its neighbour though the neighbour has no doorway there.
+     */
+    private static void place(Candidate c, int r, int ox, int oz, int[] occupied, List<Placement> rooms,
+                              List<Link> links, List<int[]> open, int forcedSide) {
+        RoomDoors.Mask m = c.byRotation()[r];
+        int idx = rooms.size();
+        int depth = Integer.MAX_VALUE;
+        List<int[]> mine = new ArrayList<>();
+        for (int[] door : RoomDoors.doorCells(m, ox, oz)) {
+            int nx = door[0] + RoomDoors.DX[door[2]];
+            int nz = door[1] + RoomDoors.DZ[door[2]];
+            boolean inGrid = nx >= 0 && nz >= 0 && nx < GRID && nz < GRID;
+            Placement nb = inGrid && occupied[nz * GRID + nx] >= 0 ? rooms.get(occupied[nz * GRID + nx]) : null;
+            int back = nb == null || "BLOOD".equalsIgnoreCase(nb.type()) || forbiddenPair(c.type(), nb.type())
+                    ? -1 : openIndex(open, nx, nz, (door[2] + 2) % 4);
+            if (back >= 0 || (door[2] == forcedSide && nb != null)) {
+                if (back >= 0) {
+                    open.remove(back);
+                }
+                links.add(new Link(nx, nz, door[0], door[1]));
+                depth = Math.min(depth, nb.depth() + 1);
+            } else {
+                mine.add(new int[]{door[0], door[1], door[2]});
+            }
+        }
+        open.addAll(mine);
+        for (int a = 0; a < m.tilesX(); a++) {
+            for (int b = 0; b < m.tilesZ(); b++) {
+                occupied[(oz + b) * GRID + ox + a] = idx;
+            }
+        }
+        rooms.add(new Placement(c.name(), r * 90, ox, oz, m.tilesX(), m.tilesZ(),
+                depth == Integer.MAX_VALUE ? 1 : depth, c.type()));
+    }
+
     /** The {@link RoomDoors} side index pointing one cell along (dx, dz). */
     private static int sideTowards(int dx, int dz) {
         for (int s = 0; s < 4; s++) {
@@ -416,9 +831,25 @@ public final class SimFloorLayout {
      * many-doored big rooms still led the shortlist, and {@code choose} stops at the first placement that
      * scores "good enough", so the head of that list is what goes on the floor. Now the recency is persisted
      * by {@code SimRecencyStore}, decays more slowly (0.6, so a room on every floor settles at 2.5 rather
-     * than 2), and weighs more in both the ordering and the placement score, with a wider die.
+     * than 2), and weighs more in the ordering, with a wider die. (It was in the placement score too, which
+     * left cells empty - see {@link #RECENCY_ORDER_WEIGHT}.)
      */
     private static final double RECENCY_DECAY = 0.6;
+
+    /**
+     * How much a room's recency pushes it down {@link #choose}'s shortlist. ORDER ONLY - it is no longer in the
+     * placement score, and the shortlist cap no longer ends a search that has found nothing.
+     *
+     * <p>killer560 (2026-10-04, same day as the change above): "the more maps I generate the more it seems to
+     * not put rooms in." Measured with {@code tools/layoutsim} on his 106-room library starting from his saved
+     * recency file, 600 F7s each: the 3.0 ordering weight plus a 2.0 score penalty left 63% of floors with an
+     * empty cell (15% with no recency at all) - the score penalty is as big as two stranded cells, so a fresh
+     * room that walled a cell in beat a recent one that fitted. With the penalty gone, weight against holes the
+     * growth leaves (all of which {@link #fillGaps} now fills) and against variety (rooms a floor shares with the
+     * one before it; about 3.5 is pure chance at 21 of 106): 3.0 -> 42% / 3.5, 2.0 -> 35% / 4.3,
+     * 1.5 -> 29% / 4.9, 1.0 -> 26% / 5.5, none -> 19% / 6.8.
+     */
+    private static final double RECENCY_ORDER_WEIGHT = 1.5;
 
     /** The recency map, for saving across restarts. A copy. */
     public static Map<String, Double> recencySnapshot() {
@@ -1313,7 +1744,7 @@ public final class SimFloorLayout {
         for (Candidate c : shortlist) {
             // A wider die and a cost for having been on recent floors - see RECENT.
             key.put(c.name(), c.area(0) * areaWeight - c.doorCount() * 0.9 + rng.nextDouble() * 4.0
-                    + recency(c.name()) * 3.0);
+                    + recency(c.name()) * RECENCY_ORDER_WEIGHT);
         }
         shortlist.sort(Comparator.comparingDouble(c -> key.get(c.name())));
 
@@ -1321,7 +1752,10 @@ public final class SimFloorLayout {
         double bestScore = Double.NEGATIVE_INFINITY;
         int examined = 0;
         for (Candidate c : shortlist) {
-            if (examined++ > 60) {
+            // The cap only ends a search that has FOUND something. Recency pushes the fresh rooms to the front,
+            // so the ones that fit a tight spot can sit past the first sixty; stopping there left the stub
+            // unfilled.
+            if (examined++ > 60 && best != null) {
                 break;
             }
             for (int rotation = 0; rotation < 4; rotation++) {
@@ -1354,8 +1788,12 @@ public final class SimFloorLayout {
                     if (!fits(occupied, originX, originZ, mask.tilesX(), mask.tilesZ())) {
                         continue;
                     }
+                    // NO recency in here. It used to subtract recency * 2.0, which is as much as two stranded
+                    // cells cost, so a fresh room that walled a cell in beat a recent one that fitted cleanly -
+                    // that is how "the more maps I generate the more it seems to not put rooms in" happened.
+                    // Recency orders the shortlist above and nothing else; ties go to the earlier, fresher room.
                     double score = score(mask, originX, originZ, tx, tz, need, occupied, stubs,
-                            cellsLeft, preferBig, dormant, rng) - recency(c.name()) * 2.0;
+                            cellsLeft, preferBig, dormant, rng);
                     if (score > bestScore) {
                         bestScore = score;
                         best = new Best(c, rotation * 90, originX, originZ);

@@ -166,6 +166,13 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
     }
 
     private byte[] load(int sx, int sy, int sz, long key) {
+        if (mirrorOn) {
+            long col = columnKey(sx, sz);
+            if (MIRROR_COLUMNS.contains(col) && !FRESH_COLUMNS.contains(col)) {
+                byte[] m = MIRROR.get(key);
+                return m != null ? m : AIR_SECTION;
+            }
+        }
         LevelChunk chunk = level.getChunk(sx, sz);
         if (chunk == null) {
             return AIR_SECTION;
@@ -184,7 +191,7 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
         if (e != null && e.section() == section && now - e.madeAtMs() < MAX_AGE_MS) {
             return e.flags();
         }
-        byte[] out = fill(section, sx << 4, sy << 4, sz << 4);
+        byte[] out = fill(level, section, sx << 4, sy << 4, sz << 4);
         filled++;
         if (CACHE.size() > MAX_ENTRIES) {
             CACHE.clear();
@@ -193,7 +200,7 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
         return out;
     }
 
-    private byte[] fill(LevelChunkSection section, int bx, int by, int bz) {
+    private static byte[] fill(Level level, LevelChunkSection section, int bx, int by, int bz) {
         byte[] out = new byte[4096];
         BlockState lastState = null;
         int lastFlags = 0;
@@ -204,7 +211,7 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
                     BlockState s = section.getBlockState(lx, ly, lz);
                     if (s != lastState) {
                         lastState = s;
-                        lastFlags = flagsFor(s, mut.set(bx + lx, by + ly, bz + lz));
+                        lastFlags = flagsFor(level, s, mut.set(bx + lx, by + ly, bz + lz));
                     }
                     out[(ly << 8) | (lz << 4) | lx] = (byte) lastFlags;
                 }
@@ -220,7 +227,7 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
      * first position the state is met at, which is exact for every block whose shape does not depend on where it
      * stands (all but a handful of plants nobody lands on).
      */
-    private int flagsFor(BlockState state, BlockPos pos) {
+    private static int flagsFor(Level level, BlockState state, BlockPos pos) {
         int id = Block.getId(state);
         int[] table = stateFlags;
         if (table == null || id >= table.length) {
@@ -271,6 +278,10 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
     /** A block changed: forget its section. Called on the client thread after vanilla has applied it. */
     public static void invalidate(BlockPos pos) {
         CACHE.remove(sectionKey(pos.getX() >> 4, pos.getY() >> 4, pos.getZ() >> 4));
+        if (mirrorOn) {
+            // The server only sends block changes for a chunk it has sent him, so his copy is current.
+            FRESH_COLUMNS.add(columnKey(pos.getX() >> 4, pos.getZ() >> 4));
+        }
     }
 
     /** A batch of block changes in one section. Kept out of the mixin so the mixin holds no lambda. */
@@ -283,5 +294,81 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
         long sx = chunkX & 0x3FFFFF;
         long sz = chunkZ & 0x3FFFFF;
         CACHE.keySet().removeIf(k -> ((k >>> 42) & 0x3FFFFF) == sx && ((k >>> 20) & 0x3FFFFF) == sz);
+        if (mirrorOn) {
+            FRESH_COLUMNS.add(columnKey(chunkX, chunkZ));
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------- sim mirror
+
+    /**
+     * THE SIM ONLY: the floor as the integrated server holds it, for the chunks his client has not been sent
+     * since the floor was built.
+     *
+     * <p>killer560's log (2026-10-04): "Room hop 2 of 3 failed: no warp chain from ..." for doors 30 blocks away,
+     * right after a floor was built, and fine again once he had teleported over there. The sim writes a floor
+     * without telling clients (SimBuildQueue: chunks are streamed when he is put back), and with Keep Chunks
+     * Loaded / the Chunk Cache his client keeps every chunk it ever had - so every chunk he has not been sent
+     * since the rebuild still holds the PREVIOUS floor, at the previous floor's altitude, and the search was
+     * planning through walls that are not there and doorways that are. A chunk he was never sent at all reads
+     * as air, which fails the same way.
+     *
+     * <p>{@link #mirror} is called on the server thread when a sim build has finished; a column then reads from
+     * this snapshot until his client receives that chunk (or a block change in it), after which the client's own
+     * copy - kept current by the server from then on - is used again. {@link #dropMirror} on leaving the sim.
+     * Nothing outside the sim ever calls {@link #mirror}, so on Hypixel {@code mirrorOn} is false and the grid
+     * reads exactly what it always read. Not covered: a change the server makes in a column he has not been sent
+     * since the build (out of his view) is not in the snapshot.
+     */
+    private static final ConcurrentHashMap<Long, byte[]> MIRROR = new ConcurrentHashMap<>();
+    private static final java.util.Set<Long> MIRROR_COLUMNS = ConcurrentHashMap.newKeySet();
+    private static final java.util.Set<Long> FRESH_COLUMNS = ConcurrentHashMap.newKeySet();
+    private static volatile boolean mirrorOn;
+
+    private static long columnKey(int sx, int sz) {
+        return ((long) sx << 32) ^ (sz & 0xFFFFFFFFL);
+    }
+
+    /**
+     * Snapshots every chunk column touching the block box from the server's own level. SERVER THREAD ONLY
+     * ({@code getChunkNow} answers null anywhere else). Returns how many non-empty sections it copied.
+     */
+    public static int mirror(net.minecraft.server.level.ServerLevel serverLevel,
+                             int minX, int minZ, int maxX, int maxZ) {
+        MIRROR.clear();
+        MIRROR_COLUMNS.clear();
+        FRESH_COLUMNS.clear();
+        CACHE.clear();
+        int copied = 0;
+        for (int cx = minX >> 4; cx <= maxX >> 4; cx++) {
+            for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++) {
+                LevelChunk chunk = serverLevel.getChunkSource().getChunkNow(cx, cz);
+                if (chunk == null) {
+                    continue;   // not loaded on the server either: leave this column to the client
+                }
+                LevelChunkSection[] sections = chunk.getSections();
+                for (int i = 0; i < sections.length; i++) {
+                    LevelChunkSection section = sections[i];
+                    if (section == null || section.hasOnlyAir()) {
+                        continue;
+                    }
+                    int sy = chunk.getSectionYFromSectionIndex(i);
+                    MIRROR.put(sectionKey(cx, sy, cz), fill(serverLevel, section, cx << 4, sy << 4, cz << 4));
+                    copied++;
+                }
+                MIRROR_COLUMNS.add(columnKey(cx, cz));
+            }
+        }
+        mirrorOn = true;
+        return copied;
+    }
+
+    /** Leaving the sim: back to reading only the client's world. */
+    public static void dropMirror() {
+        mirrorOn = false;
+        MIRROR.clear();
+        MIRROR_COLUMNS.clear();
+        FRESH_COLUMNS.clear();
+        CACHE.clear();
     }
 }
