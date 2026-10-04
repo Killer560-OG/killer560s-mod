@@ -291,3 +291,7 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   Hypixel's dungeon world starts at y 0, so the Room Recorder's load check, asked at the full-height band's -64,
   rejected every column there and captured nothing on Hypixel from 2026-09-29 to 2026-10-04 while Ashfall (min
   -64) kept working. Ask load questions at a y clamped into `level.getMinY()..getMaxY()`.
+- The room database (`RoomDatabase`) only loads when something calls `ensureLoading()` - the live map does so
+  only inside a real dungeon. Anything that names rooms or votes on rotation outside one (Ashfall solo rooms, the
+  recorder, `rescan broken`) must start the load itself and must not judge rooms until `isReady()`; on
+  2026-10-04 solo rooms read 0 columns and good captures were emptied because it never loaded.
