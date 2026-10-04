@@ -545,7 +545,12 @@ public final class SimBlazePuzzle {
         spawnedIds = List.of();
         nextRequired = 0;
         complete = false;
-        if (ids.isEmpty()) {
+        // The labels to drop are taken NOW, not when the queued task runs: bindAt calls this on the server
+        // thread and then attaches the new chain's labels before the task gets its turn, and dropping "whatever
+        // is in the map by then" would take the new labels with the old.
+        List<UUID> tags = List.copyOf(LABEL_STANDS.values());
+        LABEL_STANDS.clear();
+        if (ids.isEmpty() && tags.isEmpty()) {
             return;
         }
         server.execute(() -> {
@@ -558,7 +563,12 @@ public final class SimBlazePuzzle {
             }
             // And their labels, which are separate entities - a stand left standing keeps the solver counting a
             // blaze that is not there any more.
-            dropAllLabels(level);
+            for (UUID tagId : tags) {
+                Entity tag = level.getEntity(tagId);
+                if (tag != null) {
+                    tag.discard();
+                }
+            }
         });
     }
 
@@ -620,6 +630,15 @@ public final class SimBlazePuzzle {
                 entity.discard();
             }
         }
+        // AND THEIR LABELS. Only an in-order kill ever dropped a label, so a fail left every remaining stand -
+        // the out-of-order victim's included - floating where its blaze had been, and the rebuild added ten more.
+        // The solver reads stands, not blazes, so Auto Blaze went on shooting at a "10/10" that was no longer
+        // there ("auto higher lower is really bugging out", 2026-10-04).
+        dropAllLabels(level);
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                "Sim blaze puzzle: out-of-order kill in {} - rebuilding the chain", boundRoom);
+        client.execute(() -> com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.bad(
+                "Blaze killed out of order - new chain.")));
         spawnedIds = List.of();
         nextRequired = 0;
         complete = false;

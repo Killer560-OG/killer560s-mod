@@ -81,6 +81,10 @@ final class AutoBlaze {
     private static int currentSpot = 0;
     private static boolean wasInRoom = false;
     private static int lastBlazeCount = 0;
+    /** What the INFO log last said, so a line is written when something changes rather than every tick. */
+    private static Entity loggedTarget = null;
+    private static Entity loggedNoShot = null;
+    private static boolean loggedNotShortbow = false;
 
     private enum SecretStage { NONE, FIND, WALK, AURA, DONE }
 
@@ -178,17 +182,33 @@ final class AutoBlaze {
 
         Entity blaze = blazes.get(0);
         List<BlazeHitbox> hitboxes = hitboxes(blazes, blaze);
+        if (blaze != loggedTarget) {
+            loggedTarget = blaze;
+            LOGGER.info("[AutoPuzzles] Blaze: target 1 of {} is '{}', stand at {}, aiming at y {}", blazes.size(),
+                    nameOf(blaze), fmt(blaze.position()), String.format("%.2f", hitboxes.get(0).aabb().getCenter().y));
+        }
         boolean terminator = AutoPuzzleUtil.hasTerminator(player);
         float[] hitDir = canHit(client, player, player.getEyePosition(), hitboxes, terminator);
         if (hitDir == null) {
+            if (blaze != loggedNoShot) {
+                loggedNoShot = blaze;
+                LOGGER.info("[AutoPuzzles] Blaze: no clean shot at '{}' from {} (terminator {}) - {}", nameOf(blaze),
+                        fmt(player.position()), terminator, reposition ? "repositioning" : "reposition is off, waiting");
+            }
             if (reposition) {
                 cyclePosition(client, player, blazes, cr, higher);
             }
             return;
         }
         if (!AutoPuzzleUtil.isShortbow(player.getMainHandItem())) {
+            if (!loggedNotShortbow) {
+                loggedNotShortbow = true;
+                LOGGER.info("[AutoPuzzles] Blaze: holding '{}', which is not a shortbow - not shooting",
+                        player.getMainHandItem().getHoverName().getString());
+            }
             return;
         }
+        loggedNotShortbow = false;
         if (now - lastShotTime < cfg.getShootCooldownMs()) {
             return;
         }
@@ -201,6 +221,19 @@ final class AutoBlaze {
         lastShotTime = now;
         waitingForUpdate = true;
         currentTarget = blaze;
+        LOGGER.info("[AutoPuzzles] Blaze: shot at '{}' from {}, yaw {} pitch {}, {} blocks", nameOf(blaze),
+                fmt(eye), String.format("%.1f", dir[0]), String.format("%.1f", dir[1]),
+                String.format("%.1f", eye.distanceTo(blaze.position())));
+    }
+
+    private static String nameOf(Entity e) {
+        String raw = e.getName().getString();
+        String plain = net.minecraft.ChatFormatting.stripFormatting(raw);
+        return plain != null ? plain : raw;
+    }
+
+    private static String fmt(Vec3 v) {
+        return String.format("%.1f,%.1f,%.1f", v.x, v.y, v.z);
     }
 
     private static List<BlazeHitbox> hitboxes(List<Entity> blazes, Entity target) {
@@ -485,6 +518,9 @@ final class AutoBlaze {
         currentTarget = null;
         currentSpot = 0;
         lastBlazeCount = 0;
+        loggedTarget = null;
+        loggedNoShot = null;
+        loggedNotShortbow = false;
         secretStage = SecretStage.NONE;
         secretReal = null;
         secretIsChest = false;

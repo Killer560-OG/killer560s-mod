@@ -184,6 +184,9 @@ final class AutoTicTacToe {
             return;
         }
         totalPlaced++;
+        LOGGER.info("[AutoPuzzles] TicTacToe: clicked {} ({}) holding {}, attempt {}/{}", best,
+                client.level.getBlockState(best),
+                player.getMainHandItem().getHoverName().getString(), attempts, MAX_ATTEMPTS);
         if (totalPlaced == 1 && cfg.isTicTacToeAuraChestEnabled()) {
             chestStage = ChestStage.WALK_TO_CHEST;
             chestLegStartMs = now;
@@ -256,6 +259,16 @@ final class AutoTicTacToe {
             return;
         }
         if (ClearExecutor.isBusy()) {
+            return;
+        }
+        // The chest leg is over once the chest is in aura reach. at() above only matches when standing ON the
+        // target block, which for a chest means on its lid, so a walk that stopped beside it waited out the full
+        // 15 s timeout before the aura - "walk to the chest timed out" in his 2026-10-04 sim log.
+        if (nextStage == ChestStage.AURA
+                && com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target) <= AURA_REACH_SQ) {
+            chestMapOffWarned = false;
+            chestStage = nextStage;
+            chestLegStartMs = System.currentTimeMillis();
             return;
         }
         if (System.currentTimeMillis() - chestLegStartMs > WALK_TIMEOUT_MS) {

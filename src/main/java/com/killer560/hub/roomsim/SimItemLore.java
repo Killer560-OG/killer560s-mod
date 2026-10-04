@@ -103,7 +103,7 @@ public final class SimItemLore {
             // the crosshair on the middle blaze is precisely what that looks like. AutoReposition's own
             // swap-to-a-bow (swapTo(isShortbow)) was failing for the same reason.
             "§6Shortbow: Instantly shoots!",
-            "§6Ability: Salvation",
+            "§6Ability: Salvation §e§lLEFT CLICK",
             "§7Shoots §a3 §7arrows at once.",
             "",
             "§6§lLEGENDARY BOW",

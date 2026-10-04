@@ -1546,3 +1546,35 @@ Eight reports, one fix each. Where a rule came from somewhere other than the cod
   moves them if the live map's transform disagrees with the anchor. **Lesson: never send a chat line that
   refers to an entity in the same tick as queuing that entity's spawn** - the solver reads the line first.
 
+
+## The 2026-10-04 auto puzzle round (Map Logger log, 14:03-14:12)
+
+- **Tic Tac Toe: an ability item ate the button press.** `SimAbilities`' `UseBlockCallback` consumed every
+  right-click on a block while an AOTV/AOTE or wither blade was in hand, so Auto Tic Tac Toe's press (it never
+  swaps item) became an Instant Transmission or Wither Impact and the board never changed. The log has no
+  game result at all in that room, and an "no etherwarp target there" earlier shows the AOTV in hand. Vanilla
+  and Hypixel let a button, lever or chest win unless you sneak; the sim now does the same. Not reproduced in
+  game - the new `TicTacToe: clicked ... holding ...` INFO line will say what was in hand. Separately, the
+  chest side trip only "arrived" standing on the chest's lid, so it always waited out its 15 s timeout; it now
+  ends once the chest is in aura reach (Hypixel too).
+- **Blaze: the sim's Terminator cast Salvation on a right click.** Salvation is its left-click ability; the
+  sim fired it on whichever click came after three hits, so Auto Blaze (right-click only) sent a five-pierce
+  beam up the chain every fourth shot - "Salvation - 2 hit" in the log is two blazes in one beam, an
+  out-of-order kill. Right click now always shoots. The side arrows went from 8 to 5 degrees, the angle Auto
+  Blaze's safety check assumes (QUOI's number, not measured on Hypixel here). And a fail never removed the
+  label stands - only an in-order kill did - so after one fail the solver held ghost "10/10" stands and the auto
+  shot at empty air; a fail now drops every label, and `despawnCurrent` snapshots the labels it removes so a
+  bind on the server thread cannot lose the new chain's. The aim offsets were left alone: Odin's
+  `centre - 1` from a marker stand at `bbHeight + 0.1` is the blaze's middle. `[AutoPuzzles] Blaze:` INFO lines
+  now log each target, each shot and a missing clean shot.
+- **Teleport Maze: the centre has a chest and a way out.** The capture holds no chest and the database lists
+  no secret, so the sim places one at relative `(15,69,17)` in the centre chamber (interior x 12..18, z 14..20,
+  walls at 11/19 and 13/21). A click on it from outside that box is refused with FAIL (no packet, not counted -
+  registered before `SimMimic`). The end pad `(15,69,14)` used to do nothing; stepping off it and back on now
+  sends him to the Interactive Map's entry spot for the room (`AutoClearUtils` `(15,68,-2)`, standing on it),
+  falling back a block or three into the doorway if that is not standable in the build. The decoded capture
+  confirms the centre is walled from the start pad at z 13, so Auto Teleport Maze's Hypixel finish (walk to the
+  start pad) cannot work in here; in the sim only, it steps off the end pad and back on instead.
+- **Auto Teleport Maze holds the free camera** (`ViewFreeze`) every tick from the first maze teleport until it
+  stops or finishes, starting from the view of the tick before that teleport. `rotateCamera`'s per-hop lease was
+  400 ms against walks of up to 3 s.

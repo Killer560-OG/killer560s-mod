@@ -293,6 +293,7 @@ public final class SimTeleportMazePuzzle {
             BOUND_INDEX.put(pads[i].above().immutable(), i);
         }
         boundPads = pads;
+        bindCentre(level, anchor);
         drawLinks();
         lockedPad = -1;
         settleTicks = 0;
@@ -535,6 +536,116 @@ public final class SimTeleportMazePuzzle {
         return false;
     }
 
+    // ---------------------------------------------------------------- the centre: its chest and its way out
+
+    /** Database-relative interior of the centre chamber (walls at x 11/19 and z 13/21, decoded from
+     *  Teleport_Maze.json), from its floor at 68 to four blocks of air over it. */
+    private static final int[] CENTRE_REL_MIN = {12, 68, 14};
+    private static final int[] CENTRE_REL_MAX = {18, 73, 20};
+    /** The reward chest, on the centre chamber's floor three blocks in from the end pad. The capture holds no
+     *  chest anywhere and the room database lists no secret for this room, so the sim places one. */
+    private static final int[] REWARD_CHEST_REL = {15, 69, 17};
+
+    /** Feet block the centre's pad sends him back to; null until bound. */
+    private static volatile BlockPos returnSpot = null;
+    private static volatile BlockPos rewardChest = null;
+    private static volatile BlockPos centreMin = null;
+    private static volatile BlockPos centreMax = null;
+    private static volatile long lastRefusalMs = 0L;
+
+    /** Where the centre's pad sends him, for Auto Teleport Maze's finish; null when no maze is bound. */
+    public static BlockPos returnSpot() {
+        return returnSpot;
+    }
+
+    /**
+     * The block he is put on when the Interactive Map takes him into this room: {@code AutoClearUtils}'
+     * "Teleport Maze" spot, relative {@code (15, 68, -2)}, which is the block etherwarped ONTO - so he stands one
+     * above it. Read from that table rather than copied, so the two cannot drift. If it cannot be stood on in this
+     * build (a single loaded room has nothing past its own doorway), the doorway floor a step further in is used,
+     * and the start pad as the last resort.
+     */
+    private static BlockPos findReturnSpot(ServerLevel level, com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor) {
+        int[] entry = com.killer560.hub.livemap.autoclear.AutoClearUtils.roomOverride("Teleport Maze");
+        int ex = entry == null ? 15 : entry[0];
+        int ey = entry == null ? 68 : entry[1];
+        int ez = entry == null ? -2 : entry[2];
+        int[] feetOffsets = {1, 0, 2, -1, 3};
+        for (int dz = 0; dz <= 3; dz++) {
+            for (int dy : feetOffsets) {
+                BlockPos feet = anchor.world(ex, ey + dy, ez + dz);
+                if (!level.getBlockState(feet.below()).isAir()
+                        && level.getBlockState(feet).isAir()
+                        && level.getBlockState(feet.above()).isAir()) {
+                    return feet.immutable();
+                }
+            }
+        }
+        return anchor.world(REAL_PADS[START]).above().immutable();
+    }
+
+    /** Server thread, from {@link #bindAt}: the way out, the chamber's bounds and the reward chest. */
+    private static void bindCentre(ServerLevel level, com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor) {
+        returnSpot = findReturnSpot(level, anchor);
+        BlockPos a = anchor.world(CENTRE_REL_MIN);
+        BlockPos b = anchor.world(CENTRE_REL_MAX);
+        centreMin = new BlockPos(Math.min(a.getX(), b.getX()), Math.min(a.getY(), b.getY()),
+                Math.min(a.getZ(), b.getZ()));
+        centreMax = new BlockPos(Math.max(a.getX(), b.getX()), Math.max(a.getY(), b.getY()),
+                Math.max(a.getZ(), b.getZ()));
+        BlockPos chest = anchor.world(REWARD_CHEST_REL).immutable();
+        if (level.getBlockState(chest).isAir() || level.getBlockState(chest).is(Blocks.CHEST)) {
+            level.setBlockAndUpdate(chest, Blocks.CHEST.defaultBlockState());
+            rewardChest = chest;
+        } else {
+            rewardChest = null;
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
+                    "Sim teleport maze: no air for the reward chest at {} - holds {}", chest,
+                    level.getBlockState(chest));
+        }
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                "Sim teleport maze: reward chest at {}, the centre's pad returns to {}", rewardChest, returnSpot);
+    }
+
+    private static boolean insideCentre(BlockPos feet) {
+        BlockPos lo = centreMin;
+        BlockPos hi = centreMax;
+        return lo != null && hi != null
+                && feet.getX() >= lo.getX() && feet.getX() <= hi.getX()
+                && feet.getY() >= lo.getY() && feet.getY() <= hi.getY()
+                && feet.getZ() >= lo.getZ() && feet.getZ() <= hi.getZ();
+    }
+
+    /**
+     * Refuses the reward chest to anyone not standing in the centre chamber.
+     *
+     * <p>killer560 (2026-10-04): "Make sure I cannot collect the chest unless I am inside the middle room in tp
+     * maze." The chamber's walls are iron bars above the floor, and a click reaches through bars, so the chest
+     * could be opened from the next chamber without crossing the maze. FAIL rather than SUCCESS: FAIL sends no
+     * packet at all (see {@code AutoRoutesEditInput}), so the chest neither opens nor counts. Both sides check,
+     * each against its own copy of the player. Registered ahead of {@code SimMimic}, which counts any chest click
+     * as a secret, so a refused click is not counted either.
+     */
+    public static void registerChestGuard() {
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+            BlockPos chest = rewardChest;
+            if (chest == null || !SimState.isActive() || !chest.equals(hit.getBlockPos())) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            if (insideCentre(player.blockPosition())) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            if (level.isClientSide()) {
+                long now = System.currentTimeMillis();
+                if (now - lastRefusalMs > 1000L) {
+                    lastRefusalMs = now;
+                    ModChat.send("Sim", ModChat.bad("The maze's chest opens only from inside the middle room."));
+                }
+            }
+            return net.minecraft.world.InteractionResult.FAIL;
+        });
+    }
+
     /** Pad ticking for the bound room. */
     private static void tickBound(Minecraft client) {
         if (settleTicks > 0) {
@@ -546,7 +657,19 @@ public final class SimTeleportMazePuzzle {
             lockedPad = -1;   // stepped off: the pad he landed on works again
             return;
         }
-        if (pad == lockedPad || pad == END || link.length == 0) {
+        if (pad == lockedPad || link.length == 0) {
+            return;
+        }
+        if (pad == END) {
+            // THE CENTRE'S PAD IS THE WAY OUT. killer560 (2026-10-04): "the teleporter at the middle by the chest
+            // should take me back right to the same block I would tp to into the room". Landing on it from the
+            // exit pad locks it like any other landing, so it fires once he has stepped off it and back on.
+            BlockPos back = returnSpot;
+            if (back != null) {
+                lockedPad = END;
+                settleTicks = 5;
+                teleport(client, back.getX() + 0.5, back.getY(), back.getZ() + 0.5);
+            }
             return;
         }
         int dest = link[pad];
@@ -600,6 +723,10 @@ public final class SimTeleportMazePuzzle {
     }
 
     private static void clearBound() {
+        returnSpot = null;
+        rewardChest = null;
+        centreMin = null;
+        centreMax = null;
         boundPads = new BlockPos[0];
         link = new int[0];
         exitPad = -1;
@@ -640,11 +767,16 @@ public final class SimTeleportMazePuzzle {
     }
 
     private static void tick(Minecraft client) {
-        if (!SimState.canAct(client) || !built || complete) {
+        if (!SimState.canAct(client) || !built) {
             return;
         }
         if (boundAnchor != null) {
+            // Not stopped by completion: the centre's pad is the way back out, and it is only ever stood on
+            // after the maze is crossed.
             tickBound(client);
+            return;
+        }
+        if (complete) {
             return;
         }
         BlockPos feet = client.player.blockPosition();
