@@ -277,7 +277,8 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   the route arming, sneaking and timing out in CONFIRM. **A raw use packet does nothing in the sim** - `SimAbilities` acts
   on the client's `gameMode.useItem` (UseItemCallback), so obvious mode's `ServerboundUseItemPacket` teleported nobody.
   `ClearExecutor` had been fixed for this on 2026-10-01; `RouteExecutor` now sends sim etherwarps through
-  `SimAbilities.etherwarpAlong` too. Any new sender of a use/attack PACKET needs the same sim branch.
+  `SimAbilities.etherwarpAlong` too, and BOOM/BREAKER (raw `START_DESTROY_BLOCK`) through `SimItems.superboomAt` /
+  `dungeonBreakAt`. Any new sender of a use/attack PACKET needs the same `SimState.isActive()` branch.
 - **Moving a setting to a different sub-tab silently orphans its scoped tooltip.** `SettingTooltips.describe`
   looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
   entry stops being found the moment that button is built by a different tab - no error, the hover text just

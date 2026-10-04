@@ -48,6 +48,8 @@ public abstract class LiveMapPacketListenerMixin {
     private void killer560smod$liveMapPositionSync(ClientboundPlayerPositionPacket packet, CallbackInfo ci) {
         try {
             ClearExecutor.onServerPositionPacket();
+            // Auto Routes' landing check: a teleport really happened (see RouteExecutor#landed).
+            com.killer560.hub.autoroutes.RouteExecutor.onServerPositionPacket();
         } catch (RuntimeException e) {
             killer560smod$liveMap$hookThrew("movePlayer", e);
         }

@@ -537,10 +537,25 @@ public final class SimItems {
             fail(client, "not looking at a block");
             return false;
         }
-        BlockPos center = hit.getBlockPos().immutable();
         // Which way he is looking at it. getDirection() points OUT of the block, towards him, so the
         // chamber is behind it and the wall runs across it.
-        final net.minecraft.core.Direction face = hit.getDirection();
+        return superboomAt(client, hit.getBlockPos().immutable(), hit.getDirection());
+    }
+
+    /**
+     * A Superboom detonated on {@code target}, hit on {@code face}, without reading the camera - the entry point
+     * for automation that aims by a recorded look rather than the crosshair (Auto Routes' BOOM node). On Hypixel
+     * that node sends raw START/ABORT_DESTROY_BLOCK packets and the server does the rest; the sim has no
+     * server-side Superboom, only the client {@code AttackBlockCallback} above, so those packets did nothing in
+     * here. The same blast as a hand-thrown one, charge included.
+     *
+     * @return false when this cannot act (not the sim, no server)
+     */
+    public static boolean superboomAt(Minecraft client, BlockPos target, net.minecraft.core.Direction face) {
+        if (!SimState.canAct(client) || target == null || face == null) {
+            return false;
+        }
+        BlockPos center = target.immutable();
         var server = client.getSingleplayerServer();
         if (server == null) {
             return false;
@@ -888,7 +903,28 @@ public final class SimItems {
             fail(client, "not looking at a block");
             return false;
         }
-        BlockPos target = hit.getBlockPos().immutable();
+        return dungeonBreakAt(client, hit.getBlockPos().immutable());
+    }
+
+    /**
+     * A Dungeonbreaker break of {@code target}, without reading the camera - the entry point for Auto Routes'
+     * breaker node, which on Hypixel sends one raw START_DESTROY_BLOCK per block and never aims (block breaking is
+     * range-checked, not look-checked). The sim only broke blocks from the client {@code AttackBlockCallback}, so
+     * those packets did nothing in here. Every rule a hand break follows applies: locked before a generated floor
+     * starts, refused in puzzle rooms and on secrets (no charge spent), one charge per block, and the block comes
+     * back.
+     *
+     * @return true when the break was spent and queued on the server
+     */
+    public static boolean dungeonBreakAt(Minecraft client, BlockPos at) {
+        if (!SimState.canAct(client) || at == null) {
+            return false;
+        }
+        // Silent here too: the hand path re-enters every tick while the button is held. Auto Routes logs a refusal.
+        if (SimState.isGeneratedFloor() && !SimRun.hasStarted()) {
+            return false;
+        }
+        final BlockPos target = at.immutable();
         var server = client.getSingleplayerServer();
         if (server == null) {
             return false;

@@ -125,6 +125,10 @@ public final class RouteExecutor {
     /** Bumped whenever a node begins or the route stops, so a sim etherwarp's late result for an action that is
      *  already over is dropped instead of stopping whatever runs now. */
     private static int actionGeneration;
+    /** Set by the position-packet hook ({@code LiveMapPacketListenerMixin}) when the server moves the player, cleared
+     *  when a teleport's use is sent - Hypixel and the sim both teleport with that packet, so it is the landing check's
+     *  proof that a teleport really happened, however short. */
+    private static volatile boolean teleportPacketSeen;
     private static List<BlockPos> breakerQueue = new ArrayList<>();
     private static final Set<BlockPos> breakerSent = new HashSet<>();
     private static BlockPos boomTarget;
@@ -318,6 +322,11 @@ public final class RouteExecutor {
     /** The input mixin asks this before touching anything. */
     public static boolean isSessionActive() {
         return running;
+    }
+
+    /** From the client's position-packet handler, on the client thread. */
+    public static void onServerPositionPacket() {
+        teleportPacketSeen = true;
     }
 
     public static void onMixinApplied() {
@@ -887,6 +896,7 @@ public final class RouteExecutor {
             case DO -> {
                 wantSneak = true;
                 actionOrigin = player.position();
+                teleportPacketSeen = false;
                 useHeldItem(client, player, node, false);
                 step = Step.CONFIRM;
                 stepTicks = 0;
@@ -946,6 +956,7 @@ public final class RouteExecutor {
             }
             case DO -> {
                 actionOrigin = player.position();
+                teleportPacketSeen = false;
                 useHeldItem(client, player, node, true);
                 step = Step.CONFIRM;
                 stepTicks = 0;
@@ -1010,7 +1021,14 @@ public final class RouteExecutor {
                     BlockPos p = boomTarget.relative(d);
                     boomBefore.put(p, client.level.getBlockState(p));
                 }
-                if (AutoRoutesConfig.getInstance().isLegitMode()) {
+                if (com.killer560.hub.roomsim.SimState.isActive()) {
+                    // The sim has no server-side Superboom: raw START/ABORT packets (and a client
+                    // startDestroyBlock aimed by a look the camera doesn't have) blew nothing up in here. The sim's
+                    // own entry point takes the block and face directly, in both modes.
+                    boolean sent = com.killer560.hub.roomsim.SimItems.superboomAt(client, boomTarget, hit.getDirection());
+                    LOGGER.info("[AutoRoutes] Superboom {} (sim) at {} face {}", sent ? "detonated" : "refused",
+                            boomTarget.toShortString(), hit.getDirection());
+                } else if (AutoRoutesConfig.getInstance().isLegitMode()) {
                     // A real left click: vanilla start + abort, the same packets a tap on an unbreakable block sends.
                     client.gameMode.startDestroyBlock(boomTarget, hit.getDirection());
                     client.gameMode.stopDestroyBlock();
@@ -1063,7 +1081,12 @@ public final class RouteExecutor {
                     return;
                 }
                 if (ensureSelected(player, slot)) {
-                    if (breakerCharges(player.getMainHandItem()) <= 0) {
+                    // In the sim the charges live in SimBreakerState; the item's lore is a static tooltip.
+                    int charges = com.killer560.hub.roomsim.SimState.isActive()
+                            ? com.killer560.hub.roomsim.SimBreakerState.charges()
+                            : breakerCharges(player.getMainHandItem());
+                    LOGGER.info("[AutoRoutes] Breaker: {} block(s) queued, {} charge(s)", breakerQueue.size(), charges);
+                    if (charges <= 0) {
                         stop("Dungeon Breaker has no charges");
                         return;
                     }
@@ -1093,8 +1116,18 @@ public final class RouteExecutor {
                         LOGGER.info("[AutoRoutes] Breaker block {} out of range - skipped", pos);
                         continue;
                     }
-                    player.connection.send(new ServerboundPlayerActionPacket(
-                            ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, Direction.UP));
+                    if (com.killer560.hub.roomsim.SimState.isActive()) {
+                        // The sim has no server-side Dungeonbreaker - a raw START_DESTROY_BLOCK broke nothing here.
+                        if (!com.killer560.hub.roomsim.SimItems.dungeonBreakAt(client, pos)) {
+                            LOGGER.info("[AutoRoutes] Breaker block {} refused by the sim (puzzle room, secret, "
+                                    + "floor not started or no charges) - skipped", pos.toShortString());
+                            continue;
+                        }
+                        LOGGER.info("[AutoRoutes] Breaker block {} sent (sim)", pos.toShortString());
+                    } else {
+                        player.connection.send(new ServerboundPlayerActionPacket(
+                                ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, Direction.UP));
+                    }
                     player.swing(InteractionHand.MAIN_HAND);
                     breakerSent.add(pos);
                     return; // next block on the next delay tick
@@ -1296,16 +1329,21 @@ public final class RouteExecutor {
      * Being within {@link #LANDING_TOLERANCE} of the landing is not enough on its own: a node whose landing is close
      * to where it stands (a short warp, or one aimed down) read as "landed" the tick the use was sent, whether or not
      * anything teleported him - which is how his third 2026-10-04 attempt "completed" in the same second it started
-     * without warping. The player must also have actually moved off the spot the use was sent from, unless that spot
-     * already was the landing.
+     * without warping. So something must also show a teleport happened: the server's position packet since the use
+     * (Hypixel and the sim both teleport with one, so a real warp of any length passes, including one onto the spot
+     * he stands on), or - should that hook not have applied - having moved half a block, or the use having been sent
+     * from the landing itself (the old behaviour for a warp in place).
      */
     private static boolean landed(LocalPlayer player, RouteNode node) {
         Vec3 pos = player.position();
-        boolean moved = actionOrigin == null || pos.distanceTo(actionOrigin) > 0.5;
         if (node.hasLanding) {
             Vec3 landing = RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ);
+            if (pos.distanceTo(landing) > LANDING_TOLERANCE) {
+                return false;
+            }
+            boolean moved = actionOrigin == null || pos.distanceTo(actionOrigin) > 0.5;
             boolean originWasLanding = actionOrigin != null && actionOrigin.distanceTo(landing) <= 0.5;
-            return pos.distanceTo(landing) <= LANDING_TOLERANCE && (moved || originWasLanding);
+            return teleportPacketSeen || moved || originWasLanding;
         }
         return actionOrigin != null && pos.distanceTo(actionOrigin) > 3.0;
     }
