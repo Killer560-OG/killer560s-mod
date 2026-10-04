@@ -87,11 +87,26 @@ public final class RoomTileAudit {
                 skipped++;
                 continue;   // cannot be compared with the others; saying nothing beats guessing
             }
+            // An L is a 2x2 box with one quarter missing, so exactly one empty tile is the room's real shape,
+            // not a box that ran off its end. Flagging it called Altar broken after a perfect re-capture
+            // (2026-10-04); Market and Withermancer are L-shaped too. When the database cannot say (not loaded
+            // yet), a 2x2 box with a single empty tile is read as an L.
+            boolean lShaped = false;
+            if (tilesX == 2 && tilesZ == 2) {
+                com.killer560.hub.roomdatabase.RoomEntry entry =
+                        com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room.name);
+                lShaped = entry == null || entry.shape == null || "L".equalsIgnoreCase(entry.shape.trim());
+            }
+            int emptyAllowed = lShaped ? 1 : 0;
             for (int tx = 0; tx < tilesX; tx++) {
                 for (int tz = 0; tz < tilesZ; tz++) {
                     long[] digest = new long[4];
                     boolean anySolid = hashTile(room, tx, tz, digest);
                     String where = room.name + " tile(" + tx + "," + tz + ")";
+                    if (!anySolid && emptyAllowed > 0) {
+                        emptyAllowed--;
+                        continue;
+                    }
                     if (!anySolid) {
                         // Positively recorded air, not unread: the box ran off the end of the room, into the
                         // gap between two rooms in the line. An empty tile matches every other empty tile, so

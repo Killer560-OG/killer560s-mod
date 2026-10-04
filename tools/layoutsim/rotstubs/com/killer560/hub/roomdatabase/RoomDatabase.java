@@ -7,6 +7,14 @@ import java.util.Map;
 public final class RoomDatabase {
     public static final Map<String, RoomEntry> BY_NAME = new HashMap<>();
 
+    /** Offline the table is filled before anything asks, so it is always ready. */
+    public static boolean isReady() {
+        return true;
+    }
+
+    public static void ensureLoading() {
+    }
+
     public static RoomEntry lookupByName(String name) {
         return name == null ? null : BY_NAME.get(name);
     }
