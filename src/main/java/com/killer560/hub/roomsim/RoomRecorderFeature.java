@@ -168,6 +168,9 @@ public final class RoomRecorderFeature {
             return;
         }
         RoomLibrary.loadAsync();
+        // Capture names every room through the room database, and in a solo practice room nothing else loads it
+        // (the live map only does inside a real dungeon) - so Ashfall's single rooms read 0 columns (2026-10-04).
+        com.killer560.hub.roomdatabase.RoomDatabase.ensureLoading();
         stage = Stage.CAPTURE;
         waitTicks = 1;
         roomsAddedThisRun = 0;
@@ -505,6 +508,7 @@ public final class RoomRecorderFeature {
                 waitTicks = 20;
             }
             case CAPTURE -> {
+                com.killer560.hub.roomdatabase.RoomDatabase.ensureLoading();   // no-op once loaded
                 scan(client);
                 // Saved as it goes so a crash cannot lose a session - but NOT every tick.
                 //

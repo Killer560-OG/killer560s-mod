@@ -143,7 +143,18 @@ public final class RoomCaptureRotation {
         if (room == null) {
             return null;
         }
-        return CACHE.computeIfAbsent(room.name, name -> derive(room));
+        Verdict cached = CACHE.get(room.name);
+        if (cached != null) {
+            return cached;
+        }
+        Verdict v = derive(room);
+        // Not cached until the room database is loaded: without it there are no secrets and no shapes to vote
+        // with, and a verdict made from the roof alone called Market, Fairy and Mage uncertain in Ashfall
+        // (2026-10-04), where nothing had loaded the database yet.
+        if (com.killer560.hub.roomdatabase.RoomDatabase.isReady()) {
+            CACHE.put(room.name, v);
+        }
+        return v;
     }
 
     /**

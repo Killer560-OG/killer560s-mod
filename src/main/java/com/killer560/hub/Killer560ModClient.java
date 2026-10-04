@@ -465,6 +465,12 @@ public class Killer560ModClient implements ClientModInitializer {
                                                     }
                                                     java.util.List<String> rooms =
                                                             com.killer560.hub.roomsim.RoomLibrary.resetAllBroken();
+                                                    if (rooms == null) {
+                                                        com.killer560.hub.util.ModChat.send("Room Recorder",
+                                                                com.killer560.hub.util.ModChat.bad("The room database is still loading"),
+                                                                com.killer560.hub.util.ModChat.text(" - nothing was emptied. Try again in a few seconds."));
+                                                        return 1;
+                                                    }
                                                     if (!rooms.isEmpty()
                                                             && !com.killer560.hub.roomsim.RoomRecorderFeature.isRunning()) {
                                                         com.killer560.hub.roomsim.RoomRecorderFeature.startCaptureOnly();

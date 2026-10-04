@@ -781,6 +781,12 @@ public final class RoomLibrary {
      */
     public static synchronized java.util.List<String> resetAllBroken() {
         load();
+        // Without the room database the tile audit and the rotation vote judge good rooms broken (Market, Fairy
+        // and Mage were emptied this way on 2026-10-04). Refuse rather than guess; null tells the command why.
+        if (!com.killer560.hub.roomdatabase.RoomDatabase.isReady()) {
+            com.killer560.hub.roomdatabase.RoomDatabase.ensureLoading();
+            return null;
+        }
         java.util.List<String> broken = new java.util.ArrayList<>();
         for (Room r : ROOMS.values()) {
             if (r.corruptReason != null || RoomCaptureRotation.isUncertain(r.name)) {
