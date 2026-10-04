@@ -136,6 +136,58 @@ public final class NameColor {
         return sb.toString();
     }
 
+    /**
+     * Your own name with a colour per letter (Cosmetics tab "Letter Colours"). Letter {@code i} gets
+     * {@code perChar.applyAsInt(i)} when that is not {@link #NONE}, otherwise the {@code fromArgb}-to-{@code
+     * toArgb} gradient's colour at that letter (pass the same colour twice for a flat name). Existing {@code §}
+     * codes in the text are copied through and do not count as letters.
+     */
+    public static String buildPerChar(String text, int fromArgb, int toArgb,
+                                      java.util.function.IntUnaryOperator perChar) {
+        if (text == null || text.isEmpty()) {
+            return text == null ? "" : text;
+        }
+        int letters = visibleLetters(text);
+        StringBuilder sb = new StringBuilder(text.length() * 15);
+        int idx = 0;
+        int i = 0;
+        while (i < text.length()) {
+            char c = text.charAt(i);
+            if (c == '§' && i + 1 < text.length()) {
+                sb.append(c).append(text.charAt(i + 1));
+                i += 2;
+                continue;
+            }
+            int cp = text.codePointAt(i);
+            int own = perChar.applyAsInt(idx);
+            int argb = own != NONE ? own
+                    : lerpArgb(fromArgb, toArgb, letters <= 1 ? 0f : idx / (float) (letters - 1));
+            sb.append(hexPrefix(argb));
+            sb.appendCodePoint(cp);
+            i += Character.charCount(cp);
+            idx++;
+        }
+        return sb.toString();
+    }
+
+    /** Letters a player sees in {@code text}: code points, not counting {@code §x} format pairs. */
+    public static int visibleLetters(String text) {
+        if (text == null) {
+            return 0;
+        }
+        int n = 0;
+        int i = 0;
+        while (i < text.length()) {
+            if (text.charAt(i) == '§' && i + 1 < text.length()) {
+                i += 2;
+                continue;
+            }
+            i += Character.charCount(text.codePointAt(i));
+            n++;
+        }
+        return n;
+    }
+
     private static int lerpArgb(int from, int to, float t) {
         int fr = (from >> 16) & 0xFF, fg = (from >> 8) & 0xFF, fb = from & 0xFF;
         int tr = (to >> 16) & 0xFF, tg = (to >> 8) & 0xFF, tb = to & 0xFF;

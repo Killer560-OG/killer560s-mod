@@ -7,7 +7,9 @@
 		"NameChangerFontMixin",
 		"NameChangerEditBoxMixin",
 		"NameChangerGuiGraphicsMixin",
-		"IdentityCommandMixin"
+		"IdentityCommandMixin",
+		"NameChangerScreenMixin",
+		"NameChangerTextCollectorMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

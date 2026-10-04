@@ -44,6 +44,7 @@ public class NewTab extends FolderTab {
                 new FriendsListTab(),
                 new PetWheelTab(),
                 new CosmeticsTab(),
+                new NickhiderTab(),
                 new TeamMelodyTab(),
                 new MobEspTab(),
                 new TeammatesTab(),

@@ -58,6 +58,23 @@ public final class PlayerNameDisplay {
         return SupportersFeature.scaleFor(id);
     }
 
+    /**
+     * The full model scale for one rendered player (Cosmetics tab "Player Size"). Your own model uses your own
+     * size setting and ignores the relay's copy of it, so a shared size never applies twice. Every other real
+     * player gets their shared supporter scale times your local "Others' Size". Hypixel's NPC player entities
+     * (version-2 UUIDs, the same test Name Changer uses) are left alone.
+     */
+    public static float modelScaleFor(UUID id, boolean localPlayer) {
+        SupportersConfig cfg = SupportersConfig.getInstance();
+        if (localPlayer) {
+            return cfg.getOwnScale();
+        }
+        if (id != null && id.version() == 2) {
+            return 1.0f;
+        }
+        return SupportersFeature.scaleFor(id) * cfg.getOthersScale();
+    }
+
     /** @return the text to paint instead of {@code candidateIgn} at a chat line's sender position, or
      *  {@code null} to leave the line alone - same precedence as {@link #displayNameFor}. */
     public static String findChatSender(String candidateIgn) {

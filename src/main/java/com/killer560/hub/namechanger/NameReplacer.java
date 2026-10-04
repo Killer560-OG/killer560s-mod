@@ -61,6 +61,40 @@ public final class NameReplacer {
 
     static void resetSuppress() {
         suppressDepth = 0;
+        screenSuppressed = false;
+    }
+
+    /** Set while one of this mod's own menus is drawing - see {@link #beginScreen}. */
+    private static boolean screenSuppressed = false;
+
+    /**
+     * killer560 (2026-10-04): "do not have the colors affect anything in my mods menu. So if I make my name
+     * killer560 and red it shouldn't make anything in my mod saying killer560 be red." Called from
+     * {@code NameChangerScreenMixin} around {@code Screen.extractRenderStateWithTooltipAndSubtitles}: while one
+     * of the mod's own settings screens is drawing, text is left exactly as written, through the same
+     * suppression the edit boxes use. GUI text is prepared later than this call, so it is the {@link Skip}
+     * marking at submission ({@code text(...)} and the widget text collector) that actually carries it; the HUD
+     * and chat behind the menu are submitted outside this window and keep their replaced names.
+     */
+    public static void beginScreen(Object screen) {
+        if (screen != null && !screenSuppressed && isModMenuScreen(screen)) {
+            screenSuppressed = true;
+            suppressDepth++;
+        }
+    }
+
+    public static void endScreen() {
+        if (screenSuppressed) {
+            screenSuppressed = false;
+            popSuppress();
+        }
+    }
+
+    private static boolean isModMenuScreen(Object screen) {
+        String name = screen.getClass().getName();
+        return name.startsWith("com.killer560.hub.gui.")
+                || name.startsWith("com.killer560.hub.hud.HudEditorScreen")
+                || name.startsWith("com.killer560.hub.scoreboard.ScoreboardEditorScreen");
     }
 
     /**
@@ -69,7 +103,7 @@ public final class NameReplacer {
      * unwraps without replacing.
      */
     public static FormattedCharSequence markIfSuppressed(FormattedCharSequence seq) {
-        if (suppressDepth <= 0 || seq == null || seq instanceof Skip || !NameChangerConfig.getInstance().isEnabled()) {
+        if (suppressDepth <= 0 || seq == null || seq instanceof Skip || !NameChangerConfig.getInstance().isActive()) {
             return seq;
         }
         return new Skip(seq);

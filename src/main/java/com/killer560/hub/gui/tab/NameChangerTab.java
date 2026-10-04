@@ -17,10 +17,13 @@ import java.util.ArrayList;
 import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
-/** Name Changer / nick hider settings - see {@link NameChangerFeature}'s class doc. Own display name, an editable
- *  "real name -> display name" list (same add/edit/delete row pattern as {@link AbilityTimersTab}/{@link PosmsgTab}),
- *  and the randomize-everyone-else mode. Purely visual: nothing typed or sent to the server changes. */
+/** Name Changer settings - see {@link NameChangerFeature}'s class doc. Own display name (colour, fade, a colour per
+ *  letter, and a reset), and an editable "real name -> display name" list (same add/edit/delete row pattern as
+ *  {@link AbilityTimersTab}/{@link PosmsgTab}). Randomize Others moved to its own {@link NickhiderTab} (killer560,
+ *  2026-10-04). Purely visual: nothing typed or sent to the server changes. */
 public class NameChangerTab extends BaseTab {
+
+    private boolean letterColoursOpen = false;
 
     public NameChangerTab() {
         super("Name Changer");
@@ -52,8 +55,8 @@ public class NameChangerTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Change My Name", cfg.isOwnNameEnabled()));
                 }).bounds(contentX, y, halfW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Randomize Others", cfg.isRandomizeOthers()), btn -> {
-                    cfg.setRandomizeOthers(!cfg.isRandomizeOthers());
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Reset Name to Default"), btn -> {
+                    cfg.resetOwnNameCosmetics();
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX + halfW + gap, y, halfW, 18).build());
@@ -96,12 +99,7 @@ public class NameChangerTab extends BaseTab {
         }
         y += 24;
 
-        if (cfg.isRandomizeOthers()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7Every other player gets a stable fake name for this session ("
-                            + NameChangerFeature.seenPlayerCount() + " seen so far)."), font));
-            y += 16;
-        }
+        y = buildLetterColours(widgets, cfg, contentX, y, contentWidth, font, requestRebuild);
 
         // --- manual mappings
         widgets.add(SettingsButtonWidget.builder(onOff("Custom Renames", cfg.isMappingsEnabled()), btn -> {
@@ -166,6 +164,83 @@ public class NameChangerTab extends BaseTab {
         }
 
         return widgets;
+    }
+
+    /**
+     * "Letter Colours" (killer560, 2026-10-04: "add an option to change each character's colour for your own
+     * name"): one swatch per letter of your display name, each drawn in that letter's current colour. Click one
+     * to pick its colour; "Clear Letter Colours" drops them all so the name's normal colour/fade shows again.
+     * It is a dropdown so opening it always lays the row out for the name as currently typed - rebuilding the
+     * tab on every keystroke would throw the focus out of the name box.
+     */
+    private int buildLetterColours(List<AbstractWidget> widgets, NameChangerConfig cfg, int contentX, int y,
+                                   int contentWidth, net.minecraft.client.gui.Font font, Runnable requestRebuild) {
+        y = CollapsibleSection.header(widgets, contentX, y - 4, contentWidth, "Letter Colours", false,
+                letterColoursOpen, () -> {
+                    letterColoursOpen = !letterColoursOpen;
+                    requestRebuild.run();
+                });
+        if (!letterColoursOpen) {
+            return y;
+        }
+        // Indexed exactly as NameChangerFeature.ownStyled colours it: &-codes become §-codes, which are not letters.
+        String text = NameChangerFeature.colorize(cfg.getOwnDisplayName());
+        int letters = Math.min(NameColor.visibleLetters(text), NameChangerConfig.MAX_CHAR_COLORS);
+        if (letters == 0) {
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("§7Type a display name above first."), font));
+            return y + 16;
+        }
+        int clearW = 130;
+        widgets.add(new StringWidget(contentX, y + 3, contentWidth - clearW - 8, 12,
+                Component.literal("§7Click a letter to colour it"), font));
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Clear Letter Colours"), btn -> {
+                    cfg.clearOwnCharColors();
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX + contentWidth - clearW, y, clearW, 18).build());
+        y += 22;
+        int cell = 18;
+        int step = cell + 2;
+        int perRow = Math.max(1, (contentWidth + 2) / step);
+        List<Integer> codePoints = new ArrayList<>();
+        for (int i = 0; i < text.length(); ) {
+            if (text.charAt(i) == '§' && i + 1 < text.length()) {
+                i += 2;
+                continue;
+            }
+            int cp = text.codePointAt(i);
+            codePoints.add(cp);
+            i += Character.charCount(cp);
+        }
+        int idx = 0;
+        for (int cp : codePoints) {
+            if (idx >= letters) {
+                break;
+            }
+            final int letter = idx;
+            String ch = new String(Character.toChars(cp));
+            int x = contentX + (letter % perRow) * step;
+            int rowY = y + (letter / perRow) * step;
+            int own = cfg.getOwnCharColor(letter);
+            int shown = own != NameColor.NONE ? own : (cfg.getOwnColor() == NameColor.NONE ? 0xFFFFFFFF : cfg.getOwnColor());
+            widgets.add(SettingsButtonWidget.builder(letterLabel(ch, shown), btn -> {
+                Minecraft client = Minecraft.getInstance();
+                McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Letter " + (letter + 1),
+                        shown, 0xFFFFFFFF, picked -> {
+                    cfg.setOwnCharColor(letter, picked);
+                    cfg.save();
+                    btn.setMessage(letterLabel(ch, picked));
+                }));
+            }).bounds(x, rowY, cell, cell).build());
+            idx++;
+        }
+        int rows = (letters + perRow - 1) / perRow;
+        return y + rows * step + 4;
+    }
+
+    private static Component letterLabel(String ch, int argb) {
+        return Component.literal(ch).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(argb & 0xFFFFFF)));
     }
 
     /** Colour button for a name. killer560 (2026-09-20): "instead of using color codes I select a color for

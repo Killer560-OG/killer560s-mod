@@ -66,7 +66,12 @@ public class FriendsListScreen extends Screen {
 
         // One rate-limited sync per open, same as the old refreshOnlineNames() call this replaces - see
         // FriendsListSync's doc on why this can never spam Hypixel (opening the menu is an explicit click).
-        FriendsListSync.requestSync(true);
+        // A full sync now walks every page (about a second each), so opening the menu only starts one when the
+        // saved list is missing or over ten minutes old; Refresh always does.
+        FriendsListConfig openCfg = FriendsListConfig.getInstance();
+        if (!openCfg.isEverSynced() || System.currentTimeMillis() - openCfg.getLastSyncedAtMs() > 10 * 60_000L) {
+            FriendsListSync.requestSync(true);
+        }
 
         int addBtnW = 70;
         int refreshBtnW = 62;
@@ -79,7 +84,8 @@ public class FriendsListScreen extends Screen {
                 .bounds(panelX + 6 + addBoxW + 4, panelY + 34, addBtnW, 18).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Refresh"), btn -> {
                     if (!FriendsListSync.requestSync(false)) {
-                        statusMessage = "Already just synced - give it a moment.";
+                        statusMessage = FriendsListSync.isSyncing() ? "Already syncing - every page is being read."
+                                : "Already just synced - give it a moment.";
                         statusColor = ModChat.DIM;
                     }
                 }).bounds(panelX + panelW - 6 - refreshBtnW, panelY + 34, refreshBtnW, 18).build());
@@ -228,6 +234,9 @@ public class FriendsListScreen extends Screen {
      *  be. See {@link FriendsListSync}'s class doc for exactly what "never synced" and "truncated" mean. */
     private String syncStatusLine() {
         FriendsListConfig cfg = FriendsListConfig.getInstance();
+        if (FriendsListSync.isSyncing()) {
+            return "§6Syncing with Hypixel's /fl - " + FriendsListSync.syncProgress() + "...";
+        }
         if (!cfg.isEverSynced()) {
             return "§cNever synced with your real /fl yet - press Refresh, or Hypixel's wording may differ from what this mod expects.";
         }

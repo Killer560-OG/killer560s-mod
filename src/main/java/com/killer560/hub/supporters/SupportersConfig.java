@@ -40,6 +40,9 @@ public final class SupportersConfig {
 
     public static final float MIN_MODEL_DIMENSION = 0.5f;
     public static final float MAX_MODEL_DIMENSION = 2.0f;
+    /** Player Size sliders (killer560, 2026-10-04: "make the minimum player size 0.05 and the max 2"). */
+    public static final float MIN_PLAYER_SIZE = 0.05f;
+    public static final float MAX_PLAYER_SIZE = 2.0f;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
@@ -53,6 +56,11 @@ public final class SupportersConfig {
     private float modelWidth = 1.0f;
     private float modelHeight = 1.0f;
     private float modelThickness = 1.0f;
+    /** Your own player size - applied to your own model locally, and shared through the relay while Share if
+     *  Supporter is on and the account is linked (one toggle covers both name and size). */
+    private float ownScale = 1.0f;
+    /** A local size multiplier for every OTHER real player's model; never shared. */
+    private float othersScale = 1.0f;
 
     private SupportersConfig() {
     }
@@ -78,6 +86,8 @@ public final class SupportersConfig {
                 cfg.modelWidth = clamp(ConfigJson.getFloat(obj, "modelWidth", 1.0f));
                 cfg.modelHeight = clamp(ConfigJson.getFloat(obj, "modelHeight", 1.0f));
                 cfg.modelThickness = clamp(ConfigJson.getFloat(obj, "modelThickness", 1.0f));
+                cfg.ownScale = clampSize(ConfigJson.getFloat(obj, "ownScale", 1.0f));
+                cfg.othersScale = clampSize(ConfigJson.getFloat(obj, "othersScale", 1.0f));
             } catch (Exception e) {
                 cfg = new SupportersConfig();
             }
@@ -96,6 +106,8 @@ public final class SupportersConfig {
             obj.addProperty("modelWidth", modelWidth);
             obj.addProperty("modelHeight", modelHeight);
             obj.addProperty("modelThickness", modelThickness);
+            obj.addProperty("ownScale", ownScale);
+            obj.addProperty("othersScale", othersScale);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -146,10 +158,36 @@ public final class SupportersConfig {
         version++;
     }
 
-    /** Cosmetics tab's bottom "Reset" button - puts width/height/thickness back to 1.0x. Leaves {@link
+    public float getOwnScale() {
+        return ownScale;
+    }
+
+    public void setOwnScale(float value) {
+        this.ownScale = clampSize(value);
+        version++;
+    }
+
+    public float getOthersScale() {
+        return othersScale;
+    }
+
+    public void setOthersScale(float value) {
+        this.othersScale = clampSize(value);
+        version++;
+    }
+
+    private static float clampSize(float v) {
+        if (Float.isNaN(v)) {
+            return 1.0f;
+        }
+        return v < MIN_PLAYER_SIZE ? MIN_PLAYER_SIZE : (v > MAX_PLAYER_SIZE ? MAX_PLAYER_SIZE : v);
+    }
+
+    /** Cosmetics tab's bottom "Reset" button - puts width/height/thickness and both player sizes back to 1.0x. Leaves {@link
      *  #customCosmeticsEnabled}/{@link #shareIfSupporter} alone - those are feature toggles, not values. */
     public void resetModelShape() {
         modelWidth = modelHeight = modelThickness = 1.0f;
+        ownScale = othersScale = 1.0f;
         version++;
     }
 

@@ -16,7 +16,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **Chat** - Auto Correct, Auto Meow, Chat Commands, Chat Emotes, Chat Keybinds, Click Translate, Command Auto Correct, Command Shortcuts, Copy Chat, Cringe, Mod Chat, Party Commands, Spotify Mod, Translate, Voice To Text
 
-**Social & Supporters** - Best Friends, Cosmetics (name changer, name colour/fade, player model, held item transform, supporter sharing), Friends List, Profile Viewer
+**Social & Supporters** - Best Friends, Cosmetics (name changer, name colour/fade/letter colours, player size, held item transform, supporter sharing), Nickhider, Friends List, Profile Viewer
 
 **Party Data & Cross-Mod** - Cross-Mod Bridge, Mod conflict warnings, Party Dungeon Data, Party Interop, Team Melody HUD, Teammate Highlight †, Teammate rooms on the map
 

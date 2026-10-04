@@ -67,7 +67,7 @@ public final class NameChangerFeature {
             return;
         }
         NameChangerConfig cfg = NameChangerConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isRandomizeOthers()) {
+        if (!cfg.isActive() || !cfg.isRandomizeOthers()) {
             return;
         }
         boolean added = false;
@@ -113,7 +113,7 @@ public final class NameChangerFeature {
     /** @return the current lookup table, or {@code null} when the feature is off / has nothing to replace. */
     static NameTable currentTable() {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
-        if (!cfg.isEnabled()) {
+        if (!cfg.isActive()) {
             return null;
         }
         // Font is used during early startup (loading overlay) - don't assume the client/user exist yet.
@@ -135,10 +135,12 @@ public final class NameChangerFeature {
         }
         List<NameTable.Entry> entries = new ArrayList<>();
         // Priority order: own name, then manual mappings, then randomized others (first entry wins on duplicates).
-        if (cfg.isOwnNameEnabled() && NameTable.isValidName(own) && !cfg.getOwnDisplayName().isEmpty()) {
+        // The Name Changer toggle gates own name and renames; Randomize Others (Nickhider tab) stands alone.
+        boolean nameChanger = cfg.isEnabled();
+        if (nameChanger && cfg.isOwnNameEnabled() && NameTable.isValidName(own) && !cfg.getOwnDisplayName().isEmpty()) {
             entries.add(new NameTable.Entry(own, ownStyled(cfg), false));
         }
-        if (cfg.isMappingsEnabled()) {
+        if (nameChanger && cfg.isMappingsEnabled()) {
             for (NameChangerConfig.Mapping m : cfg.mappings()) {
                 String real = m.real == null ? "" : m.real.trim();
                 if (NameTable.isValidName(real) && m.display != null && !m.display.isEmpty()) {
@@ -176,12 +178,19 @@ public final class NameChangerFeature {
      *  turning Fade on always shows something instead of two identical (invisible) endpoints. */
     static String ownStyled(NameChangerConfig cfg) {
         String display = colorize(cfg.getOwnDisplayName());
-        if (!cfg.isOwnColorFadeEnabled()) {
+        boolean perChar = cfg.hasOwnCharColors();
+        if (!cfg.isOwnColorFadeEnabled() && !perChar) {
             return NameColor.prefix(cfg.getOwnColor()) + display;
         }
         int from = cfg.getOwnColor() == NameColor.NONE ? 0xFFFFFFFF : cfg.getOwnColor();
         int to = cfg.getOwnColorFadeTo() == NameColor.NONE ? 0xFFFF5555 : cfg.getOwnColorFadeTo();
-        return NameColor.buildFade(display, from, to);
+        if (!perChar) {
+            return NameColor.buildFade(display, from, to);
+        }
+        // Letter colours: each letter with its own pick uses it, the rest keep the fade (or the flat colour,
+        // white when none was picked - a letter cannot fall back to "whatever surrounds the name" once its
+        // neighbours carry their own colour codes).
+        return NameColor.buildPerChar(display, from, cfg.isOwnColorFadeEnabled() ? to : from, cfg::getOwnCharColor);
     }
 
     /**
@@ -209,7 +218,7 @@ public final class NameChangerFeature {
     }
 
     /** Vanilla edit boxes filter out the § sign, so "&" + a format code is accepted too ("&6Cool" -> "§6Cool"). */
-    static String colorize(String s) {
+    public static String colorize(String s) {
         if (s.indexOf('&') < 0) {
             return s;
         }

@@ -33,7 +33,8 @@ public abstract class SupportersScaleMixin {
             at = @At("TAIL"), require = 0)
     private void killer560smod$supportersScale(Avatar entity, AvatarRenderState state, float partialTick,
                                                 CallbackInfo ci) {
-        float factor = PlayerNameDisplay.scaleFor(entity.getUUID());
+        float factor = PlayerNameDisplay.modelScaleFor(entity.getUUID(),
+                entity == net.minecraft.client.Minecraft.getInstance().player);
         if (factor != 1.0f) {
             state.scale *= factor;
         }
