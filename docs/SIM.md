@@ -24,9 +24,11 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   room was PASTED at alone, so every non-canonical room put its secrets in the wrong corner - measured
   2026-09-29, only 34 of 135 captures are canonical and 88 of the 122 identifiable ones were wrong. Invisible
   in square rooms, because a wrong corner is still inside the room. `RoomCaptureRotation` recovers the turn
-  from the capture's own blue terracotta roof marker (119 of 135), with the database's chest and lever
-  positions breaking ties (122). The paste rotation still decides the FOOTPRINT; only the sum decides the
-  corner and the translation, so `SimSecrets.clayCorner` takes both separately.
+  by weighing the roof marker, the lapis corner and the database's secrets (see "Capture rotation by vote"
+  at the end); every capture the sim will place gets a clear answer except Archway, Balcony, Catwalk and
+  Purple Flags, which are mis-captured rather than mis-rotated. The paste
+  rotation still decides the FOOTPRINT; only the sum decides the corner and the translation, so
+  `SimSecrets.clayCorner` takes both separately.
 - The room captures only store y 60..140 (`RoomLibrary.MIN_Y`), but 29 of the 167 database chest secrets sit
   below y 60, down to y 28. Those parts of those rooms were never captured, so Catwalk holds 2 chests where
   the database lists 4. Not a translation fault - do not chase it as one.
@@ -1668,3 +1670,58 @@ Eight reports, one fix each. Where a rule came from somewhere other than the cod
   etherwarp item, and the Interactive Map's `etherwarpAlong`) is refused while standing in Boulder, with
   "No etherwarp in Boulder"; Instant Transmission is not. Auto Boulder still says "no chest position known":
   it reads the room database's chest secrets, which do not list this chest on Hypixel either - untouched.
+
+## Capture rotation by vote, and how Hypixel does it (2026-10-04)
+
+killer560: "make there be a way to tell for rotation struggling rooms. There is some way it is done with secret
+waypoints so figure it out." **There is not, on Hypixel.** The live map's only mechanism is the roof marker:
+`LiveMapFeature.findRoomRotation` -> `RoomDatabase.findRotationAndCorner` (blue terracotta at one of the four
+roof corners). No secret matching, no doors, no per-room table. A room whose marker is not read yet logs
+"No blue-terracotta corner marker ..." ONCE and is then retried every second (`rotationRetryAtMs`) until the roof
+chunk and `getHighestY` read right; until then it is left out of `identifiedRoomsWithRotation`, so its waypoints
+simply do not draw yet. The log line is the first failed attempt, not the outcome. The one exception is Fairy,
+fixed at rotation 0 by its room TYPE. A real Hypixel room always has its marker; a capture does not, which is why
+the capture side needs more than one source.
+
+`RoomCaptureRotation` now votes, and the answer feeds the same cache (`of`) that `SimRoomIndex`, `SimSecrets`
+and `SimBuilder` read, so the paste, the published rotation, `PuzzleCoords` and the waypoints cannot disagree.
+Over the rotations the database's secrets can FIT (the long-room shape veto, unchanged):
+
+- roof marker: 2 votes for a single marked corner, 1 each for two;
+- lapis corner: 1 vote. Roof corners are redstone blocks, and a lapis block sits DIAGONALLY OPPOSITE the blue
+  terracotta - in all 85 captures that have both (measured by `tools/layoutsim/rotation.sh`). So it names the
+  marker's corner when the marker itself was not captured. An observation about the captures, not a Hypixel rule;
+- one vote per database secret that lands: chest secrets on a chest or trapped chest, wither essence AND
+  redstone key secrets on a player head. **Redstone key positions are player heads, not levers** - the old
+  tie-break looked for a lever there and never matched (Golden Oasis, Redstone Crypt, Redstone Key all show the
+  head). Bats and items are skipped; neither is a block.
+
+Outright winner or 0. INFO once per room per library load (lazily, when the room is first placed) with every
+score; WARN when the marker and the secrets disagree, and when the answer is uncertain.
+`RoomCaptureRotation.isUncertain(name)` / `verdict(name).reason()` are public for Auto Routes to warn before
+recording: uncertain means no outright winner, fewer than two votes, a source preferring another rotation, or the
+marker/secrets pointing only at a rotation the shape forbids. Sim only - on Hypixel the rotation is read live.
+
+**Hypixel behaviour is unchanged**: nothing in `livemap`, `secretwaypoints` or `roomdatabase` was touched, and
+this class is consulted only for captured rooms in the sim.
+
+Result over the 134 shipped captures (`tools/layoutsim/rotation.sh -Droomdata=...rooms-modern.json`, which runs the
+real class and `RoomTileAudit`): every usable capture certain except four, and only ONE usable room changed answer.
+
+| Room | Marker | Lapis | Secrets 0/90/180/270 | Chosen | Verdict |
+|---|---|---|---|---|---|
+| Mage | none | 180 | 0/0/1/0 (wither on the capture's only player head) | **180** (was 0) | certain |
+| Fairy | none | all four | no secrets | 0 | certain, same rule as the live map |
+| Archway | none | 270 (shape forbids) | 0/0/0/0; 1 lands at 90 moved a tile | 0 | uncertain |
+| Balcony | none | none | 0/0/0/0; both land at 180 moved a tile west | 0 | uncertain |
+| Catwalk | 90 + 270 (shape forbids both) | none | 0/0/0/2 (shape forbids) | 0 | uncertain |
+| Purple Flags | 270 (shape forbids) | none | 0/0/0/1 (shape forbids) | 0 | uncertain |
+
+**The four uncertain rooms are not a rotation problem, they are bad captures**, the same fault `RoomTileAudit`
+already refuses in 28 others (Skull, Bridges, Pedestal, Slime, Gravel, Doors, Wizard, Waterfall show the identical
+signature and ARE refused). Catwalk and Purple Flags: the marker and the tile-0 secrets agree on a quarter turn
+that a long-along-x box cannot have, and every secret beyond tile 0 is out of the box - the room ran along z and
+the box was laid along x, so tiles 1+ are a neighbour. Archway and Balcony: nothing lands until the room is moved
+one tile, so the box is anchored a tile off. No rotation is right for any of them; a route recorded there cannot
+match Hypixel until each is walked again. The audit only misses them because their neighbours' tiles are not
+captured anywhere else to compare against.

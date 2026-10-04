@@ -279,7 +279,7 @@ public final class LayoutSim {
     }
 
     /** RoomLibrary.fromJson plus Room.usable(), minus the tile audit (pass its refusals as -Dcorrupt). */
-    private static RoomLibrary.Room read(Path f) {
+    static RoomLibrary.Room read(Path f) {
         try {
             JsonObject o = JsonParser.parseString(Files.readString(f, StandardCharsets.UTF_8)).getAsJsonObject();
             int minY = o.has("minY") ? o.get("minY").getAsInt() : 60;
