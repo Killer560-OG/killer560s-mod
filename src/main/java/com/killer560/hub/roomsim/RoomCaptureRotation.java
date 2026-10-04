@@ -176,6 +176,11 @@ public final class RoomCaptureRotation {
         return v != null && v.uncertain();
     }
 
+    /** For Auto Routes' recording warning: the same answer as {@link #isUncertain(String)}. */
+    public static boolean uncertainForRecording(RoomLibrary.Room room) {
+        return room != null && isUncertain(room.name);
+    }
+
     /** Forget everything - for a room library reload, and for tests that rewrite captures. */
     public static void clearCache() {
         CACHE.clear();

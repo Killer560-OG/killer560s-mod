@@ -256,7 +256,16 @@ public final class TeleportUtils {
 
     /** QUOI {@code traverseVoxels} (unclambomb6): first solid block along the ray with etherwarp head/feet clearance. */
     public static RaycastResult traverseVoxels(double x0, double y0, double z0, double x1, double y1, double z1, boolean etherwarp) {
-        Level level = level();
+        return traverseVoxels(level(), x0, y0, z0, x1, y1, z1, etherwarp);
+    }
+
+    /**
+     * The same walk over a given level. The dungeon sim's server-side etherwarp ({@code roomsim.SimAbilities})
+     * resolves a use packet with this against the integrated server's own level, so the sim's server and the
+     * planner share one model of where a hop lands - the planner's model of Hypixel's server.
+     */
+    public static RaycastResult traverseVoxels(Level level, double x0, double y0, double z0, double x1, double y1, double z1,
+                                               boolean etherwarp) {
         if (level == null) {
             return RaycastResult.NONE;
         }

@@ -115,6 +115,17 @@ public final class SimState {
         if (client == null || client.player == null) {
             return null;
         }
+        return roomNameAt(client.player.getBlockX(), client.player.getBlockZ());
+    }
+
+    /**
+     * The room at this block column, worked out the same way as {@link #currentRoomName}.
+     *
+     * <p>For the sim's SERVER side ({@code SimAbilities}, {@code SimItems}): a rule like "no abilities while
+     * standing in a trap room" is checked against where the server has him when the packet arrives, as Hypixel
+     * checks it - not against the client's copy of him.
+     */
+    public static String roomNameAt(int blockX, int blockZ) {
         String code = mapCode();
         if (code == null || code.isBlank()) {
             return null;
@@ -130,8 +141,8 @@ public final class SimState {
         if (step == 0) {
             return null;
         }
-        int gx = Math.round((client.player.getBlockX() - origin.getX()) / (float) step);
-        int gz = Math.round((client.player.getBlockZ() - origin.getZ()) / (float) step);
+        int gx = Math.round((blockX - origin.getX()) / (float) step);
+        int gz = Math.round((blockZ - origin.getZ()) / (float) step);
         int grid = com.killer560.hub.livemap.DungeonLayout.GRID;
         if (gx < 0 || gz < 0 || gx >= grid || gz >= grid) {
             return null;

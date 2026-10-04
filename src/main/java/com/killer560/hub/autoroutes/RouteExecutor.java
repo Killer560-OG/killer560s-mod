@@ -122,9 +122,6 @@ public final class RouteExecutor {
     private static boolean forceSneak;
     private static boolean unsneakOverride;
     private static boolean swapSent;
-    /** Bumped whenever a node begins or the route stops, so a sim etherwarp's late result for an action that is
-     *  already over is dropped instead of stopping whatever runs now. */
-    private static int actionGeneration;
     /** Set by the position-packet hook ({@code LiveMapPacketListenerMixin}) when the server moves the player, cleared
      *  when a teleport's use is sent - Hypixel and the sim both teleport with that packet, so it is the landing check's
      *  proof that a teleport really happened, however short. */
@@ -222,7 +219,6 @@ public final class RouteExecutor {
         }
         running = false;
         stopReason = reason;
-        actionGeneration++;
         activeNode = null;
         step = null;
         forceSneak = false;
@@ -705,7 +701,6 @@ public final class RouteExecutor {
     // ------------------------------------------------------------------------------------------- actions
 
     private static void beginAction(RouteNode node) {
-        actionGeneration++;
         LocalPlayer self = Minecraft.getInstance().player;
         if (node.type == RouteNode.Type.ETHERWARP) {
             Vec3 at = RouteCoords.toReal(frame, node.relativePos());
@@ -1021,14 +1016,8 @@ public final class RouteExecutor {
                     BlockPos p = boomTarget.relative(d);
                     boomBefore.put(p, client.level.getBlockState(p));
                 }
-                if (com.killer560.hub.roomsim.SimState.canAct(client)) {
-                    // The sim has no server-side Superboom: raw START/ABORT packets (and a client
-                    // startDestroyBlock aimed by a look the camera doesn't have) blew nothing up in here. The sim's
-                    // own entry point takes the block and face directly, in both modes.
-                    boolean sent = com.killer560.hub.roomsim.SimItems.superboomAt(client, boomTarget, hit.getDirection());
-                    LOGGER.info("[AutoRoutes] Superboom {} (sim) at {} face {}", sent ? "detonated" : "refused",
-                            boomTarget.toShortString(), hit.getDirection());
-                } else if (AutoRoutesConfig.getInstance().isLegitMode()) {
+                // The same in the dungeon sim: its integrated server answers these packets the way Hypixel's does.
+                if (AutoRoutesConfig.getInstance().isLegitMode()) {
                     // A real left click: vanilla start + abort, the same packets a tap on an unbreakable block sends.
                     client.gameMode.startDestroyBlock(boomTarget, hit.getDirection());
                     client.gameMode.stopDestroyBlock();
@@ -1081,10 +1070,8 @@ public final class RouteExecutor {
                     return;
                 }
                 if (ensureSelected(player, slot)) {
-                    // In the sim the charges live in SimBreakerState; the item's lore is a static tooltip.
-                    int charges = com.killer560.hub.roomsim.SimState.canAct(client)
-                            ? com.killer560.hub.roomsim.SimBreakerState.charges()
-                            : breakerCharges(player.getMainHandItem());
+                    // The item's lore, in the sim too: the sim's server keeps that line current as Hypixel's does.
+                    int charges = breakerCharges(player.getMainHandItem());
                     LOGGER.info("[AutoRoutes] Breaker: {} block(s) queued, {} charge(s)", breakerQueue.size(), charges);
                     if (charges <= 0) {
                         stop("Dungeon Breaker has no charges");
@@ -1116,18 +1103,8 @@ public final class RouteExecutor {
                         LOGGER.info("[AutoRoutes] Breaker block {} out of range - skipped", pos);
                         continue;
                     }
-                    if (com.killer560.hub.roomsim.SimState.canAct(client)) {
-                        // The sim has no server-side Dungeonbreaker - a raw START_DESTROY_BLOCK broke nothing here.
-                        if (!com.killer560.hub.roomsim.SimItems.dungeonBreakAt(client, pos)) {
-                            LOGGER.info("[AutoRoutes] Breaker block {} refused by the sim (puzzle room, secret, "
-                                    + "floor not started or no charges) - skipped", pos.toShortString());
-                            continue;
-                        }
-                        LOGGER.info("[AutoRoutes] Breaker block {} sent (sim)", pos.toShortString());
-                    } else {
-                        player.connection.send(new ServerboundPlayerActionPacket(
-                                ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, Direction.UP));
-                    }
+                    player.connection.send(new ServerboundPlayerActionPacket(
+                            ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, Direction.UP));
                     player.swing(InteractionHand.MAIN_HAND);
                     breakerSent.add(pos);
                     return; // next block on the next delay tick
@@ -1208,10 +1185,8 @@ public final class RouteExecutor {
      *  ({@code ClearExecutor.doInteract}). */
     private static void useHeldItem(Minecraft client, LocalPlayer player, RouteNode node, boolean blockInteraction) {
         boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
-        if (com.killer560.hub.roomsim.SimState.canAct(client)) {
-            useHeldItemInSim(client, player, node, blockInteraction, legit);
-            return;
-        }
+        // No sim branch: the dungeon sim's integrated server answers this exact packet as Hypixel's does
+        // (roomsim.SimAbilities), so a route runs the same code in both.
         if (legit) {
             InteractionResult result = InteractionResult.PASS;
             if (blockInteraction) {
@@ -1243,84 +1218,6 @@ public final class RouteExecutor {
             player.setXRot(oldPitch);
         }
         player.swing(InteractionHand.MAIN_HAND);
-    }
-
-    /**
-     * THE SIM HAS NO SERVER-SIDE ETHERWARP, so the raw use packet above teleports nobody there.
-     * <p>
-     * The obvious-mode branch hands a {@code ServerboundUseItemPacket} to the connection. On Hypixel that packet IS
-     * the ability. The sim's abilities live in {@code SimAbilities} behind Fabric's {@code UseItemCallback}, which
-     * fires on the CLIENT's {@code gameMode.useItem} and refuses the integrated server's copy of the player - so the
-     * packet was sent, accepted and did nothing, and every etherwarp node sat in CONFIRM until "etherwarp didn't land
-     * where it was recorded" (his 2026-10-04 13:59 log, twice). {@code ClearExecutor.doInteract} hit exactly this on
-     * 2026-10-01 and was fixed; this copy of the same send was not.
-     * <p>
-     * An etherwarp goes through {@code SimAbilities.etherwarpAlong}, which resolves the hop from the server's copy of
-     * him along the given yaw/pitch exactly as Hypixel does - the node's recorded look in obvious mode (no camera
-     * turn, same as on Hypixel), the live camera in legit mode. Anything else (or an etherwarp the sim refuses, e.g.
-     * not sneaking yet) takes the client-side {@code gameMode.useItem} with the rotation set for the call, which is
-     * what {@code ClearExecutor} and {@code AutoPuzzleUtil.useItemRotated} do in here.
-     */
-    private static void useHeldItemInSim(Minecraft client, LocalPlayer player, RouteNode node, boolean blockInteraction,
-                                         boolean legit) {
-        float targetYaw = legit ? player.getYRot() : RouteCoords.toRealYaw(frame, node.yaw);
-        float yaw = player.getYRot() + Mth.wrapDegrees(targetYaw - player.getYRot());
-        float pitch = Mth.clamp(legit ? player.getXRot() : node.pitch, -90f, 90f);
-        if (node.type == RouteNode.Type.ETHERWARP) {
-            BlockPos expected = null;
-            if (node.hasLanding) {
-                Vec3 l = RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ);
-                expected = BlockPos.containing(l.x, l.y - 0.5, l.z);
-            }
-            int gen = actionGeneration;
-            BlockPos want = expected;
-            if (com.killer560.hub.roomsim.SimAbilities.etherwarpAlong(client, yaw, pitch, expected,
-                    result -> onSimEtherwarp(gen, result, want))) {
-                LOGGER.info("[AutoRoutes] Etherwarp sent (sim, server-side hop): yaw {} pitch {} expecting block {}",
-                        String.format(Locale.US, "%.2f", yaw), String.format(Locale.US, "%.2f", pitch),
-                        expected == null ? "any" : expected.toShortString());
-                player.swing(InteractionHand.MAIN_HAND);
-                return;
-            }
-            LOGGER.info("[AutoRoutes] Etherwarp: sim refused the hop (held {}, client shift={}) - plain use instead",
-                    ItemIdentity.skyblockId(player.getMainHandItem()), player.isShiftKeyDown());
-        }
-        InteractionResult result = InteractionResult.PASS;
-        if (legit && blockInteraction) {
-            HitResult hit = player.pick(4.5, 1f, false);
-            if (hit instanceof BlockHitResult blockHit && hit.getType() == HitResult.Type.BLOCK) {
-                result = client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, blockHit);
-            }
-        }
-        if (!result.consumesAction()) {
-            float oldYaw = player.getYRot();
-            float oldPitch = player.getXRot();
-            player.setYRot(yaw);
-            player.setXRot(pitch);
-            client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-            player.setYRot(oldYaw);
-            player.setXRot(oldPitch);
-        }
-        LOGGER.info("[AutoRoutes] {} used (sim, client-side use): yaw {} pitch {}", node.type,
-                String.format(Locale.US, "%.2f", yaw), String.format(Locale.US, "%.2f", pitch));
-        player.swing(InteractionHand.MAIN_HAND);
-    }
-
-    /** {@code SimAbilities.etherwarpAlong}'s verdict, on the client thread. A hop with no target stops the route at
-     *  once instead of sitting out the three-second landing timeout. */
-    private static void onSimEtherwarp(int gen, com.killer560.hub.roomsim.SimAbilities.HopResult result, BlockPos expected) {
-        if (gen != actionGeneration || !running) {
-            return;
-        }
-        switch (result) {
-            case LANDED -> LOGGER.info("[AutoRoutes] Sim etherwarp: landed on the expected block");
-            case LANDED_ELSEWHERE -> LOGGER.info("[AutoRoutes] Sim etherwarp: landed, but not on {} - the landing "
-                    + "check decides", expected == null ? "?" : expected.toShortString());
-            case NO_TARGET -> {
-                LOGGER.info("[AutoRoutes] Sim etherwarp: no etherwarpable block along the node's look");
-                stop("etherwarp found no target");
-            }
-        }
     }
 
     /**

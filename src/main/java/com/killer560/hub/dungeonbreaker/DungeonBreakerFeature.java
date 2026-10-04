@@ -60,13 +60,11 @@ public final class DungeonBreakerFeature {
         if (!cfg.isEnabled() || client.player == null || client.level == null) {
             return;
         }
-        // Not in the dungeon sim. SimItems has its own Dungeon Breaker - one that spends a charge, remembers
-        // the block and puts it back - and since 2026-09-29 the sim's item carries a real "Charges: 5/5" lore
-        // line, which is exactly what this reads. Without this gate both would fire on the same click and the
-        // block would be removed twice, once without being remembered.
-        if (com.killer560.hub.roomsim.SimState.isActive()) {
-            return;
-        }
+        // No sim gate (removed 2026-10-04). This only ever clears the CLIENT's copy of the block - a prediction -
+        // and the sim's Dungeon Breaker is now the integrated server answering the START packet, exactly as
+        // Hypixel's is, so the two cannot both "remove" anything. (In practice the sim's own client-side
+        // AttackBlockCallback consumes every left click at the head of startDestroyBlock, so this TAIL hook does
+        // not run there at all.)
         if (cfg.isFatigueOnly() && !client.player.hasEffect(MobEffects.MINING_FATIGUE)) {
             return;
         }

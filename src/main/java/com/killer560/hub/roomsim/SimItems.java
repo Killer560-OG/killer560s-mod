@@ -58,13 +58,6 @@ public final class SimItems {
      *  small area of crypt wall, not just the one block it lands on. */
     private static final int SUPERBOOM_RADIUS = 1;
 
-    /** Approximation only (see {@link #spiritSceptre}) - not Hypixel's real bat-projectile numbers. */
-    private static final float SCEPTER_DAMAGE = 30.0f;
-    private static final double SCEPTER_KNOCKBACK = 1.0;
-    private static final double SCEPTRE_RANGE = 6.0;
-    private static final double SCEPTRE_WIDTH = 4.0;
-    private static final double SCEPTRE_HEIGHT = 3.0;
-
     private SimItems() {
     }
 
@@ -124,71 +117,37 @@ public final class SimItems {
 
     /** Call once from {@code Killer560ModClient#onInitializeClient}, alongside {@code SimAbilities.register()}. */
     public static void register() {
-        // START, not END: the house rule for anything on the interaction path.
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(
-                SimItems::clientTick);
-        // The Dungeon Breaker is a LEFT-click mining tool on Hypixel, so UseItemCallback - which is the
-        // right-click path everything else here goes through - never fires for it. AttackBlockCallback is the
-        // left-click equivalent and needs no mixin, which matters: a mixin on the break path is a thing that
-        // breaks quietly on the next Minecraft version.
+        // LEFT CLICKS are a START_DESTROY_BLOCK packet, and on Hypixel the Dungeon Breaker and a left-click
+        // Superboom are the server's answer to that packet. AttackBlockCallback is a common event: Fabric fires
+        // it on the client in MultiPlayerGameMode.startDestroyBlock (where a SUCCESS sends the START packet and
+        // skips vanilla's client-side mining), and on the integrated server in
+        // ServerPlayerGameMode.handleBlockBreakAction for every START that arrives (where a non-PASS cancels
+        // vanilla's break and re-sends the block). The client half below only decides "no local mining"; the
+        // server half is the item. That is what lets Auto Routes' raw START packets work in here unchanged.
         net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.register(
                 (player, level, hand, pos, direction) -> {
+                    if (player instanceof ServerPlayer sp) {
+                        return onServerAttack(sp, hand, pos.immutable(), direction);
+                    }
                     Minecraft client = Minecraft.getInstance();
                     if (!SimState.canAct(client) || player != client.player) {
                         return net.minecraft.world.InteractionResult.PASS;
                     }
                     // PUZZLES GET THE CLICK FIRST, whatever is in hand.
                     //
-                    // This callback returns SUCCESS for every left click in the sim so a stray swing cannot mine
-                    // a room, and SUCCESS consumes the event - so a puzzle that registered its own
-                    // AttackBlockCallback afterwards would never see one. Any puzzle that wants left clicks has
-                    // to be dispatched from here. Creeper Beams is the first: killer560 (2026-10-01) "creeper
-                    // beams does nothing when i shoot the lanterns", and shooting a lantern - Mage beam, arrow,
-                    // bare swing - is a left click, while the puzzle only had a right-click hook.
-                    //
-                    // Ahead of the held-item checks on purpose: a lantern should connect whether or not he
-                    // happens to be holding the Dungeonbreaker.
+                    // Creeper Beams: killer560 (2026-10-01) "creeper beams does nothing when i shoot the
+                    // lanterns", and shooting a lantern - Mage beam, arrow, bare swing - is a left click. FAIL,
+                    // not SUCCESS: FAIL consumes the click without sending START, so the server's breaker or
+                    // Superboom never also fires on the lantern.
                     if (com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.tryConnectAt(pos.immutable())) {
-                        return net.minecraft.world.InteractionResult.SUCCESS;
+                        return net.minecraft.world.InteractionResult.FAIL;
                     }
-                    String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(player.getItemInHand(hand));
-                    if ("DUNGEONBREAKER".equals(id)) {
-                        // ONE charge per block per press, which is what the real item costs.
-                        //
-                        // This callback fires every TICK while the button is held, not once per click.
-                        // Cancelling the break means MultiPlayerGameMode never latches isDestroying, so its
-                        // continueDestroyBlock falls straight back into startDestroyBlock - and that is where
-                        // AttackBlockCallback lives. Twenty ticks of holding the button was twenty charges,
-                        // the whole bar in one second: killer560 (2026-09-30) "Dungeonbreaker still loses
-                        // charges before i do /start."
-                        //
-                        // Keyed on the BLOCK, not on a cooldown: sweeping the crosshair along a wall while
-                        // holding the button should break each block it crosses and pay for each one, the way
-                        // it does on Hypixel. Only re-breaking the same block without letting go is refused,
-                        // and lastBreakPos is cleared the moment the button comes up - see clientTick.
-                        BlockPos aimed = aimedBlock(client);
-                        if (aimed != null && aimed.equals(lastBreakPos)) {
-                            return net.minecraft.world.InteractionResult.SUCCESS;
-                        }
-                        if (dungeonBreak(client)) {
-                            lastBreakPos = aimed;
-                        }
-                        return net.minecraft.world.InteractionResult.SUCCESS;
-                    }
-                    // killer560 (2026-09-29): "Superboom should be able to be activated on left click as
-                    // well." Right click still works - SimAbilities routes it here - and this is the other
-                    // half, because in a real run it is whichever button your thumb reaches first.
-                    if ("SUPERBOOM_TNT".equals(id)) {
-                        superboomTnt(client);
-                        return net.minecraft.world.InteractionResult.SUCCESS;
-                    }
-                    // Everything else: nothing happens.
+                    // Everything else: no client-side mining, and the START goes to the server.
                     //
                     // killer560 (2026-09-29): "Make sure I cannot break blocks with anything besides the
-                    // dungeon breaker." The sim world is survival, so a sword or a bare hand could mine the
-                    // floor out of a room, and nothing remembered those blocks so they never came back - one
-                    // mis-click permanently changed the room he was practising in. SUCCESS consumes the click
-                    // so the mining animation does not even start.
+                    // dungeon breaker." The sim world is survival, so a sword or a bare hand could mine the floor
+                    // out of a room. SUCCESS keeps the mining animation from starting here, and the server half
+                    // refuses the break itself.
                     return net.minecraft.world.InteractionResult.SUCCESS;
                 });
         // And the same rule on the break itself.
@@ -409,62 +368,70 @@ public final class SimItems {
     }
 
     // ---------------------------------------------------------------------------------------------------
-    // Ability behaviour for the items SimAbilities does not cover. SimAbilities' own UseItemCallback should
-    // delegate any skyblock id it does not itself recognise to tryUse (wiring not done here - see the class
-    // doc of the caller). Etherwarp items, the wither blades and Tactical Insertion stay in SimAbilities;
-    // only Spirit Sceptre, Superboom TNT and the Dungeon Breaker are implemented here, plus an explicit
-    // pass-through for ender pearls.
+    // Ability behaviour for the items SimAbilities does not cover, run on the integrated SERVER in answer to the
+    // packet - the way Hypixel's server answers it. SimAbilities' server-side use handler delegates any skyblock
+    // id it does not itself recognise to useOnServer; the left-click packet (START_DESTROY_BLOCK) arrives at
+    // onServerAttack. Etherwarp items, the wither blades and Tactical Insertion stay in SimAbilities.
     // ---------------------------------------------------------------------------------------------------
 
     /**
-     * @return true if {@code skyblockId} was one of this file's abilities and it fired (or deliberately did
-     * nothing, for ender pearls). False means "not mine" - the caller should keep treating the item as a
-     * normal vanilla item.
+     * A use packet (or use-on-block packet) with one of this file's items, on the server thread.
+     *
+     * @param onBlock the block the use-on packet named, or null for a use in the air
+     * @return true if the ability fired. False means "not mine" or "declined" - the caller decides what vanilla
+     *         may still do with the click.
      */
-    public static boolean tryUse(Minecraft client, String skyblockId) {
-        if (!SimState.canAct(client) || skyblockId == null) {
+    static boolean useOnServer(ServerPlayer sp, String skyblockId, BlockHitResult onBlock) {
+        if (skyblockId == null) {
             return false;
         }
         return switch (skyblockId) {
-            case "ENDER_PEARL" ->
-                    // Vanilla ender pearls already throw, travel and teleport you through the integrated
-                    // server exactly like any other singleplayer world - there is nothing Hypixel-specific
-                    // to reimplement, so this is a deliberate no-op rather than a missing handler.
-                    false;
-            // The flight, the particles and the blast live in SimSpiritSceptre - see its class doc for why the
-            // old one-line hit box here read as "the sceptre does nothing".
-            case "BAT_WAND" -> SimSpiritSceptre.fire(client);
-            // Terminator owns its own file: three arrows, and Salvation after three hits.
-            // The same fire rate as the left click - it is one weapon, not two.
-            // Always returns true, so the caller consumes the click and vanilla never starts drawing the
-            // bow. killer560 (2026-09-30): "The terminator still doesnt insta shoot nor does it work without
-            // an arrow." Both were the same cause - the click fell through to vanilla, which wants arrows and
-            // a draw time. The shot spawns real arrows on the server and consumes no ammunition at all;
-            // the fire rate just decides whether this particular click produces one.
-            case "TERMINATOR" -> {
-                if (SimTerminator.readyToFire()) {
-                    SimTerminator.use(client, false);
-                }
+            // The flight, the particles and the blast live in SimSpiritSceptre, and the Terminator owns its own
+            // file. Both are aimed by the SERVER player's eye and rotation - the rotation the use packet carried -
+            // handed to their client-side flight code through SimAim, so a route's raw use packet aims the shot
+            // exactly as it aims it on Hypixel.
+            case "BAT_WAND" -> {
+                SimAim.Aim aim = SimAim.of(sp);
+                SimAbilities.onClient(() -> SimAim.with(aim, () -> SimSpiritSceptre.fire(Minecraft.getInstance())));
                 yield true;
             }
-            case "ARCHITECT_FIRST_DRAFT" -> architectDraft(client);
-            case "SUPERBOOM_TNT" -> superboomTnt(client);
-            // NO DUNGEONBREAKER HERE. It is a left-click tool and it is handled on AttackBlockCallback.
-            //
-            // It used to be on this right-click path as well, which meant right-clicking ANYTHING while
-            // holding the breaker broke the block in front of him instead - killer560 (2026-09-30): "if i
-            // right click a chest it tries to mine it instead. It does that for everything." The breaker is
-            // the item in his hand most of the time, so "everything" is right.
+            // Always true, so the click is consumed and vanilla never starts drawing the bow. killer560
+            // (2026-09-30): "The terminator still doesnt insta shoot nor does it work without an arrow." The shot
+            // spawns real arrows on the server and consumes no ammunition; the fire rate decides whether this
+            // particular click produces one. Right click is always the shot, never Salvation.
+            case "TERMINATOR" -> {
+                SimAim.Aim aim = SimAim.of(sp);
+                SimAbilities.onClient(() -> {
+                    if (SimTerminator.readyToFire()) {
+                        SimAim.with(aim, () -> SimTerminator.use(Minecraft.getInstance(), false));
+                    }
+                });
+                yield true;
+            }
+            case "ARCHITECT_FIRST_DRAFT" -> architectDraft(sp);
+            case "SUPERBOOM_TNT" -> {
+                if (onBlock != null) {
+                    yield superboom(sp, onBlock.getBlockPos().immutable(), onBlock.getDirection());
+                }
+                BlockHitResult hit = lookedAtBlock(sp);
+                if (hit == null) {
+                    failOnServer("not looking at a block");
+                    yield false;
+                }
+                // getDirection() points OUT of the block, towards him, so the chamber is behind it.
+                yield superboom(sp, hit.getBlockPos().immutable(), hit.getDirection());
+            }
+            // NO DUNGEONBREAKER HERE. It is a left-click tool - see onServerAttack. It used to be on the right-click
+            // path as well, which meant right-clicking ANYTHING while holding the breaker broke the block in front
+            // of him instead - killer560 (2026-09-30): "if i right click a chest it tries to mine it instead."
+            // Ender pearls are plain vanilla all the way down, so they are not here either.
             default -> false;
         };
     }
 
     /**
-     * Whether a right-click with this item is one of ours, and so must not reach vanilla.
-     *
-     * <p>Separate from {@link #tryUse} because the answer is needed on the SERVER side too, where the ability
-     * itself must not run - {@code UseBlockCallback} is a common event and fires once per side. Asking
-     * tryUse there would fire every ability twice.
+     * Whether a right-click with this item is one of ours, and so must not reach vanilla. Asked by both halves of
+     * the click in {@code SimAbilities}: the client's, to skip vanilla's prediction, and the server's, to run it.
      *
      * <p>An id that is NOT in here falls through to vanilla, which is what makes a chest open while the
      * Dungeon Breaker is in his hand.
@@ -482,90 +449,71 @@ public final class SimItems {
     }
 
     /**
-     * Spirit Sceptre's real ability fires a spread of bats that explode on contact. This is deliberately a
-     * simple approximation - one instant hit of damage and knockback to whatever is in a box in front of the
-     * player - not Hypixel's real bat projectile count, spread or timing. Good enough to practise "hit the
-     * mob in front of you", not a damage-number replica.
+     * A START_DESTROY_BLOCK packet in the sim, on the server thread: the Dungeon Breaker, a left-click Superboom,
+     * or nothing - nothing breaks through vanilla in here. Always consumes, so vanilla's survival break never
+     * starts (an insta-break block such as a torch would otherwise go on the first packet).
      */
-    private static boolean spiritSceptre(Minecraft client) {
-        var server = client.getSingleplayerServer();
-        if (server == null) {
-            return false;
+    private static net.minecraft.world.InteractionResult onServerAttack(ServerPlayer sp,
+                                                                        net.minecraft.world.InteractionHand hand,
+                                                                        BlockPos pos,
+                                                                        net.minecraft.core.Direction face) {
+        if (!SimAbilities.simServer(sp)) {
+            return net.minecraft.world.InteractionResult.PASS;
         }
-        Vec3 eye = client.player.getEyePosition();
-        Vec3 look = client.player.getLookAngle();
-        Vec3 center = eye.add(look.scale(SCEPTRE_RANGE / 2.0));
-        var uuid = client.player.getUUID();
-        server.execute(() -> {
-            ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-            if (sp == null) {
-                return;
+        String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(sp.getItemInHand(hand));
+        if ("DUNGEONBREAKER".equals(id)) {
+            // ONE charge per block per press, which is what the real item costs.
+            //
+            // A HELD button sends START every tick in here, not once: the client's half of this event consumes
+            // the click so no local mining starts, and that means MultiPlayerGameMode never latches isDestroying,
+            // so continueDestroyBlock falls straight back into startDestroyBlock and sends another START. Twenty
+            // ticks of holding the button was twenty charges - killer560 (2026-09-30) "Dungeonbreaker still loses
+            // charges before i do /start." So a START for the block that was just broken, arriving while the
+            // previous START for it is still fresh, is the same press and is refused. Keyed on the BLOCK: sweeping
+            // the crosshair along a wall breaks each block it crosses and pays for each one, the way it does on
+            // Hypixel; releasing the button lets the window lapse and the next press breaks it again.
+            long now = sp.level().getServer().getTickCount();
+            if (pos.equals(lastBreakPos) && now - lastBreakTick <= HELD_START_GAP_TICKS) {
+                lastBreakTick = now;
+                return net.minecraft.world.InteractionResult.SUCCESS;
             }
-            ServerLevel level = (ServerLevel) sp.level();
-            AABB box = AABB.ofSize(center, SCEPTRE_RANGE, SCEPTRE_HEIGHT, SCEPTRE_WIDTH);
-            List<Entity> hit = level.getEntities(sp, box, e -> e instanceof LivingEntity && e != sp);
-            DamageSource source = level.damageSources().playerAttack(sp);
-            for (Entity e : hit) {
-                LivingEntity target = (LivingEntity) e;
-                target.hurt(source, SCEPTER_DAMAGE);
-                // Vanilla's own convention: pass the vector FROM the target TO the attacker: knockback()
-                // normalises it and pushes the target the other way, away from the player.
-                com.killer560.hub.compat.McEntities.knockback(
-                        target, SCEPTER_KNOCKBACK, sp.getX() - target.getX(), sp.getZ() - target.getZ());
+            if (dungeonBreak(sp, pos)) {
+                lastBreakPos = pos;
+                lastBreakTick = now;
             }
-        });
-        ModChat.send("Sim", ModChat.text("Spirit Sceptre bats fired"));
-        return true;
+            return net.minecraft.world.InteractionResult.SUCCESS;
+        }
+        // killer560 (2026-09-29): "Superboom should be able to be activated on left click as well." Right click
+        // works too (useOnServer), because in a real run it is whichever button your thumb reaches first. This is
+        // also Auto Routes' BOOM node, which sends START/ABORT at the block on Hypixel.
+        if ("SUPERBOOM_TNT".equals(id)) {
+            superboom(sp, pos, face);
+        }
+        return net.minecraft.world.InteractionResult.SUCCESS;
     }
 
-    /** Breaks a small cube of breakable blocks centred on whatever block you're looking at, the way a real
-     *  Superboom clears a chunk of crypt/reinforced wall rather than a single block. Simplified timing: the
-     *  real item is thrown/placed and detonates after a short fuse, but the sim has no need to model the
-     *  fuse itself, so this fires the moment {@code tryUse} is called for it - whatever event wires that up
-     *  decides what "using" a Superboom means in the sim. */
+    /** The block a held breaker last broke, and the server tick of the latest START for it. Server thread. */
+    private static BlockPos lastBreakPos;
+    private static long lastBreakTick;
+
+    /** How many server ticks apart two STARTs for one block still count as the same held press. */
+    private static final int HELD_START_GAP_TICKS = 3;
+
     /**
-     * Superboom.
+     * Superboom, detonated on {@code target} hit on {@code face}, on the server thread - from a use packet, a
+     * use-on-block packet or a START_DESTROY_BLOCK, whoever sent it.
      *
      * <p>A superboom that opens a CRYPT counts toward the score: five crypts are worth the bonus five points,
      * and that is most of the gap between a 299 and a 300. Recognised by the blocks it breaks rather than by
-     * where it was used - a crypt is a cracked-stone-brick wall, and reading the wall is the only thing the sim
-     * can know for certain.
+     * where it was used.
      */
-    private static boolean superboomTnt(Minecraft client) {
-        BlockHitResult hit = lookedAtBlock(client);
-        if (hit == null) {
-            fail(client, "not looking at a block");
+    private static boolean superboom(ServerPlayer sp, BlockPos target, net.minecraft.core.Direction face) {
+        if (target == null || face == null) {
             return false;
         }
-        // Which way he is looking at it. getDirection() points OUT of the block, towards him, so the
-        // chamber is behind it and the wall runs across it.
-        return superboomAt(client, hit.getBlockPos().immutable(), hit.getDirection());
-    }
-
-    /**
-     * A Superboom detonated on {@code target}, hit on {@code face}, without reading the camera - the entry point
-     * for automation that aims by a recorded look rather than the crosshair (Auto Routes' BOOM node). On Hypixel
-     * that node sends raw START/ABORT_DESTROY_BLOCK packets and the server does the rest; the sim has no
-     * server-side Superboom, only the client {@code AttackBlockCallback} above, so those packets did nothing in
-     * here. The same blast as a hand-thrown one, charge included.
-     *
-     * @return false when this cannot act (not the sim, no server)
-     */
-    public static boolean superboomAt(Minecraft client, BlockPos target, net.minecraft.core.Direction face) {
-        if (!SimState.canAct(client) || target == null || face == null) {
-            return false;
-        }
+        Minecraft client = Minecraft.getInstance();
         BlockPos center = target.immutable();
-        var server = client.getSingleplayerServer();
-        if (server == null) {
-            return false;
-        }
-        var uuid = client.player.getUUID();
-        server.execute(() -> {
-            ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-            if (sp == null) {
-                return;
-            }
+        {
             ServerLevel level = (ServerLevel) sp.level();
             // THE WHOLE WALL, not a 3x3 cube. killer560 (2026-09-30): "it shouldnt have this 3x3 range
             // instead it should bloww up any cracked bricks". A crypt wall is bigger than three blocks in at
@@ -659,7 +607,7 @@ public final class SimItems {
                             || aimed.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS),
                     sealsAChamber(level, center), broken);
             if (broken == 0) {
-                return;
+                return true;
             }
             if (openedCrypt) {
                 SimScore.cryptBlown();
@@ -690,7 +638,7 @@ public final class SimItems {
                     .filter(st -> "SUPERBOOM_TNT".equals(
                             com.killer560.hub.cheatutils.CheatUtils.skyblockId(st)))
                     .findFirst().ifPresent(st -> st.shrink(1));
-        });
+        }
         // No chat line. killer560 (2026-09-30): "Also dont have ti send the chat message." On Hypixel a
         // Superboom is silent; the explosion is the feedback.
         return true;
@@ -778,23 +726,13 @@ public final class SimItems {
      * <p>The point of having it at all is that a failed puzzle otherwise ends a practice run: without a reset
      * he would have to rebuild the map to try the same puzzle twice, which is the opposite of drilling it.
      */
-    private static boolean architectDraft(Minecraft client) {
-        if (!SimState.canAct(client)) {
-            return false;
-        }
-        com.killer560.hub.roomsim.puzzles.SimPuzzles.resetAll();
-        var server = client.getSingleplayerServer();
-        if (server != null) {
-            var uuid = client.player.getUUID();
-            server.execute(() -> {
-                ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-                if (sp != null) {
-                    // Consumed, like the real one - a reset that costs nothing is not the same decision.
-                    sp.getInventory().getSelectedItem().shrink(1);
-                }
-            });
-        }
-        ModChat.send("Sim", ModChat.text("Puzzle reset"));
+    private static boolean architectDraft(ServerPlayer sp) {
+        // Consumed, like the real one - a reset that costs nothing is not the same decision.
+        sp.getInventory().getSelectedItem().shrink(1);
+        SimAbilities.onClient(() -> {
+            com.killer560.hub.roomsim.puzzles.SimPuzzles.resetAll();
+            ModChat.send("Sim", ModChat.text("Puzzle reset"));
+        });
         return true;
     }
 
@@ -827,11 +765,8 @@ public final class SimItems {
      * Cells sit {@code HALF_ROOM} apart, so an inversion is an off-by-one waiting to happen at every boundary,
      * and 121 squared distances on a single left-click costs nothing measurable.
      */
-    private static boolean inPuzzleRoom(Minecraft client, BlockPos target) {
-        if (client.player == null) {
-            return false;
-        }
-        return isPuzzleCell(nearestCell(target)) || isPuzzleCell(nearestCell(client.player.blockPosition()));
+    private static boolean inPuzzleRoom(ServerPlayer sp, BlockPos target) {
+        return isPuzzleCell(nearestCell(target)) || isPuzzleCell(nearestCell(sp.blockPosition()));
     }
 
     private static boolean isPuzzleCell(int cell) {
@@ -872,11 +807,8 @@ public final class SimItems {
      * lever for a redstone key. A lever is also Water Board's control, which this protects as a side effect,
      * and that is correct for the same reason - it is not scenery.
      */
-    private static boolean isSecretBlock(Minecraft client, BlockPos target) {
-        if (client.level == null) {
-            return false;
-        }
-        var state = client.level.getBlockState(target);
+    private static boolean isSecretBlock(ServerLevel level, BlockPos target) {
+        var state = level.getBlockState(target);
         return state.is(net.minecraft.world.level.block.Blocks.CHEST)
                 || state.is(net.minecraft.world.level.block.Blocks.TRAPPED_CHEST)
                 || state.is(net.minecraft.world.level.block.Blocks.SOUL_LANTERN)
@@ -884,81 +816,50 @@ public final class SimItems {
                 || SimSecrets.PLACED_CHESTS.contains(target);
     }
 
-    private static boolean dungeonBreak(Minecraft client) {
+    /**
+     * A Dungeonbreaker break of {@code at}, on the server thread, in answer to a START_DESTROY_BLOCK packet - a
+     * held left click, or Auto Routes' breaker node, which on Hypixel sends one raw START per block and never aims
+     * (block breaking is range-checked, not look-checked). Every rule applies to both: locked before a generated
+     * floor starts, refused in puzzle rooms and on secrets (no charge spent), one charge per block, and the block
+     * comes back.
+     *
+     * @return true when a charge was spent and the block broken
+     */
+    private static boolean dungeonBreak(ServerPlayer sp, BlockPos at) {
         // NOT on a generated floor before the run has started.
         //
         // killer560 (2026-09-30): "before the countdown make it so breaker doesnt work on the generated map.
-        // If i only choose one room thought then the breaker should work." A generated floor is a clear he is
-        // about to practise, and breaking its walls while locked in the entrance would let him cut the route
-        // before the timer even starts. A single loaded room is a sandbox, so it stays free.
-        // hasStarted, not isRunning: the lock means "this floor has not been started yet", and it must not
-        // come back once it has. isRunning goes false again whenever a run is stopped or re-armed, which put
-        // the breaker back in its locked state mid-session - killer560 (2026-09-30): "the breaker doesnt
-        // become a normal breaker again after /start finishes."
+        // If i only choose one room thought then the breaker should work." hasStarted, not isRunning: the lock
+        // means "this floor has not been started yet", and it must not come back once it has.
         if (SimState.isGeneratedFloor() && !SimRun.hasStarted()) {
             // Silent. killer560 (2026-09-30): "Remove the chat line about it being locked until start."
-            // Nothing breaking is already the answer, and holding the button printed it twenty times a
-            // second before the per-press guard landed.
             return false;
         }
-        BlockHitResult hit = lookedAtBlock(client);
-        if (hit == null) {
-            fail(client, "not looking at a block");
-            return false;
-        }
-        return dungeonBreakAt(client, hit.getBlockPos().immutable());
-    }
-
-    /**
-     * A Dungeonbreaker break of {@code target}, without reading the camera - the entry point for Auto Routes'
-     * breaker node, which on Hypixel sends one raw START_DESTROY_BLOCK per block and never aims (block breaking is
-     * range-checked, not look-checked). The sim only broke blocks from the client {@code AttackBlockCallback}, so
-     * those packets did nothing in here. Every rule a hand break follows applies: locked before a generated floor
-     * starts, refused in puzzle rooms and on secrets (no charge spent), one charge per block, and the block comes
-     * back.
-     *
-     * @return true when the break was spent and queued on the server
-     */
-    public static boolean dungeonBreakAt(Minecraft client, BlockPos at) {
-        if (!SimState.canAct(client) || at == null) {
-            return false;
-        }
-        // Silent here too: the hand path re-enters every tick while the button is held. Auto Routes logs a refusal.
-        if (SimState.isGeneratedFloor() && !SimRun.hasStarted()) {
+        if (at == null) {
             return false;
         }
         final BlockPos target = at.immutable();
-        var server = client.getSingleplayerServer();
-        if (server == null) {
-            return false;
-        }
+        ServerLevel level = (ServerLevel) sp.level();
         // NOT IN A PUZZLE ROOM, and NOT ON A SECRET. Both refusals happen BEFORE trySpend below, so a refused
-        // break costs no charge - which is the whole reason they are here and not inside breakIfBreakable.
+        // break costs no charge.
         //
         // killer560 (2026-10-01): "make it so in puzzle rooms I cannot use dungeon breaker" and "make it so i
         // cant dungeon breaker secrets". The first is also the real item's own rule: the wiki says the
         // Dungeonbreaker cannot be used in puzzle rooms, on doors, or to pass through a wall into another room.
-        if (inPuzzleRoom(client, target) || SimAbilities.isTeleportMaze(SimState.currentRoomName())) {
-            fail(client, "the Dungeonbreaker does not work in puzzle rooms");
+        if (inPuzzleRoom(sp, target)
+                || SimAbilities.isTeleportMaze(SimState.roomNameAt(sp.getBlockX(), sp.getBlockZ()))) {
+            failOnServer("the Dungeonbreaker does not work in puzzle rooms");
             return false;
         }
-        if (isSecretBlock(client, target)) {
-            // Silent. killer560 (2026-10-04) asked for this chat line to go; the refusal itself stays, and the
-            // block not breaking is the answer.
+        if (isSecretBlock(level, target)) {
+            // Silent. killer560 (2026-10-04) asked for this chat line to go; the refusal itself stays.
             return false;
         }
         if (!SimBreakerState.trySpend()) {
-            fail(client, "no Dungeonbreaker charges left");
+            failOnServer("no Dungeonbreaker charges left");
             return false;
         }
-        var uuid = client.player.getUUID();
-        server.execute(() -> {
-            ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-            if (sp == null) {
-                return;
-            }
-            breakIfBreakable((ServerLevel) sp.level(), target, sp);
-        });
+        breakIfBreakable(level, target, sp);
         return true;
     }
 
@@ -967,8 +868,7 @@ public final class SimItems {
     private static void breakIfBreakable(ServerLevel level, BlockPos pos, ServerPlayer breaker) {
         BlockState state = level.getBlockState(pos);
         // Remembered BEFORE it goes, so it can come back - killer560 (2026-09-28): "make sure dungeon breaker
-        // blocks come back after broken just like on main". Without it, the second run through a room is
-        // through a room he already demolished, and every run after that is a different room.
+        // blocks come back after broken just like on main".
         if (!state.isAir()) {
             SimBreakerState.remember(level, pos, state);
         }
@@ -978,43 +878,23 @@ public final class SimItems {
         level.destroyBlock(pos, false, breaker, 512);
     }
 
-    /**
-     * The block the attack button is currently being held against, or null.
-     *
-     * <p>Cleared as soon as the button is released, so a second press on the same block breaks it again. See
-     * the comment at the AttackBlockCallback registration for why this exists.
-     */
-    private static BlockPos lastBreakPos;
-
-    /** Clears {@link #lastBreakPos} when the attack button comes up. Registered in {@link #register}. */
-    private static void clientTick(Minecraft client) {
-        if (client.options == null || !client.options.keyAttack.isDown()) {
-            lastBreakPos = null;
-        }
-    }
-
-    /** What the player is aiming at, as a position, or null when it is not a block. */
-    private static BlockPos aimedBlock(Minecraft client) {
-        if (client.player == null || client.level == null) {
-            return null;
-        }
-        BlockHitResult hit = lookedAtBlock(client);
-        return hit == null ? null : hit.getBlockPos().immutable();
-    }
-
-    /** Raycast on the CLIENT's level - purely to find what the player is aiming at. Nothing here writes to
-     *  the world; only {@link #breakIfBreakable} does that, on the server thread. */
-    private static BlockHitResult lookedAtBlock(Minecraft client) {
-        Vec3 eye = client.player.getEyePosition();
-        Vec3 look = client.player.getLookAngle();
+    /** What the SERVER player is looking at within reach, on the server's level - for a Superboom used in the air. */
+    private static BlockHitResult lookedAtBlock(ServerPlayer sp) {
+        Vec3 eye = sp.getEyePosition();
+        Vec3 look = sp.getLookAngle();
         Vec3 end = eye.add(look.scale(LOOK_RANGE));
-        BlockHitResult hit = client.level.clip(new ClipContext(
-                eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));
+        BlockHitResult hit = sp.level().clip(new ClipContext(
+                eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, sp));
         return hit != null && hit.getType() == HitResult.Type.BLOCK ? hit : null;
     }
 
     private static void fail(Minecraft client, String why) {
         ModChat.send("Sim", ModChat.dim(why));
+    }
+
+    /** A refusal said from the server thread: chat belongs on the client's. */
+    private static void failOnServer(String why) {
+        SimAbilities.onClient(() -> ModChat.send("Sim", ModChat.dim(why)));
     }
     /**
      * Every fragile block joined to {@code start}, so one charge opens a whole crypt wall.

@@ -371,7 +371,7 @@ public final class EtherSearchBench {
             EtherSearch.Leg leg = new EtherSearch.Leg();
             leg.fan = EtherSearch.fan(57.0, 6f, 7f);
             leg.hWeight = 6.7;
-            leg.standOffset = 1.0;
+            leg.standOffset = 1.05;
             leg.deadlineNanos = System.nanoTime() + 670_000_000L;
             leg.goalX = 22;
             leg.goalY = 69;
@@ -611,7 +611,7 @@ public final class EtherSearchBench {
                 EtherSearch.Leg leg = new EtherSearch.Leg();
                 leg.fan = fan;
                 leg.hWeight = 6.7;
-                leg.standOffset = 1.0;
+                leg.standOffset = 1.05;
                 leg.deadlineNanos = System.nanoTime() + 670_000_000L;
                 if (next >= 0) {
                     int ax = 1 + (room % ROOMS) * PITCH + 15;

@@ -136,7 +136,7 @@ public final class SimItemLore {
         Map.entry("DUNGEONBREAKER", new String[]{
             "§5Dungeon Breaker",
             "§7Breaks dungeon blocks instantly.",
-            "§8Charges: 5/5",
+            "§8Charges: 20/20",
             "",
             "§5§lEPIC PICKAXE",
         }),
