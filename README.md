@@ -40,7 +40,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 ## Latest dev build
 
-Every push to `main` is built automatically and published as the **Latest Dev Build** pre-release on the [Releases page](https://github.com/Killer560-OG/killer560s-mod/releases/tag/dev-latest) - download the `-legit.jar` or `-cheat.jar` from there to get the newest commit without building it yourself. It is replaced on every push and is not an official release.
+Every push to `main` is built automatically and published as the **Latest Dev Build** pre-release on the [Releases page](https://github.com/Killer560-OG/killer560s-mod/releases/tag/dev-latest) - download the `-legit.jar` or `-cheat.jar` for your Minecraft version (26.1.2 or 26.2) from there to get the newest commit without building it yourself. It is replaced on every push and is not an official release.
 
 ## Installing
 

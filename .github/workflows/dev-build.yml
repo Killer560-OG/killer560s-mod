@@ -1,4 +1,4 @@
-# Builds both jars on every push to main and publishes them on one rolling "Latest Dev Build" pre-release,
+# Builds the legit and cheat jars for 26.1.2 and 26.2 on every push to main and publishes them on one rolling "Latest Dev Build" pre-release,
 # replaced each time, so the newest commit is always one click away without building from source.
 # Real versioned releases (v1.0.0, v1.1.0, ...) are never touched.
 name: Dev Build
@@ -28,17 +28,19 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build legit jar
-        run: ./gradlew build --no-daemon
-
-      - name: Build cheat jar
-        run: ./gradlew build -PcheatBuild=true --no-daemon
-
-      - name: Collect jars
+      # Four jars: legit and cheat for Minecraft 26.1.2 and 26.2. The build tree is cleared between them (as the
+      # local four-jar build does) so the generated BuildVariant and compiled classes never carry over.
+      - name: Build jars (26.1.2 and 26.2, legit and cheat)
         run: |
           mkdir dist
-          cp build/libs/*-legit.jar build/libs/*-cheat.jar dist/
+          V262="-Pminecraft_version=26.2 -Pfabric_api_version=0.160.0+26.2 -Pmodmenu_version=20.0.2"
+          for args in "" "-PcheatBuild=true" "$V262" "-PcheatBuild=true $V262"; do
+            rm -rf build/generated/sources/buildVariant build/classes build/libs
+            ./gradlew build $args --no-daemon
+            cp build/libs/*-legit.jar build/libs/*-cheat.jar dist/ 2>/dev/null || true
+          done
           ls -la dist
+          test "$(ls dist/*.jar | wc -l)" -eq 4
 
       - name: Publish Latest Dev Build
         env:
@@ -51,6 +53,8 @@ jobs:
           **Automatic build of the newest commit** - not an official release, and most of it is still being tested.
 
           Commit: \`${SHORT}\` - ${SUBJECT}
+
+          Pick the jar matching your Minecraft version (\`26.1.2\` or \`26.2\` in the file name):
 
           - \`*-legit.jar\` - what almost everyone wants.
           - \`*-cheat.jar\` - adds the automation features. Against Hypixel's rules; your risk.
