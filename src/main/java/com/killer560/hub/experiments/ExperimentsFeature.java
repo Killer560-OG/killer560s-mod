@@ -930,6 +930,11 @@ public final class ExperimentsFeature {
                 }
                 ModOverlayMessage.show("§c[Killer560's Mod] No Guardian pet found!", 4000);
             }, now, cfg);
+            case PETS_NEVER_OPENED -> scheduleAction(() -> {
+                // Nothing to close: whatever is open now is not the Pets menu, and may be his.
+                ModOverlayMessage.show("§c[Killer560's Mod] Pets menu never opened - continuing without the Guardian swap", 4000);
+                armReopenAfterClaim(System.currentTimeMillis());
+            }, now, cfg);
             case CLOSE_AND_REOPEN -> scheduleAction(() -> {
                 if (McCompat.screen(Minecraft.getInstance()) != null) {
                     McCompat.screen(Minecraft.getInstance()).onClose();

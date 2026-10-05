@@ -247,9 +247,14 @@ public final class SimWorld {
                     // mode the thing being practised happens in - creative flight would let a route cheat past
                     // exactly the jumps and drops it exists to rehearse.
                     GameType.SURVIVAL,
-                    // No difficulty, no hardcore: the sim is for practising routes, and being killed by a
-                    // zombie that wandered in is not the exercise.
-                    new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false),
+                    // EASY, not PEACEFUL (2026-10-05). On 26.2 EntityType.canSpawn refuses any type that is not
+                    // allowed in peaceful when the level reads PEACEFUL, and the CLIENT calls it for every add-entity
+                    // packet ("Skipping Entity with id entity.minecraft.silverfish"; javap 26.2), so every sim
+                    // zombie, skeleton, blaze and silverfish existed on the server and never on his screen - Ice
+                    // Path's solver found no silverfish. Nothing wanders in or fights back regardless: monster
+                    // spawning is off (freezeWorld), every sim mob is NoAI, SimSurvival keeps him fed and refuses
+                    // fall/fire damage, and a death puts him back in the room.
+                    new LevelSettings.DifficultySettings(Difficulty.EASY, false, false),
                     true,
                     WorldDataConfiguration.DEFAULT);
             client.createWorldOpenFlows().createFreshLevel(
@@ -448,6 +453,8 @@ public final class SimWorld {
             return;
         }
         server.execute(() -> {
+            // A sim world created before 2026-10-05 is stored as PEACEFUL; see the LevelSettings comment above.
+            server.setDifficulty(Difficulty.EASY, true);
             var rules = server.getGameRules();
             rules.set(net.minecraft.world.level.gamerules.GameRules.RANDOM_TICK_SPEED, 0, server);
             rules.set(net.minecraft.world.level.gamerules.GameRules.ADVANCE_TIME, false, server);

@@ -10,6 +10,7 @@ import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.client.Minecraft;
@@ -42,6 +43,11 @@ public final class McRender {
     /** What a caller draws once the pose is in camera space. */
     public interface Geometry {
         void draw(PoseStack.Pose pose, VertexConsumer buffer);
+    }
+
+    /** Sorted upload for a LINES render type where the version allows it: 26.1.2 sorts lines, 26.2 refuses. */
+    public static RenderSetup.RenderSetupBuilder sortLinesOnUpload(RenderSetup.RenderSetupBuilder builder) {
+        return builder.sortOnUpload();
     }
 
     /** Where the camera is this frame. */
