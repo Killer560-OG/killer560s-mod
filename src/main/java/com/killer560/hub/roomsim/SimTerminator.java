@@ -184,12 +184,20 @@ public final class SimTerminator {
                     && entity != arrow.getOwner()) {
                 LAST_HIT_BY.put(entity.getUUID(), arrow.describe());
                 recordHit(entity);
+            } else if (SimState.isActive() && source.getDirectEntity() instanceof Arrow stale
+                    && stale.getClass() == Arrow.class && stale.pickup == AbstractArrow.Pickup.DISALLOWED) {
+                // A Terminator arrow saved with the world by a jar from before shouldBeSaved() below: it comes back
+                // as a plain Arrow, still carrying the 10,000 damage, and resumes its flight when the world opens.
+                // Refuse the hit and drop it.
+                LAST_HIT_BY.put(entity.getUUID(), "a stale saved Terminator arrow (refused and removed)");
+                stale.discard();
+                return false;
             } else if (SimState.isActive() && entity instanceof net.minecraft.world.entity.monster.Blaze) {
                 // Anything else that hurts a blaze, so a puzzle blaze that dies without an arrow says what did it.
                 LAST_HIT_BY.put(entity.getUUID(), "damage '" + source.getMsgId() + "' (" + amount + ") from "
                         + (source.getEntity() == null ? "no entity" : source.getEntity().getClass().getSimpleName()));
             }
-            // Never refuses anything - this listener is only here to count.
+            // Otherwise never refuses anything - this listener is only here to count.
             return true;
         });
     }
@@ -503,6 +511,17 @@ public final class SimTerminator {
             pickup = Pickup.DISALLOWED;
             setBaseDamage(DAMAGE);
             setCritArrow(true);
+        }
+
+        /**
+         * Never written to disk. A shot still in the air when the world closes was saved as a plain "minecraft:arrow"
+         * with its 10,000 damage, and on the next load it carried on: arrows rising out of Lower Blaze's shaft fell
+         * back down it and killed a puzzle blaze out of order within two seconds of the room being built, before
+         * anything had been fired (93-solve, 2026-10-05: two of fifteen runs; the save held two such arrows).
+         */
+        @Override
+        public boolean shouldBeSaved() {
+            return false;
         }
 
         @Override
