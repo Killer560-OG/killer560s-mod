@@ -45,7 +45,7 @@ public final class SimPauseEntry {
         int bottom = -1;
         for (AbstractWidget w : Screens.getWidgets(screen)) {
             // Buttons only: a text label another mod parks at the bottom of the screen must not drag this down.
-            if (w == own || !w.visible || !(w instanceof Button)) {
+            if (w == own || w == nextButton.get() || !w.visible || !(w instanceof Button)) {
                 continue;
             }
             if (w.getX() <= centre && centre < w.getX() + w.getWidth()) {
@@ -77,6 +77,10 @@ public final class SimPauseEntry {
         if (existing != null && Screens.getWidgets(screen).contains(existing)) {
             existing.setX(x);
             existing.setY(y);
+            AbstractWidget next = nextButton.get();
+            if (next != null && Screens.getWidgets(screen).contains(next)) {
+                placeNext(screen, existing, next);
+            }
             return;
         }
 
@@ -95,5 +99,52 @@ public final class SimPauseEntry {
         Screens.getWidgets(screen).add(button);
         ownerScreen = new WeakReference<>(screen);
         ownButton = new WeakReference<>(button);
+        nextButton = new WeakReference<>(null);
+
+        // killer560 (2026-10-05): "while in a solo map an option that says something like go to a new room with
+        // 0 routes in it". Only on a room loaded on its own - on a generated floor "the next room" means nothing.
+        if (SimRoomRoutes.currentSoloRoom() == null) {
+            return;
+        }
+        Button next = Button.builder(Component.literal(NEXT_LABEL), btn -> {
+                    if (SimRoomRoutes.loadNextWithoutRoutes(client) != null) {
+                        McCompat.setScreen(client, null);
+                    } else {
+                        // Said in chat as well; the button says it where he is looking.
+                        btn.setMessage(Component.literal("No other room without routes"));
+                        btn.active = false;
+                    }
+                })
+                .bounds(x, y + 20 + GAP, width, 20)
+                .build();
+        placeNext(screen, button, next);
+        Screens.getWidgets(screen).add(next);
+        nextButton = new WeakReference<>(next);
+    }
+
+    static final String NEXT_LABEL = "Next room with no routes";
+
+    private static WeakReference<AbstractWidget> nextButton = new WeakReference<>(null);
+
+    /**
+     * Under Change Room when the screen has the height for it; otherwise the two share Change Room's row, half
+     * width each, so neither is drawn off the bottom of a short window.
+     */
+    private static void placeNext(Screen screen, AbstractWidget change, AbstractWidget next) {
+        int below = change.getY() + change.getHeight() + GAP;
+        if (below + 20 <= screen.height - 2) {
+            change.setWidth(WIDTH);
+            change.setX(screen.width / 2 - WIDTH / 2);
+            next.setWidth(WIDTH);
+            next.setX(change.getX());
+            next.setY(below);
+            return;
+        }
+        int half = (WIDTH - GAP) / 2;
+        change.setWidth(half);
+        change.setX(screen.width / 2 - WIDTH / 2);
+        next.setWidth(WIDTH - GAP - half);
+        next.setX(change.getX() + half + GAP);
+        next.setY(change.getY());
     }
 }

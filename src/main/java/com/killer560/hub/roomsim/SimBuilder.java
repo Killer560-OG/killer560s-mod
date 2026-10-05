@@ -80,9 +80,18 @@ public final class SimBuilder {
                                             SimRun.begin(Minecraft.getInstance(), null);
                                             return 1;
                                         }))
+                                // The pause menu's "Next room with no routes", for a keybind or a chat macro.
+                                .then(net.fabricmc.fabric.api.client.command.v2.ClientCommands
+                                        .literal("noroutes")
+                                        .executes(ctx -> {
+                                            Minecraft mc = Minecraft.getInstance();
+                                            mc.execute(() -> SimRoomRoutes.loadNextWithoutRoutes(mc));
+                                            return 1;
+                                        }))
                                 .executes(ctx -> {
                                     ModChat.send("Sim", ModChat.dim(
-                                            "/simbuild flat  |  /simbuild code <code>  |  /simbuild run"));
+                                            "/simbuild flat  |  /simbuild code <code>  |  /simbuild run"
+                                                    + "  |  /simbuild noroutes"));
                                     return 1;
                                 }));
                 });
