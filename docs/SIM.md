@@ -2193,6 +2193,20 @@ were the SIM's and three were the autos'; each is named at its fix.
   blaze from one spot, the simulated arrow clearing the ledge he stood on and the real ones dying in it. (Requiring
   the shot to be clean from the vanilla arrow origin, eye - 0.1, as well as QUOI's was tried and refused every spot
   in Lower Blaze, so the give-up is the fix.)
+- **Blaze, still an out-of-order kill about one run in twenty (2026-10-05, night-blaze):** the safety check traced each
+  arrow until it touched a box and counted a touch of the TARGET as safe. One arrow kills a blaze and an arrow passes
+  through a dying one, so whichever of the three killed the target first, the others flew on. Measured with the sim's
+  new per-kill attribution ("blaze N of 10 died (due: k) ... killed by shot #S centre / yaw-5 side / yaw+5 side
+  arrow"): 31 of 160 and 52 of 206 kills were made by a side arrow, and the one fail in 36 baseline runs was shot #9's
+  centre arrow killing blaze 5 at tick 4 and its +5 arrow - "safe" because it reached blaze 5's box - killing blaze 10
+  at tick 6. Now every arrow (centre and both sides) is traced to where it lands with the target treated as absent, and
+  must miss every other blaze; the centre one must still reach the target first. This is the auto, so it holds on
+  Hypixel too.
+- **Sim: Terminator arrows were saved with the world.** One still in the air when the world closed came back on the
+  next load as a plain arrow with its 10,000 damage and kept flying; in back-to-back Lower Blaze runs two saved arrows
+  rising out of the shaft fell back down it and killed a chain blaze within two seconds of the build, before Auto Blaze
+  was on (2 of 15 runs). `TerminatorArrow.shouldBeSaved()` is false now, and a plain DISALLOWED-pickup arrow (one an
+  older jar saved) is refused and discarded by the damage hook.
 - **Creeper Beams, "times out, then never shoots again":** the timeout was the slot fault above. After it, the shots
   were aimed with `etherwarpDirection` - a SNEAKING eye whatever his stance, at QUOI's face-edge sample points - so
   standing up after the cancelled reposition every shot missed its lantern. Shots now aim from the real eye at the
