@@ -2204,7 +2204,9 @@ were the SIM's and three were the autos'; each is named at its fix.
   tick, never below Higher Blaze's top level) - the fifth blaze of Lower Blaze floats a block over the shaft floor,
   under QUOI's lowest spot. A searched spot with a shot that no single warp reaches (the shaft floor seen from the
   top landing, where the first target sat a block over the floor in two Mod Only Test runs and he never moved) is
-  handed to the Interactive Map's planner (`pathIfMapOn`). "Blaze: done." now waits for the solver's list to stay empty for 30 ticks (a rebuilt chain
+  reached by two warps through any searched block that sees it, and only then, once per spot, handed to the
+  Interactive Map's planner - which could not path to the shaft floor by the bar and failed 1,100 times in a minute
+  when it was asked every tick. "Blaze: done." now waits for the solver's list to stay empty for 30 ticks (a rebuilt chain
   empties it for a moment). Side arrows are followed until they land in the safety check (QUOI stopped them a few
   blocks past the target, so one could fly on across the shaft and kill a far blaze out of order). No out-of-order
   kill was seen in these runs once the blazes existed; the spread stays 5 degrees, QUOI's figure. Four shots from
