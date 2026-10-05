@@ -20,5 +20,6 @@ javac -nowarn -proc:none -cp "$GSON$SEP$SLF" -d build/floorbench \
   src/main/java/com/killer560/hub/roomsim/SimWitherDoors.java tools/layoutsim/LayoutSim.java \
   src/main/java/com/killer560/hub/livemap/autoclear/EtherSearch.java \
   src/main/java/com/killer560/hub/livemap/autoclear/WarpGraph.java \
+  src/main/java/com/killer560/hub/livemap/autoclear/FloorGraphs.java \
   tools/bench/EtherSearchBench.java tools/bench/FloorBench.java
 java -Xmx4g "$@" -cp "build/floorbench$SEP$GSON$SEP$SLF" FloorBench src/main/resources/assets/killer560smod/rooms

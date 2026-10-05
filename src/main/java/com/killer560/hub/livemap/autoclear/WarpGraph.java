@@ -549,17 +549,35 @@ public final class WarpGraph {
     public void blocksChanged(int x0, int y0, int z0, int x1, int y1, int z1) {
         changes.add(new int[]{Math.min(x0, x1), Math.min(y0, y1), Math.min(z0, z1), Math.max(x0, x1),
                 Math.max(y0, y1), Math.max(z0, z1)});
+        WarpGraph f = follower;
+        if (f != null) {
+            f.blocksChanged(x0, y0, z0, x1, y1, z1);
+        }
     }
 
     /** A chunk column was (re)sent with different contents, or dropped. Any thread. */
     public void columnChanged(int cx, int cz) {
         changes.add(new int[]{cx, Integer.MIN_VALUE, cz});
+        WarpGraph f = follower;
+        if (f != null) {
+            f.columnChanged(cx, cz);
+        }
     }
 
     /** Forget every edge and landing. Any thread. */
     public void clear() {
         clearAll = true;
+        WarpGraph f = follower;
+        if (f != null) {
+            f.clear();
+        }
     }
+
+    /**
+     * Another graph of the same floor that is told about every change this one is told about ({@link FloorGraphs}:
+     * the quick graph follows the full one, so LevelEtherGrid keeps reporting to one listener).
+     */
+    public volatile WarpGraph follower;
 
     /** Nodes whose rays read a section / any section of a column. */
     private final java.util.HashMap<Long, IntList> bySection = new java.util.HashMap<>();
@@ -580,6 +598,12 @@ public final class WarpGraph {
             }
             a[n++] = v;
         }
+    }
+
+    /** {@link #applyChanges()} reading the world through {@code grid}. Owning thread. */
+    public int applyChanges(EtherSearch.Grid grid) {
+        owner.inner = grid;
+        return applyChanges();
     }
 
     /** Applies queued changes. Owning thread. Returns how many nodes lost their edges. */
@@ -2543,6 +2567,7 @@ public final class WarpGraph {
         droppedSinceWarm = 0;
         warmComplete = true;
         warmedOnce = true;
+        warmedNodes = count;
         buildFields();
         return false;
     }
@@ -2561,14 +2586,39 @@ public final class WarpGraph {
      * the click does not have to search the floor without it. Returns whether the graph is warm now.
      */
     public boolean finishWarm(EtherSearch.Grid grid, double sx, double sy, double sz, long budgetNanos) {
+        return finishWarm(grid, lastGrids, lastGrids == null ? null : lastWorkers, lastGrids == null ? 1 : lastThreads,
+                sx, sy, sz, budgetNanos);
+    }
+
+    /** {@link #finishWarm} on the given workers (a graph no warm-up call has given any yet). */
+    public boolean finishWarm(EtherSearch.Grid grid, Supplier<EtherSearch.Grid> grids, ExecutorService workers,
+                              int threads, double sx, double sy, double sz, long budgetNanos) {
         long end = System.nanoTime() + budgetNanos;
         boolean more = true;
         while (more && System.nanoTime() < end) {
-            more = warm(grid, lastGrids, lastGrids == null ? null : lastWorkers, lastGrids == null ? 1 : lastThreads,
-                    sx, sy, sz, Math.max(1, end - System.nanoTime()));
+            more = warm(grid, grids, workers, threads, sx, sy, sz, Math.max(1, end - System.nanoTime()));
         }
         return warmComplete;
     }
+
+    /**
+     * Start the warm-up pass again from wherever the next {@link #warm} call stands, keeping every edge already known
+     * (they are passed over cheaply). For a graph whose finished pass began somewhere that saw nothing of what is
+     * now reachable - a pass from inside a sealed entrance that found no landing at all stays "warm" with no nodes,
+     * and a door opening re-checks only existing nodes' aims. Owning thread.
+     */
+    public void reseed() {
+        warmSeeded = false;
+        warmComplete = false;
+        fieldsValid = false;
+    }
+
+    /** How many nodes the graph had when warming last completed (0 before it ever has). */
+    public int warmedNodes() {
+        return warmedNodes;
+    }
+
+    private int warmedNodes;
 
     /** True when every node reachable from where warming started has its edges and nothing changed since. */
     public boolean warmDone() {

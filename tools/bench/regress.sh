@@ -36,4 +36,11 @@ run "whole floors: graph vs the old room-by-room planner" "^  (old|new, warm)|SE
 run "small floors (3x2 cells): graph vs every landing with the full aim" "^  (ref|new on)|new - ref|SELF-CHECK|REGRESSION" \
   -Dfloors=4 -Dclicks=100 -Drefclicks=100 -Dcoldclicks=0 -Dlazyclicks=0 -Dselfclicks=40 \
   -Dthreads=8 -Dsmallw=3 -Dsmallh=2 -Dreffull=true -Dold=false -Dcheck=$EXPECT "$@"
+# Clicks before the full graph is warm (FloorGraphs' quick graph). Timing-dependent, so early.* limits are loose.
+run "clicks during the floor's first warm-up (quick graph), 0.5/1/2/3 s in" "click at|at [0-9.]+ s:|first warm-up|SELF-CHECK|REGRESSION" \
+  -Dfloors=2 -Dclicks=5 -Drefclicks=0 -Dcoldclicks=0 -Dlazyclicks=0 -Dselfclicks=5 -Dold=false \
+  -Dthreads=6 -Dearly=0.5,1,2,3 -Dearlyclicks=6 -Dcheck=$EXPECT "$@"
+run "clicks right after a sealed entrance opens onto the floor (the sim's run start), 0.2/1/3 s in" "click at|at [0-9.]+ s:|first warm-up|REGRESSION" \
+  -Dfloors=2 -Dclicks=5 -Drefclicks=0 -Dcoldclicks=0 -Dlazyclicks=0 -Dselfclicks=5 -Dold=false \
+  -Dthreads=6 -Dearly=0.2,1,3 -Dearlyclicks=6 -Dearlygate=true -Dcheck=$EXPECT "$@"
 echo "regress.sh: all checks passed"

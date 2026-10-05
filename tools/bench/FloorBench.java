@@ -1,4 +1,5 @@
 import com.killer560.hub.livemap.autoclear.EtherSearch;
+import com.killer560.hub.livemap.autoclear.FloorGraphs;
 import com.killer560.hub.livemap.autoclear.WarpGraph;
 import com.killer560.hub.roomsim.RoomDoors;
 import com.killer560.hub.roomsim.RoomLibrary;
@@ -627,6 +628,11 @@ public final class FloorBench {
     }
 
     static List<Click> clicks(Floor f, Random rng, int n) {
+        return clicks(f, rng, n, -1);
+    }
+
+    /** As above; {@code fromRoom >= 0} starts every click in that room (the entrance, for -Dearly). */
+    static List<Click> clicks(Floor f, Random rng, int n, int fromRoom) {
         List<Integer> withSpots = new ArrayList<>();
         for (int r = 0; r < f.rooms.size(); r++) {
             if (!f.spots.get(r).isEmpty()) {
@@ -635,7 +641,7 @@ public final class FloorBench {
         }
         List<Click> out = new ArrayList<>();
         while (out.size() < n && !withSpots.isEmpty()) {
-            int sr = withSpots.get(rng.nextInt(withSpots.size()));
+            int sr = fromRoom >= 0 ? fromRoom : withSpots.get(rng.nextInt(withSpots.size()));
             int gr = withSpots.get(rng.nextInt(withSpots.size()));
             Click c = new Click();
             c.start = f.spots.get(sr).get(rng.nextInt(f.spots.get(sr).size()));
@@ -816,12 +822,17 @@ public final class FloorBench {
     }
 
     static WarpGraph graph(Floor f, int bucket) {
+        return graphWith(f, bucket, System.getProperty("fine", "all"));
+    }
+
+    /** {@code fine}: "all" (the game's full graph: door boxes and tile centre lines), "door", "doorline", "none"/"false". */
+    static WarpGraph graphWith(Floor f, int bucket, String fine) {
         WarpGraph g = new WarpGraph(RANGE, 1.05, bucket, (grid, x, y, z) -> f.landingOk(x, y, z), FLOOR_Y - 20,
                 FLOOR_Y + 45);
         g.partialFrom = PARTIAL;
         g.deepFirst = !"false".equals(System.getProperty("deep"));
         g.labelBudget = Integer.getInteger("labelbudget", g.labelBudget);
-        if (!"false".equals(System.getProperty("fine"))) {
+        if (!"false".equals(fine) && !"none".equals(fine)) {
             // EtherwarpPathfinder.doorwayColumn, in bench coordinates.
             g.setFine((x, z) -> {
                 int wx = x - OFF - START;
@@ -830,8 +841,12 @@ public final class FloorBench {
                 int offZ = Math.floorMod(wz + 16, 32) - 16;
                 int seamX = Math.floorMod(wx, 32) - 16;
                 int seamZ = Math.floorMod(wz, 32) - 16;
-                return offX == 0 || offZ == 0 || (Math.abs(seamX) <= 3 && Math.abs(offZ) <= 1)
-                        || (Math.abs(seamZ) <= 3 && Math.abs(offX) <= 1);
+                int w = "doorline".equals(fine) ? 0 : 1;
+                boolean door = (Math.abs(seamX) <= 3 && Math.abs(offZ) <= w) || (Math.abs(seamZ) <= 3 && Math.abs(offX) <= w);
+                if ("doorline".equals(fine)) {
+                    return door;   // EtherwarpPathfinder.doorLineColumn
+                }
+                return door || (!"door".equals(fine) && (offX == 0 || offZ == 0));
             });
         }
         g.setTiles(new WarpGraph.Tiles() {
@@ -1084,6 +1099,13 @@ public final class FloorBench {
         int perRound = Integer.getInteger("changeclicks", 10);
         long between = Long.getLong("changewarm", 0L) * 1_000_000L;
         int[] s0 = cs.get(0).start;
+        // The game's pair: the warm full graph and (unless -Dquick=false) a warm quick graph that follows it.
+        FloorGraphs changeGraphs = new FloorGraphs(warmG, "false".equals(System.getProperty("quick")) ? null
+                : quickGraph(f));
+        while (changeGraphs.warm(grid, () -> grid, WORKERS, THREADS, s0[0] + 0.5, s0[1] + 1.0, s0[2] + 0.5,
+                50_000_000L)) {
+            // the quick graph, as the game has it by the time the floor is warm
+        }
         List<int[]> sealedNow = new ArrayList<>();
         for (int round = 0; round < rounds && !f.doorSeams.isEmpty(); round++) {
             Set<Long> touched = new HashSet<>();
@@ -1114,7 +1136,7 @@ public final class FloorBench {
             }
             if (between > 0) {
                 long end = System.nanoTime() + between;
-                while (System.nanoTime() < end && warmG.warm(grid, () -> grid, WORKERS, THREADS, s0[0] + 0.5,
+                while (System.nanoTime() < end && changeGraphs.warm(grid, () -> grid, WORKERS, THREADS, s0[0] + 0.5,
                         s0[1] + 1.0, s0[2] + 0.5, Math.max(1, end - System.nanoTime()))) {
                     // background warm-up between the change and the click
                 }
@@ -1128,13 +1150,8 @@ public final class FloorBench {
                 Click c = cs.get(rng.nextInt(cs.size()));
                 long t0 = System.nanoTime();
                 // EtherwarpPathfinder.planFloor's budget: the full timeout once the floor has been warm.
-                boolean warm = warmG.warmDone() || (warmG.warmedOnce() && !"false".equals(System.getProperty("finishwarm")));
-                List<EtherSearch.Hop> p = planGame(warmG, grid, f, c, t0 + (warm ? 670_000_000L : 40_000_000L));
-                boolean fellBack = false;
-                if (p == null && !warmG.provedNoWay) {
-                    p = oldPlan(f, new EtherSearch(grid), c.start, c.exact);
-                    fellBack = p != null;
-                }
+                List<EtherSearch.Hop> p = gamePlan(changeGraphs, grid, f, c, t0);
+                boolean fellBack = lastFellBack;
                 long t = System.nanoTime() - t0;
                 int v = p == null ? 0 : replay(f, probe, c.start, c, p);
                 st.game.add(t, v, p);
@@ -1160,7 +1177,8 @@ public final class FloorBench {
                 }
             }
             long r0 = System.nanoTime();
-            while (warmG.warm(grid, () -> grid, WORKERS, THREADS, s0[0] + 0.5, s0[1] + 1.0, s0[2] + 0.5, 50_000_000L)) {
+            while (changeGraphs.warm(grid, () -> grid, WORKERS, THREADS, s0[0] + 0.5, s0[1] + 1.0, s0[2] + 0.5,
+                    50_000_000L)) {
                 // let it settle before the next change
             }
             st.rewarmNanos.add(System.nanoTime() - r0);
@@ -1172,6 +1190,199 @@ public final class FloorBench {
             f.carve(d[0], d[1], d[2] == 1);
             f.recording = null;
             report(warmG, touched);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------- first warm-up
+
+    /**
+     * EtherwarpPathfinder.planFloor as the game runs it, for the -Dchanges and -Dearly modes: the graph's plan with the
+     * game's budget, then (when the graph neither found a way nor proved there is none) the old room-by-room planner.
+     * Sets {@link #lastFellBack}.
+     */
+    static List<EtherSearch.Hop> gamePlan(FloorGraphs fg, EtherSearch.Grid grid, Floor f, Click c, long t0) {
+        WarpGraph.Goal exact = null;
+        if (c.tile) {
+            exact = new WarpGraph.Goal();
+            exact.x = c.exact[0];
+            exact.y = c.exact[1];
+            exact.z = c.exact[2];
+        }
+        List<EtherSearch.Hop> p = fg.plan(grid, () -> grid, WORKERS, THREADS, startHop(c.start), goal(f, c), exact, t0,
+                670_000_000L, 64);
+        lastFellBack = false;
+        if (p == null && !fg.provedNoWay) {
+            p = oldPlan(f, new EtherSearch(grid), c.start, c.exact);
+            lastFellBack = p != null;
+        }
+        return p;
+    }
+
+    /** The game's quick graph (FloorGraphs): coarser buckets, the doorways' own centre lines whole, cheap aims. */
+    static WarpGraph quickGraph(Floor f) {
+        WarpGraph g = graphWith(f, Integer.getInteger("qbucket", FloorGraphs.QUICK_BUCKET),
+                System.getProperty("qfine", "doorline"));
+        g.partialFrom = Double.parseDouble(System.getProperty("qpartial", String.valueOf(FloorGraphs.QUICK_PARTIAL_FROM)));
+        return g;
+    }
+
+    static boolean lastFellBack;
+
+    static final class EarlyStats {
+        final double at;
+        final Stats game;
+        final Stats truth = new Stats("  same clicks, warm graph");
+        int fellBack;
+        int timedOut;
+        int worse;
+        int better;
+        int same;
+        int extraWarps;
+        int quickWarm;
+        int onQuick;
+        int skipped;
+        long expandedAtClick;
+        long nodesAtEnd;
+
+        EarlyStats(double at) {
+            this.at = at;
+            game = new Stats(String.format(Locale.ROOT, "click at %.1f s of warm-up", at));
+        }
+
+        void print() {
+            game.print();
+            truth.print();
+            System.out.printf(Locale.ROOT, "    at %.1f s: %.1f%% of the floor's nodes had edges; %d fell back to room by"
+                            + " room, %d ran out of graph time; quick graph warm at %d, used for %d; %d skipped (start inside the sealed gate); vs warm graph: %d same, %d worse (+%d warps), %d better%n",
+                    at, 100.0 * expandedAtClick / Math.max(1, nodesAtEnd), fellBack, timedOut, quickWarm, onQuick, skipped, same, worse, extraWarps, better);
+        }
+    }
+
+    /**
+     * -Dearly=0.5,1,2,3 -Dearlyclicks=N: a click N times per floor at each of those seconds into the floor's FIRST
+     * warm-up (warm-up time on -Dthreads workers; the bench's flat grid on 6 threads warms a floor in about the 4.6-4.9 s
+     * the game logs on its 6), from a spot in the entrance (where he is when a floor starts) to a random room or block.
+     * Each click gets a fresh graph warmed for exactly that long, then EtherwarpPathfinder.planFloor's protocol
+     * ({@link #gamePlan}); the same click on the fully warm graph is the yardstick.
+     */
+    static void earlyClicks(Floor f, EtherSearch.Grid grid, EtherSearch probe, WarpGraph warmG, int bucket, Random rng,
+                            List<EarlyStats> out) {
+        int entrance = -1;
+        for (int r = 0; r < f.rooms.size(); r++) {
+            if ("ENTRANCE".equalsIgnoreCase(f.rooms.get(r).type()) && !f.spots.get(r).isEmpty()) {
+                entrance = r;
+            }
+        }
+        int n = Integer.getInteger("earlyclicks", 8);
+        String[] ats = System.getProperty("early").split(",");
+        List<Click> cs = clicks(f, rng, n * ats.length, entrance);
+        for (int ti = 0; ti < ats.length; ti++) {
+            double at = Double.parseDouble(ats[ti]);
+            EarlyStats st = null;
+            for (EarlyStats e : out) {
+                if (e.at == at) {
+                    st = e;
+                }
+            }
+            if (st == null) {
+                st = new EarlyStats(at);
+                out.add(st);
+            }
+            for (int i = 0; i < n && ti * n + i < cs.size(); i++) {
+                Click c = cs.get(ti * n + i);
+                WarpGraph g = graph(f, bucket);
+                FloorGraphs fg = new FloorGraphs(g, "false".equals(System.getProperty("quick")) ? null : quickGraph(f));
+                double sx = c.start[0] + 0.5;
+                double sy = c.start[1] + 1.0;
+                double sz = c.start[2] + 0.5;
+                if (Boolean.getBoolean("earlygate")) {
+                    // The sim's run start (and Hypixel's floor before its chunks arrive): the graphs are warm on the
+                    // sealed entrance alone, then its doors open onto the whole floor - a block change.
+                    List<int[]> doors = new ArrayList<>();
+                    for (int[] d : f.doorSeams) {
+                        if (d[3] == entrance || d[4] == entrance) {
+                            doors.add(d);
+                        }
+                    }
+                    Set<Long> sealedBlocks = new HashSet<>();
+                    f.recording = sealedBlocks;
+                    for (int[] d : doors) {
+                        f.seal(d[0], d[1], d[2] == 1);
+                    }
+                    f.recording = null;
+                    boolean inSeal = false;
+                    for (int dy = 0; dy <= 2; dy++) {
+                        inSeal |= sealedBlocks.contains(EtherSearch.pack(c.start[0], c.start[1] + dy, c.start[2]));
+                    }
+                    if (inSeal) {
+                        // He cannot stand where the sealed gate is; this start only exists with the gate open.
+                        for (int[] d : doors) {
+                            f.carve(d[0], d[1], d[2] == 1);
+                        }
+                        st.skipped++;
+                        continue;
+                    }
+                    while (fg.warm(grid, () -> grid, WORKERS, THREADS, sx, sy, sz, 50_000_000L)) {
+                        // warm on the entrance
+                    }
+                    Set<Long> touched = new HashSet<>();
+                    f.recording = touched;
+                    for (int[] d : doors) {
+                        f.carve(d[0], d[1], d[2] == 1);
+                    }
+                    f.recording = null;
+                    report(g, touched);
+                }
+                long end = System.nanoTime() + (long) (at * 1e9);
+                long now;
+                while ((now = System.nanoTime()) < end
+                        && fg.warm(grid, () -> grid, WORKERS, THREADS, sx, sy, sz, Math.min(10_000_000L, end - now))) {
+                    // the floor's first warm-up, in the game's 10 ms slices
+                }
+                st.expandedAtClick += g.expandedCount();
+                st.nodesAtEnd += warmG.expandedCount();
+                long t0 = System.nanoTime();
+                boolean quickWarm = fg.quick != null && fg.quick.warmDone();
+                List<EtherSearch.Hop> p = gamePlan(fg, grid, f, c, t0);
+                long t = System.nanoTime() - t0;
+                boolean timed = fg.timedOut;
+                st.quickWarm += quickWarm ? 1 : 0;
+                st.onQuick += fg.used == fg.quick && p != null && !lastFellBack ? 1 : 0;
+                int v = p == null ? 0 : replay(f, probe, c.start, c, p);
+                st.game.add(t, v, p);
+                st.fellBack += lastFellBack ? 1 : 0;
+                st.timedOut += timed ? 1 : 0;
+                long r0 = System.nanoTime();
+                List<EtherSearch.Hop> pt = planGame(warmG, grid, f, c, Long.MAX_VALUE);
+                int vt = pt == null ? 0 : replay(f, probe, c.start, c, pt);
+                st.truth.add(System.nanoTime() - r0, vt, pt);
+                if (p != null && v >= 0 && pt != null && vt >= 0) {
+                    st.worse += p.size() > pt.size() ? 1 : 0;
+                    st.better += p.size() < pt.size() ? 1 : 0;
+                    st.same += p.size() == pt.size() ? 1 : 0;
+                    st.extraWarps += Math.max(0, p.size() - pt.size());
+                }
+                if (Boolean.getBoolean("earlyverbose") && p == null && fg.quick != null) {
+                    System.out.printf(Locale.ROOT, "  early NONE: quick warm %b, %d nodes (%d with edges), timedOut %b, why %s;"
+                                    + " start %s goal %s tile %b cell %d room %d -> %d%n", fg.quick.warmDone(),
+                            fg.quick.nodeCount(), fg.quick.expandedCount(), fg.quick.timedOut, fg.quick.noWayWhy,
+                            Arrays.toString(c.start), Arrays.toString(c.exact), c.tile, c.tileCell,
+                            f.roomAt(c.start[0], c.start[2]), c.goalRoom);
+                    WarpGraph fresh = quickGraph(f);
+                    while (fresh.warm(grid, () -> grid, WORKERS, THREADS, sx, sy, sz, 50_000_000L)) {
+                        // all
+                    }
+                    System.out.println("  early NONE: a fresh quick graph from the same start has " + fresh.nodeCount()
+                            + " nodes; the full graph " + g.nodeCount());
+                }
+                if (Boolean.getBoolean("earlyverbose")) {
+                    System.out.printf(Locale.ROOT, "  early %.1fs #%d %s: %s in %.1f ms (%s, floor known %b), warm graph %s; %d"
+                                    + " of %d nodes had edges%n", at, i, c.tile ? "tile " : "exact", p == null ? "none"
+                                    : p.size() + " warps" + (v < 0 ? " INVALID" : ""), t / 1e6,
+                            lastFellBack ? "room by room" : fg.usedName + (timed ? ", out of time" : ""), fg.floorKnown,
+                            pt == null ? "none" : pt.size() + " warps", g.expandedCount(), warmG.expandedCount());
+                }
+            }
         }
     }
 
@@ -1231,6 +1442,7 @@ public final class FloorBench {
                 + " range %.0f, seed %d%n", rooms.size(), floors, perFloor, refPerFloor, bucket, FAN.size(), RANGE, seed);
 
         ChangeStats changeStats = new ChangeStats();
+        List<EarlyStats> earlyStats = new ArrayList<>();
         Stats old = new Stats("old (room by room)");
         Stats cold = new Stats("new, cold graph");
         Stats lazy = new Stats("new, lazily warm");
@@ -1327,6 +1539,35 @@ public final class FloorBench {
                     warmG.totalRays, warmG.nodeCount(), (double) warmG.totalRays / warmG.nodeCount(),
                     (System.nanoTime() - w0) / 1e6, THREADS, warmG.edgeCount(),
                     (double) warmG.edgeCount() / warmG.nodeCount());
+            if (Boolean.getBoolean("memcheck")) {
+                // Heap held by a warm graph: the full one (warmG, just built) and the game's quick graph.
+                Runtime rt = Runtime.getRuntime();
+                System.gc();
+                long m0 = rt.totalMemory() - rt.freeMemory();
+                WarpGraph q = quickGraph(f);
+                long q0 = System.nanoTime();
+                while (q.warm(grid, () -> grid, WORKERS, THREADS, s0[0] + 0.5, s0[1] + 1.0, s0[2] + 0.5, 50_000_000L)) {
+                    // whole floor
+                }
+                long qt = System.nanoTime() - q0;
+                System.gc();
+                long m1 = rt.totalMemory() - rt.freeMemory();
+                System.out.printf(Locale.ROOT, "  MEM quick graph: %d nodes, %d edges, warm in %.0f ms, %.1f MB held;"
+                                + " full graph %d nodes, %d edges%n", q.nodeCount(), q.edgeCount(), qt / 1e6,
+                        (m1 - m0) / 1e6, warmG.nodeCount(), warmG.edgeCount());
+                q.clear();
+                q = null;
+                System.gc();
+                long m2 = rt.totalMemory() - rt.freeMemory();
+                WarpGraph full2 = graph(f, bucket);
+                while (full2.warm(grid, () -> grid, WORKERS, THREADS, s0[0] + 0.5, s0[1] + 1.0, s0[2] + 0.5, 50_000_000L)) {
+                    // whole floor
+                }
+                System.gc();
+                System.out.printf(Locale.ROOT, "  MEM full graph: %.1f MB held%n",
+                        (rt.totalMemory() - rt.freeMemory() - m2) / 1e6);
+                full2 = null;
+            }
             warmNodes += warmG.nodeCount();
             expandedNodes += warmG.expandedCount();
             WarpGraph refG = graph(f, Integer.getInteger("refbucket", 1));
@@ -1473,6 +1714,25 @@ public final class FloorBench {
             }
             System.out.printf(Locale.ROOT, "  warm-up of the whole floor: %d nodes, %d expanded, %.0f ms; ref graph %d nodes%n",
                     warmG.nodeCount(), warmG.expandedCount(), (System.nanoTime() - w0) / 1e6 - 0, refG.nodeCount());
+            if (System.getProperty("probe") != null) {
+                String[] pp = System.getProperty("probe").split(",");
+                int px = Integer.parseInt(pp[0]);
+                int py = Integer.parseInt(pp[1]);
+                int pz = Integer.parseInt(pp[2]);
+                for (String cfg : new String[]{"2,all,0.3", "5,doorline,1.0", "5,doorline,0.3", "4,doorline,1.0", "5,all,1.0", "3,none,1.0"}) {
+                    String[] q = cfg.split(",");
+                    WarpGraph pg = graphWith(f, Integer.parseInt(q[0]), q[1]);
+                    pg.partialFrom = Double.parseDouble(q[2]);
+                    while (pg.warm(grid, () -> grid, WORKERS, THREADS, px + 0.5, py + 1.0, pz + 0.5, 50_000_000L)) {
+                        // all
+                    }
+                    System.out.println("  PROBE " + cfg + ": " + pg.nodeCount() + " nodes; landing under start "
+                            + f.etherwarpable(px, py, pz) + " ok " + f.landingOk(px, py, pz));
+                }
+            }
+            if (System.getProperty("early") != null) {
+                earlyClicks(f, grid, probe, warmG, bucket, new Random(seed * 17 + fi), earlyStats);
+            }
             if (Integer.getInteger("changes", 0) > 0) {
                 changeRounds(f, grid, probe, warmG, cs, new Random(seed * 31 + fi), bucket, changeStats);
             }
@@ -1481,6 +1741,9 @@ public final class FloorBench {
         System.out.println("RESULTS");
         if (changeStats.game.n > 0) {
             changeStats.print();
+        }
+        for (EarlyStats e : earlyStats) {
+            e.print();
         }
         if (runOld) {
             old.print();
@@ -1522,7 +1785,7 @@ public final class FloorBench {
         String check = System.getProperty("check");
         if (check != null) {
             // Keys are "full.x" or "small.x" (-Dsmallw), so one file holds both runs' floors.
-            String prefix = SMALL_W > 0 ? "small." : "full.";
+            String prefix = System.getProperty("early") != null ? "early." : SMALL_W > 0 ? "small." : "full.";
             Map<String, Double> want = new HashMap<>();
             for (String line : Files.readAllLines(Path.of(check))) {
                 line = line.trim();
@@ -1579,6 +1842,46 @@ public final class FloorBench {
             }
             if (want.containsKey("maxWarmP99Ms") && warm.p99() > want.get("maxWarmP99Ms")) {
                 fails.add(String.format(Locale.ROOT, "warm p99 %.2f ms > %.2f ms", warm.p99(), want.get("maxWarmP99Ms")));
+            }
+            // -Dearly: clicks during the floor's first warm-up (FloorGraphs' quick graph).
+            int earlyN = 0;
+            int earlyFellBack = 0;
+            int earlyInvalid = 0;
+            int earlyFailed = 0;
+            double earlyWarps = 0;
+            double earlyTruth = 0;
+            for (EarlyStats e : earlyStats) {
+                earlyN += e.game.n;
+                earlyFellBack += e.fellBack;
+                earlyInvalid += e.game.invalid;
+                earlyFailed += e.game.failed;
+                for (int k = 0; k < e.game.warps.size(); k++) {
+                    int a = e.game.warps.get(k);
+                    int b = e.truth.warps.get(k);
+                    if (a >= 0 && b >= 0) {
+                        earlyWarps += a;
+                        earlyTruth += b;
+                    }
+                }
+            }
+            if (earlyN > 0) {
+                System.out.printf(Locale.ROOT, "  first warm-up, all t: %d clicks, %d fell back, %d failed, %d invalid,"
+                        + " warps %.3f x the warm graph's%n", earlyN, earlyFellBack, earlyFailed, earlyInvalid,
+                        earlyWarps / Math.max(1, earlyTruth));
+                if (earlyInvalid > 0) {
+                    fails.add("first warm-up: invalid paths: " + earlyInvalid);
+                }
+                if (want.containsKey("maxFellBackPercent") && 100.0 * earlyFellBack / earlyN > want.get("maxFellBackPercent")) {
+                    fails.add(String.format(Locale.ROOT, "first warm-up: %d of %d clicks fell back to room by room",
+                            earlyFellBack, earlyN));
+                }
+                if (want.containsKey("maxFailedPercent") && 100.0 * earlyFailed / earlyN > want.get("maxFailedPercent")) {
+                    fails.add(String.format(Locale.ROOT, "first warm-up: %d of %d clicks found nothing", earlyFailed, earlyN));
+                }
+                if (want.containsKey("maxWarpsOverWarm") && earlyWarps > earlyTruth * want.get("maxWarpsOverWarm")) {
+                    fails.add(String.format(Locale.ROOT, "first warm-up: warps %.3f x the warm graph's > %.3f",
+                            earlyWarps / Math.max(1, earlyTruth), want.get("maxWarpsOverWarm")));
+                }
             }
             if (fails.isEmpty()) {
                 System.out.println("REGRESSION CHECK PASSED (" + prefix + "* in " + check + ")");
