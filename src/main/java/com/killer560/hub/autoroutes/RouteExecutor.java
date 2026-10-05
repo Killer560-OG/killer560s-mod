@@ -170,6 +170,8 @@ public final class RouteExecutor {
     /** How long a warp waits for its landing block to come back before the route gives up (60 s). */
     private static final int BLOCK_WAIT_TIMEOUT = 1200;
     private static List<BlockPos> breakerQueue = new ArrayList<>();
+    /** Charges the breaker had when the node fired, less what it has sent since - a node never asks for more. */
+    private static int breakerChargesLeft;
     private static final Set<BlockPos> breakerSent = new HashSet<>();
     private static BlockPos boomTarget;
     private static final Map<BlockPos, BlockState> boomBefore = new HashMap<>();
@@ -1587,19 +1589,31 @@ public final class RouteExecutor {
                 stop("Dungeon Breaker has no charges");
                 return;
             }
+            breakerChargesLeft = charges;
             step = Step.DO;
             stepTicks = 0;
         }
         if (step == Step.DO) {
-            // QUOI DungeonBreakerAction: one START_DESTROY_BLOCK per block, interact-delay ticks apart, no
-            // rotation (block breaking is range-checked, not look-checked). Air / unloaded / far blocks skip. The
-            // first block goes on the firing tick (stepTicks is 0 there), right behind the held-item packet.
+            // Breaker Aura's own Multi Break setting decides (coordinator, 2026-10-05: a node of N blocks took N
+            // ticks, against "each action in 1 tick"). ON: every queued block that is loaded, solid and in reach goes
+            // out on the firing tick, as many as the breaker has charges, then ONE swing - Breaker Aura's burst,
+            // packet for packet (start-prediction START_DESTROY_BLOCKs, then the swing, all at START_CLIENT_TICK,
+            // ahead of the movement packet). OFF: QUOI's DungeonBreakerAction, one block per interact-delay tick.
+            // No rotation either way (block breaking is range-checked, not look-checked). The first block goes on
+            // the firing tick (stepTicks is 0 there), right behind the held-item packet.
+            boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraMultiBreak();
             int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
-            if (stepTicks % delay != 0) {
+            if (!multi && stepTicks % delay != 0) {
                 return;
             }
             Vec3 eye = player.getEyePosition();
+            int sentNow = 0;
             while (!breakerQueue.isEmpty()) {
+                if (breakerChargesLeft <= 0) {
+                    LOGGER.info("[AutoRoutes] Breaker: out of charges - {} block(s) not sent", breakerQueue.size());
+                    breakerQueue.clear();
+                    break;
+                }
                 BlockPos pos = breakerQueue.remove(0);
                 if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()) {
                     continue;
@@ -1611,17 +1625,25 @@ public final class RouteExecutor {
                     LOGGER.info("[AutoRoutes] Breaker block {} out of range - skipped", pos);
                     continue;
                 }
-                player.connection.send(new ServerboundPlayerActionPacket(
-                        ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, Direction.UP));
-                player.swing(InteractionHand.MAIN_HAND);
+                sendBreak(client, player, pos);
+                breakerChargesLeft--;
+                sentNow++;
                 if (breakerSent.isEmpty()) {
-                    logActed(node, "");
+                    logActed(node, multi ? " (multi break)" : "");
                 }
                 breakerSent.add(pos);
-                if (!breakerQueue.isEmpty()) {
-                    return; // next block on the next delay tick
+                if (!multi) {
+                    player.swing(InteractionHand.MAIN_HAND);
+                    if (!breakerQueue.isEmpty()) {
+                        return; // next block on the next delay tick
+                    }
+                    break;
                 }
-                break;
+            }
+            if (multi && sentNow > 0) {
+                // One swing however many went out, as Breaker Aura: a hand swings once a tick.
+                player.swing(InteractionHand.MAIN_HAND);
+                LOGGER.info("[AutoRoutes] Breaker: {} block(s) on one tick (multi break)", sentNow);
             }
             step = Step.CONFIRM;
             stepTicks = 0;
@@ -1703,6 +1725,20 @@ public final class RouteExecutor {
         } else {
             // The invoker config did not load: vanilla's next ensureHasSentCarriedItem will send it again.
             player.connection.send(new ServerboundSetCarriedItemPacket(slot));
+        }
+    }
+
+    /**
+     * One START_DESTROY_BLOCK through vanilla's own block-prediction sequence ({@code startPrediction}) - Breaker Aura's
+     * {@code breakBlock} without its zero-ping - so the packet carries the sequence number a vanilla dig does.
+     */
+    private static void sendBreak(Minecraft client, LocalPlayer player, BlockPos pos) {
+        if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
+            invoker.killer560smod$invokeStartPrediction(client.level, sequence -> new ServerboundPlayerActionPacket(
+                    ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, Direction.UP, sequence));
+        } else {
+            player.connection.send(new ServerboundPlayerActionPacket(
+                    ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, Direction.UP));
         }
     }
 
