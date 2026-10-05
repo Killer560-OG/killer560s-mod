@@ -1870,6 +1870,7 @@ final class SettingTooltipsData {
         d.put("pet wheel/icon size", "How big each pet's picture draws inside its slice (100-400%).");
         d.put("pet wheel/hide level", "Hides the level shown under each pet on the wheel.");
         d.put("pet wheel/hide name", "Hides each pet's name under it on the wheel.");
+        d.put("pet wheel/hide pets menu", "Keeps the /pets menu invisible while the wheel summons a pet; it still opens and closes behind the scenes.");
         d.put("pet wheel/edit pets", "Opens the wheel to edit it: right-click a slot to pick a pet, or drag slices to swap them.");
         d.put("auction house/auction house browser", "Turns on the custom Auction House browser, opened with /killer560 ah or a keybind.");
         d.put("auction house/open key", "Optional keybind that opens the Auction House browser, same as /killer560 ah.");

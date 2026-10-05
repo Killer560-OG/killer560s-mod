@@ -83,3 +83,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `Component.empty()` for the HP/mana action bar, which blanked it for Ability Cooldown, the live map, Auto Routes,
   interop room secrets and the Custom Scoreboard's "x/y Secrets". Hide a line at `setOverlayMessage`
   (`CustomScoreboardGuiMixin` now cancels via `PlayerStatsFeature.shouldHideActionBar`), never by blanking it there.
+- Hypixel SkyBlock has no command that summons a named pet. `/pets`, `/pet`, `/petmenu`, `/petsmenu`, `/viewpets`
+  and `/viewpetsmenu` are all argument-less aliases that open the Pets menu (hypixelskyblock.minecraft.wiki
+  Command page, checked 2026-10-04), and Autopet rules fire only on game events, never on demand. A pet summon
+  must go through the menu, which is why Pet Wheel opens it (headless when Hide Pets Menu is on).

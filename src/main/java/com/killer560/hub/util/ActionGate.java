@@ -5,6 +5,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 
@@ -410,6 +411,25 @@ public final class ActionGate {
      * simply try again next tick.
      */
     public static boolean tryAct(Actor actor, Screen ownScreen) {
+        return tryActInternal(actor, ownScreen, null);
+    }
+
+    /**
+     * {@link #tryAct(Actor, Screen)} for a {@link Kind#SCREEN} actor driving a container whose screen it
+     * deliberately never showed (Pet Wheel's "Hide pets menu while summoning": the open-screen packet's
+     * {@code setScreen} is cancelled, so {@code player.containerMenu} is the menu but nothing is on screen).
+     * Same rules as a visible screen, with the "focused screen" test replaced by: that exact menu is the
+     * player's open container, and no visible container screen is up instead. Every other rule (one per tick,
+     * cross-class spacing, settles, priority) is identical.
+     */
+    public static boolean tryActHeadless(Actor actor, AbstractContainerMenu ownMenu) {
+        if (ownMenu == null) {
+            return deny(actor, "no headless menu");
+        }
+        return tryActInternal(actor, null, ownMenu);
+    }
+
+    private static boolean tryActInternal(Actor actor, Screen ownScreen, AbstractContainerMenu headlessMenu) {
         WANTED_THIS_TICK[actor.ordinal()] = true;
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null || client.level == null) {
@@ -429,11 +449,28 @@ public final class ActionGate {
                 if (screen instanceof AbstractContainerScreen<?>) {
                     return deny(actor, "a container screen is open");
                 }
+                // A headless container (Fast Leap's hidden leap menu, Pet Wheel's hidden /pets) is open on the
+                // server just the same, with no screen to show it - so it blocks world actions too.
+                if (client.player.containerMenu != client.player.inventoryMenu) {
+                    return deny(actor, "a headless container is open");
+                }
                 if (armed && tick - lastScreenTick < CROSS_CLASS_TICKS) {
                     return deny(actor, "a GUI automation just clicked");
                 }
             }
             case SCREEN -> {
+                if (headlessMenu != null) {
+                    if (screen instanceof AbstractContainerScreen<?>) {
+                        return deny(actor, "a visible container screen is focused instead of its headless menu");
+                    }
+                    if (client.player.containerMenu != headlessMenu) {
+                        return deny(actor, "its headless menu is not the open container");
+                    }
+                    if (armed && tick - lastWorldTick < CROSS_CLASS_TICKS) {
+                        return deny(actor, "a world aura just clicked");
+                    }
+                    break;
+                }
                 if (ownScreen == null || screen != ownScreen) {
                     return deny(actor, "its own screen is not the focused one");
                 }
