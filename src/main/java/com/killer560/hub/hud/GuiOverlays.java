@@ -93,13 +93,24 @@ public final class GuiOverlays {
             plain = message;
         }
         Font font = Minecraft.getInstance().font;
-        int wrapWidth = graphics.guiWidth() * 2 / 3;
+        // Auto Scale: the popup is laid out on a canvas 1/f the size of the GUI area and drawn scaled by f, so it
+        // is the same fraction of the window on every monitor and still centred and wrapped to two thirds.
+        float f = AutoScale.current();
+        int canvasW = AutoScale.layoutSize(graphics.guiWidth(), f);
+        int canvasH = AutoScale.layoutSize(graphics.guiHeight(), f);
+        int wrapWidth = canvasW * 2 / 3;
         List<FormattedCharSequence> lines = font.split(Component.literal(plain), wrapWidth);
         int totalHeight = lines.size() * font.lineHeight;
-        int centerX = graphics.guiWidth() / 2;
-        int startY = (graphics.guiHeight() - totalHeight) / 2;
-        for (int i = 0; i < lines.size(); i++) {
-            graphics.centeredText(font, lines.get(i), centerX, startY + i * font.lineHeight, THEME_ORANGE);
+        int centerX = canvasW / 2;
+        int startY = (canvasH - totalHeight) / 2;
+        graphics.pose().pushMatrix();
+        try {
+            graphics.pose().scale(f, f);
+            for (int i = 0; i < lines.size(); i++) {
+                graphics.centeredText(font, lines.get(i), centerX, startY + i * font.lineHeight, THEME_ORANGE);
+            }
+        } finally {
+            graphics.pose().popMatrix();
         }
     }
 }

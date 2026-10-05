@@ -43,6 +43,11 @@ public final class HudConfig {
     public static final float MIN_GLOBAL_SCALE = 0.05f;
     public static final float MAX_GLOBAL_SCALE = 3.0f;
     private float globalScale = 1.0f;
+    /** Auto Scale (monitor), ON by default for everyone (killer560, 2026-10-05). Multiplies the HUD (and the mod's
+     *  screens) by {@link AutoScale#current()} so they keep the size they have on his 2560x1440 / GUI 3 monitor as a
+     *  fraction of any window. The HUD Scale slider still multiplies on top. Lives here, beside {@link #globalScale},
+     *  so profiles carry it with the positions it affects. */
+    private boolean autoScale = true;
 
     private HudConfig() {
     }
@@ -63,6 +68,7 @@ public final class HudConfig {
                 cfg.editKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "editKeyCode", -1));
                 cfg.editorShowAll = ConfigJson.getBool(obj, "editorShowAll", false);
                 cfg.globalScale = clampGlobalScale(ConfigJson.getFloat(obj, "globalScale", 1.0f));
+                cfg.autoScale = ConfigJson.getBool(obj, "autoScale", true);
                 JsonObject positions = ConfigJson.getObject(obj, "positions");
                 if (positions != null) {
                     for (String id : positions.keySet()) {
@@ -97,6 +103,7 @@ public final class HudConfig {
             obj.addProperty("editKeyCode", editKeyCode);
             obj.addProperty("editorShowAll", editorShowAll);
             obj.addProperty("globalScale", globalScale);
+            obj.addProperty("autoScale", autoScale);
             JsonObject positions = new JsonObject();
             for (Map.Entry<String, int[]> entry : this.positions.entrySet()) {
                 JsonObject pos = new JsonObject();
@@ -166,6 +173,21 @@ public final class HudConfig {
 
     public void setGlobalScale(float globalScale) {
         this.globalScale = clampGlobalScale(globalScale);
+    }
+
+    /** The multiplier every HUD element is drawn at on top of its own scale: the HUD Scale slider times the Auto
+     *  Scale factor (1.0 when Auto Scale is off). {@link HudElementRegistry#resolveScale} and the HUD editor both
+     *  read this, so the editor shows each element at the size it draws in game. */
+    public float getEffectiveGlobalScale() {
+        return globalScale * AutoScale.current();
+    }
+
+    public boolean isAutoScale() {
+        return autoScale;
+    }
+
+    public void setAutoScale(boolean autoScale) {
+        this.autoScale = autoScale;
     }
 
     /** Snaps to the slider's 5% steps and keeps it inside 5%..300%; NaN (a hand-edited file) means 100%. */
