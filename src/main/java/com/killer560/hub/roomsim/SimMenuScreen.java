@@ -271,7 +271,7 @@ public class SimMenuScreen extends Screen {
                 ProfitPanels.ACCENT, false);
         if (mode == Mode.HOME) {
             String hint = RoomLibrary.roomCount() == 0
-                    ? "No rooms captured yet - the Room Recorder fills these"
+                    ? "No rooms loaded - the shipped room library did not load"
                     : "Pick what to practise";
             g.text(this.font, hint, panelX + 20, panelY + 42, ProfitPanels.DIM, false);
         } else if (mode == Mode.ROOM || mode == Mode.PREVIOUS) {

@@ -93,7 +93,7 @@ public final class RouteRecorder {
         AutoRoutesFeature.chat(com.killer560.hub.util.ModChat.bad("Warning: "),
                 com.killer560.hub.util.ModChat.text("the sim is not sure which way " + roomName
                         + "'s capture is turned. A route recorded here may come out rotated on Hypixel until the "
-                        + "room is rescanned."));
+                        + "room's capture is fixed."));
     }
 
     /**
