@@ -637,13 +637,15 @@ public final class Ap3Store {
         // and for a USE node, whose whole point is the angle he was looking at, that is the value itself being
         // damaged rather than a display detail. Width and length at two decimals had the same problem for
         // anyone who typed a finer box.
-        o.addProperty("x", round(n.x, 6));
-        o.addProperty("y", round(n.y, 6));
-        o.addProperty("z", round(n.z, 6));
-        o.addProperty("yaw", round(n.yaw, 5));
-        o.addProperty("pitch", round(n.pitch, 5));
-        o.addProperty("width", round(n.width, 5));
-        o.addProperty("length", round(n.length, 5));
+        // Six places for everything (killer560, 2026-10-05), and the same rounding Ap3Node.roundToSaved applies the
+        // moment a node is placed or edited, so what is in memory is what this writes.
+        o.addProperty("x", Ap3Node.roundSaved(n.x));
+        o.addProperty("y", Ap3Node.roundSaved(n.y));
+        o.addProperty("z", Ap3Node.roundSaved(n.z));
+        o.addProperty("yaw", Ap3Node.roundSaved(n.yaw));
+        o.addProperty("pitch", Ap3Node.roundSaved(n.pitch));
+        o.addProperty("width", Ap3Node.roundSaved(n.width));
+        o.addProperty("length", Ap3Node.roundSaved(n.length));
         if (n.precise) {
             o.addProperty("precise", true);
         }

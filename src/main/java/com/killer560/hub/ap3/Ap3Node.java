@@ -318,6 +318,30 @@ public final class Ap3Node {
     public double z() { return z; }
     public float yaw() { return yaw; }
     public float pitch() { return pitch; }
+
+    /** Decimal places the node file keeps for every coordinate, angle and box size. */
+    public static final int SAVED_DECIMALS = 6;
+
+    /** Rounds a value exactly as {@code Ap3Store} writes it. */
+    public static double roundSaved(double v) {
+        double f = Math.pow(10, SAVED_DECIMALS);
+        return Math.round(v * f) / f;
+    }
+
+    /**
+     * Rounds this node to exactly what the file will hold, so a node behaves the same the moment it is placed or
+     * edited as it will after a reload (killer560, 2026-10-05: "if I place a node then hit it again without
+     * reloading it is still that truncated value"). Called wherever a node gets new values.
+     */
+    public void roundToSaved() {
+        x = roundSaved(x);
+        y = roundSaved(y);
+        z = roundSaved(z);
+        yaw = (float) roundSaved(yaw);
+        pitch = (float) roundSaved(pitch);
+        width = roundSaved(width);
+        length = roundSaved(length);
+    }
     public double length() { return length; }
     public double width() { return width; }
     public boolean precise() { return precise; }
