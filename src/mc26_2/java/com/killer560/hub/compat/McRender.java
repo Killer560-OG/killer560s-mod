@@ -15,6 +15,7 @@ import org.joml.Vector4f;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
@@ -46,6 +47,13 @@ public final class McRender {
     /** What a caller draws once the pose is in camera space. */
     public interface Geometry {
         void draw(PoseStack.Pose pose, VertexConsumer buffer);
+    }
+
+    /** Sorted upload for a LINES render type where the version allows it: 26.1.2 sorts lines, 26.2 refuses. */
+    public static RenderSetup.RenderSetupBuilder sortLinesOnUpload(RenderSetup.RenderSetupBuilder builder) {
+        // 26.2 sorts QUADS only: StagedVertexBuffer.appendDraw throws "Cannot sort draw with LINES" (javap, 26.2),
+        // which crashed the first frame a through-walls solver line was drawn (testkit 93-solve, 2026-10-05).
+        return builder;
     }
 
     /** Where the camera is this frame. */
