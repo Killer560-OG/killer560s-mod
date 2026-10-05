@@ -2202,7 +2202,9 @@ were the SIM's and three were the autos'; each is named at its fix.
   first visible spot with the AOTV swapped in. Now the real eye, his own spot skipped, and when no listed spot has a
   shot it searches the room's standable blocks (24 around and 14 below to 24 above the blaze, nearest first, 12 a
   tick, never below Higher Blaze's top level) - the fifth blaze of Lower Blaze floats a block over the shaft floor,
-  under QUOI's lowest spot. "Blaze: done." now waits for the solver's list to stay empty for 30 ticks (a rebuilt chain
+  under QUOI's lowest spot. A searched spot with a shot that no single warp reaches (the shaft floor seen from the
+  top landing, where the first target sat a block over the floor in two Mod Only Test runs and he never moved) is
+  handed to the Interactive Map's planner (`pathIfMapOn`). "Blaze: done." now waits for the solver's list to stay empty for 30 ticks (a rebuilt chain
   empties it for a moment). Side arrows are followed until they land in the safety check (QUOI stopped them a few
   blocks past the target, so one could fly on across the shaft and kill a far blaze out of order). No out-of-order
   kill was seen in these runs once the blazes existed; the spread stays 5 degrees, QUOI's figure. Four shots from
