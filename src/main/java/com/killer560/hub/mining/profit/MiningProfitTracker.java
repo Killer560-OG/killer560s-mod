@@ -121,7 +121,10 @@ public final class MiningProfitTracker {
     /** Whether the player is currently on one of {@link #MINING_ISLANDS} - {@link IslandDetector} is ticked
      *  unconditionally by {@code pathfinding.PathfindingFeature}, so this never needs its own registration. */
     public static boolean isMiningIsland() {
-        return MINING_ISLANDS.contains(IslandDetector.graphIsland());
+        // Null off any known island, and Set.of(...).contains(null) THROWS - every tick, once the tracker became on
+        // by default (2026-10-04; caught by the testkit sim boot).
+        String island = IslandDetector.graphIsland();
+        return island != null && MINING_ISLANDS.contains(island);
     }
 
     private static void scan(LocalPlayer player) {
