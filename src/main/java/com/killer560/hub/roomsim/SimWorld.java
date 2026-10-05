@@ -483,6 +483,7 @@ public final class SimWorld {
             // the same damage per hit as well, so this holds even before these rules have been applied.
             rules.set(net.minecraft.world.level.gamerules.GameRules.FIRE_DAMAGE, false, server);
             rules.set(net.minecraft.world.level.gamerules.GameRules.FALL_DAMAGE, false, server);
+            rules.set(net.minecraft.world.level.gamerules.GameRules.DROWNING_DAMAGE, false, server);
         });
     }
 

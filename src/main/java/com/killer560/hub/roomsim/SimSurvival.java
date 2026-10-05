@@ -51,8 +51,10 @@ public final class SimSurvival {
             // The whole fall and fire TAGS rather than DamageTypes.FALL alone: IS_FIRE is what carries lava
             // (killer560, 2026-10-04: "Make it so lava doesn't do damage"), and IS_FALL is the set vanilla's own
             // FALL_DAMAGE rule switches off. SimWorld.freezeWorld turns both game rules off as well.
+            // Drowning too (killer560, 2026-10-05: test sims kept drowning); DROWNING_DAMAGE is off as well.
             return !source.is(net.minecraft.tags.DamageTypeTags.IS_FALL)
-                    && !source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE);
+                    && !source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE)
+                    && !source.is(net.minecraft.tags.DamageTypeTags.IS_DROWNING);
         });
 
         // Put the flames out too. Lava still sets him alight even when the burn does nothing, and a screen
