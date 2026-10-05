@@ -301,4 +301,6 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   world's server tried to put them back into the dead level - its loading screen never finished (2026-10-05, 96-ar).
   `SimWorld.onWorldUnloaded` now resets it beside `SimBuildQueue.clear()`.
 - A Fabric event's first non-PASS listener wins. `/ar edit db`'s right clicks lost to the sim's ability hook (a held
-  Superboom detonated, no block picked) until its `UseBlockCallback` moved to a phase ordered before the default.
+  Superboom detonated, no block picked) until its `UseBlockCallback` moved to a phase ordered before the default. The sim's
+  client-side essence listener lost the same way with any ability item held, so Secret Aura never collected essences
+  (2026-10-05): sim secrets are answered on the SERVER now, and the essence is Hypixel's profiled player_head (99-sim-essence-aura).
