@@ -557,6 +557,7 @@ public final class Ap3Feature {
         node.yaw = probe.yaw;
         node.pitch = probe.pitch;
         node.wallDir = probe.wallDir;
+        node.roundToSaved();
         if (!node.sameData(before)) {
             Ap3History.changed(chain, node, before);
         }
@@ -580,6 +581,7 @@ public final class Ap3Feature {
         Ap3Node node = chain.nodes().get(index);
         Ap3Node before = node.snapshot();
         edit.accept(node);
+        node.roundToSaved();
         if (!node.sameData(before)) {
             Ap3History.changed(chain, node, before);
         }
@@ -689,6 +691,7 @@ public final class Ap3Feature {
             chatBad(chain.label() + " already has " + Ap3Store.MAX_NODES + " nodes.");
             return false;
         }
+        node.roundToSaved();
         chain.nodes().add(node);
         Ap3History.added(chain, node);
         store.save();
