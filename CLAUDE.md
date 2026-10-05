@@ -97,6 +97,8 @@ Never track a `HANDOFF.md` in the repo; handoff notes live only in
 `C:\Users\Hunter\.claude\killer560s-mod-HANDOFF-PRIVATE.txt`. The Discord bot token lives at
 `C:\Users\Hunter\.claude\secrets\killer560smod-discord-bot-token.txt` and is never printed or committed.
 The features Google Doc **edit** link is never published; only the `/e/2PACX-…` published link is public.
+A Discord update covers three places: #changelog (mod), #roadmap (edit the pinned message), and
+#testkit-updates (1553951359810670692) for testkit changes - the last was missed for a week until 2026-10-05.
 
 ## Safety rules for automation
 
