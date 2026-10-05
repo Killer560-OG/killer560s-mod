@@ -10,18 +10,22 @@ import com.killer560.hub.compat.McCompat;
 public final class HudElementRegistry {
 
     private static final List<HudElement> ELEMENTS = new ArrayList<>();
+    /** id -> the FIRST registered element with that id (what the old linear {@link #byId} scan returned). */
+    private static final java.util.Map<String, HudElement> BY_ID = new java.util.HashMap<>();
 
     private HudElementRegistry() {
     }
 
     public static void register(HudElement element) {
         ELEMENTS.add(element);
+        BY_ID.putIfAbsent(element.id(), element);
     }
 
     /** Removes a previously registered element (e.g. a GIF that's been toggled off) so it stops
      *  showing up in the HUD editor and being rendered. */
     public static void unregister(String id) {
         ELEMENTS.removeIf(e -> e.id().equals(id));
+        BY_ID.remove(id);
         CLAMP_MEMOS.remove(id);
         HudSeen.forget(id);
     }
@@ -30,17 +34,11 @@ public final class HudElementRegistry {
         return ELEMENTS;
     }
 
-    /** @return the registered element with this id, or null. Indexed loop rather than a Stream because the
-     *  per-frame Gui hooks look their own element up on every single frame (2026-09-20, FPS pass) - a
-     *  filter/findFirst pipeline there allocates a Stream, an Optional and a capturing lambda each time. */
+    /** @return the registered element with this id, or null. A map lookup: the per-frame HUD layers look their
+     *  own element up every frame, and the linear scan over ~100 elements that replaced a Stream here on
+     *  2026-09-20 was still 1.5% of the render thread in the 95-fps-bench JFR (2026-10-05). */
     public static HudElement byId(String id) {
-        for (int i = 0; i < ELEMENTS.size(); i++) {
-            HudElement e = ELEMENTS.get(i);
-            if (e.id().equals(id)) {
-                return e;
-            }
-        }
-        return null;
+        return BY_ID.get(id);
     }
 
     /**
