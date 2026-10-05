@@ -176,6 +176,17 @@ public final class SimIceFillPuzzle {
     /** Each section's exit tile - the last waypoint of that bundled floor, which every pattern shares. */
     private static volatile List<BlockPos> exitTiles = List.of();
 
+    /** Each section's entry tile - the first waypoint of that bundled floor, which every pattern shares. */
+    private static volatile List<BlockPos> entryTiles = List.of();
+
+    // What happened, for a scenario to read back (the testkit's 93-solve-icefill forced-break runs). The judge is the
+    // source of truth for "did the auto pause, and did it come back to the right tile", not the auto's own log.
+    private static volatile int breakCount = 0;
+    private static volatile int regenCount = 0;
+    private static volatile int lastBrokenSection = -1;
+    private static volatile int landingCount = 0;
+    private static volatile BlockPos lastLandingTile = null;
+
     /** Blocks this class PLACED, for a standalone arena's {@link #reset} to take away again. */
     private static volatile List<BlockPos> placedBlocks = List.of();
 
@@ -251,13 +262,18 @@ public final class SimIceFillPuzzle {
         // tile of a section in path order IS that section's exit. relativePath() covers all three floors, so
         // none of these stays at its placeholder.
         List<BlockPos> exits = new ArrayList<>(FLOORS.length);
+        List<BlockPos> entries = new ArrayList<>(FLOORS.length);
         for (int i = 0; i < FLOORS.length; i++) {
             exits.add(anchorBlock);
+            entries.add(null);
         }
         List<BlockPos> all = new ArrayList<>(rel.size());
         for (int[] step : rel) {
             BlockPos pos = offsetFromAnchor(anchorBlock, step[0], step[1], step[2]);
             int section = sectionOfRelativeY(step[1]);
+            if (entries.get(section) == null) {
+                entries.set(section, pos);
+            }
             built.get(section).add(pos);
             TILE_SECTION.put(pos, section);
             exits.set(section, pos);   // the last tile of a section, in path order, is that section's exit
@@ -265,6 +281,7 @@ public final class SimIceFillPuzzle {
         }
         sections = List.copyOf(built);
         exitTiles = List.copyOf(exits);
+        entryTiles = List.copyOf(entries);
         placedBlocks = List.copyOf(all);
         server.execute(() -> {
             ServerLevel level = server.overworld();
@@ -318,8 +335,10 @@ public final class SimIceFillPuzzle {
 
         List<Set<BlockPos>> found = newSectionList();
         List<BlockPos> exits = new ArrayList<>(FLOORS.length);
+        List<BlockPos> entries = new ArrayList<>(FLOORS.length);
         for (int f = 0; f < FLOORS.length; f++) {
             Pt[] floor = FLOORS[f];
+            entries.add(anchor.world(floor[0].x(), floor[0].y() - 1, floor[0].z()));
             int minX = Integer.MAX_VALUE;
             int maxX = Integer.MIN_VALUE;
             int minZ = Integer.MAX_VALUE;
@@ -361,6 +380,7 @@ public final class SimIceFillPuzzle {
         }
         sections = List.copyOf(found);
         exitTiles = List.copyOf(exits);
+        entryTiles = List.copyOf(entries);
         storedOrigin = null;
         boundAnchor = anchor;
         activeSection = 0;
@@ -471,6 +491,56 @@ public final class SimIceFillPuzzle {
         return complete;
     }
 
+    /** How many times a section has broken since the puzzle was armed. */
+    public static int breaks() {
+        return breakCount;
+    }
+
+    /** How many broken sections have come back since the puzzle was armed. */
+    public static int regenerations() {
+        return regenCount;
+    }
+
+    /** The section (0-based) that broke last, or -1 if none has. */
+    public static int lastBrokenSection() {
+        return lastBrokenSection;
+    }
+
+    /** True while a section is broken and waiting to regenerate. */
+    public static boolean isBroken() {
+        return regenCountdown > 0;
+    }
+
+    /** The section (0-based) that is live - the one a mistake breaks. */
+    public static int activeSection() {
+        return activeSection;
+    }
+
+    /** Every landing of a sim ability teleport since the puzzle was armed, broken section or not. */
+    public static int landings() {
+        return landingCount;
+    }
+
+    /** The block under the last sim teleport's landing, or null. */
+    public static BlockPos lastLandingTile() {
+        return lastLandingTile;
+    }
+
+    /** Section {@code s}'s entry tile (the ice block, not the feet), or null when not armed. */
+    public static BlockPos entryTile(int s) {
+        List<BlockPos> e = entryTiles;
+        return s >= 0 && s < e.size() ? e.get(s) : null;
+    }
+
+    private static void clearHistory() {
+        entryTiles = List.of();
+        breakCount = 0;
+        regenCount = 0;
+        lastBrokenSection = -1;
+        landingCount = 0;
+        lastLandingTile = null;
+    }
+
     /**
      * Drops this puzzle's bookkeeping WITHOUT touching the world.
      *
@@ -492,6 +562,7 @@ public final class SimIceFillPuzzle {
         placedBlocks = List.of();
         sections = List.of();
         exitTiles = List.of();
+        clearHistory();
         TILE_SECTION.clear();
         ironBars = List.of();
         currentTile = null;
@@ -512,6 +583,7 @@ public final class SimIceFillPuzzle {
         restoreAll(client);
         sections = List.of();
         exitTiles = List.of();
+        clearHistory();
         TILE_SECTION.clear();
         ironBars = List.of();
         currentTile = null;
@@ -633,8 +705,12 @@ public final class SimIceFillPuzzle {
      * and the once-a-tick judge would only see the second.
      */
     public static void onTeleport(ServerPlayer sp) {
-        if (!SimState.canAct(Minecraft.getInstance()) || regenCountdown > 0 || TILE_SECTION.isEmpty()
-                || complete) {
+        if (!SimState.canAct(Minecraft.getInstance()) || TILE_SECTION.isEmpty()) {
+            return;
+        }
+        landingCount++;
+        lastLandingTile = sp.blockPosition().below();
+        if (regenCountdown > 0 || complete) {
             return;
         }
         airborneTicks = 0;
@@ -770,6 +846,10 @@ public final class SimIceFillPuzzle {
         chat(() -> ModChat.send("Sim", ModChat.bad("Ice Fill - " + why + ": section "),
                 ModChat.value(String.valueOf(section + 1)), ModChat.bad(" breaks, back in 2s.")));
         dumpTrace();
+        LOGGER.info("Sim ice fill: section {} broke ({}) - only it comes back, in {} ticks", section + 1, why,
+                REGEN_TICKS);
+        breakCount++;
+        lastBrokenSection = section;
         brokenSection = section;
         regenCountdown = REGEN_TICKS;
         currentTile = null;
@@ -800,6 +880,9 @@ public final class SimIceFillPuzzle {
                 level.setBlockAndUpdate(pos, Blocks.ICE.defaultBlockState());
             }
         }
+        regenCount++;
+        LOGGER.info("Sim ice fill: section {} regenerated (finished sections untouched, {} is live)", section + 1,
+                activeSection + 1);
         chat(() -> ModChat.send("Sim", ModChat.text("Ice Fill - section "),
                 ModChat.value(String.valueOf(section + 1)), ModChat.text(" regenerated, try again.")));
     }

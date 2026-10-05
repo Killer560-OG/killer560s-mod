@@ -24,6 +24,12 @@ import com.killer560.hub.compat.McCompat;
  * With "Etherwarp Reposition" on and the player outside y 69.5..72.5 it warps onto the first still-unfilled ice tile
  * like QUOI. Safety addition: requires an AOTV/AOTE in hand (QUOI also passed on non-Skyblock items) and positions are
  * matched with a 1e-4 tolerance instead of exact double equality.
+ *
+ * <p>A BROKEN SECTION (2026-10-05): when a section's tiles go to air or his feet drop under the section he was on,
+ * everything stops until every tile of that section is fresh ice again (Hypixel brings back only that section,
+ * "two-ish seconds" later), then he is put back on that section's first tile - etherwarp reposition, or an
+ * Interactive Map walk if there is no line - and the hops carry on from there. Finished sections are left alone.
+ * See {@link #recover}.
  */
 final class AutoIceFill {
 
@@ -40,6 +46,51 @@ final class AutoIceFill {
     private static boolean done = false;
     private static boolean optimizedWarned = false;
     private static boolean wasInRoom = false;
+
+    // ---- sections and break recovery (2026-10-05) ----------------------------------------------------------------
+    //
+    // killer560, on Hypixel: "once it is broken on the main server. It will typically regenerate the path broken
+    // after two-ish seconds so if I complete the first of the three sections, then break the second then it would
+    // regenerate only the second ... if it breaks it will sense that it is on the floor below it. It just needs to
+    // pause everything that it is doing until it regenerates then it needs to make a teleport back onto the ice
+    // fill starting position and continue."
+    //
+    // Before this the only reaction to a break was the "off the ice band" reposition onto the first path tile still
+    // made of ICE - which, while the broken section is AIR, is the NEXT section's first tile, so it skipped the
+    // broken one and finished a fill the room never counted.
+
+    /** Per path point: which section (0..2) it belongs to - the order its height first appears in the path. */
+    private static int[] sectionOf = new int[0];
+    /** Per section: the ice tiles under its path points, in path order (stair midpoints excluded). */
+    private static List<List<BlockPos>> sectionTiles = List.of();
+    /** Per section: the path index of its first tile, which is where a recovery warps back to. */
+    private static int[] sectionStart = new int[0];
+    /** Stair midpoints added by {@link #stupidStairs}: they stand on the solid step, not on a section's ice. */
+    private static final java.util.Set<Vec3> MIDPOINTS =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+    /** The section being recovered, or -1 while solving normally. */
+    private static int recovering = -1;
+    /** True from the break until every tile of {@link #recovering} reads fresh ICE again. */
+    private static boolean awaitingRegen = false;
+    /** Ticks spent in the current recovery phase (waiting, then getting back on). */
+    private static int recoveryTicks = 0;
+    /** Breaks recovered from in this room; past {@link #MAX_RECOVERIES} it stops rather than loop. */
+    private static int recoveries = 0;
+    /** True when a recovery could not finish; the auto stays off until he leaves the room. */
+    private static boolean gaveUp = false;
+    /** True while an Interactive Map walk this class started is still under way. */
+    private static boolean mapWalkOurs = false;
+    /** The last path point he was really standing on, for the "fell below the section" test. -1 when none. */
+    private static int lastStood = -1;
+
+    /** Hypixel takes "two-ish seconds"; this is generous on purpose, and saying so in chat when it runs out. */
+    private static final int REGEN_TIMEOUT_TICKS = 15 * 20;
+    /** How long getting back onto the section's start may take once it is back. */
+    private static final int RETURN_TIMEOUT_TICKS = 10 * 20;
+    private static final int MAX_RECOVERIES = 5;
+    /** Feet this far under the last tile stood on is "on the floor below it" (a section is one block thick). */
+    private static final double FELL_BELOW = 1.5;
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autopuzzles");
 
@@ -96,11 +147,14 @@ final class AutoIceFill {
         if (!raw.equals(sourcePath)) {
             sourcePath = raw;
             path = fillGaps(stupidStairs(raw));
+            indexSections();
             lastIndex = -1;
+            lastStood = -1;
             ticks = 0;
             lastNote = "";
-            note("path", "path built: {} solver point(s) -> {} hop point(s), {} to {}", raw.size(), path.size(),
-                    path.get(0), path.get(path.size() - 1));
+            note("path", "path built: {} solver point(s) -> {} hop point(s), {} to {}; {} section(s), starts at {}",
+                    raw.size(), path.size(), path.get(0), path.get(path.size() - 1), sectionTiles.size(),
+                    java.util.Arrays.toString(sectionStart));
         }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (cr == null) {
@@ -114,15 +168,35 @@ final class AutoIceFill {
             AutoReposition.releaseSneak(client);
             return;
         }
+        if (gaveUp) {
+            note("gaveup", "stopped: a break recovery did not finish - leave and re-enter the room to retry");
+            return;
+        }
+        LocalPlayer player = client.player;
+        // A BREAK COMES FIRST, before any reposition or hop: a section whose tiles have gone to air, or feet under
+        // the section he was standing on. Everything else waits until that section is back.
+        if (recovering < 0) {
+            int broken = brokenSection(client);
+            int fell = broken >= 0 ? -1 : fellFromSection(player);
+            if (broken >= 0 || fell >= 0) {
+                beginRecovery(client, broken >= 0 ? broken : fell,
+                        broken >= 0 ? "its tiles are gone" : "you are on the floor below it");
+            }
+        }
+        if (recovering >= 0) {
+            recover(client, player, cfg);
+            return;
+        }
         if (REPOSITION.isActive()) {
             REPOSITION.tick(client);
             return;
         }
-        LocalPlayer player = client.player;
         // 69.5..72.5 is the ROOM-RELATIVE band of this room's three ice levels, and the sim shifts every room
         // vertically. Without the shift the test read "he is nowhere near the ice" on every sim floor and Auto
         // Ice Fill spent the room warping onto the first unfilled tile instead of walking the path. Zero on a
         // real run - the same DungeonLayout.simYOffset() every height in this mod goes through.
+        // This is the way ONTO the fill, not back after a break: a broken section is caught above and recovered
+        // on its own, so "the first tile still ICE" here can no longer be the next section's while one is air.
         double floor = com.killer560.hub.livemap.DungeonLayout.simYOffset();
         if (cfg.isEtherwarpReposition() && (player.getY() < 69.5 + floor || player.getY() > 72.5 + floor)) {
             if (AutoPuzzleUtil.isMoving(player)) {
@@ -177,6 +251,7 @@ final class AutoIceFill {
             lastIndex = -1;
             return;
         }
+        lastStood = index;
         if (lastIndex == -1 || index > lastIndex) {
             lastIndex = index;
             ticks = 0;
@@ -222,6 +297,212 @@ final class AutoIceFill {
         }
     }
 
+    /**
+     * Splits {@link #path} into its sections. A section is one of the room's three ice sheets, and they sit at three
+     * different heights, so a point's section is the order its height first appears along the path. Stair midpoints
+     * stand on the solid step between two sheets and are no section's tile.
+     */
+    private static void indexSections() {
+        List<Long> heights = new ArrayList<>();
+        sectionOf = new int[path.size()];
+        List<List<BlockPos>> tiles = new ArrayList<>();
+        List<Integer> starts = new ArrayList<>();
+        for (int i = 0; i < path.size(); i++) {
+            Vec3 p = path.get(i);
+            long key = Math.round(p.y * 10);
+            int s = heights.indexOf(key);
+            if (s < 0) {
+                heights.add(key);
+                s = heights.size() - 1;
+                tiles.add(new ArrayList<>());
+                starts.add(-1);
+            }
+            sectionOf[i] = s;
+            if (MIDPOINTS.contains(p)) {
+                continue;
+            }
+            BlockPos tile = BlockPos.containing(p).below();
+            if (!tiles.get(s).contains(tile)) {
+                tiles.get(s).add(tile);
+            }
+            if (starts.get(s) < 0) {
+                starts.set(s, i);
+            }
+        }
+        sectionTiles = tiles;
+        sectionStart = starts.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    /** The first section with at least half its tiles gone to air - broken, waiting to come back - or -1. */
+    private static int brokenSection(Minecraft client) {
+        for (int s = 0; s < sectionTiles.size(); s++) {
+            if (isBroken(client, s)) {
+                return s;
+            }
+        }
+        return -1;
+    }
+
+    private static boolean isBroken(Minecraft client, int s) {
+        List<BlockPos> tiles = sectionTiles.get(s);
+        int air = 0;
+        for (BlockPos t : tiles) {
+            if (client.level.getBlockState(t).isAir()) {
+                air++;
+            }
+        }
+        return !tiles.isEmpty() && air * 2 >= tiles.size();
+    }
+
+    /** How many of a section's tiles are fresh (unwalked) ice. All of them is "regenerated". */
+    private static int freshTiles(Minecraft client, int s) {
+        int fresh = 0;
+        for (BlockPos t : sectionTiles.get(s)) {
+            if (client.level.getBlockState(t).is(Blocks.ICE)) {
+                fresh++;
+            }
+        }
+        return fresh;
+    }
+
+    /** The section he was last standing on, if his feet are now well under it - "on the floor below it". */
+    private static int fellFromSection(LocalPlayer player) {
+        if (lastStood < 0 || lastStood >= path.size()) {
+            return -1;
+        }
+        double feet = path.get(lastStood).y - 0.1;
+        return player.getY() < feet - FELL_BELOW ? sectionOf[lastStood] : -1;
+    }
+
+    private static boolean onPoint(LocalPlayer player, Vec3 p) {
+        return Math.abs(player.getX() - p.x) < EPS && Math.abs(player.getY() + 0.1 - p.y) < EPS
+                && Math.abs(player.getZ() - p.z) < EPS;
+    }
+
+    /** Stops every hop, warp and walk this auto has going, and starts waiting for section {@code s} to come back. */
+    private static void beginRecovery(Minecraft client, int s, String why) {
+        stopMoving(client);
+        lastIndex = -1;
+        lastStood = -1;
+        ticks = 0;
+        recoveries++;
+        if (recoveries > MAX_RECOVERIES) {
+            giveUp(client, "section " + (s + 1) + " broke " + recoveries + " times in this room");
+            return;
+        }
+        recovering = s;
+        awaitingRegen = true;
+        recoveryTicks = 0;
+        LOGGER.info("[AutoIceFill] recovery: section {} broke ({}) - paused, waiting for it to regenerate "
+                + "(break {} in this room)", s + 1, why, recoveries);
+        ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.bad("Auto Ice Fill: section " + (s + 1) + " broke"),
+                ModChat.text(" - paused until it regenerates."));
+    }
+
+    /**
+     * One tick of a recovery: wait (doing nothing at all) until every tile of the broken section is fresh ice again,
+     * then get back onto that section's first tile the same way the auto gets onto the fill to begin with - an
+     * etherwarp reposition, or an Interactive Map walk when no warp line exists - and hand back to the hops, which
+     * carry on from that tile. Sections before it are finished and stay finished; nothing re-walks them.
+     */
+    private static void recover(Minecraft client, LocalPlayer player, AutoPuzzlesConfig cfg) {
+        int s = recovering;
+        recoveryTicks++;
+        if (awaitingRegen) {
+            int fresh = freshTiles(client, s);
+            int total = sectionTiles.get(s).size();
+            if (fresh < total) {
+                if (recoveryTicks >= REGEN_TIMEOUT_TICKS) {
+                    giveUp(client, "section " + (s + 1) + " did not regenerate in " + REGEN_TIMEOUT_TICKS / 20
+                            + "s (" + fresh + " of " + total + " tiles back)");
+                    return;
+                }
+                note("regen" + s, "recovery: paused, waiting for section {} to regenerate ({} of {} tile(s) "
+                        + "fresh ice)", s + 1, fresh, total);
+                return;
+            }
+            awaitingRegen = false;
+            LOGGER.info("[AutoIceFill] recovery: section {} regenerated after {} tick(s) - getting back onto its "
+                    + "start {}", s + 1, recoveryTicks, sectionTiles.get(s).get(0));
+            recoveryTicks = 0;
+        }
+        if (isBroken(client, s)) {
+            // Broke again before he was back on it (or the warp back went wrong) - wait for it all over again.
+            stopMoving(client);
+            awaitingRegen = true;
+            recoveryTicks = 0;
+            LOGGER.info("[AutoIceFill] recovery: section {} broke again before he was back on it - waiting", s + 1);
+            return;
+        }
+        Vec3 start = path.get(sectionStart[s]);
+        if (onPoint(player, start)) {
+            LOGGER.info("[AutoIceFill] recovery: back on section {}'s start {} after {} tick(s) - continuing",
+                    s + 1, start, recoveryTicks);
+            recovering = -1;
+            lastIndex = -1;
+            ticks = 0;
+            mapWalkOurs = false;
+            lastNote = "";
+            return;
+        }
+        if (REPOSITION.isActive()) {
+            REPOSITION.tick(client);
+            return;
+        }
+        if (mapWalkOurs) {
+            if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+                return;
+            }
+            mapWalkOurs = false;
+        }
+        if (recoveryTicks >= RETURN_TIMEOUT_TICKS) {
+            giveUp(client, "could not get back onto section " + (s + 1) + "'s start in "
+                    + RETURN_TIMEOUT_TICKS / 20 + "s");
+            return;
+        }
+        BlockPos tile = sectionTiles.get(s).get(0);
+        if (!cfg.isEtherwarpReposition()) {
+            note("retnorepos" + s, "recovery: section {} is back - Etherwarp Reposition is off, so stand on its "
+                    + "start {} to carry on", s + 1, tile);
+            return;
+        }
+        if (AutoPuzzleUtil.isMoving(player)) {
+            return;
+        }
+        if (REPOSITION.start(client, tile, false, true, true)) {
+            note("ret" + s, "recovery: etherwarping back onto section {}'s start {}", s + 1, tile);
+            return;
+        }
+        if (AutoPuzzleUtil.pathIfMapOn(tile, null)) {
+            mapWalkOurs = true;
+            note("retwalk" + s, "recovery: no etherwarp line onto section {}'s start {} - walking there with the "
+                    + "Interactive Map", s + 1, tile);
+            return;
+        }
+        note("retwait" + s, "recovery: waiting - no etherwarp line onto section {}'s start {} from here, and "
+                + "pathing / the Interactive Map is off", s + 1, tile);
+    }
+
+    /** Cancels this auto's own reposition and map walk and lets go of sneak. Never touches anything it did not start. */
+    private static void stopMoving(Minecraft client) {
+        REPOSITION.cancel(client);
+        AutoReposition.releaseSneak(client);
+        if (mapWalkOurs) {
+            mapWalkOurs = false;
+            com.killer560.hub.livemap.autoclear.ClearExecutor.cancel();
+        }
+    }
+
+    private static void giveUp(Minecraft client, String why) {
+        stopMoving(client);
+        recovering = -1;
+        awaitingRegen = false;
+        gaveUp = true;
+        LOGGER.info("[AutoIceFill] recovery: gave up - {}", why);
+        ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.bad("Auto Ice Fill stopped: "), ModChat.text(why
+                + ". Leave and re-enter the room to try again."));
+    }
+
     /** QUOI fillGaps: insert 1-block interpolated points between consecutive path points. */
     private static List<Vec3> fillGaps(List<Vec3> points) {
         if (points.isEmpty()) {
@@ -261,16 +542,21 @@ final class AutoIceFill {
         double shift = com.killer560.hub.livemap.DungeonLayout.simYOffset();
         double first = 71.1 + shift;
         double second = 72.1 + shift;
+        MIDPOINTS.clear();
         List<Vec3> updated = new ArrayList<>(points.size() + 2);
         Vec3 lastPoint = points.get(0);
         boolean added71 = false;
         boolean added72 = false;
         for (Vec3 point : points) {
             if (!added71 && Math.abs(point.y - first) < EPS) {
-                updated.add(new Vec3((lastPoint.x + point.x) / 2, first, (lastPoint.z + point.z) / 2));
+                Vec3 mid = new Vec3((lastPoint.x + point.x) / 2, first, (lastPoint.z + point.z) / 2);
+                MIDPOINTS.add(mid);
+                updated.add(mid);
                 added71 = true;
             } else if (!added72 && Math.abs(point.y - second) < EPS) {
-                updated.add(new Vec3((lastPoint.x + point.x) / 2, second, (lastPoint.z + point.z) / 2));
+                Vec3 mid = new Vec3((lastPoint.x + point.x) / 2, second, (lastPoint.z + point.z) / 2);
+                MIDPOINTS.add(mid);
+                updated.add(mid);
                 added72 = true;
             }
             updated.add(point);
@@ -280,8 +566,19 @@ final class AutoIceFill {
     }
 
     private static void reset(Minecraft client) {
-        REPOSITION.cancel(client);
-        AutoReposition.releaseSneak(client);
+        if (recovering >= 0) {
+            LOGGER.info("[AutoIceFill] recovery of section {} abandoned - left the room or switched off", recovering + 1);
+        }
+        stopMoving(client);
+        recovering = -1;
+        awaitingRegen = false;
+        recoveryTicks = 0;
+        recoveries = 0;
+        gaveUp = false;
+        lastStood = -1;
+        sectionOf = new int[0];
+        sectionTiles = List.of();
+        sectionStart = new int[0];
         sourcePath = List.of();
         path = List.of();
         lastIndex = -1;
