@@ -185,6 +185,7 @@ public final class RoutePathPlanner {
         src.planToX = tx;
         src.planToY = ty;
         src.planToZ = tz;
+        src.roundToSaved();
         RouteStore.getInstance().save();
         return null;
     }

@@ -457,12 +457,14 @@ public final class RouteStore {
     private static JsonObject writeNode(RouteNode n) {
         JsonObject o = new JsonObject();
         o.addProperty("type", n.type.name());
-        o.addProperty("x", round(n.x, 3));
-        o.addProperty("y", round(n.y, 3));
-        o.addProperty("z", round(n.z, 3));
+        // Six places, AP3's figure, written through the same helper a node is rounded with when it is placed or
+        // edited (RouteNode.roundToSaved) - so what is in memory before a reload is what comes back after one.
+        o.addProperty("x", RouteNode.roundSaved(n.x));
+        o.addProperty("y", RouteNode.roundSaved(n.y));
+        o.addProperty("z", RouteNode.roundSaved(n.z));
         // 5 places, as AP3: 1 place drifted an etherwarp about 0.05 blocks at 60 (testkit logic suite, 2026-10-04).
-        o.addProperty("yaw", round(n.yaw, 5));
-        o.addProperty("pitch", round(n.pitch, 5));
+        o.addProperty("yaw", RouteNode.roundSaved(n.yaw));
+        o.addProperty("pitch", RouteNode.roundSaved(n.pitch));
         o.addProperty("at", n.pathIndex);
         if (n.radius != RouteNode.DEFAULT_RADIUS) {
             o.addProperty("radius", round(n.radius, 2));
@@ -495,18 +497,18 @@ public final class RouteStore {
         }
         if (n.type == RouteNode.Type.PATH && !n.pathHops.isEmpty()) {
             // The saved warps (see RouteNode#pathHops) - planned once, replayed every run.
-            o.addProperty("planFrom", String.format(Locale.US, "%.3f %.3f %.3f", n.planFromX, n.planFromY, n.planFromZ));
-            o.addProperty("planTo", String.format(Locale.US, "%.3f %.3f %.3f", n.planToX, n.planToY, n.planToZ));
+            o.addProperty("planFrom", String.format(Locale.US, "%.6f %.6f %.6f", n.planFromX, n.planFromY, n.planFromZ));
+            o.addProperty("planTo", String.format(Locale.US, "%.6f %.6f %.6f", n.planToX, n.planToY, n.planToZ));
             JsonArray hops = new JsonArray();
             for (RouteNode.PathHop h : n.pathHops) {
-                hops.add(String.format(Locale.US, "%.3f %.3f %.3f %.5f %.5f %d %d %d %.3f %.3f %.3f", h.ox(), h.oy(),
+                hops.add(String.format(Locale.US, "%.6f %.6f %.6f %.6f %.6f %d %d %d %.6f %.6f %.6f", h.ox(), h.oy(),
                         h.oz(), h.yaw(), h.pitch(), h.target().getX(), h.target().getY(), h.target().getZ(), h.lx(),
                         h.ly(), h.lz()));
             }
             o.add("hops", hops);
         }
         if (n.hasLanding) {
-            o.addProperty("landing", String.format(Locale.US, "%.3f %.3f %.3f", n.landingX, n.landingY, n.landingZ));
+            o.addProperty("landing", String.format(Locale.US, "%.6f %.6f %.6f", n.landingX, n.landingY, n.landingZ));
         }
         return o;
     }

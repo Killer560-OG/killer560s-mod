@@ -157,6 +157,7 @@ public final class RouteRecorder {
         RouteNode startNode = new RouteNode(RouteNode.Type.WALK, rel.x, rel.y, rel.z,
                 RouteCoords.toRelativeYaw(f, player.getYRot()), player.getXRot(), 0);
         startNode.start = true;
+        startNode.roundToSaved();
         route.nodes().add(startNode);
         warnIfSimRotationUncertain(f.roomName(), true);
         return "Recording " + f.roomName() + (existing != null ? " (will replace the saved route)" : "")
@@ -221,6 +222,7 @@ public final class RouteRecorder {
             Vec3 landing = RouteCoords.toRelative(frame, pos);
             if (pendingEtherwarp != null) {
                 pendingEtherwarp.setLanding(landing);
+                pendingEtherwarp.roundToSaved();
                 route.nodes().add(pendingEtherwarp);
                 lastActionNode = pendingEtherwarp;
                 lastActionSample = sampleIndex;
@@ -229,6 +231,7 @@ public final class RouteRecorder {
             } else if (lastActionNode != null && !lastActionNode.hasLanding
                     && sampleIndex - lastActionSample <= LANDING_WINDOW_TICKS) {
                 lastActionNode.setLanding(landing); // Hyperion / AOTE: the use node's own teleport
+                lastActionNode.roundToSaved();
             }
             // Any other jump is the server moving us (a rubber-band, a leap) - nothing to record.
         }
@@ -277,6 +280,7 @@ public final class RouteRecorder {
         }
         node.type = RouteNode.Type.USE_ITEM;
         node.item = ItemIdentity.of(held);
+        node.roundToSaved();
         route.nodes().add(node);
         lastActionNode = node;
         lastActionSample = sampleIndex;
@@ -290,6 +294,7 @@ public final class RouteRecorder {
         if (BOOM_IDS[0].equalsIgnoreCase(id) || BOOM_IDS[1].equalsIgnoreCase(id)) {
             RouteNode node = nodeAtPlayer(player, sampleIndex);
             node.type = RouteNode.Type.BOOM;
+            node.roundToSaved();
             route.nodes().add(node);
             lastActionNode = node;
             lastActionSample = sampleIndex;
@@ -305,6 +310,7 @@ public final class RouteRecorder {
                     || breakerBeingBuilt.breakerBlocks.size() >= RouteStore.MAX_BREAKER_BLOCKS) {
                 breakerBeingBuilt = nodeAtPlayer(player, sampleIndex);
                 breakerBeingBuilt.type = RouteNode.Type.DUNGEON_BREAKER;
+                breakerBeingBuilt.roundToSaved();
                 route.nodes().add(breakerBeingBuilt);
             }
             BlockPos rel = RouteCoords.toRelativeBlock(frame, blockHit.getBlockPos());
@@ -463,6 +469,7 @@ public final class RouteRecorder {
             node.awaitCondition = mods.awaitCondition;
             node.awaitAmount = mods.awaitAmount;
         }
+        node.roundToSaved();
         target.nodes().add(node);
         // /ar undo takes it back off (and puts the start flag back where it was).
         RouteHistory.added(target, node, previousStart);

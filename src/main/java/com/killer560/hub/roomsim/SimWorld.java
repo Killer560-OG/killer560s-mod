@@ -411,6 +411,10 @@ public final class SimWorld {
         // and the integrated server would keep stepping them in whatever world is opened next - including a
         // singleplayer world that is not the sim. The loading screen could reassert itself there too.
         SimBuildQueue.clear();
+        // The same for the Dungeon Breaker's blocks waiting to regrow: each holds the OLD ServerLevel, and if the sim
+        // was left without this branch running (SimState already off), the next world's server tried to put them
+        // back into a level that no longer runs and its loading screen never finished (found 2026-10-05, 96-ar).
+        SimBreakerState.reset();
         buildInProgress = false;
         loadingScreen = null;
         loadingTicks = 0;

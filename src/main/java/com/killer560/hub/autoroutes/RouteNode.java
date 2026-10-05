@@ -300,6 +300,46 @@ public final class RouteNode {
         return sb.toString();
     }
 
+    /** Decimal places every saved coordinate, angle and landing keeps in the routes file - AP3's figure. */
+    public static final int SAVED_DECIMALS = 6;
+
+    /** {@code v} as the routes file will hold it. */
+    public static double roundSaved(double v) {
+        double f = Math.pow(10, SAVED_DECIMALS);
+        return Math.round(v * f) / f;
+    }
+
+    /**
+     * Rounds this node to exactly what the file will hold (killer560, 2026-10-05: "make both go to 6 decimals ...
+     * if I place a node then hit it again without reloading it is still that truncated value"), so a node placed or
+     * edited behaves the same now as after {@code /ar reload}. Called wherever a node gets new values; the store
+     * writes through {@link #roundSaved} too, so the two always agree.
+     */
+    public void roundToSaved() {
+        x = roundSaved(x);
+        y = roundSaved(y);
+        z = roundSaved(z);
+        yaw = (float) roundSaved(yaw);
+        pitch = (float) roundSaved(pitch);
+        if (hasLanding) {
+            landingX = roundSaved(landingX);
+            landingY = roundSaved(landingY);
+            landingZ = roundSaved(landingZ);
+        }
+        planFromX = roundSaved(planFromX);
+        planFromY = roundSaved(planFromY);
+        planFromZ = roundSaved(planFromZ);
+        planToX = roundSaved(planToX);
+        planToY = roundSaved(planToY);
+        planToZ = roundSaved(planToZ);
+        for (int i = 0; i < pathHops.size(); i++) {
+            PathHop h = pathHops.get(i);
+            pathHops.set(i, new PathHop(roundSaved(h.ox()), roundSaved(h.oy()), roundSaved(h.oz()),
+                    (float) roundSaved(h.yaw()), (float) roundSaved(h.pitch()), h.target(), roundSaved(h.lx()),
+                    roundSaved(h.ly()), roundSaved(h.lz())));
+        }
+    }
+
     public RouteNode copy() {
         RouteNode n = new RouteNode();
         n.copyFrom(this);

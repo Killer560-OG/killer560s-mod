@@ -432,6 +432,8 @@ public class AutoRoutesEditScreen extends Screen {
         if (moved || turned || type != node.type) {
             relandIfEtherwarp(edited, frame);
         }
+        // What the file will hold, now - an edited node behaves the same before and after a reload.
+        edited.roundToSaved();
         return AutoRoutesFeature.applyNodeEdit(route, node, edited);
     }
 
