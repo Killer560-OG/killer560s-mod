@@ -164,7 +164,7 @@ public final class PartyTracker {
             if (display == null) {
                 continue;
             }
-            String plain = ChatFormatting.stripFormatting(display.getString());
+            String plain = com.killer560.hub.util.ChatObserver.stripCodes(display.getString());
             if (plain == null) {
                 continue;
             }

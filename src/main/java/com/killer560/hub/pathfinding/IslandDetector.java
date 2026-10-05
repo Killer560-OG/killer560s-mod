@@ -135,7 +135,7 @@ public final class IslandDetector {
             if (display == null) {
                 continue;
             }
-            String plain = ChatFormatting.stripFormatting(display.getString());
+            String plain = com.killer560.hub.util.ChatObserver.stripCodes(display.getString());
             if (plain == null) {
                 continue;
             }
@@ -184,7 +184,7 @@ public final class IslandDetector {
                 text = team == null ? entry.owner()
                         : team.getPlayerPrefix().getString() + team.getPlayerSuffix().getString();
             }
-            String plain = ChatFormatting.stripFormatting(text);
+            String plain = com.killer560.hub.util.ChatObserver.stripCodes(text);
             out.add(plain == null ? text : plain);
         }
         return out;

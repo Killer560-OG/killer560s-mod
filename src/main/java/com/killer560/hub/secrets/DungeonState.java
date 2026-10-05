@@ -126,7 +126,7 @@ public final class DungeonState {
 
     private static void onChatMessage(Component message) {
         String raw = message.getString();
-        String plain = ChatFormatting.stripFormatting(raw);
+        String plain = com.killer560.hub.util.ChatObserver.stripCodes(raw);
         if (plain != null && BOSS_START_PATTERN.matcher(plain).find() && isF7OrM7()) {
             LOGGER.info("[Secrets] Boss phase started (real Maxor chat line matched)");
             bossPhaseActive = true;
@@ -210,7 +210,7 @@ public final class DungeonState {
         // fix proved the sidebar text itself was now being read correctly, but Hypixel embeds literal
         // color codes MID-WORD (e.g. "The Catac§combs §7(F7)"), which the plain CATACOMBS_FLOOR_PATTERN
         // can't match through. Stripped first, the same way BOSS_START_PATTERN already handles it above.
-        String plain = ChatFormatting.stripFormatting(sidebar);
+        String plain = com.killer560.hub.util.ChatObserver.stripCodes(sidebar);
         if (plain == null || plain.contains("Queue")) {
             return null;
         }
@@ -244,7 +244,7 @@ public final class DungeonState {
         }
         for (String line : raw.split("\n")) {
             // Stripped first: a colour code in front of "Room:" made this miss the line entirely.
-            String plain = ChatFormatting.stripFormatting(line);
+            String plain = com.killer560.hub.util.ChatObserver.stripCodes(line);
             String t = plain == null ? "" : plain.trim();
             if (t.startsWith("Room:")) {
                 String name = t.substring("Room:".length()).trim();

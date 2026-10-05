@@ -299,7 +299,7 @@ public final class ScoreCalculatorFeature {
             if (display == null) {
                 continue;
             }
-            String plain = ChatFormatting.stripFormatting(display.getString());
+            String plain = com.killer560.hub.util.ChatObserver.stripCodes(display.getString());
             if (plain == null || plain.isBlank()) {
                 continue;
             }
@@ -358,7 +358,7 @@ public final class ScoreCalculatorFeature {
         }
         for (PlayerScoreEntry entry : scoreboard.listPlayerScores(sidebar)) {
             String text = sidebarLine(scoreboard, entry);
-            String plain = ChatFormatting.stripFormatting(text);
+            String plain = com.killer560.hub.util.ChatObserver.stripCodes(text);
             if (plain == null) {
                 continue;
             }
