@@ -129,7 +129,7 @@ public class GifPlayerTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("GIFs (toggle which ones show at once):"), Minecraft.getInstance().font));
         y += 14;
-        List<String> gifFiles = GifPlayerFeature.discoverFileNames();
+        List<String> gifFiles = GifPlayerFeature.listedFileNames();
         if (gifFiles.isEmpty()) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                     Component.literal("§7No .gif files found."), Minecraft.getInstance().font));
@@ -137,7 +137,7 @@ public class GifPlayerTab extends BaseTab {
         }
         for (String name : gifFiles) {
             boolean on = GifPlayerConfig.getInstance().isGifFileEnabled(name);
-            widgets.add(SettingsButtonWidget.builder(fileToggleText(name, on), btn -> {
+            widgets.add(SettingsButtonWidget.builder(fileToggleText(GifPlayerFeature.displayName(name), on), btn -> {
                         GifPlayerConfig cfg = GifPlayerConfig.getInstance();
                         cfg.setGifFileEnabled(name, !cfg.isGifFileEnabled(name));
                         cfg.save();

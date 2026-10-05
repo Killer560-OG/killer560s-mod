@@ -44,6 +44,8 @@ public class HudEditorScreen extends Screen {
 
     private final Screen parent;
     private final Map<String, int[]> livePositions = new HashMap<>();
+    /** Each element's OWN scale (what is saved). Boxes are drawn at this times the global HUD scale - see
+     *  {@link #drawScale}. */
     private final Map<String, Float> liveScales = new HashMap<>();
     /** Elements currently draggable, in registry order (topmost last). */
     private final List<HudElement> shown = new ArrayList<>();
@@ -116,7 +118,7 @@ public class HudEditorScreen extends Screen {
             shown.add(element);
             int[] pos = HudElementRegistry.resolvePosition(element);
             livePositions.put(element.id(), pos);
-            liveScales.put(element.id(), HudElementRegistry.resolveScale(element));
+            liveScales.put(element.id(), HudElementRegistry.elementScale(element));
         }
         disabledCount = disabled;
     }
@@ -132,14 +134,15 @@ public class HudEditorScreen extends Screen {
             int[] pos = livePositions.get(element.id());
             int x = pos[0];
             int y = pos[1];
-            float scale = liveScales.get(element.id());
+            float own = liveScales.get(element.id());
+            float scale = drawScale(element.id());
             int scaledW = scaledWidth(element, scale);
             int scaledH = scaledHeight(element, scale);
             boolean dragging = element.id().equals(draggingId);
 
             graphics.fill(x, y, x + scaledW, y + scaledH, dragging ? BOX_BG_DRAGGING : BOX_BG);
             graphics.outline(x, y, scaledW, scaledH, BOX_OUTLINE);
-            graphics.text(this.font, element.displayName() + String.format(" (%.1fx)", scale), x + 2, y - 10, 0xFFFFFFFF);
+            graphics.text(this.font, element.displayName() + String.format(" (%.1fx)", own), x + 2, y - 10, 0xFFFFFFFF);
 
             graphics.pose().pushMatrix();
             try {
@@ -182,12 +185,18 @@ public class HudEditorScreen extends Screen {
         }
     }
 
+    /** The scale an element is drawn at in-game: its own scale times the global HUD scale, the same product as
+     *  {@link HudElementRegistry#resolveScale}. */
+    private float drawScale(String id) {
+        return liveScales.get(id) * HudConfig.getInstance().getGlobalScale();
+    }
+
     /** Topmost listed element whose scaled box contains (mx, my), or null. */
     private HudElement elementAt(double mx, double my) {
         for (int i = shown.size() - 1; i >= 0; i--) {
             HudElement element = shown.get(i);
             int[] pos = livePositions.get(element.id());
-            float scale = liveScales.get(element.id());
+            float scale = drawScale(element.id());
             int scaledW = scaledWidth(element, scale);
             int scaledH = scaledHeight(element, scale);
             if (mx >= pos[0] && mx <= pos[0] + scaledW && my >= pos[1] && my <= pos[1] + scaledH) {

@@ -22,7 +22,7 @@ The detailed version of the feature list in the README. Keep this file up to dat
 - Item Value Tooltip — adds an item's coin value to its tooltip anywhere in the game, from the same Bazaar-first/lowest-BIN price data the Croesus tools already use. Items with no known price simply get no line rather than a guess
 
 **Hud Elements**
-- GIF Player — plays a GIF (with optional audio) as a HUD overlay
+- GIF Player — plays a GIF (with optional audio) as a HUD overlay. Ships with a built-in dancing cat girl GIF that shows by default in the top-right corner; it is listed as "Dancing Cat Girl (built-in)" and turned off like any other GIF, and your own GIFs in the folder are untouched
 - DVD — the classic bouncing DVD logo screensaver on your screen
 - Video Browser — watch YouTube Shorts in a small 9:16 window pinned over Minecraft (Windows only; uses your installed Edge or Chrome in its own profile, log into YouTube once). Keybinds for show/hide, next, previous, play/pause and mute work without leaving the game. Dark / Light / System / Amber theme option. Also plays normal YouTube, TikTok, Instagram Reels, Twitch or any URL; an edit mode to drag-move and resize the window; a zoom setting; a DVD-style bouncing placement; and a YouTube comments guard so next/previous does not fire while comments are open. **Untested** - see the New tab
 
@@ -248,10 +248,12 @@ AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phas
 
 **Home**
 - A HUD editor to drag and resize the mod's on-screen elements wherever you want them. You can move exactly what you could just see: an element is draggable if its own setting is on **and** it actually drew on screen within the last ten seconds, so the dungeon timers are editable in a dungeon and the RNG Meter ranking is editable for ten seconds after you close that menu. An element that is switched on but has not been on screen recently is still listed, dimmed, with the reason next to it - flip Show Unseen to move those too. Anything switched off in settings is not listed at all. Every element starts fully on screen at any GUI scale or window size, and opening chat never hides the HUD (real menus still do)
+- HUD Scale — one slider, SkyHanni-style, that resizes every HUD element of the mod at once, from 5% to 300% in 5% steps (100% by default). It multiplies each element's own size rather than replacing it, so an element you set to 200% and then a HUD Scale of 50% draws at its original size, and goes back to 200% when the slider returns to 100%. Saved with profiles
+- Discord Rich Presence's options sit directly on the Home tab under the Mod & HUD settings, with no dropdown to open
 - The mod menu remembers your scroll position, selected tab, and search text between opens
 
 **Profiles**
-- Save your current settings as a named profile, switch between profiles, and export one to a single `.zip` file to share with a friend (they drop it in `config/killer560/system/profiles/killer560smod-profiles/` and import it). Excludes real credentials (session login token, per-account proxies) and run caches - only actual feature settings travel with a profile. Switching applies immediately to disk; restart Minecraft for every feature to pick it up
+- Save your current settings as a named profile, switch between profiles, and export one to a single `.zip` file to share with a friend. To receive one, click Import Profile: it opens the import folder, and any `.zip` dropped in is imported within a couple of seconds as a new profile named after the file. Excludes real credentials (session login token, per-account proxies) and run caches - only actual feature settings travel with a profile. While a profile is loaded, every setting you change is saved into that profile too, so switching away and back keeps your changes
 
 ## Requirements
 

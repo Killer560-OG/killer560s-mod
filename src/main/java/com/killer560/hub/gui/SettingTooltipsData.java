@@ -818,6 +818,7 @@ final class SettingTooltipsData {
         d.put("join discord", "Opens the mod's Discord server invite in your browser.");
         d.put("edit hud positions", "Opens the HUD editor to drag and resize on-screen elements.");
         d.put("edit hud keybind", "Key that opens the HUD editor in game.");
+        d.put("hud scale", "Scales every HUD element of this mod at once, 5% to 300%. Multiplies each element's own size, so per-element sizes are kept. Saved with profiles.");
         d.put("borderless fullscreen", "Stretches the window over the whole monitor without borders.");
         d.put("fullbright", "Renders the world at full brightness in any light.");
         d.put("themed main menu", "Gives the game's menus the mod's black and orange theme.");
@@ -826,6 +827,7 @@ final class SettingTooltipsData {
         d.put("save current as new", "Saves your current mod settings as a new profile.");
         d.put("load", "Applies this profile's settings right away.");
         d.put("export", "Zips this profile so you can send it to someone.");
+        d.put("import profile (open folder)", "Opens the import folder. Drop a profile .zip in and it is imported within a couple of seconds, named after the file.");
         d.put("new/every run", "Waypoint can be sent any number of times; click for Once Per Run.");
         d.put("new/once per run", "Waypoint can be sent once per run; click for Every Run.");
 

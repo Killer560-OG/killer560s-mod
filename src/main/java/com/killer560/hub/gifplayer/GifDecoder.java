@@ -30,8 +30,24 @@ public final class GifDecoder {
     }
 
     public static GifImage decode(Path file) throws IOException {
-        ImageReader reader = ImageIO.getImageReadersBySuffix("gif").next();
         try (ImageInputStream stream = ImageIO.createImageInputStream(file.toFile())) {
+            return decode(stream, String.valueOf(file));
+        }
+    }
+
+    /** Decodes a GIF read from a stream - the built-in GIF bundled in the jar has no file on disk. */
+    public static GifImage decode(java.io.InputStream in, String label) throws IOException {
+        try (ImageInputStream stream = ImageIO.createImageInputStream(in)) {
+            return decode(stream, label);
+        }
+    }
+
+    private static GifImage decode(ImageInputStream stream, String file) throws IOException {
+        if (stream == null) {
+            throw new IOException("Couldn't open GIF: " + file);
+        }
+        ImageReader reader = ImageIO.getImageReadersBySuffix("gif").next();
+        try {
             reader.setInput(stream, false);
 
             int screenWidth;

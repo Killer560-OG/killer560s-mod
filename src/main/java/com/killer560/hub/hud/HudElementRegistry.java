@@ -134,8 +134,21 @@ public final class HudElementRegistry {
         return memo.result;
     }
 
+    /** The scale {@code element} is DRAWN at: its own scale times the global HUD scale. Every draw site, the clamp
+     *  and the editor's box use this, so they all measure the same box (see the width() lesson in docs/LESSONS.md). */
     public static float resolveScale(HudElement element) {
-        return HudConfig.getInstance().getScale(element.id(), 1.0f);
+        return elementScale(element) * HudConfig.getInstance().getGlobalScale();
+    }
+
+    /** The element's own stored scale, without the global multiplier - what the HUD editor scrolls and saves. */
+    public static float elementScale(HudElement element) {
+        float fallback;
+        try {
+            fallback = element.defaultScale();
+        } catch (RuntimeException e) {
+            fallback = 1.0f;
+        }
+        return HudConfig.getInstance().getScale(element.id(), fallback);
     }
 
     /** Scaled on-screen size of {@code element}: {width, height}. */

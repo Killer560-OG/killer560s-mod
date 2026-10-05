@@ -11,6 +11,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.SectionHeaders;
+import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
@@ -111,7 +112,30 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX + half + gap, y, rightW, 20).build());
         y += 26;
 
+        // Global HUD scale (killer560, 2026-10-04, "just like SkyHanni"): 5%..300% in 5% steps, multiplied onto every
+        // element's own scale - see HudConfig#globalScale. Saved in killer560smod-hud.json, so profiles carry it.
+        float span = HudConfig.MAX_GLOBAL_SCALE - HudConfig.MIN_GLOBAL_SCALE;
+        double normalized = (HudConfig.getInstance().getGlobalScale() - HudConfig.MIN_GLOBAL_SCALE) / span;
+        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, globalScaleText(), normalized) {
+            @Override
+            protected void updateMessage() {
+                setMessage(globalScaleText());
+            }
+
+            @Override
+            protected void applyValue() {
+                HudConfig cfg = HudConfig.getInstance();
+                cfg.setGlobalScale(HudConfig.MIN_GLOBAL_SCALE + (float) this.value * span);
+                cfg.save();
+            }
+        });
+        y += 26;
+
         return widgets;
+    }
+
+    private static Component globalScaleText() {
+        return Component.literal("HUD Scale: §b" + Math.round(HudConfig.getInstance().getGlobalScale() * 100) + "%");
     }
 
     private static Component updateNotifyText() {

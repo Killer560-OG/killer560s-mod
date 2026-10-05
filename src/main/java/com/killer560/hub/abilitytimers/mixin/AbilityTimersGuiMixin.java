@@ -29,6 +29,16 @@ public abstract class AbilityTimersGuiMixin {
             return;
         }
         int[] pos = HudElementRegistry.resolvePosition(element);
-        element.render(graphics, pos[0], pos[1]);
+        // Drawn at the element's scale (own x global HUD scale) like every other HUD element; this used to ignore
+        // scale entirely, so scroll-resizing it in the HUD editor did nothing in game.
+        float scale = HudElementRegistry.resolveScale(element);
+        graphics.pose().pushMatrix();
+        try {
+            graphics.pose().translate(pos[0], pos[1]);
+            graphics.pose().scale(scale, scale);
+            element.render(graphics, 0, 0);
+        } finally {
+            graphics.pose().popMatrix();
+        }
     }
 }

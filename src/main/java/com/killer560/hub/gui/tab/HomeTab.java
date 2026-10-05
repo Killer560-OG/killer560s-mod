@@ -13,6 +13,6 @@ public class HomeTab extends FolderTab {
         ));
         // Mod & HUD is what you open Home FOR - it sits inline at the top instead of behind a dropdown
         // you have to click every time (killer560, 2026-09-16).
-        pinFirstSection();
+        pinAllSections();
     }
 }

@@ -33,6 +33,16 @@ public final class HudConfig {
      *  {@code editorShowAll} name so existing configs still load. Default off - killer560 asked for the
      *  filtered view. */
     private boolean editorShowAll = false;
+    /**
+     * The global HUD scale on the Home tab (killer560, 2026-10-04: "a GUI resizer slider... just like SkyHanni... from
+     * 5% to 300% in 5% increments. It should resize everything my mod has uniformly"). Every element is drawn at its
+     * own scale TIMES this, and the per-element scale is stored on its own, so an element set to 2.0x with this at 0.5
+     * draws at its original size and goes back to 2.0x when this returns to 100%. Lives in this file so a profile
+     * carries it with the positions it multiplies.
+     */
+    public static final float MIN_GLOBAL_SCALE = 0.05f;
+    public static final float MAX_GLOBAL_SCALE = 3.0f;
+    private float globalScale = 1.0f;
 
     private HudConfig() {
     }
@@ -52,6 +62,7 @@ public final class HudConfig {
                 JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
                 cfg.editKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "editKeyCode", -1));
                 cfg.editorShowAll = ConfigJson.getBool(obj, "editorShowAll", false);
+                cfg.globalScale = clampGlobalScale(ConfigJson.getFloat(obj, "globalScale", 1.0f));
                 JsonObject positions = ConfigJson.getObject(obj, "positions");
                 if (positions != null) {
                     for (String id : positions.keySet()) {
@@ -85,6 +96,7 @@ public final class HudConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("editKeyCode", editKeyCode);
             obj.addProperty("editorShowAll", editorShowAll);
+            obj.addProperty("globalScale", globalScale);
             JsonObject positions = new JsonObject();
             for (Map.Entry<String, int[]> entry : this.positions.entrySet()) {
                 JsonObject pos = new JsonObject();
@@ -146,6 +158,23 @@ public final class HudConfig {
 
     public void setEditKeyCode(int editKeyCode) {
         this.editKeyCode = editKeyCode;
+    }
+
+    public float getGlobalScale() {
+        return globalScale;
+    }
+
+    public void setGlobalScale(float globalScale) {
+        this.globalScale = clampGlobalScale(globalScale);
+    }
+
+    /** Snaps to the slider's 5% steps and keeps it inside 5%..300%; NaN (a hand-edited file) means 100%. */
+    public static float clampGlobalScale(float value) {
+        if (Float.isNaN(value) || Float.isInfinite(value)) {
+            return 1.0f;
+        }
+        float stepped = Math.round(value * 20.0f) / 20.0f;
+        return Math.max(MIN_GLOBAL_SCALE, Math.min(MAX_GLOBAL_SCALE, stepped));
     }
 
     public boolean isEditorShowAll() {

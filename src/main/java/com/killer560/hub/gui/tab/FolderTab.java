@@ -27,7 +27,7 @@ public abstract class FolderTab extends BaseTab {
     /** When true, sub-tab 0 renders inline at the top with no accordion header and cannot be collapsed -
      *  for a folder whose first section is the thing you always came here for (killer560, 2026-09-16:
      *  "Remove the mod and hud dropdown, those settings should always be visible at the top"). */
-    private boolean pinFirst;
+    private int pinnedCount;
     // Set by ModScreen right before buildWidgets, since a FolderTab has no other way to see the menu's
     // own search field text (2026-09-14, killer560's own report: "if i search for simon says it shows
     // the whole new category, it should hide everything in that category that isnt simon says" - the
@@ -37,7 +37,14 @@ public abstract class FolderTab extends BaseTab {
 
     /** Marks sub-tab 0 as always-open and header-less. Call from the subclass constructor. */
     protected void pinFirstSection() {
-        this.pinFirst = true;
+        this.pinnedCount = Math.max(this.pinnedCount, 1);
+    }
+
+    /** Every section renders inline, one after another, with no accordion headers - for a folder short enough that
+     *  a dropdown only costs a click (killer560, 2026-10-04: "don't have a dropdown for the DRP" on Home). Each
+     *  sub-tab is expected to draw its own section heading. Call from the subclass constructor. */
+    protected void pinAllSections() {
+        this.pinnedCount = subTabs.size();
     }
 
     protected FolderTab(String name, List<BaseTab> subTabs) {
@@ -54,19 +61,20 @@ public abstract class FolderTab extends BaseTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
         boolean searching = !activeSearchQuery.isBlank();
-        if (pinFirst && !subTabs.isEmpty() && !searching) {
-            List<AbstractWidget> pinned = subTabs.get(0).buildWidgets(contentX, y, contentWidth, requestRebuild);
-            for (AbstractWidget w : pinned) {
-                com.killer560.hub.gui.SettingTooltips.scope(w, subTabs.get(0).name);
+        int pinned = searching ? 0 : Math.min(pinnedCount, subTabs.size());
+        for (int p = 0; p < pinned; p++) {
+            List<AbstractWidget> pinnedWidgets = subTabs.get(p).buildWidgets(contentX, y, contentWidth, requestRebuild);
+            for (AbstractWidget w : pinnedWidgets) {
+                com.killer560.hub.gui.SettingTooltips.scope(w, subTabs.get(p).name);
             }
-            widgets.addAll(pinned);
+            widgets.addAll(pinnedWidgets);
             int bottom = y;
-            for (AbstractWidget w : pinned) {
+            for (AbstractWidget w : pinnedWidgets) {
                 bottom = Math.max(bottom, w.getY() + w.getHeight());
             }
             y = bottom + SECTION_GAP;
         }
-        for (int i = pinFirst && !searching ? 1 : 0; i < subTabs.size(); i++) {
+        for (int i = pinned; i < subTabs.size(); i++) {
             if (searching && !subTabs.get(i).matchesSearch(activeSearchQuery)) {
                 continue;
             }
@@ -147,6 +155,13 @@ public abstract class FolderTab extends BaseTab {
      *  silently the moment Experiments moved inside a new {@code HelpersTab} folder during the
      *  category reshuffle, since a folder itself was never a {@code KeyCaptureTab}. */
     public KeyCaptureTab findListeningKeyCaptureTab() {
+        // Pinned sections are always open but never in `expanded`, so they were never asked - which left Home's
+        // "Edit HUD Keybind" button (in the pinned Mod & HUD section) stuck on "Press any key..." (2026-10-04).
+        for (int index = 0; index < Math.min(pinnedCount, subTabs.size()); index++) {
+            if (subTabs.get(index) instanceof KeyCaptureTab captureTab && captureTab.isListeningForKey()) {
+                return captureTab;
+            }
+        }
         for (int index : expanded) {
             if (subTabs.get(index) instanceof KeyCaptureTab captureTab && captureTab.isListeningForKey()) {
                 return captureTab;
