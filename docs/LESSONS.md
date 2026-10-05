@@ -155,6 +155,15 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   lime pane (a finished row keeping its marker, which Odin handles with indexOfLast) has none, so after a row or an
   auto terminal's skip nothing was drawn as moving (killer560, 2026-10-05). Find a terminal's piece by position from
   the current slots (`findMelodyMovingSlot`), never by colour counts; testkit 218 fails 5/16 on the old rule.
+- On 26.2 `McRender.inCameraSpace` runs its callback LATER in the frame (`submitCustomGeometry`, built in
+  `CustomFeatureRenderer.buildGroup`), after the tick may have rebuilt whatever list the callback reads. Secret
+  Waypoints indexed its live list there and crashed the client ("Index 6 out of bounds for length 6", Render Frame)
+  when the list shrank - testkit 98 on 26.2, 2026-10-05. Copy what the callback draws into a local array before
+  calling `inCameraSpace`; eleven other renderers call it and were not audited for this.
+- Crypts and princes have no positions anywhere (room database and every installed mod's rooms.json: a count), and
+  their undead do not exist until the tomb is blown, so `secretwaypoints/CryptScanner` finds them from blocks. The
+  rule was fitted against the captures vs the database count (112/134 rooms exact); the census scripts and misses
+  are in killer560s-mod-logs/crypt-waypoints.md. Re-run that census before changing the rule.
 
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
