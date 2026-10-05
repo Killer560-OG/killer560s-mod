@@ -113,8 +113,8 @@ public final class ItemProtect {
         String name = ChatFormatting.stripFormatting(stack.getHoverName().getString());
         // '✪' is the normal dungeon star; '➊'-'➎' are the master-star pips (see RevertMasterStarsFeature).
         return name != null && (name.indexOf('✪') >= 0
-                || name.indexOf('➀') >= 0 || name.indexOf('➁') >= 0 || name.indexOf('➂') >= 0
-                || name.indexOf('➃') >= 0 || name.indexOf('➄') >= 0);
+                || name.indexOf('➊') >= 0 || name.indexOf('➋') >= 0 || name.indexOf('➌') >= 0
+                || name.indexOf('➍') >= 0 || name.indexOf('➎') >= 0);
     }
 
     /** Whether this exact stack is on the protected list (by UUID/id or by a typed name fragment), or is a
