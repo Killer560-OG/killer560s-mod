@@ -111,6 +111,18 @@ final class SecretWaypointsRenderer {
         // Captured for the lambdas below: `drawn` is reassigned in the catch, so it is not effectively final
         // and cannot be captured directly.
         final int count = drawn;
+        // A COPY of what passed the cull, made now, for the lambdas below.
+        //
+        // On 26.2 inCameraSpace does not run its callback here: it is queued as a custom feature and built later
+        // in the frame (CustomFeatureRenderer.buildGroup, from FeatureRenderDispatcher.prepareFrame). The tick
+        // rebuilds the live waypoint list in between, so reading that list (and the shared `visible` scratch) from
+        // the callback read a list that had already changed size - "Index 6 out of bounds for length 6", a crash,
+        // the moment Show Crypts was switched off in scenario 98 on 26.2 (2026-10-05). Collecting a secret shrinks
+        // the list the same way, so this was waiting for him on 26.2 regardless of crypts.
+        final SecretWaypointsFeature.Waypoint[] snap = new SecretWaypointsFeature.Waypoint[count];
+        for (int i = 0; i < count; i++) {
+            snap[i] = waypoints.get(vis[i]);
+        }
         try {
             // One full pass PER RENDER TYPE, never interleaved per box. Crash fixed
             // 2026-09-20 (killer560's log, "java.lang.IllegalStateException: Not building!"): neither of
@@ -126,8 +138,7 @@ final class SecretWaypointsRenderer {
                 McRender.inCameraSpace(context,
                         throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox(),
                         (pose, fillBuffer) -> {
-                            for (int i = 0; i < count; i++) {
-                                SecretWaypointsFeature.Waypoint wp = waypoints.get(vis[i]);
+                            for (SecretWaypointsFeature.Waypoint wp : snap) {
                                 filledBox(pose.pose(), fillBuffer, wp.box(), wp.r(), wp.g(), wp.b(),
                                         wp.a() * fillAlphaScale);
                             }
@@ -137,8 +148,7 @@ final class SecretWaypointsRenderer {
                 McRender.inCameraSpace(context,
                         throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT,
                         (pose, lineBuffer) -> {
-                            for (int i = 0; i < count; i++) {
-                                SecretWaypointsFeature.Waypoint wp = waypoints.get(vis[i]);
+                            for (SecretWaypointsFeature.Waypoint wp : snap) {
                                 lineBox(pose, lineBuffer, wp.box(), wp.r(), wp.g(), wp.b(), 1f, 2f);
                             }
                         });
