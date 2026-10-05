@@ -2329,5 +2329,51 @@ Whole floors, warm: median 0.65 ms, p95 3.6, p99 7.2.
 the clicked room with the arrival confirmed; a press right after stone was placed beside him planned in 0.7-0.8 ms on
 the graph. **On Hypixel:** the same code; a door opening there is a block change like any other.
 
-Not fixed: before the floor's FIRST warm-up completes (about 5 s after the floor loads) a click still gets 40 ms on
-the partial graph and then room by room.
+Not fixed here: before the floor's FIRST warm-up completes (about 5 s after the floor loads) a click still got 40 ms
+on the partial graph and then room by room - see the next section.
+
+## A click during the first warm-up: the quick floor graph (2026-10-05, night-warm)
+
+The gap night-path left: a click before the floor graph's first warm-up completes (about 5 s of planner time on six
+threads) got 40 ms on the half-built graph and then room by room. `FloorBench -Dearly=0.5,1,2,3` (clicks from the
+entrance at t seconds into a fresh floor's warm-up; the bench's flat grid warms a floor in the game's 4.6-4.9 s on
+six threads, so t means the same thing): 13-14 warps where the warm graph takes 9, 20/18/14/8 of 30 clicks falling
+back, up to 711 ms.
+
+**Searching the half-built graph harder cannot fix it.** Until a node's edges are worked out it costs about 1.5 ms of
+rays a thread. Counted on the warm graph, a cold click's A* closes on average 6,170 nodes (a tile click's bound is
+just "one more warp", so it is a breadth-first search of the floor); weighting the bound changes little; a heuristic
+that follows the doors' centres still needs 2,600 nodes for +0.04 warps or 940 for +0.42 - 0.2-0.6 s on every core.
+
+**`FloorGraphs`** pairs the full graph with a QUICK graph of the same floor: bucket 5, every landing kept only on
+each doorway's own centre line (7 columns per door, not the 7x3 box and the tile centre lines), no partial-occlusion
+aims. A tenth of the rays: warm in ~0.3-0.5 s, 6.4-7.8k nodes, 0.29-0.51M edges. It is warmed first, follows the
+full graph for block changes (`WarpGraph.follower`), and until the full graph is warm a click is planned on it -
+complete and exact on its own landings, every hop still a verified aim, so the bench's hop-by-hop replay holds (0
+invalid). A click arriving before it is warm finishes it (at most 600 ms). Chosen by sweep: bucket 4 is ~0.2 warps
+better but makes a click at t=0 wait ~150 ms longer; door boxes instead of lines buy nothing; a 25 ms look on the
+half-warm full graph for a shorter path bought 0.0-0.3 warps for 25 ms on every click and was dropped.
+
+"Has been warm" is not "knows the floor": the sim's floor warms 288 nodes in the sealed entrance before GO, and his
+Map Logger log has a 279-node warm before the real 13,454. A full graph that is re-warming counts as knowing the
+floor only if its last finished warm had at least 1.3x the quick graph's nodes (the whole floor is ~2.6x); then a
+click finishes the re-warm as before. Found on the way: a click read `warmDone()` before the queued changes were
+applied, so the click right after a door opened (the sealed entrance in `-Dearlygate`) searched stale fields and
+went room by room; the click now applies them first.
+
+**Measured** (3 floors x 10 clicks per t, the same clicks before and after; warm graph in brackets):
+
+| t | before: warps, fell back, median / max ms | after: warps, fell back, median / max ms |
+|-|-|-|
+| 0.5 s | 14.07, 20 of 30, 47 / 711 | 9.47 (8.63), 0, 0.6 / 232 |
+| 1 s | 13.90, 18, 44 / 711 | 9.73 (8.93), 0, 0.6 / 2.1 |
+| 2 s | 14.13, 14, 21 / 60 | 10.33 (9.13), 0, 0.5 / 1.2 |
+| 3 s | 13.17, 8, 10 / 65 | 11.13 (9.90), 0, 0.5 / 1.7 |
+
+Entrance gate opening (`-Dearlygate`, t = 0.2/1/3 s): before 12.8/12.5/12.0 warps, 15/11/7 of 30 fell back; after
+8.9/9.2/9.7 (warm 8.6/8.9/9.1), none. Warm clicks unchanged (8.04 warps, median 0.6 ms). The quick graph holds 10-13.5
+MB beside the full graph's 51-70 MB (`-Dmemcheck`), kept for the floor. `regress.sh` runs both early modes against
+`early.*` in `floorbench-expect.txt`. **In game** (`95-sim-map-warp`, a press three ticks after GO to the farthest
+room, then the same trip once warm): 11 warps in 475 ms vs 8 warm (26.1.2), 15 in 246 ms vs 13 (26.2); the old jar
+on the same scenario fell back to room by room, 19 warps vs 10 warm. The few hundred ms is the quick graph being
+finished inside that click. **On Hypixel:** the same code; nothing here reads the sim.
