@@ -154,6 +154,9 @@ final class ExperimentSolver {
      *  its click resolves - confirmed or not - since a lone last-resort spend can never complete a real
      *  match by itself regardless of outcome, unlike every other queuedPairSlots entry. */
     private Integer superpairsSingleSpendSlot;
+    /** Item key of the last tile a last-resort spend clicked - so the next spend never lands on the same KIND of a
+     *  skipped reward (two same-kind clicks in a row is a claim; see {@link #isUserSkipped}). */
+    private String superpairsLastSpendKey;
     /** Per killer560's request: scan the grid top-left to bottom-right in a full snake/boustrophedon
      *  pattern (row 1 left-to-right, row 2 right-to-left, and so on) rather than a flat row-major
      *  scan, so pairs get queued in that visible order. */
@@ -1013,6 +1016,12 @@ final class ExperimentSolver {
         for (int slot : SUPERPAIRS_SNAKE_ORDER) {
             if (queuedPairSlots.contains(slot)) continue;
             if (knownSuperpairsCells.containsKey(slot)) {
+                Cell candidate = knownSuperpairsCells.get(slot);
+                String key = candidate.itemId() + "|" + candidate.name();
+                // A spend right after one on the same kind would claim that pair - fine for anything else (it is
+                // what a lucky spend does), never for a reward he chose to skip.
+                if (isUserSkipped(candidate) && key.equals(superpairsLastSpendKey)) continue;
+                superpairsLastSpendKey = key;
                 queuedPairSlots.add(slot);
                 // See superpairsSingleSpendSlot's doc (real bug found 2026-09-24): this slot has no
                 // known partner - mark it so observeSuperpairs frees it again once the click resolves,
@@ -1180,6 +1189,7 @@ final class ExperimentSolver {
         superpairsPowerupPending = false;
         superpairsPowerupActivationSlot = null;
         superpairsSingleSpendSlot = null;
+        superpairsLastSpendKey = null;
         superpairsAwaitingConfirmSlot = null;
         superpairsAwaitingConfirmPriorCell = null;
         superpairsAwaitingConfirmSinceMs = 0;
