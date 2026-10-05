@@ -120,3 +120,17 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   run against a sample line). The older health/mana/defence patterns only escape it because their codes are letters.
 - `IslandDetector.graphIsland()` is null off any known island (sim, lobby, singleplayer), and `Set.of(...).contains(null)`
   throws. MiningProfitTracker did that every tick once trackers went on by default; null-check before any `Set.of` lookup.
+- **26.2 sorts QUADS only.** `StagedVertexBuffer.appendDraw` throws "Cannot sort draw with LINES" for any non-QUADS
+  topology given a sorting (javap 26.2), so a `RenderType` built with `.sortOnUpload()` on `LINES_SNIPPET` crashes the
+  first frame it draws. 26.1.2 accepted it. Solver ESP's through-walls lines did this; sort lines through
+  `McRender.sortLinesOnUpload` (2026-10-05). `DEBUG_FILLED_SNIPPET` is QUADS on 26.2, so the filled types are fine.
+- **On 26.2 a PEACEFUL level hides every hostile mob from the client.** `ClientPacketListener.handleAddEntity` goes
+  through `EntityType.create` -> `canSpawn`, which refuses a type not `isAllowedInPeaceful` while the level reads
+  PEACEFUL ("Skipping Entity with id entity.minecraft.silverfish"; javap 26.2). The server has the mob, the client never
+  does. The sim world is EASY since 2026-10-05 for this; it keeps him fed itself (`SimSurvival`).
+- `ClearExecutor.etherPath` / `AutoPuzzleUtil.pathIfMapOn` want the block to LAND ON (solid, two air above), the same
+  position `AutoReposition.start` takes - not `.above()`. Given the air the planner logs "is not etherwarpable ...
+  Nothing searched" and the map says "Failed after 0ms". Auto Blaze and Auto Ice Path both passed `.above()` until
+  2026-10-05.
+- A step that closes a menu and sends a command must time out if the screen it waits for never opens. Auto E-Table's
+  Guardian swap closed the table, sent /pets, and waited forever when nothing opened; it now gives up after 10 s.
