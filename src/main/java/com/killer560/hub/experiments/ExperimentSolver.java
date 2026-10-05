@@ -919,6 +919,7 @@ final class ExperimentSolver {
                 Cell known = knownSuperpairsCells.get(slot);
                 if (known == null) continue;
                 if (valuableOnly && !isValuablePair(known)) continue;
+                if (isUserSkipped(known)) continue;
                 String key = known.itemId() + "|" + known.name();
                 Integer first = firstSeenThisPass.putIfAbsent(key, slot);
                 if (first != null) {
@@ -989,6 +990,13 @@ final class ExperimentSolver {
         // explore or match under the normal (possibly XP-skipping) rules, don't waste remaining
         // clicks - fall back to matching whatever dye pairs were skipped, highest stack count first.
         if (boardFullyExplored) {
+            // Skipped rewards are LAST priority, not forbidden (killer560, 2026-10-05: "if it reaches the end with
+            // clicks left then it can collect those, but I do not want it prioritizing them before everything is
+            // unveiled"). Only now - board explored, every other pair taken - and ahead of plain XP.
+            OptionalInt skippedMatch = matchSkippedPair();
+            if (skippedMatch.isPresent()) {
+                return skippedMatch;
+            }
             if (valuableOnly) {
                 OptionalInt dyeMatch = matchHighestValueDyePair();
                 if (dyeMatch.isPresent()) {
@@ -1024,6 +1032,30 @@ final class ExperimentSolver {
                         slot, known.itemId(), known.name());
                 return OptionalInt.of(slot);
             }
+        }
+        return OptionalInt.empty();
+    }
+
+    /** A known pair of a skipped reward kind ({@link #isUserSkipped}), queued exactly like a normal pair - used only
+     *  once the board is fully explored. */
+    private OptionalInt matchSkippedPair() {
+        Map<String, List<Cell>> byKey = new HashMap<>();
+        for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+            Cell cell = knownSuperpairsCells.get(slot);
+            if (cell == null || queuedPairSlots.contains(slot) || !isUserSkipped(cell)) continue;
+            byKey.computeIfAbsent(cell.itemId() + "|" + cell.name(), k -> new ArrayList<>()).add(cell);
+        }
+        for (List<Cell> group : byKey.values()) {
+            if (group.size() < 2) continue;
+            int first = group.get(0).slot();
+            int second = group.get(1).slot();
+            queuedPairSlots.add(first);
+            queuedPairSlots.add(second);
+            pairClicks.add(second);
+            superpairsPairFirstSlot = first;
+            LOGGER.info("Superpairs: board explored, collecting skipped reward pair slot {} with slot {} (name='{}')",
+                    first, second, group.get(0).name());
+            return OptionalInt.of(first);
         }
         return OptionalInt.empty();
     }
@@ -1080,6 +1112,8 @@ final class ExperimentSolver {
             Cell known = knownSuperpairsCells.get(slot);
             if (known == null || bySlot.get(slot) == null) continue;
             if (valuableOnly && !isValuablePair(known)) continue;
+            // A powerup's matched click CLAIMS the reward, so a skipped kind must never be its target.
+            if (isUserSkipped(known)) continue;
             return OptionalInt.of(slot);
         }
         if (!valuableOnly) {
@@ -1113,6 +1147,27 @@ final class ExperimentSolver {
      *  whitelist "valuable," this blacklists dye-family items and treats everything else as valuable. */
     private static boolean isValuablePair(Cell cell) {
         return !isSuperpairsXpTile(cell);
+    }
+
+    /**
+     * A reward tile he chose never to claim (killer560, 2026-10-05: "skip grand exp bottles (not titanics just
+     * grands)" and "skipping guardian pets of all rarities", two separate switches). LAST priority, not forbidden:
+     * never paired or a powerup's target while the board is being explored, then collected by
+     * {@link #matchSkippedPair} once everything is unveiled if clicks are left ("if it reaches the end with clicks
+     * left then it can collect those"). An unpaired reveal claims nothing, so revealing it while exploring is fine.
+     * By NAME, colour codes already stripped: "Grand Experience Bottle" (a Titanic is "Titanic Experience
+     * Bottle", so it can't match), and any pet tile whose name holds "Guardian" (every rarity shares the name).
+     */
+    private static boolean isUserSkipped(Cell cell) {
+        if (cell == null || cell.name() == null) {
+            return false;
+        }
+        ExperimentsConfig cfg = ExperimentsConfig.getInstance();
+        String name = cell.name();
+        if (cfg.isSkipGrandExpBottles() && name.contains("Grand Experience Bottle")) {
+            return true;
+        }
+        return cfg.isSkipGuardianPets() && name.contains("Guardian");
     }
 
     /** "Powerup for next click!" - the lore of Instant Find, the one powerup that matches the next click. */

@@ -271,6 +271,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.croesus.ChestProfitFeature.register();
         com.killer560.hub.croesus.AutoCroesusFeature.register();
         com.killer560.hub.croesus.CroesusCommands.register();
+        com.killer560.hub.gui.profit.ProfitCommands.register();
         com.killer560.hub.hud.HudInGameRenderer.register();
         MaskInvincibilityFeature.register();
         HudElementRegistry.register(new MaskInvincibilityFeature.MaskInvincibilityHudElement());

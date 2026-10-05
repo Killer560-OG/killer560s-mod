@@ -185,6 +185,12 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   must publish its own "still steering" flag: `isBusy()` is false for the whole wait by design, and Auto Routes'
   interlock 5 reads exactly that, so a node underfoot would arm in the gap and steer against the warp about to
   start. `InteractiveMapFeature.isSteering()` is that flag.
+- **A rebuild from INSIDE the sim must hand `SimState` the new map code.** `SimWorld.open` skips the world reload when
+  he is already in the sim, and only the world-load path called `SimState.enter(code)`, so after a second floor every
+  `SimState.roomNameAt` (the trap-ability rule, the sidebar Room line, the tab list) decoded the FIRST floor: he was
+  told "No abilities in a trap room" in Atlas and the sidebar said Atlas while he stood in Museum (2026-10-05, his
+  Map Logger log line "already in the sim world"). The shortcut now calls `SimState.replaceMapCode`; scenario
+  99-sim-im builds floor A then floor B in-world and checks every tile's name.
 - **The sim must never act on somebody else's server, and `canAct` alone does not guarantee it.** `canAct`
   needs a singleplayer server to already exist, so it is useless to anything whose job is to CREATE one.
   `SimBuilder.build(code)` had no gate at all and read `getSingleplayerServer() == null` as "no world yet",
@@ -1360,10 +1366,14 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   `UseBlockCallback` stops at the first non-PASS result. `SimSecrets`' essence handler is registered before
   `SecretWaypointsFeature`, consumed the skull click, and so the essence's waypoint never cleared. It now calls
   `SecretWaypointsFeature.markSimEssenceCollected` itself (nearest WITHER waypoint within 3 blocks, because a
-  buried essence is placed up to two blocks above its database spot).
+  buried essence is placed up to two blocks above its database spot). **2026-10-05:** the same trap from the other
+  side - `SimAbilities`' client hook, registered BEFORE it, answered the skull click whenever an ability item was
+  held, so Secret Aura (and he) never collected an essence with AOTV/Hyperion in hand. The essence is now a
+  player_head with Hypixel's essence profile (black via a bundled skin patch), collected by a SERVER listener,
+  and `SimAbilities.blockWins` lets it beat the held item. Scenario 99-sim-essence-aura.
 - **Secret Aura gated on `getCurrentServer()` being Hypixel/p3sim**, which is null in singleplayer, so it never
-  acted in the sim. It also accepts `SimState.canAct` now, and treats `SimSecrets.PLACED_WITHER` as essences there
-  (the sim's essence is a plain wither skeleton skull with no Hypixel skin, so `isWitherEssence` cannot match it).
+  acted in the sim. It also accepts `SimState.canAct` now. (Its `PLACED_WITHER` essence branch is gone since
+  2026-10-05: the sim's essence is now Hypixel's profiled player_head, collected on the server - see below.)
 - **A client command's `requires()` is evaluated when the command tree arrives on join**, not when typed - Fabric
   copies only the nodes that pass at that moment into the suggestion tree. `/start` required
   `isGeneratedFloor()`, which `SimBuilder.build` sets after the join, so it never tab-completed. The floor check
@@ -1760,8 +1770,8 @@ branches in `ClearNode`, `ClearExecutor`, `EtherwarpPathfinder` and `EtherSearch
   client callback cancels `startDestroyBlock` at HEAD before its TAIL hook).
 - **Still different, and why:** `TeleportUtils.underCover` / `EtherwarpPathfinder.coverTest` (the sim's rooms are
   separate towers with open sky between them; Hypixel's dungeon is solid rock), `AutoTeleportMaze.afterChest` (the
-  capture walls the centre chamber off from the start pad), Secret Aura's essence test (the sim's skulls carry no
-  Hypixel skin profile) and the y offset everywhere (`SimAltitude`). Each is the sim's WORLD differing, not its
+  capture walls the centre chamber off from the start pad) and the y offset everywhere (`SimAltitude`). (Secret
+  Aura's essence test was on this list until 2026-10-05; the sim now places Hypixel's essence skull, so it is not.) Each is the sim's WORLD differing, not its
   server; fixing them means changing what the sim builds.
 - **Auto Routes recording warning.** Starting a recording or `/ar add` in the sim in a room whose capture rotation
   is uncertain (`RoomCaptureRotation.uncertainForRecording`: no marker, ambiguous, or overruled) says once that the

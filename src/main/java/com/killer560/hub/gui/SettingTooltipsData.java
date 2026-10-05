@@ -633,7 +633,7 @@ final class SettingTooltipsData {
         d.put("show teammates", "Draws a dot on the map for each party member's current room.");
         d.put("recolor by class", "Colors teammate dots by their class; OFF draws them white.");
         d.put("cell size", "Size of each map grid cell in pixels (4-16).");
-        d.put("room labels", "What each room shows on the map: Off, Checkmarks, Secrets, Room Name, or Room Name + Secrets.");
+        d.put("room labels", "What each room shows on the map: Off, Checkmarks, Secrets, Room Name, or Room Name + Secrets. One setting for both maps - the Dungeon Map and the Interactive Map always match.");
         d.put("secret waypoints", "Draws a coloured box on every secret in rooms the mod has recognised.");
         d.put("proximity voice", "Voice chat with party members who also run the mod, louder the closer they are.");
         d.put("push to talk", "ON sends your mic only while the key is held; OFF sends it all the time.");

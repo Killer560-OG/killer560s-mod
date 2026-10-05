@@ -50,6 +50,10 @@ public final class ExperimentsConfig {
      *  Chronomatron/Ultrasequencer earned), so killer560 may want to spend them on the non-plain-XP
      *  pairs instead. */
     private boolean superpairsValuableOnly = false;
+    /** Never pair a Grand Experience Bottle (Titanics still paired) - killer560, 2026-10-05. */
+    private boolean skipGrandExpBottles = false;
+    /** Never pair a Guardian pet, any rarity - killer560, 2026-10-05. */
+    private boolean skipGuardianPets = false;
     private int delayMs = 200;
     /** The AUTOMATION ("Auto E-Table"): the mod opens Chronomatron/Ultrasequencer, picks the highest tier
      *  itself, clicks the puzzles, claims rewards and buys renews, so the whole thing can be left running
@@ -139,6 +143,8 @@ public final class ExperimentsConfig {
             cfg.enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
             cfg.superpairsEnabled = !obj.has("superpairsEnabled") || obj.get("superpairsEnabled").getAsBoolean();
             cfg.superpairsValuableOnly = obj.has("superpairsValuableOnly") && obj.get("superpairsValuableOnly").getAsBoolean();
+            cfg.skipGrandExpBottles = obj.has("skipGrandExpBottles") && obj.get("skipGrandExpBottles").getAsBoolean();
+            cfg.skipGuardianPets = obj.has("skipGuardianPets") && obj.get("skipGuardianPets").getAsBoolean();
             cfg.delayMs = obj.has("delayMs")
                     ? Math.max(MIN_DELAY_MS, Math.min(MAX_DELAY_MS, obj.get("delayMs").getAsInt())) : 200;
             cfg.autonomousMode = obj.has("autonomousMode") && obj.get("autonomousMode").getAsBoolean();
@@ -187,6 +193,8 @@ public final class ExperimentsConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("superpairsEnabled", superpairsEnabled);
             obj.addProperty("superpairsValuableOnly", superpairsValuableOnly);
+            obj.addProperty("skipGrandExpBottles", skipGrandExpBottles);
+            obj.addProperty("skipGuardianPets", skipGuardianPets);
             obj.addProperty("delayMs", delayMs);
             obj.addProperty("autonomousMode", autonomousMode);
             obj.addProperty("firstClickDelayMs", firstClickDelayMs);
@@ -222,6 +230,22 @@ public final class ExperimentsConfig {
 
     public void setSuperpairsEnabled(boolean superpairsEnabled) {
         this.superpairsEnabled = superpairsEnabled;
+    }
+
+    public boolean isSkipGrandExpBottles() {
+        return skipGrandExpBottles;
+    }
+
+    public void setSkipGrandExpBottles(boolean v) {
+        this.skipGrandExpBottles = v;
+    }
+
+    public boolean isSkipGuardianPets() {
+        return skipGuardianPets;
+    }
+
+    public void setSkipGuardianPets(boolean v) {
+        this.skipGuardianPets = v;
     }
 
     public boolean isSuperpairsValuableOnly() {

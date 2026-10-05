@@ -685,6 +685,29 @@ public final class ExperimentsProfitTracker {
         return shortNumber(value);
     }
 
+    /** Up to {@code max} highest-value rewards claimed so far, highest first, as "name xN (value)". */
+    public static List<String> topItemLines(int max) {
+        ensureLoaded();
+        return itemTotals.entrySet().stream()
+                .sorted((a, b) -> Double.compare(b.getValue().get("value").getAsDouble(),
+                        a.getValue().get("value").getAsDouble()))
+                .limit(max)
+                .map(e -> e.getKey() + " x" + e.getValue().get("count").getAsLong()
+                        + " (" + shortNumber(e.getValue().get("value").getAsDouble()) + ")")
+                .toList();
+    }
+
+    /** Coin value of every logged session, oldest first (at most the last 200), for the /profit graph. */
+    public static long[] sessionValues() {
+        ensureLoaded();
+        long[] out = new long[sessionLog.size()];
+        for (int i = 0; i < out.length; i++) {
+            JsonObject o = sessionLog.get(i);
+            out[i] = o.has("valueCoins") ? Math.round(o.get("valueCoins").getAsDouble()) : 0L;
+        }
+        return out;
+    }
+
     public static void reset() {
         ensureLoaded();
         totalSessions = 0;

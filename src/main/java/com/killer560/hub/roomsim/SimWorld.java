@@ -211,6 +211,9 @@ public final class SimWorld {
             // total inflated by the last map's chests, starred mobs from the old floor still alive so the
             // last-starred-dead key drop never fired, and an armed run left over from before.
             resetPerMapState(client);
+            // The NEW map's code. The world-load path sets it through SimState.enter; this path never did, so
+            // every room lookup (trap rule, sidebar Room line) kept answering from the previous floor.
+            SimState.replaceMapCode(mapCode);
             loadingLabel = label == null ? "Building" : label;
             buildInProgress = true;
             loadingTicks = 0;

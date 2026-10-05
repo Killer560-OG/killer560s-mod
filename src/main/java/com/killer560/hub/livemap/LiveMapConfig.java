@@ -41,7 +41,9 @@ public final class LiveMapConfig {
     /** Pixels per 16-unit room. The map is 116 units square (6 rooms + 5 gaps), so the HUD map is
      *  {@code 116 * roomPx / 16} pixels wide - see {@link MapPainter}. Replaced the old uniform "cellSize". */
     private int roomPx = 16;
-    /** 0 Off, 1 Checkmarks, 2 Secrets, 3 Room Name, 4 Room Name + Secrets - NoammAddons' Checkmark Style. */
+    /** 0 Off, 1 Checkmarks, 2 Secrets, 3 Room Name, 4 Room Name + Secrets - NoammAddons' Checkmark Style.
+     *  ONE setting for both maps: the Dungeon Map HUD and the Interactive Map both read this, and both settings
+     *  tabs' "Room Labels" buttons write it (2026-10-05; the Interactive Map had its own copy until then). */
     private int roomLabels = 1;
     private int peekKeyCode = -1;
     private float peekScale = 2.0f;
@@ -91,7 +93,9 @@ public final class LiveMapConfig {
     /** QUOI "Font scale" 0.5..3. */
     private float fontScale = 1f;
     private boolean textShadow = false;
-    private int mapRoomLabels = 3;
+    /** Whether the Interactive Map's side panel shows the full Controls list or just its one-line hint
+     *  (2026-10-05: "See how cluttered that right side is, clean it up a bit"). Collapsed by default. */
+    private boolean mapControlsExpanded = false;
     private boolean classBorderColour = false;
     /** 0 Off, 1 Holding Leap, 2 Always. */
     private int playerNames = 0;
@@ -207,7 +211,10 @@ public final class LiveMapConfig {
                 cfg.setMapScale(ConfigJson.getFloat(obj, "mapScale", 5f));
                 cfg.setFontScale(ConfigJson.getFloat(obj, "fontScale", 1f));
                 cfg.textShadow = ConfigJson.getBool(obj, "textShadow", false);
-                cfg.setMapRoomLabels(ConfigJson.getInt(obj, "mapRoomLabels", 3));
+                // "mapRoomLabels" (the Interactive Map's own copy of Room Labels) is gone: killer560 (2026-10-05)
+                // "have the map have the same settings for room name having the secrets ... as the regular map,
+                // they should be the same and synced". Both maps read roomLabels; an old key is simply ignored.
+                cfg.mapControlsExpanded = ConfigJson.getBool(obj, "mapControlsExpanded", false);
                 cfg.classBorderColour = ConfigJson.getBool(obj, "classBorderColour", false);
                 cfg.setPlayerNames(ConfigJson.getInt(obj, "playerNames", 0));
                 cfg.setIconScale(ConfigJson.getFloat(obj, "iconScale", 1f));
@@ -287,7 +294,7 @@ public final class LiveMapConfig {
             obj.addProperty("mapScale", mapScale);
             obj.addProperty("fontScale", fontScale);
             obj.addProperty("textShadow", textShadow);
-            obj.addProperty("mapRoomLabels", mapRoomLabels);
+            obj.addProperty("mapControlsExpanded", mapControlsExpanded);
             obj.addProperty("classBorderColour", classBorderColour);
             obj.addProperty("playerNames", playerNames);
             obj.addProperty("iconScale", iconScale);
@@ -669,12 +676,12 @@ public final class LiveMapConfig {
         this.textShadow = v;
     }
 
-    public int getMapRoomLabels() {
-        return mapRoomLabels;
+    public boolean isMapControlsExpanded() {
+        return mapControlsExpanded;
     }
 
-    public void setMapRoomLabels(int v) {
-        this.mapRoomLabels = v < 0 || v >= ROOM_LABEL_NAMES.length ? 3 : v;
+    public void setMapControlsExpanded(boolean v) {
+        this.mapControlsExpanded = v;
     }
 
     public boolean isClassBorderColour() {

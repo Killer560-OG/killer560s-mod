@@ -20,7 +20,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **Party Data & Cross-Mod** - Cross-Mod Bridge, Mod conflict warnings, Party Dungeon Data, Party Interop, Team Melody HUD, Teammate Highlight †, Teammate rooms on the map
 
-**Items, Inventory & Trading** - Armor Recolour, Auction House Browser, Auto Inventory Sorter, Bazaar Browser, Custom Enchant Colours, Experimentation Table Profit Tracker, Experimentation Table Solver †, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Item Value Tooltip, Listing Helper, Loadout Keybinds, Pet Wheel, Revert Master Stars, Scrollable Tooltips, Slot Binds, Storage Item Search, Storage Overlay
+**Items, Inventory & Trading** - Armor Recolour, Auction House Browser, Auto Inventory Sorter, Bazaar Browser, Custom Enchant Colours, Experimentation Table Profit Tracker, Experimentation Table Solver †, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Item Value Tooltip, Listing Helper, Loadout Keybinds, Pet Wheel, Profit Trackers (/profit), Revert Master Stars, Scrollable Tooltips, Slot Binds, Storage Item Search, Storage Overlay
 
 **HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Ability Timers, Advanced Position, Auto Join Skyblock, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, GIF Player, Health and Mana Bars, No Fire, Object Hider, Pathfinding †, Performance HUD, Quiver Display, Real Time, Screenshot Copy, Trail, Trajectories, Waypoint Routes, Video Browser
 

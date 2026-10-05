@@ -69,8 +69,10 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             // killer560, 2026-09-20: "the room-labels option should sit nearer the top of the tab" - moved up to
             // the first settings row, next to the Open Key, instead of sharing a row with Open From HUD Click.
             widgets.add(keyButton("Open Key", KeyTarget.OPEN, cfg.getOpenKeyCode(), contentX, y, colW));
-            widgets.add(LiveMapTab.cycle("Room Labels", LiveMapConfig.ROOM_LABEL_NAMES, cfg::getMapRoomLabels,
-                    cfg::setMapRoomLabels, cfg, colB, y, colW));
+            // The SAME setting as the Dungeon Map tab's Room Labels (2026-10-05: "they should be the same and
+            // synced") - changing it here changes the HUD map, and the other way round.
+            widgets.add(LiveMapTab.cycle("Room Labels", LiveMapConfig.ROOM_LABEL_NAMES, cfg::getRoomLabels,
+                    cfg::setRoomLabels, cfg, colB, y, colW));
             y += 20;
             widgets.add(SettingsButtonWidget.builder(mapModeText(cfg), btn -> {
                         cfg.setCloseOnRepress(!cfg.isCloseOnRepress());

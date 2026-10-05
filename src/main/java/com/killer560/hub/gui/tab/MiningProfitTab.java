@@ -93,6 +93,11 @@ public class MiningProfitTab extends BaseTab {
                     MiningProfitTracker.reset();
                     requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open /profit"), btn ->
+                com.killer560.hub.compat.McCompat.setScreen(Minecraft.getInstance(),
+                        new com.killer560.hub.gui.profit.ProfitHubScreen(
+                                com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()))))
+                .bounds(colBX, y, colW, 18).build());
         return widgets;
     }
 

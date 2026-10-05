@@ -137,10 +137,15 @@ public final class SimAbilities {
      */
     private static boolean blockWins(Player player, Level level, BlockHitResult hit) {
         net.minecraft.world.level.block.Block clicked = level.getBlockState(hit.getBlockPos()).getBlock();
+        // A WITHER ESSENCE too (by Hypixel's own skull profile, the rule every client feature uses): on Hypixel a
+        // right click on one collects it whatever is held - Secret Aura never swaps items for a skull. Missing it
+        // here meant an AOTV or Hyperion in hand fired its ability on the essence and it was never collected
+        // (killer560 2026-10-05, "secret aura isn't grabbing skulls"; scenario 99-sim-essence-aura).
         return !player.isShiftKeyDown()
                 && (clicked instanceof net.minecraft.world.level.block.ButtonBlock
                 || clicked instanceof net.minecraft.world.level.block.LeverBlock
-                || clicked instanceof net.minecraft.world.level.block.ChestBlock);
+                || clicked instanceof net.minecraft.world.level.block.ChestBlock
+                || com.killer560.hub.secrets.SecretsFeature.isWitherEssence(level, hit.getBlockPos()));
     }
 
     /**

@@ -197,11 +197,10 @@ public final class SecretWaypointsFeature {
      *
      * <p>killer560 (2026-10-04): "Collecting a wither essence does not remove its secret waypoint highlight."
      * On Hypixel the essence is taken by right-clicking its block, and the {@code UseBlockCallback} in
-     * {@link #register} marks it. In the sim, {@code SimSecrets}' own essence handler is registered EARLIER and
-     * returns SUCCESS so the skull click is consumed - and Fabric stops calling listeners at the first non-PASS
-     * result, so this feature's listener never ran for an essence. The sim now calls this directly. Nearest
-     * WITHER waypoint within three blocks rather than the exact block, because a buried essence is placed up
-     * to two blocks above its database position.
+     * {@link #register} marks it. The sim collects an essence on its server (since 2026-10-05; it used to consume
+     * the click client-side, so this listener never saw it) and still calls this when it does, because a buried
+     * essence is placed up to two blocks above its database position and the exact-block match would miss it -
+     * hence the nearest WITHER waypoint within three blocks.
      */
     public static void markSimEssenceCollected(BlockPos pos) {
         markCollected(pos, Kind.WITHER, 3.0);
