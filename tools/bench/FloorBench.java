@@ -170,7 +170,7 @@ public final class FloorBench {
             return g[idx(x, y, z)] & 0xFF;
         }
 
-        /** Non-null: every section a set() changes is recorded here (bench section coordinates, packed). */
+        /** Non-null: every block a set() changes is recorded here (bench coordinates, packed). */
         Set<Long> recording;
 
         void set(int wx, int y, int wz, int f) {
@@ -181,7 +181,7 @@ public final class FloorBench {
             }
             int i = idx(x, y, z);
             if (recording != null && (g[i] & 0xFF) != (f & 0xFF)) {
-                recording.add(EtherSearch.pack(x >> 4, y >> 4, z >> 4));
+                recording.add(EtherSearch.pack(x, y, z));
             }
             g[i] = (byte) f;
         }
@@ -869,6 +869,10 @@ public final class FloorBench {
 
     /** EtherwarpPathfinder.planFloor: a tile click that reaches no landing of the tile's band tries its block. */
     static List<EtherSearch.Hop> planGame(WarpGraph g, EtherSearch.Grid grid, Floor f, Click c, long deadline) {
+        if (g.warmedOnce() && !g.warmDone() && !"false".equals(System.getProperty("finishwarm"))) {
+            // EtherwarpPathfinder.planFloor: a floor that was warm finishes re-warming before the search.
+            g.finishWarm(grid, c.start[0] + 0.5, c.start[1] + 1.0, c.start[2] + 0.5, 60_000_000L);
+        }
         List<EtherSearch.Hop> p = g.plan(grid, startHop(c.start), goal(f, c), deadline, 64);
         if (p == null && c.tile && !g.timedOut) {
             WarpGraph.Goal exact = new WarpGraph.Goal();
@@ -1023,6 +1027,7 @@ public final class FloorBench {
         final Stats game = new Stats("after a change (game)");
         final Stats truth = new Stats("same clicks, fresh graph");
         int legacy;
+        int edgeMismatch;
         int worse;
         int better;
         final List<Long> rewarmNanos = new ArrayList<>();
@@ -1032,8 +1037,37 @@ public final class FloorBench {
             truth.print();
             long[] r = rewarmNanos.stream().mapToLong(Long::longValue).sorted().toArray();
             System.out.printf(Locale.ROOT, "  after a change: %d click(s) fell back to the old planner, %d took more warps"
-                            + " than a fresh graph, %d fewer; re-warm to done median %.1f ms, max %.1f ms%n", legacy, worse,
-                    better, r.length == 0 ? 0 : r[r.length / 2] / 1e6, r.length == 0 ? 0 : r[r.length - 1] / 1e6);
+                            + " than a fresh graph, %d fewer; re-warm to done median %.1f ms, max %.1f ms; edge check"
+                            + " mismatches %d%n", legacy, worse, better, r.length == 0 ? 0 : r[r.length / 2] / 1e6, r.length == 0 ? 0 : r[r.length - 1] / 1e6, edgeMismatch);
+        }
+    }
+
+    /**
+     * Tells the graph what LevelEtherGrid would: per section, the box of the blocks whose flags changed
+     * (-Dchangemode=section: the whole section, as before 2026-10-05).
+     */
+    static void report(WarpGraph g, Set<Long> blocks) {
+        Map<Long, int[]> perSection = new HashMap<>();
+        for (long k : blocks) {
+            int x = WarpGraph.unpackX(k);
+            int y = WarpGraph.unpackY(k);
+            int z = WarpGraph.unpackZ(k);
+            int[] b = perSection.computeIfAbsent(EtherSearch.pack(x >> 4, y >> 4, z >> 4),
+                    q -> new int[]{x, y, z, x, y, z});
+            b[0] = Math.min(b[0], x);
+            b[1] = Math.min(b[1], y);
+            b[2] = Math.min(b[2], z);
+            b[3] = Math.max(b[3], x);
+            b[4] = Math.max(b[4], y);
+            b[5] = Math.max(b[5], z);
+        }
+        boolean whole = "section".equals(System.getProperty("changemode"));
+        for (int[] b : perSection.values()) {
+            if (whole) {
+                g.sectionChanged(b[0] >> 4, b[1] >> 4, b[2] >> 4);
+            } else {
+                g.blocksChanged(b[0], b[1], b[2], b[3], b[4], b[5]);
+            }
         }
     }
 
@@ -1056,8 +1090,20 @@ public final class FloorBench {
                 sealedNow.add(d);
             }
             f.recording = null;
-            for (long k : touched) {
-                warmG.sectionChanged(WarpGraph.unpackX(k), WarpGraph.unpackY(k), WarpGraph.unpackZ(k));
+            report(warmG, touched);
+            if (Boolean.getBoolean("changeverbose")) {
+                long a0 = System.nanoTime();
+                int lost = warmG.applyChanges();
+                System.out.printf(Locale.ROOT, "  change round %d: %d block(s), %d node(s) lose their edges, %d re-checked"
+                                + " (%d rays, +%d -%d edges) in %.1f ms; fields took %.1f ms%n", round, touched.size(), lost,
+                        warmG.revalidated, warmG.revalidateRays, warmG.edgesAdded, warmG.edgesRemoved,
+                        (System.nanoTime() - a0) / 1e6, warmG.nanosFields / 1e6);
+                if (Boolean.getBoolean("changecheck")) {
+                    int bad = warmG.verifyEdges(grid, 3);
+                    System.out.printf(Locale.ROOT, "  change round %d: EDGE CHECK %d node(s) differ from a fresh expansion%n",
+                            round, bad);
+                    st.edgeMismatch += bad;
+                }
             }
             if (between > 0) {
                 long end = System.nanoTime() + between;
@@ -1074,16 +1120,24 @@ public final class FloorBench {
             for (int i = 0; i < perRound; i++) {
                 Click c = cs.get(rng.nextInt(cs.size()));
                 long t0 = System.nanoTime();
-                boolean warm = warmG.warmDone();
+                // EtherwarpPathfinder.planFloor's budget: the full timeout once the floor has been warm.
+                boolean warm = warmG.warmDone() || (warmG.warmedOnce() && !"false".equals(System.getProperty("finishwarm")));
                 List<EtherSearch.Hop> p = planGame(warmG, grid, f, c, t0 + (warm ? 670_000_000L : 40_000_000L));
                 boolean fellBack = false;
-                if (p == null) {
+                if (p == null && !warmG.provedNoWay) {
                     p = oldPlan(f, new EtherSearch(grid), c.start, c.exact);
                     fellBack = p != null;
                 }
                 long t = System.nanoTime() - t0;
                 int v = p == null ? 0 : replay(f, probe, c.start, c, p);
                 st.game.add(t, v, p);
+                if (Boolean.getBoolean("changeverbose") && t > 20_000_000L) {
+                    System.out.printf(Locale.ROOT, "  SLOW change click round %d #%d %s: %.1f ms, %s, timedOut %b, fields %b,"
+                                    + " expanded cold %d, revalidate %.1f ms, fields %.1f ms%n", round, i,
+                            c.tile ? "tile" : "exact", t / 1e6, p == null ? "none" : p.size() + " warps",
+                            warmG.timedOut, warmG.usedFields, warmG.expandedCold, warmG.nanosRevalidate / 1e6,
+                            warmG.nanosFields / 1e6);
+                }
                 st.legacy += fellBack ? 1 : 0;
                 long t1 = System.nanoTime();
                 List<EtherSearch.Hop> pt = planGame(fresh, grid, f, c, Long.MAX_VALUE);
@@ -1106,9 +1160,7 @@ public final class FloorBench {
             f.recording = touched;
             f.carve(d[0], d[1], d[2] == 1);
             f.recording = null;
-            for (long k : touched) {
-                warmG.sectionChanged(WarpGraph.unpackX(k), WarpGraph.unpackY(k), WarpGraph.unpackZ(k));
-            }
+            report(warmG, touched);
         }
     }
 

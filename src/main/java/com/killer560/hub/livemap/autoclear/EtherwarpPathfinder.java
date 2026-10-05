@@ -118,6 +118,8 @@ public final class EtherwarpPathfinder {
 
     /** How long a click searches a graph that is not warm yet before handing over to the room-by-room legs. */
     private static final long COLD_BUDGET_MS = 40;
+    /** How long a click may spend finishing a re-warm after a block change before it searches. */
+    private static final long FINISH_WARM_NANOS = 60_000_000L;
     /** No path is longer than this. */
     private static final int MAX_WARPS = 48;
     /** Bucket width: one node per 3x3 columns and height (doorways: every landing). See docs/SIM.md. */
@@ -139,7 +141,15 @@ public final class EtherwarpPathfinder {
             return null;
         }
         WarpGraph graph = graphFor(level, dist);
-        boolean warm = graph.warmDone();
+        EtherSearch.Hop start = startHop(from);
+        if (!graph.warmDone() && graph.warmedOnce()) {
+            // Blocks changed since the floor was warm (a door, a crypt, a puzzle). The changes re-check only the aims
+            // near them, so finishing is tens of milliseconds - do it now rather than search without the exact
+            // heuristic on a 40 ms budget and fall back to room by room (his 2026-10-04 log: 39-40 warps there).
+            graph.finishWarm(grid, start.x, start.y, start.z, FINISH_WARM_NANOS);
+        }
+        // Once the floor has been warm it stays mostly known: only a never-warm floor gets the short cold budget.
+        boolean warm = graph.warmDone() || graph.warmedOnce();
         WarpGraph.Goal goal = new WarpGraph.Goal();
         goal.x = to.getX();
         goal.y = to.getY();
@@ -163,7 +173,6 @@ public final class EtherwarpPathfinder {
             kind = "exact";
         }
         long deadline = t0 + (warm ? cfg.timeout() : Math.min(cfg.timeout(), COLD_BUDGET_MS)) * 1_000_000L;
-        EtherSearch.Hop start = startHop(from);
         List<EtherSearch.Hop> path = graph.plan(grid, start, goal, deadline, MAX_WARPS);
         if (path == null && tile6 >= 0 && !graph.timedOut
                 && new EtherSearch(grid).etherwarpable(to.getX(), to.getY(), to.getZ())) {
@@ -180,6 +189,13 @@ public final class EtherwarpPathfinder {
         if (path != null && path.isEmpty()) {
             LOGGER.info("[Path] already there ({}), {} ms", kind, ms(end - t0));
             return new ArrayList<>();
+        }
+        if (path == null && graph.provedNoWay) {
+            // The warm graph proves nothing reaches it from here (a closed door, a sealed room); the room-by-room
+            // planner's landings are a subset of the graph's, so it would only spend its 670 ms failing too.
+            LOGGER.info("[Path] no way to {} {} from here on the floor graph ({} ms) - not trying room by room", kind,
+                    to, ms(end - t0));
+            return null;
         }
         if (path == null) {
             LOGGER.info("[Path] fewest-warps graph found nothing for {} {} in {} ms ({}; {} node(s) worked out"
