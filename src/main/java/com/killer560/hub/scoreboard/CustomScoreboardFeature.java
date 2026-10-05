@@ -721,23 +721,58 @@ public final class CustomScoreboardFeature {
         int innerW = w - 2 * t;
         int innerH = h - 2 * t;
         int innerR = Math.max(0, r - t);
+        // Each row is one full-width span (top/bottom band) or a left and a right span (the sides), and consecutive
+        // rows with the same spans and colour are merged into one taller fill: the same pixels, but the straight
+        // sides of a solid border are now two fills instead of two per pixel row. Every fill is a GUI element with
+        // its own matrix copy and intersection test, and this border was 6% of the render thread in a dungeon with
+        // the HUD on (95-fps-bench JFR, 2026-10-05) - about 300 fills a frame for a default board.
+        int runStart = -1;
+        int runA = 0, runB = 0, runColor = 0;
         for (int row = 0; row < h; row++) {
             int color = borderColor(cfg, row, h, now);
             if (alphaMul < 1f) {
                 color = Math.round((color >>> 24) * alphaMul) << 24 | (color & 0xFFFFFF);
             }
+            int a;
+            int b;
             if ((color >>> 24) == 0) {
-                continue;
+                a = -1;   // nothing drawn on this row
+                b = -1;
+            } else {
+                int outer = inset(row, h, r);
+                int innerRow = row - t;
+                if (innerRow < 0 || innerRow >= innerH || innerW <= 0) {
+                    a = outer;
+                    b = -1;   // one span, outer .. w - outer
+                } else {
+                    a = outer;
+                    b = Math.max(outer, t + inset(innerRow, innerH, innerR));   // two spans, a..b and w-b..w-a
+                }
             }
-            int outer = inset(row, h, r);
-            int innerRow = row - t;
-            if (innerRow < 0 || innerRow >= innerH || innerW <= 0) {
-                g.fill(x + outer, y + row, x + w - outer, y + row + 1, color);
-                continue;
+            if (runStart >= 0 && (a != runA || b != runB || color != runColor)) {
+                fillBorderRun(g, x, y, w, runStart, row, runA, runB, runColor);
+                runStart = -1;
             }
-            int inner = t + inset(innerRow, innerH, innerR);
-            g.fill(x + outer, y + row, x + Math.max(outer, inner), y + row + 1, color);
-            g.fill(x + w - Math.max(outer, inner), y + row, x + w - outer, y + row + 1, color);
+            if (runStart < 0 && a >= 0) {
+                runStart = row;
+                runA = a;
+                runB = b;
+                runColor = color;
+            }
+        }
+        if (runStart >= 0) {
+            fillBorderRun(g, x, y, w, runStart, h, runA, runB, runColor);
+        }
+    }
+
+    /** Rows {@code fromRow..toRow-1} of a border run from {@link #drawRoundedBorder}. */
+    private static void fillBorderRun(GuiGraphicsExtractor g, int x, int y, int w, int fromRow, int toRow, int a, int b,
+                                      int color) {
+        if (b < 0) {
+            g.fill(x + a, y + fromRow, x + w - a, y + toRow, color);
+        } else {
+            g.fill(x + a, y + fromRow, x + b, y + toRow, color);
+            g.fill(x + w - b, y + fromRow, x + w - a, y + toRow, color);
         }
     }
 
