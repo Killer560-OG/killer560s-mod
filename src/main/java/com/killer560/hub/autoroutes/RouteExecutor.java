@@ -1985,11 +1985,9 @@ public final class RouteExecutor {
         player.swing(InteractionHand.MAIN_HAND);
     }
 
-    /** The route holds the camera ({@link com.killer560.hub.util.ViewFreeze}) while it has turned his body. */
-    private static boolean viewHeld;
-    /** Client ticks since the body was last turned for an action; the view is only given back once this is >= 1, so
-     *  the movement packet of the action's own tick has reported the rotation the action used. */
-    private static int ticksSinceTurn;
+    /** The route's body turns, camera held ({@link com.killer560.hub.util.BodyAim}, shared with the Interactive Map's
+     *  executor). Every write it makes is our own, not his mouse, so the camera-turn detector is rebased after it. */
+    private static final com.killer560.hub.util.BodyAim BODY = new com.killer560.hub.util.BodyAim(RouteRotation::rebase);
 
     /**
      * Obvious mode: turns the BODY (the rotation every packet reports) to {@code yaw}/{@code pitch} - a delta on the
@@ -1997,14 +1995,7 @@ public final class RouteExecutor {
      * the rotation the action used, as it would after a real flick.
      */
     private static void turnBody(LocalPlayer player, float yaw, float pitch) {
-        com.killer560.hub.util.ViewFreeze.hold(player.getYRot(), player.getXRot());
-        viewHeld = true;
-        ticksSinceTurn = 0;
-        player.setYRot(yaw);
-        player.setYHeadRot(yaw);
-        player.setXRot(Mth.clamp(pitch, -90f, 90f));
-        // Our own write, not his mouse.
-        RouteRotation.rebase();
+        BODY.turn(player, yaw, pitch);
     }
 
     /** {@link #turnBody} toward a point (the centre of a block a breaker or boom node acts on). */
@@ -2020,16 +2011,6 @@ public final class RouteExecutor {
      * reported the last action's rotation.
      */
     static void tickView(Minecraft client) {
-        if (!viewHeld) {
-            return;
-        }
-        LocalPlayer player = client.player;
-        if (player == null) {
-            viewHeld = false;
-            com.killer560.hub.util.ViewFreeze.release();
-            return;
-        }
-        ticksSinceTurn++;
         // Held through a node, a stack, the settle between nodes and a pending landing re-fire (a ping-pong turns once
         // per warp, not there and back); given back the moment the route waits for HIM - he walks with his body's
         // yaw, so it must be the way he is looking.
@@ -2038,21 +2019,7 @@ public final class RouteExecutor {
         // way and reported another.
         boolean acting = MimicKiller.isBusy() || (running && walkHoldYaw == null && !(activeNode != null && awaitHeld)
                 && (activeNode != null || !stackQueue.isEmpty() || settleTicks > 0 || landedFrom != null));
-        if (acting || ticksSinceTurn < 1) {
-            com.killer560.hub.util.ViewFreeze.hold(player.getYRot(), player.getXRot());
-            return;
-        }
-        float viewYaw = com.killer560.hub.util.ViewFreeze.viewYaw();
-        float viewPitch = com.killer560.hub.util.ViewFreeze.viewPitch();
-        if (!Float.isNaN(viewYaw)) {
-            float yaw = player.getYRot() + Mth.wrapDegrees(viewYaw - player.getYRot());
-            player.setYRot(yaw);
-            player.setYHeadRot(yaw);
-            player.setXRot(Mth.clamp(viewPitch, -90f, 90f));
-        }
-        com.killer560.hub.util.ViewFreeze.release();
-        viewHeld = false;
-        RouteRotation.rebase();
+        BODY.tick(client.player, acting);
     }
 
     /**
