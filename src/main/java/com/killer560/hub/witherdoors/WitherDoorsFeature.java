@@ -111,21 +111,30 @@ public final class WitherDoorsFeature {
     private static final java.util.regex.Pattern KEY_OBTAINED_WITHER =
             java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16} has obtained Wither Key!?$");
 
+    /** With or without the leading "A " - AutoDoorOpenerFeature had anchored the other form. */
     private static final java.util.regex.Pattern WITHER_KEY_PICKED_UP =
-            java.util.regex.Pattern.compile("^A Wither Key was picked up!?$");
+            java.util.regex.Pattern.compile("^(?:A )?Wither Key was picked up!?$");
 
     /** "<Name> has obtained Blood Key!" - the Blood half of the pair above, same shape for the same reason. */
     private static final java.util.regex.Pattern KEY_OBTAINED_BLOOD =
             java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16} has obtained Blood Key!?$");
 
     private static final java.util.regex.Pattern BLOOD_KEY_PICKED_UP =
-            java.util.regex.Pattern.compile("^A Blood Key was picked up!?$");
+            java.util.regex.Pattern.compile("^(?:A )?Blood Key was picked up!?$");
+
+    /** "<Name> opened a WITHER door!" - the server line; a player's chat always has a prefix before the name. */
+    private static final java.util.regex.Pattern WITHER_DOOR_OPENED =
+            java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16} opened a WITHER door!?$");
+
+    private static final java.util.regex.Pattern BLOOD_DOOR_OPENED =
+            java.util.regex.Pattern.compile("^The BLOOD DOOR has been opened!?$");
 
     private static void onChat(String raw) {
         String msg = ChatFormatting.stripFormatting(raw);
         if (msg == null) {
             return;
         }
+        msg = msg.trim();
         // ANCHORED, mirroring AutoDoorOpenerFeature - which this class's own doc says it mirrors, and
         // which was anchored on 2026-09-29 while this copy was left on contains(). Display only here (it
         // recolours the nearest door's highlight), so this was never the ban-shaped version of the bug - but
@@ -146,10 +155,10 @@ public final class WitherDoorsFeature {
                 bloodKeyHeld = true;
                 invalidateCache();
             }
-        } else if (msg.contains("opened a WITHER door")) {
+        } else if (WITHER_DOOR_OPENED.matcher(msg).matches()) {
             witherKeyHeld = false;
             invalidateCache();
-        } else if (msg.contains("The BLOOD DOOR has been opened")) {
+        } else if (BLOOD_DOOR_OPENED.matcher(msg).matches()) {
             bloodKeyHeld = false;
             invalidateCache();
         }

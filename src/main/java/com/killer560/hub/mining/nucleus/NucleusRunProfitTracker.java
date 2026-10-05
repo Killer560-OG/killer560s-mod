@@ -59,10 +59,13 @@ public final class NucleusRunProfitTracker {
     private static final Path DATA_PATH =
             ModPaths.config("killer560smod-nucleus-profit.json");
 
-    private static final Pattern LOOT_START = Pattern.compile("CRYSTAL NUCLEUS LOOT BUNDLE");
-    private static final Pattern LOOT_END = Pattern.compile("▬{20,}");
-    private static final Pattern COUNT_PREFIX = Pattern.compile("^(\\d+)x\\s+(.+)$");
-    private static final Pattern COUNT_SUFFIX = Pattern.compile("^(.+?)\\s+x(\\d+)$");
+    // Whole-line, anchored: the server's lines are only (centring) whitespace plus the text, so a player's
+    // chat line - which always starts with its channel/rank/name prefix - can neither open a loot block nor
+    // close one and bump the persisted run count.
+    private static final Pattern LOOT_START = Pattern.compile("^\\s{0,64}CRYSTAL NUCLEUS LOOT BUNDLE\\s{0,64}$");
+    private static final Pattern LOOT_END = Pattern.compile("^\\s{0,64}▬{20,128}\\s{0,64}$");
+    private static final Pattern COUNT_PREFIX = Pattern.compile("^(\\d{1,6})x\\s+(.+)$");
+    private static final Pattern COUNT_SUFFIX = Pattern.compile("^(.+?)\\s+x(\\d{1,6})$");
 
     private static boolean loaded = false;
     private static boolean inLootBlock = false;
@@ -113,12 +116,12 @@ public final class NucleusRunProfitTracker {
                 return;
             }
             if (!inLootBlock) {
-                if (LOOT_START.matcher(plain).find()) {
+                if (LOOT_START.matcher(plain).matches()) {
                     inLootBlock = true;
                 }
                 return;
             }
-            if (LOOT_END.matcher(plain).find()) {
+            if (LOOT_END.matcher(plain).matches()) {
                 inLootBlock = false;
                 ensureLoaded();
                 runsCompleted++;

@@ -38,7 +38,7 @@ public final class SelfDerivation {
 
     // Server lines. Anchored and exact - a line that merely contains these words must not count.
     private static final Pattern DEVICE_COMPLETE = Pattern.compile(
-            "^(\\w{1,16}) (activated|completed) a (lever|device|terminal)! \\((\\d+)/(\\d+)\\)(?:\\s.*)?$");
+            "^(\\w{1,16}) (activated|completed) a (lever|device|terminal)! \\((\\d{1,3})/(\\d{1,3})\\)(?:\\s.*)?$");
     private static final Pattern PRINCE_KILLED = Pattern.compile("^A Prince falls\\. \\+1 Bonus Score$");
     private static final Pattern BAT_KILLED = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
     private static final Pattern WATCHER_DONE =
@@ -85,7 +85,8 @@ public final class SelfDerivation {
                 case "device" -> PartyInteropState.Counter.DEVICES_DONE;
                 default -> PartyInteropState.Counter.LEVERS_DONE;
             };
-            PartyInteropState.offerCounter(counter, done, InteropSource.SELF, m.group(1));
+            // The denominator lets the state tell a new P3 section (7/7, then 1/8) from a number going backwards.
+            PartyInteropState.offerCounter(counter, done, parseInt(m.group(5)), InteropSource.SELF, m.group(1));
             return;
         }
         if (BLOOD_DOOR_OPENED.equals(plain)) {

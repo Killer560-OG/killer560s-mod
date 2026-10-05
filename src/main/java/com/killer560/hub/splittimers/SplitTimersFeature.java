@@ -106,7 +106,7 @@ public final class SplitTimersFeature {
      * spoofs fixed earlier on 2026-09-29; this one was missed because it LOOKED anchored.
      */
     private static final SplitDef BLOOD_KEY = def(
-            "^(?:[A-Za-z0-9_]{1,16} has obtained Blood Key!?|Blood Key was picked up!?|RIGHT CLICK on the BLOOD DOOR.*)$",
+            "^(?:[A-Za-z0-9_]{1,16} has obtained Blood Key!?|(?:A )?Blood Key was picked up!?|RIGHT CLICK on the BLOOD DOOR.*)$",
             "§2Blood Open");
     private static final SplitDef WATCHER_DIALOGUE = def(BLOOD_CLEAR.pattern().pattern(), "§cWatcher Dialogue");
     // Devonian WatcherSplits: WatcherDialog's stop trigger, i.e. the line the blood mobs start on.

@@ -52,7 +52,8 @@ public final class BloodRush {
                 return;
             }
             String plain = ChatFormatting.stripFormatting(message.getString());
-            if (plain != null && plain.contains("The BLOOD DOOR has been opened!")) {
+            // Anchored: "contains" let any player typing the line in chat stop Blood Rush.
+            if (plain != null && plain.trim().equals("The BLOOD DOOR has been opened!")) {
                 bloodOpenedMessage = true;
             }
         });

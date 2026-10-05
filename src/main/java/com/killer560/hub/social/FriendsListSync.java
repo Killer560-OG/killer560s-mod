@@ -73,6 +73,9 @@ public final class FriendsListSync {
     private static long awaitingSinceMs = 0L;
     /** Inside a block: the header has been seen and friend lines are being collected. */
     private static boolean reading = false;
+    /** When the open block last accepted a line (header or friend); a block that goes quiet this long without
+     *  its closing separator is given up on, so {@link #walking} cannot stay stuck true. */
+    private static long lastReadLineAtMs = 0L;
     private static int currentPage = 0;
     private static int totalPages = 0;
     private static String nextPageCommand = null;
@@ -145,6 +148,10 @@ public final class FriendsListSync {
         }
         if (awaitingSinceMs != 0L && now - awaitingSinceMs > PAGE_TIMEOUT_MS) {
             abortWalk("no reply to page " + (currentPage + 1));
+            return;
+        }
+        if (reading && now - lastReadLineAtMs > PAGE_TIMEOUT_MS) {
+            abortWalk("page " + currentPage + " never closed");
         }
     }
 
@@ -188,6 +195,7 @@ public final class FriendsListSync {
                 return false;
             }
             reading = true;
+            lastReadLineAtMs = System.currentTimeMillis();
             awaitingSinceMs = 0L;
             int page = 1;
             int total = 1;
@@ -208,6 +216,7 @@ public final class FriendsListSync {
             String name = friend.group(1);
             boolean offline = friend.group(2).toLowerCase(Locale.US).contains("offline");
             ACCUMULATED.putIfAbsent(name.toLowerCase(Locale.US), new ParsedFriend(name, !offline));
+            lastReadLineAtMs = System.currentTimeMillis();
             return true;
         }
         // Something unrelated reached mid-block: the block is over, and this line is not ours to hide.

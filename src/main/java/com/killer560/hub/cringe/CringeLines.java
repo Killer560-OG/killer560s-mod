@@ -23,7 +23,10 @@ public final class CringeLines {
     /** @return the current cringe lines - from the config file if present and non-empty,
      *  otherwise the built-in defaults. */
     public static List<String> all() {
-        return current;
+        // The static block below already loads on first use; this only guards a caller ever seeing the
+        // empty placeholder (randomLine's nextInt(0) would throw).
+        List<String> lines = current;
+        return lines.isEmpty() ? DEFAULTS : lines;
     }
 
     public static Path file() {
@@ -46,7 +49,9 @@ public final class CringeLines {
                 }
             }
             current = lines.isEmpty() ? DEFAULTS : lines;
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
+            // RuntimeException too: this runs from the static initializer, where an escaping throw would
+            // turn into ExceptionInInitializerError and break /cringe for the session.
             current = DEFAULTS;
         }
     }
