@@ -2205,7 +2205,11 @@ were the SIM's and three were the autos'; each is named at its fix.
   under QUOI's lowest spot. "Blaze: done." now waits for the solver's list to stay empty for 30 ticks (a rebuilt chain
   empties it for a moment). Side arrows are followed until they land in the safety check (QUOI stopped them a few
   blocks past the target, so one could fly on across the shaft and kill a far blaze out of order). No out-of-order
-  kill was seen in these runs once the blazes existed; the spread stays 5 degrees, QUOI's figure.
+  kill was seen in these runs once the blazes existed; the spread stays 5 degrees, QUOI's figure. Four shots from
+  one spot that kill nothing give that spot up for that blaze: on the Mod Only Test captures it fired 196 shots at one
+  blaze from one spot, the simulated arrow clearing the ledge he stood on and the real ones dying in it. (Requiring
+  the shot to be clean from the vanilla arrow origin, eye - 0.1, as well as QUOI's was tried and refused every spot
+  in Lower Blaze, so the give-up is the fix.)
 - **Creeper Beams, "times out, then never shoots again":** the timeout was the slot fault above. After it, the shots
   were aimed with `etherwarpDirection` - a SNEAKING eye whatever his stance, at QUOI's face-edge sample points - so
   standing up after the cancelled reposition every shot missed its lantern. Shots now aim from the real eye at the

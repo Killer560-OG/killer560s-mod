@@ -330,11 +330,7 @@ final class AutoBlaze {
         for (Vec3 point : testPoints) {
             float[] dir = AutoPuzzleUtil.arrowDirection(eyePos, point, terminator);
             Vec3 origin = AutoPuzzleUtil.arrowOrigin(eyePos, dir[0], terminator);
-            // From QUOI's origin AND from 0.09 lower, where a vanilla arrow starts (eye - 0.1): a steep shot down
-            // past the edge of the ledge he stands on clears the one and clips the other, and every arrow then
-            // dies in the ledge - 196 shots at one blaze from one spot in the 93-solve run of 2026-10-04.
-            if (isSafe(client, player, origin, dir[0], dir[1], hitboxes, false)
-                    && isSafe(client, player, origin.add(0, -0.09, 0), dir[0], dir[1], hitboxes, false)) {
+            if (isSafe(client, player, origin, dir[0], dir[1], hitboxes, false)) {
                 if (!terminator || (isSafe(client, player, origin, dir[0] + 5f, dir[1], hitboxes, true)
                         && isSafe(client, player, origin, dir[0] - 5f, dir[1], hitboxes, true))) {
                     return dir;
