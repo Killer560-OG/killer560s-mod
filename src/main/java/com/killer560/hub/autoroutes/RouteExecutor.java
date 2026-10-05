@@ -52,9 +52,11 @@ import com.killer560.hub.util.ModChat;
  * {@code pathfinding/AutoWalker}.
  * <p>
  * <b>Rotation</b> is only ever a wrapped delta on the running yaw through {@link RouteRotation} (Rotation 360 rule).
- * Legit mode turns the camera for every discrete action; obvious mode sends the rotated use packet without moving
- * the camera (the Interactive Map's own {@code ClearExecutor.doInteract} technique) - killer560: "legit or obvious -
- * in legit mode it rotates for every etherwarp."
+ * Legit mode turns the camera for every discrete action; obvious mode turns the BODY to each action's look on the
+ * action's own tick while the camera is held still ({@code util/ViewFreeze}), and gives the body back to the held view
+ * a tick after the last action - so every use and dig carries a rotation the next movement packet reports, as a
+ * vanilla client's must (GrimAC BadPacketsJ / RotationBreak, 2026-10-05) - killer560: "legit or obvious - in legit
+ * mode it rotates for every etherwarp."
  * <p>
  * <b>Discrete actions wait for real confirmation</b> (never a timer alone): an etherwarp / teleporting item is done
  * when the player actually arrives at the recorded landing, a dungeon-breaker node when its blocks are actually air,
@@ -542,7 +544,11 @@ public final class RouteExecutor {
      */
     public static boolean holdsSneak() {
         // Not while a node waits on its await: see tickAction - he is clicking the secrets it waits for.
-        return running && forceSneak && !(activeNode != null && awaitHeld);
+        // Nor under a screen: a vanilla client's keys are all up while one is open, and a container closed while the
+        // input packet says sneaking is GrimAC MultiActionsD (2026-10-05, 62-argrim: an await met by the chest click
+        // itself started the etherwarp's sneak a tick before the chest's window arrived).
+        return running && forceSneak && !(activeNode != null && awaitHeld)
+                && !AutoRoutesFeature.screenBlocks(Minecraft.getInstance());
     }
 
     /** The {@code Input} record the mixin installs for this tick. */
@@ -621,7 +627,11 @@ public final class RouteExecutor {
         if (cameraGraceTicks > 0) {
             cameraGraceTicks--;
         } else if (RouteRotation.userMovedCamera(player)) {
-            if (!route.path().isEmpty() || activeNode != null || !stackQueue.isEmpty()) {
+            if (activeNode != null && awaitHeld) {
+                // Waiting on its await, the node is waiting for HIM: turning to click the chest it waits for is not
+                // taking the route back (found 2026-10-05, 62-argrim: the await stopped as "you moved the camera").
+                RouteRotation.clear();
+            } else if (!route.path().isEmpty() || activeNode != null || !stackQueue.isEmpty()) {
                 stop("you moved the camera");
                 return;
             }
@@ -963,6 +973,11 @@ public final class RouteExecutor {
         actionOrigin = Minecraft.getInstance().player.position();
         // Any node firing ends a held walk ("keep me walking until I hit a different node", AP3's rule), and the
         // node owns the input from here: keys he is already holding are overridden, not read as a takeover.
+        if (walkHoldYaw != null) {
+            // The walk's camera ease goes with it - left running it kept turning him back to the walk's yaw through
+            // the next node's await, and read his own turn toward the chest as "you moved the camera".
+            RouteRotation.clear();
+        }
         endWalkHold();
         clearMovement();
         handsLatched = true;
@@ -1549,10 +1564,10 @@ public final class RouteExecutor {
 
     /**
      * A CRYPT node (killer560, 2026-10-05: "it will do the same attacking thing till either a prince or crypt are
-     * killed"): the Crypt Weapon setting's item, aimed where he looked when he placed the node, used and used again
+     * killed"): the Crypt Weapon setting's item, aimed straight down (it explodes, never teleports), used and used again
      * with the interact delay between uses until {@code await:N} (1 without an await) crypt / prince kills of his have
-     * been counted since the node before it finished ({@link AwaitEvents#crypts}) - never a secret. Five seconds with
-     * no kill stops the route.
+     * been counted since the node before it finished ({@link AwaitEvents#crypts}) - never a secret. Crypt Attack Time
+     * without a kill moves the route on to the next node.
      */
     private static void tickCrypt(Minecraft client, LocalPlayer player, RouteNode node) {
         int goal = node.awaitEnabled && node.awaitCondition != RouteNode.AwaitCondition.DELAY
@@ -1568,7 +1583,9 @@ public final class RouteExecutor {
             select(client, player, slot);
             forceSneak = false;
             wantSneak = false;
-            aimAt(node);
+            // STRAIGHT DOWN, always (killer560, 2026-10-05: "looking straight down so that way it doesn't teleport
+            // and just explodes") - the node's own pitch is ignored; its yaw is kept so the camera turns least.
+            aimAt(RouteCoords.toRealYaw(frame, node.yaw), 90f, node);
             step = Step.AIM;
             stepTicks = 0;
         }
@@ -1579,7 +1596,7 @@ public final class RouteExecutor {
             if (!aimReady()) {
                 return;
             }
-            useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), node.pitch, false);
+            useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), 90f, false);
             cryptUses = 1;
             logActed(node, " (" + weapon.label() + ", waiting for " + goal + " crypt/prince kill(s))");
             step = Step.CONFIRM;
@@ -1595,14 +1612,22 @@ public final class RouteExecutor {
                 finishAction();
                 return;
             }
-            if (stepTicks > CRYPT_TIMEOUT) {
+            int attackTicks = AutoRoutesConfig.getInstance().getCryptAttackTicks();
+            if (stepTicks > attackTicks) {
+                // Moves ON rather than stopping the route (Crypt Attack Time slider): an undead that walked out of
+                // reach must not strand the rest of the route.
+                LOGGER.info("[AutoRoutes] Node #{} CRYPT: {} of {} kill(s) after {} use(s) - Crypt Attack Time "
+                        + "({} tick(s)) up, moving on", route.indexOf(node) + 1, AwaitEvents.crypts(), goal, cryptUses,
+                        attackTicks);
+                AutoRoutesFeature.chatBad(String.format(java.util.Locale.US,
+                        "Crypt node: no kill in %.1f s - moving on.", attackTicks / 20.0));
                 restoreCryptSlot(client, player);
-                stop("the crypt node killed no crypt or prince in " + CRYPT_TIMEOUT / 20 + " s");
+                finishAction();
                 return;
             }
             int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
             if (stepTicks - cryptLastUseTick >= delay) {
-                useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), node.pitch, false);
+                useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), 90f, false);
                 cryptUses++;
                 cryptLastUseTick = stepTicks;
             }
@@ -1628,6 +1653,12 @@ public final class RouteExecutor {
         if (hit == null) {
             stop("the empty-hand use node has nothing to click (no block in sight within 4.5)");
             return;
+        }
+        if (!AutoRoutesConfig.getInstance().isLegitMode()) {
+            // Look along the ray the click is made from first (camera held): a block click reported from another
+            // facing is what GrimAC RotationPlace flags.
+            turnBody(player, player.getYRot() + Mth.wrapDegrees(RouteCoords.toRealYaw(frame, node.yaw)
+                    - player.getYRot()), node.pitch);
         }
         client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
         player.swing(InteractionHand.MAIN_HAND);
@@ -1672,10 +1703,24 @@ public final class RouteExecutor {
                 client.gameMode.startDestroyBlock(boomTarget, hit.getDirection());
                 client.gameMode.stopDestroyBlock();
             } else {
+                // Packet for packet what that tap sends, aimed by turning the body to the node's look (GrimAC
+                // RotationBreak): START through the block-prediction sequence with the face the ray struck, then
+                // ABORT with face DOWN - vanilla's stopDestroyBlock always says DOWN (javap, 26.1.2). The ABORT used
+                // to carry the struck face, and GrimAC's PositionBreakB then flagged every later dig until one came
+                // from that face (2026-10-05, 62-argrim: a boom's EAST abort, then six breaker digs flagged).
+                turnBody(player, player.getYRot() + Mth.wrapDegrees(RouteCoords.toRealYaw(frame, node.yaw)
+                        - player.getYRot()), node.pitch);
+                BlockPos target = boomTarget;
+                Direction face = hit.getDirection();
+                if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
+                    invoker.killer560smod$invokeStartPrediction(client.level, sequence -> new ServerboundPlayerActionPacket(
+                            ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, target, face, sequence));
+                } else {
+                    player.connection.send(new ServerboundPlayerActionPacket(
+                            ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, target, face));
+                }
                 player.connection.send(new ServerboundPlayerActionPacket(
-                        ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, boomTarget, hit.getDirection()));
-                player.connection.send(new ServerboundPlayerActionPacket(
-                        ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, boomTarget, hit.getDirection()));
+                        ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, target, Direction.DOWN));
             }
             player.swing(InteractionHand.MAIN_HAND);
             logActed(node, "");
@@ -1735,7 +1780,8 @@ public final class RouteExecutor {
             // out on the firing tick, as many as the breaker has charges, then ONE swing - Breaker Aura's burst,
             // packet for packet (start-prediction START_DESTROY_BLOCKs, then the swing, all at START_CLIENT_TICK,
             // ahead of the movement packet). OFF: QUOI's DungeonBreakerAction, one block per interact-delay tick.
-            // No rotation either way (block breaking is range-checked, not look-checked). The first block goes on
+            // Obvious mode turns the body (camera held) at the first block each tick and every dig carries the face
+            // the eye sees, because GrimAC checks both (RotationBreak, PositionBreakA). The first block goes on
             // the firing tick (stepTicks is 0 there), right behind the held-item packet.
             boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraMultiBreak();
             int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
@@ -1760,6 +1806,10 @@ public final class RouteExecutor {
                 if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) > BREAKER_RANGE_SQ) {
                     LOGGER.info("[AutoRoutes] Breaker block {} out of range - skipped", pos);
                     continue;
+                }
+                if (sentNow == 0 && !AutoRoutesConfig.getInstance().isLegitMode()) {
+                    // Look at the (first) block this tick breaks, as a dig is always aimed (GrimAC RotationBreak).
+                    turnBodyToward(player, Vec3.atCenterOf(pos));
                 }
                 sendBreak(client, player, pos);
                 breakerChargesLeft--;
@@ -1869,12 +1919,17 @@ public final class RouteExecutor {
      * {@code breakBlock} without its zero-ping - so the packet carries the sequence number a vanilla dig does.
      */
     private static void sendBreak(Minecraft client, LocalPlayer player, BlockPos pos) {
+        // The face the eye actually sees (Breaker Aura's clip, BlockHits). It was always UP, which no dig from below
+        // a block's top can carry: GrimAC PositionBreakA flagged and cancelled every breaker block above the feet
+        // (2026-10-05, 62-argrim), so those blocks never broke.
+        Direction face = com.killer560.hub.util.BlockHits.surfaceOrCentre(client.level, pos, player.getEyePosition())
+                .getDirection();
         if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
             invoker.killer560smod$invokeStartPrediction(client.level, sequence -> new ServerboundPlayerActionPacket(
-                    ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, Direction.UP, sequence));
+                    ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face, sequence));
         } else {
             player.connection.send(new ServerboundPlayerActionPacket(
-                    ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, Direction.UP));
+                    ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face));
         }
     }
 
@@ -1888,8 +1943,8 @@ public final class RouteExecutor {
 
     /** Legit: a real right click at the live (already turned) rotation - for a use-item node the block in the
      *  crosshair first like vanilla (a recorded lever/chest click replays as one), then the item; an etherwarp is
-     *  QUOI's plain {@code gameMode.useItem}. Obvious: the rotated use packet without touching the camera
-     *  ({@code ClearExecutor.doInteract}). */
+     *  QUOI's plain {@code gameMode.useItem}. Obvious: the body turned to the target (camera held, see
+     *  {@link #turnBody}) and the use packet sent with that same rotation. */
     static void useHeldItem(Minecraft client, LocalPlayer player, float targetYaw, float targetPitch,
                             boolean blockInteraction) {
         boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
@@ -1914,19 +1969,90 @@ public final class RouteExecutor {
         // Same direction as the target, expressed relative to the running (unwrapped) yaw - never a wrapped absolute.
         float yaw = player.getYRot() + Mth.wrapDegrees(targetYaw - player.getYRot());
         float pitch = Mth.clamp(targetPitch, -90f, 90f);
+        // The BODY turns to the use's rotation and stays there for this tick's movement packet; only the camera is
+        // held still (ViewFreeze). A use packet whose rotation the client never reports is not something a vanilla
+        // client can send: GrimAC's BadPacketsJ flagged every obvious-mode etherwarp and path warp for exactly that
+        // (2026-10-05, 62-argrim), the same flag Auto Puzzles drew and fixed this way on 2026-09-27
+        // (AutoPuzzleUtil.useItemRotated). The body is put back to the held view a tick after the last use
+        // (tickView), so the camera ends where he left it.
+        turnBody(player, yaw, pitch);
         if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
             invoker.killer560smod$invokeStartPrediction(client.level,
                     sequence -> new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch));
         } else {
-            float oldYaw = player.getYRot();
-            float oldPitch = player.getXRot();
-            player.setYRot(yaw);
-            player.setXRot(pitch);
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-            player.setYRot(oldYaw);
-            player.setXRot(oldPitch);
         }
         player.swing(InteractionHand.MAIN_HAND);
+    }
+
+    /** The route holds the camera ({@link com.killer560.hub.util.ViewFreeze}) while it has turned his body. */
+    private static boolean viewHeld;
+    /** Client ticks since the body was last turned for an action; the view is only given back once this is >= 1, so
+     *  the movement packet of the action's own tick has reported the rotation the action used. */
+    private static int ticksSinceTurn;
+
+    /**
+     * Obvious mode: turns the BODY (the rotation every packet reports) to {@code yaw}/{@code pitch} - a delta on the
+     * running yaw, pitch within +-90 - while the camera stays where he had it. The next movement packet then carries
+     * the rotation the action used, as it would after a real flick.
+     */
+    private static void turnBody(LocalPlayer player, float yaw, float pitch) {
+        com.killer560.hub.util.ViewFreeze.hold(player.getYRot(), player.getXRot());
+        viewHeld = true;
+        ticksSinceTurn = 0;
+        player.setYRot(yaw);
+        player.setYHeadRot(yaw);
+        player.setXRot(Mth.clamp(pitch, -90f, 90f));
+        // Our own write, not his mouse.
+        RouteRotation.rebase();
+    }
+
+    /** {@link #turnBody} toward a point (the centre of a block a breaker or boom node acts on). */
+    private static void turnBodyToward(LocalPlayer player, Vec3 point) {
+        TeleportUtils.Rotation r = TeleportUtils.getDirection(player.getEyePosition(), point);
+        turnBody(player, player.getYRot() + Mth.wrapDegrees(r.yaw() - player.getYRot()), r.pitch());
+    }
+
+    /**
+     * Every client tick, from the feature, before anything else: keeps the camera held while the route has turned his
+     * body, and gives it back - the body turned back to the held view, his mouse movement included - once the route
+     * is no longer acting (it stopped, or a walk node took over the facing) and at least one movement packet has
+     * reported the last action's rotation.
+     */
+    static void tickView(Minecraft client) {
+        if (!viewHeld) {
+            return;
+        }
+        LocalPlayer player = client.player;
+        if (player == null) {
+            viewHeld = false;
+            com.killer560.hub.util.ViewFreeze.release();
+            return;
+        }
+        ticksSinceTurn++;
+        // Held through a node, a stack, the settle between nodes and a pending landing re-fire (a ping-pong turns once
+        // per warp, not there and back); given back the moment the route waits for HIM - he walks with his body's
+        // yaw, so it must be the way he is looking.
+        // A node waiting on its await is waiting for HIM too: he is clicking the secrets, and while the view is held the
+        // crosshair follows the held view but every packet reports the body, so his own clicks would go out aimed one
+        // way and reported another.
+        boolean acting = MimicKiller.isBusy() || (running && walkHoldYaw == null && !(activeNode != null && awaitHeld)
+                && (activeNode != null || !stackQueue.isEmpty() || settleTicks > 0 || landedFrom != null));
+        if (acting || ticksSinceTurn < 1) {
+            com.killer560.hub.util.ViewFreeze.hold(player.getYRot(), player.getXRot());
+            return;
+        }
+        float viewYaw = com.killer560.hub.util.ViewFreeze.viewYaw();
+        float viewPitch = com.killer560.hub.util.ViewFreeze.viewPitch();
+        if (!Float.isNaN(viewYaw)) {
+            float yaw = player.getYRot() + Mth.wrapDegrees(viewYaw - player.getYRot());
+            player.setYRot(yaw);
+            player.setYHeadRot(yaw);
+            player.setXRot(Mth.clamp(viewPitch, -90f, 90f));
+        }
+        com.killer560.hub.util.ViewFreeze.release();
+        viewHeld = false;
+        RouteRotation.rebase();
     }
 
     /**

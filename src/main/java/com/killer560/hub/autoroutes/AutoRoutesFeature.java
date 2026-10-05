@@ -762,6 +762,8 @@ public final class AutoRoutesFeature {
     private static void tickInner(Minecraft client) {
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
         LocalPlayer player = client.player;
+        // First, whatever else returns early: the camera the route held while it turned his body comes back here.
+        RouteExecutor.tickView(client);
 
         if (client.level != lastLevel) {
             lastLevel = client.level;

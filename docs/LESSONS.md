@@ -196,3 +196,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   "cannot assign a value to final variable", "might not have been initialized", duplicate methods. Verified by
   reintroducing the `pool` collision into a scratch copy and watching the filter print it. This does NOT replace
   the rule below about API names - an unresolved method is indistinguishable from a misspelt one here.
+
+- **Auto Routes on GrimAC (2026-10-05, testkit 62-argrim).** Obvious mode sent each use with a rotation the client never
+  reported (BadPacketsJ on every etherwarp) - the bug Auto Puzzles fixed on 2026-09-27; `ClearExecutor.doInteract` (map
+  warps, Go To) still does it. Digs must carry the face the eye sees (an always-UP face is PositionBreakA), an ABORT says
+  DOWN as vanilla does (any other face is PositionBreakB on every later dig), and no input packet may say sneak while a
+  container is open (MultiActionsD on its close). Obvious mode now turns the body with the camera held (`turnBody`/
+  `tickView` in RouteExecutor). Multi Break's six STARTs on one tick, aimed at the first, drew nothing from GrimAC.
