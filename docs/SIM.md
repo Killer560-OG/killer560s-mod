@@ -2358,10 +2358,40 @@ reads not-on-ground for a tick or two. The auto is unchanged: hopping before the
 is normal on Hypixel, where every hop is sent inside the ping. Testkit `-PicefillControl=true` proves the judge
 still breaks a section on a two-tile warp and on a repeated tile before letting the auto play.
 
-Not changed: after a break, Auto Ice Fill's etherwarp reposition picks the first still-ICE tile, which while a
-section is broken is the next section's, so it skips the broken one. Only reachable after a break.
+~~Not changed: after a break, Auto Ice Fill's etherwarp reposition picks the first still-ICE tile, which while a
+section is broken is the next section's, so it skips the broken one.~~ Fixed the same day - see "Ice Fill: a broken
+section is waited out and re-entered".
 Not fixed here: before the floor's FIRST warm-up completes (about 5 s after the floor loads) a click still got 40 ms
 on the partial graph and then room by room - see the next section.
+
+## Ice Fill: a broken section is waited out and re-entered (2026-10-05, icefill-recover)
+
+killer560 on Hypixel: a broken section comes back "after two-ish seconds", ONLY that section, and the auto should
+sense it is on the floor below, "pause everything that it is doing until it regenerates then ... teleport back onto
+the ice fill starting position and continue." The sim already did the room's half: `breakSection` airs only the live
+section, `regenerate` lays only that one back as fresh ice after `REGEN_TICKS` (40), finished sections stay packed,
+`activeSection` does not move, and the server-side per-landing judge is unchanged. Two additions, both read-only for
+play: each section's ENTRY tile (`entryTile(s)`, the first waypoint of that bundled floor, one under the feet) and
+counters a scenario reads instead of trusting the auto's log - `breaks()`, `regenerations()`, `lastBrokenSection()`,
+`isBroken()`, `activeSection()`, `landings()` (every `onTeleport`, broken or not) and `lastLandingTile()`. Breaks and
+regenerations also log one INFO line each.
+
+`AutoIceFill` splits its path into sections by height (stair midpoints excluded). A section with half or more of its
+path tiles gone to air, or feet 1.5 under the tile last stood on, starts a recovery: reposition / map walk cancelled,
+sneak released, no hops, until every tile of that section reads `ICE` (15 s cap, then a chat line and it stops until
+he leaves the room); then `AutoReposition` onto that section's first tile (Interactive Map walk if there is no warp
+line; 10 s cap), and the hops resume from it. Leaving the room resets it; five breaks in one room stops it. The old
+"off the band" reposition onto the first ICE tile still exists for getting ONTO the fill, but runs after the break
+check, so it can no longer pick the next section's tile while one is air.
+
+Testkit `-PicefillControl=true` now also forces a mistake once the auto is half way across sections 1 and 2
+(`-PicefillBreaks`): he is put back on the tile he just left, judged as a landing (`onTeleport`) - a plain server
+teleport was not, because the auto's next hop in the same server tick moved him on before the once-a-tick judge
+looked, and section 1 never broke on the first try. The verdict reads the sim: that section broke, no landing while
+broken after a 4-tick grace, it regenerated, the first landing after was its entry tile, and isComplete. 26.1.2:
+10/10 forced-break and 10/10 plain; 26.2: 3/3 forced-break. A jar with the break check switched off fails it (13
+landings while section 1 was broken, first landing on section 2's tile, never solved). The fall test ("feet under the
+section") never fired in these runs - the air test always saw the break first - so it is unexercised.
 
 ## A click during the first warm-up: the quick floor graph (2026-10-05, night-warm)
 
