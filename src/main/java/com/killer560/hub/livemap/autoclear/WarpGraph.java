@@ -119,6 +119,15 @@ public final class WarpGraph {
         return count;
     }
 
+    /** How many edges are stored, over every node whose edges are worked out. */
+    public long edgeCount() {
+        long n = 0;
+        for (int i = 0; i < count; i++) {
+            n += eTo[i] != null ? eTo[i].length : 0;
+        }
+        return n;
+    }
+
     /** How many nodes currently have their edges worked out. */
     public int expandedCount() {
         int n = 0;
