@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 
+import java.util.List;
 import java.util.Set;
 import com.killer560.hub.compat.McCompat;
 
@@ -51,13 +52,32 @@ public final class HudInGameRenderer {
         // editor's ten-second window is measured against - see HudSeen#markHudFrame for why it cannot be wall
         // time. One call per frame, not per element.
         HudSeen.markHudFrame();
-        for (HudElement element : com.killer560.hub.hud.HudElementRegistry.all()) {
-            // Stat Bars' custom bars and readouts (2026-10-04) are drawn here too, by prefix rather than by name.
-            if (!UNDRAWN_ELEMENT_IDS.contains(element.id())
-                    && !com.killer560.hub.playerstats.StatElements.isStatElementId(element.id())) {
-                continue;
-            }
-            com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, element);
+        List<HudElement> elements = drawList();
+        for (int i = 0; i < elements.size(); i++) {
+            com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, elements.get(i));
         }
+    }
+
+    private static List<HudElement> drawList = List.of();
+    private static int drawListVersion = -1;
+
+    /** The registered elements this layer draws, in registry order. An element's id never changes, so the filter's
+     *  answer only changes when the registry does; it used to be re-run over every element (~100, two string tests
+     *  each) every frame, which was most of this layer's cost with every feature off (95-fps-bench, 2026-10-05). */
+    private static List<HudElement> drawList() {
+        int version = com.killer560.hub.hud.HudElementRegistry.version();
+        if (version != drawListVersion) {
+            List<HudElement> out = new java.util.ArrayList<>();
+            for (HudElement element : com.killer560.hub.hud.HudElementRegistry.all()) {
+                // Stat Bars' custom bars and readouts (2026-10-04) are drawn here too, by prefix rather than by name.
+                if (UNDRAWN_ELEMENT_IDS.contains(element.id())
+                        || com.killer560.hub.playerstats.StatElements.isStatElementId(element.id())) {
+                    out.add(element);
+                }
+            }
+            drawList = out;
+            drawListVersion = version;
+        }
+        return drawList;
     }
 }

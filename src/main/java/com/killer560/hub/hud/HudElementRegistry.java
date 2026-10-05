@@ -12,6 +12,8 @@ public final class HudElementRegistry {
     private static final List<HudElement> ELEMENTS = new ArrayList<>();
     /** id -> the FIRST registered element with that id (what the old linear {@link #byId} scan returned). */
     private static final java.util.Map<String, HudElement> BY_ID = new java.util.HashMap<>();
+    /** Bumped on every register/unregister, so a per-frame caller can cache what it derives from {@link #all()}. */
+    private static int version;
 
     private HudElementRegistry() {
     }
@@ -19,6 +21,7 @@ public final class HudElementRegistry {
     public static void register(HudElement element) {
         ELEMENTS.add(element);
         BY_ID.putIfAbsent(element.id(), element);
+        version++;
     }
 
     /** Removes a previously registered element (e.g. a GIF that's been toggled off) so it stops
@@ -26,12 +29,18 @@ public final class HudElementRegistry {
     public static void unregister(String id) {
         ELEMENTS.removeIf(e -> e.id().equals(id));
         BY_ID.remove(id);
+        version++;
         CLAMP_MEMOS.remove(id);
         HudSeen.forget(id);
     }
 
     public static List<HudElement> all() {
         return ELEMENTS;
+    }
+
+    /** Changes whenever the element list does. */
+    public static int version() {
+        return version;
     }
 
     /** @return the registered element with this id, or null. A map lookup: the per-frame HUD layers look their
