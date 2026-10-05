@@ -309,3 +309,9 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   only inside a real dungeon. Anything that names rooms or votes on rotation outside one (Ashfall solo rooms, the
   sim) must start the load itself and must not judge rooms until `isReady()` - before it, the tile audit and the
   rotation vote judge good rooms broken.
+- The sim sent no "x/y Secrets" action bar, so an Auto Routes `await:<n>` never finished in the sim (only bats counted).
+  `roomsim/SimActionBar` now sends the room's count from `SimScore`'s per-room tally (2026-10-05). Separately, a START
+  node with an await waited forever everywhere: `RouteExecutor.start` resets the count to -1 and the baseline stayed -1;
+  the first count seen is now the baseline.
+- A map-code build (`SimBuilder.build`) is a "generated floor": the sim's Dungeon Breaker silently refuses every block
+  until `SimRun` has started. A test that breaks blocks must `SimRun.begin` first.

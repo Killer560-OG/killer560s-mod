@@ -587,6 +587,7 @@ public final class RouteExecutor {
                 // (killer560's await:2 waits for exactly that). The wait carries on under it, the keys stay off,
                 // and the node fires on the first tick the screen is closed. Anything else still stops the route.
                 clearMovement();
+                wantSneak = false;
                 applyFallbackKeys(client);
                 if (!awaitPhaseDone) {
                     stepTicks++;
@@ -1068,6 +1069,10 @@ public final class RouteExecutor {
         stepTicks++;
         actionAge++;
         if (!awaitPhaseDone) {
+            // No sneak while it waits: he is collecting the secrets it waits for, and a sneaking right click with an
+            // item in hand USES the item instead of opening the chest - with the etherwarp item the route just held,
+            // that is a warp out of the room (found 2026-10-05, 96-ar-path). The sneak comes back with the action.
+            wantSneak = false;
             // The node's own action (etherwarp, use, boom, ...) doesn't start until this clears - see
             // tickAwait, which is this gate for any node now that AWAIT isn't its own type any more. Once it
             // clears, the action starts in this same tick.
