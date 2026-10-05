@@ -919,6 +919,7 @@ final class ExperimentSolver {
                 Cell known = knownSuperpairsCells.get(slot);
                 if (known == null) continue;
                 if (valuableOnly && !isValuablePair(known)) continue;
+                if (isUserSkipped(known)) continue;
                 String key = known.itemId() + "|" + known.name();
                 Integer first = firstSeenThisPass.putIfAbsent(key, slot);
                 if (first != null) {
@@ -1080,6 +1081,8 @@ final class ExperimentSolver {
             Cell known = knownSuperpairsCells.get(slot);
             if (known == null || bySlot.get(slot) == null) continue;
             if (valuableOnly && !isValuablePair(known)) continue;
+            // A powerup's matched click CLAIMS the reward, so a skipped kind must never be its target.
+            if (isUserSkipped(known)) continue;
             return OptionalInt.of(slot);
         }
         if (!valuableOnly) {
@@ -1113,6 +1116,25 @@ final class ExperimentSolver {
      *  whitelist "valuable," this blacklists dye-family items and treats everything else as valuable. */
     private static boolean isValuablePair(Cell cell) {
         return !isSuperpairsXpTile(cell);
+    }
+
+    /**
+     * A reward tile he chose never to claim (killer560, 2026-10-05: "skip grand exp bottles (not titanics just
+     * grands)" and "skipping guardian pets of all rarities", two separate switches). Never paired and never the
+     * target of a matching powerup; an unpaired reveal claims nothing, so revealing it while exploring is fine.
+     * By NAME, colour codes already stripped: "Grand Experience Bottle" (a Titanic is "Titanic Experience
+     * Bottle", so it can't match), and any pet tile whose name holds "Guardian" (every rarity shares the name).
+     */
+    private static boolean isUserSkipped(Cell cell) {
+        if (cell == null || cell.name() == null) {
+            return false;
+        }
+        ExperimentsConfig cfg = ExperimentsConfig.getInstance();
+        String name = cell.name();
+        if (cfg.isSkipGrandExpBottles() && name.contains("Grand Experience Bottle")) {
+            return true;
+        }
+        return cfg.isSkipGuardianPets() && name.contains("Guardian");
     }
 
     /** "Powerup for next click!" - the lore of Instant Find, the one powerup that matches the next click. */

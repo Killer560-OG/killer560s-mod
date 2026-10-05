@@ -80,6 +80,21 @@ public class AutoExperimentsTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(superpairsFilterText());
                 }).bounds(contentX + half + GAP, y, half, 20).build());
         y += 24;
+        // killer560, 2026-10-05: two separate skips - Grand bottles only (Titanics still paired), Guardian pets of
+        // every rarity.
+        widgets.add(SettingsButtonWidget.builder(skipGrandText(), btn -> {
+                    ExperimentsConfig c = ExperimentsConfig.getInstance();
+                    c.setSkipGrandExpBottles(!c.isSkipGrandExpBottles());
+                    c.save();
+                    btn.setMessage(skipGrandText());
+                }).bounds(contentX, y, half, 20).build());
+        widgets.add(SettingsButtonWidget.builder(skipGuardianText(), btn -> {
+                    ExperimentsConfig c = ExperimentsConfig.getInstance();
+                    c.setSkipGuardianPets(!c.isSkipGuardianPets());
+                    c.save();
+                    btn.setMessage(skipGuardianText());
+                }).bounds(contentX + half + GAP, y, half, 20).build());
+        y += 24;
 
         // Adaptive Timeout extends Superpairs' confirm wait by however long the server stalls (see
         // ExperimentSolver#superpairsConfirmTimeoutMs). Its Timeout Margin slider went on 2026-10-04 -
@@ -290,6 +305,16 @@ public class AutoExperimentsTab extends BaseTab implements KeyCaptureTab {
     private static Component superpairsText() {
         return Component.literal("Auto-Solve Superpairs: "
                 + (ExperimentsConfig.getInstance().isSuperpairsEnabled() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component skipGrandText() {
+        return Component.literal("Skip Grand XP Bottles: "
+                + (ExperimentsConfig.getInstance().isSkipGrandExpBottles() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component skipGuardianText() {
+        return Component.literal("Skip Guardian Pets: "
+                + (ExperimentsConfig.getInstance().isSkipGuardianPets() ? "§aON" : "§cOFF"));
     }
 
     private static Component superpairsFilterText() {
