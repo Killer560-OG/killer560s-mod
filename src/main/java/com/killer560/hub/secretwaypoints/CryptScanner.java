@@ -24,13 +24,16 @@ import java.util.Set;
  * (hypixelskyblock.minecraft.wiki, Crypt Undead and Prince). So the only thing in the world to point at before a
  * crypt is opened is the tomb itself.
  *
- * <p><b>A crypt</b> is the tomb's lid: a horizontal run of bottom smooth stone slabs, at least two wide both ways,
- * 6 to 20 slabs, filling at least three quarters of its own bounding box. That is his own reading ("a section of
- * smooth stone slabs ... those are crypts", 2026-10-01, the rule the sim's Superboom uses), tightened against the
- * data: run over all 134 room captures, which were taken in real Hypixel dungeons, it gives exactly the room
- * database's crypt count in 111 rooms. "Any run of four or more" gets 82. The misses are listed in
+ * <p><b>A crypt</b> is the tomb's lid: a horizontal run of smooth stone slabs, mostly bottom slabs, at least two
+ * wide both ways, 6 to 20 slabs, filling at least three quarters of its own bounding box. That is his own reading
+ * ("a section of smooth stone slabs ... those are crypts", 2026-10-01, the rule the sim's Superboom uses),
+ * tightened against the data: run over all 134 room captures, which were taken in real Hypixel dungeons, crypts
+ * plus princes found this way equal the room database's crypt count exactly in 112 rooms. "Any run of four or more"
+ * gets 82. The prince is one of the database's crypts: Red Blue, Sloth and Leaves (database 1) have no lid and one
+ * prince, Chambers (6) has five lids and a prince. The misses are listed in
  * {@code killer560s-mod-logs/crypt-waypoints.md}: some decorative slab panels (Hallway is the worst, thirteen 2x3
- * panels for one crypt) and a few tombs of another shape.
+ * panels for one crypt), a few tombs of another shape, and Pirate's three gold-on-slab spots, which match the prince
+ * rule without being princes as far as the count says.
  *
  * <p><b>A prince</b> is the golden crypt: a gold block with a smooth stone slab beside it, or a sea lantern walled
  * in by polished andesite on all four sides - the two shapes {@code roomsim.SimPrince} was given by him. A slab run
@@ -114,6 +117,7 @@ public final class CryptScanner {
             return out;
         }
         Set<BlockPos> slabs = new HashSet<>();
+        Set<BlockPos> bottoms = new HashSet<>();
         List<BlockPos> crowns = new ArrayList<>();
         for (int cx = bounds[0] >> 4; cx <= (bounds[2] >> 4); cx++) {
             for (int cz = bounds[1] >> 4; cz <= (bounds[3] >> 4); cz++) {
@@ -137,8 +141,12 @@ public final class CryptScanner {
                         for (int z = z0; z <= z1; z++) {
                             for (int ly = 0; ly < 16; ly++) {
                                 BlockState state = section.getBlockState(x & 15, ly, z & 15);
-                                if (isLidSlab(state)) {
-                                    slabs.add(new BlockPos(x, baseY + ly, z));
+                                if (state.is(Blocks.SMOOTH_STONE_SLAB)) {
+                                    BlockPos at = new BlockPos(x, baseY + ly, z);
+                                    slabs.add(at);
+                                    if (isLidSlab(state)) {
+                                        bottoms.add(at);
+                                    }
                                 } else if (state.is(Blocks.GOLD_BLOCK) || state.is(Blocks.SEA_LANTERN)) {
                                     BlockPos at = new BlockPos(x, baseY + ly, z);
                                     if (isPrinceCrown(level, at)) {
@@ -177,6 +185,15 @@ public final class CryptScanner {
             int w = f.maxX() - f.minX() + 1;
             int d = f.maxZ() - f.minZ() + 1;
             int n = run.size();
+            int bottom = 0;
+            for (BlockPos p : run) {
+                if (bottoms.contains(p)) {
+                    bottom++;
+                }
+            }
+            if (bottom * 2 <= n) {
+                continue; // mostly top or double slabs: a ledge or a ceiling, not a lid
+            }
             if (n < MIN_LID || n > MAX_LID || Math.min(w, d) < 2 || n * 4 < w * d * 3) {
                 continue;
             }
