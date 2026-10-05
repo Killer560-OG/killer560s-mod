@@ -210,7 +210,7 @@ final class AutoIcePath {
                 return;
             }
         }
-        if (AutoPuzzleUtil.pathIfMapOn(currSpot.above(), null)) {
+        if (AutoPuzzleUtil.pathIfMapOn(currSpot, null)) {
             say("walking to the silverfish's cell " + AutoPuzzleUtil.fmt(currSpot) + " (reposition "
                     + (reposition ? "found no warp" : "is off") + ")");
             return;

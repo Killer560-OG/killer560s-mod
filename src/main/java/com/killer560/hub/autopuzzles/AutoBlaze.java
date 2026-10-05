@@ -532,7 +532,7 @@ final class AutoBlaze {
                 return;
             }
             for (BlockPos far : farSpots) {
-                if (pathTried.add(far) && AutoPuzzleUtil.pathIfMapOn(far.above(), null)) {
+                if (pathTried.add(far) && AutoPuzzleUtil.pathIfMapOn(far, null)) {
                     say("no two-warp route to a spot with a shot at '" + nameOf(blazes.get(0)) + "' - asking the "
                             + "Interactive Map to path to " + AutoPuzzleUtil.fmt(far));
                     return;
