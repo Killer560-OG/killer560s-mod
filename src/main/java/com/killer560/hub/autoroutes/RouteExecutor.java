@@ -537,7 +537,8 @@ public final class RouteExecutor {
      * dropped for those ticks - otherwise the next etherwarp would wait a tick for a fresh one.
      */
     public static boolean holdsSneak() {
-        return running && forceSneak;
+        // Not while a node waits on its await: see tickAction - he is clicking the secrets it waits for.
+        return running && forceSneak && !(activeNode != null && awaitHeld);
     }
 
     /** The {@code Input} record the mixin installs for this tick. */
