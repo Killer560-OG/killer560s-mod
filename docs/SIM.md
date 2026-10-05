@@ -2208,8 +2208,12 @@ were the SIM's and three were the autos'; each is named at its fix.
   Interactive Map's planner - which could not path to the shaft floor by the bar and failed 1,100 times in a minute
   when it was asked every tick. "Blaze: done." now waits for the solver's list to stay empty for 30 ticks (a rebuilt chain
   empties it for a moment). Side arrows are followed until they land in the safety check (QUOI stopped them a few
-  blocks past the target, so one could fly on across the shaft and kill a far blaze out of order). No out-of-order
-  kill was seen in these runs once the blazes existed; the spread stays 5 degrees, QUOI's figure. Four shots from
+  blocks past the target, so one could fly on across the shaft and kill a far blaze out of order). One out-of-order kill
+  was seen once the blazes existed, and it was the auto's wait, not the spread: after a shot it waited
+  `distance / 2.5` ticks for the arrow, which for a steep shot up the shaft (28.8 blocks at pitch -84) is far shorter
+  than the climb, so a second shot left before the first landed; the first killed the blaze and the second flew on
+  through the empty space into the next blaze up. The wait is now the arrow's own simulated flight to its closest
+  approach plus four ticks. The spread stays 5 degrees, QUOI's figure. Four shots from
   one spot that kill nothing give that spot up for that blaze: on the Mod Only Test captures it fired 196 shots at one
   blaze from one spot, the simulated arrow clearing the ledge he stood on and the real ones dying in it. (Requiring
   the shot to be clean from the vanilla arrow origin, eye - 0.1, as well as QUOI's was tried and refused every spot

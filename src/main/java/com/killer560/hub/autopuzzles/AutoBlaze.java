@@ -202,9 +202,11 @@ final class AutoBlaze {
             currentTarget = null;
         }
         if (waitingForUpdate) {
-            double dist = target.position().distanceTo(player.position());
-            double travelTime = dist / 2.5 * 50.0;
-            if (now - lastShotTime > travelTime) {
+            // The arrow's own flight, simulated at the shot, not distance / 2.5: a steep shot up the shaft spends most
+            // of its time climbing, and the old estimate let a second shot go before the first had landed. When the
+            // first then killed the blaze, the second flew on through the empty space and killed the next blaze up
+            // out of order (93-solve, Mod Only Test captures, 2026-10-04: 28.8 blocks at pitch -84).
+            if (now - lastShotTime > shotFlightMs) {
                 waitingForUpdate = false;
             } else {
                 return;
@@ -268,6 +270,8 @@ final class AutoBlaze {
         lastShotTime = now;
         waitingForUpdate = true;
         currentTarget = blaze;
+        shotFlightMs = (flightTicks(AutoPuzzleUtil.arrowOrigin(eye, hitDir[0], terminator), hitDir[0], hitDir[1],
+                hitboxes.get(0).aabb().getCenter()) + 4) * 50L;
         if (!standing.equals(shotsFrom)) {
             shotsFrom = standing;
             shotsHere = 0;
@@ -285,6 +289,36 @@ final class AutoBlaze {
         }
         lastSaid = what;
         LOGGER.info("[AutoPuzzles] Blaze: {}", what);
+    }
+
+    /** How long the last shot's arrow needs to reach its target, with a few ticks' margin - see the wait in tick(). */
+    private static long shotFlightMs = 0L;
+
+    /** Ticks until a 3.0 / 0.99 drag / 0.05 gravity arrow comes closest to {@code target} - QUOI's own flight model. */
+    private static int flightTicks(Vec3 from, float yaw, float pitch, Vec3 target) {
+        double yawRad = Math.toRadians(yaw);
+        double pitchRad = Math.toRadians(pitch);
+        double px = from.x, py = from.y, pz = from.z;
+        double mx = -Math.sin(yawRad) * Math.cos(pitchRad) * 3.0;
+        double my = -Math.sin(pitchRad) * 3.0;
+        double mz = Math.cos(yawRad) * Math.cos(pitchRad) * 3.0;
+        double best = Double.MAX_VALUE;
+        int bestTick = 0;
+        for (int tick = 1; tick <= 100; tick++) {
+            px += mx;
+            py += my;
+            pz += mz;
+            double d = sq(px - target.x) + sq(py - target.y) + sq(pz - target.z);
+            if (d > best) {
+                break;
+            }
+            best = d;
+            bestTick = tick;
+            mx *= 0.99;
+            my = my * 0.99 - 0.05;
+            mz *= 0.99;
+        }
+        return bestTick;
     }
 
     private static String nameOf(Entity e) {
