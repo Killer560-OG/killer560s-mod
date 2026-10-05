@@ -2152,3 +2152,51 @@ and its far-off floor), 6 in Balcony (one of the four uncertain captures - its b
 1 Waterfall>Fairy. Not investigated further here.
 
 `tools/layoutsim/rotation.sh` had the same missing `SimWitherDoors` compile error as `floor.sh`; fixed.
+
+## 93-solve round B: Tic Tac Toe, Boulder, Three Weirdos, Water Board, Teleport Maze (2026-10-04, fix-puzB)
+
+Played by the testkit's `93-solve-*` scenarios on both capture sets (Mod Only Test and Map Logger), each auto alone,
+nobody at the keys except where the scenario says so.
+
+- **Tic Tac Toe: the last move was out of reach and nothing walked.** The Interactive Map's spot for the room
+  (relative 11,68,16) is where a walk into the room ends, not where the whole board is in reach; the last move sat
+  ~5.5 blocks off and the auto only logged "out of reach". It now walks into reach: `MazeWalk.planToSpot` runs one
+  Dijkstra over his floor and takes the nearest spot BY WALKING whose standing eye is within 4.0 of the button's box,
+  and the walk is the camera plus the forward key. Same on Hypixel.
+- **Boulder would not arm on Mod Only Test's capture** ("best 1 of 7"). The bind fingerprinted the seven buttons of
+  one row of the capture's OWN arrangement - but every capture holds whatever arrangement Hypixel dealt that run, and
+  Mod Only Test's is also turned a quarter. Decoded, the two captures agree only on the fixed room: the diorite
+  checkerboard under every other grid cell (21 cell centres at relative y 63) and the far staircase (stairs at
+  (13..17, 64, 27), barrier over them at y 68). That is the fingerprint now (31 of 31 land on both). The reward chest
+  moved from capture-local (30,66,16) to relative (15,66,29) through the bind's anchor, which is the same block in
+  every capture. **Bind a puzzle to what the room always has, never to the puzzle's own state.**
+- **Boulder: the chest is behind the boxes, so the auto has to push.** The old "stand 3 up and 3 back from the chest
+  and aura it" spot is the air over the barrier roof, and etherwarp is refused in Boulder, so the map walk failed.
+  Auto Boulder now: finds the chest (scan), gets off the roof if he is on it (a hole in the roof found in the world
+  whose fall lands on the floor and whose landing walks to the grid's front, relative (15,64,7)), presses each of
+  Boulder Solver's buttons from a walked-to spot in reach (only once that button exists - it is laid after the box
+  before it moves), walks into reach of the chest across the opened floor and auras it, then asks the map for the
+  doorway once. Every stage change and refusal is an INFO line. The sim presses the box on the SERVER copy of
+  `UseBlockCallback` now (raw packets push too) and records the reward chest being opened
+  (`SimBoulderPuzzle.isRewardChestOpened`). A single-room Boulder spawns one block in from its doorway, like the maze:
+  the tile-centre scan put him on the floor inside whatever ring of boxes the arrangement had, walled in.
+- **Three Weirdos never spoke to the auto.** The weirdo spoke from the CLIENT copy of `UseEntityCallback`, which Fabric
+  fires only from `Minecraft.startUseItem` - a real click - so `gameMode.interact` (the same packet) did nothing. The
+  SERVER copy (inside `ServerGamePacketListenerImpl.handleInteract`, javap of fabric-events-interaction 5.2.8) now
+  speaks, with `ServerPlayer.sendSystemMessage`; left clicks pass on the client and are answered (and cancelled) on
+  the server. Auto Three Weirdos logs each NPC it talks to and every reason it waits. It still never walks to the
+  NPCs; the scenario places him.
+- **Water Board: QUOI's spots are out of reach.** Standing on (15,58,z), every side lever (x 10 or 20) is 4.52-4.54
+  eye-to-box, past 4.5. The auto now warps only when the lever is not already in reach, onto the standable lever-floor
+  block nearest QUOI's spot whose standing eye is within 4.3 of the lever and which an etherwarp can aim at (read off
+  the world, so the same on Hypixel). Every refusal is logged (`Water: waiting - ...`).
+- **Teleport Maze starts from the entrance.** Besides a map arrival, the start-pad walk now runs when he is in the maze,
+  before any teleport, on the ground, with none of his movement keys down for 10 ticks, and the start pad is at most 24
+  blocks away on foot - once per visit. And when every pad in his chamber is visited (the solver's "best" pad had sent
+  him sideways twice), it takes the diagonal again instead of stopping; 60 teleports without the end stop it.
+- **Test aid:** `SimPuzzles.isRoomComplete(roomName)` - one solved signal per ROOM (Three Weirdos and Quiz share
+  `SimQuizPuzzle`, so `isWeirdosComplete`/`isQuizComplete` tell them apart). Boulder's is the path opening.
+
+**Record** (testkit at master, merged main, five scenarios per launch): 3 of 3 launches all five PASS on Mod Only Test
+and 3 of 3 on Map Logger, on the final jar, after the same on the jar before the merge. The scenario still teleports
+him to the weirdos (Approach NEAR_WEIRDOS); Teleport Maze and Boulder approached by themselves.
