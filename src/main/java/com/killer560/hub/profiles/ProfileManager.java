@@ -331,6 +331,17 @@ public final class ProfileManager {
                 com.killer560.hub.abilitytimers.AbilityTimersConfig::load,
                 com.killer560.hub.autokick.AutoKickConfig::load,
                 com.killer560.hub.autoclosechest.AutoCloseChestConfig::load,
+                // Missing from this list until the testkit's profile round trip (2026-10-04) caught them: applying a
+                // profile wrote their file but left the old values in memory, and the next save put those back.
+                com.killer560.hub.autodebuff.AutoDebuffConfig::load,
+                com.killer560.hub.autosell.AutoSellConfig::load,
+                com.killer560.hub.bazaarflip.BazaarFlipConfig::load,
+                com.killer560.hub.bugreport.BugReportConfig::load,
+                com.killer560.hub.invsort.InventorySorterConfig::load,
+                com.killer560.hub.mining.chmap.CrystalHollowsMapConfig::load,
+                com.killer560.hub.mining.nucleus.NucleusRunProfitConfig::load,
+                com.killer560.hub.mining.profit.MiningProfitConfig::load,
+                com.killer560.hub.updatecheck.UpdateCheckConfig::load,
                 com.killer560.hub.autocorrect.AutoCorrectConfig::load,
                 com.killer560.hub.trail.TrailConfig::load,
                 com.killer560.hub.position.PositionConfig::load,
