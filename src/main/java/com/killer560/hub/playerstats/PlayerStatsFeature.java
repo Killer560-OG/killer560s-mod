@@ -23,8 +23,9 @@ import java.util.regex.Pattern;
  * mana at all, since both share the exact same shape (a real mistake caught and fixed before this ever
  * built). Reads the real overlay text via {@code ClientReceiveMessageEvents.MODIFY_GAME} and, once a
  * line has matched at least one of the three icon-anchored patterns below (i.e. it's confirmed to be the
- * real stat line, not some other action-bar use like an ability name), drops that one line from the screen -
- * see {@link #shouldHideActionBar} - the same "replace it, don't just add to it" treatment
+ * real stat line, not some other action-bar use like an ability name), takes the stat segments out of it
+ * when "Hypixel Stat Text" is on under Hide -
+ * see {@link #actionBarReplacement} - the same "replace it, don't just add to it" treatment
  * {@link #registerVanillaSuppression()} already gives the vanilla hearts/hunger/armour/air bars. Any
  * action-bar text that doesn't match a pattern is left completely alone.
  * <p>
@@ -47,10 +48,43 @@ public final class PlayerStatsFeature {
     private static final Pattern HEALTH_REGEX = Pattern.compile("([\\d,]+)/([\\d,]+)" + CODES + "[\uE010\u2764]");
     private static final Pattern MANA_REGEX = Pattern.compile("([\\d,]+)/([\\d,]+)" + CODES + "[\uE003\u270E]");
     private static final Pattern DEFENSE_REGEX = Pattern.compile("([\\d,]+)" + CODES + "[\uE008\u2748]");
+    // Overflow mana (2026-10-04): Hypixel shows it as "(3)200<U+02AC>" right after the mana segment once mana is
+    // past max - the same pattern SkyHanni's ActionBarStatsData reads. It has no max, so it is text only.
+    // Its colour code is (3), a DIGIT, so a bare "([\\d,]+)" read "(3)200" as 3200 (caught by a scratch run of
+    // these patterns against a sample line, 2026-10-04). The match now starts where a number cannot continue
+    // and takes the colour codes itself. Same guard on OTHER_REGEX below.
+    private static final String NUMBER_START = "(?<![\u00A7\\d,])" + CODES;
+    private static final Pattern OVERFLOW_REGEX = Pattern.compile(NUMBER_START + "([\\d,]+)" + CODES + "\u02AC");
+    // Any OTHER "current/max<icon>" segment on the stat line (2026-10-04): killer560's screenshot of that day
+    // shows a fourth one, a red "117/117" with its own resource-pack icon, beside health/defence/mana. What it
+    // is changes with what he is doing, so it is read generically: the first n/n followed by a non-ASCII icon
+    // that is not the health or mana icon. ASCII is excluded so "(1/3)" or "5/7 Secrets" never count.
+    private static final Pattern OTHER_REGEX =
+            Pattern.compile(NUMBER_START + "([\\d,]+)/([\\d,]+)" + CODES + "([^\\x00-\\x7F\u00A7])");
+    private static final String HEALTH_ICONS = "\uE010\u2764";
+    private static final String MANA_ICONS = "\uE003\u270E";
+    // What "Hide Hypixel Stat Text" removes from the line. Each takes its own leading colour codes and, for
+    // defence and mana, the trailing word Hypixel sometimes prints ("Defense", "Mana").
+    private static final Pattern[] STRIP = {
+            Pattern.compile(CODES + "[\\d,]+/[\\d,]+" + CODES + "[\uE010\u2764]"),
+            Pattern.compile(CODES + "[\\d,]+/[\\d,]+" + CODES + "[\uE003\u270E](?:" + CODES + " Mana)?"),
+            Pattern.compile(CODES + "[\\d,]+" + CODES + "[\uE008\u2748](?:" + CODES + " Defense)?"),
+            Pattern.compile(CODES + "[\\d,]+" + CODES + "\u02AC"),
+            Pattern.compile(CODES + "[\\d,]+/[\\d,]+" + CODES + "[^\\x00-\\x7F\u00A7]"),
+    };
 
     private static String health = null;
     private static String mana = null;
     private static String defense = null;
+    // Numeric copies for the custom bars and readouts (StatElements). -1 = not seen yet this session.
+    static long healthCur = -1, healthMax = -1;
+    static long manaCur = -1, manaMax = -1;
+    static long defenceValue = -1;
+    static long overflowMana = -1;
+    static long otherCur = -1, otherMax = -1;
+    static String otherIcon = "";
+    /** Re-entry guard for the mixin, which re-sends a stripped line through setOverlayMessage. */
+    private static boolean resending = false;
 
     private PlayerStatsFeature() {
     }
@@ -58,6 +92,19 @@ public final class PlayerStatsFeature {
     public static void register() {
         ClientReceiveMessageEvents.MODIFY_GAME.register(PlayerStatsFeature::onModifyGameMessage);
         registerVanillaSuppression();
+        // Experience bar + level (2026-10-04, killer560: "add an option to hide the enchanting bar and its
+        // level"). Fabric's INFO_BAR is the contextual bar slot - the XP bar, and also the locator and
+        // mount-jump bars that take its place - and EXPERIENCE_LEVEL is the number over it (javap,
+        // fabric-rendering-v1 23.3.1 and 25.3.3). Same replaceElement shape as the hides below. Independent of
+        // the Stat Bars master toggle; Skyblock Only like the rest of the mod.
+        net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement noOp = (graphics, deltaTracker) -> {
+        };
+        HudElementRegistry.replaceElement(VanillaHudElements.INFO_BAR, orig -> hidingXp() ? noOp : orig);
+        HudElementRegistry.replaceElement(VanillaHudElements.EXPERIENCE_LEVEL, orig -> hidingXp() ? noOp : orig);
+    }
+
+    private static boolean hidingXp() {
+        return PlayerStatsConfig.getInstance().isHideXpBar() && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     /**
@@ -118,27 +165,103 @@ public final class PlayerStatsFeature {
         if (defenseHit) {
             defense = defenseMatch.group(1);
         }
+        if (healthHit) {
+            healthCur = num(healthMatch.group(1));
+            healthMax = num(healthMatch.group(2));
+        }
+        if (manaHit) {
+            manaCur = num(manaMatch.group(1));
+            manaMax = num(manaMatch.group(2));
+        }
+        if (defenseHit) {
+            defenceValue = num(defenseMatch.group(1));
+        }
+        if (healthHit || manaHit || defenseHit) {
+            // Only read the extras off a confirmed stat line, and clear them when the line no longer carries
+            // them, so overflow mana that has drained (or a resource that went away) stops showing.
+            Matcher overflowMatch = OVERFLOW_REGEX.matcher(raw);
+            overflowMana = overflowMatch.find() ? num(overflowMatch.group(1)) : -1;
+            otherCur = -1;
+            otherMax = -1;
+            Matcher otherMatch = OTHER_REGEX.matcher(raw);
+            while (otherMatch.find()) {
+                String icon = otherMatch.group(3);
+                if (HEALTH_ICONS.contains(icon) || MANA_ICONS.contains(icon)) {
+                    continue;
+                }
+                otherCur = num(otherMatch.group(1));
+                otherMax = num(otherMatch.group(2));
+                otherIcon = icon;
+                break;
+            }
+        }
         // The stat line is hidden from the screen (killer560, 2026-09-27: "it didn't hide the text that the
         // server normally has"), but NOT here. Fabric chains MODIFY_GAME and then hands the result to GAME and
         // to Gui.setOverlayMessage (javap, fabric-message-api-v1 7.0.5 and 7.0.8), so returning
         // Component.empty() here blanked the line for every later reader: Ability Cooldown's own MODIFY_GAME
         // listener, the GAME overlay readers (live map, Auto Routes, interop room secrets) and the Custom
         // Scoreboard's "x/y Secrets". The line now passes through untouched and the Gui mixin
-        // (CustomScoreboardGuiMixin) drops it at setOverlayMessage via shouldHideActionBar, after the
+        // (CustomScoreboardGuiMixin) strips it at setOverlayMessage via actionBarReplacement, after the
         // scoreboard has read it.
         return message;
     }
 
-    /** True for an action-bar line Stat Bars replaces: Stat Bars is on and the line carries at least one of
-     *  the three icon-anchored stat patterns. Any other action-bar text (an ability name, a warning) is never
-     *  hidden. Called from {@code CustomScoreboardGuiMixin} at {@code setOverlayMessage} HEAD. */
-    public static boolean shouldHideActionBar(Component message) {
-        if (message == null || !PlayerStatsConfig.getInstance().isEnabled()) {
-            return false;
+    /** Parses "1,234" to 1234; -1 on anything unparsable. Never throws - this runs on the packet path, where
+     *  a throw disconnects him from Hypixel (see CLAUDE.md). The regex digits are unbounded, so an over-long
+     *  run of them is caught here rather than trusted. */
+    static long num(String digits) {
+        try {
+            return Long.parseLong(digits.replace(",", ""));
+        } catch (RuntimeException e) {
+            return -1;
+        }
+    }
+
+    /**
+     * What {@code setOverlayMessage} should show instead of {@code message}: the same object when nothing
+     * changes, {@code null} to drop the line, or a new line with Hypixel's stat segments taken out.
+     * <p>
+     * Before 2026-10-04 a stat line was dropped WHOLE whenever Stat Bars was on, which also took whatever else
+     * Hypixel puts on that line ("5/7 Secrets", an ability name). It is now its own option, "Hypixel Stat
+     * Text" under Hide (killer560: "add an option to hide the text Hypixel has like 3000/3000 with the heart
+     * symbol"), and only the stat segments go. Only a line carrying health, mana or defence is touched; the
+     * extras (overflow mana, the other n/n resource) are only removed from such a line. Called from
+     * {@code CustomScoreboardGuiMixin} at {@code setOverlayMessage} HEAD, after the scoreboard has read it.
+     */
+    public static Component actionBarReplacement(Component message) {
+        if (message == null || resending || !PlayerStatsConfig.getInstance().isHideHypixelStatText()
+                || !com.killer560.hub.util.SkyblockGate.allows()) {
+            return message;
         }
         String raw = message.getString();
-        return HEALTH_REGEX.matcher(raw).find() || MANA_REGEX.matcher(raw).find()
-                || DEFENSE_REGEX.matcher(raw).find();
+        if (!HEALTH_REGEX.matcher(raw).find() && !MANA_REGEX.matcher(raw).find()
+                && !DEFENSE_REGEX.matcher(raw).find()) {
+            return message;
+        }
+        String left = raw;
+        for (Pattern p : STRIP) {
+            left = p.matcher(left).replaceAll("");
+        }
+        if (left.replaceAll("\u00A7.", "").isBlank()) {
+            return null;
+        }
+        // Hypixel separates segments with runs of spaces; removing some leaves wide gaps, so close them up.
+        return Component.literal(left.replaceAll(" {2,}", "     ").trim());
+    }
+
+    /** True while the mixin is re-sending a stripped line, so it is not processed (or read) a second time. */
+    public static boolean isResending() {
+        return resending;
+    }
+
+    /** Runs {@code send} (a setOverlayMessage call with the stripped line) with the re-entry guard up. */
+    public static void resend(Runnable send) {
+        resending = true;
+        try {
+            send.run();
+        } finally {
+            resending = false;
+        }
     }
 
     public static final class StatsHudElement implements HudElement {

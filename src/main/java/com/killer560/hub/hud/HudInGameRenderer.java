@@ -52,7 +52,9 @@ public final class HudInGameRenderer {
         // time. One call per frame, not per element.
         HudSeen.markHudFrame();
         for (HudElement element : com.killer560.hub.hud.HudElementRegistry.all()) {
-            if (!UNDRAWN_ELEMENT_IDS.contains(element.id())) {
+            // Stat Bars' custom bars and readouts (2026-10-04) are drawn here too, by prefix rather than by name.
+            if (!UNDRAWN_ELEMENT_IDS.contains(element.id())
+                    && !com.killer560.hub.playerstats.StatElements.isStatElementId(element.id())) {
                 continue;
             }
             int[] pos = com.killer560.hub.hud.HudElementRegistry.resolvePosition(element);

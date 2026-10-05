@@ -15,9 +15,8 @@ public class HelpersTab extends FolderTab {
 
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
-                new ExperimentsTab(),
-                // Moved out of New 2026-09-16.
-                new EtherwarpOverlayTab()
+                new ExperimentsTab()
+                // Etherwarp Overlay moved out of New 2026-09-16, then on to General 2026-10-04 (killer560).
         ));
         // The autonomous Experimentation Table macro got its own section here 2026-09-30, per killer560:
         // "Move the auto etable stuff into its own red header in the same helpers tab but different area."
