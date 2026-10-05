@@ -289,6 +289,8 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   player's position, packet rotation, sneak and held item, and teleport with a real position packet. Until
   2026-10-04 they reacted to the client's `gameMode` calls instead, and `RouteExecutor`/`ClearExecutor` grew sim
   branches to cope - the opposite of why the sim exists. If a feature behaves differently in the sim, fix the sim.
+  The same goes for a puzzle's JUDGE: Ice Fill read `client.player` once a client tick and missed a tile whenever two
+  teleports reached the client between ticks (2026-10-05); it now judges on the server, every landing.
 - **Moving a setting to a different sub-tab silently orphans its scoped tooltip.** `SettingTooltips.describe`
   looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
   entry stops being found the moment that button is built by a different tab - no error, the hover text just
