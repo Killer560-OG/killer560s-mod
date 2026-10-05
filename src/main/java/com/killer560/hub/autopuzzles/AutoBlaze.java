@@ -87,6 +87,12 @@ final class AutoBlaze {
     private static boolean loggedNotShortbow = false;
     /** The last refusal logged by {@link #say}, so a per-tick refusal is one INFO line, not twenty a second. */
     private static String lastSaid = null;
+    /** Shots at the current target from {@link #shotsFrom}; past {@link #MAX_SHOTS_HERE} that spot is given up. */
+    private static int shotsHere = 0;
+    private static BlockPos shotsFrom = null;
+    private static final int MAX_SHOTS_HERE = 4;
+    /** Spots given up on for the current target - never chosen again for it. */
+    private static final java.util.Set<BlockPos> badSpots = new java.util.HashSet<>();
     /** Consecutive ticks the solver's list has been empty since it last held blazes - see {@link #DONE_TICKS}. */
     private static int emptyTicks = 0;
     /**
@@ -209,11 +215,23 @@ final class AutoBlaze {
         List<BlazeHitbox> hitboxes = hitboxes(blazes, blaze);
         if (blaze != loggedTarget) {
             loggedTarget = blaze;
+            shotsHere = 0;
+            badSpots.clear();
             LOGGER.info("[AutoPuzzles] Blaze: target 1 of {} is '{}', stand at {}, aiming at y {}", blazes.size(),
                     nameOf(blaze), fmt(blaze.position()), String.format("%.2f", hitboxes.get(0).aabb().getCenter().y));
         }
         boolean terminator = AutoPuzzleUtil.hasTerminator(player);
         float[] hitDir = canHit(client, player, player.getEyePosition(), hitboxes, terminator);
+        BlockPos standing = BlockPos.containing(player.getX(), Math.ceil(player.getY() - 1.0), player.getZ());
+        if (hitDir != null && shotsHere >= MAX_SHOTS_HERE && standing.equals(shotsFrom)) {
+            // The arrows from here are not landing, whatever the simulation says. Count this spot out for this
+            // blaze and move, rather than shoot at it for the rest of the run.
+            LOGGER.info("[AutoPuzzles] Blaze: {} shots at '{}' from {} and it is still alive - trying another spot",
+                    shotsHere, nameOf(blaze), AutoPuzzleUtil.fmt(standing));
+            badSpots.add(standing);
+            shotsHere = 0;
+            hitDir = null;
+        }
         if (hitDir == null) {
             if (blaze != loggedNoShot) {
                 loggedNoShot = blaze;
@@ -250,6 +268,11 @@ final class AutoBlaze {
         lastShotTime = now;
         waitingForUpdate = true;
         currentTarget = blaze;
+        if (!standing.equals(shotsFrom)) {
+            shotsFrom = standing;
+            shotsHere = 0;
+        }
+        shotsHere++;
         LOGGER.info("[AutoPuzzles] Blaze: shot at '{}' from {}, yaw {} pitch {}, {} blocks", nameOf(blaze),
                 fmt(eye), String.format("%.1f", dir[0]), String.format("%.1f", dir[1]),
                 String.format("%.1f", eye.distanceTo(blaze.position())));
@@ -307,7 +330,11 @@ final class AutoBlaze {
         for (Vec3 point : testPoints) {
             float[] dir = AutoPuzzleUtil.arrowDirection(eyePos, point, terminator);
             Vec3 origin = AutoPuzzleUtil.arrowOrigin(eyePos, dir[0], terminator);
-            if (isSafe(client, player, origin, dir[0], dir[1], hitboxes, false)) {
+            // From QUOI's origin AND from 0.09 lower, where a vanilla arrow starts (eye - 0.1): a steep shot down
+            // past the edge of the ledge he stands on clears the one and clips the other, and every arrow then
+            // dies in the ledge - 196 shots at one blaze from one spot in the 93-solve run of 2026-10-04.
+            if (isSafe(client, player, origin, dir[0], dir[1], hitboxes, false)
+                    && isSafe(client, player, origin.add(0, -0.09, 0), dir[0], dir[1], hitboxes, false)) {
                 if (!terminator || (isSafe(client, player, origin, dir[0] + 5f, dir[1], hitboxes, true)
                         && isSafe(client, player, origin, dir[0] - 5f, dir[1], hitboxes, true))) {
                     return dir;
@@ -393,7 +420,7 @@ final class AutoBlaze {
         for (int j = 0; j < spots.length; j++) {
             int i = (currentSpot + j + 1) % spots.length;
             BlockPos realSpot = PuzzleCoords.real(spots[i], cr);
-            if (AutoPuzzleUtil.at(player, realSpot)) {
+            if (AutoPuzzleUtil.at(player, realSpot) || badSpots.contains(realSpot)) {
                 continue; // already here, and the shot from here was just found wanting
             }
             Vec3 spotEye = new Vec3(realSpot.getX() + 0.5, realSpot.getY() + 1 + AutoPuzzleUtil.EYE_SNEAKING,
@@ -486,7 +513,7 @@ final class AutoBlaze {
         int end = Math.min(searchSpots.size(), searchIndex + SEARCH_PER_TICK);
         for (; searchIndex < end; searchIndex++) {
             BlockPos spot = searchSpots.get(searchIndex);
-            if (AutoPuzzleUtil.at(player, spot)) {
+            if (AutoPuzzleUtil.at(player, spot) || badSpots.contains(spot)) {
                 continue;
             }
             Vec3 eye = new Vec3(spot.getX() + 0.5, spot.getY() + 1 + AutoPuzzleUtil.EYE_SNEAKING, spot.getZ() + 0.5);
@@ -683,6 +710,9 @@ final class AutoBlaze {
         currentTarget = null;
         currentSpot = 0;
         lastBlazeCount = 0;
+        shotsHere = 0;
+        shotsFrom = null;
+        badSpots.clear();
         searchSpots = null;
         searchFor = null;
         searchIndex = 0;
