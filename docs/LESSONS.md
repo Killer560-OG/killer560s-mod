@@ -194,8 +194,15 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   the rule below about API names - an unresolved method is indistinguishable from a misspelt one here.
 
 - **Auto Routes on GrimAC (2026-10-05, testkit 62-argrim).** Obvious mode sent each use with a rotation the client never
-  reported (BadPacketsJ on every etherwarp) - the bug Auto Puzzles fixed on 2026-09-27; `ClearExecutor.doInteract` (map
-  warps, Go To) still does it. Digs must carry the face the eye sees (an always-UP face is PositionBreakA), an ABORT says
-  DOWN as vanilla does (any other face is PositionBreakB on every later dig), and no input packet may say sneak while a
-  container is open (MultiActionsD on its close). Obvious mode now turns the body with the camera held (`turnBody`/
-  `tickView` in RouteExecutor). Multi Break's six STARTs on one tick, aimed at the first, drew nothing from GrimAC.
+  reported (BadPacketsJ on every etherwarp) - the bug Auto Puzzles fixed on 2026-09-27, and `ClearExecutor.doInteract`
+  (every Interactive Map warp and Go To) had it too until 09e2c304 (62-argrim-imwarp/-goto). Digs must carry the face the
+  eye sees (an always-UP face is PositionBreakA), an ABORT says DOWN as vanilla does (any other face is PositionBreakB on
+  every later dig), and no input packet may say sneak while a container is open (MultiActionsD on its close). Both
+  executors now turn the body with the camera held through `util/BodyAim`, one instance each. Multi Break's six STARTs on
+  one tick, aimed at the first, drew nothing from GrimAC.
+- A hotbar swap sent by hand (`ServerboundSetCarriedItemPacket` after `setSelectedSlot`) leaves the game mode's
+  `carriedIndex` stale, and its `tick()` then sends the same slot again: GrimAC BadPacketsA. Swap through
+  `MultiPlayerGameModeInvoker.invokeEnsureHasSentCarriedItem` (RouteExecutor.select, ClearExecutor.swapById since 09e2c304).
+- An await met by the chest CLICK (2026-10-05 rules) lets the route warp before the chest's window arrives, which is
+  right - Hypixel credits the chest on the click - but the late window then stopped the route ("a screen opened"). A
+  container screen within 2 s of our own chest click is now waited under (98b457be; 96-ar-play emulates the late window).
