@@ -185,6 +185,9 @@ public final class RouteExecutor {
      *  {@link #beginAction}, read/advanced in {@link #tickAction}. AWAIT stopped being its own node type
      *  (2026-09-2x) - {@link #tickAwait} is now this pre-action gate for ANY node, not a case of its own. */
     private static boolean awaitPhaseDone = true;
+    /** True from a node with an await firing until its own action starts - the span a screen may be open in
+     *  (a secret chest's window) without stopping the route. */
+    private static boolean awaitHeld;
 
     // ---- input ----
     private static boolean mixinApplied;
@@ -577,6 +580,24 @@ public final class RouteExecutor {
             return;
         }
         if (McCompat.screen(client) != null) {
+            if (activeNode != null && awaitHeld) {
+                // Waiting on secrets: the screen is almost always the secret itself - a chest's own window
+                // (killer560's await:2 waits for exactly that). The wait carries on under it, the keys stay off,
+                // and the node fires on the first tick the screen is closed. Anything else still stops the route.
+                clearMovement();
+                applyFallbackKeys(client);
+                if (!awaitPhaseDone) {
+                    stepTicks++;
+                    actionAge++;
+                    tickAwait(client, player, activeNode);
+                    if (awaitPhaseDone) {
+                        awaitDoneAge = actionAge;
+                        LOGGER.info("[AutoRoutes] Node #{} {}: await met under a screen after {} tick(s) - fires when "
+                                + "it closes", route.indexOf(activeNode) + 1, activeNode.type, actionAge);
+                    }
+                }
+                return;
+            }
             stop("a screen opened");
             return;
         }
@@ -918,6 +939,7 @@ public final class RouteExecutor {
         // tickAwait - see tickAction. Nothing else about the node starts until that gate opens.
         // A legacy standalone AWAIT node (an unmigrated file) is nothing but this wait.
         awaitPhaseDone = !node.awaitEnabled && node.type != RouteNode.Type.AWAIT;
+        awaitHeld = !awaitPhaseDone;
         breakerQueue = new ArrayList<>();
         breakerSent.clear();
         hopIndex = -1;
@@ -1057,6 +1079,7 @@ public final class RouteExecutor {
                         actionAge);
             }
         }
+        awaitHeld = false;
         switch (node.type) {
             case START, AWAIT -> {
                 logActed(node, "");
@@ -1155,6 +1178,12 @@ public final class RouteExecutor {
                     countedBats.add(bat.getId());
                     awaitBatSecrets++;
                 }
+            }
+            if (awaitBaselineSecrets < 0 && secretsFound >= 0) {
+                // No "x/y Secrets" line had arrived yet when the wait began - always the case for a START node
+                // with an await, because start() forgets the last count. The first count seen is the baseline;
+                // left at -1 the wait could never end (found 2026-10-05 by 96-ar-path).
+                awaitBaselineSecrets = secretsFound;
             }
             int fromBar = secretsFound < 0 || awaitBaselineSecrets < 0 ? 0 : Math.max(0, secretsFound - awaitBaselineSecrets);
             done = fromBar + awaitBatSecrets >= Math.max(1, node.awaitAmount);

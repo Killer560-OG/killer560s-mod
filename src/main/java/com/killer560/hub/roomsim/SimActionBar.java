@@ -44,7 +44,7 @@ public final class SimActionBar {
             if (entry == null || entry.secrets <= 0) {
                 continue;
             }
-            int found = Math.min(entry.secrets, SimScore.foundInRoom(room));
+            int found = SimScore.foundInRoom(room);
             sp.sendSystemMessage(Component.literal("§7" + found + "/" + entry.secrets + " Secrets"), true);
         }
     }
