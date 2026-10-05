@@ -165,18 +165,39 @@ public final class SimAbilities {
                 return InteractionResult.PASS;
             }
             markAbilityUsed();
-            return InteractionResult.SUCCESS;
+            return sendHeldSlotFirst(client);
         }
         if (isAbilityItem(id)) {
             markAbilityUsed();
-            return InteractionResult.SUCCESS;
+            return sendHeldSlotFirst(client);
         }
         // An item the server is about to refuse in a trap room (an ender pearl): no client prediction of a throw
         // the server will not make.
         if (trapLocked(id, SimState.currentRoomName())) {
-            return InteractionResult.SUCCESS;
+            return sendHeldSlotFirst(client);
         }
         return InteractionResult.PASS;
+    }
+
+    /**
+     * Tells the server which slot is held BEFORE the use packet goes, then answers SUCCESS.
+     *
+     * <p>Fabric's client {@code UseItemCallback} hook sits on {@code MultiPlayerGameMode.useItem} AT the call to
+     * {@code ensureHasSentCarriedItem}, before it (fabric-events-interaction 5.2.2, javap), and a SUCCESS cancels the
+     * method there. So vanilla's "send the selected slot first" never ran for any item this class answers: a swap
+     * and a use in the same tick - which is every Auto Puzzles reposition made with sneak already held (Auto Routes
+     * sends its slot itself, RouteExecutor.select) - reached the integrated server as a use of the PREVIOUS item, with the slot packet
+     * following on the next tick. In the 93-solve runs of 2026-10-04 each reposition that came right after a shot
+     * fired the Terminator along the etherwarp's aim and timed out (client "warp sent ... holding ASPECT_OF_THE_VOID",
+     * server "use TERMINATOR slot 1"); in Ice Path those arrows landed on the silverfish's next cell and shoved it.
+     * Hypixel never saw this - there the callback passes and vanilla sends the slot first - so the sim now does
+     * exactly what vanilla would have done at that point.
+     */
+    private static InteractionResult sendHeldSlotFirst(Minecraft client) {
+        if (client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker) {
+            invoker.killer560smod$invokeEnsureHasSentCarriedItem();
+        }
+        return InteractionResult.SUCCESS;
     }
 
     /** True on the integrated server of a live sim session. */

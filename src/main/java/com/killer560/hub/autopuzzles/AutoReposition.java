@@ -117,6 +117,10 @@ final class AutoReposition {
                 if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
                     return; // gate held this tick back - stay in USE and warp on a later tick
                 }
+                LOGGER.info("[AutoPuzzles] {}: warp sent onto {} (yaw {} pitch {}, holding {}, sneaking {})", tag,
+                        AutoPuzzleUtil.fmt(spot), String.format(java.util.Locale.ROOT, "%.1f", dir[0]),
+                        String.format(java.util.Locale.ROOT, "%.1f", dir[1]),
+                        AutoPuzzleUtil.skyblockId(player.getMainHandItem()), player.isShiftKeyDown());
                 // Our own warp - waive the gate's teleport stand-down so the arrival step isn't held off too.
                 com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
                 wait = ARRIVE_TIMEOUT_TICKS;

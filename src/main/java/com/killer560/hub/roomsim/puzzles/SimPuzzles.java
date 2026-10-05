@@ -72,11 +72,29 @@ public final class SimPuzzles {
         COMPLETE.put("icepath", SimIcePathPuzzle::isComplete);
     }
 
-    /** Whether the named puzzle (a {@link #names()} key) has been solved; false for an unknown name. */
+    /**
+     * THE "puzzle solved" signal, one per puzzle - what the tab list reads and what a test should read.
+     *
+     * <p>Takes either a {@link #names()} key ({@code "icepath"}) or the ROOM's name as the live map gives it
+     * ({@code "Ice Path"}, {@code "Lower Blaze"}). The two blaze rooms share one puzzle class, so a blaze room name
+     * is only complete when the armed arena is THAT room and it is complete - "Higher Blaze" never reads true off a
+     * solved Lower Blaze. False for an unknown name, and never throws.
+     */
     public static boolean isComplete(String rawName) {
-        java.util.function.BooleanSupplier s = rawName == null ? null : COMPLETE.get(rawName.toLowerCase(Locale.ROOT));
+        if (rawName == null) {
+            return false;
+        }
+        String name = rawName.toLowerCase(Locale.ROOT);
+        String key = COMPLETE.containsKey(name) ? name : com.killer560.hub.roomsim.SimRoomPuzzles.puzzleKey(rawName);
+        java.util.function.BooleanSupplier s = key == null ? null : COMPLETE.get(key);
         try {
-            return s != null && s.getAsBoolean();
+            if (s == null || !s.getAsBoolean()) {
+                return false;
+            }
+            if (name.equals("higher blaze") || name.equals("lower blaze")) {
+                return rawName.equalsIgnoreCase(SimBlazePuzzle.boundRoom());
+            }
+            return true;
         } catch (Throwable t) {
             return false;
         }

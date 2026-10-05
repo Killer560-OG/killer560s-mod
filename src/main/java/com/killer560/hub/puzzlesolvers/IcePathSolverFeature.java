@@ -43,6 +43,13 @@ public final class IcePathSolverFeature {
     private static int stillTicks = 0;
     private static boolean moving = false;
     private static RoomEntry lastRoomEntry = null;
+    /**
+     * The board has changed since the path was last solved. Kept across ticks rather than read off one tick's
+     * {@code updateBoard}: the board is read before the silverfish is looked for, and a tick on which the fish is not
+     * found (or is sliding) returns before solving - so a change seen on that tick used to be thrown away, and a board
+     * that first read all air (chunks not yet on the client) and then filled in was never solved again.
+     */
+    private static boolean boardDirty = false;
 
     private IcePathSolverFeature() {
     }
@@ -115,7 +122,9 @@ public final class IcePathSolverFeature {
             return;
         }
         Level level = client.level;
-        boolean boardChanged = updateBoard(level, cr);
+        if (updateBoard(level, cr)) {
+            boardDirty = true;
+        }
 
         // 20, not 16. The board is 17 cells across, so its far corners sit exactly 8 from this centre - the
         // edge of a 16-wide box - and whether a silverfish standing there was found at all came down to its
@@ -151,8 +160,9 @@ public final class IcePathSolverFeature {
                         + cell[1] + " - off a 17x17 board, so there is nothing to solve from");
                 return;
             }
-            if (silverfishCell == null || silverfishCell[0] != cell[0] || silverfishCell[1] != cell[1] || boardChanged) {
+            if (silverfishCell == null || silverfishCell[0] != cell[0] || silverfishCell[1] != cell[1] || boardDirty) {
                 silverfishCell = cell;
+                boardDirty = false;
                 solve(cr);
             }
         }
@@ -255,5 +265,6 @@ public final class IcePathSolverFeature {
         lastPos = Vec3.ZERO;
         stillTicks = 0;
         moving = false;
+        boardDirty = false;
     }
 }

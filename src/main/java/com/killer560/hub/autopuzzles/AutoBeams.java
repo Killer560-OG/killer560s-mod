@@ -59,6 +59,9 @@ public final class AutoBeams {
     private static boolean active = false;
     /** What the log last said about the bow, so it is said once per change. */
     private static AutoPuzzleUtil.BowState loggedBow = null;
+    private static String lastSaid = null;
+    /** The last platform spot that could not be warped onto, skipped by the next pick. */
+    private static BlockPos failedSpot = null;
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autopuzzles");
 
     private AutoBeams() {
@@ -122,11 +125,28 @@ public final class AutoBeams {
 
         LocalPlayer player = client.player;
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
-        if (!GUARD.fresh() || McCompat.screen(client) != null || solvedPairs >= 4 || pairs.isEmpty() || cr == null) {
+        if (!GUARD.fresh()) {
+            return; // AutoGuard logs this one itself
+        }
+        if (McCompat.screen(client) != null) {
+            say("waiting: a screen is open");
+            return;
+        }
+        if (solvedPairs >= 4) {
+            say("done: four pairs joined");
+            return;
+        }
+        if (pairs.isEmpty()) {
+            say("waiting: the solver lists no lit pair");
+            return;
+        }
+        if (cr == null) {
+            say("waiting: the room's clay corner / rotation is not resolved");
             return;
         }
         BlockPos start = PuzzleCoords.real(16, 74, 14, cr);
         if (client.level.getBlockState(start).isAir()) {
+            say("waiting: the centre platform at " + AutoPuzzleUtil.fmt(start) + " reads air (chunk not loaded yet?)");
             return;
         }
         if (REPOSITION.isActive()) {
@@ -143,9 +163,15 @@ public final class AutoBeams {
         // somewhere else entirely and player.getY() was never 75: it repositioned onto the platform, re-read 75,
         // found it still false, and repositioned again. Warp, look down, nothing, forever.
         double platformY = start.getY() + 1.0;
-        if (player.getY() != platformY) {
+        // Within half a block, not exactly equal. An etherwarp lands 0.05 over the block and gravity settles him a
+        // tick or two later; read in between, an exact test said "not on the platform" and started a SECOND warp
+        // straight after the first had landed.
+        if (Math.abs(player.getY() - platformY) > 0.5) {
             if (reposition) {
+                say("off the centre platform - repositioning onto " + AutoPuzzleUtil.fmt(start));
                 REPOSITION.start(client, start, true, false, false);
+            } else {
+                say("waiting: stand on the centre platform (Etherwarp Reposition is off)");
             }
             return;
         }
@@ -158,21 +184,30 @@ public final class AutoBeams {
         Vec3 lanternVec = Vec3.atCenterOf(lantern);
         BlockPos creeper = PuzzleCoords.real(15, 74, 15, cr);
 
-        if (isPathBlocked(player.getEyePosition(), lanternVec, creeper)) {
+        // The lantern under the creeper's own feet is one end of a pair; the creeper is "between" him and it from
+        // every spot, so asking would only ever end in the shoot-anyway branch below with a misleading line.
+        if (!lantern.equals(creeper) && isPathBlocked(player.getEyePosition(), lanternVec, creeper)) {
             BlockPos spot = null;
             for (BlockPos rel : PLATFORM_SPOTS) {
                 BlockPos real = PuzzleCoords.real(rel, cr);
+                if (AutoPuzzleUtil.at(player, real) || real.equals(failedSpot)) {
+                    continue;
+                }
                 if (!isPathBlocked(Vec3.atCenterOf(real).add(0.0, 1.5, 0.0), lanternVec, creeper)) {
                     spot = real;
                     break;
                 }
             }
-            if (spot != null) {
-                if (reposition) {
-                    REPOSITION.start(client, spot, true, false, false);
+            if (spot != null && reposition) {
+                say("the creeper is between him and " + AutoPuzzleUtil.fmt(lantern) + " - moving to "
+                        + AutoPuzzleUtil.fmt(spot));
+                if (!REPOSITION.start(client, spot, true, false, false)) {
+                    failedSpot = spot; // no aim onto it: the next spot next tick, not this one forever
                 }
                 return;
             }
+            say("the creeper is between him and " + AutoPuzzleUtil.fmt(lantern) + " and "
+                    + (reposition ? "no platform spot clears it" : "Etherwarp Reposition is off") + " - shooting anyway");
         }
 
         long now = System.currentTimeMillis();
@@ -190,14 +225,56 @@ public final class AutoBeams {
         if (bow != AutoPuzzleUtil.BowState.HELD || now - lastShotTime < cfg.getShootCooldownMs()) {
             return;
         }
-        float[] dir = AutoPuzzleUtil.etherwarpDirection(client.level, player, lantern);
+        Vec3 eye = player.getEyePosition();
+        float[] dir = shotAim(client, player, eye, lantern);
+        boolean seen = dir != null;
         if (dir == null) {
-            dir = AutoPuzzleUtil.direction(player.getEyePosition(), lanternVec);
+            dir = AutoPuzzleUtil.direction(eye, lanternVec);
         }
         if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
             return; // gate held this tick back - no shot, so lastShotTime must not move
         }
         lastShotTime = now;
+        lastSaid = null;
+        LOGGER.info("[AutoPuzzles] Beams: shot at {} (pair stage {}) from {}, yaw {} pitch {}{}", AutoPuzzleUtil.fmt(lantern),
+                pair.stage, String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", eye.x, eye.y, eye.z),
+                String.format(java.util.Locale.ROOT, "%.1f", dir[0]), String.format(java.util.Locale.ROOT, "%.1f", dir[1]),
+                seen ? "" : " - no clear line to any face, aimed at the centre");
+    }
+
+    /**
+     * Where to aim so the shot's line meets {@code lantern} first: its centre, then the middle of each face pulled
+     * a little inside the block, each checked with a collider ray from the REAL eye.
+     *
+     * <p>This was {@link AutoPuzzleUtil#etherwarpDirection}, which aims from a SNEAKING eye whatever his stance and
+     * at QUOI's etherwarp sample points - face edges 0.001 in, and a top centre that sits exactly on the face. An
+     * arrow is not an etherwarp: from the real eye an edge aim lands on the neighbour as often as on the lantern,
+     * and the etherwarp ray treats ladders, buttons and lanterns as see-through where an arrow does not.
+     */
+    private static float[] shotAim(Minecraft client, LocalPlayer player, Vec3 eye, BlockPos lantern) {
+        double[][] points = {{0.5, 0.5, 0.5}, {0.5, 0.95, 0.5}, {0.5, 0.05, 0.5}, {0.05, 0.5, 0.5},
+                {0.95, 0.5, 0.5}, {0.5, 0.5, 0.05}, {0.5, 0.5, 0.95}};
+        for (double[] p : points) {
+            Vec3 target = new Vec3(lantern.getX() + p[0], lantern.getY() + p[1], lantern.getZ() + p[2]);
+            float[] dir = AutoPuzzleUtil.direction(eye, target);
+            Vec3 end = eye.add(AutoPuzzleUtil.look(dir[0], dir[1]).scale(eye.distanceTo(target) + 2.0));
+            net.minecraft.world.phys.BlockHitResult hit = client.level.clip(new net.minecraft.world.level.ClipContext(
+                    eye, end, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE, player));
+            if (hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK && lantern.equals(hit.getBlockPos())) {
+                return dir;
+            }
+        }
+        return null;
+    }
+
+    /** One INFO line per change of reason - every place this auto declines to act says why, once. */
+    private static void say(String what) {
+        if (what.equals(lastSaid)) {
+            return;
+        }
+        lastSaid = what;
+        LOGGER.info("[AutoPuzzles] Beams: {}", what);
     }
 
     private static boolean containsFirst(List<BlockPos[]> pairs, BlockPos first) {
@@ -230,6 +307,8 @@ public final class AutoBeams {
         REPOSITION.cancel(client);
         AutoReposition.releaseSneak(client);
         activePair = null;
+        lastSaid = null;
+        failedSpot = null;
         lastShotTime = -1L;
         solvedPairs = 0;
         lastPairCount = -1;

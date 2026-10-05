@@ -85,6 +85,17 @@ final class AutoBlaze {
     private static Entity loggedTarget = null;
     private static Entity loggedNoShot = null;
     private static boolean loggedNotShortbow = false;
+    /** The last refusal logged by {@link #say}, so a per-tick refusal is one INFO line, not twenty a second. */
+    private static String lastSaid = null;
+    /** Consecutive ticks the solver's list has been empty since it last held blazes - see {@link #DONE_TICKS}. */
+    private static int emptyTicks = 0;
+    /**
+     * Ticks the list must stay empty before the room is called done. The solver's list goes empty for a moment
+     * whenever the label stands are replaced - a chain rebuilt after a fail drops every stand on one tick and puts
+     * the new ones up on a later one - and "Blaze: done." was announced (and the secret walk started) in that gap.
+     * A real finish stays empty for good, so waiting a second and a half costs nothing.
+     */
+    private static final int DONE_TICKS = 30;
 
     private enum SecretStage { NONE, FIND, WALK, AURA, DONE }
 
@@ -126,8 +137,16 @@ final class AutoBlaze {
         // view" - seed the held view BEFORE the first rotation of this run gets a chance to anchor it to wherever
         // the player happened to be looking (ViewFreeze.hold is a no-op past the first call of a run).
         seedDefaultView(player);
+        if (blazes.isEmpty() && lastBlazeCount > 0 && ++emptyTicks < DONE_TICKS) {
+            say("the solver's list is empty - waiting " + DONE_TICKS + " ticks before calling the room done");
+            return;
+        }
+        if (!blazes.isEmpty()) {
+            emptyTicks = 0;
+        }
         if (blazes.isEmpty()) {
             if (lastBlazeCount > 0) {
+                LOGGER.info("[AutoPuzzles] Blaze: done - the solver has listed no blaze for {} ticks", DONE_TICKS);
                 ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Blaze: "), ModChat.good("done"), ModChat.text("."));
                 REPOSITION.cancel(client);
                 AutoReposition.releaseSneak(client);
@@ -142,7 +161,11 @@ final class AutoBlaze {
             return;
         }
         lastBlazeCount = blazes.size();
-        if (!GUARD.fresh() || McCompat.screen(client) != null) {
+        if (!GUARD.fresh()) {
+            return; // AutoGuard logs this one itself
+        }
+        if (McCompat.screen(client) != null) {
+            say("waiting: a screen is open");
             return;
         }
         if (REPOSITION.isActive()) {
@@ -159,7 +182,9 @@ final class AutoBlaze {
         // fault; this one failed the other way round, skipping the reposition instead of repeating it.
         if (higher && player.getY() <= 75 + com.killer560.hub.livemap.DungeonLayout.simYOffset()) {
             if (reposition) {
-                cyclePosition(client, player, blazes, cr, higher);
+                cyclePosition(client, player, blazes, cr, higher, true);
+            } else {
+                say("waiting: below Higher Blaze's top level and Etherwarp Reposition is off");
             }
             return;
         }
@@ -196,7 +221,7 @@ final class AutoBlaze {
                         fmt(player.position()), terminator, reposition ? "repositioning" : "reposition is off, waiting");
             }
             if (reposition) {
-                cyclePosition(client, player, blazes, cr, higher);
+                cyclePosition(client, player, blazes, cr, higher, false);
             }
             return;
         }
@@ -215,6 +240,7 @@ final class AutoBlaze {
         if (now - lastShotTime < cfg.getShootCooldownMs()) {
             return;
         }
+        lastSaid = null;
         Vec3 eye = player.getEyePosition();
         Vec3 finalTarget = eye.add(AutoPuzzleUtil.look(hitDir[0], hitDir[1]).scale(10.0));
         float[] dir = AutoPuzzleUtil.direction(eye, finalTarget);
@@ -227,6 +253,15 @@ final class AutoBlaze {
         LOGGER.info("[AutoPuzzles] Blaze: shot at '{}' from {}, yaw {} pitch {}, {} blocks", nameOf(blaze),
                 fmt(eye), String.format("%.1f", dir[0]), String.format("%.1f", dir[1]),
                 String.format("%.1f", eye.distanceTo(blaze.position())));
+    }
+
+    /** One INFO line per change of reason - every place this auto declines to act says why, once. */
+    private static void say(String what) {
+        if (what.equals(lastSaid)) {
+            return;
+        }
+        lastSaid = what;
+        LOGGER.info("[AutoPuzzles] Blaze: {}", what);
     }
 
     private static String nameOf(Entity e) {
@@ -317,7 +352,10 @@ final class AutoBlaze {
             py = nextPos.y;
             pz = nextPos.z;
             double currDist = sq(px - from.x) + sq(pz - from.z);
-            if (currDist > dist + 30.0) {
+            // A SIDE arrow is followed until it lands. QUOI stopped every arrow a few blocks past the target, which
+            // is right for the centre one (it hits the target or nothing) and wrong for the outer two: one that
+            // clears the target keeps flying across the shaft and can kill a blaze on the far side out of order.
+            if (!sideArrow && currDist > dist + 30.0) {
                 break;
             }
             mx *= 0.99;
@@ -327,46 +365,163 @@ final class AutoBlaze {
         return sideArrow;
     }
 
-    private static void cyclePosition(Minecraft client, LocalPlayer player, List<Entity> blazes, int[] cr, boolean higher) {
+    /**
+     * Moves to one of QUOI's standing spots that has a clean shot at the next blaze.
+     *
+     * <p>Three faults made this a loop onto the same spot about four times a second (93-solve, 2026-10-04):
+     * <ul>
+     *   <li>the shot from a candidate spot was judged from a STANDING eye (1.62), while a bow reposition arrives
+     *       with sneak still held (QUOI keeps it) and so shoots from 1.27 - a spot could pass here and then fail the
+     *       very next tick from the spot itself;</li>
+     *   <li>the spot he was already standing on was a candidate, so "warp onto where you stand" counted as a move;</li>
+     *   <li>with no spot passing, it warped to the first visible spot as a "fallback" - every time, with the bow
+     *       swapped out for the AOTV and nothing to swap it back, which is the "left holding the AOTV" report.</li>
+     * </ul>
+     * Now the eye is the sneaking one, his own spot is skipped, and with no spot that has a shot he stays put,
+     * swaps back to the bow and says so; the solver rescans and the next tick tries again.
+     */
+    private static void cyclePosition(Minecraft client, LocalPlayer player, List<Entity> blazes, int[] cr, boolean higher,
+                                      boolean mustMove) {
         if (REPOSITION.isActive() || blazes.isEmpty()) {
             return;
         }
         BlockPos[] spots = higher ? HIGHER_SPOTS : LOWER_SPOTS;
         List<BlazeHitbox> hitboxes = hitboxes(blazes, blazes.get(0));
         boolean terminator = AutoPuzzleUtil.hasTerminator(player);
-        BlockPos fallback = null;
         for (int j = 0; j < spots.length; j++) {
             int i = (currentSpot + j + 1) % spots.length;
             BlockPos realSpot = PuzzleCoords.real(spots[i], cr);
-            Vec3 spotEye = new Vec3(realSpot.getX() + 0.5, realSpot.getY() + 1.62, realSpot.getZ() + 0.5);
-            float[] dir = AutoPuzzleUtil.etherwarpDirection(client.level, player, realSpot);
-            if (fallback == null && dir != null) {
-                fallback = realSpot;
+            if (AutoPuzzleUtil.at(player, realSpot)) {
+                continue; // already here, and the shot from here was just found wanting
             }
+            Vec3 spotEye = new Vec3(realSpot.getX() + 0.5, realSpot.getY() + 1 + AutoPuzzleUtil.EYE_SNEAKING,
+                    realSpot.getZ() + 0.5);
             if (canHit(client, player, spotEye, hitboxes, terminator) == null) {
                 continue;
             }
-            if (dir != null) {
+            if (AutoPuzzleUtil.etherwarpAim(client.level, player, realSpot) != null) {
                 currentSpot = i;
+                say("moving to standing spot " + i + " " + AutoPuzzleUtil.fmt(realSpot) + ", which has a shot at '"
+                        + nameOf(blazes.get(0)) + "'");
                 REPOSITION.start(client, realSpot, true, false, false);
                 return;
             }
             for (BlockPos link : spots) {
                 BlockPos realLink = PuzzleCoords.real(link, cr);
-                if (AutoPuzzleUtil.etherwarpDirection(client.level, player, realLink) == null) {
+                if (AutoPuzzleUtil.at(player, realLink)
+                        || AutoPuzzleUtil.etherwarpAim(client.level, player, realLink) == null) {
                     continue;
                 }
-                Vec3 linkEye = new Vec3(realLink.getX() + 0.5, realLink.getY() + 1.62, realLink.getZ() + 0.5);
-                if (AutoPuzzleUtil.etherwarpDirection(client.level, linkEye, realSpot, 61.0) != null) {
+                Vec3 linkEye = new Vec3(realLink.getX() + 0.5, realLink.getY() + 1 + AutoPuzzleUtil.EYE_SNEAKING,
+                        realLink.getZ() + 0.5);
+                if (com.killer560.hub.livemap.autoclear.TeleportUtils.getEtherwarpDirection(linkEye, realSpot, 57.0)
+                        != null) {
                     currentSpot = i;
-                    REPOSITION.start(client, realLink, false, false, false);
+                    say("moving to standing spot " + AutoPuzzleUtil.fmt(realLink) + " on the way to spot " + i);
+                    REPOSITION.start(client, realLink, true, false, false);
                     return;
                 }
             }
         }
-        if (fallback != null) {
-            REPOSITION.start(client, fallback, false, false, false);
+        if (mustMove) {
+            // Below Higher Blaze's top level nothing can be shot from where he is, so any spot up there beats staying.
+            for (int j = 0; j < spots.length; j++) {
+                int i = (currentSpot + j + 1) % spots.length;
+                BlockPos realSpot = PuzzleCoords.real(spots[i], cr);
+                if (!AutoPuzzleUtil.at(player, realSpot)
+                        && AutoPuzzleUtil.etherwarpAim(client.level, player, realSpot) != null) {
+                    currentSpot = i;
+                    say("climbing to standing spot " + i + " " + AutoPuzzleUtil.fmt(realSpot));
+                    REPOSITION.start(client, realSpot, true, false, false);
+                    return;
+                }
+            }
         }
+        // None of QUOI's spots has a shot. Look through the room's own ledges, a few a tick.
+        BlockPos found = searchRoom(client, player, blazes, hitboxes, terminator);
+        if (found != null) {
+            say("no listed spot has a clean shot at '" + nameOf(blazes.get(0)) + "' - moving to "
+                    + AutoPuzzleUtil.fmt(found) + ", found by searching the room");
+            REPOSITION.start(client, found, true, false, false);
+            return;
+        }
+        // Nowhere better. Stay, hold the bow, and wait for the solver's next scan rather than warping somewhere
+        // with no shot.
+        AutoPuzzleUtil.holdShortbow(client, player);
+        if (searchSpots != null && searchIndex >= searchSpots.size()) {
+            say("no standing spot in the room has a clean shot at '" + nameOf(blazes.get(0)) + "' - staying at "
+                    + fmt(player.position()) + " and waiting");
+        }
+    }
+
+    /** Candidate ledges for {@link #searchFor}, nearest first, and how far through them the search has got. */
+    private static List<BlockPos> searchSpots = null;
+    private static Entity searchFor = null;
+    private static int searchIndex = 0;
+    /** Candidates judged per tick: each is up to 21 simulated arrow flights. */
+    private static final int SEARCH_PER_TICK = 12;
+
+    /**
+     * Any standable block in the room he can etherwarp onto and shoot the next blaze cleanly from.
+     *
+     * <p>QUOI's six Lower and four Higher spots were picked for the blazes where QUOI's authors met them. When none
+     * of them has a clean shot - in the 93-solve run of 2026-10-04 the fifth blaze of Lower Blaze floated a block
+     * over the shaft floor, below the lowest listed spot, and Auto Blaze stood still for 55 s - this walks the room's
+     * own standable blocks (solid, two clear above) within 24 blocks of the blaze and 14 below to 24 above it,
+     * nearest first, judging {@value #SEARCH_PER_TICK} a tick with the same {@link #canHit} the listed spots get. The
+     * list is built once per target. Returns null while the search is still going or when it has run out.
+     */
+    private static BlockPos searchRoom(Minecraft client, LocalPlayer player, List<Entity> blazes,
+                                       List<BlazeHitbox> hitboxes, boolean terminator) {
+        Entity target = blazes.get(0);
+        if (target != searchFor || searchSpots == null) {
+            searchFor = target;
+            searchIndex = 0;
+            searchSpots = candidates(client, target);
+            LOGGER.info("[AutoPuzzles] Blaze: searching {} standable block(s) in the room for a shot at '{}'",
+                    searchSpots.size(), nameOf(target));
+        }
+        int end = Math.min(searchSpots.size(), searchIndex + SEARCH_PER_TICK);
+        for (; searchIndex < end; searchIndex++) {
+            BlockPos spot = searchSpots.get(searchIndex);
+            if (AutoPuzzleUtil.at(player, spot)) {
+                continue;
+            }
+            Vec3 eye = new Vec3(spot.getX() + 0.5, spot.getY() + 1 + AutoPuzzleUtil.EYE_SNEAKING, spot.getZ() + 0.5);
+            if (canHit(client, player, eye, hitboxes, terminator) != null
+                    && AutoPuzzleUtil.etherwarpAim(client.level, player, spot) != null) {
+                searchIndex++;
+                return spot;
+            }
+        }
+        return null;
+    }
+
+    private static List<BlockPos> candidates(Minecraft client, Entity target) {
+        List<BlockPos> out = new ArrayList<>();
+        int idx = LiveMapFeature.currentRoomIndex();
+        int[] bounds = idx < 0 ? null : LiveMapFeature.roomWorldBounds(idx);
+        if (bounds == null || client.level == null) {
+            return out;
+        }
+        BlockPos t = target.blockPosition();
+        int minY = t.getY() - 14;
+        int maxY = t.getY() + 24;
+        for (int x = Math.max(bounds[0], t.getX() - 24); x <= Math.min(bounds[2], t.getX() + 24); x++) {
+            for (int z = Math.max(bounds[1], t.getZ() - 24); z <= Math.min(bounds[3], t.getZ() + 24); z++) {
+                for (int y = minY; y <= maxY; y++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (AutoPuzzleUtil.isPassable(client.level.getBlockState(pos))
+                            || !client.level.getBlockState(pos.above()).isAir()
+                            || !client.level.getBlockState(pos.above(2)).isAir()) {
+                        continue;
+                    }
+                    out.add(pos);
+                }
+            }
+        }
+        out.sort(java.util.Comparator.comparingDouble(b -> b.distSqr(t)));
+        return out;
     }
 
     private static double sq(double v) {
@@ -521,6 +676,11 @@ final class AutoBlaze {
         currentTarget = null;
         currentSpot = 0;
         lastBlazeCount = 0;
+        searchSpots = null;
+        searchFor = null;
+        searchIndex = 0;
+        emptyTicks = 0;
+        lastSaid = null;
         loggedTarget = null;
         loggedNoShot = null;
         loggedNotShortbow = false;

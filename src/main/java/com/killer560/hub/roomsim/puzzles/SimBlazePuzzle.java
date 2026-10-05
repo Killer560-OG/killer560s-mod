@@ -335,6 +335,7 @@ public final class SimBlazePuzzle {
                     continue;
                 }
                 byPlacement[i] = blaze.getUUID();
+                remember(blaze, HEALTHS[i]);
             // The label the SOLVER reads lives on its own armour stand - see attachLabel.
             attachLabel(level, blaze, HEALTHS[i]);
             }
@@ -465,6 +466,7 @@ public final class SimBlazePuzzle {
                 continue;
             }
             byPlacement[i] = blaze.getUUID();
+            remember(blaze, HEALTHS[i]);
             // The label the SOLVER reads lives on its own armour stand - see attachLabel.
             attachLabel(level, blaze, HEALTHS[i]);
         }
@@ -514,6 +516,16 @@ public final class SimBlazePuzzle {
         return complete;
     }
 
+    /** The room the current arena is bound in ("Higher Blaze" / "Lower Blaze"), or null for none or a standalone one. */
+    public static String boundRoom() {
+        return boundRoom;
+    }
+
+    /** Blazes killed in order so far in the current chain, for tests and logs. */
+    public static int killedInOrder() {
+        return nextRequired;
+    }
+
     /** Despawns whatever is left of the current arena and clears progress. Takes no arguments - grabs the
      *  client singleton the same way {@code SimAbilities}'s item-use handler does, since the three-method
      *  shape asked for here has no room for one. */
@@ -532,6 +544,10 @@ public final class SimBlazePuzzle {
         // with it - nothing is discarded here, which is the whole point of forget(). Their label stands go the
         // same way, so the map of them is only dropped, never walked.
         LABEL_STANDS.clear();
+        SEEN_DEAD.clear();
+        SPOTS.clear();
+        HP.clear();
+        MISSING.clear();
         spawnedIds = List.of();
         nextRequired = 0;
         complete = false;
@@ -607,6 +623,9 @@ public final class SimBlazePuzzle {
      */
     private static void checkProgress(Minecraft client, MinecraftServer server, List<UUID> ids) {
         ServerLevel level = server.overworld();
+        if (putBackMissing(level, ids)) {
+            return; // the chain's ids changed; the next tick reads the new list
+        }
         int idx = nextRequired;
         while (idx < ids.size() && isDead(level, ids.get(idx))) {
             dropLabel(level, ids.get(idx));
@@ -628,10 +647,115 @@ public final class SimBlazePuzzle {
         }
     }
 
+    /**
+     * Whether this blaze has been SEEN dead.
+     *
+     * <p>Seen, not inferred from absence. This was {@code getEntity(id) == null || !isAlive()}, and a null only means
+     * the server is not showing that entity's section - which is every blaze, for the ~27 s a freshly opened sim world
+     * takes to bring its chunks up. So the whole chain read as killed in order before anyone had fired, and
+     * {@link #isComplete()} was already true when the 93-solve run of 2026-10-04 switched Auto Blaze on; mid-run, a
+     * blaze in an unloaded section could equally have read as an out-of-order kill. A killed blaze stays in the level,
+     * not alive, for its 20 death ticks before it is removed, and this is asked every tick, so it is always seen.
+     */
     private static boolean isDead(ServerLevel level, UUID id) {
-        Entity entity = level.getEntity(id);
-        return entity == null || !entity.isAlive();
+        if (SEEN_DEAD.contains(id)) {
+            return true;
+        }
+        // Dying, not merely gone: a discarded entity is also "not alive", and the put-back below relies on a
+        // blaze that vanished without dying never being counted as a kill.
+        if (level.getEntity(id) instanceof net.minecraft.world.entity.LivingEntity living && living.isDeadOrDying()) {
+            SEEN_DEAD.add(id);
+            return true;
+        }
+        return false;
     }
+
+    /** Where each blaze of the chain was put and its health, so a lost one can be put back exactly as it was. */
+    private static final Map<UUID, net.minecraft.world.phys.Vec3> SPOTS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<UUID, Float> HP = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Consecutive ticks each chain blaze has been missing from a section the server IS showing. */
+    private static final Map<UUID, Integer> MISSING = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Ticks a blaze must be missing from a ticking section before it is put back. */
+    private static final int MISSING_TICKS = 20;
+
+    private static void remember(Entity blaze, float health) {
+        SPOTS.put(blaze.getUUID(), blaze.position());
+        HP.put(blaze.getUUID(), health);
+    }
+
+    /**
+     * Puts back any living chain blaze that has vanished WITHOUT dying.
+     *
+     * <p>The blazes are a sim subclass whose only change is that peaceful does not discard them. That subclass only
+     * exists while the entity stays loaded: when its chunk unloads the blaze is saved as "minecraft:blaze" and comes
+     * back as a plain {@link Blaze}, which the sim's PEACEFUL world discards on its first tick. A single-room load
+     * puts him ~170 blocks from the room until the build hands over, and a floor puts the Blaze room wherever it
+     * lands, so the chunks go and the blazes with them - while their label stands, which peaceful leaves alone,
+     * stayed up. 93-solve, 2026-10-04: ten blazes alive on the server at 20:02:41, none three seconds later, and Auto
+     * Blaze shooting at ten labels with nothing under them for a minute. (Before {@link #isDead} learned to tell
+     * "dying" from "absent" the same loss read as ten in-order kills, and the room was "complete" before anyone
+     * fired.) {@code SimIcePathPuzzle} puts its silverfish back for the same reason.
+     *
+     * <p>Only where the section is entity-ticking, so a blaze the server is simply not showing yet is never doubled.
+     *
+     * @return whether any id in the chain was replaced
+     */
+    private static boolean putBackMissing(ServerLevel level, List<UUID> ids) {
+        List<UUID> next = null;
+        for (int j = nextRequired; j < ids.size(); j++) {
+            UUID id = ids.get(j);
+            if (SEEN_DEAD.contains(id) || level.getEntity(id) != null) {
+                MISSING.remove(id);
+                continue;
+            }
+            net.minecraft.world.phys.Vec3 at = SPOTS.get(id);
+            Float health = HP.get(id);
+            if (at == null || health == null || !level.isPositionEntityTicking(BlockPos.containing(at))) {
+                MISSING.remove(id);
+                continue;
+            }
+            int missing = MISSING.merge(id, 1, Integer::sum);
+            if (missing < MISSING_TICKS) {
+                continue;
+            }
+            SimBlazeEntity blaze = new SimBlazeEntity(McEntities.BLAZE, level);
+            blaze.getAttribute(Attributes.MAX_HEALTH).setBaseValue(health);
+            blaze.setHealth(health);
+            blaze.setPersistenceRequired();
+            blaze.setNoAi(true);
+            blaze.setPos(at.x, at.y, at.z);
+            if (!level.addFreshEntity(blaze)) {
+                MISSING.put(id, 0);
+                continue;
+            }
+            MISSING.remove(id);
+            remember(blaze, health);
+            UUID tag = LABEL_STANDS.remove(id);
+            if (tag != null) {
+                LABEL_STANDS.put(blaze.getUUID(), tag);
+            } else {
+                attachLabel(level, blaze, health);
+            }
+            if (next == null) {
+                next = new ArrayList<>(ids);
+            }
+            next.set(j, blaze.getUUID());
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                    "Sim blaze puzzle: the {}-HP blaze in {} vanished without dying (its chunk was unloaded, and a "
+                            + "reloaded blaze is not the sim's) - put back at {}", (int) (float) health, boundRoom,
+                    BlockPos.containing(at).toShortString());
+        }
+        if (next == null) {
+            return false;
+        }
+        if (spawnedIds == ids) {
+            spawnedIds = List.copyOf(next);
+        }
+        return true;
+    }
+
+    /** Blazes of the current chain seen dead - see {@link #isDead}. */
+    private static final java.util.Set<UUID> SEEN_DEAD = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private static void failAndRebuild(Minecraft client, MinecraftServer server, ServerLevel level, List<UUID> ids) {
         // Tells the Architect's First Draft feature a puzzle failed, so his existing

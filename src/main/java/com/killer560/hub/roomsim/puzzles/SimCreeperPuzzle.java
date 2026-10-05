@@ -543,6 +543,20 @@ public final class SimCreeperPuzzle {
         return joined >= Math.min(BEAMS_TO_SOLVE, c.length);
     }
 
+    /**
+     * Pairs joined so far - a right beam through the creeper each. Read by tests (reflection) next to
+     * {@link #isComplete()}, which is true at {@value #BEAMS_TO_SOLVE}.
+     */
+    public static int joinedCount() {
+        int joined = 0;
+        for (boolean b : connected) {
+            if (b) {
+                joined++;
+            }
+        }
+        return joined;
+    }
+
     /** Puts every lantern in the current arena back to unconnected (Sea Lantern) without moving anything. Takes
      *  no arguments - grabs the client singleton the same way {@code SimAbilities}'s item-use handler does. */
     /**

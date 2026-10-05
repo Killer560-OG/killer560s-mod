@@ -431,6 +431,7 @@ public final class SimIcePathPuzzle {
         targetCell = null;
         complete = false;
         respawnCooldown = 0;
+        strayCheck = false;
     }
 
     /** Takes a standalone arena away again and clears progress. A bound room's blocks are the room's. */
@@ -777,6 +778,9 @@ public final class SimIcePathPuzzle {
             respawnIfNear(level, px, py, pz);
             return;
         }
+        if (strayCheck) {
+            clearStrays(level, fish);
+        }
         int[] to = targetCell;
         if (to == null) {
             pollForArrow(level, fish);
@@ -833,6 +837,10 @@ public final class SimIcePathPuzzle {
             respawnCooldown--;
             return;
         }
+        if (!level.isPositionEntityTicking(ice)) {
+            // Not missing - the server is not showing that section yet, so it cannot see the fish that is there.
+            return;
+        }
         BlockPos centre = iceOf(BOARD_SIZE / 2, BOARD_SIZE / 2);
         if (centre != null) {
             net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(centre)
@@ -846,8 +854,41 @@ public final class SimIcePathPuzzle {
         if (fishId == null) {
             respawnCooldown = 40;
         } else {
+            // A cooldown after a SUCCESSFUL put-back too. A fish added to a section the server is not yet showing
+            // is accepted but stays invisible to getEntity - so with no wait this put a fresh one back every tick
+            // while a newly opened sim world's chunks came up: 361 silverfish on one cell in the 93-solve run of
+            // 2026-10-04, all of which appeared together once the section did. The last one is found when it
+            // shows, and clearStrays then removes any that were added before it.
+            respawnCooldown = RESPAWN_SETTLE_TICKS;
+            strayCheck = true;
             LOGGER.info("Sim ice path: the silverfish was missing with the player {} blocks away - put back on "
                     + "cell ({},{})", (int) Math.sqrt(dx * dx + dy * dy + dz * dz), at[0], at[1]);
+        }
+    }
+
+    /** Server ticks to wait for a put-back silverfish to show up before putting back another. */
+    private static final int RESPAWN_SETTLE_TICKS = 100;
+
+    /** Set by a put-back: the next tick that finds the fish removes every other sim silverfish on the board. */
+    private static volatile boolean strayCheck = false;
+
+    /** Removes every sim silverfish on the board except {@code keep}. Server thread only. */
+    private static void clearStrays(ServerLevel level, Silverfish keep) {
+        strayCheck = false;
+        BlockPos centre = iceOf(BOARD_SIZE / 2, BOARD_SIZE / 2);
+        if (centre == null) {
+            return;
+        }
+        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(centre).inflate(BOARD_SIZE, 4, BOARD_SIZE);
+        int removed = 0;
+        for (SimSilverfish stray : level.getEntitiesOfClass(SimSilverfish.class, box, e -> !e.isRemoved())) {
+            if (stray != keep) {
+                stray.discard();
+                removed++;
+            }
+        }
+        if (removed > 0) {
+            LOGGER.info("Sim ice path: removed {} stray silverfish left by earlier put-backs", removed);
         }
     }
 

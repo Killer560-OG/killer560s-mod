@@ -138,15 +138,7 @@ final class AutoIcePath {
         // already been checked above, so element 0 exists.
         BlockPos currSpot = new BlockPos(fishPos.getX(), (int) Math.floor(path.get(0).y), fishPos.getZ());
         if (!AutoPuzzleUtil.at(player, currSpot)) {
-            // The etherwarp-visibility check used to sit in front of this for everyone, and returned silently -
-            // it only matters when warping, and AutoReposition does it (and now says so) itself.
-            if (reposition) {
-                say("repositioning onto the silverfish's cell " + AutoPuzzleUtil.fmt(currSpot));
-                REPOSITION.start(client, currSpot, true, false, false);
-            } else {
-                say("waiting: stand on the silverfish's cell " + AutoPuzzleUtil.fmt(currSpot)
-                        + " (Etherwarp Reposition is off)");
-            }
+            getOnto(client, player, currSpot, reposition);
             return;
         }
         AutoPuzzleUtil.BowState bow = AutoPuzzleUtil.holdShortbow(client, player);
@@ -182,6 +174,89 @@ final class AutoIcePath {
             LOGGER.warn("[AutoIcePath] {} shots from {} and the silverfish has not moved - the shots are landing"
                     + " (or not) without shoving it", STUCK_SHOTS, AutoPuzzleUtil.fmt(currSpot));
         }
+    }
+
+    /**
+     * Gets him onto the silverfish's cell, the one spot the straight-down shot works from.
+     *
+     * <p>QUOI only ever etherwarped there directly, and gave up (silently, until 2026-10-04) whenever that cell's top
+     * face could not be seen. From the board itself it often cannot: the eye is 1.27 above the ice, so the ray to a
+     * cell more than a few blocks off runs along the maze's own one-block pillars - the 93-solve run of 2026-10-04
+     * stood at the room's spawn, six cells from the fish, and never moved. Three ways on, best first:
+     * <ol>
+     *   <li>one etherwarp straight onto the cell;</li>
+     *   <li>two: onto an open board cell he CAN see, from which the fish's cell can be seen - checked from that
+     *       cell's own sneaking eye, the way {@link AutoReposition} will aim from it. A neighbour of the fish's cell
+     *       always qualifies when he can see it, because the aim from one cell away is steep enough to clear any
+     *       pillar;</li>
+     *   <li>a walk, through the Interactive Map's pathing ({@link AutoPuzzleUtil#pathIfMapOn}, which honours the
+     *       auto-puzzle pathing toggle), to the block above the cell.</li>
+     * </ol>
+     * Each refusal names itself once, so a stall says which of the three ran out.
+     */
+    private static void getOnto(Minecraft client, LocalPlayer player, BlockPos currSpot, boolean reposition) {
+        if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+            return; // a walk this started is still under way
+        }
+        if (reposition) {
+            if (REPOSITION.start(client, currSpot, true, false, false)) {
+                say("repositioning onto the silverfish's cell " + AutoPuzzleUtil.fmt(currSpot));
+                return;
+            }
+            BlockPos hop = hopToward(client, player, currSpot);
+            if (hop != null && REPOSITION.start(client, hop, false, false, false)) {
+                say("no line onto the silverfish's cell " + AutoPuzzleUtil.fmt(currSpot) + " - warping to "
+                        + AutoPuzzleUtil.fmt(hop) + " first, which can see it");
+                return;
+            }
+        }
+        if (AutoPuzzleUtil.pathIfMapOn(currSpot.above(), null)) {
+            say("walking to the silverfish's cell " + AutoPuzzleUtil.fmt(currSpot) + " (reposition "
+                    + (reposition ? "found no warp" : "is off") + ")");
+            return;
+        }
+        say("waiting: cannot get onto the silverfish's cell " + AutoPuzzleUtil.fmt(currSpot) + " - "
+                + (reposition ? "no etherwarp line onto it or onto a cell that sees it" : "Etherwarp Reposition is off")
+                + ", and pathing / the Interactive Map is off");
+    }
+
+    /**
+     * The open board cell nearest the target that he can etherwarp onto and from which the target can be
+     * etherwarped onto, or null. Board cells only: the ice at the solver's own height, with the maze layer above
+     * it clear - the same read {@link IcePathSolverFeature} makes.
+     */
+    private static BlockPos hopToward(Minecraft client, LocalPlayer player, BlockPos target) {
+        int[] cr = com.killer560.hub.livemap.LiveMapFeature.currentRoomClayAndRotation();
+        if (cr == null || client.level == null) {
+            return null;
+        }
+        BlockPos best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (int row = 0; row < 17; row++) {
+            for (int col = 0; col < 17; col++) {
+                BlockPos ice = com.killer560.hub.puzzlesolvers.PuzzleCoords.real(23 - col, 66, 24 - row, cr);
+                if (ice.getY() != target.getY() || ice.equals(target)
+                        || !client.level.getBlockState(ice.above()).isAir()) {
+                    continue;
+                }
+                double d = ice.distSqr(target);
+                if (d >= bestDist) {
+                    continue;
+                }
+                Vec3 eyeThere = new Vec3(ice.getX() + 0.5, ice.getY() + 1 + AutoPuzzleUtil.EYE_SNEAKING,
+                        ice.getZ() + 0.5);
+                if (com.killer560.hub.livemap.autoclear.TeleportUtils.getEtherwarpDirection(eyeThere, target, 57.0)
+                        == null) {
+                    continue;
+                }
+                if (AutoPuzzleUtil.etherwarpAim(client.level, player, ice) == null) {
+                    continue;
+                }
+                best = ice;
+                bestDist = d;
+            }
+        }
+        return best;
     }
 
     private static void reset(Minecraft client) {
