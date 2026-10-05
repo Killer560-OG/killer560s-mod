@@ -83,3 +83,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `Component.empty()` for the HP/mana action bar, which blanked it for Ability Cooldown, the live map, Auto Routes,
   interop room secrets and the Custom Scoreboard's "x/y Secrets". Hide a line at `setOverlayMessage`
   (`CustomScoreboardGuiMixin` now cancels via `PlayerStatsFeature.shouldHideActionBar`), never by blanking it there.
+- **Anything drawn from inside `AbstractContainerScreen.extractContents` is already translated by leftPos/topPos**
+  (labels, `extractSlotHighlightBack/Front`, `extractSlots`/`extractSlot`; javap, 26.1.2 and 26.2), so it draws at
+  plain `slot.x, slot.y`. `extractBackground` and the `extractRenderState` TAIL / `ScreenEvents.afterExtract` are
+  outside that pose and DO add leftPos. The Inventory Theme added it in both places and drew every slot square at
+  twice the panel's offset - "an empty orange inventory grid at the bottom right"; the 2026-09-27 recipe
+  book "fix" for that symptom was a different bug. A `SkinManager.createLookup` on a bare `new GameProfile(uuid,
+  name)` is always the default skin: SkinManager only unpacks the profile's own textures property and never fetches
+  one, so fetch the textured profile first (`ProfileViewerApi.fetchSkinProfile`) or use the tab list's `PlayerInfo`.
