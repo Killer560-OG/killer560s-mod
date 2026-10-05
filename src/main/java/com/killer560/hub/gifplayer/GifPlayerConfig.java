@@ -146,7 +146,11 @@ public final class GifPlayerConfig {
     }
 
     public boolean isGifFileEnabled(String filename) {
-        return gifFileEnabled.getOrDefault(filename, true);
+        // The built-in GIF ships with every install but stays OFF until switched on (killer560, 2026-10-04: "that gif
+        // should not be on by default, just automatically stored for every mod"). Folder GIFs default on as before,
+        // including a folder copy with the built-in's name (his own Dungeons instance has one).
+        boolean byDefault = !GifPlayerFeature.isBuiltinLoaded(filename);
+        return gifFileEnabled.getOrDefault(filename, byDefault);
     }
 
     public void setGifFileEnabled(String filename, boolean enabled) {

@@ -27,9 +27,6 @@ public class NewTab extends FolderTab {
 
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
-                // Room Recorder (2026-09-28): untested against a real server, so it starts life here
-                // like everything else he has not confirmed.
-                new RoomRecorderTab(),
                 new LeapCounterTab(),
                 new ArchitectDraftTab(),
                 new ArmourDyeTab(),
@@ -94,7 +91,7 @@ public class NewTab extends FolderTab {
                 new InventoryHudTab(),
                 new CustomScoreboardTab(),
                 new ProfileViewerTab(),
-                new PlayerStatsTab(),
+                // Stat Bars moved into Hud Elements > Health and Mana Bars on 2026-10-04 (killer560's nested-dropdown request).
                 new SlotBindsTab(),
                 new PartyCommandsTab(),
                 new AutoKickTab(),

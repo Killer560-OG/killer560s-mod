@@ -216,8 +216,8 @@ public final class SimFloorGen {
         long planStart = System.currentTimeMillis();
         Map<String, RoomLibrary.Room> usable = usableRooms();
         if (usable.isEmpty()) {
-            ModChat.send("Sim", ModChat.text("No usable rooms captured yet - "),
-                    ModChat.dim("run the Room Recorder first."));
+            ModChat.send("Sim", ModChat.text("No usable rooms in the room library - "),
+                    ModChat.dim("the shipped rooms did not load (see the log)."));
             return null;
         }
         usable = capChampions(usable, pinned);

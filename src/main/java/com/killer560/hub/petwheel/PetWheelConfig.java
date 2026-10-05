@@ -73,6 +73,9 @@ public final class PetWheelConfig {
      *  lists, which still show the full "[Lvl N] Name" so picking the right pet stays unambiguous there). */
     private boolean hideLevel = false;
     private boolean hideName = false;
+    /** killer560, 2026-10-04: "add an option to hide the pets menu while it is working" - the summon's /pets
+     *  menu is opened headless (never shown) and closed again; see {@link PetSummoner}. */
+    private boolean hideMenuWhileSummoning = false;
 
     /** Ordered subset shown on the wheel, keyed by uuid so identity survives a rename/relevel. */
     private final List<PetEntry> wheelPets = new ArrayList<>();
@@ -125,6 +128,7 @@ public final class PetWheelConfig {
                 cfg.keyCode = KeyUtil.sanitizeBind(getInt(root, "keyCode", KeyUtil.NONE));
                 cfg.hideLevel = getBool(root, "hideLevel", false);
                 cfg.hideName = getBool(root, "hideName", false);
+                cfg.hideMenuWhileSummoning = getBool(root, "hideMenuWhileSummoning", false);
                 readPetList(root, "wheelPets", cfg.wheelPets);
                 List<PetEntry> known = new ArrayList<>();
                 readPetList(root, "knownPets", known);
@@ -152,6 +156,7 @@ public final class PetWheelConfig {
             root.addProperty("keyCode", keyCode);
             root.addProperty("hideLevel", hideLevel);
             root.addProperty("hideName", hideName);
+            root.addProperty("hideMenuWhileSummoning", hideMenuWhileSummoning);
             root.add("wheelPets", petListToJson(wheelPets));
             root.add("knownPets", petListToJson(new ArrayList<>(knownPets.values())));
             Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
@@ -207,6 +212,14 @@ public final class PetWheelConfig {
 
     public void setHideName(boolean hideName) {
         this.hideName = hideName;
+    }
+
+    public boolean isHideMenuWhileSummoning() {
+        return hideMenuWhileSummoning;
+    }
+
+    public void setHideMenuWhileSummoning(boolean hideMenuWhileSummoning) {
+        this.hideMenuWhileSummoning = hideMenuWhileSummoning;
     }
 
     public InteractionMode getMode() {

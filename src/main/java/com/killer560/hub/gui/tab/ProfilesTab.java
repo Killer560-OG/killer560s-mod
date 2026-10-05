@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.profiles.ProfileManager;
+import com.killer560.hub.util.ExternalOpen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
@@ -15,8 +16,9 @@ import java.util.List;
 /** Custom settings profiles - killer560's "name them whatever I want, clicking between them changes
  *  which settings [are active], easy to share" request. See {@link ProfileManager}'s class doc for why
  *  switching needs a restart to fully apply, and for exactly which real files are deliberately excluded
- *  from every profile (session-login token, per-account proxies, RNG/storage caches). Export/import use
- *  {@code /killer560 profile export/import} since a real file-share flow needs a path, not just a click. */
+ *  from every profile (session-login token, per-account proxies, RNG/storage caches). Import opens a drop folder
+ *  whose zips are imported automatically; while a profile is active, setting changes are saved into it
+ *  ({@link ProfileManager#syncActiveProfile}). */
 public class ProfilesTab extends BaseTab {
 
     private static String newProfileName = "";
@@ -32,10 +34,22 @@ public class ProfilesTab extends BaseTab {
 
         String active = ProfileManager.getActiveProfile();
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Active profile: §e" + (active != null ? active : "(none - using default settings)")),
+                Component.literal("Active profile: §e" + (active != null ? active + " §7(setting changes save into it)"
+                        : "(none - using default settings)")),
                 Minecraft.getInstance().font));
         y += 16;
-        y += 20;
+
+        // killer560 (2026-10-04): "add a button to import a new file that opens the file location then you can remove
+        // the text about receiving one." The background poll in ProfileManager imports any .zip dropped there within
+        // two seconds and refreshes this list.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Import Profile (Open Folder)"), btn -> {
+                    try {
+                        ExternalOpen.path(ProfileManager.importFolder());
+                    } catch (Exception e) {
+                        ModOverlayMessage.show("§c[Profiles] Couldn't open the import folder: " + e.getMessage(), 4000);
+                    }
+                }).bounds(contentX, y, 338, 18).build());
+        y += 26;
 
         EditBox nameField = new EditBox(Minecraft.getInstance().font, contentX, y, 180, 18,
                 Component.literal("Profile name"));
@@ -89,19 +103,6 @@ public class ProfilesTab extends BaseTab {
                 y += 22;
             }
         }
-
-        y += 8;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7To receive one: drop the .zip in"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7config/killer560/system/profiles/killer560smod-profiles/,"),
-                Minecraft.getInstance().font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7then run \"/killer560 profile import <file.zip> <newName>\"."),
-                Minecraft.getInstance().font));
 
         return widgets;
     }

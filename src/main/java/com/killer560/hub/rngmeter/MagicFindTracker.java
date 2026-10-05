@@ -32,7 +32,16 @@ public final class MagicFindTracker {
         ChatObserver.subscribe(message -> onMessage(message.getString()));
     }
 
+    /** A line someone typed: optional channel prefix, optional rank, a name, then ": ". Drop lines never have one. */
+    private static final Pattern PLAYER_CHAT = Pattern.compile(
+            "^(?:(?:Party|Guild|Officer|Co-op) > |From |To )?(?:\\[[^\\]]{1,24}] )?[A-Za-z0-9_]{1,16}(?: \\[[^\\]]{1,24}])?: ");
+
     private static void onMessage(String text) {
+        // Players could type "(99999% Magic Find)" and overwrite the value (testkit WP2, 2026-10-04).
+        String plain = net.minecraft.ChatFormatting.stripFormatting(text);
+        if (plain == null || PLAYER_CHAT.matcher(plain.trim()).find()) {
+            return;
+        }
         Matcher m = MAGIC_FIND_PATTERN.matcher(text);
         if (m.find()) {
             try {

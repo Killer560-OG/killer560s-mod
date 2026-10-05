@@ -86,7 +86,21 @@ public final class FriendsListSync {
     private static long lastSyncAtMs = 0L;
     private static long pendingFollowUpSyncAtMs = 0L;
 
-    private record ParsedFriend(String name, Boolean onlineHint) {
+    private record ParsedFriend(String name, Boolean onlineHint, String activity) {
+    }
+
+    /** What a friend line says they are doing, tidied for the screen: "in SkyBlock - Garden" becomes
+     *  "SkyBlock - Garden", "currently offline" becomes "Offline". Anything else is kept as Hypixel wrote it. */
+    static String activityOf(String rest) {
+        String r = rest == null ? "" : rest.trim();
+        String lower = r.toLowerCase(Locale.US);
+        if (lower.contains("offline")) {
+            return "Offline";
+        }
+        if (lower.startsWith("in ")) {
+            r = r.substring(3).trim();
+        }
+        return r.isEmpty() ? null : r;
     }
 
     private FriendsListSync() {
@@ -215,7 +229,8 @@ public final class FriendsListSync {
         if (friend.matches()) {
             String name = friend.group(1);
             boolean offline = friend.group(2).toLowerCase(Locale.US).contains("offline");
-            ACCUMULATED.putIfAbsent(name.toLowerCase(Locale.US), new ParsedFriend(name, !offline));
+            ACCUMULATED.putIfAbsent(name.toLowerCase(Locale.US),
+                    new ParsedFriend(name, !offline, activityOf(friend.group(2))));
             lastReadLineAtMs = System.currentTimeMillis();
             return true;
         }
@@ -295,11 +310,17 @@ public final class FriendsListSync {
             names.add(p.name());
         }
         List<FriendsListConfig.Friend> friends = cfg.applyRealSync(names, truncated);
+        long now = System.currentTimeMillis();
         for (int i = 0; i < friends.size(); i++) {
             FriendsListConfig.Friend f = friends.get(i);
             Boolean hint = parsed.get(i).onlineHint();
             if (hint != null) {
                 f.onlineHint = hint;
+            }
+            String activity = parsed.get(i).activity();
+            if (activity != null) {
+                f.activity = activity;
+                f.activityAtMs = now;
             }
             if (f.uuid == null) {
                 String name = f.name;
@@ -353,6 +374,28 @@ public final class FriendsListSync {
     /** Sends the real {@code /f remove <name>}, same caveats as {@link #requestAdd}. */
     public static boolean requestRemove(String name) {
         return sendSocialCommand("remove", name);
+    }
+
+    private static final long MIN_INVITE_INTERVAL_MS = 2_000L;
+    private static final Pattern VALID_NAME = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
+    private static long lastInviteAtMs = 0L;
+
+    /** Sends the real {@code /party invite <name>}. At most one every {@link #MIN_INVITE_INTERVAL_MS}.
+     *  @return null when sent, else why not (for the screen's status line). */
+    public static String requestPartyInvite(String name) {
+        String trimmed = name == null ? "" : name.trim();
+        if (!VALID_NAME.matcher(trimmed).matches()) {
+            return "Not a valid player name.";
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastInviteAtMs < MIN_INVITE_INTERVAL_MS) {
+            return "Wait a moment before sending another invite.";
+        }
+        if (!ServerCommands.toServer("party invite " + trimmed)) {
+            return "Not connected - invite not sent.";
+        }
+        lastInviteAtMs = now;
+        return null;
     }
 
     private static boolean sendSocialCommand(String verb, String name) {

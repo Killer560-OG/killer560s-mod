@@ -41,6 +41,23 @@ public final class GifPlayerFeature {
     private static final Path GIF_FOLDER =
             ModPaths.config("killer560smod-gifs");
 
+    /**
+     * The GIF every install ships with (killer560, 2026-10-04: "take my gif for the dancing catgirl on my dungeons
+     * instance and make that show by default on every mod as a gif they have preinstalled"). It is read from the jar,
+     * not copied into the folder, so nothing on disk is ever written or overwritten. Its key is the filename of his
+     * own copy, so the HUD position and scale he already saved for that file apply to it, and a folder file of the
+     * same name takes its place rather than showing twice. It is toggled like any folder file (absent = on), and its
+     * frames were downscaled from 500px to 256px / 128 colours to keep the jar small (871 KB).
+     */
+    public static final String BUILTIN_NAME = "cute-anime-cat-girl-dancing-qb6oo9cgljjixtqf.gif";
+    private static final String BUILTIN_RESOURCE = "/assets/killer560smod/gifs/dancing-catgirl.gif";
+    /** His own HUD scale for it in the Dungeons instance (0.4 of 256px, about 102 GUI px). */
+    private static final float BUILTIN_DEFAULT_SCALE = 0.4f;
+    /** His own position: 18px down, about 11px in from the right edge. */
+    private static final int BUILTIN_DEFAULT_Y = 18;
+    private static final int BUILTIN_RIGHT_MARGIN = 11;
+    private static GifDecoder.GifImage builtinDecoded;
+
     /** Filename -> its loaded/playing state. Only present here while enabled and successfully decoded. */
     private static final Map<String, LoadedGif> loaded = new LinkedHashMap<>();
 
@@ -95,12 +112,33 @@ public final class GifPlayerFeature {
 
         Set<String> foundNames = found.stream().map(p -> p.getFileName().toString()).collect(Collectors.toSet());
         for (String loadedName : List.copyOf(loaded.keySet())) {
-            if (!foundNames.contains(loadedName)) {
+            if (!foundNames.contains(loadedName) && !BUILTIN_NAME.equals(loadedName)) {
                 unload(loadedName);
             }
         }
 
         GifPlayerConfig cfg = GifPlayerConfig.getInstance();
+        // The built-in only plays when no folder file of the same name exists - that one is loaded below instead.
+        if (!foundNames.contains(BUILTIN_NAME)) {
+            if (cfg.isGifFileEnabled(BUILTIN_NAME)) {
+                try {
+                    if (builtinDecoded == null) {
+                        try (java.io.InputStream in = GifPlayerFeature.class.getResourceAsStream(BUILTIN_RESOURCE)) {
+                            if (in == null) {
+                                throw new IOException("missing resource " + BUILTIN_RESOURCE);
+                            }
+                            builtinDecoded = GifDecoder.decode(in, BUILTIN_RESOURCE);
+                        }
+                    }
+                    applyGif(BUILTIN_NAME, builtinDecoded);
+                } catch (Exception e) {
+                    LOGGER.error("Failed to load the built-in GIF", e);
+                    unload(BUILTIN_NAME);
+                }
+            } else {
+                unload(BUILTIN_NAME);
+            }
+        }
         for (Path file : found) {
             String name = file.getFileName().toString();
             if (!cfg.isGifFileEnabled(name)) {
@@ -157,6 +195,7 @@ public final class GifPlayerFeature {
     private static void registerHudElement(String name, LoadedGif entry) {
         // Staggered default so multiple gifs don't all spawn stacked in the exact same corner.
         int index = loaded.size();
+        boolean builtin = isBuiltinLoaded(name);
         HudElementRegistry.register(new HudElement() {
             @Override
             public String id() {
@@ -165,17 +204,29 @@ public final class GifPlayerFeature {
 
             @Override
             public String displayName() {
-                return "GIF: " + name;
+                return "GIF: " + GifPlayerFeature.displayName(name);
             }
 
             @Override
             public int defaultX() {
+                if (builtin) {
+                    var window = Minecraft.getInstance().getWindow();
+                    if (window != null) {
+                        int scaledW = Math.round(width() * HudElementRegistry.resolveScale(this));
+                        return window.getGuiScaledWidth() - scaledW - BUILTIN_RIGHT_MARGIN;
+                    }
+                }
                 return 20 + (index * 20);
             }
 
             @Override
             public int defaultY() {
-                return 20 + (index * 20);
+                return builtin ? BUILTIN_DEFAULT_Y : 20 + (index * 20);
+            }
+
+            @Override
+            public float defaultScale() {
+                return builtin ? BUILTIN_DEFAULT_SCALE : 1.0f;
             }
 
             @Override
@@ -273,6 +324,25 @@ public final class GifPlayerFeature {
         } catch (IOException e) {
             return List.of();
         }
+    }
+
+    /** What the GIF tab lists: every folder file, plus the built-in when no folder file has its name. */
+    public static List<String> listedFileNames() {
+        List<String> names = new java.util.ArrayList<>(discoverFileNames());
+        if (!names.contains(BUILTIN_NAME)) {
+            names.add(0, BUILTIN_NAME);
+        }
+        return names;
+    }
+
+    /** True when {@code name} is (or would be) served from the jar rather than the folder. */
+    public static boolean isBuiltinLoaded(String name) {
+        return BUILTIN_NAME.equals(name) && !Files.isRegularFile(GIF_FOLDER.resolve(name));
+    }
+
+    /** Label for a GIF in the tab and HUD editor. */
+    public static String displayName(String name) {
+        return isBuiltinLoaded(name) ? "Dancing Cat Girl (built-in)" : name;
     }
 
     public static List<String> playingFileNames() {

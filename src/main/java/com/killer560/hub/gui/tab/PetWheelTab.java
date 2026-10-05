@@ -154,6 +154,12 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     btn.setMessage(onOff("Hide Name", cfg.isHideName()));
                 }).bounds(contentX, y, col2W, 18).build());
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Hide Pets Menu", cfg.isHideMenuWhileSummoning()), btn -> {
+                    cfg.setHideMenuWhileSummoning(!cfg.isHideMenuWhileSummoning());
+                    cfg.save();
+                    btn.setMessage(onOff("Hide Pets Menu", cfg.isHideMenuWhileSummoning()));
+                }).bounds(col2bX, y, col2W, 18).build());
         y += 24;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Pets"), btn ->

@@ -347,26 +347,6 @@ straight afterwards gets "no" and then measures an empty world. Use `buildsFinis
 completions: snapshot it, ask for the floor, wait for it to change. Eleven testkit scenarios had this bug
 and two of them - "0 secret chests" and "sim mobs never spawn" - read for days as defects in the mod.
 
-## A capture's footprint comes from the database, not from the layout
-
-`DungeonLayout` grouping is not trustworthy as a footprint source. On an Ashfall practice preset the rooms
-sit in a LINE spanning 47 cells, and when the grouping merges a run of neighbours into one room the bounding
-box of the whole run becomes the footprint: a 2026-09-30 scan of every room produced 43 of 135 with a
-footprint the room database contradicts, up to 11x1, and each one overwrote a good capture because
-`captureAt` replaces a room whose footprint changed with an empty one.
-
-So `resolveFootprint` takes the database's shape whenever it knows one (the six shapes are 1x1, 1x2, 1x3,
-1x4, 2x2 and L, so 4 tiles is the hard ceiling), keeping the orientation the world suggested and only taking
-the size. It CLAMPS rather than refuses, in both directions: too big captures the one room, too small
-captures into the correct larger box and leaves the unseen columns unread so `complete()` stays false.
-Refusing would mean a room he has only half-walked could never be captured at all.
-
-Two things made this invisible for a day. `currentFormat()` only asks whether the size is a whole number of
-tiles, never whether the tile count could fit; and the generator's `footprintCells` silently finds no room
-for an oversized room on a 6-tile grid. A room can be captured, report as captured, and never once appear on
-a floor, with nothing logged. If rooms are "missing" from generated floors, check the footprints against the
-database before anything else.
-
 ## Secret rotation: the translation is right, the DATA is what is missing
 
 Scenario 82 measures how many of the database's chest secrets land on a chest the capture already had, and it
@@ -624,20 +604,16 @@ all 36 cells against all 134 captures at all four rotations put every cell on th
 `RoomPlacer`, the layout and the live map are all correct, and three separate hypotheses about them were
 wrong.
 
-**What is wrong is `resolveFootprint`'s clamp.** `captureBox` anchors the box at the lowest grid cell the
-live map has grouped into the room. When that grouping is not the room - an Ashfall practice floor lays
-rooms out in a LINE and the map merges a whole run into one, or he has only walked part of a room - the box
-starts in the wrong place, and the clamp then read the DATABASE's number of tiles from that wrong start. It
-fixed the size and left the position alone, which is how Waterfall's capture came to be a tile of Catwalk,
-then Waterfall, then nothing, then the whole of Rare Overgrown. A mismatched footprint now REFUSES the
-capture instead of clamping it.
+**What was wrong was the (now removed) Room Recorder's footprint clamp**, which anchored a capture on a
+mis-grouped run of cells - how Waterfall's capture came to be a tile of Catwalk, then Waterfall, then
+nothing, then the whole of Rare Overgrown. The shipped captures still carry those mistakes.
 
 **Measured, so it can be re-measured:** 34 tiles across the 134 captures are block-for-block a tile of a
 different room, and 12 are nothing but air. Compare tiles over y 66..99, the dungeon's own floor-to-roof
 band - comparing each room over its own captured band finds only 5 of the 34, because the duplicates differ
 in how far below the floor they were recorded, not in the room itself. When two rooms share a tile the one
 with MORE tiles is the corrupt one: a 1x1 box cannot span a run. `RoomTileAudit` does this at every load and
-makes the offenders unusable, so they are asked for again rather than placed.
+makes the offenders unusable, so they are never placed.
 
 **A correction to the 16:22 commit.** It removed `Criss-Cross.json` as "97.4% solid on one side, 2.6% on the
 other - literally half a room". That measurement used the wrong array index order (`RoomLibrary.index` is
@@ -1372,9 +1348,8 @@ bundled coordinate as "the block", check whether it is the block or the space ab
 - **`/goto Higher Blaze`** scans down from the sky for its landing and found the roof. A downward scan now only
   accepts a spot with something over it. Spawn offsets for the blaze rooms and Ice Fill are turned by the room's
   paste rotation, which they never were.
-- **Rescanning a room**: `/killer560 roomrecorder rescan <room>` empties the capture so the recorder reads it
-  again; without it a complete room is never re-read, because capture skips seen columns. Balcony and Archway are
-  the only two rooms whose captures have no roof marker, which is the code's own sign of a missing roof corner.
+- Balcony and Archway are the only two rooms whose captures have no roof marker, which is the code's own sign
+  of a missing roof corner.
   The handoff said `SimBuilder` warns when a 1x2's reserved cells disagree with its long axis; no such warning
   exists in the code.
 
@@ -1783,7 +1758,7 @@ branches in `ClearNode`, `ClearExecutor`, `EtherwarpPathfinder` and `EtherSearch
   server; fixing them means changing what the sim builds.
 - **Auto Routes recording warning.** Starting a recording or `/ar add` in the sim in a room whose capture rotation
   is uncertain (`RoomCaptureRotation.uncertainForRecording`: no marker, ambiguous, or overruled) says once that the
-  route may come out rotated on Hypixel until the room is rescanned.
+  route may come out rotated on Hypixel until the room's capture is fixed.
 
 ## The path to blood is laid first (2026-10-04)
 
@@ -2227,3 +2202,78 @@ were the SIM's and three were the autos'; each is named at its fix.
   creeper's own feet is not checked for the creeper being in the way; with no clear spot it shoots anyway and says so.
 - Every refusal in the three autos is an INFO line, once per change of reason (`[AutoIcePath] ...`,
   `[AutoPuzzles] Blaze: ...`, `[AutoPuzzles] Beams: ...`), and each reposition logs the warp it sent and the item held.
+## 93-solve round B: Tic Tac Toe, Boulder, Three Weirdos, Water Board, Teleport Maze (2026-10-04, fix-puzB)
+
+Played by the testkit's `93-solve-*` scenarios on both capture sets (Mod Only Test and Map Logger), each auto alone,
+nobody at the keys except where the scenario says so.
+
+- **Tic Tac Toe: the last move was out of reach and nothing walked.** The Interactive Map's spot for the room
+  (relative 11,68,16) is where a walk into the room ends, not where the whole board is in reach; the last move sat
+  ~5.5 blocks off and the auto only logged "out of reach". It now walks into reach: `MazeWalk.planToSpot` runs one
+  Dijkstra over his floor and takes the nearest spot BY WALKING whose standing eye is within 4.0 of the button's box,
+  and the walk is the camera plus the forward key. Same on Hypixel.
+- **Boulder would not arm on Mod Only Test's capture** ("best 1 of 7"). The bind fingerprinted the seven buttons of
+  one row of the capture's OWN arrangement - but every capture holds whatever arrangement Hypixel dealt that run, and
+  Mod Only Test's is also turned a quarter. Decoded, the two captures agree only on the fixed room: the diorite
+  checkerboard under every other grid cell (21 cell centres at relative y 63) and the far staircase (stairs at
+  (13..17, 64, 27), barrier over them at y 68). That is the fingerprint now (31 of 31 land on both). The reward chest
+  moved from capture-local (30,66,16) to relative (15,66,29) through the bind's anchor, which is the same block in
+  every capture. **Bind a puzzle to what the room always has, never to the puzzle's own state.**
+- **Boulder: the chest is behind the boxes, so the auto has to push.** The old "stand 3 up and 3 back from the chest
+  and aura it" spot is the air over the barrier roof, and etherwarp is refused in Boulder, so the map walk failed.
+  Auto Boulder now: finds the chest (scan), gets off the roof if he is on it (a hole in the roof found in the world
+  whose fall lands on the floor and whose landing walks to the grid's front, relative (15,64,7)), presses each of
+  Boulder Solver's buttons from a walked-to spot in reach (only once that button exists - it is laid after the box
+  before it moves), walks into reach of the chest across the opened floor and auras it, then asks the map for the
+  doorway once. Every stage change and refusal is an INFO line. The sim presses the box on the SERVER copy of
+  `UseBlockCallback` now (raw packets push too) and records the reward chest being opened
+  (`SimBoulderPuzzle.isRewardChestOpened`). A single-room Boulder spawns one block in from its doorway, like the maze:
+  the tile-centre scan put him on the floor inside whatever ring of boxes the arrangement had, walled in.
+- **Three Weirdos never spoke to the auto.** The weirdo spoke from the CLIENT copy of `UseEntityCallback`, which Fabric
+  fires only from `Minecraft.startUseItem` - a real click - so `gameMode.interact` (the same packet) did nothing. The
+  SERVER copy (inside `ServerGamePacketListenerImpl.handleInteract`, javap of fabric-events-interaction 5.2.8) now
+  speaks, with `ServerPlayer.sendSystemMessage`; left clicks pass on the client and are answered (and cancelled) on
+  the server. Auto Three Weirdos logs each NPC it talks to and every reason it waits. It still never walks to the
+  NPCs; the scenario places him.
+- **Water Board: QUOI's spots are out of reach.** Standing on (15,58,z), every side lever (x 10 or 20) is 4.52-4.54
+  eye-to-box, past 4.5. The auto now warps only when the lever is not already in reach, onto the standable lever-floor
+  block nearest QUOI's spot whose standing eye is within 4.3 of the lever and which an etherwarp can aim at (read off
+  the world, so the same on Hypixel). Every refusal is logged (`Water: waiting - ...`).
+- **Teleport Maze starts from the entrance.** Besides a map arrival, the start-pad walk now runs when he is in the maze,
+  before any teleport, on the ground, with none of his movement keys down for 10 ticks, and the start pad is at most 24
+  blocks away on foot - once per visit. And when every pad in his chamber is visited (the solver's "best" pad had sent
+  him sideways twice), it takes the diagonal again instead of stopping; 60 teleports without the end stop it.
+- **Test aid:** `SimPuzzles.isRoomComplete(roomName)` - one solved signal per ROOM (Three Weirdos and Quiz share
+  `SimQuizPuzzle`, so `isWeirdosComplete`/`isQuizComplete` tell them apart). Boulder's is the path opening.
+
+**Record** (testkit at master, merged main, five scenarios per launch): 3 of 3 launches all five PASS on Mod Only Test
+and 3 of 3 on Map Logger, on the final jar, after the same on the jar before the merge. The scenario still teleports
+him to the weirdos (Approach NEAR_WEIRDOS); Teleport Maze and Boulder approached by themselves.
+
+## The Room Recorder was removed (2026-10-04)
+
+killer560: "Remove [the Room Recorder] entirely but remember the code in case we ever need it again." The
+recorder (the dev-only F7 loop and `/killer560 roomrecorder` that captured rooms off Hypixel and Ashfall into
+`config/.../killer560smod-rooms`) is gone from the source tree. The sim still loads the shipped captures
+(`assets/killer560smod/rooms`) and any local ones already on disk; `RoomLibrary` is read-only now. The code
+lives at git tag **`room-recorder-last`** (commit 6d4e09f); restore with
+`git checkout room-recorder-last -- <paths>`.
+
+Removed files: `roomsim/RoomRecorderFeature`, `RoomRecorderConfig`, `RoomEntryWalk`,
+`DungeonInstanceCooldown`, `MissingRoomsHud`, `MissingRoomsConfig`, `SimMeasure` (wither door measuring, only
+called from the recorder's scan), `RoomLibraryScreen`, and `gui/tab/RoomRecorderTab`. Also removed: the
+capture / rescan / save half of `RoomLibrary` (`capture`, `captureBox`, `captureAt`, `resolveFootprint`,
+mob capture, `recordMobSpawn`, `resetForRescan`, `resetAllBroken`, the pending-rescan file, `saveAll`,
+`saveDirty`, `toJson`, `floorProgress`, `completeCount`, `expectedCount`, `incomplete`, `Room.cutOff`),
+`RoomDatabase.allEntries`, `RunSummaryFeature.puzzleCount()`, `ActionGate.Actor.ROOM_RECORDER_MENU`, the
+New-tab entry, both HUD/feature registrations, and its FEATURES.md entry. Restoring it means putting those
+`RoomLibrary` methods back as well.
+
+Lessons that only concerned the recorder, kept here in brief:
+- `captureAt` replaced a room whose footprint changed with an empty one, and `DungeonLayout`'s grouping on an
+  Ashfall line preset merged runs of rooms (up to 11x1), so one scan wrecked 43 good captures. Footprint must
+  come from the room database's shape, and a mismatch must REFUSE, not clamp - clamping kept the wrong anchor.
+- `Level.isLoaded(pos)` is false for any y outside the build height. Hypixel's dungeon world starts at y 0, so a
+  load check asked at -64 captured nothing on Hypixel from 2026-09-29 to 2026-10-04. Clamp the y first.
+- Capture skips seen columns, so a complete room is never re-read without explicitly emptying it (the old
+  `rescan`), and the shipped copy must not win over a room being rescanned.

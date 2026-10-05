@@ -50,14 +50,15 @@ public final class CroesusConfig {
 
     private static CroesusConfig instance;
 
-    private boolean chestProfitEnabled = false;
+    // Both profit trackers ON by default since 2026-10-04 (killer560: "Make all profit trackers on by default").
+    private boolean chestProfitEnabled = true;
     private boolean includeEssence = true;
     private boolean highlightBest = true;
     /** Colour the run heads in the Croesus menu by whether anything has been claimed from them yet. */
     private boolean highlightRuns = false;
     /** Also highlight the second-best chest when it still profits after paying for a Dungeon Chest Key. */
     private boolean highlightSecondWithKey = false;
-    private boolean loggerEnabled = false;
+    private boolean loggerEnabled = true;
     private boolean loggerChatSummary = true;
     private boolean autoCroesusEnabled = false;
     private int autoMinProfitK = 0;

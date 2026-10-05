@@ -56,6 +56,11 @@ import net.minecraft.world.inventory.Slot;
  * normal path this feature's own mixins already handle - which doubles as killer560's separate "remove
  * ... the recipe book" ask, alongside {@link #register()}'s button hide for the case where it was never
  * open to begin with.
+ * <p>
+ * That was not the whole story: the "second inventory to the bottom right" came back (2026-10-04
+ * screenshot, recipe book closed). The real cause was {@link #drawSlotBackdrop}/{@link #drawSlotHighlight}
+ * adding leftPos/topPos inside a pose {@code extractContents} had already translated by them, so every
+ * slot square landed at twice the panel's offset. Both now draw slot-local.
  */
 public final class InventoryThemeFeature {
 
@@ -163,6 +168,12 @@ public final class InventoryThemeFeature {
         // strip used the real accent color. Now the accent color IS the border, on all four sides, so
         // it's both visible by default and actually responds to Accent Source/Accent Color.
         graphics.outline(x0, y0, w, h, cfg.getAccentColor());
+        if (screen instanceof InventoryScreen) {
+            // The player-model window vanilla's texture used to frame (InventoryScreen.extractBackground
+            // passes leftPos+26..75, topPos+8..78 to extractEntityInInventoryFollowsMouse).
+            graphics.fill(x0 + 26, y0 + 8, x0 + 75, y0 + 78, SLOT_BG);
+            graphics.outline(x0 + 26, y0 + 8, 49, 70, cfg.getAccentColor());
+        }
     }
 
     /** Themed backdrop for one real slot, drawn immediately before vanilla draws that slot's item icon
@@ -170,8 +181,13 @@ public final class InventoryThemeFeature {
      *  chosen) - without this, cancelling the whole background texture above would leave every item
      *  floating with no square behind it at all. */
     public static void drawSlotBackdrop(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
-        int x = leftPos(screen) + slot.x - 1;
-        int y = topPos(screen) + slot.y - 1;
+        // SLOT-LOCAL coordinates, no leftPos/topPos. AbstractContainerScreen.extractContents has already
+        // pushed translate(leftPos, topPos) before it calls extractSlotHighlightBack/extractSlots (javap,
+        // 26.1.2 and 26.2), exactly as vanilla's own extractSlot draws its item at plain (slot.x, slot.y).
+        // Adding leftPos here applied it twice and put the whole grid of backdrops at (2*leftPos, 2*topPos):
+        // the "empty orange inventory grid at the bottom right" with the real panel left slot-less.
+        int x = slot.x - 1;
+        int y = slot.y - 1;
         graphics.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, SLOT_BG);
         // killer560: "I can no longer see the lines between slots" - same root cause as the outer
         // border above (a hardcoded dim brown, 0xFF663D1A, that barely read against SLOT_BG). Per-slot
@@ -188,8 +204,9 @@ public final class InventoryThemeFeature {
         if (hoveredSlot == null || isOffhandSlot(hoveredSlot)) {
             return;
         }
-        int x = leftPos(screen) + hoveredSlot.x - 1;
-        int y = topPos(screen) + hoveredSlot.y - 1;
+        // Slot-local for the same reason as drawSlotBackdrop: this runs inside extractContents' translated pose.
+        int x = hoveredSlot.x - 1;
+        int y = hoveredSlot.y - 1;
         int accent = InventoryThemeConfig.getInstance().getAccentColor();
         int glow = (0x55 << 24) | (accent & 0x00FFFFFF);
         graphics.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, glow);

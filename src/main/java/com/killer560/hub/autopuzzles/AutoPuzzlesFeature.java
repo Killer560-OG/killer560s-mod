@@ -324,6 +324,11 @@ public final class AutoPuzzlesFeature {
             tryTalkToNpc(client, now);
         }
         if (!solved) {
+            weirdosWait(chest == null
+                    ? "the solver has no correct chest yet (" + WeirdosSolverFeature.getWrongChestCount()
+                    + " wrong chest(s) known" + (cfg.isWeirdosTalkToNpcs() ? "" : ", talk to NPCs is off") + ")"
+                    : "the solver has the chest but only " + WeirdosSolverFeature.getWrongChestCount()
+                    + " of 2 wrong chests");
             return;
         }
         if (!weirdosSolverClearedThisLevel) {
@@ -353,6 +358,7 @@ public final class AutoPuzzlesFeature {
             blocker = String.format(java.util.Locale.US, "out of reach (%.2f blocks)", Math.sqrt(distSq));
         }
         if (blocker != null) {
+            weirdosWait("not opening " + AutoPuzzleUtil.fmt(chest) + " - " + blocker);
             return;
         }
         if (!AutoPuzzleUtil.gateWorldClick()) {
@@ -409,7 +415,12 @@ public final class AutoPuzzlesFeature {
             best = entity;
             bestDistSq = distSq;
         }
-        if (best == null || !AutoPuzzleUtil.gateWorldClick()) {
+        if (best == null) {
+            weirdosWait("no un-talked CLICK stand within entity reach ("
+                    + clickedNpcIds.size() + " of 3 talked to)");
+            return;
+        }
+        if (!AutoPuzzleUtil.gateWorldClick()) {
             return; // gate held this tick back - nothing clicked, so the NPC stays unmarked and the gap untouched
         }
         // A point ON the stand's box, not the stand's own position.
@@ -426,6 +437,19 @@ public final class AutoPuzzlesFeature {
         client.player.swing(InteractionHand.MAIN_HAND);
         clickedNpcIds.add(best.getId());
         lastNpcClickMs = now;
+        LOGGER.info("[AutoPuzzles] Weirdos: talked to '{}' at {} ({} of 3)",
+                ChatFormatting.stripFormatting(best.getName().getString()), best.blockPosition().toShortString(),
+                clickedNpcIds.size());
+    }
+
+    /** What Auto Three Weirdos last said it was waiting for, so each refusal is one INFO line, not one a tick. */
+    private static String weirdosLoggedWait = null;
+
+    private static void weirdosWait(String why) {
+        if (!why.equals(weirdosLoggedWait)) {
+            weirdosLoggedWait = why;
+            LOGGER.info("[AutoPuzzles] Weirdos: waiting - {}", why);
+        }
     }
 
     private static void resetWeirdos() {
@@ -435,6 +459,7 @@ public final class AutoPuzzlesFeature {
         weirdosWaitLogged = false;
         clickedNpcIds.clear();
         lastNpcClickMs = 0L;
+        weirdosLoggedWait = null;
     }
 
     // ------------------------------------------------------------------

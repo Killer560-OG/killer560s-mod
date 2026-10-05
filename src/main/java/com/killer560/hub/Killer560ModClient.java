@@ -83,6 +83,8 @@ public class Killer560ModClient implements ClientModInitializer {
         // Before anything reads a setting: sweep every killer560smod-* file and folder out of the config root into
         // config/killer560/<category>/<feature>/, so the root is clean even for features not touched this session.
         com.killer560.hub.util.ModPaths.migrateAll();
+        // Copies setting changes into the active profile and imports zips dropped into the profile import folder.
+        com.killer560.hub.profiles.ProfileManager.startBackgroundTasks();
 
         // The one startup line worth keeping, and the only thing this class logs now: which jar is actually
         // running. Four instances have been caught two builds behind with an unpromoted .jar.pending, and the
@@ -126,8 +128,6 @@ public class Killer560ModClient implements ClientModInitializer {
         // before a feature loads it, not after.
         com.killer560.hub.configversion.ConfigMigrations.run();
         com.killer560.hub.autodebuff.AutoDebuffFeature.register();
-        // Dev builds only - the tool that fills the room library that ships. Compiled out of a release.
-        com.killer560.hub.roomsim.RoomRecorderFeature.register();
         // The sim's entry point is the title screen's "Dungeon Sim" row, which MainMenuTitleLayout
         // places under Multiplayer - so there is nothing to register here.
         com.killer560.hub.roomsim.SimAbilities.register();
@@ -142,7 +142,6 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.SimItemLore.register();
         com.killer560.hub.roomsim.SimPauseEntry.register();
         com.killer560.hub.roomsim.SimSurvival.register();
-        com.killer560.hub.roomsim.MissingRoomsHud.register();
         com.killer560.hub.roomsim.FloorSizeLog.register();
         // Started here rather than when a screen asks for it: reading it is slow enough to matter
         // and there is nothing to wait for at startup, so by the time he opens the sim it is done.
@@ -316,6 +315,7 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(com.killer560.hub.scoreboard.CustomScoreboardFeature.Element.INSTANCE);
         com.killer560.hub.playerstats.PlayerStatsFeature.register();
         HudElementRegistry.register(new com.killer560.hub.playerstats.PlayerStatsFeature.StatsHudElement());
+        com.killer560.hub.playerstats.StatElements.registerAll();
         com.killer560.hub.util.SkyblockGate.register();
         com.killer560.hub.spiritleap.SpiritLeapOverlayFeature.register();
         com.killer560.hub.leapmenu.PartyTracker.register();
@@ -435,103 +435,6 @@ public class Killer560ModClient implements ClientModInitializer {
                         // "/killer560 bugreport" - one zip with the log, the configs and the build details,
                         // so a stranger in the Discord can be diagnosed without being talked through finding
                         // their log folder. Credentials are stripped before anything goes in it.
-                        .then(ClientCommands.literal("roomrecorder")
-                                .then(ClientCommands.literal("resume")
-                                        .executes(context -> {
-                                            if (com.killer560.hub.BuildVariant.DEV_TOOLS) {
-                                                com.killer560.hub.roomsim.RoomRecorderFeature.resume();
-                                            }
-                                            return 1;
-                                        }))
-                                // Capture out of a local dungeon (Ashfall's dungeon maker) rather than off
-                                // Hypixel. Sends nothing to any server - see Stage.CAPTURE.
-                                .then(ClientCommands.literal("capture")
-                                        .executes(context -> {
-                                            if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
-                                                return 1;
-                                            }
-                                            if (com.killer560.hub.roomsim.RoomRecorderFeature.isCaptureOnly()) {
-                                                com.killer560.hub.roomsim.RoomRecorderFeature.stop("command");
-                                            } else {
-                                                com.killer560.hub.roomsim.RoomRecorderFeature.startCaptureOnly();
-                                            }
-                                            return 1;
-                                        }))
-                                // Empties one room so the recorder reads it again - see RoomLibrary.resetForRescan.
-                                .then(ClientCommands.literal("rescan")
-                                        // Every room the audit refused or whose rotation is uncertain, in one go.
-                                        .then(ClientCommands.literal("broken")
-                                                .executes(context -> {
-                                                    if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
-                                                        return 1;
-                                                    }
-                                                    java.util.List<String> rooms =
-                                                            com.killer560.hub.roomsim.RoomLibrary.resetAllBroken();
-                                                    if (rooms == null) {
-                                                        com.killer560.hub.util.ModChat.send("Room Recorder",
-                                                                com.killer560.hub.util.ModChat.bad("The room database is still loading"),
-                                                                com.killer560.hub.util.ModChat.text(" - nothing was emptied. Try again in a few seconds."));
-                                                        return 1;
-                                                    }
-                                                    if (!rooms.isEmpty()
-                                                            && !com.killer560.hub.roomsim.RoomRecorderFeature.isRunning()) {
-                                                        com.killer560.hub.roomsim.RoomRecorderFeature.startCaptureOnly();
-                                                    }
-                                                    com.killer560.hub.util.ModChat.send("Room Recorder",
-                                                            com.killer560.hub.util.ModChat.value(String.valueOf(rooms.size())),
-                                                            com.killer560.hub.util.ModChat.text(rooms.isEmpty()
-                                                                    ? " rooms needed it - nothing to rescan."
-                                                                    : " room(s) emptied for rescan: " + String.join(", ", rooms)
-                                                                    + ". Walk them (or load a map holding them) to capture them again."));
-                                                    return 1;
-                                                }))
-                                        .then(ClientCommands.argument("room", StringArgumentType.greedyString())
-                                                .executes(context -> {
-                                                    if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
-                                                        return 1;
-                                                    }
-                                                    String room = com.killer560.hub.roomsim.RoomLibrary.resetForRescan(
-                                                            StringArgumentType.getString(context, "room"));
-                                                    if (room == null) {
-                                                        com.killer560.hub.util.ModChat.send("Room Recorder", com.killer560.hub.util.ModChat.bad("No room called "),
-                                                                com.killer560.hub.util.ModChat.value(StringArgumentType.getString(context, "room")));
-                                                    } else {
-                                                        // Capture has to be running to read it, and on Hypixel nothing
-                                                        // arms it: the first rescan (2026-10-04) emptied Balcony and
-                                                        // then recorded nothing because the recorder was off.
-                                                        boolean started = !com.killer560.hub.roomsim.RoomRecorderFeature.isRunning();
-                                                        if (started) {
-                                                            com.killer560.hub.roomsim.RoomRecorderFeature.startCaptureOnly();
-                                                        }
-                                                        com.killer560.hub.util.ModChat.send("Room Recorder", com.killer560.hub.util.ModChat.value(room),
-                                                                com.killer560.hub.util.ModChat.text(" emptied - walk through it to capture it again"
-                                                                        + (started ? " (capture turned on)" : "")
-                                                                        + ". It is left out of generated floors until it is"
-                                                                        + " complete, and the rescan survives a restart."));
-                                                    }
-                                                    return 1;
-                                                })))
-                                .then(ClientCommands.literal("rooms")
-                                        .executes(context -> {
-                                            if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
-                                                return 1;
-                                            }
-                                            Minecraft mc = Minecraft.getInstance();
-                                            mc.execute(() -> mc.setScreenAndShow(
-                                                    new com.killer560.hub.roomsim.RoomLibraryScreen(McCompat.screen(mc))));
-                                            return 1;
-                                        }))
-                                .executes(context -> {
-                                    if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
-                                        return 1;
-                                    }
-                                    if (com.killer560.hub.roomsim.RoomRecorderFeature.isRunning()) {
-                                        com.killer560.hub.roomsim.RoomRecorderFeature.stop("command");
-                                    } else {
-                                        com.killer560.hub.roomsim.RoomRecorderFeature.start();
-                                    }
-                                    return 1;
-                                }))
                         .then(ClientCommands.literal("bugreport")
                                 .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate()))
                         // "/Killer560 leaporder" (2026-09-13 request) - opens the Leap Order menu

@@ -46,8 +46,7 @@ import java.util.TreeSet;
  * wandered. Twenty-six of the thirty-four pairs are exactly that shape, a 1x1 room's whole capture against
  * one tile of a bigger one. When both are the same size neither can be acquitted, so both are flagged.
  *
- * <p>A flagged room is not deleted. It is made unusable, so the generator will not place it and
- * {@code MissingRoomsHud} will ask for it back, and one clean walk through it clears the flag by itself.
+ * <p>A flagged room is not deleted. It is made unusable, so the generator will not place it.
  */
 public final class RoomTileAudit {
 

@@ -668,7 +668,11 @@ public final class SimBuilder {
         String name = room.name.toLowerCase(Locale.ROOT);
         com.killer560.hub.roomdatabase.RoomEntry dbEntry =
                 com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room.name);
-        if (name.equals("teleport maze")
+        // Boulder too (2026-10-04): its tile centre is a box cell, and the upward scan put him on the floor INSIDE
+        // whatever ring of boxes the arrangement had there - one arrangement seals the middle cells in, so he spawned
+        // walled in and no button was reachable (93-solve, "no walkable spot ... has it in reach"). On Hypixel he
+        // walks in through the doorway onto the barrier roof over the grid, which is where this puts him.
+        if (name.equals("teleport maze") || name.equals("boulder")
                 || SimFloorLayout.isTrap(room.name, dbEntry == null ? null : dbEntry.type)) {
             // ONE BLOCK IN FROM THE ENTRANCE DOORWAY, AT ITS FLOOR, FACING IN. killer560 (2026-10-04): "/goto trap
             // puts me 1 block inside of the entrance at that level. Same for teleport maze." A trap is a corridor

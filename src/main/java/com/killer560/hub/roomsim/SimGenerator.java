@@ -151,8 +151,8 @@ public final class SimGenerator {
             return r == null || !r.usable();
         });
         if (available.isEmpty()) {
-            ModChat.send("Sim", ModChat.text("No complete rooms captured yet - "),
-                    ModChat.dim("run the Room Recorder first."));
+            ModChat.send("Sim", ModChat.text("No complete rooms in the room library - "),
+                    ModChat.dim("the shipped rooms did not load (see the log)."));
             return;
         }
         List<String> puzzleRooms = new ArrayList<>(available);

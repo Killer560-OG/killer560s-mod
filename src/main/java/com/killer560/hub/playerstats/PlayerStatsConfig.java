@@ -48,6 +48,35 @@ public final class PlayerStatsConfig {
     // the feature actually looks like "Stat Bars" out of the box for anyone who already had it enabled. ---
     private boolean showText = true;
     private boolean showBar = true;
+    // --- 2026-10-04, killer560: "make custom health, intel, vitality, defence, true defence, and other such
+    // bars ... Also add an option to hide the text Hypixel has like 3000/3000 with the heart symbol ... Also
+    // add an option to hide the enchanting bar and its level. But make options for custom text, custom bars
+    // and whatnot all scalable." Each custom bar/text is its own HUD element (StatElements); its scale and
+    // position live in HudConfig like every other element, its on/off and colour live here. ---
+    /** Strips Hypixel's own stat segments (health, defence, mana, overflow mana, the extra n/n resource) from
+     *  the action bar. Independent of {@link #enabled}. A file written before this key existed takes the old
+     *  behaviour, where the stat line was hidden exactly when Stat Bars was on - see {@link #load()}. */
+    private boolean hideHypixelStatText = false;
+    /** Hides the vanilla experience bar and the level number above it. Independent of {@link #enabled}. */
+    private boolean hideXpBar = false;
+    /** Per-element on/off, keyed by {@link StatElements.Readout#key}. Absent = off. */
+    private final java.util.Map<String, Boolean> readoutOn = new java.util.HashMap<>();
+    /** Per-element ARGB colour, keyed by {@link StatElements.Readout#key}. Absent = the readout's default. */
+    private final java.util.Map<String, Integer> readoutColor = new java.util.HashMap<>();
+    public static final int MIN_BAR_WIDTH = 40;
+    public static final int MAX_BAR_WIDTH = 300;
+    public static final int MIN_BAR_HEIGHT = 2;
+    public static final int MAX_BAR_HEIGHT = 20;
+    public static final int DEFAULT_ABSORPTION_COLOR = 0xFFFFAA00;
+    public static final int DEFAULT_BAR_BACKGROUND = 0xAA000000;
+    private int barWidth = 100;
+    private int barHeight = 8;
+    /** Draws the number (e.g. "3,423/3,423") centred on each custom bar. */
+    private boolean barShowValue = true;
+    /** Colour of the part of the health bar past max health (absorption / overflow health). */
+    private int absorptionColor = DEFAULT_ABSORPTION_COLOR;
+    private int barBackground = DEFAULT_BAR_BACKGROUND;
+    private boolean textShadow = true;
 
     private PlayerStatsConfig() {
     }
@@ -79,6 +108,31 @@ public final class PlayerStatsConfig {
             cfg.showHeartsInRift = ConfigJson.getBool(obj, "showHeartsInRift", true);
             cfg.showText = ConfigJson.getBool(obj, "showText", true);
             cfg.showBar = ConfigJson.getBool(obj, "showBar", true);
+            // Before 2026-10-04 the stat line was hidden whenever Stat Bars was on, so an old file keeps that.
+            cfg.hideHypixelStatText = ConfigJson.getBool(obj, "hideHypixelStatText", cfg.enabled);
+            cfg.hideXpBar = ConfigJson.getBool(obj, "hideXpBar", false);
+            if (obj.has("readouts") && obj.get("readouts").isJsonObject()) {
+                for (var e : obj.getAsJsonObject("readouts").entrySet()) {
+                    if (!e.getValue().isJsonObject()) {
+                        continue;
+                    }
+                    JsonObject r = e.getValue().getAsJsonObject();
+                    if (r.has("on")) {
+                        cfg.readoutOn.put(e.getKey(), r.get("on").getAsBoolean());
+                    }
+                    if (r.has("color")) {
+                        cfg.readoutColor.put(e.getKey(), r.get("color").getAsInt());
+                    }
+                }
+            }
+            cfg.barWidth = clamp(obj.has("barWidth") ? obj.get("barWidth").getAsInt() : cfg.barWidth,
+                    MIN_BAR_WIDTH, MAX_BAR_WIDTH);
+            cfg.barHeight = clamp(obj.has("barHeight") ? obj.get("barHeight").getAsInt() : cfg.barHeight,
+                    MIN_BAR_HEIGHT, MAX_BAR_HEIGHT);
+            cfg.barShowValue = ConfigJson.getBool(obj, "barShowValue", cfg.barShowValue);
+            cfg.absorptionColor = obj.has("absorptionColor") ? obj.get("absorptionColor").getAsInt() : cfg.absorptionColor;
+            cfg.barBackground = obj.has("barBackground") ? obj.get("barBackground").getAsInt() : cfg.barBackground;
+            cfg.textShadow = ConfigJson.getBool(obj, "textShadow", cfg.textShadow);
             instance = cfg;
         } catch (Exception e) {
             instance = new PlayerStatsConfig();
@@ -100,6 +154,22 @@ public final class PlayerStatsConfig {
             obj.addProperty("showHeartsInRift", showHeartsInRift);
             obj.addProperty("showText", showText);
             obj.addProperty("showBar", showBar);
+            obj.addProperty("hideHypixelStatText", hideHypixelStatText);
+            obj.addProperty("hideXpBar", hideXpBar);
+            JsonObject readouts = new JsonObject();
+            for (StatElements.Readout r : StatElements.Readout.values()) {
+                JsonObject o = new JsonObject();
+                o.addProperty("on", isReadoutOn(r));
+                o.addProperty("color", getReadoutColor(r));
+                readouts.add(r.key, o);
+            }
+            obj.add("readouts", readouts);
+            obj.addProperty("barWidth", barWidth);
+            obj.addProperty("barHeight", barHeight);
+            obj.addProperty("barShowValue", barShowValue);
+            obj.addProperty("absorptionColor", absorptionColor);
+            obj.addProperty("barBackground", barBackground);
+            obj.addProperty("textShadow", textShadow);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -194,5 +264,95 @@ public final class PlayerStatsConfig {
 
     public void setShowBar(boolean value) {
         this.showBar = value;
+    }
+
+    private static int clamp(int v, int lo, int hi) {
+        return Math.max(lo, Math.min(hi, v));
+    }
+
+    /** Raw master toggle, without the Skyblock gate - for the settings screen. */
+    public boolean isEnabledRaw() {
+        return enabled;
+    }
+
+    public boolean isHideHypixelStatText() {
+        return hideHypixelStatText;
+    }
+
+    public void setHideHypixelStatText(boolean value) {
+        this.hideHypixelStatText = value;
+    }
+
+    public boolean isHideXpBar() {
+        return hideXpBar;
+    }
+
+    public void setHideXpBar(boolean value) {
+        this.hideXpBar = value;
+    }
+
+    public boolean isReadoutOn(StatElements.Readout r) {
+        return readoutOn.getOrDefault(r.key, Boolean.FALSE);
+    }
+
+    public void setReadoutOn(StatElements.Readout r, boolean on) {
+        readoutOn.put(r.key, on);
+    }
+
+    public int getReadoutColor(StatElements.Readout r) {
+        Integer c = readoutColor.get(r.key);
+        return c != null ? c : r.defaultColor;
+    }
+
+    public void setReadoutColor(StatElements.Readout r, int argb) {
+        readoutColor.put(r.key, argb);
+    }
+
+    public int getBarWidth() {
+        return barWidth;
+    }
+
+    public void setBarWidth(int v) {
+        this.barWidth = clamp(v, MIN_BAR_WIDTH, MAX_BAR_WIDTH);
+    }
+
+    public int getBarHeight() {
+        return barHeight;
+    }
+
+    public void setBarHeight(int v) {
+        this.barHeight = clamp(v, MIN_BAR_HEIGHT, MAX_BAR_HEIGHT);
+    }
+
+    public boolean isBarShowValue() {
+        return barShowValue;
+    }
+
+    public void setBarShowValue(boolean v) {
+        this.barShowValue = v;
+    }
+
+    public int getAbsorptionColor() {
+        return absorptionColor;
+    }
+
+    public void setAbsorptionColor(int argb) {
+        this.absorptionColor = argb;
+    }
+
+    public int getBarBackground() {
+        return barBackground;
+    }
+
+    public void setBarBackground(int argb) {
+        this.barBackground = argb;
+    }
+
+    public boolean isTextShadow() {
+        return textShadow;
+    }
+
+    public void setTextShadow(boolean v) {
+        this.textShadow = v;
     }
 }

@@ -40,6 +40,11 @@ public final class ProfileManager {
     private static final Logger LOGGER = ModLog.get("killer560smod-profiles");
     private static final Path PROFILES_DIR = ModPaths.config("killer560smod-profiles");
     private static final Path ACTIVE_MARKER = ModPaths.config("killer560smod-active-profile.txt");
+    /** Drop folder for received profiles (killer560, 2026-10-04: "add a button to import a new file that opens the
+     *  file location"). Every .zip put here is imported as a new profile named after the file and then moved into
+     *  {@code imported/}, so it is never imported twice. A sibling of {@link #PROFILES_DIR}, not inside it, because
+     *  every folder in there is listed as a profile. */
+    private static final Path IMPORT_DIR = ModPaths.config("killer560smod-profiles-import");
 
     private static final Set<String> EXCLUDED_FILES = Set.of(
             "killer560smod-session-login.json",
@@ -200,7 +205,7 @@ public final class ProfileManager {
     }
 
     /** Snapshots every current setting file into a new (or overwritten) profile folder. */
-    public static Result saveCurrentAsProfile(String rawName) {
+    public static synchronized Result saveCurrentAsProfile(String rawName) {
         String name = sanitize(rawName);
         if (name.isEmpty()) {
             return new Result(false, "§cProfile name can't be empty.");
@@ -224,7 +229,7 @@ public final class ProfileManager {
 
     /** Overwrites every live setting file with the ones stored in the given profile, marks it active, and
      *  reloads every in-memory config from the new files - see class doc. */
-    public static Result applyProfile(String rawName) {
+    public static synchronized Result applyProfile(String rawName) {
         String name = sanitize(rawName);
         if (name.isEmpty()) {
             return new Result(false, "§cProfile name can't be empty.");
@@ -233,6 +238,9 @@ public final class ProfileManager {
         if (!Files.isDirectory(dir)) {
             return new Result(false, "§cNo profile named \"" + name + "\".");
         }
+        // Anything changed since the last auto-save poll belongs to the profile being LEFT - write it there before
+        // the live files are replaced, or switching away within two seconds of a change would lose it.
+        syncActiveProfile();
         try {
             int count = 0;
             java.util.Set<String> inProfile = new java.util.HashSet<>();
@@ -277,6 +285,9 @@ public final class ProfileManager {
                 }
             }
             Files.writeString(ACTIVE_MARKER, name, StandardCharsets.UTF_8);
+            // The live files now ARE this profile; its auto-save starts from here.
+            lastLiveNames = null;
+            lastSyncedProfile = name;
             runOnClientThread(ProfileManager::reloadAllConfigs);
             return new Result(true, "§a[Profiles] Applied " + count + " setting file(s) from \"" + name + "\""
                     + (reset == 0 ? "." : ", and reset " + reset + " the profile didn't cover."));
@@ -320,6 +331,17 @@ public final class ProfileManager {
                 com.killer560.hub.abilitytimers.AbilityTimersConfig::load,
                 com.killer560.hub.autokick.AutoKickConfig::load,
                 com.killer560.hub.autoclosechest.AutoCloseChestConfig::load,
+                // Missing from this list until the testkit's profile round trip (2026-10-04) caught them: applying a
+                // profile wrote their file but left the old values in memory, and the next save put those back.
+                com.killer560.hub.autodebuff.AutoDebuffConfig::load,
+                com.killer560.hub.autosell.AutoSellConfig::load,
+                com.killer560.hub.bazaarflip.BazaarFlipConfig::load,
+                com.killer560.hub.bugreport.BugReportConfig::load,
+                com.killer560.hub.invsort.InventorySorterConfig::load,
+                com.killer560.hub.mining.chmap.CrystalHollowsMapConfig::load,
+                com.killer560.hub.mining.nucleus.NucleusRunProfitConfig::load,
+                com.killer560.hub.mining.profit.MiningProfitConfig::load,
+                com.killer560.hub.updatecheck.UpdateCheckConfig::load,
                 com.killer560.hub.autocorrect.AutoCorrectConfig::load,
                 com.killer560.hub.trail.TrailConfig::load,
                 com.killer560.hub.position.PositionConfig::load,
@@ -494,7 +516,7 @@ public final class ProfileManager {
         LOGGER.info("[Profiles] Reloaded {} config(s) after applying a profile ({} failure(s))", loaders.length, failed);
     }
 
-    public static Result deleteProfile(String rawName) {
+    public static synchronized Result deleteProfile(String rawName) {
         String name = sanitize(rawName);
         if (name.isEmpty()) {
             // resolve("") is PROFILES_DIR itself - without this guard a blank name deleted every exported .zip.
@@ -552,7 +574,7 @@ public final class ProfileManager {
     /** Imports a shared zip into a new profile. {@code source} may be an absolute path, or just a
      *  filename to look for directly inside {@code config/killer560/system/profiles/killer560smod-profiles/} (the simplest case -
      *  a friend drops the .zip they were sent into that folder and only types its name). */
-    public static Result importProfile(String source, String rawNewName) {
+    public static synchronized Result importProfile(String source, String rawNewName) {
         String name = sanitize(rawNewName);
         if (name.isEmpty()) {
             return new Result(false, "§cProfile name can't be empty.");
@@ -594,10 +616,202 @@ public final class ProfileManager {
                     count++;
                 }
             }
+            if (count == 0) {
+                // Not a profile zip: leave no empty profile behind.
+                deleteFolderQuietly(dir);
+                return new Result(false, "§c[Profiles] \"" + zipPath.getFileName() + "\" has no setting files in it.");
+            }
             return new Result(true, "§a[Profiles] Imported " + count + " setting file(s) into new profile \""
                     + name + "\". Use /killer560 profile load " + name + " to switch to it.");
         } catch (IOException e) {
             return new Result(false, "§cFailed to import profile: " + e.getMessage());
+        }
+    }
+
+    private static void deleteFolderQuietly(Path dir) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+            for (Path file : stream) {
+                Files.deleteIfExists(file);
+            }
+        } catch (IOException ignored) {
+        }
+        try {
+            Files.deleteIfExists(dir);
+        } catch (IOException ignored) {
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Import drop folder
+
+    /** The drop folder, created if missing - what the Profiles tab's Import button opens. */
+    public static Path importFolder() {
+        try {
+            Files.createDirectories(IMPORT_DIR);
+        } catch (IOException e) {
+            LOGGER.warn("[Profiles] could not create {}", IMPORT_DIR, e);
+        }
+        return IMPORT_DIR;
+    }
+
+    /**
+     * Imports every .zip in the drop folder as a new profile named after the file ("Bob F7.zip" becomes "Bob F7", with
+     * " 2", " 3"... added if that name is taken), then moves each zip into {@code imported/} - including one that
+     * failed, so a bad file is reported once and not on every poll. A zip that cannot be moved yet (still being
+     * written by a download or an Explorer copy) is undone and retried on the next poll. Returns one message per
+     * file handled.
+     */
+    public static synchronized List<String> importDroppedFiles() {
+        List<String> messages = new ArrayList<>();
+        if (!Files.isDirectory(IMPORT_DIR)) {
+            return messages;
+        }
+        List<Path> zips = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(IMPORT_DIR)) {
+            for (Path p : stream) {
+                if (Files.isRegularFile(p) && p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".zip")) {
+                    zips.add(p);
+                }
+            }
+        } catch (IOException e) {
+            return messages;
+        }
+        for (Path zip : zips) {
+            String file = zip.getFileName().toString();
+            String base = sanitize(file.substring(0, file.length() - 4));
+            if (base.isEmpty()) {
+                base = "Imported";
+            }
+            String name = base;
+            for (int n = 2; Files.exists(PROFILES_DIR.resolve(name)); n++) {
+                name = base + " " + n;
+            }
+            Result result = importProfile(zip.toString(), name);
+            try {
+                Path done = IMPORT_DIR.resolve("imported");
+                Files.createDirectories(done);
+                Files.move(zip, done.resolve(file), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                if (result.success()) {
+                    deleteFolderQuietly(PROFILES_DIR.resolve(name));
+                }
+                continue;
+            }
+            messages.add(result.success()
+                    ? "§a[Profiles] Imported \"" + file + "\" as profile \"" + name + "\"."
+                    : result.message());
+        }
+        return messages;
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Auto-save into the active profile
+
+    /**
+     * killer560 (2026-10-04): "if I currently have a profile loaded and change a setting then it is saved to that
+     * current profile." Every config class writes its own file its own way (about 150 of them), so instead of hooking
+     * each save this polls the live setting files every {@link #AUTO_SAVE_PERIOD_MS} on a background thread and
+     * copies any that are newer than the active profile's copy into it - the poll interval is the debounce. A setting
+     * file that existed on the previous poll and has since been deleted (a reset) is deleted from the profile too;
+     * nothing is deleted on a first poll, when there is no previous state to compare with. Secret fields are stripped
+     * exactly as Save does. Runs under this class's lock, so it can never interleave with {@link #applyProfile}
+     * copying another profile over the live files.
+     */
+    private static final long AUTO_SAVE_PERIOD_MS = 2000L;
+    /** Live setting-file names seen by the previous poll for the active profile; null right after a switch. */
+    private static Set<String> lastLiveNames;
+    private static String lastSyncedProfile;
+    private static java.util.concurrent.ScheduledExecutorService autoSaveExecutor;
+
+    /** Starts the auto-save / import poll. Call once from client init. */
+    public static synchronized void startBackgroundTasks() {
+        if (autoSaveExecutor != null) {
+            return;
+        }
+        autoSaveExecutor = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "killer560smod-profiles-autosave");
+            t.setDaemon(true);
+            return t;
+        });
+        autoSaveExecutor.scheduleWithFixedDelay(ProfileManager::pollOnce,
+                AUTO_SAVE_PERIOD_MS, AUTO_SAVE_PERIOD_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+        // A change made in the last two seconds before quitting must still land.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING
+                .register(client -> syncActiveProfile());
+    }
+
+    private static void pollOnce() {
+        try {
+            syncActiveProfile();
+            List<String> imported = importDroppedFiles();
+            if (!imported.isEmpty()) {
+                Minecraft client = Minecraft.getInstance();
+                if (client != null) {
+                    client.execute(() -> {
+                        for (String message : imported) {
+                            com.killer560.hub.notify.ModOverlayMessage.show(message, 5000);
+                        }
+                        // The overlay draws behind the settings menu, so refresh the list he is looking at.
+                        if (com.killer560.hub.compat.McCompat.screen(client) instanceof com.killer560.hub.gui.ModScreen screen) {
+                            screen.refresh();
+                        }
+                    });
+                }
+            }
+        } catch (Throwable t) {
+            LOGGER.warn("[Profiles] auto-save poll failed", t);
+        }
+    }
+
+    /** Copies every live setting file newer than the active profile's copy into it. Safe to call from any thread. */
+    public static synchronized void syncActiveProfile() {
+        String active = getActiveProfile();
+        Path dir = active == null ? null : PROFILES_DIR.resolve(sanitize(active));
+        if (dir == null || !Files.isDirectory(dir)) {
+            lastLiveNames = null;
+            lastSyncedProfile = null;
+            return;
+        }
+        if (!active.equals(lastSyncedProfile)) {
+            lastLiveNames = null;
+            lastSyncedProfile = active;
+        }
+        Set<String> liveNames = new java.util.HashSet<>();
+        int copied = 0;
+        for (Path live : liveConfigFiles()) {
+            String fileName = live.getFileName().toString();
+            liveNames.add(fileName);
+            Path stored = dir.resolve(fileName);
+            try {
+                if (Files.isRegularFile(stored)
+                        && Files.getLastModifiedTime(live).compareTo(Files.getLastModifiedTime(stored)) <= 0) {
+                    continue;
+                }
+                if (!copyWithSecretsStripped(live, stored)) {
+                    Files.copy(live, stored, StandardCopyOption.REPLACE_EXISTING);
+                }
+                copied++;
+            } catch (IOException e) {
+                // Mid-write by its own config class; the next poll picks it up.
+            }
+        }
+        int removed = 0;
+        if (lastLiveNames != null) {
+            for (String gone : lastLiveNames) {
+                if (!liveNames.contains(gone) && !SECRET_FIELDS.containsKey(gone)) {
+                    try {
+                        if (Files.deleteIfExists(dir.resolve(gone))) {
+                            removed++;
+                        }
+                    } catch (IOException ignored) {
+                    }
+                }
+            }
+        }
+        lastLiveNames = liveNames;
+        if (copied > 0 || removed > 0) {
+            LOGGER.info("[Profiles] Auto-saved {} changed setting file(s) into \"{}\"{}", copied, active,
+                    removed == 0 ? "" : " and removed " + removed + " reset one(s)");
         }
     }
 }

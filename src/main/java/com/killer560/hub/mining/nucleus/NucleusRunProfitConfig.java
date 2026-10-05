@@ -21,7 +21,8 @@ public final class NucleusRunProfitConfig {
 
     private static NucleusRunProfitConfig instance;
 
-    private boolean enabled = false;
+    /** ON by default since 2026-10-04 (killer560: "Make all profit trackers on by default"). */
+    private boolean enabled = true;
 
     private NucleusRunProfitConfig() {
     }
@@ -41,7 +42,7 @@ public final class NucleusRunProfitConfig {
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             NucleusRunProfitConfig cfg = new NucleusRunProfitConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new NucleusRunProfitConfig();

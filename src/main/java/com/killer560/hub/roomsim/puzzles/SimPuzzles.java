@@ -100,6 +100,44 @@ public final class SimPuzzles {
         }
     }
 
+    /**
+     * Whether the puzzle in the room of this NAME is solved - the per-room signal tests read by reflection, so a
+     * scenario never has to know which class runs which room or what each one counts as solved.
+     *
+     * <ul>
+     *   <li>Boulder: the boxes leave a way from the near row to the far one ({@code SimBoulderPuzzle.isComplete}).
+     *       Its reward chest being opened is {@code SimBoulderPuzzle.isRewardChestOpened}, separately.</li>
+     *   <li>Three Weirdos / Quiz: the right chest or answer, in THAT room - both run on {@code SimQuizPuzzle}, so
+     *       its plain {@code isComplete} cannot say which.</li>
+     *   <li>Water Board: every gate click and every timed click made; Tic Tac Toe: a game finished without the AI
+     *       winning; Teleport Maze: the end pad reached; the rest: their own {@code isComplete}.</li>
+     * </ul>
+     *
+     * @return false for an unknown room name, or a room whose puzzle is not solved
+     */
+    public static boolean isRoomComplete(String roomName) {
+        if (roomName == null) {
+            return false;
+        }
+        try {
+            return switch (roomName.toLowerCase(Locale.ROOT)) {
+                case "three weirdos" -> SimQuizPuzzle.isWeirdosComplete();
+                case "quiz" -> SimQuizPuzzle.isQuizComplete();
+                case "boulder" -> SimBoulderPuzzle.isComplete();
+                case "water board" -> SimWaterPuzzle.isComplete();
+                case "tic tac toe" -> SimTicTacToePuzzle.isComplete();
+                case "teleport maze" -> SimTeleportMazePuzzle.isComplete();
+                case "creeper beams" -> SimCreeperPuzzle.isComplete();
+                case "higher blaze", "lower blaze" -> SimBlazePuzzle.isComplete();
+                case "ice fill" -> SimIceFillPuzzle.isComplete();
+                case "ice path" -> SimIcePathPuzzle.isComplete();
+                default -> false;
+            };
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     private SimPuzzles() {
     }
 

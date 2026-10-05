@@ -63,6 +63,10 @@ public final class FriendsListConfig {
          *  case {@link FriendsListScreen} falls back to the old tab-list-only "Nearby now" heuristic. Not
          *  persisted - it's live sync state, stale the moment a restart happens. */
         public transient Boolean onlineHint;
+        /** What the last real {@code /fl} said this friend was doing ("SkyBlock - Garden", "Offline", ...),
+         *  null if never seen. Persisted with {@link #activityAtMs}, so after a restart it still shows, aged. */
+        public String activity;
+        public long activityAtMs;
         /** Local-only annotation, never sent to Hypixel and never affects membership. */
         public String note = "";
         public long firstSeenAtMs;
@@ -136,6 +140,8 @@ public final class FriendsListConfig {
         Friend f = new Friend(name);
         f.note = ConfigJson.getString(obj, "note", "");
         f.firstSeenAtMs = ConfigJson.getLong(obj, "firstSeenAtMs", 0L);
+        f.activity = ConfigJson.getString(obj, "activity", null);
+        f.activityAtMs = ConfigJson.getLong(obj, "activityAtMs", 0L);
         return f;
     }
 
@@ -153,6 +159,10 @@ public final class FriendsListConfig {
                 entry.addProperty("name", f.name);
                 entry.addProperty("note", f.note == null ? "" : f.note);
                 entry.addProperty("firstSeenAtMs", f.firstSeenAtMs);
+                if (f.activity != null) {
+                    entry.addProperty("activity", f.activity);
+                    entry.addProperty("activityAtMs", f.activityAtMs);
+                }
                 array.add(entry);
             }
             obj.add("friends", array);

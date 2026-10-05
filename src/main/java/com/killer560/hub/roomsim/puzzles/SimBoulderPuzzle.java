@@ -129,24 +129,29 @@ public final class SimBoulderPuzzle {
             return;
         }
         registered = true;
+        // THE SERVER presses the box, from the use-on packet, like Hypixel's. Until 2026-10-04 this listened on the
+        // CLIENT copy of the callback, which only a client-side useItemOn reaches; Fabric's server copy fires inside
+        // ServerPlayerGameMode.useItemOn for the ServerPlayer, so a real click, an auto's useItemOn and a raw packet
+        // all push the box (docs/SIM.md, "The sim answers packets").
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
-            Minecraft client = Minecraft.getInstance();
-            // Client side only - this event also fires server-side, and a press must be one push.
-            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player || grid == null) {
+            if (level.isClientSide() || !(level instanceof ServerLevel server) || grid == null
+                    || !SimState.isActive()) {
                 return InteractionResult.PASS;
             }
-            int[] hit = BUTTONS.get(hitResult.getBlockPos());
+            BlockPos clicked = hitResult.getBlockPos();
+            if (clicked.equals(rewardChest)) {
+                if (!rewardOpened) {
+                    rewardOpened = true;
+                    LOGGER.info("Sim boulder: reward chest {} opened (path open: {})", clicked, complete);
+                }
+                return InteractionResult.PASS;
+            }
+            int[] hit = BUTTONS.get(clicked);
             if (hit == null) {
                 return InteractionResult.PASS;
             }
-            MinecraftServer server = client.getSingleplayerServer();
-            if (server != null) {
-                final int cell = hit[0];
-                final int dir = hit[1];
-                server.execute(() -> press(server.overworld(), cell, dir));
-            }
-            // PASS: vanilla's own press (click, animation) is what makes it read as a button, and the
-            // solver's own interact hook (BoulderSolverMixin) needs the click to go through.
+            press(server, hit[0], hit[1]);
+            // PASS: vanilla's own press (click, animation) is what makes it read as a button.
             return InteractionResult.PASS;
         });
     }
@@ -163,15 +168,30 @@ public final class SimBoulderPuzzle {
      * <p>Server thread only; called from {@code SimBuilder}'s post-build block.
      */
     public static boolean bindAt(ServerLevel level, com.killer560.hub.roomsim.SimRoomPuzzles.Placement p) {
-        // The capture's seven buttons on the south faces of its z=12 row are the room's fingerprint - the only
-        // thing that tells one rotation from another, since the floor is stone at most positions at all four.
-        List<int[]> buttonRow = new ArrayList<>();
-        for (int x : X_VALUES) {
-            buttonRow.add(new int[]{x, BUTTON_Y, 10});
+        // THE ROOM'S FIXED GEOMETRY is the fingerprint, never its boxes. This used to be the seven buttons along
+        // one row of the capture's own arrangement - but every Boulder capture holds whatever arrangement Hypixel
+        // dealt that run, so another capture of the same room failed it outright: Mod Only Test's (turned a
+        // quarter, a different arrangement, 15 buttons) scored "best 1 of 7" at every rotation and the room was
+        // never armed (93-solve, 2026-10-04). Decoded, both captures agree on what does not move: the diorite
+        // squares under every other grid cell (a checkerboard - 21 of the 42 cell centres at y 63) and the far
+        // staircase under the reward alcove (stone brick stairs at (13..17, 64, 27), the barrier over it at
+        // y 68). A wrong rotation puts stone under half the diorite and the stairs into a wall.
+        List<int[]> fixed = new ArrayList<>();
+        for (int row = 0; row < ROWS; row++) {
+            for (int col = 0; col < COLS; col++) {
+                if ((row + col) % 2 == 1) {
+                    fixed.add(new int[]{X_VALUES[col], BOX_BOTTOM_Y - 1, Z_VALUES[row]});
+                }
+            }
+        }
+        for (int x = 13; x <= 17; x++) {
+            fixed.add(new int[]{x, BOX_BOTTOM_Y, 27});
+            fixed.add(new int[]{x, 68, 27});
         }
         com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor =
-                com.killer560.hub.roomsim.SimRoomPuzzles.bestAnchor(level, p, buttonRow,
-                        com.killer560.hub.roomsim.SimRoomPuzzles.is(Blocks.STONE_BUTTON), new int[]{0}, 5);
+                com.killer560.hub.roomsim.SimRoomPuzzles.bestAnchor(level, p, fixed,
+                        com.killer560.hub.roomsim.SimRoomPuzzles.is(Blocks.DIORITE, Blocks.STONE_BRICK_STAIRS,
+                                Blocks.BARRIER), new int[]{0}, fixed.size() - 4);
         if (anchor == null || PATTERNS.isEmpty()) {
             return false;
         }
@@ -180,48 +200,48 @@ public final class SimBoulderPuzzle {
         grid = anchor::world;
         // The capture's own plank, for the boxes - it mixes jungle and birch, so both are offered.
         generate(level, PATTERNS.get(ThreadLocalRandom.current().nextInt(PATTERNS.size())));
-        placeRewardChest(level, p);
+        placeRewardChest(level, anchor);
         return true;
     }
 
     /**
-     * Where the reward chest goes, capture-local: the back middle of the little staircase past the far edge of
-     * the box grid. killer560 (2026-10-04): "Boulder is now great just missing the chest. It should go kind of in
-     * the back middle of that staircase on the opposite side of the entrance."
+     * Where the reward chest goes, ROOM-RELATIVE: the back middle of the little staircase past the far edge of the
+     * box grid. killer560 (2026-10-04): "Boulder is now great just missing the chest. It should go kind of in the
+     * back middle of that staircase on the opposite side of the entrance."
      *
-     * <p>Decoded from {@code Boulder.json}: the room's raised doorway side is low capture x (a platform at y 68,
-     * the doorway at x 0, y 69..72), and the far side is a three-step staircase across z 14..18 - a stair at
-     * (28, 64), a stair at (29, 65), and stone bricks at (30, 65) against the back wall at x 31 - with air over
-     * all of it up to the barrier at y 68. So "back middle" is standing on the top step at (30, 66, 16), which
-     * the capture holds as air. The box grid lies between it and the doorway, under a barrier ceiling one block
-     * above the boxes, so the chest is reached by opening the path, as the puzzle intends.
+     * <p>Decoded from {@code Boulder.json}: three steps at relative z 27..29 across x 13..17 (stairs at y 64 and 65,
+     * stone bricks at 65 against the back wall at z 30), air over them up to the barrier at y 68 - so "back middle"
+     * is standing on the top step, relative (15, 66, 29). This used to be the capture-local (30, 66, 16), which is
+     * only that spot in a capture taken at the shipped turn; Mod Only Test's is turned a quarter, where (30, 66, 16)
+     * is somewhere else. Through the bind's own anchor it is the same block in every capture. The chest faces one
+     * block toward the room, relative (15, 66, 28).
      */
-    private static final int[] CHEST_SPOT = {30, 66, 16};
-    /** One block toward the room from {@link #CHEST_SPOT}, capture-local - the way the chest's front faces. */
-    private static final int[] CHEST_FRONT = {29, 66, 16};
+    private static final int[] CHEST_SPOT = {15, 66, 29};
+    private static final int[] CHEST_FRONT = {15, 66, 28};
+
+    /** The reward chest's world position once placed, for the opened-chest signal. */
+    private static volatile BlockPos rewardChest = null;
+    private static volatile boolean rewardOpened = false;
 
     /**
-     * Places the reward chest, turned with the room. Server thread, at bind.
-     *
-     * <p>The facing is taken from where the paste put two capture cells rather than from a rotation table, so it
-     * is right at every paste rotation by the same transform that put the room down. Only written into air,
-     * and the outcome is logged either way - a re-captured Boulder that moved the staircase reports it instead
-     * of burying a chest in a wall (the Ice Fill reward chests' rule).
+     * Places the reward chest, turned with the room. Server thread, at bind. Only written into air, and the outcome
+     * is logged either way - a re-captured Boulder that moved the staircase reports it instead of burying a chest in
+     * a wall (the Ice Fill reward chests' rule).
      */
-    private static void placeRewardChest(ServerLevel level, com.killer560.hub.roomsim.SimRoomPuzzles.Placement p) {
-        BlockPos spot = com.killer560.hub.roomsim.SimRoomPuzzles.capturedPos(p, CHEST_SPOT[0], CHEST_SPOT[1],
-                CHEST_SPOT[2]);
-        BlockPos front = com.killer560.hub.roomsim.SimRoomPuzzles.capturedPos(p, CHEST_FRONT[0], CHEST_FRONT[1],
-                CHEST_FRONT[2]);
+    private static void placeRewardChest(ServerLevel level, com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor) {
+        BlockPos spot = anchor.world(CHEST_SPOT);
+        BlockPos front = anchor.world(CHEST_FRONT);
         Direction facing = horizontal(front.getX() - spot.getX(), front.getZ() - spot.getZ());
         if (!level.getBlockState(spot).isAir() || facing == null) {
-            LOGGER.warn("Sim boulder: no reward chest - the spot {} (capture 30,66,16) holds {}. If Boulder has "
+            LOGGER.warn("Sim boulder: no reward chest - the spot {} (relative 15,66,29) holds {}. If Boulder has "
                     + "been re-captured that coordinate needs re-measuring.", spot, level.getBlockState(spot).getBlock());
             return;
         }
         level.setBlockAndUpdate(spot, Blocks.CHEST.defaultBlockState()
                 .setValue(net.minecraft.world.level.block.ChestBlock.FACING, facing));
-        LOGGER.info("Sim boulder: reward chest at {} facing {} (pasted at {})", spot, facing, p.pasteRotation());
+        rewardChest = spot.immutable();
+        LOGGER.info("Sim boulder: reward chest at {} facing {} (database rotation {})", spot, facing,
+                anchor.rotation());
     }
 
     /** A standalone board in front of him, for {@code /simpuzzle boulder}: the same grid on a stone floor. */
@@ -394,8 +414,11 @@ public final class SimBoulderPuzzle {
             next[dest] = box;
         }
         lay(level, next);
+        LOGGER.info("Sim boulder: button pressed - box {} {} ({} box(es) left)", cell,
+                moved ? "moved one cell" : "disappeared", countBoxes(next));
         if (pathOpen(next)) {
             complete = true;
+            LOGGER.info("Sim boulder: solved - the way through is open");
             Minecraft.getInstance().execute(() ->
                     ModChat.send("Sim", ModChat.good("Boulder"), ModChat.text(" solved - the way through is open.")));
         }
@@ -441,8 +464,14 @@ public final class SimBoulderPuzzle {
         return n;
     }
 
+    /** Whether the boxes have been pushed so a way runs from the near row to the far one - the puzzle solved. */
     public static boolean isComplete() {
         return complete;
+    }
+
+    /** Whether the reward chest has been opened (right-clicked) since the board was laid. */
+    public static boolean isRewardChestOpened() {
+        return rewardOpened;
     }
 
     /**
@@ -450,6 +479,8 @@ public final class SimBoulderPuzzle {
      * positions held here are absolute and would land inside the new floor.
      */
     public static void forget() {
+        rewardChest = null;
+        rewardOpened = false;
         BUTTONS.clear();
         PLACED_BUTTONS.clear();
         cells = new BlockState[0];
