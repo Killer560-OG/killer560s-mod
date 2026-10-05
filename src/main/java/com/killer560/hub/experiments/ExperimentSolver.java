@@ -49,7 +49,10 @@ import java.util.regex.Pattern;
  *   reward category (books, misc items, pet heads, bottles, ...) which varies too much to whitelist -
  *   since Superpairs clicks are a limited resource. Once every tile is discovered and nothing else is
  *   left to explore or match, falls back to matching the highest-count skipped dye pairs rather than
- *   wasting remaining clicks.</li>
+ *   wasting remaining clicks. Since 2026-10-05 it plays in turns of two clicks (a pair is only ever
+ *   started when no tile is turned over), reads which tiles are claimed off the board, reads
+ *   "Remaining Clicks", orders rewards money, then skipped kinds, then XP by amount, and counts the
+ *   board to deduce where a partner or a powerup must be - see {@code BoardFacts}.</li>
  * </ul>
  * <p>
  * Per killer560's request, Chronomatron/Ultrasequencer each get an extra one-time delay
@@ -154,6 +157,22 @@ final class ExperimentSolver {
      *  its click resolves - confirmed or not - since a lone last-resort spend can never complete a real
      *  match by itself regardless of outcome, unlike every other queuedPairSlots entry. */
     private Integer superpairsSingleSpendSlot;
+    /** Every slot ever seen showing a powerup, so a powerup tile that covers back up is never counted as a
+     *  hidden reward tile by {@link #readBoard} (only one powerup at a time lives in {@link #superpairsPowerupSlot}). */
+    private final Set<Integer> superpairsPowerupSlotsSeen = new HashSet<>();
+    /** When each slot was last clicked by the solver - picks which of a kind's revealed tiles is the turn's open
+     *  one when a kind has three revealed (a claimed pair plus one just turned over). */
+    private final Map<Integer, Long> superpairsClickedAtMs = new HashMap<>();
+    /** Since when two unpaired tiles have been showing at once (a missed pair waiting to cover back up), or 0. */
+    private long superpairsTwoOpenSinceMs;
+    /** How long to wait for a missed pair to cover back up before acting anyway, so a board this solver misreads
+     *  can slow it down but never stop it. Hypixel covers them back within a tick or two; the testkit's table in 10. */
+    private static final long SUPERPAIRS_TWO_OPEN_MAX_WAIT_MS = 2500;
+    /** Diagnostics already logged this board (a kind known twice but not queued, a deduction that fired), so each
+     *  is logged once rather than every tick. */
+    private final Set<String> superpairsLoggedOnce = new HashSet<>();
+    /** True once the "two unpaired tiles stayed up" warning was logged for the current wait. */
+    private boolean superpairsTwoOpenWarned;
     /** Per killer560's request: scan the grid top-left to bottom-right in a full snake/boustrophedon
      *  pattern (row 1 left-to-right, row 2 right-to-left, and so on) rather than a flat row-major
      *  scan, so pairs get queued in that visible order. */
@@ -409,7 +428,7 @@ final class ExperimentSolver {
             Cell current = bySlot.get(slot);
             if (current == null || current.empty()) continue;
             Cell known = entry.getValue();
-            byKey.computeIfAbsent(known.itemId() + "|" + known.name(), k -> new ArrayList<>()).add(slot);
+            byKey.computeIfAbsent(pairKey(known), k -> new ArrayList<>()).add(slot);
         }
         List<int[]> matches = new ArrayList<>();
         for (List<Integer> slots : byKey.values()) {
@@ -795,6 +814,7 @@ final class ExperimentSolver {
             Cell cell = bySlot.get(slot);
             if (cell == null || !isRevealedPair(cell)) continue;
             if (isPowerupTile(cell)) {
+                superpairsPowerupSlotsSeen.add(slot);
                 if (superpairsPowerupSlot == null && !queuedPairSlots.contains(slot)) {
                     superpairsPowerupSlot = slot;
                 }
@@ -822,9 +842,10 @@ final class ExperimentSolver {
         if (now - superpairsLastClickSentAtMs < minDelayMs) {
             return OptionalInt.empty();
         }
-        OptionalInt click = decideSuperpairsClickInternal(cells, valuableOnly);
+        OptionalInt click = decideSuperpairsClickInternal(cells, valuableOnly, now);
         if (click.isPresent()) {
             int slot = click.getAsInt();
+            superpairsClickedAtMs.put(slot, now);
             superpairsAwaitingConfirmSlot = slot;
             superpairsAwaitingConfirmPriorCell = cell(cells, slot);
             superpairsAwaitingConfirmSinceMs = now;
@@ -867,19 +888,30 @@ final class ExperimentSolver {
         }
     }
 
-    private OptionalInt decideSuperpairsClickInternal(List<Cell> cells, boolean valuableOnly) {
+    /**
+     * Superpairs decision. Priority, per killer560 (2026-10-05: "prioritize money over xp", skipped rewards "if it
+     * reaches the end with clicks left", and "you can calculate how many things are left ... to optimize this"):
+     * money (anything that is neither plain XP nor a kind he skips) first, then the skipped kinds (Grand bottles,
+     * Guardians - they still sell), then plain XP, highest amount first. The board is read every call
+     * ({@link #readBoard}): which tiles are claimed, which one is turned over as the current turn's first click,
+     * and the counting facts the deductions use. Clicks come in turns of two, so a turn's first and second click
+     * are decided differently - see {@link #firstClickOfTurn} and {@link #secondClickOfTurn}.
+     */
+    private OptionalInt decideSuperpairsClickInternal(List<Cell> cells, boolean valuableOnly, long now) {
         superpairsPairFirstSlot = null;
         Map<Integer, Cell> bySlot = new HashMap<>();
         for (Cell cell : cells) {
             bySlot.put(cell.slot(), cell);
         }
+        BoardFacts board = readBoard(bySlot);
+        int remaining = superpairsRemainingClicks(cells);
 
         // The bonus tile makes the very next click an automatic match - spend it on the best known
-        // target: a specific known book first, else (if pairing everything) the highest-count known
-        // dye, else fall through to whatever the normal priority below picks.
+        // target: a money tile whose partner is still hidden first, else any known money tile, else (if
+        // pairing everything) the highest known XP, else fall through to whatever the normal priority picks.
         if (superpairsPowerupPending) {
             superpairsPowerupPending = false;
-            OptionalInt best = bestKnownSingleTarget(valuableOnly, bySlot);
+            OptionalInt best = bestKnownSingleTarget(valuableOnly, board);
             if (best.isPresent()) {
                 queuedPairSlots.add(best.getAsInt());
                 Cell target = knownSuperpairsCells.get(best.getAsInt());
@@ -894,7 +926,8 @@ final class ExperimentSolver {
         // Find). "Instant powerup!" tiles (the "+479,095 XP" lapis block, "Gained +3 Clicks") apply on the
         // spot. Arming on those too spent a lone click on the Enchanted Book at slot 10 in his 2026-10-01
         // 09:20 run, which reserved it, so when its partner turned up at 34 the pair was blocked.
-        if (superpairsPowerupSlot != null && !queuedPairSlots.contains(superpairsPowerupSlot)) {
+        // Not while a turn is half done: that click would land as the turn's second click instead.
+        if (superpairsPowerupSlot != null && !queuedPairSlots.contains(superpairsPowerupSlot) && board.open.isEmpty()) {
             int slot = superpairsPowerupSlot;
             superpairsPowerupSlot = null;
             Cell tile = bySlot.get(slot);
@@ -906,109 +939,399 @@ final class ExperimentSolver {
             return OptionalInt.of(slot);
         }
 
-        // A fully-known matching pair beats revealing anything new - queue it before doing more
-        // exploration. Per killer560's "is this xp? skip if yes, else its valuable and something i need to
-        // match" (2026-09-07): XP/dye pairs are skipped from this PRIORITY search when valuableOnly is
-        // on (same as always) - they still get matched eventually via the fully-explored fallback below
-        // (matchHighestValueDyePair) rather than being forgotten, since knownSuperpairsCells remembers
-        // them unconditionally now.
-        if (pairClicks.isEmpty()) {
-            Map<String, Integer> firstSeenThisPass = new HashMap<>();
-            for (int slot : SUPERPAIRS_SNAKE_ORDER) {
-                if (queuedPairSlots.contains(slot)) continue;
-                Cell known = knownSuperpairsCells.get(slot);
-                if (known == null) continue;
-                if (valuableOnly && !isValuablePair(known)) continue;
-                if (isUserSkipped(known)) continue;
-                String key = known.itemId() + "|" + known.name();
-                Integer first = firstSeenThisPass.putIfAbsent(key, slot);
-                if (first != null) {
-                    pairClicks.add(first);
-                    pairClicks.add(slot);
-                    queuedPairSlots.add(first);
-                    queuedPairSlots.add(slot);
-                    // Diagnostic (2026-09-24), per killer560's report of a Titanic getting queued
-                    // against a Grand: this is the ONLY place a real pair gets queued from matching
-                    // identities, so logging both slots' full remembered identity here (itemId + raw
-                    // name, not the truncated overlay label) settles instantly whether a future repeat
-                    // is a genuine key collision (both names would print identical here) or something
-                    // else entirely (e.g. a last-resort single-spend elsewhere being mistaken for a
-                    // pair - see clickAnyRemainingKnownTile's own log line for that path).
-                    LOGGER.info("Superpairs queuing pair: slot {} (itemId={}, name='{}') with slot {} "
-                                    + "(itemId={}, name='{}') on key '{}'",
-                            first, knownSuperpairsCells.get(first).itemId(), knownSuperpairsCells.get(first).name(),
-                            slot, known.itemId(), known.name(), key);
-                    break;
-                }
-            }
-            // Diagnostic (2026-09-09) - per killer560's report that a just-discovered book (Sharpness)
-            // wasn't paired with an already-known copy elsewhere even though both should have been
-            // sitting in knownSuperpairsCells - couldn't find a concrete bug by re-reading this logic
-            // alone (the scan above looks structurally correct: both slots would need to share this
-            // exact itemId+name key and neither be in queuedPairSlots). Logs the exact reason a real
-            // duplicate would've been skipped (already queued, or filtered by valuableOnly) the next
-            // time this happens, rather than guessing at a fix that might not be the real cause.
-            if (pairClicks.isEmpty()) {
-                Map<String, List<Integer>> byKey = new HashMap<>();
-                for (Map.Entry<Integer, Cell> entry : knownSuperpairsCells.entrySet()) {
-                    Cell known = entry.getValue();
-                    String key = known.itemId() + "|" + known.name();
-                    byKey.computeIfAbsent(key, k -> new ArrayList<>()).add(entry.getKey());
-                }
-                for (Map.Entry<String, List<Integer>> entry : byKey.entrySet()) {
-                    if (entry.getValue().size() < 2) continue;
-                    LOGGER.warn("Superpairs: key '{}' known at slots {} but no pair was queued this cycle - "
-                                    + "queuedPairSlots={}, valuableOnly={}, isValuablePair={}",
-                            entry.getKey(), entry.getValue(), queuedPairSlots, valuableOnly,
-                            isValuablePair(knownSuperpairsCells.get(entry.getValue().get(0))));
-                }
-            }
-        }
-
-        if (!pairClicks.isEmpty()) {
+        // A queued pair's second click. Dropped if that tile is already claimed (the first click landed while an
+        // Instant Find was armed, which claims both at once): a click on a claimed tile does nothing.
+        while (!pairClicks.isEmpty()) {
             int next = pairClicks.poll();
+            if (board.claimed.contains(next)) {
+                LOGGER.info("Superpairs: slot {} is already claimed - dropping its queued click", next);
+                continue;
+            }
             superpairsPairFirstSlot = pairClicks.isEmpty() ? null : next;
             return OptionalInt.of(next);
         }
 
-        // Nothing known matches yet - click an unrevealed (still-covered) tile to learn what's under
-        // it, the actual "flip a memory-game tile" mechanic Superpairs uses, unlike Chronomatron/
-        // Ultrasequencer whose data is fully visible up front without needing to click anything.
-        boolean boardFullyExplored = true;
+        // Two unpaired tiles up at once is a missed pair the game is about to cover back up; a click now is
+        // ignored. Wait for it - but only so long, so a board this misreads slows the solver down, never stops it.
+        if (board.open.size() >= 2) {
+            if (superpairsTwoOpenSinceMs == 0) {
+                superpairsTwoOpenSinceMs = now;
+            }
+            if (now - superpairsTwoOpenSinceMs < SUPERPAIRS_TWO_OPEN_MAX_WAIT_MS) {
+                return OptionalInt.empty();
+            }
+            if (!superpairsTwoOpenWarned) {
+                superpairsTwoOpenWarned = true;
+                LOGGER.warn("Superpairs: slots {} stayed turned over unpaired for {}ms - carrying on as if a new turn",
+                        board.open, SUPERPAIRS_TWO_OPEN_MAX_WAIT_MS);
+            }
+            board.open.clear();
+        } else {
+            superpairsTwoOpenSinceMs = 0;
+            superpairsTwoOpenWarned = false;
+        }
+        if (board.open.size() == 1) {
+            return secondClickOfTurn(board.open.get(0), bySlot, board, valuableOnly);
+        }
+        return firstClickOfTurn(bySlot, board, valuableOnly, remaining);
+    }
+
+    /**
+     * What one look at the board says, recomputed on every decision ({@link #readBoard}).
+     * <p>
+     * The counting rule the deductions rest on: every reward tile has exactly one partner, and a powerup has none.
+     * Nothing is assumed about how many powerups a board has (it varies: Instant Find, "+N Clicks", the big XP
+     * lapis). So each covered tile whose face was never seen ({@link #unknown}) is one of three things: the partner
+     * of a known single (a kind seen an odd number of times and not yet claimed), a member of a pair neither of
+     * whose tiles has been seen, or a powerup. Every known single's partner must be among the unknown tiles, so
+     * {@code hidden() = unknown - singles} is the number of unknown tiles that are NOT a known single's partner:
+     * hidden pairs (two each) plus hidden powerups. From that:
+     * <ul>
+     *   <li>{@code hidden() < 0} cannot happen on a board read correctly, so every deduction switches off
+     *       ({@link #consistent}) and the solver plays exactly as it would without them.</li>
+     *   <li>{@code hidden() == 0}: every unknown tile is some single's partner. No powerup and no new kind is left
+     *       to find, so revealing a tile as a turn's second click, when it cannot match the open tile, learns
+     *       nothing that revealing it as a later turn's first click (where it can be matched at once) would not.</li>
+     *   <li>{@code hidden() <= 1}: no pair can be wholly hidden (that takes two tiles), so the only rewards left
+     *       to find are partners of known singles; with no money single among them, no money is left to find.</li>
+     *   <li>one unknown tile and one single: that tile is the single's partner (killer560: "if there is one square
+     *       left you know the only one so far that is unmatched is there").</li>
+     *   <li>one unknown tile and no single: it is a powerup ("if everything is matched you know it is a powerup").
+     *       It cannot be a reward whose partner was claimed, because a claim always takes both tiles - an Instant
+     *       Find claim turns both over too.</li>
+     * </ul>
+     */
+    private static final class BoardFacts {
+        /** Covered tiles whose face was never seen, in snake order. */
+        final List<Integer> unknown = new ArrayList<>();
+        /** Known tiles that are covered right now (unclaimed). */
+        final Set<Integer> coveredKnown = new HashSet<>();
+        /** Tiles showing their face as part of a claimed pair. */
+        final Set<Integer> claimed = new HashSet<>();
+        /** Tiles showing their face with no partner showing: the current turn's first click (or, two at once, a
+         *  missed pair about to cover back up). */
+        final List<Integer> open = new ArrayList<>();
+        /** One tile per kind seen an odd number of times and not claimed - its partner is still unseen. */
+        final List<Cell> singles = new ArrayList<>();
+        final Set<String> singleKeys = new HashSet<>();
+
+        int hidden() {
+            return unknown.size() - singles.size();
+        }
+
+        boolean consistent() {
+            return hidden() >= 0;
+        }
+
+        boolean anyMoneySingle() {
+            for (Cell single : singles) {
+                if (isMoney(single)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /** The one unknown tile when it can only be a powerup, else null. */
+        Integer deducedPowerup() {
+            return consistent() && singles.isEmpty() && unknown.size() == 1 ? unknown.get(0) : null;
+        }
+    }
+
+    private BoardFacts readBoard(Map<Integer, Cell> bySlot) {
+        BoardFacts b = new BoardFacts();
+        Map<String, List<Integer>> revealedByKey = new java.util.LinkedHashMap<>();
+        for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+            Cell cell = bySlot.get(slot);
+            if (cell == null || cell.empty() || cell.name().isBlank()) continue;
+            if (isRevealedPair(cell)) {
+                if (!isPowerupTile(cell)) {
+                    revealedByKey.computeIfAbsent(pairKey(cell), k -> new ArrayList<>()).add(slot);
+                }
+                continue;
+            }
+            if (knownSuperpairsCells.containsKey(slot)) {
+                b.coveredKnown.add(slot);
+            } else if (!superpairsPowerupSlotsSeen.contains(slot) && !isDyeFamilyItem(cell) && !isPowerupTile(cell)) {
+                b.unknown.add(slot);
+            }
+        }
+        // Two face-up tiles of one kind are a claimed pair (a turn's two clicks only both stay up on a match; an
+        // Instant Find claim turns up both as well). An odd one out is the current turn's first click - the
+        // most recently clicked of them.
+        Map<String, Integer> unclaimed = new HashMap<>();
+        Map<String, Cell> sample = new HashMap<>();
+        for (Map.Entry<String, List<Integer>> entry : revealedByKey.entrySet()) {
+            List<Integer> slots = entry.getValue();
+            Integer open = null;
+            if (slots.size() % 2 == 1) {
+                open = slots.get(0);
+                for (int slot : slots) {
+                    if (superpairsClickedAtMs.getOrDefault(slot, 0L) > superpairsClickedAtMs.getOrDefault(open, 0L)) {
+                        open = slot;
+                    }
+                }
+                b.open.add(open);
+                unclaimed.merge(entry.getKey(), 1, Integer::sum);
+                sample.putIfAbsent(entry.getKey(), bySlot.get(open));
+            }
+            for (int slot : slots) {
+                if (open == null || slot != open) {
+                    b.claimed.add(slot);
+                }
+            }
+        }
+        for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+            if (!b.coveredKnown.contains(slot)) continue;
+            Cell known = knownSuperpairsCells.get(slot);
+            String key = pairKey(known);
+            unclaimed.merge(key, 1, Integer::sum);
+            sample.putIfAbsent(key, known);
+        }
+        for (Map.Entry<String, Integer> entry : unclaimed.entrySet()) {
+            if (entry.getValue() % 2 == 1) {
+                b.singles.add(sample.get(entry.getKey()));
+                b.singleKeys.add(entry.getKey());
+            }
+        }
+        return b;
+    }
+
+    /** The next covered tile never clicked or seen, in snake order, or null once there is none. */
+    private Integer nextExploreSlot(Map<Integer, Cell> bySlot) {
         for (int slot : SUPERPAIRS_SNAKE_ORDER) {
             if (superpairsRevealAttempted.contains(slot) || queuedPairSlots.contains(slot) || knownSuperpairsCells.containsKey(slot)) continue;
             Cell cell = bySlot.get(slot);
             if (cell == null) continue;
             // Same border-filler exclusion as superpairsSuggestedExploreSlot - never worth a click.
             if (isRevealedPair(cell) || isDyeFamilyItem(cell) || isPowerupTile(cell) || cell.name().isBlank()) continue;
-            boardFullyExplored = false;
-            superpairsRevealAttempted.add(slot);
-            return OptionalInt.of(slot);
+            return slot;
         }
+        return null;
+    }
 
-        // Per killer560's request: once every spot has been discovered and there's nothing left to
-        // explore or match under the normal (possibly XP-skipping) rules, don't waste remaining
-        // clicks - fall back to matching whatever dye pairs were skipped, highest stack count first.
-        if (boardFullyExplored) {
-            // Skipped rewards are LAST priority, not forbidden (killer560, 2026-10-05: "if it reaches the end with
-            // clicks left then it can collect those, but I do not want it prioritizing them before everything is
-            // unveiled"). Only now - board explored, every other pair taken - and ahead of plain XP.
-            OptionalInt skippedMatch = matchSkippedPair();
-            if (skippedMatch.isPresent()) {
-                return skippedMatch;
+    /** Neither plain XP nor a kind he skips: books, Titanic bottles, items, pets other than Guardians. */
+    private static boolean isMoney(Cell cell) {
+        return !isSuperpairsXpTile(cell) && !isUserSkipped(cell);
+    }
+
+    /**
+     * Whether the deferred rewards may be taken now. Skipped kinds (killer560: "if it reaches the end with clicks left
+     * then it can collect those, but I do not want it prioritizing them before everything is unveiled") and, with
+     * Skip Plain XP on, XP wait for this. It opens when every tile has been turned over, or when the counting says no
+     * money can still be found: at most one unknown tile that is not a known single's partner (so no hidden pair,
+     * see {@link BoardFacts}) and no money single whose partner is still out there. What is left to find then is
+     * only partners of skipped/XP singles and a powerup, so turning those over first would only spend the clicks the
+     * deferred rewards need.
+     */
+    private static boolean deferredMayGo(BoardFacts board, boolean explored) {
+        return explored || (board.consistent() && board.hidden() <= 1 && !board.anyMoneySingle());
+    }
+
+    /**
+     * A turn's FIRST click (no tile turned over). In order: a known money pair; with "Every Pair" XP only when the
+     * clicks left are down to what the known XP pairs need (money over XP, but never a known XP pair lost to a
+     * gamble); a new tile while money may still be found; then the end: the deduced powerup, skipped pairs, XP
+     * pairs (highest first), the remaining tiles, and finally the last-resort spend.
+     */
+    private OptionalInt firstClickOfTurn(Map<Integer, Cell> bySlot, BoardFacts board, boolean valuableOnly, int remaining) {
+        Integer reveal = nextExploreSlot(bySlot);
+        boolean deferredGo = deferredMayGo(board, reveal == null);
+        // One click left finishes no pair; a new tile might still be a "+N Clicks" powerup.
+        if (remaining == 1 && reveal != null) {
+            superpairsRevealAttempted.add(reveal);
+            return OptionalInt.of(reveal);
+        }
+        OptionalInt money = matchKnownPair(board, ExperimentSolver::isMoney, "money");
+        if (money.isPresent()) {
+            return money;
+        }
+        // Every unknown tile is the partner of a known single and every single is money (one square left and one
+        // single is the smallest case): whatever tile turns over, the second click claims money. As sure as a
+        // known money pair, so it goes ahead of XP.
+        if (reveal != null && board.consistent() && board.hidden() == 0 && !board.singles.isEmpty()
+                && board.singles.stream().allMatch(ExperimentSolver::isMoney)) {
+            if (board.unknown.size() == 1 && !logOnce("deduced-pair:" + reveal)) {
+                LOGGER.info("Superpairs: slot {} is the last unknown tile and '{}' the only single - it is its partner",
+                        reveal, board.singles.get(0).name());
             }
-            if (valuableOnly) {
-                OptionalInt dyeMatch = matchHighestValueDyePair();
-                if (dyeMatch.isPresent()) {
-                    return dyeMatch;
+            superpairsRevealAttempted.add(reveal);
+            return OptionalInt.of(reveal);
+        }
+        if (!valuableOnly && !deferredGo) {
+            // "Every Pair": XP is wanted, after money. With the clicks left unreadable, as before: take it at once.
+            // Otherwise keep exploring while the clicks left cover every known XP pair plus a full exploring turn
+            // (a turn's first click commits its second), and take the best XP pair once they no longer would.
+            // Once nothing better is left to find this is skipped and the end order below (skipped, then XP) runs.
+            int xpPairs = countKnownPairs(board, ExperimentSolver::isSuperpairsXpTile);
+            if (xpPairs > 0 && (remaining < 0 || remaining < 2 * xpPairs + 2)) {
+                OptionalInt xp = matchHighestValueDyePair(board);
+                if (xp.isPresent()) {
+                    return xp;
                 }
             }
-            // Field-tested (2026-09-06): a click could still be stuck unspent even after the dye
-            // fallback above (or in "Every Pair" mode, where that fallback never runs at all) - e.g.
-            // a single leftover known tile whose real partner was already claimed elsewhere. Per
-            // killer560's "it gets stuck with only 1 click left so just have it click any of them" -
-            // rather than sit on an unused click forever, just spend it on any remaining known tile.
-            return clickAnyRemainingKnownTile();
+        }
+        if (reveal != null && !deferredGo) {
+            superpairsRevealAttempted.add(reveal);
+            return OptionalInt.of(reveal);
+        }
+        if (reveal != null && board.unknown.size() > 0 && !logOnce("explored-by-count")) {
+            LOGGER.info("Superpairs: no money left to find - {} unknown tile(s), {} known single(s) {} - taking the "
+                    + "deferred rewards before turning the rest over", board.unknown.size(), board.singles.size(),
+                    board.singles.stream().map(Cell::name).toList());
+        }
+        // The one unknown tile is a powerup: turn it over first when that cannot cost a deferred pair - it may be
+        // "+N Clicks", which pays for itself.
+        Integer powerup = board.deducedPowerup();
+        if (powerup != null && powerup.equals(reveal)) {
+            int deferredPairs = countKnownPairs(board, ExperimentSolver::isUserSkipped)
+                    + countKnownPairs(board, ExperimentSolver::isSuperpairsXpTile);
+            if (remaining < 0 || remaining - 1 >= 2 * deferredPairs) {
+                LOGGER.info("Superpairs: slot {} is the last unknown tile and every known tile is paired - it can only "
+                        + "be a powerup; turning it over", powerup);
+                superpairsRevealAttempted.add(powerup);
+                return OptionalInt.of(powerup);
+            }
+        }
+        OptionalInt skippedMatch = matchSkippedPair(board);
+        if (skippedMatch.isPresent()) {
+            return skippedMatch;
+        }
+        OptionalInt dyeMatch = matchHighestValueDyePair(board);
+        if (dyeMatch.isPresent()) {
+            return dyeMatch;
+        }
+        if (reveal != null) {
+            superpairsRevealAttempted.add(reveal);
+            return OptionalInt.of(reveal);
+        }
+        // Field-tested (2026-09-06): a click could still be stuck unspent - e.g. a single leftover known tile
+        // whose real partner was already claimed elsewhere. Per killer560's "it gets stuck with only 1 click
+        // left so just have it click any of them" - rather than sit on an unused click forever, spend it.
+        return clickAnyRemainingKnownTile(board);
+    }
+
+    /**
+     * A turn's SECOND click: {@code open} is turned over, and this click either matches it or covers both back up.
+     * The open tile's partner, when known (or deduced: the only unknown tile left), is claimed if its kind may be
+     * taken now. A deferred kind is still claimed when the count says a reveal here would learn nothing
+     * ({@code hidden() == 0}: no powerup or new kind left; the reveal could not match the open tile, and its partner's
+     * claim would cost a full turn later anyway) - this click is spent either way, so the claim costs nothing. Otherwise
+     * a new tile is turned over (it may be the open tile's partner); with none left and no partner, the open tile's
+     * partner was claimed already and the turn is closed on a harmless known tile.
+     */
+    private OptionalInt secondClickOfTurn(int open, Map<Integer, Cell> bySlot, BoardFacts board, boolean valuableOnly) {
+        Cell openCell = bySlot.get(open);
+        String key = pairKey(openCell);
+        Integer partner = null;
+        // Queued slots count here: a tile of the open one's kind can only match it, so a pair that failed once
+        // (its first click never landed) is finished now rather than left blocked.
+        for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+            if (slot == open || !board.coveredKnown.contains(slot)) continue;
+            if (pairKey(knownSuperpairsCells.get(slot)).equals(key)) {
+                partner = slot;
+                break;
+            }
+        }
+        boolean deduced = false;
+        if (partner == null && board.consistent() && board.unknown.size() == 1 && board.singleKeys.contains(key)
+                && board.singles.size() == 1) {
+            partner = board.unknown.get(0);
+            deduced = true;
+        }
+        Integer reveal = nextExploreSlot(bySlot);
+        if (partner != null) {
+            boolean wanted = isMoney(openCell)
+                    || (isSuperpairsXpTile(openCell) && !valuableOnly)
+                    || deferredMayGo(board, reveal == null);
+            boolean nothingToLearn = board.consistent() && board.hidden() == 0;
+            if (wanted || nothingToLearn || reveal == null || deduced) {
+                queuedPairSlots.add(open);
+                queuedPairSlots.add(partner);
+                if (deduced) {
+                    superpairsRevealAttempted.add(partner);
+                }
+                LOGGER.info("Superpairs: slot {} is turned over - matching it with {}slot {} (name='{}'){}", open,
+                        deduced ? "the last unknown tile, " : "", partner, openCell.name(),
+                        wanted ? "" : " - a deferred kind, but this click is spent either way and a reveal would learn nothing");
+                return OptionalInt.of(partner);
+            }
+        }
+        if (reveal != null) {
+            superpairsRevealAttempted.add(reveal);
+            return OptionalInt.of(reveal);
+        }
+        // Its partner is gone (claimed with an Instant Find): close the turn on another kind so nothing is claimed.
+        for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+            if (!board.coveredKnown.contains(slot) || queuedPairSlots.contains(slot)) continue;
+            Cell known = knownSuperpairsCells.get(slot);
+            if (pairKey(known).equals(key)) continue;
+            queuedPairSlots.add(slot);
+            superpairsSingleSpendSlot = slot;
+            LOGGER.info("Superpairs: slot {} (name='{}') has no partner left - closing the turn on slot {} (name='{}')",
+                    open, openCell.name(), slot, known.name());
+            return OptionalInt.of(slot);
+        }
+        return OptionalInt.empty();
+    }
+
+    private boolean logOnce(String what) {
+        return !superpairsLoggedOnce.add(what);
+    }
+
+    /** Known, covered, unqueued pairs whose kind passes {@code kind}. */
+    private int countKnownPairs(BoardFacts board, java.util.function.Predicate<Cell> kind) {
+        Map<String, Integer> counts = new HashMap<>();
+        for (int slot : board.coveredKnown) {
+            Cell known = knownSuperpairsCells.get(slot);
+            if (queuedPairSlots.contains(slot) || !kind.test(known)) continue;
+            counts.merge(pairKey(known), 1, Integer::sum);
+        }
+        int pairs = 0;
+        for (int n : counts.values()) {
+            pairs += n / 2;
+        }
+        return pairs;
+    }
+
+    /** Queues the first known, covered, unqueued pair (snake order) whose kind passes {@code kind}. */
+    private OptionalInt matchKnownPair(BoardFacts board, java.util.function.Predicate<Cell> kind, String what) {
+        Map<String, Integer> firstSeenThisPass = new HashMap<>();
+        for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+            if (queuedPairSlots.contains(slot) || !board.coveredKnown.contains(slot)) continue;
+            Cell known = knownSuperpairsCells.get(slot);
+            if (!kind.test(known)) continue;
+            String key = pairKey(known);
+            Integer first = firstSeenThisPass.putIfAbsent(key, slot);
+            if (first != null) {
+                queuedPairSlots.add(first);
+                queuedPairSlots.add(slot);
+                pairClicks.add(slot);
+                superpairsPairFirstSlot = first;
+                // Diagnostic (2026-09-24), per killer560's report of a Titanic getting queued against a Grand:
+                // logging both slots' full remembered identity settles whether a repeat is a genuine key
+                // collision (both names would print identical here) or something else.
+                LOGGER.info("Superpairs queuing {} pair: slot {} (itemId={}, name='{}') with slot {} "
+                                + "(itemId={}, name='{}') on key '{}'", what,
+                        first, knownSuperpairsCells.get(first).itemId(), knownSuperpairsCells.get(first).name(),
+                        slot, known.itemId(), known.name(), key);
+                return OptionalInt.of(first);
+            }
+        }
+        // Diagnostic (2026-09-09, per killer560's "found two power books but didn't claim both"): a kind known
+        // twice, unclaimed, that no pair was queued for - logs why (already queued?) once per kind per board.
+        Map<String, List<Integer>> byKey = new HashMap<>();
+        for (int slot : board.coveredKnown) {
+            Cell known = knownSuperpairsCells.get(slot);
+            if (kind.test(known)) {
+                byKey.computeIfAbsent(pairKey(known), k -> new ArrayList<>()).add(slot);
+            }
+        }
+        for (Map.Entry<String, List<Integer>> entry : byKey.entrySet()) {
+            if (entry.getValue().size() >= 2 && !logOnce("unqueued:" + entry.getKey())) {
+                LOGGER.warn("Superpairs: key '{}' known at slots {} but no pair was queued - queuedPairSlots={}",
+                        entry.getKey(), entry.getValue(), queuedPairSlots);
+            }
         }
         return OptionalInt.empty();
     }
@@ -1016,10 +1339,12 @@ final class ExperimentSolver {
     /** Last-resort fallback once nothing else is left to explore or deliberately match - spends a
      *  click that would otherwise go unused on literally any still-available known tile (valuable or
      *  dye), per killer560's explicit request not to let the solver get stuck holding an unspent click. */
-    private OptionalInt clickAnyRemainingKnownTile() {
+    private OptionalInt clickAnyRemainingKnownTile(BoardFacts board) {
         for (int slot : SUPERPAIRS_SNAKE_ORDER) {
             if (queuedPairSlots.contains(slot)) continue;
-            if (knownSuperpairsCells.containsKey(slot)) {
+            // Covered only: a claimed tile ignores clicks, and spending on one looped forever (no click used, the
+            // confirm timed out, the slot was freed and picked again).
+            if (board.coveredKnown.contains(slot)) {
                 queuedPairSlots.add(slot);
                 // See superpairsSingleSpendSlot's doc (real bug found 2026-09-24): this slot has no
                 // known partner - mark it so observeSuperpairs frees it again once the click resolves,
@@ -1037,13 +1362,13 @@ final class ExperimentSolver {
     }
 
     /** A known pair of a skipped reward kind ({@link #isUserSkipped}), queued exactly like a normal pair - used only
-     *  once the board is fully explored. */
-    private OptionalInt matchSkippedPair() {
-        Map<String, List<Cell>> byKey = new HashMap<>();
+     *  once {@link #deferredMayGo}. */
+    private OptionalInt matchSkippedPair(BoardFacts board) {
+        Map<String, List<Cell>> byKey = new java.util.LinkedHashMap<>();
         for (int slot : SUPERPAIRS_SNAKE_ORDER) {
             Cell cell = knownSuperpairsCells.get(slot);
-            if (cell == null || queuedPairSlots.contains(slot) || !isUserSkipped(cell)) continue;
-            byKey.computeIfAbsent(cell.itemId() + "|" + cell.name(), k -> new ArrayList<>()).add(cell);
+            if (cell == null || queuedPairSlots.contains(slot) || !board.coveredKnown.contains(slot) || !isUserSkipped(cell)) continue;
+            byKey.computeIfAbsent(pairKey(cell), k -> new ArrayList<>()).add(cell);
         }
         for (List<Cell> group : byKey.values()) {
             if (group.size() < 2) continue;
@@ -1060,22 +1385,22 @@ final class ExperimentSolver {
         return OptionalInt.empty();
     }
 
-    /** Matches the highest-stack-count dye/XP pair still sitting unclaimed in
-     *  {@link #knownSuperpairsCells} - the last-resort fallback once the board is fully explored and
-     *  nothing else is left to do. */
-    private OptionalInt matchHighestValueDyePair() {
-        Map<String, List<Cell>> byKey = new HashMap<>();
-        for (Cell cell : knownSuperpairsCells.values()) {
-            if (!isSuperpairsXpTile(cell) || queuedPairSlots.contains(cell.slot())) continue;
-            byKey.computeIfAbsent(cell.itemId() + "|" + cell.name(), k -> new ArrayList<>()).add(cell);
+    /** Matches the known, unclaimed XP pair worth the most XP (by the amount in its name, see {@link #xpValue}),
+     *  last in the priority order. */
+    private OptionalInt matchHighestValueDyePair(BoardFacts board) {
+        Map<String, List<Cell>> byKey = new java.util.LinkedHashMap<>();
+        for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+            Cell cell = knownSuperpairsCells.get(slot);
+            if (cell == null || !board.coveredKnown.contains(slot) || !isSuperpairsXpTile(cell) || queuedPairSlots.contains(slot)) continue;
+            byKey.computeIfAbsent(pairKey(cell), k -> new ArrayList<>()).add(cell);
         }
         List<Cell> bestPair = null;
-        int bestCount = -1;
+        double bestValue = -1;
         for (List<Cell> group : byKey.values()) {
             if (group.size() < 2) continue;
-            int count = group.get(0).count();
-            if (count > bestCount) {
-                bestCount = count;
+            double value = xpValue(group.get(0));
+            if (value > bestValue) {
+                bestValue = value;
                 bestPair = group;
             }
         }
@@ -1105,25 +1430,38 @@ final class ExperimentSolver {
      *  whitelisting one specific item type. Falls back to the highest-count known dye only when pairing
      *  everything ({@code !valuableOnly}) and nothing else is known - matching "if the exp mode isn't on
      *  then have it use it on the next available space." Returns empty when nothing at all is known yet,
-     *  letting the normal reveal/match priority take over instead. */
-    private OptionalInt bestKnownSingleTarget(boolean valuableOnly, Map<Integer, Cell> bySlot) {
+     *  letting the normal reveal/match priority take over instead.
+     *  <p>
+     *  2026-10-05 (killer560: "prioritize money over xp"): money before XP even in "Every Pair" mode, where an XP
+     *  tile earlier in snake order used to win; among money, a tile whose partner is still unseen first (the match
+     *  saves finding it, where a known pair would only save one click); among XP, the largest amount. Covered,
+     *  unclaimed tiles only - the matched click has to turn one over. */
+    private OptionalInt bestKnownSingleTarget(boolean valuableOnly, BoardFacts board) {
+        Integer moneyPairMember = null;
         for (int slot : SUPERPAIRS_SNAKE_ORDER) {
-            if (queuedPairSlots.contains(slot)) continue;
+            if (queuedPairSlots.contains(slot) || !board.coveredKnown.contains(slot)) continue;
             Cell known = knownSuperpairsCells.get(slot);
-            if (known == null || bySlot.get(slot) == null) continue;
-            if (valuableOnly && !isValuablePair(known)) continue;
             // A powerup's matched click CLAIMS the reward, so a skipped kind must never be its target.
-            if (isUserSkipped(known)) continue;
-            return OptionalInt.of(slot);
+            if (!isMoney(known)) continue;
+            if (board.singleKeys.contains(pairKey(known))) {
+                return OptionalInt.of(slot);
+            }
+            if (moneyPairMember == null) {
+                moneyPairMember = slot;
+            }
+        }
+        if (moneyPairMember != null) {
+            return OptionalInt.of(moneyPairMember);
         }
         if (!valuableOnly) {
             Integer bestDyeSlot = null;
-            int bestDyeCount = -1;
-            for (Cell cell : knownSuperpairsCells.values()) {
-                if (!isSuperpairsXpTile(cell) || queuedPairSlots.contains(cell.slot())) continue;
-                if (cell.count() > bestDyeCount) {
-                    bestDyeCount = cell.count();
-                    bestDyeSlot = cell.slot();
+            double bestDyeValue = -1;
+            for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+                Cell cell = knownSuperpairsCells.get(slot);
+                if (cell == null || !board.coveredKnown.contains(slot) || !isSuperpairsXpTile(cell) || queuedPairSlots.contains(slot)) continue;
+                if (xpValue(cell) > bestDyeValue) {
+                    bestDyeValue = xpValue(cell);
+                    bestDyeSlot = slot;
                 }
             }
             if (bestDyeSlot != null) {
@@ -1131,6 +1469,48 @@ final class ExperimentSolver {
             }
         }
         return OptionalInt.empty();
+    }
+
+    /** The Superpairs board's "Remaining Clicks: N" (slot 4 on Hypixel), or -1 when no such item is showing. */
+    private static int superpairsRemainingClicks(List<Cell> cells) {
+        for (Cell cell : cells) {
+            if (cell.slot() >= 9 && cell.slot() <= 44) continue;
+            int remaining = ExperimentsProfitTracker.parseRemainingClicks(cell.name());
+            if (remaining >= 0) {
+                return remaining;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * The identity two tiles must share to be a pair: item and name, plus for a tile named just "Enchanted Book"
+     * the enchant from its lore ({@link #itemLabel}) - the name alone would make Power VI and Sharpness V one kind,
+     * which pairs two different books and throws off every count in {@link #readBoard}.
+     */
+    static String pairKey(Cell cell) {
+        String key = cell.itemId() + "|" + cell.name();
+        if (SECTION_CODE.matcher(cell.name()).replaceAll("").trim().equals("Enchanted Book")) {
+            key += "|" + itemLabel(cell);
+        }
+        return key;
+    }
+
+    /** "+479,095 XP" or "144k Enchanting Exp" -> the amount, digits bounded; "1.5M" reads as 1,500,000. */
+    private static final Pattern XP_VALUE = Pattern.compile("^\\+?([\\d,]{1,15})(\\.\\d{1,3})?\\s?([kKmM]?)");
+
+    /** The XP a tile is worth, from its name; its stack count when the name carries no amount. */
+    static double xpValue(Cell cell) {
+        java.util.regex.Matcher m = XP_VALUE.matcher(SECTION_CODE.matcher(cell.name()).replaceAll("").trim());
+        if (m.find()) {
+            String digits = m.group(1).replace(",", "");
+            if (!digits.isEmpty()) {
+                double value = Double.parseDouble(digits + (m.group(2) == null ? "" : m.group(2)));
+                String unit = m.group(3).toLowerCase(Locale.ROOT);
+                return unit.equals("k") ? value * 1_000 : unit.equals("m") ? value * 1_000_000 : value;
+            }
+        }
+        return cell.count();
     }
 
     /** Real confirmed text (2026-09-06): one instance showed "+1 Click" / "Powerup for next click!",
@@ -1213,6 +1593,11 @@ final class ExperimentSolver {
         superpairsPowerupPending = false;
         superpairsPowerupActivationSlot = null;
         superpairsSingleSpendSlot = null;
+        superpairsPowerupSlotsSeen.clear();
+        superpairsClickedAtMs.clear();
+        superpairsTwoOpenSinceMs = 0;
+        superpairsLoggedOnce.clear();
+        superpairsTwoOpenWarned = false;
         superpairsAwaitingConfirmSlot = null;
         superpairsAwaitingConfirmPriorCell = null;
         superpairsAwaitingConfirmSinceMs = 0;
