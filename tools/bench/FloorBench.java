@@ -37,7 +37,7 @@ import java.util.TreeMap;
  *   <li><b>old</b>: the room-by-room legs of EtherwarpPathfinder before 2026-10-04 (room route, one bounded
  *       weighted-A* leg per door, widened retry, near fallback, smoothing). A tile click is planned to the block
  *       {@code TeleportUtils.etherwarpableInTile} picked (nearest standable to him), as the game did.</li>
- *   <li><b>new</b>: {@link WarpGraph}, bucket 3 (the game's setting), timed cold (a fresh graph per click),
+ *   <li><b>new</b>: {@link WarpGraph}, bucket 2 (the game's setting), timed cold (a fresh graph per click),
  *       lazily warm (one graph, clicks in sequence) and warm (the whole floor expanded first).</li>
  *   <li><b>ref</b>: {@link WarpGraph} with bucket 1 - breadth first over EVERY landing block, every fan hit an
  *       edge, every node in range tried against an exact goal. The fewest warps the fan allows; "new" is
@@ -46,7 +46,7 @@ import java.util.TreeMap;
  * Every returned path is replayed ray by ray from the start; a hop that does not land where the next one starts,
  * or a path that does not end on its goal, is counted as INVALID.
  *
- * <p>-Dfloors=N (5) -Dclicks=N per floor (300) -Drefclicks=N (100) -Dseed=N (560) -Dbucket=N (3)
+ * <p>-Dfloors=N (5) -Dclicks=N per floor (300) -Drefclicks=N (100) -Dseed=N (560) -Dbucket=N (2, the game's; 3 before 2026-10-05) -Dpartial=F (0.3)
  * -Dyaw=6 -Dpitch=7 -Drange=60 -Dold=false (skip the old planner) -Dcheck=FILE (regression: fail on worse).
  * -Droomdata=FILE (a rooms-modern.json or the trimmed copy) -Ddiag=true (per floor: every carved door checked for a
  * measured doorway in both rooms and a walk across both ways, and how many clicks' goals a walk reaches)
@@ -170,13 +170,20 @@ public final class FloorBench {
             return g[idx(x, y, z)] & 0xFF;
         }
 
+        /** Non-null: every block a set() changes is recorded here (bench coordinates, packed). */
+        Set<Long> recording;
+
         void set(int wx, int y, int wz, int f) {
             int x = wx + OFF;
             int z = wz + OFF;
             if (x < 0 || z < 0 || x >= SIZE || z >= SIZE || y < 0 || y >= MAX_Y) {
                 return;
             }
-            g[idx(x, y, z)] = (byte) f;
+            int i = idx(x, y, z);
+            if (recording != null && (g[i] & 0xFF) != (f & 0xFF)) {
+                recording.add(EtherSearch.pack(x, y, z));
+            }
+            g[i] = (byte) f;
         }
 
         int wflags(int wx, int y, int wz) {
@@ -660,7 +667,7 @@ public final class FloorBench {
     // ------------------------------------------------------------------------------------------- planners
 
     static double RANGE = 60.0;
-    static final double PARTIAL = Double.parseDouble(System.getProperty("partial", "0.6"));
+    static final double PARTIAL = Double.parseDouble(System.getProperty("partial", "0.3"));
     static final int THREADS = Integer.getInteger("threads", 3);
     static final java.util.concurrent.ExecutorService WORKERS = java.util.concurrent.Executors.newFixedThreadPool(
             Math.max(1, THREADS), r -> {
@@ -812,6 +819,8 @@ public final class FloorBench {
         WarpGraph g = new WarpGraph(RANGE, 1.05, bucket, (grid, x, y, z) -> f.landingOk(x, y, z), FLOOR_Y - 20,
                 FLOOR_Y + 45);
         g.partialFrom = PARTIAL;
+        g.deepFirst = !"false".equals(System.getProperty("deep"));
+        g.labelBudget = Integer.getInteger("labelbudget", g.labelBudget);
         if (!"false".equals(System.getProperty("fine"))) {
             // EtherwarpPathfinder.doorwayColumn, in bench coordinates.
             g.setFine((x, z) -> {
@@ -830,6 +839,11 @@ public final class FloorBench {
             public int tileOf(int x, int y, int z) {
                 int cell = f.cellAt(x, z);
                 return tileRegion(f, cell).test(x, y, z) ? cell : -1;
+            }
+
+            @Override
+            public int cellOf(int x, int z) {
+                return f.cellAt(x, z);
             }
 
             @Override
@@ -862,6 +876,10 @@ public final class FloorBench {
 
     /** EtherwarpPathfinder.planFloor: a tile click that reaches no landing of the tile's band tries its block. */
     static List<EtherSearch.Hop> planGame(WarpGraph g, EtherSearch.Grid grid, Floor f, Click c, long deadline) {
+        if (g.warmedOnce() && !g.warmDone() && !"false".equals(System.getProperty("finishwarm"))) {
+            // EtherwarpPathfinder.planFloor: a floor that was warm finishes re-warming before the search.
+            g.finishWarm(grid, c.start[0] + 0.5, c.start[1] + 1.0, c.start[2] + 0.5, 60_000_000L);
+        }
         List<EtherSearch.Hop> p = g.plan(grid, startHop(c.start), goal(f, c), deadline, 64);
         if (p == null && c.tile && !g.timedOut) {
             WarpGraph.Goal exact = new WarpGraph.Goal();
@@ -976,9 +994,9 @@ public final class FloorBench {
                 return "-";
             }
             double mean = Arrays.stream(s).average().orElse(0) / 1e6;
-            return String.format(Locale.ROOT, "mean %.2f, median %.2f, p90 %.2f, p99 %.2f, max %.2f ms", mean,
-                    s[s.length / 2] / 1e6, s[s.length * 9 / 10] / 1e6, s[Math.min(s.length - 1, s.length * 99 / 100)] / 1e6,
-                    s[s.length - 1] / 1e6);
+            return String.format(Locale.ROOT, "mean %.2f, median %.2f, p90 %.2f, p95 %.2f, p99 %.2f, max %.2f ms", mean,
+                    s[s.length / 2] / 1e6, s[s.length * 9 / 10] / 1e6, s[Math.min(s.length - 1, s.length * 95 / 100)] / 1e6,
+                    s[Math.min(s.length - 1, s.length * 99 / 100)] / 1e6, s[s.length - 1] / 1e6);
         }
 
         double p99() {
@@ -1000,6 +1018,163 @@ public final class FloorBench {
         }
     }
 
+    // ------------------------------------------------------------------------------------------- changes
+
+    /**
+     * -Dchanges=N: what a click sees right after the floor CHANGES under a warm graph - the in-game failure in his
+     * Map Logger log (2026-10-04 18:07:53 and 18:08:14): a block change dropped some nodes, warm-up was running
+     * again, the click got 40 ms on a graph without its exact heuristic, ran out, and fell back to the room-by-room
+     * planner (39-40 warps where the warm graph gave 17-22). Each round toggles one carved door (sealed, then opened
+     * again next round), reports the changed sections as LevelEtherGrid does, and runs -Dchangeclicks clicks the
+     * way EtherwarpPathfinder.planFloor does - 40 ms when the graph is not warm, then the old planner - with
+     * -Dchangewarm ms of background warm-up between change and click (0: the click comes first). Every path is
+     * replayed on the changed floor, and the warps are compared with a graph warmed from scratch on it.
+     */
+    static final class ChangeStats {
+        final Stats game = new Stats("after a change (game)");
+        final Stats truth = new Stats("same clicks, fresh graph");
+        int legacy;
+        int edgeMismatch;
+        int worse;
+        int better;
+        final List<Long> rewarmNanos = new ArrayList<>();
+
+        void print() {
+            game.print();
+            truth.print();
+            long[] r = rewarmNanos.stream().mapToLong(Long::longValue).sorted().toArray();
+            System.out.printf(Locale.ROOT, "  after a change: %d click(s) fell back to the old planner, %d took more warps"
+                            + " than a fresh graph, %d fewer; re-warm to done median %.1f ms, max %.1f ms; edge check"
+                            + " mismatches %d%n", legacy, worse, better, r.length == 0 ? 0 : r[r.length / 2] / 1e6, r.length == 0 ? 0 : r[r.length - 1] / 1e6, edgeMismatch);
+        }
+    }
+
+    /**
+     * Tells the graph what LevelEtherGrid would: per section, the box of the blocks whose flags changed
+     * (-Dchangemode=section: the whole section, as before 2026-10-05).
+     */
+    static void report(WarpGraph g, Set<Long> blocks) {
+        Map<Long, int[]> perSection = new HashMap<>();
+        for (long k : blocks) {
+            int x = WarpGraph.unpackX(k);
+            int y = WarpGraph.unpackY(k);
+            int z = WarpGraph.unpackZ(k);
+            int[] b = perSection.computeIfAbsent(EtherSearch.pack(x >> 4, y >> 4, z >> 4),
+                    q -> new int[]{x, y, z, x, y, z});
+            b[0] = Math.min(b[0], x);
+            b[1] = Math.min(b[1], y);
+            b[2] = Math.min(b[2], z);
+            b[3] = Math.max(b[3], x);
+            b[4] = Math.max(b[4], y);
+            b[5] = Math.max(b[5], z);
+        }
+        boolean whole = "section".equals(System.getProperty("changemode"));
+        for (int[] b : perSection.values()) {
+            if (whole) {
+                g.sectionChanged(b[0] >> 4, b[1] >> 4, b[2] >> 4);
+            } else {
+                g.blocksChanged(b[0], b[1], b[2], b[3], b[4], b[5]);
+            }
+        }
+    }
+
+    static void changeRounds(Floor f, EtherSearch.Grid grid, EtherSearch probe, WarpGraph warmG, List<Click> cs,
+                             Random rng, int bucket, ChangeStats st) {
+        int rounds = Integer.getInteger("changes", 0);
+        int perRound = Integer.getInteger("changeclicks", 10);
+        long between = Long.getLong("changewarm", 0L) * 1_000_000L;
+        int[] s0 = cs.get(0).start;
+        List<int[]> sealedNow = new ArrayList<>();
+        for (int round = 0; round < rounds && !f.doorSeams.isEmpty(); round++) {
+            Set<Long> touched = new HashSet<>();
+            f.recording = touched;
+            if (!sealedNow.isEmpty()) {
+                int[] d = sealedNow.remove(0);
+                f.carve(d[0], d[1], d[2] == 1);
+            } else {
+                int[] d = f.doorSeams.get(rng.nextInt(f.doorSeams.size()));
+                f.seal(d[0], d[1], d[2] == 1);
+                sealedNow.add(d);
+            }
+            f.recording = null;
+            report(warmG, touched);
+            if (Boolean.getBoolean("changeverbose")) {
+                long a0 = System.nanoTime();
+                int lost = warmG.applyChanges();
+                System.out.printf(Locale.ROOT, "  change round %d: %d block(s), %d node(s) lose their edges, %d re-checked"
+                                + " (%d rays, +%d -%d edges) in %.1f ms; fields took %.1f ms%n", round, touched.size(), lost,
+                        warmG.revalidated, warmG.revalidateRays, warmG.edgesAdded, warmG.edgesRemoved,
+                        (System.nanoTime() - a0) / 1e6, warmG.nanosFields / 1e6);
+                if (Boolean.getBoolean("changecheck")) {
+                    int bad = warmG.verifyEdges(grid, 3);
+                    System.out.printf(Locale.ROOT, "  change round %d: EDGE CHECK %d node(s) differ from a fresh expansion%n",
+                            round, bad);
+                    st.edgeMismatch += bad;
+                }
+            }
+            if (between > 0) {
+                long end = System.nanoTime() + between;
+                while (System.nanoTime() < end && warmG.warm(grid, () -> grid, WORKERS, THREADS, s0[0] + 0.5,
+                        s0[1] + 1.0, s0[2] + 0.5, Math.max(1, end - System.nanoTime()))) {
+                    // background warm-up between the change and the click
+                }
+            }
+            WarpGraph fresh = graph(f, bucket);
+            while (fresh.warm(grid, () -> grid, WORKERS, THREADS, s0[0] + 0.5, s0[1] + 1.0, s0[2] + 0.5,
+                    50_000_000L)) {
+                // the truth for this floor state
+            }
+            for (int i = 0; i < perRound; i++) {
+                Click c = cs.get(rng.nextInt(cs.size()));
+                long t0 = System.nanoTime();
+                // EtherwarpPathfinder.planFloor's budget: the full timeout once the floor has been warm.
+                boolean warm = warmG.warmDone() || (warmG.warmedOnce() && !"false".equals(System.getProperty("finishwarm")));
+                List<EtherSearch.Hop> p = planGame(warmG, grid, f, c, t0 + (warm ? 670_000_000L : 40_000_000L));
+                boolean fellBack = false;
+                if (p == null && !warmG.provedNoWay) {
+                    p = oldPlan(f, new EtherSearch(grid), c.start, c.exact);
+                    fellBack = p != null;
+                }
+                long t = System.nanoTime() - t0;
+                int v = p == null ? 0 : replay(f, probe, c.start, c, p);
+                st.game.add(t, v, p);
+                if (Boolean.getBoolean("changeverbose") && p == null) {
+                    System.out.println("  NOWAY round " + round + " #" + i + " proved " + warmG.provedNoWay + ": "
+                            + warmG.noWayWhy);
+                }
+                if (Boolean.getBoolean("changeverbose") && t > 20_000_000L) {
+                    System.out.printf(Locale.ROOT, "  SLOW change click round %d #%d %s: %.1f ms, %s, timedOut %b, fields %b,"
+                                    + " expanded cold %d, revalidate %.1f ms, fields %.1f ms%n", round, i,
+                            c.tile ? "tile" : "exact", t / 1e6, p == null ? "none" : p.size() + " warps",
+                            warmG.timedOut, warmG.usedFields, warmG.expandedCold, warmG.nanosRevalidate / 1e6,
+                            warmG.nanosFields / 1e6);
+                }
+                st.legacy += fellBack ? 1 : 0;
+                long t1 = System.nanoTime();
+                List<EtherSearch.Hop> pt = planGame(fresh, grid, f, c, Long.MAX_VALUE);
+                int vt = pt == null ? 0 : replay(f, probe, c.start, c, pt);
+                st.truth.add(System.nanoTime() - t1, vt, pt);
+                if (p != null && v >= 0 && pt != null && vt >= 0) {
+                    st.worse += p.size() > pt.size() ? 1 : 0;
+                    st.better += p.size() < pt.size() ? 1 : 0;
+                }
+            }
+            long r0 = System.nanoTime();
+            while (warmG.warm(grid, () -> grid, WORKERS, THREADS, s0[0] + 0.5, s0[1] + 1.0, s0[2] + 0.5, 50_000_000L)) {
+                // let it settle before the next change
+            }
+            st.rewarmNanos.add(System.nanoTime() - r0);
+        }
+        // Leave the floor as it was.
+        for (int[] d : sealedNow) {
+            Set<Long> touched = new HashSet<>();
+            f.recording = touched;
+            f.carve(d[0], d[1], d[2] == 1);
+            f.recording = null;
+            report(warmG, touched);
+        }
+    }
+
     // ------------------------------------------------------------------------------------------- main
 
     public static void main(String[] args) throws Exception {
@@ -1007,7 +1182,7 @@ public final class FloorBench {
         int floors = Integer.getInteger("floors", 5);
         int perFloor = Integer.getInteger("clicks", 300);
         int refPerFloor = Integer.getInteger("refclicks", 100);
-        int bucket = Integer.getInteger("bucket", 3);
+        int bucket = Integer.getInteger("bucket", 2);
         int coldClicks = Integer.getInteger("coldclicks", 20);
         int lazyClicks = Integer.getInteger("lazyclicks", 40);
         int selfPerFloor = Integer.getInteger("selfclicks", 40);
@@ -1055,6 +1230,7 @@ public final class FloorBench {
         System.out.printf(Locale.ROOT, "%d usable captures; %d floor(s) x %d clicks (ref on %d), bucket %d, fan %d rays,"
                 + " range %.0f, seed %d%n", rooms.size(), floors, perFloor, refPerFloor, bucket, FAN.size(), RANGE, seed);
 
+        ChangeStats changeStats = new ChangeStats();
         Stats old = new Stats("old (room by room)");
         Stats cold = new Stats("new, cold graph");
         Stats lazy = new Stats("new, lazily warm");
@@ -1146,9 +1322,11 @@ public final class FloorBench {
                 // keep going
             }
             warmNanos += System.nanoTime() - w0;
-            System.out.printf(Locale.ROOT, "  warm: %d rays for %d nodes = %.0f rays a node, %.0f ms on %d thread(s)%n",
+            System.out.printf(Locale.ROOT, "  warm: %d rays for %d nodes = %.0f rays a node, %.0f ms on %d thread(s),"
+                            + " %d edges (%.0f a node)%n",
                     warmG.totalRays, warmG.nodeCount(), (double) warmG.totalRays / warmG.nodeCount(),
-                    (System.nanoTime() - w0) / 1e6, THREADS);
+                    (System.nanoTime() - w0) / 1e6, THREADS, warmG.edgeCount(),
+                    (double) warmG.edgeCount() / warmG.nodeCount());
             warmNodes += warmG.nodeCount();
             expandedNodes += warmG.expandedCount();
             WarpGraph refG = graph(f, Integer.getInteger("refbucket", 1));
@@ -1295,9 +1473,15 @@ public final class FloorBench {
             }
             System.out.printf(Locale.ROOT, "  warm-up of the whole floor: %d nodes, %d expanded, %.0f ms; ref graph %d nodes%n",
                     warmG.nodeCount(), warmG.expandedCount(), (System.nanoTime() - w0) / 1e6 - 0, refG.nodeCount());
+            if (Integer.getInteger("changes", 0) > 0) {
+                changeRounds(f, grid, probe, warmG, cs, new Random(seed * 31 + fi), bucket, changeStats);
+            }
         }
         System.out.println();
         System.out.println("RESULTS");
+        if (changeStats.game.n > 0) {
+            changeStats.print();
+        }
         if (runOld) {
             old.print();
         }

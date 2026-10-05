@@ -317,6 +317,113 @@ public final class EtherSearch {
         return false;
     }
 
+    // Blocks already seen to stop a line toward the block {@link #aimPast} is aiming at.
+    private final int[] blockX = new int[18];
+    private final int[] blockY = new int[18];
+    private final int[] blockZ = new int[18];
+
+    /**
+     * {@link #aim}, same aim points in the same order and the same answer, but an aim point whose straight line
+     * passes through the inside of a block already seen to stop another line toward this target is not cast: the
+     * cast would stop at that block (or before it) and so cannot land on the target. Every point a full aim tries
+     * against a wall costs a whole cast from the eye; most of a partly hidden block's points are hidden by the same
+     * one or two blocks, so this skips most of them. {@code known} is a block a previous line toward the target
+     * stopped on, if the caller has one.
+     */
+    public boolean aimPast(double ex, double ey, double ez, int bx, int by, int bz, double range, boolean known,
+                           int knownX, int knownY, int knownZ) {
+        double cx = bx + 0.5 - ex;
+        double cy = by + 0.5 - ey;
+        double cz = bz + 0.5 - ez;
+        if (cx * cx + cy * cy + cz * cz > (range + 1) * (range + 1)) {
+            return false;
+        }
+        int nb = 0;
+        if (known && !(knownX == bx && knownY == by && knownZ == bz)) {
+            blockX[0] = knownX;
+            blockY[0] = knownY;
+            blockZ[0] = knownZ;
+            nb = 1;
+        }
+        for (double[] o : AIM_POINTS) {
+            double tx = bx + o[0];
+            double ty = by + o[1];
+            double tz = bz + o[2];
+            boolean hidden = false;
+            for (int i = 0; i < nb && !hidden; i++) {
+                hidden = segmentThroughBlock(ex, ey, ez, tx, ty, tz, blockX[i], blockY[i], blockZ[i]);
+            }
+            if (hidden) {
+                continue;
+            }
+            int r = cast(ex, ey, ez, tx, ty, tz);
+            if (r == MISS || hitX != bx || hitY != by || hitZ != bz) {
+                if (r != MISS && nb < blockX.length) {
+                    boolean have = false;
+                    for (int i = 0; i < nb && !have; i++) {
+                        have = blockX[i] == hitX && blockY[i] == hitY && blockZ[i] == hitZ;
+                    }
+                    if (!have) {
+                        blockX[nb] = hitX;
+                        blockY[nb] = hitY;
+                        blockZ[nb] = hitZ;
+                        nb++;
+                    }
+                }
+                continue;
+            }
+            double dx = tx - ex;
+            double dy = ty - ey;
+            double dz = tz - ez;
+            double distXZ = Math.sqrt(dx * dx + dz * dz);
+            float yaw = wrapDegrees((float) -Math.toDegrees(Math.atan2(dx, dz)));
+            float pitch = wrapDegrees((float) -Math.toDegrees(Math.atan2(dy, distXZ)));
+            look(yaw, pitch, lookTmp);
+            int real = cast(ex, ey, ez, ex + lookTmp[0] * range, ey + lookTmp[1] * range, ez + lookTmp[2] * range);
+            if (real == LANDS && hitX == bx && hitY == by && hitZ == bz) {
+                aimYaw = yaw;
+                aimPitch = pitch;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether the segment from the eye to a point passes through the INSIDE of a block (shrunk by a hair, so a line
+     * that only grazes an edge or a corner - where the voxel walk might pick either neighbour - does not count). A
+     * line through a block's inside is walked through that block, so a cast along it stops there or earlier.
+     */
+    static boolean segmentThroughBlock(double ex, double ey, double ez, double tx, double ty, double tz, int x, int y,
+                                       int z) {
+        final double eps = 1e-6;
+        double[] t = {0.0, 1.0};
+        return slab(ex, tx - ex, x + eps, x + 1 - eps, t) && slab(ey, ty - ey, y + eps, y + 1 - eps, t)
+                && slab(ez, tz - ez, z + eps, z + 1 - eps, t);
+    }
+
+    /** One axis of the slab test: narrows t = {t0, t1}; false once the segment is outside. */
+    private static boolean slab(double e, double d, double lo, double hi, double[] t) {
+        if (Math.abs(d) < 1e-12) {
+            return e > lo && e < hi;
+        }
+        double inv = 1.0 / d;
+        double ta = (lo - e) * inv;
+        double tb = (hi - e) * inv;
+        if (ta > tb) {
+            double q = ta;
+            ta = tb;
+            tb = q;
+        }
+        if (ta > t[0]) {
+            t[0] = ta;
+        }
+        if (tb < t[1]) {
+            t[1] = tb;
+        }
+        return t[0] < t[1];
+    }
+
     // ------------------------------------------------------------------------------------------- A*
 
     /** What one leg is searching for. */

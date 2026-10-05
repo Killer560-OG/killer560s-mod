@@ -11,7 +11,9 @@
 # 92.4% found), warm median 0.84 ms, p99 4.3 ms. On the same floors the every-landing full-aim reference needs 7.81
 # warps against the graph's 8.19 (180 clicks), so 7.55 was not reachable by any planner here.
 full.minFoundPercent=100
-full.maxMeanWarps=8.28
+# 2026-10-05 (night-path): bucket 2 + partial 0.3 + cheaper aims. Whole floors 8.04 warps (was 8.26), warm median
+# 0.65 ms, p99 7.2 ms; small floors 3.35 against the reference's 3.29 (x1.018), 25 of 400 one worse.
+full.maxMeanWarps=8.06
 full.maxMeanWarpsOverOld=0.60
 full.maxWarmMedianMs=2.0
 full.maxWarmP99Ms=12
@@ -19,5 +21,5 @@ full.maxWarmP99Ms=12
 # window was two unconnected halves), mean 4.20 against 4.05, 52 of 358 clicks one worse, 1 two. Re-measured on the
 # game's floors (2026-10-04, fix-bench): found 100%, mean 3.43 against 3.29 (x1.043), 51 of 400 one worse, 3 two.
 small.minFoundPercent=100
-small.maxMeanOverRef=1.045
-small.maxWorseThanRefPercent=16
+small.maxMeanOverRef=1.025
+small.maxWorseThanRefPercent=8

@@ -215,7 +215,7 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
             // A change the packet hooks did not report, caught by the 15 s refill.
             WarpGraph g = listener;
             if (g != null) {
-                g.sectionChanged(sx, sy, sz);
+                reportDifference(g, sx, sy, sz, e.flags(), out);
             }
         }
         CACHE.put(key, new Entry(section, out, now));
@@ -272,9 +272,40 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
             int sy = (int) (key & 0xFFFFFL) << 12 >> 12;
             byte[] now = grid.load(sx, sy, sz, key);
             if (g != null && !Arrays.equals(before, now)) {
-                g.sectionChanged(sx, sy, sz);
+                reportDifference(g, sx, sy, sz, before, now);
             }
         }
+    }
+
+    /**
+     * Tells the graph the box of the blocks whose flags differ between two copies of a section, so it re-checks only
+     * the aims that pass near them (WarpGraph.blocksChanged) instead of every node that read the section.
+     */
+    private static void reportDifference(WarpGraph g, int sx, int sy, int sz, byte[] before, byte[] now) {
+        int x0 = 16;
+        int y0 = 16;
+        int z0 = 16;
+        int x1 = -1;
+        int y1 = -1;
+        int z1 = -1;
+        for (int i = 0; i < 4096; i++) {
+            if (before[i] != now[i]) {
+                int x = i & 15;
+                int z = (i >> 4) & 15;
+                int y = i >> 8;
+                x0 = Math.min(x0, x);
+                y0 = Math.min(y0, y);
+                z0 = Math.min(z0, z);
+                x1 = Math.max(x1, x);
+                y1 = Math.max(y1, y);
+                z1 = Math.max(z1, z);
+            }
+        }
+        if (x1 < 0) {
+            return;
+        }
+        g.blocksChanged((sx << 4) + x0, (sy << 4) + y0, (sz << 4) + z0, (sx << 4) + x1, (sy << 4) + y1,
+                (sz << 4) + z1);
     }
 
     private static byte[] fill(Level level, LevelChunkSection section, int bx, int by, int bz) {
