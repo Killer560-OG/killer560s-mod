@@ -77,6 +77,12 @@ public class CroesusTrackerScreen extends Screen {
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
 
+        // Opened from the /profit hub: a Back button in the header returns to it (Escape does too).
+        if (parent != null) {
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal("< Back"), btn -> onClose())
+                    .bounds(panelX + panelW - 62, panelY + 6, 56, 18).build());
+        }
+
         int bw = Math.min(90, (panelW - 24) / 4);
         int x = panelX + 6;
         for (View candidate : View.values()) {
@@ -257,8 +263,8 @@ public class CroesusTrackerScreen extends Screen {
         graphics.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
         graphics.text(this.font, "DUNGEON PROFIT", panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
         String claims = CroesusProfitLog.entryCount() + " claims logged";
-        graphics.text(this.font, claims, panelX + panelW - 10 - this.font.width(claims), panelY + 11,
-                ProfitPanels.DIM, false);
+        graphics.text(this.font, claims, panelX + panelW - (parent != null ? 72 : 10) - this.font.width(claims),
+                panelY + 11, ProfitPanels.DIM, false);
 
         if (view == View.OVERVIEW) {
             renderOverview(graphics);

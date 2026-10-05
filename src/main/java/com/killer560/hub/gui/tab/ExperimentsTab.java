@@ -124,6 +124,12 @@ public class ExperimentsTab extends BaseTab {
                     ModChat.dim("Last: ").append(ModChat.text(last)), font));
             y += 12;
         }
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open /profit"), btn ->
+                com.killer560.hub.compat.McCompat.setScreen(Minecraft.getInstance(),
+                        new com.killer560.hub.gui.profit.ProfitHubScreen(
+                                com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()))))
+                .bounds(contentX, y + 2, half, 18).build());
+        y += 22;
         return y;
     }
 
