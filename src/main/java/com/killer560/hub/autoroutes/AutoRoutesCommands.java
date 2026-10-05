@@ -90,6 +90,8 @@ public final class AutoRoutesCommands {
         /** killer560, 2026-10-05: two path nodes, and it etherwarps from the first to the second the way the
          *  Interactive Map does - see RoutePathPlanner. */
         ADD_PATH("add_path", "Add Path Node", "/ar add path"),
+        /** killer560, 2026-10-05: a node that kills the crypt it looks at with the Crypt Weapon setting's item. */
+        ADD_CRYPT("add_crypt", "Add Crypt Node", "/ar add crypt"),
         EDIT_BREAKER("edit_db", "Edit Breaker Blocks", "/ar edit db"),
         CLEAR("clear", "Clear Room Route", "/ar clear"),
         LIST("list", "List Nodes", "/ar list"),
@@ -142,8 +144,10 @@ public final class AutoRoutesCommands {
             "etherwarp", RouteNode.Type.ETHERWARP,
             "use", RouteNode.Type.USE_ITEM,
             "walk", RouteNode.Type.WALK,
-            "path", RouteNode.Type.PATH);
-    private static final List<String> TYPE_WORDS = List.of("boom", "breaker", "ew", "etherwarp", "use", "walk", "path");
+            "path", RouteNode.Type.PATH,
+            "crypt", RouteNode.Type.CRYPT);
+    private static final List<String> TYPE_WORDS = List.of("boom", "breaker", "ew", "etherwarp", "use", "walk", "path",
+            "crypt");
     /** Modifiers offered after any {@code /ar add <type>}. {@code x} is a placeholder: the command refuses
      *  {@code await:} followed by anything but a number. */
     private static final List<String> MOD_WORDS = List.of("await:x", "start");
@@ -332,6 +336,7 @@ public final class AutoRoutesCommands {
             case ADD_WALK -> add(RouteNode.Type.WALK);
             case ADD_BOOM -> add(RouteNode.Type.BOOM);
             case ADD_PATH -> add(RouteNode.Type.PATH);
+            case ADD_CRYPT -> add(RouteNode.Type.CRYPT);
             case EDIT_BREAKER -> toggleEditMode();
             case CLEAR -> clear();
             case LIST -> list();
@@ -437,8 +442,10 @@ public final class AutoRoutesCommands {
         }
         Component tail = switch (type) {
             case DUNGEON_BREAKER -> ModChat.dim(" - /ar edit db, then right-click its blocks.");
-            case USE_ITEM -> ModChat.dim(" - matched on the item, not the slot.");
+            case USE_ITEM -> ModChat.dim(status.contains("(empty hand)") ? " - right-clicks the block it looks at, by hand."
+                    : " - matched on the item, not the slot.");
             case PATH -> ModChat.dim(" - path nodes pair up in number order; the first warps to the second.");
+            case CRYPT -> ModChat.dim(" - aimed where you look; uses the Crypt Weapon until a crypt or prince dies.");
             default -> ModChat.text("");
         };
         ModChat.send(FEATURE, ModChat.text(status), tail);
@@ -457,7 +464,7 @@ public final class AutoRoutesCommands {
             RouteNode.Type type = ADD_TYPES.get(key);
             if (type == null) {
                 ModChat.send(FEATURE, ModChat.bad("Unknown node type "), ModChat.value(typeWord),
-                        ModChat.dim(" - boom, breaker, ew (or etherwarp), use, walk or path. start and await:<number> go after it, e.g. "),
+                        ModChat.dim(" - boom, breaker, ew (or etherwarp), use, walk, path or crypt. start and await:<number> go after it, e.g. "),
                         ModChat.value("/ar add ew start await:2"), ModChat.dim("."));
                 return;
             }

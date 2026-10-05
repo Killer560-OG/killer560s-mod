@@ -5,6 +5,8 @@
 	"package": "com.killer560.hub.autoroutes.mixin",
 	"client": [
 		"AutoRoutesInputMixin",
+		"AwaitEventsGameModeMixin",
+		"AwaitEventsPacketMixin",
 		"KeyMappingKeyAccessor"
 	],
 	"injectors": {

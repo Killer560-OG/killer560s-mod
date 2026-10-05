@@ -560,7 +560,7 @@ public final class SimBuilder {
                         ? "none on this floor - only some rooms have one"
                         : princes + " found, " + SimPrince.size() + " block(s), first at "
                                 + SimPrince.position());
-                SimMimic.chooseForMap();
+                SimMimic.chooseForMap(level);
                 SimBuildAudit.verify(level);
                 if (firstCell >= 0) {
                     snapPlayerTo(client, level, firstCell % DungeonLayout.GRID,
@@ -1444,7 +1444,7 @@ public final class SimBuilder {
                 SimRoomPuzzles.armFloor(level);
                 SimRoomLevers.armFloor(level);
                 SimPrince.scan(level);
-                SimMimic.chooseForMap();
+                SimMimic.chooseForMap(level);
                 SimScore.reset(Math.max(0, secrets), 1);
                 snapPlayerTo(client, level, centre, centre, room);
                 client.execute(() -> SimSecrets.report(roomName, secrets));

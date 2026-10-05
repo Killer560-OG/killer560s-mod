@@ -57,6 +57,8 @@ public final class SimMimic {
     /** The one that actually is. */
     private static BlockPos mimic;
     private static boolean found;
+    /** The mimic itself once its chest is opened - a baby zombie, as on Hypixel. Server thread. */
+    private static volatile java.util.UUID mimicMob;
 
     /** Chests already counted, so re-opening one does not count twice. */
     private static final Set<BlockPos> OPENED = new LinkedHashSet<>();
@@ -72,7 +74,8 @@ public final class SimMimic {
                 net.minecraft.core.BlockPos pos = hit.getBlockPos();
                 // A chest is a secret whether or not it bites. Counted here rather than in a second hook: one
                 // place that sees a chest click is easier to keep honest than two that must agree.
-                if (level.getBlockState(pos).is(Blocks.CHEST) && OPENED.add(pos.immutable())) {
+                if ((level.getBlockState(pos).is(Blocks.CHEST) || level.getBlockState(pos).is(Blocks.TRAPPED_CHEST))
+                        && OPENED.add(pos.immutable())) {
                     SimScore.secretFound(pos.immutable());
                 }
                 onChestOpened(client, pos);
@@ -102,6 +105,7 @@ public final class SimMimic {
         OPENED.clear();
         mimic = null;
         found = false;
+        mimicMob = null;
     }
 
     /** Records a chest that could be the mimic, as a room is placed. */
@@ -115,9 +119,10 @@ public final class SimMimic {
      * <p>Chosen after everything is down rather than while placing, because "one per map" cannot be decided a
      * room at a time - picking as you go gives the first eligible room a far better chance than the last.
      */
-    public static void chooseForMap() {
+    public static void chooseForMap(net.minecraft.server.level.ServerLevel level) {
         mimic = null;
         found = false;
+        mimicMob = null;
         if (!floorHasMimic()) {
             LOGGER.info("Sim mimic: none on {} - mimics start at Floor 5", SimState.floorLabel());
             return;
@@ -134,6 +139,14 @@ public final class SimMimic {
         mimic = pool.get(RNG.nextInt(pool.size()));
         LOGGER.info("Sim mimic: 1 of {} candidate chest(s) on {}, at {}",
                 pool.size(), SimState.floorLabel(), mimic);
+        // On Hypixel the mimic's chest is a TRAPPED chest - that is how the map, Secret Waypoints and Auto Routes'
+        // Kill Mimic tell it apart - so the chosen one becomes one, facing the way it did.
+        var state = level.getBlockState(mimic);
+        if (state.is(Blocks.CHEST)) {
+            level.setBlockAndUpdate(mimic, Blocks.TRAPPED_CHEST.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.ChestBlock.FACING,
+                            state.getValue(net.minecraft.world.level.block.ChestBlock.FACING)));
+        }
     }
 
     /**
@@ -208,27 +221,58 @@ public final class SimMimic {
     /**
      * Called when a chest is opened. Returns whether it was the mimic.
      *
-     * <p>Finding it counts toward the score's bonus, the same two points it is worth on a real floor - which is
-     * the only reason a mimic matters to a 300 run and therefore the only reason it is modelled.
+     * <p>As on Hypixel: the trapped chest goes and a baby zombie - the mimic - stands where it was. The mimic counts
+     * toward the score's bonus (the same two points it is worth on a real floor) when it DIES, not when the chest
+     * opens ({@link #tickServer}); until 2026-10-05 opening the chest was the kill, which left nothing to fight and
+     * nothing for a client feature that watches the mimic die (the score calculator, Auto Routes' Kill Mimic) to see.
      */
     public static boolean onChestOpened(Minecraft client, BlockPos pos) {
         if (found || mimic == null || !mimic.equals(pos)) {
             return false;
         }
         found = true;
-        SimScore.mimicKilled();
         var server = client.getSingleplayerServer();
         if (server != null) {
+            BlockPos at = pos.immutable();
             server.execute(() -> {
                 var level = server.overworld();
-                // The chest becomes a mimic: on Hypixel it is a zombie in a chest. A stationary starred mob at
-                // the chest is as close as the sim gets, and it counts for the bonus either way.
-                level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
+                mimicMob = SimMobs.spawnMimic(level, at);
             });
-            SimMobs.spawnStarred(client, pos.above(), SimMobs.Kind.ZOMBIE);
         }
-        ModChat.send("Sim", ModChat.text("MIMIC found - "), ModChat.value("+2 bonus"));
+        ModChat.send("Sim", ModChat.text("MIMIC - kill it for "), ModChat.value("+2 bonus"));
         return true;
+    }
+
+    /** Server thread, every tick (from {@code SimMobs}): the mimic's death is the kill. */
+    static void tickServer(net.minecraft.server.level.ServerLevel level) {
+        java.util.UUID id = mimicMob;
+        if (id == null) {
+            return;
+        }
+        var e = level.getEntity(id);
+        if (e == null || !e.isAlive()) {
+            mimicMob = null;
+            SimScore.mimicKilled();
+            LOGGER.info("Sim mimic: killed");
+            Minecraft.getInstance().execute(() -> ModChat.send("Sim", ModChat.text("MIMIC killed - "),
+                    ModChat.value("+2 bonus")));
+        }
+    }
+
+    /** Its mob was discarded (a run restart), not killed - so it must not score. */
+    static void forgetMob() {
+        mimicMob = null;
+    }
+
+    /** The live mimic's id, or null - for tests. */
+    public static java.util.UUID mimicMob() {
+        return mimicMob;
+    }
+
+    /** Where the mimic's chest is (or was), or null. */
+    public static BlockPos position() {
+        return mimic;
     }
 
     // candidatesNear() is gone with SimMimicRenderer. It fed the only thing that ever drew the candidates, and
