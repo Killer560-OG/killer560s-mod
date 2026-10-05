@@ -151,3 +151,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   2026-10-05.
 - A step that closes a menu and sends a command must time out if the screen it waits for never opens. Auto E-Table's
   Guardian swap closed the table, sent /pets, and waited forever when nothing opened; it now gives up after 10 s.
+- Melody's Custom GUI picked the moving piece as the one pane COLOUR appearing exactly once; a board with a second
+  lime pane (a finished row keeping its marker, which Odin handles with indexOfLast) has none, so after a row or an
+  auto terminal's skip nothing was drawn as moving (killer560, 2026-10-05). Find a terminal's piece by position from
+  the current slots (`findMelodyMovingSlot`), never by colour counts; testkit 218 fails 5/16 on the old rule.
