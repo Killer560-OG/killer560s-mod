@@ -36,7 +36,8 @@ public final class MagicFindTracker {
         Matcher m = MAGIC_FIND_PATTERN.matcher(text);
         if (m.find()) {
             try {
-                lastMagicFind = (int) Math.round(Double.parseDouble(m.group(1)));
+                // Clamped: a huge number from someone's chat line wrapped round when cast to int.
+                lastMagicFind = (int) Math.max(0, Math.min(100_000, Math.round(Double.parseDouble(m.group(1)))));
                 lastUpdatedAtMs = System.currentTimeMillis();
             } catch (NumberFormatException ignored) {
             }

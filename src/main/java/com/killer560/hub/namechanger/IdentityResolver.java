@@ -28,6 +28,9 @@ import java.util.UUID;
  */
 final class IdentityResolver {
 
+    /** The shape every real Minecraft ign has. */
+    private static final java.util.regex.Pattern POSSIBLE_IGN = java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16}$");
+
     private IdentityResolver() {
     }
 
@@ -38,6 +41,8 @@ final class IdentityResolver {
      *                         known nickname at all (nothing to rewrite - send it exactly as typed).
      * @param collisionRealIgn only set when a DIFFERENT, currently-known real account has this exact literal
      *                         name too - {@code realIgn} is still the nickname's own real ign in that case.
+     *                         Also set (to the typed text itself) when a SUPPORTER display name matched and the
+     *                         typed text could be an uncached real ign, so the player chooses instead.
      * @param typedText        the original typed token, unchanged.
      */
     record Resolution(String realIgn, String collisionRealIgn, String typedText) {
@@ -58,8 +63,10 @@ final class IdentityResolver {
             return new Resolution(null, null, typedName);
         }
         String nicknameReal = mappingReal(typedName);
+        boolean fromSupporter = false;
         if (nicknameReal == null) {
             nicknameReal = SupportersFeature.realIgnForDisplayName(typedName);
+            fromSupporter = nicknameReal != null;
         }
         if (nicknameReal == null) {
             return new Resolution(null, null, typedName);
@@ -70,6 +77,14 @@ final class IdentityResolver {
         String literalReal = literalUuid == null ? null : PlayerNames.nameFor(literalUuid);
         if (literalReal != null && !literalReal.equalsIgnoreCase(nicknameReal)) {
             return new Resolution(nicknameReal, literalReal, typedName);
+        }
+        // A supporter's display name is chosen by ANOTHER player, through the relay. If what was typed could
+        // itself be a real ign we simply have not cached, auto-rewriting would let that player redirect
+        // "/p Bob" to his own account. Ask instead; only a name no real account can have is rewritten silently.
+        // Manual mappings are killer560's own and keep rewriting.
+        if (fromSupporter && literalReal == null && !nicknameReal.equalsIgnoreCase(typedName)
+                && POSSIBLE_IGN.matcher(typedName).matches()) {
+            return new Resolution(nicknameReal, typedName, typedName);
         }
         return new Resolution(nicknameReal, null, typedName);
     }

@@ -43,7 +43,8 @@ public final class WeirdosSolverFeature {
 
     // Anchored to line start (2026-09-15, ChatObserver migration): ChatObserver also delivers this mod's own
     // client-side lines, so an unanchored find() could pick an "[NPC] ..." quote out of the middle of one.
-    private static final Pattern NPC_LINE = Pattern.compile("^\\[NPC] (.+): (.+)\\.?");
+    // Name group non-greedy and bounded, so a colon inside the dialogue cannot become part of the name.
+    private static final Pattern NPC_LINE = Pattern.compile("^\\[NPC] ([^:]{1,32}?): (.{1,200})$");
 
     private static final List<Pattern> SOLUTIONS = List.of(
             Pattern.compile("The reward is not in my chest!"),
@@ -117,11 +118,16 @@ public final class WeirdosSolverFeature {
         if (!WeirdosSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             return;
         }
+        // Same room gate the render uses: an "[NPC] ..." line heard anywhere else must not mark chests here.
+        com.killer560.hub.roomdatabase.RoomEntry room = LiveMapFeature.currentRoomEntry();
+        if (room == null || !"Three Weirdos".equals(room.name)) {
+            return;
+        }
         String plain = ChatFormatting.stripFormatting(message.getString());
-        String raw = plain != null ? plain : message.getString();
+        String raw = (plain != null ? plain : message.getString()).trim();
 
         var matcher = NPC_LINE.matcher(raw);
-        if (!matcher.find()) {
+        if (!matcher.matches()) {
             return;
         }
         String npc = matcher.group(1);

@@ -23,8 +23,8 @@ import java.util.regex.Pattern;
  * mana at all, since both share the exact same shape (a real mistake caught and fixed before this ever
  * built). Reads the real overlay text via {@code ClientReceiveMessageEvents.MODIFY_GAME} and, once a
  * line has matched at least one of the three icon-anchored patterns below (i.e. it's confirmed to be the
- * real stat line, not some other action-bar use like an ability name), drops that one line - see
- * {@link #onModifyGameMessage} - the same "replace it, don't just add to it" treatment
+ * real stat line, not some other action-bar use like an ability name), drops that one line from the screen -
+ * see {@link #shouldHideActionBar} - the same "replace it, don't just add to it" treatment
  * {@link #registerVanillaSuppression()} already gives the vanilla hearts/hunger/armour/air bars. Any
  * action-bar text that doesn't match a pattern is left completely alone.
  * <p>
@@ -118,17 +118,27 @@ public final class PlayerStatsFeature {
         if (defenseHit) {
             defense = defenseMatch.group(1);
         }
-        // Real bug found and fixed (2026-09-27), killer560: "it didn't hide the text that the server
-        // normally has. It does show its own text though." This class doc used to say the real overlay
-        // is "always returned unchanged" - that was the bug, not a design choice: Stat Bars is meant to
-        // REPLACE this exact line (same as it already replaces the vanilla hearts/hunger/armour/air bars
-        // via registerVanillaSuppression()), so once we've actually read the numbers off it, the real
-        // line itself is dropped. Only for a line that matched at least one of the three patterns - an
-        // action bar showing something else entirely (an ability name, a warning) is never touched.
-        if (healthHit || manaHit || defenseHit) {
-            return Component.empty();
-        }
+        // The stat line is hidden from the screen (killer560, 2026-09-27: "it didn't hide the text that the
+        // server normally has"), but NOT here. Fabric chains MODIFY_GAME and then hands the result to GAME and
+        // to Gui.setOverlayMessage (javap, fabric-message-api-v1 7.0.5 and 7.0.8), so returning
+        // Component.empty() here blanked the line for every later reader: Ability Cooldown's own MODIFY_GAME
+        // listener, the GAME overlay readers (live map, Auto Routes, interop room secrets) and the Custom
+        // Scoreboard's "x/y Secrets". The line now passes through untouched and the Gui mixin
+        // (CustomScoreboardGuiMixin) drops it at setOverlayMessage via shouldHideActionBar, after the
+        // scoreboard has read it.
         return message;
+    }
+
+    /** True for an action-bar line Stat Bars replaces: Stat Bars is on and the line carries at least one of
+     *  the three icon-anchored stat patterns. Any other action-bar text (an ability name, a warning) is never
+     *  hidden. Called from {@code CustomScoreboardGuiMixin} at {@code setOverlayMessage} HEAD. */
+    public static boolean shouldHideActionBar(Component message) {
+        if (message == null || !PlayerStatsConfig.getInstance().isEnabled()) {
+            return false;
+        }
+        String raw = message.getString();
+        return HEALTH_REGEX.matcher(raw).find() || MANA_REGEX.matcher(raw).find()
+                || DEFENSE_REGEX.matcher(raw).find();
     }
 
     public static final class StatsHudElement implements HudElement {

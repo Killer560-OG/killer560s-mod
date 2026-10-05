@@ -72,11 +72,6 @@ public final class ArchitectDraftFeature {
         if (matchedName == null) {
             return;
         }
-        long now = System.currentTimeMillis();
-        if (now - lastMs < COOLDOWN_MS) {
-            return;
-        }
-        lastMs = now;
         // Lambda capture needs an effectively-final variable - matchedName above is reassigned in the loop.
         String failer = matchedName;
         Minecraft client = Minecraft.getInstance();
@@ -86,6 +81,16 @@ public final class ArchitectDraftFeature {
             }
             String self = client.player.getGameProfile().name();
             boolean mine = self != null && self.equalsIgnoreCase(failer);
+            // The cooldown is spent only by a fail that does something here. It used to be spent before the
+            // "is it mine" check, so a teammate's fail with only Auto Get on blocked his own a moment later.
+            if (!mine && !cfg.isClickMessage()) {
+                return;
+            }
+            long now = System.currentTimeMillis();
+            if (now - lastMs < COOLDOWN_MS) {
+                return;
+            }
+            lastMs = now;
             if (mine && cfg.isAutoGet()) {
                 client.player.connection.sendCommand(COMMAND);
                 ModChat.send("Architect", ModChat.text("Puzzle failed - getting an "), ModChat.value("Architect's First Draft"),

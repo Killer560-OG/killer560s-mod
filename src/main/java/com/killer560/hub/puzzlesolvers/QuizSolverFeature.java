@@ -153,8 +153,13 @@ public final class QuizSolverFeature {
             triviaAnswers = List.of("Year " + skyblockYear);
             return;
         }
+        // Oruo's question is a server line of its own - centring spaces and the question, nothing in front -
+        // which is why the year question above is compared on the trimmed line. A party/guild/all-chat/DM
+        // line always starts with its channel, rank or "name: " prefix, so requiring the question at the very
+        // start keeps anyone quoting a question from overwriting the answers. startsWith rather than equals:
+        // some keys are only the first line of a question Hypixel wraps ("...who sells stained").
         for (Map.Entry<String, List<String>> entry : ANSWERS.entrySet()) {
-            if (msg.contains(entry.getKey())) {
+            if (trimmed.startsWith(entry.getKey())) {
                 triviaAnswers = entry.getValue();
                 return;
             }

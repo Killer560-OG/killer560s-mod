@@ -152,10 +152,10 @@ public final class TranslateFeature {
     }
 
     /**
-     * Runs {@code message} through this mod's own outgoing chat pipeline (Auto Correct -> Chat
-     * Emotes -> Translate, respecting killer560's current settings for each) and sends it - for
-     * anything that generates its own outgoing chat line rather than being typed (e.g. {@code
-     * /cringe}), so those lines still get translated/corrected the same way real typed chat would.
+     * Runs {@code message} through this mod's own outgoing chat pipeline (Chat Emotes -> Translate,
+     * respecting killer560's current settings for each - but never Auto Correct, see below) and sends it -
+     * for anything that generates its own outgoing chat line rather than being typed (e.g. {@code
+     * /cringe}), so those lines still get translated the same way real typed chat would.
      */
     public static void sendGenerated(String message) {
         sendGenerated(message, null);
@@ -172,7 +172,11 @@ public final class TranslateFeature {
         TranslateConfig cfg = TranslateConfig.getInstance();
         boolean translateActive = cfg.isEnabled() && !cfg.getTargetLanguageCode().isBlank()
                 && !"en".equalsIgnoreCase(cfg.getTargetLanguageCode());
-        boolean autoCorrectActive = AutoCorrectConfig.getInstance().isEnabled();
+        // Auto Correct is never applied here: generated text was written by the mod, not typed, so it has no
+        // typos to fix, and it often carries a player name ("Leaping to Thea") that Auto Correct would turn
+        // into a word ("They"). Emotes stay: they only replace whole leading/trailing trigger tokens, and no
+        // trigger has the shape of an ign.
+        boolean autoCorrectActive = false;
         boolean emotesActive = ChatEmoteConfig.getInstance().isEnabled();
         // addToHistory=false: this text was never typed by killer560 (it's a bot-generated line, e.g.
         // /cringe or a Leap Message), so it shouldn't show up when he presses Up Arrow in chat -

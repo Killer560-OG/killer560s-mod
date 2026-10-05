@@ -77,7 +77,7 @@ public final class ScoreboardExtraData {
 
     // ---- patterns (plain text unless noted) ----
     private static final Pattern DURATION_PART = Pattern.compile(
-            "(\\d+)\\s*(years?|y|days?|d|hours?|h|minutes?|mins?|m|seconds?|secs?|s)\\b", Pattern.CASE_INSENSITIVE);
+            "(?<![\\d,])(\\d{1,6})\\s*(years?|y|days?|d|hours?|h|minutes?|mins?|m|seconds?|secs?|s)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern COOKIE_WIDGET = Pattern.compile("\\s*Cookie Buff: (?<duration>.*)");
     private static final Pattern COOKIE_DURATION_LORE = Pattern.compile("\\s*Duration: (?<duration>.*)");
     private static final Pattern COOKIE_NOT_ACTIVE_LORE = Pattern.compile("\\s*Status: Not active!.*");
@@ -463,7 +463,9 @@ public final class ScoreboardExtraData {
         long total = 0;
         boolean any = false;
         while (m.find()) {
-            // (\d+) is unbounded: a long digit run (garbled lore/tab line) overflows Long.parseLong.
+            // At most six digits per part, and never the tail of a longer run (DURATION_PART's lookbehind), so
+            // even 999999 years is ~3.2e16 ms and the sum cannot overflow; the clamp below also keeps the
+            // caller's currentTimeMillis() + duration safe.
             long n = parseLong(m.group(1));
             if (n < 0) {
                 continue;
@@ -478,8 +480,11 @@ public final class ScoreboardExtraData {
             };
             any = true;
         }
-        return any ? total : -1;
+        return any ? Math.min(total, MAX_DURATION_MS) : -1;
     }
+
+    /** A hundred years: far past any real buff, far below where adding it to the clock could overflow. */
+    private static final long MAX_DURATION_MS = 100L * 365L * 86_400_000L;
 
     // ---- chat ----
 

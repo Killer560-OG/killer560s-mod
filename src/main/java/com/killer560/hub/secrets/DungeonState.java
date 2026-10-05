@@ -243,7 +243,9 @@ public final class DungeonState {
             return null;
         }
         for (String line : raw.split("\n")) {
-            String t = line.trim();
+            // Stripped first: a colour code in front of "Room:" made this miss the line entirely.
+            String plain = ChatFormatting.stripFormatting(line);
+            String t = plain == null ? "" : plain.trim();
             if (t.startsWith("Room:")) {
                 String name = t.substring("Room:".length()).trim();
                 return name.isEmpty() ? null : name;

@@ -100,9 +100,9 @@ public final class IdentityCommandFeature {
 
     /** Client-side-only prompt (never touches the server) - clicking either option re-runs the SAME typed
      *  command with the chosen real ign substituted, through vanilla's own click-to-run-command path (the
-     *  same one {@code PartyCommandsFeature}'s "click to invite" confirm already relies on) - which then
-     *  re-enters this exact hook with the real ign as plain typed text, resolves to no further rewrite, and
-     *  falls straight through to vanilla unchanged. */
+     *  same one {@code PartyCommandsFeature}'s "click to invite" confirm already relies on). That path is
+     *  {@code Screen.clickCommandAction} -> {@code sendUnattendedCommand} (javap, 26.1.2), which does NOT pass
+     *  through {@code ChatScreen.handleChatInput}, so the chosen command goes out as-is and is not re-resolved. */
     private static void promptCollision(String verb, IdentityResolver.Resolution res) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {

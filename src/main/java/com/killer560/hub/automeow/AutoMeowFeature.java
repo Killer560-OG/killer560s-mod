@@ -34,7 +34,9 @@ public final class AutoMeowFeature {
     private static final Pattern GUILD_PREFIX = Pattern.compile("^Guild > ");
     private static final Pattern OFFICER_PREFIX = Pattern.compile("^Officer > ");
     private static final Pattern COOP_PREFIX = Pattern.compile("^Co-op > ");
-    private static final Pattern WHISPER_PREFIX = Pattern.compile("^From (\\w+): ");
+    /** "From Bob: meow" or, for a ranked sender, "From [MVP+] Bob: meow". */
+    private static final Pattern WHISPER_PREFIX =
+            Pattern.compile("^From (?:\\[[A-Za-z0-9+]{1,12}\\] )?([A-Za-z0-9_]{1,16}): ");
     private static final long COOLDOWN_MS = 3000;
     /** Real Minecraft cat sound effects (the "baby" variants are the simple pre-registered constants
      *  this MC version still exposes directly - adult cat sounds are now behind a datapack-driven
@@ -47,8 +49,25 @@ public final class AutoMeowFeature {
 
     public static void register() {
         ClientReceiveMessageEvents.CHAT.register(
-                (message, signedMessage, sender, params, receptionTimestamp) -> onMessage(message.getString()));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> onMessage(message.getString()));
+                (message, signedMessage, sender, params, receptionTimestamp) -> safeOnMessage(message.getString()));
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            if (!overlay) { // the action bar is not chat and must never trigger a reply
+                safeOnMessage(message.getString());
+            }
+        });
+    }
+
+    /** Raw packet-path listeners: a throw here disconnects from Hypixel, so none may escape. The channel
+     *  prefixes below are matched on the formatting-stripped, trimmed line. */
+    private static void safeOnMessage(String raw) {
+        try {
+            String text = net.minecraft.ChatFormatting.stripFormatting(raw);
+            if (text != null) {
+                onMessage(text.trim());
+            }
+        } catch (RuntimeException e) {
+            com.killer560.hub.util.ModLog.get("killer560smod-automeow").error("[AutoMeow] Failed to handle a chat line", e);
+        }
     }
 
     private static void onMessage(String text) {

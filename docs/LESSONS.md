@@ -78,3 +78,8 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - A test script that pipes its runner into `grep` exits with grep's status, so it passes when the runner cannot even
   compile. `tools/bench/regress.sh` did exactly that after the 2026-10-04 path-to-blood merge (two javac errors,
   exit 0). Write the run to a file, check its exit status, and require a line only a finished run prints.
+- Fabric's `MODIFY_GAME` chains: each listener gets the previous one's return, and `GAME` plus
+  `Gui.setOverlayMessage` get the final result (javap, fabric-message-api-v1 7.0.5 and 7.0.8). Stat Bars returned
+  `Component.empty()` for the HP/mana action bar, which blanked it for Ability Cooldown, the live map, Auto Routes,
+  interop room secrets and the Custom Scoreboard's "x/y Secrets". Hide a line at `setOverlayMessage`
+  (`CustomScoreboardGuiMixin` now cancels via `PlayerStatsFeature.shouldHideActionBar`), never by blanking it there.
