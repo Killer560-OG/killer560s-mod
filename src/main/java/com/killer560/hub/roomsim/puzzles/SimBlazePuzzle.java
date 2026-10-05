@@ -664,7 +664,16 @@ public final class SimBlazePuzzle {
         // Dying, not merely gone: a discarded entity is also "not alive", and the put-back below relies on a
         // blaze that vanished without dying never being counted as a kill.
         if (level.getEntity(id) instanceof net.minecraft.world.entity.LivingEntity living && living.isDeadOrDying()) {
-            SEEN_DEAD.add(id);
+            if (SEEN_DEAD.add(id)) {
+                // Which blaze of the chain, against the one that was due, and which arrow did it: an out-of-order
+                // kill is otherwise only "something died".
+                int at = spawnedIds.indexOf(id);
+                String by = com.killer560.hub.roomsim.SimTerminator.lastHitBy(id);
+                com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                        "Sim blaze puzzle: blaze {} of {} died (due: {}) at {}, killed by {}", at + 1, spawnedIds.size(),
+                        nextRequired + 1, String.format("%.2f,%.2f,%.2f", living.getX(), living.getY(), living.getZ()),
+                        by == null ? "no Terminator arrow" : by);
+            }
             return true;
         }
         return false;

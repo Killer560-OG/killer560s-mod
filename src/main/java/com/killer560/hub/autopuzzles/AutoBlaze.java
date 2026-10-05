@@ -25,8 +25,9 @@ import com.killer560.hub.compat.McCompat;
  * {@link BlazeSolverFeature} kill order. Each tick: wait out the previous shot's arrow travel time (dist/2.5*50ms,
  * or until the target blaze dies); take the next blaze; build QUOI's hitboxes (target 0.35x0.8 half-extents,
  * others 0.75x1.45, centred 1 block under the stand); try 7 aim points on the target with the arrow simulation and
- * accept the first whose simulated arrow reaches the target before any other blaze or a block (Terminator: the
- * +-5 degree side arrows must not hit another blaze either); shoot with the held shortbow once the Shoot cooldown
+ * accept the first whose simulated arrow reaches the target before any other blaze or a block AND whose every arrow
+ * (Terminator: the centre and both +-5 degree side arrows) misses every other blaze for its whole flight, with the
+ * target treated as not there - any one of them may be the one that kills it, and the others fly on; shoot with the held shortbow once the Shoot cooldown
  * allows. With "Etherwarp Reposition" on, it also cycles QUOI's standing spots when there's no clean shot (and on
  * Higher Blaze below y=75).
  * <p>
@@ -364,18 +365,65 @@ final class AutoBlaze {
         for (Vec3 point : testPoints) {
             float[] dir = AutoPuzzleUtil.arrowDirection(eyePos, point, terminator);
             Vec3 origin = AutoPuzzleUtil.arrowOrigin(eyePos, dir[0], terminator);
-            if (isSafe(client, player, origin, dir[0], dir[1], hitboxes, false)) {
-                if (!terminator || (isSafe(client, player, origin, dir[0] + 5f, dir[1], hitboxes, true)
-                        && isSafe(client, player, origin, dir[0] - 5f, dir[1], hitboxes, true))) {
-                    return dir;
-                }
+            // The centre arrow must reach the target before anything else...
+            if (!reachesTarget(client, player, origin, dir[0], dir[1], hitboxes)) {
+                continue;
             }
+            // ...and EVERY arrow the bow fires must then clear every other blaze for its whole flight, as if the
+            // target were not there. Only one arrow is needed to kill it, and an arrow flies straight through a
+            // blaze that is already dying: when one of a shot's three arrows killed the target, a sibling that had
+            // been judged safe because it "hit the target" flew on up the shaft into the next blaze.
+            if (!clearOfOthers(client, player, origin, dir[0], dir[1], hitboxes)) {
+                continue;
+            }
+            if (terminator && (!clearOfOthers(client, player, origin, dir[0] + 5f, dir[1], hitboxes)
+                    || !clearOfOthers(client, player, origin, dir[0] - 5f, dir[1], hitboxes))) {
+                continue;
+            }
+            return dir;
         }
         return null;
     }
 
-    private static boolean isSafe(Minecraft client, LocalPlayer player, Vec3 from, float yaw, float pitch,
-                                  List<BlazeHitbox> hitboxes, boolean sideArrow) {
+    /**
+     * Whether an arrow fired with this yaw and pitch touches no blaze but the target from leaving the bow until it
+     * lands in a block. The target is ignored rather than counted as the end of the flight - see {@link #canHit}.
+     */
+    private static boolean clearOfOthers(Minecraft client, LocalPlayer player, Vec3 from, float yaw, float pitch,
+                                         List<BlazeHitbox> hitboxes) {
+        double px = from.x, py = from.y, pz = from.z;
+        double yawRad = Math.toRadians(yaw);
+        double pitchRad = Math.toRadians(pitch);
+        double mx = -Math.sin(yawRad) * Math.cos(pitchRad) * 3.0;
+        double my = -Math.sin(pitchRad) * 3.0;
+        double mz = Math.cos(yawRad) * Math.cos(pitchRad) * 3.0;
+        for (int tick = 0; tick <= 100; tick++) {
+            Vec3 currPos = new Vec3(px, py, pz);
+            Vec3 nextPos = new Vec3(px + mx, py + my, pz + mz);
+            boolean lands = !AutoPuzzleUtil.isPathClear(client.level, player, currPos, nextPos);
+            for (BlazeHitbox box : hitboxes) {
+                // Checked on the landing step too: the arrow can cross a blaze before reaching the wall. (A blaze
+                // behind the wall it lands in reads as a hit here - over-cautious, never unsafe.)
+                if (!box.isTarget() && box.aabb().clip(currPos, nextPos).isPresent()) {
+                    return false;
+                }
+            }
+            if (lands) {
+                return true;
+            }
+            px = nextPos.x;
+            py = nextPos.y;
+            pz = nextPos.z;
+            mx *= 0.99;
+            my = my * 0.99 - 0.05;
+            mz *= 0.99;
+        }
+        return true;
+    }
+
+    /** QUOI's check for the centre arrow: it reaches the target's box before any other blaze or a block. */
+    private static boolean reachesTarget(Minecraft client, LocalPlayer player, Vec3 from, float yaw, float pitch,
+                                         List<BlazeHitbox> hitboxes) {
         BlazeHitbox target = null;
         for (BlazeHitbox h : hitboxes) {
             if (h.isTarget()) {
@@ -384,7 +432,7 @@ final class AutoBlaze {
             }
         }
         if (target == null) {
-            return sideArrow;
+            return false;
         }
         Vec3 center = target.aabb().getCenter();
         double dist = sq(center.x - from.x) + sq(center.z - from.z);
@@ -398,7 +446,7 @@ final class AutoBlaze {
             Vec3 currPos = new Vec3(px, py, pz);
             Vec3 nextPos = new Vec3(px + mx, py + my, pz + mz);
             if (!AutoPuzzleUtil.isPathClear(client.level, player, currPos, nextPos)) {
-                return sideArrow;
+                return false;
             }
             for (BlazeHitbox box : hitboxes) {
                 if (box.aabb().clip(currPos, nextPos).isPresent()) {
@@ -409,17 +457,15 @@ final class AutoBlaze {
             py = nextPos.y;
             pz = nextPos.z;
             double currDist = sq(px - from.x) + sq(pz - from.z);
-            // A SIDE arrow is followed until it lands. QUOI stopped every arrow a few blocks past the target, which
-            // is right for the centre one (it hits the target or nothing) and wrong for the outer two: one that
-            // clears the target keeps flying across the shaft and can kill a blaze on the far side out of order.
-            if (!sideArrow && currDist > dist + 30.0) {
+            // Past the target and still flying: a miss. Where it goes from here is clearOfOthers' question.
+            if (currDist > dist + 30.0) {
                 break;
             }
             mx *= 0.99;
             my = my * 0.99 - 0.05;
             mz *= 0.99;
         }
-        return sideArrow;
+        return false;
     }
 
     /**

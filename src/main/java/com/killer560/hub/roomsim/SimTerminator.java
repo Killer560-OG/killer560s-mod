@@ -139,6 +139,21 @@ public final class SimTerminator {
     /** Counts client ticks, so the cooldown does not depend on frame rate. */
     private static int tickCounter;
 
+    /** Shots fired since {@link #reset}, numbered from 1, so a log line can say which shot an arrow came from. */
+    private static volatile int shotSeq;
+
+    /**
+     * Which arrow last damaged each mob ("shot #N centre/side, K ticks in flight, at x,y,z"), written by the
+     * damage hook on the server thread. Lets a puzzle say which shot killed what - an out-of-order blaze kill is
+     * otherwise just "something died".
+     */
+    private static final java.util.Map<UUID, String> LAST_HIT_BY = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** The arrow that last damaged {@code id}, described, or null. */
+    public static String lastHitBy(UUID id) {
+        return LAST_HIT_BY.get(id);
+    }
+
     /** Arrows actually put in the world, so a test can prove the weapon acted rather than trust a log line. */
     private static volatile int arrowsFired;
 
@@ -167,7 +182,12 @@ public final class SimTerminator {
             if (SimState.isActive()
                     && source.getDirectEntity() instanceof TerminatorArrow arrow
                     && entity != arrow.getOwner()) {
+                LAST_HIT_BY.put(entity.getUUID(), arrow.describe());
                 recordHit(entity);
+            } else if (SimState.isActive() && entity instanceof net.minecraft.world.entity.monster.Blaze) {
+                // Anything else that hurts a blaze, so a puzzle blaze that dies without an arrow says what did it.
+                LAST_HIT_BY.put(entity.getUUID(), "damage '" + source.getMsgId() + "' (" + amount + ") from "
+                        + (source.getEntity() == null ? "no entity" : source.getEntity().getClass().getSimpleName()));
             }
             // Never refuses anything - this listener is only here to count.
             return true;
@@ -176,6 +196,8 @@ public final class SimTerminator {
 
     public static void reset() {
         MOBS_HIT.clear();
+        LAST_HIT_BY.clear();
+        shotSeq = 0;
         salvationArmed = false;
         lastShotTick = -1000;
         tickCounter = 0;
@@ -251,6 +273,11 @@ public final class SimTerminator {
         final float yaw = SimAim.yaw(client.player);
         final float pitch = SimAim.pitch(client.player);
         final UUID who = client.player.getUUID();
+        final int shot = ++shotSeq;
+        final Vec3 eyeAt = SimAim.eye(client.player);
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                "Sim Terminator: shot #{} yaw {} pitch {} from {}", shot, String.format("%.1f", yaw),
+                String.format("%.1f", pitch), String.format("%.2f,%.2f,%.2f", eyeAt.x, eyeAt.y, eyeAt.z));
         // The puzzle half of the shot: a lantern in Creeper Beams answers to the centre arrow's line, from any
         // distance. The arrows themselves hit nothing the puzzle listens to - see SimCreeperPuzzle.shotAlong.
         com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.shotAlong(client, SimAim.eye(client.player),
@@ -265,6 +292,8 @@ public final class SimTerminator {
                 Vec3 dir = fromAngles(yaw + (float) offset, pitch);
                 TerminatorArrow arrow = new TerminatorArrow(level, sp);
                 arrow.shotYaw = yaw + (float) offset;
+                arrow.shot = shot;
+                arrow.lane = i - (ARROWS_PER_SHOT - 1) / 2;
                 arrow.shoot(dir.x, dir.y, dir.z, ARROW_VELOCITY, ARROW_INACCURACY);
                 if (level.addFreshEntity(arrow)) {
                     arrowsFired++;
@@ -438,6 +467,15 @@ public final class SimTerminator {
 
         /** The yaw the shot was AIMED with, in an entity's look convention - see {@link #shotYaw(Entity)}. */
         private float shotYaw;
+
+        /** Which shot this arrow came from ({@link #shotSeq}) and its lane: -1 / 0 / +1 for yaw-5, centre, yaw+5. */
+        private int shot;
+        private int lane;
+
+        String describe() {
+            return String.format("shot #%d %s arrow, %d ticks in flight, at %.2f,%.2f,%.2f", shot,
+                    lane < 0 ? "yaw-5 side" : lane > 0 ? "yaw+5 side" : "centre", livedTicks, getX(), getY(), getZ());
+        }
 
         TerminatorArrow(Level level, LivingEntity owner) {
             // Positions itself at the owner's eye and calls setOwner - both verified in the 26.1.2 bytecode.
