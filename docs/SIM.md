@@ -2408,3 +2408,34 @@ MB beside the full graph's 51-70 MB (`-Dmemcheck`), kept for the floor. `regress
 room, then the same trip once warm): 11 warps in 475 ms vs 8 warm (26.1.2), 15 in 246 ms vs 13 (26.2); the old jar
 on the same scenario fell back to room by room, 19 warps vs 10 warm. The few hundred ms is the quick graph being
 finished inside that click. **On Hypixel:** the same code; nothing here reads the sim.
+
+## Exact floors, and Generate keeps his room (2026-10-05, night-flakes)
+
+**73 "only 20 room(s), wanted 21"** (2-3 runs in 8, 120 floors a run). `tools/layoutsim -Dsweep=true`, seed 1, 11,200
+floors: 28 under the room minimum, every one an F5/F7 whose 36 cells were all covered by 20 rooms; also 10 a puzzle
+short and 1 with no trap. **Cause:** `fillGaps`' strict step put multi-tile rooms into the last free cells while the
+floor still owed rooms - the growth caps a room at `cellsLeft - (owed - 1)`, the fill did not - and nothing adds a room
+to a full grid. And the finishing passes (trap, fill, puzzles) ran once on the attempt loop's pick, with no way back.
+**Fix:** `Filler.maxArea` is the same cap (alone it took the room shortfall to 0 of 22,400); `run` lays out up to 12
+whole floors (4 with pins) until `shortfalls` is empty - room minimum, cells, puzzles, trap, blood, and the
+Entrance-to-Blood path through the build's doors exactly the slider with the fairy on it - and only the kept floor
+goes into recency. A retry fires about once in 1,000-4,000 floors, always resolved by the second floor. After: 0
+failing of 257,600 sweep floors (recency on and off), 2.4-3.5 ms a floor; in game see night-flakes.md.
+
+**83 "a hand-placed room was replaced by Generate" was a real bug.** With Quiz pinned in the middle of an F7 (the
+designer's defaults), 19 Generates in 200 dropped it - yet on those calls a quarter of the attempts HAD kept it. The
+attempt score charged a dropped pin five cells, so a full floor without his room beat one that kept it a few cells
+short, and `run` then laid the floor out again WITHOUT the pin, reporting "nothing could open a doorway into it". A
+dropped pin now ranks above the cell count (still below blood, trap and the room minimum, which is what stops the
+old "two-room floor that holds his rooms" problem); the fill pass tops up the cells. Two things came with it: a
+pinned PUZZLE now counts as one of the slider's puzzles in the growth too (it did in `ensurePuzzles` and the fill;
+the growth added the slider's count on top, 778 of 1,120 floors one over), and a pinned Fairy or Blood that no path
+of his length can reach (the loop fell back to the approximate growth) is laid out again without, as it always was
+in effect - otherwise the heavier pin weight kept it with the path wrong. Quiz@14: 0 dropped in 1,000, 61 -> 19 ms a
+floor. Random pins, 1,120 floors each, before -> after: normal 98 -> 53 dropped (all 53 his footprint running off
+the grid, refused before layout), puzzle 100 -> 1, fairy failing checks 16 -> 0 (but 235 -> 780 ms a floor: an
+unreachable fairy is retried four times), blood 0 -> 0. `tools/layoutsim -Dpinroom=Quiz -Dpincell=14 -Donly=F7
+-Dslider=5 -Dpuzzles=3` reproduces the scenario.
+
+**88 "the world CHANGED"** was the test server's own random tick: the one failure's block counts differ by exactly one
+grass_block turned dirt. The testkit compares the arena position by position and ignores a grass/dirt swap.
