@@ -185,6 +185,12 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   must publish its own "still steering" flag: `isBusy()` is false for the whole wait by design, and Auto Routes'
   interlock 5 reads exactly that, so a node underfoot would arm in the gap and steer against the warp about to
   start. `InteractiveMapFeature.isSteering()` is that flag.
+- **A rebuild from INSIDE the sim must hand `SimState` the new map code.** `SimWorld.open` skips the world reload when
+  he is already in the sim, and only the world-load path called `SimState.enter(code)`, so after a second floor every
+  `SimState.roomNameAt` (the trap-ability rule, the sidebar Room line, the tab list) decoded the FIRST floor: he was
+  told "No abilities in a trap room" in Atlas and the sidebar said Atlas while he stood in Museum (2026-10-05, his
+  Map Logger log line "already in the sim world"). The shortcut now calls `SimState.replaceMapCode`; scenario
+  99-sim-im builds floor A then floor B in-world and checks every tile's name.
 - **The sim must never act on somebody else's server, and `canAct` alone does not guarantee it.** `canAct`
   needs a singleplayer server to already exist, so it is useless to anything whose job is to CREATE one.
   `SimBuilder.build(code)` had no gate at all and read `getSingleplayerServer() == null` as "no world yet",
