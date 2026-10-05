@@ -315,3 +315,9 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   the first count seen is now the baseline.
 - A map-code build (`SimBuilder.build`) is a "generated floor": the sim's Dungeon Breaker silently refuses every block
   until `SimRun` has started. A test that breaks blocks must `SimRun.begin` first.
+- Anything the sim holds that names a `ServerLevel` must be dropped on EVERY unload, not only when `SimState` is still
+  active: `SimBreakerState`'s regrowing blocks survived a leave that turned the sim off before the disconnect, and the next
+  world's server tried to put them back into the dead level - its loading screen never finished (2026-10-05, 96-ar).
+  `SimWorld.onWorldUnloaded` now resets it beside `SimBuildQueue.clear()`.
+- A Fabric event's first non-PASS listener wins. `/ar edit db`'s right clicks lost to the sim's ability hook (a held
+  Superboom detonated, no block picked) until its `UseBlockCallback` moved to a phase ordered before the default.
