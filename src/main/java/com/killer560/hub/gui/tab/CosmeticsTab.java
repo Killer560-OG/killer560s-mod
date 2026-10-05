@@ -45,7 +45,7 @@ public class CosmeticsTab extends BaseTab {
     private static final long REFRESH_COOLDOWN_MS = 30_000L;
 
     private static final List<String> SEARCHABLE_LABELS = List.of(
-            "cosmetics", "toggle global cosmetics", "global cosmetics", "names only", "sizes only", "share if supporter", "custom names", "player size",
+            "cosmetics", "toggle global cosmetics", "global cosmetics", "supporter names", "supporter sizes", "share if supporter", "custom names", "player size",
             "my size", "others' size", "width", "height", "thickness", "held item",
             "copy settings for global cosmetics", "reset cosmetics");
 
@@ -75,14 +75,21 @@ public class CosmeticsTab extends BaseTab {
         SupportersConfig cfg = SupportersConfig.getInstance();
         int y = contentY;
 
-        // A cycle, not an on/off (killer560, 2026-10-05: "an option for just toggling names or just toggling
-        // sizes"): All -> Names only -> Sizes only -> Off.
-        widgets.add(SettingsButtonWidget.builder(globalCosmeticsLabel(cfg.getGlobalCosmetics()),
+        // Two switches side by side (killer560, 2026-10-05: "two different things I flip one to hide names one for
+        // sizes. Both hides everything"), on the one row the old single toggle used.
+        int half = (contentWidth - 4) / 2;
+        widgets.add(SettingsButtonWidget.builder(onOff("Supporter Names", cfg.isShowSupporterNames()),
                 btn -> {
-                    cfg.setGlobalCosmetics(cfg.getGlobalCosmetics().next());
+                    cfg.setShowSupporterNames(!cfg.isShowSupporterNames());
                     cfg.save();
-                    btn.setMessage(globalCosmeticsLabel(cfg.getGlobalCosmetics()));
-                }).bounds(contentX, y, contentWidth, 20).build());
+                    btn.setMessage(onOff("Supporter Names", cfg.isShowSupporterNames()));
+                }).bounds(contentX, y, half, 20).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Supporter Sizes", cfg.isShowSupporterSizes()),
+                btn -> {
+                    cfg.setShowSupporterSizes(!cfg.isShowSupporterSizes());
+                    cfg.save();
+                    btn.setMessage(onOff("Supporter Sizes", cfg.isShowSupporterSizes()));
+                }).bounds(contentX + half + 4, y, contentWidth - half - 4, 20).build());
         y += 24;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Share if Supporter", cfg.isShareIfSupporter()), btn -> {
@@ -316,15 +323,6 @@ public class CosmeticsTab extends BaseTab {
             }
         }
         return nameChangerTab.matchesSearch(query) || heldItemTab.matchesSearch(query);
-    }
-
-    private static Component globalCosmeticsLabel(SupportersConfig.GlobalCosmetics mode) {
-        String colour = switch (mode) {
-            case ALL -> "§a";
-            case OFF -> "§c";
-            default -> "§e";
-        };
-        return Component.literal("Global Cosmetics: " + colour + mode.label);
     }
 
     private static Component onOff(String label, boolean value) {
