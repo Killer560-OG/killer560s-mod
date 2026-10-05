@@ -17,6 +17,7 @@ public class DungeonTab extends FolderTab {
     }
 
     private static List<BaseTab> buildTabs() {
+        boolean cheat = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 new RngMeterTab(),
                 new TerminalSolverTab(),
@@ -43,6 +44,7 @@ public class DungeonTab extends FolderTab {
                 // in the comment) for the move once confirmed - moving it now, unconditionally, per his
                 // request tonight, regardless of confirmation status. Behaviour untouched, presentation only.
                 new MaskInvincibilityTab(),
+                // Cheat build: Auto Simon Says and Auto Mask are inserted after their legit sections below.
                 // Puzzle Solvers dissolved into New earlier 2026-09-20, then killer560 changed his mind after
                 // testing: "put every puzzle solver back under one tab called Puzzle Solvers inside the
                 // dungeon tab... separate from Auto Puzzles, but all solvers in one tab". Ships on both
@@ -67,7 +69,12 @@ public class DungeonTab extends FolderTab {
         // request (2026-09-10) - Full Block (hitbox expansion) moved from always-available to cheat-only
         // here, joining Auto Terminals; the legit build has neither tab at all, not just a
         // disabled-looking one (matching SecretsConfig#isMasterEnabled's own gate underneath).
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+        if (cheat) {
+            // Each cheat half sits directly under its legit section, with its own red header (killer560,
+            // 2026-10-04: "Move all the cheat stuff from Simon Says into its own red Simon Says portion. Move
+            // auto mask into its own section as well.").
+            tabs.add(indexOf(tabs, SimonSaysTab.class) + 1, new AutoSimonSaysTab());
+            tabs.add(indexOf(tabs, MaskInvincibilityTab.class) + 1, new AutoMaskTab());
             // First in this block, so it sits right after the normal Secrets folder.
             tabs.add(new CheatSecretsTab());
             tabs.add(new AutoTerminalTab());
@@ -78,5 +85,14 @@ public class DungeonTab extends FolderTab {
             tabs.add(new AutoPuzzlesTab());
         }
         return tabs;
+    }
+
+    private static int indexOf(List<BaseTab> tabs, Class<? extends BaseTab> type) {
+        for (int i = 0; i < tabs.size(); i++) {
+            if (type.isInstance(tabs.get(i))) {
+                return i;
+            }
+        }
+        return tabs.size() - 1;
     }
 }

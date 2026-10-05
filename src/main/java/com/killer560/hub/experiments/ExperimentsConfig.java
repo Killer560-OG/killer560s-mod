@@ -82,8 +82,9 @@ public final class ExperimentsConfig {
     private int randomDelayMaxMs = 0;
     /** Autonomous mode only: before starting/resuming a run, back out to {@code /pets} and equip the
      *  best owned Guardian (highest rarity, then highest level), then reopen the table - once per
-     *  run. Off by default since it touches a screen outside the table entirely. */
-    private boolean autoSwapGuardianPet = false;
+     *  run. ON by default since 2026-10-04 (killer560: "For auto etable have auto swap to guardian pet on by
+     *  default"); a saved file keeps whatever it already says. */
+    private boolean autoSwapGuardianPet = true;
     /** GLFW key code that immediately cancels a running autonomous session (see
      *  {@link com.killer560.hub.experiments.ExperimentsFeature#emergencyCancel()}), or -1 if unbound.
      *  Polled directly against raw keyboard state every tick (same mechanism the HUD editor's own
@@ -106,9 +107,9 @@ public final class ExperimentsConfig {
      *  a local chat message + UI sound, hence still default ON. */
     private boolean notifyMaxClicksReached = true;
     /** Experimentation Table profit tracker (see {@link ExperimentsProfitTracker}) - purely
-     *  observational logging of claimed rewards/XP/Bits, independent of the solver toggle. Off by
-     *  default (roadmap item, 2026-09-15). */
-    private boolean profitTrackerEnabled = false;
+     *  observational logging of claimed rewards/XP/Bits, independent of the solver toggle. ON by
+     *  default since 2026-10-04 (killer560: "Make all profit trackers on by default"). */
+    private boolean profitTrackerEnabled = true;
     /** Superpairs' flat 1000ms confirm-timeout is extended by however long the server stalls while a
      *  click waits (see {@code ExperimentSolver#superpairsConfirmTimeoutMs} and {@link ServerLagSensor}).
      *  With no lag it changes nothing. The fixed "Timeout Margin" it used to carry was removed on
@@ -156,11 +157,11 @@ public final class ExperimentsConfig {
                     ? Math.max(MIN_TITANIC_MAX_PRICE, Math.min(MAX_TITANIC_MAX_PRICE, obj.get("titanicMaxPriceCoins").getAsDouble())) : 0;
             cfg.randomDelayMaxMs = obj.has("randomDelayMaxMs")
                     ? Math.max(MIN_DELAY_MS, Math.min(MAX_DELAY_MS, obj.get("randomDelayMaxMs").getAsInt())) : 0;
-            cfg.autoSwapGuardianPet = obj.has("autoSwapGuardianPet") && obj.get("autoSwapGuardianPet").getAsBoolean();
+            cfg.autoSwapGuardianPet = !obj.has("autoSwapGuardianPet") || obj.get("autoSwapGuardianPet").getAsBoolean();
             cfg.emergencyCancelKeyCode = obj.has("emergencyCancelKeyCode") ? com.killer560.hub.util.KeyUtil.sanitize(obj.get("emergencyCancelKeyCode").getAsInt()) : -1;
             cfg.clickProtectionEnabled = !obj.has("clickProtectionEnabled") || obj.get("clickProtectionEnabled").getAsBoolean();
             cfg.notifyMaxClicksReached = !obj.has("notifyMaxClicksReached") || obj.get("notifyMaxClicksReached").getAsBoolean();
-            cfg.profitTrackerEnabled = obj.has("profitTrackerEnabled") && obj.get("profitTrackerEnabled").getAsBoolean();
+            cfg.profitTrackerEnabled = !obj.has("profitTrackerEnabled") || obj.get("profitTrackerEnabled").getAsBoolean();
             cfg.superpairsAdaptiveTimeout = obj.has("superpairsAdaptiveTimeout") && obj.get("superpairsAdaptiveTimeout").getAsBoolean();
             // One-time fix-up for a file written before the 2026-09-30 solver/automation split. Back then
             // "enabled: false" meant the WHOLE Experimentation Table feature was off and "autonomousMode"

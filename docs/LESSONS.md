@@ -103,3 +103,9 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - A `FolderTab` section that is pinned (always open, no header) is never in `expanded`, so
   `findListeningKeyCaptureTab` did not ask it: Home's "Edit HUD Keybind" sat on "Press any key..." forever. Pinned
   sections are now checked first.
+  (`CustomScoreboardGuiMixin` now strips the stat segments via `PlayerStatsFeature.actionBarReplacement` and re-sends the
+  rest under a re-entry guard), never by blanking it there.
+- A Minecraft colour code can be a DIGIT (`§3` is dark aqua), so `([\d,]+)` with optional codes BEFORE it reads
+  Hypixel's overflow mana `§3200ʬ` as 3200. Start the match where a number cannot continue and let the pattern take
+  the codes itself: `(?<![§\d,])(?:§.)*([\d,]+)` (`PlayerStatsFeature.NUMBER_START`, 2026-10-04, found by a scratch
+  run against a sample line). The older health/mana/defence patterns only escape it because their codes are letters.
