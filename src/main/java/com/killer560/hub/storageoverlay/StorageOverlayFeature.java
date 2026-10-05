@@ -1124,7 +1124,9 @@ public final class StorageOverlayFeature {
      *  clamps and when it draws the editor box, so the render path has to as well - see
      *  {@link #totalScale()}. */
     private static float hudEditorScale() {
-        return com.killer560.hub.hud.HudConfig.getInstance().getScale(ELEMENT_ID, 1.0f);
+        // Own scale times the global HUD scale - the same product HudElementRegistry.resolveScale uses.
+        com.killer560.hub.hud.HudConfig hud = com.killer560.hub.hud.HudConfig.getInstance();
+        return hud.getScale(ELEMENT_ID, 1.0f) * hud.getGlobalScale();
     }
 
     /** The one scale the grid is actually drawn at: killer560's Storage Overlay scale slider times the

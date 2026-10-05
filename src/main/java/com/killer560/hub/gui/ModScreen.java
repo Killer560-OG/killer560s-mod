@@ -178,6 +178,12 @@ public class ModScreen extends Screen {
         return result;
     }
 
+    /** Rebuilds the current tab's widgets - for state that changes outside the menu while it is open (a profile
+     *  zip dropped into the import folder). Client thread only. */
+    public void refresh() {
+        rebuild();
+    }
+
     private void rebuild() {
         this.clearWidgets();
         // The widgets themselves are discarded here, so their tooltip scopes go with them.

@@ -95,3 +95,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   book "fix" for that symptom was a different bug. A `SkinManager.createLookup` on a bare `new GameProfile(uuid,
   name)` is always the default skin: SkinManager only unpacks the profile's own textures property and never fetches
   one, so fetch the textured profile first (`ProfileViewerApi.fetchSkinProfile`) or use the tab list's `PlayerInfo`.
+- HUD scale has one source: `HudElementRegistry.resolveScale` = the element's own `HudConfig` scale times the global
+  HUD Scale (Home tab, `globalScale` in `killer560smod-hud.json`). The HUD editor scrolls and saves the OWN scale and
+  draws at the product. Until 2026-10-04 three Gui mixins (Ability Timers, Dungeon Info, Etherwarp Waypoints) drew at
+  `resolvePosition` with no scale at all, so resizing them in the editor never showed in game - a draw site that skips
+  `resolveScale` silently opts out of both scales.
+- A `FolderTab` section that is pinned (always open, no header) is never in `expanded`, so
+  `findListeningKeyCaptureTab` did not ask it: Home's "Edit HUD Keybind" sat on "Press any key..." forever. Pinned
+  sections are now checked first.

@@ -18,6 +18,12 @@ public interface HudElement {
 
     int width();
 
+    /** This element's own scale when the player has never resized it (multiplied by the global HUD scale like any
+     *  saved scale). 1.0 for everything except the built-in GIF, which ships at the size killer560 uses it at. */
+    default float defaultScale() {
+        return 1.0f;
+    }
+
     int height();
 
     /**
