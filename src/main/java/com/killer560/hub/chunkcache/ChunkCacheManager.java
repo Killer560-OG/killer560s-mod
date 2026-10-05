@@ -96,10 +96,16 @@ public final class ChunkCacheManager {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ChunkCacheManager.onClientTick", ChunkCacheManager::onClientTick));
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+        // Fabric fires DISCONNECT from Connection.channelInactive, which runs on the NETTY thread - while the render
+        // thread is inside Minecraft.disconnect -> ClientPacketListener.clearLevel, where Fabric's lifecycle mixin walks
+        // every loaded chunk's block-entity map. Releasing chunks here (clearAllBlockEntities -> blockEntities.clear())
+        // emptied a map under that walk and crashed the client with an NPE in fastutil's iterator (26.2 sim, leaving
+        // F7, 2026-10-05; the same race exists on 26.1.2 and on any real server). Everything this cache does with a
+        // chunk happens on the render thread, so hand the release over to it; there it can never overlap clearLevel.
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
             active = false;
             onLevelChanged(null);
-        });
+        }));
     }
 
     // ---------------------------------------------------------------- state
