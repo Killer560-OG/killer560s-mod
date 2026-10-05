@@ -1634,6 +1634,10 @@ final class SettingTooltipsData {
         d.put("secret waypoints/waypoint box", "Full Block draws the whole block the secret is in; Hitbox Only draws its real hitbox.");
         d.put("secret waypoints/through walls", "Draws the waypoints through walls.");
         d.put("secret waypoints/render distance", "How far away a secret can be, in blocks, and still be drawn.");
+        d.put("secret waypoints/show crypts", "Also boxes each crypt tomb in your room, found from its slab lid. It stays after you open it until its undead is dead.");
+        d.put("secret waypoints/show princes", "Also boxes the prince's golden crypt when your room has one. It stays after you open it until the prince is dead.");
+        d.put("secret waypoints/crypt color", "Colour of the crypt waypoints.");
+        d.put("secret waypoints/prince color", "Colour of the prince waypoints.");
         d.put("dungeon esp", "Boxes starred mobs, secret bats and the F7/M7 wither bosses.");
         d.put("starred mob hitboxes", "Boxes starred mobs and secret bats, and highlights the F7/M7 wither boss.");
         d.put("dungeon esp/color", "Colour of the boxes or glow for this row's target.");

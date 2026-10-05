@@ -61,7 +61,11 @@ public final class SecretWaypointsFeature {
         /** killer560, 2026-09-27: "it also needs to highlight levers just like it does secrets but only during
          *  clear" - see the lever scan in {@link #rebuild}. Not part of the room database (NoammAddons has no
          *  lever secret coords), so these are found live rather than preloaded from a room's known positions. */
-        LEVER
+        LEVER,
+        /** killer560, 2026-10-05: crypt and prince waypoints, each behind its own toggle. Found from the room's
+         *  blocks by {@link CryptScanner}; the box is the tomb itself. */
+        CRYPT,
+        PRINCE
     }
 
     /** The name shown with Show Names on. */
@@ -75,6 +79,8 @@ public final class SecretWaypointsFeature {
                 case ITEM -> "Item";
                 case WITHER -> "Wither Essence";
                 case LEVER -> "Lever";
+                case CRYPT -> "Crypt";
+                case PRINCE -> "Prince";
             };
         };
     }
@@ -162,6 +168,9 @@ public final class SecretWaypointsFeature {
         Waypoint best = null;
         double bestSq = maxDist * maxDist;
         for (Waypoint w : CACHED) {
+            if (w.kind() == Kind.CRYPT || w.kind() == Kind.PRINCE) {
+                continue; // opened by a Superboom, not taken by a click - see addCrypts
+            }
             if (kind == null) {
                 if (w.pos().equals(pos)) {
                     best = w;
@@ -240,6 +249,7 @@ public final class SecretWaypointsFeature {
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
             COLLECTED.clear();
+            CRYPTS.clear();
             invalidateCache();
         }
         wasInDungeon = inDungeon;
@@ -337,6 +347,157 @@ public final class SecretWaypointsFeature {
         // no extra check here: currentRoomIndex() (the caller's currentIdx, above) is already -1 in boss, which
         // returned out of this method before this point was ever reached.
         scanLevers(cfg, currentIdx, seen);
+        addCrypts(cfg, currentIdx);
+    }
+
+    /** One crypt or prince seen this run, keyed by {@link CryptScanner.Found#anchor}. */
+    private static final class CryptState {
+        final CryptScanner.Found found;
+        /** When its blocks were first seen gone - 0 while the tomb is still shut. */
+        long openedAtMs;
+        /** Opened and nothing left alive at it: never drawn again this run. */
+        boolean done;
+
+        CryptState(CryptScanner.Found found) {
+            this.found = found;
+        }
+    }
+
+    /** Every crypt and prince seen this run. Cleared on leaving the dungeon, like {@link #COLLECTED}. */
+    private static final java.util.Map<BlockPos, CryptState> CRYPTS = new java.util.HashMap<>();
+
+    /**
+     * How long an opened tomb keeps its waypoint while nothing has appeared at it yet. The undead is spawned by
+     * the blast that opens it, but it reaches the client a tick or more later.
+     */
+    private static final long OPEN_GRACE_MS = 3000L;
+    /** How close to the tomb a living mob must be to count as its undead (or prince) still to be killed. */
+    private static final double UNDEAD_RADIUS = 5.0;
+
+    /**
+     * killer560, 2026-10-05: "add crypt and prince waypoints as toggleables for secret waypoints, that will perform
+     * the exact same as secret waypoints just for princes and crypts."
+     *
+     * <p>Same rules as every other waypoint here: the room you are standing in only, during clear only (the caller
+     * has already returned in boss), same box style, colours, names and through-walls. What differs is where the
+     * positions come from - see {@link CryptScanner} for why it is the room's blocks and not the room database.
+     *
+     * <p>Done the way a secret is done: a shut tomb is drawn; once its blocks are gone (the Superboom opened it) the
+     * waypoint stays for as long as a living mob is next to the hole - the Crypt Undead or Prince the blast spawned -
+     * and goes for good when nothing is left alive there, which is when the crypt has actually counted.
+     */
+    private static void addCrypts(SecretWaypointsConfig cfg, int currentIdx) {
+        boolean crypts = cfg.isShowCrypts();
+        boolean princes = cfg.isShowPrinces();
+        Minecraft client = Minecraft.getInstance();
+        if ((!crypts && !princes) || client.level == null) {
+            return;
+        }
+        int[] bounds = LiveMapFeature.roomWorldBounds(currentIdx);
+        if (bounds == null) {
+            return;
+        }
+        for (CryptScanner.Found f : CryptScanner.scan(client.level, bounds)) {
+            CRYPTS.putIfAbsent(f.anchor(), new CryptState(f));
+        }
+        long now = System.currentTimeMillis();
+        for (CryptState s : CRYPTS.values()) {
+            CryptScanner.Found f = s.found;
+            if (s.done || f.maxX() < bounds[0] || f.minX() > bounds[2] || f.maxZ() < bounds[1] || f.minZ() > bounds[3]) {
+                continue;
+            }
+            boolean isPrince = f.type() == CryptScanner.Type.PRINCE;
+            if (isPrince ? !princes : !crypts) {
+                continue;
+            }
+            if (!client.level.hasChunk(f.anchor().getX() >> 4, f.anchor().getZ() >> 4)) {
+                continue;
+            }
+            int standing = 0;
+            for (BlockPos p : f.blocks()) {
+                if (CryptScanner.stillThere(client.level, f.type(), p)) {
+                    standing++;
+                }
+            }
+            AABB tomb = new AABB(f.minX(), f.minY(), f.minZ(), f.maxX() + 1, f.maxY() + 1, f.maxZ() + 1);
+            if (standing * 2 < f.blocks().size()) {
+                if (s.openedAtMs == 0L) {
+                    s.openedAtMs = now;
+                }
+                if (now - s.openedAtMs >= OPEN_GRACE_MS && !undeadNear(client, tomb)) {
+                    s.done = true;
+                    continue;
+                }
+            }
+            int argb = isPrince ? cfg.getPrinceColor() : cfg.getCryptColor();
+            float a = ((argb >> 24) & 0xFF) / 255f;
+            float r = ((argb >> 16) & 0xFF) / 255f;
+            float g = ((argb >> 8) & 0xFF) / 255f;
+            float b = (argb & 0xFF) / 255f;
+            if (a <= 0f) {
+                a = 1f;
+            }
+            // HITBOX: the lid as it sits, half a block for a slab lid. FULL_BLOCK: whole blocks, like the others.
+            AABB box = (!isPrince && cfg.getBoxSize() == SecretWaypointsConfig.BoxSize.HITBOX)
+                    ? new AABB(tomb.minX, tomb.minY, tomb.minZ, tomb.maxX, tomb.minY + 0.5, tomb.maxZ)
+                    : tomb;
+            Kind kind = isPrince ? Kind.PRINCE : Kind.CRYPT;
+            CACHED.add(new Waypoint(box,
+                    (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5, (box.minZ + box.maxZ) * 0.5,
+                    r, g, b, a, f.anchor(), kind, labelFor(kind, "")));
+        }
+    }
+
+    /**
+     * Whether a living mob is still at an opened tomb: anything alive within {@link #UNDEAD_RADIUS} that is not an
+     * armour stand, not a secret bat, not you and not a real player. Hypixel draws some dungeon mobs as player models, so a player
+     * entity counts unless its UUID is a real account's (version 4); Hypixel's NPC players are not version 4.
+     */
+    private static boolean undeadNear(Minecraft client, AABB tomb) {
+        if (client.level == null) {
+            return false;
+        }
+        for (var e : client.level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                tomb.inflate(UNDEAD_RADIUS))) {
+            if (!e.isAlive() || e.isRemoved() || e == client.player
+                    || e instanceof net.minecraft.world.entity.decoration.ArmorStand
+                    || e instanceof net.minecraft.world.entity.ambient.Bat) {
+                continue;
+            }
+            if (e instanceof net.minecraft.world.entity.player.Player && e.getUUID().version() == 4) {
+                continue;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * The crypt or prince waypoints in the current snapshot, as their anchor blocks - for tests, which read the
+     * feature's own list rather than re-deriving it.
+     *
+     * @param kind "CRYPT" or "PRINCE"
+     */
+    public static List<BlockPos> cachedPositions(String kind) {
+        List<BlockPos> out = new ArrayList<>();
+        for (Waypoint w : CACHED) {
+            if (w.kind().name().equals(kind)) {
+                out.add(w.pos());
+            }
+        }
+        return out;
+    }
+
+    /** The drawn box of each crypt or prince waypoint, as {minX, minY, minZ, maxX, maxY, maxZ}. For tests. */
+    public static List<double[]> cachedBoxes(String kind) {
+        List<double[]> out = new ArrayList<>();
+        for (Waypoint w : CACHED) {
+            if (w.kind().name().equals(kind)) {
+                AABB b = w.box();
+                out.add(new double[]{b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ});
+            }
+        }
+        return out;
     }
 
     /** killer560, 2026-09-27: "it also needs to highlight levers just like it does secrets but only during
@@ -538,6 +699,8 @@ public final class SecretWaypointsFeature {
             // and is thin either way) - close to ITEM's box but a little larger, closer to how big a lever
             // actually reads on screen.
             case LEVER -> new AABB(x + 0.3125, y, z + 0.3125, x + 0.6875, y + 0.375, z + 0.6875);
+            // Never reached: crypts and princes are boxed by their whole tomb in addCrypts.
+            case CRYPT, PRINCE -> new AABB(x, y, z, x + 1, y + 1, z + 1);
         };
     }
 
