@@ -46,6 +46,40 @@ public final class AutoRoutesConfig {
         }
     }
 
+    /** killer560, 2026-10-05: "in the ar settings add a kill mimic option. There should be an option for hype or for
+     *  spirit sceptre." What {@link MimicKiller} does after he clicks a trapped chest. */
+    public enum KillMimic {
+        OFF, HYPERION, SPIRIT_SCEPTRE;
+
+        public String label() {
+            return switch (this) {
+                case OFF -> "Off";
+                case HYPERION -> "Hyperion";
+                case SPIRIT_SCEPTRE -> "Spirit Sceptre";
+            };
+        }
+
+        /** The item's Skyblock id, for {@link ItemIdentity#findHotbarSlot} (any wither blade matches HYPERION). */
+        public String itemId() {
+            return this == SPIRIT_SCEPTRE ? "BAT_WAND" : "HYPERION";
+        }
+    }
+
+    /** killer560, 2026-10-05: "a crypt node where in the setting again you select hype or spirit sceptre". What a
+     *  CRYPT node attacks with. */
+    public enum CryptWeapon {
+        HYPERION, SPIRIT_SCEPTRE;
+
+        public String label() {
+            return this == HYPERION ? "Hyperion" : "Spirit Sceptre";
+        }
+
+        /** As {@link KillMimic#itemId}. */
+        public String itemId() {
+            return this == SPIRIT_SCEPTRE ? "BAT_WAND" : "HYPERION";
+        }
+    }
+
     /** Stable keybind ids, one per {@code /ar} command - all default to unbound ({@link KeyUtil#NONE}). Unknown
      *  ids passed to {@link #getKeybind}/{@link #setKeybind} are accepted too (stored under their own name). */
     /** Built from {@link AutoRoutesCommands.Action} so the stored ids ARE the ids the tab and keybinds use.
@@ -78,6 +112,8 @@ public final class AutoRoutesConfig {
      *  while the map itself is open." ON: the Interactive Map's SCREEN counts as no screen (nodes fire, a route keeps
      *  running); its own warps still stop routes as before. Off by default. */
     private boolean runWhileMapOpen = false;
+    private KillMimic killMimic = KillMimic.OFF;
+    private CryptWeapon cryptWeapon = CryptWeapon.HYPERION;
     private boolean uniformColor = false;
     private int uniformColorArgb = 0xFF00FFFF;
     private int activeColorArgb = 0xFFFFFFFF;
@@ -125,6 +161,7 @@ public final class AutoRoutesConfig {
             case UNSNEAK -> 0xFFFF00FF;
             case COMMAND -> 0xFFC0C0C0;
             case PATH -> 0xFF9B59FF;
+            case CRYPT -> 0xFF7FFF7F;
         };
     }
 
@@ -144,6 +181,8 @@ public final class AutoRoutesConfig {
                 cfg.legitMode = ConfigJson.getBool(o, "legitMode", cfg.legitMode);
                 cfg.startFromStartNodeOnly = ConfigJson.getBool(o, "startFromStartNodeOnly", cfg.startFromStartNodeOnly);
                 cfg.runWhileMapOpen = ConfigJson.getBool(o, "runWhileMapOpen", cfg.runWhileMapOpen);
+                cfg.killMimic = ConfigJson.getEnum(o, "killMimic", KillMimic.class, cfg.killMimic);
+                cfg.cryptWeapon = ConfigJson.getEnum(o, "cryptWeapon", CryptWeapon.class, cfg.cryptWeapon);
                 cfg.uniformColor = ConfigJson.getBool(o, "uniformColor", cfg.uniformColor);
                 cfg.uniformColorArgb = ConfigJson.getInt(o, "uniformColorArgb", cfg.uniformColorArgb);
                 cfg.activeColorArgb = ConfigJson.getInt(o, "activeColorArgb", cfg.activeColorArgb);
@@ -184,6 +223,8 @@ public final class AutoRoutesConfig {
             o.addProperty("legitMode", legitMode);
             o.addProperty("startFromStartNodeOnly", startFromStartNodeOnly);
             o.addProperty("runWhileMapOpen", runWhileMapOpen);
+            o.addProperty("killMimic", killMimic.name());
+            o.addProperty("cryptWeapon", cryptWeapon.name());
             o.addProperty("uniformColor", uniformColor);
             o.addProperty("colorsSectionOpen", colorsSectionOpen);
             o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
@@ -267,6 +308,11 @@ public final class AutoRoutesConfig {
     }
 
     // ------------------------------------------------------------------------------------------- rendering
+
+    public KillMimic getKillMimic() { return killMimic; }
+    public void setKillMimic(KillMimic v) { killMimic = v == null ? KillMimic.OFF : v; }
+    public CryptWeapon getCryptWeapon() { return cryptWeapon; }
+    public void setCryptWeapon(CryptWeapon v) { cryptWeapon = v == null ? CryptWeapon.HYPERION : v; }
 
     public RenderStyle getRenderStyle() { return renderStyle; }
     public void setRenderStyle(RenderStyle v) { renderStyle = v == null ? RenderStyle.BOX : v; }

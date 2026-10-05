@@ -159,6 +159,8 @@ public final class SimMobs {
             wakeFels(level);
             refreshStarred(level);
             countDeadBats(level);
+            SimMimic.tickServer(level);
+            countDeadCrypts(level);
             SimMiniboss.tick(level);
         });
     }
@@ -358,7 +360,7 @@ public final class SimMobs {
     private static void spawnBat(ServerLevel level, BlockPos pos) {
         var bat = new net.minecraft.world.entity.ambient.Bat(
                 McEntities.BAT, level);
-        bat.getAttribute(Attributes.MAX_HEALTH).setBaseValue(ONE_HP);
+        secretBatHealth(bat);
         bat.setHealth((float) ONE_HP);
         bat.setNoAi(true);
         bat.setNoGravity(true);
@@ -367,6 +369,73 @@ public final class SimMobs {
         level.addFreshEntity(bat);
         SPAWNED.add(bat.getUUID());
         BATS.add(bat.getUUID());
+    }
+
+    /** Crypt undead alive in the world, id to whether it is the prince that scores. */
+    private static final java.util.Map<UUID, Boolean> CRYPT_MOBS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * A crypt's undead (or the prince's), spawned when its crypt is blown. Its crypt point is counted when it DIES,
+     * as on Hypixel, where "Crypts: N" in the tab list rises on the kill and the prince's kill says
+     * "A Prince falls. +1 Bonus Score" in chat. Until 2026-10-05 the sim scored the crypt when the wall broke, which
+     * left a client feature that watches for the kill (Auto Routes' crypt node) nothing to see.
+     */
+    public static void spawnCrypt(Minecraft client, BlockPos pos, boolean scoringPrince) {
+        if (!SimState.canAct(client)) {
+            return;
+        }
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        server.execute(() -> {
+            ServerLevel level = server.overworld();
+            SimZombie undead = new SimZombie(McEntities.ZOMBIE, level);
+            spawnDummy(level, undead, pos, false);
+            CRYPT_MOBS.put(undead.getUUID(), scoringPrince);
+        });
+    }
+
+    private static void countDeadCrypts(ServerLevel level) {
+        if (CRYPT_MOBS.isEmpty()) {
+            return;
+        }
+        for (var it = CRYPT_MOBS.entrySet().iterator(); it.hasNext(); ) {
+            var e = it.next();
+            Entity mob = level.getEntity(e.getKey());
+            if (mob != null && mob.isAlive()) {
+                continue;
+            }
+            it.remove();
+            SimScore.cryptBlown();
+            if (e.getValue()) {
+                for (ServerPlayer p : level.players()) {
+                    p.sendSystemMessage(net.minecraft.network.chat.Component.literal("A Prince falls. +1 Bonus Score"));
+                }
+            }
+        }
+    }
+
+    /**
+     * The mimic: a baby zombie where its trapped chest stood, as on Hypixel (the score calculator and Auto Routes'
+     * Kill Mimic know it as a baby zombie dying). Starred, as the sim's mimic always was, and one hit kills it like
+     * every sim mob. Server thread. @return its id
+     */
+    static java.util.UUID spawnMimic(ServerLevel level, BlockPos chest) {
+        SimZombie mimic = new SimZombie(McEntities.ZOMBIE, level);
+        mimic.setBaby(true);
+        spawnDummy(level, mimic, chest, true);
+        return mimic.getUUID();
+    }
+
+    /**
+     * Gives a sim bat secret the MAX health a Hypixel secret bat carries (Skyblock health, 100 on the lower floors),
+     * which is what the client's own secret-bat test reads ({@code AwaitEvents.isSecretBat}, QUOI's 100/200/400/800):
+     * with vanilla's 6, or the 1 this used to set, nothing on the client could tell a sim bat secret from any bat. The
+     * CURRENT health is left as it is, so a bat still dies to the same hit as before.
+     */
+    static void secretBatHealth(net.minecraft.world.entity.ambient.Bat bat) {
+        bat.getAttribute(Attributes.MAX_HEALTH).setBaseValue(100.0);
     }
 
     /**
@@ -570,6 +639,9 @@ public final class SimMobs {
      */
     public static void forget() {
         SPAWNED.clear();
+        // Discarded is not killed: a crypt or mimic the build threw away must not score when it goes.
+        CRYPT_MOBS.clear();
+        SimMimic.forgetMob();
     }
 
     public static void clear(Minecraft client) {
@@ -599,6 +671,8 @@ public final class SimMobs {
             SimMiniboss.tick(level);
         });
         SPAWNED.clear();
+        CRYPT_MOBS.clear();
+        SimMimic.forgetMob();
         STARRED.clear();
         FELS.clear();
         starredSnapshot = List.of();

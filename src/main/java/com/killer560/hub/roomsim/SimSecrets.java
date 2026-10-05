@@ -395,6 +395,7 @@ public final class SimSecrets {
                 // off and turn a fixed secret into a moving target.
                 bat.setNoAi(true);
                 bat.setPersistenceRequired();
+                SimMobs.secretBatHealth(bat);
                 level.addFreshEntity(bat);
                 n++;
             }

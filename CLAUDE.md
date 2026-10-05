@@ -188,36 +188,15 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   sim marking a held lantern that way turned a correct shot red; `TeleportMazeSolverFeature` only accepts a
   teleport that lands on a half block. In every case the sim was placing the right thing somewhere the solver
   never looks, or the wrong thing where it does.
-- **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session
-  cannot compile (the network policy blocks `maven.fabricmc.net` and Mojang's hosts), so a wrong method name is
-  not caught until killer560 runs the build, and it costs him a whole round trip. Three in one batch on
-  2026-10-01: `Entity.moveTo` is `snapTo` in 26.1.2, `EntityType.BAT` belongs behind `McEntities.BAT` because it
-  is one of the names that moved in 26.2, and `BlockState.isCollisionShapeFullBlock` was a guess at a predicate
-  that could have been several things. Every one of them had a working equivalent already in the tree -
-  `SimMiniboss.snapTo`, `SimMobs`' bat spawn, `TeleportUtils`' `getCollisionShape(...).max(...)`. The rule is
-  mechanical: before using a vanilla method or constant that does not already appear in `src/`, either find it
-  there or pick something that does. METHOD names are what move between versions - and so do some block
-  constants: a coloured block (`Blocks.RED_WOOL`) does not exist in 26.2 and must be `McBlocks.RED_WOOL`, which
-  broke only the 26.2 build of `a4e563a`. The same commit also broke 26.1.2 with
-  `SoundEvents.ELDER_GUARDIAN_HURT.value()`: only some `SoundEvents` are holders (`NOTE_BLOCK_PLING`,
-  `GENERIC_EXPLODE`); mob sounds like `BLAZE_HURT` are plain `SoundEvent`s. Copy the shape of an existing use.
+- **Never write a Minecraft API call from memory - grep for a call site in this repo first.** Method names and some
+  block/sound constants differ between 26.1.2 and 26.2 (`snapTo` not `moveTo`, `McBlocks.RED_WOOL`, holder vs plain
+  `SoundEvent`); copy the shape of an existing use. Examples, and the cloud-session `javac` filter that catches
+  structural errors without the Minecraft jar: [docs/LESSONS.md](docs/LESSONS.md) "Compiling".
 - **A mixin that compiles on 26.2 can still crash 26.2 at startup.** Mixin descriptors are only checked when the
   game loads, so `@Inject(method = "extractRenderState")` on `Gui` with 26.1.2's `(GuiGraphicsExtractor, DeltaTracker)`
   built fine and crashed every 26.2 launch (26.2's is `(DeltaTracker, boolean, boolean)`). Seven overlays did it until
   2026-10-04; they are now Fabric HUD layers in `hud/GuiOverlays`. A 26.2 change is not done until a 26.2 boot ran:
   the testkit's `run-scenario.ps1 -Scenario smoke -Minecraft 26.2` does it unattended.
-- **A cloud session CAN check far more than it parses.** `javac -XDshould-stop.ifNoError=PARSE` only checks
-  syntax, which is why `List<Integer> pool = live;` shipped into a method whose own parameter was already called
-  `pool` and broke the build. Run the FULL compile on each changed file and filter the noise instead - without
-  the Minecraft jar every type is unresolved, but everything structural is still reported:
-  ```
-  javac -proc:none -nowarn -Xmaxerrs 2000 -d /tmp/out F.java 2>&1 | grep "error:" \
-    | grep -vE "cannot find symbol|package .* does not exist|cannot access|incompatible types|method does not override|no suitable method|cannot be applied|is not abstract|bad operand|cannot be dereferenced|array required|unexpected type|not a statement|cannot infer type"
-  ```
-  What survives that filter is real: "already defined", "missing return statement", "unreachable statement",
-  "cannot assign a value to final variable", "might not have been initialized", duplicate methods. Verified by
-  reintroducing the `pool` collision into a scratch copy and watching the filter print it. This does NOT replace
-  the rule below about API names - an unresolved method is indistinguishable from a misspelt one here.
 - A class placed inside a mixin-owned package throws `IllegalClassLoadError` and crashes the game at boot.
   Keep helper classes out of `mixin` packages.
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
@@ -309,10 +288,12 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   only inside a real dungeon. Anything that names rooms or votes on rotation outside one (Ashfall solo rooms, the
   sim) must start the load itself and must not judge rooms until `isReady()` - before it, the tile audit and the
   rotation vote judge good rooms broken.
-- The sim sent no "x/y Secrets" action bar, so an Auto Routes `await:<n>` never finished in the sim (only bats counted).
-  `roomsim/SimActionBar` now sends the room's count from `SimScore`'s per-room tally (2026-10-05). Separately, a START
-  node with an await waited forever everywhere: `RouteExecutor.start` resets the count to -1 and the baseline stayed -1;
-  the first count seen is now the baseline.
+- Auto Routes awaits no longer read the "x/y Secrets" bar at all (2026-10-05): it is the ROOM's count, so a teammate's
+  secret raised it, and levers never touch it. `autoroutes/AwaitEvents` counts only his own clicks/pickups/nearby bat
+  spawns/mimic kill, from the previous node's finish. The sim still sends the bar (`roomsim/SimActionBar`) for the map.
+- The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the
+  kill. Both now score on the mob's DEATH (`SimMobs.spawnCrypt`, `SimMimic.tickServer`), the mimic chest is a trapped
+  chest, and a secret bat carries Hypixel's 100 max health (the client's only way to tell it from a sceptre bat).
 - A map-code build (`SimBuilder.build`) is a "generated floor": the sim's Dungeon Breaker silently refuses every block
   until `SimRun` has started. A test that breaks blocks must `SimRun.begin` first.
 - Anything the sim holds that names a `ServerLevel` must be dropped on EVERY unload, not only when `SimState` is still

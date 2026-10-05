@@ -151,3 +151,44 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   2026-10-05.
 - A step that closes a menu and sends a command must time out if the screen it waits for never opens. Auto E-Table's
   Guardian swap closed the table, sent /pets, and waited forever when nothing opened; it now gives up after 10 s.
+- Melody's Custom GUI picked the moving piece as the one pane COLOUR appearing exactly once; a board with a second
+  lime pane (a finished row keeping its marker, which Odin handles with indexOfLast) has none, so after a row or an
+  auto terminal's skip nothing was drawn as moving (killer560, 2026-10-05). Find a terminal's piece by position from
+  the current slots (`findMelodyMovingSlot`), never by colour counts; testkit 218 fails 5/16 on the old rule.
+- On 26.2 `McRender.inCameraSpace` runs its callback LATER in the frame (`submitCustomGeometry`, built in
+  `CustomFeatureRenderer.buildGroup`), after the tick may have rebuilt whatever list the callback reads. Secret
+  Waypoints indexed its live list there and crashed the client ("Index 6 out of bounds for length 6", Render Frame)
+  when the list shrank - testkit 98 on 26.2, 2026-10-05. Copy what the callback draws into a local array before
+  calling `inCameraSpace`; eleven other renderers call it and were not audited for this.
+- Crypts and princes have no positions anywhere (room database and every installed mod's rooms.json: a count), and
+  their undead do not exist until the tomb is blown, so `secretwaypoints/CryptScanner` finds them from blocks. The
+  rule was fitted against the captures vs the database count (112/134 rooms exact); the census scripts and misses
+  are in killer560s-mod-logs/crypt-waypoints.md. Re-run that census before changing the rule.
+
+## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
+
+- **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session
+  cannot compile (the network policy blocks `maven.fabricmc.net` and Mojang's hosts), so a wrong method name is
+  not caught until killer560 runs the build, and it costs him a whole round trip. Three in one batch on
+  2026-10-01: `Entity.moveTo` is `snapTo` in 26.1.2, `EntityType.BAT` belongs behind `McEntities.BAT` because it
+  is one of the names that moved in 26.2, and `BlockState.isCollisionShapeFullBlock` was a guess at a predicate
+  that could have been several things. Every one of them had a working equivalent already in the tree -
+  `SimMiniboss.snapTo`, `SimMobs`' bat spawn, `TeleportUtils`' `getCollisionShape(...).max(...)`. The rule is
+  mechanical: before using a vanilla method or constant that does not already appear in `src/`, either find it
+  there or pick something that does. METHOD names are what move between versions - and so do some block
+  constants: a coloured block (`Blocks.RED_WOOL`) does not exist in 26.2 and must be `McBlocks.RED_WOOL`, which
+  broke only the 26.2 build of `a4e563a`. The same commit also broke 26.1.2 with
+  `SoundEvents.ELDER_GUARDIAN_HURT.value()`: only some `SoundEvents` are holders (`NOTE_BLOCK_PLING`,
+  `GENERIC_EXPLODE`); mob sounds like `BLAZE_HURT` are plain `SoundEvent`s. Copy the shape of an existing use.
+- **A cloud session CAN check far more than it parses.** `javac -XDshould-stop.ifNoError=PARSE` only checks
+  syntax, which is why `List<Integer> pool = live;` shipped into a method whose own parameter was already called
+  `pool` and broke the build. Run the FULL compile on each changed file and filter the noise instead - without
+  the Minecraft jar every type is unresolved, but everything structural is still reported:
+  ```
+  javac -proc:none -nowarn -Xmaxerrs 2000 -d /tmp/out F.java 2>&1 | grep "error:" \
+    | grep -vE "cannot find symbol|package .* does not exist|cannot access|incompatible types|method does not override|no suitable method|cannot be applied|is not abstract|bad operand|cannot be dereferenced|array required|unexpected type|not a statement|cannot infer type"
+  ```
+  What survives that filter is real: "already defined", "missing return statement", "unreachable statement",
+  "cannot assign a value to final variable", "might not have been initialized", duplicate methods. Verified by
+  reintroducing the `pool` collision into a scratch copy and watching the filter print it. This does NOT replace
+  the rule below about API names - an unresolved method is indistinguishable from a misspelt one here.

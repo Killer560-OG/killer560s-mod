@@ -269,6 +269,19 @@ public final class RouteRecorder {
     private static void onRightClick(LocalPlayer player, int sampleIndex) {
         ItemStack held = player.getMainHandItem();
         if (held.isEmpty()) {
+            // An empty hand records only a click ON A BLOCK (a chest, a lever): an empty-hand use node, aimed as he
+            // looked. A click into the air with nothing in hand does nothing in the game, so it is not a node.
+            HitResult hit = Minecraft.getInstance().hitResult;
+            if (!(hit instanceof BlockHitResult) || hit.getType() != HitResult.Type.BLOCK) {
+                return;
+            }
+            RouteNode node = nodeAtPlayer(player, sampleIndex);
+            node.type = RouteNode.Type.USE_ITEM;
+            node.item = null;
+            node.roundToSaved();
+            route.nodes().add(node);
+            // A hand click teleports nothing, so a jump after it is not this node's landing.
+            lastActionNode = null;
             return;
         }
         RouteNode node = nodeAtPlayer(player, sampleIndex);
@@ -384,7 +397,7 @@ public final class RouteRecorder {
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
         NodeModifiers mods = modifiers == null ? NodeModifiers.NONE : modifiers;
         if (type == null) {
-            return bad("Unknown node type. Types: walk, ew, use, breaker, boom - add start / await:<n> as modifiers.");
+            return bad("Unknown node type. Types: walk, ew, use, breaker, boom, path, crypt - add start / await:<n> as modifiers.");
         }
         if (!cfg.isEnabled()) {
             return bad("Auto Routes is off (cheat build + Skyblock only).");
@@ -433,11 +446,9 @@ public final class RouteRecorder {
             }
             case USE_ITEM -> {
                 String id = ItemIdentity.of(player.getMainHandItem());
-                if (id == null) {
-                    return bad("Hold the item to use first.");
-                }
+                // An empty hand is a node of its own: it right-clicks the block it looks at (a chest, a lever) by hand.
                 node.item = id;
-                extra = " [" + id + "]";
+                extra = id == null ? " [click block (empty hand)]" : " [" + id + "]";
             }
             case DUNGEON_BREAKER -> extra = " - now /ar edit db and right-click the blocks it should break";
             case COMMAND -> {

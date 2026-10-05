@@ -64,6 +64,16 @@ public final class SecretWaypointsConfig {
     private int leverColor = DEFAULT_LEVER_COLOR;
     /** Draw the secret's name (Chest, Item, Bat, Wither Essence, Redstone Key, Lever) above its waypoint. */
     private boolean showNames = false;
+    /** killer560, 2026-10-05: "add crypt and prince waypoints as toggleables for secret waypoints ... There should
+     *  be a toggle to show princes and a toggle to show crypts." Both off by default; found by
+     *  {@link CryptScanner}, not the room database (which only has a crypt COUNT). */
+    private boolean showCrypts = false;
+    private boolean showPrinces = false;
+    /** Colours that collide with none of the six secret types: purple for a crypt, gold for the golden crypt. */
+    public static final int DEFAULT_CRYPT_COLOR = 0xFFAA00FF;
+    public static final int DEFAULT_PRINCE_COLOR = 0xFFFFD700;
+    private int cryptColor = DEFAULT_CRYPT_COLOR;
+    private int princeColor = DEFAULT_PRINCE_COLOR;
 
     private SecretWaypointsConfig() {
     }
@@ -97,6 +107,10 @@ public final class SecretWaypointsConfig {
             cfg.batColor = ConfigJson.getInt(obj, "batColor", cfg.batColor);
             cfg.redstoneKeyColor = ConfigJson.getInt(obj, "redstoneKeyColor", cfg.redstoneKeyColor);
             cfg.leverColor = ConfigJson.getInt(obj, "leverColor", cfg.leverColor);
+            cfg.showCrypts = ConfigJson.getBool(obj, "showCrypts", false);
+            cfg.showPrinces = ConfigJson.getBool(obj, "showPrinces", false);
+            cfg.cryptColor = ConfigJson.getInt(obj, "cryptColor", cfg.cryptColor);
+            cfg.princeColor = ConfigJson.getInt(obj, "princeColor", cfg.princeColor);
             if (!obj.has("noammDefaultsV1")) {
                 // One-time: older files saved the old colours and the Full Block size as plain values, so they are
                 // moved onto the new defaults once (colours match NoammAddons, boxes sized to the object).
@@ -144,6 +158,10 @@ public final class SecretWaypointsConfig {
             obj.addProperty("batColor", batColor);
             obj.addProperty("redstoneKeyColor", redstoneKeyColor);
             obj.addProperty("leverColor", leverColor);
+            obj.addProperty("showCrypts", showCrypts);
+            obj.addProperty("showPrinces", showPrinces);
+            obj.addProperty("cryptColor", cryptColor);
+            obj.addProperty("princeColor", princeColor);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -250,5 +268,39 @@ public final class SecretWaypointsConfig {
 
     public void setLeverColor(int argb) {
         leverColor = argb;
+    }
+
+    /** killer560, 2026-10-05: "a toggle to show crypts". */
+    public boolean isShowCrypts() {
+        return showCrypts;
+    }
+
+    public void setShowCrypts(boolean v) {
+        showCrypts = v;
+    }
+
+    /** killer560, 2026-10-05: "a toggle to show princes". */
+    public boolean isShowPrinces() {
+        return showPrinces;
+    }
+
+    public void setShowPrinces(boolean v) {
+        showPrinces = v;
+    }
+
+    public int getCryptColor() {
+        return cryptColor;
+    }
+
+    public void setCryptColor(int argb) {
+        cryptColor = argb;
+    }
+
+    public int getPrinceColor() {
+        return princeColor;
+    }
+
+    public void setPrinceColor(int argb) {
+        princeColor = argb;
     }
 }

@@ -348,9 +348,11 @@ public final class SimAbilities {
      * one health, so what matters is which of them are inside it.
      */
     private static boolean witherImpact(ServerPlayer sp) {
-        if (!dash(sp, WITHER_IMPACT_RANGE)) {
-            return false;
-        }
+        // The blast goes off whether or not the dash moved him: on Hypixel a Hyperion used straight down at the floor
+        // teleports nowhere and still implodes where he stands - the usual way a mimic is killed the moment its chest
+        // opens (Auto Routes' Kill Mimic does exactly that). Before 2026-10-05 the sim skipped the blast whenever
+        // nothing along the look fitted, so a downward hype did nothing at all.
+        dash(sp, WITHER_IMPACT_RANGE);
         witherBlast(sp);
         return true;
     }

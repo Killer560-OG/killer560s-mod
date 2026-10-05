@@ -971,6 +971,7 @@ public final class TerminalSolverFeature {
     }
 
     public static void renderOverlay(GuiGraphicsExtractor graphics) {
+        melodyDrawnMovingSlot = -1;
         if (currentType == null) {
             return;
         }
@@ -1031,7 +1032,7 @@ public final class TerminalSolverFeature {
                 color(TerminalSolverConfig.OverlayColor.PANEL_BORDER));
 
         List<Slot> slots = screen.getMenu().slots;
-        DyeColor movingColor = findMelodyMovingColor(slots);
+        int movingSlot = findMelodyMovingSlot(slots, currentTerminalSlotCount);
         for (int slotIndex = 0; slotIndex < currentTerminalSlotCount && slotIndex < slots.size(); slotIndex++) {
             ItemStack stack = slots.get(slotIndex).getItem();
             if (!isMelodyButtonSlot(stack)) {
@@ -1044,7 +1045,11 @@ public final class TerminalSolverFeature {
             }
             int x0 = col * CELL_SIZE;
             int y0 = row * CELL_SIZE;
-            graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, melodySlotColor(stack, movingColor));
+            boolean moving = slotIndex == movingSlot;
+            graphics.fill(x0, y0, x0 + SLOT_SIZE, y0 + SLOT_SIZE, melodySlotColor(stack, moving));
+            if (moving) {
+                melodyDrawnMovingSlot = slotIndex;
+            }
         }
         graphics.pose().popMatrix();
     }
@@ -1057,54 +1062,59 @@ public final class TerminalSolverFeature {
         return !stack.isEmpty() && stack.getItem() != McItems.BLACK_STAINED_GLASS_PANE;
     }
 
-    /** @return the single {@link DyeColor} that appears EXACTLY ONCE among Melody's own track panes
-     *  (every real slot that's a stained glass pane and isn't purple), or null if there's no such unique
-     *  color right now. Round 9's original model (2026-09-09) assumed one repeated "majority" base color
-     *  plus a single differently-colored "moving" marker, and colored everything that didn't match the
-     *  majority as the mover - but killer560's round-10 live screenshot showed nearly the ENTIRE track
-     *  rendering as the mover's bright color, meaning a real board can have enough color variety that no
-     *  true majority exists, and most panes end up "not equal to majority" by default. Round 10.1 flips
-     *  the default to the safer direction instead: every track pane is base (light) UNLESS it's the one
-     *  pane whose color is a genuine singleton (appears nowhere else on the board) - a real moving marker
-     *  should almost always be uniquely colored that frame, so this is a much narrower, safer trigger for
-     *  the "moving" highlight than "isn't the majority." If more than one color happens to be a singleton
-     *  (ambiguous - no way to tell which one is the real mover), returns null and everything just renders
-     *  as base instead of guessing wrong. */
-    private static DyeColor findMelodyMovingColor(List<Slot> slots) {
-        EnumMap<DyeColor, Integer> counts = new EnumMap<>(DyeColor.class);
-        for (int slotIndex = 0; slotIndex < currentTerminalSlotCount && slotIndex < slots.size(); slotIndex++) {
-            DyeColor pane = paneDyeColor(slots.get(slotIndex).getItem());
-            if (pane == null || isMelodyEndpointColor(pane)) {
+    /** The slot the Custom GUI last drew as Melody's moving piece, or -1 when the last frame drew none. Read by the
+     *  testkit (218-menu-term-melody-jump) to tell "drawn" from "computed"; nothing in the mod reads it. */
+    static int melodyDrawnMovingSlot = -1;
+
+    /** @return the slot of Melody's moving piece - the lime pane on the row being played - or -1 if the board
+     *  shows none. Recomputed from the slots every frame, never from a previous frame, so a board that jumps
+     *  several rows between two frames (another mod's auto terminal skipping rows), a whole-window resend, or a
+     *  reopen under a new container id is drawn correctly on the very next frame.
+     *  <p>Real bug found and fixed (2026-10-05), killer560: "if melody is clicked where it gets a large skip it
+     *  no longer draws the moving square". This used to colour by DyeColor: the one pane colour appearing
+     *  EXACTLY ONCE on the board was "the mover". Any board holding a second lime pane - a finished row keeping
+     *  its marker, which is why Odin's MelodyHandler takes the LAST lime pane and the LAST lime terracotta
+     *  (indexOfLast, javap Odin 0.3.1) - has no singleton colour, so nothing was drawn as moving until the
+     *  terminal closed. The piece is now found by position the way Odin and NoammAddons find it: the row being
+     *  played is the last row whose button (slot 16/25/34/43) is lime terracotta, and its lime pane is the
+     *  piece; with no lit button, the last lime pane on the board. Only that one slot is coloured as moving, so
+     *  the round-10 "whole board renders as the mover" failure cannot come back either. */
+    static int findMelodyMovingSlot(List<Slot> slots, int slotCount) {
+        int limit = Math.min(slotCount, slots.size());
+        int activeRow = -1;
+        for (int buttonSlot : MELODY_CLAY_SLOTS) {
+            if (buttonSlot < limit && slots.get(buttonSlot).getItem().getItem() == McItems.LIME_TERRACOTTA) {
+                activeRow = buttonSlot / GRID_COLUMNS;
+            }
+        }
+        int lastLime = -1;
+        for (int slotIndex = 0; slotIndex < limit; slotIndex++) {
+            if (slots.get(slotIndex).getItem().getItem() != McItems.LIME_STAINED_GLASS_PANE) {
                 continue;
             }
-            counts.merge(pane, 1, Integer::sum);
-        }
-        DyeColor singleton = null;
-        int singletonCount = 0;
-        for (Map.Entry<DyeColor, Integer> entry : counts.entrySet()) {
-            if (entry.getValue() == 1) {
-                singleton = entry.getKey();
-                singletonCount++;
+            if (activeRow >= 0 && slotIndex / GRID_COLUMNS == activeRow) {
+                return slotIndex;
             }
+            lastLime = slotIndex;
         }
-        return singletonCount == 1 ? singleton : null;
+        return lastLime;
     }
 
     /** Per killer560's exact per-role coloring request, from his own read of a real screenshot - not
      *  confirmed against a decompiled handler, just his own direct observation of the real board. Round 9
      *  (2026-09-09) first split the board into 4 shades; round 10 tied the endpoint and moving-piece
      *  colors together and lightened the track base; round 10.1 fixed the "whole board renders as the
-     *  mover" bug that round 10 exposed (see {@link #findMelodyMovingColor}'s own doc for the root cause);
+     *  mover" bug that round 10 exposed (2026-10-05: see {@link #findMelodyMovingSlot});
      *  round 12 tied the buttons to the endpoint/mover color too (they're the actually-important part) and
      *  lightened the track base further:
      *  <ul>
      *  <li>The two purple pieces (fixed track endpoints) -&gt; same color as the panel border.
-     *  <li>The "moving piece" (see {@link #findMelodyMovingColor}) -&gt; same color as the endpoints.
+     *  <li>The "moving piece" (see {@link #findMelodyMovingSlot}) -&gt; its own colour, MELODY_MOVING.
      *  <li>The real buttons you click (not a stained glass pane at all - a full block item, distinct from
      *      the flat track panes in the original screenshot) -&gt; same color as the endpoints/mover too.
      *  <li>Everything else (the static track base) -&gt; a light orange.
      *  </ul> */
-    private static int melodySlotColor(ItemStack stack, DyeColor movingColor) {
+    private static int melodySlotColor(ItemStack stack, boolean moving) {
         DyeColor pane = paneDyeColor(stack);
         if (pane == null) {
             return color(TerminalSolverConfig.OverlayColor.MELODY_BUTTON);
@@ -1112,7 +1122,7 @@ public final class TerminalSolverFeature {
         if (isMelodyEndpointColor(pane)) {
             return color(TerminalSolverConfig.OverlayColor.MELODY_ENDPOINT);
         }
-        if (movingColor != null && pane == movingColor) {
+        if (moving) {
             return color(TerminalSolverConfig.OverlayColor.MELODY_MOVING);
         }
         return color(TerminalSolverConfig.OverlayColor.MELODY_TRACK);

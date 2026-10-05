@@ -238,23 +238,15 @@ public final class SimPrince {
         return PRINCES.size();
     }
 
-    /** Whether a sea lantern is walled in by polished andesite on all four sides - see {@link #LANTERN}. */
+    /** Whether a sea lantern is walled in by polished andesite on all four sides - see {@link #LANTERN}.
+     *  Asked of {@code CryptScanner}, so the sim and Secret Waypoints' prince waypoints cannot disagree. */
     private static boolean walledIn(ServerLevel level, BlockPos at) {
-        for (Direction dir : Direction.Plane.HORIZONTAL) {
-            if (!level.getBlockState(at.relative(dir)).is(LANTERN_WALL)) {
-                return false;
-            }
-        }
-        return true;
+        return com.killer560.hub.secretwaypoints.CryptScanner.isPrinceCrown(level, at);
     }
 
-    /** Whether a gold block has a smooth stone slab beside it - the plinth the crown sits in. */
+    /** Whether a gold block has a smooth stone slab beside it - the plinth the crown sits in. Same source as
+     *  {@link #walledIn}. */
     private static boolean onAPlinth(ServerLevel level, BlockPos at) {
-        for (Direction dir : Direction.Plane.HORIZONTAL) {
-            if (level.getBlockState(at.relative(dir)).is(PLINTH)) {
-                return true;
-            }
-        }
-        return false;
+        return com.killer560.hub.secretwaypoints.CryptScanner.isPrinceCrown(level, at);
     }
 }

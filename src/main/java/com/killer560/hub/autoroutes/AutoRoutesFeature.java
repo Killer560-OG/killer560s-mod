@@ -11,7 +11,6 @@ import com.killer560.hub.livemap.autoclear.TeleportUtils;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -24,8 +23,6 @@ import com.killer560.hub.util.ModLog;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
 
 /**
@@ -58,13 +55,6 @@ public final class AutoRoutesFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-autoroutes");
     private static final String CHAT = "Auto Routes";
-    /** NoammAddons {@code ActionBarParser} / {@code LiveMapFeature.ACTION_BAR_SECRETS}.
-     *
-     *  <p>Bounded, like {@code SelfDerivation.ACTION_BAR_SECRETS} already is. Only the action bar reaches this
-     *  (the listener below drops everything with {@code overlay == false}), so nothing a player types gets here
-     *  and the onActionBar try/catch is the real safety net - but the house rule after the "SS 99999999999/5"
-     *  disconnect is that no quantifier feeding parseInt is left unbounded, whatever the source. */
-    private static final Pattern ACTION_BAR_SECRETS = Pattern.compile("(\\d{1,3})/(\\d{1,3}) Secrets");
     /** QUOI DB editor: a block further than this (squared) from the breaker node is refused. */
     /** Measured block reach, squared - was 30.0 (5.48 blocks) to the centre. */
     private static final double EDIT_MAX_DIST_SQ = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
@@ -99,11 +89,7 @@ public final class AutoRoutesFeature {
         // sends a click, and the sneak or keys the executor asks for are read by the input mixin in this same tick.
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoRoutesFeature.tick", AutoRoutesFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(AutoRoutesFeature::onRenderFrame);
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (overlay) {
-                onActionBar(message.getString());
-            }
-        });
+        AwaitEvents.register();
         LOGGER.info("[AutoRoutes] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
@@ -797,6 +783,9 @@ public final class AutoRoutesFeature {
             gate("no player / level");
             return;
         }
+        // Before the route's own tick: what an await counts, and Kill Mimic, which holds the route while it works.
+        AwaitEvents.tick(client);
+        MimicKiller.tick(client);
 
         // Interlock 1: Interactive Map open -> hidden and inert - unless Run While Map Open is on, when the map's
         // screen is no screen at all (its warps are still interlock 5 below).
@@ -1030,19 +1019,6 @@ public final class AutoRoutesFeature {
             renderFailed = true;
             LOGGER.error("[AutoRoutes] Render error - disabling Auto Routes", e);
             disableAfterError("render error (see log)");
-        }
-    }
-
-    private static void onActionBar(String text) {
-        try {
-            if (text == null || !text.contains("Secrets")) {
-                return;
-            }
-            Matcher m = ACTION_BAR_SECRETS.matcher(text.replaceAll("§.", ""));
-            if (m.find()) {
-                RouteExecutor.onSecretsCount(Integer.parseInt(m.group(1)));
-            }
-        } catch (Exception ignored) {
         }
     }
 

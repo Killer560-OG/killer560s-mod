@@ -176,6 +176,23 @@ public final class ItemIdentity {
         return -1;
     }
 
+    /** An empty hotbar slot (0-8) for an empty-hand click: the selected one if it is empty, else the first, or -1. */
+    public static int findEmptyHotbarSlot(LocalPlayer player) {
+        if (player == null) {
+            return -1;
+        }
+        int selected = player.getInventory().getSelectedSlot();
+        if (selected >= 0 && selected <= 8 && player.getInventory().getItem(selected).isEmpty()) {
+            return selected;
+        }
+        for (int slot = 0; slot <= 8; slot++) {
+            if (player.getInventory().getItem(slot).isEmpty()) {
+                return slot;
+            }
+        }
+        return -1;
+    }
+
     /** Raw Skyblock id ({@code ExtraAttributes.id}), or null - same read as {@code ItemProtect.skyblockId}. */
     public static String skyblockId(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {

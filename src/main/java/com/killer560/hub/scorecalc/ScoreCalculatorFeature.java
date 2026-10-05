@@ -97,7 +97,8 @@ public final class ScoreCalculatorFeature {
     private static final Pattern SIDEBAR_ELAPSED = Pattern.compile("Time Elapsed: (?:(\\d+)h ?)?(?:(\\d+)m ?)?(?:(\\d+)s)?");
 
     // ---- chat ----
-    private static final Pattern PRINCE_KILLED = Pattern.compile("^A Prince falls\\. \\+1 Bonus Score$");
+    /** Public for Auto Routes' crypt node, which counts a prince kill of its own by the same line. */
+    public static final Pattern PRINCE_KILLED = Pattern.compile("^A Prince falls\\. \\+1 Bonus Score$");
     private static final Pattern BAT_KILLED = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
     private static final Pattern WATCHER_DONE = Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.");
     private static final Pattern PARTY_MESSAGE = Pattern.compile("^Party > .*?: (.+)$");
@@ -282,6 +283,32 @@ public final class ScoreCalculatorFeature {
             return;
         }
         TranslateFeature.sendGenerated(message, "pc");
+    }
+
+    /**
+     * The tab list's "Crypts: N" right now, or -1 when there is no such line - read fresh, whatever this feature's own
+     * settings are. For Auto Routes' crypt node, which watches it rise after its own weapon use; the same pattern the
+     * score calculator reads, so the two can never disagree about what a crypt line looks like.
+     */
+    public static int tabCrypts(Minecraft client) {
+        if (client.getConnection() == null) {
+            return -1;
+        }
+        for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
+            Component display = info.getTabListDisplayName();
+            if (display == null) {
+                continue;
+            }
+            String plain = com.killer560.hub.util.ChatObserver.stripCodes(display.getString());
+            if (plain == null) {
+                continue;
+            }
+            Matcher m = TAB_CRYPTS.matcher(plain);
+            if (m.matches()) {
+                return parseInt(m.group(1), -1);
+            }
+        }
+        return -1;
     }
 
     private static void readTabList(Minecraft client) {

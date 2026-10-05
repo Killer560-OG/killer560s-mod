@@ -14,8 +14,6 @@ import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
@@ -176,14 +174,17 @@ public final class RouteExecutor {
     private static int breakerChargesLeft;
     private static final Set<BlockPos> breakerSent = new HashSet<>();
     private static BlockPos boomTarget;
+    // ---- crypt ----
+    /** The held slot before a crypt node swapped to its weapon, put back when it is done. */
+    private static int cryptSlotBefore = -1;
+    private static int cryptUses;
+    private static int cryptLastUseTick;
+    /** A crypt node with no crypt or prince of his killed in this many ticks stops the route. */
+    private static final int CRYPT_TIMEOUT = 100;
     private static final Map<BlockPos, BlockState> boomBefore = new HashMap<>();
 
     // ---- await ----
-    private static int secretsFound = -1;
-    private static int awaitBaselineSecrets;
-    private static int awaitBatSecrets;
     private static long awaitStartMs;
-    private static final Set<Integer> countedBats = new HashSet<>();
     /** True once the CURRENT node's {@code awaitEnabled} gate (if it has one) has been satisfied - the node's
      *  own type-specific action (etherwarp, use, boom, ...) only starts once this is true. Set in
      *  {@link #beginAction}, read/advanced in {@link #tickAction}. AWAIT stopped being its own node type
@@ -329,6 +330,7 @@ public final class RouteExecutor {
         handsLatched = false;
         releaseKeys();
         RouteRotation.clear();
+        AwaitEvents.end();
         if (wasRunning) {
             LOGGER.info("[AutoRoutes] Stopped: {}", reason);
             if (reason != null && AutoRoutesConfig.getInstance().isChatFeedback()) {
@@ -386,8 +388,8 @@ public final class RouteExecutor {
         settleTicks = 0;
         forceSneak = false;
         unsneakOverride = false;
-        secretsFound = -1;
         awaitPhaseDone = true;
+        AwaitEvents.begin(client);
         landedFrom = null;
         arrivalChain = false;
         stackQueue.clear();
@@ -558,15 +560,10 @@ public final class RouteExecutor {
         return (wantForward ? 1f : 0f) - (wantBackward ? 1f : 0f);
     }
 
-    /** From the feature's action-bar hook: the room's "x/y Secrets" count. */
-    static void onSecretsCount(int found) {
-        secretsFound = found;
-    }
-
     /** Per render frame (from the feature's {@code LevelRenderEvents} hook): the smooth camera step. Runs every
      *  frame, not every tick, for the same reason SimonSays' Rotate Mode does - 20Hz looks stepped. */
     static void tickFrame() {
-        if (running) {
+        if (running || MimicKiller.isBusy()) {
             RouteRotation.frame();
         }
     }
@@ -644,6 +641,28 @@ public final class RouteExecutor {
         RouteCoords.Frame now = RouteCoords.Frame.current();
         if (now == null || !now.sameRoom(frame)) {
             stop("left the room");
+            return;
+        }
+        for (String line : AwaitEvents.drain()) {
+            RouteNode waiting = activeNode != null && !awaitPhaseDone ? activeNode : null;
+            LOGGER.info("[AutoRoutes] {}{}", line, waiting == null ? ""
+                    : " - node #" + (route.indexOf(waiting) + 1) + " waits for " + Math.max(1, waiting.awaitAmount));
+        }
+        if (MimicKiller.isBusy() && mayYieldToMimic()) {
+            // Kill Mimic has the hands: no node starts and nothing moves until it is done. A node already waiting on
+            // its await keeps counting - the mimic's death may be the very secret it waits for.
+            clearMovement();
+            forceSneak = false;
+            wantSneak = false;
+            if (activeNode != null && !awaitPhaseDone) {
+                stepTicks++;
+                actionAge++;
+                tickAwait(client, player, activeNode);
+                if (awaitPhaseDone) {
+                    awaitDoneAge = actionAge;
+                }
+            }
+            applyFallbackKeys(client);
             return;
         }
         if (settleTicks > 0) {
@@ -961,7 +980,9 @@ public final class RouteExecutor {
         // The await modifier (if this node has one) runs FIRST, as its own PREP/CONFIRM cycle through
         // tickAwait - see tickAction. Nothing else about the node starts until that gate opens.
         // A legacy standalone AWAIT node (an unmigrated file) is nothing but this wait.
-        awaitPhaseDone = !node.awaitEnabled && node.type != RouteNode.Type.AWAIT;
+        // A CRYPT node's await is not a gate before it acts but the number of kills its action goes on for ("crypt
+        // await:1" = attack until one crypt or prince of yours dies) - see tickCrypt.
+        awaitPhaseDone = (!node.awaitEnabled || node.type == RouteNode.Type.CRYPT) && node.type != RouteNode.Type.AWAIT;
         awaitHeld = !awaitPhaseDone;
         nodeActed = false;
         breakerQueue = new ArrayList<>();
@@ -974,6 +995,8 @@ public final class RouteExecutor {
         blockWaitSaid = false;
         boomTarget = null;
         boomBefore.clear();
+        cryptSlotBefore = -1;
+        cryptUses = 0;
         // The node acts NOW, on the tick it fired - not on the next tick's pass through tick(). Waiting for that pass
         // was one of the dead ticks in his 2026-10-04 log (an etherwarp took 3-4 ticks from "begins" to the use).
         Minecraft client = Minecraft.getInstance();
@@ -994,6 +1017,8 @@ public final class RouteExecutor {
         RouteRotation.clear();
         activeNode = null;
         step = null;
+        // What the next node's await counts starts now ("since the previous node finished").
+        AwaitEvents.window(Minecraft.getInstance());
         settleTicks = cfg.getInteractDelayTicks();
         bestTargetDistance = Double.MAX_VALUE;
         noProgressTicks = 0;
@@ -1069,7 +1094,7 @@ public final class RouteExecutor {
         } else {
             forceSneak = switch (up.type) {
                 case ETHERWARP, PATH -> inPlace || (was && pathless);
-                case WALK, UNSNEAK, USE_ITEM -> false;
+                case WALK, UNSNEAK, USE_ITEM, CRYPT -> false;
                 default -> was && (pathless || inPlace);
             };
         }
@@ -1157,6 +1182,7 @@ public final class RouteExecutor {
             case ETHERWARP -> tickEtherwarp(client, player, node);
             case PATH -> tickPath(client, player, node);
             case USE_ITEM -> tickUseItem(client, player, node);
+            case CRYPT -> tickCrypt(client, player, node);
             case BOOM -> tickBoom(client, player, node);
             case DUNGEON_BREAKER -> tickBreaker(client, player, node);
         }
@@ -1185,36 +1211,23 @@ public final class RouteExecutor {
      * so the node's own action starts fresh the very next tick, rather than finishing the node outright.
      */
     private static void tickAwait(Minecraft client, LocalPlayer player, RouteNode node) {
+        boolean delay = node.awaitCondition == RouteNode.AwaitCondition.DELAY;
         if (step == Step.PREP) {
-            awaitBaselineSecrets = secretsFound;
-            awaitBatSecrets = 0;
-            countedBats.clear();
             awaitStartMs = System.currentTimeMillis();
             step = Step.CONFIRM;
         }
         boolean done;
-        if (node.awaitCondition == RouteNode.AwaitCondition.DELAY) {
+        if (delay) {
             done = System.currentTimeMillis() - awaitStartMs >= node.awaitAmount;
         } else {
-            // QUOI AwaitArgument: secret bats near the player count too (they never touch the action bar).
-            for (Entity e : client.level.entitiesForRendering()) {
-                if (!(e instanceof Bat bat) || countedBats.contains(bat.getId())) {
-                    continue;
-                }
-                float max = bat.getMaxHealth();
-                if ((max == 100f || max == 200f || max == 400f || max == 800f) && bat.distanceTo(player) <= 10f) {
-                    countedBats.add(bat.getId());
-                    awaitBatSecrets++;
-                }
+            // Only what HE did since the previous node finished counts (AwaitEvents): his clicks on secret blocks, his
+            // pickups, a secret bat appearing next to him, a mimic of his dying. Never a crypt - that is a crypt
+            // node's own count. The room's "x/y Secrets" bar is not read: a teammate's secret raises it too.
+            done = AwaitEvents.secrets() >= Math.max(1, node.awaitAmount);
+            if (done) {
+                LOGGER.info("[AutoRoutes] Node #{} {}: await {}/{} secrets met", route.indexOf(node) + 1, node.type,
+                        AwaitEvents.secrets(), Math.max(1, node.awaitAmount));
             }
-            if (awaitBaselineSecrets < 0 && secretsFound >= 0) {
-                // No "x/y Secrets" line had arrived yet when the wait began - always the case for a START node
-                // with an await, because start() forgets the last count. The first count seen is the baseline;
-                // left at -1 the wait could never end (found 2026-10-05 by 96-ar-path).
-                awaitBaselineSecrets = secretsFound;
-            }
-            int fromBar = secretsFound < 0 || awaitBaselineSecrets < 0 ? 0 : Math.max(0, secretsFound - awaitBaselineSecrets);
-            done = fromBar + awaitBatSecrets >= Math.max(1, node.awaitAmount);
         }
         if (done) {
             awaitPhaseDone = true;
@@ -1472,15 +1485,23 @@ public final class RouteExecutor {
     private static void tickUseItem(Minecraft client, LocalPlayer player, RouteNode node) {
         if (step == Step.PREP) {
             if (node.item == null) {
-                stop("use-item node has no item");
-                return;
+                // No item: "click the aimed block by hand" - a chest, a lever, a skull. An empty slot if there is one,
+                // so the click is the empty-hand click that was recorded; otherwise whatever is held.
+                int empty = ItemIdentity.findEmptyHotbarSlot(player);
+                if (empty >= 0) {
+                    select(client, player, empty);
+                } else {
+                    LOGGER.info("[AutoRoutes] Node #{} USE_ITEM (empty hand): no empty hotbar slot - clicking with slot {}"
+                            + " held", route.indexOf(node) + 1, player.getInventory().getSelectedSlot() + 1);
+                }
+            } else {
+                int slot = ItemIdentity.findHotbarSlot(player, node.item);
+                if (slot < 0) {
+                    stop(node.item + " is not in the hotbar");
+                    return;
+                }
+                select(client, player, slot);
             }
-            int slot = ItemIdentity.findHotbarSlot(player, node.item);
-            if (slot < 0) {
-                stop(node.item + " is not in the hotbar");
-                return;
-            }
-            select(client, player, slot);
             // A held etherwarp sneak lets go here: sneaking changes what a right click does (an AOTV etherwarps
             // instead of transmitting, a chest or lever is not opened with an item in hand).
             forceSneak = false;
@@ -1496,6 +1517,10 @@ public final class RouteExecutor {
                 return;
             }
             if (!aimReady()) {
+                return;
+            }
+            if (node.item == null) {
+                clickBlockByHand(client, player, node);
                 return;
             }
             actionOrigin = player.position();
@@ -1526,6 +1551,102 @@ public final class RouteExecutor {
                 stop(node.item + " didn't teleport where it was recorded");
             }
         }
+    }
+
+    /** Kill Mimic may take the hands now: between nodes, or while a node only waits on its await. */
+    static boolean mayYieldToMimic() {
+        return !running || activeNode == null || !awaitPhaseDone;
+    }
+
+    /**
+     * A CRYPT node (killer560, 2026-10-05: "it will do the same attacking thing till either a prince or crypt are
+     * killed"): the Crypt Weapon setting's item, aimed where he looked when he placed the node, used and used again
+     * with the interact delay between uses until {@code await:N} (1 without an await) crypt / prince kills of his have
+     * been counted since the node before it finished ({@link AwaitEvents#crypts}) - never a secret. Five seconds with
+     * no kill stops the route.
+     */
+    private static void tickCrypt(Minecraft client, LocalPlayer player, RouteNode node) {
+        int goal = node.awaitEnabled && node.awaitCondition != RouteNode.AwaitCondition.DELAY
+                ? Math.max(1, node.awaitAmount) : 1;
+        AutoRoutesConfig.CryptWeapon weapon = AutoRoutesConfig.getInstance().getCryptWeapon();
+        if (step == Step.PREP) {
+            int slot = ItemIdentity.findHotbarSlot(player, weapon.itemId());
+            if (slot < 0) {
+                stop("the crypt node has no " + weapon.label() + " in the hotbar (Crypt Weapon setting)");
+                return;
+            }
+            cryptSlotBefore = player.getInventory().getSelectedSlot();
+            select(client, player, slot);
+            forceSneak = false;
+            wantSneak = false;
+            aimAt(node);
+            step = Step.AIM;
+            stepTicks = 0;
+        }
+        if (step == Step.AIM) {
+            if (player.getLastSentInput().shift() && stepTicks <= SNEAK_TIMEOUT) {
+                return;
+            }
+            if (!aimReady()) {
+                return;
+            }
+            useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), node.pitch, false);
+            cryptUses = 1;
+            logActed(node, " (" + weapon.label() + ", waiting for " + goal + " crypt/prince kill(s))");
+            step = Step.CONFIRM;
+            stepTicks = 0;
+            cryptLastUseTick = 0;
+            return;
+        }
+        if (step == Step.CONFIRM) {
+            if (AwaitEvents.crypts() >= goal) {
+                LOGGER.info("[AutoRoutes] Node #{} CRYPT: {} kill(s) after {} use(s), {} tick(s)", route.indexOf(node) + 1,
+                        AwaitEvents.crypts(), cryptUses, stepTicks);
+                restoreCryptSlot(client, player);
+                finishAction();
+                return;
+            }
+            if (stepTicks > CRYPT_TIMEOUT) {
+                restoreCryptSlot(client, player);
+                stop("the crypt node killed no crypt or prince in " + CRYPT_TIMEOUT / 20 + " s");
+                return;
+            }
+            int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
+            if (stepTicks - cryptLastUseTick >= delay) {
+                useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), node.pitch, false);
+                cryptUses++;
+                cryptLastUseTick = stepTicks;
+            }
+        }
+    }
+
+    private static void restoreCryptSlot(Minecraft client, LocalPlayer player) {
+        if (cryptSlotBefore >= 0 && cryptSlotBefore <= 8) {
+            select(client, player, cryptSlotBefore);
+        }
+        cryptSlotBefore = -1;
+    }
+
+    /**
+     * An empty-hand use node: vanilla's right click on the block in sight - {@code gameMode.useItemOn} with the hit, the
+     * call vanilla's {@code startUseItem} makes and every block click in the mod already uses (Secret Aura, the
+     * triggerbot). No use-item packet into the air after it: vanilla sends none for an empty hand. The block is the one
+     * the node looks at within 4.5 of the eye ({@link #blockInSight}: the live crosshair in legit mode, the recorded
+     * look in obvious mode, where the camera does not turn). Done on the same tick, like any use with no landing.
+     */
+    private static void clickBlockByHand(Minecraft client, LocalPlayer player, RouteNode node) {
+        BlockHitResult hit = blockInSight(client, player, node, 4.5);
+        if (hit == null) {
+            stop("the empty-hand use node has nothing to click (no block in sight within 4.5)");
+            return;
+        }
+        client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
+        player.swing(InteractionHand.MAIN_HAND);
+        logActed(node, " (empty hand: clicked " + client.level.getBlockState(hit.getBlockPos()).getBlock().getName().getString()
+                + " at " + hit.getBlockPos().toShortString() + ")");
+        step = Step.CONFIRM;
+        stepTicks = 0;
+        finishAction();
     }
 
     private static void tickBoom(Minecraft client, LocalPlayer player, RouteNode node) {
@@ -1759,7 +1880,7 @@ public final class RouteExecutor {
      * sends.) The server handles the held-item packet before anything sent after it, so the use / click that follows
      * in the same tick is made with the new item: a swap costs no tick.
      */
-    private static void select(Minecraft client, LocalPlayer player, int slot) {
+    static void select(Minecraft client, LocalPlayer player, int slot) {
         if (player.getInventory().getSelectedSlot() == slot) {
             return;
         }
@@ -1804,9 +1925,11 @@ public final class RouteExecutor {
      *  crosshair first like vanilla (a recorded lever/chest click replays as one), then the item; an etherwarp is
      *  QUOI's plain {@code gameMode.useItem}. Obvious: the body turned to the target (camera held, see
      *  {@link #turnBody}) and the use packet sent with that same rotation. */
-    private static void useHeldItem(Minecraft client, LocalPlayer player, float targetYaw, float targetPitch,
-                                    boolean blockInteraction) {
+    static void useHeldItem(Minecraft client, LocalPlayer player, float targetYaw, float targetPitch,
+                            boolean blockInteraction) {
         boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
+        // A use of ours: what a crypt / prince kill is attributed to (legit's gameMode.useItem is seen by the mixin too).
+        AwaitEvents.onLocalWeaponUse();
         // No sim branch: the dungeon sim's integrated server answers this exact packet as Hypixel's does
         // (roomsim.SimAbilities), so a route runs the same code in both.
         if (legit) {
@@ -1959,7 +2082,7 @@ public final class RouteExecutor {
         noProgressTicks = 0;
     }
 
-    /** The block a superboom click lands on: the live crosshair in legit mode (the camera was turned), the recorded
+    /** The block a superboom or empty-hand click lands on: the live crosshair in legit mode (the camera was turned), the recorded
      *  look direction in obvious mode. */
     private static BlockHitResult blockInSight(Minecraft client, LocalPlayer player, RouteNode node, double reach) {
         if (AutoRoutesConfig.getInstance().isLegitMode()) {

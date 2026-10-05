@@ -363,6 +363,8 @@ final class SettingTooltipsData {
         d.put("auto routes", "Cheat build: records what you do in a dungeon room and replays it when you land on its start node.");
         d.put("auto routes/mode", "Legit turns your camera like a human for each etherwarp; Obvious skips the camera turn.");
         d.put("start from start node only", "ON: a route only starts when you land on its start node.");
+        d.put("auto routes/kill mimic", "After you click a trapped chest (by hand or a route node): Hyperion uses a wither blade straight down once; Spirit Sceptre uses it straight down until the mimic dies (5 s at most). An await counts the mimic's death, not the chest click.");
+        d.put("auto routes/crypt weapon", "What a crypt node (/ar add crypt) uses at the crypt it was aimed at, again and again, until a crypt or prince of yours dies.");
         d.put("run while map open", "ON: routes keep working while the Interactive Map is open (its own warps still stop them).");
         d.put("recording", "Cheat build: record a route with /ar start record and /ar stop record, or the keys under the buttons.");
         d.put("start recording", "Starts recording your movement, camera and actions in this room (/ar start record).");
@@ -1634,6 +1636,10 @@ final class SettingTooltipsData {
         d.put("secret waypoints/waypoint box", "Full Block draws the whole block the secret is in; Hitbox Only draws its real hitbox.");
         d.put("secret waypoints/through walls", "Draws the waypoints through walls.");
         d.put("secret waypoints/render distance", "How far away a secret can be, in blocks, and still be drawn.");
+        d.put("secret waypoints/show crypts", "Also boxes each crypt tomb in your room, found from its slab lid. It stays after you open it until its undead is dead.");
+        d.put("secret waypoints/show princes", "Also boxes the prince's golden crypt when your room has one. It stays after you open it until the prince is dead.");
+        d.put("secret waypoints/crypt color", "Colour of the crypt waypoints.");
+        d.put("secret waypoints/prince color", "Colour of the prince waypoints.");
         d.put("dungeon esp", "Boxes starred mobs, secret bats and the F7/M7 wither bosses.");
         d.put("starred mob hitboxes", "Boxes starred mobs and secret bats, and highlights the F7/M7 wither boss.");
         d.put("dungeon esp/color", "Colour of the boxes or glow for this row's target.");

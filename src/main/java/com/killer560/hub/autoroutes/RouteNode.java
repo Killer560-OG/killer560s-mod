@@ -36,7 +36,11 @@ public final class RouteNode {
          *  the etherwarping style our interactive map uses". Path nodes pair up in number order (1st with 2nd, 3rd
          *  with 4th): the first of a pair warps along its saved {@link #pathHops} to the second; the second is the
          *  arrival and does nothing itself. See {@link RoutePathPlanner}. */
-        PATH;
+        PATH,
+        /** killer560, 2026-10-05: "add a crypt node ... it will do the same attacking thing till either a prince or
+         *  crypt are killed". Aimed where he looked when placing it (the crypt), it uses the Crypt Weapon setting's
+         *  Hyperion or Spirit Sceptre until one crypt undead or prince of HIS is killed - or {@code await:N} of them. */
+        CRYPT;
 
         public static Type parse(String s) {
             if (s == null) {
@@ -55,6 +59,7 @@ public final class RouteNode {
                 case "unsneak", "unshift" -> UNSNEAK;
                 case "command", "cmd" -> COMMAND;
                 case "path" -> PATH;
+                case "crypt" -> CRYPT;
                 default -> null;
             };
         }
@@ -73,13 +78,14 @@ public final class RouteNode {
                 case UNSNEAK -> "Unsneak";
                 case COMMAND -> "Command";
                 case PATH -> "Path";
+                case CRYPT -> "Crypt";
             };
         }
     }
 
     /** What an {@link Type#AWAIT} node waits for. */
     public enum AwaitCondition {
-        /** {@link #awaitAmount} secrets collected in this room since the node armed (action bar count + bats). */
+        /** {@link #awaitAmount} secrets HE got since the wait began - his clicks on chests/levers/skulls, his item pickups, secret bats appearing near him ({@link AwaitEvents}). */
         SECRET,
         /** {@link #awaitAmount} milliseconds. */
         DELAY
@@ -232,7 +238,7 @@ public final class RouteNode {
 
     /**
      * Where this node fires within a stack of nodes on one tile (killer560, 2026-10-04, approved order): breaker,
-     * superboom, use, command, rotate, unsneak, etherwarp, walk - the things that need you standing still and
+     * superboom, crypt, use, command, rotate, unsneak, etherwarp, walk - the things that need you standing still and
      * aimed first, the things that move you last. The two legacy types (only ever seen in a file that has not been
      * migrated yet): a standalone {@link Type#AWAIT} is a wait, so it goes first and holds everything after it; a
      * {@link Type#START} marker fires nothing, so it goes first too and costs nothing.
@@ -242,14 +248,17 @@ public final class RouteNode {
             case AWAIT, START -> 0;
             case DUNGEON_BREAKER -> 1;
             case BOOM -> 2;
-            case USE_ITEM -> 3;
-            case COMMAND -> 4;
-            case ROTATE -> 5;
-            case UNSNEAK -> 6;
+            // Right after the superboom that opens the crypt (killer560, 2026-10-05: "The crypt node should go after
+            // superboom nodes").
+            case CRYPT -> 3;
+            case USE_ITEM -> 4;
+            case COMMAND -> 5;
+            case ROTATE -> 6;
+            case UNSNEAK -> 7;
             // A path is etherwarps, and fires in the etherwarp slot (killer560, 2026-10-05: "have the same priority
             // of an etherwarp in the ranking").
-            case ETHERWARP, PATH -> 7;
-            case WALK -> 8;
+            case ETHERWARP, PATH -> 8;
+            case WALK -> 9;
         };
     }
 
@@ -265,7 +274,7 @@ public final class RouteNode {
     public String describe() {
         StringBuilder sb = new StringBuilder(type.label());
         switch (type) {
-            case USE_ITEM -> sb.append(" [").append(item == null ? "?" : item).append(']');
+            case USE_ITEM -> sb.append(" [").append(item == null ? "empty hand - clicks the block" : item).append(']');
             case DUNGEON_BREAKER -> sb.append(" [").append(breakerBlocks.size()).append(" block(s)]");
             case COMMAND -> sb.append(" [").append(command == null ? "" : command).append(']');
             default -> {
