@@ -51,7 +51,24 @@ public final class SupportersConfig {
     private static SupportersConfig instance;
     private static volatile int version = 0;
 
-    private boolean customCosmeticsEnabled = true;
+    /** What of other supporters' shared cosmetics to SHOW (killer560, 2026-10-05: "make it so the toggle for
+     *  cosmetics has an option for just toggling names or just toggling sizes"). Replaces the old on/off
+     *  {@code customCosmeticsEnabled}, which still loads: true reads as ALL, false as OFF. */
+    public enum GlobalCosmetics {
+        ALL("All"), NAMES("Names only"), SIZES("Sizes only"), OFF("Off");
+
+        public final String label;
+
+        GlobalCosmetics(String label) {
+            this.label = label;
+        }
+
+        public GlobalCosmetics next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+    }
+
+    private GlobalCosmetics globalCosmetics = GlobalCosmetics.ALL;
     private boolean shareIfSupporter = true;
     private float modelWidth = 1.0f;
     private float modelHeight = 1.0f;
@@ -81,7 +98,15 @@ public final class SupportersConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.customCosmeticsEnabled = ConfigJson.getBool(obj, "customCosmeticsEnabled", true);
+                cfg.globalCosmetics = ConfigJson.getBool(obj, "customCosmeticsEnabled", true)
+                        ? GlobalCosmetics.ALL : GlobalCosmetics.OFF;
+                if (obj.has("globalCosmetics")) {
+                    try {
+                        cfg.globalCosmetics = GlobalCosmetics.valueOf(obj.get("globalCosmetics").getAsString());
+                    } catch (Exception ignored) {
+                        // unknown value: keep what the old flag said
+                    }
+                }
                 cfg.shareIfSupporter = ConfigJson.getBool(obj, "shareIfSupporter", true);
                 cfg.modelWidth = clamp(ConfigJson.getFloat(obj, "modelWidth", 1.0f));
                 cfg.modelHeight = clamp(ConfigJson.getFloat(obj, "modelHeight", 1.0f));
@@ -101,7 +126,9 @@ public final class SupportersConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("customCosmeticsEnabled", customCosmeticsEnabled);
+            obj.addProperty("globalCosmetics", globalCosmetics.name());
+            // Kept so an older jar reading this file still gets a sensible on/off.
+            obj.addProperty("customCosmeticsEnabled", globalCosmetics != GlobalCosmetics.OFF);
             obj.addProperty("shareIfSupporter", shareIfSupporter);
             obj.addProperty("modelWidth", modelWidth);
             obj.addProperty("modelHeight", modelHeight);
@@ -113,13 +140,33 @@ public final class SupportersConfig {
         }
     }
 
+    /** Anything of other supporters' cosmetics shown at all. */
     public boolean isCustomCosmeticsEnabled() {
-        return customCosmeticsEnabled;
+        return globalCosmetics != GlobalCosmetics.OFF;
     }
 
+    /** On/off for callers that only know the old toggle: true is ALL, false is OFF. */
     public void setCustomCosmeticsEnabled(boolean value) {
-        this.customCosmeticsEnabled = value;
+        setGlobalCosmetics(value ? GlobalCosmetics.ALL : GlobalCosmetics.OFF);
+    }
+
+    public GlobalCosmetics getGlobalCosmetics() {
+        return globalCosmetics;
+    }
+
+    public void setGlobalCosmetics(GlobalCosmetics value) {
+        this.globalCosmetics = value == null ? GlobalCosmetics.ALL : value;
         version++;
+    }
+
+    /** Other supporters' shared NAMES are shown (All or Names only). */
+    public boolean isShowSupporterNames() {
+        return globalCosmetics == GlobalCosmetics.ALL || globalCosmetics == GlobalCosmetics.NAMES;
+    }
+
+    /** Other supporters' shared SIZES are shown (All or Sizes only). */
+    public boolean isShowSupporterSizes() {
+        return globalCosmetics == GlobalCosmetics.ALL || globalCosmetics == GlobalCosmetics.SIZES;
     }
 
     public boolean isShareIfSupporter() {
