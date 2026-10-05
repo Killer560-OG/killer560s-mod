@@ -108,7 +108,15 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   HUD Scale (Home tab, `globalScale` in `killer560smod-hud.json`). The HUD editor scrolls and saves the OWN scale and
   draws at the product. Until 2026-10-04 three Gui mixins (Ability Timers, Dungeon Info, Etherwarp Waypoints) drew at
   `resolvePosition` with no scale at all, so resizing them in the editor never showed in game - a draw site that skips
-  `resolveScale` silently opts out of both scales.
+  `resolveScale` silently opts out of both scales. Since 2026-10-05 the product also includes Auto Scale
+  (`hud/AutoScale`, via `HudConfig.getEffectiveGlobalScale`), and SAVED positions are baseline units drawn at
+  `saved * factor` - so a draw site that reads `HudConfig.getPosition` directly instead of `resolvePosition`, or saves a
+  dragged position without `HudElementRegistry.toSaved`, lands in the wrong place on any monitor but 2560x1440 / GUI 3.
+- The mod's own screens are laid out at `guiSize / factor` and drawn under a pose scale (`hud/mixin/AutoScaleScreenMixin`);
+  every GUI mouse coordinate, drag deltas and the render mouseX/Y included, passes through the static
+  `MouseHandler.getScaledXPos/YPos(Window, double)` (javap 26.1.2 and 26.2), which `AutoScaleMouseMixin` divides. So a mod
+  screen must take its size from `this.width/height`, never from `getWindow().getGuiScaledWidth()`, and must read the mouse
+  from its event arguments, never from `mouseHandler.xpos()`.
 - A `FolderTab` section that is pinned (always open, no header) is never in `expanded`, so
   `findListeningKeyCaptureTab` did not ask it: Home's "Edit HUD Keybind" sat on "Press any key..." forever. Pinned
   sections are now checked first.

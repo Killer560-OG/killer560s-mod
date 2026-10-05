@@ -131,7 +131,27 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
         });
         y += 26;
 
+        // Auto Scale (monitor), killer560 2026-10-05: ON by default. Sizes the HUD AND the mod's menus to the window
+        // relative to his 2560x1440 / GUI 3 monitor (see hud/AutoScale); the HUD Scale slider above multiplies on
+        // top. The factor in use is shown so a "why is it smaller here" has its answer on the button. Toggling it
+        // re-lays this very menu out on its next frame (AutoScaleScreenMixin), which rebuilds this widget too.
+        widgets.add(SettingsButtonWidget.builder(autoScaleText(), btn -> {
+                    HudConfig cfg = HudConfig.getInstance();
+                    cfg.setAutoScale(!cfg.isAutoScale());
+                    cfg.save();
+                    btn.setMessage(autoScaleText());
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
+
         return widgets;
+    }
+
+    private static Component autoScaleText() {
+        if (!HudConfig.getInstance().isAutoScale()) {
+            return Component.literal("Auto Scale (monitor): §cOFF");
+        }
+        float f = com.killer560.hub.hud.AutoScale.current();
+        return Component.literal("Auto Scale (monitor): §aON §7(" + Math.round(f * 100) + "% here)");
     }
 
     private static Component globalScaleText() {

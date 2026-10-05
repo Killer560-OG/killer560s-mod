@@ -185,10 +185,11 @@ public class HudEditorScreen extends Screen {
         }
     }
 
-    /** The scale an element is drawn at in-game: its own scale times the global HUD scale, the same product as
-     *  {@link HudElementRegistry#resolveScale}. */
+    /** The scale an element is drawn at in-game: its own scale times the global HUD scale times Auto Scale, the same
+     *  product as {@link HudElementRegistry#resolveScale}. This screen is deliberately NOT auto-scaled itself (see
+     *  {@link AutoScale#scalesScreen}), so its coordinates are the in-game HUD's and a box here is the drawn box. */
     private float drawScale(String id) {
-        return liveScales.get(id) * HudConfig.getInstance().getGlobalScale();
+        return liveScales.get(id) * HudConfig.getInstance().getEffectiveGlobalScale();
     }
 
     /** Topmost listed element whose scaled box contains (mx, my), or null. */
@@ -240,7 +241,9 @@ public class HudEditorScreen extends Screen {
     public boolean mouseReleased(MouseButtonEvent event) {
         if (draggingId != null) {
             int[] pos = livePositions.get(draggingId);
-            HudConfig.getInstance().setPosition(draggingId, pos[0], pos[1]);
+            // Saved in baseline units (Auto Scale): resolvePosition multiplies back, so the box draws where it dropped.
+            int[] saved = HudElementRegistry.toSaved(pos[0], pos[1]);
+            HudConfig.getInstance().setPosition(draggingId, saved[0], saved[1]);
             HudConfig.getInstance().setScale(draggingId, liveScales.get(draggingId));
             HudConfig.getInstance().save();
             draggingId = null;
