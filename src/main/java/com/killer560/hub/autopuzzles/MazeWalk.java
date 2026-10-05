@@ -79,51 +79,8 @@ final class MazeWalk {
         if (Double.isNaN(surface[start])) {
             surface[start] = from.y;
         }
-        double[] dist = new double[w * d];
         int[] prev = new int[w * d];
-        Arrays.fill(dist, Double.MAX_VALUE);
-        Arrays.fill(prev, -1);
-        dist[start] = 0;
-        PriorityQueue<double[]> open = new PriorityQueue<>((a, b) -> Double.compare(a[0], b[0]));
-        open.add(new double[]{0, start});
-        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
-        while (!open.isEmpty()) {
-            double[] top = open.poll();
-            int cur = (int) top[1];
-            if (top[0] > dist[cur]) {
-                continue;
-            }
-            if (cur == target) {
-                break;
-            }
-            int ci = cur % w;
-            int cj = cur / w;
-            for (int[] dir : dirs) {
-                int ni = ci + dir[0];
-                int nj = cj + dir[1];
-                if (ni < 0 || nj < 0 || ni >= w || nj >= d) {
-                    continue;
-                }
-                int n = nj * w + ni;
-                if (!canStep(surface[cur], surface[n])) {
-                    continue;
-                }
-                if (dir[0] != 0 && dir[1] != 0) {
-                    // No cutting a corner past something solid.
-                    int a = cj * w + ni;
-                    int b = nj * w + ci;
-                    if (!canStep(surface[cur], surface[a]) || !canStep(surface[cur], surface[b])) {
-                        continue;
-                    }
-                }
-                double nd = dist[cur] + (dir[0] != 0 && dir[1] != 0 ? 1.4142 : 1.0);
-                if (nd < dist[n]) {
-                    dist[n] = nd;
-                    prev[n] = cur;
-                    open.add(new double[]{nd, n});
-                }
-            }
-        }
+        double[] dist = dijkstra(surface, w, d, start, target, prev);
         if (dist[target] == Double.MAX_VALUE) {
             return false;
         }
@@ -242,6 +199,122 @@ final class MazeWalk {
             last = surface[(int) Math.floor(z) * w + (int) Math.floor(x)];
         }
         return true;
+    }
+
+    /**
+     * The height he would stand at with his feet in block {@code (x, y, z)}, or NaN when he cannot stand there -
+     * for an auto choosing a spot to walk to, with the same rule the walk itself plans by.
+     */
+    static double standHeight(Level level, int x, int y, int z) {
+        return surface(level, x, y, z);
+    }
+
+    /**
+     * The spot nearest him BY WALKING on his own floor from which {@code eyeOk} accepts the standing eye, searched
+     * within {@code radius} blocks of {@code around}. One Dijkstra over the whole area from where he stands, so a spot
+     * that is close in a straight line but walled off (inside a ring of boxes) is never chosen over one he can reach.
+     * Plans the walk into {@code walk} on success.
+     *
+     * @return the chosen feet block, or null when no acceptable spot can be walked to
+     */
+    static BlockPos planToSpot(Level level, Vec3 from, BlockPos around, int radius,
+                               java.util.function.Predicate<Vec3> eyeOk, MazeWalk walk) {
+        int feetY = (int) Math.floor(from.y + 0.01);
+        int sx = (int) Math.floor(from.x);
+        int sz = (int) Math.floor(from.z);
+        int minX = Math.min(sx, around.getX() - radius) - 2;
+        int minZ = Math.min(sz, around.getZ() - radius) - 2;
+        int w = Math.max(sx, around.getX() + radius) + 2 - minX + 1;
+        int d = Math.max(sz, around.getZ() + radius) + 2 - minZ + 1;
+        if (w > MAX_SIDE || d > MAX_SIDE) {
+            return null;
+        }
+        double[] surface = new double[w * d];
+        for (int i = 0; i < w; i++) {
+            for (int j = 0; j < d; j++) {
+                surface[j * w + i] = surface(level, minX + i, feetY, minZ + j);
+            }
+        }
+        int start = (sz - minZ) * w + (sx - minX);
+        if (Double.isNaN(surface[start])) {
+            surface[start] = from.y;
+        }
+        double[] dist = dijkstra(surface, w, d, start, -1, null);
+        BlockPos best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (int i = 0; i < w; i++) {
+            for (int j = 0; j < d; j++) {
+                int c = j * w + i;
+                int x = minX + i;
+                int z = minZ + j;
+                if (dist[c] >= bestDist || Double.isNaN(surface[c]) || Math.abs(x - around.getX()) > radius
+                        || Math.abs(z - around.getZ()) > radius) {
+                    continue;
+                }
+                Vec3 eye = new Vec3(x + 0.5, surface[c] + AutoPuzzleUtil.EYE_STANDING, z + 0.5);
+                if (eyeOk.test(eye)) {
+                    bestDist = dist[c];
+                    best = new BlockPos(x, feetY, z);
+                }
+            }
+        }
+        if (best == null || !walk.plan(level, from, best)) {
+            return null;
+        }
+        return best;
+    }
+
+    /** Dijkstra over the walkable grid from {@code start}; stops early at {@code target} when it is not -1. */
+    private static double[] dijkstra(double[] surface, int w, int d, int start, int target, int[] prev) {
+        double[] dist = new double[w * d];
+        Arrays.fill(dist, Double.MAX_VALUE);
+        if (prev != null) {
+            Arrays.fill(prev, -1);
+        }
+        dist[start] = 0;
+        PriorityQueue<double[]> open = new PriorityQueue<>((a, b) -> Double.compare(a[0], b[0]));
+        open.add(new double[]{0, start});
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+        while (!open.isEmpty()) {
+            double[] top = open.poll();
+            int cur = (int) top[1];
+            if (top[0] > dist[cur]) {
+                continue;
+            }
+            if (cur == target) {
+                break;
+            }
+            int ci = cur % w;
+            int cj = cur / w;
+            for (int[] dir : dirs) {
+                int ni = ci + dir[0];
+                int nj = cj + dir[1];
+                if (ni < 0 || nj < 0 || ni >= w || nj >= d) {
+                    continue;
+                }
+                int n = nj * w + ni;
+                if (!canStep(surface[cur], surface[n])) {
+                    continue;
+                }
+                if (dir[0] != 0 && dir[1] != 0) {
+                    // No cutting a corner past something solid.
+                    int a = cj * w + ni;
+                    int b = nj * w + ci;
+                    if (!canStep(surface[cur], surface[a]) || !canStep(surface[cur], surface[b])) {
+                        continue;
+                    }
+                }
+                double nd = dist[cur] + (dir[0] != 0 && dir[1] != 0 ? 1.4142 : 1.0);
+                if (nd < dist[n]) {
+                    dist[n] = nd;
+                    if (prev != null) {
+                        prev[n] = cur;
+                    }
+                    open.add(new double[]{nd, n});
+                }
+            }
+        }
+        return dist;
     }
 
     /**
