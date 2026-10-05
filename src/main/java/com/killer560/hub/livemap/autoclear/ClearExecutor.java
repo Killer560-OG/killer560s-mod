@@ -433,6 +433,8 @@ public final class ClearExecutor {
         if (cfg.isInteractiveMapEnabled() && client.level != null && DungeonLayout.current().roomCount() > 0) {
             EtherwarpPathfinder.tickWarm(PLANNER, () -> pathPending, hopRange());
         }
+        // Before this tick's hop: the body is given back once the path has no hop left to send.
+        BODY.tick(client.player, aiming());
         doInteract(client);
         updateDelays();
         applySneakFallback(client);
@@ -737,6 +739,21 @@ public final class ClearExecutor {
         }
     }
 
+    /**
+     * The hops' body turns, camera held - the helper Auto Routes uses ({@code util/BodyAim}). Every hop's use packet
+     * used to carry a rotation the client never reported: the body stayed put and only the packet was rotated, which
+     * GrimAC's BadPacketsJ flags on every warp (2026-10-05, 62-argrim-imwarp), the same flag Auto Routes and Auto
+     * Puzzles drew and fixed this way. Now the body turns to each hop's look on the hop's own tick (START, ahead of the
+     * movement packet that reports it) and is given back to his view the tick after the last hop went out.
+     */
+    private static final com.killer560.hub.util.BodyAim BODY = new com.killer560.hub.util.BodyAim(() -> { });
+
+    /** True while a hop is queued or about to be: the body stays on the warps' looks until the last use went out. */
+    private static boolean aiming() {
+        List<ClearNode> current = nodes;
+        return pendingInteract != null || (current != null && !current.isEmpty());
+    }
+
     private static void doInteract(Minecraft client) {
         float[] interact = pendingInteract;
         pendingInteract = null;
@@ -747,6 +764,8 @@ public final class ClearExecutor {
         // Same direction as the target, expressed relative to the running (unwrapped) yaw.
         float yaw = player.getYRot() + Mth.wrapDegrees(interact[0] - player.getYRot());
         float pitch = Mth.clamp(interact[1], -90f, 90f);
+        // The body faces the hop for this tick's movement packet; only the camera stays still (see BODY).
+        BODY.turn(player, yaw, pitch);
         // The same packet in the dungeon sim: its integrated server answers a use packet the way Hypixel's does
         // (roomsim.SimAbilities), resolving the hop from its own copy of him, so hops chain from the prediction
         // one a tick there too.
@@ -754,13 +773,7 @@ public final class ClearExecutor {
             invoker.killer560smod$invokeStartPrediction(client.level,
                     sequence -> new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch));
         } else {
-            float oldYaw = player.getYRot();
-            float oldPitch = player.getXRot();
-            player.setYRot(yaw);
-            player.setXRot(pitch);
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-            player.setYRot(oldYaw);
-            player.setXRot(oldPitch);
         }
     }
 
@@ -851,7 +864,14 @@ public final class ClearExecutor {
                         return false;
                     }
                     player.getInventory().setSelectedSlot(i);
-                    player.connection.send(new ServerboundSetCarriedItemPacket(i));
+                    // Through vanilla's own ensureHasSentCarriedItem, as Auto Routes' RouteExecutor.select does, so
+                    // the game mode's carriedIndex agrees and its tick() does not send the same slot a second time.
+                    // Sent by hand, every swap went out twice - a same-slot repeat no vanilla client sends.
+                    if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
+                        invoker.killer560smod$invokeEnsureHasSentCarriedItem();
+                    } else {
+                        player.connection.send(new ServerboundSetCarriedItemPacket(i));
+                    }
                     hasSwappedThisTick = true;
                     return true;
                 }
