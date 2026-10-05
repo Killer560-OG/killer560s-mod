@@ -42,8 +42,10 @@ final class GuardianPetSwapper {
     private static final Pattern PETS_TITLE_PATTERN = Pattern.compile("^(?:\\((\\d+)/(\\d+)\\)\\s*)?Pets$");
     private static final int PLAYER_INVENTORY_SLOTS = 36;
     private static final long STEP_DELAY_MS = 1000;
+    /** How long after /pets the Pets menu may take to open before the swap is given up for this run. */
+    private static final long PETS_SCREEN_TIMEOUT_MS = 10_000;
 
-    enum Action { NONE, CLOSE_TABLE, RUN_PETS_COMMAND, CLICK_SLOT, NEXT_PAGE, CLOSE_NOT_FOUND, CLOSE_AND_REOPEN }
+    enum Action { NONE, CLOSE_TABLE, RUN_PETS_COMMAND, CLICK_SLOT, NEXT_PAGE, CLOSE_NOT_FOUND, CLOSE_AND_REOPEN, PETS_NEVER_OPENED }
 
     record Result(Action action, int slot) {
         private static final Result NONE_RESULT = new Result(Action.NONE, -1);
@@ -109,6 +111,17 @@ final class GuardianPetSwapper {
             case AWAITING_PETS_SCREEN -> {
                 Matcher pageMatch = PETS_TITLE_PATTERN.matcher(title);
                 if (!pageMatch.matches() || menu == null) {
+                    // The table is already closed here, so a /pets that never opened anything (dropped, rate
+                    // limited, refused) used to leave the whole Auto E-Table run waiting forever with nothing on
+                    // screen. Found by the testkit's 226 case, whose server has no /pets (2026-10-05).
+                    if (elapsed >= PETS_SCREEN_TIMEOUT_MS) {
+                        LOGGER.warn("[t={}] Pets menu did not open {} ms after /pets - running without the Guardian swap",
+                                now, elapsed);
+                        doneThisRun = true;
+                        state = State.IDLE;
+                        lastActionAtMs = now;
+                        return new Result(Action.PETS_NEVER_OPENED, -1);
+                    }
                     return Result.NONE_RESULT;
                 }
                 int currentPage = pageMatch.group(1) != null ? Integer.parseInt(pageMatch.group(1)) : 1;
