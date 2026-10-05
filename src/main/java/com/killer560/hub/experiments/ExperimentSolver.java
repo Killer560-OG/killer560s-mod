@@ -118,23 +118,23 @@ final class ExperimentSolver {
      *  never actually turned into a real item (e.g. genuinely decorative border glass), so the solver
      *  doesn't loop forever re-clicking a dead slot. */
     private final Set<Integer> superpairsRevealAttempted = new HashSet<>();
-    /** Slot of a discovered-but-not-yet-activated Superpairs bonus tile (real confirmed effect:
-     *  grants bonus clicks and makes the very next click an automatic match) - null if none known. */
-    private Integer superpairsPowerupSlot;
-    /** True for exactly one solve() call right after activating a bonus tile - the next click should
-     *  be aimed at the best known target instead of the normal priority order. */
-    private boolean superpairsPowerupPending;
-    /** Real bug found and fixed (2026-09-09) from killer560's report of the solver getting stuck
-     *  alternating between the same two slots forever - set to whichever slot was just clicked to
-     *  ACTIVATE a bonus tile (as opposed to a normal reveal/pair-completion click), cleared the instant
-     *  that click's confirm-wait resolves. A powerup tile's own item never visibly changes when
-     *  clicked (it's a persistent activatable button, not a card that flips or disappears), so its
-     *  confirm ALWAYS times out - which used to make {@link #observeSuperpairs}'s timeout-cleanup (see
-     *  round 22's queuedPairSlots fix) free it from {@link #queuedPairSlots} every single time,
-     *  re-exposing the exact same tile as "not yet activated" on the very next scan and clicking it
-     *  again forever. Recording which slot this was lets that cleanup skip freeing it specifically,
-     *  while still freeing genuinely-stuck PAIR-completion clicks like it's meant to. */
-    private Integer superpairsPowerupActivationSlot;
+    /**
+     * Instant Finds turned over and not yet spent: each makes one click an automatic match (that tile and its
+     * partner are claimed). How powerups work, from killer560 (2026-10-05): "if a powerup is the second click of a
+     * turn the first click is still up but then the next click is treated with either the insta find from the
+     * powerup or if it just more clicks then its basically a free space. If you do a powerup into a powerup it is the
+     * same deal, if you get an insta find into an insta find then your next two clicks are insta finds." So turning a
+     * powerup over arms it - there is no separate activation click (the solver used to click the face-up tile a
+     * second time, from 2026-09-09 until this; that click did nothing but wait out its 1s confirm) - it never takes
+     * a turn's click slot, and Instant Finds stack, hence a count. Powerups other than Instant Find ("+N Clicks", the
+     * big XP lapis, lore "Instant powerup!") apply on the spot and arm nothing.
+     */
+    private int superpairsInstantFinds;
+    /** The armed (Instant Find) click in flight, so a click that never landed gives its Instant Find back. */
+    private Integer superpairsArmedClickSlot;
+    /** Slots seen covered on this board: a powerup there was turned over in front of us, so an Instant Find is
+     *  counted only once and never for a tile that was already face up when the solver first saw the board. */
+    private final Set<Integer> superpairsSeenCovered = new HashSet<>();
     /** Real bug found and fixed (2026-09-24) from killer560's report: the solver paired a Titanic
      *  Experience Bottle with a Grand one, then later found the real second Titanic but re-clicked
      *  the first one's old partner instead of pairing them, and "kept going down the line not pairing
@@ -158,7 +158,7 @@ final class ExperimentSolver {
      *  match by itself regardless of outcome, unlike every other queuedPairSlots entry. */
     private Integer superpairsSingleSpendSlot;
     /** Every slot ever seen showing a powerup, so a powerup tile that covers back up is never counted as a
-     *  hidden reward tile by {@link #readBoard} (only one powerup at a time lives in {@link #superpairsPowerupSlot}). */
+     *  hidden reward tile by {@link #readBoard}. */
     private final Set<Integer> superpairsPowerupSlotsSeen = new HashSet<>();
     /** When each slot was last clicked by the solver - picks which of a kind's revealed tiles is the turn's open
      *  one when a kind has three revealed (a claimed pair plus one just turned over). */
@@ -560,8 +560,8 @@ final class ExperimentSolver {
      *  click, exactly like SkyHanni's own Next Click Helper does, instead of going blank whenever no
      *  confirmed match is currently known (e.g. the very start of a board, or right after the last
      *  known match gets claimed). Mirrors the real bot's own exploration priority in
-     *  {@link #decideSuperpairsClick} - a discovered-but-unused bonus tile first, else the next
-     *  still-covered tile in snake order - but is READ-ONLY: unlike the real click path, this never
+     *  {@link #decideSuperpairsClick} - the next still-covered tile in snake order (a face-up powerup is
+     *  no longer suggested: turning it over already armed it, 2026-10-05) - but is READ-ONLY: unlike the real click path, this never
      *  touches {@code queuedPairSlots}/{@code superpairsRevealAttempted}, so merely highlighting a
      *  suggestion can never corrupt the real solving state if killer560 later switches back to Autonomous
      *  mode mid-board. @return the suggested slot, or -1 if the board is genuinely fully explored with
@@ -569,9 +569,6 @@ final class ExperimentSolver {
     int superpairsSuggestedExploreSlot(List<Cell> cells) {
         if (mode != Mode.SUPERPAIRS) {
             return -1;
-        }
-        if (superpairsPowerupSlot != null) {
-            return superpairsPowerupSlot;
         }
         Map<Integer, Cell> bySlot = new HashMap<>();
         for (Cell cell : cells) {
@@ -756,15 +753,16 @@ final class ExperimentSolver {
                     // same "known at slots [X, Y] but no pair was queued" diagnostic warning kept firing
                     // every cycle for several seconds straight because Y stayed wrongly reserved. Removing
                     // it here lets the pairing logic reconsider this slot fresh, the same way a timed-out
-                    // reveal click already gets retried above.
-                    //
-                    // EXCEPT a bonus-tile ACTIVATION click (see superpairsPowerupActivationSlot's doc
-                    // comment) - real bug found and fixed (2026-09-09) from killer560's report of the
-                    // solver getting stuck alternating between the same two slots forever: a powerup
-                    // tile's own item never visibly changes when clicked, so its confirm ALWAYS times
-                    // out, and freeing it here (like a genuine stuck pair-click) just re-exposed the same
-                    // already-activated tile as "not yet activated" on the very next scan, clicking it
-                    // again forever. Leaving it queued is correct here - the tile's already spent.
+                    // reveal click already gets retried above. (The 2026-09-09 exception for a powerup
+                    // ACTIVATION click is gone with the activation click itself, 2026-10-05: turning a
+                    // powerup over arms it, see superpairsInstantFinds.)
+                    if (superpairsAwaitingConfirmSlot.equals(superpairsArmedClickSlot) && current != null
+                            && !isRevealedPair(current)) {
+                        // The armed click never landed, so its Instant Find is still there.
+                        superpairsInstantFinds++;
+                        LOGGER.info("Superpairs: Instant Find click on slot {} did not land - {} Instant Find(s) armed",
+                                superpairsAwaitingConfirmSlot, superpairsInstantFinds);
+                    }
                     int retries = superpairsPairRetries.getOrDefault(superpairsAwaitingConfirmSlot, 0);
                     if (superpairsAwaitingConfirmSlot.equals(superpairsPairFirstSlot) && current != null
                             && !isRevealedPair(current) && retries < SUPERPAIRS_PAIR_FIRST_RETRIES) {
@@ -777,10 +775,19 @@ final class ExperimentSolver {
                                 superpairsAwaitingConfirmSlot, current.name(), pairClicks.size() > 1
                                         ? java.util.List.copyOf(pairClicks).get(1) : "?",
                                 retries + 1, SUPERPAIRS_PAIR_FIRST_RETRIES);
-                    } else if (!superpairsAwaitingConfirmSlot.equals(superpairsPowerupActivationSlot)) {
+                    } else {
                         queuedPairSlots.remove(superpairsAwaitingConfirmSlot);
                     }
-                    superpairsPowerupActivationSlot = null;
+                }
+                if (superpairsAwaitingConfirmSlot.equals(superpairsArmedClickSlot)) {
+                    // The armed click turned over a powerup: a free space, the Instant Find still applies to the
+                    // next click (killer560: "powerup into a powerup it is the same deal").
+                    if (current != null && isRevealedPair(current) && isPowerupTile(current)) {
+                        superpairsInstantFinds++;
+                        LOGGER.info("Superpairs: Instant Find click on slot {} turned over a powerup - still armed ({})",
+                                superpairsAwaitingConfirmSlot, superpairsInstantFinds);
+                    }
+                    superpairsArmedClickSlot = null;
                 }
                 // Real bug found and fixed (2026-09-24, see superpairsSingleSpendSlot's doc): a
                 // last-resort single-spend click (clickAnyRemainingKnownTile) has no real partner, so
@@ -812,11 +819,19 @@ final class ExperimentSolver {
         // and the fully-explored fallback.
         for (int slot : SUPERPAIRS_SNAKE_ORDER) {
             Cell cell = bySlot.get(slot);
-            if (cell == null || !isRevealedPair(cell)) continue;
+            if (cell == null) continue;
+            if (!isRevealedPair(cell)) {
+                if (!cell.empty() && !cell.name().isBlank()) {
+                    superpairsSeenCovered.add(slot);
+                }
+                continue;
+            }
             if (isPowerupTile(cell)) {
-                superpairsPowerupSlotsSeen.add(slot);
-                if (superpairsPowerupSlot == null && !queuedPairSlots.contains(slot)) {
-                    superpairsPowerupSlot = slot;
+                // Turned over in front of us: an Instant Find arms the next click (stacking), whichever click of
+                // a turn it was; any other powerup has already applied. Counted once per tile.
+                if (superpairsPowerupSlotsSeen.add(slot) && superpairsSeenCovered.contains(slot) && armsNextClick(cell)) {
+                    superpairsInstantFinds++;
+                    LOGGER.info("Superpairs: Instant Find turned over on slot {} - {} armed", slot, superpairsInstantFinds);
                 }
                 continue;
             }
@@ -906,37 +921,27 @@ final class ExperimentSolver {
         BoardFacts board = readBoard(bySlot);
         int remaining = superpairsRemainingClicks(cells);
 
-        // The bonus tile makes the very next click an automatic match - spend it on the best known
-        // target: a money tile whose partner is still hidden first, else any known money tile, else (if
-        // pairing everything) the highest known XP, else fall through to whatever the normal priority picks.
-        if (superpairsPowerupPending) {
-            superpairsPowerupPending = false;
-            OptionalInt best = bestKnownSingleTarget(valuableOnly, board);
-            if (best.isPresent()) {
-                queuedPairSlots.add(best.getAsInt());
-                Cell target = knownSuperpairsCells.get(best.getAsInt());
-                LOGGER.info("Superpairs: powerup match spent on slot {} (itemId={}, name='{}') - reserved for the rest of the round",
-                        best.getAsInt(), target == null ? "?" : target.itemId(), target == null ? "?" : target.name());
-                return best;
+        // An armed Instant Find: this click is an automatic match, whatever click of the turn it is. Only one KIND
+        // arms (lore "Powerup for next click!"); "Instant powerup!" tiles (the "+479,095 XP" lapis block, "Gained +3
+        // Clicks") apply on the spot - arming on those too spent a lone click on the Enchanted Book at slot 10 in
+        // his 2026-10-01 09:20 run. "Next button is instantly rewarded!" on the covered tiles also says one is armed,
+        // in case its reveal was missed (that alone never decrements the count). Not while a missed pair is still
+        // up (the game ignores clicks then; the wait below handles it).
+        if ((superpairsInstantFinds > 0 || board.armedText) && board.open.size() < 2) {
+            OptionalInt target = armedTarget(bySlot, board, valuableOnly);
+            if (target.isPresent()) {
+                int slot = target.getAsInt();
+                if (superpairsInstantFinds > 0) {
+                    superpairsInstantFinds--;
+                }
+                superpairsArmedClickSlot = slot;
+                queuedPairSlots.add(slot);
+                superpairsRevealAttempted.add(slot);
+                Cell known = knownSuperpairsCells.get(slot);
+                LOGGER.info("Superpairs: Instant Find spent on slot {} ({}) - {} left armed", slot,
+                        known == null ? "unknown tile" : "name='" + known.name() + "'", superpairsInstantFinds);
+                return target;
             }
-        }
-
-        // A discovered-but-not-yet-activated bonus tile takes priority over normal exploration.
-        // Only one KIND arms the next click's auto-match: its lore says "Powerup for next click!" (Instant
-        // Find). "Instant powerup!" tiles (the "+479,095 XP" lapis block, "Gained +3 Clicks") apply on the
-        // spot. Arming on those too spent a lone click on the Enchanted Book at slot 10 in his 2026-10-01
-        // 09:20 run, which reserved it, so when its partner turned up at 34 the pair was blocked.
-        // Not while a turn is half done: that click would land as the turn's second click instead.
-        if (superpairsPowerupSlot != null && !queuedPairSlots.contains(superpairsPowerupSlot) && board.open.isEmpty()) {
-            int slot = superpairsPowerupSlot;
-            superpairsPowerupSlot = null;
-            Cell tile = bySlot.get(slot);
-            superpairsPowerupPending = tile != null && armsNextClick(tile);
-            queuedPairSlots.add(slot);
-            superpairsPowerupActivationSlot = slot;
-            LOGGER.info("Superpairs: activating powerup on slot {} (name='{}', lore='{}') - reserved for the rest of the round",
-                    slot, tile == null ? "?" : tile.name(), tile == null ? "?" : tile.lore());
-            return OptionalInt.of(slot);
         }
 
         // A queued pair's second click. Dropped if that tile is already claimed (the first click landed while an
@@ -1013,6 +1018,8 @@ final class ExperimentSolver {
         final List<Integer> open = new ArrayList<>();
         /** One tile per kind seen an odd number of times and not claimed - its partner is still unseen. */
         final List<Cell> singles = new ArrayList<>();
+        /** A covered tile reads "Next button is instantly rewarded!": an Instant Find is armed. */
+        boolean armedText;
         final Set<String> singleKeys = new HashSet<>();
 
         int hidden() {
@@ -1049,6 +1056,9 @@ final class ExperimentSolver {
                     revealedByKey.computeIfAbsent(pairKey(cell), k -> new ArrayList<>()).add(slot);
                 }
                 continue;
+            }
+            if (cell.name().startsWith("Next button is instantly rewarded")) {
+                b.armedText = true;
             }
             if (knownSuperpairsCells.containsKey(slot)) {
                 b.coveredKnown.add(slot);
@@ -1436,14 +1446,24 @@ final class ExperimentSolver {
      *  tile earlier in snake order used to win; among money, a tile whose partner is still unseen first (the match
      *  saves finding it, where a known pair would only save one click); among XP, the largest amount. Covered,
      *  unclaimed tiles only - the matched click has to turn one over. */
-    private OptionalInt bestKnownSingleTarget(boolean valuableOnly, BoardFacts board) {
+    private OptionalInt bestKnownSingleTarget(boolean valuableOnly, BoardFacts board, String openKey) {
         Integer moneyPairMember = null;
+        Integer openPartner = null;
         for (int slot : SUPERPAIRS_SNAKE_ORDER) {
             if (queuedPairSlots.contains(slot) || !board.coveredKnown.contains(slot)) continue;
             Cell known = knownSuperpairsCells.get(slot);
             // A powerup's matched click CLAIMS the reward, so a skipped kind must never be its target.
             if (!isMoney(known)) continue;
-            if (board.singleKeys.contains(pairKey(known))) {
+            String key = pairKey(known);
+            // The turned-over tile's own partner last: a plain second click claims that pair anyway, so the
+            // automatic match is worth more on any other pair (2026-10-05).
+            if (key.equals(openKey)) {
+                if (openPartner == null) {
+                    openPartner = slot;
+                }
+                continue;
+            }
+            if (board.singleKeys.contains(key)) {
                 return OptionalInt.of(slot);
             }
             if (moneyPairMember == null) {
@@ -1452,6 +1472,9 @@ final class ExperimentSolver {
         }
         if (moneyPairMember != null) {
             return OptionalInt.of(moneyPairMember);
+        }
+        if (openPartner != null) {
+            return OptionalInt.of(openPartner);
         }
         if (!valuableOnly) {
             Integer bestDyeSlot = null;
@@ -1466,6 +1489,47 @@ final class ExperimentSolver {
             }
             if (bestDyeSlot != null) {
                 return OptionalInt.of(bestDyeSlot);
+            }
+        }
+        return OptionalInt.empty();
+    }
+
+    /**
+     * Where an armed Instant Find's click goes: the best known target ({@link #bestKnownSingleTarget}: money whose
+     * partner is unseen, then a known money pair, then - "Every Pair" - the biggest XP), except that the turned-over
+     * tile's own partner gives way to an unknown tile (a plain second click claims that pair anyway, and the match on
+     * an unknown tile claims whatever pair it is). Then an unknown tile; then, once {@link #deferredMayGo}, a skipped
+     * kind and then XP; empty if nothing at all is covered.
+     */
+    private OptionalInt armedTarget(Map<Integer, Cell> bySlot, BoardFacts board, boolean valuableOnly) {
+        String openKey = board.open.size() == 1 ? pairKey(bySlot.get(board.open.get(0))) : null;
+        Integer reveal = nextExploreSlot(bySlot);
+        OptionalInt best = bestKnownSingleTarget(valuableOnly, board, openKey);
+        if (best.isPresent()) {
+            boolean openPartner = openKey != null && pairKey(knownSuperpairsCells.get(best.getAsInt())).equals(openKey);
+            if (!openPartner || reveal == null) {
+                return best;
+            }
+        }
+        if (reveal != null) {
+            return OptionalInt.of(reveal);
+        }
+        if (deferredMayGo(board, true)) {
+            for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+                if (board.coveredKnown.contains(slot) && !queuedPairSlots.contains(slot) && isUserSkipped(knownSuperpairsCells.get(slot))) {
+                    return OptionalInt.of(slot);
+                }
+            }
+            Integer bestXp = null;
+            for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+                Cell cell = knownSuperpairsCells.get(slot);
+                if (cell == null || !board.coveredKnown.contains(slot) || queuedPairSlots.contains(slot) || !isSuperpairsXpTile(cell)) continue;
+                if (bestXp == null || xpValue(cell) > xpValue(knownSuperpairsCells.get(bestXp))) {
+                    bestXp = slot;
+                }
+            }
+            if (bestXp != null) {
+                return OptionalInt.of(bestXp);
             }
         }
         return OptionalInt.empty();
@@ -1589,9 +1653,9 @@ final class ExperimentSolver {
         queuedPairSlots.clear();
         knownSuperpairsCells.clear();
         superpairsRevealAttempted.clear();
-        superpairsPowerupSlot = null;
-        superpairsPowerupPending = false;
-        superpairsPowerupActivationSlot = null;
+        superpairsInstantFinds = 0;
+        superpairsArmedClickSlot = null;
+        superpairsSeenCovered.clear();
         superpairsSingleSpendSlot = null;
         superpairsPowerupSlotsSeen.clear();
         superpairsClickedAtMs.clear();

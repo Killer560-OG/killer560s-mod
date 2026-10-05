@@ -42,6 +42,9 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - **Superpairs powerups come in two kinds, told apart by lore.** "Instant powerup!" (the `+479,095 XP` lapis
   block, "Gained +3 Clicks") applies on the spot; only "Powerup for next click!" (Instant Find) matches the next
   click. Arming on both spent a lone click on an Enchanted Book and reserved it, blocking its pair (2026-10-01).
+  Turning a powerup over is all it takes (killer560, 2026-10-05): it never uses a turn's click slot (the open tile
+  stays up), Instant Finds stack ("insta find into an insta find then your next two clicks are insta finds"), and
+  there is no activation click - the solver's old second click on the face-up tile did nothing but wait out 1s.
   XP reward tiles are recognised by NAME (`... Enchanting Exp`): the item varies, and cocoa beans were missed.
   Clicking a tile that is already uncovered does not use a click (killer560, 2026-10-01). A pair's first click
   can fail to land (tile still covered, others still read "Click any button!"); clicking the partner anyway lost
