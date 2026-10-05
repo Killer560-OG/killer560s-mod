@@ -12,8 +12,8 @@ import org.slf4j.Logger;
  * <p>
  * Triggered by OUR click on a trapped chest ({@link AwaitEvents#onLocalBlockClick} - by hand or by a route node), with
  * Auto Routes on and in a dungeon. It waits for the route to be between nodes (or only waiting on an await), then
- * swaps to the item, aims straight down (pitch 90: a camera turn in legit mode, only the packet's rotation in obvious
- * mode - {@link RouteExecutor#useHeldItem}), and uses it: a wither blade once, a Spirit Sceptre again every interact
+ * swaps to the item, aims straight down (pitch 90: a camera turn in legit mode, in obvious mode the body
+ * with the camera held - {@link RouteExecutor#useHeldItem}), and uses it: a wither blade once, a Spirit Sceptre again every interact
  * delay until the mimic is seen dying ({@link AwaitEvents#mimicKilledSince}), five seconds at most, or until he presses
  * a movement key. Then the slot he held goes back. While it runs a route starts no node and moves nothing
  * ({@link RouteExecutor} holds on {@link #isBusy}).
