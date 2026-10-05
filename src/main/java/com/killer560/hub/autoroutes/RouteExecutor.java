@@ -544,7 +544,11 @@ public final class RouteExecutor {
      */
     public static boolean holdsSneak() {
         // Not while a node waits on its await: see tickAction - he is clicking the secrets it waits for.
-        return running && forceSneak && !(activeNode != null && awaitHeld);
+        // Nor under a screen: a vanilla client's keys are all up while one is open, and a container closed while the
+        // input packet says sneaking is GrimAC MultiActionsD (2026-10-05, 62-argrim: an await met by the chest click
+        // itself started the etherwarp's sneak a tick before the chest's window arrived).
+        return running && forceSneak && !(activeNode != null && awaitHeld)
+                && !AutoRoutesFeature.screenBlocks(Minecraft.getInstance());
     }
 
     /** The {@code Input} record the mixin installs for this tick. */
@@ -1640,6 +1644,12 @@ public final class RouteExecutor {
             stop("the empty-hand use node has nothing to click (no block in sight within 4.5)");
             return;
         }
+        if (!AutoRoutesConfig.getInstance().isLegitMode()) {
+            // Look along the ray the click is made from first (camera held): a block click reported from another
+            // facing is what GrimAC RotationPlace flags.
+            turnBody(player, player.getYRot() + Mth.wrapDegrees(RouteCoords.toRealYaw(frame, node.yaw)
+                    - player.getYRot()), node.pitch);
+        }
         client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
         player.swing(InteractionHand.MAIN_HAND);
         logActed(node, " (empty hand: clicked " + client.level.getBlockState(hit.getBlockPos()).getBlock().getName().getString()
@@ -2016,8 +2026,8 @@ public final class RouteExecutor {
         // A node waiting on its await is waiting for HIM too: he is clicking the secrets, and while the view is held the
         // crosshair follows the held view but every packet reports the body, so his own clicks would go out aimed one
         // way and reported another.
-        boolean acting = running && walkHoldYaw == null && !(activeNode != null && awaitHeld)
-                && (activeNode != null || !stackQueue.isEmpty() || settleTicks > 0 || landedFrom != null);
+        boolean acting = MimicKiller.isBusy() || (running && walkHoldYaw == null && !(activeNode != null && awaitHeld)
+                && (activeNode != null || !stackQueue.isEmpty() || settleTicks > 0 || landedFrom != null));
         if (acting || ticksSinceTurn < 1) {
             com.killer560.hub.util.ViewFreeze.hold(player.getYRot(), player.getXRot());
             return;
