@@ -21,12 +21,12 @@ import java.util.List;
  * {@code textPlacement}, name colour by clear state, no names on Entrance/Fairy/Blood), current-room highlight colour,
  * hover brighten + white outline, and clicks that teleport-path (cheat builds). On top of QUOI: player heads/arrows
  * with names and class colours (QUOI's commented-out icon config / NoammAddons), hover tooltips (type, secrets, crypts,
- * puzzle, clear state, who cleared), right-click per-room secret waypoints, scroll zoom, drag pan and a legend.
+ * puzzle, clear state, who cleared), scroll zoom, right/middle-drag pan (never the left button) and a legend.
  * No world dim/blur, like QUOI's {@code open(background = false)}.
  */
 public class InteractiveMapScreen extends Screen {
 
-    private static final int LEGEND_W = 104;
+    private static final int LEGEND_W = 112;
     private static final int ORANGE = 0xFFCC6600;
     private static final int LIGHT_ORANGE = 0xFFFFA040;
     private static final int PANEL = 0xD00D0D0D;
@@ -176,9 +176,9 @@ public class InteractiveMapScreen extends Screen {
                 MapPainter.drawReportedRoom(graphics, rr, cfg, ox, oy, ppu);
             }
             MapPainter.drawEtherwarpPath(graphics, cfg, ox, oy, ppu);
-            MapPainter.drawLabels(graphics, font, cfg.getMapRoomLabels(), cfg, ox, oy, ppu);
+            MapPainter.drawLabels(graphics, font, cfg.getRoomLabels(), cfg, ox, oy, ppu);
             for (PartyMapIntel.ReportedRoom rr : PartyMapIntel.reportedRoomsView()) {
-                MapPainter.drawReportedLabel(graphics, font, cfg.getMapRoomLabels(), cfg, rr, ox, oy, ppu);
+                MapPainter.drawReportedLabel(graphics, font, cfg.getRoomLabels(), cfg, rr, ox, oy, ppu);
             }
             List<InteractiveMapFeature.MapPlayer> players = InteractiveMapFeature.playersCached(client);
             InteractiveMapFeature.MapPlayer hoveredPlayer = null;
@@ -349,103 +349,284 @@ public class InteractiveMapScreen extends Screen {
         };
     }
 
+    // ------------------------------------------------------------------------------------------- legend
+    //
+    // killer560 (2026-10-05, screenshot): "See how cluttered that right side is, clean it up a bit." The panel was
+    // a single column of seventeen swatch/control rows, its height a hand-written constant, and the S+ row drew its
+    // label and its value over each other once the value outgrew the column ("S+ Secrets" under "52 more (3/55)").
+    // Now: the room swatches sit two to a row, Controls collapses to two rows behind a [+]/[-] header (the choice
+    // is saved), the height is MEASURED by laying the panel out once without drawing, a row whose label and value
+    // do not both fit puts the value on its own row, and anything still too tall is clipped to the panel rather
+    // than drawn over the world. Every text and swatch box drawn is recorded (legendTextBoxes) so the testkit can
+    // check that no two overlap at any window size or Auto Scale factor.
+
+    private static final int ROW = 10;
+    private static final int PAD = 4;
+    private static final int SECTION_GAP = 3;
+
+    /** One drawn thing on the legend: what it says and the box it occupies, in this screen's coordinates. */
+    private record LegendBox(String text, int x0, int y0, int x1, int y1) {
+    }
+
+    private final List<LegendBox> legendBoxes = new ArrayList<>();
+    /** {x0, y0, x1, y1} of the legend panel, the Controls header and the Reset view row as last drawn; null when
+     *  not drawn. A left click inside the legend acts on these and never reaches the map. */
+    private int[] legendRect;
+    private int[] controlsToggleRect;
+    private int[] resetViewRect;
+
     private void drawLegend(GuiGraphicsExtractor graphics, int[] p, LiveMapConfig cfg) {
+        legendBoxes.clear();
+        legendRect = null;
+        controlsToggleRect = null;
+        resetViewRect = null;
         if (!legendBeside()) {
             return; // too narrow: the map gets the space
         }
-        // killer560, 2026-09-27: "the extra info ... s+ secrets" - only actually drawn once Score Calculator
-        // has a live estimate for this run (same gate that HUD element itself uses), so a blank/disabled
-        // Score Calculator never leaves a half-empty "Extra Info" header with nothing under it.
-        boolean extraInfo = cfg.isShowExtraInfo() && ScoreCalculatorFeature.currentResult() != null;
         int x = p[2] + 8;
         int y = p[1];
-        int h = 12 * 18 + 8 + (extraInfo ? 6 * 10 + 2 : 0);
-        graphics.fill(x, y, x + LEGEND_W, Math.min(height - 4, y + h), PANEL);
-        graphics.outline(x - 1, y - 1, LEGEND_W + 2, Math.min(height - 4, y + h) - y + 2, ORANGE);
-        int ty = y + 4;
-        ty = legendHeader(graphics, "Rooms", x, ty);
-        ty = swatch(graphics, x, ty, cfg.getColorNormal(), "Normal");
-        ty = swatch(graphics, x, ty, cfg.getColorPuzzle(), "Puzzle");
-        ty = swatch(graphics, x, ty, cfg.getColorTrap(), "Trap");
-        ty = swatch(graphics, x, ty, cfg.getColorMiniboss(), "Miniboss");
-        ty = swatch(graphics, x, ty, cfg.getColorRare(), "Rare");
-        ty = swatch(graphics, x, ty, cfg.getColorFairy(), "Fairy");
-        ty = swatch(graphics, x, ty, cfg.getColorBlood(), "Blood");
-        ty = swatch(graphics, x, ty, cfg.getColorEntrance(), "Entrance");
-        ty = legendHeader(graphics, "Doors", x, ty + 2);
-        ty = swatch(graphics, x, ty, cfg.getColorWitherDoor(), "Wither");
-        ty = swatch(graphics, x, ty, cfg.getColorBlood(), "Blood");
-        ty = swatch(graphics, x, ty, 0xFF55FF55, "You");
-        ty = legendHeader(graphics, "Controls", x, ty + 2);
+        int maxBottom = height - 4;
+        boolean expanded = cfg.isMapControlsExpanded();
+        int bottom = layoutLegend(null, x, y, cfg, expanded);
+        if (expanded && bottom > maxBottom) {
+            // Too short a window for the full list: show the two-row hint rather than clip the score off.
+            expanded = false;
+            bottom = layoutLegend(null, x, y, cfg, false);
+        }
+        bottom = Math.min(maxBottom, bottom);
+        graphics.fill(x, y, x + LEGEND_W, bottom, PANEL);
+        graphics.outline(x - 1, y - 1, LEGEND_W + 2, bottom - y + 2, ORANGE);
+        legendRect = new int[]{x, y, x + LEGEND_W, bottom};
+        graphics.enableScissor(x, y, x + LEGEND_W, bottom);
+        try {
+            layoutLegend(graphics, x, y, cfg, expanded);
+        } finally {
+            graphics.disableScissor();
+        }
+    }
+
+    /** Lays the legend out from {@code y}; draws only when {@code g} is non-null. @return the bottom edge. */
+    private int layoutLegend(GuiGraphicsExtractor g, int x, int y, LiveMapConfig cfg, boolean expanded) {
+        int ty = y + PAD;
+        ty = legendHeader(g, "Rooms", null, x, ty);
+        ty = swatchPair(g, x, ty, cfg.getColorNormal(), "Normal", cfg.getColorPuzzle(), "Puzzle");
+        ty = swatchPair(g, x, ty, cfg.getColorTrap(), "Trap", cfg.getColorMiniboss(), "Miniboss");
+        ty = swatchPair(g, x, ty, cfg.getColorRare(), "Rare", cfg.getColorFairy(), "Fairy");
+        ty = swatchPair(g, x, ty, cfg.getColorBlood(), "Blood", cfg.getColorEntrance(), "Entrance");
+        ty = legendHeader(g, "Doors", null, x, ty + SECTION_GAP);
+        ty = swatchPair(g, x, ty, cfg.getColorWitherDoor(), "Wither", cfg.getColorBlood(), "Blood");
+        ty = swatchPair(g, x, ty, 0xFF55FF55, "You", 0, null);
+
+        int headerY = ty + SECTION_GAP;
+        ty = legendHeader(g, "Controls", expanded ? "[-]" : "[+]", x, headerY);
+        if (g != null) {
+            controlsToggleRect = new int[]{x, headerY - 1, x + LEGEND_W, ty - 1};
+        }
         // killer560: "the entire portion of interactive map is the teleport pathing" - this screen only ever
         // exists while Interactive Map (and therefore pathing) is on, so the Start bind always teleports here.
         // The bind's own name is printed rather than "LMB", since it is his to change (2026-09-29: "Remember
         // this isn't a left or right click but based off of my key binds").
         String startName = cfg.getStartKeyCode() == KeyUtil.NONE ? "LMB" : KeyUtil.bindShortName(cfg.getStartKeyCode());
-        ty = control(graphics, x, ty, startName, "Go / retarget");
-        if (cfg.isMapDoublePressStartNode()) {
-            ty = control(graphics, x, ty, "x2", "Start node");
+        String pan = "Drag " + panButtonsName();
+        if (expanded) {
+            ty = control(g, x, ty, startName, "Go / retarget");
+            if (cfg.isMapDoublePressStartNode()) {
+                ty = control(g, x, ty, "x2", "Start node");
+            }
+            if (cfg.getGoSecretKeyCode() != KeyUtil.NONE) {
+                ty = control(g, x, ty, KeyUtil.bindShortName(cfg.getGoSecretKeyCode()), "Go + secret");
+            }
+            if (cfg.getLockedDoorKeyCode() != KeyUtil.NONE) {
+                ty = control(g, x, ty, KeyUtil.bindShortName(cfg.getLockedDoorKeyCode()), "Locked door");
+            }
+            ty = control(g, x, ty, "Scroll", "Zoom");
+            ty = control(g, x, ty, pan, "Pan");
+            if (!isAnyBind(cfg, 2)) {
+                ty = control(g, x, ty, "MMB", "Reset view");
+            }
+        } else {
+            ty = control(g, x, ty, startName, "Go");
+            ty = control(g, x, ty, pan, "Pan");
         }
-        if (cfg.getGoSecretKeyCode() != KeyUtil.NONE) {
-            ty = control(graphics, x, ty, KeyUtil.bindShortName(cfg.getGoSecretKeyCode()), "Go + secret");
+        if (viewMoved()) {
+            int rowY = ty;
+            ty = text(g, "Reset view", x + PAD, ty, LIGHT_ORANGE);
+            if (g != null) {
+                resetViewRect = new int[]{x, rowY - 1, x + LEGEND_W, ty - 1};
+            }
         }
-        if (cfg.getLockedDoorKeyCode() != KeyUtil.NONE) {
-            ty = control(graphics, x, ty, KeyUtil.bindShortName(cfg.getLockedDoorKeyCode()), "Locked door");
-        }
-        ty = control(graphics, x, ty, "Scroll", "Zoom");
-        ty = control(graphics, x, ty, "Drag", "Pan");
-        ty = control(graphics, x, ty, "MMB", "Reset view");
         if (BloodRush.isRunning()) {
-            graphics.text(font, "Blood Rush", x + 4, ty + 2, 0xFFFF5555, false);
+            ty = text(g, "Blood Rush", x + PAD, ty + 2, BAD);
         }
-        if (extraInfo) {
-            ty = legendHeader(graphics, "Extra Info", x, ty + 2);
-            ty = infoRow(graphics, x, ty, "Crypts", ScoreCalculatorFeature.getCrypts() + "/5", TEXT);
-            ty = infoRow(graphics, x, ty, "Bat", ScoreCalculatorFeature.isBatKilled() ? "✔" : "✘",
-                    ScoreCalculatorFeature.isBatKilled() ? GOOD : BAD);
-            ty = infoRow(graphics, x, ty, "Mimic", ScoreCalculatorFeature.isMimicKilled() ? "✔" : "✘",
-                    ScoreCalculatorFeature.isMimicKilled() ? GOOD : BAD);
-            ty = infoRow(graphics, x, ty, "Prince", ScoreCalculatorFeature.isPrinceKilled() ? "✔" : "✘",
-                    ScoreCalculatorFeature.isPrinceKilled() ? GOOD : BAD);
+        // killer560, 2026-09-27: "the extra info ... s+ secrets" - only actually drawn once Score Calculator
+        // has a live estimate for this run (same gate that HUD element itself uses), so a blank/disabled
+        // Score Calculator never leaves a half-empty "Extra Info" header with nothing under it.
+        if (cfg.isShowExtraInfo() && ScoreCalculatorFeature.currentResult() != null) {
+            ty = legendHeader(g, "Extra Info", null, x, ty + SECTION_GAP);
+            ty = infoRow(g, x, ty, "Crypts", ScoreCalculatorFeature.getCrypts() + "/5", TEXT);
+            ty = flagsRow(g, x, ty, new String[]{"Bat", "Mimic", "Prince"}, new boolean[]{
+                    ScoreCalculatorFeature.isBatKilled(), ScoreCalculatorFeature.isMimicKilled(),
+                    ScoreCalculatorFeature.isPrinceKilled()});
             // killer560, 2026-09-27: "s+ secrets assuming the current amount of crypts/status of the other
             // things, not that they are done but as is. Then it needs to assume all rooms are cleared." -
             // exactly what ScoreCalculator.calculate()'s own secretsNeeded already computes (see its doc);
             // this reuses that one live number instead of a second copy of the formula.
-            ty = infoRow(graphics, x, ty, "S+ Secrets", ScoreCalculatorFeature.secretsNeededSummary(), LIGHT_ORANGE);
+            ty = infoRow(g, x, ty, "S+ Secrets", ScoreCalculatorFeature.secretsNeededSummary(), LIGHT_ORANGE);
         }
+        return ty + PAD - 2;
     }
 
-    /** One "label ... value" row of the Extra Info section, right-aligned like the map's own hover tooltips. */
-    private int infoRow(GuiGraphicsExtractor graphics, int x, int y, String label, String value, int valueColor) {
-        graphics.text(font, label, x + 4, y, DIM, false);
-        graphics.text(font, value, x + LEGEND_W - 4 - font.width(value), y, valueColor, false);
-        return y + 10;
+    /** The mouse buttons that pan when dragged: every button except the left one and the Start bind's. */
+    private static boolean pans(int button) {
+        LiveMapConfig cfg = LiveMapConfig.getInstance();
+        return button != 0 && !isBind(cfg.getStartKeyCode(), button);
     }
 
-    private int legendHeader(GuiGraphicsExtractor graphics, String text, int x, int y) {
-        graphics.text(font, text, x + 4, y, ORANGE, false);
-        return y + 11;
+    private static String panButtonsName() {
+        boolean right = pans(1);
+        boolean middle = pans(2);
+        return right && middle ? "RMB/MMB" : right ? "RMB" : middle ? "MMB" : "mouse";
     }
 
-    private int swatch(GuiGraphicsExtractor graphics, int x, int y, int color, String label) {
-        graphics.fill(x + 4, y, x + 12, y + 8, color);
-        graphics.outline(x + 4, y, 8, 8, 0xFF303030);
-        graphics.text(font, label, x + 16, y, TEXT, false);
-        return y + 10;
+    private static boolean isAnyBind(LiveMapConfig cfg, int button) {
+        return isBind(cfg.getStartKeyCode(), button) || isBind(cfg.getGoSecretKeyCode(), button)
+                || isBind(cfg.getLockedDoorKeyCode(), button);
     }
 
-    private int control(GuiGraphicsExtractor graphics, int x, int y, String key, String action) {
-        graphics.text(font, key, x + 4, y, LIGHT_ORANGE, false);
-        // The key column used to be a fixed 38px, which was fine while every entry was "LMB"/"Scroll" but runs
-        // into the action as soon as a bind prints its own name ("Left Shift"). Push the action across instead,
-        // and keep the pair inside the panel.
-        int actionX = Math.max(x + 42, x + 8 + font.width(key));
-        actionX = Math.min(actionX, x + LEGEND_W - 4 - font.width(action));
-        graphics.text(font, action, actionX, y, TEXT, false);
-        return y + 10;
+    private boolean viewMoved() {
+        return zoom != 1f || panX != 0f || panY != 0f;
+    }
+
+    private void resetView() {
+        zoom = 1f;
+        panX = 0f;
+        panY = 0f;
+    }
+
+    /** One line of text at {@code (x, y)}, recorded. @return the next row's y. */
+    private int text(GuiGraphicsExtractor g, String s, int x, int y, int color) {
+        if (g != null) {
+            g.text(font, s, x, y, color, false);
+            legendBoxes.add(new LegendBox(s, x, y, x + font.width(s), y + font.lineHeight - 1));
+        }
+        return y + ROW;
+    }
+
+    private int legendHeader(GuiGraphicsExtractor g, String label, String right, int x, int y) {
+        text(g, label, x + PAD, y, ORANGE);
+        if (right != null) {
+            text(g, right, x + LEGEND_W - PAD - font.width(right), y, DIM);
+        }
+        return y + ROW + 1;
+    }
+
+    /** Two room swatches side by side; {@code label2} null for a single one. */
+    private int swatchPair(GuiGraphicsExtractor g, int x, int y, int c1, String label1, int c2, String label2) {
+        swatchAt(g, x + PAD, y, c1, label1, LEGEND_W / 2 - PAD - 2);
+        if (label2 != null) {
+            swatchAt(g, x + LEGEND_W / 2 + 1, y, c2, label2, LEGEND_W / 2 - PAD - 1);
+        }
+        return y + ROW;
+    }
+
+    private void swatchAt(GuiGraphicsExtractor g, int x, int y, int color, String label, int width) {
+        if (g == null) {
+            return;
+        }
+        g.fill(x, y, x + 7, y + 7, color);
+        g.outline(x, y, 7, 7, 0xFF303030);
+        legendBoxes.add(new LegendBox("swatch " + label, x, y, x + 7, y + 7));
+        text(g, fit(label, width - 10), x + 10, y, TEXT);
+    }
+
+    private int control(GuiGraphicsExtractor g, int x, int y, String key, String action) {
+        // Key left, action right-aligned; a long bind name ("Left Shift") is shortened rather than run into the
+        // action, so the pair always stays inside the panel and never overlaps.
+        int inner = LEGEND_W - 2 * PAD;
+        int actionW = font.width(action);
+        String k = fit(key, inner - actionW - 4);
+        text(g, k, x + PAD, y, LIGHT_ORANGE);
+        text(g, action, x + LEGEND_W - PAD - actionW, y, TEXT);
+        return y + ROW;
+    }
+
+    /** One "label ... value" row, value right-aligned; a value that cannot share the row gets its own. */
+    private int infoRow(GuiGraphicsExtractor g, int x, int y, String label, String value, int valueColor) {
+        int inner = LEGEND_W - 2 * PAD;
+        text(g, label, x + PAD, y, DIM);
+        if (font.width(label) + 6 + font.width(value) > inner) {
+            y += ROW;
+            value = fit(value, inner);
+        }
+        text(g, value, x + LEGEND_W - PAD - font.width(value), y, valueColor);
+        return y + ROW;
+    }
+
+    /** "Bat ✔  Mimic ✘  Prince ✘" on one row when it fits, one row each when it does not. */
+    private int flagsRow(GuiGraphicsExtractor g, int x, int y, String[] labels, boolean[] done) {
+        int inner = LEGEND_W - 2 * PAD;
+        int total = 0;
+        for (int i = 0; i < labels.length; i++) {
+            total += font.width(labels[i]) + 2 + font.width(done[i] ? "✔" : "✘") + (i > 0 ? 6 : 0);
+        }
+        if (total > inner) {
+            for (int i = 0; i < labels.length; i++) {
+                y = infoRow(g, x, y, labels[i], done[i] ? "✔" : "✘", done[i] ? GOOD : BAD);
+            }
+            return y;
+        }
+        int cx = x + PAD;
+        for (int i = 0; i < labels.length; i++) {
+            String mark = done[i] ? "✔" : "✘";
+            text(g, labels[i], cx, y, DIM);
+            cx += font.width(labels[i]) + 2;
+            text(g, mark, cx, y, done[i] ? GOOD : BAD);
+            cx += font.width(mark) + 6;
+        }
+        return y + ROW;
+    }
+
+    /** {@code s}, cut down with ".." until it is at most {@code max} wide. */
+    private String fit(String s, int max) {
+        if (font.width(s) <= max) {
+            return s;
+        }
+        String t = s;
+        while (!t.isEmpty() && font.width(t + "..") > max) {
+            t = t.substring(0, t.length() - 1);
+        }
+        return t + "..";
+    }
+
+    /** Test hook (testkit, no-overlap check): every legend text/swatch box from the last frame, one
+     *  {@code "text|x0|y0|x1|y1"} string each, in this screen's own (Auto Scaled) coordinates. */
+    public List<String> legendTextBoxes() {
+        List<String> out = new ArrayList<>(legendBoxes.size() + 1);
+        for (LegendBox b : legendBoxes) {
+            out.add(b.text() + "|" + b.x0() + "|" + b.y0() + "|" + b.x1() + "|" + b.y1());
+        }
+        return out;
+    }
+
+    /** Test hook: the legend panel's {x0, y0, x1, y1} as last drawn, or null. */
+    public int[] legendPanelRect() {
+        return legendRect == null ? null : legendRect.clone();
+    }
+
+    /** Test hook: {zoom, panX, panY}. */
+    public float[] viewState() {
+        return new float[]{zoom, panX, panY};
     }
 
     // ------------------------------------------------------------------------------------------- input
+    //
+    // killer560 (2026-10-05): "in interactive map if i hold left click and drag around it moves the map and it
+    // shouldnt." The left button is Go / retarget and nothing else: a left press always acts on release, however
+    // far the cursor moved, and never pans. Panning is a drag with any OTHER button (right or middle, minus
+    // whichever one is his Start bind). A press with one of those that moves less than DRAG_THRESHOLD is still a
+    // click and keeps its action (Locked door, Go + secret, Reset view); one that moves further only pans.
+
+    private static final double DRAG_THRESHOLD = 4.0;
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
@@ -461,13 +642,15 @@ public class InteractiveMapScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-        if (pressButton == 0) {
-            if (!dragMoved && Math.hypot(event.x() - pressX, event.y() - pressY) > 3) {
-                dragMoved = true;
-            }
-            if (dragMoved) {
-                panX += (float) dragX;
-                panY += (float) dragY;
+        if (pressButton >= 0 && event.button() == pressButton) {
+            if (pans(pressButton)) {
+                if (!dragMoved && Math.hypot(event.x() - pressX, event.y() - pressY) > DRAG_THRESHOLD) {
+                    dragMoved = true;
+                }
+                if (dragMoved) {
+                    panX += (float) dragX;
+                    panY += (float) dragY;
+                }
             }
             return true;
         }
@@ -477,14 +660,34 @@ public class InteractiveMapScreen extends Screen {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         if (event.button() == pressButton) {
-            if (!dragMoved) {
-                onClick(event.button(), event.x(), event.y());
-            }
+            boolean panned = dragMoved;
             pressButton = -1;
             dragMoved = false;
+            if (!panned) {
+                if (event.button() == 0 && legendClick(event.x(), event.y())) {
+                    return true;
+                }
+                onClick(event.button(), event.x(), event.y());
+            }
             return true;
         }
         return super.mouseReleased(event);
+    }
+
+    /** A left click on the legend: the Controls header toggles the list, Reset view resets. Any other spot on the
+     *  legend does nothing - it is not the map, so it must not start the current room's route either. */
+    private boolean legendClick(double mx, double my) {
+        if (legendRect == null || !inside(legendRect, mx, my)) {
+            return false;
+        }
+        if (controlsToggleRect != null && inside(controlsToggleRect, mx, my)) {
+            LiveMapConfig cfg = LiveMapConfig.getInstance();
+            cfg.setMapControlsExpanded(!cfg.isMapControlsExpanded());
+            cfg.save();
+        } else if (resetViewRect != null && inside(resetViewRect, mx, my)) {
+            resetView();
+        }
+        return true;
     }
 
     @Override
@@ -530,9 +733,7 @@ public class InteractiveMapScreen extends Screen {
             return;
         }
         if (button == 2) {
-            zoom = 1f;
-            panX = 0f;
-            panY = 0f;
+            resetView();
         }
         // Anything else does nothing. The right-click "toggle this room's waypoints" is gone - killer560
         // (2026-09-27): "Remove the hardcoded. The toggle waypoint shouldn't exist." Secret waypoints are their

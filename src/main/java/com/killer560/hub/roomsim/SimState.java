@@ -62,6 +62,18 @@ public final class SimState {
         com.killer560.hub.secrets.DungeonState.setRoomSim(true);
     }
 
+    /**
+     * Swaps the map code for a rebuild that happens without reopening the world.
+     *
+     * <p>{@link #enter} only runs on a world load, and {@code SimWorld.open}'s "already in the sim" shortcut
+     * skips that. Until 2026-10-05 that shortcut left the PREVIOUS floor's code here, so {@link #roomNameAt} -
+     * the trap-room ability rule, the sidebar's "Room:" line, the tab list - answered from the old floor: he
+     * stood in Atlas and was told "No abilities in a trap room", stood in Museum and the sidebar said Atlas.
+     */
+    public static void replaceMapCode(String code) {
+        mapCode = code == null ? "" : code;
+    }
+
     public static void leave() {
         generatedFloor = false;
         SimWitherDoors.clear();
