@@ -34,18 +34,43 @@ public final class FeatureGuard {
 
     private static final Map<String, Integer> FAILURES = new ConcurrentHashMap<>();
     private static final Set<String> DISABLED = ConcurrentHashMap.newKeySet();
+    /** Set once anything is ever disabled, so the per-tick check is a field read until then. Never cleared by
+     *  {@link #reset}: a stale true only costs the set lookup it replaced. */
+    private static volatile boolean anyDisabled;
 
     private FeatureGuard() {
     }
 
     /** Wraps a START_CLIENT_TICK handler. {@code name} is what the user will see if it has to be disabled. */
     public static ClientTickEvents.StartTick start(String name, ClientTickEvents.StartTick handler) {
-        return client -> run(name, () -> handler.onStartTick(client));
+        // The try is written out here rather than wrapping the handler in a Runnable for a shared run(): that
+        // allocated a capturing lambda per handler per tick and put a second megamorphic call in front of every
+        // one of the ~150 guarded handlers (95-fps-bench JFR, 2026-10-05: about 2% of render-thread samples sat
+        // in the wrapper itself).
+        return client -> {
+            if (anyDisabled && DISABLED.contains(name)) {
+                return;
+            }
+            try {
+                handler.onStartTick(client);
+            } catch (Throwable t) {
+                failed(name, t);
+            }
+        };
     }
 
     /** Wraps an END_CLIENT_TICK handler. */
     public static ClientTickEvents.EndTick end(String name, ClientTickEvents.EndTick handler) {
-        return client -> run(name, () -> handler.onEndTick(client));
+        return client -> {
+            if (anyDisabled && DISABLED.contains(name)) {
+                return;
+            }
+            try {
+                handler.onEndTick(client);
+            } catch (Throwable t) {
+                failed(name, t);
+            }
+        };
     }
 
     /**
@@ -122,25 +147,20 @@ public final class FeatureGuard {
         return FAILURES.merge(name, 1, Integer::sum);
     }
 
-    private static void run(String name, Runnable body) {
-        if (DISABLED.contains(name)) {
-            return;
+    /** Logs, announces and (at {@link #MAX_FAILURES}) disables a guarded handler that threw. */
+    private static void failed(String name, Throwable t) {
+        int count = countFailure(name);
+        LOGGER.error("[{}] threw on tick (failure {} of {})", name, count, MAX_FAILURES, t);
+        if (count == 1) {
+            notifyUser("§e" + name + " just errored - it will be switched off if it keeps happening. "
+                    + "Please send a bug report.");
         }
-        try {
-            body.run();
-        } catch (Throwable t) {
-            int count = countFailure(name);
-            LOGGER.error("[{}] threw on tick (failure {} of {})", name, count, MAX_FAILURES, t);
-            if (count == 1) {
-                notifyUser("§e" + name + " just errored - it will be switched off if it keeps happening. "
-                        + "Please send a bug report.");
-            }
-            if (count >= MAX_FAILURES) {
-                DISABLED.add(name);
-                notifyUser("§c" + name + " has been switched off for this session after " + MAX_FAILURES
-                        + " errors, so it cannot crash your game. Everything else is still running.");
-                LOGGER.error("[{}] disabled for this session after {} failures", name, MAX_FAILURES);
-            }
+        if (count >= MAX_FAILURES) {
+            DISABLED.add(name);
+            anyDisabled = true;
+            notifyUser("§c" + name + " has been switched off for this session after " + MAX_FAILURES
+                    + " errors, so it cannot crash your game. Everything else is still running.");
+            LOGGER.error("[{}] disabled for this session after {} failures", name, MAX_FAILURES);
         }
     }
 
