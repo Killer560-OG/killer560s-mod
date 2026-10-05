@@ -35,7 +35,10 @@ import java.util.TreeMap;
  * reachable through doors, the cell target met, the room minimum, one blood, one trap, one fairy, and the puzzle
  * count. -Dbloodoffset (default 0) is added to the slider before it is passed in (the generator before 2026-10-04
  * took a blood depth, slider + 1, so its baseline was measured with 1); -Ddump=N
- * prints the first N failing floors.
+ * prints the first N failing floors. -Donly=F7 -Dslider=5 -Dpuzzles=3 narrow the sweep to one combination;
+ * -Dpinroom=Quiz -Dpincell=14 pins that room at that cell (cellZ * 6 + cellX) on every floor, as the Map Designer
+ * does, and -Ddumpdrop=N prints the first N floors that dropped it. "floors that dropped the fixed pin" counts
+ * floors whose generate() left a pin (-Dpin or -Dpinroom) off.
  */
 public final class LayoutSim {
 
@@ -172,6 +175,7 @@ public final class LayoutSim {
             {"E", 11, 19}, {"F1", 13, 22}, {"F2", 15, 26}, {"F3", 16, 27},
             {"F4", 19, 33}, {"F5", 21, 36}, {"F6", 19, 33}, {"F7", 21, 36}};
 
+    private static int DROPPED;
     private static final Map<Integer, Integer> PUZZLE_DIFF = new TreeMap<>();
     private static final Map<String, Integer> PUZZLE_DOORS = new TreeMap<>();
     private static final Map<Integer, Integer> TRAP_DOORS = new TreeMap<>();
@@ -219,7 +223,26 @@ public final class LayoutSim {
                         Map<String, RoomLibrary.Room> usable = capChampions(rooms, rng);
                         SimFloorLayout.Floor f;
                         String pinKind = System.getProperty("pin");
-                        if (pinKind != null) {
+                        String pinRoom = System.getProperty("pinroom");
+                        if (System.getProperty("only") != null && !System.getProperty("only").equals(fname)
+                                || Integer.getInteger("slider", k) != k
+                                || Integer.getInteger("puzzles", puzzles) != puzzles) {
+                            continue;
+                        }
+                        if (pinRoom != null) {
+                            Map<Integer, String> pinned = new HashMap<>();
+                            pinned.put(Integer.getInteger("pincell", 14), pinRoom);
+                            SimFloorLayout.PinnedFloor pf = SimFloorLayout.generate(usable, minRooms, wantCells,
+                                    puzzles, k + offset, pinned, rng);
+                            f = pf.floor();
+                            if (!pf.unusedPins().isEmpty()) {
+                                DROPPED++;
+                                if (DROPPED <= Integer.getInteger("dumpdrop", 0)) {
+                                    System.out.println("DROPPED " + pf.unusedPins());
+                                    dump(f);
+                                }
+                            }
+                        } else if (pinKind != null) {
                             // -Dpin=normal|fairy|blood: one room of that kind pinned at a random cell, as the
                             // Map Designer does when he places a room before pressing Generate.
                             List<String> names = new ArrayList<>();
@@ -231,8 +254,12 @@ public final class LayoutSim {
                             }
                             Map<Integer, String> pinned = new HashMap<>();
                             pinned.put(rng.nextInt(36), names.get(rng.nextInt(names.size())));
-                            f = SimFloorLayout.generate(usable, minRooms, wantCells, puzzles, k + offset, pinned,
-                                    rng).floor();
+                            SimFloorLayout.PinnedFloor pf = SimFloorLayout.generate(usable, minRooms, wantCells,
+                                    puzzles, k + offset, pinned, rng);
+                            f = pf.floor();
+                            if (!pf.unusedPins().isEmpty()) {
+                                DROPPED++;
+                            }
                         } else {
                             f = SimFloorLayout.generate(usable, minRooms, wantCells, puzzles, k + offset, rng);
                         }
@@ -287,6 +314,7 @@ public final class LayoutSim {
         System.out.printf("%d floors, %.2f ms a floor, %d warnings logged%n", total,
                 (System.nanoTime() - t0) / 1e6 / total, com.killer560.hub.util.ModLog.warnings - warnBefore);
         System.out.printf("floors failing ANY check: %d (%.2f%%)%n", anyFail, 100.0 * anyFail / total);
+        System.out.println("floors that dropped the fixed pin: " + DROPPED);
         for (int i = 0; i < FAILS.length; i++) {
             System.out.printf("  %-28s %6d (%.2f%%)%n", FAILS[i], fails[i], 100.0 * fails[i] / total);
         }

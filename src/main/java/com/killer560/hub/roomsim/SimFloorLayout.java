@@ -245,6 +245,21 @@ public final class SimFloorLayout {
         return run(usable, minRooms, wantCells, puzzles, roomsToBlood, pinned, rng);
     }
 
+    /**
+     * How many whole floors {@link #run} lays out before settling for the one that misses the fewest of its
+     * exact requirements ({@link #shortfalls}). Each one is the full attempt loop plus the finishing passes.
+     *
+     * <p>killer560 asked for exact floor sizes and an exact "Rooms to blood". The attempt loop scores the GROWTH,
+     * but the finishing passes (trap, fill, puzzles) run after it on the one floor it picked, and they can fall
+     * short with no way back: measured with {@code tools/layoutsim -Dsweep=true} (seed 1, 11,200 floors), 28 F5/F7
+     * floors ended with every one of the 36 cells covered by 20 rooms against a minimum of 21, 10 a puzzle short
+     * and 1 with no trap - nothing can add a room to a full grid. Scenario 73 saw it as "only 20 room(s), wanted
+     * 21" in 2-3 runs of 8 (120 floors a run). A whole floor costs about 3 ms, so laying out another is the cheap,
+     * certain answer; with pins it is 100-250 ms, hence the smaller cap.
+     */
+    private static final int FLOOR_RETRIES = 12;
+    private static final int PINNED_FLOOR_RETRIES = 4;
+
     /** The one attempt loop both {@link #generate} overloads use. {@code pinned} may be null or empty. */
     private static PinnedFloor run(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
                                    int puzzles, int roomsToBlood, Map<Integer, String> pinned, Random rng) {
@@ -252,6 +267,112 @@ public final class SimFloorLayout {
         if (pool.isEmpty()) {
             return null;
         }
+        int tries = pinned == null || pinned.isEmpty() ? FLOOR_RETRIES : PINNED_FLOOR_RETRIES;
+        // Pins refused before any layout (not captured, off the grid, pinned twice) are refused on every try, so
+        // only the ones a LAYOUT dropped count against a floor.
+        int refused = resolvePinsRefused(pinned, usable);
+        PinnedFloor best = null;
+        int bestMissed = Integer.MAX_VALUE;
+        for (int t = 0; t < tries; t++) {
+            PinnedFloor out = runOnce(pool, usable, minRooms, wantCells, puzzles, roomsToBlood, pinned, rng);
+            if (out == null) {
+                continue;
+            }
+            List<String> missed = shortfalls(out.floor(), pool, minRooms, wantCells, puzzles, roomsToBlood,
+                    out.honouredPins());
+            int dropped = Math.max(0, out.unusedPins().size() - refused);
+            if (dropped > 0) {
+                missed.add(dropped + " pinned room(s) dropped");
+            }
+            // A pin he placed counts for more than any one other requirement.
+            int rank = dropped * 100 + missed.size();
+            if (rank < bestMissed) {
+                bestMissed = rank;
+                best = out;
+            }
+            if (missed.isEmpty()) {
+                if (t > 0) {
+                    LOGGER.info("Sim floor: exact on whole floor {} of {}", t + 1, tries);
+                }
+                break;
+            }
+            LOGGER.info("Sim floor: whole floor {} of {} missed {}; laying out another", t + 1, tries, missed);
+        }
+        if (best == null) {
+            return null;
+        }
+        if (bestMissed > 0) {
+            LOGGER.warn("Sim floor: no whole floor in {} met every requirement; keeping one that misses {}{}",
+                    tries, shortfalls(best.floor(), pool, minRooms, wantCells, puzzles, roomsToBlood,
+                            best.honouredPins()),
+                    best.unusedPins().size() > refused ? " and drops " + best.unusedPins() : "");
+        }
+        remember(best.floor());
+        return best;
+    }
+
+    /**
+     * What a finished floor misses of what it was asked for, empty when it is exact: the room minimum, the cell
+     * target, the puzzle count, a trap, blood, and the Entrance-to-Blood path - exactly {@code roomsToBlood} rooms
+     * with the Fairy on it, measured through the doors the build writes ({@link #pathToBlood}). A requirement the
+     * room pool itself cannot meet (fewer puzzles captured than asked for, no trap or fairy captured) is not
+     * counted, since no retry could meet it.
+     */
+    private static List<String> shortfalls(Floor floor, List<Candidate> pool, int minRooms, int wantCells, int puzzles,
+                                           int roomsToBlood, List<String> pinnedNames) {
+        List<String> out = new ArrayList<>();
+        int puzzlesInPool = 0;
+        boolean trapInPool = false;
+        boolean fairyInPool = false;
+        for (Candidate c : pool) {
+            puzzlesInPool += "PUZZLE".equalsIgnoreCase(c.type()) && c.area(0) == 1 ? 1 : 0;
+            trapInPool |= isTrap(c.name(), c.type());
+            fairyInPool |= "FAIRY".equalsIgnoreCase(c.type());
+        }
+        int puzzlesOn = 0;
+        int pinnedPuzzles = 0;
+        Set<String> pinnedLower = new HashSet<>();
+        for (String n : pinnedNames) {
+            pinnedLower.add(n.toLowerCase(Locale.ROOT));
+        }
+        for (Placement p : floor.rooms()) {
+            boolean puzzle = "PUZZLE".equalsIgnoreCase(p.type());
+            puzzlesOn += puzzle ? 1 : 0;
+            pinnedPuzzles += puzzle && pinnedLower.contains(p.name().toLowerCase(Locale.ROOT)) ? 1 : 0;
+        }
+        if (floor.rooms().size() < minRooms) {
+            out.add(floor.rooms().size() + " of " + minRooms + " rooms");
+        }
+        if (cellsOf(floor) < Math.min(wantCells, GRID * GRID)) {
+            out.add(cellsOf(floor) + " of " + Math.min(wantCells, GRID * GRID) + " cells");
+        }
+        // More puzzles pinned than the slider asks for is his choice, and the floor has exactly those.
+        if (puzzlesOn != Math.max(pinnedPuzzles, Math.min(puzzles, puzzlesInPool))) {
+            out.add(puzzlesOn + " of " + puzzles + " puzzles");
+        }
+        if (trapInPool && !hasTrap(floor)) {
+            out.add("no trap");
+        }
+        int[] path = pathToBlood(floor);
+        if (path[0] < 0) {
+            out.add("no way to blood");
+        } else if (path[0] != roomsToBlood || (fairyInPool && path[1] == 0)) {
+            out.add(path[0] + " of " + roomsToBlood + " rooms to blood, fairy " + (path[1] == 1 ? "on" : "off"));
+        }
+        return out;
+    }
+
+    /** How many of his pins {@link #resolvePins} refuses outright, before any layout - the same every try. */
+    private static int resolvePinsRefused(Map<Integer, String> pinned, Map<String, RoomLibrary.Room> usable) {
+        List<String> refused = new ArrayList<>();
+        resolvePins(pinned, usable, refused);
+        return refused.size();
+    }
+
+    /** One whole floor: the attempt loop, the pins' second pass, and the finishing passes. */
+    private static PinnedFloor runOnce(List<Candidate> pool, Map<String, RoomLibrary.Room> usable, int minRooms,
+                                       int wantCells, int puzzles, int roomsToBlood, Map<Integer, String> pinned,
+                                       Random rng) {
         List<String> rejected = new ArrayList<>();
         List<Pin> pins = resolvePins(pinned, usable, rejected);
         Grown best = attemptLoop(pool, minRooms, wantCells, puzzles, roomsToBlood, pins, rng);
@@ -267,10 +388,33 @@ public final class SimFloorLayout {
         // unreachable pin dragged the median F7 from 36 cells to 34 and the worst case to 26. Once every one of
         // the {@link #PINNED_ATTEMPTS} attempts has failed on the same room, the honest thing is to lay the
         // floor out again as if he had not placed it, and tell him it was dropped.
-        if (!best.unusedNames().isEmpty()) {
+        // A pinned FAIRY or BLOOD is the path's goal. When no attempt could lay a path of his length to it (the
+        // attempt loop fell back to the approximate growth, which lays no spine), keeping it would cost the exact
+        // "Rooms to blood" and the fairy on the path; that pin is the one laid out again without. Until 2026-10-05
+        // that happened by accident - a fallback floor charged a dropped pin only five cells, so it usually dropped
+        // it - and the dropped-pin weight going up (see attemptLoop) made it explicit: measured with tools/layoutsim
+        // -Dpin=fairy, 60 of 1,120 floors kept the fairy with the path wrong until this went in.
+        List<String> goalNames = new ArrayList<>();
+        List<String> goalNotes = new ArrayList<>();
+        if (best.floor().spine() == null || best.floor().spine().isEmpty()) {
+            for (Pin p : pins) {
+                String t = p.candidate().type();
+                if (("FAIRY".equalsIgnoreCase(t) || "BLOOD".equalsIgnoreCase(t))
+                        && !best.unusedNames().contains(p.name())) {
+                    goalNames.add(p.name());
+                    goalNotes.add(p.name() + " - no path of " + roomsToBlood + " room(s) to blood reaches it at cell "
+                            + p.cellX() + "," + p.cellZ());
+                }
+            }
+        }
+        if (!best.unusedNames().isEmpty() || !goalNames.isEmpty()) {
             unused.addAll(best.unusedNotes());
+            unused.addAll(goalNotes);
             Set<String> hopeless = new HashSet<>();
             for (String n : best.unusedNames()) {
+                hopeless.add(n.toLowerCase(Locale.ROOT));
+            }
+            for (String n : goalNames) {
                 hopeless.add(n.toLowerCase(Locale.ROOT));
             }
             List<Pin> keep = new ArrayList<>();
@@ -301,7 +445,6 @@ public final class SimFloorLayout {
                 LOGGER.warn("Sim floor: no trap room could be fitted anywhere on this floor");
             }
         }
-        remember(floor);
         return new PinnedFloor(floor, best.reached(), unused);
     }
 
@@ -446,6 +589,7 @@ public final class SimFloorLayout {
             return floor;
         }
         Filler f = new Filler(floor, pool, puzzles, pinnedNames, rng);
+        f.minRooms = minRooms;
         int strict = 0;
         int rewired = 0;
         int carved = 0;
@@ -494,6 +638,8 @@ public final class SimFloorLayout {
         java.util.function.Predicate<Candidate> only;
         int puzzlesOwed;
         int filled;
+        /** The floor's room minimum, for {@link #maxArea}; 0 (no cap) outside {@link #fillGaps}. */
+        int minRooms;
 
         Filler(Floor floor, List<Candidate> pool, int puzzles, List<String> pinnedNames, Random rng) {
             puzzlesOwed = puzzles;
@@ -549,6 +695,23 @@ public final class SimFloorLayout {
                     && !(trapOnFloor && isTrap(c.name(), c.type()));
         }
 
+        /**
+         * The biggest room the fill may put in now: while the floor still owes rooms, one that leaves a free cell
+         * for each room still owed after it - the growth's own cap (see {@link #choose}). Without it a 2x2 could
+         * take the last four free cells of a floor two rooms short, and nothing adds a room to a full grid.
+         */
+        private int maxArea() {
+            int owed = minRooms - rooms.size();
+            if (owed <= 0) {
+                return Integer.MAX_VALUE;
+            }
+            int free = 0;
+            for (int o : occupied) {
+                free += o < 0 ? 1 : 0;
+            }
+            return Math.max(1, free - (owed - 1));
+        }
+
         private Placement at(int x, int z) {
             if (x < 0 || z < 0 || x >= GRID || z >= GRID || occupied[z * GRID + x] < 0) {
                 return null;
@@ -570,6 +733,9 @@ public final class SimFloorLayout {
                     }
                     for (int r = 0; r < 4; r++) {
                         RoomDoors.Mask m = c.byRotation()[r];
+                        if (c.area(r) > maxArea()) {
+                            continue;
+                        }
                         for (int ox = cx - m.tilesX() + 1; ox <= cx; ox++) {
                             for (int oz = cz - m.tilesZ() + 1; oz <= cz; oz++) {
                                 if (fits(occupied, ox, oz, m.tilesX(), m.tilesZ())
@@ -1141,12 +1307,14 @@ public final class SimFloorLayout {
             // one thing scenario 73 asserts about the size. Then cells filled, which is the point of the
             // target; then rooms; then fewest doorways left to brick up.
             //
-            // A DROPPED PIN COSTS five cells' worth, not a rank of its own. Ranking "every pin kept" above the
-            // cell count looks right and is not: a two-room floor that happens to hold his rooms then beat a
-            // full one that had to leave one out, and that is what the generator returned - 5% of the cell
-            // target on 14 of 200 floors, measured. A pin's cells are counted as filled while it sits there,
-            // so dropping one already shows up as a hole in the coverage; this is the extra nudge, not the
-            // whole preference. With no pins the term is zero and the ranking is what it always was.
+            // A DROPPED PIN ranks under blood, the trap and the room minimum, and ABOVE the cell count. Above
+            // everything, a two-room floor that happened to hold his rooms beat a full one (5% of the cell target
+            // on 14 of 200 floors, measured when the room minimum did not outrank it). At five cells' worth, as it
+            // was until 2026-10-05, a full floor WITHOUT his room beat one that kept it with a few cells to go -
+            // and run() then laid the floor out again without the pin, so Generate replaced the room he had
+            // placed although a quarter of the attempts had kept it (testkit 83 "a hand-placed room was replaced
+            // by Generate", 2 of 5 runs; tools/layoutsim with Quiz pinned in the middle of an F7: 19 of 200).
+            // The cells an attempt is short are what the fill pass is for. With no pins the term is zero.
             // A TRAP ranks just under blood. killer560 (2026-10-04): "It should always have new or old trap on
             // every map generated." A floor without one is only kept when no attempt managed one, and then
             // ensureTrap below swaps one in after the fact.
@@ -1155,7 +1323,7 @@ public final class SimFloorLayout {
                     + (trapOk ? 2_000_000 : 0)
                     + (floor.rooms().size() >= minRooms ? 500_000 : 0)
                     + cellsOf(floor) * 1000
-                    - grown.unusedNames().size() * 5_000
+                    - grown.unusedNames().size() * 100_000
                     + floor.rooms().size() * 5
                     - floor.openDoors().size();
             if (score > bestScore) {
@@ -1644,6 +1812,12 @@ public final class SimFloorLayout {
             parentOf.add(-1);   // a pin is a root until something reaches it
             RoomDoors.Mask pm = p.candidate().byRotation()[pinRotation[i]];
             filled += pm.tilesX() * pm.tilesZ();
+            // A puzzle he pinned IS one of the slider's puzzles - ensurePuzzles, the fill pass and the designer's
+            // status line all count it - so the growth owes one fewer. Without this a floor that kept a pinned
+            // puzzle came out one puzzle over the slider (93 of 200 F7s with Quiz pinned, tools/layoutsim).
+            if ("PUZZLE".equalsIgnoreCase(p.candidate().type())) {
+                puzzlesLeft--;
+            }
             if ("ENTRANCE".equalsIgnoreCase(p.candidate().type()) && entrancePin < 0) {
                 entrancePin = idx;   // his own entrance cell is the seed, not a random edge
                 entranceIdx = idx;
