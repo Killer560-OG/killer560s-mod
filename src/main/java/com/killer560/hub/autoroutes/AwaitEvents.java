@@ -76,6 +76,9 @@ public final class AwaitEvents {
     private static int mimicArmedAt;
     /** The tick the watched mimic was seen dying, or -1. */
     private static int mimicKilledAt = -1;
+    /** Baby zombies that already existed when the trapped chest was clicked - not its mimic (one still dying from the
+     *  last mimic, a chest or two away, read as this one's death in the first test run). */
+    private static final Set<Integer> zombiesBefore = new HashSet<>();
 
     private static boolean registered;
 
@@ -201,7 +204,8 @@ public final class AwaitEvents {
         Vec3 c = Vec3.atCenterOf(mimicChest);
         for (Entity e : client.level.entitiesForRendering()) {
             // The score calculator's mimic: a baby zombie dying (Odin Mimic.kt) - here, next to the chest we opened.
-            if (e instanceof Zombie z && z.isBaby() && z.isDeadOrDying() && z.position().distanceTo(c) <= MIMIC_RANGE) {
+            if (e instanceof Zombie z && z.isBaby() && z.isDeadOrDying() && !zombiesBefore.contains(z.getId())
+                    && z.position().distanceTo(c) <= MIMIC_RANGE) {
                 mimicKilledAt = ticks;
                 BlockPos at = mimicChest;
                 mimicChest = null;
@@ -231,6 +235,12 @@ public final class AwaitEvents {
             mimicChest = pos.immutable();
             mimicArmedAt = ticks;
             mimicKilledAt = -1;
+            zombiesBefore.clear();
+            for (Entity e : client.level.entitiesForRendering()) {
+                if (e instanceof Zombie z && z.isBaby()) {
+                    zombiesBefore.add(z.getId());
+                }
+            }
             LOGGER.info("[AutoRoutes] Trapped chest at {} clicked - watching for its mimic", pos.toShortString());
             MimicKiller.onTrappedChestClicked(client, pos.immutable());
             return;
