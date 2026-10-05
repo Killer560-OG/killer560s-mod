@@ -610,7 +610,7 @@ public final class SimItems {
                 return true;
             }
             if (openedCrypt) {
-                SimScore.cryptBlown();
+                // The crypt point comes when its undead DIES (SimMobs.spawnCrypt), as Hypixel's "Crypts: N" does.
                 // The zombie that is standing in the crypt. killer560 (2026-09-29): "It should break crypts
                 // and have the zombie spawn."
                 // BEHIND the wall, in the chamber. above() put it inside the stonework, where it either
@@ -619,16 +619,13 @@ public final class SimItems {
                 // A slab crypt's chamber is under its lid, whichever way he was facing when he threw it.
                 // NOT starred. killer560 (2026-10-04): "Spawned crypts shouldn't be starred." A crypt's zombie is
                 // an ordinary undead with no star tag - it does not count toward a clear.
-                SimMobs.spawn(client, slabCrypt ? cryptAt.below() : cryptAt.relative(face.getOpposite()),
-                        SimMobs.Kind.ZOMBIE);
+                SimMobs.spawnCrypt(client, slabCrypt ? cryptAt.below() : cryptAt.relative(face.getOpposite()), false);
             }
             if (princeAt != null) {
                 boolean scored = SimPrince.takeScore();
-                if (scored) {
-                    SimScore.cryptBlown();
-                }
-                // The golden crypt is a crypt too, so the same rule: no star tag.
-                SimMobs.spawn(client, princeAt.above(), SimMobs.Kind.ZOMBIE);
+                // The golden crypt is a crypt too, so the same rule: no star tag. Its point, and Hypixel's
+                // "A Prince falls. +1 Bonus Score", come when this zombie dies (SimMobs.spawnCrypt).
+                SimMobs.spawnCrypt(client, princeAt.above(), scored);
                 client.execute(() -> ModChat.send("Sim", ModChat.text("You opened the "),
                         ModChat.value("prince"), scored ? ModChat.text("") : ModChat.dim(" (no score - "
                                 + "the run has already had its prince point)")));

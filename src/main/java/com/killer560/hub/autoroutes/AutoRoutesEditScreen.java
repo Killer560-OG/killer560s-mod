@@ -14,6 +14,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
 
@@ -62,7 +63,8 @@ public class AutoRoutesEditScreen extends Screen {
 
     /** The five {@code /ar add} types, in killer560's order. */
     private static final RouteNode.Type[] TYPES = {RouteNode.Type.BOOM, RouteNode.Type.DUNGEON_BREAKER,
-            RouteNode.Type.ETHERWARP, RouteNode.Type.USE_ITEM, RouteNode.Type.WALK, RouteNode.Type.PATH};
+            RouteNode.Type.ETHERWARP, RouteNode.Type.USE_ITEM, RouteNode.Type.WALK, RouteNode.Type.PATH,
+            RouteNode.Type.CRYPT};
     /** The Await Secrets dropdown's choices; 0 is "no await". */
     private static final int AWAIT_MAX = 4;
 
@@ -117,7 +119,8 @@ public class AutoRoutesEditScreen extends Screen {
     }
 
     private static boolean aims(RouteNode.Type t) {
-        return t == RouteNode.Type.ETHERWARP || t == RouteNode.Type.USE_ITEM || t == RouteNode.Type.WALK;
+        return t == RouteNode.Type.ETHERWARP || t == RouteNode.Type.USE_ITEM || t == RouteNode.Type.WALK
+                || t == RouteNode.Type.CRYPT;
     }
 
     @Override
@@ -290,6 +293,10 @@ public class AutoRoutesEditScreen extends Screen {
         EditBox box = new EditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(label));
         box.setMaxLength(label.equals("Item") ? RouteStore.MAX_ITEM_ID : 32);
         box.setValue(pending.getOrDefault(label, ""));
+        if (label.equals("Item")) {
+            // An empty Item is a node of its own: the use clicks the block it looks at with an empty hand.
+            box.setHint(Component.literal("(empty hand - clicks the block)").withStyle(ChatFormatting.GRAY));
+        }
         this.addRenderableWidget(box);
         fields.add(new Field(label, box, labelW > 0 ? x : -1));
     }
@@ -303,9 +310,11 @@ public class AutoRoutesEditScreen extends Screen {
         if (awaitChoice < 0) {
             v = "§7kept (" + node.modifierTag().replace(" [", "").replace("]", "").replace("start, ", "") + ")";
         } else {
-            v = awaitChoice == 0 ? "§7none" : "§6" + awaitChoice + " secret" + (awaitChoice == 1 ? "" : "s");
+            String what = type == RouteNode.Type.CRYPT ? " kill" : " secret";
+            v = awaitChoice == 0 ? "§7none" : "§6" + awaitChoice + what + (awaitChoice == 1 ? "" : "s");
         }
-        return "Await Secrets: " + v + (awaitOpen ? " §7▲" : " §7▼");
+        // A crypt node's await counts crypt / prince kills, never secrets (and every other node's the reverse).
+        return (type == RouteNode.Type.CRYPT ? "Await Crypts: " : "Await Secrets: ") + v + (awaitOpen ? " §7▲" : " §7▼");
     }
 
     private static RouteNode.Type cycleType(RouteNode.Type current) {
@@ -345,11 +354,12 @@ public class AutoRoutesEditScreen extends Screen {
         }
         if (item) {
             String id = ItemIdentity.of(player.getMainHandItem());
+            // Nothing in hand clears it: an empty-hand use node clicks the block it looks at.
+            set("Item", id == null ? "" : id);
             if (id == null) {
-                status = "§cHold the item first.";
+                status = "§7Item: (empty hand - clicks the block) - press Save to apply";
                 return;
             }
-            set("Item", id);
         }
         status = "§7Filled from you - press Save to apply";
     }
@@ -407,12 +417,8 @@ public class AutoRoutesEditScreen extends Screen {
             turned = edited.yaw != node.yaw || edited.pitch != node.pitch;
         }
         if (type == RouteNode.Type.USE_ITEM) {
-            String item = RouteStore.cleanString(get("Item"), RouteStore.MAX_ITEM_ID);
-            if (item == null) {
-                status = "§cA Use Item node needs an item - hold it and press Item from hand.";
-                return false;
-            }
-            edited.item = item;
+            // Blank = an empty-hand node (clicks the block it looks at).
+            edited.item = RouteStore.cleanString(get("Item"), RouteStore.MAX_ITEM_ID);
         }
         edited.start = start;
         if (awaitChoice == 0) {

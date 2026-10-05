@@ -163,6 +163,21 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         y[0] += 24;
         // killer560, 2026-10-05: work while the Interactive Map is open (not while it is warping you).
         toggleCell(w, contentX, y[0], half, "Run While Map Open", cfg::isRunWhileMapOpen, cfg::setRunWhileMapOpen, null);
+        // killer560, 2026-10-05: after he clicks a trapped chest, kill the mimic - Off / Hyperion / Spirit Sceptre.
+        w.add(SettingsButtonWidget.builder(killMimicText(cfg), btn -> {
+                    AutoRoutesConfig.KillMimic[] all = AutoRoutesConfig.KillMimic.values();
+                    cfg.setKillMimic(all[(cfg.getKillMimic().ordinal() + 1) % all.length]);
+                    cfg.save();
+                    btn.setMessage(killMimicText(cfg));
+                }).bounds(contentX + half + GAP, y[0], right, 20).build());
+        y[0] += 24;
+        // killer560, 2026-10-05: what a crypt node attacks with.
+        w.add(SettingsButtonWidget.builder(cryptWeaponText(cfg), btn -> {
+                    AutoRoutesConfig.CryptWeapon[] all = AutoRoutesConfig.CryptWeapon.values();
+                    cfg.setCryptWeapon(all[(cfg.getCryptWeapon().ordinal() + 1) % all.length]);
+                    cfg.save();
+                    btn.setMessage(cryptWeaponText(cfg));
+                }).bounds(contentX, y[0], half, 20).build());
         y[0] += 24;
 
         // killer560, 2026-10-04: "Move the open routes folder near the top" - where AP3 keeps Open AP3 Folder.
@@ -331,6 +346,15 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
 
     private static Component modeText(AutoRoutesConfig cfg) {
         return Component.literal("Mode: " + (cfg.isLegitMode() ? "§aLegit" : "§cObvious"));
+    }
+
+    private static Component killMimicText(AutoRoutesConfig cfg) {
+        AutoRoutesConfig.KillMimic k = cfg.getKillMimic();
+        return Component.literal("Kill Mimic: " + (k == AutoRoutesConfig.KillMimic.OFF ? "§c" : "§a") + k.label());
+    }
+
+    private static Component cryptWeaponText(AutoRoutesConfig cfg) {
+        return Component.literal("Crypt Weapon: §e" + cfg.getCryptWeapon().label());
     }
 
     private static Component styleText(AutoRoutesConfig cfg) {
