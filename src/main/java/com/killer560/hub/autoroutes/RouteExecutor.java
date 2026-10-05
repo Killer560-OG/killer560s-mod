@@ -1549,10 +1549,10 @@ public final class RouteExecutor {
 
     /**
      * A CRYPT node (killer560, 2026-10-05: "it will do the same attacking thing till either a prince or crypt are
-     * killed"): the Crypt Weapon setting's item, aimed where he looked when he placed the node, used and used again
+     * killed"): the Crypt Weapon setting's item, aimed straight down (it explodes, never teleports), used and used again
      * with the interact delay between uses until {@code await:N} (1 without an await) crypt / prince kills of his have
-     * been counted since the node before it finished ({@link AwaitEvents#crypts}) - never a secret. Five seconds with
-     * no kill stops the route.
+     * been counted since the node before it finished ({@link AwaitEvents#crypts}) - never a secret. Crypt Attack Time
+     * without a kill moves the route on to the next node.
      */
     private static void tickCrypt(Minecraft client, LocalPlayer player, RouteNode node) {
         int goal = node.awaitEnabled && node.awaitCondition != RouteNode.AwaitCondition.DELAY
@@ -1568,7 +1568,9 @@ public final class RouteExecutor {
             select(client, player, slot);
             forceSneak = false;
             wantSneak = false;
-            aimAt(node);
+            // STRAIGHT DOWN, always (killer560, 2026-10-05: "looking straight down so that way it doesn't teleport
+            // and just explodes") - the node's own pitch is ignored; its yaw is kept so the camera turns least.
+            aimAt(RouteCoords.toRealYaw(frame, node.yaw), 90f, node);
             step = Step.AIM;
             stepTicks = 0;
         }
@@ -1579,7 +1581,7 @@ public final class RouteExecutor {
             if (!aimReady()) {
                 return;
             }
-            useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), node.pitch, false);
+            useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), 90f, false);
             cryptUses = 1;
             logActed(node, " (" + weapon.label() + ", waiting for " + goal + " crypt/prince kill(s))");
             step = Step.CONFIRM;
@@ -1595,14 +1597,22 @@ public final class RouteExecutor {
                 finishAction();
                 return;
             }
-            if (stepTicks > CRYPT_TIMEOUT) {
+            int attackTicks = AutoRoutesConfig.getInstance().getCryptAttackTicks();
+            if (stepTicks > attackTicks) {
+                // Moves ON rather than stopping the route (Crypt Attack Time slider): an undead that walked out of
+                // reach must not strand the rest of the route.
+                LOGGER.info("[AutoRoutes] Node #{} CRYPT: {} of {} kill(s) after {} use(s) - Crypt Attack Time "
+                        + "({} tick(s)) up, moving on", route.indexOf(node) + 1, AwaitEvents.crypts(), goal, cryptUses,
+                        attackTicks);
+                AutoRoutesFeature.chatBad(String.format(java.util.Locale.US,
+                        "Crypt node: no kill in %.1f s - moving on.", attackTicks / 20.0));
                 restoreCryptSlot(client, player);
-                stop("the crypt node killed no crypt or prince in " + CRYPT_TIMEOUT / 20 + " s");
+                finishAction();
                 return;
             }
             int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
             if (stepTicks - cryptLastUseTick >= delay) {
-                useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), node.pitch, false);
+                useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), 90f, false);
                 cryptUses++;
                 cryptLastUseTick = stepTicks;
             }

@@ -445,7 +445,7 @@ public final class AutoRoutesCommands {
             case USE_ITEM -> ModChat.dim(status.contains("(empty hand)") ? " - right-clicks the block it looks at, by hand."
                     : " - matched on the item, not the slot.");
             case PATH -> ModChat.dim(" - path nodes pair up in number order; the first warps to the second.");
-            case CRYPT -> ModChat.dim(" - aimed where you look; uses the Crypt Weapon until a crypt or prince dies.");
+            case CRYPT -> ModChat.dim(" - place it at the crypt; uses the Crypt Weapon straight down until a crypt or prince dies.");
             default -> ModChat.text("");
         };
         ModChat.send(FEATURE, ModChat.text(status), tail);

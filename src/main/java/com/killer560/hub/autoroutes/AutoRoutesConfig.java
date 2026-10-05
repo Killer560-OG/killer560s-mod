@@ -114,6 +114,11 @@ public final class AutoRoutesConfig {
     private boolean runWhileMapOpen = false;
     private KillMimic killMimic = KillMimic.OFF;
     private CryptWeapon cryptWeapon = CryptWeapon.HYPERION;
+    /** How long a crypt node keeps attacking before the route moves on without a kill (killer560, 2026-10-05: "in
+     *  case one of the crypts walks too far away for an attack to hit it"). Ticks. */
+    public static final int MIN_CRYPT_ATTACK_TICKS = 10;
+    public static final int MAX_CRYPT_ATTACK_TICKS = 200;
+    private int cryptAttackTicks = 100;
     private boolean uniformColor = false;
     private int uniformColorArgb = 0xFF00FFFF;
     private int activeColorArgb = 0xFFFFFFFF;
@@ -183,6 +188,7 @@ public final class AutoRoutesConfig {
                 cfg.runWhileMapOpen = ConfigJson.getBool(o, "runWhileMapOpen", cfg.runWhileMapOpen);
                 cfg.killMimic = ConfigJson.getEnum(o, "killMimic", KillMimic.class, cfg.killMimic);
                 cfg.cryptWeapon = ConfigJson.getEnum(o, "cryptWeapon", CryptWeapon.class, cfg.cryptWeapon);
+                cfg.setCryptAttackTicks(ConfigJson.getInt(o, "cryptAttackTicks", cfg.cryptAttackTicks));
                 cfg.uniformColor = ConfigJson.getBool(o, "uniformColor", cfg.uniformColor);
                 cfg.uniformColorArgb = ConfigJson.getInt(o, "uniformColorArgb", cfg.uniformColorArgb);
                 cfg.activeColorArgb = ConfigJson.getInt(o, "activeColorArgb", cfg.activeColorArgb);
@@ -225,6 +231,7 @@ public final class AutoRoutesConfig {
             o.addProperty("runWhileMapOpen", runWhileMapOpen);
             o.addProperty("killMimic", killMimic.name());
             o.addProperty("cryptWeapon", cryptWeapon.name());
+            o.addProperty("cryptAttackTicks", cryptAttackTicks);
             o.addProperty("uniformColor", uniformColor);
             o.addProperty("colorsSectionOpen", colorsSectionOpen);
             o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
@@ -313,6 +320,10 @@ public final class AutoRoutesConfig {
     public void setKillMimic(KillMimic v) { killMimic = v == null ? KillMimic.OFF : v; }
     public CryptWeapon getCryptWeapon() { return cryptWeapon; }
     public void setCryptWeapon(CryptWeapon v) { cryptWeapon = v == null ? CryptWeapon.HYPERION : v; }
+    public int getCryptAttackTicks() { return cryptAttackTicks; }
+    public void setCryptAttackTicks(int v) {
+        cryptAttackTicks = Math.max(MIN_CRYPT_ATTACK_TICKS, Math.min(MAX_CRYPT_ATTACK_TICKS, v));
+    }
 
     public RenderStyle getRenderStyle() { return renderStyle; }
     public void setRenderStyle(RenderStyle v) { renderStyle = v == null ? RenderStyle.BOX : v; }

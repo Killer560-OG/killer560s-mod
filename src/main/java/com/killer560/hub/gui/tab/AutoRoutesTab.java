@@ -178,6 +178,13 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     btn.setMessage(cryptWeaponText(cfg));
                 }).bounds(contentX, y[0], half, 20).build());
+        // killer560, 2026-10-05: how long a crypt node attacks before moving on, in case the undead walk out of reach.
+        slider(w, contentX + half + GAP, y[0], right,
+                () -> String.format(Locale.US, "Crypt Attack Time: %.1fs", cfg.getCryptAttackTicks() / 20.0),
+                (cfg.getCryptAttackTicks() - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS)
+                        / (double) (AutoRoutesConfig.MAX_CRYPT_ATTACK_TICKS - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS),
+                v -> cfg.setCryptAttackTicks((int) Math.round(AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS
+                        + v * (AutoRoutesConfig.MAX_CRYPT_ATTACK_TICKS - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS))));
         y[0] += 24;
 
         // killer560, 2026-10-04: "Move the open routes folder near the top" - where AP3 keeps Open AP3 Folder.
