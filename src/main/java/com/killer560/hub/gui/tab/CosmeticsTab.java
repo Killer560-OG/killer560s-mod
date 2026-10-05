@@ -45,7 +45,7 @@ public class CosmeticsTab extends BaseTab {
     private static final long REFRESH_COOLDOWN_MS = 30_000L;
 
     private static final List<String> SEARCHABLE_LABELS = List.of(
-            "cosmetics", "toggle global cosmetics", "share if supporter", "custom names", "player size",
+            "cosmetics", "toggle global cosmetics", "global cosmetics", "names only", "sizes only", "share if supporter", "custom names", "player size",
             "my size", "others' size", "width", "height", "thickness", "held item",
             "copy settings for global cosmetics", "reset cosmetics");
 
@@ -75,11 +75,13 @@ public class CosmeticsTab extends BaseTab {
         SupportersConfig cfg = SupportersConfig.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Toggle Global Cosmetics", cfg.isCustomCosmeticsEnabled()),
+        // A cycle, not an on/off (killer560, 2026-10-05: "an option for just toggling names or just toggling
+        // sizes"): All -> Names only -> Sizes only -> Off.
+        widgets.add(SettingsButtonWidget.builder(globalCosmeticsLabel(cfg.getGlobalCosmetics()),
                 btn -> {
-                    cfg.setCustomCosmeticsEnabled(!cfg.isCustomCosmeticsEnabled());
+                    cfg.setGlobalCosmetics(cfg.getGlobalCosmetics().next());
                     cfg.save();
-                    btn.setMessage(onOff("Toggle Global Cosmetics", cfg.isCustomCosmeticsEnabled()));
+                    btn.setMessage(globalCosmeticsLabel(cfg.getGlobalCosmetics()));
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
@@ -314,6 +316,15 @@ public class CosmeticsTab extends BaseTab {
             }
         }
         return nameChangerTab.matchesSearch(query) || heldItemTab.matchesSearch(query);
+    }
+
+    private static Component globalCosmeticsLabel(SupportersConfig.GlobalCosmetics mode) {
+        String colour = switch (mode) {
+            case ALL -> "§a";
+            case OFF -> "§c";
+            default -> "§e";
+        };
+        return Component.literal("Global Cosmetics: " + colour + mode.label);
     }
 
     private static Component onOff(String label, boolean value) {

@@ -101,14 +101,14 @@ public final class SupportersFeature {
     /** @return true when cosmetics are on and there is at least one supporter to ever match - a cheap
      *  pre-check so {@link SupportersChatRewriter} can skip its regex entirely on the common case. */
     static boolean cosmeticsActive() {
-        return SupportersConfig.getInstance().isCustomCosmeticsEnabled() && !byUuid.isEmpty();
+        return SupportersConfig.getInstance().isShowSupporterNames() && !byUuid.isEmpty();
     }
 
     /** The Component to paint instead of {@code id}'s real name, or {@code null} to leave it alone (not a
      *  supporter, cosmetics off, the stored name is blocked by the slur filter, or the local player has
      *  overridden their own name in Name Changer). */
     public static Component displayNameFor(UUID id) {
-        if (id == null || !SupportersConfig.getInstance().isCustomCosmeticsEnabled()) {
+        if (id == null || !SupportersConfig.getInstance().isShowSupporterNames()) {
             return null;
         }
         Resolved r = byUuid.get(id);
@@ -125,7 +125,7 @@ public final class SupportersFeature {
      *  off. Visual only; never touches hitboxes (see {@code SupportersScaleMixin}). Not affected by "self
      *  override" - that only concerns the displayed name. */
     public static float scaleFor(UUID id) {
-        if (id == null || !SupportersConfig.getInstance().isCustomCosmeticsEnabled()) {
+        if (id == null || !SupportersConfig.getInstance().isShowSupporterSizes()) {
             return 1.0f;
         }
         Resolved r = byUuid.get(id);
