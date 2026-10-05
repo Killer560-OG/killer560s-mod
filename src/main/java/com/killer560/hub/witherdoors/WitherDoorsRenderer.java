@@ -64,8 +64,11 @@ final class WitherDoorsRenderer {
             }
             return;
         }
+        // A COPY, made now: on 26.2 the callback runs later in the frame, after the tick may have cleared and
+        // rebuilt the live list (WitherDoorsFeature.CACHED) this method was handed.
+        final WitherDoorsFeature.DoorBox[] snap = boxes.toArray(new WitherDoorsFeature.DoorBox[0]);
         McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
-                for (WitherDoorsFeature.DoorBox box : boxes) {
+                for (WitherDoorsFeature.DoorBox box : snap) {
                     lineBox(pose, buffer, box.box(), box.r(), box.g(), box.b(), 2f);
                 }
         });
