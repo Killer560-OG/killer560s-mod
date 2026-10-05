@@ -2,6 +2,7 @@ import com.killer560.hub.livemap.autoclear.EtherSearch;
 import com.killer560.hub.livemap.autoclear.WarpGraph;
 import com.killer560.hub.roomsim.RoomDoors;
 import com.killer560.hub.roomsim.RoomLibrary;
+import com.killer560.hub.roomsim.SimFloorGen;
 import com.killer560.hub.roomsim.SimFloorLayout;
 
 import java.nio.file.Files;
@@ -22,9 +23,11 @@ import java.util.TreeMap;
  * The Interactive Map's etherwarp planner on WHOLE FLOORS laid out the way the sim lays them out, without a game.
  *
  * <p>See tools/bench/floor.sh. Each floor is {@code SimFloorLayout.generate} (the sim's real layout code, as in
- * tools/layoutsim) over the shipped captures, pasted with {@code RoomPlacer}'s transform at the real grid
- * coordinates (Hypixel heights), every link carved as {@code SimDoors.carveDoorway} does and every unlinked
- * measured doorway sealed as {@code SimDoors.sealDoorway} does. Block flags come from palette NAMES
+ * tools/layoutsim) over the shipped captures, with the room database's types and shapes ({@code -Droomdata}, default
+ * tools/bench/roomtypes.json) and one champion a floor as {@code SimFloorGen.plan} has them, pasted with
+ * {@code RoomPlacer}'s transform at the real grid coordinates (Hypixel heights). Exactly the doors the game writes
+ * are carved ({@code SimFloorLayout.doorLinks}, as {@code SimDoors.carveDoorway}) and every other measured doorway
+ * is sealed as {@code SimDoors.sealDoorway} does. Block flags come from palette NAMES
  * ({@code EtherSearchBench.flagsForName}). Landings obey the sim's roof rule ("under cover") and the dungeon's
  * bounds, as {@code EtherwarpPathfinder} gives them in the sim.
  *
@@ -45,6 +48,9 @@ import java.util.TreeMap;
  *
  * <p>-Dfloors=N (5) -Dclicks=N per floor (300) -Drefclicks=N (100) -Dseed=N (560) -Dbucket=N (3)
  * -Dyaw=6 -Dpitch=7 -Drange=60 -Dold=false (skip the old planner) -Dcheck=FILE (regression: fail on worse).
+ * -Droomdata=FILE (a rooms-modern.json or the trimmed copy) -Ddiag=true (per floor: every carved door checked for a
+ * measured doorway in both rooms and a walk across both ways, and how many clicks' goals a walk reaches)
+ * -Ddiagonly=true (the floor and the diagnosis only, no planning) -Ddiagprint=N (failed walks printed, 6).
  */
 public final class FloorBench {
 
@@ -84,21 +90,28 @@ public final class FloorBench {
                 }
                 paste(p);
             }
+            // As the game builds it: SimFloorGen.plan writes a door for each SimFloorLayout.doorLinks link and
+            // nothing else (a loop-free tree), SimBuilder carves those, and seals EVERY other measured doorway -
+            // including the ones a loop link in f.links() joins. Until 2026-10-04 this carved every link, so it
+            // measured floors with 3-8 loops the game never builds.
             Set<Long> linked = new HashSet<>();
-            for (SimFloorLayout.Link l : f.links()) {
+            for (SimFloorLayout.Link l : SimFloorLayout.doorLinks(f)) {
                 int ra = owner[l.aZ() * 6 + l.aX()];
                 int rb = owner[l.bZ() * 6 + l.bX()];
-                if (ra < 0 || rb < 0 || ra == rb) {
-                    continue;
-                }
                 int dgx = l.aX() + l.bX();
                 int dgz = l.aZ() + l.bZ();
-                linked.add((long) dgx * 100 + dgz);
+                if (!linked.add((long) dgx * 100 + dgz)) {
+                    continue;   // SimFloorGen.plan: this doorway cell already has its door
+                }
                 int wx = START + dgx * 16;
                 int wz = START + dgz * 16;
                 boolean alongX = l.aX() != l.bX();
+                // Carved even inside one multi-tile room, as SimBuilder does with every door cell plan writes.
                 carve(wx, wz, alongX);
                 carved++;
+                if (ra < 0 || rb < 0 || ra == rb) {
+                    continue;
+                }
                 doorSeams.add(new int[]{wx, wz, alongX ? 1 : 0, ra, rb});
                 if (!adj.get(ra).contains(rb)) {
                     adj.get(ra).add(rb);
@@ -354,6 +367,120 @@ public final class FloorBench {
                 l.sort((a, b) -> a[0] != b[0] ? a[0] - b[0] : a[1] != b[1] ? a[1] - b[1] : a[2] - b[2]);
             }
         }
+    }
+
+    // ------------------------------------------------------------------------------------------- diagnosis
+
+    /** Every standable block reachable by WALKING from s: one block up, any drop down (to 30), no tunnelling. */
+    static Set<Long> walkFrom(Floor f, int[] s) {
+        Set<Long> seen = new HashSet<>();
+        ArrayDeque<Long> q = new ArrayDeque<>();
+        long k0 = EtherSearch.pack(s[0], s[1], s[2]);
+        seen.add(k0);
+        q.add(k0);
+        while (!q.isEmpty()) {
+            long k = q.poll();
+            int x0 = WarpGraph.unpackX(k);
+            int y0 = WarpGraph.unpackY(k);
+            int z0 = WarpGraph.unpackZ(k);
+            for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                int x = x0 + d[0];
+                int z = z0 + d[1];
+                for (int y = y0 + 1; y >= y0 - 30 && y > 0; y--) {
+                    if (f.etherwarpable(x, y, z)) {
+                        long n = EtherSearch.pack(x, y, z);
+                        if (f.landingOk(x, y, z) && seen.add(n)) {
+                            q.add(n);
+                        }
+                        break;
+                    }
+                    if ((f.flags(x, y, z) & EtherSearch.PASSABLE) == 0) {
+                        break;
+                    }
+                }
+            }
+        }
+        return seen;
+    }
+
+    static boolean backed(SimFloorLayout.Placement p, int dgx, int dgz) {
+        RoomDoors.Mask mask = RoomDoors.of(p.name());
+        if (mask == null) {
+            return false;
+        }
+        mask = RoomDoors.rotate(mask, p.rotation());
+        for (int[] dc : RoomDoors.doorCells(mask, p.originX(), p.originZ())) {
+            if (dc[0] * 2 + RoomDoors.DX[dc[2]] == dgx && dc[1] * 2 + RoomDoors.DZ[dc[2]] == dgz) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Every door the game carves: is it a measured doorway in both rooms, and can he WALK across it both ways
+     * (from a spot 2-6 blocks either side of the seam)? A door that fails either is printed with its cross-section.
+     */
+    static void diagnose(SimFloorLayout.Floor lf, Floor f) {
+        int doors = 0;
+        int unbacked = 0;
+        int oneWay = 0;
+        Set<Long> all = new HashSet<>();
+        for (List<int[]> sl : f.spots) {
+            for (int[] sp : sl) {
+                all.add(EtherSearch.pack(sp[0], sp[1], sp[2]));
+            }
+        }
+        for (SimFloorLayout.Link l : SimFloorLayout.doorLinks(lf)) {
+            int ra = f.owner[l.aZ() * 6 + l.aX()];
+            int rb = f.owner[l.bZ() * 6 + l.bX()];
+            if (ra < 0 || rb < 0 || ra == rb) {
+                continue;
+            }
+            doors++;
+            int dgx = l.aX() + l.bX();
+            int dgz = l.aZ() + l.bZ();
+            boolean ba = backed(lf.rooms().get(ra), dgx, dgz);
+            boolean bb = backed(lf.rooms().get(rb), dgx, dgz);
+            int wx = START + dgx * 16 + OFF;
+            int wz = START + dgz * 16 + OFF;
+            boolean alongX = l.aX() != l.bX();
+            int sign = alongX ? Integer.signum(l.bX() - l.aX()) : Integer.signum(l.bZ() - l.aZ());
+            int[] spotA = null;
+            int[] spotB = null;
+            for (int d = 6; d >= 2; d--) {
+                for (int y = 75; y >= 55; y--) {
+                    if (spotA == null && all.contains(EtherSearch.pack(alongX ? wx - sign * d : wx, y,
+                            alongX ? wz : wz - sign * d))) {
+                        spotA = new int[]{alongX ? wx - sign * d : wx, y, alongX ? wz : wz - sign * d};
+                    }
+                    if (spotB == null && all.contains(EtherSearch.pack(alongX ? wx + sign * d : wx, y,
+                            alongX ? wz : wz + sign * d))) {
+                        spotB = new int[]{alongX ? wx + sign * d : wx, y, alongX ? wz : wz + sign * d};
+                    }
+                }
+            }
+            boolean ab = spotA != null && spotB != null
+                    && walkFrom(f, spotA).contains(EtherSearch.pack(spotB[0], spotB[1], spotB[2]));
+            boolean bToA = spotA != null && spotB != null
+                    && walkFrom(f, spotB).contains(EtherSearch.pack(spotA[0], spotA[1], spotA[2]));
+            unbacked += ba && bb ? 0 : 1;
+            oneWay += ab && bToA ? 0 : 1;
+            if (!(ab && bToA) || !(ba && bb)) {
+                System.out.printf(Locale.ROOT, "  DIAG door r%d %s -> r%d %s: measured %b/%b, walk A->B %b, B->A %b%n",
+                        ra, lf.rooms().get(ra).name(), rb, lf.rooms().get(rb).name(), ba, bb, ab, bToA);
+                for (int y = 80; y >= 55; y--) {
+                    StringBuilder row = new StringBuilder(String.format(Locale.ROOT, "    y%d ", y));
+                    for (int d = -16; d <= 16; d++) {
+                        int fl = f.flags(alongX ? wx + sign * d : wx, y, alongX ? wz : wz + sign * d);
+                        row.append(d == 0 ? '|' : (fl & EtherSearch.PASSABLE) != 0 ? '.' : '#');
+                    }
+                    System.out.println(row);
+                }
+            }
+        }
+        System.out.printf(Locale.ROOT, "  DIAG %d doors: %d not a measured doorway in both rooms, %d not walkable both"
+                + " ways%n", doors, unbacked, oneWay);
     }
 
     // ------------------------------------------------------------------------------------------- clicks
@@ -900,6 +1027,31 @@ public final class FloorBench {
             }
         }
         RoomLibrary.ROOMS.putAll(rooms);
+        // The room database's type and shape for every room, as the game's SimFloorGen.typeOf/shapeOf answer them.
+        // Without it every room is NORMAL and no shape is L, so the layout places no puzzles, treats traps and
+        // puzzles as ordinary rooms, and places the L rooms a generated floor never gets (their 2x2 capture box
+        // has a quarter of void or of a neighbour in it - SimFloorLayout.candidates). It was missing until
+        // 2026-10-04. tools/bench/roomtypes.json is name/type/shape cut from the game's rooms-modern.json.
+        Path types = Path.of(System.getProperty("roomdata", "tools/bench/roomtypes.json"));
+        int typed = 0;
+        for (var e : com.google.gson.JsonParser.parseString(Files.readString(types)).getAsJsonArray()) {
+            var o = e.getAsJsonObject();
+            if (!o.has("name") || o.get("name").isJsonNull()) {
+                continue;
+            }
+            String n = o.get("name").getAsString();
+            if (o.has("type") && !o.get("type").isJsonNull()) {
+                SimFloorGen.TYPE.put(n, o.get("type").getAsString());
+                typed += rooms.containsKey(n) ? 1 : 0;
+            }
+            if (o.has("shape") && !o.get("shape").isJsonNull()) {
+                SimFloorGen.SHAPE.put(n, o.get("shape").getAsString());
+            }
+        }
+        if (typed < rooms.size()) {
+            System.out.printf(Locale.ROOT, "  [WARN] %d of %d captures have no type in %s%n", rooms.size() - typed,
+                    rooms.size(), types);
+        }
         System.out.printf(Locale.ROOT, "%d usable captures; %d floor(s) x %d clicks (ref on %d), bucket %d, fan %d rays,"
                 + " range %.0f, seed %d%n", rooms.size(), floors, perFloor, refPerFloor, bucket, FAN.size(), RANGE, seed);
 
@@ -924,7 +1076,8 @@ public final class FloorBench {
 
         Random rng = new Random(seed);
         for (int fi = 0; fi < floors; fi++) {
-            SimFloorLayout.Floor lf = SimFloorLayout.generate(rooms, 21, 36, 3, 9, rng);
+            // SimFloorGen.plan: one champion room per floor, then the layout.
+            SimFloorLayout.Floor lf = SimFloorLayout.generate(LayoutSim.capChampions(rooms, rng), 21, 36, 3, 9, rng);
             if (SMALL_W > 0) {
                 lf = window(lf, rng);
             }
@@ -936,6 +1089,40 @@ public final class FloorBench {
             System.out.printf(Locale.ROOT, "floor %d: %d rooms, %d doors carved, %d sealed, %d walkable spots,"
                             + " %d room(s) not reachable from room 0 through the carved doors%n", fi,
                     f.rooms.size(), f.carved, f.sealed, spots, f.unreachableFrom(0));
+            if (Boolean.getBoolean("diag")) {
+                // -Ddiag: is each click's goal even WALKABLE from its start (one block up, any drop), and is every
+                // carved door a measured doorway that can be walked both ways? A click no walk reaches is not
+                // necessarily impossible (etherwarp climbs), but a floor where many are is a floor to look at.
+                diagnose(lf, f);
+                int walkable = 0;
+                int printed = 0;
+                for (Click c : cs) {
+                    Set<Long> w = walkFrom(f, c.start);
+                    boolean ok = w.contains(EtherSearch.pack(c.exact[0], c.exact[1], c.exact[2]));
+                    walkable += ok ? 1 : 0;
+                    if (!ok && printed++ < Integer.getInteger("diagprint", 6)) {
+                        int sr = f.roomAt(c.start[0], c.start[2]);
+                        Set<Integer> reached = new java.util.TreeSet<>();
+                        for (long k : w) {
+                            reached.add(f.roomAt(WarpGraph.unpackX(k), WarpGraph.unpackZ(k)));
+                        }
+                        System.out.printf(Locale.ROOT, "  DIAG no walk: start %s r%d %s -> goal %s r%d %s; walk reaches"
+                                        + " rooms %s%n", Arrays.toString(c.start), sr, f.rooms.get(sr).name(),
+                                Arrays.toString(c.exact), c.goalRoom, f.rooms.get(c.goalRoom).name(), reached);
+                    }
+                }
+                System.out.printf(Locale.ROOT, "  DIAG %d of %d clicks: goal reachable by walking (drops allowed)%n",
+                        walkable, cs.size());
+                for (int r = 0; r < f.rooms.size(); r++) {
+                    SimFloorLayout.Placement p = f.rooms.get(r);
+                    System.out.printf(Locale.ROOT, "   r%d %s %s %s at %d,%d %dx%d rot %d, doors to %s, spots %d%n", r,
+                            p.name(), p.type(), SimFloorGen.shapeOf(p.name()), p.originX(), p.originZ(), p.cellsX(),
+                            p.cellsZ(), p.rotation(), f.adj.get(r), f.spots.get(r).size());
+                }
+                if (Boolean.getBoolean("diagonly")) {
+                    continue;
+                }
+            }
 
             // Warm-up for the JIT on this floor's first few clicks, untimed.
             if (fi == 0) {
@@ -978,6 +1165,8 @@ public final class FloorBench {
             if (Integer.getInteger("aimcheck", 0) > 0) {
                 aimCheck(f, grid, rng, Integer.getInteger("aimcheck", 0));
             }
+            int floorFails = 0;
+            Map<String, Integer> floorFailRooms = new TreeMap<>();
             for (int i = 0; i < cs.size(); i++) {
                 Click c = cs.get(i);
                 if (runOld) {
@@ -1021,6 +1210,11 @@ public final class FloorBench {
                 }
                 if (runOld && old.warps.get(old.warps.size() - 1) >= 0 && (pw == null || vw < 0)) {
                     oldOnly++;
+                }
+                if (pw == null || vw < 0) {
+                    floorFails++;
+                    floorFailRooms.merge(f.rooms.get(f.roomAt(c.start[0], c.start[2])).name() + ">"
+                            + f.rooms.get(c.goalRoom).name(), 1, Integer::sum);
                 }
                 if ((pw == null || vw < 0) && failPrinted++ < 5) {
                     System.out.printf("WARM %s floor %d click %d %s: start %s room %d, goal %s room %d (cell %d)%n",
@@ -1094,6 +1288,10 @@ public final class FloorBench {
                                 pw == null ? "no path" : vw < 0 ? "invalid" : "near", pr.size()));
                     }
                 }
+            }
+            if (floorFails > 0) {
+                System.out.printf(Locale.ROOT, "  floor %d: new planner failed %d of %d clicks (start>goal room: %s)%n", fi,
+                        floorFails, cs.size(), floorFailRooms);
             }
             System.out.printf(Locale.ROOT, "  warm-up of the whole floor: %d nodes, %d expanded, %.0f ms; ref graph %d nodes%n",
                     warmG.nodeCount(), warmG.expandedCount(), (System.nanoTime() - w0) / 1e6 - 0, refG.nodeCount());

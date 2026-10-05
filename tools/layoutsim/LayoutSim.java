@@ -550,7 +550,7 @@ public final class LayoutSim {
     }
 
     /** SimFloorGen.capChampions: one CHAMPION room per floor. */
-    private static Map<String, RoomLibrary.Room> capChampions(Map<String, RoomLibrary.Room> usable, Random rng) {
+    static Map<String, RoomLibrary.Room> capChampions(Map<String, RoomLibrary.Room> usable, Random rng) {
         List<String> champs = new ArrayList<>();
         for (String n : usable.keySet()) {
             if ("CHAMPION".equalsIgnoreCase(SimFloorGen.typeOf(n))) {

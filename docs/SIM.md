@@ -2094,4 +2094,58 @@ finds exactly what the every-landing reference finds (87.25% both), 3.14 warps a
 347 worse (limit 16%); only the absolute 89.7% found fails. The tree at d17520c (WarpGraph before the merge) passes
 with the same script: 100% / 7.53 warps, small 89.75%. So the planner is unchanged and the floors are what moved -
 most likely doorways the new generator joins that the bench's standard seam carve does not open the way SimDoors
-does. Re-baselining the thresholds, or modelling those doorways, is his call and is not done here.
+does. Re-baselining the thresholds, or modelling those doorways, is his call and is not done here. (That guess was
+wrong - the carve was faithful; see the next section.)
+
+## The floor bench was not building the game's floors (2026-10-04, fix-bench)
+
+**Root cause of the `regress.sh` failure: the bench, not the planner and not (mostly) the generator.** Two ways
+`FloorBench` differed from `SimFloorGen.plan` + `SimBuilder`:
+- It never loaded the room database, so `SimFloorGen.typeOf` said NORMAL and `shapeOf` null for every room. The
+  layout therefore placed no puzzles ("0 puzzle(s) of the 3 asked for" on every floor), treated traps and puzzles as
+  ordinary rooms, and placed the eleven L rooms a generated floor never gets (`SimFloorLayout.candidates` leaves them
+  out: their 2x2 capture box has a void or a neighbour's quarter). Every failing click traced on seed 560 crossed an L room
+  (Dino Site, Layers, Spider, Withermancer, Chambers); a top-down walk map of Dino Site showed the door to Quad Lava
+  opening onto a quarter with no floor between y30 and y80.
+- It carved EVERY `links()` adjacency instead of the `doorLinks` tree, and sealed only unlinked doorways. At d17520c
+  that was 26/24/28 doors for 22/22/21 rooms - 3 to 8 loops a floor the game seals - and the loops routed round the
+  broken L-room doors. The path-to-blood generator emits far fewer spare links (0 to 3), so the same broken doors
+  became the only way through, which is when it started failing.
+
+Now the bench loads `tools/bench/roomtypes.json` (name/type/shape cut from the game's `rooms-modern.json`; override with
+`-Droomdata=`), caps champions as `plan` does (`LayoutSim.capChampions`), carves exactly `doorLinks` (including a
+door inside one multi-tile room) and seals every other measured doorway, and builds its small-floor windows from the
+door tree. `-Ddiag=true` checks every carved door for a measured doorway in both rooms and a walk both ways, and
+counts the clicks a walk alone reaches; failed clicks are attributed per floor (start>goal room).
+
+**Numbers, seed 560 (`regress.sh`).** Before: whole floors new 83.6% found / 8.25 warps, old 67.3%; small floors
+87.25%. After: whole floors **new 100% / 8.26 warps**, old 92.4% / 15.84; small floors 100%, 3.43 warps against the
+every-landing reference's 3.29 (x1.043, limit 1.045), 54 of 400 worse (limit 16%). The whole-floor warp limit was
+7.55, set on the loopy, L-room, puzzle-less floors; on the game's floors the every-landing full-aim reference itself
+needs 7.81 on 180 of the clicks (graph 8.19, 58 of 180 one or more worse), so it was re-baselined to 8.28 in
+`floorbench-expect.txt` with the reason written there, and `small.minFoundPercent` raised from 89.7 to 100. Whole
+floors are where the graph's thinning costs most: 32% of clicks one warp or more over the reference, against 13.5% on
+3x2 windows.
+
+**A real generator fault found on the way: the fill pass's carve through a wall.** Over 40 faithful floors the planner
+failed 88 of 6,000 clicks; 54 of them were into or out of a room `fillGaps` had put in "through a carved wall" (Criss
+Cross through the Entrance's two-block platform, Rail Track through Three Floors, Rare Pillars and Painting through Old
+Trap, Spikes through the Entrance...): clicks into or out of 8 of the 27 rooms placed that way failed, and the door
+audit over the same 40 floors found 5 of 27 such doors that cannot be walked. `RoomDoors.carvable(name)` now measures, per perimeter tile edge in the
+capture's frame, whether a cut at the doorway floor (y69) lands on floor he can walk from 3 to 6 blocks in (stepping
+at most one block, so a one-block ledge before Jumping Skulls' pit does not count). `carveOnce` uses only those
+edges; the old unchecked carve is kept as the very last resort so no guarantee is lost, and says "(NOT a walkable cut
+- nothing else fitted)" in the fill WARN. Also: traps no longer get second and third doors that way.
+
+`tools/layoutsim -Dsweep=true` (his Map Logger library and recency, seed 1, 22,400 floors), before / after: any check
+failed 45 / 33; path length, fairy, wither doors, cells, blood/trap/fairy, reachability and one-door puzzles 100% both;
+room minimum missed 42 / 27; puzzles short 8 / 7; traps with 3-4 doors 98 / 0; consecutive F7s share 3.6 / 3.5 rooms.
+Carves 7,785 all unchecked / 7,347 of which 124 unchecked (123 floors, 0.55%). FloorBench, 40 floors x 150 clicks:
+98.53% found (88 failed) / 99.65% (21), and no failure is into a carved room now. A purely checked carve left 0.57% of
+floors with an empty cell, which is why the fallback stays.
+
+**What still fails (21 of 6,000, planner or capture, not doors):** 11 start or end in Lower/Higher Blaze (the shaft
+and its far-off floor), 6 in Balcony (one of the four uncertain captures - its box is a tile off), 3 from Three Floors,
+1 Waterfall>Fairy. Not investigated further here.
+
+`tools/layoutsim/rotation.sh` had the same missing `SimWitherDoors` compile error as `floor.sh`; fixed.
