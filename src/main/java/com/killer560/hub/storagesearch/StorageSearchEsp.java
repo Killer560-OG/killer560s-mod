@@ -95,16 +95,22 @@ public final class StorageSearchEsp {
         // One full pass PER RENDER TYPE, never interleaved per box - see the "Not building!" crash note in
         // SecretWaypointsRenderer for why alternating types inside the loop is not safe here. Two separate
         // inCameraSpace calls keep that property: each one is a single type and a single pass.
+        // Boxes built now, from a snapshot: on 26.2 the callbacks run later in the frame, after a click may have
+        // called mark()/clear() on TARGETS (ConcurrentModificationException while iterating it).
+        final AABB[] snap = new AABB[TARGETS.size()];
+        for (int i = 0; i < snap.length; i++) {
+            snap[i] = boxFor(TARGETS.get(i).pos());
+        }
         McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox(),
                 (pose, fillBuffer) -> {
-                    for (Target target : TARGETS) {
-                        filledBox(pose.pose(), fillBuffer, boxFor(target.pos()), r, g, b, 0.25f);
+                    for (AABB box : snap) {
+                        filledBox(pose.pose(), fillBuffer, box, r, g, b, 0.25f);
                     }
                 });
         McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT,
                 (pose, lineBuffer) -> {
-                    for (Target target : TARGETS) {
-                        lineBox(pose, lineBuffer, boxFor(target.pos()), r, g, b, 1f, 2.5f);
+                    for (AABB box : snap) {
+                        lineBox(pose, lineBuffer, box, r, g, b, 1f, 2.5f);
                     }
                 });
     }
