@@ -613,9 +613,28 @@ public final class RouteExecutor {
                 }
                 return;
             }
+            net.minecraft.client.gui.screens.Screen screen = McCompat.screen(client);
+            if (screen == lateChestWindow || (screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>
+                    && AwaitEvents.chestClickedWithin(LATE_CHEST_WINDOW_TICKS))) {
+                // The window of a chest he just clicked, arriving after the route moved on. An await is met by the
+                // click itself (his rule), and Hypixel credits the chest on that click - the window is only its view, a
+                // round trip behind - so with any ping the route can warp before it arrives. That is not him opening
+                // something: wait under it like the await's own window (keys off, nothing sent), carry on once it is
+                // closed. It used to stop the route (2026-10-05, 96-ar-play on 26.2: "Stopped: a screen opened").
+                if (screen != lateChestWindow) {
+                    LOGGER.info("[AutoRoutes] The clicked chest's window arrived after the route moved on - waiting "
+                            + "under it, carries on when it closes");
+                }
+                lateChestWindow = screen;
+                clearMovement();
+                wantSneak = false;
+                applyFallbackKeys(client);
+                return;
+            }
             stop("a screen opened");
             return;
         }
+        lateChestWindow = null;
         // Without the input mixin the same hand-over rules run off the physical keys (onInputTick). The fallback
         // cannot hide held keys from the game, but applyFallbackKeys re-asserts the mappings every tick.
         if (!mixinApplied) {
@@ -1988,6 +2007,11 @@ public final class RouteExecutor {
     /** The route's body turns, camera held ({@link com.killer560.hub.util.BodyAim}, shared with the Interactive Map's
      *  executor). Every write it makes is our own, not his mouse, so the camera-turn detector is rebased after it. */
     private static final com.killer560.hub.util.BodyAim BODY = new com.killer560.hub.util.BodyAim(RouteRotation::rebase);
+
+    /** How long after a chest click its window may still arrive and be waited under (2 s: a round trip, generously). */
+    private static final int LATE_CHEST_WINDOW_TICKS = 40;
+    /** The clicked chest's late window the route is waiting under, or null (see tick's screen branch). */
+    private static net.minecraft.client.gui.screens.Screen lateChestWindow;
 
     /**
      * Obvious mode: turns the BODY (the rotation every packet reports) to {@code yaw}/{@code pitch} - a delta on the

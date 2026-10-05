@@ -254,6 +254,9 @@ public final class AwaitEvents {
             LOGGER.debug("[AutoRoutes] await ignored: click on {} at {} is not a secret block", b, pos.toShortString());
             return;
         }
+        if (b == Blocks.CHEST) {
+            lastChestClickAt = ticks;
+        }
         addSecret("block " + pos.asLong(), kind + " at " + pos.toShortString() + " (clicked by you)");
     }
 
@@ -297,6 +300,14 @@ public final class AwaitEvents {
         }
         secrets++;
         pending.add("await secret " + secrets + ": " + what);
+    }
+
+    /** The tick of our last chest click during a route - the window it opens can arrive after the route moved on. */
+    private static int lastChestClickAt = Integer.MIN_VALUE / 2;
+
+    /** Whether we clicked a chest during a route at most {@code window} ticks ago. */
+    static boolean chestClickedWithin(int window) {
+        return ticks - lastChestClickAt <= window;
     }
 
     /** Whether the mimic of the trapped chest we last clicked has died at or after {@code sinceTick}. */
