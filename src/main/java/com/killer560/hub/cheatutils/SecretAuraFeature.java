@@ -256,12 +256,9 @@ public final class SecretAuraFeature {
             return leversAllowed ? "lever" : null;
         }
         if (block instanceof AbstractSkullBlock) {
-            // The sim's essence is a plain wither skeleton skull with no Hypixel skin profile, so the profile
-            // check can never pass there; the sim's own list of placed essences answers instead.
-            boolean essence = inSim(client)
-                    ? com.killer560.hub.roomsim.SimSecrets.PLACED_WITHER.contains(pos)
-                    : SecretsFeature.isWitherEssence(client.level, pos);
-            return cfg.isAuraEssence() && essence ? "essence" : null;
+            // Hypixel's essence skull profile, in the sim too: the sim places the same skull (SimSecrets), so
+            // there is one rule and no sim branch.
+            return cfg.isAuraEssence() && SecretsFeature.isWitherEssence(client.level, pos) ? "essence" : null;
         }
         return null;
     }

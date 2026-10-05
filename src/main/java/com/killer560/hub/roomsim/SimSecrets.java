@@ -32,7 +32,8 @@ import com.killer560.hub.compat.McEntities;
  * secret is not, and the waypoints are what he is practising against.
  *
  * <p><b>What is approximated.</b> Chests and bats are the real thing. An item secret is a dropped item, which
- * is faithful. Wither essence and redstone keys are marked with a distinctive block rather than modelled,
+ * is faithful. A wither essence is Hypixel's own essence skull (see WITHER_MARKER); a redstone key is marked
+ * with a distinctive block rather than modelled,
  * because what matters for a route is where you have to go and what you have to touch, and neither of those
  * needs the item to be genuine. Said plainly here rather than quietly, so a route practised around one is not
  * mistaken for a route practised around the real thing.
@@ -56,56 +57,122 @@ public final class SimSecrets {
      * nothing, and {@code RoomPlacer}'s fast path was not giving pasted blocks their block entity. A lantern was
      * added above the essence to stand in for something that was there all along and could not be seen.
      *
-     * <p>With that fixed the lantern is both redundant and wrong, so it is gone. What goes in its place is a
-     * {@code wither_skeleton_skull} written AT the essence's own database position, replacing whatever head the
-     * capture holds there - the closest vanilla block to "pure black", and thematically the right one. A
-     * captured {@code player_head} carries no profile through a capture (the palette stores a block state, not a
-     * skin), so leaving it would have rendered a default Steve head instead.
+     * <p>With that fixed the lantern is both redundant and wrong, so it is gone. What goes in its place is what
+     * Hypixel sends: a {@code player_head} AT the essence's own database position, whose block entity carries the
+     * essence's skull profile (id {@link #ESSENCE_PROFILE_ID}, one of the two {@code SecretsFeature.isWitherEssence}
+     * accepts). A captured {@code player_head} carries no profile through a capture (the palette stores a block
+     * state, not a skin), so the head there is rewritten.
+     *
+     * <p><b>Why a player head and not the black {@code wither_skeleton_skull} it was until 2026-10-05.</b> Every
+     * client feature recognises an essence by that profile, as it must on Hypixel - Secret Aura, the secret
+     * hitboxes, Secret Sound, and Auto Routes' await (which counts {@code PLAYER_HEAD} clicks). A profile-less
+     * wither skeleton skull was invisible to all of them, so Secret Aura carried a sim-only branch and an Auto
+     * Routes await never counted a sim essence. The sim now sends what Hypixel sends and nothing special-cases it.
+     * It still LOOKS pure black: the profile's skin patch points at a bundled all-black skin
+     * ({@code assets/killer560smod/textures/entity/sim_wither_essence.png}) in place of Hypixel's downloaded one.
      *
      * <p>Only the heads at the database's own wither coordinates are touched. 98 captures contain player heads
      * and most of them are decoration or some other secret entirely.
      */
     private static final net.minecraft.world.level.block.state.BlockState WITHER_MARKER =
-            Blocks.WITHER_SKELETON_SKULL.defaultBlockState();
+            Blocks.PLAYER_HEAD.defaultBlockState();
     private static final net.minecraft.world.level.block.state.BlockState KEY_MARKER =
             Blocks.LEVER.defaultBlockState();
+
+    /** Hypixel's wither essence skull profile id - the first of the two {@code SecretsFeature} accepts. */
+    private static final java.util.UUID ESSENCE_PROFILE_ID =
+            java.util.UUID.fromString("2865274b-3097-394e-8149-ec629c72d850");
+
+    /** The bundled black skin the essence head wears (a {@code ClientAsset} id: textures/entity/...png). */
+    private static final String ESSENCE_TEXTURE = "killer560smod:entity/sim_wither_essence";
+
+    private static net.minecraft.world.item.component.ResolvableProfile essenceProfile;
 
     /** Every wither essence skull this floor placed, so a click on one can be told from a click on scenery. */
     public static final java.util.Set<BlockPos> PLACED_WITHER =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /**
-     * Makes a wither essence collectable.
+     * Makes a wither essence collectable - on the SERVER, as on Hypixel.
      *
-     * <p>Right-clicking one takes it away and counts a secret, which is what it does on Hypixel. Client side
-     * only - {@code UseBlockCallback} fires on the integrated server too in singleplayer, and counting there as
-     * well would score every essence twice.
+     * <p>Right-clicking one takes it away and counts a secret. Until 2026-10-05 this was a CLIENT listener that
+     * consumed the click, registered after {@code SimAbilities}' own; with an ability item in hand (AOTV,
+     * Hyperion, Superboom - what he holds in a run) that listener answered first, the essence listener never ran,
+     * and the item's ability fired instead. killer560: "secret aura isn't grabbing skulls when I just booted in" -
+     * Secret Aura clicked, twice, and nothing was collected. Now the client sends a plain right click, exactly what
+     * it sends on Hypixel, every client listener sees it, and the integrated server answers the packet here.
+     * {@code SimAbilities.blockWins} lets an essence beat the held item, as a chest does.
      */
     public static void register() {
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
-            if (!level.isClientSide()) {
-                return net.minecraft.world.InteractionResult.PASS;
-            }
-            net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
-            if (!SimState.canAct(client) || player != client.player) {
+            if (level.isClientSide() || hit == null
+                    || !(player instanceof net.minecraft.server.level.ServerPlayer sp) || !SimAbilities.simServer(sp)) {
                 return net.minecraft.world.InteractionResult.PASS;
             }
             BlockPos at = hit.getBlockPos().immutable();
             if (!PLACED_WITHER.remove(at)) {
                 return net.minecraft.world.InteractionResult.PASS;
             }
+            level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
             SimScore.secretFound(at);
-            // Told directly: this listener consumes the click, so Secret Waypoints' own UseBlockCallback
-            // (registered later) never sees it and the essence's highlight stayed up.
-            com.killer560.hub.secretwaypoints.SecretWaypointsFeature.markSimEssenceCollected(at);
-            ModChat.send("Sim", ModChat.good("Wither essence collected"));
-            var server = client.getSingleplayerServer();
-            if (server != null) {
-                server.execute(() ->
-                        server.overworld().setBlockAndUpdate(at, Blocks.AIR.defaultBlockState()));
-            }
+            net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+            client.execute(() -> {
+                // Secret Waypoints marks a click on the waypoint's exact block itself; a buried essence is placed
+                // up to two blocks above its database position, so the sim says where it really was.
+                com.killer560.hub.secretwaypoints.SecretWaypointsFeature.markSimEssenceCollected(at);
+                ModChat.send("Sim", ModChat.good("Wither essence collected"));
+            });
+            // SUCCESS, not PASS: the held item's own vanilla use (a Superboom is a reskinned TNT) must not run on it.
             return net.minecraft.world.InteractionResult.SUCCESS;
         });
+    }
+
+    /**
+     * The essence's skull profile: Hypixel's id, and the bundled black skin as its skin patch.
+     *
+     * <p>Built through {@code ResolvableProfile.CODEC} because the patch has no public factory: a resolved profile
+     * is encoded, the patch's {@code texture} field added, and decoded. If that ever fails the plain profile is
+     * used - the id is what every feature reads; only the colour would be lost.
+     */
+    static net.minecraft.world.item.component.ResolvableProfile essenceProfile() {
+        if (essenceProfile != null) {
+            return essenceProfile;
+        }
+        net.minecraft.world.item.component.ResolvableProfile plain =
+                net.minecraft.world.item.component.ResolvableProfile.createResolved(
+                        new com.mojang.authlib.GameProfile(ESSENCE_PROFILE_ID, "WitherEssence"));
+        net.minecraft.world.item.component.ResolvableProfile result = plain;
+        try {
+            net.minecraft.nbt.Tag tag = net.minecraft.world.item.component.ResolvableProfile.CODEC
+                    .encodeStart(net.minecraft.nbt.NbtOps.INSTANCE, plain).result().orElse(null);
+            if (tag instanceof net.minecraft.nbt.CompoundTag compound) {
+                compound.putString("texture", ESSENCE_TEXTURE);
+                result = net.minecraft.world.item.component.ResolvableProfile.CODEC
+                        .parse(net.minecraft.nbt.NbtOps.INSTANCE, compound).result().orElse(plain);
+            }
+        } catch (RuntimeException e) {
+            LOGGER.warn("Sim essence: could not give the essence head its black skin, using the plain profile", e);
+        }
+        if (result == plain) {
+            LOGGER.warn("Sim essence: the essence head has no black skin patch - it will draw a default skin");
+        }
+        essenceProfile = result;
+        return result;
+    }
+
+    /** Gives a freshly placed essence head Hypixel's essence profile, and makes sure the client is sent it. */
+    private static void dressAsEssence(ServerLevel level, BlockPos at) {
+        if (level.getBlockEntity(at) instanceof net.minecraft.world.level.block.entity.SkullBlockEntity skull) {
+            net.minecraft.world.item.ItemStack carrier =
+                    new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.PLAYER_HEAD);
+            carrier.set(net.minecraft.core.component.DataComponents.PROFILE, essenceProfile());
+            skull.applyComponentsFromItemStack(carrier);
+            skull.setChanged();
+            net.minecraft.world.level.block.state.BlockState state = level.getBlockState(at);
+            level.sendBlockUpdated(at, state, state, 3);
+        } else {
+            LOGGER.warn("Sim essence at {}: no skull block entity after placing the head", at.toShortString());
+        }
     }
 
     private SimSecrets() {
@@ -480,6 +547,9 @@ public final class SimSecrets {
             }
             SimBuildQueue.touched(spot.getX(), spot.getZ());
             level.setBlockAndUpdate(spot, marker);
+            if (marker == WITHER_MARKER) {
+                dressAsEssence(level, spot);
+            }
             if (record != null) {
                 record.add(spot);
             }
