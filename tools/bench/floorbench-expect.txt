@@ -23,3 +23,10 @@ full.maxWarmP99Ms=12
 small.minFoundPercent=100
 small.maxMeanOverRef=1.025
 small.maxWorseThanRefPercent=8
+# Clicks during the floor's FIRST warm-up (-Dearly=0.5,1,2,3, 2 floors x 6 clicks per t, 6 threads), 2026-10-05
+# (night-warm): before the quick graph 20/18/14/8 of 30 clicks a t fell back to room by room and took 13-14 warps
+# against the warm graph's 9; with it none fell back and they take 1.09-1.12x the warm graph's warps. Timing-
+# dependent (how far a warm-up gets in t seconds depends on the machine), so the limits are loose.
+early.maxFellBackPercent=5
+early.maxFailedPercent=5
+early.maxWarpsOverWarm=1.25

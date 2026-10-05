@@ -116,10 +116,6 @@ public final class EtherwarpPathfinder {
         return planFloor(from, to, tileIdx, cfg, dist, layout);
     }
 
-    /** How long a click searches a graph that is not warm yet before handing over to the room-by-room legs. */
-    private static final long COLD_BUDGET_MS = 40;
-    /** How long a click may spend finishing a re-warm after a block change before it searches. */
-    private static final long FINISH_WARM_NANOS = 60_000_000L;
     /** No path is longer than this. */
     private static final int MAX_WARPS = 48;
     /**
@@ -146,16 +142,8 @@ public final class EtherwarpPathfinder {
                     + " it. Nothing searched.", to);
             return null;
         }
-        WarpGraph graph = graphFor(level, dist);
+        FloorGraphs graphs = graphFor(level, dist);
         EtherSearch.Hop start = startHop(from);
-        if (!graph.warmDone() && graph.warmedOnce()) {
-            // Blocks changed since the floor was warm (a door, a crypt, a puzzle). The changes re-check only the aims
-            // near them, so finishing is tens of milliseconds - do it now rather than search without the exact
-            // heuristic on a 40 ms budget and fall back to room by room (his 2026-10-04 log: 39-40 warps there).
-            graph.finishWarm(grid, start.x, start.y, start.z, FINISH_WARM_NANOS);
-        }
-        // Once the floor has been warm it stays mostly known: only a never-warm floor gets the short cold budget.
-        boolean warm = graph.warmDone() || graph.warmedOnce();
         WarpGraph.Goal goal = new WarpGraph.Goal();
         goal.x = to.getX();
         goal.y = to.getY();
@@ -163,12 +151,21 @@ public final class EtherwarpPathfinder {
         goal.deadEnd = deadEnds(layout);
         int tile6 = tileIdx < 0 ? -1 : ((tileIdx / DungeonLayout.GRID) / 2) * 6 + (tileIdx % DungeonLayout.GRID) / 2;
         String kind;
+        WarpGraph.Goal exactFallback = null;
         if (tile6 >= 0) {
             FloorTiles tiles = graphTiles;
             int t = tile6;
             goal.region = (x, y, z) -> tiles.tileOf(x, y, z) == t;
             goal.tile = t;
             kind = "tile";
+            if (new EtherSearch(grid).etherwarpable(to.getX(), to.getY(), to.getZ())) {
+                // No landing of the tile's floor band reachable: the block etherwarpableInTile picked, exactly.
+                exactFallback = new WarpGraph.Goal();
+                exactFallback.x = to.getX();
+                exactFallback.y = to.getY();
+                exactFallback.z = to.getZ();
+                exactFallback.deadEnd = goal.deadEnd;
+            }
         } else {
             int room = layout.roomAtWorld(to.getX(), to.getZ());
             int tx = to.getX();
@@ -178,25 +175,21 @@ public final class EtherwarpPathfinder {
                     && Math.abs(y - ty) <= NEAR_RADIUS && layout.roomAtWorld(x, z) == room;
             kind = "exact";
         }
-        long deadline = t0 + (warm ? cfg.timeout() : Math.min(cfg.timeout(), COLD_BUDGET_MS)) * 1_000_000L;
-        List<EtherSearch.Hop> path = graph.plan(grid, start, goal, deadline, MAX_WARPS);
-        if (path == null && tile6 >= 0 && !graph.timedOut
-                && new EtherSearch(grid).etherwarpable(to.getX(), to.getY(), to.getZ())) {
-            // No landing of the tile's floor band is reachable: the block etherwarpableInTile picked, exactly.
-            WarpGraph.Goal exact = new WarpGraph.Goal();
-            exact.x = to.getX();
-            exact.y = to.getY();
-            exact.z = to.getZ();
-            exact.deadEnd = goal.deadEnd;
-            path = graph.plan(grid, start, exact, deadline, MAX_WARPS);
+        // FloorGraphs.plan: the full graph once it is warm (finishing a re-warm after a block change first); before
+        // that, the quick graph, which warms first and in about half a second.
+        List<EtherSearch.Hop> path = graphs.plan(grid, () -> new LevelEtherGrid(level), workers(), workerCount, start,
+                goal, exactFallback, t0, cfg.timeout() * 1_000_000L, MAX_WARPS);
+        if (graphs.usedExact) {
             kind = "tile, then its block";
         }
+        WarpGraph graph = graphs.used;
+        boolean warm = graph.warmDone() || graph.warmedOnce();
         long end = System.nanoTime();
         if (path != null && path.isEmpty()) {
             LOGGER.info("[Path] already there ({}), {} ms", kind, ms(end - t0));
             return new ArrayList<>();
         }
-        if (path == null && graph.provedNoWay) {
+        if (path == null && graphs.provedNoWay) {
             // The warm graph proves nothing reaches it from here (a closed door, a sealed room); the room-by-room
             // planner's landings are a subset of the graph's, so it would only spend its 670 ms failing too.
             LOGGER.info("[Path] no way to {} {} from here on the floor graph ({} ms) - not trying room by room", kind,
@@ -204,21 +197,22 @@ public final class EtherwarpPathfinder {
             return null;
         }
         if (path == null) {
-            LOGGER.info("[Path] fewest-warps graph found nothing for {} {} in {} ms ({}; {} node(s) worked out"
-                            + " now, graph {} node(s), warm-up {}) - room by room instead", kind, to, ms(end - t0),
-                    graph.timedOut ? "out of time" : "no way", graph.expandedCold, graph.nodeCount(),
+            LOGGER.info("[Path] fewest-warps graph found nothing for {} {} in {} ms ({}; {} graph; {} node(s) worked"
+                            + " out now, graph {} node(s), warm-up {}) - room by room instead", kind, to, ms(end - t0),
+                    graphs.timedOut ? "out of time" : "no way", graphs.usedName, graph.expandedCold, graph.nodeCount(),
                     graph.warmDone() ? "done" : "still running");
             LOGGER.info("[Path] not a proof of no way because: {}", graph.noWayWhy);
             return legacyDungeonPath(from, to, cfg, dist, layout);
         }
         // One line a click, so the cost can be read off his log rather than guessed at.
-        LOGGER.info("[Path] {} warp(s) ({}{}), total {} ms: start {} ms, aim set {} ms ({} node(s)), backward"
-                        + " labels {} ms ({} node(s)); {} node(s) worked out now, {} known, {} edge(s), {} ray(s);"
-                        + " exact heuristic {}; graph {} node(s), warm-up {}; {} section(s) filled",
+        LOGGER.info("[Path] {} warp(s) ({}{}), total {} ms on the {} graph: start {} ms, aim set {} ms ({} node(s)),"
+                        + " backward labels {} ms ({} node(s)); {} node(s) worked out now, {} known, {} edge(s), {}"
+                        + " ray(s); exact heuristic {}; graph {} node(s), warm-up {}; {} section(s) filled",
                 path.size(), kind, graph.endedNear ? ", near: the block itself cannot be reached" : "",
-                ms(end - t0), ms(graph.nanosStart), ms(graph.nanosAimSet), graph.goalSetSize, ms(graph.nanosLabels),
-                graph.labelled, graph.expandedCold, graph.expandedWarm, graph.edgesScanned, graph.rays,
-                graph.usedFields ? "yes" : "no", graph.nodeCount(), warm ? "done" : "still running", grid.filled);
+                ms(end - t0), graphs.usedName, ms(graph.nanosStart), ms(graph.nanosAimSet), graph.goalSetSize,
+                ms(graph.nanosLabels), graph.labelled, graph.expandedCold, graph.expandedWarm, graph.edgesScanned,
+                graph.rays, graph.usedFields ? "yes" : "no", graph.nodeCount(), warm ? "done" : "still running",
+                grid.filled);
         return toNodes(path);
     }
 
@@ -249,7 +243,7 @@ public final class EtherwarpPathfinder {
 
     // The graph lives as long as its floor: same level, same hop range, same sim state and altitude. Only the
     // planner thread ever touches it.
-    private static volatile WarpGraph graph;
+    private static volatile FloorGraphs graph;
     private static FloorTiles graphTiles;
     private static volatile Level graphLevel;
     private static volatile double graphRange;
@@ -296,8 +290,8 @@ public final class EtherwarpPathfinder {
         }
     }
 
-    /** Planner thread. The floor's graph, made fresh when the floor changes, with any block changes applied. */
-    private static WarpGraph graphFor(Level level, double range) {
+    /** Planner thread. The floor's graphs, made fresh when the floor changes, with any block changes applied. */
+    private static FloorGraphs graphFor(Level level, double range) {
         boolean sim = com.killer560.hub.roomsim.SimState.isActive();
         int off = DungeonLayout.simYOffset();
         if (graph == null || graphLevel != level || graphRange != range || graphSim != sim || graphYOffset != off) {
@@ -316,13 +310,19 @@ public final class EtherwarpPathfinder {
             made.setTiles(tiles);
             made.setFine(EtherwarpPathfinder::doorwayColumn);
             made.partialFrom = PARTIAL_FROM;
-            graph = made;
+            // The quick graph a click uses until the full one is warm (FloorGraphs): same landing rule and tiles,
+            // coarser, only the doorways' own centre lines kept whole, cheap aims.
+            WarpGraph quick = new WarpGraph(range, STAND_OFFSET, FloorGraphs.QUICK_BUCKET, rule, floor - 20, floor + 45);
+            quick.setTiles(tiles);
+            quick.setFine(EtherwarpPathfinder::doorLineColumn);
+            quick.partialFrom = FloorGraphs.QUICK_PARTIAL_FROM;
+            graph = new FloorGraphs(made, quick);
             graphTiles = tiles;
             graphLevel = level;
             graphRange = range;
             graphSim = sim;
             graphYOffset = off;
-            LevelEtherGrid.listener = made;
+            LevelEtherGrid.listener = made;   // which tells the quick graph too (WarpGraph.follower)
         }
         LevelEtherGrid.processChanges(level);
         return graph;
@@ -346,6 +346,21 @@ public final class EtherwarpPathfinder {
         int seamZ = Math.floorMod(wz, 32) - 16;
         return offX == 0 || offZ == 0 || (Math.abs(seamX) <= 3 && Math.abs(offZ) <= 1)
                 || (Math.abs(seamZ) <= 3 && Math.abs(offX) <= 1);
+    }
+
+    /**
+     * The quick graph's whole columns ({@link FloorGraphs}): only the line through the middle of each doorway, seven
+     * columns deep across the seam, which every door's long sights pass along.
+     */
+    private static boolean doorLineColumn(int x, int z) {
+        BlockPos first = DungeonLayout.cellCenter(0);
+        int wx = x - first.getX();
+        int wz = z - first.getZ();
+        int offX = Math.floorMod(wx + 16, 32) - 16;
+        int offZ = Math.floorMod(wz + 16, 32) - 16;
+        int seamX = Math.floorMod(wx, 32) - 16;
+        int seamZ = Math.floorMod(wz, 32) - 16;
+        return (Math.abs(seamX) <= 3 && offZ == 0) || (Math.abs(seamZ) <= 3 && offX == 0);
     }
 
     /** {@link #coverTest} through any grid (warm-up workers read through their own). */
@@ -407,7 +422,7 @@ public final class EtherwarpPathfinder {
         if (level == null || mc.player == null) {
             return;
         }
-        WarpGraph g = graph;
+        FloorGraphs g = graph;
         if (g != null && graphLevel == level && graphRange == range && g.warmDone()
                 && !LevelEtherGrid.hasPendingChanges()) {
             return;
@@ -416,18 +431,23 @@ public final class EtherwarpPathfinder {
         warmInFlight = true;
         planner.submit(() -> {
             try {
-                WarpGraph gr = graphFor(level, range);
+                FloorGraphs gr = graphFor(level, range);
                 long t0 = System.nanoTime();
-                boolean wasDone = gr.warmDone();
+                boolean wasDone = gr.full.warmDone();
+                boolean quickWasDone = gr.quick.warmDone();
                 boolean more = true;
                 while (more && !clickWaiting.getAsBoolean() && System.nanoTime() - t0 < WARM_TASK_NANOS) {
                     more = gr.warm(new LevelEtherGrid(level), () -> new LevelEtherGrid(level), workers(),
                             workerCount, p.x, p.y, p.z, WARM_SLICE_NANOS);
                 }
                 warmNanos += System.nanoTime() - t0;
-                if (!more && !wasDone) {
+                if (!quickWasDone && gr.quick.warmDone() && !gr.full.warmDone()) {
+                    LOGGER.info("[Path] quick floor graph warm: {} node(s), {} ms of planner time on {} thread(s)",
+                            gr.quick.nodeCount(), ms(warmNanos), workerCount);
+                }
+                if (gr.full.warmDone() && !wasDone) {
                     LOGGER.info("[Path] floor graph warm: {} node(s), {} ms of planner time on {} thread(s)",
-                            gr.nodeCount(), ms(warmNanos), workerCount);
+                            gr.full.nodeCount(), ms(warmNanos), workerCount);
                     warmNanos = 0;
                 }
             } catch (RuntimeException e) {
