@@ -131,6 +131,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // The sim's entry point is the title screen's "Dungeon Sim" row, which MainMenuTitleLayout
         // places under Multiplayer - so there is nothing to register here.
         com.killer560.hub.roomsim.SimAbilities.register();
+        com.killer560.hub.roomsim.SimActionBar.register();
         com.killer560.hub.roomsim.SimSpiritSceptre.register();
         // Only so the Terminator's own arrows can be recognised when they land - that is what arms Salvation
         // now that the shot is real entities instead of a ray cast. Nothing else in this file needs it.

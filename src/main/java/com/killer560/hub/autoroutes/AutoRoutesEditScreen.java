@@ -62,7 +62,7 @@ public class AutoRoutesEditScreen extends Screen {
 
     /** The five {@code /ar add} types, in killer560's order. */
     private static final RouteNode.Type[] TYPES = {RouteNode.Type.BOOM, RouteNode.Type.DUNGEON_BREAKER,
-            RouteNode.Type.ETHERWARP, RouteNode.Type.USE_ITEM, RouteNode.Type.WALK};
+            RouteNode.Type.ETHERWARP, RouteNode.Type.USE_ITEM, RouteNode.Type.WALK, RouteNode.Type.PATH};
     /** The Await Secrets dropdown's choices; 0 is "no await". */
     private static final int AWAIT_MAX = 4;
 
@@ -161,10 +161,11 @@ public class AutoRoutesEditScreen extends Screen {
         boolean aim = aims(type);
         boolean use = type == RouteNode.Type.USE_ITEM;
         boolean breaker = type == RouteNode.Type.DUNGEON_BREAKER;
+        boolean path = type == RouteNode.Type.PATH && node.type == RouteNode.Type.PATH;
         int line = ROW + GAP;
-        int sections = 2 + (aim ? 1 : 0) + (use ? 1 : 0) + (breaker ? 1 : 0);
+        int sections = 2 + (aim ? 1 : 0) + (use ? 1 : 0) + (breaker ? 1 : 0) + (path ? 1 : 0);
         int rows = 2 /* xyz, nudges */ + (aim ? 2 : 0) + (use ? 1 : 0) + 2 /* type+start, await */
-                + (awaitOpen ? 1 : 0) + (breaker ? 1 : 0);
+                + (awaitOpen ? 1 : 0) + (breaker ? 1 : 0) + (path ? 1 : 0);
         panelW = PANEL_W;
         panelH = 32 + 22 + GAP * 2 + sections * HEADING_H + rows * line + GAP + 20 + 14 + PAD;
         panelX = (this.width - panelW) / 2;
@@ -250,6 +251,12 @@ public class AutoRoutesEditScreen extends Screen {
                 clearBlocks = !clearBlocks;
                 b.setMessage(onOff("Clear Blocks", clearBlocks));
             }, x + half + GAP, y, w - half - GAP, ROW);
+            y += line;
+        }
+
+        if (path) {
+            y = heading(pathHeading(), y);
+            button("Re-plan Path", b -> replan(), x, y, w, ROW);
             y += line;
         }
 
@@ -455,6 +462,37 @@ public class AutoRoutesEditScreen extends Screen {
         }
         onClose();
         AutoRoutesFeature.goToNode(route, node);
+    }
+
+    /** "Path - 3 warp(s) saved" for the first of a pair, what it pairs with otherwise. */
+    private String pathHeading() {
+        RouteNode dest = route.pathDestination(node);
+        if (dest != null) {
+            return "Path to #" + (route.indexOf(dest) + 1) + " - " + (RoutePathPlanner.valid(route, node)
+                    ? node.pathHops.size() + " warp(s) saved" : "not planned yet");
+        }
+        RouteNode src = route.pathSource(node);
+        return src != null ? "Path - arrival of #" + (route.indexOf(src) + 1) : "Path - no second path node yet";
+    }
+
+    /** Saves, then plans this pair's warps again now (the explicit refresh), replacing the saved ones. */
+    private void replan() {
+        if (!save()) {
+            return;
+        }
+        RouteNode src = route.isPathSource(node) ? node : route.pathSource(node);
+        if (src == null || route.pathDestination(src) == null) {
+            status = "§cThis path node has no partner to plan to.";
+            return;
+        }
+        src.pathHops.clear();
+        status = "§7Planning...";
+        RoutePathPlanner.plan(route, AutoRoutesFeature.editableFrame(), src, why -> {
+            status = why == null ? "§aPlanned: " + src.pathHops.size() + " warp(s) saved" : "§c" + why;
+            if (this.minecraft != null && com.killer560.hub.compat.McCompat.screen(this.minecraft) == this) {
+                rebuildWidgets();
+            }
+        });
     }
 
     /** Saves, then breaker edit mode on this node - {@code /ar edit db} aimed at it. */

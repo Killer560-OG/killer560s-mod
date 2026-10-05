@@ -89,6 +89,63 @@ public final class Route {
         return stack;
     }
 
+    /**
+     * Path nodes pair up by number: the 1st path node of the room with the 2nd, the 3rd with the 4th. For the FIRST
+     * of a pair this is the second (where its saved warps go); null for the second of a pair, or for a first with no
+     * later path node yet.
+     */
+    public RouteNode pathDestination(RouteNode node) {
+        int k = pathOrdinal(node);
+        if (k < 0 || k % 2 != 0) {
+            return null;
+        }
+        int seen = 0;
+        for (RouteNode n : nodes) {
+            if (n.type == RouteNode.Type.PATH && seen++ == k + 1) {
+                return n;
+            }
+        }
+        return null;
+    }
+
+    /** True when {@code node} is the first of a pair (whether or not its partner exists yet). */
+    public boolean isPathSource(RouteNode node) {
+        int k = pathOrdinal(node);
+        return k >= 0 && k % 2 == 0;
+    }
+
+    /** The node a path destination is reached from, or null. */
+    public RouteNode pathSource(RouteNode node) {
+        int k = pathOrdinal(node);
+        if (k < 1 || k % 2 != 1) {
+            return null;
+        }
+        int seen = 0;
+        for (RouteNode n : nodes) {
+            if (n.type == RouteNode.Type.PATH && seen++ == k - 1) {
+                return n;
+            }
+        }
+        return null;
+    }
+
+    /** 0-based position of {@code node} among this route's PATH nodes in number order, or -1. */
+    private int pathOrdinal(RouteNode node) {
+        if (node == null || node.type != RouteNode.Type.PATH) {
+            return -1;
+        }
+        int k = 0;
+        for (RouteNode n : nodes) {
+            if (n == node) {
+                return k;
+            }
+            if (n.type == RouteNode.Type.PATH) {
+                k++;
+            }
+        }
+        return -1;
+    }
+
     /** Re-anchors nodes that point past the end of a (re)recorded path so playback can still reach them. */
     public void clampNodeAnchors() {
         int max = Math.max(0, path.size() - 1);

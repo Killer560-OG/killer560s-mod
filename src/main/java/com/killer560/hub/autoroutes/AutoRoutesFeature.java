@@ -230,6 +230,7 @@ public final class AutoRoutesFeature {
         }
         RouteStore.getInstance().save();
         suppressAutoArm();
+        RoutePathPlanner.refreshStale(route, editableFrame());
         return true;
     }
 
@@ -339,6 +340,7 @@ public final class AutoRoutesFeature {
         }
         RouteStore.getInstance().save();
         suppressAutoArm();
+        RoutePathPlanner.refreshStale(currentRoute(), editableFrame());
         if (done.node() == null) {
             int n = done.route().nodes().size();
             chat(ModChat.text(done.verb() + " "), ModChat.value(done.route().roomName()),
@@ -399,6 +401,7 @@ public final class AutoRoutesFeature {
         }
         RouteStore.getInstance().save();
         suppressAutoArm();
+        RoutePathPlanner.refreshStale(route, editableFrame());
         chat(ModChat.text("Saved "), ModChat.value("#" + (route.indexOf(node) + 1) + " " + node.describe()),
                 previousStart == null ? ModChat.dim(" in " + route.roomName())
                         : ModChat.dim(" - start moved off #" + (route.indexOf(previousStart) + 1)));

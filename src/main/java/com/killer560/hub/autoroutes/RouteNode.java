@@ -31,7 +31,12 @@ public final class RouteNode {
      * of silently dropping someone's saved route.
      */
     public enum Type {
-        START, WALK, ETHERWARP, USE_ITEM, DUNGEON_BREAKER, BOOM, AWAIT, ROTATE, UNSNEAK, COMMAND;
+        START, WALK, ETHERWARP, USE_ITEM, DUNGEON_BREAKER, BOOM, AWAIT, ROTATE, UNSNEAK, COMMAND,
+        /** killer560, 2026-10-05: "put two nodes call them path ... it will pathfind from the first to the last via
+         *  the etherwarping style our interactive map uses". Path nodes pair up in number order (1st with 2nd, 3rd
+         *  with 4th): the first of a pair warps along its saved {@link #pathHops} to the second; the second is the
+         *  arrival and does nothing itself. See {@link RoutePathPlanner}. */
+        PATH;
 
         public static Type parse(String s) {
             if (s == null) {
@@ -49,6 +54,7 @@ public final class RouteNode {
                 case "rotate", "rot", "look" -> ROTATE;
                 case "unsneak", "unshift" -> UNSNEAK;
                 case "command", "cmd" -> COMMAND;
+                case "path" -> PATH;
                 default -> null;
             };
         }
@@ -66,6 +72,7 @@ public final class RouteNode {
                 case ROTATE -> "Rotate";
                 case UNSNEAK -> "Unsneak";
                 case COMMAND -> "Command";
+                case PATH -> "Path";
             };
         }
     }
@@ -122,6 +129,29 @@ public final class RouteNode {
     public double landingY;
     public double landingZ;
     public boolean hasLanding;
+
+    /**
+     * {@link Type#PATH}, on the FIRST node of a pair: the etherwarps that take him from this node to the next path
+     * node, planned once by the Interactive Map's planner and saved (killer560, 2026-10-05: "It only needs to
+     * generate the movement once and then save it not generate it every time"). Room-relative, like everything
+     * else here. {@link #planFromX}.. and {@link #planToX}.. are where the pair's two nodes stood when it was
+     * planned: when either has moved since (an edit, a delete, an undo) the hops are stale and are planned again.
+     */
+    public final List<PathHop> pathHops = new ArrayList<>();
+    public double planFromX;
+    public double planFromY;
+    public double planFromZ;
+    public double planToX;
+    public double planToY;
+    public double planToZ;
+
+    /**
+     * One saved warp of a path: stand at {@code (ox, oy, oz)}, look along {@code yaw}/{@code pitch} (relative, as a
+     * node's look is) and land on block {@code target}, feet at {@code (lx, ly, lz)}. All room-relative.
+     */
+    public record PathHop(double ox, double oy, double oz, float yaw, float pitch, BlockPos target,
+                          double lx, double ly, double lz) {
+    }
 
     public RouteNode() {
     }
@@ -216,7 +246,9 @@ public final class RouteNode {
             case COMMAND -> 4;
             case ROTATE -> 5;
             case UNSNEAK -> 6;
-            case ETHERWARP -> 7;
+            // A path is etherwarps, and fires in the etherwarp slot (killer560, 2026-10-05: "have the same priority
+            // of an etherwarp in the ranking").
+            case ETHERWARP, PATH -> 7;
             case WALK -> 8;
         };
     }
@@ -238,6 +270,9 @@ public final class RouteNode {
             case COMMAND -> sb.append(" [").append(command == null ? "" : command).append(']');
             default -> {
             }
+        }
+        if (type == Type.PATH && !pathHops.isEmpty()) {
+            sb.append(" [").append(pathHops.size()).append(" warp(s) saved]");
         }
         sb.append(modifierTag());
         sb.append(String.format(Locale.US, " @ %.1f, %.1f, %.1f", x, y, z));
@@ -297,6 +332,16 @@ public final class RouteNode {
         landingY = o.landingY;
         landingZ = o.landingZ;
         hasLanding = o.hasLanding;
+        if (o != this) {
+            pathHops.clear();
+            pathHops.addAll(o.pathHops);
+        }
+        planFromX = o.planFromX;
+        planFromY = o.planFromY;
+        planFromZ = o.planFromZ;
+        planToX = o.planToX;
+        planToY = o.planToY;
+        planToZ = o.planToZ;
     }
 
     /** True when every stored field matches {@code o}'s - the editor's "nothing changed, push no undo entry". */
@@ -307,6 +352,8 @@ public final class RouteNode {
                 && java.util.Objects.equals(item, o.item) && awaitCondition == o.awaitCondition
                 && awaitAmount == o.awaitAmount && java.util.Objects.equals(command, o.command)
                 && landingX == o.landingX && landingY == o.landingY && landingZ == o.landingZ
-                && hasLanding == o.hasLanding;
+                && hasLanding == o.hasLanding && pathHops.equals(o.pathHops)
+                && planFromX == o.planFromX && planFromY == o.planFromY && planFromZ == o.planFromZ
+                && planToX == o.planToX && planToY == o.planToY && planToZ == o.planToZ;
     }
 }

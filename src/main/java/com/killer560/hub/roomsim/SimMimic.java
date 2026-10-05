@@ -73,7 +73,7 @@ public final class SimMimic {
                 // A chest is a secret whether or not it bites. Counted here rather than in a second hook: one
                 // place that sees a chest click is easier to keep honest than two that must agree.
                 if (level.getBlockState(pos).is(Blocks.CHEST) && OPENED.add(pos.immutable())) {
-                    SimScore.secretFound();
+                    SimScore.secretFound(pos.immutable());
                 }
                 onChestOpened(client, pos);
             }

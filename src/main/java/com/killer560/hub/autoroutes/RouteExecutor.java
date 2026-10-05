@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.util.ModChat;
 
 /**
  * Auto Routes playback. CHEAT BUILD ONLY - only ever started by {@link AutoRoutesFeature} behind
@@ -150,6 +151,24 @@ public final class RouteExecutor {
      *  when a teleport's use is sent - Hypixel and the sim both teleport with that packet, so it is the landing check's
      *  proof that a teleport really happened, however short. */
     private static volatile boolean teleportPacketSeen;
+    // ---- the warp being flown: an etherwarp node's own, or one saved hop of a path node ----
+    /** Real-world look, landing and landing block of the warp under way ({@link #tickWarp}). */
+    private static float warpYaw;
+    private static float warpPitch;
+    private static Vec3 warpLanding;
+    private static BlockPos warpTarget;
+    /** PATH: the saved hop being flown, or -1 before the first; ticks to sit between two hops. */
+    private static int hopIndex = -1;
+    private static int hopSettleTicks;
+    /** PATH: a plan this node asked for, and how it came out ("ok", a reason, or null while it runs). */
+    private static boolean planAsked;
+    private static volatile String planOutcome;
+    private static final int PLAN_TIMEOUT = 600;
+    /** Ticks spent waiting for a missing landing block, and whether chat has been told. */
+    private static int blockWaitTicks;
+    private static boolean blockWaitSaid;
+    /** How long a warp waits for its landing block to come back before the route gives up (60 s). */
+    private static final int BLOCK_WAIT_TIMEOUT = 1200;
     private static List<BlockPos> breakerQueue = new ArrayList<>();
     private static final Set<BlockPos> breakerSent = new HashSet<>();
     private static BlockPos boomTarget;
@@ -901,6 +920,12 @@ public final class RouteExecutor {
         awaitPhaseDone = !node.awaitEnabled && node.type != RouteNode.Type.AWAIT;
         breakerQueue = new ArrayList<>();
         breakerSent.clear();
+        hopIndex = -1;
+        hopSettleTicks = 0;
+        planAsked = false;
+        planOutcome = null;
+        blockWaitTicks = 0;
+        blockWaitSaid = false;
         boomTarget = null;
         boomBefore.clear();
         // The node acts NOW, on the tick it fired - not on the next tick's pass through tick(). Waiting for that pass
@@ -975,7 +1000,7 @@ public final class RouteExecutor {
             inPlace = true;
         } else {
             boolean teleported = finished != null && teleportPacketSeen
-                    && (finished.type == RouteNode.Type.ETHERWARP
+                    && (finished.type == RouteNode.Type.ETHERWARP || finished.type == RouteNode.Type.PATH
                     || (finished.type == RouteNode.Type.USE_ITEM && finished.hasLanding));
             if (pathless && teleported) {
                 RouteNode landedIn = nodeLandedIn(player, cfg, finished);
@@ -997,7 +1022,7 @@ public final class RouteExecutor {
             forceSneak = false;
         } else {
             forceSneak = switch (up.type) {
-                case ETHERWARP -> inPlace || (was && pathless);
+                case ETHERWARP, PATH -> inPlace || (was && pathless);
                 case WALK, UNSNEAK, USE_ITEM -> false;
                 default -> was && (pathless || inPlace);
             };
@@ -1079,6 +1104,7 @@ public final class RouteExecutor {
             }
             case ROTATE -> tickRotate(node);
             case ETHERWARP -> tickEtherwarp(client, player, node);
+            case PATH -> tickPath(client, player, node);
             case USE_ITEM -> tickUseItem(client, player, node);
             case BOOM -> tickBoom(client, player, node);
             case DUNGEON_BREAKER -> tickBreaker(client, player, node);
@@ -1147,17 +1173,149 @@ public final class RouteExecutor {
      */
     private static void tickEtherwarp(Minecraft client, LocalPlayer player, RouteNode node) {
         if (step == Step.PREP) {
+            warpYaw = RouteCoords.toRealYaw(frame, node.yaw);
+            warpPitch = node.pitch;
+            if (node.hasLanding) {
+                warpLanding = RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ);
+                warpTarget = landingBlock(warpLanding);
+            } else {
+                warpLanding = null;
+                warpTarget = null;
+            }
+        }
+        if (tickWarp(client, player, node)) {
+            finishAction();
+            noteLanding(node);
+        }
+    }
+
+    /** The block a landing stands on: feet are 1.05 over a full block's top (0.55 over a slab's), so half a block
+     *  below the feet is inside it either way. */
+    private static BlockPos landingBlock(Vec3 landing) {
+        return BlockPos.containing(landing.x, landing.y - 0.5, landing.z);
+    }
+
+    /**
+     * A PATH node (killer560, 2026-10-05). The first of a pair flies the warps saved on it ({@link RouteNode#pathHops}),
+     * planning them first only when there are none or they are stale ({@link RoutePathPlanner}); the second of a pair
+     * is the arrival and does nothing itself - landing in it fires it, and its own await and whatever is stacked on
+     * its tile, through the ordinary landing re-fire.
+     */
+    private static void tickPath(Minecraft client, LocalPlayer player, RouteNode node) {
+        if (hopIndex < 0) {
+            if (!route.isPathSource(node)) {
+                logActed(node, " (path arrival)");
+                finishAction();
+                return;
+            }
+            RouteNode dest = route.pathDestination(node);
+            if (dest == null) {
+                AutoRoutesFeature.chatBad("Path #" + (route.indexOf(node) + 1)
+                        + " has no later path node to go to - add one with /ar add path.");
+                logActed(node, " (no destination path node)");
+                finishAction();
+                return;
+            }
+            wantSneak = forceSneak;
+            if (!RoutePathPlanner.valid(route, node)) {
+                if (!planAsked) {
+                    planAsked = true;
+                    planOutcome = null;
+                    stepTicks = 0;
+                    LOGGER.info("[AutoRoutes] Node #{} PATH: no saved warps for this pair - planning them once",
+                            route.indexOf(node) + 1);
+                    RoutePathPlanner.plan(route, frame, node, why -> planOutcome = why == null ? "ok" : why);
+                }
+                String outcome = planOutcome;
+                if (outcome == null) {
+                    if (stepTicks > PLAN_TIMEOUT) {
+                        stop("the path planner did not answer");
+                    }
+                    return;
+                }
+                if (!"ok".equals(outcome) || !RoutePathPlanner.valid(route, node)) {
+                    stop("no etherwarp path from #" + (route.indexOf(node) + 1) + " to #" + (route.indexOf(dest) + 1)
+                            + " (" + outcome + ")");
+                    return;
+                }
+            }
+            LOGGER.info("[AutoRoutes] Node #{} PATH: flying {} saved warp(s) to #{}", route.indexOf(node) + 1,
+                    node.pathHops.size(), route.indexOf(dest) + 1);
+            loadHop(node, 0);
+        }
+        if (hopSettleTicks > 0) {
+            hopSettleTicks--;
+            wantSneak = true;
+            return;
+        }
+        if (!tickWarp(client, player, node)) {
+            return;
+        }
+        if (hopIndex + 1 < node.pathHops.size()) {
+            loadHop(node, hopIndex + 1);
+            hopSettleTicks = AutoRoutesConfig.getInstance().getInteractDelayTicks();
+            if (hopSettleTicks <= 0) {
+                tickPath(client, player, node); // the next hop goes on this tick
+            }
+            return;
+        }
+        LOGGER.info("[AutoRoutes] Node #{} PATH: all {} warp(s) landed", route.indexOf(node) + 1, node.pathHops.size());
+        finishAction();
+        noteLanding(node);
+    }
+
+    /** Points the warp step at saved hop {@code i} of {@code node}. */
+    private static void loadHop(RouteNode node, int i) {
+        hopIndex = i;
+        RouteNode.PathHop h = node.pathHops.get(i);
+        warpYaw = RouteCoords.toRealYaw(frame, h.yaw());
+        warpPitch = h.pitch();
+        warpLanding = RouteCoords.toReal(frame, h.lx(), h.ly(), h.lz());
+        warpTarget = RouteCoords.toRealBlock(frame, h.target());
+        step = Step.PREP;
+        stepTicks = 0;
+        blockWaitTicks = 0;
+        blockWaitSaid = false;
+        // Not standing where the plan stood (the first hop, fired from anywhere in the node's ring): aim from HERE at
+        // the same block, with the aim the Interactive Map itself uses, if that ray really lands on it.
+        LocalPlayer player = Minecraft.getInstance().player;
+        Vec3 origin = RouteCoords.toReal(frame, h.ox(), h.oy(), h.oz());
+        if (player != null && player.position().distanceTo(origin) > 0.05) {
+            Vec3 eye = new Vec3(player.getX(), player.getY() + TeleportUtils.eyeHeight(true), player.getZ());
+            TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget,
+                    com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0);
+            if (rot != null) {
+                warpYaw = rot.yaw();
+                warpPitch = rot.pitch();
+            }
+        }
+    }
+
+    /**
+     * One etherwarp, from {@link #warpYaw}/{@link #warpPitch} onto {@link #warpLanding}: an ew node's own, or one hop
+     * of a path. Fire tick: slot, sneak and aim are all asked for at once. The use goes out as soon as the server has
+     * the sneak - this very tick when the last input packet already carried shift, otherwise the next tick, after this
+     * tick's input packet has carried it. A swap costs no tick: the held-item packet is sent before either.
+     * <p>
+     * If the block it lands on is not there (killer560, 2026-10-05: "let's say it needs to etherwarp to a block that
+     * isn't there then have it wait till the block is back") nothing is sent: the route holds, sneak still down, says
+     * so once in chat, and warps the tick the block is back - or stops after {@link #BLOCK_WAIT_TIMEOUT}.
+     *
+     * @return true on the tick the server-confirmed landing is seen
+     */
+    private static boolean tickWarp(Minecraft client, LocalPlayer player, RouteNode node) {
+        if (step == Step.PREP) {
             int slot = ItemIdentity.findEtherwarpSlot(player);
             if (slot < 0) {
                 LOGGER.info("[AutoRoutes] Etherwarp: no hotbar item with ethermerge / ETHERWARP_CONDUIT");
                 stop("no etherwarp item in the hotbar");
-                return;
+                return false;
             }
             select(client, player, slot);
             forceSneak = true;
             unsneakOverride = false;
             wantSneak = true;
-            aimAt(node);
+            aimAt(warpYaw, warpPitch, node);
             step = Step.AIM;
             stepTicks = 0;
         }
@@ -1173,45 +1331,85 @@ public final class RouteExecutor {
                             player.isShiftKeyDown(), mixinApplied);
                     stop("couldn't start sneaking for the etherwarp");
                 }
-                return;
+                return false;
             }
             if (sneakReadyAge < 0) {
                 sneakReadyAge = actionAge;
             }
+            if (!landingBlockThere(client)) {
+                return false;
+            }
             if (!aimReady()) {
-                return;
+                return false;
             }
             actionOrigin = player.position();
             teleportPacketSeen = false;
-            useHeldItem(client, player, node, false);
-            logActed(node, " (sneak " + (sneakReadyAge == awaitDoneAge ? "already held"
+            useHeldItem(client, player, warpYaw, warpPitch, false);
+            logActed(node, (hopIndex >= 0 ? " (path warp " + (hopIndex + 1) + "/" + node.pathHops.size() + ")" : "")
+                    + " (sneak " + (sneakReadyAge == awaitDoneAge ? "already held"
                     : "went out in the firing tick's input packet") + ", "
                     + ItemIdentity.skyblockId(player.getMainHandItem()) + ")");
             step = Step.CONFIRM;
             stepTicks = 0;
             cameraGraceTicks = LANDING_TIMEOUT + 5;
-            return;
+            return false;
         }
         if (step == Step.CONFIRM) {
             wantSneak = true;
-            if (landed(player, node)) {
+            if (landed(player, warpLanding)) {
                 LOGGER.info("[AutoRoutes] Etherwarp: landed at {} {} tick(s) after the use ({} from firing)",
                         fmt(player.position()), stepTicks, actionAge);
                 // Whether the sneak stays held for what comes next is planSneak's call, from finishAction.
                 RouteRotation.rebase();
                 cameraGraceTicks = 3;
                 rejoinPathAfterTeleport(player, node);
-                finishAction();
-                noteLanding(node);
+                return true;
             } else if (stepTicks > LANDING_TIMEOUT) {
                 LOGGER.info("[AutoRoutes] Etherwarp: no landing after {} ticks - player {} (moved {} from {}), "
                         + "recorded landing {}", stepTicks, fmt(player.position()),
                         String.format(Locale.US, "%.2f", actionOrigin == null ? 0.0 : player.position().distanceTo(actionOrigin)),
-                        fmt(actionOrigin),
-                        node.hasLanding ? fmt(RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ)) : "none");
+                        fmt(actionOrigin), fmt(warpLanding));
                 stop("etherwarp didn't land where it was recorded");
             }
         }
+        return false;
+    }
+
+    /**
+     * Whether the block the warp lands on is there, from the client's own world. A warp with no known landing, or one
+     * whose block is in a chunk the client does not have, is not held back. Says so in chat once per wait.
+     */
+    private static boolean landingBlockThere(Minecraft client) {
+        BlockPos target = warpTarget;
+        if (target == null || client.level == null) {
+            return true;
+        }
+        int y = Math.max(client.level.getMinY(), Math.min(client.level.getMaxY(), target.getY()));
+        // "Not there" is the block itself having nothing to stand on (air, a broken or not-yet-placed block) - not the
+        // stricter etherwarpable(), whose standing-room test could disagree with the landing the node was saved with
+        // and hold a good warp forever.
+        if (!client.level.isLoaded(new BlockPos(target.getX(), y, target.getZ()))
+                || !client.level.getBlockState(target).getCollisionShape(client.level, target).isEmpty()) {
+            if (blockWaitTicks > 0) {
+                LOGGER.info("[AutoRoutes] Etherwarp: landing block {} is back after {} tick(s) - warping",
+                        target.toShortString(), blockWaitTicks);
+            }
+            blockWaitTicks = 0;
+            blockWaitSaid = false;
+            return true;
+        }
+        blockWaitTicks++;
+        if (!blockWaitSaid) {
+            blockWaitSaid = true;
+            LOGGER.info("[AutoRoutes] Etherwarp: landing block {} is not there ({}) - waiting for it",
+                    target.toShortString(), client.level.getBlockState(target));
+            AutoRoutesFeature.chat(ModChat.text("Waiting for the block at "), ModChat.value(target.toShortString()),
+                    ModChat.text(" - the etherwarp lands there."));
+        }
+        if (blockWaitTicks > BLOCK_WAIT_TIMEOUT) {
+            stop("the etherwarp's landing block at " + target.toShortString() + " never came back");
+        }
+        return false;
     }
 
     private static void tickUseItem(Minecraft client, LocalPlayer player, RouteNode node) {
@@ -1245,7 +1443,7 @@ public final class RouteExecutor {
             }
             actionOrigin = player.position();
             teleportPacketSeen = false;
-            useHeldItem(client, player, node, true);
+            useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), node.pitch, true);
             logActed(node, " (" + node.item + ")");
             step = Step.CONFIRM;
             stepTicks = 0;
@@ -1259,7 +1457,8 @@ public final class RouteExecutor {
             return;
         }
         if (step == Step.CONFIRM) {
-            if (landed(player, node)) {
+            if (landed(player, node.hasLanding ? RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ)
+                    : null)) {
                 LOGGER.info("[AutoRoutes] Use: landed {} tick(s) after the use", stepTicks);
                 RouteRotation.rebase();
                 cameraGraceTicks = 3;
@@ -1430,15 +1629,19 @@ public final class RouteExecutor {
     /** Legit mode: humanized camera turn toward the node's recorded look (with the next node as the feint hint).
      *  Obvious mode: no camera movement at all - the rotation goes into the packet instead. */
     private static void aimAt(RouteNode node) {
+        aimAt(RouteCoords.toRealYaw(frame, node.yaw), node.pitch, node);
+    }
+
+    /** {@link #aimAt(RouteNode)} at an explicit real-world look - a path hop's. */
+    private static void aimAt(float yaw, float pitch, RouteNode node) {
         if (!AutoRoutesConfig.getInstance().isLegitMode()) {
             RouteRotation.clear();
             return;
         }
-        float yaw = RouteCoords.toRealYaw(frame, node.yaw);
         RouteNode next = !stackQueue.isEmpty() ? stackQueue.peek()
                 : nextNode + 1 < ordered.size() ? ordered.get(nextNode + 1) : null;
         boolean hasNext = next != null && next.isDiscreteAction();
-        RouteRotation.beginApproach(yaw, node.pitch, hasNext, hasNext ? RouteCoords.toRealYaw(frame, next.yaw) : 0f,
+        RouteRotation.beginApproach(yaw, pitch, hasNext, hasNext ? RouteCoords.toRealYaw(frame, next.yaw) : 0f,
                 hasNext ? next.pitch : 0f);
     }
 
@@ -1485,7 +1688,8 @@ public final class RouteExecutor {
      *  crosshair first like vanilla (a recorded lever/chest click replays as one), then the item; an etherwarp is
      *  QUOI's plain {@code gameMode.useItem}. Obvious: the rotated use packet without touching the camera
      *  ({@code ClearExecutor.doInteract}). */
-    private static void useHeldItem(Minecraft client, LocalPlayer player, RouteNode node, boolean blockInteraction) {
+    private static void useHeldItem(Minecraft client, LocalPlayer player, float targetYaw, float targetPitch,
+                                    boolean blockInteraction) {
         boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
         // No sim branch: the dungeon sim's integrated server answers this exact packet as Hypixel's does
         // (roomsim.SimAbilities), so a route runs the same code in both.
@@ -1503,10 +1707,9 @@ public final class RouteExecutor {
             player.swing(InteractionHand.MAIN_HAND);
             return;
         }
-        float targetYaw = RouteCoords.toRealYaw(frame, node.yaw);
         // Same direction as the target, expressed relative to the running (unwrapped) yaw - never a wrapped absolute.
         float yaw = player.getYRot() + Mth.wrapDegrees(targetYaw - player.getYRot());
-        float pitch = Mth.clamp(node.pitch, -90f, 90f);
+        float pitch = Mth.clamp(targetPitch, -90f, 90f);
         if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
             invoker.killer560smod$invokeStartPrediction(client.level,
                     sequence -> new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch));
@@ -1533,10 +1736,9 @@ public final class RouteExecutor {
      * he stands on), or - should that hook not have applied - having moved half a block, or the use having been sent
      * from the landing itself (the old behaviour for a warp in place).
      */
-    private static boolean landed(LocalPlayer player, RouteNode node) {
+    private static boolean landed(LocalPlayer player, Vec3 landing) {
         Vec3 pos = player.position();
-        if (node.hasLanding) {
-            Vec3 landing = RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ);
+        if (landing != null) {
             if (pos.distanceTo(landing) > LANDING_TOLERANCE) {
                 return false;
             }

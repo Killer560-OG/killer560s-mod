@@ -68,6 +68,7 @@ public final class SimScore {
         mimicKilled = false;
         batsKilled = 0;
         secretsFound = 0;
+        FOUND_BY_ROOM.clear();
         deaths = 0;
         roomsCleared = 0;
         secretsTotal = mapSecretTotal;
@@ -99,6 +100,40 @@ public final class SimScore {
     public static void secretFound() {
         secretsFound++;
     }
+
+    /**
+     * A secret found AT {@code at}: counted for the run, and for the room standing there, which is the count
+     * Hypixel's action bar shows ("x/y Secrets") while you are in that room - {@link SimActionBar} sends it, and
+     * Auto Routes' {@code await:<n>} and the live map read it, as they do on Hypixel. Without the per-room count
+     * the sim sent no such line at all, so an {@code await} node waited forever in the sim (2026-10-05).
+     */
+    public static void secretFound(net.minecraft.core.BlockPos at) {
+        secretsFound++;
+        String room = roomAt(at);
+        if (room != null) {
+            FOUND_BY_ROOM.merge(room, 1, Integer::sum);
+        }
+    }
+
+    /** Secrets found so far in the named room this run. */
+    public static int foundInRoom(String room) {
+        return room == null ? 0 : FOUND_BY_ROOM.getOrDefault(room, 0);
+    }
+
+    /** The placed room covering a world position, by the same tile rounding {@code DungeonLayout.roomAtWorld} uses. */
+    public static String roomAt(net.minecraft.core.BlockPos at) {
+        if (at == null) {
+            return null;
+        }
+        int grid = com.killer560.hub.livemap.DungeonLayout.GRID;
+        int gx = Math.max(0, Math.min(grid - 1, (int) Math.round((at.getX()
+                - com.killer560.hub.livemap.LiveMapFeature.START_X) / 32.0) * 2));
+        int gz = Math.max(0, Math.min(grid - 1, (int) Math.round((at.getZ()
+                - com.killer560.hub.livemap.LiveMapFeature.START_Z) / 32.0) * 2));
+        return SimRoomIndex.nameAtCell(gz * grid + gx);
+    }
+
+    private static final java.util.Map<String, Integer> FOUND_BY_ROOM = new java.util.concurrent.ConcurrentHashMap<>();
 
     public static void roomCleared() {
         roomsCleared++;

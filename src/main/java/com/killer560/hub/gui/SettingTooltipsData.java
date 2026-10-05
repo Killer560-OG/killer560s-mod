@@ -393,6 +393,7 @@ final class SettingTooltipsData {
         d.put("add use item node key", "Adds a node that uses your held item (same as /ar add use).");
         d.put("add walk node key", "Adds a walk node where you stand; it sprints the way you were facing (same as /ar add walk).");
         d.put("add superboom node key", "Adds a superboom node (same as /ar add boom).");
+        d.put("add path node key", "Adds a path node (same as /ar add path); the first of each pair etherwarps to the second.");
         d.put("clear room route key", "Deletes this room's whole route (same as /ar clear).");
         d.put("list nodes key", "Prints this room's nodes in chat (same as /ar list).");
         d.put("delete nearest node key", "Deletes the Auto Routes node you stand clearly nearest (same as /ar delete with no number).");
@@ -400,7 +401,7 @@ final class SettingTooltipsData {
         d.put("redo last change key", "Re-applies the last Auto Routes change you undid (same as /ar redo).");
         d.put("redo chain change key", "Re-applies the last AP3 change you undid (same as /ap3 redo).");
         // The Auto Routes node editor (/ar edit <n>), scoped so its generic labels cannot collide with a tab's.
-        d.put("ar edit/type", "The node's type: boom, breaker, etherwarp, use or walk. Applied on Save.");
+        d.put("ar edit/type", "The node's type: boom, breaker, etherwarp, use, walk or path. Applied on Save.");
         d.put("ar edit/start node", "Makes this the room's start node. Only one node can be; Save moves it off the old one.");
         d.put("ar edit/await secrets", "How many secrets this node waits for before it fires, 0 to 4. None means it fires at once.");
         d.put("ar edit/x -1", "Moves the node one block west, onto that block's centre.");
@@ -418,6 +419,7 @@ final class SettingTooltipsData {
         d.put("ar edit/delete", "Deletes this node. Press again to confirm; /ar undo brings it back.");
         d.put("ar edit/confirm delete", "Deletes this node now. /ar undo brings it back.");
         d.put("ar edit/cancel", "Closes the editor without changing anything.");
+        d.put("ar edit/re-plan path", "Plans this pair's etherwarps again now and saves them, replacing the saved ones.");
         d.put("stop route key", "Stops the running Auto Route and releases every key (same as /ar stop).");
         d.put("reload routes file key", "Re-reads the routes file from disk (same as /ar reload).");
         d.put("ap3", "Cheat build: walks a hand-placed node chain through each F7/M7 boss phase.");
@@ -1669,6 +1671,7 @@ final class SettingTooltipsData {
         d.put("party interop/local mod bridge", "Reads dungeon info from NoammAddons and Odin if you have them installed.");
         d.put("party interop/log pickups", "Prints each piece of party info into chat as it is picked up.");
         d.put("superboom colour", "Marker colour for Superboom nodes.");
+        d.put("path colour", "Marker colour for Path nodes.");
         d.put("auto routes/thickness", "Line thickness of the Auto Routes node markers and path line, 1 to 8.");
         d.put("auto routes/active node colour", "Colour of the node the route is currently walking to or performing.");
         d.put("auto routes/keybinds", "Binds a key to each /ar command (cheat build only).");

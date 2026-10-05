@@ -87,6 +87,9 @@ public final class AutoRoutesCommands {
         ADD_USE_ITEM("add_use", "Add Use Item Node", "/ar add use"),
         ADD_WALK("add_walk", "Add Walk Node", "/ar add walk"),
         ADD_BOOM("add_boom", "Add Superboom Node", "/ar add boom"),
+        /** killer560, 2026-10-05: two path nodes, and it etherwarps from the first to the second the way the
+         *  Interactive Map does - see RoutePathPlanner. */
+        ADD_PATH("add_path", "Add Path Node", "/ar add path"),
         EDIT_BREAKER("edit_db", "Edit Breaker Blocks", "/ar edit db"),
         CLEAR("clear", "Clear Room Route", "/ar clear"),
         LIST("list", "List Nodes", "/ar list"),
@@ -138,8 +141,9 @@ public final class AutoRoutesCommands {
             "ew", RouteNode.Type.ETHERWARP,
             "etherwarp", RouteNode.Type.ETHERWARP,
             "use", RouteNode.Type.USE_ITEM,
-            "walk", RouteNode.Type.WALK);
-    private static final List<String> TYPE_WORDS = List.of("boom", "breaker", "ew", "etherwarp", "use", "walk");
+            "walk", RouteNode.Type.WALK,
+            "path", RouteNode.Type.PATH);
+    private static final List<String> TYPE_WORDS = List.of("boom", "breaker", "ew", "etherwarp", "use", "walk", "path");
     /** Modifiers offered after any {@code /ar add <type>}. {@code x} is a placeholder: the command refuses
      *  {@code await:} followed by anything but a number. */
     private static final List<String> MOD_WORDS = List.of("await:x", "start");
@@ -327,6 +331,7 @@ public final class AutoRoutesCommands {
             case ADD_USE_ITEM -> add(RouteNode.Type.USE_ITEM);
             case ADD_WALK -> add(RouteNode.Type.WALK);
             case ADD_BOOM -> add(RouteNode.Type.BOOM);
+            case ADD_PATH -> add(RouteNode.Type.PATH);
             case EDIT_BREAKER -> toggleEditMode();
             case CLEAR -> clear();
             case LIST -> list();
@@ -375,7 +380,7 @@ public final class AutoRoutesCommands {
         }
         ModChat.send(FEATURE, ModChat.value("/ar edit <n>"), ModChat.dim(" - Node Editor (type, start, await, position, look, item, Go To)"));
         ModChat.send(FEATURE, ModChat.dim("/autoroutes works everywhere /ar does."));
-        ModChat.send(FEATURE, ModChat.dim("Types: boom, breaker, ew (or etherwarp), use, walk. After the type, any order: "),
+        ModChat.send(FEATURE, ModChat.dim("Types: boom, breaker, ew (or etherwarp), use, walk, path. After the type, any order: "),
                 ModChat.value("start"), ModChat.dim(" (this room's start node), "), ModChat.value("await:<number>"),
                 ModChat.dim(" (wait for that many secrets first) - e.g. "), ModChat.value("/ar add ew start await:2"),
                 ModChat.dim("."));
@@ -433,6 +438,7 @@ public final class AutoRoutesCommands {
         Component tail = switch (type) {
             case DUNGEON_BREAKER -> ModChat.dim(" - /ar edit db, then right-click its blocks.");
             case USE_ITEM -> ModChat.dim(" - matched on the item, not the slot.");
+            case PATH -> ModChat.dim(" - path nodes pair up in number order; the first warps to the second.");
             default -> ModChat.text("");
         };
         ModChat.send(FEATURE, ModChat.text(status), tail);
@@ -451,7 +457,7 @@ public final class AutoRoutesCommands {
             RouteNode.Type type = ADD_TYPES.get(key);
             if (type == null) {
                 ModChat.send(FEATURE, ModChat.bad("Unknown node type "), ModChat.value(typeWord),
-                        ModChat.dim(" - boom, breaker, ew (or etherwarp), use or walk. start and await:<number> go after it, e.g. "),
+                        ModChat.dim(" - boom, breaker, ew (or etherwarp), use, walk or path. start and await:<number> go after it, e.g. "),
                         ModChat.value("/ar add ew start await:2"), ModChat.dim("."));
                 return;
             }

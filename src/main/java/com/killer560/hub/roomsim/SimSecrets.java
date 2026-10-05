@@ -94,7 +94,7 @@ public final class SimSecrets {
             if (!PLACED_WITHER.remove(at)) {
                 return net.minecraft.world.InteractionResult.PASS;
             }
-            SimScore.secretFound();
+            SimScore.secretFound(at);
             // Told directly: this listener consumes the click, so Secret Waypoints' own UseBlockCallback
             // (registered later) never sees it and the essence's highlight stayed up.
             com.killer560.hub.secretwaypoints.SecretWaypointsFeature.markSimEssenceCollected(at);

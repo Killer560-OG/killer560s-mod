@@ -388,7 +388,58 @@ public final class RouteStore {
                 n.hasLanding = true;
             }
         }
+        if (type == RouteNode.Type.PATH) {
+            JsonArray hops = ConfigJson.getArray(o, "hops");
+            double[] from = parseTriple(ConfigJson.getString(o, "planFrom", ""));
+            double[] to = parseTriple(ConfigJson.getString(o, "planTo", ""));
+            if (hops != null && from != null && to != null) {
+                for (JsonElement h : hops) {
+                    if (n.pathHops.size() >= MAX_PATH_HOPS) {
+                        break;
+                    }
+                    RouteNode.PathHop hop = parseHop(h);
+                    if (hop == null) {
+                        n.pathHops.clear(); // a damaged list is planned again rather than half-flown
+                        break;
+                    }
+                    n.pathHops.add(hop);
+                }
+                n.planFromX = from[0];
+                n.planFromY = from[1];
+                n.planFromZ = from[2];
+                n.planToX = to[0];
+                n.planToY = to[1];
+                n.planToZ = to[2];
+            }
+        }
         return n;
+    }
+
+    /** Most warps a saved path may hold - a whole floor is crossed in well under this. */
+    public static final int MAX_PATH_HOPS = 64;
+
+    /** {@code "ox oy oz yaw pitch bx by bz lx ly lz"}, room-relative. */
+    private static RouteNode.PathHop parseHop(JsonElement e) {
+        try {
+            String[] p = e.getAsString().trim().split("\s+");
+            if (p.length != 11) {
+                return null;
+            }
+            double[] v = new double[11];
+            for (int i = 0; i < 11; i++) {
+                v[i] = Double.parseDouble(p[i]);
+                if (!finiteCoord(v[i]) && i != 3) {
+                    return null;
+                }
+            }
+            if (!Double.isFinite(v[3]) || v[4] < -90 || v[4] > 90) {
+                return null;
+            }
+            return new RouteNode.PathHop(v[0], v[1], v[2], (float) v[3], (float) v[4],
+                    new BlockPos((int) v[5], (int) v[6], (int) v[7]), v[8], v[9], v[10]);
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private static JsonObject writeRoute(Route route) {
@@ -441,6 +492,18 @@ public final class RouteStore {
             case COMMAND -> o.addProperty("command", n.command == null ? "" : n.command);
             default -> {
             }
+        }
+        if (n.type == RouteNode.Type.PATH && !n.pathHops.isEmpty()) {
+            // The saved warps (see RouteNode#pathHops) - planned once, replayed every run.
+            o.addProperty("planFrom", String.format(Locale.US, "%.3f %.3f %.3f", n.planFromX, n.planFromY, n.planFromZ));
+            o.addProperty("planTo", String.format(Locale.US, "%.3f %.3f %.3f", n.planToX, n.planToY, n.planToZ));
+            JsonArray hops = new JsonArray();
+            for (RouteNode.PathHop h : n.pathHops) {
+                hops.add(String.format(Locale.US, "%.3f %.3f %.3f %.5f %.5f %d %d %d %.3f %.3f %.3f", h.ox(), h.oy(),
+                        h.oz(), h.yaw(), h.pitch(), h.target().getX(), h.target().getY(), h.target().getZ(), h.lx(),
+                        h.ly(), h.lz()));
+            }
+            o.add("hops", hops);
         }
         if (n.hasLanding) {
             o.addProperty("landing", String.format(Locale.US, "%.3f %.3f %.3f", n.landingX, n.landingY, n.landingZ));

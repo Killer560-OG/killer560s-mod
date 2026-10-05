@@ -65,8 +65,8 @@ import com.killer560.hub.compat.McBlocks;
 public final class LiveMapFeature {
 
     static final int GRID = 11;
-    static final int START_X = -185;
-    static final int START_Z = -185;
+    public static final int START_X = -185;
+    public static final int START_Z = -185;
     static final int HALF_ROOM = 16;
     /** Bumped on every grid reset so the interactive map can drop per-run state (cleared-by, selections). */
     private static int resetGeneration = 0;

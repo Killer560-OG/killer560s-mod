@@ -120,6 +120,7 @@ public final class AutoRoutesConfig {
             case ROTATE -> 0xFFFFFF00;
             case UNSNEAK -> 0xFFFF00FF;
             case COMMAND -> 0xFFC0C0C0;
+            case PATH -> 0xFF9B59FF;
         };
     }
 

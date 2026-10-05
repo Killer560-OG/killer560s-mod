@@ -227,7 +227,7 @@ public final class SimSecretItems {
             var entity = level.getEntity(id);
             if (entity == null || entity.isRemoved()) {
                 LIVE.remove(id);
-                SimScore.secretFound();
+                SimScore.secretFound(entry.getValue());
                 purgeOwed = true;
             } else {
                 pin(entity, entry.getValue());

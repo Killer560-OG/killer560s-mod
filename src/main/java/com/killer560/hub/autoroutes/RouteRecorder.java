@@ -477,6 +477,16 @@ public final class RouteRecorder {
             // feature starts the route from it on the first tick the chat is closed, exactly as walking onto it
             // would. While a route is already running it only latches, as before.
             firing = AutoRoutesFeature.fireAddedNode(target, node);
+            if (type == RouteNode.Type.PATH) {
+                RouteNode src = target.pathSource(node);
+                if (src != null) {
+                    extra += " - pairs with path #" + (target.indexOf(src) + 1) + ", planning its warps";
+                } else {
+                    extra += " - add a second path node where it should take you";
+                }
+                // Planned once, now, and saved - not every time the route runs.
+                RoutePathPlanner.refreshStale(target, f);
+            }
         }
         if (mods.start) {
             // "setting it on a new node clears it from whatever had it (and say so in chat)" (task spec).
