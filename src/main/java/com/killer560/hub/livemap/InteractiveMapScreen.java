@@ -26,7 +26,8 @@ import java.util.List;
  */
 public class InteractiveMapScreen extends Screen {
 
-    private static final int LEGEND_W = 112;
+    /** Wide enough that the longest swatch label ("Entrance") fits its half-width column whole. */
+    private static final int LEGEND_W = 120;
     private static final int ORANGE = 0xFFCC6600;
     private static final int LIGHT_ORANGE = 0xFFFFA040;
     private static final int PANEL = 0xD00D0D0D;
@@ -536,7 +537,7 @@ public class InteractiveMapScreen extends Screen {
         g.fill(x, y, x + 7, y + 7, color);
         g.outline(x, y, 7, 7, 0xFF303030);
         legendBoxes.add(new LegendBox("swatch " + label, x, y, x + 7, y + 7));
-        text(g, fit(label, width - 10), x + 10, y, TEXT);
+        text(g, fit(label, width - 9), x + 9, y, TEXT);
     }
 
     private int control(GuiGraphicsExtractor g, int x, int y, String key, String action) {
