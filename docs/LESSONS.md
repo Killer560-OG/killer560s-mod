@@ -45,7 +45,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   XP reward tiles are recognised by NAME (`... Enchanting Exp`): the item varies, and cocoa beans were missed.
   Clicking a tile that is already uncovered does not use a click (killer560, 2026-10-01). A pair's first click
   can fail to land (tile still covered, others still read "Click any button!"); clicking the partner anyway lost
-  Experiment the Fish, so the first tile is now re-clicked before its partner.
+  Experiment the Fish, so the first tile is now re-clicked before its partner. **Superpairs is played in turns of
+  two clicks**: a pair started while a tile is turned over matches against that tile and both pairs are lost, and
+  a chance match that is not recognised as claimed gets re-queued and clicked as no-ops forever. The solver reads
+  both off the board each decision (two face-up tiles of a kind = claimed, one = the turn's open tile; 2026-10-05,
+  `ExperimentSolver.readBoard`). An offline port of the testkit's Hx table driving the solver class found both: in it,
+  main's solver never finished 207 of 300 random boards (how often real Hypixel boards hit it is unmeasured).
 - `ServerTickClock`'s subscribers cannot measure a lag spike: a real stall drops the ping rate under 15/s,
   the clock flips to client-tick fallback, and what it fires is the client's own ticks. Anything measuring
   server stalls subscribes to `subscribeRawPing` instead (as `experiments/ServerLagSensor` does).
