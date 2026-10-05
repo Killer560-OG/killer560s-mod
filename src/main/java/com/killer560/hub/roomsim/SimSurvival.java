@@ -65,6 +65,11 @@ public final class SimSurvival {
                 if (sp.isOnFire()) {
                     sp.clearFire();
                 }
+                // The sim runs on EASY now (SimWorld), where hunger drains; PEACEFUL used to refill it. A route
+                // practised for half an hour must not lose sprint to an empty food bar.
+                if (sp.getFoodData().getFoodLevel() < 20) {
+                    sp.getFoodData().eat(20, 1.0f);
+                }
             }
         });
 
