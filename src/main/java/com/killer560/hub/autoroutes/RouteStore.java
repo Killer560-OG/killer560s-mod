@@ -409,8 +409,9 @@ public final class RouteStore {
         o.addProperty("x", round(n.x, 3));
         o.addProperty("y", round(n.y, 3));
         o.addProperty("z", round(n.z, 3));
-        o.addProperty("yaw", round(n.yaw, 1));
-        o.addProperty("pitch", round(n.pitch, 1));
+        // 5 places, as AP3: 1 place drifted an etherwarp about 0.05 blocks at 60 (testkit logic suite, 2026-10-04).
+        o.addProperty("yaw", round(n.yaw, 5));
+        o.addProperty("pitch", round(n.pitch, 5));
         o.addProperty("at", n.pathIndex);
         if (n.radius != RouteNode.DEFAULT_RADIUS) {
             o.addProperty("radius", round(n.radius, 2));

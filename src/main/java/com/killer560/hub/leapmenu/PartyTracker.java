@@ -57,8 +57,11 @@ public final class PartyTracker {
     private static final Pattern KICKED_OFFLINE = Pattern.compile("^Kicked " + NAME + " because they were offline\\.$");
     // Odin/NoammAddons/QUOI PartyUtils transferLeave: the old leader left (no separate "has left the party." line).
     private static final Pattern TRANSFER_LEAVE = Pattern.compile("^The party was transferred to " + NAME + " because " + NAME + " left$");
-    private static final Pattern CLEARED = Pattern.compile("^(?:You left the party\\.|You are not currently in a party\\.|You have been kicked from the party by .+|"
-            + ".+ has disbanded the party!|The party was disbanded because .+|You are not in a party.*)$");
+    // Names anchored like everywhere else: ".+ has disbanded the party!" let ANY player wipe the member list by
+    // typing that line in any chat (found by the testkit logic suite, 2026-10-04).
+    private static final String ANY_NAME = "(?:\\[[^]]+] )?[A-Za-z0-9_]{1,16}";
+    private static final Pattern CLEARED = Pattern.compile("^(?:You left the party\\.|You are not currently in a party\\.|You have been kicked from the party by " + ANY_NAME + "|"
+            + ANY_NAME + " has disbanded the party!|The party was disbanded because .+|You are not in a party.*)$");
 
     /** Names as Hypixel spells them, in listing order. Includes yourself when Hypixel lists you. */
     private static final Set<String> MEMBERS = new LinkedHashSet<>();
