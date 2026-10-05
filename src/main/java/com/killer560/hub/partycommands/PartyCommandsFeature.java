@@ -270,7 +270,16 @@ public final class PartyCommandsFeature {
             }
             case ALL_INVITE -> execute(command, sender, "p settings allinvite", "toggled all-invite");
             case TRANSFER -> {
-                String target = arg == null ? sender : firstNonNull(matchMember(arg), sender);
+                // "!pt" alone takes the party; "!pt <name>" must name a member - an unknown name used to fall
+                // back to the sender and silently hand HIM the party.
+                String target = arg == null ? sender : matchMember(arg);
+                if (target == null) {
+                    String shown = arg.length() > 32 ? arg.substring(0, 32) + "..." : arg;
+                    ModChat.send("Party Commands", ModChat.bad("Not transferring"), ModChat.text(" - "),
+                            ModChat.value(shown), ModChat.text(" (from "), ModChat.value(sender),
+                            ModChat.dim(") is not a party member."));
+                    return;
+                }
                 execute(command, sender, "p transfer " + target, "transferred the party to " + target);
             }
             case KICK -> {

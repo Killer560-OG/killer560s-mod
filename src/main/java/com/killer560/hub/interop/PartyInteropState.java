@@ -63,7 +63,8 @@ public final class PartyInteropState {
         }
     }
 
-    /** Run totals that only ever climb. {@code -1} means "nobody has told us yet". */
+    /** Run totals that only ever climb, plus the three P3 section counters that restart each section (see
+     *  {@link #offerCounter(Counter, int, int, InteropSource, String)}). {@code -1} means "nobody has told us yet". */
     public enum Counter {
         SECRETS_FOUND("Secrets"),
         CRYPTS("Crypts"),
@@ -96,6 +97,9 @@ public final class PartyInteropState {
     /** Flags a party mate's own mod has already said out loud in party chat this run. */
     private static final java.util.EnumSet<Flag> ANNOUNCED_IN_PARTY = java.util.EnumSet.noneOf(Flag.class);
     private static final Map<Counter, Fact<Integer>> COUNTERS = new EnumMap<>(Counter.class);
+    /** The current P3 section's "(n/m)" as last read from a server line; -1 until one is seen. Guarded by LOCK. */
+    private static int p3SectionDone = -1;
+    private static int p3SectionTotal = -1;
     private static final Map<String, Fact<RoomSecrets>> ROOMS = new LinkedHashMap<>();
     private static final Map<String, Fact<Long>> DRAGONS = new LinkedHashMap<>();
     private static final Deque<String> EVENT_LOG = new ArrayDeque<>();
@@ -138,10 +142,35 @@ public final class PartyInteropState {
     /** Run totals. Accepted when the source is at least as trusted as the one we hold and the number has not
      *  gone backwards, or when what we hold has gone stale. */
     public static boolean offerCounter(Counter counter, int value, InteropSource source, String reporter) {
+        return offerCounter(counter, value, -1, source, reporter);
+    }
+
+    /**
+     * As {@link #offerCounter(Counter, int, InteropSource, String)}, with the "(n/m)" denominator when the source
+     * knows it ({@code -1} otherwise). Terminals, devices and levers are NOT run totals: Hypixel's
+     * "{@code Bob activated a terminal! (n/m)}" counts one P3 section, shared by all three kinds, and restarts at
+     * the next section (7/7, then 1/8). A new section is recognised when the denominator changes, or when the
+     * held section was complete and a lower number arrives; all three section counters are then dropped so the
+     * new section's values are accepted instead of being refused as "going backwards" for {@link #STALE_MS}.
+     */
+    public static boolean offerCounter(Counter counter, int value, int total, InteropSource source, String reporter) {
         if (counter == null || source == null || value < 0) {
             return false;
         }
         synchronized (LOCK) {
+            if (isSectionCounter(counter) && total > 0) {
+                boolean newSection = p3SectionTotal > 0 && (total != p3SectionTotal
+                        || (p3SectionDone >= p3SectionTotal && value < p3SectionDone));
+                if (newSection) {
+                    COUNTERS.remove(Counter.TERMINALS_DONE);
+                    COUNTERS.remove(Counter.DEVICES_DONE);
+                    COUNTERS.remove(Counter.LEVERS_DONE);
+                    p3SectionDone = value;
+                } else {
+                    p3SectionDone = Math.max(p3SectionDone, value);
+                }
+                p3SectionTotal = total;
+            }
             Fact<Integer> held = COUNTERS.get(counter);
             long now = System.currentTimeMillis();
             if (held != null) {
@@ -306,6 +335,8 @@ public final class PartyInteropState {
             FLAGS.clear();
             ANNOUNCED_IN_PARTY.clear();
             COUNTERS.clear();
+            p3SectionDone = -1;
+            p3SectionTotal = -1;
             ROOMS.clear();
             DRAGONS.clear();
             EVENT_LOG.clear();
@@ -315,6 +346,10 @@ public final class PartyInteropState {
     }
 
     // ------------------------------------------------------------------ internals
+
+    private static boolean isSectionCounter(Counter counter) {
+        return counter == Counter.TERMINALS_DONE || counter == Counter.DEVICES_DONE || counter == Counter.LEVERS_DONE;
+    }
 
     /** Must hold {@link #LOCK}. */
     private static void count(InteropSource source) {

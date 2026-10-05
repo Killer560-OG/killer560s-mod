@@ -65,11 +65,27 @@ public final class AutoDoorOpenerFeature {
     private static final java.util.regex.Pattern KEY_OBTAINED_BLOOD =
             java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16} has obtained Blood Key!?$");
 
+    /** "Wither Key was picked up!" - Hypixel has been seen both with and without a leading "A ", and the two
+     *  door classes had each anchored a different one; accept both, anchored. */
+    private static final java.util.regex.Pattern WITHER_KEY_PICKED_UP =
+            java.util.regex.Pattern.compile("^(?:A )?Wither Key was picked up!?$");
+
+    private static final java.util.regex.Pattern BLOOD_KEY_PICKED_UP =
+            java.util.regex.Pattern.compile("^(?:A )?Blood Key was picked up!?$");
+
+    /** "<Name> opened a WITHER door!" - the server line; a player's chat always has a prefix before the name. */
+    private static final java.util.regex.Pattern WITHER_DOOR_OPENED =
+            java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16} opened a WITHER door!?$");
+
+    private static final java.util.regex.Pattern BLOOD_DOOR_OPENED =
+            java.util.regex.Pattern.compile("^The BLOOD DOOR has been opened!?$");
+
     static void onChat(String raw) {
         String msg = ChatFormatting.stripFormatting(raw);
         if (msg == null) {
             return;
         }
+        msg = msg.trim();
         // ANCHORED, because arming this makes the client SEND A CLICK.
         //
         // These were `contains`, so any player typing "has obtained Wither Key" in any channel armed a
@@ -77,15 +93,15 @@ public final class AutoDoorOpenerFeature {
         // automated interaction on his account - the exact shape of thing that gets people banned, triggered
         // by someone else. Hypixel's real line is "<Name> has obtained Wither Key!" with nothing in front,
         // and a player's message always carries their own name and a colon first.
-        if (KEY_OBTAINED_WITHER.matcher(msg).matches() || msg.equals("Wither Key was picked up!")
+        if (KEY_OBTAINED_WITHER.matcher(msg).matches() || WITHER_KEY_PICKED_UP.matcher(msg).matches()
                 || msg.startsWith("RIGHT CLICK on a WITHER door")) {
             arm(DoorScanner.DoorType.WITHER);
-        } else if (KEY_OBTAINED_BLOOD.matcher(msg).matches() || msg.equals("Blood Key was picked up!")
+        } else if (KEY_OBTAINED_BLOOD.matcher(msg).matches() || BLOOD_KEY_PICKED_UP.matcher(msg).matches()
                 || msg.startsWith("RIGHT CLICK on the BLOOD DOOR")) {
             arm(DoorScanner.DoorType.BLOOD);
-        } else if (msg.contains("opened a WITHER door")) {
+        } else if (WITHER_DOOR_OPENED.matcher(msg).matches()) {
             cancelIfPending(DoorScanner.DoorType.WITHER, "door already opened");
-        } else if (msg.contains("The BLOOD DOOR has been opened")) {
+        } else if (BLOOD_DOOR_OPENED.matcher(msg).matches()) {
             cancelIfPending(DoorScanner.DoorType.BLOOD, "door already opened");
         }
     }

@@ -58,7 +58,7 @@ public final class DungeonInfoFeature {
     // TAB LIST entry, so lastSecretsCount stayed -1 all run. Formats per Odin's DungeonListener
     // (" Secrets Found: 12" team count, " Secrets Found: 45.5%" percentage) and NoammAddons'
     // ScoreCalculation (same lines, colour-coded) - matched on the formatting-stripped string.
-    private static final Pattern TAB_SECRETS_COUNT_PATTERN = Pattern.compile("^\\s*Secrets Found: (\\d+)\\s*$");
+    private static final Pattern TAB_SECRETS_COUNT_PATTERN = Pattern.compile("^\\s*Secrets Found: (\\d{1,6})\\s*$");
     private static final Pattern TAB_SECRETS_PERCENT_PATTERN = Pattern.compile("^\\s*Secrets Found: ([\\d.]+)%\\s*$");
 
     private static boolean wasInDungeon = false;
@@ -165,8 +165,13 @@ public final class DungeonInfoFeature {
             Matcher count = TAB_SECRETS_COUNT_PATTERN.matcher(plain);
             if (count.matches()) {
                 matchedAny = true;
-                int value = Integer.parseInt(count.group(1));
-                lastSecretsCount = value;
+                // Bounded above and parsed safely: an unparseable number threw on every tick, and three throws
+                // make FeatureGuard switch this whole feature off for the session (testkit WP2, 2026-10-04).
+                try {
+                    lastSecretsCount = Integer.parseInt(count.group(1));
+                } catch (NumberFormatException ignored) {
+                    // keep the last good value
+                }
                 continue;
             }
             Matcher percent = TAB_SECRETS_PERCENT_PATTERN.matcher(plain);

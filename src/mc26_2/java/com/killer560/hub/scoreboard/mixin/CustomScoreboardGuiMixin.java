@@ -1,5 +1,6 @@
 package com.killer560.hub.scoreboard.mixin;
 
+import com.killer560.hub.playerstats.PlayerStatsFeature;
 import com.killer560.hub.scoreboard.CustomScoreboardFeature;
 import com.killer560.hub.scoreboard.ScoreboardData;
 import net.minecraft.client.gui.Hud;
@@ -41,10 +42,16 @@ public abstract class CustomScoreboardGuiMixin {
         }
     }
 
-    @Inject(method = "setOverlayMessage(Lnet/minecraft/network/chat/Component;Z)V", at = @At("HEAD"), require = 0)
+    /** Reads the action bar for the scoreboard, then drops Stat Bars' replaced stat line from the screen.
+     *  The drop lives here rather than in Stat Bars' MODIFY_GAME listener because Fabric hands a modified
+     *  line on to every later reader (see PlayerStatsFeature#onModifyGameMessage). */
+    @Inject(method = "setOverlayMessage(Lnet/minecraft/network/chat/Component;Z)V", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$captureActionBar(Component message, boolean animateColor, CallbackInfo ci) {
         if (CustomScoreboardFeature.isActive()) {
             ScoreboardData.onActionBar(message);
+        }
+        if (PlayerStatsFeature.shouldHideActionBar(message)) {
+            ci.cancel();
         }
     }
 }
