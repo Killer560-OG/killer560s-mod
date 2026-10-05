@@ -472,6 +472,18 @@ final class AutoBlaze {
         }
         // Nowhere better. Stay, hold the bow, and wait for the solver's next scan rather than warping somewhere
         // with no shot.
+        if (searchSpots != null && searchIndex >= searchSpots.size() && farSpot != null) {
+            // A spot with a shot exists but no single warp reaches it (the shaft floor from the top landing): let the
+            // Interactive Map's planner take him there, warps and walking both.
+            if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+                return;
+            }
+            if (AutoPuzzleUtil.pathIfMapOn(farSpot.above(), null)) {
+                say("the only spots with a shot at '" + nameOf(blazes.get(0)) + "' are out of one warp's reach - "
+                        + "pathing to " + AutoPuzzleUtil.fmt(farSpot));
+                return;
+            }
+        }
         AutoPuzzleUtil.holdShortbow(client, player);
         if (searchSpots != null && searchIndex >= searchSpots.size()) {
             say("no standing spot in the room has a clean shot at '" + nameOf(blazes.get(0)) + "' - staying at "
@@ -482,6 +494,8 @@ final class AutoBlaze {
     /** Candidate ledges for {@link #searchFor}, nearest first, and how far through them the search has got. */
     private static List<BlockPos> searchSpots = null;
     private static Entity searchFor = null;
+    /** The nearest searched spot with a shot that no single warp from here reaches, for the planner. */
+    private static BlockPos farSpot = null;
     private static int searchIndex = 0;
     /** Candidates judged per tick: each is up to 21 simulated arrow flights. */
     private static final int SEARCH_PER_TICK = 12;
@@ -503,6 +517,7 @@ final class AutoBlaze {
             searchFor = target;
             searchIndex = 0;
             searchSpots = candidates(client, target, higher);
+            farSpot = null;
             LOGGER.info("[AutoPuzzles] Blaze: searching {} standable block(s) in the room for a shot at '{}'",
                     searchSpots.size(), nameOf(target));
         }
@@ -513,10 +528,14 @@ final class AutoBlaze {
                 continue;
             }
             Vec3 eye = new Vec3(spot.getX() + 0.5, spot.getY() + 1 + AutoPuzzleUtil.EYE_SNEAKING, spot.getZ() + 0.5);
-            if (canHit(client, player, eye, hitboxes, terminator) != null
-                    && AutoPuzzleUtil.etherwarpAim(client.level, player, spot) != null) {
-                searchIndex++;
-                return spot;
+            if (canHit(client, player, eye, hitboxes, terminator) != null) {
+                if (AutoPuzzleUtil.etherwarpAim(client.level, player, spot) != null) {
+                    searchIndex++;
+                    return spot;
+                }
+                if (farSpot == null) {
+                    farSpot = spot;
+                }
             }
         }
         return null;
@@ -710,6 +729,7 @@ final class AutoBlaze {
         shotsFrom = null;
         badSpots.clear();
         searchSpots = null;
+        farSpot = null;
         searchFor = null;
         searchIndex = 0;
         emptyTicks = 0;
