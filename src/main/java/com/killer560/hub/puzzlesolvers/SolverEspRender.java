@@ -115,10 +115,12 @@ public final class SolverEspRender {
         if (points.size() < 2) {
             return;
         }
+        // Copied now: on 26.2 the callback runs later in the frame, and callers pass live path lists.
+        final Vec3[] pts = points.toArray(new Vec3[0]);
         McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
-            for (int i = 0; i < points.size() - 1; i++) {
-                Vec3 start = points.get(i);
-                Vec3 end = points.get(i + 1);
+            for (int i = 0; i < pts.length - 1; i++) {
+                Vec3 start = pts[i];
+                Vec3 end = pts[i + 1];
                 float sx = (float) start.x, sy = (float) start.y, sz = (float) start.z;
                 float ex = (float) end.x, ey = (float) end.y, ez = (float) end.z;
                 float dx = ex - sx, dy = ey - sy, dz = ez - sz;

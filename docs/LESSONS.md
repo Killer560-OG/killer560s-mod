@@ -159,7 +159,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `CustomFeatureRenderer.buildGroup`), after the tick may have rebuilt whatever list the callback reads. Secret
   Waypoints indexed its live list there and crashed the client ("Index 6 out of bounds for length 6", Render Frame)
   when the list shrank - testkit 98 on 26.2, 2026-10-05. Copy what the callback draws into a local array before
-  calling `inCameraSpace`; eleven other renderers call it and were not audited for this.
+  calling `inCameraSpace`. Audited 2026-10-05: also fixed `WitherDoorsRenderer` (live `CACHED` list),
+  `StorageSearchEsp` (live `TARGETS`, mutated by clicks) and both `renderLineStrip`s (`WorldRenderUtils`,
+  `SolverEspRender`: callers pass live path lists). Safe because the lambda captures only an immutable `AABB`/`Vec3`
+  and a fresh local `float[]`: DoorKeys, MageBeam, EtherwarpWaypoints (fresh per-frame entry list), mobesp
+  `EspRenderer`, `P3NavRenderer`, Teammates/Thorn ESP, the box methods of `SolverEspRender`/`WorldRenderUtils`.
 - Crypts and princes have no positions anywhere (room database and every installed mod's rooms.json: a count), and
   their undead do not exist until the tomb is blown, so `secretwaypoints/CryptScanner` finds them from blocks. The
   rule was fitted against the captures vs the database count (112/134 rooms exact); the census scripts and misses
