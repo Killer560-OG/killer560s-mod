@@ -659,6 +659,9 @@ public final class SimAbilities {
         // level() rather than serverLevel(): ServerPlayer has no serverLevel() accessor in 26.1.2, and a
         // ServerPlayer's level is always a ServerLevel.
         sp.teleportTo((ServerLevel) sp.level(), x, y, z, Set.of(Relative.Y_ROT, Relative.X_ROT), 0f, 0f, false);
+        // Ice Fill judges every landing, not one position a tick: two hops handled in one server tick are two
+        // tiles stood on (2026-10-05).
+        com.killer560.hub.roomsim.puzzles.SimIceFillPuzzle.onTeleport(sp);
     }
 
     /** Chat belongs on the client thread; the abilities run on the server's. */

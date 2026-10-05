@@ -2338,3 +2338,25 @@ the graph. **On Hypixel:** the same code; a door opening there is a block change
 
 Not fixed: before the floor's FIRST warm-up completes (about 5 s after the floor loads) a click still gets 40 ms on
 the partial graph and then room by room.
+
+## Ice Fill is judged on the server, every landing (2026-10-05, night-icefill)
+
+One Auto Ice Fill run in 93-solve (rp-2612.log, 07:27:56) broke section 2 for "teleported off the ice" in the
+middle of a run of one-block hops, the auto then repositioned onto section 3 (the first tile still ICE while 2
+was air) and finished a fill the sim never counted. 23 plain repeats did not reproduce it. The cause:
+`SimIceFillPuzzle` judged on the CLIENT tick from `client.player`. Auto Ice Fill hops on a two-tick timer from
+the point it predicts, so when two position packets reach the client between two of its ticks (a loaded
+machine), the client goes from tile 9 to tile 11 without ever standing on 10, and the judge compared 11 with 9.
+The client gametest runs client and server in lockstep, so a server-thread sleep changes nothing; holding the
+client connection's netty loop does (testkit `-PnetStallMs=120`): 0 of 6 passed with the old judge, the trace
+showing exactly 9 -> 11.
+
+The judge now runs where Hypixel's does: on the server, once per server tick for walking and jumping, and from
+`SimAbilities.teleport` for every landing (`onTeleport`), so two hops handled in one server tick are still two
+tiles. A jump now also needs the feet above standing height (`JUMP_HEIGHT` 0.2), because a teleport's landing
+reads not-on-ground for a tick or two. The auto is unchanged: hopping before the last landing reaches the client
+is normal on Hypixel, where every hop is sent inside the ping. Testkit `-PicefillControl=true` proves the judge
+still breaks a section on a two-tile warp and on a repeated tile before letting the auto play.
+
+Not changed: after a break, Auto Ice Fill's etherwarp reposition picks the first still-ICE tile, which while a
+section is broken is the next section's, so it skips the broken one. Only reachable after a break.

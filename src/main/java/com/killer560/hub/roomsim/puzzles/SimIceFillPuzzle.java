@@ -2,15 +2,15 @@ package com.killer560.hub.roomsim.puzzles;
 
 import com.killer560.hub.roomsim.SimRoomPuzzles;
 import com.killer560.hub.roomsim.SimState;
-import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -220,8 +220,9 @@ public final class SimIceFillPuzzle {
             return;
         }
         registered = true;
-        ClientTickEvents.START_CLIENT_TICK.register(
-                FeatureGuard.start("SimIceFillPuzzle.tick", SimIceFillPuzzle::tick));
+        // The server's tick, not the client's - see serverTick. Every landing of a sim teleport is judged too,
+        // from SimAbilities.teleport (onTeleport).
+        ServerTickEvents.END_SERVER_TICK.register(SimIceFillPuzzle::serverTick);
     }
 
     /**
@@ -542,45 +543,118 @@ public final class SimIceFillPuzzle {
         });
     }
 
-    private static void tick(Minecraft client) {
-        if (!SimState.canAct(client)) {
+    /**
+     * The last few moves this puzzle judged, printed when a section breaks, so a break names the move before the
+     * message rather than only the one that tripped it.
+     */
+    private static final int TRACE_SIZE = 12;
+    private static final String[] TRACE = new String[TRACE_SIZE];
+    private static int traceNext = 0;
+    private static long traceTick = 0;
+
+    private static void trace(ServerPlayer p, String what) {
+        TRACE[traceNext] = String.format(java.util.Locale.ROOT,
+                "t%d pos (%.3f, %.3f, %.3f) ground=%s tile %s current %s/%d active %d: %s", traceTick,
+                p.getX(), p.getY(), p.getZ(), p.onGround(), p.blockPosition().below().toShortString(),
+                currentTile == null ? "none" : currentTile.toShortString(), currentSection, activeSection, what);
+        traceNext = (traceNext + 1) % TRACE_SIZE;
+    }
+
+    private static void dumpTrace() {
+        StringBuilder sb = new StringBuilder("Sim ice fill: the moves before that break, oldest first:");
+        for (int i = 0; i < TRACE_SIZE; i++) {
+            String line = TRACE[(traceNext + i) % TRACE_SIZE];
+            if (line != null) {
+                sb.append("\n    ").append(line);
+            }
+        }
+        LOGGER.info(sb.toString());
+    }
+
+    /**
+     * How far above standing height the feet must be before an airborne tick counts towards a jump. A real jump
+     * clears it on its first tick (0.42) and stays over it for about ten; an etherwarp landing (1.05 on the block,
+     * so 0.05 over) and the tick after a teleport, when the client has not yet told the server it is grounded, do
+     * not.
+     */
+    private static final double JUMP_HEIGHT = 0.2;
+
+    /**
+     * JUDGED ON THE SERVER, ONCE PER SERVER TICK - for walking and jumping.
+     *
+     * <p>This used to run on the client tick and read the client's player, which is not what Hypixel does and
+     * not what it sees. The client only learns of a teleport when its packet arrives, and when two arrive
+     * between two client ticks (a lagging machine: the client gametest showed it by holding the connection's
+     * netty loop for 120 ms) the client goes from tile 9 to tile 11 without ever standing on 10. The old judge
+     * then compared 11 with 9, two blocks apart, and broke the section for "teleporting off the ice" on a run of
+     * one-block hops - 2026-10-05, the one failed Auto Ice Fill in 93-solve (rp-2612.log 07:27:56). Hypixel's
+     * server made both teleports itself and saw every landing; so does this now, through {@link #onTeleport}.
+     */
+    private static void serverTick(MinecraftServer server) {
+        if (!SimState.canAct(Minecraft.getInstance())) {
             return;
         }
+        traceTick++;
         if (regenCountdown > 0) {
             regenCountdown--;
             if (regenCountdown == 0) {
-                regenerate(client);
+                regenerate(server.overworld());
             }
             return;
         }
         if (TILE_SECTION.isEmpty() || complete) {
             return;
         }
-        // Are we standing on the section that is actually live? Every rule below applies only there, which is
-        // what makes a finished section inert: walking back across section 1's packed ice on the way to
-        // section 2 has to be free, and so does stepping off it onto the solid step between the slabs.
-        boolean onActive = currentTile != null && currentSection == activeSection;
-
+        List<ServerPlayer> players = server.getPlayerList().getPlayers();
+        if (players.isEmpty()) {
+            return;
+        }
+        ServerPlayer sp = players.get(0);
         // A JUMP IS A FAIL. killer560 (2026-10-01): "if i leave the block that I am on by jumping or
-        // teleporting then it should break that section."
-        if (onActive && !client.player.onGround()) {
+        // teleporting then it should break that section." Airborne AND above standing height - a teleport's
+        // landing reads not-on-ground for a tick or two until the client's next movement packet, and that is
+        // not a jump.
+        boolean onActive = currentTile != null && currentSection == activeSection;
+        if (onActive && !sp.onGround() && sp.getY() > currentTile.getY() + 1 + JUMP_HEIGHT) {
             airborneTicks++;
+            trace(sp, "airborne " + airborneTicks);
             if (airborneTicks >= AIRBORNE_FAIL_TICKS) {
-                breakSection(client, activeSection, "jumped off the ice");
+                breakSection(sp, activeSection, "jumped off the ice");
             }
             return;
         }
         airborneTicks = 0;
+        judge(sp, sp.blockPosition().below(), "walk");
+    }
 
+    /**
+     * Every teleport the sim's abilities make, judged the moment it lands - called by {@code SimAbilities}
+     * right after it moves the server's player. Two use packets handled in one server tick are two landings,
+     * and the once-a-tick judge would only see the second.
+     */
+    public static void onTeleport(ServerPlayer sp) {
+        if (!SimState.canAct(Minecraft.getInstance()) || regenCountdown > 0 || TILE_SECTION.isEmpty()
+                || complete) {
+            return;
+        }
+        airborneTicks = 0;
+        judge(sp, sp.blockPosition().below(), "teleport");
+    }
+
+    /** One position, on the server thread. */
+    private static void judge(ServerPlayer sp, BlockPos tile, String how) {
+        boolean onActive = currentTile != null && currentSection == activeSection;
         // The ONLY trigger: the block the player is standing on is one of this fill's own blocks. That is what
         // confines this puzzle to its own room - see the class doc on the fall-teleport bug this replaced.
-        BlockPos tile = client.player.blockPosition().below();
         Integer section = TILE_SECTION.get(tile);
+        if (currentTile != null || section != null) {
+            trace(sp, how + ", section " + section);
+        }
         if (section == null) {
             // Off the fill. Walking a single block off the edge is allowed - it is a dead end and nothing more.
             // Arriving somewhere that is NOT touching the tile just left is a teleport, and that fails.
             if (onActive && !touching(currentTile, tile)) {
-                breakSection(client, activeSection, "teleported off the ice");
+                breakSection(sp, activeSection, "teleported off the ice");
                 return;
             }
             currentTile = null;
@@ -597,7 +671,7 @@ public final class SimIceFillPuzzle {
         // Touching includes the diagonals and one block of height, which is what the slabs between sections
         // need: section 1's exit and section 2's entry are a block apart vertically.
         if (onActive && !touching(currentTile, tile)) {
-            breakSection(client, activeSection, "teleported off the ice");
+            breakSection(sp, activeSection, "teleported off the ice");
             return;
         }
         currentTile = tile;
@@ -606,28 +680,35 @@ public final class SimIceFillPuzzle {
             // A finished section cannot be broken, and one not reached yet is not live. Either way: nothing.
             return;
         }
-        BlockState state = client.level.getBlockState(tile);
+        ServerLevel level = (ServerLevel) sp.level();
+        BlockState state = level.getBlockState(tile);
         if (state.is(Blocks.PACKED_ICE)) {
-            breakSection(client, section, "stepped on ice you had already used");
+            breakSection(sp, section, "stepped on ice you had already used");
             return;
         }
         if (!state.is(Blocks.ICE)) {
             return;   // air (a section mid-break) or the solid step between two slabs
         }
-        mark(client, tile);
+        // The "you have used this one" mark: regular ice becomes packed ice under the player's feet.
+        level.setBlockAndUpdate(tile, Blocks.PACKED_ICE.defaultBlockState());
         List<BlockPos> exits = exitTiles;
         if (exits.size() == FLOORS.length && tile.equals(exits.get(section))) {
             if (section + 1 < FLOORS.length) {
                 activeSection = section + 1;
-                ModChat.send("Sim", ModChat.good("Ice Fill - section " + (section + 1) + " done, "),
+                chat(() -> ModChat.send("Sim", ModChat.good("Ice Fill - section " + (section + 1) + " done, "),
                         ModChat.text("section "), ModChat.value((section + 2) + " of " + FLOORS.length),
-                        ModChat.text(" is live."));
+                        ModChat.text(" is live.")));
             } else {
                 complete = true;
-                ModChat.send("Sim", ModChat.good("Ice Fill crossed!"));
-                openChests(client);
+                chat(() -> ModChat.send("Sim", ModChat.good("Ice Fill crossed!")));
+                openChests(level);
             }
         }
+    }
+
+    /** Chat belongs on the client thread; the judge runs on the server's. */
+    private static void chat(Runnable r) {
+        Minecraft.getInstance().execute(r);
     }
 
     /** Whether two tiles touch - the eight neighbours and one block of height, as a walked step does. */
@@ -645,38 +726,22 @@ public final class SimIceFillPuzzle {
      * the end." The capture holds 43 of them in one flat wall, and the chests behind it are secret chests the
      * database places rather than anything in the capture - which is why the capture itself contains no chest at
      * all. The positions were taken at arm time from the capture rather than scanned for now, so a bar somewhere
-     * else in the room is not swept up by accident.
+     * else in the room is not swept up by accident. Server thread.
      */
-    private static void openChests(Minecraft client) {
+    private static void openChests(ServerLevel level) {
         List<BlockPos> bars = ironBars;
         if (bars.isEmpty()) {
             return;   // a standalone arena has none, and that is not a fault
         }
-        MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
-        server.execute(() -> {
-            ServerLevel level = server.overworld();
-            int removed = 0;
-            for (BlockPos pos : bars) {
-                if (level.getBlockState(pos).is(Blocks.IRON_BARS)) {
-                    level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
-                    removed++;
-                }
+        int removed = 0;
+        for (BlockPos pos : bars) {
+            if (level.getBlockState(pos).is(Blocks.IRON_BARS)) {
+                level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                removed++;
             }
-            LOGGER.info("Sim ice fill: fill crossed - {} of {} iron bar(s) cleared from the chests",
-                    removed, bars.size());
-        });
-    }
-
-    /** The "you have used this one" mark: regular ice becomes packed ice under the player's feet. */
-    private static void mark(Minecraft client, BlockPos tile) {
-        MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
         }
-        server.execute(() -> server.overworld().setBlockAndUpdate(tile, Blocks.PACKED_ICE.defaultBlockState()));
+        LOGGER.info("Sim ice fill: fill crossed - {} of {} iron bar(s) cleared from the chests",
+                removed, bars.size());
     }
 
     /**
@@ -690,8 +755,9 @@ public final class SimIceFillPuzzle {
      *
      * <p>{@code why} is the mistake, in his words, because "section 2 breaks" on its own does not say whether
      * he repeated a tile, jumped, or warped too far - and those are three different things to stop doing.
+     * Server thread.
      */
-    private static void breakSection(Minecraft client, int section, String why) {
+    private static void breakSection(ServerPlayer sp, int section, String why) {
         List<Set<BlockPos>> all = sections;
         if (section < 0 || section >= all.size()) {
             return;
@@ -701,60 +767,41 @@ public final class SimIceFillPuzzle {
         // there is nothing for the map to mark and nothing for an Architect's First Draft to fix. This call is
         // what turned the room red (SimRoomState.markFailed) on every slip, including the overshooting hops that
         // broke Auto Ice Fill - see SimAbilities.dashTarget.
-        ModChat.send("Sim", ModChat.bad("Ice Fill - " + why + ": section "),
-                ModChat.value(String.valueOf(section + 1)), ModChat.bad(" breaks, back in 2s."));
+        chat(() -> ModChat.send("Sim", ModChat.bad("Ice Fill - " + why + ": section "),
+                ModChat.value(String.valueOf(section + 1)), ModChat.bad(" breaks, back in 2s.")));
+        dumpTrace();
         brokenSection = section;
         regenCountdown = REGEN_TICKS;
         currentTile = null;
         currentSection = -1;
         airborneTicks = 0;
-        MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
+        ServerLevel level = (ServerLevel) sp.level();
+        for (BlockPos pos : all.get(section)) {
+            level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
         }
-        Set<BlockPos> broken = Set.copyOf(all.get(section));
-        server.execute(() -> {
-            ServerLevel level = server.overworld();
-            for (BlockPos pos : broken) {
-                level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
-            }
-        });
     }
 
     /**
      * The broken section comes back as fresh ice. Only that one - see {@link #breakSection}.
      *
      * <p>{@link #activeSection} is deliberately NOT moved: the section he failed is the section he retries.
+     * Server thread.
      */
-    private static void regenerate(Minecraft client) {
+    private static void regenerate(ServerLevel level) {
         int section = brokenSection;
         brokenSection = -1;
         currentTile = null;
         currentSection = -1;
         airborneTicks = 0;
         complete = false;
-        restoreSection(client, section);
-        ModChat.send("Sim", ModChat.text("Ice Fill - section "),
-                ModChat.value(String.valueOf(section + 1)), ModChat.text(" regenerated, try again."));
-    }
-
-    /** One section back to plain, unwalked ice. */
-    private static void restoreSection(Minecraft client, int section) {
         List<Set<BlockPos>> all = sections;
-        if (section < 0 || section >= all.size() || !SimState.canAct(client)) {
-            return;
-        }
-        MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
-        Set<BlockPos> tiles = Set.copyOf(all.get(section));
-        server.execute(() -> {
-            ServerLevel level = server.overworld();
-            for (BlockPos pos : tiles) {
+        if (section >= 0 && section < all.size()) {
+            for (BlockPos pos : all.get(section)) {
                 level.setBlockAndUpdate(pos, Blocks.ICE.defaultBlockState());
             }
-        });
+        }
+        chat(() -> ModChat.send("Sim", ModChat.text("Ice Fill - section "),
+                ModChat.value(String.valueOf(section + 1)), ModChat.text(" regenerated, try again.")));
     }
 
     /** Every section back to plain, unwalked ice. */

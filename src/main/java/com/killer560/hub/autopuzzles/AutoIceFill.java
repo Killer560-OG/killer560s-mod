@@ -207,9 +207,11 @@ final class AutoIceFill {
                 note("gate" + lastIndex, "hop {} held back by the action gate this tick", lastIndex);
                 return; // gate held this tick back - nothing warped, so lastIndex / ticks must not move
             }
-            note("hop" + lastIndex, "hop {} -> {}: from {} to {} (yaw {}, pitch {})", lastIndex, lastIndex + 1,
-                    current, next, String.format(java.util.Locale.ROOT, "%.1f", dir[0]),
-                    String.format(java.util.Locale.ROOT, "%.1f", dir[1]));
+            // "standing on" is the path point he is really on this tick. It differs from the hop's own start
+            // only when the last hop has not landed yet, and then this hop is aimed from a point he is not at.
+            note("hop" + lastIndex, "hop {} -> {}: from {} to {} (yaw {}, pitch {}), standing on point {}",
+                    lastIndex, lastIndex + 1, current, next, String.format(java.util.Locale.ROOT, "%.1f", dir[0]),
+                    String.format(java.util.Locale.ROOT, "%.1f", dir[1]), index);
             // This warp is our own, so waive the gate's teleport stand-down for the next hop - otherwise the
             // 6-tick teleport window would override the 2-tick Delay setting on every single step of the path.
             com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
