@@ -69,10 +69,18 @@ dependencies {
 	// offline speech recognizer with prebuilt native libraries for Windows/Mac/Linux bundled directly
 	// in its own jar (confirmed by inspecting the real jar from Maven Central before adding this -
 	// win32-x86-64/libvosk.dll etc.) - no separate native install step. It depends on JNA for the
-	// actual native calls. Both bundled Jar-in-Jar like the libraries above. The acoustic MODEL itself
-	// (tens of MB) is deliberately NOT bundled here - VoiceToTextFeature downloads a small one to the
-	// config folder on first real use instead, keeping this mod's own distributed jar size sane.
-	include(implementation("com.alphacephei:vosk:0.3.45"))
+	// actual native calls. The acoustic MODEL itself (tens of MB) is deliberately NOT bundled -
+	// VoiceToTextFeature downloads a small one to the config folder on first real use instead.
+	//
+	// Since 2026-10-05 Vosk itself is not bundled either: its jar was 25.9 MB of the 36.7 MB mod jar, almost
+	// all native libraries for three operating systems. VoskLibrary downloads the exact vosk-0.3.45.jar from
+	// Maven Central on first use, checks it against a pinned SHA-256, and loads it in a child class loader,
+	// calling it by reflection. That is why there is no vosk dependency here at all, not even compileOnly: mod
+	// code that named org.vosk directly would compile and then throw NoClassDefFoundError in game, because
+	// Fabric's loader cannot see the child loader's classes. Bumping the Vosk version means updating
+	// VoskLibrary's VERSION, SHA256 and SIZE_BYTES together.
+	//
+	// JNA stays bundled: the downloaded Vosk resolves com.sun.jna through the mod's loader.
 	include(implementation("net.java.dev.jna:jna:5.14.0"))
 }
 

@@ -55,6 +55,7 @@ import java.util.concurrent.CompletableFuture;
  *   <li>{@code google-translate} - translate.googleapis.com</li>
  *   <li>{@code mymemory} - api.mymemory.translated.net: the translate fallback</li>
  *   <li>{@code vosk} - alphacephei.com: the speech model download</li>
+ *   <li>{@code maven-central} - repo1.maven.org: the Vosk speech engine jar, fetched on first use of Voice To Text</li>
  * </ul>
  *
  * <p>Not covered, deliberately: the Shorts player's DevTools client talks to 127.0.0.1 (a browser this mod

@@ -18,7 +18,7 @@ default)` and goes out through `ModNet.send` / `sendAsync` / `open` / `webSocket
 
 Service keys: `hypixel`, `noamm`, `noamm-ws`, `odin-ws`, `devonian-ws`, `docilelm`, `pv-backend`, `mojang`,
 `minecraftservices`, `microsoft`, `xboxlive`, `github-raw`, `jsdelivr`, `coflnet`, `github-api`, `relay`,
-`lrclib`, `google-translate`, `mymemory`, `vosk`. `ModNet`'s javadoc says which host and feature each one is.
+`lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`. `ModNet`'s javadoc says which host and feature each one is.
 
 Not routed: the Shorts player's DevTools client (127.0.0.1, a browser the mod launched), Discord RPC (a local
 pipe), the Proxy Client (the game connection itself), and anything Minecraft or authlib does on its own
