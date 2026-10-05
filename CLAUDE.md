@@ -294,6 +294,11 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
 - Agent worktrees are cut from `main`, not from the branch checked out here. On 2026-10-04 six were started
   while work sat on a feature branch 26 commits ahead of `main`, and every one began on stale code. Get the
   work onto `main` (or tell each agent its base) before fanning out.
+- **Fabric's `ClientPlayConnectionEvents.DISCONNECT` runs on the NETTY thread** (`Connection.channelInactive`, both
+  Fabric API versions), concurrently with the render thread's `clearLevel`, where Fabric walks every loaded chunk's
+  block-entity map. The Chunk Cache released chunks from that listener and crashed 26.2 on leaving the sim (NPE "this.wrapped
+  is null" in fastutil's iterator, about one full sim run in two). Anything a DISCONNECT listener does to the world or
+  client state goes through `client.execute(...)` (fixed 2026-10-05, 3f3fa8ad).
 - `Level.isLoaded(pos)` is false for any y outside the level's build height (Hypixel's dungeon world starts at
   y 0). Ask load questions at a y clamped into `level.getMinY()..getMaxY()`.
 - The room database (`RoomDatabase`) only loads when something calls `ensureLoading()` - the live map does so
