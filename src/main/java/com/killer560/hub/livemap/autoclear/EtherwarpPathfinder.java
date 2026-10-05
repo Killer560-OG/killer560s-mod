@@ -207,7 +207,8 @@ public final class EtherwarpPathfinder {
             LOGGER.info("[Path] fewest-warps graph found nothing for {} {} in {} ms ({}; {} node(s) worked out"
                             + " now, graph {} node(s), warm-up {}) - room by room instead", kind, to, ms(end - t0),
                     graph.timedOut ? "out of time" : "no way", graph.expandedCold, graph.nodeCount(),
-                    warm ? "done" : "still running");
+                    graph.warmDone() ? "done" : "still running");
+            LOGGER.info("[Path] not a proof of no way because: {}", graph.noWayWhy);
             return legacyDungeonPath(from, to, cfg, dist, layout);
         }
         // One line a click, so the cost can be read off his log rather than guessed at.

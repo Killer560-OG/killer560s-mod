@@ -108,6 +108,7 @@ public final class WarpGraph {
      * planner (whose landings are a subset) is not worth its 670 ms.
      */
     public boolean provedNoWay;
+    private boolean aimSetEmpty;
     /** Whether the last search ran out of time. */
     public boolean timedOut;
     /** Nodes in the exact goal's aim set of the last search. */
@@ -1766,6 +1767,26 @@ public final class WarpGraph {
      * Whether every landing the click's first warp reaches was visited by the finished warm-up pass - so every node
      * reachable from them has its edges, and the fields are exact for them.
      */
+    /** Why the last search's "nothing" was or was not a proof, for the log. */
+    public String noWayWhy = "";
+
+    private String startCoverage() {
+        if (startN < 0) {
+            return "not expanded";
+        }
+        int newer = 0;
+        int unwalked = 0;
+        for (int k = 0; k < startN; k++) {
+            int t = find(startPos[k]);
+            if (t < 0 || t >= fieldNodes) {
+                newer++;
+            } else if (t >= warmQueued.length || !warmQueued[t] || eTo[t] == null) {
+                unwalked++;
+            }
+        }
+        return startN + " landing(s), " + newer + " newer than the fields, " + unwalked + " not walked by warm-up";
+    }
+
     private boolean startCovered() {
         if (!warmComplete || !fieldsValid || startN < 0) {
             return false;
@@ -1787,8 +1808,12 @@ public final class WarpGraph {
     private List<EtherSearch.Hop> search(EtherSearch.Hop start, EtherSearch.CellTest region, Goal exact, Goal goal,
                                          long deadlineNanos, int maxWarps) {
         List<EtherSearch.Hop> out = searchOnce(start, region, exact, goal, deadlineNanos, maxWarps);
-        boolean covered = out == null && usedFields && !timedOut && startCovered();
+        boolean covered = out == null && !timedOut && (aimSetEmpty || (usedFields && startCovered()));
         provedNoWay = covered;
+        if (out == null) {
+            noWayWhy = "timedOut " + timedOut + ", aim set empty " + aimSetEmpty + ", exact heuristic " + usedFields
+                    + ", warm " + warmComplete + ", fields " + fieldsValid + ", start " + startCoverage();
+        }
         if (out == null && usedFields && !timedOut && !covered) {
             // The fields only know the edges of nodes reachable from where warming started, so a start outside
             // that can be pruned wrongly. Never let that fail a click. (When every landing his first warp can
@@ -2072,6 +2097,7 @@ public final class WarpGraph {
             Arrays.fill(labelStamp, 0);
         }
         heapSize = 0;
+        aimSetEmpty = false;
         EtherSearch search = owner.search;
         double sx = start.x;
         double sy = start.y;
@@ -2098,6 +2124,7 @@ public final class WarpGraph {
             goalSetSize = collectAimSet(exact);
             nanosAimSet += System.nanoTime() - t0;
             if (goalSetSize == 0) {
+                aimSetEmpty = true;   // nothing he can stand on can aim at it, and he cannot from here
                 return null;
             }
         } else if (fieldsValid && warmComplete && !noFields && !(region == goal.region && goal.tile >= 0)) {

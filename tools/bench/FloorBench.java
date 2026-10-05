@@ -1138,6 +1138,10 @@ public final class FloorBench {
                 long t = System.nanoTime() - t0;
                 int v = p == null ? 0 : replay(f, probe, c.start, c, p);
                 st.game.add(t, v, p);
+                if (Boolean.getBoolean("changeverbose") && p == null) {
+                    System.out.println("  NOWAY round " + round + " #" + i + " proved " + warmG.provedNoWay + ": "
+                            + warmG.noWayWhy);
+                }
                 if (Boolean.getBoolean("changeverbose") && t > 20_000_000L) {
                     System.out.printf(Locale.ROOT, "  SLOW change click round %d #%d %s: %.1f ms, %s, timedOut %b, fields %b,"
                                     + " expanded cold %d, revalidate %.1f ms, fields %.1f ms%n", round, i,
