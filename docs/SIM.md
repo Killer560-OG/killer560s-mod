@@ -2420,7 +2420,8 @@ to a full grid. And the finishing passes (trap, fill, puzzles) ran once on the a
 whole floors (4 with pins) until `shortfalls` is empty - room minimum, cells, puzzles, trap, blood, and the
 Entrance-to-Blood path through the build's doors exactly the slider with the fairy on it - and only the kept floor
 goes into recency. A retry fires about once in 1,000-4,000 floors, always resolved by the second floor. After: 0
-failing of 257,600 sweep floors (recency on and off), 2.4-3.5 ms a floor; in game see night-flakes.md.
+failing of 190,400 sweep floors with the cap and retry alone, and 0 of 67,200 (8,400 per floor size, recency on and
+off) with the pin changes below as well; 2.4-3.5 ms a floor.
 
 **83 "a hand-placed room was replaced by Generate" was a real bug.** With Quiz pinned in the middle of an F7 (the
 designer's defaults), 19 Generates in 200 dropped it - yet on those calls a quarter of the attempts HAD kept it. The
