@@ -37,7 +37,7 @@ import java.util.TreeMap;
  *   <li><b>old</b>: the room-by-room legs of EtherwarpPathfinder before 2026-10-04 (room route, one bounded
  *       weighted-A* leg per door, widened retry, near fallback, smoothing). A tile click is planned to the block
  *       {@code TeleportUtils.etherwarpableInTile} picked (nearest standable to him), as the game did.</li>
- *   <li><b>new</b>: {@link WarpGraph}, bucket 3 (the game's setting), timed cold (a fresh graph per click),
+ *   <li><b>new</b>: {@link WarpGraph}, bucket 2 (the game's setting), timed cold (a fresh graph per click),
  *       lazily warm (one graph, clicks in sequence) and warm (the whole floor expanded first).</li>
  *   <li><b>ref</b>: {@link WarpGraph} with bucket 1 - breadth first over EVERY landing block, every fan hit an
  *       edge, every node in range tried against an exact goal. The fewest warps the fan allows; "new" is
@@ -46,7 +46,7 @@ import java.util.TreeMap;
  * Every returned path is replayed ray by ray from the start; a hop that does not land where the next one starts,
  * or a path that does not end on its goal, is counted as INVALID.
  *
- * <p>-Dfloors=N (5) -Dclicks=N per floor (300) -Drefclicks=N (100) -Dseed=N (560) -Dbucket=N (3)
+ * <p>-Dfloors=N (5) -Dclicks=N per floor (300) -Drefclicks=N (100) -Dseed=N (560) -Dbucket=N (2, the game's; 3 before 2026-10-05) -Dpartial=F (0.3)
  * -Dyaw=6 -Dpitch=7 -Drange=60 -Dold=false (skip the old planner) -Dcheck=FILE (regression: fail on worse).
  * -Droomdata=FILE (a rooms-modern.json or the trimmed copy) -Ddiag=true (per floor: every carved door checked for a
  * measured doorway in both rooms and a walk across both ways, and how many clicks' goals a walk reaches)
@@ -667,7 +667,7 @@ public final class FloorBench {
     // ------------------------------------------------------------------------------------------- planners
 
     static double RANGE = 60.0;
-    static final double PARTIAL = Double.parseDouble(System.getProperty("partial", "0.6"));
+    static final double PARTIAL = Double.parseDouble(System.getProperty("partial", "0.3"));
     static final int THREADS = Integer.getInteger("threads", 3);
     static final java.util.concurrent.ExecutorService WORKERS = java.util.concurrent.Executors.newFixedThreadPool(
             Math.max(1, THREADS), r -> {
@@ -1178,7 +1178,7 @@ public final class FloorBench {
         int floors = Integer.getInteger("floors", 5);
         int perFloor = Integer.getInteger("clicks", 300);
         int refPerFloor = Integer.getInteger("refclicks", 100);
-        int bucket = Integer.getInteger("bucket", 3);
+        int bucket = Integer.getInteger("bucket", 2);
         int coldClicks = Integer.getInteger("coldclicks", 20);
         int lazyClicks = Integer.getInteger("lazyclicks", 40);
         int selfPerFloor = Integer.getInteger("selfclicks", 40);

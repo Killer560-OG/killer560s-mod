@@ -122,10 +122,16 @@ public final class EtherwarpPathfinder {
     private static final long FINISH_WARM_NANOS = 60_000_000L;
     /** No path is longer than this. */
     private static final int MAX_WARPS = 48;
-    /** Bucket width: one node per 3x3 columns and height (doorways: every landing). See docs/SIM.md. */
-    private static final int BUCKET = 3;
+    /**
+     * Bucket width: one node per 2x2 columns and height (doorways and tile centre lines: every landing). 2026-10-05:
+     * 3 -> 2 with PARTIAL_FROM 0.6 -> 0.3 took tools/bench/FloorBench whole floors from 8.26 to 8.04 warps a click
+     * (the every-landing reference: 7.81 on the same 180 clicks, where bucket 3 took 8.19 and bucket 2 takes 8.01),
+     * for 1.9x the edges and warm-up rays - affordable once EtherSearch.aimPast cut a warm-up's rays by 44-71%.
+     * Bucket 1 reaches the reference (7.89 vs 7.88) but clicks take 11-14 ms at p95 and the graph holds 12M edges.
+     */
+    private static final int BUCKET = 2;
     /** A line blocked past this fraction of the way to a landing gets the full 18-point aim (WarpGraph). */
-    private static final double PARTIAL_FROM = 0.6;
+    private static final double PARTIAL_FROM = 0.3;
 
     private static List<Node> planFloor(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
                                         DungeonLayout layout) {
