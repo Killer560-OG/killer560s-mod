@@ -460,7 +460,8 @@ public final class WarpGraph {
             if (r == EtherSearch.MISS
                     || (Math.abs(search.hitX - x) <= 2 && Math.abs(search.hitY - y) <= 2
                     && Math.abs(search.hitZ - z) <= 2)) {
-                return search.aim(ex, ey, ez, x, y, z, range);
+                return search.aimPast(ex, ey, ez, x, y, z, range, r != EtherSearch.MISS, search.hitX, search.hitY,
+                        search.hitZ);
             }
             double partialFrom = startExpansion ? startPartialFrom : WarpGraph.this.partialFrom;
             if (partialFrom < 1.0) {
@@ -471,7 +472,7 @@ public final class WarpGraph {
                 double ty2 = ty - ey;
                 double tz2 = tz - ez;
                 if (hx * hx + hy * hy + hz * hz >= partialFrom * partialFrom * (tx2 * tx2 + ty2 * ty2 + tz2 * tz2)) {
-                    return search.aim(ex, ey, ez, x, y, z, range);
+                    return search.aimPast(ex, ey, ez, x, y, z, range, true, search.hitX, search.hitY, search.hitZ);
                 }
             }
             return false;
