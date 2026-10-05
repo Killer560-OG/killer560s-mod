@@ -387,16 +387,17 @@ public final class MapPainter {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && hasLiveMimic(group)) {
             color = mix(color, MIMIC_TINT);
         } else if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && hasSimMimic(group)) {
-            // The sim's mimic, painted the map's OWN red rather than a faint blend. killer560 (2026-10-01):
-            // "make that room the red that the normal map uses as well for the map" - so it is the blood
-            // colour out of his own Dungeon Map settings, not a new one invented here.
-            color = cfg.getColorBlood();
+            // Same tint as the live mimic. It was the Blood colour (2026-10-01), which killer560 later rejected
+            // (2026-10-05: "I just don't like it and blood looking the exact same").
+            color = mix(color, MIMIC_TINT);
         }
         return color;
     }
 
-    /** ~55% faint red, blended onto the room's own colour by {@link #mix}. */
-    private static final int MIMIC_TINT = 0x8CFF0000;
+    /** 20% red over the room's own colour - NoammAddons' mimic room highlight exactly: its MapRenderer draws
+     *  {@code ColorUtils.lerp(roomColour, colorMimic, 0.2)} with colorMimic defaulting to (255, 0, 0) (javap of
+     *  NoammAddons 1.2.7, 2026-10-05; his own Noamm config has the same #FF0000). 0x33 = 51/255 = 0.2. */
+    private static final int MIMIC_TINT = 0x33FF0000;
 
     /**
      * Whether the SIM's mimic is in this room.
