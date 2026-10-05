@@ -208,8 +208,6 @@ public final class ActionGate {
          *  helper that performs a verified click, and today nothing calls it. That is deliberate, and it is
          *  the case this enum's doc warns about, stated rather than hidden. */
         BAZAAR_FLIP_MENU(Kind.SCREEN),
-        /** Room Recorder confirming Hypixel's "Undersized party!" menu on a solo joininstance. */
-        ROOM_RECORDER_MENU(Kind.SCREEN),
         /** Auto Kick sending "p kick &lt;name&gt;" once a floor's target time is missed (killer560: "create
          *  auto kick... The kick based off of timed comp of a floor and whatnot", ported from Odin's own
          *  auto-kick). A command, not a click, so {@link Kind#COMMAND} - no screen rules, same as

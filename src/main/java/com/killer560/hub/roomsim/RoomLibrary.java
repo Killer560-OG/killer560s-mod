@@ -1,17 +1,10 @@
 package com.killer560.hub.roomsim;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.killer560.hub.livemap.DungeonLayout;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import org.slf4j.Logger;
 
 import java.nio.charset.StandardCharsets;
@@ -20,7 +13,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import com.killer560.hub.util.ModLog;
@@ -40,13 +32,14 @@ import com.killer560.hub.util.ModLog;
  * <p><b>Completeness is per column, not per room.</b> A room is only ever partly loaded - you see the half you
  * walked through and the rest is outside render distance or behind a wall - so "captured" cannot be a flag set
  * the first time a room is entered. Each room records which of its 31x31-per-tile columns have been read, and is
- * only finished when all of them have. That is what lets the recorder know which rooms it still needs, rather
- * than believing it has a room it has only seen a corner of.
+ * only finished when all of them have.
+ *
+ * <p>Read-only since 2026-10-04: the Room Recorder that wrote these captures was removed and lives at git tag
+ * {@code room-recorder-last} (see docs/SIM.md). Nothing here writes a room any more.
  */
 public final class RoomLibrary {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path DIR =
             ModPaths.config("killer560smod-rooms");
 
@@ -95,8 +88,7 @@ public final class RoomLibrary {
      * right, because they SHARE that wall rather than each owning half of it.
      *
      * <p>This changes the shape of a captured room, so rooms captured before it are a different size and are
-     * replaced rather than merged - {@code capture} already rebuilds a Room whose dimensions do not match.
-     * Those older captures keep their missing walls until they are scanned again.
+     * not in the current format (see {@link Room#currentFormat()}).
      */
     public static final int WALL_MARGIN = 1;
 
@@ -117,42 +109,18 @@ public final class RoomLibrary {
      *
      * <p>That would be a lot of memory to keep - the full column is three times the old band, and a library
      * that got too big to load is a mistake this file has already made once. It is not kept: a room is
-     * SAVED trimmed to the y range that actually holds something (see {@code toJson}), so files and loaded
-     * rooms stay the size of the room rather than the size of the world. Re-capturing widens it back to the
-     * full column, fills it in, and it trims again on the next save.
+     * SAVED trimmed to the y range that actually holds something, so files and loaded rooms stay the size of
+     * the room rather than the size of the world.
      *
      * <p>A room already on disk keeps its own band - see {@link Room#minY} - so changing this invalidates
-     * nothing; it only changes what the recorder writes from now on.
+     * nothing.
      */
     public static final int MIN_Y = -64;
     public static final int MAX_Y = 320;
 
-    /** name -> room. A TreeMap so the "still needed" list is stable and alphabetical. */
+    /** name -> room, case-insensitive. */
     private static final Map<String, Room> ROOMS = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-
-    /**
-     * Rooms changed since the last write.
-     *
-     * <p>{@link #saveAll()} rewrites every room - 47 files and about 13 MB of gzipped block arrays - which is
-     * fine at the end of a run and ruinous per tick. The capture loop saves as it goes so a crash cannot lose a
-     * session, and on 2026-09-29 that meant re-serialising the whole library twenty times a second on the
-     * render thread, under this class's own lock. {@link #saveDirty()} writes only what actually changed;
-     * {@code capture} is the one thing that changes a room, so this stays honest as long as that is true.
-     */
-    private static final java.util.Set<String> DIRTY = new java.util.LinkedHashSet<>();
     private static boolean loaded;
-
-    /**
-     * Marks a room as changed, and therefore no longer the copy that shipped in the jar.
-     *
-     * <p>Both halves in one place on purpose. {@link Room#fromJar} is what keeps {@link #saveAll()} from
-     * writing the shipped baseline into every instance, so a write path that forgot to clear it would make his
-     * own change look like a shipped room and quietly refuse to save it.
-     */
-    private static void markDirty(Room r) {
-        DIRTY.add(r.name);
-        r.fromJar = false;
-    }
 
     private RoomLibrary() {
     }
@@ -195,16 +163,7 @@ public final class RoomLibrary {
         /**
          * Came out of the jar and has not been touched since.
          *
-         * <p>Exists so {@link RoomLibrary#saveAll()} does not write 135 shipped rooms into every instance's
-         * config folder. {@code saveAll} rewrites the whole library - about 13 MB of gzipped block arrays -
-         * and copying the jar's own baseline out to disk would make that both bigger and pointless, and would
-         * then be indistinguishable from something he captured himself.
-         *
-         * <p>Cleared by {@link RoomLibrary#markDirty} the moment anything changes the room, which is every
-         * path that writes to it: a capture that fills columns, a mob spawn, a synthetic {@code set}. So
-         * "bundled" always means "still byte-for-byte what shipped", and anything else gets saved normally.
-         * A re-capture at a different footprint builds a brand new {@link Room} anyway (see
-         * {@link RoomLibrary#captureAt}), which starts out false.
+         * <p>Counted in the load log line. Cleared by a synthetic {@code set} or {@code markComplete}.
          */
         boolean fromJar;
 
@@ -324,13 +283,14 @@ public final class RoomLibrary {
         /**
          * Captured at the footprint this version of the mod uses.
          *
-         * <p>A room stored at an older footprint is not a room this mod can use: {@code capture} throws it away
-         * and rebuilds it the moment it is seen again, and {@code RoomPlacer} would paste it at the wrong size.
+         * <p>A room stored at an older footprint is not a room this mod can use: {@code RoomPlacer} would paste
+         * it at the wrong size.
          * So it must not be counted as done anywhere, or the progress numbers promise work that still has to be
          * redone - which is exactly what happened on 2026-09-29, when 49 of 102 "complete" rooms turned out to
          * be at the old inflated size.
          *
-         * <p>Every valid footprint is {@code tiles * 32 + 1} - see {@link RoomLibrary#footprint}.
+         * <p>Every valid footprint is {@code tiles * 32 + 1}: {@code tiles * TILE} plus the one-block seam
+         * between tiles plus {@link RoomLibrary#WALL_MARGIN} on each side.
          */
         public boolean currentFormat() {
             return margin == WALL_MARGIN
@@ -341,12 +301,6 @@ public final class RoomLibrary {
         /** Lowest and highest captured y that holds anything but air, worked out once. */
         private int contentMinY = Integer.MIN_VALUE;
         private int contentMaxY = Integer.MIN_VALUE;
-
-        /** Drop the cached content range - the blocks under it have changed. */
-        synchronized void contentChanged() {
-            contentMinY = Integer.MIN_VALUE;
-            contentMaxY = Integer.MIN_VALUE;
-        }
 
         /**
          * The lowest y in this room that is not air.
@@ -415,25 +369,11 @@ public final class RoomLibrary {
             contentMaxY = any ? hi : MAX_Y;
         }
 
-        /** Finished AND in the current format - the only thing that should ever be called done. */
-        /**
-         * Whether this room was captured at a band that CUT it, so it is worth walking again.
-         *
-         * <p>A room recorded before the floor dropped below y 60 is not broken - 67 of his 135 sit well above
-         * that and lost nothing. The ones that matter are those whose structure reaches the very bottom of
-         * the band they were stored at, because whatever continued below it was never recorded. That is
-         * exactly how "purple flags was missing the bottom part of it" happened, and measuring it beats
-         * guessing from the band alone: by band 119 rooms look stale, by content only 52 actually are.
-         */
-        public boolean cutOff() {
-            return minY != MIN_Y && contentMinY() <= minY;
-        }
-
         /**
          * Why this capture holds blocks that are not this room's, or null when it is sound.
          *
          * <p>Set by {@link RoomTileAudit} at load, not stored in the file: it is derived from the blocks, so
-         * one clean walk through the room clears it by itself and no stale list has to be maintained.
+         * no stale list has to be maintained.
          */
         public String corruptReason;
 
@@ -508,7 +448,7 @@ public final class RoomLibrary {
      *
      * <p>Deliberately NOT {@code synchronized}, and that is the whole point of this version. It used to be,
      * which meant the loading thread held the class monitor for the entire read - and every other method here
-     * is synchronized too, so the render thread calling {@link #completeCount()} to draw the menu blocked
+     * is synchronized too, so the render thread asking for a room to draw the menu blocked
      * behind it for the full four seconds. Moving the work off the render thread achieved nothing while the
      * render thread still had to wait for the lock to draw a single frame. That is the freeze killer560 kept
      * seeing "on creation".
@@ -528,7 +468,6 @@ public final class RoomLibrary {
         }
         long startedAt = System.currentTimeMillis();
         Map<String, Room> fresh = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        int upgraded = 0;
         try {
             if (Files.isDirectory(DIR)) {
                 List<Path> jsons;
@@ -543,13 +482,6 @@ public final class RoomLibrary {
                         if (r != null) {
                             fresh.put(r.name, r);
                             readSoFar = fresh.size();
-                            if (!json.has("blocksZ")) {
-                                // Written in the old number-array format. Rewritten now, while it is already
-                                // in memory, so this load is the last slow one rather than every load being
-                                // slow until the recorder happens to save that room again.
-                                upgraded++;
-                                Files.writeString(f, GSON.toJson(toJson(r)), StandardCharsets.UTF_8);
-                            }
                         }
                     } catch (Exception e) {
                         // The exception CLASS, not the exception. Gson puts the text it failed to parse into
@@ -591,9 +523,8 @@ public final class RoomLibrary {
             complete = completeCountLocked();
         }
         LOGGER.info("Room library: {} room(s), {} from the jar and {} from disk ({} read off disk), "
-                        + "{} bundled room(s) replaced an unusable local copy, {} complete, "
-                        + "{} upgraded to the compact format, {} ms",
-                fresh.size(), fromJar, fresh.size() - fromJar, onDisk, rescued, complete, upgraded,
+                        + "{} bundled room(s) replaced an unusable local copy, {} complete, {} ms",
+                fresh.size(), fromJar, fresh.size() - fromJar, onDisk, rescued, complete,
                 System.currentTimeMillis() - startedAt);
     }
 
@@ -608,8 +539,7 @@ public final class RoomLibrary {
      *   <li>An UNUSABLE disk room loses to a usable bundled one. That is the Map Logger case exactly: 43 rooms
      *       stored at the old footprint, filtered out by {@link Room#currentFormat()}, sitting in the map under
      *       the right names and hiding the good shipped copies behind them.</li>
-     *   <li>If NEITHER is usable the disk one stays, so a half-captured room keeps its partial progress and the
-     *       Room Recorder can carry on filling it in.</li>
+     *   <li>If NEITHER is usable the disk one stays.</li>
      *   <li>A room that exists on only one side is kept as it is.</li>
      * </ul>
      *
@@ -663,9 +593,8 @@ public final class RoomLibrary {
                     continue;
                 }
                 Room disk = fresh.get(name);
-                if (disk != null && (disk.usable() || rescanPending(name))) {
-                    // His own capture wins; do not even decode the shipped blocks. So does a room he asked to
-                    // rescan, even half read: the shipped copy is the one he said was wrong.
+                if (disk != null && disk.usable()) {
+                    // His own capture wins; do not even decode the shipped blocks.
                     continue;
                 }
                 Room b = fromJson(json);
@@ -706,8 +635,7 @@ public final class RoomLibrary {
      *
      * <p>A SEPARATE map on purpose (killer560, 2026-09-28: "make sure it's all in a spot that can easily be
      * deleted and won't accidentally contaminate other parts of the mod"). If a synthetic room shared the real
-     * map it would be written to disk by {@link #saveAll}, counted in his capture progress, and listed as a room
-     * still needing work - it would end up in the shipped library looking exactly like a real one. Nothing in
+     * map it would be counted as a captured room - it would end up in the shipped library looking exactly like a real one. Nothing in
      * here is ever saved, counted, or reported as missing.
      */
     private static final Map<String, Room> TEST_ROOMS = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -722,137 +650,6 @@ public final class RoomLibrary {
     /** Forgets every synthetic room. One call, for when the real scanning starts. */
     public static synchronized void clearTestRooms() {
         TEST_ROOMS.clear();
-    }
-
-    /**
-     * Empties one room so the recorder reads it again from scratch, and returns its canonical name (null if no
-     * such room).
-     *
-     * <p>killer560 (2026-10-01): "Balcony is rendered wrong [...] How should I go about rescanning it." There was
-     * no way. Capture skips every column already marked seen, so walking through a complete room again added
-     * nothing, and deleting his file only brought the jar's copy back. This puts an EMPTY room of the same size
-     * in its place - not from the jar, so it is saved as it fills - and drops the cached doorways and capture
-     * turn, which were measured off the old blocks.
-     *
-     * <p>Until it is complete again the room is unusable, so the generator leaves it out. If the game restarts
-     * half way, the shipped copy wins over the partial one at load and the command has to be run again.
-     */
-    public static synchronized String resetForRescan(String wanted) {
-        load();
-        if (wanted == null) {
-            return null;
-        }
-        Room old = null;
-        for (Room r : ROOMS.values()) {
-            if (r.name.equalsIgnoreCase(wanted.trim())) {
-                old = r;
-                break;
-            }
-        }
-        if (old == null) {
-            return null;
-        }
-        Room fresh = new Room(old.name, old.sizeX, old.sizeZ);
-        fresh.margin = old.margin;
-        ROOMS.put(old.name, fresh);
-        // Written straight away and remembered, so a restart half way keeps the rescan instead of quietly
-        // bringing back the old copy (his file or the jar's) that he asked to replace.
-        markDirty(fresh);
-        rescanPending("");
-        synchronized (PENDING_RESCAN) {
-            PENDING_RESCAN.add(old.name);
-        }
-        savePendingRescans();
-        saveDirty();
-        RoomDoors.clearCache();
-        RoomCaptureRotation.clearCache();
-        LOGGER.info("Rescan requested for \"{}\": the {}x{} capture is emptied and will be read again",
-                old.name, old.sizeX, old.sizeZ);
-        return old.name;
-    }
-
-    /**
-     * Empties every room that cannot be trusted as it stands - one the tile audit refused (it holds another
-     * room's tile) or one whose capture rotation is still uncertain - so one walk through a floor that holds
-     * them all re-reads the lot. killer560 (2026-10-04): "is there a command I can run to just capture all of
-     * them if I boot a map with all of them at once?"
-     *
-     * @return the names emptied, in order
-     */
-    public static synchronized java.util.List<String> resetAllBroken() {
-        load();
-        // Without the room database the tile audit and the rotation vote judge good rooms broken (Market, Fairy
-        // and Mage were emptied this way on 2026-10-04). Refuse rather than guess; null tells the command why.
-        if (!com.killer560.hub.roomdatabase.RoomDatabase.isReady()) {
-            com.killer560.hub.roomdatabase.RoomDatabase.ensureLoading();
-            return null;
-        }
-        java.util.List<String> broken = new java.util.ArrayList<>();
-        for (Room r : ROOMS.values()) {
-            if (r.corruptReason != null || RoomCaptureRotation.isUncertain(r.name)) {
-                broken.add(r.name);
-            }
-        }
-        for (String name : broken) {
-            resetForRescan(name);
-        }
-        return broken;
-    }
-
-    /** Rooms emptied by {@link #resetForRescan} that have not been read completely again yet. */
-    private static final java.util.Set<String> PENDING_RESCAN =
-            new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-    private static boolean pendingRescanLoaded;
-
-    private static Path pendingRescanFile() {
-        return DIR.resolve("rescan-pending.txt");
-    }
-
-    /** Its own lock, not the class's: mergeBundled asks from the loader thread without holding that. */
-    private static boolean rescanPending(String name) {
-        synchronized (PENDING_RESCAN) {
-        if (!pendingRescanLoaded) {
-            pendingRescanLoaded = true;
-            try {
-                if (Files.exists(pendingRescanFile())) {
-                    for (String line : Files.readAllLines(pendingRescanFile(), StandardCharsets.UTF_8)) {
-                        if (!line.isBlank()) {
-                            PENDING_RESCAN.add(line.trim());
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.warn("Could not read the pending rescan list ({})", e.getClass().getSimpleName());
-            }
-        }
-        return PENDING_RESCAN.contains(name);
-        }
-    }
-
-    private static void savePendingRescans() {
-        synchronized (PENDING_RESCAN) {
-        try {
-            Files.createDirectories(DIR);
-            Files.writeString(pendingRescanFile(), String.join(System.lineSeparator(), PENDING_RESCAN), StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            LOGGER.warn("Could not save the pending rescan list ({})", e.getClass().getSimpleName());
-        }
-        }
-    }
-
-    /** Drops rescans whose room is complete again; called after every write. */
-    private static void prunePendingRescans() {
-        rescanPending("");
-        boolean changed;
-        synchronized (PENDING_RESCAN) {
-            changed = PENDING_RESCAN.removeIf(n -> {
-                Room r = ROOMS.get(n);
-                return r == null || r.complete();
-            });
-        }
-        if (changed) {
-            savePendingRescans();
-        }
     }
 
     /** Whether a room of this name is known, captured or synthetic. */
@@ -885,7 +682,7 @@ public final class RoomLibrary {
     /**
      * How many grid cells a captured room covers, as {@code tilesX * tilesZ}.
      *
-     * <p>The inverse of {@link #footprint}, in one place, because the layout planner and the paste MUST agree
+     * <p>The inverse of the capture footprint ({@code tiles * 32 + 1}), in one place, because the layout planner and the paste MUST agree
      * about it. They did not between 00:27 and 01:20 on 2026-09-29 and the result was every multi-tile room
      * pasted over its neighbour.
      *
@@ -929,8 +726,7 @@ public final class RoomLibrary {
      * and leaving them in place means paying to fail on them on every single load.
      *
      * <p>Renamed rather than deleted. They look worthless, but they are his data and "they look worthless" is
-     * not a good enough reason to remove something permanently. The recorder captures those rooms again on its
-     * next pass anyway.
+     * not a good enough reason to remove something permanently. The shipped copy of the room is used instead.
      */
     private static void quarantine(Path f) {
         try {
@@ -941,7 +737,7 @@ public final class RoomLibrary {
         }
     }
 
-    /** {@link #completeCount()} without taking the lock, for callers that already hold it. */
+    /** How many rooms are finished AND in the current format; the caller holds the lock. */
     private static int completeCountLocked() {
         int n = 0;
         for (Room r : ROOMS.values()) {
@@ -950,664 +746,6 @@ public final class RoomLibrary {
             }
         }
         return n;
-    }
-
-    /** How many rooms are finished AND in the current format. */
-    public static synchronized int completeCount() {
-        return completeCountLocked();
-    }
-
-    /**
-     * How many rooms there are to capture in total.
-     *
-     * <p>killer560 (2026-09-29): "can you update the room scanner and recorder and all that to have the proper
-     * number of rooms." Every progress line used {@link #roomCount()} - the number of FILES ON DISK - as the
-     * denominator, so it read "36/47 rooms complete" when the real figure was 36 of 140 and the denominator
-     * grew every time a new room was found. A fraction whose bottom half moves is not progress.
-     *
-     * <p>The real total is the room database, the same 140-room list the Live Map identifies rooms against and
-     * the missing-rooms HUD already compares to. Falls back to the file count only while that is still loading,
-     * so the number is never zero and never pretends to be authoritative when it is not.
-     *
-     * <p><b>Unchanged in meaning now that 135 rooms ship with the mod, and that is deliberate.</b> The
-     * denominator is still "every room Catacombs has", not "every room this instance could have" - so
-     * "135 of 140 rooms complete" now reads the same in every instance and says what is actually true: the
-     * shipped baseline covers all but a handful, and those few are still worth capturing. Making it the shipped
-     * count instead would read "135 of 135" everywhere and hide the remaining work; making it the file count
-     * would put a moving denominator back, which is the bug this method was written to fix.
-     *
-     * <p>Never smaller than {@link #roomCount()}. {@link #completeCount()} can only count rooms that are in the
-     * map, so a library holding a room the database has not heard of - a re-capture under a slightly different
-     * name, say - could otherwise print "137 of 135".
-     */
-    public static int expectedCount() {
-        if (!com.killer560.hub.roomdatabase.RoomDatabase.isReady()) {
-            return roomCount();
-        }
-        java.util.Set<String> names = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        for (com.killer560.hub.roomdatabase.RoomEntry e
-                : com.killer560.hub.roomdatabase.RoomDatabase.allEntries()) {
-            if (e != null && e.name != null && !e.name.isBlank()) {
-                names.add(e.name);
-            }
-        }
-        return Math.max(names.size(), roomCount());
-    }
-
-    /** Every room touched so far that is not finished, worst first - what the recorder still needs. */
-    public static synchronized List<String> incomplete() {
-        List<Room> rooms = new ArrayList<>(ROOMS.values());
-        rooms.removeIf(Room::complete);
-        rooms.sort((a, b) -> Double.compare(a.completeness(), b.completeness()));
-        List<String> out = new ArrayList<>();
-        for (Room r : rooms) {
-            out.add(String.format(Locale.US, "%s  %.0f%%", r.name, r.completeness() * 100.0));
-        }
-        return out;
-    }
-
-    /**
-     * Reads whatever of {@code room} is loaded right now into the library.
-     *
-     * <p>Safe to call repeatedly on the same room: each call only fills in columns that have not been read, so
-     * walking through a room twice from different directions completes it rather than overwriting it. Only
-     * genuinely loaded blocks are taken - an unloaded chunk reads as air, and writing that in would record a
-     * room full of holes and then call it finished.
-     *
-     * @return how many new columns this call added
-     */
-    /** {@link DungeonLayout}'s placeholder for a room it cannot name yet - never a real room. */
-    private static final String UNIDENTIFIED = "Unknown";
-
-    public static synchronized int capture(Level level, DungeonLayout layout, int room) {
-        return capture(level, layout, room, Integer.MAX_VALUE);
-    }
-
-    /**
-     * Captures a room, stopping after {@code columnBudget} new columns.
-     *
-     * <p>The budget exists because the recorder now sweeps every room in render distance rather than only the
-     * one you stand in, and this runs every tick. A room is 961 columns of 81 blocks each; a whole map's worth
-     * in one tick is close to two million block reads and would stutter badly. Spreading it costs no coverage:
-     * columns already captured are skipped, and the 25 second scan window is hundreds of ticks long.
-     */
-    /**
-     * How much of the floor in front of him is already in the library.
-     *
-     * <p>killer560 (2026-09-29): "does it send a chat message once I can go to a new map". It did not - it only
-     * reported a running column count, which says the capture is working but never says it is finished, so the
-     * only way to know a floor was done was to guess. This is the number that answers it.
-     *
-     * <p>A room counts as done when a Room of the RIGHT SIZE exists and every one of its columns has been seen.
-     * The size test matters: a room captured at another footprint is a different room as far as capture is
-     * concerned, and it rebuilds rather than merges, so calling that one done would skip a room that is about
-     * to be re-read from scratch.
-     *
-     * @return {@code {done, total}} over the rooms this layout has identified; a room still sitting on the
-     *         "Unknown" placeholder is counted in neither, because it cannot be captured yet either.
-     */
-    public static synchronized int[] floorProgress(DungeonLayout layout) {
-        load();
-        int done = 0;
-        int total = 0;
-        if (layout == null) {
-            return new int[]{0, 0};
-        }
-        for (int room = 0; room < layout.roomCount(); room++) {
-            String name = layout.name(room);
-            if (name == null || name.isBlank() || UNIDENTIFIED.equals(name)) {
-                continue;
-            }
-            int[] tiles = layout.tiles(room);
-            if (tiles == null || tiles.length == 0) {
-                continue;
-            }
-            total++;
-            int minGx = Integer.MAX_VALUE;
-            int minGz = Integer.MAX_VALUE;
-            int maxGx = Integer.MIN_VALUE;
-            int maxGz = Integer.MIN_VALUE;
-            for (int idx : tiles) {
-                int gx = idx % DungeonLayout.GRID;
-                int gz = idx / DungeonLayout.GRID;
-                minGx = Math.min(minGx, gx);
-                minGz = Math.min(minGz, gz);
-                maxGx = Math.max(maxGx, gx);
-                maxGz = Math.max(maxGz, gz);
-            }
-            int sizeX = footprint(maxGx - minGx);
-            int sizeZ = footprint(maxGz - minGz);
-            Room r = ROOMS.get(name);
-            if (r != null && r.sizeX == sizeX && r.sizeZ == sizeZ && r.usable()) {
-                done++;
-            }
-        }
-        return new int[]{done, total};
-    }
-
-    /**
-     * How wide a room is, from how many GRID CELLS its tiles span on one axis.
-     *
-     * <p>Wrong until 2026-09-29, and wrong in a way that only showed up on multi-tile rooms. Cells are
-     * {@code HALF_ROOM} = 16 blocks apart and a room's tiles sit on every OTHER cell, so a two-tile room spans
-     * 2 cells and a three-tile room spans 4 - the cells in between are the same room, not extra tiles. The old
-     * formula read the cell span as a tile count and multiplied it by 31, so a three-tile room was captured
-     * 157 blocks long where the room is 97. The extra 60 columns ran into the NEXT room, which is why Gravel
-     * and Diagonal sat at 5-10% and why pasting one into the sim would have overwritten its neighbour.
-     *
-     * <p>A 1x1 room spans 0 cells and comes out at 33 either way, which is exactly why this survived: every
-     * single-tile room in the library is correct and they are the majority.
-     *
-     * <p>The room itself is {@code tiles * TILE} plus the one-block seam between each pair of tiles, and then
-     * {@link #WALL_MARGIN} on each side: 3 tiles = 93 + 2 + 2 = 97.
-     */
-    static int footprint(int cellSpan) {
-        int tiles = cellSpan / 2 + 1;
-        return tiles * TILE + (tiles - 1) + WALL_MARGIN * 2;
-    }
-
-    public static synchronized int capture(Level level, DungeonLayout layout, int room, int columnBudget) {
-        load();
-        if (columnBudget <= 0) {
-            return 0;
-        }
-        String name = layout.name(room);
-        if (name == null || name.isBlank() || UNIDENTIFIED.equals(name)) {
-            // "Unknown" is DungeonLayout's placeholder for a room it has not identified yet, not a room name.
-            // Capturing it wrote the geometry a second time under that placeholder - killer560's first live
-            // scan produced Entrance.json and Unknown.json that were identical in all 77841 block positions,
-            // and the recorder reported "2 of 2 rooms complete" for what was one room seen twice.
-            //
-            // The duplicate is the harmless half. Every unidentified room shares the one placeholder, so a
-            // later one would overwrite it, and a file holding half of one room and half of another would look
-            // exactly like a captured room to the sim. Waiting costs nothing: the name resolves a moment later
-            // and the same room is captured properly on the next scan tick.
-            return 0;
-        }
-        int[] tiles = layout.tiles(room);
-        if (tiles == null || tiles.length == 0) {
-            return 0;
-        }
-        int minGx = Integer.MAX_VALUE;
-        int minGz = Integer.MAX_VALUE;
-        int maxGx = Integer.MIN_VALUE;
-        int maxGz = Integer.MIN_VALUE;
-        for (int idx : tiles) {
-            int gx = idx % DungeonLayout.GRID;
-            int gz = idx / DungeonLayout.GRID;
-            minGx = Math.min(minGx, gx);
-            minGz = Math.min(minGz, gz);
-            maxGx = Math.max(maxGx, gx);
-            maxGz = Math.max(maxGz, gz);
-        }
-        return captureBox(level, name, minGx, minGz, maxGx, maxGz, columnBudget);
-    }
-
-    /**
-     * Captures one named room occupying the grid cells {@code minG..maxG}, with no {@link DungeonLayout}.
-     *
-     * <p>Split out of {@link #capture} on 2026-09-29 for Ashfall's single-room practice worlds. Those put one
-     * room in an empty world and a sidebar saying {@code Practice Room}, so there is no floor, no layout and no
-     * room list - but the room still sits on the ordinary dungeon grid, so everything from the footprint down
-     * is identical and belongs in one place rather than copied.
-     */
-    public static synchronized int captureBox(Level level, String name, int minGx, int minGz,
-                                              int maxGx, int maxGz, int columnBudget) {
-        BlockPos origin = DungeonLayout.cellCenter(minGz * DungeonLayout.GRID + minGx);
-        return captureAt(level, name, origin.getX(), origin.getZ(),
-                (maxGx - minGx) / 2 + 1, (maxGz - minGz) / 2 + 1, columnBudget);
-    }
-
-    /**
-     * Captures a room by the WORLD position of its first tile's centre, with no grid at all.
-     *
-     * <p>{@link DungeonLayout} is a fixed 11x11 window anchored at world -185, which is every real Catacombs
-     * floor and is not everything worth capturing. killer560 (2026-09-29) found an Ashfall preset holding all
-     * 134 rooms in a line spanning 47 cells; the grid could see five columns of it, reported "all 16 rooms
-     * here are fully captured" and was telling the truth about the only rooms it could see. Walking does not
-     * help, because the window is anchored to the world and not to him.
-     *
-     * <p>So this takes world coordinates. Everything below the footprint was already independent of the grid;
-     * only the origin ever needed it.
-     *
-     * @param centreX  world X of the centre of the room's lowest-X tile
-     * @param centreZ  world Z of the centre of the room's lowest-Z tile
-     * @param tilesX   how many tiles wide, at least 1
-     * @param tilesZ   how many tiles deep, at least 1
-     */
-    /**
-     * The largest a real Catacombs room can be on one axis, in tiles.
-     *
-     * <p>Not a guess: the room database holds six shapes and no others - 1x1, 1x2, 1x3, 1x4, 2x2 and L -
-     * across all 280 rooms, so four is the ceiling and an L fits in a 2x2 box.
-     */
-    private static final int MAX_ROOM_TILES = 4;
-
-    /**
-     * The footprint a capture should actually use, which is <b>the database's shape</b> whenever it knows one.
-     *
-     * <p><b>This is the guard that was missing on 2026-09-30.</b> killer560 walked every room on an Ashfall
-     * practice floor to re-record them and the library came out WORSE - 43 of 135 rooms ended up with a
-     * footprint the database contradicts, including Hall and Slime at 11x1, Small Stairs and Multicolored at
-     * 11x1, and Melon grown from a good 1x1 to an 8x1. An Ashfall preset lays every room out in a LINE, so
-     * when the layout merges a run of neighbours into one room the bounding box of the whole run becomes the
-     * footprint. Nothing checked it, and {@code captureAt} throws away a room whose footprint changed, so each
-     * one overwrote a good capture. They then failed silently forever, because {@code currentFormat()} only
-     * asks whether the size is a whole number of tiles and the generator simply never finds room for an
-     * 11-tile room on a 6-tile grid.
-     *
-     * <p>Clamping, not refusing, and that distinction matters in both directions:
-     * <ul>
-     *   <li><b>Measured too big</b> (a merged run): capturing the database's smaller box reads the one room
-     *       instead of the whole row.</li>
-     *   <li><b>Measured too small</b> (he has only walked part of a 2x2): refusing would mean the room could
-     *       never be captured at all. Capturing into the database-sized box instead gets the SHAPE right and
-     *       leaves the rest of the columns unread, so {@code complete()} stays false and the generator will
-     *       not place a quarter of a room as though it were whole. Twelve rooms are in this state right now -
-     *       Atlas, Cathedral, Quartz Knight and the rest - and this is what lets walking them fix it.</li>
-     * </ul>
-     *
-     * <p>Either axis order is accepted, because a capture can be rotated relative to the database; when the
-     * measured footprint matches neither, the orientation closer to what was measured is used.
-     *
-     * @return {tilesX, tilesZ} to capture, or null when even the hard cap cannot be satisfied
-     */
-    private static int[] resolveFootprint(String name, int tilesX, int tilesZ) {
-        int[] want = shapeTiles(name);
-        if (want == null) {
-            // The database does not know this room, so the hard cap is the only thing that can be checked.
-            if (tilesX > MAX_ROOM_TILES || tilesZ > MAX_ROOM_TILES) {
-                warnFootprintOnce(name, tilesX, tilesZ, "no Catacombs room is more than "
-                        + MAX_ROOM_TILES + " tiles across, and the room database has no shape for it");
-                return null;
-            }
-            return new int[]{tilesX, tilesZ};
-        }
-        if ((tilesX == want[0] && tilesZ == want[1]) || (tilesX == want[1] && tilesZ == want[0])) {
-            return new int[]{tilesX, tilesZ};
-        }
-        // REFUSED, not clamped. This used to keep the orientation the world suggested and take only the SIZE
-        // from the database, and that fixed the wrong half of the problem.
-        //
-        // The size was never the dangerous part. The ANCHOR is: captureBox starts the box at the lowest cell
-        // the live map has grouped into this room, and when that grouping is wrong the box starts in the
-        // wrong place. Clamping then read the database's number of tiles from the wrong starting point,
-        // which is how Waterfall's capture came to hold a tile of Catwalk, a tile of nothing, and the whole
-        // of Rare Overgrown - 34 tiles across the library are some other room's, and 12 are empty
-        // (RoomTileAudit measures this at every load and refuses to place the rooms it finds).
-        //
-        // A measured footprint that disagrees with the database means the grouping is not this room, and
-        // there is nothing in a capture that can recover the right anchor from that. Measured too BIG is an
-        // Ashfall line where the map merged a run of neighbours; measured too SMALL is a room only partly
-        // walked, where the revealed corner need not be the room's corner. Both produce a box over the wrong
-        // cells, so both wait. Nothing is lost that was worth keeping: walking the whole room on a real floor
-        // makes the grouping right, and then it captures.
-        warnFootprintOnce(name, tilesX, tilesZ, "the room database says it is " + want[0] + "x" + want[1]
-                + " tiles. A footprint that does not match means the map has not grouped this room correctly "
-                + "yet, and capturing anyway would record its neighbours instead - walk the whole room on a "
-                + "real floor and it will capture then");
-        return null;
-    }
-
-    /** Rooms already warned about, so a scan that retries every tick does not fill the log. */
-    private static final java.util.Set<String> FOOTPRINT_WARNED =
-            java.util.concurrent.ConcurrentHashMap.newKeySet();
-
-    private static void warnFootprintOnce(String name, int tilesX, int tilesZ, String why) {
-        if (FOOTPRINT_WARNED.add(name + "|" + tilesX + "x" + tilesZ)) {
-            LOGGER.warn("Refusing to capture \"{}\" as {}x{} tiles - {}. Whatever is already captured for it "
-                    + "is left alone.", name, tilesX, tilesZ, why);
-        }
-    }
-
-    /**
-     * The database's shape for this room as a tile bounding box, or null when it does not know it.
-     *
-     * <p>An L is a 2x2 box with a cell missing, and the box is what a capture covers.
-     */
-    private static int[] shapeTiles(String name) {
-        try {
-            var entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(name);
-            if (entry == null || entry.shape == null) {
-                return null;
-            }
-            String shape = entry.shape.trim();
-            if (shape.equalsIgnoreCase("L")) {
-                return new int[]{2, 2};
-            }
-            int x = shape.toLowerCase(java.util.Locale.ROOT).indexOf('x');
-            if (x <= 0 || x + 1 >= shape.length()) {
-                return null;
-            }
-            return new int[]{
-                Integer.parseInt(shape.substring(0, x).trim()),
-                Integer.parseInt(shape.substring(x + 1).trim()),
-            };
-        } catch (Exception e) {
-            return null;   // an unparsable shape is not a reason to block a capture
-        }
-    }
-
-    public static synchronized int captureAt(Level level, String name, int centreX, int centreZ,
-                                             int tilesX, int tilesZ, int columnBudget) {
-        load();
-        if (columnBudget <= 0 || name == null || name.isBlank() || UNIDENTIFIED.equals(name)
-                || tilesX < 1 || tilesZ < 1) {
-            return 0;
-        }
-        int[] use = resolveFootprint(name, tilesX, tilesZ);
-        if (use == null) {
-            return 0;
-        }
-        tilesX = use[0];
-        tilesZ = use[1];
-        int sizeX = footprint((tilesX - 1) * 2);
-        int sizeZ = footprint((tilesZ - 1) * 2);
-        Room r = ROOMS.get(name);
-        if (r != null && r.sizeX == sizeZ && r.sizeZ == sizeX && sizeX != sizeZ && !rescanPending(name)) {
-            // The same room, seen a quarter turn round on this floor. Its capture is already in its own
-            // orientation and the roof marker says which; discarding it to start again at the other one threw
-            // away good captures (Pedestal, 2026-10-04) for nothing. Only a requested rescan starts over.
-            return 0;
-        }
-        if (r == null || r.sizeX != sizeX || r.sizeZ != sizeZ) {
-            if (r != null) {
-                // Said out loud, because this DISCARDS a capture. A room at a different footprint cannot be
-                // grown into - the array is a different shape - so the old one goes and the new one starts
-                // empty. That is right when an old capture was genuinely the wrong size, and a disaster when
-                // the new footprint is the wrong one, which is why plausibleFootprint runs first.
-                LOGGER.warn("Re-capturing \"{}\" at {}x{} tiles, replacing the {}x{}-block capture already "
-                        + "held - its blocks are discarded and it starts empty",
-                        name, tilesX, tilesZ, r.sizeX, r.sizeZ);
-            }
-            r = new Room(name, sizeX, sizeZ);
-            ROOMS.put(name, r);
-        } else if (r.minY != MIN_Y || r.maxY != MAX_Y) {
-            // WIDEN a room captured at the old band, rather than writing into it out of bounds.
-            //
-            // The scan below walks the CURRENT band while index() uses the room's OWN, so a room loaded at
-            // 60..140 would index negatively the moment the floor dropped to 12 - an out-of-bounds write on
-            // the first column. It is rebuilt at the new band with everything already captured copied across,
-            // and every column marked unread so the recorder fills in the depth that was never there. Which
-            // is the whole point: this is what makes re-walking a room actually deepen it.
-            Room wider = new Room(name, sizeX, sizeZ, MIN_Y, MAX_Y);
-            for (String state : r.palette) {
-                wider.paletteFor(state);
-            }
-            int from = Math.max(r.minY, MIN_Y);
-            int to = Math.min(r.maxY, MAX_Y);
-            for (int x = 0; x < sizeX; x++) {
-                for (int z = 0; z < sizeZ; z++) {
-                    for (int y = from; y <= to; y++) {
-                        wider.blocks[wider.index(x, y, z)] = r.blocks[r.index(x, y, z)];
-                    }
-                }
-            }
-            wider.margin = r.margin;
-            wider.mobSpawns.addAll(r.mobSpawns);
-            LOGGER.info("Widening captured room \"{}\" from y {}..{} to {}..{} - every column will be "
-                    + "re-read so the part below the old floor is filled in",
-                    name, r.minY, r.maxY, MIN_Y, MAX_Y);
-            r = wider;
-            ROOMS.put(name, r);
-        }
-        int worldX0 = centreX - TILE / 2 - WALL_MARGIN;
-        int worldZ0 = centreZ - TILE / 2 - WALL_MARGIN;
-
-        int added = 0;
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int x = 0; x < sizeX; x++) {
-            for (int z = 0; z < sizeZ; z++) {
-                int col = z * sizeX + x;
-                if (r.seenColumn[col]) {
-                    continue;
-                }
-                // Asked INSIDE the level's own height. The band starts at -64 for local worlds, and Hypixel's
-                // dungeon world starts at 0, so asking at r.minY there called every column unloaded and the
-                // recorder read nothing at all on Hypixel from 2026-09-29 until 2026-10-04 ("0 new column(s)").
-                cursor.set(worldX0 + x, Math.max(level.getMinY(), Math.min(level.getMaxY(), 70)), worldZ0 + z);
-                if (!com.killer560.hub.chunkcache.ChunkCacheManager.isLoadedOrCached(level, cursor)) {
-                    continue; // not loaded: recording air here would be a lie that never gets corrected
-                }
-                // SKIP WHOLE EMPTY SECTIONS instead of reading them block by block.
-                //
-                // The scan covers the full world column now, and most of that is the sky above the dungeon.
-                // Read naively that is 385 reads a column against the old 81 - nearly five times the budget
-                // the recorder was tuned for (256 columns a tick, "about 21k block reads"), which is the kind
-                // of cost that shows up as a stutter while he plays. A chunk section that is all air says so
-                // in one call, and 16 layers of it are then written as air without touching the level at all.
-                // The same trick the lever scan uses, for the same reason.
-                // CHUNK coordinates, not block coordinates - getChunk(int,int) takes the former, and passing
-                // block coords would have fetched a chunk 16 times too far out and skipped sections that
-                // belong to a completely different place.
-                var chunkHere = level.getChunk((worldX0 + x) >> 4, (worldZ0 + z) >> 4).getSections();
-                int bottomSection = level.getMinSectionY();
-                short airId = r.paletteFor("minecraft:air");
-                for (int y = r.minY; y <= r.maxY; y++) {
-                    int sectionIdx = (y >> 4) - bottomSection;
-                    if (sectionIdx >= 0 && sectionIdx < chunkHere.length
-                            && chunkHere[sectionIdx] != null && chunkHere[sectionIdx].hasOnlyAir()) {
-                        r.blocks[r.index(x, y, z)] = airId;
-                        continue;
-                    }
-                    cursor.set(worldX0 + x, y, worldZ0 + z);
-                    BlockState state = level.getBlockState(cursor);
-                    // The FULL state, not just the block id. Storing only the id threw away every stair's
-                    // facing, every door's hinge and every lever's wall before the data was even saved - and a
-                    // room rebuilt from that has its geometry right and everything directional pointing the
-                    // same wrong way, which is worse than obviously broken because it looks nearly correct.
-                    // serialize() produces "minecraft:stone_brick_stairs[facing=north,...]", which the existing
-                    // string palette already holds; a plain id from an older capture still parses as the
-                    // default state, so nothing recorded before this breaks.
-                    r.blocks[r.index(x, y, z)] = r.paletteFor(
-                            net.minecraft.commands.arguments.blocks.BlockStateParser.serialize(state));
-                }
-                r.seenColumn[col] = true;
-                r.contentChanged();
-                added++;
-                if (added >= columnBudget) {
-                    // Out of budget. The rest of this room is picked up on a later tick - seenColumn means
-                    // resuming costs nothing and never re-reads what is already stored.
-                    markDirty(r);
-                    return added;
-                }
-            }
-        }
-        if (added > 0) {
-            markDirty(r);
-        }
-        if (captureMobs(level, r, worldX0, worldZ0)) {
-            markDirty(r);
-        }
-        return added;
-    }
-
-    /** At most this many mobs remembered per room - a room is not a mob farm, and the file stays small. */
-    private static final int MAX_MOB_SPAWNS = 40;
-
-    /**
-     * Records the mobs standing in this room, so a sim floor is not an empty building.
-     *
-     * <p>{@code Room.mobSpawns} was read by {@code SimBuilder} and written by NOTHING - the field existed, was
-     * saved, was loaded, and was empty in all 135 rooms. So every sim floor has been silent and empty, which
-     * is a large part of why it does not feel like a dungeon.
-     *
-     * <p>Honest about what this is: a SNAPSHOT of where mobs happened to be standing when the room was
-     * scanned, not where Hypixel spawns them. Dungeon mobs wander, so the positions are approximate. That is
-     * still far better than nothing, and it is the only source available - no public dataset carries mob
-     * positions either.
-     *
-     * <p>Only fills up to {@link #MAX_MOB_SPAWNS} and never re-records a position it already has, so scanning
-     * the same room for a minute does not accumulate a smear of one zombie's walk.
-     *
-     * @return true when something new was recorded
-     */
-    private static boolean captureMobs(Level level, Room r, int worldX0, int worldZ0) {
-        if (r.mobSpawns.size() >= MAX_MOB_SPAWNS) {
-            return false;
-        }
-        // Only for the room he is actually near.
-        //
-        // Without this it is one entity query per room per tick - up to 36 a tick while the recorder sweeps a
-        // floor - and a room that simply has no mobs never stops asking. Entities only exist near the player
-        // anyway, so a far room could only ever answer "none": the query would cost something and learn
-        // nothing. 64 blocks is two rooms out.
-        var mc = net.minecraft.client.Minecraft.getInstance();
-        if (mc == null || mc.player == null) {
-            return false;
-        }
-        double cx = worldX0 + r.sizeX / 2.0;
-        double cz = worldZ0 + r.sizeZ / 2.0;
-        if (mc.player.distanceToSqr(cx, mc.player.getY(), cz) > 64 * 64) {
-            return false;
-        }
-        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(
-                worldX0, MIN_Y, worldZ0, worldX0 + r.sizeX, MAX_Y, worldZ0 + r.sizeZ);
-        boolean changed = false;
-        for (net.minecraft.world.entity.Entity e
-                : level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class, box)) {
-            String kind = kindOf(e);
-            if (kind == null) {
-                continue;
-            }
-            int lx = net.minecraft.util.Mth.floor(e.getX()) - worldX0;
-            int ly = net.minecraft.util.Mth.floor(e.getY());
-            int lz = net.minecraft.util.Mth.floor(e.getZ()) - worldZ0;
-            if (lx < 0 || lz < 0 || lx >= r.sizeX || lz >= r.sizeZ || ly < MIN_Y || ly > MAX_Y) {
-                continue;
-            }
-            String line = lx + "," + ly + "," + lz + "," + kind;
-            if (r.mobSpawns.add(line)) {
-                changed = true;
-                if (r.mobSpawns.size() >= MAX_MOB_SPAWNS) {
-                    break;
-                }
-            }
-        }
-        return changed;
-    }
-
-    /** The {@code SimMobs.Kind} name for an entity, or null for anything the sim cannot stand in for. */
-    private static String kindOf(net.minecraft.world.entity.Entity e) {
-        if (e instanceof net.minecraft.world.entity.player.Player) {
-            return null;
-        }
-        if (e instanceof net.minecraft.world.entity.ambient.Bat) {
-            return "BAT";
-        }
-        if (e instanceof net.minecraft.world.entity.monster.EnderMan) {
-            return "FEL";
-        }
-        // The 26.1.2 packages: monster.skeleton.* and monster.zombie.*, not monster.* directly.
-        if (e instanceof net.minecraft.world.entity.monster.skeleton.AbstractSkeleton) {
-            return "SKELETON";
-        }
-        if (e instanceof net.minecraft.world.entity.monster.zombie.Zombie) {
-            return "ZOMBIE";
-        }
-        return null;
-    }
-
-    /**
-     * Records a starred mob spawn, in room-local coordinates.
-     *
-     * <p>Rounded to whole blocks on purpose. Hypixel spawns a mob at a spot, not at a float, and keeping the
-     * fractional position would make two sightings of the same spawn look like two different ones and defeat
-     * the deduplication entirely.
-     */
-    public static synchronized void recordMobSpawn(String roomName, int localX, int localY, int localZ,
-                                                   String kind) {
-        Room r = ROOMS.get(roomName);
-        if (r == null) {
-            return;
-        }
-        if (r.mobSpawns.add(localX + "," + localY + "," + localZ + "," + kind)) {
-            // A shipped room that now holds a spawn he recorded is no longer the shipped room, and saveAll
-            // skips anything still flagged as bundled - so without this the spawn would be lost on restart.
-            markDirty(r);
-        }
-    }
-
-    /**
-     * Writes every room that is not still the untouched copy from the jar.
-     *
-     * <p>The skip is not an optimisation, it is the difference between shipping a baseline and copying it into
-     * 135 files in every one of his seven instances. {@code saveAll} already rewrites the whole library - about
-     * 13 MB of gzipped block arrays - and writing out the jar's own rooms as well would make that worse for no
-     * gain, and would leave rooms on disk that look exactly like something he captured.
-     *
-     * @return how many files were written
-     */
-    public static synchronized int saveAll() {
-        int written = 0;
-        try {
-            Files.createDirectories(DIR);
-            for (Room r : ROOMS.values()) {
-                if (r.fromJar) {
-                    continue;
-                }
-                Path f = DIR.resolve(safeName(r.name) + ".json");
-                Files.writeString(f, GSON.toJson(toJson(r)), StandardCharsets.UTF_8);
-                written++;
-            }
-            DIRTY.clear();
-        } catch (Exception e) {
-            LOGGER.error("Could not save the room library", e);
-        }
-        return written;
-    }
-
-    /**
-     * Writes only the rooms that changed. For the capture loop, which saves constantly.
-     *
-     * @return how many files were written, so a caller can skip announcing a save that wrote nothing
-     */
-    public static synchronized int saveDirty() {
-        if (DIRTY.isEmpty()) {
-            return 0;
-        }
-        int written = 0;
-        try {
-            Files.createDirectories(DIR);
-            for (String name : DIRTY) {
-                Room r = ROOMS.get(name);
-                if (r == null || r.fromJar) {
-                    // fromJar here means a reload replaced the room this name was dirty for with the shipped
-                    // copy, so the change it refers to no longer exists in memory. Writing the jar's room out
-                    // under his name would be worse than writing nothing.
-                    continue;
-                }
-                Path f = DIR.resolve(safeName(r.name) + ".json");
-                Files.writeString(f, GSON.toJson(toJson(r)), StandardCharsets.UTF_8);
-                written++;
-            }
-            DIRTY.clear();
-            prunePendingRescans();
-        } catch (Exception e) {
-            LOGGER.error("Could not save the changed rooms", e);
-        }
-        return written;
-    }
-
-    private static String safeName(String name) {
-        return name.replaceAll("[^A-Za-z0-9._-]", "_");
-    }
-
-    /** Shorts to gzipped base64. Big-endian, so the encoding does not depend on the machine that wrote it. */
-    private static String encodeShorts(short[] values) {
-        try {
-            var raw = new java.io.ByteArrayOutputStream();
-            try (var gz = new java.util.zip.GZIPOutputStream(raw);
-                 var out = new java.io.DataOutputStream(gz)) {
-                for (short v : values) {
-                    out.writeShort(v);
-                }
-            }
-            return java.util.Base64.getEncoder().encodeToString(raw.toByteArray());
-        } catch (Exception e) {
-            LOGGER.warn("Could not compress a room's blocks", e);
-            return "";
-        }
     }
 
     private static void decodeShorts(String encoded, short[] into) {
@@ -1627,17 +765,6 @@ public final class RoomLibrary {
         }
     }
 
-    /** One bit per column rather than one byte, since it is a boolean array of a thousand or so. */
-    private static String encodeBits(boolean[] values) {
-        byte[] packed = new byte[(values.length + 7) / 8];
-        for (int i = 0; i < values.length; i++) {
-            if (values[i]) {
-                packed[i >> 3] |= (byte) (1 << (i & 7));
-            }
-        }
-        return java.util.Base64.getEncoder().encodeToString(packed);
-    }
-
     private static void decodeBits(String encoded, boolean[] into) {
         if (encoded == null || encoded.isEmpty()) {
             return;
@@ -1652,51 +779,10 @@ public final class RoomLibrary {
         }
     }
 
-    private static JsonObject toJson(Room r) {
-        JsonObject o = new JsonObject();
-        o.addProperty("name", r.name);
-        o.addProperty("sizeX", r.sizeX);
-        o.addProperty("sizeZ", r.sizeZ);
-        // TRIMMED to the part of the column that holds something. The scan covers the whole world height so
-        // nothing can be missed, but storing that would triple every file and every loaded room for air.
-        int lo = r.contentMinY();
-        int hi = r.contentMaxY();
-        if (lo > hi) {
-            lo = r.minY;
-            hi = r.minY;   // nothing captured yet: keep one layer so the arithmetic stays valid
-        }
-        o.addProperty("minY", lo);
-        o.addProperty("maxY", hi);
-        JsonArray pal = new JsonArray();
-        for (String p : r.palette) {
-            pal.add(p);
-        }
-        o.add("palette", pal);
-        // Compressed, not a list of numbers. killer560 (2026-09-28): "still froze on boot" - his library had
-        // reached 187 MB and every byte of it was parsed on the render thread before the title screen. A room
-        // is 77,841 block ids; written as JSON numbers that is half a megabyte of text per 1x1 room and five
-        // for a 2x2, and Gson has to tokenise every single one.
-        //
-        // The same data as gzipped bytes is roughly a twentieth of the size and needs no parsing at all. That
-        // is the difference between a library that is slow and one that does not fit in a boot.
-        int layer = r.sizeX * r.sizeZ;
-        short[] trimmed = new short[layer * (hi - lo + 1)];
-        System.arraycopy(r.blocks, (lo - r.minY) * layer, trimmed, 0, trimmed.length);
-        o.addProperty("blocksZ", encodeShorts(trimmed));
-        o.addProperty("seenZ", encodeBits(r.seenColumn));
-        o.addProperty("margin", r.margin);
-        JsonArray spawns = new JsonArray();
-        for (String m : r.mobSpawns) {
-            spawns.add(m);
-        }
-        o.add("mobSpawns", spawns);
-        return o;
-    }
-
     private static Room fromJson(JsonObject o) {
         String name = o.get("name").getAsString();
         // The band the FILE was written with, not today's constant. Every capture has carried these two
-        // fields all along; reading them is what lets the recorder's floor drop without invalidating a single
+        // fields all along; reading them is what let the capture floor drop without invalidating a single
         // existing room. A file from before they were written falls back to the old 60..140.
         int fileMinY = o.has("minY") ? o.get("minY").getAsInt() : 60;
         int fileMaxY = o.has("maxY") ? o.get("maxY").getAsInt() : 140;
@@ -1705,9 +791,7 @@ public final class RoomLibrary {
         for (int i = 0; i < pal.size(); i++) {
             r.paletteFor(pal.get(i).getAsString());
         }
-        // Both formats are read. Everything already captured is in the old one, and rewriting 187 MB of it
-        // on load would be a worse first boot than the one being fixed - each room upgrades itself the next
-        // time it is saved, which the recorder does every run.
+        // Both formats are read: gzipped "blocksZ" and the old plain number array.
         if (o.has("blocksZ")) {
             decodeShorts(o.get("blocksZ").getAsString(), r.blocks);
         } else if (o.has("blocks")) {

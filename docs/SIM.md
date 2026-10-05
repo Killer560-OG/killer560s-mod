@@ -347,26 +347,6 @@ straight afterwards gets "no" and then measures an empty world. Use `buildsFinis
 completions: snapshot it, ask for the floor, wait for it to change. Eleven testkit scenarios had this bug
 and two of them - "0 secret chests" and "sim mobs never spawn" - read for days as defects in the mod.
 
-## A capture's footprint comes from the database, not from the layout
-
-`DungeonLayout` grouping is not trustworthy as a footprint source. On an Ashfall practice preset the rooms
-sit in a LINE spanning 47 cells, and when the grouping merges a run of neighbours into one room the bounding
-box of the whole run becomes the footprint: a 2026-09-30 scan of every room produced 43 of 135 with a
-footprint the room database contradicts, up to 11x1, and each one overwrote a good capture because
-`captureAt` replaces a room whose footprint changed with an empty one.
-
-So `resolveFootprint` takes the database's shape whenever it knows one (the six shapes are 1x1, 1x2, 1x3,
-1x4, 2x2 and L, so 4 tiles is the hard ceiling), keeping the orientation the world suggested and only taking
-the size. It CLAMPS rather than refuses, in both directions: too big captures the one room, too small
-captures into the correct larger box and leaves the unseen columns unread so `complete()` stays false.
-Refusing would mean a room he has only half-walked could never be captured at all.
-
-Two things made this invisible for a day. `currentFormat()` only asks whether the size is a whole number of
-tiles, never whether the tile count could fit; and the generator's `footprintCells` silently finds no room
-for an oversized room on a 6-tile grid. A room can be captured, report as captured, and never once appear on
-a floor, with nothing logged. If rooms are "missing" from generated floors, check the footprints against the
-database before anything else.
-
 ## Secret rotation: the translation is right, the DATA is what is missing
 
 Scenario 82 measures how many of the database's chest secrets land on a chest the capture already had, and it
@@ -624,20 +604,16 @@ all 36 cells against all 134 captures at all four rotations put every cell on th
 `RoomPlacer`, the layout and the live map are all correct, and three separate hypotheses about them were
 wrong.
 
-**What is wrong is `resolveFootprint`'s clamp.** `captureBox` anchors the box at the lowest grid cell the
-live map has grouped into the room. When that grouping is not the room - an Ashfall practice floor lays
-rooms out in a LINE and the map merges a whole run into one, or he has only walked part of a room - the box
-starts in the wrong place, and the clamp then read the DATABASE's number of tiles from that wrong start. It
-fixed the size and left the position alone, which is how Waterfall's capture came to be a tile of Catwalk,
-then Waterfall, then nothing, then the whole of Rare Overgrown. A mismatched footprint now REFUSES the
-capture instead of clamping it.
+**What was wrong was the (now removed) Room Recorder's footprint clamp**, which anchored a capture on a
+mis-grouped run of cells - how Waterfall's capture came to be a tile of Catwalk, then Waterfall, then
+nothing, then the whole of Rare Overgrown. The shipped captures still carry those mistakes.
 
 **Measured, so it can be re-measured:** 34 tiles across the 134 captures are block-for-block a tile of a
 different room, and 12 are nothing but air. Compare tiles over y 66..99, the dungeon's own floor-to-roof
 band - comparing each room over its own captured band finds only 5 of the 34, because the duplicates differ
 in how far below the floor they were recorded, not in the room itself. When two rooms share a tile the one
 with MORE tiles is the corrupt one: a 1x1 box cannot span a run. `RoomTileAudit` does this at every load and
-makes the offenders unusable, so they are asked for again rather than placed.
+makes the offenders unusable, so they are never placed.
 
 **A correction to the 16:22 commit.** It removed `Criss-Cross.json` as "97.4% solid on one side, 2.6% on the
 other - literally half a room". That measurement used the wrong array index order (`RoomLibrary.index` is
@@ -1372,9 +1348,8 @@ bundled coordinate as "the block", check whether it is the block or the space ab
 - **`/goto Higher Blaze`** scans down from the sky for its landing and found the roof. A downward scan now only
   accepts a spot with something over it. Spawn offsets for the blaze rooms and Ice Fill are turned by the room's
   paste rotation, which they never were.
-- **Rescanning a room**: `/killer560 roomrecorder rescan <room>` empties the capture so the recorder reads it
-  again; without it a complete room is never re-read, because capture skips seen columns. Balcony and Archway are
-  the only two rooms whose captures have no roof marker, which is the code's own sign of a missing roof corner.
+- Balcony and Archway are the only two rooms whose captures have no roof marker, which is the code's own sign
+  of a missing roof corner.
   The handoff said `SimBuilder` warns when a 1x2's reserved cells disagree with its long axis; no such warning
   exists in the code.
 
@@ -1783,7 +1758,7 @@ branches in `ClearNode`, `ClearExecutor`, `EtherwarpPathfinder` and `EtherSearch
   server; fixing them means changing what the sim builds.
 - **Auto Routes recording warning.** Starting a recording or `/ar add` in the sim in a room whose capture rotation
   is uncertain (`RoomCaptureRotation.uncertainForRecording`: no marker, ambiguous, or overruled) says once that the
-  route may come out rotated on Hypixel until the room is rescanned.
+  route may come out rotated on Hypixel until the room's capture is fixed.
 
 ## The path to blood is laid first (2026-10-04)
 
@@ -2200,3 +2175,31 @@ nobody at the keys except where the scenario says so.
 **Record** (testkit at master, merged main, five scenarios per launch): 3 of 3 launches all five PASS on Mod Only Test
 and 3 of 3 on Map Logger, on the final jar, after the same on the jar before the merge. The scenario still teleports
 him to the weirdos (Approach NEAR_WEIRDOS); Teleport Maze and Boulder approached by themselves.
+
+## The Room Recorder was removed (2026-10-04)
+
+killer560: "Remove [the Room Recorder] entirely but remember the code in case we ever need it again." The
+recorder (the dev-only F7 loop and `/killer560 roomrecorder` that captured rooms off Hypixel and Ashfall into
+`config/.../killer560smod-rooms`) is gone from the source tree. The sim still loads the shipped captures
+(`assets/killer560smod/rooms`) and any local ones already on disk; `RoomLibrary` is read-only now. The code
+lives at git tag **`room-recorder-last`** (commit 6d4e09f); restore with
+`git checkout room-recorder-last -- <paths>`.
+
+Removed files: `roomsim/RoomRecorderFeature`, `RoomRecorderConfig`, `RoomEntryWalk`,
+`DungeonInstanceCooldown`, `MissingRoomsHud`, `MissingRoomsConfig`, `SimMeasure` (wither door measuring, only
+called from the recorder's scan), `RoomLibraryScreen`, and `gui/tab/RoomRecorderTab`. Also removed: the
+capture / rescan / save half of `RoomLibrary` (`capture`, `captureBox`, `captureAt`, `resolveFootprint`,
+mob capture, `recordMobSpawn`, `resetForRescan`, `resetAllBroken`, the pending-rescan file, `saveAll`,
+`saveDirty`, `toJson`, `floorProgress`, `completeCount`, `expectedCount`, `incomplete`, `Room.cutOff`),
+`RoomDatabase.allEntries`, `RunSummaryFeature.puzzleCount()`, `ActionGate.Actor.ROOM_RECORDER_MENU`, the
+New-tab entry, both HUD/feature registrations, and its FEATURES.md entry. Restoring it means putting those
+`RoomLibrary` methods back as well.
+
+Lessons that only concerned the recorder, kept here in brief:
+- `captureAt` replaced a room whose footprint changed with an empty one, and `DungeonLayout`'s grouping on an
+  Ashfall line preset merged runs of rooms (up to 11x1), so one scan wrecked 43 good captures. Footprint must
+  come from the room database's shape, and a mismatch must REFUSE, not clamp - clamping kept the wrong anchor.
+- `Level.isLoaded(pos)` is false for any y outside the build height. Hypixel's dungeon world starts at y 0, so a
+  load check asked at -64 captured nothing on Hypixel from 2026-09-29 to 2026-10-04. Clamp the y first.
+- Capture skips seen columns, so a complete room is never re-read without explicitly emptying it (the old
+  `rescan`), and the shipped copy must not win over a room being rescanned.

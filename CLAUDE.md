@@ -113,7 +113,8 @@ Two topics have their own files, because they had grown to half this one:
 secret placement, doors and altitude - and **[docs/AP3.md](docs/AP3.md)** for AP3's nodes and align
 physics. Read the relevant one before touching either area. Feature-specific lessons (Bazaar, HUD
 elements, Superpairs, Instant Transmission, item identity, gametest) are in
-**[docs/LESSONS.md](docs/LESSONS.md)**.
+**[docs/LESSONS.md](docs/LESSONS.md)**. The Room Recorder was removed on 2026-10-04 and lives at git tag
+`room-recorder-last`; the last section of docs/SIM.md says how to restore it.
 
 - `LOGGER.debug` never reaches his log. Minecraft's root log4j2 level is INFO, and a real client log
   (`26.1.2 (Dungeons)`, 29,596 lines, 2026-09-29) contains zero DEBUG lines. So a `.debug` call is not the
@@ -243,8 +244,8 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   a name group must be `[A-Za-z0-9_]{1,16}`, which no chat prefix can be.
 - `/f7`, `/m7` and the rest are THIS MOD'S client-side shortcuts, not Hypixel commands - they expand to
   `/joininstance catacombs_floor_seven` etc. in `CommandShortcutsFeature.Shortcut`. So automation must send the
-  `joininstance` form: `ServerCommands.toServer` deliberately sends below the client dispatcher, so it handed
-  Hypixel the literal "/f7" and the Room Recorder sat waiting for a dungeon that was never queued (2026-09-28).
+  `joininstance` form: `ServerCommands.toServer` deliberately sends below the client dispatcher, so it hands
+  Hypixel the literal "/f7" and nothing is queued (found 2026-09-28).
   `/dh` and `/skyblock` ARE real Hypixel commands. Read the id off the enum rather than writing it out again.
 - An "any key stops it" guard must ignore keys while `client.screen != null`. Otherwise the Return that submits
   the command starting the feature, and the Escape that closes the settings tab starting it, each stop it
@@ -284,14 +285,13 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
 - **Moving a setting to a different sub-tab silently orphans its scoped tooltip.** `SettingTooltips.describe`
   looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
   entry stops being found the moment that button is built by a different tab - no error, the hover text just
-  changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.- Agent worktrees are cut from `main`, not from the branch checked out here. On 2026-10-04 six were started
+  changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.
+- Agent worktrees are cut from `main`, not from the branch checked out here. On 2026-10-04 six were started
   while work sat on a feature branch 26 commits ahead of `main`, and every one began on stale code. Get the
   work onto `main` (or tell each agent its base) before fanning out.
-- `Level.isLoaded(pos)` is false for any y outside the level's build height, before chunks are even looked at.
-  Hypixel's dungeon world starts at y 0, so the Room Recorder's load check, asked at the full-height band's -64,
-  rejected every column there and captured nothing on Hypixel from 2026-09-29 to 2026-10-04 while Ashfall (min
-  -64) kept working. Ask load questions at a y clamped into `level.getMinY()..getMaxY()`.
+- `Level.isLoaded(pos)` is false for any y outside the level's build height (Hypixel's dungeon world starts at
+  y 0). Ask load questions at a y clamped into `level.getMinY()..getMaxY()`.
 - The room database (`RoomDatabase`) only loads when something calls `ensureLoading()` - the live map does so
   only inside a real dungeon. Anything that names rooms or votes on rotation outside one (Ashfall solo rooms, the
-  recorder, `rescan broken`) must start the load itself and must not judge rooms until `isReady()`; on
-  2026-10-04 solo rooms read 0 columns and good captures were emptied because it never loaded.
+  sim) must start the load itself and must not judge rooms until `isReady()` - before it, the tile audit and the
+  rotation vote judge good rooms broken.

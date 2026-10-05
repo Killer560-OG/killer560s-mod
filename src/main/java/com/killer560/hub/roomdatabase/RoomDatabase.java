@@ -114,17 +114,6 @@ public final class RoomDatabase {
     /** @return the real room entry with this exact {@link RoomEntry#name}, or null if the database is not
      *  loaded yet or no room has that name (an older/mismatched database, a typo'd report, ...). Never
      *  throws on a bad or unknown name. */
-    /**
-     * Every room the database knows, for anything that needs to ask what EXISTS rather than what is loaded.
-     *
-     * <p>Added for the Missing Rooms HUD: the room library only knows what the recorder has seen, so it can
-     * never say what is still missing - that answer only exists by comparing against the full list.
-     */
-    public static java.util.Collection<RoomEntry> allEntries() {
-        java.util.Map<String, RoomEntry> map = byName;
-        return map == null ? java.util.List.of() : java.util.List.copyOf(map.values());
-    }
-
     public static RoomEntry lookupByName(String name) {
         Map<String, RoomEntry> map = byName;
         return map == null || name == null ? null : map.get(name);
