@@ -472,16 +472,37 @@ final class AutoBlaze {
         }
         // Nowhere better. Stay, hold the bow, and wait for the solver's next scan rather than warping somewhere
         // with no shot.
-        if (searchSpots != null && searchIndex >= searchSpots.size() && farSpot != null) {
-            // A spot with a shot exists but no single warp reaches it (the shaft floor from the top landing): let the
-            // Interactive Map's planner take him there, warps and walking both.
+        if (searchSpots != null && searchIndex >= searchSpots.size() && !farSpots.isEmpty()) {
+            // Spots with a shot exist but no single warp reaches them (the shaft floor from the top landing). First a
+            // two-warp route through any searched block that sees one of them, then - once per spot - the
+            // Interactive Map's planner.
+            for (BlockPos far : farSpots) {
+                if (!AutoPuzzleUtil.at(player, far) && !badSpots.contains(far)
+                        && AutoPuzzleUtil.etherwarpAim(client.level, player, far) != null) {
+                    say("moving to " + AutoPuzzleUtil.fmt(far) + ", which has a shot at '" + nameOf(blazes.get(0)) + "'");
+                    REPOSITION.start(client, far, true, false, false);
+                    return;
+                }
+            }
+            BlockPos hop = hopToFar(client, player);
+            if (hop != null) {
+                say("the only spots with a shot at '" + nameOf(blazes.get(0)) + "' are out of one warp's reach - "
+                        + "warping to " + AutoPuzzleUtil.fmt(hop) + " first, which sees " + AutoPuzzleUtil.fmt(farSpots.get(farIdx)));
+                REPOSITION.start(client, hop, true, false, false);
+                return;
+            }
+            if (farIdx < farSpots.size()) {
+                return; // the two-warp search is still going
+            }
             if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
                 return;
             }
-            if (AutoPuzzleUtil.pathIfMapOn(farSpot.above(), null)) {
-                say("the only spots with a shot at '" + nameOf(blazes.get(0)) + "' are out of one warp's reach - "
-                        + "pathing to " + AutoPuzzleUtil.fmt(farSpot));
-                return;
+            for (BlockPos far : farSpots) {
+                if (pathTried.add(far) && AutoPuzzleUtil.pathIfMapOn(far.above(), null)) {
+                    say("no two-warp route to a spot with a shot at '" + nameOf(blazes.get(0)) + "' - asking the "
+                            + "Interactive Map to path to " + AutoPuzzleUtil.fmt(far));
+                    return;
+                }
             }
         }
         AutoPuzzleUtil.holdShortbow(client, player);
@@ -495,7 +516,40 @@ final class AutoBlaze {
     private static List<BlockPos> searchSpots = null;
     private static Entity searchFor = null;
     /** The nearest searched spot with a shot that no single warp from here reaches, for the planner. */
-    private static BlockPos farSpot = null;
+    private static final List<BlockPos> farSpots = new ArrayList<>();
+    /** Far spot being tried by {@link #hopToFar}, and how far through {@link #searchSpots} that try has got. */
+    private static int farIdx = 0;
+    private static int hopIdx = 0;
+    private static final java.util.Set<BlockPos> pathTried = new java.util.HashSet<>();
+    private static final int MAX_FAR = 6;
+    private static final int HOPS_PER_TICK = 40;
+
+    /**
+     * A searched block he can warp onto from which one of {@link #farSpots} can be warped onto, or null (still
+     * searching, or none). {@value #HOPS_PER_TICK} candidates a tick, far spots in order.
+     */
+    private static BlockPos hopToFar(Minecraft client, LocalPlayer player) {
+        int budget = HOPS_PER_TICK;
+        while (farIdx < farSpots.size() && budget > 0) {
+            BlockPos far = farSpots.get(farIdx);
+            while (hopIdx < searchSpots.size() && budget-- > 0) {
+                BlockPos via = searchSpots.get(hopIdx++);
+                if (via.equals(far) || AutoPuzzleUtil.at(player, via)) {
+                    continue;
+                }
+                Vec3 eye = new Vec3(via.getX() + 0.5, via.getY() + 1 + AutoPuzzleUtil.EYE_SNEAKING, via.getZ() + 0.5);
+                if (com.killer560.hub.livemap.autoclear.TeleportUtils.getEtherwarpDirection(eye, far, 57.0, false) != null
+                        && AutoPuzzleUtil.etherwarpAim(client.level, player, via) != null) {
+                    return via;
+                }
+            }
+            if (hopIdx >= searchSpots.size()) {
+                farIdx++;
+                hopIdx = 0;
+            }
+        }
+        return null;
+    }
     private static int searchIndex = 0;
     /** Candidates judged per tick: each is up to 21 simulated arrow flights. */
     private static final int SEARCH_PER_TICK = 12;
@@ -517,7 +571,10 @@ final class AutoBlaze {
             searchFor = target;
             searchIndex = 0;
             searchSpots = candidates(client, target, higher);
-            farSpot = null;
+            farSpots.clear();
+            farIdx = 0;
+            hopIdx = 0;
+            pathTried.clear();
             LOGGER.info("[AutoPuzzles] Blaze: searching {} standable block(s) in the room for a shot at '{}'",
                     searchSpots.size(), nameOf(target));
         }
@@ -533,8 +590,8 @@ final class AutoBlaze {
                     searchIndex++;
                     return spot;
                 }
-                if (farSpot == null) {
-                    farSpot = spot;
+                if (farSpots.size() < MAX_FAR) {
+                    farSpots.add(spot);
                 }
             }
         }
@@ -729,7 +786,10 @@ final class AutoBlaze {
         shotsFrom = null;
         badSpots.clear();
         searchSpots = null;
-        farSpot = null;
+        farSpots.clear();
+        farIdx = 0;
+        hopIdx = 0;
+        pathTried.clear();
         searchFor = null;
         searchIndex = 0;
         emptyTicks = 0;
