@@ -370,15 +370,17 @@ final class AutoBlaze {
      *
      * <p>Three faults made this a loop onto the same spot about four times a second (93-solve, 2026-10-04):
      * <ul>
-     *   <li>the shot from a candidate spot was judged from a STANDING eye (1.62), while a bow reposition arrives
-     *       with sneak still held (QUOI keeps it) and so shoots from 1.27 - a spot could pass here and then fail the
-     *       very next tick from the spot itself;</li>
+     *   <li>the shot from a candidate spot was judged from {@code spot.getY() + 1.62} - but a spot is the block he
+     *       stands ON, so that eye sat 0.38 below the top of the block, and a bow reposition arrives sneaking (QUOI
+     *       keeps sneak held) with the eye 1.27 over the top. A spot could pass here and fail the very next tick
+     *       from the spot itself;</li>
      *   <li>the spot he was already standing on was a candidate, so "warp onto where you stand" counted as a move;</li>
      *   <li>with no spot passing, it warped to the first visible spot as a "fallback" - every time, with the bow
      *       swapped out for the AOTV and nothing to swap it back, which is the "left holding the AOTV" report.</li>
      * </ul>
-     * Now the eye is the sneaking one, his own spot is skipped, and with no spot that has a shot he stays put,
-     * swaps back to the bow and says so; the solver rescans and the next tick tries again.
+     * Now the eye is the real sneaking one, his own spot is skipped, and with no listed spot that has a shot the
+     * room's own ledges are searched ({@link #searchRoom}); only when that runs out too does he stay put, with the
+     * bow back in hand, and say so.
      */
     private static void cyclePosition(Minecraft client, LocalPlayer player, List<Entity> blazes, int[] cr, boolean higher,
                                       boolean mustMove) {
@@ -438,7 +440,7 @@ final class AutoBlaze {
             }
         }
         // None of QUOI's spots has a shot. Look through the room's own ledges, a few a tick.
-        BlockPos found = searchRoom(client, player, blazes, hitboxes, terminator);
+        BlockPos found = searchRoom(client, player, blazes, hitboxes, terminator, higher);
         if (found != null) {
             say("no listed spot has a clean shot at '" + nameOf(blazes.get(0)) + "' - moving to "
                     + AutoPuzzleUtil.fmt(found) + ", found by searching the room");
@@ -472,12 +474,12 @@ final class AutoBlaze {
      * list is built once per target. Returns null while the search is still going or when it has run out.
      */
     private static BlockPos searchRoom(Minecraft client, LocalPlayer player, List<Entity> blazes,
-                                       List<BlazeHitbox> hitboxes, boolean terminator) {
+                                       List<BlazeHitbox> hitboxes, boolean terminator, boolean higher) {
         Entity target = blazes.get(0);
         if (target != searchFor || searchSpots == null) {
             searchFor = target;
             searchIndex = 0;
-            searchSpots = candidates(client, target);
+            searchSpots = candidates(client, target, higher);
             LOGGER.info("[AutoPuzzles] Blaze: searching {} standable block(s) in the room for a shot at '{}'",
                     searchSpots.size(), nameOf(target));
         }
@@ -497,7 +499,7 @@ final class AutoBlaze {
         return null;
     }
 
-    private static List<BlockPos> candidates(Minecraft client, Entity target) {
+    private static List<BlockPos> candidates(Minecraft client, Entity target, boolean higher) {
         List<BlockPos> out = new ArrayList<>();
         int idx = LiveMapFeature.currentRoomIndex();
         int[] bounds = idx < 0 ? null : LiveMapFeature.roomWorldBounds(idx);
@@ -506,6 +508,11 @@ final class AutoBlaze {
         }
         BlockPos t = target.blockPosition();
         int minY = t.getY() - 14;
+        if (higher) {
+            // Never below Higher Blaze's top level: tick() sends him straight back up from there, and a spot down
+            // in the shaft turned the two into a ping-pong (93-solve, 2026-10-04).
+            minY = Math.max(minY, 75 + com.killer560.hub.livemap.DungeonLayout.simYOffset());
+        }
         int maxY = t.getY() + 24;
         for (int x = Math.max(bounds[0], t.getX() - 24); x <= Math.min(bounds[2], t.getX() + 24); x++) {
             for (int z = Math.max(bounds[1], t.getZ() - 24); z <= Math.min(bounds[3], t.getZ() + 24); z++) {

@@ -2152,3 +2152,66 @@ and its far-off floor), 6 in Balcony (one of the four uncertain captures - its b
 1 Waterfall>Fairy. Not investigated further here.
 
 `tools/layoutsim/rotation.sh` had the same missing `SimWitherDoors` compile error as `floor.sh`; fixed.
+
+## Ice Path, Blaze and Creeper Beams played to the end by their autos (2026-10-04, fix-puzA)
+
+Played by the testkit's `93-solve-*` scenarios against both capture sets (Map Logger and Mod Only Test). Five faults
+were the SIM's and three were the autos'; each is named at its fix.
+
+**The sim (Hypixel never saw these):**
+- **A swap and a use in one tick reached the server as a use of the OLD item.** Fabric's client `UseItemCallback` hook
+  sits on `MultiPlayerGameMode.useItem` at the call to `ensureHasSentCarriedItem`, BEFORE it (fabric-events-interaction
+  5.2.2, javap), and a SUCCESS cancels there - so for every item `SimAbilities` answers, vanilla's "send the selected
+  slot first" never ran. Every Auto Puzzles reposition made with sneak already held (swap to the AOTV and warp in the
+  same tick) arrived as a Terminator shot along the etherwarp's aim: client "holding ASPECT_OF_THE_VOID", server "use
+  TERMINATOR slot 1". In Ice Path those arrows landed on the silverfish's next stop and shoved it; in Creeper Beams the
+  warp timed out and the auto sat still. `SimAbilities.sendHeldSlotFirst` now calls `ensureHasSentCarriedItem` (the
+  existing invoker) before answering SUCCESS, which is exactly what vanilla would have done next.
+- **A blaze whose chunk unloads comes back as a plain blaze, and peaceful discards it.** `SimBlazeEntity` only exists
+  while loaded; saved, it is "minecraft:blaze", and the sim's PEACEFUL world discards a reloaded one on its first tick.
+  The label stands (peaceful leaves them alone) stayed up, so Auto Blaze shot at ten labels with nothing under them
+  (server: ten alive at 20:02:41, none three seconds later; client: no `Blaze` entity at all). A single-room load
+  puts him ~170 blocks off until the build hands over, and a floor puts the Blaze room anywhere, so this is not a test
+  artefact. `SimBlazePuzzle.putBackMissing` puts a chain blaze back at its spot with its HP, and moves its label over,
+  once it has been missing for 20 ticks from a section that `isPositionEntityTicking`.
+- **"Dead" was inferred from absence.** `isDead` was `getEntity == null || !isAlive`, and null only means the section
+  is not being shown - every blaze for the ~27 s a fresh sim world takes to bring its chunks up. So the whole chain
+  read as ten in-order kills and `isComplete()` was true before the auto was switched on (base run, Lower Blaze). Now a
+  blaze is dead only once SEEN dying (`isDeadOrDying`, kept in `SEEN_DEAD`), which also keeps a vanished blaze from
+  counting as an out-of-order kill.
+- **361 silverfish on one cell.** While the chunks came up, `respawnIfNear` found no fish and put one back every
+  tick; each went into a section the server was not showing yet, and all of them appeared together once it did. It
+  now puts one back only where `isPositionEntityTicking`, waits 100 ticks after a put-back, and the next tick that
+  finds the fish removes any other sim silverfish on the board.
+- **Test aids.** `SimPuzzles.isComplete(name)` is the one solved signal per puzzle: a key (`icepath`) or the room's
+  live-map name (`Ice Path`; a blaze room name is only true when the armed arena is that room).
+  `SimCreeperPuzzle.joinedCount()` is the joined-pairs count; `SimBlazePuzzle.killedInOrder()` the chain's progress.
+
+**The autos (these run on Hypixel too):**
+- **Ice Path: the only spot it could shoot from was one it could rarely reach.** It etherwarped onto the silverfish's
+  cell or did nothing, and from the board the eye is 1.27 over the ice, so the ray to a cell a few blocks off runs
+  along the maze's own pillars ("no etherwarp aim onto -114,-59,-115 from where you stand", from the room's spawn six
+  cells away). Now: a direct warp, else a warp to an open board cell he can see from which the fish's cell can be
+  seen (a neighbour of the fish's cell always qualifies when visible), else a walk through the Interactive Map's
+  pathing. **Solver:** a board change seen on a tick the silverfish was not found or was sliding was thrown away,
+  so a board that read all air before the chunks arrived was never solved again; the change is now kept
+  (`boardDirty`) until a solve uses it.
+- **Blaze, "loop onto the same spot ~4x/s" and "left holding the AOTV":** a QUOI spot was judged from
+  `spot.getY() + 1.62` - the spot is the block he stands ON, so that eye was inside the block, not the sneaking eye
+  1.27 over its top he actually shoots from; his own spot was a candidate; and with nothing passing it warped to the
+  first visible spot with the AOTV swapped in. Now the real eye, his own spot skipped, and when no listed spot has a
+  shot it searches the room's standable blocks (24 around and 14 below to 24 above the blaze, nearest first, 12 a
+  tick, never below Higher Blaze's top level) - the fifth blaze of Lower Blaze floats a block over the shaft floor,
+  under QUOI's lowest spot. "Blaze: done." now waits for the solver's list to stay empty for 30 ticks (a rebuilt chain
+  empties it for a moment). Side arrows are followed until they land in the safety check (QUOI stopped them a few
+  blocks past the target, so one could fly on across the shaft and kill a far blaze out of order). No out-of-order
+  kill was seen in these runs once the blazes existed; the spread stays 5 degrees, QUOI's figure.
+- **Creeper Beams, "times out, then never shoots again":** the timeout was the slot fault above. After it, the shots
+  were aimed with `etherwarpDirection` - a SNEAKING eye whatever his stance, at QUOI's face-edge sample points - so
+  standing up after the cancelled reposition every shot missed its lantern. Shots now aim from the real eye at the
+  lantern's centre or a face centre inset 0.05, each checked with a collider ray to land on the lantern. "On the
+  platform" is within half a block, not `==` (an etherwarp lands 0.05 high and settles a tick later, and the exact
+  test started a second warp). A platform spot it cannot warp onto is skipped next time; the lantern under the
+  creeper's own feet is not checked for the creeper being in the way; with no clear spot it shoots anyway and says so.
+- Every refusal in the three autos is an INFO line, once per change of reason (`[AutoIcePath] ...`,
+  `[AutoPuzzles] Blaze: ...`, `[AutoPuzzles] Beams: ...`), and each reposition logs the warp it sent and the item held.

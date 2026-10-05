@@ -78,3 +78,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - A test script that pipes its runner into `grep` exits with grep's status, so it passes when the runner cannot even
   compile. `tools/bench/regress.sh` did exactly that after the 2026-10-04 path-to-blood merge (two javac errors,
   exit 0). Write the run to a file, check its exit status, and require a line only a finished run prints.
+- A client `UseItemCallback` that returns SUCCESS skips vanilla's `ensureHasSentCarriedItem`: Fabric's hook sits on
+  `MultiPlayerGameMode.useItem` before that call and cancels there (fabric-events-interaction 5.2.2, javap). A slot
+  change made in the same tick then reaches the server AFTER the use packet, so the server uses the previous item.
+  Send the slot first (`MultiPlayerGameModeInvoker.killer560smod$invokeEnsureHasSentCarriedItem`) before answering
+  SUCCESS - `SimAbilities.sendHeldSlotFirst` does (2026-10-04).
+- An entity of a mod SUBCLASS is saved under its vanilla type and comes back as the vanilla class when its chunk
+  reloads, losing every override. The sim's blazes and silverfish override `checkDespawn` to survive PEACEFUL; reloaded,
+  they are discarded on their first tick. Anything the sim spawns that matters must be put back when it goes missing
+  from a section the server is showing (`isPositionEntityTicking`), and "missing" must never be read as "killed".
