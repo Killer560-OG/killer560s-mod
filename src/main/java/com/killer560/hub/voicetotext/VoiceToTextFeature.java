@@ -177,6 +177,10 @@ public final class VoiceToTextFeature {
             }
             vosk = lib;
             loadedModel = lib.newModel(modelDir.toString());
+            // Once per session. The only positive sign in the log that the downloaded engine really loaded - the
+            // "ready" message is an overlay, and Vosk's own native logging goes to stderr, not the game log.
+            LOGGER.info("[VoiceToText] Speech model loaded ({} via {})", loadedModel.getClass().getName(),
+                    loadedModel.getClass().getClassLoader().getName());
             state = State.READY;
             Minecraft.getInstance().execute(() -> {
                 boolean openMic = VoiceToTextConfig.getInstance().getMode() == VoiceToTextConfig.Mode.OPEN_MIC;
