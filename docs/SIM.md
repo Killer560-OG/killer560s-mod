@@ -2202,6 +2202,7 @@ were the SIM's and three were the autos'; each is named at its fix.
   creeper's own feet is not checked for the creeper being in the way; with no clear spot it shoots anyway and says so.
 - Every refusal in the three autos is an INFO line, once per change of reason (`[AutoIcePath] ...`,
   `[AutoPuzzles] Blaze: ...`, `[AutoPuzzles] Beams: ...`), and each reposition logs the warp it sent and the item held.
+
 ## 93-solve round B: Tic Tac Toe, Boulder, Three Weirdos, Water Board, Teleport Maze (2026-10-04, fix-puzB)
 
 Played by the testkit's `93-solve-*` scenarios on both capture sets (Mod Only Test and Map Logger), each auto alone,
