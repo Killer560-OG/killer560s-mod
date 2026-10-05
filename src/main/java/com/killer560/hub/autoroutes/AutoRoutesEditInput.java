@@ -33,6 +33,9 @@ public final class AutoRoutesEditInput {
      *  the same shift state is that auto-repeat, not a second deliberate click. */
     private static final long HOLD_REPEAT_MS = 350;
 
+    private static final net.minecraft.resources.Identifier EDIT_PHASE =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "autoroutes_edit");
+
     private static BlockPos lastPos;
     private static boolean lastShift;
     private static long lastAtMs;
@@ -45,7 +48,12 @@ public final class AutoRoutesEditInput {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             return;
         }
-        UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+        // In a phase AHEAD of every other listener: the first non-PASS result wins, and any listener registered earlier
+        // that answers an ability item's click (the sim's own ability hook does, for a Superboom) took the click first -
+        // the pick was lost and the item fired, the one thing edit mode promises will not happen (found 2026-10-05,
+        // 96-ar-add: two picks with a Superboom in hand detonated it twice and saved no blocks).
+        UseBlockCallback.EVENT.addPhaseOrdering(EDIT_PHASE, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
+        UseBlockCallback.EVENT.register(EDIT_PHASE, (player, level, hand, hit) -> {
             try {
                 if (hit == null || level == null || !level.isClientSide()) {
                     return InteractionResult.PASS;

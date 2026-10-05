@@ -190,6 +190,8 @@ public final class RouteExecutor {
     /** True from a node with an await firing until its own action starts - the span a screen may be open in
      *  (a secret chest's window) without stopping the route. */
     private static boolean awaitHeld;
+    /** The active node has sent its action (its "acted" line is written then). */
+    private static boolean nodeActed;
 
     // ---- input ----
     private static boolean mixinApplied;
@@ -583,14 +585,20 @@ public final class RouteExecutor {
             return;
         }
         if (McCompat.screen(client) != null) {
-            if (activeNode != null && awaitHeld) {
+            if (activeNode != null && (awaitHeld || (activeNode.awaitEnabled && !nodeActed))) {
                 // Waiting on secrets: the screen is almost always the secret itself - a chest's own window
                 // (killer560's await:2 waits for exactly that). The wait carries on under it, the keys stay off,
                 // and the node fires on the first tick the screen is closed. Anything else still stops the route.
                 clearMovement();
                 wantSneak = false;
                 applyFallbackKeys(client);
-                if (!awaitPhaseDone) {
+                if (awaitPhaseDone) {
+                    // The await was met a tick before the chest's window arrived (the secret count and the window
+                    // come in either order): the action had started but sent nothing, so it starts over, cleanly,
+                    // when the window closes - sneak, aim and all.
+                    step = Step.PREP;
+                    stepTicks = 0;
+                } else {
                     stepTicks++;
                     actionAge++;
                     tickAwait(client, player, activeNode);
@@ -944,6 +952,7 @@ public final class RouteExecutor {
         // A legacy standalone AWAIT node (an unmigrated file) is nothing but this wait.
         awaitPhaseDone = !node.awaitEnabled && node.type != RouteNode.Type.AWAIT;
         awaitHeld = !awaitPhaseDone;
+        nodeActed = false;
         breakerQueue = new ArrayList<>();
         breakerSent.clear();
         hopIndex = -1;
@@ -1751,6 +1760,7 @@ public final class RouteExecutor {
     /** The per-node timing line: how many ticks the node's action took from firing (after any await), 0 = the
      *  firing tick itself. */
     private static void logActed(RouteNode node, String detail) {
+        nodeActed = true;
         LOGGER.info("[AutoRoutes] Node #{} {} acted {} tick(s) after firing{}{}", route == null ? "?" : route.indexOf(node) + 1,
                 node.type, actionAge - awaitDoneAge, nodeSwapped ? " (hotbar swap, same tick)" : "", detail);
     }
