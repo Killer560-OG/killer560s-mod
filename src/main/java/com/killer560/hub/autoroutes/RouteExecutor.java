@@ -1377,7 +1377,7 @@ public final class RouteExecutor {
             teleportPacketSeen = false;
             useHeldItem(client, player, warpYaw, warpPitch, false);
             logActed(node, (hopIndex >= 0 ? " (path warp " + (hopIndex + 1) + "/" + node.pathHops.size() + ")" : "")
-                    + " (sneak " + (sneakReadyAge == awaitDoneAge ? "already held"
+                    + " (sneak " + (hopIndex > 0 ? "held from the last warp" : sneakReadyAge == awaitDoneAge ? "already held"
                     : "went out in the firing tick's input packet") + ", "
                     + ItemIdentity.skyblockId(player.getMainHandItem()) + ")");
             step = Step.CONFIRM;
