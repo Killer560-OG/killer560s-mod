@@ -277,6 +277,13 @@ public final class EtherwarpPathfinder {
         }
 
         @Override
+        public int cellOf(int x, int z) {
+            int i = Math.floorDiv(x - x0 + 16, 32);
+            int j = Math.floorDiv(z - z0 + 16, 32);
+            return i < 0 || j < 0 || i > 5 || j > 5 ? -1 : j * 6 + i;
+        }
+
+        @Override
         public int count() {
             return 36;
         }

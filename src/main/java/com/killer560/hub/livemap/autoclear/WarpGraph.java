@@ -845,19 +845,12 @@ public final class WarpGraph {
             int u = r.u;
             int n = r.pos.length;
             int[] to = new int[n];
-            float[] len = new float[n];
             for (int k = 0; k < n; k++) {
-                int t = node(r.pos[k]);
-                to[k] = t;
-                double dx = nx[t] - nx[u];
-                double dy = ny[t] - ny[u];
-                double dz = nz[t] - nz[u];
-                len[k] = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+                to[k] = node(r.pos[k]);
             }
             eTo[u] = to;
             eYaw[u] = r.yaw;
             ePitch[u] = r.pitch;
-            eLen[u] = len;
         }
         totalRays += revalidateRays;
         for (int v = countBefore; v < count; v++) {
@@ -1243,7 +1236,6 @@ public final class WarpGraph {
         eTo[node] = null;
         eYaw[node] = null;
         ePitch[node] = null;
-        eLen[node] = null;
     }
 
     // ------------------------------------------------------------------------------------------- nodes
@@ -1257,7 +1249,6 @@ public final class WarpGraph {
     private int[][] eTo = new int[1024][];
     private float[][] eYaw = new float[1024][];
     private float[][] ePitch = new float[1024][];
-    private float[][] eLen = new float[1024][];
 
     private int find(long key) {
         int mask = mapKeys.length - 1;
@@ -1299,7 +1290,6 @@ public final class WarpGraph {
             eTo = Arrays.copyOf(eTo, n);
             eYaw = Arrays.copyOf(eYaw, n);
             ePitch = Arrays.copyOf(ePitch, n);
-            eLen = Arrays.copyOf(eLen, n);
         }
         int id = count++;
         nx[id] = unpackX(key);
@@ -1352,19 +1342,12 @@ public final class WarpGraph {
     private void integrate(int node, Result r) {
         int n = r.to.length;
         int[] to = new int[n];
-        float[] len = new float[n];
         for (int k = 0; k < n; k++) {
-            int t = node(r.to[k]);
-            to[k] = t;
-            double dx = nx[t] - nx[node];
-            double dy = ny[t] - ny[node];
-            double dz = nz[t] - nz[node];
-            len[k] = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+            to[k] = node(r.to[k]);
         }
         eTo[node] = to;
         eYaw[node] = r.yaw;
         ePitch[node] = r.pitch;
-        eLen[node] = len;
         for (long k : r.sections) {
             bySection.computeIfAbsent(k, q -> new IntList()).add(node);
             byColumn.computeIfAbsent(columnKey(sxOf(k), szOf(k)), q -> new IntList()).add(node);
@@ -1381,10 +1364,19 @@ public final class WarpGraph {
         /** The tile whose click region holds this landing, or -1. */
         int tileOf(int x, int y, int z);
 
+        /**
+         * The map cell whose 32 x 32 column holds this block at ANY height, or -1 off the floor. Every landing on the
+         * floor is in exactly one; the exact-goal bounds use them (see altSetup).
+         */
+        int cellOf(int x, int z);
+
         int count();
     }
 
     private Tiles tiles;
+    /** fields[0..tileFieldCount) are the tiles' click regions; the next tileFieldCount are the cells' columns. */
+    private int tileFieldCount;
+    private int[] cellOfNodeArr;
     /** Reverse adjacency (CSR) of every known edge, from the last time warming completed. */
     private int[] revStart;
     private int[] rev;
@@ -1448,23 +1440,30 @@ public final class WarpGraph {
         revStart = starts;
         rev = r;
         int tc = tiles == null ? 0 : tiles.count();
+        // Fields 0..tc-1: into each tile's click region (room clicks). tc..2tc-1: into each cell's whole column
+        // (lower bounds for exact goals).
         int[] tileOfNode = new int[n];
+        int[] cellOfNode = new int[n];
         for (int u = 0; u < n; u++) {
             tileOfNode[u] = tiles == null ? -1 : tiles.tileOf(nx[u], ny[u], nz[u]);
+            cellOfNode[u] = tiles == null ? -1 : tiles.cellOf(nx[u], nz[u]);
         }
-        byte[][] out = new byte[tc][];
+        cellOfNodeArr = cellOfNode;
+        int fc = 2 * tc;
+        byte[][] out = new byte[fc][];
         ExecutorService workers = lastWorkers;
         if (workers != null && lastThreads > 1 && tc > 1) {
             // One breadth-first search per tile, independent of each other: spread over the warm-up workers.
             List<Callable<Void>> jobs = new ArrayList<>();
-            int per = (tc + lastThreads - 1) / lastThreads;
-            for (int t0 = 0; t0 < tc; t0 += per) {
+            int per = (fc + lastThreads - 1) / lastThreads;
+            for (int t0 = 0; t0 < fc; t0 += per) {
                 int from = t0;
-                int to = Math.min(tc, t0 + per);
+                int to = Math.min(fc, t0 + per);
                 jobs.add(() -> {
                     int[] queue = new int[n];
                     for (int t = from; t < to; t++) {
-                        out[t] = tileField(t, n, tileOfNode, starts, r, queue);
+                        out[t] = t < tc ? tileField(t, n, tileOfNode, starts, r, queue)
+                                : tileField(t - tc, n, cellOfNode, starts, r, queue);
                     }
                     return null;
                 });
@@ -1480,15 +1479,17 @@ public final class WarpGraph {
             }
         }
         int[] queue = null;
-        for (int t = 0; t < tc; t++) {
+        for (int t = 0; t < fc; t++) {
             if (out[t] == null) {
                 if (queue == null) {
                     queue = new int[n];
                 }
-                out[t] = tileField(t, n, tileOfNode, starts, r, queue);
+                out[t] = t < tc ? tileField(t, n, tileOfNode, starts, r, queue)
+                        : tileField(t - tc, n, cellOfNode, starts, r, queue);
             }
         }
         fields = out;
+        tileFieldCount = tc;
         fieldNodes = n;
         fieldsValid = true;
     }
@@ -1638,6 +1639,24 @@ public final class WarpGraph {
         }
         return top;
     }
+
+    /**
+     * Among nodes with the same bound on the total warps, which to look at first. With {@link #deepFirst} the one
+     * already more warps along (then nearer the goal), which walks one optimal path instead of widening over all of
+     * them; the warp count is the same either way (nodes still come off in order of the bound), only the total
+     * distance among equally short paths may differ. Without it, the shortest distance so far plus the straight line.
+     */
+    public boolean deepFirst = true;
+
+    private double key(int f, int g, double dist, double toGoal) {
+        if (deepFirst) {
+            return f * DEEP_F - g * DEEP_G + toGoal;
+        }
+        return f * WARP + dist + toGoal;
+    }
+
+    private static final double DEEP_F = 1.0e7;
+    private static final double DEEP_G = 1.0e5;
 
     /** Warps outweigh any distance: the key is warps * WARP + distance. */
     private static final double WARP = 100_000.0;
@@ -1792,6 +1811,7 @@ public final class WarpGraph {
      * the goal", and an empty set ends an exact search at once.
      */
     private int collectAimSet(Goal goal) {
+        goalN = 0;
         int g = find(EtherSearch.pack(goal.x, goal.y, goal.z));
         if (g >= 0 && g < fieldNodes && fieldsValid && warmComplete) {
             // The goal is a node itself (a doorway, a spot on a tile's centre line): its aim set IS its in-edges,
@@ -1809,6 +1829,8 @@ public final class WarpGraph {
                 for (int e = 0; e < to.length; e++) {
                     if (to[e] == g) {
                         inGoal[u] = stamp;
+                    addGoalNode(u);
+                        addGoalNode(u);
                         goalYaw[u] = eYaw[u][e];
                         goalPitch[u] = ePitch[u][e];
                         n++;
@@ -1857,6 +1879,7 @@ public final class WarpGraph {
                     int u = node(rep);
                     ensureArrays();
                     inGoal[u] = stamp;
+                    addGoalNode(u);
                     goalYaw[u] = owner.search.aimYaw;
                     goalPitch[u] = owner.search.aimPitch;
                     n++;
@@ -1865,6 +1888,83 @@ public final class WarpGraph {
         }
         rays += owner.search.rays - before;
         return n;
+    }
+
+    /** Labelled nodes after which an exact goal's backward search stops and the cell fields bound the rest. */
+    public int labelBudget = 3000;
+    private final byte[][] frontierField = new byte[36][];
+    private int frontierN;
+    private int frontierLevel;
+
+    private int[] goalList = new int[256];
+    private int goalN;
+
+    private void addGoalNode(int u) {
+        if (goalN == goalList.length) {
+            goalList = Arrays.copyOf(goalList, goalN * 2);
+        }
+        goalList[goalN++] = u;
+    }
+
+    /** Use the tile fields as landmarks for an exact goal instead of a backward search per click (see altSetup). */
+    public boolean altExact = false;
+    private static final int MAX_LANDMARKS = 6;
+    private final byte[][] lmField = new byte[MAX_LANDMARKS][];
+    private final int[] lmMax = new int[MAX_LANDMARKS];
+    private int lmN;
+    private boolean altOn;
+
+    /** Tiles holding aim-set nodes in their click region: warps(v -> such a node) >= field_T(v). */
+    private final byte[][] gtField = new byte[36][];
+    private int gtN;
+    /** Whether some aim-set node lies in no tile's click region (a ledge, a stair) - bounded by landmarks. */
+    private boolean looseGoal;
+
+    /**
+     * Lower bounds for an exact goal from the tile fields built at warm-up, instead of a backward breadth-first
+     * search on every click (13-73 ms on a dense graph). The goal is reached by one warp from a node of its aim set,
+     * so warps(v -> goal) = 1 + min over the aim set of warps(v -> a). Split the aim set by the tile whose click
+     * region holds each node: for the nodes in tile T's region, warps(v -> a) >= field_T(v), exactly the field. For
+     * the rest ("loose"), landmarks: for any tile L, warps(v -> a) >= field_L(v) - field_L(a), so the loose part is
+     * at least field_L(v) - max over the loose nodes of field_L(a). The minimum over the parts is admissible, so the
+     * A* still returns the fewest warps; and a node no part can be reached from is pruned.
+     */
+    private void altSetup() {
+        lmN = 0;
+        gtN = 0;
+        looseGoal = false;
+        if (fields == null || goalN == 0 || tiles == null || cellOfNodeArr == null) {
+            return;
+        }
+        int tc = tileFieldCount;
+        boolean[] haveCell = new boolean[tc];
+        for (int i = 0; i < goalN; i++) {
+            int u = goalList[i];
+            int c = u < fieldNodes ? cellOfNodeArr[u] : -1;
+            if (c >= 0 && c < tc) {
+                if (!haveCell[c]) {
+                    haveCell[c] = true;
+                    gtField[gtN++] = fields[tc + c];
+                }
+            } else {
+                looseGoal = true;   // off the floor's cells, or newer than the fields: no bound from it
+            }
+        }
+    }
+
+    /** The exact goal's bound from {@link #altSetup}: 1 + the least of its parts; MAX_VALUE if none is reachable. */
+    private int altBound(int v) {
+        if (looseGoal) {
+            return 1;
+        }
+        int best = Integer.MAX_VALUE;
+        for (int i = 0; i < gtN; i++) {
+            int f = gtField[i][v] & 0xFF;
+            if (f < best) {
+                best = f;
+            }
+        }
+        return best == NO_WAY ? Integer.MAX_VALUE : 1 + best;
     }
 
     /**
@@ -1906,12 +2006,18 @@ public final class WarpGraph {
         }
         int level = base;
         boolean reachedStart = false;
+        boolean budgetHit = false;
+        frontierN = 0;
         while (head < tail && level < maxWarps + 1) {
             int levelEnd = tail;
             for (int k = head; k < levelEnd && !reachedStart; k++) {
                 reachedStart = startMark[bfsQueue[k]] == startStamp;
             }
             if (reachedStart) {
+                break;
+            }
+            if (labelBudget > 0 && tail > labelBudget && cellOfNodeArr != null) {
+                budgetHit = true;
                 break;
             }
             while (head < levelEnd) {
@@ -1931,8 +2037,28 @@ public final class WarpGraph {
         }
         labelled = tail;
         // Run dry without reaching him: nothing unlabelled can reach the goal at all.
-        labelFloor = reachedStart || level >= maxWarps + 1 ? level + 1 : Integer.MAX_VALUE;
+        labelFloor = reachedStart || budgetHit || level >= maxWarps + 1 ? level + 1 : Integer.MAX_VALUE;
         labels = true;
+        if (budgetHit) {
+            // Stopped early to save time: layer `level` (queue[head, tail)) is complete, and every path from an
+            // unlabelled node enters the goal's labelled ball through it. So warps(v -> goal) >= level + warps(v ->
+            // that layer), and the second term is at least the cell field of the layer's cells.
+            boolean[] seenCell = new boolean[tileFieldCount];
+            boolean ok = true;
+            for (int k = head; k < tail && ok; k++) {
+                int c = cellOfNodeArr[bfsQueue[k]];
+                if (c < 0 || c >= tileFieldCount) {
+                    ok = false;
+                } else if (!seenCell[c]) {
+                    seenCell[c] = true;
+                    frontierField[frontierN++] = fields[tileFieldCount + c];
+                }
+            }
+            if (!ok) {
+                frontierN = 0;
+            }
+            frontierLevel = level;
+        }
     }
 
     /** One A*: to any node {@code region} accepts, or (region null) onto the exact block of {@code exact}. */
@@ -2026,17 +2152,26 @@ public final class WarpGraph {
             ensureArrays();
             startMark[t] = startStamp;
         }
+        altOn = false;
         if (region != null && region == goal.region && goal.tile >= 0 && fieldsValid && warmComplete && !noFields
-                && goal.tile < fields.length) {
+                && goal.tile < tileFieldCount) {
             labels = true;
             labelField = fields[goal.tile];
         } else {
             long t0 = System.nanoTime();
             int base = exact != null ? 1 : 0;
-            backwardLabels(base, maxWarps);
+            altOn = false;
+            if (exact != null && altExact && fieldsValid && warmComplete && !noFields) {
+                labels = false;
+                labelField = null;
+                altSetup();
+                altOn = true;
+            } else {
+                backwardLabels(base, maxWarps);
+            }
             nanosLabels += System.nanoTime() - t0;
         }
-        usedFields = labels;
+        usedFields = labels || altOn;
         for (int k = 0; k < startN; k++) {
             int t = node(startPos[k]);
             double dx = nx[t] + 0.5 - sx;
@@ -2057,7 +2192,7 @@ public final class WarpGraph {
             parent[t] = START;
             pYaw[t] = startYaw[k];
             pPitch[t] = startPitch[k];
-            push(t, (1 + h) * WARP + len + distTo(t, gx, gy, gz));
+            push(t, key(1 + h, 1, len, distTo(t, gx, gy, gz)));
         }
         while (heapSize > 0) {
             int u = pop();
@@ -2083,7 +2218,6 @@ public final class WarpGraph {
             }
             int[] to = edges(u);
             ensureArrays();
-            float[] len = eLen[u];
             float[] yaw = eYaw[u];
             float[] pitch = ePitch[u];
             double base = gDist[u];
@@ -2091,7 +2225,9 @@ public final class WarpGraph {
             edgesScanned += to.length;
             for (int e = 0; e < to.length; e++) {
                 int v = to[e];
-                double nd = base + len[e];
+                // Deep-first ignores distance entirely; otherwise the hop's length, worked out here rather than
+                // stored with every one of a few million edges.
+                double nd = deepFirst ? 0.0 : base + hopLength(u, v);
                 if (seen[v] == stamp) {
                     if (closed[v] || gWarps[v] < ng || (gWarps[v] == ng && gDist[v] <= nd)) {
                         continue;
@@ -2111,7 +2247,7 @@ public final class WarpGraph {
                 parent[v] = u;
                 pYaw[v] = yaw[e];
                 pPitch[v] = pitch[e];
-                push(v, (ng + h) * WARP + nd + distTo(v, gx, gy, gz));
+                push(v, key(ng + h, ng, nd, distTo(v, gx, gy, gz)));
             }
         }
         return null;
@@ -2135,6 +2271,15 @@ public final class WarpGraph {
             }
             double d = distTo(v, gx, gy, gz);
             h = Math.max(2, 1 + (int) Math.ceil((d - 5.0 - range) / (range + 4.0)));
+            if (altOn && v < fieldNodes) {
+                int b = altBound(v);
+                if (b == Integer.MAX_VALUE) {
+                    return b;
+                }
+                if (b > h) {
+                    h = b;
+                }
+            }
         }
         if (labels && v < fieldNodes) {
             int l;
@@ -2143,10 +2288,25 @@ public final class WarpGraph {
                 if (l == NO_WAY) {
                     return Integer.MAX_VALUE;
                 }
+            } else if (labelStamp[v] == stamp) {
+                l = label[v];
             } else {
-                l = labelStamp[v] == stamp ? label[v] : labelFloor;
+                l = labelFloor;
                 if (l == Integer.MAX_VALUE) {
                     return l;
+                }
+                if (frontierN > 0) {
+                    int m = NO_WAY;
+                    for (int i = 0; i < frontierN; i++) {
+                        int f = frontierField[i][v] & 0xFF;
+                        if (f < m) {
+                            m = f;
+                        }
+                    }
+                    if (m == NO_WAY) {
+                        return Integer.MAX_VALUE;   // reaches none of the cells every way to the goal passes
+                    }
+                    l = Math.max(l, frontierLevel + Math.max(1, m));
                 }
             }
             if (l > h) {
@@ -2154,6 +2314,13 @@ public final class WarpGraph {
             }
         }
         return h;
+    }
+
+    private double hopLength(int u, int v) {
+        double dx = nx[v] - nx[u];
+        double dy = ny[v] - ny[u];
+        double dz = nz[v] - nz[u];
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     private double distTo(int u, double gx, double gy, double gz) {

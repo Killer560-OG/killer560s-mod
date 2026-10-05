@@ -819,6 +819,8 @@ public final class FloorBench {
         WarpGraph g = new WarpGraph(RANGE, 1.05, bucket, (grid, x, y, z) -> f.landingOk(x, y, z), FLOOR_Y - 20,
                 FLOOR_Y + 45);
         g.partialFrom = PARTIAL;
+        g.deepFirst = !"false".equals(System.getProperty("deep"));
+        g.labelBudget = Integer.getInteger("labelbudget", g.labelBudget);
         if (!"false".equals(System.getProperty("fine"))) {
             // EtherwarpPathfinder.doorwayColumn, in bench coordinates.
             g.setFine((x, z) -> {
@@ -837,6 +839,11 @@ public final class FloorBench {
             public int tileOf(int x, int y, int z) {
                 int cell = f.cellAt(x, z);
                 return tileRegion(f, cell).test(x, y, z) ? cell : -1;
+            }
+
+            @Override
+            public int cellOf(int x, int z) {
+                return f.cellAt(x, z);
             }
 
             @Override
