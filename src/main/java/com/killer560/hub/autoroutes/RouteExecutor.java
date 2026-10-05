@@ -584,7 +584,7 @@ public final class RouteExecutor {
             stop("world change");
             return;
         }
-        if (McCompat.screen(client) != null) {
+        if (AutoRoutesFeature.screenBlocks(client)) {
             if (activeNode != null && (awaitHeld || (activeNode.awaitEnabled && !nodeActed))) {
                 // Waiting on secrets: the screen is almost always the secret itself - a chest's own window
                 // (killer560's await:2 waits for exactly that). The wait carries on under it, the keys stay off,

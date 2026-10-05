@@ -74,6 +74,10 @@ public final class AutoRoutesConfig {
     private boolean legitMode = true;
     /** "an option in the main settings so it will not start a route halfway through" - forced on in legit mode. */
     private boolean startFromStartNodeOnly = true;
+    /** killer560, 2026-10-05: "I wanted the auto routes to have a toggle to work while my im is open. Not running but
+     *  while the map itself is open." ON: the Interactive Map's SCREEN counts as no screen (nodes fire, a route keeps
+     *  running); its own warps still stop routes as before. Off by default. */
+    private boolean runWhileMapOpen = false;
     private boolean uniformColor = false;
     private int uniformColorArgb = 0xFF00FFFF;
     private int activeColorArgb = 0xFFFFFFFF;
@@ -139,6 +143,7 @@ public final class AutoRoutesConfig {
                 cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
                 cfg.legitMode = ConfigJson.getBool(o, "legitMode", cfg.legitMode);
                 cfg.startFromStartNodeOnly = ConfigJson.getBool(o, "startFromStartNodeOnly", cfg.startFromStartNodeOnly);
+                cfg.runWhileMapOpen = ConfigJson.getBool(o, "runWhileMapOpen", cfg.runWhileMapOpen);
                 cfg.uniformColor = ConfigJson.getBool(o, "uniformColor", cfg.uniformColor);
                 cfg.uniformColorArgb = ConfigJson.getInt(o, "uniformColorArgb", cfg.uniformColorArgb);
                 cfg.activeColorArgb = ConfigJson.getInt(o, "activeColorArgb", cfg.activeColorArgb);
@@ -178,6 +183,7 @@ public final class AutoRoutesConfig {
             o.addProperty("enabled", enabled);
             o.addProperty("legitMode", legitMode);
             o.addProperty("startFromStartNodeOnly", startFromStartNodeOnly);
+            o.addProperty("runWhileMapOpen", runWhileMapOpen);
             o.addProperty("uniformColor", uniformColor);
             o.addProperty("colorsSectionOpen", colorsSectionOpen);
             o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
@@ -224,6 +230,8 @@ public final class AutoRoutesConfig {
     public boolean isStartFromStartNodeOnly() { return legitMode || startFromStartNodeOnly; }
     public boolean isStartFromStartNodeOnlyRaw() { return startFromStartNodeOnly; }
     public void setStartFromStartNodeOnly(boolean v) { startFromStartNodeOnly = v; }
+    public boolean isRunWhileMapOpen() { return runWhileMapOpen; }
+    public void setRunWhileMapOpen(boolean v) { runWhileMapOpen = v; }
 
     // ------------------------------------------------------------------------------------------- colours
 

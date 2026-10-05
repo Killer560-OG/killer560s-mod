@@ -363,6 +363,7 @@ final class SettingTooltipsData {
         d.put("auto routes", "Cheat build: records what you do in a dungeon room and replays it when you land on its start node.");
         d.put("auto routes/mode", "Legit turns your camera like a human for each etherwarp; Obvious skips the camera turn.");
         d.put("start from start node only", "ON: a route only starts when you land on its start node.");
+        d.put("run while map open", "ON: routes keep working while the Interactive Map is open (its own warps still stop them).");
         d.put("recording", "Cheat build: record a route with /ar start record and /ar stop record, or the keys under the buttons.");
         d.put("start recording", "Starts recording your movement, camera and actions in this room (/ar start record).");
         d.put("stop recording", "Stops recording and saves it as this room's route (/ar stop record).");

@@ -57,6 +57,7 @@ import com.killer560.hub.compat.McCompat;
  * <pre>
  *   Auto Routes: ON
  *   Mode | Start From Start Node Only
+ *   Run While Map Open
  *   Open Routes Folder | Reload Routes
  *   Render Style:  Style | Show Node Numbers,  Thickness | Height
  *   Recording:     Start | Stop,  Start Key | Stop Key
@@ -159,6 +160,9 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         // the greyed ON says the same).
         startOnly.active = !cfg.isLegitMode();
         w.add(startOnly);
+        y[0] += 24;
+        // killer560, 2026-10-05: work while the Interactive Map is open (not while it is warping you).
+        toggleCell(w, contentX, y[0], half, "Run While Map Open", cfg::isRunWhileMapOpen, cfg::setRunWhileMapOpen, null);
         y[0] += 24;
 
         // killer560, 2026-10-04: "Move the open routes folder near the top" - where AP3 keeps Open AP3 Folder.

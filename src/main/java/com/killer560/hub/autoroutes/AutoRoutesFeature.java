@@ -723,7 +723,7 @@ public final class AutoRoutesFeature {
         if (node == null) {
             return false;
         }
-        if (McCompat.screen(client) != null) {
+        if (screenBlocks(client)) {
             gate("the node you just added fires when the screen closes");
             return true;
         }
@@ -796,8 +796,9 @@ public final class AutoRoutesFeature {
             return;
         }
 
-        // Interlock 1: Interactive Map open -> hidden and inert.
-        boolean mapOpen = McCompat.screen(client) instanceof InteractiveMapScreen;
+        // Interlock 1: Interactive Map open -> hidden and inert - unless Run While Map Open is on, when the map's
+        // screen is no screen at all (its warps are still interlock 5 below).
+        boolean mapOpen = McCompat.screen(client) instanceof InteractiveMapScreen && !cfg.isRunWhileMapOpen();
         if (mapOpen) {
             gate("Interactive Map open");
             if (!mapWasOpen && RouteExecutor.isRunning()) {
@@ -912,6 +913,16 @@ public final class AutoRoutesFeature {
         arm(client, player, frame, cfg);
     }
 
+    /**
+     * Whether the open screen holds Auto Routes back. Every screen does, except the Interactive Map's own while Run
+     * While Map Open is on (killer560, 2026-10-05) - chests, inventories, chat and the node editor still pause it.
+     */
+    public static boolean screenBlocks(Minecraft client) {
+        net.minecraft.client.gui.screens.Screen screen = McCompat.screen(client);
+        return screen != null
+                && !(screen instanceof InteractiveMapScreen && AutoRoutesConfig.getInstance().isRunWhileMapOpen());
+    }
+
     /** Starts the room's route when the player stands in its START node (or, when allowed, any node). */
     private static void arm(Minecraft client, LocalPlayer player, RouteCoords.Frame frame, AutoRoutesConfig cfg) {
         Route route = RouteStore.getInstance().forRoom(frame.roomName());
@@ -921,7 +932,7 @@ public final class AutoRoutesFeature {
             suppressArm = false;
             return;
         }
-        if (McCompat.screen(client) != null) {
+        if (screenBlocks(client)) {
             gate("a screen is open");
             // Nothing arms under a screen, but the latch is kept: clearing it here undid /ar add's latch every time
             // the chat that typed "/ar add" was still open, so a node fired under him the moment chat closed.
