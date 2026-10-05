@@ -1,5 +1,6 @@
 package com.killer560.hub.bridge;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonObject;
 import com.killer560.hub.interop.DetectedMods;
 import com.killer560.hub.partydata.PartyDataFeature;
@@ -112,9 +113,8 @@ final class DevonianAdapter extends SocketAdapter {
                 throw new BridgeAuthException("Mojang session check failed (offline account or expired login)", false);
             }
             return r;
-        }, AUTH_POOL).thenCompose(ok -> HTTP.newWebSocketBuilder()
-                .connectTimeout(Duration.ofSeconds(15))
-                .buildAsync(URI.create(DevonianCodec.URL), listener)
+        }, AUTH_POOL).thenCompose(ok -> ModNet.webSocket(HTTP.newWebSocketBuilder()
+                .connectTimeout(Duration.ofSeconds(15)), URI.create(DevonianCodec.URL), listener)
                 .thenApply(ws -> {
                     pendingR = ok;
                     return ws;

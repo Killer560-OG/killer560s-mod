@@ -66,11 +66,6 @@ public final class SimSidebar {
     /** His Discord invite - the same one README.md, HomeMainTab and ChatCommandsFeature carry. */
     public static final String DISCORD = "discord.gg/hkQMF5fE84";
 
-    /** Client ticks between re-asserting the tab list header and footer. */
-    private static final int TAB_INFO_EVERY = 40;
-
-    private static int tabInfoTicks;
-
     /** What the sidebar said last tick, so the scoreboard is only touched when something changed. */
     private static List<String> lastLines = List.of();
 
@@ -87,28 +82,15 @@ public final class SimSidebar {
     public static void reset() {
         built = false;
         lastLines = List.of();
-        tabInfoTicks = 0;
     }
 
     /**
-     * The tab list's header and footer in the sim: who this world belongs to and where to find him.
+     * Takes the sim's header and footer back off the tab list. Called as the sim world unloads.
      *
-     * <p>Set on the CLIENT's tab overlay directly. A singleplayer server never sends a tab-list packet, so
-     * nothing overwrites it while he is in here; it is re-asserted every two seconds anyway, and cleared by
-     * {@link #clearTabInfo} when he leaves so it cannot follow him onto a server that sends none of its own.
+     * <p>The header and footer themselves are sent by the integrated server as a tab-list packet, with the rest
+     * of the Hypixel-shaped tab list, by {@link SimTabList}; this only makes sure they cannot follow him onto a
+     * server that sends none of its own.
      */
-    private static void applyTabInfo(Minecraft client) {
-        if (client.gui == null) {
-            return;
-        }
-        var tab = com.killer560.hub.compat.McCompat.tabList(client);
-        tab.setHeader(Component.literal(INFO_TITLE).withStyle(net.minecraft.ChatFormatting.GOLD));
-        tab.setFooter(Component.literal(INFO_NOT_HYPIXEL).withStyle(net.minecraft.ChatFormatting.GRAY)
-                .append(Component.literal("\nDiscord: ").withStyle(net.minecraft.ChatFormatting.GRAY))
-                .append(Component.literal(DISCORD).withStyle(net.minecraft.ChatFormatting.AQUA)));
-    }
-
-    /** Takes the sim's header and footer back off the tab list. Called as the sim world unloads. */
     public static void clearTabInfo(Minecraft client) {
         if (client == null || client.gui == null) {
             return;
@@ -125,10 +107,6 @@ public final class SimSidebar {
         MinecraftServer server = client.getSingleplayerServer();
         if (server == null) {
             return;
-        }
-        if (tabInfoTicks-- <= 0) {
-            tabInfoTicks = TAB_INFO_EVERY;
-            applyTabInfo(client);
         }
         List<String> lines = compose(client);
         if (lines.equals(lastLines)) {

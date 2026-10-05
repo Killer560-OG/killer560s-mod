@@ -1,5 +1,6 @@
 package com.killer560.hub.bridge;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -16,7 +17,7 @@ public final class OdinCodec {
 
     /** Spec 3.1: the hidden {@code StringSetting} default in {@code ClickGUIModule.<clinit>}; the full URL is
      *  {@code getWebSocketUrl() + lobbyId} with no separator of its own. */
-    public static final String WS_BASE = "wss://ws.odtheking.com/";
+    public static final String WS_BASE = ModNet.url("odin-ws", "wss://ws.odtheking.com/");
 
     /** Spec 3.3: {@code p3StartRegex} (constant pool #690) - Odin connects on this line. */
     public static final Pattern P3_START = Pattern.compile("^\\[BOSS] Goldor: Who dares trespass into my domain\\?$");

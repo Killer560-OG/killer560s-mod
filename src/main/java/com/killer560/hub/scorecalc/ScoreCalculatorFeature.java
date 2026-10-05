@@ -1,5 +1,6 @@
 package com.killer560.hub.scorecalc;
 
+import com.killer560.hub.util.ModNet;
 import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonArray;
 import com.killer560.hub.hud.HudSeen;
@@ -109,7 +110,7 @@ public final class ScoreCalculatorFeature {
     private static final Set<String> BAT_PARTY = Set.of("bat killed", "bat slain", "bat killed!", "bat dead", "bat dead!",
             "$skytils-dungeon-score-bat$");
 
-    private static final URI ELECTION_URI = URI.create("https://api.hypixel.net/v2/resources/skyblock/election");
+    private static final URI ELECTION_URI = ModNet.uri("hypixel", "https://api.hypixel.net/v2/resources/skyblock/election");
     private static final long ELECTION_CACHE_MS = 20 * 60 * 1000L;
     private static final long ELECTION_RETRY_MS = 60 * 1000L;
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
@@ -287,18 +288,8 @@ public final class ScoreCalculatorFeature {
         if (client.getConnection() == null) {
             return;
         }
-        // THE SIM HAS NO TAB LIST - see DungeonInfoFeature.updateSecretsCount for the same branch and the
-        // same reason. Without this the score HUD read zeroes for a whole sim run, which made the one place
-        // a practice run is supposed to answer "was that 300?" always say no. SimScore keeps the identical
-        // counters, so the HUD and the sim's own score line agree by construction.
-        if (com.killer560.hub.roomsim.SimState.isActive()) {
-            secretsFound = com.killer560.hub.roomsim.SimScore.secretsFound();
-            secretsPercent = com.killer560.hub.roomsim.SimScore.secretsPercent();
-            crypts = com.killer560.hub.roomsim.SimScore.cryptsBlown();
-            completedRooms = com.killer560.hub.roomsim.SimScore.roomsCleared();
-            deaths = com.killer560.hub.roomsim.SimScore.deaths();
-            return;
-        }
+        // No sim branch: the dungeon sim publishes a Hypixel-shaped tab list (roomsim.SimTabList), so the
+        // score HUD reads the same lines in the sim as on Hypixel.
         int completedPuzzles = 0;
         int failedPuzzles = 0;
         boolean sawPuzzleHeader = false;
@@ -575,7 +566,7 @@ public final class ScoreCalculatorFeature {
                 .header("User-Agent", "killer560smod")
                 .GET()
                 .build();
-        HTTP.sendAsync(request, HttpResponse.BodyHandlers.ofString()).whenComplete((response, error) -> {
+        ModNet.sendAsync(HTTP, request, HttpResponse.BodyHandlers.ofString()).whenComplete((response, error) -> {
             try {
                 if (error != null || response == null || response.statusCode() != 200) {
                     LOGGER.debug("[ScoreCalc] Election fetch failed: {}", error != null ? error.toString()

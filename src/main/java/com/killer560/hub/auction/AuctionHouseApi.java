@@ -1,5 +1,6 @@
 package com.killer560.hub.auction;
 
+import com.killer560.hub.util.ModNet;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -91,7 +92,7 @@ public final class AuctionHouseApi {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-auctionhouse");
 
-    private static final String AUCTIONS_URL = "https://api.hypixel.net/skyblock/auctions";
+    private static final String AUCTIONS_URL = ModNet.url("hypixel", "https://api.hypixel.net/skyblock/auctions");
     private static final Path CACHE_PATH = ModPaths.config("killer560smod-auction-cache.json");
     private static final long AUTO_RESCAN_MINUTES = 5;
     /** Pause between each page fetch during a scan - "page through it slowly and never block". */
@@ -380,7 +381,7 @@ public final class AuctionHouseApi {
                     .header("User-Agent", "Killer560sMod-AuctionHouse/1.0")
                     .GET()
                     .build();
-            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 return null;
             }

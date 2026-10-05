@@ -30,6 +30,8 @@ public final class SimPuzzles {
     private static final Map<String, Runnable> RESETS = new LinkedHashMap<>();
     /** Name to "drop the bookkeeping, touch nothing in the world" - see each puzzle's {@code forget()}. */
     private static final Map<String, Runnable> FORGETS = new LinkedHashMap<>();
+    /** Name to "is it solved", for the tab list's puzzle rows. */
+    private static final Map<String, java.util.function.BooleanSupplier> COMPLETE = new LinkedHashMap<>();
 
     static {
         BUILDERS.put("blaze", SimBlazePuzzle::build);
@@ -59,6 +61,25 @@ public final class SimPuzzles {
         FORGETS.put("teleportmaze", SimTeleportMazePuzzle::forget);
         FORGETS.put("icefill", SimIceFillPuzzle::forget);
         FORGETS.put("icepath", SimIcePathPuzzle::forget);
+        COMPLETE.put("blaze", SimBlazePuzzle::isComplete);
+        COMPLETE.put("creeper", SimCreeperPuzzle::isComplete);
+        COMPLETE.put("quiz", SimQuizPuzzle::isComplete);
+        COMPLETE.put("tictactoe", SimTicTacToePuzzle::isComplete);
+        COMPLETE.put("water", SimWaterPuzzle::isComplete);
+        COMPLETE.put("boulder", SimBoulderPuzzle::isComplete);
+        COMPLETE.put("teleportmaze", SimTeleportMazePuzzle::isComplete);
+        COMPLETE.put("icefill", SimIceFillPuzzle::isComplete);
+        COMPLETE.put("icepath", SimIcePathPuzzle::isComplete);
+    }
+
+    /** Whether the named puzzle (a {@link #names()} key) has been solved; false for an unknown name. */
+    public static boolean isComplete(String rawName) {
+        java.util.function.BooleanSupplier s = rawName == null ? null : COMPLETE.get(rawName.toLowerCase(Locale.ROOT));
+        try {
+            return s != null && s.getAsBoolean();
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     private SimPuzzles() {

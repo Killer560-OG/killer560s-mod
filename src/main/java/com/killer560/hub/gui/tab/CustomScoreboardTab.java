@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.util.ExternalOpen;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -354,7 +355,7 @@ public class CustomScoreboardTab extends BaseTab {
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Image Folder"), btn -> {
                     try {
                         java.nio.file.Files.createDirectories(CustomScoreboardConfig.DATA_DIR);
-                        net.minecraft.util.Util.getPlatform().openPath(CustomScoreboardConfig.DATA_DIR);
+                        ExternalOpen.path(CustomScoreboardConfig.DATA_DIR);
                     } catch (Exception ignored) {
                     }
                 }).bounds(colBX, y, colW, 18).build());

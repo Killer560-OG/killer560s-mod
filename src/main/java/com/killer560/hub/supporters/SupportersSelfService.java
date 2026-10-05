@@ -1,5 +1,6 @@
 package com.killer560.hub.supporters;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.relay.RelayAuth;
@@ -86,7 +87,7 @@ public final class SupportersSelfService {
             return CompletableFuture.completedFuture(MeResult.failure("relay unavailable"));
         }
         return token(base)
-                .thenCompose(t -> HTTP.sendAsync(
+                .thenCompose(t -> ModNet.sendAsync(HTTP,
                         HttpRequest.newBuilder(URI.create(base + "/supporters/me"))
                                 .timeout(REQUEST_TIMEOUT)
                                 .header("Authorization", "Bearer " + t.value())
@@ -113,7 +114,7 @@ public final class SupportersSelfService {
             return CompletableFuture.completedFuture(SaveResult.failure("relay unavailable", -1));
         }
         return token(base)
-                .thenCompose(t -> HTTP.sendAsync(
+                .thenCompose(t -> ModNet.sendAsync(HTTP,
                         HttpRequest.newBuilder(URI.create(base + "/supporters/me"))
                                 .timeout(REQUEST_TIMEOUT)
                                 .header("Authorization", "Bearer " + t.value())

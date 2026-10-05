@@ -1,5 +1,6 @@
 package com.killer560.hub.rngmeter;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -41,8 +42,8 @@ import java.util.zip.GZIPInputStream;
 public final class HypixelMarketPrices {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-rngmeter-prices");
-    private static final String BAZAAR_URL = "https://api.hypixel.net/v2/skyblock/bazaar";
-    private static final String AUCTIONS_URL = "https://api.hypixel.net/skyblock/auctions";
+    private static final String BAZAAR_URL = ModNet.url("hypixel", "https://api.hypixel.net/v2/skyblock/bazaar");
+    private static final String AUCTIONS_URL = ModNet.url("hypixel", "https://api.hypixel.net/skyblock/auctions");
     private static final int PAGE_BATCH_SIZE = 10;
 
     private final HttpClient http = HttpClient.newBuilder()
@@ -341,7 +342,7 @@ public final class HypixelMarketPrices {
                     .header("User-Agent", "Killer560sMod-RNGMeter/1.0")
                     .GET()
                     .build();
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = ModNet.send(http, request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 return null;
             }

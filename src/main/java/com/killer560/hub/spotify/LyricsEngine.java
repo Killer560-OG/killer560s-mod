@@ -1,5 +1,6 @@
 package com.killer560.hub.spotify;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -29,7 +30,7 @@ import java.util.regex.Pattern;
  */
 public final class LyricsEngine {
 
-    private static final String LRCLIB_URL = "https://lrclib.net/api/search";
+    private static final String LRCLIB_URL = ModNet.url("lrclib", "https://lrclib.net/api/search");
     private static final Pattern LRC_LINE = Pattern.compile("\\[(\\d+):(\\d+\\.\\d+)](.*)");
 
     private final HttpClient http = HttpClient.newBuilder()
@@ -231,7 +232,7 @@ public final class LyricsEngine {
             String url = LRCLIB_URL + "?artist_name=" + urlEncode(artist) + "&track_name=" + urlEncode(title);
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                     .timeout(java.time.Duration.ofSeconds(10)).GET().build();
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = ModNet.send(http, request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 SpotifyLyricsFeature.LOGGER.warn("lrclib search failed: HTTP {} for artist='{}' title='{}'",
                         response.statusCode(), artist, title);

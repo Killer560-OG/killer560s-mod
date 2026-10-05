@@ -1,5 +1,6 @@
 package com.killer560.hub.profileviewer.data;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -38,11 +39,11 @@ public final class ExtraTables {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-profileviewer");
 
-    private static final String COLLECTIONS_URL = "https://api.hypixel.net/v2/resources/skyblock/collections";
-    private static final String BESTIARY_URL = "https://raw.githubusercontent.com/meowdding/meowdding-repo/HEAD/repo/neu/bestiary.json";
-    private static final String BESTIARY_FALLBACK = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/bestiary.json";
-    private static final String MUSEUM_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/museum.json";
-    private static final String LBIN_URL = "https://sky.coflnet.com/api/prices/neu";
+    private static final String COLLECTIONS_URL = ModNet.url("hypixel", "https://api.hypixel.net/v2/resources/skyblock/collections");
+    private static final String BESTIARY_URL = ModNet.url("github-raw", "https://raw.githubusercontent.com/meowdding/meowdding-repo/HEAD/repo/neu/bestiary.json");
+    private static final String BESTIARY_FALLBACK = ModNet.url("github-raw", "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/bestiary.json");
+    private static final String MUSEUM_URL = ModNet.url("github-raw", "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/museum.json");
+    private static final String LBIN_URL = ModNet.url("coflnet", "https://sky.coflnet.com/api/prices/neu");
     private static final long RETRY_MS = 60_000L;
     private static final long PRICE_TTL_MS = 10 * 60_000L;
 

@@ -1,5 +1,6 @@
 package com.killer560.hub.voicetotext;
 
+import com.killer560.hub.util.ModNet;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonParser;
@@ -51,7 +52,7 @@ import com.killer560.hub.compat.McCompat;
 public final class VoiceToTextFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-voicetotext");
-    private static final String MODEL_URL = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip";
+    private static final String MODEL_URL = ModNet.url("vosk", "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip");
     private static final String MODEL_DIR_NAME = "vosk-model-small-en-us-0.15";
 
     private enum State { IDLE, PREPARING_MODEL, READY, RECORDING, TRANSCRIBING, ERROR }
@@ -186,7 +187,7 @@ public final class VoiceToTextFeature {
         Files.createDirectories(parent);
         Path zipFile = parent.resolve("model-download.zip");
         LOGGER.info("[VoiceToText] Downloading speech model from {}", MODEL_URL);
-        java.net.URLConnection conn = URI.create(MODEL_URL).toURL().openConnection();
+        java.net.URLConnection conn = ModNet.open(MODEL_URL);
         conn.setConnectTimeout(15_000);
         conn.setReadTimeout(120_000);
         try (InputStream in = conn.getInputStream()) {

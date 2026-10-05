@@ -1,5 +1,6 @@
 package com.killer560.hub.bridge;
 
+import com.killer560.hub.util.ModNet;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -15,7 +16,7 @@ import java.util.regex.Pattern;
 public final class DevonianCodec {
 
     /** Spec 1.1: {@code WebsocketClient.kt:182} - plain {@code ws://}, no TLS, despite the host name. */
-    public static final String URL = "ws://wss.docilelm.top/";
+    public static final String URL = ModNet.url("devonian-ws", "ws://wss.docilelm.top/");
     /** Spec 1.2 step 3: {@code KEY_NAME = "devonianwebsocket"} ({@code WebsocketClient.kt:55}). */
     static final String KEY_NAME = "devonianwebsocket";
 

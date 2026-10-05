@@ -1,5 +1,6 @@
 package com.killer560.hub.profileviewer.data;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -131,7 +132,7 @@ public final class LevelTables {
         if (!LIVE_SKILLS_REQUESTED.compareAndSet(false, true)) {
             return;
         }
-        ProfileViewerApi.getKeylessJson("https://api.hypixel.net/v2/resources/skyblock/skills").thenAccept(json -> {
+        ProfileViewerApi.getKeylessJson(ModNet.url("hypixel", "https://api.hypixel.net/v2/resources/skyblock/skills")).thenAccept(json -> {
             if (json == null || !json.has("skills") || !json.get("skills").isJsonObject()) {
                 return;
             }

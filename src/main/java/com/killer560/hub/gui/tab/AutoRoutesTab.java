@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.util.ExternalOpen;
 import com.killer560.hub.autoroutes.AutoRoutesCommands;
 import com.killer560.hub.autoroutes.AutoRoutesCommands.Action;
 import com.killer560.hub.autoroutes.AutoRoutesConfig;
@@ -368,7 +369,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
             // A fresh install has no folder yet - openPath on a missing directory does nothing at all, silently.
             Path dir = RouteStore.routesDirectory();
             Files.createDirectories(dir);
-            net.minecraft.util.Util.getPlatform().openPath(dir);
+            ExternalOpen.path(dir);
         } catch (Exception ignored) {
         }
     }

@@ -56,6 +56,12 @@ public final class ChatObserver {
     private record Recent(String plain, long atMs) {
     }
 
+    /** Test hook: every listener or rewriter throw caught here, so a harness can assert none happened. */
+    private static final java.util.concurrent.atomic.AtomicLong FAILURES = new java.util.concurrent.atomic.AtomicLong();
+    private static final java.util.concurrent.ConcurrentHashMap<String, Long> FAILURES_BY_LISTENER =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile String lastFailure = null;
+
     private ChatObserver() {
     }
 
@@ -98,6 +104,7 @@ public final class ChatObserver {
                         result = rewritten;
                     }
                 } catch (RuntimeException e) {
+                    recordFailure(rewriter, e);
                     LOGGER.error("[ChatObserver] Rewriter threw on \"{}\"", plain, e);
                 }
             }
@@ -121,9 +128,39 @@ public final class ChatObserver {
             try {
                 listener.accept(message);
             } catch (RuntimeException e) {
+                recordFailure(listener, e);
                 LOGGER.error("[ChatObserver] Listener threw on \"{}\"", plain, e);
             }
         }
+    }
+
+    /** How many listener or rewriter throws have been caught since the game started. */
+    public static long failures() {
+        return FAILURES.get();
+    }
+
+    /** {@code "<listener>: <exception>"} for the most recent caught throw, or {@code null} if there has been none. */
+    public static String lastFailure() {
+        return lastFailure;
+    }
+
+    /** Caught throws per listener name (the class that registered the lambda, or the listener's own class). */
+    public static java.util.Map<String, Long> failuresByListener() {
+        return java.util.Map.copyOf(FAILURES_BY_LISTENER);
+    }
+
+    private static void recordFailure(Object listener, RuntimeException e) {
+        String name = listenerName(listener);
+        FAILURES.incrementAndGet();
+        FAILURES_BY_LISTENER.merge(name, 1L, Long::sum);
+        lastFailure = name + ": " + e;
+    }
+
+    /** A lambda's class is {@code Owner$$Lambda/0x...}; the owner is the useful part. */
+    static String listenerName(Object listener) {
+        String n = listener == null ? "null" : listener.getClass().getName();
+        int lambda = n.indexOf("$$Lambda");
+        return lambda >= 0 ? n.substring(0, lambda) : n;
     }
 
     /** Must hold the class lock. Records {@code plain} when it is not a duplicate. */

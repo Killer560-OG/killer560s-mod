@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.util.ExternalOpen;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.invsort.InventoryLayoutStore;
 import com.killer560.hub.invsort.InventorySorterConfig;
@@ -54,7 +55,7 @@ public class InventorySorterTab extends BaseTab {
         y += 24;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Layouts Folder"), btn ->
-                        net.minecraft.util.Util.getPlatform().openPath(InventoryLayoutStore.directory()))
+                        ExternalOpen.path(InventoryLayoutStore.directory()))
                 .bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 

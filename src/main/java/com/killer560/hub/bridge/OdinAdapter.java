@@ -1,5 +1,6 @@
 package com.killer560.hub.bridge;
 
+import com.killer560.hub.util.ModNet;
 import com.killer560.hub.interop.DetectedMods;
 import com.killer560.hub.melody.MelodyTrackerFeature;
 
@@ -78,7 +79,7 @@ final class OdinAdapter extends SocketAdapter {
             return CompletableFuture.failedFuture(new IllegalArgumentException("not a server code"));
         }
         // spec 3.1: no headers, no subprotocol, no auth
-        return HTTP.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(15)).buildAsync(uri, listener);
+        return ModNet.webSocket(HTTP.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(15)), uri, listener);
     }
 
     @Override

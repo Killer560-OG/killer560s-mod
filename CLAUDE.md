@@ -61,7 +61,7 @@ so restart the launcher before looking for it.
 **`26.2` and `26.2 ALT` get the 26.2 build, not the 26.1.2 one.** killer560 lifted the old do-not-deploy rule on 2026-09-30 ("you can deploy the proper version of the mod to the proper instance") when 26.2 became a supported target: 26.1.2 stays the main release because most people play it, and a good few play 26.2. Four jars now ship - legit and cheat for each - and the Minecraft version is in every jar's name so `*-legit.jar` cannot match two different builds. The 26.1.2 jar still will not load on 26.2 and vice versa, because each declares its own `minecraft` range; that is the point, not a bug to widen away.
 
 There is an anticheat harness at `C:\Users\Hunter\killer560s-mod-testkit` that runs features against a real
-GrimAC on a real dedicated server. See its own `CLAUDE.md`.
+GrimAC on a real dedicated server. See its own `CLAUDE.md`. Harness system properties (network fakes/offline, no OS opens) are in **[docs/TESTING-HOOKS.md](docs/TESTING-HOOKS.md)**.
 
 ## Layout
 

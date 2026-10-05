@@ -801,15 +801,18 @@ state-driven colours are already wired, and most of these asks are about a state
 after them, but `SimQuizPuzzle` runs both Quiz and Three Weirdos and was hardcoding "Three Weirdos" into the
 chat line of both.
 
-## The sim has no tab list, and two HUDs were reading one
+## The sim publishes a Hypixel-shaped tab list
 
-`DungeonInfoFeature` and `ScoreCalculatorFeature` both take their secrets, crypts, rooms and deaths from
-Hypixel's TAB LIST display names. An integrated server lists one player and none of those lines exist, so both
-found nothing for a whole sim run - his log says so once per run, `No tab-list 'Secrets Found' line matched`.
-Both now read `SimScore` while `SimState.isActive()`, which is the same counter the sim's own sidebar uses, so
-the HUD and the score screen cannot disagree.
+`DungeonInfoFeature`, `ScoreCalculatorFeature`, `RunSummaryFeature`, `PartyTracker` and others take secrets,
+crypts, rooms, deaths, puzzles and the team from Hypixel's TAB LIST display names. An integrated server lists one
+player, so for a while both HUDs carried a `SimState.isActive()` branch reading `SimScore` instead - a client
+feature special-casing the sim. Since 2026-10-04 `SimTabList` sends the tab list from the integrated server
+(80 fake player-info entries `!A-a`..`!D-t` plus a header/footer packet) and those branches are gone. The
+player-info packet has NO public constructor taking entries (every one takes `ServerPlayer`s, javap 26.1.2 and
+26.2), so it is built empty and filled through the `@Mutable` accessor `SimPlayerInfoPacketAccessor`.
+`SimScore.roomCleared()` and `died()` are still never called, so "Completed Rooms" and "Team Deaths" read 0.
 
-That exposed a real bug underneath: the sim's secret TOTAL was `SimMimic.candidateCount()`, the number of chests
+The first sim branch exposed a real bug underneath: the sim's secret TOTAL was `SimMimic.candidateCount()`, the number of chests
 that could have been the mimic. It is a different quantity, and it ignores bats, essences, items and levers.
 `SimBuilder` now sums each placed room's `RoomEntry.secrets` - the same number the map prints beside a room's
 name.

@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.util.ExternalOpen;
 import com.killer560.hub.cringe.CringeLines;
 import com.killer560.hub.notify.ModOverlayMessage;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -36,7 +37,7 @@ public class CringeTab extends BaseTab {
 
     private static void openFolder() {
         try {
-            net.minecraft.util.Util.getPlatform().openPath(CringeLines.file().getParent()); // AWT is headless in MC
+            ExternalOpen.path(CringeLines.file().getParent()); // AWT is headless in MC
         } catch (Exception e) {
             ModOverlayMessage.show("§c[Killer560's Mod] Couldn't open cringe folder: " + e.getMessage(), 4000);
         }

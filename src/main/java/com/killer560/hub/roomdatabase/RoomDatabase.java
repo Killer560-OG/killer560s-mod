@@ -1,5 +1,6 @@
 package com.killer560.hub.roomdatabase;
 
+import com.killer560.hub.util.ModNet;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.chunkcache.ChunkCacheManager;
 import com.google.gson.Gson;
@@ -49,8 +50,8 @@ import com.killer560.hub.compat.McBlocks;
 public final class RoomDatabase {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-roomdatabase");
-    private static final String VERSION_URL = "https://api.noamm.org/na/data/version";
-    private static final String DOWNLOAD_URL = "https://api.noamm.org/na/data/download";
+    private static final String VERSION_URL = ModNet.url("noamm", "https://api.noamm.org/na/data/version");
+    private static final String DOWNLOAD_URL = ModNet.url("noamm", "https://api.noamm.org/na/data/download");
     private static final Gson GSON = new Gson();
 
     private static final Set<String> IGNORED_CORE_BLOCKS = Set.of(
@@ -197,7 +198,7 @@ public final class RoomDatabase {
     }
 
     private static String fetchText(String url) throws IOException {
-        java.net.URLConnection conn = URI.create(url).toURL().openConnection();
+        java.net.URLConnection conn = ModNet.open(url);
         conn.setConnectTimeout(10_000);
         conn.setReadTimeout(20_000);
         try (InputStream in = conn.getInputStream()) {
@@ -209,7 +210,7 @@ public final class RoomDatabase {
     private static void downloadAndExtract(Path dir) throws IOException {
         Files.createDirectories(dir);
         Path zipFile = dir.resolve("download.zip");
-        java.net.URLConnection conn = URI.create(DOWNLOAD_URL).toURL().openConnection();
+        java.net.URLConnection conn = ModNet.open(DOWNLOAD_URL);
         conn.setConnectTimeout(10_000);
         conn.setReadTimeout(60_000);
         try (InputStream in = conn.getInputStream()) {

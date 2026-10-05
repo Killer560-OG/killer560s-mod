@@ -1,5 +1,6 @@
 package com.killer560.hub.supporters;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -82,7 +83,7 @@ final class SupportersFetcher {
                     .timeout(REQUEST_TIMEOUT)
                     .header("User-Agent", "Killer560sMod-Supporters/1.0")
                     .GET().build();
-            HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> resp = ModNet.send(HTTP, req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 LOGGER.info("[Supporters] Fetch failed: HTTP {}", resp.statusCode());
                 return false;

@@ -1,5 +1,6 @@
 package com.killer560.hub.translate;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -69,8 +70,8 @@ public final class TranslateFeature {
     /** "&lt;ign&gt; &lt;the actual message&gt;" - the IGN is validated so a non-name first word is left alone. */
     private static final Pattern WHISPER_RECIPIENT = Pattern.compile("^([A-Za-z0-9_]{1,16})\s+(.+)$");
 
-    private static final String GOOGLE_ENDPOINT = "https://translate.googleapis.com/translate_a/single";
-    private static final String MYMEMORY_ENDPOINT = "https://api.mymemory.translated.net/get";
+    private static final String GOOGLE_ENDPOINT = ModNet.url("google-translate", "https://translate.googleapis.com/translate_a/single");
+    private static final String MYMEMORY_ENDPOINT = ModNet.url("mymemory", "https://api.mymemory.translated.net/get");
     private static final String BROWSER_USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
@@ -288,7 +289,7 @@ public final class TranslateFeature {
                 .timeout(java.time.Duration.ofSeconds(10))
                 .header("User-Agent", BROWSER_USER_AGENT)
                 .GET().build();
-        HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() / 100 != 2) {
             throw new RuntimeException("Google Translate returned HTTP " + response.statusCode());
         }
@@ -331,7 +332,7 @@ public final class TranslateFeature {
                 .timeout(java.time.Duration.ofSeconds(10))
                 .header("User-Agent", BROWSER_USER_AGENT)
                 .GET().build();
-        HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() / 100 != 2) {
             throw new RuntimeException("MyMemory returned HTTP " + response.statusCode());
         }

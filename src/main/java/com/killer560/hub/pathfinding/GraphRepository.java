@@ -1,5 +1,6 @@
 package com.killer560.hub.pathfinding;
 
+import com.killer560.hub.util.ModNet;
 import com.killer560.hub.util.ModPaths;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -33,10 +34,10 @@ public final class GraphRepository {
     private static final Logger LOGGER = ModLog.get("killer560smod-pathfinding");
 
     private static final String BRANCH = "main";
-    private static final String PRIMARY = "https://raw.githubusercontent.com/hannibal002/SkyHanni-REPO/" + BRANCH
-            + "/constants/island_graphs/%s.json";
-    private static final String FALLBACK = "https://cdn.jsdelivr.net/gh/hannibal002/SkyHanni-REPO@" + BRANCH
-            + "/constants/island_graphs/%s.json";
+    private static final String PRIMARY = ModNet.url("github-raw", "https://raw.githubusercontent.com/hannibal002/SkyHanni-REPO/" + BRANCH
+            + "/constants/island_graphs/%s.json");
+    private static final String FALLBACK = ModNet.url("jsdelivr", "https://cdn.jsdelivr.net/gh/hannibal002/SkyHanni-REPO@" + BRANCH
+            + "/constants/island_graphs/%s.json");
 
     /** Re-check GitHub for a newer copy at most this often (the graphs change a few times a week at most). */
     private static final long REFRESH_AFTER_MS = 12 * 60 * 60 * 1000L;
@@ -189,8 +190,7 @@ public final class GraphRepository {
     }
 
     private static String fetch(String url) throws Exception {
-        URL target = URI.create(url).toURL();
-        URLConnection connection = target.openConnection();
+        URLConnection connection = ModNet.open(url);
         connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
         connection.setReadTimeout(READ_TIMEOUT_MS);
         connection.setRequestProperty("User-Agent", "killer560smod/pathfinding");

@@ -1,5 +1,6 @@
 package com.killer560.hub.relay;
 
+import com.killer560.hub.util.ModNet;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.net.URLEncoder;
@@ -40,7 +41,7 @@ public final class RelayEndpoint {
         while (trimmed.endsWith("/")) {
             trimmed = trimmed.substring(0, trimmed.length() - 1);
         }
-        return trimmed;
+        return trimmed.isEmpty() ? trimmed : ModNet.url("relay", trimmed);
     }
 
     /** @return true only for a real http(s) URL that isn't still the not-yet-deployed placeholder. */

@@ -1,5 +1,6 @@
 package com.killer560.hub.auction;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -37,7 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class BazaarApi {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bazaar");
-    private static final String BAZAAR_URL = "https://api.hypixel.net/v2/skyblock/bazaar";
+    private static final String BAZAAR_URL = ModNet.url("hypixel", "https://api.hypixel.net/v2/skyblock/bazaar");
     private static final long AUTO_RESCAN_MINUTES = 5;
 
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
@@ -148,7 +149,7 @@ public final class BazaarApi {
                     .header("User-Agent", "Killer560sMod-Bazaar/1.0")
                     .GET()
                     .build();
-            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 LOGGER.warn("[Bazaar] Order-book fetch returned HTTP {}", response.statusCode());
                 return Map.of();
@@ -201,7 +202,7 @@ public final class BazaarApi {
                     .header("User-Agent", "Killer560sMod-Bazaar/1.0")
                     .GET()
                     .build();
-            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 return List.of();
             }

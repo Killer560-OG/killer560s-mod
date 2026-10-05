@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.util.ExternalOpen;
 import com.killer560.hub.dungeonextras.BreakerAuraConfigScreen;
 import com.killer560.hub.dungeonextras.BreakerAuraStore;
 import com.killer560.hub.dungeonextras.DungeonExtrasConfig;
@@ -307,7 +308,7 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
         try {
             Path dir = BreakerAuraStore.directory();
             Files.createDirectories(dir);
-            net.minecraft.util.Util.getPlatform().openPath(dir);
+            ExternalOpen.path(dir);
         } catch (Exception ignored) {
         }
     }

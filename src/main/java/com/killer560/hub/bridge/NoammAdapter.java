@@ -1,5 +1,6 @@
 package com.killer560.hub.bridge;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonObject;
 import com.killer560.hub.interop.DetectedMods;
 import com.killer560.hub.partydata.PartyDataFeature;
@@ -122,7 +123,7 @@ final class NoammAdapter extends SocketAdapter {
             } catch (IllegalArgumentException ignored) {
                 // A JDK that restricts this header just sends its default one.
             }
-            return builder.buildAsync(NoammCodec.socketUri(name, t.token()), listener);
+            return ModNet.webSocket(builder, NoammCodec.socketUri(name, t.token()), listener);
         });
     }
 
@@ -146,7 +147,7 @@ final class NoammAdapter extends SocketAdapter {
                 throw new BridgeAuthException("your Minecraft chat key expired - restart the game", true);
             }
             return body(uuid, pair);
-        }).thenCompose(body -> HTTP.sendAsync(HttpRequest.newBuilder(java.net.URI.create(NoammCodec.AUTH_URL))
+        }).thenCompose(body -> ModNet.sendAsync(HTTP, HttpRequest.newBuilder(java.net.URI.create(NoammCodec.AUTH_URL))
                         .timeout(HTTP_TIMEOUT)
                         .header("Content-Type", "application/json")
                         .header("User-Agent", userAgent())

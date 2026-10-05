@@ -1,5 +1,6 @@
 package com.killer560.hub.partyfinder;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -36,7 +37,7 @@ public final class PartyFinderStatsApi {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-partyfinder");
 
-    private static final String ENDPOINT = "https://api.docilelm.top/v2/dungeons/";
+    private static final String ENDPOINT = ModNet.url("docilelm", "https://api.docilelm.top/v2/dungeons/");
     private static final long POLL_SECONDS = 5L;
     private static final long CACHE_MS = 10 * 60 * 1000L;
     private static final long FAILURE_RETRY_MS = 60 * 1000L;
@@ -118,7 +119,7 @@ public final class PartyFinderStatsApi {
                     .timeout(Duration.ofSeconds(15))
                     .header("User-Agent", "Killer560sMod-PartyFinder/1.0")
                     .GET().build();
-            HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> resp = ModNet.send(HTTP, req, HttpResponse.BodyHandlers.ofString());
             long now = System.currentTimeMillis();
             if (resp.statusCode() / 100 != 2) {
                 names.forEach(n -> FAILED.put(n, now));

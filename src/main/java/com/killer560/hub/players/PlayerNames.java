@@ -1,5 +1,6 @@
 package com.killer560.hub.players;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -73,9 +74,9 @@ public final class PlayerNames {
     private static final long LOCAL_SCAN_GAP_MS = 500L;
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
-    private static final String LOOKUP_NAME_PRIMARY = "https://api.minecraftservices.com/minecraft/profile/lookup/name/";
-    private static final String LOOKUP_NAME_LEGACY = "https://api.mojang.com/users/profiles/minecraft/";
-    private static final String SESSION_PROFILE = "https://sessionserver.mojang.com/session/minecraft/profile/";
+    private static final String LOOKUP_NAME_PRIMARY = ModNet.url("minecraftservices", "https://api.minecraftservices.com/minecraft/profile/lookup/name/");
+    private static final String LOOKUP_NAME_LEGACY = ModNet.url("mojang", "https://api.mojang.com/users/profiles/minecraft/");
+    private static final String SESSION_PROFILE = ModNet.url("mojang", "https://sessionserver.mojang.com/session/minecraft/profile/");
 
     private static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "killer560smod-players");
@@ -289,7 +290,7 @@ public final class PlayerNames {
                     .timeout(REQUEST_TIMEOUT)
                     .header("User-Agent", "Killer560sMod-PlayerNames/1.0")
                     .GET().build();
-            HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> resp = ModNet.send(HTTP, req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() == 404) {
                 return null; // no such account - not an error worth logging
             }
@@ -313,7 +314,7 @@ public final class PlayerNames {
                     .timeout(REQUEST_TIMEOUT)
                     .header("User-Agent", "Killer560sMod-PlayerNames/1.0")
                     .GET().build();
-            HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> resp = ModNet.send(HTTP, req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 if (resp.statusCode() != 404) {
                     LOGGER.info("[PlayerNames] name refresh failed: HTTP {} ({})", resp.statusCode(), id);

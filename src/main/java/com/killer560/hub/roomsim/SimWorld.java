@@ -426,6 +426,7 @@ public final class SimWorld {
         SimRoomLevers.forget();
         SimBreakerState.reset();
         SimSidebar.reset();
+        SimTabList.reset();
         SimBuilder.clearEntranceDoor();
         com.killer560.hub.roomsim.puzzles.SimPuzzles.resetAll();
     }

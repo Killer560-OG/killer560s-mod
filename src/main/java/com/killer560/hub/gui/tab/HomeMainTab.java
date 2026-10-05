@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.util.ExternalOpen;
 import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.notify.ModOverlayMessage;
@@ -61,7 +62,7 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                     // own doc), which would otherwise silently clobber this with a throwaway widget
                     // every time killer560 types in the search box while a check is in flight.
                     if (availableUpdateUrl != null) {
-                        Util.getPlatform().openUri(availableUpdateUrl);
+                        ExternalOpen.uri(availableUpdateUrl);
                         return;
                     }
                     if (checkingForUpdate) {
@@ -74,7 +75,7 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, half, 20).build());
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Join Discord"), btn ->
-                    Util.getPlatform().openUri(DISCORD_INVITE_URL)
+                    ExternalOpen.uri(DISCORD_INVITE_URL)
                 ).bounds(contentX + half + gap, y, rightW, 20).build());
         y += 26;
 

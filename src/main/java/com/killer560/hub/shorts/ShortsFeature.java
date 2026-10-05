@@ -1,5 +1,6 @@
 package com.killer560.hub.shorts;
 
+import com.killer560.hub.util.ExternalOpen;
 import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -329,6 +330,9 @@ public final class ShortsFeature {
             ShortsConfig launchCfg = ShortsConfig.getInstance();
             List<String> cmd = BrowserLauncher.buildCommand(exe, profile, geom[0], geom[1], geom[2], geom[3],
                     launchCfg.getTheme(), launchCfg.getZoomPercent(), resolveUrl(launchCfg));
+            if (ExternalOpen.suppress(cmd)) {
+                return;
+            }
             LOGGER.info("[Shorts] Launching browser: {}", String.join(" ", cmd));
             process = new ProcessBuilder(cmd)
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD)
@@ -1245,6 +1249,9 @@ public final class ShortsFeature {
                 Path profile = BrowserLauncher.profileDir();
                 Files.createDirectories(profile);
                 List<String> cmd = BrowserLauncher.buildSignInCommand(exe, profile, url);
+                if (ExternalOpen.suppress(cmd)) {
+                    return;
+                }
                 new ProcessBuilder(cmd)
                         .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                         .redirectError(ProcessBuilder.Redirect.DISCARD)

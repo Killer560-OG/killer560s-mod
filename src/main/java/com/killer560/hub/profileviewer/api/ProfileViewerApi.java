@@ -1,5 +1,6 @@
 package com.killer560.hub.profileviewer.api;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -59,8 +60,8 @@ public final class ProfileViewerApi {
 
     public static final long CACHE_MS = 5 * 60 * 1000L;
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20);
-    private static final String BACKEND = "https://skyblock-pv.thatgravyboat.tech";
-    private static final String HYPIXEL_PROFILES = "https://api.hypixel.net/v2/skyblock/profiles?uuid=";
+    private static final String BACKEND = ModNet.url("pv-backend", "https://skyblock-pv.thatgravyboat.tech");
+    private static final String HYPIXEL_PROFILES = ModNet.url("hypixel", "https://api.hypixel.net/v2/skyblock/profiles?uuid=");
     private static final Pattern NAME = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
 
     private static final AtomicInteger THREADS = new AtomicInteger();
@@ -167,7 +168,7 @@ public final class ProfileViewerApi {
     /** GET a keyless public JSON resource; completes with null on any failure. */
     public static CompletableFuture<JsonObject> getKeylessJson(String url) {
         try {
-            return HTTP.sendAsync(request(url).GET().build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+            return ModNet.sendAsync(HTTP, request(url).GET().build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
                     .thenApply(res -> res.statusCode() == 200 ? parseObject(res.body()) : null)
                     .exceptionally(t -> null);
         } catch (Exception e) {
@@ -198,13 +199,13 @@ public final class ProfileViewerApi {
         if (cached != null) {
             return CompletableFuture.completedFuture(cached);
         }
-        return lookupName("https://api.minecraftservices.com/minecraft/profile/lookup/name/" + trimmed)
+        return lookupName(ModNet.url("minecraftservices", "https://api.minecraftservices.com/minecraft/profile/lookup/name/") + trimmed)
                 .exceptionallyCompose(t -> {
                     Throwable cause = unwrap(t);
                     if (cause instanceof ApiException) {
                         return CompletableFuture.failedFuture(cause);
                     }
-                    return lookupName("https://api.mojang.com/users/profiles/minecraft/" + trimmed);
+                    return lookupName(ModNet.url("mojang", "https://api.mojang.com/users/profiles/minecraft/") + trimmed);
                 })
                 .thenApply(p -> {
                     if (NAME_CACHE.size() >= MAX_CACHED_NAMES) {
@@ -216,7 +217,7 @@ public final class ProfileViewerApi {
     }
 
     private static CompletableFuture<ResolvedPlayer> lookupName(String url) {
-        return HTTP.sendAsync(request(url).GET().build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+        return ModNet.sendAsync(HTTP, request(url).GET().build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
                 .thenApply(res -> {
                     if (res.statusCode() == 404 || res.statusCode() == 204) {
                         throw new ApiException("No Minecraft account with that name.");
@@ -355,7 +356,7 @@ public final class ProfileViewerApi {
         final String field;
 
         AuxKind(String hypixel, String backend, String field) {
-            this.hypixel = hypixel;
+            this.hypixel = ModNet.url("hypixel", hypixel);
             this.backend = backend;
             this.field = field;
         }
@@ -513,7 +514,7 @@ public final class ProfileViewerApi {
             return CompletableFuture.failedFuture(new ApiException("no key"));
         }
         HttpRequest req = request(url).header("API-Key", key).GET().build();
-        return HTTP_NO_REDIRECT.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).thenApply(res -> {
+        return ModNet.sendAsync(HTTP_NO_REDIRECT, req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).thenApply(res -> {
             JsonObject body = parseObject(res.body());
             if (notFoundIsEmpty && res.statusCode() == 404) {
                 return new Raw(null, label);
@@ -556,7 +557,7 @@ public final class ProfileViewerApi {
                     .header("Authorization", token)
                     .header("X-Intent", "killer560s-mod profile viewer")
                     .GET().build();
-            return HTTP_NO_REDIRECT.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            return ModNet.sendAsync(HTTP_NO_REDIRECT, req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         }).thenCompose(res -> {
             if (res.statusCode() == 200) {
                 JsonObject body = parseObject(res.body());
@@ -604,7 +605,7 @@ public final class ProfileViewerApi {
                     .header("x-minecraft-username", pair[0])
                     .header("x-minecraft-server", pair[1])
                     .GET().build();
-            return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            return ModNet.sendAsync(HTTP, req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         }).thenApply(res -> {
             if (res.statusCode() == 403) {
                 throw new ApiException("this account is blocked from the backend (403).");

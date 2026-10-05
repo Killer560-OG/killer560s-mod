@@ -1,5 +1,6 @@
 package com.killer560.hub.accounts.core;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -21,12 +22,12 @@ import java.util.UUID;
  */
 public final class MicrosoftAuthFlow {
 
-    private static final String MSA_TOKEN_URL = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
-    private static final String XBL_AUTH_URL = "https://user.auth.xboxlive.com/user/authenticate";
-    private static final String XSTS_AUTH_URL = "https://xsts.auth.xboxlive.com/xsts/authorize";
-    private static final String MC_LOGIN_URL = "https://api.minecraftservices.com/authentication/login_with_xbox";
-    private static final String MC_PROFILE_URL = "https://api.minecraftservices.com/minecraft/profile";
-    private static final String SESSION_PROFILE_URL = "https://sessionserver.mojang.com/session/minecraft/profile/";
+    private static final String MSA_TOKEN_URL = ModNet.url("microsoft", "https://login.microsoftonline.com/consumers/oauth2/v2.0/token");
+    private static final String XBL_AUTH_URL = ModNet.url("xboxlive", "https://user.auth.xboxlive.com/user/authenticate");
+    private static final String XSTS_AUTH_URL = ModNet.url("xboxlive", "https://xsts.auth.xboxlive.com/xsts/authorize");
+    private static final String MC_LOGIN_URL = ModNet.url("minecraftservices", "https://api.minecraftservices.com/authentication/login_with_xbox");
+    private static final String MC_PROFILE_URL = ModNet.url("minecraftservices", "https://api.minecraftservices.com/minecraft/profile");
+    private static final String SESSION_PROFILE_URL = ModNet.url("mojang", "https://sessionserver.mojang.com/session/minecraft/profile/");
 
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
@@ -138,7 +139,7 @@ public final class MicrosoftAuthFlow {
                 .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
                 .build();
 
-        HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = ModNet.send(http, request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() == 401) {
             throw new AuthException(describeXstsError(response.body()));
         }
@@ -171,7 +172,7 @@ public final class MicrosoftAuthFlow {
                 .GET()
                 .build();
 
-        HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = ModNet.send(http, request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() == 404) {
             throw new AuthException("This Microsoft account doesn't own Minecraft: Java Edition.");
         }
@@ -194,7 +195,7 @@ public final class MicrosoftAuthFlow {
             HttpRequest request = HttpRequest.newBuilder(URI.create(SESSION_PROFILE_URL + dashless))
                     .GET()
                     .build();
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = ModNet.send(http, request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 return null;
             }
@@ -256,7 +257,7 @@ public final class MicrosoftAuthFlow {
     }
 
     private JsonObject sendJson(HttpRequest request, String actionDescription) throws Exception {
-        HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = ModNet.send(http, request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() / 100 != 2) {
             throw new AuthException("Error " + actionDescription + " (HTTP " + response.statusCode() + ")");
         }

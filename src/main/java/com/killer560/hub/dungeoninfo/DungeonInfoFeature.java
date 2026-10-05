@@ -149,21 +149,8 @@ public final class DungeonInfoFeature {
         if (client.getConnection() == null) {
             return;
         }
-        // THE SIM HAS NO TAB LIST. The integrated server lists one player and none of Hypixel's
-        // "Secrets Found" display names exist, so this loop matched nothing every tick of every sim run and
-        // the counter sat at "?" - his log says so once per run ("No tab-list 'Secrets Found' line matched").
-        // killer560 (2026-10-01): "Getting secrets should update the map secret counter as well." The sim
-        // counts its own secrets and knows the floor's total, so they are read from there instead of being
-        // looked for in a list that does not exist.
-        if (com.killer560.hub.roomsim.SimState.isActive()) {
-            lastSecretsCount = com.killer560.hub.roomsim.SimScore.secretsFound();
-            int total = com.killer560.hub.roomsim.SimScore.secretsTotal();
-            lastSecretsPercent = total > 0
-                    ? String.format(java.util.Locale.ROOT, "%.1f",
-                            com.killer560.hub.roomsim.SimScore.secretsPercent())
-                    : null;
-            return;
-        }
+        // No sim branch: the dungeon sim publishes a Hypixel-shaped tab list (roomsim.SimTabList), so this
+        // reads the same "Secrets Found" lines in both places.
         boolean matchedAny = false;
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             Component display = info.getTabListDisplayName();

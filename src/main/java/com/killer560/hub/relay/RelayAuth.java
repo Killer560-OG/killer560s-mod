@@ -1,5 +1,6 @@
 package com.killer560.hub.relay;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.relay.mixin.MinecraftProfileKeysAccessor;
@@ -86,7 +87,7 @@ public final class RelayAuth {
             return pair;
         });
 
-        CompletableFuture<String> challenge = http.sendAsync(
+        CompletableFuture<String> challenge = ModNet.sendAsync(http,
                         HttpRequest.newBuilder(RelayEndpoint.challenge(baseUrl, uuid.toString()))
                                 .timeout(REQUEST_TIMEOUT)
                                 .GET()
@@ -104,7 +105,7 @@ public final class RelayAuth {
                 });
 
         return keyPair.thenCombine(challenge, (pair, issued) -> body(uuid, name, pair, issued))
-                .thenCompose(body -> http.sendAsync(
+                .thenCompose(body -> ModNet.sendAsync(http,
                         HttpRequest.newBuilder(RelayEndpoint.auth(baseUrl))
                                 .timeout(REQUEST_TIMEOUT)
                                 .header("Content-Type", "application/json")

@@ -1,5 +1,6 @@
 package com.killer560.hub.bridge;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -21,9 +22,9 @@ import java.util.regex.Pattern;
 public final class NoammCodec {
 
     /** Spec 2.1: {@code WebSocket.kt:49}. */
-    public static final String WS_BASE = "wss://ws.noamm.org";
+    public static final String WS_BASE = ModNet.url("noamm-ws", "wss://ws.noamm.org");
     /** Spec 2.2 step 7: {@code AUTH_URL = "$BASE_URL/hypixel/auth"} ({@code ApiAuth.kt:29}, {@code NoammAPI.kt:12}). */
-    public static final String AUTH_URL = "https://api.noamm.org/hypixel/auth";
+    public static final String AUTH_URL = ModNet.url("noamm", "https://api.noamm.org/hypixel/auth");
 
     /** Spec 2.4 {@code PacketRegistry.kt:10-19} type strings, and the three ad-hoc map packets. */
     static final String T_DUNGEON_START = "dungeon_start";

@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.util.ExternalOpen;
 import com.killer560.hub.gifplayer.GifAudioFeature;
 import com.killer560.hub.gifplayer.GifPlayerConfig;
 import com.killer560.hub.gifplayer.GifPlayerFeature;
@@ -180,7 +181,7 @@ public class GifPlayerTab extends BaseTab {
 
     private static void openFolder() {
         try {
-            net.minecraft.util.Util.getPlatform().openPath(GifPlayerFeature.folder()); // AWT is headless in MC
+            ExternalOpen.path(GifPlayerFeature.folder()); // AWT is headless in MC
         } catch (Exception e) {
             ModOverlayMessage.show("§c[Killer560's Mod] Couldn't open GIF folder: " + e.getMessage(), 4000);
         }

@@ -1,5 +1,6 @@
 package com.killer560.hub.scoreboard;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -61,7 +62,7 @@ public final class ScoreboardExtraData {
     private static final Logger LOGGER = ModLog.get("killer560smod-customscoreboard");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path DATA_PATH = CustomScoreboardConfig.DATA_DIR.resolve("data.json");
-    private static final URI ELECTION_URI = URI.create("https://api.hypixel.net/v2/resources/skyblock/election");
+    private static final URI ELECTION_URI = ModNet.uri("hypixel", "https://api.hypixel.net/v2/resources/skyblock/election");
 
     // ---- SkyBlock calendar (SkyHanni SkyBlockTime) ----
     private static final long SKYBLOCK_EPOCH_MS = 1559829300000L;
@@ -745,7 +746,7 @@ public final class ScoreboardExtraData {
                 .header("User-Agent", "killer560smod")
                 .GET()
                 .build();
-        HTTP.sendAsync(request, HttpResponse.BodyHandlers.ofString()).whenComplete((response, error) -> {
+        ModNet.sendAsync(HTTP, request, HttpResponse.BodyHandlers.ofString()).whenComplete((response, error) -> {
             try {
                 if (error != null || response == null || response.statusCode() != 200) {
                     LOGGER.debug("[CustomScoreboard] Election fetch failed: {}",

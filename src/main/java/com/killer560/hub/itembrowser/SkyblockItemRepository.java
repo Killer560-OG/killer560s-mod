@@ -1,5 +1,6 @@
 package com.killer560.hub.itembrowser;
 
+import com.killer560.hub.util.ModNet;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -53,7 +54,7 @@ import java.util.regex.Pattern;
 public final class SkyblockItemRepository {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-itembrowser");
-    private static final String ITEMS_URL = "https://api.hypixel.net/v2/resources/skyblock/items";
+    private static final String ITEMS_URL = ModNet.url("hypixel", "https://api.hypixel.net/v2/resources/skyblock/items");
     private static final Path CACHE_PATH =
             ModPaths.config("killer560smod-itembrowser-items-cache.json");
     private static final long CACHE_TTL_MS = 12L * 60 * 60 * 1000;
@@ -151,7 +152,7 @@ public final class SkyblockItemRepository {
                     .header("User-Agent", "Killer560sMod-ItemBrowser/1.0")
                     .GET()
                     .build();
-            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 return List.of();
             }

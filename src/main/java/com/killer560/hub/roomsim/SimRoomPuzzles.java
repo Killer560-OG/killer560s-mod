@@ -295,6 +295,31 @@ public final class SimRoomPuzzles {
     }
 
     /**
+     * The puzzle CLASS a room belongs to, by the name {@code SimPuzzles} registers it under, or null when the
+     * room is not one of the eleven the generator treats as a puzzle. Also read by {@link SimTabList}.
+     */
+    public static String puzzleKey(String roomName) {
+        if (roomName == null) {
+            return null;
+        }
+        return switch (roomName.toLowerCase(Locale.ROOT)) {
+            case "water board" -> "water";
+            case "teleport maze" -> "teleportmaze";
+            case "tic tac toe" -> "tictactoe";
+            case "creeper beams" -> "creeper";
+            case "boulder" -> "boulder";
+            case "ice fill" -> "icefill";
+            // Oruo's trivia and the three weirdos are different mechanics that share a shape (one
+            // question, three things to pick between), and SimQuizPuzzle's own class doc says it stands
+            // in for both. Kept together here rather than pretending there are two classes.
+            case "quiz", "three weirdos" -> "quiz";
+            case "higher blaze", "lower blaze" -> "blaze";
+            case "ice path" -> "icepath";
+            default -> null;
+        };
+    }
+
+    /**
      * Arms every puzzle room on the floor that has just been built.
      *
      * <p>Server thread only, after the rooms are pasted and the doorways carved.
@@ -333,23 +358,7 @@ public final class SimRoomPuzzles {
             String key = placed.name().toLowerCase(Locale.ROOT);
             Placement p = new Placement(room, placed.gridX(), placed.gridZ(),
                     placed.pasteRotation(), placed.rotation());
-            // The puzzle CLASS this room belongs to, by the name SimPuzzles registers it under, or null when
-            // the room is not one of the eleven the generator treats as a puzzle.
-            String puzzle = switch (key) {
-                case "water board" -> "water";
-                case "teleport maze" -> "teleportmaze";
-                case "tic tac toe" -> "tictactoe";
-                case "creeper beams" -> "creeper";
-                case "boulder" -> "boulder";
-                case "ice fill" -> "icefill";
-                // Oruo's trivia and the three weirdos are different mechanics that share a shape (one
-                // question, three things to pick between), and SimQuizPuzzle's own class doc says it stands
-                // in for both. Kept together here rather than pretending there are two classes.
-                case "quiz", "three weirdos" -> "quiz";
-                case "higher blaze", "lower blaze" -> "blaze";
-                case "ice path" -> "icepath";
-                default -> null;
-            };
+            String puzzle = puzzleKey(key);
             if (puzzle == null) {
                 continue;
             }

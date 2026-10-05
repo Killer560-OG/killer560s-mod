@@ -157,6 +157,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // feature that gates on it - the live map, secret waypoints, every solver, the timers, the score -
         // stays switched off there.
         com.killer560.hub.roomsim.SimSidebar.register();
+        com.killer560.hub.roomsim.SimTabList.register();
         com.killer560.hub.roomsim.SimClass.register();
         com.killer560.hub.roomsim.SimSpeed.register();
         // Before SimMimic: it counts every chest click as a secret, and Fabric stops at the first non-PASS.

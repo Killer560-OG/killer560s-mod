@@ -1,5 +1,6 @@
 package com.killer560.hub.relay;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -277,9 +278,9 @@ public final class RelayClient {
         lastError = "";
         state = State.CONNECTING;
         tokenFor(url)
-                .thenCompose(issued -> HTTP.newWebSocketBuilder()
-                        .connectTimeout(Duration.ofSeconds(15))
-                        .buildAsync(RelayEndpoint.websocket(url, room, issued.value()), new Socket(gen)))
+                .thenCompose(issued -> ModNet.webSocket(HTTP.newWebSocketBuilder()
+                        .connectTimeout(Duration.ofSeconds(15)),
+                        RelayEndpoint.websocket(url, room, issued.value()), new Socket(gen)))
                 .whenComplete((ws, error) -> WORKER.execute(() -> {
                     if (gen != generation) {
                         if (ws != null) {

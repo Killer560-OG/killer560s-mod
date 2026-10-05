@@ -1,5 +1,6 @@
 package com.killer560.hub.bugreport;
 
+import com.killer560.hub.util.ExternalOpen;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -321,7 +322,7 @@ public final class BugReportFeature {
         try {
             // Same real API every other "open folder" button in this mod uses (CringeTab, GifPlayerTab,
             // SpotifyTab, ...) - java.awt.Desktop is headless under Minecraft and just silently fails.
-            Util.getPlatform().openPath(zipPath.getParent());
+            ExternalOpen.path(zipPath.getParent());
         } catch (Exception e) {
             LOGGER.warn("Bug report: couldn't open the bug-reports folder", e);
             // Not reported in chat - the "Saved: <path>" message already told them where it is.

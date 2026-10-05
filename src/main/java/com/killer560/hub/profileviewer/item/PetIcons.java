@@ -1,5 +1,6 @@
 package com.killer560.hub.profileviewer.item;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonObject;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import com.killer560.hub.profileviewer.data.LevelTables;
@@ -21,7 +22,7 @@ import java.util.regex.Pattern;
  */
 public final class PetIcons {
 
-    private static final String NEU_ITEMS = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/items/";
+    private static final String NEU_ITEMS = ModNet.url("github-raw", "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/items/");
     private static final Pattern TEXTURE = Pattern.compile("Value:\"([A-Za-z0-9+/=]{20,})\"");
     private static final Map<String, CompletableFuture<String>> TEXTURES = new ConcurrentHashMap<>();
 

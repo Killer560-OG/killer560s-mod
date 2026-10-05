@@ -1,5 +1,6 @@
 package com.killer560.hub.updatecheck;
 
+import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
@@ -31,7 +32,7 @@ public final class UpdateCheckFeature {
 
     private static final String MOD_ID = "killer560smod";
     private static final String LATEST_RELEASE_API =
-            "https://api.github.com/repos/Killer560-OG/killer560s-mod/releases/latest";
+            ModNet.url("github-api", "https://api.github.com/repos/Killer560-OG/killer560s-mod/releases/latest");
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
@@ -94,7 +95,7 @@ public final class UpdateCheckFeature {
                     .header("Accept", "application/vnd.github+json")
                     .GET()
                     .build();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = ModNet.send(HTTP_CLIENT, request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
                 return new Result(false, currentVersionString, null, null,
                         "GitHub API returned " + response.statusCode());
