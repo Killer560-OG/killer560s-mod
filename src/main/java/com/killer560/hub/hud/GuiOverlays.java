@@ -43,18 +43,18 @@ public final class GuiOverlays {
             // Chat stays see-through (killer560: "dont make it hide the gui if i open chat"); the HUD editor
             // draws the element itself.
             if (!HudVisibility.menuOpen()) {
-                drawElement(graphics, HudElementRegistry.byId("ability_timers"));
+                HudElementRegistry.drawAt(graphics, HudElementRegistry.byId("ability_timers"));
             }
         });
         add("dungeon_info", graphics -> {
             if (!HudVisibility.menuOpen()) {
-                drawElement(graphics, HudElementRegistry.byId("dungeon_info"));
+                HudElementRegistry.drawAt(graphics, HudElementRegistry.byId("dungeon_info"));
             }
         });
         add("etherwarp_waypoints", graphics -> {
             HudElement element = HudElementRegistry.byId("etherwarp_waypoints");
             if (element instanceof EtherwarpHudElement e && e.isVisible()) {
-                drawElement(graphics, element);
+                HudElementRegistry.drawAt(graphics, element);
             }
         });
     }
@@ -62,23 +62,6 @@ public final class GuiOverlays {
     private static void add(String path, java.util.function.Consumer<GuiGraphicsExtractor> draw) {
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", path), (graphics, deltaTracker) -> draw.accept(graphics));
-    }
-
-    /** At the element's HUD-editor position and scale (own x global HUD scale), like every other HUD element. */
-    private static void drawElement(GuiGraphicsExtractor graphics, HudElement element) {
-        if (element == null) {
-            return;
-        }
-        int[] pos = HudElementRegistry.resolvePosition(element);
-        float scale = HudElementRegistry.resolveScale(element);
-        graphics.pose().pushMatrix();
-        try {
-            graphics.pose().translate(pos[0], pos[1]);
-            graphics.pose().scale(scale, scale);
-            element.render(graphics, 0, 0);
-        } finally {
-            graphics.pose().popMatrix();
-        }
     }
 
     /** {@link ModOverlayMessage}, centred on screen and word-wrapped to two thirds of its width (2026-09-07), in

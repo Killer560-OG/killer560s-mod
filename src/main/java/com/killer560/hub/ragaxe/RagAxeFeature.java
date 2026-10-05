@@ -164,13 +164,7 @@ public final class RagAxeFeature {
         if (client.player == null || HudVisibility.menuOpen() || McCompat.hudHidden(client) || !SkyblockGate.allows()) {
             return;
         }
-        int[] pos = HudElementRegistry.resolvePosition(element);
-        float scale = HudElementRegistry.resolveScale(element);
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(pos[0], pos[1]);
-        graphics.pose().scale(scale, scale);
-        element.render(graphics, 0, 0);
-        graphics.pose().popMatrix();
+        HudElementRegistry.drawAt(graphics, element);
     }
 
     /** Up to three optional lines, each its own setting: channel wind-up, buff remaining, cooldown remaining. */

@@ -129,18 +129,7 @@ public final class LeapCounterFeature {
                 || !LEAP_HUD.isVisible()) {
             return;
         }
-        int[] pos = HudElementRegistry.resolvePosition(HUD);
-        float scale = HudElementRegistry.resolveScale(HUD);
-        graphics.pose().pushMatrix();
-        try {
-            graphics.pose().translate(pos[0], pos[1]);
-            graphics.pose().scale(scale, scale);
-            HUD.render(graphics, 0, 0);
-        } catch (RuntimeException ignored) {
-            // A broken HUD element must never take down the HUD frame.
-        } finally {
-            graphics.pose().popMatrix();
-        }
+        HudElementRegistry.drawAt(graphics, HUD);
     }
 
     /** Movable/scalable in the HUD editor, same pattern as F7 Spots' CrushHud. */

@@ -81,13 +81,7 @@ public final class DungeonAlertsFeature {
             return;
         }
         // Position/scale come from HudConfig by id, so this works even before the element is in the editor list.
-        int[] pos = HudElementRegistry.resolvePosition(element);
-        float scale = HudElementRegistry.resolveScale(element);
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(pos[0], pos[1]);
-        graphics.pose().scale(scale, scale);
-        element.render(graphics, 0, 0);
-        graphics.pose().popMatrix();
+        HudElementRegistry.drawAt(graphics, element);
     }
 
     private static void onWorldRender(LevelRenderContext context) {

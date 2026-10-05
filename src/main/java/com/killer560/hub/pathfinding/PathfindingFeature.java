@@ -291,18 +291,7 @@ public final class PathfindingFeature {
         if (client.player == null || McCompat.hudHidden(client) || HudVisibility.menuOpen()) {
             return;
         }
-        int[] pos = com.killer560.hub.hud.HudElementRegistry.resolvePosition(HudElementImpl.INSTANCE);
-        float scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(HudElementImpl.INSTANCE);
-        graphics.pose().pushMatrix();
-        try {
-            graphics.pose().translate(pos[0], pos[1]);
-            graphics.pose().scale(scale, scale);
-            HudElementImpl.INSTANCE.render(graphics, 0, 0);
-        } catch (RuntimeException ignored) {
-            // one broken element never takes down the HUD frame
-        } finally {
-            graphics.pose().popMatrix();
-        }
+        com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, HudElementImpl.INSTANCE);
     }
 
     /** Lines the HUD shows: fairy soul progress on this island, and the current navigation target. */

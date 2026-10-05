@@ -213,18 +213,7 @@ public final class MelodyTrackerFeature {
                 || !MelodyHudConfig.getInstance().isHudEnabled() || !Floor7Tracker.inPhase(Floor7Tracker.Phase.P3)) {
             return;
         }
-        int[] pos = HudElementRegistry.resolvePosition(HUD);
-        float scale = HudElementRegistry.resolveScale(HUD);
-        graphics.pose().pushMatrix();
-        try {
-            graphics.pose().translate(pos[0], pos[1]);
-            graphics.pose().scale(scale, scale);
-            HUD.render(graphics, 0, 0);
-        } catch (RuntimeException ignored) {
-            // One broken frame must never take down the whole HUD.
-        } finally {
-            graphics.pose().popMatrix();
-        }
+        HudElementRegistry.drawAt(graphics, HUD);
     }
 
     /** Movable in the HUD editor like every other element. Amber-themed: dim-orange bar background, bright

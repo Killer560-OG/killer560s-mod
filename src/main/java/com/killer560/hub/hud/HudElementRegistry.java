@@ -134,6 +134,30 @@ public final class HudElementRegistry {
         return memo.result;
     }
 
+    /**
+     * Draws {@code element} in game at its HUD-editor position and scale ({@link #resolvePosition},
+     * {@link #resolveScale}): push, translate, scale, {@code render(graphics, 0, 0)}, pop. A throw from the element is
+     * swallowed so one broken element never takes the rest of the HUD frame down, and the pose is always popped.
+     * The one shared copy of what a dozen draw sites each spelled out by hand until 2026-10-05.
+     */
+    public static void drawAt(net.minecraft.client.gui.GuiGraphicsExtractor graphics, HudElement element) {
+        if (element == null) {
+            return;
+        }
+        int[] pos = resolvePosition(element);
+        float scale = resolveScale(element);
+        graphics.pose().pushMatrix();
+        try {
+            graphics.pose().translate(pos[0], pos[1]);
+            graphics.pose().scale(scale, scale);
+            element.render(graphics, 0, 0);
+        } catch (RuntimeException e) {
+            // One broken element must never take down the whole HUD frame.
+        } finally {
+            graphics.pose().popMatrix();
+        }
+    }
+
     /** The scale {@code element} is DRAWN at: its own scale times the global HUD scale. Every draw site, the clamp
      *  and the editor's box use this, so they all measure the same box (see the width() lesson in docs/LESSONS.md). */
     public static float resolveScale(HudElement element) {
