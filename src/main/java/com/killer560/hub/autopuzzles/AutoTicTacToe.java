@@ -118,10 +118,12 @@ final class AutoTicTacToe {
             }
         }
         if (chestStage != ChestStage.NONE && chestStage != ChestStage.DONE) {
+            stopApproach(client, "the chest trip");
             tickChest(client, client.player, cr);
             return; // the click logic below waits its turn until the side trip is over
         }
         if (ClearExecutor.isBusy()) {
+            stopApproach(client, "the Interactive Map is moving him");
             return; // walking (room spot, or our own chest trip's ClearExecutor leg)
         }
         // WALK OUT WHEN THE BOARD IS DONE.
@@ -149,18 +151,37 @@ final class AutoTicTacToe {
                 LOGGER.info("[AutoPuzzles] TicTacToe: board done but the map has no door to walk out to");
             }
         }
+        if (approaching && best == null) {
+            stopApproach(client, "no move left");
+        }
         if (!GUARD.solverOn(TicTacToeSolverConfig.getInstance().isEnabled()) || best == null || !GUARD.fresh()) {
             return;
         }
         LocalPlayer player = client.player;
         long now = System.currentTimeMillis();
-        if (McCompat.screen(client) != null || player.isShiftKeyDown() || now - lastClickMs < CLICK_GAP_MS) {
+        if (McCompat.screen(client) != null || player.isShiftKeyDown()) {
+            if (approaching) {
+                stopApproach(client, McCompat.screen(client) != null ? "a screen opened" : "sneaking");
+            }
+            return;
+        }
+        if (now - lastClickMs < CLICK_GAP_MS && !approaching) {
             return;
         }
         // To the BOX, matching the limit - see the note in AutoWater.
         if (com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), best) > REACH_SQ) {
+            if (approach(client, player, best)) {
+                return; // walking closer
+            }
             waitFor("next move " + AutoPuzzleUtil.fmt(best) + " is out of reach from "
-                    + AutoPuzzleUtil.fmt(player.blockPosition()));
+                    + AutoPuzzleUtil.fmt(player.blockPosition()) + String.format(java.util.Locale.US, " (%.2f blocks)",
+                    Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), best))));
+            return;
+        }
+        if (approaching) {
+            stopApproach(client, "the move at " + AutoPuzzleUtil.fmt(best) + " is in reach");
+        }
+        if (now - lastClickMs < CLICK_GAP_MS) {
             return;
         }
         // Reset on a new ROUND as well as a new cell.
@@ -195,6 +216,86 @@ final class AutoTicTacToe {
             advanceChest(ChestStage.WALK_TO_CHEST, "first move placed");
             chestAuraAttempts = 0;
         }
+    }
+
+    // ------------------------------------------------------------------ walking into reach
+
+    /**
+     * Walking closer to a move that is out of reach.
+     *
+     * <p>The Interactive Map's spot for this room (relative 11,68,16) is where a walk INTO the room ends, not a
+     * spot from which the whole board is in reach: on the 93-solve run of 2026-10-04 the last move was ~5.5 blocks
+     * from there and the auto only ever said "out of reach" (Tic Tac Toe flaky, 1 of 4). So when the next move is
+     * out of reach this picks the nearest spot on his own floor whose eye is within {@link #APPROACH_EYE} of the
+     * button's box, plans a walk round anything in the way ({@link MazeWalk}) and walks it with the camera and
+     * the forward key only - one discrete key, nothing written to position or velocity. Etherwarp is not used:
+     * the board is a few steps away and an AOTV right-click on the board would press a button. Identical on
+     * Hypixel, where the room and the Interactive Map spot are the same.
+     */
+    private static final MazeWalk APPROACH = new MazeWalk();
+    /** A little inside the 4.5 the server enforces, so the spot is still in reach after the walk's overshoot. */
+    private static final double APPROACH_EYE = 4.0;
+    private static final int MAX_APPROACHES = 3;
+    private static boolean approaching = false;
+    private static long approachStartMs = 0L;
+    private static long approachTimeoutMs = 0L;
+    private static BlockPos approachFor = null;
+    private static int approachTries = 0;
+
+    /** @return true while a walk towards {@code target} is running (the caller waits) */
+    private static boolean approach(Minecraft client, LocalPlayer player, BlockPos target) {
+        if (!target.equals(approachFor)) {
+            if (approaching) {
+                stopApproach(client, "the move changed");
+            }
+            approachFor = target;
+            approachTries = 0;
+        }
+        if (approaching) {
+            if (System.currentTimeMillis() - approachStartMs > approachTimeoutMs) {
+                stopApproach(client, "timed out after " + approachTimeoutMs + " ms");
+                return false;
+            }
+            if (APPROACH.tick(client)) {
+                return true;
+            }
+            stopApproach(client, "walk finished");
+            return false;
+        }
+        if (!AutoPuzzlesConfig.getInstance().isAutoPuzzlePathingEnabled()) {
+            waitFor("move " + AutoPuzzleUtil.fmt(target) + " is out of reach and auto-puzzle pathing is off");
+            return false;
+        }
+        if (approachTries >= MAX_APPROACHES || !player.onGround()) {
+            return false;
+        }
+        approachTries++;
+        BlockPos spot = MazeWalk.planToSpot(client.level, player.position(), target, 6,
+                eye -> com.killer560.hub.util.BlockHits.boxDistanceSq(eye, target) <= APPROACH_EYE * APPROACH_EYE,
+                APPROACH);
+        if (spot == null) {
+            LOGGER.info("[AutoPuzzles] TicTacToe: move {} is out of reach and no walkable spot within {} blocks of it"
+                    + " is in reach (try {}/{})", AutoPuzzleUtil.fmt(target), APPROACH_EYE, approachTries,
+                    MAX_APPROACHES);
+            return false;
+        }
+        approaching = true;
+        approachStartMs = System.currentTimeMillis();
+        approachTimeoutMs = 2000L + (long) (APPROACH.length(player.position()) / 3.5 * 1000.0);
+        LOGGER.info("[AutoPuzzles] TicTacToe: move {} is out of reach - walking to {} ({} leg(s), {} blocks, try {}/{})",
+                AutoPuzzleUtil.fmt(target), AutoPuzzleUtil.fmt(spot), APPROACH.legs(),
+                String.format(java.util.Locale.US, "%.1f", APPROACH.length(player.position())), approachTries,
+                MAX_APPROACHES);
+        return APPROACH.tick(client);
+    }
+
+    private static void stopApproach(Minecraft client, String why) {
+        if (!approaching) {
+            return;
+        }
+        approaching = false;
+        client.options.keyUp.setDown(false);
+        LOGGER.info("[AutoPuzzles] TicTacToe: stopped walking - {}", why);
     }
 
     /** What the auto last said it was waiting for, so a reason is logged once per change. */
@@ -358,6 +459,9 @@ final class AutoTicTacToe {
     }
 
     private static void reset() {
+        stopApproach(Minecraft.getInstance(), "left the room");
+        approachFor = null;
+        approachTries = 0;
         attemptPos = null;
         attempts = 0;
         lastClickMs = 0L;

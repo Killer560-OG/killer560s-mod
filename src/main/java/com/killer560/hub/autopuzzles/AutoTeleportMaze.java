@@ -59,6 +59,9 @@ final class AutoTeleportMaze {
     private static final AutoGuard GUARD = new AutoGuard("Auto Teleport Maze", "Teleport Maze Solver");
 
     private static int lastSeq = -1;
+    /** Teleports this visit; past {@link #MAX_HOPS} the auto gives up (re-taking diagonals must end somewhere). */
+    private static int hops = 0;
+    private static final int MAX_HOPS = 60;
     private static int pendingTicks = -1;
     private static boolean walking = false;
     private static long walkStartMs = 0L;
@@ -182,6 +185,13 @@ final class AutoTeleportMaze {
         int seq = TeleportMazeSolverFeature.getTeleportSeq();
         if (seq != lastSeq) {
             lastSeq = seq;
+            if (++hops > MAX_HOPS) {
+                LOGGER.info("[AutoPuzzles] TeleportMaze: {} teleports without reaching the end - stopped", MAX_HOPS);
+                stop(client);
+                disengage();
+                finishStage = FinishStage.DONE;
+                return;
+            }
             stop(client);
             pendingTicks = 1; // QUOI: Scheduler.scheduleTask { nextMove = true }
             engage(client);
@@ -300,7 +310,87 @@ final class AutoTeleportMaze {
             if (!walking) {
                 startWalking = false;
             }
+            return;
         }
+        if (!startWalking) {
+            tickEntrance(client, player);
+        }
+    }
+
+    /** Ticks in a row with none of his own movement keys down. */
+    private static int idleTicks = 0;
+    /** One entrance walk per visit to the room; re-armed when he leaves it or the world changes. */
+    private static boolean entranceTried = false;
+    /** The entrance walk's own reason for not starting, logged once per change. */
+    private static String entranceWait = null;
+    /** He must have stood still this long before the auto walks him - his own walk in is never taken over. */
+    private static final int ENTRANCE_IDLE_TICKS = 10;
+    /** The start pad is alone in the entrance chamber; further than this on foot and he is not in it. */
+    private static final double ENTRANCE_MAX_WALK = 24.0;
+
+    /**
+     * Walks onto the start pad when he is standing in the maze's ENTRANCE, not only after a map arrival.
+     *
+     * <p>2026-10-04, 93-solve: with the player at the room's own spawn in the entrance chamber, the auto never moved
+     * him; the test walked him onto the start pad itself. QUOI's design leaves that first step to the player, but
+     * the arrival-only trigger above misses every way in that is not the Interactive Map (walking in, /goto, a
+     * door). So: in the Teleport Maze, before any maze teleport, on the ground, with none of his movement keys
+     * down for {@link #ENTRANCE_IDLE_TICKS} ticks, and with a walk on foot to the start pad of at most
+     * {@link #ENTRANCE_MAX_WALK} blocks (the start pad is alone in its chamber, so a walk that short only exists
+     * from the entrance side), the auto walks him onto it - once per visit, so a stopped walk is not retried in a
+     * loop. His own keys still win: the walk only starts when he is standing still. Same on Hypixel.
+     */
+    private static void tickEntrance(Minecraft client, LocalPlayer player) {
+        boolean ownKeys = client.options.keyUp.isDown() || client.options.keyDown.isDown()
+                || client.options.keyLeft.isDown() || client.options.keyRight.isDown()
+                || client.options.keyJump.isDown();
+        idleTicks = ownKeys ? 0 : idleTicks + 1;
+        com.killer560.hub.roomdatabase.RoomEntry here = LiveMapFeature.currentRoomEntry();
+        if (here == null || !ROOM.equals(here.name)) {
+            entranceTried = false;
+            entranceWait = null;
+            return;
+        }
+        if (entranceTried) {
+            return;
+        }
+        String why = null;
+        if (!player.onGround()) {
+            why = "not on the ground";
+        } else if (idleTicks < ENTRANCE_IDLE_TICKS) {
+            why = "his movement keys are down";
+        } else if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+            why = "the Interactive Map is moving him";
+        } else if (!TeleportMazeSolverConfig.getInstance().isEnabled()) {
+            GUARD.solverOn(false);
+            why = "Teleport Maze Solver is off";
+        } else if (!GUARD.fresh()) {
+            why = "the solver's data predates this world";
+        }
+        int[] cr = why == null ? LiveMapFeature.currentRoomClayAndRotation() : null;
+        if (why == null && cr == null) {
+            why = "the room's rotation is not known yet";
+        }
+        if (why != null) {
+            if (!why.equals(entranceWait)) {
+                entranceWait = why;
+                LOGGER.info("[AutoPuzzles] TeleportMaze: not walking onto the start pad yet - {}", why);
+            }
+            return;
+        }
+        BlockPos startPad = PuzzleCoords.real(START_PAD_RELATIVE[0], START_PAD_RELATIVE[1], START_PAD_RELATIVE[2], cr);
+        entranceTried = true;
+        MazeWalk probe = new MazeWalk();
+        if (!probe.plan(client.level, player.position(), startPad)
+                || probe.length(player.position()) > ENTRANCE_MAX_WALK) {
+            LOGGER.info("[AutoPuzzles] TeleportMaze: in the maze but no walk of {} blocks or less onto the start pad {}"
+                    + " - not in the entrance, so not walking", ENTRANCE_MAX_WALK, AutoPuzzleUtil.fmt(startPad));
+            return;
+        }
+        startWalking = true;
+        startSeq = TeleportMazeSolverFeature.getTeleportSeq();
+        engage(client);
+        startWalk(client, player, startPad, "the start pad (standing in the entrance)");
     }
 
     /** Takes the free camera from the view he had on the tick before this teleport - see {@link #engaged}. */
@@ -547,7 +637,22 @@ final class AutoTeleportMaze {
                 farthest = p;
             }
         }
-        return farthest;
+        if (farthest != null) {
+            return farthest;
+        }
+        // EVERY PAD HERE IS VISITED - take the diagonal again rather than stop. 93-solve, 2026-10-04: the solver's
+        // "best" pad (nearest the line he faces after a teleport) twice sent him to a pad BESIDE the one he landed
+        // on, and seven teleports later he stood in a chamber whose four pads had all been used, "no pad to walk to",
+        // in the middle of the maze. The wiki's way through - the pad diagonal to the one you arrived on - always
+        // gets there (one closed loop through every chamber; docs/SIM.md "one closed loop"), visited or not.
+        for (BlockPos p : currentCell) {
+            if (p.getX() != currentPad.getX() && p.getZ() != currentPad.getZ()) {
+                LOGGER.info("[AutoPuzzles] TeleportMaze: every pad in this chamber is visited - taking the diagonal {}"
+                        + " again", AutoPuzzleUtil.fmt(p));
+                return p;
+            }
+        }
+        return null;
     }
 
     private static void stop(Minecraft client) {
@@ -560,11 +665,15 @@ final class AutoTeleportMaze {
 
     private static void reset(Minecraft client) {
         stop(client);
+        entranceTried = false;
+        entranceWait = null;
+        idleTicks = 0;
         disengage();
         lastYaw = Float.NaN;
         lastPitch = Float.NaN;
         pendingTicks = -1;
         lastSeq = -1;
+        hops = 0;
         finishStage = FinishStage.NONE;
         finishStageStartMs = 0L;
         auraAttempts = 0;

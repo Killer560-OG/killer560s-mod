@@ -169,19 +169,29 @@ public final class SimQuizPuzzle {
                     .getBlock() instanceof net.minecraft.world.level.block.ButtonBlock
                     ? InteractionResult.PASS : InteractionResult.SUCCESS;
         });
-        // TALKING TO A WEIRDO. Both sides return non-PASS for our stands, so the server never runs the armour
-        // stand's own interaction (which would hang whatever he is holding on it); only the client speaks.
+        // TALKING TO A WEIRDO - answered by the SERVER, from the interact packet, like Hypixel's NPCs.
+        //
+        // Until 2026-10-04 the weirdo spoke from the CLIENT copy of this callback. Fabric fires that copy only
+        // from Minecraft.startUseItem - a real right click - so Auto Three Weirdos' gameMode.interact (which
+        // sends the same ServerboundInteractPacket a click sends) never made anyone speak. Fabric's server copy
+        // fires inside ServerGamePacketListenerImpl.handleInteract for the ServerPlayer (javap, fabric-events-
+        // interaction 5.2.8), so a real click and a programmatic interact both reach it, exactly as both reach
+        // Hypixel. The client copy returns SUCCESS for a real click, which makes Fabric send the packet and skip
+        // the client-side interaction; the server copy speaks and returns SUCCESS so the armour stand's own
+        // interaction (hanging his held item on it) never runs.
         net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register(
                 (player, level, hand, entity, hitResult) -> {
                     Integer who = entity == null ? null : NPC_STANDS.get(entity.getUUID());
                     if (who == null) {
                         return InteractionResult.PASS;
                     }
-                    if (level.isClientSide()) {
-                        speak(Minecraft.getInstance(), who);
+                    if (!level.isClientSide() && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                        speak(sp, who, "talked to");
                     }
                     return InteractionResult.SUCCESS;
                 });
+        // A left click talks too. The client copy must PASS so the attack packet reaches the server; the server
+        // copy speaks and returns FAIL, which cancels the hit on the stand.
         net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register(
                 (player, level, hand, entity, hitResult) -> {
                     Integer who = entity == null ? null : NPC_STANDS.get(entity.getUUID());
@@ -189,7 +199,10 @@ public final class SimQuizPuzzle {
                         return InteractionResult.PASS;
                     }
                     if (level.isClientSide()) {
-                        speak(Minecraft.getInstance(), who);
+                        return InteractionResult.PASS;
+                    }
+                    if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                        speak(sp, who, "hit");
                     }
                     return InteractionResult.FAIL;
                 });
@@ -412,8 +425,12 @@ public final class SimQuizPuzzle {
      * A weirdo's line, in the server's own {@code [NPC] Name: line} shape, when he talks to it. The one at the
      * correct chest says a SOLUTION line and the other two WRONG lines - the rule the solver implements.
      */
-    private static void speak(Minecraft client, int index) {
+    private static void speak(net.minecraft.server.level.ServerPlayer player, int index, String how) {
         if (!weirdosRoom || correctIndex < 0 || complete) {
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                    "Sim three weirdos: {} {} - not speaking (weirdos room {}, round {}, complete {})", how,
+                    WEIRDO_NAMES[Math.max(0, Math.min(index, WEIRDO_NAMES.length - 1))], weirdosRoom,
+                    correctIndex, complete);
             return;
         }
         String line;
@@ -428,7 +445,10 @@ public final class SimQuizPuzzle {
             }
             line = WEIRDO_WRONG[Math.min(rank, WEIRDO_WRONG.length - 1)];
         }
-        raw(client, "[NPC] " + WEIRDO_NAMES[index] + ": " + line);
+        // A server system message, which reaches his chat the way Hypixel's NPC lines do.
+        player.sendSystemMessage(Component.literal("[NPC] " + WEIRDO_NAMES[index] + ": " + line));
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info("Sim three weirdos: {} {} - said its line",
+                how, WEIRDO_NAMES[index]);
     }
 
     /**
@@ -811,6 +831,16 @@ public final class SimQuizPuzzle {
      *  wrong click resets the board. */
     public static boolean isComplete() {
         return complete;
+    }
+
+    /** Solved, and the room this class is bound to is Three Weirdos - for tests that must not mistake a Quiz. */
+    public static boolean isWeirdosComplete() {
+        return complete && weirdosRoom;
+    }
+
+    /** Solved, and the room this class is bound to is the Quiz (or a standalone arena). */
+    public static boolean isQuizComplete() {
+        return complete && !weirdosRoom;
     }
 
     /** Clears the chests and labels if a session is still open, and always clears the in-memory state. Safe to

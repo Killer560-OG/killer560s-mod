@@ -104,8 +104,12 @@ final class AutoWater {
         // on Hypixel, where relative and absolute y are the same number. The sim shifts every room by one
         // offset, so the literal 59 could never be true in there and Auto Water declined every click without
         // saying anything. Same fault, same shape, as Auto Creeper Beams' "y == 75".
-        if (cr == null || player.getY() != 59.0 + com.killer560.hub.livemap.DungeonLayout.simYOffset()
-                || McCompat.screen(client) != null || atChest) {
+        if (cr == null || McCompat.screen(client) != null || atChest) {
+            return;
+        }
+        if (player.getY() != 59.0 + com.killer560.hub.livemap.DungeonLayout.simYOffset() && !REPOSITION.isActive()) {
+            waitFor(String.format(java.util.Locale.US, "not on the lever floor (feet y %.2f, the floor is %d)",
+                    player.getY(), 59 + com.killer560.hub.livemap.DungeonLayout.simYOffset()));
             return;
         }
         if (REPOSITION.isActive()) {
@@ -134,11 +138,20 @@ final class AutoWater {
             default -> Integer.MIN_VALUE;
         };
         if (z == Integer.MIN_VALUE) {
+            waitFor("next lever " + AutoPuzzleUtil.fmt(next.pos()) + " has an unknown relative z " + next.relativeZ());
             return;
         }
         long now = System.currentTimeMillis();
-        if (reposition) {
-            BlockPos spot = PuzzleCoords.real(15, 58, z, cr);
+        if (reposition && !inReach(player.getEyePosition(), next.pos())) {
+            // Only warp when the lever is NOT already in reach from where he stands - and then onto a spot from
+            // which it IS. QUOI's spot (15,58,z) is the board's centre line, five blocks from every side lever:
+            // eye-to-box 4.52-4.54, past the 4.5 measured on Hypixel (2026-10-04 93-solve: "4.516 vs 4.5", the
+            // lever at z 10 never clicked and nothing was logged). See leverSpot.
+            BlockPos spot = leverSpot(client, cr, next.pos(), z);
+            if (spot == null) {
+                waitFor("no standable spot on the lever floor has " + AutoPuzzleUtil.fmt(next.pos()) + " in reach");
+                return;
+            }
             if (!AutoPuzzleUtil.at(player, spot)) {
                 if (now - lastClickMs >= 200) {
                     REPOSITION.start(client, spot, false, false, false);
@@ -164,6 +177,7 @@ final class AutoWater {
         String blocker = player.isShiftKeyDown() ? "sneaking"
                 : distSq > REACH_SQ ? String.format(java.util.Locale.US, "out of reach (%.2f blocks)", Math.sqrt(distSq)) : null;
         if (blocker != null) {
+            waitFor("not clicking " + AutoPuzzleUtil.fmt(next.pos()) + " - " + blocker);
             return;
         }
         if (!AutoPuzzleUtil.gateWorldClick()) {
@@ -186,7 +200,57 @@ final class AutoWater {
         }
     }
 
+    /** Standing eye to the lever's box, with a little margin under the 4.5 the server enforces. */
+    private static final double SPOT_REACH = 4.3;
+
+    private static boolean inReach(Vec3 eye, BlockPos lever) {
+        return com.killer560.hub.util.BlockHits.boxDistanceSq(eye, lever) <= REACH_SQ;
+    }
+
+    /**
+     * Where to stand for a lever: the standable block on the lever floor (relative y 58, standing on it) nearest
+     * QUOI's own spot {@code (15, 58, quoiZ)} whose STANDING eye is within {@link #SPOT_REACH} of the lever's box
+     * and onto which an etherwarp can aim. Read off the world, so it is the same answer on Hypixel and in the sim.
+     */
+    private static BlockPos leverSpot(Minecraft client, int[] cr, BlockPos lever, int quoiZ) {
+        java.util.List<Object[]> found = new java.util.ArrayList<>();
+        for (int rx = 11; rx <= 19; rx++) {
+            for (int rz = quoiZ - 3; rz <= quoiZ + 3; rz++) {
+                BlockPos floor = PuzzleCoords.real(rx, 58, rz, cr);
+                double stand = MazeWalk.standHeight(client.level, floor.getX(), floor.getY() + 1, floor.getZ());
+                if (Double.isNaN(stand) || Math.abs(stand - (floor.getY() + 1)) > 1.0e-6) {
+                    continue; // he must end on the floor itself: the auto clicks only at that exact height
+                }
+                Vec3 eye = new Vec3(floor.getX() + 0.5, stand + AutoPuzzleUtil.EYE_STANDING, floor.getZ() + 0.5);
+                if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, lever) > SPOT_REACH * SPOT_REACH) {
+                    continue;
+                }
+                found.add(new Object[]{Math.abs(rx - 15) + Math.abs(rz - quoiZ) * 1.01, floor});
+            }
+        }
+        found.sort((a, b) -> Double.compare((Double) a[0], (Double) b[0]));
+        for (Object[] f : found) {
+            BlockPos floor = (BlockPos) f[1];
+            if (AutoPuzzleUtil.at(client.player, floor)
+                    || AutoPuzzleUtil.etherwarpAim(client.level, client.player, floor) != null) {
+                return floor;
+            }
+        }
+        return null;
+    }
+
+    /** What the auto last said it was waiting for, so a refusal is one INFO line per change, not one a tick. */
+    private static String loggedWait = null;
+
+    private static void waitFor(String why) {
+        if (!why.equals(loggedWait)) {
+            loggedWait = why;
+            LOGGER.info("[AutoPuzzles] Water: waiting - {}", why);
+        }
+    }
+
     private static void reset(Minecraft client) {
+        loggedWait = null;
         REPOSITION.cancel(client);
         AutoReposition.releaseSneak(client);
         lastClickTick = Long.MIN_VALUE / 2;
