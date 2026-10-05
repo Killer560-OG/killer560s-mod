@@ -309,10 +309,12 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   only inside a real dungeon. Anything that names rooms or votes on rotation outside one (Ashfall solo rooms, the
   sim) must start the load itself and must not judge rooms until `isReady()` - before it, the tile audit and the
   rotation vote judge good rooms broken.
-- The sim sent no "x/y Secrets" action bar, so an Auto Routes `await:<n>` never finished in the sim (only bats counted).
-  `roomsim/SimActionBar` now sends the room's count from `SimScore`'s per-room tally (2026-10-05). Separately, a START
-  node with an await waited forever everywhere: `RouteExecutor.start` resets the count to -1 and the baseline stayed -1;
-  the first count seen is now the baseline.
+- Auto Routes awaits no longer read the "x/y Secrets" bar at all (2026-10-05): it is the ROOM's count, so a teammate's
+  secret raised it, and levers never touch it. `autoroutes/AwaitEvents` counts only his own clicks/pickups/nearby bat
+  spawns/mimic kill, from the previous node's finish. The sim still sends the bar (`roomsim/SimActionBar`) for the map.
+- The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the
+  kill. Both now score on the mob's DEATH (`SimMobs.spawnCrypt`, `SimMimic.tickServer`), the mimic chest is a trapped
+  chest, and a secret bat carries Hypixel's 100 max health (the client's only way to tell it from a sceptre bat).
 - A map-code build (`SimBuilder.build`) is a "generated floor": the sim's Dungeon Breaker silently refuses every block
   until `SimRun` has started. A test that breaks blocks must `SimRun.begin` first.
 - Anything the sim holds that names a `ServerLevel` must be dropped on EVERY unload, not only when `SimState` is still
