@@ -109,3 +109,5 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   Hypixel's overflow mana `§3200ʬ` as 3200. Start the match where a number cannot continue and let the pattern take
   the codes itself: `(?<![§\d,])(?:§.)*([\d,]+)` (`PlayerStatsFeature.NUMBER_START`, 2026-10-04, found by a scratch
   run against a sample line). The older health/mana/defence patterns only escape it because their codes are letters.
+- `IslandDetector.graphIsland()` is null off any known island (sim, lobby, singleplayer), and `Set.of(...).contains(null)`
+  throws. MiningProfitTracker did that every tick once trackers went on by default; null-check before any `Set.of` lookup.
