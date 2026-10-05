@@ -36,7 +36,8 @@ import com.killer560.hub.compat.McCompat;
  * for why it was chosen and confirmation its jar really does bundle native libraries for Windows) with
  * a small English model downloaded once, automatically, to this mod's config folder the first time the
  * feature is actually used - no manual install step, matching "zero setup", while keeping the mod's own
- * distributed jar from ballooning by the model's ~40MB.
+ * distributed jar from ballooning by the model's ~40MB. Since 2026-10-05 the Vosk library itself (~26MB, mostly
+ * native libraries) is fetched the same way, checksum-verified, by {@link VoskLibrary}, instead of being bundled.
  * <p>
  * <b>Real, disclosed risk this session could not rule out like everything else built this session:</b>
  * every other new feature here was boot-tested end to end. This one touches a native library (via JNA)
@@ -58,8 +59,10 @@ public final class VoiceToTextFeature {
     private enum State { IDLE, PREPARING_MODEL, READY, RECORDING, TRANSCRIBING, ERROR }
 
     private static volatile State state = State.IDLE;
-    private static volatile Object loadedModel; // org.vosk.Model, held as Object so this file compiles
-                                                 // even if Vosk somehow failed to resolve - see below.
+    /** The org.vosk.Model, held as Object: Vosk lives in {@link VoskLibrary}'s child class loader and cannot be named
+     *  from here. Set last, after {@link #vosk}, so a non-null model always has its library. */
+    private static volatile Object loadedModel;
+    private static volatile VoskLibrary vosk;
     private static TargetDataLine line;
     private static ByteArrayOutputStream capturedAudio;
     private static Thread captureThread;
@@ -133,7 +136,15 @@ public final class VoiceToTextFeature {
         }
         if (loadedModel == null) {
             state = State.PREPARING_MODEL;
-            ModOverlayMessage.show("[Voice] Preparing speech model (first use only, may download ~40MB)...", 4000);
+            // The engine (~26MB, VoskLibrary) and the model (~40MB) are both fetched on first use; say how much is
+            // really coming, so a player who already has one of them is not told to expect the full amount.
+            Path voiceDir = voiceDirectory();
+            boolean needEngine = !VoskLibrary.isCached(voiceDir);
+            boolean needModel = !Files.exists(modelDirectory().resolve("conf"));
+            String size = needEngine && needModel ? "~66MB" : needEngine ? "~26MB" : "~40MB";
+            ModOverlayMessage.show(needEngine || needModel
+                    ? "[Voice] Preparing speech recognition (first use only, may download " + size + ")..."
+                    : "[Voice] Preparing speech model...", 4000);
             new Thread(VoiceToTextFeature::prepareModelAndStartRecording, "killer560smod-voice-prepare").start();
             return;
         }
@@ -153,11 +164,19 @@ public final class VoiceToTextFeature {
 
     private static void prepareModelAndStartRecording() {
         try {
+            // Engine first: it is the smaller download, and loading it runs the native-library setup, so a
+            // machine Vosk cannot run on finds out before fetching the 40MB model rather than after.
+            VoskLibrary lib = VoskLibrary.load(voiceDirectory(), VoskLibrary.DOWNLOAD_URL, url ->
+                    Minecraft.getInstance().execute(() ->
+                            ModOverlayMessage.show("[Voice] Downloading speech engine (~26MB, first use only)...", 8000)));
             Path modelDir = modelDirectory();
             if (!Files.exists(modelDir.resolve("conf"))) {
+                Minecraft.getInstance().execute(() ->
+                        ModOverlayMessage.show("[Voice] Downloading speech model (~40MB, first use only)...", 8000));
                 downloadAndExtractModel(modelDir);
             }
-            loadedModel = new org.vosk.Model(modelDir.toString());
+            vosk = lib;
+            loadedModel = lib.newModel(modelDir.toString());
             state = State.READY;
             Minecraft.getInstance().execute(() -> {
                 boolean openMic = VoiceToTextConfig.getInstance().getMode() == VoiceToTextConfig.Mode.OPEN_MIC;
@@ -173,8 +192,13 @@ public final class VoiceToTextFeature {
         }
     }
 
+    /** {@code config/killer560/social/voicetotext/killer560smod-voice-model/}: the model folder and the engine jar. */
+    private static Path voiceDirectory() {
+        return ModPaths.config("killer560smod-voice-model");
+    }
+
     private static Path modelDirectory() {
-        return ModPaths.config("killer560smod-voice-model").resolve(MODEL_DIR_NAME);
+        return voiceDirectory().resolve(MODEL_DIR_NAME);
     }
 
     /** Caps for the Vosk model archive (2026-09-16 security pass). The real small-English model is about
@@ -415,12 +439,8 @@ public final class VoiceToTextFeature {
      *  model is confirmed loaded) so any native-library problem surfaces as a caught {@link Throwable}
      *  at the one real call site above, not anywhere else in this class. */
     private static String transcribe(byte[] audio) throws Exception {
-        org.vosk.Model model = (org.vosk.Model) loadedModel;
-        try (org.vosk.Recognizer recognizer = new org.vosk.Recognizer(model, 16000f)) {
-            recognizer.acceptWaveForm(audio, audio.length);
-            String json = recognizer.getFinalResult();
-            var parsed = JsonParser.parseString(json).getAsJsonObject();
-            return parsed.has("text") ? parsed.get("text").getAsString() : null;
-        }
+        String json = vosk.recognize(loadedModel, 16000f, audio);
+        var parsed = JsonParser.parseString(json).getAsJsonObject();
+        return parsed.has("text") ? parsed.get("text").getAsString() : null;
     }
 }
