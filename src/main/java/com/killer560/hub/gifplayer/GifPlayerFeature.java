@@ -251,7 +251,7 @@ public final class GifPlayerFeature {
         });
     }
 
-    /** Called every frame from {@link com.killer560.hub.gifplayer.mixin.GifPlayerGuiMixin}. */
+    /** Called every frame from {@link com.killer560.hub.hud.GuiOverlays}. */
     public static void renderOverlay(GuiGraphicsExtractor graphics) {
         if (!initialLoadDone) {
             initialLoadDone = true;

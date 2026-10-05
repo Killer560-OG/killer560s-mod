@@ -193,7 +193,7 @@ public final class DvdFeature {
         }
     }
 
-    /** Called every frame from {@link com.killer560.hub.dvd.mixin.DvdGuiMixin}. */
+    /** Called every frame from {@link com.killer560.hub.hud.GuiOverlays}. */
     public static void renderOverlay(GuiGraphicsExtractor graphics) {
         if (!initialSyncDone) {
             initialSyncDone = true;

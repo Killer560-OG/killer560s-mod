@@ -271,7 +271,7 @@ public final class ExperimentsFeature {
         });
     }
 
-    /** Called every frame from {@link com.killer560.hub.experiments.mixin.ExperimentsGuiMixin}. Real
+    /** Called every frame from {@link com.killer560.hub.hud.GuiOverlays}. Real
      *  bug found and fixed (2026-09-07), per killer560's report that "chronomatron still never shows any
      *  type of solver at all" (same for Ultrasequencer/Superpairs): this used to draw the highlight
      *  overlay directly, but that's the SAME early {@code Gui}-level HUD pass already found and fixed
@@ -281,7 +281,7 @@ public final class ExperimentsFeature {
      *  solver logic (SOLVER.observe(), the known-item tracking, etc.) was working correctly the whole
      *  time. Now a no-op - the highlight call moved to {@link #renderStartButtonOverContainer}, the
      *  same later container-screen pass the button already uses. Left in place (rather than removing
-     *  the mixin registration) since {@code ExperimentsGuiMixin} still calls this every frame. */
+     *  the mixin registration) since {@code GuiOverlays} still calls this every frame. */
     public static void renderOverlay(GuiGraphicsExtractor graphics) {
     }
 

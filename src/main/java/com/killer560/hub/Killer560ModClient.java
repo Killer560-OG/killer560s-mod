@@ -256,6 +256,8 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(com.killer560.hub.ap3.Ap3Feature.STOPWATCH_HUD);
         com.killer560.hub.ap3.Ap3EditInput.register();
         com.killer560.hub.ap3.Ap3Commands.register();
+        // Seven always-on overlays, formerly Gui mixins that crashed 26.2 at startup (see GuiOverlays).
+        com.killer560.hub.hud.GuiOverlays.register();
         com.killer560.hub.ap3.Ap3Keybinds.register();
         com.killer560.hub.leapcounter.LeapCounterFeature.register();
         com.killer560.hub.armourdye.ArmourDyeFeature.register();

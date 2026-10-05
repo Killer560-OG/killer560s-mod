@@ -7,7 +7,7 @@ package com.killer560.hub.notify;
  * {@code tick()} - on killer560's heavily modded client that counter was draining far faster than 3
  * real seconds (observed: barely visible at all), which only makes sense if something in that
  * modlist is calling client ticks far more often than 20/sec, e.g. tied to render framerate
- * instead of the fixed logical tick rate. Rendered by {@link com.killer560.hub.notify.mixin.GuiMixin}
+ * instead of the fixed logical tick rate. Rendered by {@link com.killer560.hub.hud.GuiOverlays}
  * at the exact same screen position vanilla uses for its own overlay message
  * ({@code (guiWidth/2, guiHeight - 68)}, confirmed via {@code javap} on the real 26.1.2 jar).
  */

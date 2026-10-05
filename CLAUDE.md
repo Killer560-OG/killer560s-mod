@@ -199,6 +199,11 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   broke only the 26.2 build of `a4e563a`. The same commit also broke 26.1.2 with
   `SoundEvents.ELDER_GUARDIAN_HURT.value()`: only some `SoundEvents` are holders (`NOTE_BLOCK_PLING`,
   `GENERIC_EXPLODE`); mob sounds like `BLAZE_HURT` are plain `SoundEvent`s. Copy the shape of an existing use.
+- **A mixin that compiles on 26.2 can still crash 26.2 at startup.** Mixin descriptors are only checked when the
+  game loads, so `@Inject(method = "extractRenderState")` on `Gui` with 26.1.2's `(GuiGraphicsExtractor, DeltaTracker)`
+  built fine and crashed every 26.2 launch (26.2's is `(DeltaTracker, boolean, boolean)`). Seven overlays did it until
+  2026-10-04; they are now Fabric HUD layers in `hud/GuiOverlays`. A 26.2 change is not done until a 26.2 boot ran:
+  the testkit's `run-scenario.ps1 -Scenario smoke -Minecraft 26.2` does it unattended.
 - **A cloud session CAN check far more than it parses.** `javac -XDshould-stop.ifNoError=PARSE` only checks
   syntax, which is why `List<Integer> pool = live;` shipped into a method whose own parameter was already called
   `pool` and broke the build. Run the FULL compile on each changed file and filter the noise instead - without
