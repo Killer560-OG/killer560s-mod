@@ -19,5 +19,6 @@ javac -nowarn -proc:none -cp "$GSON$SEP$SLF" -d build/rotationaudit \
   src/main/java/com/killer560/hub/roomsim/RoomTileAudit.java \
   src/main/java/com/killer560/hub/roomsim/SimFloorLayout.java \
   src/main/java/com/killer560/hub/roomsim/RoomDoors.java \
+  src/main/java/com/killer560/hub/roomsim/SimWitherDoors.java \
   tools/layoutsim/LayoutSim.java tools/layoutsim/RotationAudit.java
 java "$@" -cp "build/rotationaudit$SEP$GSON$SEP$SLF" RotationAudit src/main/resources/assets/killer560smod/rooms

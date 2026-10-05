@@ -142,8 +142,115 @@ public final class RoomDoors {
         return fresh;
     }
 
+    /**
+     * The tile edges of a room's perimeter a doorway can be CARVED through and walked both ways: a 3x4 opening cut
+     * at the doorway floor (y69, where every carve in the sim lands) reaches three blocks in from the seam, and
+     * {@code SimDoors.carveDoorway} floors it; this asks whether, past the cut, the room has somewhere to stand
+     * within one block of that floor - solid underfoot, nothing in the feet and head blocks. In the capture's own
+     * frame, so rotate it with {@link #rotate} exactly like the doorway mask.
+     *
+     * <p>For {@code SimFloorLayout}'s last-resort fill, which carves a door through a neighbour's wall where the
+     * neighbour has no doorway. Measured 2026-10-04 with tools/bench/FloorBench over 40 floors: 27 rooms were put
+     * in that way, and clicks into or out of 8 of them failed for the etherwarp planner - Criss Cross through the
+     * Entrance landed against its two-block platform, Rail Track through Three Floors in a drop - which was 54 of
+     * the 88 clicks the Interactive Map's planner failed.
+     */
+    public static Mask carvable(String name) {
+        if (name == null) {
+            return null;
+        }
+        Mask cached = CARVABLE.get(name);
+        if (cached != null) {
+            return cached;
+        }
+        RoomLibrary.Room room = RoomLibrary.get(name);
+        if (room == null || !room.usable()) {
+            return null;
+        }
+        int tilesX = Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1));
+        int tilesZ = Math.max(1, (room.sizeZ - 1) / (RoomLibrary.TILE + 1));
+        int m = room.margin;
+        Set<Integer> edges = new LinkedHashSet<>();
+        for (int i = 0; i < tilesX; i++) {
+            int cx = m + RoomLibrary.TILE / 2 + i * (RoomLibrary.TILE + 1);
+            if (standBehind(room, cx, m, 1, 0, 0, 1)) {
+                edges.add(edge(NORTH, i));
+            }
+            if (standBehind(room, cx, room.sizeZ - 1 - m, 1, 0, 0, -1)) {
+                edges.add(edge(SOUTH, i));
+            }
+        }
+        for (int j = 0; j < tilesZ; j++) {
+            int cz = m + RoomLibrary.TILE / 2 + j * (RoomLibrary.TILE + 1);
+            if (standBehind(room, m, cz, 0, 1, 1, 0)) {
+                edges.add(edge(WEST, j));
+            }
+            if (standBehind(room, room.sizeX - 1 - m, cz, 0, 1, -1, 0)) {
+                edges.add(edge(EAST, j));
+            }
+        }
+        Mask fresh = new Mask(tilesX, tilesZ, edges);
+        CARVABLE.put(name, fresh);
+        return fresh;
+    }
+
+    /** The doorway floor every sim carve finds (SimDoors.findFloor, measured at y69 on every bench door). */
+    private static final int CARVE_FLOOR_Y = 69;
+
+    private static final Map<String, Mask> CARVABLE = new ConcurrentHashMap<>();
+
+    /**
+     * From the wall at {@code (wallX, wallZ)}, stepping inwards by {@code (inX, inZ)}: along any of the opening's three
+     * columns ({@code (alongX, alongZ)}), a floor he can walk on from three blocks in from the wall (the first one
+     * the carve does not reach) to six, starting within one block of the carve's floor and never stepping more
+     * than one block up or down. A one-block ledge in front of a pit (Jumping Skulls) does not count.
+     */
+    private static boolean standBehind(RoomLibrary.Room room, int wallX, int wallZ, int alongX, int alongZ,
+                                       int inX, int inZ) {
+        for (int w = -1; w <= 1; w++) {
+            int feet = CARVE_FLOOR_Y;
+            boolean ok = true;
+            for (int in = 3; in <= 6 && ok; in++) {
+                int x = wallX + inX * in + alongX * w;
+                int z = wallZ + inZ * in + alongZ * w;
+                ok = false;
+                for (int k : new int[]{0, 1, -1}) {
+                    int f = feet + k;
+                    if (!isOpen(room, x, f - 1, z) && isOpen(room, x, f, z) && isOpen(room, x, f + 1, z)) {
+                        feet = f;
+                        ok = true;
+                        break;
+                    }
+                }
+            }
+            if (ok) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Air, or something a player walks through. A never-read block is NOT open here (unlike isDoorway). */
+    private static boolean isOpen(RoomLibrary.Room room, int x, int y, int z) {
+        if (x < 0 || z < 0 || x >= room.sizeX || z >= room.sizeZ || y < room.minY || y > room.maxY) {
+            return false;
+        }
+        short idx = room.blocks[room.index(x, y, z)];
+        if (idx < 0 || idx >= room.palette.size()) {
+            return false;
+        }
+        String state = room.palette.get(idx);
+        int bracket = state.indexOf('[');
+        String id = bracket < 0 ? state : state.substring(0, bracket);
+        return id.endsWith(":air") || id.endsWith("_air") || id.endsWith("carpet") || id.endsWith("torch")
+                || id.endsWith("_button") || id.endsWith(":lever") || id.endsWith("_sign") || id.endsWith("rail")
+                || id.endsWith(":vine") || id.endsWith(":ladder") || id.endsWith(":short_grass")
+                || id.endsWith(":tall_grass") || id.endsWith(":cobweb") || id.endsWith("_pressure_plate");
+    }
+
     /** Forgets every measurement. Called when the library is reloaded, or the masks would outlive their rooms. */
     public static void clearCache() {
+        CARVABLE.clear();
         CACHE.clear();
     }
 

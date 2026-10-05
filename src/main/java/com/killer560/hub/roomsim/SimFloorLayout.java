@@ -294,7 +294,7 @@ public final class SimFloorLayout {
             // need be (an Entrance floor whose long path is all big rooms reaches its 19 cells with no 1x1 left).
             Filler f = new Filler(floor, pool, 0, best.reached(), rng);
             f.only = c -> isTrap(c.name(), c.type());
-            if (f.strictOnce() || f.carveOnce()) {
+            if (f.strictOnce() || f.carveOnce() || f.carveOnce(false)) {
                 LOGGER.info("Sim floor: the trap went into an empty cell");
                 floor = new Floor(f.rooms, f.links, f.open, floor.bloodDepth(), floor.spine());
             } else {
@@ -461,6 +461,8 @@ public final class SimFloorLayout {
                 carved++;
             } else if (f.rewireOnce(true)) {
                 rewired++;
+            } else if (f.carveOnce(false)) {
+                carved++;
             } else {
                 break;
             }
@@ -661,8 +663,19 @@ public final class SimFloorLayout {
             return false;
         }
 
-        /** Step 3: a 1x1 whose own doorway faces a neighbour, the door carved through that neighbour's wall. */
+        /**
+         * Step 3: a 1x1 whose own doorway faces a neighbour, the door carved through that neighbour's wall - only
+         * where the cut lands on floor he can walk (RoomDoors.carvable). {@link #carveOnce(boolean)} with false is
+         * the last resort that carves anyway, so the cell, trap and puzzle guarantees hold as they did.
+         */
         boolean carveOnce() {
+            return carveOnce(true);
+        }
+
+        /** How many doors were carved without a walkable floor behind them (the unchecked last resort). */
+        int carvedBlind;
+
+        boolean carveOnce(boolean checked) {
             for (int cell = 0; cell < GRID * GRID; cell++) {
                 if (occupied[cell] >= 0) {
                     continue;
@@ -676,6 +689,9 @@ public final class SimFloorLayout {
                             || (tryNo < 4 && "ENTRANCE".equalsIgnoreCase(nb.type()))) {
                         continue;   // blood and a puzzle have exactly one way in; the green room only as a last resort
                     }
+                    if (checked && !carvableFrom(nb, cx, cz, side)) {
+                        continue;   // the cut would open onto a wall, a platform or a drop - RoomDoors.carvable
+                    }
                     for (Candidate c : order) {
                         if (c.area(0) != 1 || !available(c) || forbiddenPair(c.type(), nb.type())) {
                             continue;
@@ -683,7 +699,9 @@ public final class SimFloorLayout {
                         for (int r = 0; r < 4; r++) {
                             if (c.byRotation()[r].edges().contains(RoomDoors.edge(side, 0))) {
                                 commitFill(c, r, cx, cz, side);
-                                carvedNotes.add(c.name() + " at " + cx + "," + cz + " through " + nb.name());
+                                carvedNotes.add(c.name() + " at " + cx + "," + cz + " through " + nb.name()
+                                        + (checked ? "" : " (NOT a walkable cut - nothing else fitted)"));
+                                carvedBlind += checked ? 0 : 1;
                                 return true;
                             }
                         }
@@ -691,6 +709,24 @@ public final class SimFloorLayout {
                 }
             }
             return false;
+        }
+
+        /**
+         * Whether a door carved from the empty cell {@code (cx, cz)} into its neighbour {@code nb} on {@code side}
+         * lands somewhere he can walk in and back out of: {@link RoomDoors#carvable} at nb's placed rotation, on
+         * the wall facing the empty cell. A room it cannot measure is refused.
+         */
+        private boolean carvableFrom(Placement nb, int cx, int cz, int side) {
+            RoomDoors.Mask m = RoomDoors.carvable(nb.name());
+            if (m == null) {
+                return false;
+            }
+            m = RoomDoors.rotate(m, nb.rotation());
+            int wall = (side + 2) % 4;
+            int nx = cx + RoomDoors.DX[side];
+            int nz = cz + RoomDoors.DZ[side];
+            int index = wall == RoomDoors.NORTH || wall == RoomDoors.SOUTH ? nx - nb.originX() : nz - nb.originZ();
+            return m.has(wall, index);
         }
 
         private void commitFill(Candidate c, int r, int ox, int oz, int forcedSide) {
@@ -902,7 +938,7 @@ public final class SimFloorLayout {
             Filler f = new Filler(out, pool, wanted, pinnedNames, rng);
             f.only = c -> "PUZZLE".equalsIgnoreCase(c.type());
             int added = 0;
-            while (f.puzzlesOwed > 0 && (f.strictOnce() || f.carveOnce())) {
+            while (f.puzzlesOwed > 0 && (f.strictOnce() || f.carveOnce() || f.carveOnce(false))) {
                 added++;
             }
             have += added;
