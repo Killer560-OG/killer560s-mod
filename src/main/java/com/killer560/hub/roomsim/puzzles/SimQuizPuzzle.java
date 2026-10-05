@@ -655,7 +655,9 @@ public final class SimQuizPuzzle {
         // the options squashed onto one row satisfies. The options go out one per line now, raw, which is how
         // Oruo sends them; the "[Sim]" header above them is still there to say where they came from.
         ModChat.send("Sim", ModChat.text(pendingQuestion));
-        raw(client, "[STATUE] Oruo the Omniscient: " + pendingQuestion);
+        // Hypixel sends the question as a centred line with NOTHING in front (his own Hypixel logs, 2026-10-04:
+        // "                 What SkyBlock year is it?"), and the solver is anchored to that since f40ec89.
+        raw(client, "           " + pendingQuestion);
         String[] lines = pendingOptions;
         // The QUESTION FIRST, then the options, and never the other way round: the solver only marks an option
         // correct when it already knows the question's answers, so an option line that arrives first is read
