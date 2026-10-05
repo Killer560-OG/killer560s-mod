@@ -128,3 +128,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   run against a sample line). The older health/mana/defence patterns only escape it because their codes are letters.
 - `IslandDetector.graphIsland()` is null off any known island (sim, lobby, singleplayer), and `Set.of(...).contains(null)`
   throws. MiningProfitTracker did that every tick once trackers went on by default; null-check before any `Set.of` lookup.
+- **Every GUI `fill` costs more than its pixels.** Each one becomes a render-state element with its own matrix copy and
+  screen rectangle, and vanilla's `GuiRenderState.hasIntersection` scans the node's existing elements for each
+  one added, so a HUD that draws a shape a pixel row at a time is quadratic in rows. The Custom Scoreboard border
+  (two fills per pixel row) was 6% of the render thread and most of its allocation; merged into runs of equal rows
+  it is a handful of fills with identical pixels (2026-10-05). Draw runs, not rows - and when merging, keep the
+  rects non-overlapping or a translucent colour blends twice.
+- Measure FPS work with the testkit's `95-fps-bench` (sim F7, ON/OFF alternated, frame and tick CPU time, JFR dumps;
+  `tools/fps-jfr.py` attributes samples to mod code). Compare the ON-OFF DELTA within one run: absolute numbers
+  drifted ~0.06 ms between identical runs, which is larger than most single fixes.
