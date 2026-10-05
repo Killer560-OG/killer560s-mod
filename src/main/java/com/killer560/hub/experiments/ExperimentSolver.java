@@ -154,9 +154,6 @@ final class ExperimentSolver {
      *  its click resolves - confirmed or not - since a lone last-resort spend can never complete a real
      *  match by itself regardless of outcome, unlike every other queuedPairSlots entry. */
     private Integer superpairsSingleSpendSlot;
-    /** Item key of the last tile a last-resort spend clicked - so the next spend never lands on the same KIND of a
-     *  skipped reward (two same-kind clicks in a row is a claim; see {@link #isUserSkipped}). */
-    private String superpairsLastSpendKey;
     /** Per killer560's request: scan the grid top-left to bottom-right in a full snake/boustrophedon
      *  pattern (row 1 left-to-right, row 2 right-to-left, and so on) rather than a flat row-major
      *  scan, so pairs get queued in that visible order. */
@@ -993,6 +990,13 @@ final class ExperimentSolver {
         // explore or match under the normal (possibly XP-skipping) rules, don't waste remaining
         // clicks - fall back to matching whatever dye pairs were skipped, highest stack count first.
         if (boardFullyExplored) {
+            // Skipped rewards are LAST priority, not forbidden (killer560, 2026-10-05: "if it reaches the end with
+            // clicks left then it can collect those, but I do not want it prioritizing them before everything is
+            // unveiled"). Only now - board explored, every other pair taken - and ahead of plain XP.
+            OptionalInt skippedMatch = matchSkippedPair();
+            if (skippedMatch.isPresent()) {
+                return skippedMatch;
+            }
             if (valuableOnly) {
                 OptionalInt dyeMatch = matchHighestValueDyePair();
                 if (dyeMatch.isPresent()) {
@@ -1016,12 +1020,6 @@ final class ExperimentSolver {
         for (int slot : SUPERPAIRS_SNAKE_ORDER) {
             if (queuedPairSlots.contains(slot)) continue;
             if (knownSuperpairsCells.containsKey(slot)) {
-                Cell candidate = knownSuperpairsCells.get(slot);
-                String key = candidate.itemId() + "|" + candidate.name();
-                // A spend right after one on the same kind would claim that pair - fine for anything else (it is
-                // what a lucky spend does), never for a reward he chose to skip.
-                if (isUserSkipped(candidate) && key.equals(superpairsLastSpendKey)) continue;
-                superpairsLastSpendKey = key;
                 queuedPairSlots.add(slot);
                 // See superpairsSingleSpendSlot's doc (real bug found 2026-09-24): this slot has no
                 // known partner - mark it so observeSuperpairs frees it again once the click resolves,
@@ -1034,6 +1032,30 @@ final class ExperimentSolver {
                         slot, known.itemId(), known.name());
                 return OptionalInt.of(slot);
             }
+        }
+        return OptionalInt.empty();
+    }
+
+    /** A known pair of a skipped reward kind ({@link #isUserSkipped}), queued exactly like a normal pair - used only
+     *  once the board is fully explored. */
+    private OptionalInt matchSkippedPair() {
+        Map<String, List<Cell>> byKey = new HashMap<>();
+        for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+            Cell cell = knownSuperpairsCells.get(slot);
+            if (cell == null || queuedPairSlots.contains(slot) || !isUserSkipped(cell)) continue;
+            byKey.computeIfAbsent(cell.itemId() + "|" + cell.name(), k -> new ArrayList<>()).add(cell);
+        }
+        for (List<Cell> group : byKey.values()) {
+            if (group.size() < 2) continue;
+            int first = group.get(0).slot();
+            int second = group.get(1).slot();
+            queuedPairSlots.add(first);
+            queuedPairSlots.add(second);
+            pairClicks.add(second);
+            superpairsPairFirstSlot = first;
+            LOGGER.info("Superpairs: board explored, collecting skipped reward pair slot {} with slot {} (name='{}')",
+                    first, second, group.get(0).name());
+            return OptionalInt.of(first);
         }
         return OptionalInt.empty();
     }
@@ -1129,8 +1151,10 @@ final class ExperimentSolver {
 
     /**
      * A reward tile he chose never to claim (killer560, 2026-10-05: "skip grand exp bottles (not titanics just
-     * grands)" and "skipping guardian pets of all rarities", two separate switches). Never paired and never the
-     * target of a matching powerup; an unpaired reveal claims nothing, so revealing it while exploring is fine.
+     * grands)" and "skipping guardian pets of all rarities", two separate switches). LAST priority, not forbidden:
+     * never paired or a powerup's target while the board is being explored, then collected by
+     * {@link #matchSkippedPair} once everything is unveiled if clicks are left ("if it reaches the end with clicks
+     * left then it can collect those"). An unpaired reveal claims nothing, so revealing it while exploring is fine.
      * By NAME, colour codes already stripped: "Grand Experience Bottle" (a Titanic is "Titanic Experience
      * Bottle", so it can't match), and any pet tile whose name holds "Guardian" (every rarity shares the name).
      */
@@ -1189,7 +1213,6 @@ final class ExperimentSolver {
         superpairsPowerupPending = false;
         superpairsPowerupActivationSlot = null;
         superpairsSingleSpendSlot = null;
-        superpairsLastSpendKey = null;
         superpairsAwaitingConfirmSlot = null;
         superpairsAwaitingConfirmPriorCell = null;
         superpairsAwaitingConfirmSinceMs = 0;
