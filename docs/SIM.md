@@ -1388,6 +1388,13 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   "Skyblock Only" feature in the sim depends on that.
 - The pause screen's Change Room button is a vanilla `Button` placed 4 px under the lowest button in the centre
   column, read from the screen's widgets, instead of pinned to `height - 46`.
+- **Routes filter and "Next room with no routes" (2026-10-05)** live in `SimRoomRoutes`. Eligible = the room
+  database entry exists, type is not PUZZLE/BLOOD/ENTRANCE/FAIRY, `secrets > 0` (113 of his 135; every CHAMPION room
+  has 0 secrets so they drop out too). "Has routes" = `RouteStore.forRoom(name)` has at least one node; library names
+  and database names match for all 135, and routes are stored room-relative, so there is no rotation key to worry
+  about. The pause-menu button only appears when exactly one room is placed and the floor is not generated
+  (`currentSoloRoom`), sits under Change Room, and shares its row at half width when the window is too short.
+  `belowVanillaColumn` must skip it, or a resize stacks Change Room under it. Testkit scenario 97 proves both.
 
 ## The 2026-10-04 Map Logger round: damage, the key, crypts, landings and the sidebar
 

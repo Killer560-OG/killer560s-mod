@@ -142,8 +142,9 @@ public class SimMenuScreen extends Screen {
         int gap = 4;
         int shapeW = widestShapeLabel() + BUTTON_PAD;
         int puzzleW = this.font.width("Puzzles") + BUTTON_PAD;
+        int routesW = widestRoutesLabel() + BUTTON_PAD;
         int right = panelX + panelW - 20;
-        search = new EditBox(this.font, x, y, right - x - shapeW - puzzleW - gap * 2, 18,
+        search = new EditBox(this.font, x, y, right - x - shapeW - puzzleW - routesW - gap * 3, 18,
                 Component.literal("Search"));
         search.setHint(Component.literal("Search rooms..."));
         search.setResponder(v -> {
@@ -151,6 +152,17 @@ public class SimMenuScreen extends Screen {
             refreshRoomList();
         });
         addRenderableWidget(search);
+        // killer560 (2026-10-05): sort the rooms by whether they have secret routes, so swapping to one that
+        // still needs routing is not a scroll through the whole list. Remembered across restarts. The two
+        // filtered views leave out puzzles, Blood, Entrance, Fairy and 0-secret rooms - see SimRoomRoutes.
+        SimRoomRoutes.Filter routes = SimRoomRoutes.getFilter();
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal(
+                routes == SimRoomRoutes.Filter.ALL ? "§7" + routes.label : "§6" + routes.label), b -> {
+                    SimRoomRoutes.setFilter(SimRoomRoutes.getFilter().next());
+                    scroll = 0;
+                    refreshRoomList();
+                    rebuildWidgets();
+                }).bounds(right - routesW - gap - shapeW - gap - puzzleW, y, routesW, 18).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal(shape.label), b -> {
             shape = ShapeFilter.values()[(shape.ordinal() + 1) % ShapeFilter.values().length];
             refreshRoomList();
@@ -172,6 +184,14 @@ public class SimMenuScreen extends Screen {
     private int widestShapeLabel() {
         int widest = 0;
         for (ShapeFilter f : ShapeFilter.values()) {
+            widest = Math.max(widest, this.font.width(f.label));
+        }
+        return widest;
+    }
+
+    private int widestRoutesLabel() {
+        int widest = 0;
+        for (SimRoomRoutes.Filter f : SimRoomRoutes.Filter.values()) {
             widest = Math.max(widest, this.font.width(f.label));
         }
         return widest;
@@ -209,10 +229,34 @@ public class SimMenuScreen extends Screen {
             if (room != null && !shapeMatches(room)) {
                 continue;
             }
+            if (!SimRoomRoutes.matches(name, SimRoomRoutes.getFilter())) {
+                continue;
+            }
             out.add(name);
         }
         listed = out;
         listedWithDatabase = com.killer560.hub.roomdatabase.RoomDatabase.isReady();
+    }
+
+    /** The text at the right of a room's row, or null for a room the routes view leaves out and has no route. */
+    static String routeMarker(String name) {
+        int nodes = SimRoomRoutes.routeNodes(name);
+        if (nodes > 0) {
+            return nodes + (nodes == 1 ? " node" : " nodes");
+        }
+        return SimRoomRoutes.isEligible(name) ? "no routes" : null;
+    }
+
+    /** What the room list shows right now, in order. For the testkit; the screen itself reads the field. */
+    public List<String> listedRooms() {
+        return List.copyOf(listed);
+    }
+
+    /** Opens straight on "Load a Room", for the testkit. */
+    public static SimMenuScreen roomPicker(Screen parent) {
+        SimMenuScreen screen = new SimMenuScreen(parent);
+        screen.mode = Mode.ROOM;
+        return screen;
     }
 
     private boolean shapeMatches(RoomLibrary.Room room) {
@@ -275,7 +319,8 @@ public class SimMenuScreen extends Screen {
                     : "Pick what to practise";
             g.text(this.font, hint, panelX + 20, panelY + 42, ProfitPanels.DIM, false);
         } else if (mode == Mode.ROOM || mode == Mode.PREVIOUS) {
-            if (mode == Mode.ROOM && puzzlesOnly
+            boolean needsDatabase = puzzlesOnly || SimRoomRoutes.getFilter() != SimRoomRoutes.Filter.ALL;
+            if (mode == Mode.ROOM && needsDatabase
                     && com.killer560.hub.roomdatabase.RoomDatabase.isReady() != listedWithDatabase) {
                 refreshRoomList();
             }
@@ -287,7 +332,7 @@ public class SimMenuScreen extends Screen {
             try {
                 if (listed.isEmpty()) {
                     String none = mode != Mode.ROOM ? "No saved runs yet"
-                            : puzzlesOnly && !listedWithDatabase ? "Loading the room database..."
+                            : needsDatabase && !listedWithDatabase ? "Loading the room database..."
                             : "No rooms match";
                     g.text(this.font, none, panelX + 14, top + 6, ProfitPanels.DIM, false);
                 }
@@ -296,7 +341,24 @@ public class SimMenuScreen extends Screen {
                     if (rowY > top + h) {
                         break;
                     }
-                    g.text(this.font, this.font.plainSubstrByWidth(listed.get(i), panelW - 28),
+                    if (rowY + 14 < top) {
+                        continue;
+                    }
+                    String name = listed.get(i);
+                    int nameRoom = panelW - 28;
+                    if (mode == Mode.ROOM) {
+                        // Each room's Auto Routes at a glance: green node count when it has a route, a dim
+                        // "no routes" when it is one worth routing that has none, nothing for the rooms the
+                        // routes view leaves out (puzzles, Blood, Entrance, Fairy, 0 secrets).
+                        String marker = routeMarker(name);
+                        if (marker != null) {
+                            int mw = this.font.width(marker);
+                            int colour = SimRoomRoutes.routeNodes(name) > 0 ? 0xFF55FF55 : ProfitPanels.DIM;
+                            g.text(this.font, marker, panelX + panelW - 14 - mw, rowY, colour, false);
+                            nameRoom -= mw + 8;
+                        }
+                    }
+                    g.text(this.font, this.font.plainSubstrByWidth(name, nameRoom),
                             panelX + 14, rowY, ProfitPanels.TEXT, false);
                 }
             } finally {
