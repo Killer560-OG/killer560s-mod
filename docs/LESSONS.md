@@ -108,7 +108,15 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   HUD Scale (Home tab, `globalScale` in `killer560smod-hud.json`). The HUD editor scrolls and saves the OWN scale and
   draws at the product. Until 2026-10-04 three Gui mixins (Ability Timers, Dungeon Info, Etherwarp Waypoints) drew at
   `resolvePosition` with no scale at all, so resizing them in the editor never showed in game - a draw site that skips
-  `resolveScale` silently opts out of both scales.
+  `resolveScale` silently opts out of both scales. Since 2026-10-05 the product also includes Auto Scale
+  (`hud/AutoScale`, via `HudConfig.getEffectiveGlobalScale`), and SAVED positions are baseline units drawn at
+  `saved * factor` - so a draw site that reads `HudConfig.getPosition` directly instead of `resolvePosition`, or saves a
+  dragged position without `HudElementRegistry.toSaved`, lands in the wrong place on any monitor but 2560x1440 / GUI 3.
+- The mod's own screens are laid out at `guiSize / factor` and drawn under a pose scale (`hud/mixin/AutoScaleScreenMixin`);
+  every GUI mouse coordinate, drag deltas and the render mouseX/Y included, passes through the static
+  `MouseHandler.getScaledXPos/YPos(Window, double)` (javap 26.1.2 and 26.2), which `AutoScaleMouseMixin` divides. So a mod
+  screen must take its size from `this.width/height`, never from `getWindow().getGuiScaledWidth()`, and must read the mouse
+  from its event arguments, never from `mouseHandler.xpos()`.
 - A `FolderTab` section that is pinned (always open, no header) is never in `expanded`, so
   `findListeningKeyCaptureTab` did not ask it: Home's "Edit HUD Keybind" sat on "Press any key..." forever. Pinned
   sections are now checked first.
@@ -120,3 +128,26 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   run against a sample line). The older health/mana/defence patterns only escape it because their codes are letters.
 - `IslandDetector.graphIsland()` is null off any known island (sim, lobby, singleplayer), and `Set.of(...).contains(null)`
   throws. MiningProfitTracker did that every tick once trackers went on by default; null-check before any `Set.of` lookup.
+- **Every GUI `fill` costs more than its pixels.** Each one becomes a render-state element with its own matrix copy and
+  screen rectangle, and vanilla's `GuiRenderState.hasIntersection` scans the node's existing elements for each
+  one added, so a HUD that draws a shape a pixel row at a time is quadratic in rows. The Custom Scoreboard border
+  (two fills per pixel row) was 6% of the render thread and most of its allocation; merged into runs of equal rows
+  it is a handful of fills with identical pixels (2026-10-05). Draw runs, not rows - and when merging, keep the
+  rects non-overlapping or a translucent colour blends twice.
+- Measure FPS work with the testkit's `95-fps-bench` (sim F7, ON/OFF alternated, frame and tick CPU time, JFR dumps;
+  `tools/fps-jfr.py` attributes samples to mod code). Compare the ON-OFF DELTA within one run: absolute numbers
+  drifted ~0.06 ms between identical runs, which is larger than most single fixes.
+- **26.2 sorts QUADS only.** `StagedVertexBuffer.appendDraw` throws "Cannot sort draw with LINES" for any non-QUADS
+  topology given a sorting (javap 26.2), so a `RenderType` built with `.sortOnUpload()` on `LINES_SNIPPET` crashes the
+  first frame it draws. 26.1.2 accepted it. Solver ESP's through-walls lines did this; sort lines through
+  `McRender.sortLinesOnUpload` (2026-10-05). `DEBUG_FILLED_SNIPPET` is QUADS on 26.2, so the filled types are fine.
+- **On 26.2 a PEACEFUL level hides every hostile mob from the client.** `ClientPacketListener.handleAddEntity` goes
+  through `EntityType.create` -> `canSpawn`, which refuses a type not `isAllowedInPeaceful` while the level reads
+  PEACEFUL ("Skipping Entity with id entity.minecraft.silverfish"; javap 26.2). The server has the mob, the client never
+  does. The sim world is EASY since 2026-10-05 for this; it keeps him fed itself (`SimSurvival`).
+- `ClearExecutor.etherPath` / `AutoPuzzleUtil.pathIfMapOn` want the block to LAND ON (solid, two air above), the same
+  position `AutoReposition.start` takes - not `.above()`. Given the air the planner logs "is not etherwarpable ...
+  Nothing searched" and the map says "Failed after 0ms". Auto Blaze and Auto Ice Path both passed `.above()` until
+  2026-10-05.
+- A step that closes a menu and sends a command must time out if the screen it waits for never opens. Auto E-Table's
+  Guardian swap closed the table, sent /pets, and waited forever when nothing opened; it now gives up after 10 s.

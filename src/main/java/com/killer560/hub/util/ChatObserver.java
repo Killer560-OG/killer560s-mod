@@ -189,9 +189,19 @@ public final class ChatObserver {
         return false;
     }
 
+    /**
+     * Exactly {@link ChatFormatting#stripFormatting} (null in, null out), without its regex when the string holds no
+     * section sign - which is nearly always: tab-list and scoreboard Components carry their colour in Style, so
+     * {@code getString()} has no codes in it. Several tick handlers strip every tab entry every tick; the regex's
+     * Matcher and replaceAll were most of that (95-fps-bench JFR, 2026-10-05).
+     */
+    public static String stripCodes(String raw) {
+        return raw == null || raw.indexOf('§') < 0 ? raw : ChatFormatting.stripFormatting(raw);
+    }
+
     public static String strip(Component message) {
         String raw = message.getString();
-        String plain = ChatFormatting.stripFormatting(raw);
+        String plain = stripCodes(raw);
         return plain == null ? raw : plain;
     }
 
@@ -201,7 +211,7 @@ public final class ChatObserver {
         if (raw == null) {
             return "";
         }
-        String plain = ChatFormatting.stripFormatting(raw);
+        String plain = stripCodes(raw);
         return (plain == null ? raw : plain).trim();
     }
 }

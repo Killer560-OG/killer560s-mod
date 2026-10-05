@@ -186,9 +186,12 @@ public final class InventoryHudFeature {
                             graphics.fill(cx, cy, cx + cell - 1, cy + cell - 1, slotBg);
                         } else {
                             graphics.fill(cx + 1, cy + 1, cx + cell - 1, cy + cell - 1, slotBg);
-                            graphics.outline(cx, cy, cell, cell, slotBorder);
                         }
                     }
+                }
+                if (!cfg.isMiniMode()) {
+                    drawSlotGrid(graphics, x + pad, y + pad, cfg.isVertical() ? ROWS : COLS,
+                            cfg.isVertical() ? COLS : ROWS, cell, slotBorder);
                 }
             }
         }
@@ -250,6 +253,36 @@ public final class InventoryHudFeature {
         // lost by never reaching solid black here.
         if (opacity < 100) {
             graphics.fill(x, y, x + w, y + h, withAlpha(0x000000, (100 - opacity) * 4 / 5));
+        }
+    }
+
+    /**
+     * Every slot's 1px outline ({@code cell} x {@code cell} at each grid position, as vanilla {@code outline} draws
+     * it: a full-width top and bottom row and the two sides between them) as whole grid lines: one fill per
+     * horizontal line (two adjacent slots' bottom and top rows together) and one per vertical segment (two adjacent
+     * slots' right and left columns together). The same pixels with no overlaps, so a translucent colour blends
+     * the same - (rows + 1) + rows * (cols + 1) fills (34 for the 3x9 grid) instead of 108, each a GUI element
+     * that pays vanilla's intersection scan (95-fps-bench JFR, 2026-10-05).
+     */
+    private static void drawSlotGrid(GuiGraphicsExtractor graphics, int x0, int y0, int cols, int rows, int cell,
+                                     int color) {
+        int right = x0 + cols * cell;
+        int bottom = y0 + rows * cell;
+        graphics.fill(x0, y0, right, y0 + 1, color);
+        for (int r = 1; r < rows; r++) {
+            int ly = y0 + r * cell;
+            graphics.fill(x0, ly - 1, right, ly + 1, color);
+        }
+        graphics.fill(x0, bottom - 1, right, bottom, color);
+        for (int r = 0; r < rows; r++) {
+            int top = y0 + r * cell + 1;
+            int bot = y0 + (r + 1) * cell - 1;
+            graphics.fill(x0, top, x0 + 1, bot, color);
+            for (int c = 1; c < cols; c++) {
+                int lx = x0 + c * cell;
+                graphics.fill(lx - 1, top, lx + 1, bot, color);
+            }
+            graphics.fill(right - 1, top, right, bot, color);
         }
     }
 

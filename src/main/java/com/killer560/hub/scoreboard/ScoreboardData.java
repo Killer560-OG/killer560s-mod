@@ -144,7 +144,7 @@ public final class ScoreboardData {
         }
         String start = formatted(team.getPlayerPrefix(), true);
         String owner = entry.owner();
-        String ownerPlain = ChatFormatting.stripFormatting(owner);
+        String ownerPlain = com.killer560.hub.util.ChatObserver.stripCodes(owner);
         // Hypixel's owners are invisible colour-code-only names; only keep a real, visible owner (other servers).
         if (ownerPlain != null && !ownerPlain.isBlank()) {
             start = start + owner;
@@ -213,13 +213,13 @@ public final class ScoreboardData {
         for (PlayerInfo info : infos) {
             Component name = overlay.getNameForDisplay(info);
             String f = removeResets(formatted(name, true));
-            String p = ChatFormatting.stripFormatting(name.getString());
+            String p = com.killer560.hub.util.ChatObserver.stripCodes(name.getString());
             fmt.add(f);
             plain.add(p == null ? "" : p);
         }
         tabPlain = Collections.unmodifiableList(plain);
         tabFormatted = Collections.unmodifiableList(fmt);
-        String footerPlain = footer == null ? "" : ChatFormatting.stripFormatting(footer.getString());
+        String footerPlain = footer == null ? "" : com.killer560.hub.util.ChatObserver.stripCodes(footer.getString());
         tabFooterPlain = footerPlain == null ? "" : footerPlain;
     }
 
@@ -228,7 +228,7 @@ public final class ScoreboardData {
         if (message == null) {
             return;
         }
-        String plain = ChatFormatting.stripFormatting(message.getString());
+        String plain = com.killer560.hub.util.ChatObserver.stripCodes(message.getString());
         actionBarPlain = plain == null ? "" : plain;
         actionBarAtMs = System.currentTimeMillis();
     }

@@ -27,6 +27,12 @@ public final class RealTimeFeature {
     private static String cachedPatternKey;
     private static DateTimeFormatter cachedFormatter;
 
+    private static String cachedText;
+    private static long cachedSecond;
+    private static ZoneId cachedZone;
+    private static DateTimeFormatter cachedTextFormatter;
+    private static boolean cachedLabel;
+
     private RealTimeFeature() {
     }
 
@@ -39,8 +45,24 @@ public final class RealTimeFeature {
 
     /** Full HUD line, e.g. "Real Time: 09:41 PM EDT". */
     public static String buildText(RealTimeConfig cfg) {
-        String time = ZonedDateTime.now(currentZone(cfg)).format(formatter(cfg));
-        return cfg.isShowLabel() ? LABEL + time : time;
+        // The finest thing the pattern shows is a second, so within one wall-clock second (same zone, pattern and
+        // label) the text cannot differ - reuse it instead of a ZonedDateTime + format + concat every frame.
+        long nowMs = System.currentTimeMillis();
+        long second = Math.floorDiv(nowMs, 1000L);
+        ZoneId zone = currentZone(cfg);
+        DateTimeFormatter formatter = formatter(cfg);
+        boolean label = cfg.isShowLabel();
+        if (cachedText != null && second == cachedSecond && zone.equals(cachedZone) && formatter == cachedTextFormatter
+                && label == cachedLabel) {
+            return cachedText;
+        }
+        String time = ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(nowMs), zone).format(formatter);
+        cachedText = label ? LABEL + time : time;
+        cachedSecond = second;
+        cachedZone = zone;
+        cachedTextFormatter = formatter;
+        cachedLabel = label;
+        return cachedText;
     }
 
     /** Short zone name (e.g. "CDT") for the given zone right now. */

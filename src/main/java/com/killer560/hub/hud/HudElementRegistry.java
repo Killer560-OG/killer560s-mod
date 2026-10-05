@@ -10,18 +10,26 @@ import com.killer560.hub.compat.McCompat;
 public final class HudElementRegistry {
 
     private static final List<HudElement> ELEMENTS = new ArrayList<>();
+    /** id -> the FIRST registered element with that id (what the old linear {@link #byId} scan returned). */
+    private static final java.util.Map<String, HudElement> BY_ID = new java.util.HashMap<>();
+    /** Bumped on every register/unregister, so a per-frame caller can cache what it derives from {@link #all()}. */
+    private static int version;
 
     private HudElementRegistry() {
     }
 
     public static void register(HudElement element) {
         ELEMENTS.add(element);
+        BY_ID.putIfAbsent(element.id(), element);
+        version++;
     }
 
     /** Removes a previously registered element (e.g. a GIF that's been toggled off) so it stops
      *  showing up in the HUD editor and being rendered. */
     public static void unregister(String id) {
         ELEMENTS.removeIf(e -> e.id().equals(id));
+        BY_ID.remove(id);
+        version++;
         CLAMP_MEMOS.remove(id);
         HudSeen.forget(id);
     }
@@ -30,17 +38,16 @@ public final class HudElementRegistry {
         return ELEMENTS;
     }
 
-    /** @return the registered element with this id, or null. Indexed loop rather than a Stream because the
-     *  per-frame Gui hooks look their own element up on every single frame (2026-09-20, FPS pass) - a
-     *  filter/findFirst pipeline there allocates a Stream, an Optional and a capturing lambda each time. */
+    /** Changes whenever the element list does. */
+    public static int version() {
+        return version;
+    }
+
+    /** @return the registered element with this id, or null. A map lookup: the per-frame HUD layers look their
+     *  own element up every frame, and the linear scan over ~100 elements that replaced a Stream here on
+     *  2026-09-20 was still 1.5% of the render thread in the 95-fps-bench JFR (2026-10-05). */
     public static HudElement byId(String id) {
-        for (int i = 0; i < ELEMENTS.size(); i++) {
-            HudElement e = ELEMENTS.get(i);
-            if (e.id().equals(id)) {
-                return e;
-            }
-        }
-        return null;
+        return BY_ID.get(id);
     }
 
     /**
@@ -62,12 +69,38 @@ public final class HudElementRegistry {
         boolean saved = cfg.hasPosition(element.id());
         int[] pos = cfg.getPosition(element.id(), element.defaultX(), element.defaultY());
         try {
-            return saved ? rescueIfInvisible(element, pos) : memoisedClamp(element, pos);
+            if (saved) {
+                // Auto Scale (2026-10-05): a saved position is in BASELINE GUI pixels - the units of his 2560x1440 /
+                // GUI 3 monitor, where it was dragged - and is drawn at that times the factor, so the layout keeps
+                // its relative placement and every element stays the same fraction of the window. Where the factor
+                // is not 1 the scaled box is clamped fully on screen (memoised, so no per-frame width() calls):
+                // positions placed on a different screen shape must not end up hanging off an edge. At factor 1 the
+                // old rule stands - a deliberate half-off-screen placement is his to keep.
+                float f = AutoScale.current();
+                if (f != 1.0f) {
+                    return memoisedClamp(element, Math.round(pos[0] * f), Math.round(pos[1] * f), null);
+                }
+                return rescueIfInvisible(element, pos);
+            }
+            // Defaults are NOT multiplied: several are computed from the live screen size already (the Storage
+            // Overlay centres itself), and they are clamped on screen below anyway.
+            return memoisedClamp(element, pos);
         } catch (RuntimeException e) {
             // A window that isn't ready yet or a width()/height() that throws must never break rendering -
             // fall back to the raw position, exactly what this method returned before the clamp existed.
             return pos;
         }
+    }
+
+    /** Inverse of the Auto Scale step in {@link #resolvePosition} ({@code saved * factor}): what the HUD editor
+     *  stores for a box it dropped at screen position {@code x,y}, so that drawing it back gives the same spot.
+     *  Identity when Auto Scale is off or the factor is 1. */
+    public static int[] toSaved(int x, int y) {
+        float f = AutoScale.current();
+        if (f == 1.0f) {
+            return new int[]{x, y};
+        }
+        return new int[]{Math.round(x / f), Math.round(y / f)};
     }
 
     /**
@@ -105,13 +138,19 @@ public final class HudElementRegistry {
     private static final java.util.Map<String, ClampMemo> CLAMP_MEMOS = new java.util.HashMap<>();
 
     private static int[] memoisedClamp(HudElement element, int[] pos) {
+        return memoisedClamp(element, pos[0], pos[1], pos);
+    }
+
+    /** {@code pos} may be null: the Auto Scale path passes the scaled x/y as ints and only allocates the array when
+     *  the memo misses, so a scaled, unchanged element costs no allocation per frame (same rule as getPosition). */
+    private static int[] memoisedClamp(HudElement element, int rawX, int rawY, int[] pos) {
         int[] screen = screenSize();
         if (screen == null) {
-            return pos;
+            return pos != null ? pos : new int[]{rawX, rawY};
         }
         float scale = resolveScale(element);
         ClampMemo memo = CLAMP_MEMOS.get(element.id());
-        if (memo != null && memo.rawX == pos[0] && memo.rawY == pos[1] && memo.scale == scale
+        if (memo != null && memo.rawX == rawX && memo.rawY == rawY && memo.scale == scale
                 && memo.screenW == screen[0] && memo.screenH == screen[1]
                 // Within the TTL nothing needs re-measuring; beyond it, only an element that is actually
                 // live (or being previewed in the HUD editor, where a disabled element draws demo content
@@ -124,8 +163,11 @@ public final class HudElementRegistry {
             memo = new ClampMemo();
             CLAMP_MEMOS.put(element.id(), memo);
         }
-        memo.rawX = pos[0];
-        memo.rawY = pos[1];
+        if (pos == null) {
+            pos = new int[]{rawX, rawY};
+        }
+        memo.rawX = rawX;
+        memo.rawY = rawY;
         memo.scale = scale;
         memo.screenW = screen[0];
         memo.screenH = screen[1];
@@ -134,10 +176,34 @@ public final class HudElementRegistry {
         return memo.result;
     }
 
-    /** The scale {@code element} is DRAWN at: its own scale times the global HUD scale. Every draw site, the clamp
+    /**
+     * Draws {@code element} in game at its HUD-editor position and scale ({@link #resolvePosition},
+     * {@link #resolveScale}): push, translate, scale, {@code render(graphics, 0, 0)}, pop. A throw from the element is
+     * swallowed so one broken element never takes the rest of the HUD frame down, and the pose is always popped.
+     * The one shared copy of what a dozen draw sites each spelled out by hand until 2026-10-05.
+     */
+    public static void drawAt(net.minecraft.client.gui.GuiGraphicsExtractor graphics, HudElement element) {
+        if (element == null) {
+            return;
+        }
+        int[] pos = resolvePosition(element);
+        float scale = resolveScale(element);
+        graphics.pose().pushMatrix();
+        try {
+            graphics.pose().translate(pos[0], pos[1]);
+            graphics.pose().scale(scale, scale);
+            element.render(graphics, 0, 0);
+        } catch (RuntimeException e) {
+            // One broken element must never take down the whole HUD frame.
+        } finally {
+            graphics.pose().popMatrix();
+        }
+    }
+
+    /** The scale {@code element} is DRAWN at: its own scale times the global HUD scale times Auto Scale. Every draw site, the clamp
      *  and the editor's box use this, so they all measure the same box (see the width() lesson in docs/LESSONS.md). */
     public static float resolveScale(HudElement element) {
-        return elementScale(element) * HudConfig.getInstance().getGlobalScale();
+        return elementScale(element) * HudConfig.getInstance().getEffectiveGlobalScale();
     }
 
     /** The element's own stored scale, without the global multiplier - what the HUD editor scrolls and saves. */

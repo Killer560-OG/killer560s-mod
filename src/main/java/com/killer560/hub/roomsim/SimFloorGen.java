@@ -220,6 +220,16 @@ public final class SimFloorGen {
                     ModChat.dim("the shipped rooms did not load (see the log)."));
             return null;
         }
+        // Room TYPES come from the room database (typeOf); before it has loaded every room reads NORMAL, so the
+        // layout has no Entrance, Blood, Fairy, Trap or puzzle to place and quietly hands back a floor without them
+        // (testkit 73: "ENTRANCE #104: no blood room on the floor", and "-1 room(s) to blood" on a third of the
+        // floors planned in that client, 2026-10-05). Same rule as the live map: do not judge rooms before isReady.
+        if (!RoomDatabase.isReady()) {
+            RoomDatabase.ensureLoading();
+            ModChat.send("Sim", ModChat.text("The room database is still loading - "),
+                    ModChat.dim("try again in a few seconds (without it no room is known to be the Entrance or Blood)."));
+            return null;
+        }
         usable = capChampions(usable, pinned);
 
         int wantRooms = Math.min(floor.rooms, ROOM_GRID * ROOM_GRID);

@@ -168,18 +168,7 @@ public final class BloodCampFeature {
                 || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
-        int[] pos = com.killer560.hub.hud.HudElementRegistry.resolvePosition(element);
-        float scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(element);
-        graphics.pose().pushMatrix();
-        try {
-            graphics.pose().translate(pos[0], pos[1]);
-            graphics.pose().scale(scale, scale);
-            element.render(graphics, 0, 0);
-        } catch (RuntimeException e) {
-            // One broken element must never take down the whole HUD frame.
-        } finally {
-            graphics.pose().popMatrix();
-        }
+        com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, element);
     }
 
     private static boolean isActive() {

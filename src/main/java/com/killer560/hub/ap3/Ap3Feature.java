@@ -981,16 +981,7 @@ public final class Ap3Feature {
             if (client.player == null || McCompat.hudHidden(client) || HudVisibility.menuOpen() || !cfg.isEnabled() || !cfg.isStopwatchHud()) {
                 return;
             }
-            int[] pos = HudElementRegistry.resolvePosition(STOPWATCH_HUD);
-            float scale = HudElementRegistry.resolveScale(STOPWATCH_HUD);
-            graphics.pose().pushMatrix();
-            try {
-                graphics.pose().translate(pos[0], pos[1]);
-                graphics.pose().scale(scale, scale);
-                STOPWATCH_HUD.render(graphics, 0, 0);
-            } finally {
-                graphics.pose().popMatrix();
-            }
+            HudElementRegistry.drawAt(graphics, STOPWATCH_HUD);
         } catch (RuntimeException e) {
             // never take the HUD frame down over a stopwatch
         }

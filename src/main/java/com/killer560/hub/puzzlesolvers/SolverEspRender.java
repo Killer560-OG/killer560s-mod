@@ -52,13 +52,14 @@ public final class SolverEspRender {
         // a solver's line (Blaze's kill-order lines, Water Board's/Teleport Maze's tracers, Ice Fill/Ice
         // Path's path lines...) could get flushed to the GPU in an arbitrary order relative to vanilla's
         // own translucent water pass despite having no depth test, letting water's alpha blend on top of
-        // an already-drawn line instead of the other way around. Matches FILLED's own sorted buffer now.
+        // an already-drawn line instead of the other way around. Matches FILLED's own sorted buffer now - on 26.1.2
+        // only: 26.2 refuses to sort anything but quads and crashed the frame (McRender.sortLinesOnUpload).
         static final RenderType LINES = RenderType.create("killer560smod_solver_lines_through_walls",
-                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
+                McRender.sortLinesOnUpload(RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
                         .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/solver_lines_through_walls"))
                         .withCull(false)
                         .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).sortOnUpload().createRenderSetup());
+                        .build()))).createRenderSetup());
 
         static final RenderType FILLED = RenderType.create("killer560smod_solver_filled_through_walls",
                 RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)

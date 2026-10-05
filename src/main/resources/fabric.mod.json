@@ -75,7 +75,8 @@
     "killer560smod-relay.mixins.json",
     "killer560smod-petwheel.mixins.json",
     "killer560smod-classselection.mixins.json",
-    "killer560smod-roomsim.mixins.json"
+    "killer560smod-roomsim.mixins.json",
+    "killer560smod-hud.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.3",

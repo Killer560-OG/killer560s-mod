@@ -158,7 +158,7 @@ public final class DungeonInfoFeature {
                 continue;
             }
             String raw = display.getString();
-            String plain = ChatFormatting.stripFormatting(raw);
+            String plain = com.killer560.hub.util.ChatObserver.stripCodes(raw);
             if (plain == null || !plain.contains("Secrets Found")) {
                 continue;
             }

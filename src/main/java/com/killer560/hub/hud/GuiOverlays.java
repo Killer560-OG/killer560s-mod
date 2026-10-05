@@ -43,18 +43,18 @@ public final class GuiOverlays {
             // Chat stays see-through (killer560: "dont make it hide the gui if i open chat"); the HUD editor
             // draws the element itself.
             if (!HudVisibility.menuOpen()) {
-                drawElement(graphics, HudElementRegistry.byId("ability_timers"));
+                HudElementRegistry.drawAt(graphics, HudElementRegistry.byId("ability_timers"));
             }
         });
         add("dungeon_info", graphics -> {
             if (!HudVisibility.menuOpen()) {
-                drawElement(graphics, HudElementRegistry.byId("dungeon_info"));
+                HudElementRegistry.drawAt(graphics, HudElementRegistry.byId("dungeon_info"));
             }
         });
         add("etherwarp_waypoints", graphics -> {
             HudElement element = HudElementRegistry.byId("etherwarp_waypoints");
             if (element instanceof EtherwarpHudElement e && e.isVisible()) {
-                drawElement(graphics, element);
+                HudElementRegistry.drawAt(graphics, element);
             }
         });
     }
@@ -62,23 +62,6 @@ public final class GuiOverlays {
     private static void add(String path, java.util.function.Consumer<GuiGraphicsExtractor> draw) {
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", path), (graphics, deltaTracker) -> draw.accept(graphics));
-    }
-
-    /** At the element's HUD-editor position and scale (own x global HUD scale), like every other HUD element. */
-    private static void drawElement(GuiGraphicsExtractor graphics, HudElement element) {
-        if (element == null) {
-            return;
-        }
-        int[] pos = HudElementRegistry.resolvePosition(element);
-        float scale = HudElementRegistry.resolveScale(element);
-        graphics.pose().pushMatrix();
-        try {
-            graphics.pose().translate(pos[0], pos[1]);
-            graphics.pose().scale(scale, scale);
-            element.render(graphics, 0, 0);
-        } finally {
-            graphics.pose().popMatrix();
-        }
     }
 
     /** {@link ModOverlayMessage}, centred on screen and word-wrapped to two thirds of its width (2026-09-07), in
@@ -93,13 +76,24 @@ public final class GuiOverlays {
             plain = message;
         }
         Font font = Minecraft.getInstance().font;
-        int wrapWidth = graphics.guiWidth() * 2 / 3;
+        // Auto Scale: the popup is laid out on a canvas 1/f the size of the GUI area and drawn scaled by f, so it
+        // is the same fraction of the window on every monitor and still centred and wrapped to two thirds.
+        float f = AutoScale.current();
+        int canvasW = AutoScale.layoutSize(graphics.guiWidth(), f);
+        int canvasH = AutoScale.layoutSize(graphics.guiHeight(), f);
+        int wrapWidth = canvasW * 2 / 3;
         List<FormattedCharSequence> lines = font.split(Component.literal(plain), wrapWidth);
         int totalHeight = lines.size() * font.lineHeight;
-        int centerX = graphics.guiWidth() / 2;
-        int startY = (graphics.guiHeight() - totalHeight) / 2;
-        for (int i = 0; i < lines.size(); i++) {
-            graphics.centeredText(font, lines.get(i), centerX, startY + i * font.lineHeight, THEME_ORANGE);
+        int centerX = canvasW / 2;
+        int startY = (canvasH - totalHeight) / 2;
+        graphics.pose().pushMatrix();
+        try {
+            graphics.pose().scale(f, f);
+            for (int i = 0; i < lines.size(); i++) {
+                graphics.centeredText(font, lines.get(i), centerX, startY + i * font.lineHeight, THEME_ORANGE);
+            }
+        } finally {
+            graphics.pose().popMatrix();
         }
     }
 }

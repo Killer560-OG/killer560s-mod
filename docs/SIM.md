@@ -2193,6 +2193,20 @@ were the SIM's and three were the autos'; each is named at its fix.
   blaze from one spot, the simulated arrow clearing the ledge he stood on and the real ones dying in it. (Requiring
   the shot to be clean from the vanilla arrow origin, eye - 0.1, as well as QUOI's was tried and refused every spot
   in Lower Blaze, so the give-up is the fix.)
+- **Blaze, still an out-of-order kill about one run in twenty (2026-10-05, night-blaze):** the safety check traced each
+  arrow until it touched a box and counted a touch of the TARGET as safe. One arrow kills a blaze and an arrow passes
+  through a dying one, so whichever of the three killed the target first, the others flew on. Measured with the sim's
+  new per-kill attribution ("blaze N of 10 died (due: k) ... killed by shot #S centre / yaw-5 side / yaw+5 side
+  arrow"): 31 of 160 and 52 of 206 kills were made by a side arrow, and the one fail in 36 baseline runs was shot #9's
+  centre arrow killing blaze 5 at tick 4 and its +5 arrow - "safe" because it reached blaze 5's box - killing blaze 10
+  at tick 6. Now every arrow (centre and both sides) is traced to where it lands with the target treated as absent, and
+  must miss every other blaze; the centre one must still reach the target first. This is the auto, so it holds on
+  Hypixel too.
+- **Sim: Terminator arrows were saved with the world.** One still in the air when the world closed came back on the
+  next load as a plain arrow with its 10,000 damage and kept flying; in back-to-back Lower Blaze runs two saved arrows
+  rising out of the shaft fell back down it and killed a chain blaze within two seconds of the build, before Auto Blaze
+  was on (2 of 15 runs). `TerminatorArrow.shouldBeSaved()` is false now, and a plain DISALLOWED-pickup arrow (one an
+  older jar saved) is refused and discarded by the damage hook.
 - **Creeper Beams, "times out, then never shoots again":** the timeout was the slot fault above. After it, the shots
   were aimed with `etherwarpDirection` - a SNEAKING eye whatever his stance, at QUOI's face-edge sample points - so
   standing up after the cancelled reposition every shot missed its lantern. Shots now aim from the real eye at the
@@ -2278,3 +2292,42 @@ Lessons that only concerned the recorder, kept here in brief:
   load check asked at -64 captured nothing on Hypixel from 2026-09-29 to 2026-10-04. Clamp the y first.
 - Capture skips seen columns, so a complete room is never re-read without explicitly emptying it (the old
   `rescan`), and the shipped copy must not win over a room being rescanned.
+
+## The map's etherwarp: block changes, cheaper aims, a denser graph (2026-10-05, night-path)
+
+killer560 again: "only a few ms every time and prioritize using as few warps as physically possible."
+
+**A block change dropped a third of the floor graph.** His 2026-10-04 Map Logger log has three clicks (18:07:53,
+18:07:57, 18:08:14) that fell back to room by room with 39-40 warps where the warm graph gave 17-22: a block change
+had made warm-up run again, and a click in that window got 40 ms without the exact heuristic. One door change
+dropped 2,000-5,900 of the floor's ~15,000 nodes, because a node was thrown away if any ray of it read any of the
+changed SECTION's 4,096 blocks, or if a landing appeared or went in any column it took candidates from. Now
+`LevelEtherGrid` reports the box of the blocks whose flags changed and `WarpGraph.blocksChanged` re-checks only the
+aims whose cone from the eye into the target passes near it, aims at landings that appeared and drops the ones that
+went, on the warm-up workers. `FloorBench -Dchangecheck` expands every node from scratch after each change and
+compares: 0 mismatches. (Found on the way: a bucket's landings are listed under the column its FIRST block is in,
+which the old column check missed at chunk edges.) A click on a floor that was warm finishes the re-warm first
+(fields are built in parallel, and there is no re-seed after a change that only moved edges), never gets the 40 ms
+cold budget, and skips room by room when the warm graph proves there is no way (a closed door) - `[Path] not a
+proof of no way because: ...` when it cannot prove it. `FloorBench -Dchanges=8` (clicks right after a door seals or
+opens): fell back 98 of 192 -> 0, warps 14.17 -> 8.44 (= a fresh graph), median 43 -> 1.3 ms.
+
+**Aims.** Failing 18-point aims were ~70% of warm-up's rays. `EtherSearch.aimPast` skips an aim point whose line
+passes through the inside of a block that already stopped a line to the same target: same answers (edge counts
+identical), 44-71% fewer rays.
+
+**Density.** Bucket 3 -> 2 and partial aims from 0.3 of the way instead of 0.6: whole floors 8.26 -> 8.04 warps; on
+the clicks the every-landing full-aim reference runs on, 8.19 -> 8.01 against its 7.81. Bucket 1 reaches the
+reference (7.89 vs 7.88) but its clicks take 11-14 ms at p95 and it holds 12M edges, so it is not used.
+
+**Clicks.** Exact goals stop their backward search after 3,000 nodes and bound the rest through per-cell fields
+(fewest warps into each 32 x 32 cell's column, built with the tile fields); ties among equal bounds go deep first.
+Whole floors, warm: median 0.65 ms, p95 3.6, p99 7.2.
+
+**In game** (testkit scenario `95-sim-map-warp`, three runs on generated F7s): warm-up 4.6-4.9 s of planner time for
+21-22k nodes; 17 presses across the floor planned in 0.2-5.3 ms, 1-17 warps, every one moved him 23-160 blocks into
+the clicked room with the arrival confirmed; a press right after stone was placed beside him planned in 0.7-0.8 ms on
+the graph. **On Hypixel:** the same code; a door opening there is a block change like any other.
+
+Not fixed: before the floor's FIRST warm-up completes (about 5 s after the floor loads) a click still gets 40 ms on
+the partial graph and then room by room.
