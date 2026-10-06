@@ -52,6 +52,8 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
     }
 
     private boolean capturing;
+    /** The key being captured is the Autopilot's, not Auto Secret's. */
+    private boolean capturingPilot;
 
     public AutoClearTab() {
         super("Auto Clear");
@@ -75,9 +77,15 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
             return;
         }
         AutoSecretConfig cfg = AutoSecretConfig.getInstance();
-        cfg.setToggleKey(keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : KeyUtil.sanitize(keyCode));
+        int key = keyCode == InputConstants.KEY_ESCAPE ? KeyUtil.NONE : KeyUtil.sanitize(keyCode);
+        if (capturingPilot) {
+            cfg.setAutopilotKey(key);
+        } else {
+            cfg.setToggleKey(key);
+        }
         cfg.save();
         capturing = false;
+        capturingPilot = false;
     }
 
     @Override
@@ -91,9 +99,14 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
             return;
         }
         AutoSecretConfig cfg = AutoSecretConfig.getInstance();
-        cfg.setToggleKey(KeyUtil.codeForMouseButton(button));
+        if (capturingPilot) {
+            cfg.setAutopilotKey(KeyUtil.codeForMouseButton(button));
+        } else {
+            cfg.setToggleKey(KeyUtil.codeForMouseButton(button));
+        }
         cfg.save();
         capturing = false;
+        capturingPilot = false;
     }
 
     // ---- layout ----
@@ -109,6 +122,30 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         int right = Math.max(1, contentWidth - half - GAP);
         int[] y = {contentY};
 
+        // Dungeon Autopilot: Auto Secret, Auto Clear and Auto Puzzles under one planner (its rows first - it drives the rest).
+        header(w, contentX, y, contentWidth, "Dungeon Autopilot");
+        w.add(SettingsButtonWidget.builder(pilotRunText(), btn -> {
+            AutoSecretFeature.toggleAutopilot();
+            requestRebuild.run();
+        }).bounds(contentX, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.builder(pilotKeyText(cfg), btn -> {
+            capturing = true;
+            capturingPilot = true;
+            btn.setMessage(Component.literal("Autopilot Key: §ePress any key..."));
+        }).bounds(contentX + half + GAP, y[0], right, 20).build());
+        y[0] += ROW;
+        w.add(SettingsButtonWidget.builder(runModeText(cfg), btn -> {
+            AutoSecretConfig.RunMode[] all = AutoSecretConfig.RunMode.values();
+            cfg.setRunMode(all[(cfg.getRunMode().ordinal() + 1) % all.length]);
+            cfg.save();
+            btn.setMessage(runModeText(cfg));
+        }).bounds(contentX, y[0], half, 20).build());
+        toggle(w, contentX + half + GAP, y[0], right, "Blood First", cfg::isBloodFirst, cfg::setBloodFirst);
+        y[0] += ROW;
+        toggle(w, contentX, y[0], half, "Do Puzzles", cfg::isDoPuzzles, cfg::setDoPuzzles);
+        toggle(w, contentX + half + GAP, y[0], right, "Autopilot HUD", cfg::isAutopilotHud, cfg::setAutopilotHud);
+        y[0] += ROW;
+
         header(w, contentX, y, contentWidth, "Auto Secret");
         w.add(SettingsButtonWidget.builder(runText(), btn -> {
             AutoSecretFeature.toggle();
@@ -116,6 +153,7 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         }).bounds(contentX, y[0], half, 20).build());
         w.add(SettingsButtonWidget.builder(keyText(cfg), btn -> {
             capturing = true;
+            capturingPilot = false;
             btn.setMessage(Component.literal("Auto Secret Key: §ePress any key..."));
         }).bounds(contentX + half + GAP, y[0], right, 20).build());
         y[0] += ROW;
@@ -154,12 +192,28 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
 
     // ---- helpers ----
 
+    private static Component pilotRunText() {
+        return Component.literal("Autopilot: " + (AutoSecretFeature.isAutopilot() ? "§aRunning" : "§cStopped"));
+    }
+
+    private Component pilotKeyText(AutoSecretConfig cfg) {
+        if (capturing && capturingPilot) {
+            return Component.literal("Autopilot Key: §ePress any key...");
+        }
+        int key = cfg.getAutopilotKey();
+        return Component.literal("Autopilot Key: " + (key == KeyUtil.NONE ? "§7Not Set" : "§e" + KeyUtil.bindDisplayName(key)));
+    }
+
+    private static Component runModeText(AutoSecretConfig cfg) {
+        return Component.literal("Run Mode: §e" + cfg.getRunMode().label());
+    }
+
     private static Component runText() {
         return Component.literal("Auto Secret: " + (AutoSecretFeature.isRunning() ? "§aRunning" : "§cStopped"));
     }
 
     private Component keyText(AutoSecretConfig cfg) {
-        if (capturing) {
+        if (capturing && !capturingPilot) {
             return Component.literal("Auto Secret Key: §ePress any key...");
         }
         int key = cfg.getToggleKey();

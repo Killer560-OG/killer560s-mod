@@ -48,8 +48,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -143,6 +145,8 @@ public final class ScoreCalculatorFeature {
     private static boolean loggedTabMiss = false;
     private static ScoreCalculator.Result lastResult = null;
     private static ScoreCalculator.Inputs lastInputs = null;
+    /** Each named puzzle row of the tab list ("Ice Fill: [✔]"), lower-case name -> ✔ ✖ or ✦. Replaced whole each poll. */
+    private static volatile Map<String, Character> puzzleStates = Map.of();
 
     // ---- Paul (shared across runs) ----
     private static volatile Boolean fetchedPaul = null;
@@ -217,6 +221,7 @@ public final class ScoreCalculatorFeature {
         loggedTabMiss = false;
         lastResult = null;
         lastInputs = null;
+        puzzleStates = Map.of();
         LOGGER.info("[ScoreCalc] New dungeon run tracked (floor={})", DungeonState.getFloor());
     }
 
@@ -321,6 +326,7 @@ public final class ScoreCalculatorFeature {
         int failedPuzzles = 0;
         boolean sawPuzzleHeader = false;
         boolean matchedAny = false;
+        Map<String, Character> states = new HashMap<>();
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             Component display = info.getTabListDisplayName();
             if (display == null) {
@@ -349,6 +355,9 @@ public final class ScoreCalculatorFeature {
                 puzzleCount = parseInt(m.group(1), puzzleCount);
                 sawPuzzleHeader = true;
             } else if ((m = TAB_PUZZLE.matcher(plain)).matches()) {
+                if (!"???".equals(m.group(1))) {
+                    states.put(m.group(1).trim().toLowerCase(Locale.ROOT), m.group(2).charAt(0));
+                }
                 if ("✔".equals(m.group(2))) {
                     completedPuzzles++;
                 } else if ("✖".equals(m.group(2))) {
@@ -359,6 +368,7 @@ public final class ScoreCalculatorFeature {
         if (sawPuzzleHeader || completedPuzzles > 0 || failedPuzzles > 0) {
             puzzlesCompleted = completedPuzzles;
             puzzlesFailed = failedPuzzles;
+            puzzleStates = Map.copyOf(states);
         }
         if (matchedAny) {
             // The tab list is server-sent and identical for everyone in the run, so these are SELF facts -
@@ -644,6 +654,28 @@ public final class ScoreCalculatorFeature {
     /** Latest estimate for the current run, or null before the first poll / outside a tracked run. */
     public static ScoreCalculator.Result currentResult() {
         return DungeonState.isInDungeon() ? lastResult : null;
+    }
+
+    /** The inputs behind {@link #currentResult()}, or null. */
+    public static ScoreCalculator.Inputs currentInputs() {
+        return DungeonState.isInDungeon() ? lastInputs : null;
+    }
+
+    /**
+     * A puzzle room's state from the tab list - '✔' done, '✖' failed, '✦' open - or 0 when the tab list does not name
+     * it (not visited yet, Score Calculator off, outside a dungeon). Takes the room database's name: both blaze rooms
+     * are "Higher Or Lower" on Hypixel's tab list.
+     */
+    public static char puzzleState(String roomName) {
+        if (roomName == null || !DungeonState.isInDungeon()) {
+            return 0;
+        }
+        String key = roomName.trim().toLowerCase(Locale.ROOT);
+        if (key.equals("higher blaze") || key.equals("lower blaze")) {
+            key = "higher or lower";
+        }
+        Character c = puzzleStates.get(key);
+        return c == null ? 0 : c;
     }
 
     // ---- read-only accessors for the Dungeon Map's "Extra Info" panel (killer560, 2026-09-27) ----
