@@ -55,6 +55,7 @@ public final class SimWorld {
         // level arrives. Re-asserting it every tick while a build is outstanding is the only thing that
         // survives that, and it costs a null check on the ticks when nothing is building.
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            drainUnload(client);
             if (!buildInProgress) {
                 return;
             }
@@ -77,13 +78,31 @@ public final class SimWorld {
         // (synchronized) and are emptied right here, as early as possible, so the integrated server stops stepping
         // jobs that hold the dying ServerLevel. Everything else - the sim flag, the per-map state the client tick
         // hooks iterate, the tab list, the loading screen - belongs to the render thread and is handed to it.
+        //
+        // Handed over as a FLAG the render thread's own tick drains, not only as a client.execute task: leaving
+        // from the pause menu closes the channel (ClientLevel.disconnect) and THEN calls Minecraft.disconnect, whose
+        // first act is dropAllTasks() (javap, 26.1.2) - so a task queued from this event in between is thrown away.
+        // 97-sim-leave-build lost all five of its resets that way. The task stays for promptness; whichever runs
+        // first takes the flag.
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register(
                 (handler, client) -> {
                     SimBuildQueue.clear();
                     SimBreakerState.reset();
-                    String thread = Thread.currentThread().getName();
-                    client.execute(() -> onWorldUnloaded(client, handler, thread));
+                    PENDING_UNLOAD.set(new Object[]{handler, Thread.currentThread().getName()});
+                    client.execute(() -> drainUnload(client));
                 });
+    }
+
+    /** The connection that closed and the thread it closed on, until the render thread has reset for it. */
+    private static final java.util.concurrent.atomic.AtomicReference<Object[]> PENDING_UNLOAD =
+            new java.util.concurrent.atomic.AtomicReference<>();
+
+    /** Render thread: runs a pending leave's reset, once. */
+    private static void drainUnload(Minecraft client) {
+        Object[] pending = PENDING_UNLOAD.getAndSet(null);
+        if (pending != null) {
+            onWorldUnloaded(client, pending[0], (String) pending[1]);
+        }
     }
 
     /**

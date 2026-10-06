@@ -222,3 +222,9 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - An await met by the chest CLICK (2026-10-05 rules) lets the route warp before the chest's window arrives, which is
   right - Hypixel credits the chest on the click - but the late window then stopped the route ("a screen opened"). A
   container screen within 2 s of our own chest click is now waited under (98b457be; 96-ar-play emulates the late window).
+- **Never read the integrated server's world from the render thread.** A `ServerLevel.getBlockState` in an unloaded chunk
+  loads it synchronously on the CALLER's thread; the sim's `/goto` did that from its command and, in the testkit's lockstep,
+  parked the render thread in `ServerChunkCache.getChunk` for good (jstack, 97-sim-goto-loop, 2026-10-06). Wrap the whole
+  read-then-act in `server.execute`; hand results back with `client.execute`. `ModChat.send` is safe from any thread since
+  then (it hops), but `client.player`/screens/the tab list are not - read `client.player` once into a local if a server
+  task must have the UUID.
