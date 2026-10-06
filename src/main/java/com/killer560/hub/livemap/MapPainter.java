@@ -961,20 +961,7 @@ public final class MapPainter {
                 continue; // unidentified (or, on the legit map, still-unopened) rooms only get a checkmark
             }
             String type = roomType(group);
-            List<String> lines = new ArrayList<>();
-            String secrets = secretsText(group);
-            if (style == 2) {
-                lines.add(secrets);
-            } else {
-                // QUOI renderName: no names on Entrance, Fairy or Blood.
-                if (type.equals("ENTRANCE") || type.equals("FAIRY") || type.equals("BLOOD")) {
-                    continue;
-                }
-                java.util.Collections.addAll(lines, group.nameLines);
-                if (style == 4 && entry.secrets > 0) {
-                    lines.add(secrets);
-                }
-            }
+            List<String> lines = labelLines(style, type, group.nameLines, entry.secrets, secretsText(group), true);
             if (lines.isEmpty()) {
                 continue;
             }
@@ -990,6 +977,48 @@ public final class MapPainter {
                     roomColor(group, LiveMapConfig.getInstance())));
         }
         return LABEL_CACHE;
+    }
+
+    /**
+     * The text lines the live map writes on a room for a Room Labels style (2 secrets, 3 name, 4 name + secrets);
+     * shared so the sim's map designer writes the same lines.
+     *
+     * @param hideSpecialNames the live map writes no name on an Entrance, Fairy or Blood room; the designer keeps
+     *                         them (false) because there the name is how a placed room is told apart
+     * @param secretsText      the "found/total" line, already worked out by the caller
+     */
+    public static List<String> labelLines(int style, String type, String[] nameLines, int secrets,
+                                          String secretsText, boolean hideSpecialNames) {
+        List<String> lines = new ArrayList<>();
+        if (style == 2) {
+            lines.add(secretsText);
+            return lines;
+        }
+        if (hideSpecialNames && (type.equals("ENTRANCE") || type.equals("FAIRY") || type.equals("BLOOD"))) {
+            return lines; // QUOI renderName: no names on Entrance, Fairy or Blood.
+        }
+        java.util.Collections.addAll(lines, nameLines);
+        if (style == 4 && secrets > 0) {
+            lines.add(secretsText);
+        }
+        return lines;
+    }
+
+    /** The secrets line of a room nobody has opened: what {@link #secretsText} gives for a revealed room with
+     *  nothing found, {@code 0/N}, or a bare {@code 0} for a room with no secrets. */
+    public static String unvisitedSecretsText(int secrets) {
+        return secrets <= 0 ? "0" : "0/" + secrets;
+    }
+
+    /** The colour the live map writes an unopened room's text in. */
+    public static int unopenedTextColor() {
+        return stateColor(DungeonMapScanner.STATE_UNOPENED);
+    }
+
+    /** Whether the live map would put a shadow under text of this colour on this fill (its Text Shadow setting,
+     *  or low contrast), so the designer's labels read the way the map's do. */
+    public static boolean labelShadow(LiveMapConfig cfg, int textColor, int fillColor) {
+        return cfg.isTextShadow() || lowContrast(textColor, fillColor);
     }
 
     static String secretsText(LiveMapFeature.RoomGroup group) {
