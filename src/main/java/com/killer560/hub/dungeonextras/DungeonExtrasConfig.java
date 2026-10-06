@@ -124,6 +124,47 @@ public final class DungeonExtrasConfig {
     private boolean breakerAuraSwapBack = true;
     private int breakerAuraSwapBackIdleTicks = 20;
 
+    /**
+     * How picked blocks are drawn (killer560, 2026-10-06: "make an option for dungeon breaker aura to have the blocks
+     * as highlights or as waypoints, waypoints should just show as long as it is in its render distance").
+     * HIGHLIGHT is the original look: depth-tested, brighter once in reach. WAYPOINT draws through walls, out to the
+     * render distance.
+     */
+    public enum BreakerDisplay {
+        HIGHLIGHT("Highlight"), WAYPOINT("Waypoint");
+
+        public final String label;
+
+        BreakerDisplay(String label) {
+            this.label = label;
+        }
+
+        public BreakerDisplay next() {
+            BreakerDisplay[] v = values();
+            return v[(ordinal() + 1) % v.length];
+        }
+    }
+
+    /** Outline (the original look), Fill, or both - "allow an option for them to be outlines, fills, or filled
+     *  outlines" (killer560, 2026-10-06). Applies to either {@link BreakerDisplay}. */
+    public enum BreakerStyle {
+        OUTLINE("Outline"), FILL("Fill"), FILLED_OUTLINE("Filled Outline");
+
+        public final String label;
+
+        BreakerStyle(String label) {
+            this.label = label;
+        }
+
+        public BreakerStyle next() {
+            BreakerStyle[] v = values();
+            return v[(ordinal() + 1) % v.length];
+        }
+    }
+
+    private BreakerDisplay breakerAuraDisplay = BreakerDisplay.HIGHLIGHT;
+    private BreakerStyle breakerAuraStyle = BreakerStyle.OUTLINE;
+
     // Shared automation gate (global; lives here because this config is already in ProfileManager.reloadAllConfigs).
 
     private DungeonExtrasConfig() {
@@ -195,6 +236,8 @@ public final class DungeonExtrasConfig {
                 cfg.breakerAuraSwapDelayTicks = clampInt(o.has("breakerAuraSwapDelayTicks") ? o.get("breakerAuraSwapDelayTicks").getAsInt() : cfg.breakerAuraSwapDelayTicks, 1, 20);
                 cfg.breakerAuraSwapBack = bool(o, "breakerAuraSwapBack", cfg.breakerAuraSwapBack);
                 cfg.breakerAuraSwapBackIdleTicks = clampInt(o.has("breakerAuraSwapBackIdleTicks") ? o.get("breakerAuraSwapBackIdleTicks").getAsInt() : cfg.breakerAuraSwapBackIdleTicks, 5, 100);
+                cfg.breakerAuraDisplay = enumOr(o, "breakerAuraDisplay", BreakerDisplay.class, cfg.breakerAuraDisplay);
+                cfg.breakerAuraStyle = enumOr(o, "breakerAuraStyle", BreakerStyle.class, cfg.breakerAuraStyle);
                 cfg.setBreakerAuraConfigFile(o.has("breakerAuraConfigFile") && o.get("breakerAuraConfigFile").isJsonPrimitive()
                         ? o.get("breakerAuraConfigFile").getAsString() : cfg.breakerAuraConfigFile);
             } catch (Exception e) {
@@ -238,6 +281,8 @@ public final class DungeonExtrasConfig {
             o.addProperty("breakerAuraSwapBack", breakerAuraSwapBack);
             o.addProperty("breakerAuraSwapBackIdleTicks", breakerAuraSwapBackIdleTicks);
             o.addProperty("breakerAuraConfigFile", breakerAuraConfigFile);
+            o.addProperty("breakerAuraDisplay", breakerAuraDisplay.name());
+            o.addProperty("breakerAuraStyle", breakerAuraStyle.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -245,6 +290,16 @@ public final class DungeonExtrasConfig {
 
     private static boolean bool(JsonObject o, String key, boolean def) {
         return o.has(key) ? o.get(key).getAsBoolean() : def;
+    }
+
+    /** A missing, misspelt or non-string value keeps the default instead of throwing - a throw here would reset
+     *  the WHOLE config (load's catch). */
+    private static <E extends Enum<E>> E enumOr(JsonObject o, String key, Class<E> type, E def) {
+        try {
+            return o.has(key) && o.get(key).isJsonPrimitive() ? Enum.valueOf(type, o.get(key).getAsString()) : def;
+        } catch (IllegalArgumentException e) {
+            return def;
+        }
     }
 
     private static float clamp(float v, float min, float max) {
@@ -323,6 +378,10 @@ public final class DungeonExtrasConfig {
     public void setBreakerAuraSwapBack(boolean v) { breakerAuraSwapBack = v; }
     public int getBreakerAuraSwapBackIdleTicks() { return breakerAuraSwapBackIdleTicks; }
     public void setBreakerAuraSwapBackIdleTicks(int v) { breakerAuraSwapBackIdleTicks = clampInt(v, 5, 100); }
+    public BreakerDisplay getBreakerAuraDisplay() { return breakerAuraDisplay; }
+    public void setBreakerAuraDisplay(BreakerDisplay v) { breakerAuraDisplay = v == null ? BreakerDisplay.HIGHLIGHT : v; }
+    public BreakerStyle getBreakerAuraStyle() { return breakerAuraStyle; }
+    public void setBreakerAuraStyle(BreakerStyle v) { breakerAuraStyle = v == null ? BreakerStyle.OUTLINE : v; }
 
     // ---- Shared automation gate (both builds; it only ever delays, never acts) ----
 }

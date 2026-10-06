@@ -193,6 +193,20 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
 
+        // How the picks are drawn (2026-10-06): Highlight (the original, depth-tested) or Waypoint (through walls,
+        // out to the render distance), each as Outline / Fill / Filled Outline.
+        widgets.add(SettingsButtonWidget.builder(displayText(cfg), btn -> {
+                    cfg.setBreakerAuraDisplay(cfg.getBreakerAuraDisplay().next());
+                    cfg.save();
+                    btn.setMessage(displayText(cfg));
+                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
+                    cfg.setBreakerAuraStyle(cfg.getBreakerAuraStyle().next());
+                    cfg.save();
+                    btn.setMessage(styleText(cfg));
+                }).bounds(col2bX, y, col2W, 18).build());
+        y += 20;
+
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Swap", cfg.isBreakerAuraAutoSwap()), btn -> {
                     cfg.setBreakerAuraAutoSwap(!cfg.isBreakerAuraAutoSwap());
                     cfg.save();
@@ -256,6 +270,14 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
 
     private static Component cooldownText(DungeonExtrasConfig cfg) {
         return Component.literal("Cooldown: " + cfg.getBreakerAuraCooldownTicks() + " ticks");
+    }
+
+    private static Component displayText(DungeonExtrasConfig cfg) {
+        return Component.literal("Display: §6" + cfg.getBreakerAuraDisplay().label);
+    }
+
+    private static Component styleText(DungeonExtrasConfig cfg) {
+        return Component.literal("Box Style: §6" + cfg.getBreakerAuraStyle().label);
     }
 
     private static Component onOff(String label, boolean value) {

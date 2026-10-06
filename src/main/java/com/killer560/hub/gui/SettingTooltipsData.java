@@ -1696,6 +1696,8 @@ final class SettingTooltipsData {
         d.put("breaker aura/zero ping", "Broken blocks vanish on your screen instantly instead of waiting for the server (cheat build only).");
         d.put("breaker aura/cooldown", "How long Breaker Aura waits between breaks, 0-20 ticks (cheat build only).");
         d.put("breaker aura/auto swap", "Lets Breaker Aura switch to your Dungeon Breaker by itself (cheat build only).");
+        d.put("breaker aura/display", "Highlight draws your picked blocks normally; Waypoint draws them through walls anywhere within your render distance (cheat build only).");
+        d.put("breaker aura/box style", "Draws picked blocks as outlines, filled boxes, or filled boxes with an outline (cheat build only).");
         d.put("breaker aura/pause in edit mode", "Stops Breaker Aura swinging while Auto Routes edit mode is active (cheat build only).");
         d.put("breaker aura/swap delay", "Ticks to wait after swapping to the Dungeon Breaker before swinging (cheat build only).");
         d.put("breaker aura/swap back after", "Idle ticks before your hotbar swaps back to your previous item (cheat build only).");
