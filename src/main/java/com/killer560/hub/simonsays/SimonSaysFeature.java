@@ -1236,13 +1236,6 @@ public final class SimonSaysFeature {
             // "from the first ss start click" anchor point.
             deviceStartedAtMs = System.currentTimeMillis();
         }
-        // Real format ported from Odin's own announceProgress ("pc SS ${clickInOrder.size}/5") - only
-        // sent on the LAST click of the current round (real Hypixel Simon Says is always exactly 5
-        // rounds, round N has N steps, so clickInOrder.size() at round-completion IS the round number).
-        if (cfg.isAnnounceProgress() && client.player != null && clickNeeded >= clickInOrder.size()) {
-            // "/5" on the old device, "/4" since the 2026-10-06 update (the count this session's device has shown).
-            client.player.connection.sendCommand("pc SS " + clickInOrder.size() + "/" + TerminalLayouts.simonRounds());
-        }
         if (clickNeeded >= clickInOrder.size()) {
             // Anchor for the round-transition timing in tickAutoSolveAndTriggerBot - marks the exact moment
             // this round's last click landed, so the NEXT round becoming clickable can measure the real
@@ -1276,6 +1269,13 @@ public final class SimonSaysFeature {
                 } else {
                     awaitRoundVerdict = true;
                 }
+            }
+            // Real format ported from Odin's own announceProgress ("pc SS ${clickInOrder.size}/5") - only sent on the
+            // LAST click of the current round (round N has N steps, so clickInOrder.size() at round-completion IS the
+            // round number). The total is the device's: /5 on the old one, /4 since the 2026-10-06 update - sent
+            // after the round count was decided above, so a device that just showed it has 4 rounds says "4/4".
+            if (cfg.isAnnounceProgress() && client.player != null) {
+                client.player.connection.sendCommand("pc SS " + roundsDone + "/" + TerminalLayouts.simonRounds());
             }
             if (wholeDeviceCompleted && client.player != null) {
                 announceWholeDeviceCompleted(System.currentTimeMillis());
