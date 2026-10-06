@@ -152,9 +152,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         toggleCell(w, contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), "Freeze View (Freecam)",
                 cfg::isAlignFreezeView, cfg::setAlignFreezeView);
         y[0] += ROW + GAP;
-        toggleCell(w, contentX, y[0], contentWidth, "Stop On Server Corrections",
-                cfg::isStopOnCorrections, cfg::setStopOnCorrections);
-        y[0] += ROW + GAP;
 
         header(w, contentX, y, contentWidth, "Chat");
         toggleCell(w, contentX, y[0], half, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback);

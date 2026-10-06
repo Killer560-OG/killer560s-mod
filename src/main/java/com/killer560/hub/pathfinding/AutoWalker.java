@@ -1,6 +1,7 @@
 package com.killer560.hub.pathfinding;
 
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ServerCorrections;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
@@ -30,6 +31,10 @@ public final class AutoWalker {
     private static final double STUCK_PROGRESS = 1.0;
 
     private static boolean sessionActive;
+    /** {@link ServerCorrections#packetCount()} as of the last tick. */
+    private static int positionPacketsSeen;
+    /** A server move larger than this is a teleport (warp, pad), which NavigationManager re-plans on - not a correction. */
+    private static final double CORRECTION_MAX_BLOCKS = 8.0;
     private static boolean walking;
     private static boolean mixinApplied;
     private static boolean fallbackKeyHeld;
@@ -60,6 +65,7 @@ public final class AutoWalker {
     /** Starts watching for player input / damage; call before {@link #setWalking}. */
     public static void startSession() {
         sessionActive = true;
+        positionPacketsSeen = ServerCorrections.packetCount();
         aiming = false;
         noCarrot = false;
         stuck = false;
@@ -182,6 +188,19 @@ public final class AutoWalker {
             return;
         }
         lastHurtTime = player.hurtTime;
+        int packets = ServerCorrections.packetCount();
+        if (packets != positionPacketsSeen) {
+            positionPacketsSeen = packets;
+            double moved = ServerCorrections.lastMoveDistance();
+            if (!EtherwarpHopper.isBusy() && !EnderPearlHopper.isBusy() && moved <= CORRECTION_MAX_BLOCKS
+                    && moved >= ServerCorrections.MIN_MOVE_BLOCKS) {
+                // Mod rule (2026-10-06): a correction never stops anything - chat line + alarm, the camera check is
+                // re-based (the packet may carry a rotation of its own), and the path is planned again from here.
+                ServerCorrections.report("Auto Walk", "- carrying on from here", moved);
+                rebaseCamera();
+                NavigationManager.recalculate(true);
+            }
+        }
         if (client.options.keyAttack.isDown() || client.options.keyUse.isDown()) {
             stop("you clicked");
             return;

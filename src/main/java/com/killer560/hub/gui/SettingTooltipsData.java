@@ -836,7 +836,9 @@ final class SettingTooltipsData {
         d.put("join discord", "Opens the mod's Discord server invite in your browser.");
         d.put("edit hud positions", "Opens the HUD editor to drag and resize on-screen elements.");
         d.put("edit hud keybind", "Key that opens the HUD editor in game.");
-        d.put("hud scale", "Scales every HUD element of this mod at once, 5% to 300%. Multiplies each element's own size, so per-element sizes are kept. Saved with profiles.");
+        d.put("correction alarm", "Plays a siren when the server corrects your position while an automation (AP3, Auto Routes, the Interactive Map, the auto puzzles...) is moving you. A correction never stops anything: the feature posts a chat line and carries on from where the server put you. At most once every 3 s.");
+        d.put("alarm volume", "How loud the Correction Alarm plays, 0-100%.");
+        d.put("hud scale","Scales every HUD element of this mod at once, 5% to 300%. Multiplies each element's own size, so per-element sizes are kept. Saved with profiles.");
         d.put("auto scale (monitor)", "Keeps every HUD element and menu of this mod the same size relative to your window on any monitor and at any GUI Scale, using a 2560x1440 screen at GUI Scale 3 as the reference (unchanged there). HUD Scale multiplies on top. ON by default; saved with profiles.");
         d.put("borderless fullscreen", "Stretches the window over the whole monitor without borders.");
         d.put("fullbright", "Renders the world at full brightness in any light.");

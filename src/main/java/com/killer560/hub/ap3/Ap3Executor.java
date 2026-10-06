@@ -12,6 +12,7 @@ import com.killer560.hub.fastleap.Teammates;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ServerCorrections;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
@@ -367,7 +368,6 @@ public final class Ap3Executor {
         alignPredValid = false;
         lookHeld = false;
         holdDir = null;
-        holdNode = null;
         waitUntilMs = 0L;
         queue.clear();
         Ap3RouteRunner.stop();
@@ -457,7 +457,6 @@ public final class Ap3Executor {
     static void disarm(String reason) {
         stop(reason);
         chain = null;
-        blockedNodes.clear();
         inside.clear();
         unfired.clear();
         triggeredThisTick.clear();
@@ -835,16 +834,6 @@ public final class Ap3Executor {
                 continue; // No Go is planner data; a Path node the route is already driving must not re-queue
             }
             boolean in = node.contains(pos);
-            if (nodeBlocked(node, in)) {
-                // a correction cancelled this node: it re-arms only after a second outside its box
-                if (in) {
-                    inside.add(node);
-                } else {
-                    inside.remove(node);
-                    unfired.remove(node);
-                }
-                continue;
-            }
             boolean was = inside.contains(node);
             if (in && !was) {
                 inside.add(node);
@@ -1088,7 +1077,6 @@ public final class Ap3Executor {
                     jumpPendingTicks = 0;
                     edgeArmedTicks = 0;
                     holdDir = node.dir();
-                    holdNode = node;
                     holdSprint = node.type == Ap3Node.Type.RUN;
                 }
                 case JUMP -> jumpPendingTicks = JUMP_WAIT_TICKS;
@@ -1147,7 +1135,6 @@ public final class Ap3Executor {
             case WALK, RUN -> {
                 // The direction and speed persist until any other node fires - the node itself is done at once.
                 holdDir = node.dir();
-                holdNode = node;
                 holdSprint = node.type == Ap3Node.Type.RUN;
                 finishNode();
             }
@@ -1807,32 +1794,23 @@ public final class Ap3Executor {
         }
     }
 
-    // ---- server corrections (mixin/Ap3PositionPacketMixin), the abort and the circuit breaker ----
+    // ---- server corrections (mixin/Ap3PositionPacketMixin): chat line + alarm, never a stop ----
     /** Server position packets seen during the current align and the 10 ticks after it. */
     private static int alignCorrections;
-    /** Wall-clock times of the last corrections seen while AP3 was moving him (the circuit breaker's window). */
-    private static final java.util.ArrayDeque<Long> correctionTimes = new java.util.ArrayDeque<>();
-    /** Corrections inside this window disable AP3 outright. */
-    private static final int BREAKER_COUNT = 2;
-    private static final long BREAKER_WINDOW_MS = 10_000L;
-    /** Nodes a correction cancelled: they do not fire again until he has been OUTSIDE their box this many ticks. */
-    private static final Map<Ap3Node, int[]> blockedNodes = new IdentityHashMap<>();
-    private static final int BLOCKED_OUTSIDE_TICKS = 20;
-    /** The WALK / RUN node whose hold is running (for blocking it after a correction). */
-    private static Ap3Node holdNode;
 
     /**
      * From {@code mixin/Ap3PositionPacketMixin}, BEFORE vanilla applies the packet: the server is moving us by this
      * delta from where the client is. While AP3 is moving him that is Hypixel rejecting the movement (killer560:
-     * "spit me out right back the way I entered it", 14 of them in one align on fda6ad4) - so: everything AP3 is
-     * doing stops at once, the node(s) involved are blocked until he has left their box for a second, and two such
-     * corrections inside ten seconds switch AP3 off altogether until he turns it back on. Counted either way.
-     * Nothing is changed about the packet; vanilla applies it as always.
+     * "spit me out right back the way I entered it", 14 of them in one align on fda6ad4). Mod-wide rule (killer560,
+     * 2026-10-06: "Nothing in this mod should stop from server corrections ever - just have it send a chat message
+     * and make noises"): a chat line and the correction alarm ({@link ServerCorrections#report}), and AP3 carries on
+     * from where the server put him - the align planners and the route runner plan from the live position every tick,
+     * and a node box he is put back into fires again as any entered box does. Until then a correction stopped AP3,
+     * blocked the node for a second, and two in 10 s switched AP3 off ("Stop On Server Corrections", removed).
+     * Nothing is changed about the packet; vanilla applies it as always, so the corrected position is honoured.
      *
-     * <p>The one line this still logs is deliberate: a server correction while AP3 is driving is the flag-risk
-     * signal the whole design turns on, so it stays even though the verbose position dump beside it (a
-     * 2026-09-22 chest-placement hunt) is gone. It is guarded so that ordinary teleports during normal play -
-     * every warp, every leap - no longer print anything at all.
+     * <p>Ordinary teleports during normal play - every warp, every leap - print nothing: only a packet while AP3 is
+     * moving him counts.
      */
     public static void onServerPositionPacket(double dx, double dy, double dz) {
         boolean moving = activeNode != null || holdDir != null || driving;
@@ -1849,48 +1827,9 @@ public final class Ap3Executor {
         if (!moving) {
             return;
         }
-        // Switch off (killer560, 2026-10-05: "dont have it stop just have nothing happen but the chat
-        // notification"): no stop, no blocked node, no circuit breaker - only the chat line.
-        if (!Ap3Config.getInstance().isStopOnCorrections()) {
-            chat(ModChat.bad("Server corrected your position (" + String.format(Locale.US, "%.2f",
-                    Math.sqrt(dx * dx + dy * dy + dz * dz)) + " blocks) - carrying on."));
-            return;
-        }
-        if (activeNode != null) {
-            blockedNodes.put(activeNode, new int[]{0});
-        }
-        if (holdNode != null) {
-            blockedNodes.put(holdNode, new int[]{0});
-        }
-        stop("server corrected your position - stopped to avoid flags");
-        long now = System.currentTimeMillis();
-        correctionTimes.addLast(now);
-        while (!correctionTimes.isEmpty() && now - correctionTimes.peekFirst() > BREAKER_WINDOW_MS) {
-            correctionTimes.pollFirst();
-        }
-        if (correctionTimes.size() >= BREAKER_COUNT) {
-            correctionTimes.clear();
-            Ap3Feature.disableAfterError("the server corrected your position " + BREAKER_COUNT
-                    + " times in 10 seconds - AP3 is OFF until you turn it back on, to avoid flags");
-        }
-    }
-
-    /** A node a correction cancelled stays blocked until he has been outside its box for a second - the correction
-     *  itself moves him out and back in, which must never re-fire it. Called from scanBoxes for every node. */
-    private static boolean nodeBlocked(Ap3Node node, boolean in) {
-        int[] outside = blockedNodes.get(node);
-        if (outside == null) {
-            return false;
-        }
-        if (in) {
-            outside[0] = 0;
-            return true;
-        }
-        if (++outside[0] >= BLOCKED_OUTSIDE_TICKS) {
-            blockedNodes.remove(node);
-            return false;
-        }
-        return true;
+        String doing = activeNode != null ? "during " + activeNode.type.name().toLowerCase(Locale.ROOT).replace('_', ' ')
+                : driving ? "on the route" : "while walking";
+        ServerCorrections.report("AP3", doing + " - carrying on", Math.sqrt(dx * dx + dy * dy + dz * dz));
     }
 
     // ---- the per-tick trace, dev builds ----

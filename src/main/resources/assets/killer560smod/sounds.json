@@ -1,0 +1,10 @@
+{
+  "correction_alarm": {
+    "sounds": [
+      {
+        "name": "killer560smod:correction_alarm",
+        "stream": false
+      }
+    ]
+  }
+}
