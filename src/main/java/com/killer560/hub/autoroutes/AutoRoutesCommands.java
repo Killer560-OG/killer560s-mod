@@ -140,13 +140,14 @@ public final class AutoRoutesCommands {
     private static final java.util.Map<String, RouteNode.Type> ADD_TYPES = java.util.Map.of(
             "boom", RouteNode.Type.BOOM,
             "breaker", RouteNode.Type.DUNGEON_BREAKER,
+            "dungeonbreaker", RouteNode.Type.DUNGEON_BREAKER,
             "ew", RouteNode.Type.ETHERWARP,
             "etherwarp", RouteNode.Type.ETHERWARP,
             "use", RouteNode.Type.USE_ITEM,
             "walk", RouteNode.Type.WALK,
             "path", RouteNode.Type.PATH,
             "crypt", RouteNode.Type.CRYPT);
-    private static final List<String> TYPE_WORDS = List.of("boom", "breaker", "ew", "etherwarp", "use", "walk", "path",
+    private static final List<String> TYPE_WORDS = List.of("boom", "breaker", "dungeonbreaker", "ew", "etherwarp", "use", "walk", "path",
             "crypt");
     /** Modifiers offered after any {@code /ar add <type>}. {@code await:} completes to just that, so the number is
      *  typed straight after it (killer560, 2026-10-06: "make await fill as await: without the x"); the command
