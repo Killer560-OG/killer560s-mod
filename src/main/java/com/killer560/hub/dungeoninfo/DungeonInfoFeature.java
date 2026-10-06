@@ -242,6 +242,20 @@ public final class DungeonInfoFeature {
         return roomSecretsFound;
     }
 
+    /** The tab list's "Secrets Found: N%" for this run (the whole team's), or -1 before it has been read. Auto Secret
+     *  stops at 100. */
+    public static double secretsFoundPercent() {
+        String p = lastSecretsPercent;
+        if (p == null || !DungeonState.isInDungeon()) {
+            return -1;
+        }
+        try {
+            return Double.parseDouble(p);
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
     /** Client-side elapsed time for the current (or most recently finished) run - real wall-clock
      *  elapsed time, so it includes any lag/freeze along the way. Only used for the run-timer-stopped
      *  log line now that the Time HUD (its only display) is gone (killer560, 2026-09-27: "remove the

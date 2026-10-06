@@ -19,6 +19,18 @@ final class SettingTooltipsData {
         autoKick(d);
         bazaarFlip(d);
         crosshair(d);
+        autoSecret(d);
+    }
+
+    private static void autoSecret(Map<String, String> d) {
+        d.put("auto clear/auto secret", "Cheat build: secrets the floor with your Auto Routes - the reachable room with the most unfound secrets first, warping to its route's start node. Any movement key takes over. Needs Auto Routes on.");
+        d.put("auto clear/auto secret key", "Starts or stops Auto Secret (Esc clears it). Works only in a dungeon, outside the boss.");
+        d.put("auto clear/insta clear first", "Before secreting, warp into uncleared rooms through entries the Insta Clear tracker KNOWS clear them. Never a guessed entry.");
+        d.put("auto clear/ice fill first", "When the floor has Ice Fill and Auto Ice Fill is on, go there first and let Auto Ice Fill do it.");
+        d.put("auto clear/auto clear rooms", "At the end, hand an uncleared room to Auto Clear and carry on once it is cleared. OFF: warp to it and hand control back.");
+        d.put("auto clear/chat feedback", "Chat lines for each room Auto Secret goes to or skips. Stops and server corrections are always said.");
+        d.put("auto clear/puzzle wait", "At the end, how long to stand in an unfinished puzzle for it to be done before moving on.");
+        d.put("auto clear/route stall", "A route with no node fired for this long is waiting for a walk nobody will make: stopped, and the next room taken.");
     }
 
     private static void part1(Map<String, String> d) {

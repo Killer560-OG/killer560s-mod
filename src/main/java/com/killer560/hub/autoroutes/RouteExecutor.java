@@ -1024,7 +1024,16 @@ public final class RouteExecutor {
         return sb.toString();
     }
 
+    /** Node actions begun, ever (only goes up). Auto Secret reads it to tell a route that is still working from one
+     *  waiting on a walk nobody will make. */
+    private static int actionsBegun = 0;
+
+    public static int actionsBegun() {
+        return actionsBegun;
+    }
+
     private static void beginAction(RouteNode node) {
+        actionsBegun++;
         LocalPlayer self = Minecraft.getInstance().player;
         if (node.type == RouteNode.Type.ETHERWARP) {
             Vec3 at = RouteCoords.toReal(frame, node.relativePos());

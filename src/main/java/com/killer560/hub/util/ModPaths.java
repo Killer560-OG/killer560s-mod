@@ -74,6 +74,7 @@ public final class ModPaths {
         t.put("autoroutes", "dungeons/autoroutes");
         t.put("waypointroutes", "dungeons/autoroutes");
         t.put("etherwarp", "dungeons/autoroutes");
+        t.put("autosecret", "dungeons/autoroutes");
 
         t.put("breakeraura", "dungeons/breakeraura");
         t.put("dungeonbreaker", "dungeons/breakeraura");

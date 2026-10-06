@@ -254,6 +254,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autoroutes.AutoRoutesCommands.register();
         com.killer560.hub.autoroutes.AutoRoutesKeybinds.register();
         com.killer560.hub.autoroutes.AutoRoutesEditInput.register();
+        com.killer560.hub.autosecret.AutoSecretFeature.register();
         com.killer560.hub.ap3.Ap3Feature.register();
         HudElementRegistry.register(com.killer560.hub.ap3.Ap3Feature.STOPWATCH_HUD);
         com.killer560.hub.ap3.Ap3EditInput.register();
