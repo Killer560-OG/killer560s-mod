@@ -58,6 +58,8 @@ Route nodes, the align planners and their measured physics. Split out of the pro
 - **A USE must not let go of its aim before the use goes out.** `endAim` ran before `useItem`, so the use packet
   carried the pitch he had before the node (63-ap3-use-walk: node -35, packet 0). GrimAC's BadPacketsJ compares a
   use's yaw/pitch with the NEXT movement packet's rotation (javap, common-2.3.74), so the order that passes is: aim at
-  END t, use at START t+1 (`Ap3Executor.tickStart`), aim released at END t+1. AP3 still ticks on END; its USE packets
-  are the only ones moved to START so far - BLOCK and BOOM still send at END and draw GrimAC Post (63-ap3-hold-block:
-  Post on held item change and block placement, BadPacketsA from the hand-made slot packet).
+  END t, use at START t+1 (`Ap3Executor.tickStart`), aim released at END t+1. AP3 still ticks on END; USE, BLOCK and
+  BOOM send from START (BLOCK / BOOM until 2026-10-06 sent at END with a hand-made slot packet: GrimAC Post on held item
+  change, block placement and digging, plus BadPacketsA). The old one-tick-early pre-aim is gone - it only existed to
+  place at END of the entry tick, which is the Post position. A Block's swap back is just `setSelectedSlot`; the game
+  mode's own tick sends it at the next START, once.
