@@ -253,10 +253,10 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         }
 
         // ---- Melody Keys ----
-        widgets.add(SettingsButtonWidget.builder(onOff("Melody Keys 1-4", cfg.isMelodyKeysEnabledRaw()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Melody Keys", cfg.isMelodyKeysEnabledRaw()), btn -> {
                     cfg.setMelodyKeysEnabled(!cfg.isMelodyKeysEnabledRaw());
                     cfg.save();
-                    btn.setMessage(onOff("Melody Keys 1-4", cfg.isMelodyKeysEnabledRaw()));
+                    btn.setMessage(onOff("Melody Keys", cfg.isMelodyKeysEnabledRaw()));
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 22;
 

@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
  * <li><b>Fast Leap</b> (QUOI): left-clicking a Spirit Leap while in the pre4 box (handled in
  * {@link FastLeapFeature#onLeftClick()}).</li>
  * <li><b>Target</b>: a Class (first alive teammate), a Player name, or Melody - QUOI's melody detection: the last
- * "Name:" in a party line containing a Melody progress token ("1/4", "2/4", "3/4", "25%", "50%", "75%"). Melody has a
+ * "Name:" in a party line containing a Melody progress token ("1/3", "2/3", "33%", "67%"; the old 4-row "1/4".."75%" too). Melody has a
  * Class/Player backup used when no melody player is known, they can't be leapt to, or they're not in the leap menu.</li>
  * <li><b>Prevent Inputs</b>: while Auto i4 is on and you're on the i4 pad (x 62-65, z 34-37, |y-127| &lt; 0.5) after the
  * device has started (a target block on the wall lit) and until it completes or you step off, movement keys are held up and mouse
@@ -41,7 +41,9 @@ public final class I4LeapFeature {
             new BlockPos(68, 130, 50), new BlockPos(66, 130, 50), new BlockPos(64, 130, 50),
             new BlockPos(68, 128, 50), new BlockPos(66, 128, 50), new BlockPos(64, 128, 50),
             new BlockPos(68, 126, 50), new BlockPos(66, 126, 50), new BlockPos(64, 126, 50));
-    private static final Set<String> MELODY_PROGRESS = Set.of("1/4", "2/4", "3/4", "25%", "50%", "75%");
+    // The 3-row Melody of 0.27.2 (2026-10-06) is announced as 1/3, 2/3, 33%, 66%/67% - both sets are accepted.
+    private static final Set<String> MELODY_PROGRESS = Set.of("1/3", "2/3", "33%", "66%", "67%",
+            "1/4", "2/4", "3/4", "25%", "50%", "75%");
     /**
      * The SENDER of a party line, anchored - not the last name-shaped token anywhere in it.
      *

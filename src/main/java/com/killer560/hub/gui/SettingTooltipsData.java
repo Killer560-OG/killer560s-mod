@@ -1275,7 +1275,7 @@ final class SettingTooltipsData {
         d.put("terminal solver/subtract ping", "Takes your ping off the threshold so it stays right when your connection changes.");
         d.put("terminal solver/terminal drop key", "Stops Q from throwing your weapon while a terminal is open.");
         d.put("terminal solver/drop key", "The key that drops items while a terminal is open; press Escape to leave it unbound.");
-        d.put("terminal solver/melody keys 1-4", "Press 1-4 to click Melody's four row buttons instead of using the mouse.");
+        d.put("terminal solver/melody keys", "Press 1-3 (1-4 on an old 4-row board) to click Melody's row buttons instead of using the mouse.");
         d.put("terminal solver/terminal scale", "GUI scale used while a terminal is open. Auto keeps your normal scale.");
         d.put("terminal solver/melody scale", "A separate GUI scale for Melody, which has a much wider board.");
         d.put("terminal solver/hide completion titles", "Hides the terminal completion title and subtitle on screen.");
