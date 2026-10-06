@@ -120,6 +120,8 @@ public final class AutoSecretFeature {
     private static String blockedSecrets;
     private static String instaFrom;
     private static int runId;
+    /** The room he was last in by the map, for a decision made from a doorway (which reads as no room). */
+    private static String lastRoomName;
     /** This run is Dungeon Autopilot's: {@link Autopilot} decides, this class carries it out. */
     private static boolean pilot;
     private static Object level;
@@ -251,6 +253,7 @@ public final class AutoSecretFeature {
             return false;
         }
         runId++;
+        lastRoomName = null;
         secreted.clear();
         noRouteSaid.clear();
         instaTried.clear();
@@ -517,6 +520,14 @@ public final class AutoSecretFeature {
         blockedSecrets = null;
         DungeonLayout layout = DungeonLayout.capture();
         int here = layout.currentRoom();
+        if (here >= 0) {
+            lastRoomName = layout.name(here);
+        } else if (lastRoomName != null && client.player != null && client.player.onGround()) {
+            // Standing in a doorway's connector cell (the spot two blocks back from a door it just opened, in
+            // 142-sim-autopilot2) reads as no room, and it waited there for good. The warp planner works from where he
+            // really stands; the room graph only needs the room he was in a moment ago.
+            here = roomIdOf(layout, lastRoomName);
+        }
         if (here >= 0 && layout.entry(here) != null && "TRAP".equalsIgnoreCase(layout.entry(here).type)) {
             // killer560 (docs/SIM.md "Trap rooms take your abilities"): no etherwarp, teleport or ability works in a trap
             // room, so no trip can start here - waiting would be forever. His trap routes are meant to end outside it.
@@ -527,6 +538,8 @@ public final class AutoSecretFeature {
         if (here < 0 || !AutoClearUtils.canPath(layout)) {
             status = "Waiting to be able to path from here";
             if (phaseTicks == 100) {
+                LOGGER.info("[AutoSecret] can't path from here: room {} ({}), on ground {}", here, here >= 0 ? layout.name(here)
+                        : "none", client.player != null && client.player.onGround());
                 say(ModChat.dim("Can't start a path from here yet (in the air, a maze, Boulder or past a trap's start)."));
             }
             return;
@@ -1136,7 +1149,10 @@ public final class AutoSecretFeature {
             WitherDoorOpener.click(doorLock, doorBlood);
             return;
         }
-        if (!key) {
+        if (!key && doorClicks > 0 && phaseTicks - doorLastClickTick < DOOR_CLICK_GAP_TICKS) {
+            // Our click spent the key ("opened a WITHER door!") and the door is still on its way out.
+            status = "Opening the " + kind + " door";
+        } else if (!key) {
             status = "Waiting at " + kind + " door (no key)";
             if (!noKeySaid) {
                 noKeySaid = true;
