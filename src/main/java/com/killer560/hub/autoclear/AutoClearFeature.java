@@ -172,6 +172,12 @@ public final class AutoClearFeature {
                             toggle();
                             return 1;
                         })));
+        // Auto Clear's rows in the shared Auto Clear tab (Auto Secret's tab; ours go below its section).
+        com.killer560.hub.gui.tab.AutoClearTab.addSection((widgets, x, y, width, rebuild) -> {
+            int[] at = {y};
+            AutoClearSettings.addSettings(widgets, x, at, width, rebuild);
+            return at[0];
+        });
         HudElementRegistry.register(STATUS_HUD);
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "auto_clear_status"),

@@ -220,6 +220,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   alike, only when he stood on the arena). It now records the prior states on the server and restores them
   (2026-10-06). Tic Tac Toe's reset still leaves 1-3 blocks fewer than before (78's "arena after reset"; not traced).
 
+- `AutoRoutesFeature.warpToStartNode` called on its own (not through a map press) leaves the last route's
+  `justFinished` latch set, so the next start node lands "latched" and never arms - Auto Secret did this for every room
+  after the first (102-sim-autosecret, 2026-10-06). A map press clears it in `InteractiveMapFeature.queue` via
+  `cancelForInteractiveMap`; anything that drives the start-node warp must call that first, as Auto Secret now does.
+
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session
