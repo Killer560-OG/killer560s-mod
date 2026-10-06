@@ -511,7 +511,7 @@ public final class RouteRecorder {
             extra += movedStart ? " [start - moved off the previous start node]" : " [start]";
         }
         if (mods.awaitEnabled) {
-            extra += " [await " + node.awaitCondition.name().toLowerCase(Locale.ROOT) + " " + node.awaitAmount + "]";
+            extra += node.modifierTag().contains("await") ? node.modifierTag().replace("[start, ", "[") : "";
         }
         return "Added " + type.label() + extra + " to " + f.roomName() + (firing ? " - firing it" : "");
     }

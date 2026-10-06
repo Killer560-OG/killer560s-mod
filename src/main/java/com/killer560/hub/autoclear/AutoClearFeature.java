@@ -964,12 +964,10 @@ public final class AutoClearFeature {
     // =========================================================================================== helpers
 
     private static List<Entity> starredIn(Minecraft client, DungeonLayout layout, int room) {
+        // RoomMobs is the shared "mobs the room's clear still needs" (Auto Routes' await:kill reads it too).
         List<Entity> out = new java.util.ArrayList<>();
-        for (Entity mob : MobEspFeature.starredMobs(client)) {
-            if (skippedMobs.contains(mob.getId())) {
-                continue;
-            }
-            if (layout.roomAtWorld(mob.getX(), mob.getZ()) == room) {
+        for (Entity mob : RoomMobs.aliveIn(client, layout, room)) {
+            if (!skippedMobs.contains(mob.getId())) {
                 out.add(mob);
             }
         }

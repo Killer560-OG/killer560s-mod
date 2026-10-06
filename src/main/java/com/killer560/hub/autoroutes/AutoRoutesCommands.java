@@ -151,7 +151,7 @@ public final class AutoRoutesCommands {
     /** Modifiers offered after any {@code /ar add <type>}. {@code await:} completes to just that, so the number is
      *  typed straight after it (killer560, 2026-10-06: "make await fill as await: without the x"); the command
      *  refuses {@code await:} followed by anything but a number. */
-    private static final List<String> MOD_WORDS = List.of("await:", "start");
+    private static final List<String> MOD_WORDS = List.of("await:", "await:kill", "await:bat", "start");
     /** Bounded so a typed number can never overflow parseInt; a room never holds anywhere near this many secrets. */
     private static final java.util.regex.Pattern AWAIT_ARG = java.util.regex.Pattern.compile("await:(\\d{1,3})");
 
@@ -388,7 +388,9 @@ public final class AutoRoutesCommands {
         ModChat.send(FEATURE, ModChat.dim("/autoroutes works everywhere /ar does."));
         ModChat.send(FEATURE, ModChat.dim("Types: boom, breaker, ew (or etherwarp), use, walk, path. After the type, any order: "),
                 ModChat.value("start"), ModChat.dim(" (this room's start node), "), ModChat.value("await:<number>"),
-                ModChat.dim(" (wait for that many secrets first) - e.g. "), ModChat.value("/ar add ew start await:2"),
+                ModChat.dim(" (wait for that many secrets first), "), ModChat.value("await:kill"),
+                ModChat.dim(" (every starred mob in the room dead, or the room cleared), "), ModChat.value("await:bat"),
+                ModChat.dim(" (a bat that appeared near you killed) - e.g. "), ModChat.value("/ar add ew start await:2"),
                 ModChat.dim("."));
     }
 
@@ -473,6 +475,13 @@ public final class AutoRoutesCommands {
             if (modifiers == null) {
                 return; // parseModifiers already said why
             }
+            if (type == RouteNode.Type.CRYPT && modifiers.awaitEnabled
+                    && modifiers.awaitCondition != RouteNode.AwaitCondition.SECRET) {
+                // A crypt node's await:<n> is its number of crypt kills; it has no room-kill or bat wait of its own.
+                ModChat.send(FEATURE, ModChat.bad("A crypt node takes await:<number> (crypt kills) only"),
+                        ModChat.dim(". Nothing was added."));
+                return;
+            }
             add(type, modifiers);
         });
     }
@@ -487,12 +496,20 @@ public final class AutoRoutesCommands {
     private static RouteRecorder.NodeModifiers parseModifiers(String mods) {
         boolean start = false;
         boolean awaitEnabled = false;
+        RouteNode.AwaitCondition condition = RouteNode.AwaitCondition.SECRET;
         int amount = 1;
         if (mods != null && !mods.isBlank()) {
             for (String raw : mods.trim().split("\\s+")) {
                 String t = raw.toLowerCase(Locale.ROOT);
                 if (t.equals("start")) {
                     start = true;
+                    continue;
+                }
+                if (t.equals("await:kill") || t.equals("await:bat")) {
+                    // killer560, 2026-10-06: awaits should "cover bats and kills of all mobs as well".
+                    awaitEnabled = true;
+                    condition = t.equals("await:kill") ? RouteNode.AwaitCondition.KILL : RouteNode.AwaitCondition.BAT;
+                    amount = 1;
                     continue;
                 }
                 if (t.equals("await") || t.startsWith("await:")) {
@@ -504,15 +521,16 @@ public final class AutoRoutesCommands {
                         return null;
                     }
                     awaitEnabled = true;
+                    condition = RouteNode.AwaitCondition.SECRET;
                     amount = n;
                     continue;
                 }
                 ModChat.send(FEATURE, ModChat.bad("Unknown modifier \"" + raw + "\""),
-                        ModChat.dim(" - only start and await:<number>. Nothing was added."));
+                        ModChat.dim(" - only start, await:<number>, await:kill and await:bat. Nothing was added."));
                 return null;
             }
         }
-        return new RouteRecorder.NodeModifiers(start, awaitEnabled, RouteNode.AwaitCondition.SECRET, amount);
+        return new RouteRecorder.NodeModifiers(start, awaitEnabled, condition, amount);
     }
 
     /**

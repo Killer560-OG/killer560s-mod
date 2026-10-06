@@ -67,6 +67,9 @@ public class AutoRoutesEditScreen extends Screen {
             RouteNode.Type.CRYPT};
     /** The Await Secrets dropdown's choices; 0 is "no await". */
     private static final int AWAIT_MAX = 4;
+    /** {@link #awaitChoice} for {@code await:kill} (every counted mob in the room dead) and {@code await:bat}. */
+    private static final int AWAIT_KILL = 101;
+    private static final int AWAIT_BAT = 102;
 
     private final Route route;
     private final RouteNode node;
@@ -148,6 +151,10 @@ public class AutoRoutesEditScreen extends Screen {
             } else if (node.awaitCondition == RouteNode.AwaitCondition.SECRET && node.awaitAmount >= 1
                     && node.awaitAmount <= AWAIT_MAX) {
                 awaitChoice = node.awaitAmount;
+            } else if (node.awaitCondition == RouteNode.AwaitCondition.KILL) {
+                awaitChoice = AWAIT_KILL;
+            } else if (node.awaitCondition == RouteNode.AwaitCondition.BAT) {
+                awaitChoice = AWAIT_BAT;
             } else {
                 awaitChoice = -1;
             }
@@ -233,16 +240,28 @@ public class AutoRoutesEditScreen extends Screen {
         }, x, y, w, ROW);
         y += line;
         if (awaitOpen) {
-            int ow = (w - GAP * AWAIT_MAX) / (AWAIT_MAX + 1);
+            // None, 1-4 secrets, and (not on a crypt node, whose await counts crypt kills) Kill and Bat.
+            List<Integer> choices = new ArrayList<>();
             for (int i = 0; i <= AWAIT_MAX; i++) {
-                final int choice = i;
+                choices.add(i);
+            }
+            if (type != RouteNode.Type.CRYPT) {
+                choices.add(AWAIT_KILL);
+                choices.add(AWAIT_BAT);
+            }
+            int n = choices.size();
+            int ow = (w - GAP * (n - 1)) / n;
+            for (int i = 0; i < n; i++) {
+                final int choice = choices.get(i);
                 int bx = x + i * (ow + GAP);
-                String label = (choice == awaitChoice ? "§6" : "§7") + (choice == 0 ? "None" : String.valueOf(choice));
+                String text = choice == 0 ? "None" : choice == AWAIT_KILL ? "Kill" : choice == AWAIT_BAT ? "Bat"
+                        : String.valueOf(choice);
+                String label = (choice == awaitChoice ? "§6" : "§7") + text;
                 button(label, b -> {
                     awaitChoice = choice;
                     awaitOpen = false;
                     rebuildWidgets();
-                }, bx, y, i == AWAIT_MAX ? x + w - bx : ow, ROW);
+                }, bx, y, i == n - 1 ? x + w - bx : ow, ROW);
             }
             y += line;
         }
@@ -309,6 +328,9 @@ public class AutoRoutesEditScreen extends Screen {
         String v;
         if (awaitChoice < 0) {
             v = "§7kept (" + node.modifierTag().replace(" [", "").replace("]", "").replace("start, ", "") + ")";
+        } else if (awaitChoice == AWAIT_KILL || awaitChoice == AWAIT_BAT) {
+            return "Await: §6" + (awaitChoice == AWAIT_KILL ? "kill (every room mob dead)" : "bat (a bat killed)")
+                    + (awaitOpen ? " §7▲" : " §7▼");
         } else {
             String what = type == RouteNode.Type.CRYPT ? " kill" : " secret";
             v = awaitChoice == 0 ? "§7none" : "§6" + awaitChoice + what + (awaitChoice == 1 ? "" : "s");
@@ -423,6 +445,18 @@ public class AutoRoutesEditScreen extends Screen {
         edited.start = start;
         if (awaitChoice == 0) {
             edited.awaitEnabled = false;
+        } else if (awaitChoice == AWAIT_KILL || awaitChoice == AWAIT_BAT) {
+            if (type == RouteNode.Type.CRYPT) {
+                // Turned into a crypt node with Kill/Bat chosen: a crypt node's await counts crypt kills only.
+                edited.awaitEnabled = true;
+                edited.awaitCondition = RouteNode.AwaitCondition.SECRET;
+                edited.awaitAmount = 1;
+            } else {
+                edited.awaitEnabled = true;
+                edited.awaitCondition = awaitChoice == AWAIT_KILL ? RouteNode.AwaitCondition.KILL
+                        : RouteNode.AwaitCondition.BAT;
+                edited.awaitAmount = 1;
+            }
         } else if (awaitChoice > 0) {
             edited.awaitEnabled = true;
             edited.awaitCondition = RouteNode.AwaitCondition.SECRET;
