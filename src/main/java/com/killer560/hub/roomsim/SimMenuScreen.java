@@ -30,7 +30,8 @@ public class SimMenuScreen extends Screen {
     private enum Mode {
         HOME("Dungeon Sim"),
         PREVIOUS("Load a Previous Run"),
-        ROOM("Load a Room");
+        ROOM("Load a Room"),
+        CYCLE("All Rooms (route practice)");
 
         final String title;
 
@@ -93,6 +94,7 @@ public class SimMenuScreen extends Screen {
             case HOME -> buildHome();
             case PREVIOUS -> buildPrevious();
             case ROOM -> buildRoomPicker();
+            case CYCLE -> buildCycle();
         }
     }
 
@@ -117,12 +119,87 @@ public class SimMenuScreen extends Screen {
             scroll = 0;
             rebuildWidgets();
         }).bounds(x, y + 60, w, 22).build());
-        // A workbench rather than a floor: every room in one line, for writing routes against rooms that rarely
-        // come up otherwise.
+        // Route practice: one room at a time out of a chosen set, stepped with /next and /back (SimRoomCycle).
+        // Until 2026-10-06 this pasted every captured room in one line across the grid.
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("All Rooms (route practice)"), b -> {
-            SimGenerator.generateAllRooms(this.minecraft);
-            McCompat.setScreen(this.minecraft, null);
+            mode = Mode.CYCLE;
+            capturing = 0;
+            rebuildWidgets();
         }).bounds(x, y + 90, w, 22).build());
+    }
+
+    /** Which route-practice key is waiting for a press: 0 none, 1 Next Room, 2 Previous Room. */
+    private int capturing;
+
+    /** Whether the database had loaded when the route-practice buttons were built - their counts need it. */
+    private boolean cycleBuiltWithDatabase;
+
+    /**
+     * killer560 (2026-10-06): "when I select it then it goes to a new menu that says rooms without routes or all
+     * rooms or rooms with auto routes", plus a keybinds section for Next Room / Previous Room.
+     */
+    private void buildCycle() {
+        int w = panelW - 40;
+        int x = panelX + 20;
+        int y = panelY + 56;
+        boolean ready = com.killer560.hub.roomdatabase.RoomDatabase.isReady();
+        cycleBuiltWithDatabase = ready;
+        for (SimRoomCycle.Choice c : SimRoomCycle.Choice.values()) {
+            String count = ready ? " (" + SimRoomCycle.roomsFor(c).size() + ")" : " §7(loading...)";
+            var button = SettingsButtonWidget.builder(Component.literal(c.label + count), b -> {
+                if (SimRoomCycle.start(this.minecraft, c)) {
+                    McCompat.setScreen(this.minecraft, null);
+                }
+            }).bounds(x, y, w, 20).build();
+            button.active = ready;
+            addRenderableWidget(button);
+            y += 24;
+        }
+        // Keybinds: Next Room and Previous Room, the same as /next and /back, only inside the sim. Unbound by
+        // default. Esc clears a bind; a mouse button can be one.
+        // Room under the buttons for the exclusion note (+2) and the KEYBINDS heading (+16), both drawn in render.
+        y += 30;
+        int half = (w - 6) / 2;
+        addRenderableWidget(SettingsButtonWidget.builder(keyLabel("Next Room", 1, SimRoomCycle.getNextKey()), b -> {
+            capturing = 1;
+            b.setMessage(Component.literal("Next Room: §ePress any key..."));
+        }).bounds(x, y, half, 20).build());
+        addRenderableWidget(SettingsButtonWidget.builder(keyLabel("Previous Room", 2, SimRoomCycle.getBackKey()),
+                b -> {
+                    capturing = 2;
+                    b.setMessage(Component.literal("Previous Room: §ePress any key..."));
+                }).bounds(x + half + 6, y, w - half - 6, 20).build());
+        backButton();
+    }
+
+    private Component keyLabel(String label, int which, int code) {
+        if (capturing == which) {
+            return Component.literal(label + ": §ePress any key...");
+        }
+        String name = code == com.killer560.hub.util.KeyUtil.NONE
+                ? "§7Not Set" : "§e" + com.killer560.hub.util.KeyUtil.bindDisplayName(code);
+        return Component.literal(label + ": " + name);
+    }
+
+    /** Stores a captured bind (a key code, or a mouse code) for whichever key row is listening. */
+    private void applyCapture(int code) {
+        if (capturing == 1) {
+            SimRoomCycle.setNextKey(code);
+        } else if (capturing == 2) {
+            SimRoomCycle.setBackKey(code);
+        }
+        capturing = 0;
+        rebuildWidgets();
+    }
+
+    @Override
+    public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        if (mode == Mode.CYCLE && capturing != 0) {
+            applyCapture(event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE
+                    ? com.killer560.hub.util.KeyUtil.NONE : event.key());
+            return true;
+        }
+        return super.keyPressed(event);
     }
 
     private void buildPrevious() {
@@ -287,6 +364,11 @@ public class SimMenuScreen extends Screen {
 
     @Override
     public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+        // A key row waiting for a bind takes the next mouse press as the bind, as the settings tabs do.
+        if (mode == Mode.CYCLE && capturing != 0) {
+            applyCapture(com.killer560.hub.util.KeyUtil.codeForMouseButton(event.button()));
+            return true;
+        }
         if ((mode == Mode.ROOM || mode == Mode.PREVIOUS) && !listed.isEmpty()) {
             double my = event.y();
             int row = (int) ((my - listTop() + scroll) / 14);
@@ -318,6 +400,18 @@ public class SimMenuScreen extends Screen {
                     ? "No rooms loaded - the shipped room library did not load"
                     : "Pick what to practise";
             g.text(this.font, hint, panelX + 20, panelY + 42, ProfitPanels.DIM, false);
+        } else if (mode == Mode.CYCLE) {
+            if (com.killer560.hub.roomdatabase.RoomDatabase.isReady() != cycleBuiltWithDatabase) {
+                rebuildWidgets();
+            }
+            g.text(this.font, this.font.plainSubstrByWidth(
+                    "One room at a time - /next and /back step through the set", panelW - 40),
+                    panelX + 20, panelY + 42, ProfitPanels.DIM, false);
+            g.text(this.font, this.font.plainSubstrByWidth(
+                    "No puzzles, Blood, Entrance, Fairy or 0-secret rooms", panelW - 40),
+                    panelX + 20, panelY + 56 + 3 * 24 + 2, ProfitPanels.DIM, false);
+            g.text(this.font, "KEYBINDS (sim only)", panelX + 20, panelY + 56 + 3 * 24 + 16,
+                    ProfitPanels.ACCENT, false);
         } else if (mode == Mode.ROOM || mode == Mode.PREVIOUS) {
             boolean needsDatabase = puzzlesOnly || SimRoomRoutes.getFilter() != SimRoomRoutes.Filter.ALL;
             if (mode == Mode.ROOM && needsDatabase

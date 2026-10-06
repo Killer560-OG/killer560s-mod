@@ -1406,6 +1406,16 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   about. The pause-menu button only appears when exactly one room is placed and the floor is not generated
   (`currentSoloRoom`), sits under Change Room, and shares its row at half width when the window is too short.
   `belowVanillaColumn` must skip it, or a resize stacks Change Room under it. Testkit scenario 97 proves both.
+- **All Rooms (route practice), 2026-10-06** is `SimRoomCycle`, and replaced `SimGenerator.generateAllRooms` (every
+  room pasted in a line; nothing else called it). The menu's CYCLE mode offers three sets, all built from
+  `SimRoomRoutes.isEligible` plus `matches(NONE/HAS)`, so the picker's filter and this cannot disagree; order is
+  `RoomLibrary.names()`. The list is FROZEN when the set is picked (a room routed mid-walk would otherwise shift every
+  index). Each step goes through `SimBuilder.buildSingleRoom`, which wipes the grid, so one room exists at a time.
+  `/next`/`/back` stop at the ends (no wrap), resync to `currentSoloRoom()` if he picked another room of the set, refuse
+  while `SimBuildQueue.isBusy()`, and are `requires(SimState.canAct)` like `/goto`. No installed mod in his Dungeons
+  instance or vanilla registers a top-level `/next` or `/back` (constant-pool scan of every jar, 2026-10-06). Keys are
+  raw-polled (`killer560smod-sim-roomcycle-keys.txt`), shared by the menu and the Sim Keybinds tab. Testkit
+  `97-sim-roomcycle`.
 
 ## The 2026-10-04 Map Logger round: damage, the key, crypts, landings and the sidebar
 
