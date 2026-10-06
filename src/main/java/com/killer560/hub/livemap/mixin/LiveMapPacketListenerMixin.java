@@ -50,6 +50,8 @@ public abstract class LiveMapPacketListenerMixin {
             ClearExecutor.onServerPositionPacket();
             // Auto Routes' landing check: a teleport really happened (see RouteExecutor#landed).
             com.killer560.hub.autoroutes.RouteExecutor.onServerPositionPacket();
+            // Auto Clear: tells its own hops' landings from a server correction (which it never stops on).
+            com.killer560.hub.autoclear.AutoClearFeature.onServerPositionPacket();
         } catch (RuntimeException e) {
             killer560smod$liveMap$hookThrew("movePlayer", e);
         }
