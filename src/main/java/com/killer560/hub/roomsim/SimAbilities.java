@@ -367,8 +367,12 @@ public final class SimAbilities {
         return true;
     }
 
-    /** Wither Impact's radius, in blocks. */
-    private static final double WITHER_BLAST_RADIUS = 5.0;
+    /**
+     * Wither Impact's radius, in blocks: 6, Hypixel's own - hypixelskyblock.minecraft.wiki, Wither Impact (2026-10-06):
+     * "Teleports 10 blocks ahead of you dealing 10,000 Damage damage to nearby enemies within a 6 block radius." It was
+     * 5 here. Measured from the box of the mob to his centre, as before.
+     */
+    public static final double WITHER_BLAST_RADIUS = 6.0;
 
     /** Enough to kill anything in the sim outright; sim mobs have one health anyway. */
     private static final float WITHER_BLAST_DAMAGE = 10_000f;
@@ -429,9 +433,20 @@ public final class SimAbilities {
         // rotation the use packet carried - what Hypixel receives. (On the client, getViewVector would read
         // ViewFreeze's held view while an auto turns him; that bug is why "ice fill starts completing it then
         // freezes part way through", killer560 2026-10-04.)
-        Vec3 look = player.getLookAngle();
-        Vec3 from = player.position();
-        net.minecraft.world.phys.AABB box = player.getBoundingBox();
+        return dashTarget(level, player, player.position(), player.getLookAngle(), range);
+    }
+
+    /**
+     * {@link #dashTarget(Level, Player, double)} for a hypothetical start and look: where the same dash would land if
+     * he stood at {@code from} looking along {@code look}. Side-effect free, for Auto Clear's choice between a
+     * Hyperion hop and an etherwarp (autoclear.AttackPlanner) - the same model, so the client's prediction and the
+     * sim's answer cannot disagree.
+     */
+    public static Vec3 dashTarget(Level level, Player player, Vec3 from, Vec3 look, double range) {
+        if (player == null || level == null || from == null || look == null) {
+            return null;
+        }
+        net.minecraft.world.phys.AABB box = player.getBoundingBox().move(from.subtract(player.position()));
         Vec3 best = null;
         // Once the look has driven the travel into something it stays at the height it settled at for the rest
         // of the walk. Null until that happens.
@@ -440,7 +455,7 @@ public final class SimAbilities {
         // Fill hops one tile at a time by aiming from the eye at the next tile's feet position, which on Hypixel
         // lands exactly there (killer560, 2026-10-02: "auto ice fill tends to start working but then it'll stop
         // after only a few teleports").
-        Vec3 eye = player.getEyePosition();
+        Vec3 eye = from.add(player.getEyePosition().subtract(player.position()));
         BlockHitResult eyeHit = level.clip(new ClipContext(eye, eye.add(look.scale(range)),
                 ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
         double settledLimit = eyeHit != null && eyeHit.getType() == HitResult.Type.BLOCK

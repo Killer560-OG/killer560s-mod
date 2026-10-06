@@ -74,6 +74,28 @@ public final class SimRoomState {
         return out;
     }
 
+    /** {@code DungeonMapScanner.STATE_CLEARED} - the white checkmark. Literal for the same reason as {@link #STATE_FAILED}. */
+    private static final int STATE_CLEARED = 1;
+
+    /**
+     * Every starred mob of this room is dead: paint its checkmark, as Hypixel's map does the moment the room's last
+     * starred mob dies. A failed puzzle room stays failed. Called by {@link SimMobs}; until 2026-10-06 nothing in the sim
+     * ever cleared a room, so a clear (Auto Clear, the score's room count) had nothing to see.
+     *
+     * @return true when this call is what cleared it
+     */
+    public static boolean markCleared(String roomName) {
+        if (roomName == null || roomName.isBlank() || STATES.containsKey(roomName)) {
+            return false;
+        }
+        STATES.put(roomName, STATE_CLEARED);
+        return true;
+    }
+
+    public static boolean isCleared(String roomName) {
+        return roomName != null && STATES.getOrDefault(roomName, -1) == STATE_CLEARED;
+    }
+
     public static boolean isFailed(String roomName) {
         return roomName != null && STATES.getOrDefault(roomName, -1) == STATE_FAILED;
     }
