@@ -345,10 +345,9 @@ public final class AutoPuzzlesConfig {
         this.autoBoulderEnabled = enabled;
     }
 
-    /** Repurposed (killer560, 2026-09-27 redo - see {@code AutoBoulder}'s class doc): no longer a gap between
-     *  floor-button clicks (Auto Boulder doesn't click the floor any more), now how long it waits at the standing
-     *  spot against the oak logs before it auras the chest ("run up against the oak logs... and wait there a
-     *  second"). Same persisted field/slider so the setting isn't silently reset for anyone who had tuned it. */
+    /** Repurposed again (2026-10-06, see {@code AutoBoulder}'s class doc): with Secret Aura on, how long Auto Boulder
+     *  waits at the bars - on top of one second - for the aura to take the chest before opening it itself. Same
+     *  persisted field/slider so the setting isn't silently reset for anyone who had tuned it. */
     public int getBoulderDelayMs() {
         return boulderDelayMs;
     }
