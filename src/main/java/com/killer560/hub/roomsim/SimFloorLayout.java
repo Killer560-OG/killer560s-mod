@@ -84,8 +84,10 @@ public final class SimFloorLayout {
      *
      * @param honouredPins names of the pinned rooms that ARE on the floor, at the cell he put them
      * @param unusedPins   {@code "Name - reason"} per pinned room that could not be used
+     * @param missed       what the kept floor misses of what it was asked for ({@link #shortfalls}), empty when it
+     *                     is exact. The map designer's room filters read it to know a filtered pool was too small.
      */
-    public record PinnedFloor(Floor floor, List<String> honouredPins, List<String> unusedPins) {
+    public record PinnedFloor(Floor floor, List<String> honouredPins, List<String> unusedPins, List<String> missed) {
     }
 
     /** One room he pinned: the cell he put it at, and the room itself. */
@@ -301,14 +303,15 @@ public final class SimFloorLayout {
         if (best == null) {
             return null;
         }
+        List<String> finalMissed = shortfalls(best.floor(), pool, minRooms, wantCells, puzzles, roomsToBlood,
+                best.honouredPins());
         if (bestMissed > 0) {
             LOGGER.warn("Sim floor: no whole floor in {} met every requirement; keeping one that misses {}{}",
-                    tries, shortfalls(best.floor(), pool, minRooms, wantCells, puzzles, roomsToBlood,
-                            best.honouredPins()),
+                    tries, finalMissed,
                     best.unusedPins().size() > refused ? " and drops " + best.unusedPins() : "");
         }
         remember(best.floor());
-        return best;
+        return new PinnedFloor(best.floor(), best.honouredPins(), best.unusedPins(), List.copyOf(finalMissed));
     }
 
     /**
@@ -430,6 +433,19 @@ public final class SimFloorLayout {
             }
         }
         Floor floor = ensureTrap(best.floor(), pool, best.reached(), rng);
+        if (!hasTrap(floor)) {
+            // No swap could take the trap: put it in an empty cell NOW, while the fill below has not taken them all.
+            // With only 1x1 rooms to draw on (the map designer's size filter) the growth stalls early, every 1x1 on
+            // it has more doorways than a trap room, and the fill then covers all 36 cells - so the empty-cell
+            // fallback after it found nowhere to go and every floor came out with no trap (testkit
+            // 75-sim-map-editor-filters, 2026-10-06: 12 of 12 whole floors "missed [no trap]").
+            Filler f = new Filler(floor, pool, 0, best.reached(), rng);
+            f.only = c -> isTrap(c.name(), c.type());
+            if (f.strictOnce() || f.carveOnce()) {
+                LOGGER.info("Sim floor: the trap went into an empty cell before the fill");
+                floor = new Floor(f.rooms, f.links, f.open, floor.bloodDepth(), floor.spine());
+            }
+        }
         floor = fillGaps(floor, pool, wantCells, minRooms, puzzles, best.reached(), rng);
         floor = ensureBlood(floor, pool, best.reached());
         floor = ensurePuzzles(floor, pool, puzzles, best.reached(), rng);
@@ -445,7 +461,7 @@ public final class SimFloorLayout {
                 LOGGER.warn("Sim floor: no trap room could be fitted anywhere on this floor");
             }
         }
-        return new PinnedFloor(floor, best.reached(), unused);
+        return new PinnedFloor(floor, best.reached(), unused, List.of());
     }
 
     /**

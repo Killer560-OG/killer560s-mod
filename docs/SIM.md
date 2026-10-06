@@ -2507,3 +2507,21 @@ between those carpets down low but closer to the exit between them not touching 
   whole layers out at the start, chest absent; after the solve the chest at (15,56,22) and equal to the sim's, the path
   clear, Secret Aura opening it, secrets unchanged; a reset removing it and refilling the layers. Passed on Mod Only
   Test and Map Logger captures; the old jar fails it at the start ("0,0,1,1,1").
+
+## The Map Designer's room filters (2026-10-06, designer-filters)
+
+killer560: "in the generate a map thing have a filter section where i can filter based on things like puzzles, room size,
+secrets in a room, etc." `SimRoomFilters` holds the rules (saved in `killer560smod-sim-designer-filters.json`),
+`SimRoomFilterScreen` edits them, and the designer's list, Fill (which draws from the list as shown) and Generate all read
+them. Generate passes `SimRoomFilters::generatorAllows` to `SimFloorGen.plan(..., allow)`, which never filters out Entrance,
+Blood, Fairy, a trap or a pinned room, and lays the floor out again from every room when the filtered one has any
+`SimFloorLayout` shortfall (now carried out as `PinnedFloor.missed` / `Planned.missed`), restoring the recency memory first.
+
+- **With only 1x1 rooms every F7 came out with no trap.** The growth stalls early on a 1x1-only pool, `ensureTrap` found no
+  1x1 it could swap (every one on it has more doorways than a trap room), and `fillGaps` then covered all 36 cells, so the
+  "trap into an empty cell" last resort after it had nowhere to go. `runOnce` now tries the empty cell BEFORE the fill too.
+  `tools/layoutsim -Dsweep=true -Dkeepshapes=1x1` (new: the size filter as Generate applies it), seed 1, 20 a combination:
+  1,119 of 4,480 floors with no trap before (all 560 F7s, 559 F5s), 0 failing after; unfiltered 0 of 4,480 after.
+- **`ModChat.send` says nothing from the main menu**: it drops the line when `client.player` is null, and the designer opens
+  from the main menu. So none of `plan()`'s chat explanations ever reached him there; the designer's status line is the
+  only thing he sees, which is why the filter note leads it ("filters too strict - used every room · ...").

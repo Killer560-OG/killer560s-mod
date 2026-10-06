@@ -97,6 +97,26 @@ public final class LayoutSim {
             }
             SimFloorLayout.restoreRecency(saved);
         }
+        // -Dkeepshapes=1x1[,1x2...]: the Map Designer's size filter as Generate applies it (SimRoomFilters.
+        // generatorAllows): only rooms of those database shapes, except Entrance, Blood, Fairy, the traps and the
+        // puzzles, which the size filter never removes. Added the RoomLibrary map too, as the game's pool would be.
+        String keepShapes = System.getProperty("keepshapes");
+        if (keepShapes != null) {
+            java.util.Set<String> keep = new java.util.HashSet<>(java.util.Arrays.asList(keepShapes.split(",")));
+            int before = rooms.size();
+            rooms.keySet().removeIf(n -> {
+                String t = SimFloorGen.typeOf(n).toUpperCase(java.util.Locale.ROOT);
+                // SimFloorLayout.isTrap's rule (package-private, so not callable from here).
+                boolean trap = t.equals("TRAP") || n.equalsIgnoreCase("Old Trap") || n.equalsIgnoreCase("New Trap");
+                if (trap || t.equals("ENTRANCE") || t.equals("BLOOD") || t.equals("FAIRY")
+                        || t.equals("PUZZLE")) {
+                    return false;
+                }
+                String s = SimFloorGen.shapeOf(n);
+                return s == null || !keep.contains(s);
+            });
+            System.out.println("keepshapes " + keep + ": " + rooms.size() + " of " + before + " rooms kept");
+        }
         boolean noRecency = Boolean.getBoolean("norecency");
         if (Boolean.getBoolean("sweep")) {
             sweep(rooms, floors, noRecency);
