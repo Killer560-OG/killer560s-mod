@@ -765,8 +765,22 @@ public final class LiveMapFeature {
      *  does not. Package-private {@link DungeonMapScanner#stateAt} is the same source the map's own
      *  checkmark rendering already reads (see that class's doc), just exposed for another package. */
     public static boolean isRoomCleared(int idx) {
+        // The sim has no map item; it says which rooms it cleared itself (SimMobs -> SimRoomState), the same source
+        // MapPainter.visibleState already paints from.
+        if (com.killer560.hub.roomsim.SimState.isActive()) {
+            RoomEntry entry = roomEntryAt(idx);
+            if (entry != null && com.killer560.hub.roomsim.SimRoomState.isCleared(entry.name)) {
+                return true;
+            }
+        }
         int state = DungeonMapScanner.stateAt(idx);
         return state == DungeonMapScanner.STATE_GREEN || state == DungeonMapScanner.STATE_CLEARED;
+    }
+
+    /** Whether anything can say a room is cleared: the dungeon map item is read, or the sim says so itself. Off both
+     *  (a test server, a dungeon before the map item arrives) {@link #isRoomCleared} is false for every room. */
+    public static boolean hasRoomStates() {
+        return DungeonMapScanner.isCalibrated() || com.killer560.hub.roomsim.SimState.isActive();
     }
 
     /** @return the room identity for any cell of a room (every tile/connector of a multi-tile room gives
