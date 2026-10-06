@@ -83,12 +83,15 @@ def running_instances():
         return None
     if res.returncode != 0:
         return None
-    ps = res.stdout
+    # Prism writes the instance paths with FORWARD slashes (-Djava.library.path=C:/.../instances/26.1.2
+    # (Dungeons)/natives). Matching only backslashes never saw a running game, and on 2026-10-06 deploys replaced
+    # jars under open instances, which crashed one with "ZipFile invalid LOC header". Normalise before matching.
+    ps = res.stdout.replace("\\", "/")
     out = set()
     for name in os.listdir(INSTANCES):
         # Match the folder inside a real path, not as a bare substring: plain "26.1.2" is a substring of
         # "26.1.2 (Mod Only Test)", and matching loosely reported an idle instance as running.
-        if name and ("instances\\" + name + "\\") in ps:
+        if name and ("instances/" + name + "/") in ps:
             out.add(name)
     return out
 
