@@ -157,6 +157,10 @@ public final class EtherwarpPathfinder {
             int t = tile6;
             goal.region = (x, y, z) -> tiles.tileOf(x, y, z) == t;
             goal.tile = t;
+            // Land a decent way into the room, towards the middle of the clicked tile (WarpGraph.DEEP), not just
+            // past its doorway.
+            goal.preferX = tiles.x0 + 32 * (t % 6) + 0.5;
+            goal.preferZ = tiles.z0 + 32 * (t / 6) + 0.5;
             kind = "tile";
             if (new EtherSearch(grid).etherwarpable(to.getX(), to.getY(), to.getZ())) {
                 // No landing of the tile's floor band reachable: the block etherwarpableInTile picked, exactly.
@@ -204,15 +208,24 @@ public final class EtherwarpPathfinder {
             LOGGER.info("[Path] not a proof of no way because: {}", graph.noWayWhy);
             return legacyDungeonPath(from, to, cfg, dist, layout);
         }
+        String landing = graph.firmFixed > 0 || graph.firmDropped > 0 || graph.fragileLeft
+                ? "; " + graph.firmFixed + " aim(s) moved to one that holds, " + graph.firmDropped
+                + " fragile hop(s) dropped" + (graph.fragileLeft ? ", ONE STILL FRAGILE" : "") : "";
+        if (tile6 >= 0 && !graphs.usedExact && graph.lastDepth >= 0) {
+            landing += "; landing " + graph.lastDepth + " block(s) from the tile centre"
+                    + (graph.lastDepth <= WarpGraph.DEEP ? "" : " (shallow: none within " + WarpGraph.DEEP
+                    + " in the fewest warps or one more)")
+                    + (graph.lastExtraWarp ? ", one warp more than the fewest to get that far in" : "");
+        }
         // One line a click, so the cost can be read off his log rather than guessed at.
         LOGGER.info("[Path] {} warp(s) ({}{}), total {} ms on the {} graph: start {} ms, aim set {} ms ({} node(s)),"
                         + " backward labels {} ms ({} node(s)); {} node(s) worked out now, {} known, {} edge(s), {}"
-                        + " ray(s); exact heuristic {}; graph {} node(s), warm-up {}; {} section(s) filled",
+                        + " ray(s); exact heuristic {}; graph {} node(s), warm-up {}; {} section(s) filled{}",
                 path.size(), kind, graph.endedNear ? ", near: the block itself cannot be reached" : "",
                 ms(end - t0), graphs.usedName, ms(graph.nanosStart), ms(graph.nanosAimSet), graph.goalSetSize,
                 ms(graph.nanosLabels), graph.labelled, graph.expandedCold, graph.expandedWarm, graph.edgesScanned,
                 graph.rays, graph.usedFields ? "yes" : "no", graph.nodeCount(), warm ? "done" : "still running",
-                grid.filled);
+                grid.filled, landing);
         return toNodes(path);
     }
 
