@@ -424,8 +424,8 @@ public class TermismPracticeScreen extends Screen {
     // 12 - confirmed against Odin's own simpleTermGui(2, 7, ..); was still only randomly filling 4-7 of
     // the 14 cells, same sparse pattern Panes/Rubix legitimately use but Numbers apparently doesn't).
     // 2026-10-06 Hypixel update: 10 numbers instead of 14. The count follows the last live board seen
-    // (TerminalLayouts.numbersCount(), else its ASSUME_NEW_LAYOUT switch), two rows of count/2. The real shape of
-    // the 10-number board is not known yet - 2x5 is this practice screen's guess, not Hypixel's.
+    // (TerminalLayouts.numbersCount(), else its ASSUME_NEW_LAYOUT switch), two rows of count/2. For 10 that is 5 wide by
+    // 2 tall, the shape NoammAddons 1.2.9's NumberTerminal gives the 0.27.2 board (gridSize 5 to 2, was 7 to 2).
     private void generateNumbers() {
         int gridSize = com.killer560.hub.terminals.TerminalLayouts.numbersCount();
         columns = Math.max(1, gridSize / 2);

@@ -54,7 +54,7 @@ import java.util.regex.Pattern;
  * package, its tab and its own HUD element are deleted - see the implementation notes for the exact settings
  * migration.
  * <p>
- * <b>2026-09-20 "1s death tick during clear".</b> killer560's own words: "have the 1s death tick during clear,
+ * <b>2026-09-20 "1s death tick during clear"</b> (removed 2026-10-06, see the last paragraph). killer560's own words: "have the 1s death tick during clear,
  * with an option to turn it off after the run starts". Ported from NoammAddons' {@code floor7/TickTimers.kt}
  * "0s Death Tick" (its {@code clear} section) - there it derives from the raw world-time packet
  * ({@code ClientboundSetTimePacket.gameTime}), which would need a brand new packet mixin here. Since the value
@@ -75,10 +75,29 @@ import java.util.regex.Pattern;
  * counter left, now gated by its own {@link TickTimersConfig#isPadCycleTimer()} toggle (split out of
  * {@link TickTimersConfig#isStormTimer()} so his old F7 Spots "Pad Cycle Timer" preference still means the pad
  * line specifically - see {@link TickTimersConfig#migrateFromF7SpotsCrush()}).
+ * <p>
+ * <b>2026-10-06 SkyBlock 0.27.2 pacing</b> (NoammAddons 1.2.9 {@code floor7/TickTimers.kt} and its {@code dev/Timer.kt},
+ * which measured each gap in server ticks on the new pacing): "Maxor Start" 83 ticks from Maxor's opening line (new
+ * here); Goldor "Start:" 104 -&gt; 17 ticks from Storm's death line to Goldor's line, which still ends it; "Necron
+ * dropping in" 60 ticks now from "You went further than any human before, congratulations." (was "I'm afraid, your
+ * journey ends now."); PY 95 -&gt; 62. The clear "Death Tick" line is gone: it was {@code 20 - now % 20} on a clock
+ * counted from client launch, so its phase never matched any server cycle, and NoammAddons dropped both its death and
+ * secret tick timers in the same update (secret pickup became 5 ticks).
  */
 public final class TickTimersFeature {
 
-    private static final Pattern NECRON_REGEX = Pattern.compile("^\\[BOSS] Necron: I'm afraid, your journey ends now\\.$");
+    // NoammAddons 1.2.9 dev/Timer.kt: 60 ticks from this line to P4 on 0.27.2 (Noamm's old trigger and ours was
+    // "I'm afraid, your journey ends now.").
+    private static final Pattern NECRON_REGEX =
+            Pattern.compile("^\\[BOSS] Necron: You went further than any human before, congratulations\\.$");
+    private static final Pattern MAXOR_START_REGEX = Pattern.compile("^\\[BOSS] Maxor: WELL! WELL! WELL! LOOK WHO'S HERE!$");
+    /** NoammAddons 1.2.9 floor7/TickTimers.kt "Maxor Start" (was 167 before 0.27.2). */
+    static final int MAXOR_START_TICKS = 83;
+    /** NoammAddons 1.2.9 dev/Timer.kt: Storm's death line to Goldor's line on 0.27.2 (Odin's/our old 104). The one
+     *  copy of this gap: Auto i4's prefire window ({@code I4SensorsFeature.inPrefireWindow}) reads it too. */
+    public static final int GOLDOR_START_TICKS = 17;
+    /** NoammAddons 1.2.9 floor7/TickTimers.kt "Storm PY Timer" 75 -&gt; 62. Ours was Odin's 95. */
+    static final int STORM_PY_TICKS = 62;
     private static final Pattern GOLDOR_REGEX = Pattern.compile("^\\[BOSS] Goldor: Who dares trespass into my domain\\?$");
     private static final Pattern CORE_OPENING_REGEX = Pattern.compile("^The Core entrance is opening!$");
     private static final Pattern STORM_END_REGEX = Pattern.compile("^\\[BOSS] Storm: I should have known that I stood no chance\\.$");
@@ -86,6 +105,7 @@ public final class TickTimersFeature {
     private static final Pattern STORM_PY_REGEX = Pattern.compile("^\\[BOSS] Storm: (ENERGY HEED MY CALL|THUNDER LET ME BE YOUR CATALYST)!$");
 
     private static int necronTicks = -1;
+    private static int maxorStartTime = -1;
     private static int goldorTickTime = -1;
     private static int goldorStartTime = -1;
     private static int padTickTime = -1;
@@ -134,17 +154,18 @@ public final class TickTimersFeature {
         String raw = plain != null ? plain : message.getString();
         if (NECRON_REGEX.matcher(raw).matches()) {
             necronTicks = 60;
+        } else if (MAXOR_START_REGEX.matcher(raw).matches()) {
+            maxorStartTime = MAXOR_START_TICKS;
         } else if (GOLDOR_REGEX.matcher(raw).matches()) {
             goldorTickTime = 60;
             goldorPhaseStartTick = ServerTickClock.now();
-            // "Start:" counts the old 104 ticks from Storm's death to Goldor's line; SkyBlock 0.27.2 sped up "Goldor
-            // Spawn ... and Phase Transition" (with a full-completion party), so the line itself ends the countdown.
+            // "Start:" counts from Storm's death to this line, so the line itself ends it whatever the pacing.
             goldorStartTime = -1;
         } else if (CORE_OPENING_REGEX.matcher(raw).matches()) {
             goldorStartTime = -1;
             goldorTickTime = -1;
         } else if (STORM_END_REGEX.matcher(raw).matches()) {
-            goldorStartTime = 104;
+            goldorStartTime = GOLDOR_START_TICKS;
             padTickTime = -1;
             stormTick = -1;
         } else if (STORM_START_REGEX.matcher(raw).matches()) {
@@ -153,7 +174,7 @@ public final class TickTimersFeature {
             stormTick = 0;
         } else if (!pyTriggered && STORM_PY_REGEX.matcher(raw).matches()) {
             pyTriggered = true;
-            pyTickTime = 95;
+            pyTickTime = STORM_PY_TICKS;
         }
         // CrushTimer (moved in from f7spots 2026-09-21): its own trigger lines ("Oof" / "Ouch, that hurt!" /
         // the optional extra trigger text) don't overlap any pattern above, so it always gets a look.
@@ -198,11 +219,15 @@ public final class TickTimersFeature {
         // 2026-09-15 hardening (one deliberate deviation from Odin): Odin also requires goldorStartTime <= 0 here,
         // which means the Tick timer dies for the rest of P3 if Goldor's taunt lands less than 44 ticks after
         // Storm's death line (Tick reaches 0 while the 104-tick Start countdown is still running, so it is never
-        // re-armed). Real logs show ~100 ticks between those lines, but the gate buys nothing: while Start runs the
+        // re-armed). Since 0.27.2 the gap is ~17 ticks (NoammAddons 1.2.9), so Odin's gate would now never trip, but it
+        // still buys nothing: while Start runs the
         // HUD shows "Start:" instead of "Tick:" anyway, and the Core-entrance line still sets both to -1. Dropping
         // it only removes that failure mode; the countdown's alignment is unchanged.
         if (goldorTickTime == 0 && cfg.isGoldorTimer()) {
             goldorTickTime = 60;
+        }
+        if (maxorStartTime >= 0) {
+            maxorStartTime--;
         }
         if (goldorStartTime >= 0) {
             goldorStartTime--;
@@ -234,6 +259,7 @@ public final class TickTimersFeature {
 
     private static void resetAll() {
         necronTicks = -1;
+        maxorStartTime = -1;
         goldorTickTime = -1;
         goldorStartTime = -1;
         padTickTime = -1;
@@ -298,12 +324,8 @@ public final class TickTimersFeature {
         private List<String> activeLines() {
             TickTimersConfig cfg = TickTimersConfig.getInstance();
             List<String> lines = new ArrayList<>();
-            // killer560: "the 1s death tick during clear, with an option to turn it off after the run starts" -
-            // purely a cosmetic 20-server-tick pulse (see class doc), so it's derived on the fly from the
-            // shared clock rather than kept as its own decrementing field.
-            if (cfg.isClearDeathTick() && !(cfg.isDeathTickStopsAtBoss() && DungeonState.isBossPhaseActive())) {
-                int deathTick = 20 - (int) (ServerTickClock.now() % 20);
-                lines.add(format(deathTick, 20, "§cDeath:"));
+            if (cfg.isMaxorStartTimer() && maxorStartTime >= 0) {
+                lines.add(format(maxorStartTime, MAXOR_START_TICKS, "§aMaxor Start:"));
             }
             if (cfg.isNecronTimer() && necronTicks >= 0) {
                 lines.add(format(necronTicks, 60, "§4Necron dropping in"));
@@ -311,7 +333,7 @@ public final class TickTimersFeature {
             if (cfg.isGoldorTimer()) {
                 // Odin: "Start:" only when its own "Start timer" setting is on, otherwise "Tick:"/"Show Total".
                 if (goldorStartTime >= 0 && cfg.isGoldorStartTimer()) {
-                    lines.add(format(goldorStartTime, 100, "§aStart:"));
+                    lines.add(format(goldorStartTime, GOLDOR_START_TICKS, "§aStart:"));
                 } else if (goldorTickTime >= 0 && cfg.isGoldorShowTotal()) {
                     long elapsed = Math.max(0, ServerTickClock.now() - goldorPhaseStartTick);
                     lines.add(formatElapsed(elapsed, "§7Frenzy total"));
@@ -329,7 +351,7 @@ public final class TickTimersFeature {
                     lines.add(format(lightningTickTime, 560, "§bLightning:"));
                 }
                 if (pyTickTime >= 0) {
-                    lines.add(format(pyTickTime, 95, "§bPY:"));
+                    lines.add(format(pyTickTime, STORM_PY_TICKS, "§bPY:"));
                 }
                 if (stormTick >= 0) {
                     lines.add(format(stormTick, 620, "§bStorm:"));

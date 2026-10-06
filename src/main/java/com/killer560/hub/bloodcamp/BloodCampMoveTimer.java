@@ -57,6 +57,11 @@ public final class BloodCampMoveTimer {
                     + "I'm starting to get tired of seeing you around here\\.\\.\\.|Oh\\.\\. hello\\?|"
                     + "Things feel a little more roomy now, eh\\?)$");
 
+    /** Any Watcher line. NoammAddons 1.2.9 {@code DungeonListener} takes the FIRST of these in a run as the blood
+     *  opening ({@code watcherMessageRegex}, which posts its new {@code BloodOpenEvent}), so a greeting text this list
+     *  does not know yet - 0.27.2 already changed one - still starts the clock. */
+    private static final Pattern WATCHER_ANY = Pattern.compile("^\\[BOSS] The Watcher: .+$");
+
     /** The last wave going out - Odin's own {@code BLOOD_MOVE_REGEX}. */
     private static final Pattern BLOOD_MOVE =
             Pattern.compile("^\\[BOSS] The Watcher: Let's see how you can handle this\\.$");
@@ -99,12 +104,7 @@ public final class BloodCampMoveTimer {
         if (now < 0) {
             return;
         }
-        if (BLOOD_OPEN.matcher(plain).matches()) {
-            bloodOpenTick = now;
-            moveAtTick = -1L;
-            firstSpawns = true;
-            LOGGER.info("[BloodCamp] Watcher greeting seen at tick {} - move prediction armed.", now);
-        } else if (BLOOD_MOVE.matcher(plain).matches()) {
+        if (BLOOD_MOVE.matcher(plain).matches()) {
             firstSpawns = false;
             if (bloodOpenTick < 0) {
                 // Joined mid-blood, or the greeting was eaten by another mod's chat rewrite.
@@ -113,8 +113,10 @@ public final class BloodCampMoveTimer {
             }
             double gapSeconds = (now - bloodOpenTick) / 20.0;
             if (gapSeconds < FAST_WATCHER_GAP_SECONDS) {
-                LOGGER.info("[BloodCamp] Last wave out {} s after the greeting - the 0.27.2 fast Watcher; its move time is "
-                        + "unmeasured, so no move prediction.", String.format(Locale.US, "%.2f", gapSeconds));
+                moveAtTick = bloodOpenTick + FAST_WATCHER_MOVE_TICKS;
+                LOGGER.info("[BloodCamp] Last wave out {} s after the greeting - the 0.27.2 fast Watcher -> kill {} ticks "
+                        + "after the greeting ({} ticks away).", String.format(Locale.US, "%.2f", gapSeconds),
+                        FAST_WATCHER_MOVE_TICKS, moveAtTick - now);
                 return;
             }
             double moveAtSeconds = moveAtSeconds(gapSeconds);
@@ -122,14 +124,26 @@ public final class BloodCampMoveTimer {
             LOGGER.info("[BloodCamp] Last wave out {} s after the greeting -> Watcher moves at {} s ({} ticks away).",
                     String.format(Locale.US, "%.2f", gapSeconds),
                     String.format(Locale.US, "%.0f", moveAtSeconds), moveAtTick - now);
+        } else if (BLOOD_OPEN.matcher(plain).matches() || (bloodOpenTick < 0 && WATCHER_ANY.matcher(plain).matches())) {
+            bloodOpenTick = now;
+            moveAtTick = -1L;
+            firstSpawns = true;
+            LOGGER.info("[BloodCamp] Watcher greeting seen at tick {} - move prediction armed.", now);
         }
     }
 
     /** Greeting to last wave shorter than this is SkyBlock 0.27.2's sped-up Watcher ("Sped up Boss/Watcher dialogue",
      *  "The Watcher now spawns its summons faster"): killer560's two post-update runs measured 16 s and 15 s
      *  (09:55:42-09:55:58, 10:00:39-10:00:54), below every bucket of the old table, whose move times were measured on
-     *  the old pacing. Nothing has measured when the fast Watcher moves, so no prediction is made for it. */
+     *  the old pacing. The fast Watcher gets {@link #FAST_WATCHER_MOVE_TICKS} instead of the table. */
     static final double FAST_WATCHER_GAP_SECONDS = 18.0;
+
+    /** Kill time for the 0.27.2 fast Watcher, in ticks after his first line: NoammAddons 1.2.9
+     *  {@code dungeon/BloodCamp.kt} dropped the gap table and its speed alert and shows "Kill Mobs" 400 server ticks
+     *  after its new {@code BloodOpenEvent} (the run's first Watcher line). killer560's two runs put the last wave 15-16 s
+     *  after the greeting, so this lands 4-5 s after it. The table above stays for a gap of 18 s or more, in case the
+     *  old pacing still happens; Noamm applies 400 to every run. */
+    static final int FAST_WATCHER_MOVE_TICKS = 400;
 
     /** Seconds after the greeting at which the Watcher moves - see this class's own doc for the source. */
     private static double moveAtSeconds(double gapSeconds) {

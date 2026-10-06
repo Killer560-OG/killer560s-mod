@@ -44,9 +44,10 @@ public final class TerminalLayouts {
      *  picks which column to look in and where Termism draws them. */
     public static final int MELODY_BUTTON_COLUMN = 7;
 
-    /** The pre-update button slots, used only when a Melody board shows no terracotta button at all (a board
-     *  that has not populated yet). */
-    private static final int[] LEGACY_MELODY_BUTTONS = {16, 25, 34, 43};
+    /** The button slots used only when a Melody board shows no terracotta button at all (a board that has not
+     *  populated yet): the assumed layout's. 16/25/34 for the new board is NoammAddons 1.2.9 MelodyTerminal's
+     *  {@code claySlots} (its "remove 43" todo applied for 0.27.2). */
+    private static final int[] LEGACY_MELODY_BUTTONS = ASSUME_NEW_LAYOUT ? new int[]{16, 25, 34} : new int[]{16, 25, 34, 43};
 
     private static int seenMelodyRows = -1;
     private static int seenNumbersCount = -1;
@@ -59,7 +60,7 @@ public final class TerminalLayouts {
 
     /** @return the slots of Melody's clickable row buttons, top row first: every slot in the button column whose
      *  item is a terracotta (lime on the row being played, another colour on the others). A 4-row board gives
-     *  16/25/34/43; a 3-row board gives three. With no terracotta on the board yet, the pre-update slots that
+     *  16/25/34/43; a 3-row board gives three. With no terracotta on the board yet, the assumed layout's slots that
      *  fit inside the grid. */
     public static int[] melodyButtonSlots(List<ItemStack> items) {
         List<Integer> found = new ArrayList<>(4);

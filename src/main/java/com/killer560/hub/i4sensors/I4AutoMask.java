@@ -41,7 +41,9 @@ import com.killer560.hub.compat.McCompat;
  * default. {@link MaskSwapper#pickTarget} takes the order from the caller exactly so the two can differ.
  * <p>
  * <b>Timing</b> - on the proc itself (killer560, 2026-10-06: "auto mask swap for i4 just needs to swap after it
- * procs so no real timing needed"). Until then it swapped at NoammAddons' fixed 174/244 ticks after Storm's death,
+ * procs so no real timing needed"). NoammAddons 1.2.9 still swaps on a schedule (70/140 ticks after Goldor's line, its
+ * leap at 203); this one does not, so only its anchor fix carried over (the prefire window). Until then it swapped at
+ * NoammAddons' fixed 174/244 ticks after Storm's death,
  * which SkyBlock 0.27.2's faster Goldor transition (Storm's death to Goldor's line ~3 s instead of 5.2 s) left ~2 s
  * late. Now a pop line (below) while he is on the device, after Storm's death this world and before the device
  * completes, asks for the next item in the order that has not popped. A proc that lands inside the Machine Gun
