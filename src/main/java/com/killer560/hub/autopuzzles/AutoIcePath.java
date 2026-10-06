@@ -36,7 +36,9 @@ final class AutoIcePath {
     private static final int STUCK_SHOTS = 3;
 
     private static final AutoGuard GUARD = new AutoGuard("Auto Ice Path", "Ice Path Solver");
-    private static final AutoReposition REPOSITION = new AutoReposition("IcePath");
+    /** Held from the first aim until the silverfish reaches the exit (see {@link FreeCam}). */
+    private static final FreeCam CAMERA = new FreeCam("IcePath");
+    private static final AutoReposition REPOSITION = new AutoReposition("IcePath", CAMERA);
 
     private static long lastShotTime = 0L;
     private static boolean wasInRoom = false;
@@ -49,6 +51,7 @@ final class AutoIcePath {
 
     static void levelChanged(Minecraft client) {
         GUARD.levelChanged();
+        CAMERA.drop();
         reset(client);
     }
 
@@ -88,8 +91,10 @@ final class AutoIcePath {
             say("in Ice Path - auto on, reposition " + (cfg.isEtherwarpReposition() ? "on" : "off"));
         }
         wasInRoom = true;
+        CAMERA.keep(client.player);
         if (!GUARD.solverOn(IcePathSolverConfig.getInstance().isEnabled())) {
             say("waiting: Ice Path Solver is off");
+            CAMERA.release(client.player);
             return;
         }
         Silverfish fish = IcePathSolverFeature.getSilverfish();
@@ -104,10 +109,16 @@ final class AutoIcePath {
         }
         if (fish == null) {
             say("waiting: the solver has no silverfish");
+            // The silverfish leaving the board is how a solved Ice Path ends (93-solve-icepath: "the silverfish is
+            // out", then no fish and no path) - hand the camera back rather than hold it until he leaves the room.
+            CAMERA.release(player);
             return;
         }
         if (path.size() < 2) {
             say(path.isEmpty() ? "waiting: the solver has no path yet" : "done: the silverfish is at the exit");
+            if (!path.isEmpty()) {
+                CAMERA.release(player);
+            }
             return;
         }
         if (REPOSITION.isActive()) {
@@ -157,6 +168,7 @@ final class AutoIcePath {
         // too - and the shot was refused outright whenever no such point was visible. The direction of a shove is a
         // board direction; no ray is needed to know it.
         float yaw = AutoPuzzleUtil.direction(Vec3.atCenterOf(currSpot), Vec3.atCenterOf(nextSpot))[0];
+        CAMERA.engage(player); // before the aim turns him
         if (!AutoPuzzleUtil.useItemRotated(client, player, yaw, 90f)) {
             return; // gate held this tick back - no shot, so lastShotTime must not move
         }
@@ -262,6 +274,7 @@ final class AutoIcePath {
     private static void reset(Minecraft client) {
         REPOSITION.cancel(client);
         AutoReposition.releaseSneak(client);
+        CAMERA.release(client.player);
         lastShotTime = 0L;
         shotCell = null;
         shotsAtCell = 0;

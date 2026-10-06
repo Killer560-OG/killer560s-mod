@@ -6,10 +6,10 @@ import com.killer560.hub.puzzlesolvers.BlazeSolverFeature;
 import com.killer560.hub.puzzlesolvers.PuzzleCoords;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.util.ModChat;
-import com.killer560.hub.util.ViewFreeze;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -45,10 +45,12 @@ import com.killer560.hub.compat.McCompat;
  *   ({@link RoomEntry#secretCoords}) actually knows about, then auras it itself if it's a chest - never
  *   {@code SecretAuraFeature}, same reasoning as Auto Boulder.</li>
  *   <li>"for blaze by default can you have my characters head face more towards the middle when put into the
- *   freecam view" - {@link #seedDefaultView} pre-seeds {@link ViewFreeze}'s held view (before anything else in
- *   this room gets a chance to seed it from wherever the player happened to be looking) to face the room's own
- *   horizontal centre, using {@link LiveMapFeature#roomWorldBounds}.</li>
+ *   freecam view" - {@link #engageCamera} takes the run's {@link FreeCam} facing the room's own horizontal
+ *   centre, using {@link LiveMapFeature#roomWorldBounds}.</li>
  * </ul>
+ * killer560, 2026-10-06: "make higher lower blaze enter a free cam state right now it just snaps my camera around
+ * everywhere. It should be the same state used for ap3." The camera is held by {@link FreeCam} from the first aim
+ * (shot or reposition) to the last shot, renewed every tick, and handed back with the body turned under it.
  */
 final class AutoBlaze {
 
@@ -74,7 +76,10 @@ final class AutoBlaze {
     }
 
     private static final AutoGuard GUARD = new AutoGuard("Auto Blaze", "Blaze Solver");
-    private static final AutoReposition REPOSITION = new AutoReposition("Blaze");
+    /** Held from the first aim (shot or reposition) to the last shot - see {@link FreeCam} for why a per-rotation
+     *  lease was not enough. */
+    private static final FreeCam CAMERA = new FreeCam("Blaze");
+    private static final AutoReposition REPOSITION = new AutoReposition("Blaze", CAMERA);
 
     private static long lastShotTime = 0L;
     private static boolean waitingForUpdate = false;
@@ -119,6 +124,7 @@ final class AutoBlaze {
 
     static void levelChanged(Minecraft client) {
         GUARD.levelChanged();
+        CAMERA.drop();
         reset(client);
     }
 
@@ -136,14 +142,14 @@ final class AutoBlaze {
             return;
         }
         wasInRoom = true;
+        LocalPlayer player = client.player;
+        // Every tick of the run, whatever this tick goes on to do (wait out an arrow, a cooldown, a screen, a warp's
+        // landing): the camera stays free from the first aim to the last shot.
+        CAMERA.keep(player);
         if (!GUARD.solverOn(BlazeSolverConfig.getInstance().isEnabled())) {
+            CAMERA.release(player);
             return;
         }
-        LocalPlayer player = client.player;
-        // killer560, 2026-09-27: "have my character's head face more towards the middle when put into the freecam
-        // view" - seed the held view BEFORE the first rotation of this run gets a chance to anchor it to wherever
-        // the player happened to be looking (ViewFreeze.hold is a no-op past the first call of a run).
-        seedDefaultView(player);
         if (blazes.isEmpty() && lastBlazeCount > 0 && ++emptyTicks < DONE_TICKS) {
             say("the solver's list is empty - waiting " + DONE_TICKS + " ticks before calling the room done");
             return;
@@ -157,6 +163,7 @@ final class AutoBlaze {
                 ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Blaze: "), ModChat.good("done"), ModChat.text("."));
                 REPOSITION.cancel(client);
                 AutoReposition.releaseSneak(client);
+                CAMERA.release(player); // the last shot has landed: body back under his view, camera handed back
                 if (cfg.isAutoBlazeSecretEnabled() && secretStage == SecretStage.NONE) {
                     secretStage = SecretStage.FIND;
                 }
@@ -189,6 +196,7 @@ final class AutoBlaze {
         // fault; this one failed the other way round, skipping the reposition instead of repeating it.
         if (higher && player.getY() <= 75 + com.killer560.hub.livemap.DungeonLayout.simYOffset()) {
             if (reposition) {
+                engageCamera(player);
                 cyclePosition(client, player, blazes, cr, higher, true);
             } else {
                 say("waiting: below Higher Blaze's top level and Etherwarp Reposition is off");
@@ -242,6 +250,7 @@ final class AutoBlaze {
                         fmt(player.position()), terminator, reposition ? "repositioning" : "reposition is off, waiting");
             }
             if (reposition) {
+                engageCamera(player);
                 cyclePosition(client, player, blazes, cr, higher, false);
             }
             return;
@@ -265,6 +274,7 @@ final class AutoBlaze {
         Vec3 eye = player.getEyePosition();
         Vec3 finalTarget = eye.add(AutoPuzzleUtil.look(hitDir[0], hitDir[1]).scale(10.0));
         float[] dir = AutoPuzzleUtil.direction(eye, finalTarget);
+        engageCamera(player); // before the aim turns him
         if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
             return; // gate held this tick back - no shot, so lastShotTime / waitingForUpdate must not move
         }
@@ -714,22 +724,32 @@ final class AutoBlaze {
         return v * v;
     }
 
-    /** Room-centre yaw/pitch, seeded into {@link ViewFreeze} only on the FIRST hold of a run (see its own doc) -
-     *  calling this every tick is harmless, it only actually moves anything the very first time. */
-    private static void seedDefaultView(LocalPlayer player) {
-        if (ViewFreeze.isHeld()) {
+    /**
+     * Takes the run's free camera, once, before its first aim - facing the room's horizontal centre (killer560,
+     * 2026-09-27: "for blaze by default can you have my characters head face more towards the middle when put into
+     * the freecam view"), or where he is looking when the room's bounds are not known.
+     * <p>
+     * This used to be {@code seedDefaultView}, called EVERY tick and holding a fresh 400 ms lease whenever none was
+     * held. Nothing renewed that lease, so it lapsed every 400 ms and was immediately re-seeded: the camera dropped
+     * onto his body (facing the last blaze) for a frame and was then thrown back to the room centre, wiping out
+     * whatever his mouse had done - half of the "snaps my camera around everywhere" of 2026-10-06.
+     */
+    private static void engageCamera(LocalPlayer player) {
+        if (CAMERA.isEngaged()) {
             return;
         }
         int idx = LiveMapFeature.currentRoomIndex();
         int[] bounds = idx < 0 ? null : LiveMapFeature.roomWorldBounds(idx);
         if (bounds == null) {
+            CAMERA.engage(player);
             return;
         }
         double centerX = (bounds[0] + bounds[2]) / 2.0;
         double centerZ = (bounds[1] + bounds[3]) / 2.0;
         Vec3 eye = player.getEyePosition();
         float[] dir = AutoPuzzleUtil.direction(eye, new Vec3(centerX, eye.y, centerZ));
-        ViewFreeze.hold(dir[0], dir[1]);
+        // On his running yaw, not the wrapped one, so the held view does not start a whole turn away from his body.
+        CAMERA.engage(player, player.getYRot() + Mth.wrapDegrees(dir[0] - player.getYRot()), dir[1]);
     }
 
     // ------------------------------------------------------------------ Auto Secret (killer560, 2026-09-27)
@@ -857,6 +877,7 @@ final class AutoBlaze {
     private static void reset(Minecraft client) {
         REPOSITION.cancel(client);
         AutoReposition.releaseSneak(client);
+        CAMERA.release(client.player);
         lastShotTime = 0L;
         waitingForUpdate = false;
         currentTarget = null;

@@ -45,7 +45,9 @@ final class AutoWater {
     private static final int[] START_SPOT_RELATIVE = com.killer560.hub.livemap.autoclear.AutoClearUtils.roomOverride(ROOM);
 
     private static final AutoGuard GUARD = new AutoGuard("Auto Water Board", "Water Board Solver");
-    private static final AutoReposition REPOSITION = new AutoReposition("Water");
+    /** Held from the first reposition warp until the chest spot (see {@link FreeCam}). */
+    private static final FreeCam CAMERA = new FreeCam("Water");
+    private static final AutoReposition REPOSITION = new AutoReposition("Water", CAMERA);
 
     private static long lastClickTick = Long.MIN_VALUE / 2;
     private static long lastClickMs = 0L;
@@ -60,6 +62,7 @@ final class AutoWater {
 
     static void levelChanged(Minecraft client) {
         GUARD.levelChanged();
+        CAMERA.drop();
         reset(client);
     }
 
@@ -76,6 +79,7 @@ final class AutoWater {
             return;
         }
         wasInRoom = true;
+        CAMERA.keep(client.player);
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (!startAreaAttempted && cr != null && McCompat.screen(client) == null) {
             // Pure navigation, no solver data involved - tried once per room visit regardless of the solver/GUARD
@@ -96,6 +100,7 @@ final class AutoWater {
             return; // still walking to the start area (ours or someone else's) - the levers can wait
         }
         if (!GUARD.solverOn(WaterSolverConfig.getInstance().isEnabled()) || stoppedThisRoom || !GUARD.fresh()) {
+            CAMERA.release(client.player);
             return;
         }
         LocalPlayer player = client.player;
@@ -126,6 +131,7 @@ final class AutoWater {
                     return;
                 }
                 AutoReposition.releaseSneak(client);
+                CAMERA.release(player);
                 atChest = true;
                 ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Water Board: "), ModChat.good("done"), ModChat.text("."));
             }
@@ -253,6 +259,7 @@ final class AutoWater {
         loggedWait = null;
         REPOSITION.cancel(client);
         AutoReposition.releaseSneak(client);
+        CAMERA.release(client.player);
         lastClickTick = Long.MIN_VALUE / 2;
         lastClickMs = 0L;
         atChest = false;

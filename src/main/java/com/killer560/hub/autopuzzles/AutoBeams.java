@@ -49,7 +49,9 @@ public final class AutoBeams {
     }
 
     private static final AutoGuard GUARD = new AutoGuard("Auto Creeper Beams", "Creeper Beams Solver");
-    private static final AutoReposition REPOSITION = new AutoReposition("Beams");
+    /** Held from the first aim to the fourth pair (see {@link FreeCam}). */
+    private static final FreeCam CAMERA = new FreeCam("Beams");
+    private static final AutoReposition REPOSITION = new AutoReposition("Beams", CAMERA);
 
     private static LanternPair activePair = null;
     private static long lastShotTime = 0L;
@@ -69,6 +71,7 @@ public final class AutoBeams {
 
     static void levelChanged(Minecraft client) {
         GUARD.levelChanged();
+        CAMERA.drop();
         reset(client);
     }
 
@@ -107,8 +110,10 @@ public final class AutoBeams {
             return;
         }
         wasInRoom = true;
+        CAMERA.keep(client.player);
         if (!GUARD.solverOn(BeamsSolverConfig.getInstance().isEnabled())) {
             active = false;
+            CAMERA.release(client.player);
             return;
         }
         active = true;
@@ -120,6 +125,7 @@ public final class AutoBeams {
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Creeper Beams: "), ModChat.good("done"), ModChat.text("."));
             REPOSITION.cancel(client);
             AutoReposition.releaseSneak(client);
+            CAMERA.release(client.player);
         }
         lastPairCount = pairs.size();
 
@@ -231,6 +237,7 @@ public final class AutoBeams {
         if (dir == null) {
             dir = AutoPuzzleUtil.direction(eye, lanternVec);
         }
+        CAMERA.engage(player); // before the aim turns him
         if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
             return; // gate held this tick back - no shot, so lastShotTime must not move
         }
@@ -306,6 +313,7 @@ public final class AutoBeams {
     private static void reset(Minecraft client) {
         REPOSITION.cancel(client);
         AutoReposition.releaseSneak(client);
+        CAMERA.release(client.player);
         activePair = null;
         lastSaid = null;
         failedSpot = null;

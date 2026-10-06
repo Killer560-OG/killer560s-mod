@@ -1,5 +1,6 @@
 package com.killer560.hub.util;
 
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
 
 /**
@@ -72,6 +73,20 @@ public final class ViewFreeze {
 
     public static float viewPitch() {
         return isHeld() ? pitch : Float.NaN;
+    }
+
+    /**
+     * Every client tick, at its END - after {@code LocalPlayer.aiStep} has moved the first-person hand sway toward the
+     * REAL rotation: while held, the hand chases the held view instead, with the same half-a-tick chase vanilla uses.
+     * AP3's own view freeze does exactly this ({@code Ap3Executor.tickView}); without it the hand swings across the
+     * screen on every aim even though the camera stays put.
+     */
+    public static void followHandSway(LocalPlayer player) {
+        if (player == null || !isHeld()) {
+            return;
+        }
+        player.yBob = player.yBobO + (yaw - player.yBobO) * 0.5f;
+        player.xBob = player.xBobO + (pitch - player.xBobO) * 0.5f;
     }
 
     /** His mouse, moving the held view instead of his body. */
