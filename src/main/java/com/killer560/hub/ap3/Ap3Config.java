@@ -208,6 +208,9 @@ public final class Ap3Config {
     private boolean stopwatchHud = false;
     /** Post a finished stopwatch to party chat ("s3 took 12.345s") - killer560, 2026-09-21. Off by default. */
     private boolean stopwatchToParty = false;
+    /** Two server corrections in 10 s switch AP3 off. killer560 (2026-10-05) wanted a way to keep it on; default
+     *  stays on. Off: a correction still stops what AP3 is doing and blocks that node, it just stays enabled. */
+    private boolean disableOnCorrections = true;
     /** The line joining consecutive nodes (killer560, 2026-09-21: "an option to hide the lines going from one node to
      *  another"). On by default - it is what was always drawn. */
     private boolean showChainLines = true;
@@ -351,6 +354,7 @@ public final class Ap3Config {
                 cfg.keybindsSectionOpen = ConfigJson.getBool(o, "keybindsSectionOpen", cfg.keybindsSectionOpen);
                 cfg.stopwatchHud = ConfigJson.getBool(o, "stopwatchHud", cfg.stopwatchHud);
                 cfg.stopwatchToParty = ConfigJson.getBool(o, "stopwatchToParty", cfg.stopwatchToParty);
+                cfg.disableOnCorrections = ConfigJson.getBool(o, "disableOnCorrections", cfg.disableOnCorrections);
                 cfg.showChainLines = ConfigJson.getBool(o, "showChainLines", cfg.showChainLines);
                 cfg.showNodes = ConfigJson.getBool(o, "showNodes", cfg.showNodes);
                 cfg.uniformColor = ConfigJson.getBool(o, "uniformColor", cfg.uniformColor);
@@ -429,6 +433,7 @@ public final class Ap3Config {
             o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
             o.addProperty("stopwatchHud", stopwatchHud);
             o.addProperty("stopwatchToParty", stopwatchToParty);
+            o.addProperty("disableOnCorrections", disableOnCorrections);
             o.addProperty("showChainLines", showChainLines);
             o.addProperty("showNodes", showNodes);
             o.addProperty("uniformColor", uniformColor);
@@ -551,6 +556,8 @@ public final class Ap3Config {
     public void setShowChainLines(boolean v) { showChainLines = v; }
     public void setStopwatchToParty(boolean v) { stopwatchToParty = v; }
     public void setStopwatchHud(boolean v) { stopwatchHud = v; }
+    public boolean isDisableOnCorrections() { return disableOnCorrections; }
+    public void setDisableOnCorrections(boolean v) { disableOnCorrections = v; }
 
     // ------------------------------------------------------------------------------------------- colours
 

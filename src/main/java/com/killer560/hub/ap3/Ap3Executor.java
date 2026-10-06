@@ -1645,7 +1645,7 @@ public final class Ap3Executor {
         while (!correctionTimes.isEmpty() && now - correctionTimes.peekFirst() > BREAKER_WINDOW_MS) {
             correctionTimes.pollFirst();
         }
-        if (correctionTimes.size() >= BREAKER_COUNT) {
+        if (correctionTimes.size() >= BREAKER_COUNT && Ap3Config.getInstance().isDisableOnCorrections()) {
             correctionTimes.clear();
             Ap3Feature.disableAfterError("the server corrected your position " + BREAKER_COUNT
                     + " times in 10 seconds - AP3 is OFF until you turn it back on, to avoid flags");
