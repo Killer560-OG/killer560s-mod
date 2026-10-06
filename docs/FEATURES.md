@@ -184,7 +184,7 @@ The detailed version of the feature list in the README. Keep this file up to dat
 
 **AP3 - automated F7/M7 Phase 3 (cheat build only)**
 
-AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phase (P3, sections S1-S4) along a route of *nodes* you place yourself. It only ever presses real keys - W/A/S/D, sneak, sprint, jump - and turns your real view, exactly like a player would; it never writes your position or velocity, and it stops the moment the server corrects your position (two corrections in ten seconds switch AP3 off, unless you turn off **Turn Off After Server Corrections** - it still stops each time, it just stays enabled). Use it on your own risk - it is automation and against Hypixel's rules.
+AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phase (P3, sections S1-S4) along a route of *nodes* you place yourself. It only ever presses real keys - W/A/S/D, sneak, sprint, jump - and turns your real view, exactly like a player would; it never writes your position or velocity, and it stops the moment the server corrects your position (two corrections in ten seconds switch AP3 off, unless you turn off **Stop On Server Corrections**, which leaves only a chat line and lets AP3 carry on). Use it on your own risk - it is automation and against Hypixel's rules.
 
 *How it runs*
 - Every node has a small trigger box (0.5 or 1 block by default, or any size with w<n> l<n>). Walking INTO a box fires that node; the ones you are already standing in do not fire again until you leave and come back.

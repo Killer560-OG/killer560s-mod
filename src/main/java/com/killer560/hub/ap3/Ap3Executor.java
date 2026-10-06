@@ -1633,6 +1633,13 @@ public final class Ap3Executor {
         if (!moving) {
             return;
         }
+        // Switch off (killer560, 2026-10-05: "dont have it stop just have nothing happen but the chat
+        // notification"): no stop, no blocked node, no circuit breaker - only the chat line.
+        if (!Ap3Config.getInstance().isStopOnCorrections()) {
+            chat(ModChat.bad("Server corrected your position (" + String.format(Locale.US, "%.2f",
+                    Math.sqrt(dx * dx + dy * dy + dz * dz)) + " blocks) - carrying on."));
+            return;
+        }
         if (activeNode != null) {
             blockedNodes.put(activeNode, new int[]{0});
         }
@@ -1645,7 +1652,7 @@ public final class Ap3Executor {
         while (!correctionTimes.isEmpty() && now - correctionTimes.peekFirst() > BREAKER_WINDOW_MS) {
             correctionTimes.pollFirst();
         }
-        if (correctionTimes.size() >= BREAKER_COUNT && Ap3Config.getInstance().isDisableOnCorrections()) {
+        if (correctionTimes.size() >= BREAKER_COUNT) {
             correctionTimes.clear();
             Ap3Feature.disableAfterError("the server corrected your position " + BREAKER_COUNT
                     + " times in 10 seconds - AP3 is OFF until you turn it back on, to avoid flags");
