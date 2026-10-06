@@ -225,6 +225,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   after the first (102-sim-autosecret, 2026-10-06). A map press clears it in `InteractiveMapFeature.queue` via
   `cancelForInteractiveMap`; anything that drives the start-node warp must call that first, as Auto Secret now does.
 
+- **`AutoClearUtils.canPath` refuses by room NAME**: anything containing Maze or Boulder, and a Trap room past its start
+  line. Anything that warps him INTO such a room with the Interactive Map can never warp him out, and nothing in the mod
+  walks: Dungeon Autopilot sat on "Can't start a path from here yet" for good after a route ended inside Arrow Trap
+  (141-sim-autopilot, 2026-10-06). The autopilot now leaves those rooms (and the Boulder / Teleport Maze puzzles) out.
+
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session
