@@ -79,6 +79,7 @@ final class Autopilot {
     private static double routeSecondsPerNode = ROUTE_SECONDS_PER_NODE_START;
     private static boolean bloodOpened;
     private static final Set<Integer> explored = new HashSet<>();
+    private static final Set<String> strandSaid = new HashSet<>();
     private static final Set<String> teammateOverride = new HashSet<>();
     private static boolean noRoutesSaid;
     private static boolean noClearSaid;
@@ -104,6 +105,7 @@ final class Autopilot {
         routeSecondsPerNode = ROUTE_SECONDS_PER_NODE_START;
         bloodOpened = false;
         explored.clear();
+        strandSaid.clear();
         noRoutesSaid = false;
         noClearSaid = false;
         noScoreSaid = false;
@@ -376,6 +378,15 @@ final class Autopilot {
             int rushIndex = rush == null ? -1 : rush.indexOf(r.room());
             String key = keyOf(r);
             travelByKey.put(key, travel);
+            if (strands(r.name())) {
+                // The Interactive Map will not path out of a maze, Boulder or a trap room past its start line
+                // (AutoClearUtils.canPath, QUOI's rule), and it has no walk: going in would end the run there.
+                if (strandSaid.add(r.name()) && (r.unfound() > 0 || !r.cleared())) {
+                    LOGGER.info("[Autopilot] {} left out: the map cannot path out of it", r.name());
+                    AutoSecretFeature.sayAutopilot(r.name() + ": left for you - the map can't path back out of it");
+                }
+                continue;
+            }
             if ("Unknown".equals(r.name())) {
                 if (!explored.contains(r.mainTile())) {
                     // Unidentified: going there identifies it; worth about half a room until it is known.
@@ -404,6 +415,11 @@ final class Autopilot {
             }
         }
         return out;
+    }
+
+    /** Rooms {@code AutoClearUtils.canPath} refuses to path out of (by name, as it does): Maze, Boulder, Trap. */
+    static boolean strands(String name) {
+        return name.contains("Maze") || name.contains("Boulder") || name.contains("Trap");
     }
 
     /** A room's key in a candidate: its name, or its main tile for an unidentified one (several share "Unknown"). */
