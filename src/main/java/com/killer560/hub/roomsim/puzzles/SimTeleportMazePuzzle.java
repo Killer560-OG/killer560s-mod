@@ -128,7 +128,7 @@ public final class SimTeleportMazePuzzle {
      * Both positions are indexed now, so neither block height can miss - and the chamber floor around the
      * pads is a full block, so nothing else in the room lands on either key.
      */
-    private static final Map<BlockPos, int[]> PAD_INDEX = new HashMap<>();
+    private static final Map<BlockPos, int[]> PAD_INDEX = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** Every block position this session has placed, for {@link #reset} to clear. */
     private static volatile List<BlockPos> builtBlocks = List.of();
@@ -333,7 +333,7 @@ public final class SimTeleportMazePuzzle {
     /** The one pad that leads to the end. */
     private static volatile int exitPad = -1;
     /** Feet position -> pad id, at both heights a player can stand at on one (see {@link #PAD_INDEX}). */
-    private static final Map<BlockPos, Integer> BOUND_INDEX = new HashMap<>();
+    private static final Map<BlockPos, Integer> BOUND_INDEX = new java.util.concurrent.ConcurrentHashMap<>();
     /** The pad he was just put on: inert until he has stepped off it. */
     private static volatile int lockedPad = -1;
     /** Ticks before a pad can fire again - the server moves him a tick or two after the client asks. */

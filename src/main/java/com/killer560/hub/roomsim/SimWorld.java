@@ -72,8 +72,18 @@ public final class SimWorld {
                         + "If the map looks wrong, the log has the detail."));
             }
         });
+        // DISCONNECT runs on the NETTY thread (Connection.channelInactive; see docs/LESSONS.md and ChunkCacheManager),
+        // concurrently with the render thread's own teardown in Minecraft.disconnect. The two queues are thread-safe
+        // (synchronized) and are emptied right here, as early as possible, so the integrated server stops stepping
+        // jobs that hold the dying ServerLevel. Everything else - the sim flag, the per-map state the client tick
+        // hooks iterate, the tab list, the loading screen - belongs to the render thread and is handed to it.
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register(
-                (handler, client) -> onWorldUnloaded());
+                (handler, client) -> {
+                    SimBuildQueue.clear();
+                    SimBreakerState.reset();
+                    String thread = Thread.currentThread().getName();
+                    client.execute(() -> onWorldUnloaded(client, handler, thread));
+                });
     }
 
     /**
@@ -396,18 +406,33 @@ public final class SimWorld {
                 ModChat.dim("/simitem for the toolkit."));
     }
 
-    /** Called when the player leaves a world, so the flag can never outlive the session. */
-    public static void onWorldUnloaded() {
+    /**
+     * Called on the RENDER thread when the player leaves a world, so the flag can never outlive the session.
+     *
+     * @param closed the connection that went away; when the client already holds a different one, a new world
+     *               arrived before this ran and its session must not be ended by the old world's leave
+     * @param firedOn the thread Fabric fired DISCONNECT on, for the log
+     */
+    static void onWorldUnloaded(Minecraft client, Object closed, String firedOn) {
+        var now = client.getConnection();
+        if (now != null && now != closed) {
+            LOGGER.info("[SimPhase] world unloaded (fired on {}) after a new world joined - session kept", firedOn);
+            return;
+        }
+        LOGGER.info("[SimPhase] world unloaded (fired on {}, handled on {})", firedOn,
+                Thread.currentThread().getName());
         pendingCode = null;
         if (SimState.isActive()) {
-            // Everything that needs canAct() FIRST, then leave().
+            // Everything per-map FIRST, then leave().
             //
-            // leave() was called first, and SimMobs.clear returns early when canAct is false - so it never
+            // leave() was called first, and SimMobs.clear returned early when canAct was false - so it never
             // ran. Its hadStarred/SPAWNED/STARRED sets survived into the next session, where the first tick
-            // saw "starred mobs all dead" and dropped a Wither Key at his feet in a fresh map.
-            resetPerMapState(Minecraft.getInstance());
+            // saw "starred mobs all dead" and dropped a Wither Key at his feet in a fresh map. SimMobs.clear now
+            // forgets its sets whatever canAct says, which matters here: on the render thread, after the
+            // disconnect, client.level is usually already null.
+            resetPerMapState(client);
             SimAbilities.reset();
-            SimSidebar.clearTabInfo(Minecraft.getInstance());
+            SimSidebar.clearTabInfo(client);
             SimState.leave();
         }
         // Outside the isActive() branch: a build abandoned mid-flight leaves jobs holding the OLD ServerLevel,

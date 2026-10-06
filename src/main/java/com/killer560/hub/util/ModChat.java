@@ -62,9 +62,19 @@ public final class ModChat {
         return out;
     }
 
-    /** Sends a local-only (client-side) message: "[feature] " + parts. No-op without a player. */
+    /**
+     * Sends a local-only (client-side) message: "[feature] " + parts. No-op without a player.
+     *
+     * <p>Callable from any thread. The chat window's lists are the render thread's, and the sim calls this from the
+     * integrated server thread (SimSurvival's death hook, puzzle judges, anything inside {@code server.execute}), which
+     * added lines to the chat while the render thread was drawing it. Off the render thread the line is handed to it.
+     */
     public static void send(String feature, Component... parts) {
         Minecraft client = Minecraft.getInstance();
+        if (!client.isSameThread()) {
+            client.execute(() -> send(feature, parts));
+            return;
+        }
         if (client.player != null) {
             client.player.sendSystemMessage(line(feature, parts));
         }

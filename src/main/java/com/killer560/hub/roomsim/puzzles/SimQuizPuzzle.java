@@ -69,7 +69,9 @@ public final class SimQuizPuzzle {
 
     private static final Map<BlockPos, Integer> CELL_INDEX = new ConcurrentHashMap<>();
     private static volatile BlockPos[] chestPos = null;
-    private static final List<UUID> LABELS = new ArrayList<>();
+    /** Written on the server thread (newQuestion), copied and cleared on the render thread (reset); an ArrayList
+     *  there could lose a label or throw mid-copy. Copy-on-write like NPC_IDS beside it. */
+    private static final List<UUID> LABELS = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     private static volatile boolean built = false;
     private static volatile boolean complete = false;

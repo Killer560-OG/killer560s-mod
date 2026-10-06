@@ -40,6 +40,8 @@ public final class SimScore {
     /** Whether Paul's EZPZ is on for this run. */
     private static boolean paulEzpz;
 
+    // Bumped from the render thread (SimMimic's chest open) and the server thread (secrets, bats, crypts, the
+    // mimic), so every mutator is synchronized: two ++ landing together lost one.
     private static int cryptsBlown;
     private static boolean mimicKilled;
     private static int batsKilled;
@@ -63,7 +65,7 @@ public final class SimScore {
     }
 
     /** Clears everything, for a new run. */
-    public static void reset(int mapSecretTotal, int mapRoomTotal) {
+    public static synchronized void reset(int mapSecretTotal, int mapRoomTotal) {
         cryptsBlown = 0;
         mimicKilled = false;
         batsKilled = 0;
@@ -76,12 +78,12 @@ public final class SimScore {
         paulEzpz = false;
     }
 
-    public static void cryptBlown() {
+    public static synchronized void cryptBlown() {
         cryptsBlown++;
     }
 
     /** The mimic - "prince" - killed. Worth two bonus points and nothing else. */
-    public static void mimicKilled() {
+    public static synchronized void mimicKilled() {
         mimicKilled = true;
     }
 
@@ -92,12 +94,12 @@ public final class SimScore {
      * 300 run and the reason they are tracked separately here: a player who cannot tell a bat secret from a
      * chest secret cannot tell why their secret count is short.
      */
-    public static void batKilled() {
+    public static synchronized void batKilled() {
         batsKilled++;
         secretsFound++;
     }
 
-    public static void secretFound() {
+    public static synchronized void secretFound() {
         secretsFound++;
     }
 
@@ -107,7 +109,7 @@ public final class SimScore {
      * Auto Routes' {@code await:<n>} and the live map read it, as they do on Hypixel. Without the per-room count
      * the sim sent no such line at all, so an {@code await} node waited forever in the sim (2026-10-05).
      */
-    public static void secretFound(net.minecraft.core.BlockPos at) {
+    public static synchronized void secretFound(net.minecraft.core.BlockPos at) {
         secretsFound++;
         String room = roomAt(at);
         if (room != null) {
@@ -135,11 +137,11 @@ public final class SimScore {
 
     private static final java.util.Map<String, Integer> FOUND_BY_ROOM = new java.util.concurrent.ConcurrentHashMap<>();
 
-    public static void roomCleared() {
+    public static synchronized void roomCleared() {
         roomsCleared++;
     }
 
-    public static void died() {
+    public static synchronized void died() {
         deaths++;
     }
 

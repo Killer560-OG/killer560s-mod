@@ -645,11 +645,12 @@ public final class SimMobs {
     }
 
     public static void clear(Minecraft client) {
-        if (!SimState.canAct(client)) {
-            return;
-        }
-        MinecraftServer server = client.getSingleplayerServer();
+        // The world's entities are only touched while the sim can act; the bookkeeping below is forgotten either
+        // way. It used to return here too, and the leave path (SimWorld.onWorldUnloaded, now on the render thread
+        // after the level has gone) would then carry this floor's starred set into the next session.
+        MinecraftServer server = SimState.canAct(client) ? client.getSingleplayerServer() : null;
         if (server == null) {
+            forgetAll();
             return;
         }
         List<UUID> toDiscard = List.copyOf(SPAWNED);
@@ -670,6 +671,10 @@ public final class SimMobs {
             // Withdraws the client-side profile entry of every miniboss just discarded, in the same tick.
             SimMiniboss.tick(level);
         });
+        forgetAll();
+    }
+
+    private static void forgetAll() {
         SPAWNED.clear();
         CRYPT_MOBS.clear();
         SimMimic.forgetMob();

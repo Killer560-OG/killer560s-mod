@@ -185,16 +185,29 @@ public final class SimTeleportCommands {
                     ModChat.dim(" on this floor. Rooms: " + String.join(", ", roomNames())));
             return 1;
         }
-        ServerLevel level = server.overworld();
+        var player = client.player;
+        if (player == null) {
+            return 1;
+        }
+        var uuid = player.getUUID();
+        RoomLibrary.Room room = RoomLibrary.get(target.name());
+        String name = target.name();
         // gridX/gridZ is the room's top-left cell, which is the cell every build path already snaps to for the
         // room it placed there - so a multi-tile room lands in the same corner it lands in when it is built on
         // its own, rather than in whichever tile a second definition of "the middle" happened to pick.
         // The ROOM is handed over too, so /goto lands where that room wants him rather than in its middle -
         // one block in from the doorway for a blaze shaft, four off the centre column in Creeper Beams. The
         // same table a single-room build uses, so the two cannot drift.
-        SimBuilder.snapPlayerTo(client, level, target.gridX(), target.gridZ(),
-                RoomLibrary.get(target.name()));
-        ModChat.send("Sim", ModChat.text("Teleported to "), ModChat.value(target.name()));
+        //
+        // ON THE SERVER THREAD. snapPlayerTo scans the room's columns in the ServerLevel, and this command runs on
+        // the render thread: reading the server's world from here raced the server's own writes, and a column in an
+        // unloaded chunk made getBlockState load it synchronously - the render thread parked in
+        // ServerChunkCache.getChunk waiting on a server that, in the testkit's client/server lockstep, was waiting
+        // on the render thread (jstack, 2026-10-05, 99-sim-im). Fire and forget: the render thread never waits.
+        server.execute(() -> {
+            SimBuilder.snapPlayerTo(uuid, server.overworld(), target.gridX(), target.gridZ(), room);
+            ModChat.send("Sim", ModChat.text("Teleported to "), ModChat.value(name));
+        });
         return 1;
     }
 
@@ -272,8 +285,6 @@ public final class SimTeleportCommands {
         double x = from.x + look.x * blocks;
         double z = from.z + look.z * blocks;
         double rawY = from.y + look.y * blocks;
-        ServerLevel level = server.overworld();
-        double y = Math.max(level.getMinY() + 1, Math.min(level.getMaxY() - 2, rawY));
         float yaw = client.player.getYRot();
         float pitch = client.player.getXRot();
         var uuid = client.player.getUUID();
@@ -290,12 +301,15 @@ public final class SimTeleportCommands {
             }
             // Cast rather than serverLevel(): ServerPlayer has no serverLevel() accessor in 26.1.2, and a
             // ServerPlayer's level is always a ServerLevel.
-            sp.teleportTo((ServerLevel) sp.level(), x, y, z, Set.<Relative>of(), yaw, pitch, false);
+            ServerLevel level = (ServerLevel) sp.level();
+            // The level's height read here, on its own thread, like everything else about the server's world.
+            double y = Math.max(level.getMinY() + 1, Math.min(level.getMaxY() - 2, rawY));
+            sp.teleportTo(level, x, y, z, Set.<Relative>of(), yaw, pitch, false);
+            if (y != rawY) {
+                ModChat.send("Sim", ModChat.text("Clipped "), ModChat.value(format(blocks)),
+                        ModChat.dim(" block(s) - height clamped to the world"));
+            }
         });
-        if (y != rawY) {
-            ModChat.send("Sim", ModChat.text("Clipped "), ModChat.value(format(blocks)),
-                    ModChat.dim(" block(s) - height clamped to the world"));
-        }
         return 1;
     }
 

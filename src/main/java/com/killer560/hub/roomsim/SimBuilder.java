@@ -896,6 +896,19 @@ public final class SimBuilder {
 
     static void snapPlayerTo(Minecraft client, ServerLevel level, int gridX, int gridZ,
                              RoomLibrary.Room room) {
+        // One read of the field: the build callbacks that land here run on the server thread, and the render thread
+        // nulls client.player when the world goes away - a check and a second read could see two different values.
+        var player = client.player;
+        snapPlayerTo(player == null ? null : player.getUUID(), level, gridX, gridZ, room);
+    }
+
+    /**
+     * SERVER THREAD ONLY: the landing scan reads the ServerLevel block by block, and a read in an unloaded chunk
+     * loads it. {@code /goto} called this from the render thread until 2026-10-06 and deadlocked the testkit's
+     * lockstep client (see {@link SimTeleportCommands}).
+     */
+    static void snapPlayerTo(java.util.UUID uuid, ServerLevel level, int gridX, int gridZ,
+                             RoomLibrary.Room room) {
         var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
         Spawn spawn = spawnFor(room, gridX, gridZ);
         int x = origin.getX() + (spawn == null ? 0 : spawn.dx());
@@ -981,7 +994,6 @@ public final class SimBuilder {
         // The same spot death sends him back to - one definition of "the middle of the room", so the place he
         // starts and the place he returns to cannot drift apart.
         SimSurvival.setHome(new net.minecraft.core.BlockPos(fx, y, fz));
-        var uuid = client.player == null ? null : client.player.getUUID();
         if (uuid == null) {
             return;
         }
@@ -1181,7 +1193,9 @@ public final class SimBuilder {
      * still falls - and falling would drop him back through the region being built.
      */
     static void holdPlayer(Minecraft client, ServerLevel level) {
-        var uuid = client.player == null ? null : client.player.getUUID();
+        // One read: this runs on the server thread, where client.player can go null between a check and a use.
+        var player = client.player;
+        var uuid = player == null ? null : player.getUUID();
         if (uuid == null) {
             return;
         }

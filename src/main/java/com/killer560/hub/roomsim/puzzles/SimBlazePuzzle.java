@@ -622,6 +622,13 @@ public final class SimBlazePuzzle {
      * arena and rebuilds it fresh at {@link #storedOrigin}. Server thread only.
      */
     private static void checkProgress(Minecraft client, MinecraftServer server, List<UUID> ids) {
+        // Queued from the render thread once per CLIENT tick, so when the server falls behind two of these arrive
+        // with the same list. The first may already have failed and rebuilt the chain; the second, still holding
+        // the old ids (and SEEN_DEAD still naming the out-of-order blaze), would report the same wrong kill again
+        // and rebuild a second time, despawning the chain the first one just made.
+        if (ids != spawnedIds) {
+            return;
+        }
         ServerLevel level = server.overworld();
         if (putBackMissing(level, ids)) {
             return; // the chain's ids changed; the next tick reads the new list

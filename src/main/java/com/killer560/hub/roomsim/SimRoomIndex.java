@@ -130,9 +130,12 @@ public final class SimRoomIndex {
 
     /** Every placed room, in the {@code {id, clayX, clayZ, rotation}} shape Secret Waypoints already reads. */
     public static List<int[]> identifiedRoomsWithRotation() {
-        List<int[]> out = new ArrayList<>(ROOMS.size());
-        for (int i = 0; i < ROOMS.size(); i++) {
-            Placed p = ROOMS.get(i);
+        // One snapshot per call: these are read on the render thread while a rebuild clears and refills ROOMS on
+        // the server thread, and a size check followed by get(i) on the live list can throw between the two.
+        List<Placed> rooms = List.copyOf(ROOMS);
+        List<int[]> out = new ArrayList<>(rooms.size());
+        for (int i = 0; i < rooms.size(); i++) {
+            Placed p = rooms.get(i);
             out.add(new int[]{i, p.clayX(), p.clayZ(), p.rotation()});
         }
         return out;
@@ -140,18 +143,20 @@ public final class SimRoomIndex {
 
     /** The room database entry for a placed room, or null when that room is not in the database. */
     public static RoomEntry roomEntryAt(int id) {
-        if (id < 0 || id >= ROOMS.size()) {
+        List<Placed> rooms = List.copyOf(ROOMS);
+        if (id < 0 || id >= rooms.size()) {
             return null;
         }
-        return RoomDatabase.lookupByName(ROOMS.get(id).name());
+        return RoomDatabase.lookupByName(rooms.get(id).name());
     }
 
     /** Whether a placed room covers a grid cell. */
     public static boolean roomHasCell(int id, int cell) {
-        if (id < 0 || id >= ROOMS.size()) {
+        List<Placed> rooms = List.copyOf(ROOMS);
+        if (id < 0 || id >= rooms.size()) {
             return false;
         }
-        for (int c : ROOMS.get(id).cells()) {
+        for (int c : rooms.get(id).cells()) {
             if (c == cell) {
                 return true;
             }

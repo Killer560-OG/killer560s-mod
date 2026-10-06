@@ -89,7 +89,8 @@ public final class SimDoors {
      * openings are. A missing chest is a far smaller problem than a sealed door, so a secret that lands in one
      * is skipped and said out loud rather than placed.
      */
-    private static final java.util.Set<BlockPos> CARVED = new java.util.HashSet<>();
+    // Filled on the server thread by a build, cleared on the render thread by SimWorld's per-map reset.
+    private static final java.util.Set<BlockPos> CARVED = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /** Whether this position is inside an opening a doorway carve made. */
     public static boolean isCarvedDoorway(BlockPos at) {

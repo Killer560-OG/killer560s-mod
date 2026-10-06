@@ -55,13 +55,14 @@ public final class SimMimic {
     private static final Set<BlockPos> CANDIDATES = new java.util.concurrent.CopyOnWriteArraySet<>();
 
     /** The one that actually is. */
-    private static BlockPos mimic;
-    private static boolean found;
+    private static volatile BlockPos mimic;
+    private static volatile boolean found;
     /** The mimic itself once its chest is opened - a baby zombie, as on Hypixel. Server thread. */
     private static volatile java.util.UUID mimicMob;
 
     /** Chests already counted, so re-opening one does not count twice. */
-    private static final Set<BlockPos> OPENED = new LinkedHashSet<>();
+    // Added to on the render thread (the chest-open hook below), cleared on the server thread by a build's reset.
+    private static final Set<BlockPos> OPENED = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private SimMimic() {
     }

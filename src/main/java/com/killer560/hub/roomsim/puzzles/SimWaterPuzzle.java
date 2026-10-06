@@ -646,6 +646,9 @@ public final class SimWaterPuzzle {
      */
     private static void onWaterLever(MinecraftServer server) {
         boolean turnOn = !flowing;
+        // Flipped HERE, on the click's thread, not only when the server gets round to setFlowing: a second pull
+        // before the server drained its queue read the old value and asked for "on" twice.
+        flowing = turnOn;
         setFlowingOn(server, turnOn);
         if (complete) {
             return;

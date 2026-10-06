@@ -121,15 +121,23 @@ public final class SimSpiritSceptre {
         // McEntities.BAT and snapTo, not EntityType.BAT and moveTo: the entity-type constant lives in the
         // version compat layer and moveTo is not what this version calls it (SimMiniboss and SimMobs are the
         // proven spelling of both). Written from memory the first time, which cost a build.
-        net.minecraft.world.entity.ambient.Bat entity =
-                new net.minecraft.world.entity.ambient.Bat(
-                        com.killer560.hub.compat.McEntities.BAT, server.overworld());
-        entity.snapTo(at.x, at.y, at.z, 0f, 0f);
-        entity.setNoGravity(true);
-        entity.setNoAi(true);
-        entity.setInvulnerable(true);
-        bat.entity = entity.getUUID();
-        server.execute(() -> server.overworld().addFreshEntity(entity));
+        //
+        // The id is chosen here so the render thread can move and remove this bat at once; the entity itself is
+        // built on the server thread, because constructing a mob against the ServerLevel from the render thread
+        // reads that level off its own thread.
+        java.util.UUID id = java.util.UUID.randomUUID();
+        bat.entity = id;
+        server.execute(() -> {
+            net.minecraft.world.entity.ambient.Bat entity =
+                    new net.minecraft.world.entity.ambient.Bat(
+                            com.killer560.hub.compat.McEntities.BAT, server.overworld());
+            entity.setUUID(id);
+            entity.snapTo(at.x, at.y, at.z, 0f, 0f);
+            entity.setNoGravity(true);
+            entity.setNoAi(true);
+            entity.setInvulnerable(true);
+            server.overworld().addFreshEntity(entity);
+        });
     }
 
     /** Moves this one's bat entity to where the flight has got to. */
