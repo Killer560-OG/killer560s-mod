@@ -48,7 +48,8 @@ import com.killer560.hub.compat.McCompat;
  * and nothing runs after the device completes or past tick 307. A swap point that lands inside the Machine Gun
  * Shortbow's Rapid Fire window waits until it ends (killer560: "not swap until it ends"), and so does one that
  * lands while a container menu is open or while a swap is already running. Ticks are CLIENT ticks since the
- * Storm line ({@link I4SensorsFeature#ticksSinceStormDeath()}) - Noamm counts server ticks; identical without lag.
+ * Storm line, re-anchored on Goldor's line ({@link I4SensorsFeature#timelineTicks()}, SkyBlock 0.27.2) - Noamm
+ * counts server ticks; identical without lag.
  * <p>
  * <b>Pops</b> (order advance) - real chat lines from Noamm MaskTimers.kt / Odin (Spirit's also on the wiki):
  * "Your [⚚ ]Bonzo's Mask saved your life!", "Second Wind Activated! Your Spirit Mask saved your life!",
@@ -211,7 +212,9 @@ public final class I4AutoMask {
             phoenixRequestedThisTimeline = false;
         }
         I4SensorsConfig cfg = I4SensorsConfig.getInstance();
-        int t = I4SensorsFeature.ticksSinceStormDeath();
+        // P3-anchored (I4SensorsFeature.timelineTicks): Goldor's line moves the points when 0.27.2's faster transition
+        // brings P3 forward; on the old pacing it is identical to ticks since Storm's death.
+        int t = I4SensorsFeature.timelineTicks();
         if (!cfg.isAutoMask() || !cfg.isAutoI4Enabled() || t < 0 || t >= LEAP_TICK) {
             if (deferredPoint != null) {
                 deferredPoint = null;
