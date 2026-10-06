@@ -578,6 +578,10 @@ public final class AutoSecretFeature {
                     r.unfound(), dist.get(r.room()), describe(open), blockedText);
             status = "Secreting " + r.name() + " (" + r.unfound() + " unfound)";
             say(ModChat.text("Going to "), ModChat.value(r.name()), ModChat.dim(" (" + r.unfound() + " unfound)"));
+            // Exactly what a Go + Secret press does before its goal runs (InteractiveMapFeature.queue): it clears the
+            // "route just finished here" latch the last room's route left, which otherwise holds the next start node
+            // un-armed under him (found in 102-sim-autosecret: every room after the first "did not arm").
+            AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
             if (!AutoRoutesFeature.warpToStartNode(layout, r.room())) {
                 secreted.add(r.name());
                 LOGGER.info("[AutoSecret] {}: could not warp to its start node - skipped", r.name());
@@ -675,6 +679,7 @@ public final class AutoSecretFeature {
     // ------------------------------------------------------------------------------------------- trips
 
     private static boolean pathToRoom(DungeonLayout layout, RoomStatus.Room r, Trip t) {
+        AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
         ClearExecutor.setExternalOwner(true);
         if (!AutoClearUtils.pathToRoom(layout, r.room(), r.mainTile(), 0)) {
             ClearExecutor.setExternalOwner(false);
@@ -686,6 +691,7 @@ public final class AutoSecretFeature {
     }
 
     private static boolean etherPathTo(BlockPos landing, Trip t) {
+        AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
         ClearExecutor.setExternalOwner(true);
         ClearExecutor.etherPath(landing, null);
         beginTravel(t);
