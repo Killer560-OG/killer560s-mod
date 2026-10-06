@@ -216,6 +216,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   every later dig), and no input packet may say sneak while a container is open (MultiActionsD on its close). Both
   executors now turn the body with the camera held through `util/BodyAim`, one instance each. Multi Break's six STARTs on
   one tick, aimed at the first, drew nothing from GrimAC.
+- **A vanilla client removes a block it instabreaks the moment it sends the dig, and GrimAC assumes it did**: on an instant
+  START_DESTROY_BLOCK (`BlockBreakSpeed.getBlockDamage >= 1`) it sets the block to air in its own world at once
+  (`CheckManagerListener.handleDigging`, 2.3.74). Breaker Aura with Zero Ping off kept standing on a picked floor block
+  until the server's update came back, so any movement packet in that gap claimed ground over air: GroundSpoof + 0.0784
+  Simulation when the 20-tick position reminder landed there (about half the runs), NoFall every time when turning
+  (testkit 60). The block he stands on is now always predicted (`BreakerAuraFeature.standsOn`); 0 flags in 84 runs.
 - A hotbar swap sent by hand (`ServerboundSetCarriedItemPacket` after `setSelectedSlot`) leaves the game mode's
   `carriedIndex` stale, and its `tick()` then sends the same slot again: GrimAC BadPacketsA. Swap through
   `MultiPlayerGameModeInvoker.invokeEnsureHasSentCarriedItem` (RouteExecutor.select, ClearExecutor.swapById since 09e2c304).
