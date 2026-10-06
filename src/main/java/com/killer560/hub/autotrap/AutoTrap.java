@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.killer560.hub.autoroutes.AutoRoutesFeature;
 import com.killer560.hub.autoroutes.Route;
 import com.killer560.hub.autoroutes.RouteExecutor;
 import com.killer560.hub.autoroutes.RouteNode;
@@ -198,13 +197,15 @@ public final class AutoTrap {
         String now = room >= 0 && AutoClearUtils.isTrap(layout, room) ? layout.name(room) : null;
         if (inTrap != null && !inTrap.equals(now)) {
             String left = inTrap;
-            // His own trap route (Auto Routes) or Auto Trap's - either way the trap room's programming ends here.
-            boolean ours = left.equals(RouteExecutor.runningRoom());
+            // A trap route of that room still playing (Auto Trap's, or his own while Auto Trap is on) ends here. Only that:
+            // walking through a trap by hand with nothing playing changes nothing in Auto Routes.
+            boolean ours = isEnabled() && left.equals(RouteExecutor.runningRoom());
             if (ours) {
                 RouteExecutor.stop("left the trap room");
+                RouteExecutor.clearJustFinished();
+                RouteExecutor.clearStoppedByUser();
             }
             runChoice.remove(left);
-            AutoRoutesFeature.cancelForInteractiveMap("Auto Trap");
             LOGGER.info("[AutoTrap] left {} - trap mode over{}", left, ours ? " (its route stopped)" : "");
             if (ours && isEnabled()) {
                 ModChat.send("Auto Trap", ModChat.dim("Left " + left + " - trap done"));
