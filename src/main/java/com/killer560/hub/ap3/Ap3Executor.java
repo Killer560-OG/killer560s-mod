@@ -2663,24 +2663,18 @@ public final class Ap3Executor {
     // ---- LOOK: client-side rotation only ----------------------------------------------------------------------
 
     private static void tickLook(LocalPlayer player, Ap3Node node) {
-        if (step == Step.PREP) {
-            // Target only: RouteRotation turns it into a wrapped delta on the running yaw every frame. The stored
-            // yaw is never assigned to the player.
-            RouteRotation.beginApproach(node.yaw, node.pitch, false, 0f, 0f);
-            RouteRotation.clearUserMoved();
-            lookHeld = true; // Ap3RotationSendMixin keeps this rotation off the wire while it holds
-            lookStartMs = System.currentTimeMillis();
-            lastFrameStepNanos = 0L;
-            cameraGraceTicks = 1;
-            step = Step.CONFIRM;
-            return;
-        }
-        if (RouteRotation.settled(1.0f) || stepTicks > LOOK_TIMEOUT
-                || System.currentTimeMillis() - lookStartMs > LOOK_TIMEOUT_MS) {
-            lookYaw = player.getYRot();
-            lookPitch = player.getXRot();
-            finishNode(); // clears the controller; lookHeld stays until a stop or the player turns
-        }
+        // An instant snap (killer560, 2026-10-05: "the look node should be an instant snap"), no eased approach: a
+        // wrapped delta on the live yaw in one go, as aimAt does. Still client-side only - Ap3RotationSendMixin
+        // keeps it off the wire while lookHeld - and lifted the moment he turns the camera himself.
+        float yaw = player.getYRot();
+        player.setYRot(yaw + Mth.wrapDegrees(node.yaw - yaw));
+        player.setXRot(Mth.clamp(node.pitch, -90f, 90f));
+        RouteRotation.rebase();
+        RouteRotation.clearUserMoved();
+        lookHeld = true;
+        lookYaw = player.getYRot();
+        lookPitch = player.getXRot();
+        finishNode();
     }
 
     // ---- BOOM: superboom where the node was looking, from where you stand ---------------------------------
