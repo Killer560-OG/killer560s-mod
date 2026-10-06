@@ -16,7 +16,6 @@ import com.killer560.hub.livemap.RoomStatus;
 import com.killer560.hub.livemap.autoclear.AutoClearUtils;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import com.killer560.hub.livemap.autoclear.DungeonMapPathfinder;
-import com.killer560.hub.livemap.autoclear.TeleportUtils;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.KeyUtil;
@@ -85,8 +84,6 @@ public final class AutoSecretFeature {
     private static final int CORRECTION_GRACE_TICKS = 20;
     private static final int MAX_TRIP_FAILURES = 2;
     private static final int SETTLE_TICKS = 10;
-    /** Insta-clear candidate landings looked at per room, at most. */
-    private static final int MAX_LANDINGS = 2500;
 
     private static Phase phase = Phase.IDLE;
     private static Trip trip;
@@ -473,11 +470,10 @@ public final class AutoSecretFeature {
 
     /**
      * Before secreting: every uncleared room the Insta Clear tracker has a KNOWN entry for (only an entry
-     * {@link InstaClearTracker#knownToInstaClear} says works - never a guess). An entry is a landing inside the room
-     * warped to from a room next to it or one beyond it; the key is the tracker's own ({@code entryKeyFor}), so the
-     * candidates are the room's standable blocks against its near rooms, and the first known one is taken. Getting to
-     * the from-room is a map trip; the last warp is planned by the map's planner from there, which normally goes
-     * straight in. Each room is tried once a run.
+     * {@link InstaClearTracker#knownToInstaClear} says works - never a guess). Each known key carries its own landing
+     * ({@link InstaClearTracker#realLandingFor}); the from-room is the near room (one or two rooms off) whose
+     * {@link InstaClearTracker#entryKeyFor} gives that same key back. Getting to the from-room is a map trip; the last
+     * warp is planned by the map's planner from there, which normally goes straight in. Each room is tried once a run.
      */
     private static boolean decideInstaClear(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
                                             int here) {
@@ -504,10 +500,16 @@ public final class AutoSecretFeature {
                     froms.add(f);
                 }
             }
-            for (BlockPos landing : landings(r)) {
+            // Each known key names its own landing (realLandingFor); the from-room is whichever near room gives the
+            // same key back, so the key compared is the tracker's own, built the tracker's way.
+            for (String known : InstaClearTracker.knownEntries(r.name())) {
+                BlockPos landing = InstaClearTracker.realLandingFor(r.name(), known);
+                if (landing == null) {
+                    continue; // a walk-in entry: needs a door, and Auto Secret only warps
+                }
                 for (RoomStatus.Room f : froms) {
                     String key = InstaClearTracker.entryKeyFor(r.name(), landing, f.name());
-                    if (!InstaClearTracker.knownToInstaClear(r.name(), key)) {
+                    if (!known.equals(key) || !InstaClearTracker.knownToInstaClear(r.name(), key)) {
                         continue;
                     }
                     LOGGER.info("[AutoSecret] insta clear {}: entry {} (land {} from {})", r.name(), key, landing, f.name());
@@ -526,28 +528,6 @@ public final class AutoSecretFeature {
                     r.name(), InstaClearTracker.knownEntries(r.name()).size());
         }
         return false;
-    }
-
-    /** Standable blocks in the room's tiles, nearest its centre first (bounded). */
-    private static List<BlockPos> landings(RoomStatus.Room r) {
-        List<BlockPos> out = new ArrayList<>();
-        for (int tile : r.tiles()) {
-            BlockPos c = DungeonLayout.cellCenter(tile);
-            for (int dx = -15; dx <= 15 && out.size() < MAX_LANDINGS; dx++) {
-                for (int dz = -15; dz <= 15 && out.size() < MAX_LANDINGS; dz++) {
-                    for (int dy = 20; dy >= -12; dy--) {
-                        BlockPos p = c.offset(dx, dy, dz);
-                        if (TeleportUtils.etherwarpable(p)) {
-                            out.add(p);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        BlockPos centre = DungeonLayout.cellCenter(r.mainTile());
-        out.sort(Comparator.comparingDouble(p -> p.distSqr(centre)));
-        return out;
     }
 
     private static boolean decideSecrets(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
@@ -699,6 +679,8 @@ public final class AutoSecretFeature {
     }
 
     private static void beginTravel(Trip t) {
+        // The insta-clear recorder labels the room entry this trip makes as ours, not his.
+        InstaClearTracker.noteAutomatedEntry("Auto Secret");
         trip = t;
         busySeen = false;
         arrivalSeqAtStart = ClearExecutor.arrivalSeq();
