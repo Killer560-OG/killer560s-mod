@@ -176,7 +176,8 @@ final class Autopilot {
         if (cfg.isBloodFirst() && !bloodOpened) {
             AutopilotPlanner.Choice rush = AutopilotPlanner.chooseBloodFirst(cands);
             if (rush != null) {
-                return begin(head, rush, rooms);
+                AutopilotPlanner.Choice byRate = AutopilotPlanner.choose(party, cands);
+                return begin(head + (byRate == null ? "" : " | by rate alone: " + byRate.pick().describe()), rush, rooms);
             }
             Order door = bloodFirstDoor(layout, blood, bloodLocked);
             if (door != null) {
