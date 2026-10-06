@@ -146,9 +146,19 @@ public final class SimFloorGen {
      * @param keptPins      rooms he had placed by hand that the floor was built AROUND, at his own cells
      * @param unusedPins    {@code "Name - reason"} per room he had placed that could not be used; always empty
      *                      from the three-argument {@link #plan}, which has nothing pinned to it
+     * @param missed        what the floor misses of what was asked (SimFloorLayout's shortfalls), empty when exact
+     * @param filterNote    what the map designer's room filters did to this floor, for its status line - null when
+     *                      no filter was given or it changed nothing worth saying. Starts "filters too strict" when
+     *                      the filtered pool could not make a whole floor and every room was used instead.
      */
     public record Planned(MapCode.Decoded decoded, String code, int placedPuzzles, int bloodDistance,
-                          int bigPlaced, List<String> keptPins, List<String> unusedPins) {
+                          int bigPlaced, List<String> keptPins, List<String> unusedPins, List<String> missed,
+                          String filterNote) {
+
+        Planned withNote(String note) {
+            return new Planned(decoded, code, placedPuzzles, bloodDistance, bigPlaced, keptPins, unusedPins, missed,
+                    note);
+        }
     }
 
     public static void generate(Minecraft client, Floor floor, int puzzles, int roomsToBlood) {
@@ -213,12 +223,99 @@ public final class SimFloorGen {
      *               null or empty makes this identical to the three-argument form
      */
     public static Planned plan(Floor floor, int puzzles, int roomsToBlood, Map<Integer, String> pinned) {
+        Planned p = planWith(floor, puzzles, roomsToBlood, pinned, null, false);
+        reportUnusedPins(p);
+        return p;
+    }
+
+    /**
+     * The same, drawing only on the rooms {@code allow} accepts - the map designer's room filters
+     * ({@link SimRoomFilters#generatorAllows}). A room he pinned is always allowed.
+     *
+     * <p>The floor must still be a whole, valid floor. When the filtered rooms cannot make one (no layout at all,
+     * or one that misses the room minimum, the cell target, blood, the trap or the exact path - SimFloorLayout's
+     * shortfalls), the floor is laid out again from every room and he is told so in chat and in
+     * {@link Planned#filterNote()}, rather than handed a broken floor or nothing. The recency memory is put back
+     * first, so the discarded filtered floor does not count as "recently played".
+     *
+     * <p>Fewer allowed puzzles than the slider asks for is NOT a failure: the floor gets the puzzles he allowed and
+     * the note says how many that was.
+     *
+     * @param allow null for every room, which makes this {@link #plan(Floor, int, int, Map)}
+     */
+    public static Planned plan(Floor floor, int puzzles, int roomsToBlood, Map<Integer, String> pinned,
+                               java.util.function.Predicate<String> allow) {
+        // Before the database loads every room reads NORMAL, so a type filter would judge them all wrongly - and
+        // the unfiltered path already says "still loading" in chat and returns null.
+        if (allow == null || !RoomDatabase.isReady()) {
+            return plan(floor, puzzles, roomsToBlood, pinned);
+        }
+        Set<String> pinnedLower = new HashSet<>();
+        if (pinned != null) {
+            for (String n : pinned.values()) {
+                pinnedLower.add(n.toLowerCase(Locale.ROOT));
+            }
+        }
+        java.util.function.Predicate<String> keep = n -> allow.test(n) || pinnedLower.contains(n.toLowerCase(Locale.ROOT));
+        int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(MAX_PUZZLES, puzzles));
+        int allowedPuzzles = 0;
+        for (Map.Entry<String, RoomLibrary.Room> e : usableRooms().entrySet()) {
+            int[] fp = cellFootprint(e.getValue());
+            if ("PUZZLE".equalsIgnoreCase(typeOf(e.getKey())) && fp[0] == 1 && fp[1] == 1 && keep.test(e.getKey())) {
+                allowedPuzzles++;
+            }
+        }
+        Map<String, Double> recency = SimFloorLayout.recencySnapshot();
+        Planned filtered = planWith(floor, puzzles, roomsToBlood, pinned, keep, true);
+        String reason = filtered == null ? "no floor could be laid out from them"
+                : filtered.missed().isEmpty() ? null : String.join(", ", filtered.missed());
+        if (reason != null) {
+            LOGGER.warn("Sim floor: the designer's room filters cannot make a whole {} ({}); using every room",
+                    floor.label, reason);
+            SimFloorLayout.restoreRecency(recency);
+            ModChat.send("Sim", ModChat.text("Your room filters leave too few rooms for a whole " + floor.label
+                    + " (" + reason + ") - "), ModChat.dim("generated this one from every room instead."));
+            Planned full = planWith(floor, puzzles, roomsToBlood, pinned, null, false);
+            reportUnusedPins(full);
+            return full == null ? null : full.withNote("filters too strict - used every room");
+        }
+        reportUnusedPins(filtered);
+        if (allowedPuzzles < wantPuzzles) {
+            String note = "only " + allowedPuzzles + " puzzle" + (allowedPuzzles == 1 ? "" : "s")
+                    + " allowed (slider " + wantPuzzles + ")";
+            ModChat.send("Sim", ModChat.text("Your filters allow " + allowedPuzzles + " puzzle room"
+                    + (allowedPuzzles == 1 ? "" : "s") + " and the slider asks for " + wantPuzzles + " - "),
+                    ModChat.dim("this floor has " + filtered.placedPuzzles() + "."));
+            return filtered.withNote(note);
+        }
+        return filtered.withNote("filtered");
+    }
+
+    /** Said here rather than only returned, so the reason reaches him even from a caller that ignores it. */
+    private static void reportUnusedPins(Planned p) {
+        if (p == null) {
+            return;
+        }
+        for (String note : p.unusedPins()) {
+            ModChat.send("Sim", ModChat.dim("could not keep your " + note));
+        }
+    }
+
+    /**
+     * The layout itself. {@code keep} narrows the room pool (null keeps every room); {@code quiet} keeps the
+     * "could not lay out" messages out of chat, for an attempt the caller may still replace.
+     */
+    private static Planned planWith(Floor floor, int puzzles, int roomsToBlood, Map<Integer, String> pinned,
+                                    java.util.function.Predicate<String> keep, boolean quiet) {
         long planStart = System.currentTimeMillis();
         Map<String, RoomLibrary.Room> usable = usableRooms();
         if (usable.isEmpty()) {
             ModChat.send("Sim", ModChat.text("No usable rooms in the room library - "),
                     ModChat.dim("the shipped rooms did not load (see the log)."));
             return null;
+        }
+        if (keep != null) {
+            usable.keySet().removeIf(n -> !keep.test(n));
         }
         // Room TYPES come from the room database (typeOf); before it has loaded every room reads NORMAL, so the
         // layout has no Entrance, Blood, Fairy, Trap or puzzle to place and quietly hands back a floor without them
@@ -249,15 +346,14 @@ public final class SimFloorGen {
         }
         SimFloorLayout.Floor laid = pinnedOut == null ? null : pinnedOut.floor();
         if (laid == null || laid.rooms().size() < 3) {
-            ModChat.send("Sim", ModChat.text("Could not lay out a floor that size - "),
-                    ModChat.dim("the Entrance room has to be captured first."));
+            if (!quiet) {
+                ModChat.send("Sim", ModChat.text("Could not lay out a floor that size - "),
+                        ModChat.dim("the Entrance room has to be captured first."));
+            }
             return null;
         }
-        // Said here rather than only returned, so the reason reaches him even from a caller that ignores it -
-        // the same way planExplicit reports a drawn room it had to skip.
-        for (String note : pinnedOut.unusedPins()) {
-            ModChat.send("Sim", ModChat.dim("could not keep your " + note));
-        }
+        // The pins it could not keep are said by the public plan()s (reportUnusedPins), once the floor that is
+        // kept is known - a filtered attempt may still be replaced.
 
         int gridCells = DungeonLayout.GRID * DungeonLayout.GRID;
         int[] cellRoom = new int[gridCells];
@@ -348,7 +444,7 @@ public final class SimFloorGen {
         MapCode.Decoded decoded = new MapCode.Decoded(
                 nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation);
         return new Planned(decoded, MapCode.encodeDecoded(decoded), placedPuzzles, path[0], bigPlaced,
-                pinnedOut.honouredPins(), pinnedOut.unusedPins());
+                pinnedOut.honouredPins(), pinnedOut.unusedPins(), pinnedOut.missed(), null);
     }
 
     /**
@@ -476,7 +572,8 @@ public final class SimFloorGen {
         }
         MapCode.Decoded decoded = new MapCode.Decoded(
                 nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation);
-        return new Planned(decoded, MapCode.encodeDecoded(decoded), 0, doors, 0, List.of(), List.of());
+        return new Planned(decoded, MapCode.encodeDecoded(decoded), 0, doors, 0, List.of(), List.of(), List.of(),
+                null);
     }
 
     /** Every room that can actually be pasted - complete AND at the current footprint. */

@@ -75,8 +75,14 @@ public class SimMapEditorScreen extends Screen {
     private EditBox nameBox;
     private Panel panel = Panel.ROOMS;
     private EditBox search;
+    /** The search box's text, kept here because a rebuild (and coming back from the filters) makes a new box. */
+    private String searchText = "";
     private int scroll;
     private String status = "";
+    /** Usable rooms in the library, the "M" of the header's "N of M rooms". */
+    private int roomTotal;
+    /** Whether the room database had loaded when {@link #listed} was built; the type filters need it. */
+    private boolean listedWithDatabase;
 
     // The random generator's settings, which used to live on a separate "Create a New Map" page.
     //
@@ -165,13 +171,27 @@ public class SimMapEditorScreen extends Screen {
         listX = gridX + cell * GRID + 14;
         listW = panelX + panelW - 12 - listX;
 
-        search = new EditBox(this.font, listX, panelY + 44, listW, 16, Component.literal("Search"));
+        // The room filters (killer560, 2026-10-06: "have a filter section where i can filter based on things like
+        // puzzles, room size, secrets in a room, etc."), beside the search box. They open as a popup screen rather
+        // than a panel here, because this screen has no free space at a small window. They narrow the list, Fill
+        // (which draws from the list) and Generate - see SimRoomFilters.
+        int active = SimRoomFilters.activeCount();
+        int filtersW = this.font.width("Filters (99)") + 12;
+        search = new EditBox(this.font, listX, panelY + 44, Math.max(20, listW - filtersW - 4), 16,
+                Component.literal("Search"));
         search.setHint(Component.literal("Search rooms..."));
+        search.setValue(searchText);
         search.setResponder(v -> {
+            searchText = v;
             scroll = 0;
             refilter();
         });
         addRenderableWidget(search);
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal(
+                active == 0 ? "Filters" : "§6Filters (" + active + ")"), b -> {
+                    panel = Panel.ROOMS;
+                    McCompat.setScreen(this.minecraft, new SimRoomFilterScreen(this));
+                }).bounds(listX + listW - filtersW, panelY + 44, filtersW, 16).build());
 
         // The map's name, like the field in Ashfall's Dungeon Maker. Save uses it; Load fills it in.
         nameBox = new EditBox(this.font, gridX, panelY + 44, cell * GRID, 16, Component.literal("Name"));
@@ -279,9 +299,15 @@ public class SimMapEditorScreen extends Screen {
             }
             return;
         }
+        listedWithDatabase = RoomDatabase.isReady();
+        roomTotal = 0;
         for (String name : RoomLibrary.names()) {
             RoomLibrary.Room r = RoomLibrary.get(name);
             if (r == null || !r.usable()) {
+                continue;
+            }
+            roomTotal++;
+            if (!SimRoomFilters.listMatches(name)) {
                 continue;
             }
             if (!q.isEmpty()) {
@@ -366,11 +392,21 @@ public class SimMapEditorScreen extends Screen {
         return true;
     }
 
-    /** Fills the empty cells with random usable rooms - a starting point rather than a blank grid. */
+    /**
+     * Fills the empty cells with random usable rooms - a starting point rather than a blank grid.
+     *
+     * <p>Draws from the room list AS SHOWN, so the room filters (and the search box) narrow Fill exactly as they
+     * narrow the list. Fill is a drawing, not a generated floor, so it has no required rooms to keep.
+     */
     private void autoFill() {
+        if (panel != Panel.ROOMS) {
+            panel = Panel.ROOMS;
+            refilter();
+        }
         List<String> pool = new ArrayList<>(listed);
         if (pool.isEmpty()) {
-            status = "no usable rooms";
+            status = SimRoomFilters.isDefault() && searchText.isBlank() ? "no usable rooms"
+                    : "no rooms match the filters";
             return;
         }
         java.util.Collections.shuffle(pool);
@@ -473,7 +509,10 @@ public class SimMapEditorScreen extends Screen {
         // The rooms HE placed go in as PINS, so Generate builds around them instead of over them.
         // killer560 (2026-09-29): "test stuff like putting in a single room that I want personally in
         // generating a map around the room."
-        SimFloorGen.Planned planned = SimFloorGen.plan(floor, puzzles, blood, pinned);
+        // The room filters narrow the pool. SimFloorGen keeps Entrance/Blood/Fairy/Trap and his pins whatever they
+        // say, and lays the floor out from every room (saying so) if the filtered rooms cannot make a whole one.
+        SimFloorGen.Planned planned = SimFloorGen.plan(floor, puzzles, blood, pinned,
+                SimRoomFilters.isDefault() ? null : SimRoomFilters::generatorAllows);
         if (planned == null) {
             status = "could not lay out that floor";   // plan() has already said why, in chat
             return;
@@ -506,8 +545,17 @@ public class SimMapEditorScreen extends Screen {
             pins = " · kept " + planned.keptPins().size();
         }
         // Short. It sits under the grid, and the long form ran on into the room list.
-        status = planned.decoded().nameTable().length + " rooms · " + puzzles + " puzzles · blood "
+        // The puzzles actually placed, not the slider's ask - the filters can allow fewer.
+        status = planned.decoded().nameTable().length + " rooms · " + planned.placedPuzzles() + " puzzles · blood "
                 + planned.bloodDistance() + pins;
+        // A filter note goes FIRST: the status line is trimmed to the space under the grid, and "filters too
+        // strict" is the part he must not miss (it is also in chat in full).
+        String note = planned.filterNote();
+        if (note != null && !"filtered".equals(note)) {
+            status = note + " · " + status;
+        } else if (note != null) {
+            status = "filtered · " + status;
+        }
     }
 
     private void play() {
@@ -617,6 +665,19 @@ public class SimMapEditorScreen extends Screen {
         g.fill(panelX, panelY, panelX + panelW, panelY + 30, 0xFF000000);
         g.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
         g.text(this.font, "DESIGN A MAP", panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
+        // The type filters read the room database; a list built before it loaded is rebuilt the moment it does.
+        if (!listedWithDatabase && panel == Panel.ROOMS && RoomDatabase.isReady()) {
+            refilter();
+        }
+        if (panel == Panel.ROOMS) {
+            // "N of M rooms" in the header bar, right-aligned: the only free space that never meets a control.
+            String count = listed.size() + " of " + roomTotal + " rooms"
+                    + (SimRoomFilters.isDefault() ? "" : " (filtered)");
+            int maxW = panelW - 20 - this.font.width("DESIGN A MAP") - 10;
+            String shownCount = this.font.width(count) <= maxW ? count : listed.size() + "/" + roomTotal;
+            g.text(this.font, shownCount, panelX + panelW - 10 - this.font.width(shownCount), panelY + 11,
+                    SimRoomFilters.isDefault() ? ProfitPanels.DIM : ProfitPanels.ACCENT, false);
+        }
         drawGrid(g, mouseX, mouseY);
         drawList(g, mouseX, mouseY);
 
@@ -876,7 +937,8 @@ public class SimMapEditorScreen extends Screen {
         }
         g.disableScissor();
         if (listed.isEmpty()) {
-            g.text(this.font, "no rooms match", listX + 8, top + 8, ProfitPanels.DIM, false);
+            g.text(this.font, panel == Panel.ROOMS && !SimRoomFilters.isDefault() ? "no rooms match the filters"
+                    : "no rooms match", listX + 8, top + 8, ProfitPanels.DIM, false);
         }
     }
 
