@@ -257,6 +257,9 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(com.killer560.hub.ap3.Ap3Feature.STOPWATCH_HUD);
         com.killer560.hub.ap3.Ap3EditInput.register();
         com.killer560.hub.ap3.Ap3Commands.register();
+        // /ap3 and /ar are gated on their feature; re-add them to tab completion when it is switched on in game.
+        com.killer560.hub.util.CommandTreeRefresh.watch(() -> com.killer560.hub.ap3.Ap3Config.getInstance().isEnabledRaw());
+        com.killer560.hub.util.CommandTreeRefresh.watch(() -> com.killer560.hub.autoroutes.AutoRoutesConfig.getInstance().isEnabledRaw());
         // Seven always-on overlays, formerly Gui mixins that crashed 26.2 at startup (see GuiOverlays).
         com.killer560.hub.hud.GuiOverlays.register();
         com.killer560.hub.ap3.Ap3Keybinds.register();
