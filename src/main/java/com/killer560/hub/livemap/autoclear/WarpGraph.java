@@ -1562,10 +1562,10 @@ public final class WarpGraph {
         /** The map tile {@link #region} is the click region of ({@link Tiles}), or -1. */
         public int tile = -1;
         /**
-         * Not NaN: a region goal lands as near this point (x, z - the clicked tile's centre) as its fewest warps allow,
-         * and takes one more warp when that is the only way to land {@link WarpGraph#DEEP} or less from it. killer560
-         * (2026-10-06): "the quadrant I click on it takes me essentially still in the hallway to that room, have it
-         * try to take me a decent way into the room if possible, towards the middle of it."
+         * Not NaN: of the landings in the region reached in the FEWEST warps, the one nearest this point (x, z - the
+         * clicked tile's centre). Never a warp more for it. killer560 (2026-10-06): "the quadrant I click on it takes
+         * me essentially still in the hallway to that room" and "I want it to go as central and far into the square as
+         * possible with the exact same etherwarps."
          */
         public double preferX = Double.NaN;
         public double preferZ = Double.NaN;
@@ -1634,18 +1634,10 @@ public final class WarpGraph {
     /** The bound on total warps each node was pushed with (its f), for the preferred-landing search. */
     private int[] fW = new int[1024];
 
-    /**
-     * A landing this far or nearer to {@link Goal#preferX}/{@link Goal#preferZ} (blocks, the larger of the x and z
-     * offsets) is "a decent way into the room": a tile is 31 across and its click region reaches 14 from the centre,
-     * so 9 is at least five blocks in from where the region starts and about seven in from the doorway's seam.
-     */
-    public static final int DEEP = 9;
     /** How long a click may spend, after it found its fewest warps, looking for the landing nearest the centre. */
     private static final long PREFER_NANOS = 5_000_000L;
     /** The last region search's landing, as the larger of its x and z offsets from the preferred point; or -1. */
     public int lastDepth = -1;
-    /** Whether the last region search took one warp more than the fewest to land {@link #DEEP} or nearer. */
-    public boolean lastExtraWarp;
 
     private void push(int node, double key) {
         if (heapSize == heap.length) {
@@ -2268,15 +2260,12 @@ public final class WarpGraph {
             gz = goal.preferZ;
         }
         lastDepth = -1;
-        lastExtraWarp = false;
         if (region != null) {
             int bx = (int) Math.floor(sx);
             int by = (int) Math.floor(sy - 0.2);
             int bz = (int) Math.floor(sz);
-            // Already there - unless he only stands at its edge and a click is asking to be taken further in.
-            boolean deepHere = !preferOn || Math.max(Math.abs(bx + 0.5 - gx), Math.abs(bz + 0.5 - gz)) <= DEEP + 1;
-            if (region.test(bx, by, bz) && search.etherwarpable(bx, by, bz) && deepHere) {
-                return new ArrayList<>();
+            if (region.test(bx, by, bz) && search.etherwarpable(bx, by, bz)) {
+                return new ArrayList<>();   // already there: no warp, wherever in the tile (the count is sacred)
             }
         }
         if (exact != null && !directBanned
@@ -2406,13 +2395,11 @@ public final class WarpGraph {
             if (closed[u]) {
                 continue;
             }
-            if (bestU >= 0) {
-                // Every landing with the fewest warps has come off once f passes them; one warp more is looked at
-                // only while the best is not yet a decent way in.
-                int allow = bestW + (preferDepth(bestU, gx, gz) > DEEP ? 1 : 0);
-                if (fW[u] > allow || System.nanoTime() > preferUntil) {
-                    break;
-                }
+            if (bestU >= 0 && (fW[u] > bestW || System.nanoTime() > preferUntil)) {
+                // Every landing with the fewest warps has come off once f passes them. Never a warp more for a
+                // landing nearer the centre (killer560, 2026-10-06: "if it is going to take even 1 extra
+                // etherwarp to go more center I don't want that").
+                break;
             }
             closed[u] = true;
             int g = gWarps[u];
@@ -2421,28 +2408,17 @@ public final class WarpGraph {
                     if (!preferOn) {
                         return reconstruct(start, u, Float.NaN, Float.NaN);
                     }
-                    double s = preferDist(u, gx, gz);
-                    boolean deep = preferDepth(u, gx, gz) <= DEEP;
-                    boolean take;
+                    // Nearest the centre wins; then the deeper in (the larger of the x and z offsets, smaller).
+                    double s = preferDist(u, gx, gz) + 0.001 * preferDepth(u, gx, gz);
                     if (bestU < 0) {
-                        take = true;
                         bestW = g;
                         preferUntil = Math.min(deadlineNanos, System.nanoTime() + PREFER_NANOS);
-                    } else if (g == bestW) {
-                        take = s < bestS;
-                    } else {
-                        // One warp more: only for a landing a decent way in, and only over one that is not.
-                        boolean bestDeep = preferDepth(bestU, gx, gz) <= DEEP;
-                        take = deep && (!bestDeep || s < bestS);
                     }
-                    if (take) {
+                    if (bestU < 0 || (g == bestW && s < bestS)) {
                         bestU = u;
                         bestS = s;
                     }
-                    // A shallow landing with the fewest warps may still be the step to a deep one with one more.
-                    if (deep || g > bestW) {
-                        continue;
-                    }
+                    continue;   // a landing in the tile is never a step to another (that is a warp more)
                 }
             } else if (inGoal[u] == stamp && g + 1 <= maxWarps
                     && (bannedIntoGoal.isEmpty() || !bannedIntoGoal.contains(u))) {
@@ -2500,7 +2476,6 @@ public final class WarpGraph {
         }
         if (bestU >= 0) {
             lastDepth = preferDepth(bestU, gx, gz);
-            lastExtraWarp = gWarps[bestU] > bestW;
             return reconstruct(start, bestU, Float.NaN, Float.NaN);
         }
         return null;
@@ -2603,6 +2578,8 @@ public final class WarpGraph {
         ArrayList<EtherSearch.Hop> out = new ArrayList<>();
         // The node each hop lands on, in the same (reversed, then turned round) order; -1 for the exact goal block.
         lastLands.clear();
+        lastLandX = Float.isNaN(lastYaw) ? nx[last] : Integer.MIN_VALUE;
+        lastLandZ = Float.isNaN(lastYaw) ? nz[last] : Integer.MIN_VALUE;
         if (!Float.isNaN(lastYaw)) {
             out.add(new EtherSearch.Hop(standX(last), standY(last), standZ(last), nx[last], ny[last], nz[last],
                     lastYaw, lastPitch));
@@ -2625,6 +2602,10 @@ public final class WarpGraph {
         java.util.Collections.reverse(lastLands);
         return out;
     }
+
+    /** The block x/z the last region path lands on (MIN_VALUE after an exact-goal path). */
+    public int lastLandX = Integer.MIN_VALUE;
+    public int lastLandZ = Integer.MIN_VALUE;
 
     /** For the path {@link #reconstruct} returned last: the node each hop lands on, or -1 for an exact goal block. */
     private final ArrayList<Integer> lastLands = new ArrayList<>();
