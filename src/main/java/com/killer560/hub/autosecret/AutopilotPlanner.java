@@ -39,7 +39,7 @@ public final class AutopilotPlanner {
         }
 
         public String describe() {
-            return String.format(Locale.US, "%s %s %.2f/%.1fs=%.3f%s", kind, room, gain, seconds, rate(),
+            return String.format(Locale.US, "%s %s %.3f/%.2fs=%.4f%s", kind, room, gain, seconds, rate(),
                     teammateInside ? " (teammate)" : "");
         }
     }
