@@ -1090,13 +1090,28 @@ public final class AutoRoutesFeature {
         return frame == null ? null : RouteStore.getInstance().forRoom(frame.roomName());
     }
 
-    /** The breaker node edit mode targets: the one the player stands in, else the nearest in the room. */
+    /** The breaker node most recently placed with /ar add breaker (killer560, 2026-10-06: "once I add the auto route
+     *  node i should do the command /ar editdb or /ar db and that adds breaker blocks [...] from that node
+     *  specifically"). */
+    private static RouteNode lastAddedBreaker;
+
+    static void noteAddedBreaker(RouteNode node) {
+        lastAddedBreaker = node;
+    }
+
+    /** The breaker node edit mode targets: the breaker just added with /ar add breaker while it is still in this
+     *  room's route, else the nearest in the room. */
     private static void pickEditBreakerNode() {
         editBreakerNode = null;
         Minecraft client = Minecraft.getInstance();
         RouteCoords.Frame frame = RouteCoords.Frame.current();
         Route route = frame == null ? null : RouteStore.getInstance().forRoom(frame.roomName());
         if (route == null || client.player == null) {
+            return;
+        }
+        if (lastAddedBreaker != null && lastAddedBreaker.type == RouteNode.Type.DUNGEON_BREAKER
+                && route.indexOf(lastAddedBreaker) >= 0) {
+            editBreakerNode = lastAddedBreaker;
             return;
         }
         Vec3 pos = client.player.position();

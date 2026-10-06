@@ -227,6 +227,9 @@ public final class AutoRoutesCommands {
                                 .executes(context -> exec(Action.STOP))
                                 .then(ClientCommands.literal("record")
                                         .executes(context -> exec(Action.STOP_RECORD))))
+                        // Short forms of "/ar edit db" (killer560, 2026-10-06: "/ar editdb or /ar db").
+                        .then(ClientCommands.literal("db").executes(context -> exec(Action.EDIT_BREAKER)))
+                        .then(ClientCommands.literal("editdb").executes(context -> exec(Action.EDIT_BREAKER)))
                         // "/ar add <type> [modifiers...]" - one word for the type, the rest free-form modifiers
                         // (start, await:<n>), same shape as Ap3Commands' "/ap3 add <type> [mods...]". A bare
                         // "/ar add <type>" (no modifiers argument at all) still works - see addCommand.
@@ -442,7 +445,7 @@ public final class AutoRoutesCommands {
             return;
         }
         Component tail = switch (type) {
-            case DUNGEON_BREAKER -> ModChat.dim(" - /ar edit db, then right-click its blocks.");
+            case DUNGEON_BREAKER -> ModChat.dim(" - /ar db, then right-click its blocks.");
             case USE_ITEM -> ModChat.dim(status.contains("(empty hand)") ? " - right-clicks the block it looks at, by hand."
                     : " - matched on the item, not the slot.");
             case PATH -> ModChat.dim(" - path nodes pair up in number order; the first warps to the second.");

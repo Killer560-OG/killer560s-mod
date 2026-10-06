@@ -486,6 +486,7 @@ public final class RouteRecorder {
         RouteHistory.added(target, node, previousStart);
         if (type == RouteNode.Type.DUNGEON_BREAKER) {
             breakerBeingBuilt = node;
+            AutoRoutesFeature.noteAddedBreaker(node);
         }
         boolean firing = false;
         if (!recording) {
