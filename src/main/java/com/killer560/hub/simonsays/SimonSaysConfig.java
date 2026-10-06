@@ -61,7 +61,7 @@ public final class SimonSaysConfig {
     // exists yet - this toggle is wired into the UI now (so the setting persists and has a home) but
     // "Rotate" currently behaves identically to "No Rotate" until that real system is actually built.
     private boolean autoSolveRotate = false;
-    // Auto-solve's own pacing: land the WHOLE device attempt (all 5 rounds, 15 real clicks total) within
+    // Auto-solve's own pacing: land the WHOLE device attempt (all its rounds: 15 clicks on the old 5-round device, 10 on the 4-round one) within
     // Target ± Variance overall (jittered), rather than a flat per-click delay. Moved here (2026-09-14)
     // from what used to be Auto Start's timer-with-variance model - killer560's own call, since Auto
     // Start's real trigger/pacing (see below, ported from NoammAddons) doesn't need a target window, but
