@@ -515,6 +515,13 @@ public final class AutoSecretFeature {
         blockedSecrets = null;
         DungeonLayout layout = DungeonLayout.capture();
         int here = layout.currentRoom();
+        if (here >= 0 && layout.entry(here) != null && "TRAP".equalsIgnoreCase(layout.entry(here).type)) {
+            // killer560 (docs/SIM.md "Trap rooms take your abilities"): no etherwarp, teleport or ability works in a trap
+            // room, so no trip can start here - waiting would be forever. His trap routes are meant to end outside it.
+            stop("in " + layout.name(here) + ", a trap room: no etherwarp or ability works in one, so it can't warp out -"
+                    + " walk out and start it again (a trap route should end outside the room)", false);
+            return;
+        }
         if (here < 0 || !AutoClearUtils.canPath(layout)) {
             status = "Waiting to be able to path from here";
             if (phaseTicks == 100) {
@@ -1262,6 +1269,9 @@ public final class AutoSecretFeature {
 
     /** A trip that did not get there. Two more tries from wherever he is, then that room is left out this run. */
     private static void tripFailed(String why) {
+        if (pilot) {
+            Autopilot.noteFailed();
+        }
         if (trip == Trip.KEY && keyTarget != null) {
             Autopilot.keyNotTaken(keyTarget.id());
             keyTarget = null;

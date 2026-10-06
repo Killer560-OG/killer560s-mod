@@ -398,17 +398,28 @@ final class Autopilot {
         if (current == null) {
             return;
         }
+        boolean failed = currentFailed;
+        currentFailed = false;
         double took = (System.currentTimeMillis() - currentStartMs) / 1000.0;
         double work = Math.max(0.5, took - currentTravel);
         LOGGER.info(String.format(Locale.US, "[Autopilot] done %s %s in %.1f s (estimated %.1f s, travel ~%.1f s)",
                 current.kind(), current.room(), took, current.seconds(), currentTravel));
-        if (current.kind() == AutopilotPlanner.Kind.CLEAR) {
+        if (failed) {
+            LOGGER.info("[Autopilot] (that trip failed - not learnt from)");
+        } else if (current.kind() == AutopilotPlanner.Kind.CLEAR) {
             clearSeconds = clearSeconds * (1 - LEARN) + work * LEARN;
         } else if (current.kind() == AutopilotPlanner.Kind.SECRET && currentNodes > 0) {
             routeSecondsPerNode = routeSecondsPerNode * (1 - LEARN) + (work / currentNodes) * LEARN;
         }
         current = null;
     }
+
+    /** The action's trip failed: its time says nothing about how long the work takes. */
+    static void noteFailed() {
+        currentFailed = true;
+    }
+
+    private static boolean currentFailed;
 
     /** Auto Secret stopped: close the action so the log has its time. */
     static void onStopped() {

@@ -75,10 +75,10 @@ public final class AutoClearUtils {
     }
 
     /**
-     * QUOI {@code canPath}: on ground, not in a maze/boulder room, not past the trap's start line - those three refuse by
-     * room NAME while the room is still being done. Lifted for a room that is done: cleared on the map, its puzzle
-     * finished or failed on the tab list, or a {@link #permitLeave} for it (the trap route or puzzle that took him in
-     * there has ended). Without that, nothing could ever warp him back out (killer560, 2026-10-06).
+     * QUOI {@code canPath}: on ground, not in a maze or boulder room, never inside a trap room. Maze and Boulder refuse by
+     * room NAME while the puzzle is being done, and stop refusing once it is done: cleared on the map, finished or failed
+     * on the tab list, or a {@link #permitLeave} for it (the puzzle that took him in there has ended) - without that the
+     * Teleport Maze's end pad stranded Dungeon Autopilot. A trap room always refuses: no ability works in one.
      */
     public static boolean canPath(DungeonLayout layout) {
         LocalPlayer player = Minecraft.getInstance().player;
@@ -90,7 +90,13 @@ public final class AutoClearUtils {
             return true;
         }
         String name = layout.name(room);
-        boolean restricted = name.contains("Maze") || name.contains("Boulder") || name.contains("Trap");
+        // killer560 (2026-10-06): "it shouldn't be able to etherwarp in trap - just to enter it, but not once it is
+        // actually in the room". Abilities do not work in one (docs/SIM.md), so nothing starts a path inside it, done or
+        // not; his Auto Routes trap config walks him out.
+        if (isTrap(layout, room)) {
+            return false;
+        }
+        boolean restricted = name.contains("Maze") || name.contains("Boulder");
         if (restricted && roomDone(layout, room, name)) {
             return true;
         }
@@ -104,6 +110,19 @@ public final class AutoClearUtils {
             }
         }
         return true;
+    }
+
+    /** A trap room: the room database says TRAP, or (a room it does not know) the name says Trap. */
+    public static boolean isTrap(DungeonLayout layout, int room) {
+        if (room < 0) {
+            return false;
+        }
+        var entry = layout.entry(room);
+        if (entry != null && entry.type != null) {
+            return "TRAP".equalsIgnoreCase(entry.type);
+        }
+        String name = layout.name(room);
+        return name != null && name.contains("Trap");
     }
 
     private static boolean roomDone(DungeonLayout layout, int room, String name) {
