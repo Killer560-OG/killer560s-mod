@@ -208,9 +208,8 @@ public final class Ap3Config {
     private boolean stopwatchHud = false;
     /** Post a finished stopwatch to party chat ("s3 took 12.345s") - killer560, 2026-09-21. Off by default. */
     private boolean stopwatchToParty = false;
-    /** On (default): a server correction stops AP3, blocks that node, and two in 10 s switch AP3 off. Off
-     *  (killer560, 2026-10-05): nothing happens but a chat line - AP3 keeps going. */
-    private boolean stopOnCorrections = true;
+    // "stopOnCorrections" (Stop On Server Corrections) was removed 2026-10-06: a correction never stops AP3 now
+    // (util/ServerCorrections). An old file's key is simply not read, and the next save drops it.
     /** The line joining consecutive nodes (killer560, 2026-09-21: "an option to hide the lines going from one node to
      *  another"). On by default - it is what was always drawn. */
     private boolean showChainLines = true;
@@ -354,7 +353,6 @@ public final class Ap3Config {
                 cfg.keybindsSectionOpen = ConfigJson.getBool(o, "keybindsSectionOpen", cfg.keybindsSectionOpen);
                 cfg.stopwatchHud = ConfigJson.getBool(o, "stopwatchHud", cfg.stopwatchHud);
                 cfg.stopwatchToParty = ConfigJson.getBool(o, "stopwatchToParty", cfg.stopwatchToParty);
-                cfg.stopOnCorrections = ConfigJson.getBool(o, "stopOnCorrections", cfg.stopOnCorrections);
                 cfg.showChainLines = ConfigJson.getBool(o, "showChainLines", cfg.showChainLines);
                 cfg.showNodes = ConfigJson.getBool(o, "showNodes", cfg.showNodes);
                 cfg.uniformColor = ConfigJson.getBool(o, "uniformColor", cfg.uniformColor);
@@ -433,7 +431,6 @@ public final class Ap3Config {
             o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
             o.addProperty("stopwatchHud", stopwatchHud);
             o.addProperty("stopwatchToParty", stopwatchToParty);
-            o.addProperty("stopOnCorrections", stopOnCorrections);
             o.addProperty("showChainLines", showChainLines);
             o.addProperty("showNodes", showNodes);
             o.addProperty("uniformColor", uniformColor);
@@ -556,8 +553,6 @@ public final class Ap3Config {
     public void setShowChainLines(boolean v) { showChainLines = v; }
     public void setStopwatchToParty(boolean v) { stopwatchToParty = v; }
     public void setStopwatchHud(boolean v) { stopwatchHud = v; }
-    public boolean isStopOnCorrections() { return stopOnCorrections; }
-    public void setStopOnCorrections(boolean v) { stopOnCorrections = v; }
 
     // ------------------------------------------------------------------------------------------- colours
 

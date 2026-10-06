@@ -554,7 +554,9 @@ public final class ClearExecutor {
      * Matches the server's position packets against the landings issued so far. A packet that leaves him on the
      * next expected landing (or a later one - several can arrive between two ticks) confirms it; one that leaves
      * him where he already was (a rotation-only correction) is ignored; anything else means the server put him
-     * somewhere the plan does not know about - abort, as the automation rules say, and plan again from there.
+     * somewhere the plan does not know about: a correction - chat line + alarm (util/ServerCorrections), the queue is
+     * dropped and the same goal planned again from where he really is, every time (mod rule 2026-10-06: a correction
+     * never stops anything, so it does not count against MAX_REPLANS).
      * Also gives up on a queue that has made no progress for {@link #STALL_TICKS}.
      *
      * @return false when the path was given up on this tick
@@ -583,7 +585,7 @@ public final class ClearExecutor {
                 Vec3 want = confirmed < issued.size() ? issued.get(confirmed) : null;
                 offPath(want == null ? "the server moved you off the path"
                         : String.format(java.util.Locale.US, "warp %d put you %.1f blocks from where it was aimed",
-                        confirmed + 1, horizontal(at, want)), null);
+                        confirmed + 1, horizontal(at, want)), null, true);
                 return false;
             }
         }
@@ -606,22 +608,44 @@ public final class ClearExecutor {
      * {@link #MAX_REPLANS} times a click), or stop and say why.
      */
     private static void offPath(String why, Runnable completion) {
+        offPath(why, completion, false);
+    }
+
+    /** @param correction the server's position packet put him off the plan: reported as a correction, and planned
+     *                    again whatever {@link #replans} says (a correction never stops the map's runner). */
+    private static void offPath(String why, Runnable completion, boolean correction) {
         BlockPos to = goalTo;
         int tile = goalTile;
         Runnable complete = goalComplete != null ? goalComplete : completion;
-        boolean canReplan = to != null && replans < MAX_REPLANS;
+        boolean canReplan = to != null && (correction || replans < MAX_REPLANS);
         LOGGER.warn("[Path] off the plan: {} ({} of {} warp(s) answered) - {}", why, confirmed, issued.size(),
-                canReplan ? "planning again from here" : "stopping");
+                canReplan ? "planning again from here" : correction ? "no goal to plan again" : "stopping");
         dropQueue();
+        if (correction) {
+            com.killer560.hub.util.ServerCorrections.report("Interactive Map", "(" + why + ") - "
+                    + (canReplan ? "planning again from here" : "nothing left to plan"),
+                    com.killer560.hub.util.ServerCorrections.lastMoveDistance());
+        }
         if (canReplan) {
-            replans++;
+            if (!correction) {
+                replans++;
+            }
             goalTo = to;
             goalTile = tile;
             goalComplete = complete;
             replanPending = true;
             replanWaitTicks = 0;
-            ModChat.send(CHAT, ModChat.bad(capitalise(why)), ModChat.dim(" - planning again from here ("
-                    + replans + "/" + MAX_REPLANS + ")"));
+            if (!correction) {
+                ModChat.send(CHAT, ModChat.bad(capitalise(why)), ModChat.dim(" - planning again from here ("
+                        + replans + "/" + MAX_REPLANS + ")"));
+            }
+            return;
+        }
+        if (correction) {
+            // No goal behind the queue (nothing to plan again): the correction is reported; the flags below still go
+            // so a caller waiting on this path is released instead of waiting for a queue that no longer exists.
+            lastPathFailed = true;
+            externalOwner = false;
             return;
         }
         lastPathFailed = true;

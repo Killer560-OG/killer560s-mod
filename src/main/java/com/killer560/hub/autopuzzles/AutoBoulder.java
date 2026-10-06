@@ -13,6 +13,7 @@ import com.killer560.hub.util.BlockHits;
 import com.killer560.hub.util.BodyAim;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.util.ServerCorrections;
 import com.killer560.hub.util.ViewFreeze;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -71,8 +72,9 @@ import java.util.Locale;
  * <h2>Safety</h2>
  * Movement is the forward and sprint keys and rotation only - nothing written to position or velocity. The body turns
  * through {@link BodyAim} with the camera held by {@link ViewFreeze}, and after the room the body is turned back to his
- * view at the same human pace before the camera is released (no snap). A server position correction while walking, any
- * of S/A/D/jump pressed after it started, or a screen, stops or pauses it. Every stage change and refusal is an INFO line.
+ * view at the same human pace before the camera is released (no snap). Any of S/A/D/jump pressed after it started, or a
+ * screen, stops or pauses it. A server position correction never does (mod rule, 2026-10-06): it posts a chat line, plays
+ * the correction alarm, and the walk is planned again from where the server put him. Every stage change and refusal is an INFO line.
  */
 public final class AutoBoulder {
 
@@ -172,7 +174,8 @@ public final class AutoBoulder {
         consumedArrival = ClearExecutor.arrivalSeq();
     }
 
-    /** From the position-packet hook: a server correction stops a walk. */
+    /** From the position-packet hook: a server correction while he is being walked (reported and re-planned on the
+     *  next tick - never a stop). */
     public static void onServerPosition() {
         if (engaged && (walking || stage == Stage.RUN_TO_BARS)) {
             correction = true;
@@ -271,8 +274,17 @@ public final class AutoBoulder {
         }
         if (correction) {
             correction = false;
-            giveUp(client, "the server corrected his position while walking");
-            return false;
+            // Mod rule (killer560, 2026-10-06): a correction never stops an auto - chat line + alarm, then carry on from
+            // where the server put him. A walk is planned again from here (not counted against MAX_REPLANS); the run to
+            // the bars steers from the live position every tick anyway.
+            ServerCorrections.report("Auto Boulder", (walking ? "walking to " + walkLabel : "on the run to the bars")
+                    + " - planning again from here", ServerCorrections.lastMoveDistance());
+            if (walking) {
+                stopWalk(client, "server correction - planning again from here");
+                if (walkGoal != null && player.onGround()) {
+                    startWalk(client, player, walkGoal, walkAvoidBarrier, walkLabel);
+                }
+            }
         }
         switch (stage) {
             case NEED_CHEST -> findChest(client, player);

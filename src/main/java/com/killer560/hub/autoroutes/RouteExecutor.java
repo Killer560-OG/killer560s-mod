@@ -24,6 +24,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.util.ServerCorrections;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -151,6 +152,15 @@ public final class RouteExecutor {
      *  when a teleport's use is sent - Hypixel and the sim both teleport with that packet, so it is the landing check's
      *  proof that a teleport really happened, however short. */
     private static volatile boolean teleportPacketSeen;
+    /** Every server position packet bumps this (the hook's thread); {@link #positionPacketsHandled} is the tick's copy.
+     *  A packet the route did not ask for is a correction ({@link #checkCorrections}). */
+    private static volatile int positionPackets;
+    private static int positionPacketsHandled;
+    /** {@link #execTicks} until which a packet is presumed to be the answer to a node that may teleport him itself (a
+     *  USE_ITEM such as an AOTV, a COMMAND), not a correction. */
+    private static long ownTeleportUntil;
+    /** How long after such a node its teleport may still arrive (ping). */
+    private static final int OWN_TELEPORT_GRACE_TICKS = 20;
     // ---- the warp being flown: an etherwarp node's own, or one saved hop of a path node ----
     /** Real-world look, landing and landing block of the warp under way ({@link #tickWarp}). */
     private static float warpYaw;
@@ -425,6 +435,8 @@ public final class RouteExecutor {
         chainAfterLanding = false;
         landingConfirmed = false;
         execTicks = 0;
+        positionPacketsHandled = positionPackets;
+        ownTeleportUntil = 0;
         nextWarpAt = Double.NEGATIVE_INFINITY;
         forceSneak = false;
         unsneakOverride = false;
@@ -475,6 +487,127 @@ public final class RouteExecutor {
     /** From the client's position-packet handler, on the client thread. */
     public static void onServerPositionPacket() {
         teleportPacketSeen = true;
+        positionPackets++;
+    }
+
+    /**
+     * Mod rule (killer560, 2026-10-06: "Nothing in this mod should stop from server corrections ever - just have it send
+     * a chat message and make noises"). Run at the top of every tick: a server position packet the route did not ask
+     * for is a correction - a chat line and the correction alarm ({@link ServerCorrections#report}), and the route
+     * carries on from where the server put him. Never a stop, and nothing moves him back.
+     * <ul>
+     * <li>During a warp's CONFIRM (etherwarp node or path hop) a packet that does not leave him on the landing: the warp
+     * is flown again from here - a path picks the hop that starts nearest him; an etherwarp re-fires when he is still in
+     * its ring, else the node is let go and the route goes on (a path-less route fires the next node he stands in, a
+     * recorded one rejoins its path).</li>
+     * <li>While walking a recorded path: the cursor is put on the nearest sample of the whole path (a replan of where he
+     * is on it), so the drift check measures from there rather than from a sample the correction left behind.</li>
+     * <li>During a USE_ITEM or COMMAND node, and for {@link #OWN_TELEPORT_GRACE_TICKS} after one, a packet is presumed to
+     * be that node's own teleport and is not reported.</li>
+     * </ul>
+     */
+    private static void checkCorrections(Minecraft client, LocalPlayer player) {
+        int packets = positionPackets;
+        if (packets == positionPacketsHandled) {
+            return;
+        }
+        positionPacketsHandled = packets;
+        RouteNode node = activeNode;
+        boolean warping = node != null && step == Step.CONFIRM
+                && (node.type == RouteNode.Type.ETHERWARP || node.type == RouteNode.Type.PATH);
+        if (warping) {
+            if (warpLanding == null || player.position().distanceTo(warpLanding) <= LANDING_TOLERANCE) {
+                return; // the warp's own landing (tickWarp confirms it this tick)
+            }
+            double off = player.position().distanceTo(warpLanding);
+            if (node.type == RouteNode.Type.PATH && node.pathHops != null && !node.pathHops.isEmpty()) {
+                int hop = nearestHopOrigin(player, node);
+                reportCorrection(String.format(Locale.US,
+                        "during path #%d's warp %d (%.1f from its landing) - flying from warp %d again",
+                        route.indexOf(node) + 1, hopIndex + 1, off, hop + 1));
+                loadHop(node, hop);
+                return;
+            }
+            if (node.contains(RouteCoords.toReal(frame, node.relativePos()), AutoRoutesConfig.getInstance().getHeight(),
+                    player.getBoundingBox())) {
+                reportCorrection(String.format(Locale.US,
+                        "during etherwarp #%d (%.1f from its landing) - warping again", route.indexOf(node) + 1, off));
+                step = Step.PREP;
+                stepTicks = 0;
+                return; // this tick's tickAction re-aims from here (the PREP branch) and fires as usual
+            }
+            reportCorrection(String.format(Locale.US,
+                    "during etherwarp #%d (%.1f from its landing) - carrying on from here", route.indexOf(node) + 1, off));
+            letGoAfterCorrection(client, player);
+            return;
+        }
+        if (node != null && (node.type == RouteNode.Type.USE_ITEM || node.type == RouteNode.Type.COMMAND
+                || node.type == RouteNode.Type.ETHERWARP || node.type == RouteNode.Type.PATH)) {
+            return; // the node's own teleport, or a warp not yet sent / already confirmed
+        }
+        if (execTicks <= ownTeleportUntil) {
+            return;
+        }
+        reportCorrection((node != null ? "during node #" + (route.indexOf(node) + 1) + " "
+                + node.type.name().toLowerCase(Locale.ROOT) : route.path().isEmpty() ? "between nodes" : "on the path")
+                + " - carrying on from here");
+        relocateOnPath(player);
+    }
+
+    /** Chat line + alarm, and the camera check re-based: a position packet may carry a rotation of its own, which must
+     *  not read as him turning the camera (the same re-base a confirmed landing does). */
+    private static void reportCorrection(String what) {
+        ServerCorrections.report("Auto Routes", what, ServerCorrections.lastMoveDistance());
+        RouteRotation.rebase();
+        cameraGraceTicks = Math.max(cameraGraceTicks, 3);
+    }
+
+    /** The saved hop of {@code node} whose origin is nearest him (the corrected position). */
+    private static int nearestHopOrigin(LocalPlayer player, RouteNode node) {
+        int best = 0;
+        double bestD = Double.MAX_VALUE;
+        for (int i = 0; i < node.pathHops.size(); i++) {
+            RouteNode.PathHop h = node.pathHops.get(i);
+            double d = player.position().distanceTo(RouteCoords.toReal(frame, h.ox(), h.oy(), h.oz()));
+            if (d < bestD) {
+                bestD = d;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    /** A recorded path: the cursor goes to the nearest sample from the path's start up to a seek window ahead - a setback
+     *  puts him back any distance, but never far ahead, and a cursor jumping past a node would fire it out of place. */
+    private static void relocateOnPath(LocalPlayer player) {
+        RoutePath path = route.path();
+        if (path.isEmpty()) {
+            return;
+        }
+        Vec3 rel = RouteCoords.toRelative(frame, player.position());
+        cursor = path.nearest(0, cursor + SEEK_WINDOW, rel.x, rel.y, rel.z);
+        bestTargetDistance = Double.MAX_VALUE;
+        noProgressTicks = 0;
+    }
+
+    /**
+     * A warp the correction took him away from: the node is let go WITHOUT counting as done - on a path-less route the
+     * walk step fires whichever node he stands in next (this one again if he walks back into it), on a recorded one the
+     * cursor rejoins the path where he is. The rest of the stack goes with it; nothing stops.
+     */
+    private static void letGoAfterCorrection(Minecraft client, LocalPlayer player) {
+        RouteRotation.clear();
+        activeNode = null;
+        step = null;
+        stackQueue.clear();
+        stackTrigger = null;
+        landingConfirmed = false;
+        chainAfterLanding = false;
+        landedFrom = null;
+        settleTicks = AutoRoutesConfig.getInstance().getInteractDelayTicks();
+        releaseUse(client);
+        clearMovement();
+        relocateOnPath(player);
     }
 
     public static void onMixinApplied() {
@@ -628,6 +761,7 @@ public final class RouteExecutor {
             stop("world change");
             return;
         }
+        checkCorrections(client, player);
         if (AutoRoutesFeature.screenBlocks(client)) {
             if (activeNode != null && (awaitHeld || (activeNode.awaitEnabled && !nodeActed))) {
                 // Waiting on secrets: the screen is almost always the secret itself - a chest's own window
@@ -1087,6 +1221,11 @@ public final class RouteExecutor {
 
     private static void finishAction() {
         RouteNode finished = activeNode;
+        if (finished != null && (finished.type == RouteNode.Type.USE_ITEM || finished.type == RouteNode.Type.COMMAND)) {
+            ownTeleportUntil = execTicks + OWN_TELEPORT_GRACE_TICKS; // its teleport, if it has one, may still be coming
+        } else if (finished != null && (finished.type == RouteNode.Type.ETHERWARP || finished.type == RouteNode.Type.PATH)) {
+            ownTeleportUntil = Math.max(ownTeleportUntil, execTicks + 3); // a late duplicate of the landing packet
+        }
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
         // Release the camera as soon as the node is done. Without this a QUOI-style path-less route (nodes
         // only, no recorded walk) kept pulling the view back to the finished node's yaw every frame while

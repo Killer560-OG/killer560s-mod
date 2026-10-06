@@ -47,6 +47,7 @@ public abstract class Ap3PositionPacketMixin {
                     PositionMoveRotation.of(player), packet.change(), packet.relatives());
             Vec3 to = target.position();
             Vec3 at = player.position();
+            com.killer560.hub.util.ServerCorrections.noteServerMove(to.x - at.x, to.y - at.y, to.z - at.z);
             Ap3Executor.onServerPositionPacket(to.x - at.x, to.y - at.y, to.z - at.z);
         } catch (RuntimeException e) {
             killer560smod$ap3$hookThrew(e);

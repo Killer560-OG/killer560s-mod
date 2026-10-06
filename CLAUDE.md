@@ -103,8 +103,8 @@ A Discord update covers three places: #changelog (mod), #roadmap (edit the pinne
 ## Safety rules for automation
 
 These are his, they are about getting banned, and they are not negotiable. Never write position or velocity
-directly (`setPos`, `setDeltaMovement`) and never use fractional movement input — discrete key presses only,
-and abort on any server correction. Never clamp or wrap simulated yaw at 0-360; Hypixel treats an uncapped
+directly (`setPos`, `setDeltaMovement`) and never use fractional movement input — discrete key presses only.
+A server correction is always honoured (never fought) but never stops anything: see the first lesson below. Never clamp or wrap simulated yaw at 0-360; Hypixel treats an uncapped
 running rotation value as the normal signal. Pitch is always kept within -90..+90. Anticheat *deception*
 features (blink, inventory walk) were declined in September 2026 and stay declined.
 
@@ -118,6 +118,8 @@ elements, Superpairs, Instant Transmission, item identity, gametest, `AttackBloc
 **[docs/LESSONS.md](docs/LESSONS.md)**. The Room Recorder was removed on 2026-10-04 and lives at git tag
 `room-recorder-last`; the last section of docs/SIM.md says how to restore it.
 
+- **Nothing in this mod ever stops, pauses or disables on a server correction** (killer560, 2026-10-06): it calls
+  `util/ServerCorrections.report` (chat line + `ModSounds.playCorrectionAlarm()`) and carries on from the corrected position.
 - `LOGGER.debug` never reaches his log. Minecraft's root log4j2 level is INFO, and a real client log
   (`26.1.2 (Dungeons)`, 29,596 lines, 2026-09-29) contains zero DEBUG lines. So a `.debug` call is not the
   spam and deleting one buys nothing; when hunting log noise, hunt `.info`. That is where it all was: the
