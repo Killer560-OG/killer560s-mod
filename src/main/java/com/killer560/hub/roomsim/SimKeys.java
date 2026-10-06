@@ -29,8 +29,8 @@ public final class SimKeys {
     /**
      * Blocks from the player's feet to the stand: Hypixel's range as the mod models it
      * ({@link com.killer560.hub.doorkeys.DungeonKeys#pickupRange} - the 0.27.2 +5 is sourced, the base 1 block is vanilla's
-     * item reach and unverified for keys, the talisman's x3 is sourced for items). The Autopilot's Magnetic Talisman /
-     * Key Base Range settings stand in for what he carries, since the sim has no accessory bag. Was a flat 3-block guess.
+     * item reach and unverified for keys; the Magnetic Talisman does not apply to keys, confirmed in game). The
+     * Autopilot's Key Base Range setting stands in for the base. Was a flat 3-block guess.
      */
     public static double pickupRange() {
         return com.killer560.hub.autosecret.AutoSecretConfig.getInstance().keyPickupRange();
