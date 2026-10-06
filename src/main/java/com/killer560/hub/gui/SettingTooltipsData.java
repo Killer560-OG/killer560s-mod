@@ -416,6 +416,8 @@ final class SettingTooltipsData {
         d.put("command colour", "Marker colour for command nodes.");
         d.put("render style", "Cheat build: how node markers are drawn, plus line thickness and height.");
         d.put("auto routes/style", "Box (wireframe), Filled Box, or Cylinder markers.");
+        d.put("auto routes/breaker block display", "How a breaker node's blocks are drawn in edit mode (/ar edit db): Highlight draws them normally; Waypoint draws them through walls anywhere within your render distance. White is still standing, red already broken (cheat build only).");
+        d.put("auto routes/breaker block style", "Draws a breaker node's blocks in edit mode as outlines, filled boxes, or filled boxes with an outline (cheat build only).");
         d.put("thickness", "Line thickness of the node markers, 1-8.");
         d.put("new/height", "Height of each node marker in blocks, 0.1-1.0.");
         d.put("keybinds", "Cheat build: bind one key per /ar command; click a row and press a key.");

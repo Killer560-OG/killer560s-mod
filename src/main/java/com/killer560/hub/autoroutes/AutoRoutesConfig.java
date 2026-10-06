@@ -130,6 +130,14 @@ public final class AutoRoutesConfig {
     private int activeColorArgb = 0xFFFFFFFF;
     private final Map<RouteNode.Type, Integer> nodeColors = new EnumMap<>(RouteNode.Type.class);
     private RenderStyle renderStyle = RenderStyle.BOX;
+    /** How a breaker node's picked blocks are drawn in edit mode (killer560, 2026-10-06: "have an option under auto
+     *  routes for it to be waypoints or highlights"). Breaker Aura's own enums and draw ({@code BreakerAuraFeature
+     *  .drawPickBoxes}); HIGHLIGHT is depth-tested, WAYPOINT draws through walls out to the render distance. */
+    private com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerDisplay breakerDisplay =
+            com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerDisplay.HIGHLIGHT;
+    /** Outline / Fill / Filled Outline for those blocks. FILLED_OUTLINE is the look the editor had before the setting. */
+    private com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerStyle breakerStyle =
+            com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerStyle.FILLED_OUTLINE;
     private float thickness = 4f;
     private float height = 0.1f;
     /** Ticks between a rotation settling and the click that follows it (QUOI "Interact delay"). */
@@ -206,6 +214,10 @@ public final class AutoRoutesConfig {
                     }
                 }
                 cfg.renderStyle = ConfigJson.getEnum(o, "renderStyle", RenderStyle.class, cfg.renderStyle);
+                cfg.setBreakerDisplay(ConfigJson.getEnum(o, "breakerDisplay",
+                        com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerDisplay.class, cfg.breakerDisplay));
+                cfg.setBreakerStyle(ConfigJson.getEnum(o, "breakerStyle",
+                        com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerStyle.class, cfg.breakerStyle));
                 cfg.setThickness(ConfigJson.getFloat(o, "thickness", cfg.thickness));
                 cfg.setHeight(ConfigJson.getFloat(o, "height", cfg.height));
                 cfg.setInteractDelayTicks(ConfigJson.getInt(o, "interactDelayTicks", cfg.interactDelayTicks));
@@ -251,6 +263,8 @@ public final class AutoRoutesConfig {
             }
             o.add("nodeColors", colors);
             o.addProperty("renderStyle", renderStyle.name());
+            o.addProperty("breakerDisplay", breakerDisplay.name());
+            o.addProperty("breakerStyle", breakerStyle.name());
             o.addProperty("thickness", thickness);
             o.addProperty("height", height);
             o.addProperty("interactDelayTicks", interactDelayTicks);
@@ -339,6 +353,16 @@ public final class AutoRoutesConfig {
 
     public RenderStyle getRenderStyle() { return renderStyle; }
     public void setRenderStyle(RenderStyle v) { renderStyle = v == null ? RenderStyle.BOX : v; }
+
+    public com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerDisplay getBreakerDisplay() { return breakerDisplay; }
+    public void setBreakerDisplay(com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerDisplay v) {
+        breakerDisplay = v == null ? com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerDisplay.HIGHLIGHT : v;
+    }
+
+    public com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerStyle getBreakerStyle() { return breakerStyle; }
+    public void setBreakerStyle(com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerStyle v) {
+        breakerStyle = v == null ? com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerStyle.FILLED_OUTLINE : v;
+    }
 
     public float getThickness() { return thickness; }
     public void setThickness(float v) {

@@ -319,8 +319,18 @@ public final class BreakerAuraFeature {
             rgba[c + 2] = 0.0f;
             rgba[c + 3] = inReach ? 0.95f : 0.55f;
         }
-        // Fill first, then outline: two flat passes, never interleaved per box (SecretWaypointsRenderer's crash
-        // note). A fill alone is stronger than one under an outline, so the block stays readable either way.
+        drawPickBoxes(context, boxes, rgba, count, waypoint, style);
+    }
+
+    /**
+     * The picked-block draw, shared with Auto Routes' breaker node display ({@code AutoRoutesRenderer}): fill first,
+     * then outline - two flat passes, never interleaved per box (SecretWaypointsRenderer's crash note). A fill alone is
+     * stronger than one under an outline, so the block stays readable either way. {@code waypoint} draws through walls.
+     * The arrays must be fresh for this frame (see {@link WorldRenderUtils#renderOutlineBoxes}).
+     */
+    public static void drawPickBoxes(net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext context,
+                                     AABB[] boxes, float[] rgba, int count, boolean waypoint,
+                                     DungeonExtrasConfig.BreakerStyle style) {
         if (style != DungeonExtrasConfig.BreakerStyle.OUTLINE) {
             WorldRenderUtils.renderFilledBoxes(context, boxes, rgba, count,
                     style == DungeonExtrasConfig.BreakerStyle.FILL ? 0.45f : 0.30f, waypoint);

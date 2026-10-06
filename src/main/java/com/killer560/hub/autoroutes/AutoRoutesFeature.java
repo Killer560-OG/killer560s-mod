@@ -88,6 +88,8 @@ public final class AutoRoutesFeature {
         // break packets then go out ahead of this tick's input and movement packets, as vanilla's handleKeybinds
         // sends a click, and the sneak or keys the executor asks for are read by the input mixin in this same tick.
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoRoutesFeature.tick", AutoRoutesFeature::tick));
+        // Breaker Block Display "Waypoint" draws through walls; the pipelines must exist before the first frame.
+        com.killer560.hub.util.WorldRenderUtils.initThroughWalls();
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(AutoRoutesFeature::onRenderFrame);
         AwaitEvents.register();
         LOGGER.info("[AutoRoutes] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);

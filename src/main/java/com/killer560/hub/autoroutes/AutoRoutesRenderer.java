@@ -29,7 +29,6 @@ public final class AutoRoutesRenderer {
     private static final int RING_SEGMENTS = 40;
     private static final double GROUND_OFFSET = 0.03;
     private static final double LABEL_DISTANCE = 40.0;
-    private static final float BREAKER_ALPHA = 0.28f;
     private static final float PATH_ALPHA = 0.35f;
     /** AP3's label stacking: each later node of a tile's stack ({@link RouteNode#sameTile}) lifts its label this much. */
     private static final double STACK_STEP = 0.3;
@@ -157,23 +156,67 @@ public final class AutoRoutesRenderer {
         WorldRenderUtils.renderLineStrip(ctx, points, 1f, 0.65f, 0.2f, PATH_ALPHA, Math.max(0.5f, thickness / 2f));
     }
 
-    /** killer560: "blocks that will be broken by any node get a faint highlight while in edit mode". */
+    /** Which path the last edit-mode breaker draw took ("highlight/FILLED_OUTLINE 3 drawn"), for the testkit's 96-ar. */
+    private static volatile String lastBreakerDraw = "";
+
+    public static String lastBreakerDraw() {
+        return lastBreakerDraw;
+    }
+
+    /**
+     * killer560: "blocks that will be broken by any node get a faint highlight while in edit mode". Air (already broken)
+     * is red, a standing block white - QUOI's DB editor. How they are drawn is the Auto Routes tab's Breaker Block
+     * Display and Breaker Block Style (2026-10-06), through Breaker Aura's own draw ({@code BreakerAuraFeature
+     * .drawPickBoxes}): Highlight is depth-tested, Waypoint draws through walls and is culled to the render distance
+     * (horizontal, from the camera) before any world lookup, as Breaker Aura's is.
+     */
     private static void renderBreakerBlocks(LevelRenderContext ctx, Minecraft client, Route route, RouteCoords.Frame frame) {
+        AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
+        boolean waypoint = cfg.getBreakerDisplay()
+                == com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerDisplay.WAYPOINT;
+        com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerStyle style = cfg.getBreakerStyle();
+        int total = 0;
+        for (RouteNode node : route.nodes()) {
+            if (node.type == RouteNode.Type.DUNGEON_BREAKER) {
+                total += node.breakerBlocks.size();
+            }
+        }
+        if (total == 0) {
+            lastBreakerDraw = (waypoint ? "waypoint/" : "highlight/") + style.name() + " 0 drawn";
+            return;
+        }
+        Vec3 cam = McRender.cameraPos(ctx);
+        double maxH = client.options.getEffectiveRenderDistance() * 16.0;
+        double maxHSq = maxH * maxH;
+        // Fresh arrays every frame: on 26.2 the draw callbacks run later in the frame (WorldRenderUtils.renderOutlineBoxes).
+        AABB[] boxes = new AABB[total];
+        float[] rgba = new float[total * 4];
+        int count = 0;
         for (RouteNode node : route.nodes()) {
             if (node.type != RouteNode.Type.DUNGEON_BREAKER) {
                 continue;
             }
             for (BlockPos rel : node.breakerBlocks) {
                 BlockPos real = RouteCoords.toRealBlock(frame, rel);
-                AABB box = new AABB(real.getX(), real.getY(), real.getZ(), real.getX() + 1, real.getY() + 1, real.getZ() + 1);
-                if (client.level.getBlockState(real).isAir()) {
-                    WorldRenderUtils.renderOutlineBox(ctx, box, 1f, 0.2f, 0.2f, 0.5f, 1.5f);
-                } else {
-                    WorldRenderUtils.renderFilledBox(ctx, box, 1f, 1f, 1f, BREAKER_ALPHA);
-                    WorldRenderUtils.renderOutlineBox(ctx, box, 1f, 1f, 1f, 0.6f, 1.5f);
+                if (waypoint) {
+                    double dx = real.getX() + 0.5 - cam.x;
+                    double dz = real.getZ() + 0.5 - cam.z;
+                    if (dx * dx + dz * dz > maxHSq) {
+                        continue;
+                    }
                 }
+                boolean air = client.level.getBlockState(real).isAir();
+                boxes[count] = new AABB(real.getX(), real.getY(), real.getZ(), real.getX() + 1, real.getY() + 1, real.getZ() + 1);
+                int c = count * 4;
+                rgba[c] = 1f;
+                rgba[c + 1] = air ? 0.2f : 1f;
+                rgba[c + 2] = air ? 0.2f : 1f;
+                rgba[c + 3] = air ? 0.5f : 0.6f;
+                count++;
             }
         }
+        lastBreakerDraw = (waypoint ? "waypoint/" : "highlight/") + style.name() + " " + count + " drawn";
+        com.killer560.hub.dungeonextras.BreakerAuraFeature.drawPickBoxes(ctx, boxes, rgba, count, waypoint, style);
     }
 
     private static List<Vec3> ring(Vec3 centre, double radius, double yOffset) {

@@ -59,7 +59,7 @@ import com.killer560.hub.compat.McCompat;
  *   Mode | Start From Start Node Only
  *   Run While Map Open
  *   Open Routes Folder | Reload Routes
- *   Render Style:  Style | Show Node Numbers,  Thickness | Height
+ *   Render Style:  Style | Show Node Numbers,  Thickness | Height,  Breaker Block Display | Breaker Block Style
  *   Recording:     Start | Stop,  Start Key | Stop Key
  *   Colours (dropdown)
  *   Keybinds (dropdown)
@@ -299,6 +299,19 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                 (cfg.getHeight() - MIN_HEIGHT) / (MAX_HEIGHT - MIN_HEIGHT),
                 v -> cfg.setHeight((float) (Math.round((MIN_HEIGHT + v * (MAX_HEIGHT - MIN_HEIGHT)) * 10.0) / 10.0)));
         y[0] += 24;
+        // killer560, 2026-10-06: "have an option under auto routes for it to be waypoints or highlights" - how a
+        // breaker node's picked blocks are drawn in edit mode, Breaker Aura's Display and Box Style for these blocks.
+        w.add(SettingsButtonWidget.builder(breakerDisplayText(cfg), btn -> {
+                    cfg.setBreakerDisplay(cfg.getBreakerDisplay().next());
+                    cfg.save();
+                    btn.setMessage(breakerDisplayText(cfg));
+                }).bounds(x, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.builder(breakerStyleText(cfg), btn -> {
+                    cfg.setBreakerStyle(cfg.getBreakerStyle().next());
+                    cfg.save();
+                    btn.setMessage(breakerStyleText(cfg));
+                }).bounds(x + half + GAP, y[0], right, 20).build());
+        y[0] += 24;
     }
 
     private void buildKeybindSection(List<AbstractWidget> w, AutoRoutesConfig cfg, int x, int[] y, int width,
@@ -369,6 +382,14 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
 
     private static Component cryptWeaponText(AutoRoutesConfig cfg) {
         return Component.literal("Crypt Weapon: §e" + cfg.getCryptWeapon().label());
+    }
+
+    private static Component breakerDisplayText(AutoRoutesConfig cfg) {
+        return Component.literal("Breaker Block Display: §e" + cfg.getBreakerDisplay().label);
+    }
+
+    private static Component breakerStyleText(AutoRoutesConfig cfg) {
+        return Component.literal("Breaker Block Style: §e" + cfg.getBreakerStyle().label);
     }
 
     private static Component styleText(AutoRoutesConfig cfg) {
