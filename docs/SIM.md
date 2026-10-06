@@ -713,7 +713,8 @@ which fires before any damage logic, so the silverfish is shoved and never hurt 
 punching kills the puzzle. An arrow is picked up separately, by looking for an `AbstractArrow` against the fish
 while it is at rest, and the direction comes from the **arrow's yaw, not its flight**: Auto Ice Path shoots
 straight down from on top of the silverfish, so the flight direction says nothing and the yaw says everything.
-Untested in game - no shortbow has been fired at a sim silverfish yet.
+Tested 2026-10-06 by testkit `94-sim-icepath-shove` on 26.1.2 and 26.2: standing on its cell, an empty-hand punch
+and a Terminator shot straight down each slid it one cell the way he faced, and its health stayed 8.0 of 8.0.
 
 **`forget()` has to drop the placed-block list too.** `SimIcePathPuzzle` and `SimIceFillPuzzle` are the only
 two puzzles that place their own standalone arena, and both kept `placedBlocks` across `forget()`. Since

@@ -180,6 +180,18 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   children in order (last on top) but gives a press to the FIRST under the cursor. Breaker Aura's `y += 20 ... y -= 20`
   side-step left Cooldown on Side Reach's rect and Auto Swap on Multi Break's, so dragging "Cooldown" moved Side Reach
   (2026-10-05). Testkit `386-ui-sliders` checks every tab, toggles flipped, for overlapping rows.
+- **Cancelling a block break makes `AttackBlockCallback` fire every TICK, not once per click.**
+  `MultiPlayerGameMode.continueDestroyBlock` only continues an existing break when `isDestroying` is set, and
+  that field is set inside `startDestroyBlock` - which is where the callback lives and which a cancel returns
+  from first. So holding the button re-enters the callback twenty times a second (verified by `javap -c`:
+  `continueDestroyBlock` calls `startDestroyBlock` on its fallback path). The sim's Dungeon Breaker spent its
+  whole twenty-charge bar in one second this way. Anything that consumes that callback needs its own
+  edge-detection - track the block and clear it when `keyAttack` comes up.
+- `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default
+  could never be restored once the setter ran. Fixed 2026-09-27; the SLIDER driving it still mapped onto
+  1-20 and was fixed 2026-09-30. A clamp has two halves - the setter and whatever widget feeds it - and a
+  slider whose start position computes negative (`(0 - 1) / 19`) is the tell. Every other numeric setter in
+  the repo was swept on 2026-09-30 and has its field default inside its clamp.
 
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
