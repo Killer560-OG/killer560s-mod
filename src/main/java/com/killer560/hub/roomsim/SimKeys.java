@@ -2,12 +2,17 @@ package com.killer560.hub.roomsim;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Map;
@@ -16,7 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The sim's dungeon keys, shaped like Hypixel's (hypixelskyblock.minecraft.wiki, Wither Key / Blood Key, 2026-10-06): a
- * dropped key is a named armour stand ("Wither Key" / "Blood Key" - what the client's {@code DoorKeysFeature} looks for),
+ * dropped key is a named, invisible armour stand ("Wither Key" / "Blood Key" - what the client's {@code DoorKeysFeature}
+ * looks for) wearing the key's head ({@link #keyHead}: Hypixel's skins, a black orb and a red one),
  * it is picked up by being near it, and the key then belongs to the whole team ("usable by any person within the
  * dungeon, regardless of whether or not they are the player who obtained it"). A pickup says
  * {@code "<name> has obtained Wither Key!"} in chat, as Hypixel does; a wither door opened with the team's key says
@@ -47,6 +53,11 @@ public final class SimKeys {
 
     static void register() {
         ServerTickEvents.END_SERVER_TICK.register(SimKeys::tick);
+        // A right click on a key's stand would take its head off (vanilla armour-stand swap). Refused on the server
+        // only, so the client sends exactly what it would send on Hypixel.
+        net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register((player, level, hand, entity, hit) ->
+                !level.isClientSide() && entity != null && DROPPED.containsKey(entity.getUUID())
+                        ? InteractionResult.FAIL : InteractionResult.PASS);
     }
 
     /** Drops a key at {@code pos} (server side). Client thread or any. */
@@ -64,10 +75,32 @@ public final class SimKeys {
             stand.setInvulnerable(true);
             stand.setCustomName(Component.literal(blood ? "Blood Key" : "Wither Key"));
             stand.setCustomNameVisible(true);
+            // A full-size stand standing on the floor: the head it wears floats at head height (helmet ~1.4-1.9 above
+            // the floor), the name above it, and the stand's own position - what the client's DungeonKeys reads and
+            // both pickup checks measure to - sits directly under the head.
+            stand.setItemSlot(EquipmentSlot.HEAD, keyHead(blood));
             if (level.addFreshEntity(stand)) {
                 DROPPED.put(stand.getUUID(), blood);
             }
         });
+    }
+
+    /**
+     * Hypixel's key skins. hypixelskyblock.minecraft.wiki: "The Wither Key and Wither Essence use the same texture",
+     * "The Blood Key and Overflux Power Orb use the same texture" (Wither Key / Blood Key pages, Trivia, 2026-10-06).
+     * The Wither Essence item's skin is from the NotEnoughUpdates item repo (items/ESSENCE_WITHER.json, a black orb);
+     * the Overflux Power Orb's from Hypixel's own api.hypixel.net/v2/resources/skyblock/items (a red orb in a purple
+     * frame). Re-encoded with only the skin URL, as Hypixel's own unsigned heads carry.
+     */
+    private static final String WITHER_KEY_TEXTURE = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzRkYjRhZGZhOWJmNDhmZjVkNDE3MDdhZTM0ZWE3OGJkMjM3MTY1OWZjZDhjZDg5MzQ3NDlhZjRjY2U5YiJ9fX0=";
+    private static final String BLOOD_KEY_TEXTURE = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjBkZTVlODk3NDk0MDM3NTkzNGQzMmY3MWM5MWFkMmQ1NzI4ZDM4ZTUxNjQ3ZGNjOGYzOTIwNmMwOTlhNTRjMiJ9fX0=";
+
+    /** The player head a dropped key wears, carrying its skin through the {@code minecraft:profile} component. */
+    static ItemStack keyHead(boolean blood) {
+        ItemStack head = new ItemStack(Items.PLAYER_HEAD);
+        head.set(DataComponents.PROFILE,
+                com.killer560.hub.profileviewer.item.LegacyItems.skullProfile(blood ? BLOOD_KEY_TEXTURE : WITHER_KEY_TEXTURE));
+        return head;
     }
 
     /** The team's wither keys (picked up, not yet used on a door). */
