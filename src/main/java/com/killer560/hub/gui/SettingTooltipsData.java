@@ -18,6 +18,7 @@ final class SettingTooltipsData {
         invSortAndAutoSell(d);
         autoKick(d);
         bazaarFlip(d);
+        crosshair(d);
     }
 
     private static void part1(Map<String, String> d) {
@@ -2066,5 +2067,53 @@ final class SettingTooltipsData {
         d.put("bazaar flipper/min profit per run", "Minimum coins a buy-and-sell cycle must earn before the bot will do it.");
         d.put("bazaar flipper/target purse", "Stops flipping once your purse reaches this; 0 means off.");
         d.put("bazaar flipper/speed", "Delay between automated actions, in milliseconds.");
+    }
+
+    private static void crosshair(Map<String, String> d) {
+        d.put("crosshair/custom crosshair", "Replaces the vanilla crosshair with the one you design here (both builds).");
+        d.put("crosshair/crosshair preview", "Your crosshair at its real in-game size. Click for another background, right click to go back; the strip below previews movement spread, recoil and target colours.");
+        d.put("crosshair/style", "Cross, T-Shape (no top arm), X (the cross turned 45 degrees), Dot, Circle, or Cross + Circle. Right click goes back.");
+        d.put("crosshair/size mode", "GUI Scale: sizes follow your GUI Scale, and your monitor too while Auto Scale is on. Screen Pixels: one unit is one screen pixel on any monitor.");
+        d.put("crosshair/scale", "Multiplies every size at once.");
+        d.put("crosshair/center dot", "Adds a dot in the middle of any style.");
+        d.put("crosshair/top arm", "Shows the top line of the cross.");
+        d.put("crosshair/bottom arm", "Shows the bottom line of the cross.");
+        d.put("crosshair/left arm", "Shows the left line of the cross.");
+        d.put("crosshair/right arm", "Shows the right line of the cross.");
+        d.put("crosshair/length", "How long each line is.");
+        d.put("crosshair/thickness", "How thick each line is. Sizes are rounded to whole screen pixels so lines stay sharp.");
+        d.put("crosshair/gap", "Space between the centre and each line; negative makes the lines overlap through the middle.");
+        d.put("crosshair/dot size", "Size of the centre dot.");
+        d.put("crosshair/circle radius", "Radius of the circle.");
+        d.put("crosshair/circle thickness", "Line width of the circle.");
+        d.put("crosshair/rotation", "Turns the whole crosshair. Multiples of 90 stay pixel-perfect.");
+        d.put("crosshair/color", "Main crosshair colour, with transparency.");
+        d.put("crosshair/chroma", "Cycles the main colour through the rainbow (keeps its transparency).");
+        d.put("crosshair/chroma speed", "How fast Chroma cycles.");
+        d.put("crosshair/invert blend", "Inverts whatever is behind the crosshair, like vanilla's. Use white for a full inversion.");
+        d.put("crosshair/separate dot color", "Gives the centre dot its own colour.");
+        d.put("crosshair/dot color", "Colour of the centre dot.");
+        d.put("crosshair/outline", "Draws a border around every part of the crosshair.");
+        d.put("crosshair/outline thickness", "How thick the outline is.");
+        d.put("crosshair/outline color", "Colour of the outline.");
+        d.put("crosshair/spread when moving", "Opens the gap by half the Spread Amount while you walk.");
+        d.put("crosshair/spread when sprinting", "Opens the gap by the Spread Amount while you sprint.");
+        d.put("crosshair/spread when jumping", "Opens the gap by the Spread Amount while you are in the air.");
+        d.put("crosshair/spread amount", "How far the lines (and the circle) move out when spreading.");
+        d.put("crosshair/recoil on attack", "Kicks the crosshair outward each time you swing.");
+        d.put("crosshair/recoil amount", "How far the recoil kick goes.");
+        d.put("crosshair/color on entity", "Changes colour while you are aiming at an entity in reach.");
+        d.put("crosshair/entity color", "Colour while aiming at an entity.");
+        d.put("crosshair/color on block", "Changes colour while you are aiming at a block in reach.");
+        d.put("crosshair/block color", "Colour while aiming at a block.");
+        d.put("crosshair/attack indicator", "Shows vanilla's attack cooldown under the crosshair (when vanilla's Attack Indicator option is set to Crosshair).");
+        d.put("crosshair/hide in menus", "Hides the crosshair while a menu is open (chat does not count).");
+        d.put("crosshair/show in third person", "Keeps the crosshair in third person, where vanilla hides it.");
+        d.put("crosshair/save preset", "Saves the current look under the typed name, in the config folder.");
+        d.put("crosshair/load", "Loads this saved preset.");
+        d.put("crosshair/delete", "Deletes this saved preset; click twice to confirm.");
+        d.put("crosshair/copy code", "Copies a short code for this crosshair to the clipboard, to share.");
+        d.put("crosshair/paste code", "Applies a crosshair code from the clipboard.");
+        d.put("crosshair/reset to default", "Puts every crosshair setting back to the default look (keeps it on or off).");
     }
 }

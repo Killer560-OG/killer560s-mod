@@ -344,6 +344,7 @@ public final class ProfileManager {
                 com.killer560.hub.updatecheck.UpdateCheckConfig::load,
                 com.killer560.hub.autocorrect.AutoCorrectConfig::load,
                 com.killer560.hub.trail.TrailConfig::load,
+                com.killer560.hub.crosshair.CustomCrosshairConfig::load,
                 com.killer560.hub.position.PositionConfig::load,
                 com.killer560.hub.social.BestFriendsConfig::load,
                 com.killer560.hub.social.FriendsListConfig::load,

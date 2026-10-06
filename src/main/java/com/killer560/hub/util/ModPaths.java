@@ -178,6 +178,7 @@ public final class ModPaths {
         t.put("nofire", "interface/nofire");
         t.put("objecthider", "interface/objecthider");
         t.put("trail", "interface/trail");
+        t.put("crosshair", "interface/crosshair");
         t.put("dvd", "interface/dvd");
         t.put("gif", "interface/gifplayer");
         t.put("screenshotcopy", "interface/screenshotcopy");

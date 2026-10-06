@@ -106,6 +106,8 @@ public class ModScreen extends Screen {
             tabs.add(new MiningWipTab());
             tabs.add(new GeneralTab());
             tabs.add(new DisplayTab());
+            // Custom Crosshair has its own tab (killer560, 2026-10-06): the editor needs the room for its preview.
+            tabs.add(new com.killer560.hub.gui.tab.CrosshairTab());
             tabs.add(new ChatTab());
             tabs.add(new HudElementsTab());
             tabs.add(new HelpersTab());
