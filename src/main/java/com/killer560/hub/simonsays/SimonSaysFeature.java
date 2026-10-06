@@ -185,6 +185,8 @@ public final class SimonSaysFeature {
     private static int roundVerdictTicks = 0;
     private static long roundVerdictCompletedAtMs = 0L;
     private static long deviceCompleteLineAtMs = 0L;
+    // Round 4's "SS 4/N" announce, held until the verdict decides N.
+    private static boolean roundVerdictAnnounce = false;
     private static final int AUTO_RESTART_SETTLE_TICKS = 10;
     private static boolean breakArmed = false;
     private static int blankGridTicks = 0;
@@ -1274,7 +1276,10 @@ public final class SimonSaysFeature {
             // LAST click of the current round (round N has N steps, so clickInOrder.size() at round-completion IS the
             // round number). The total is the device's: /5 on the old one, /4 since the 2026-10-06 update - sent
             // after the round count was decided above, so a device that just showed it has 4 rounds says "4/4".
-            if (cfg.isAnnounceProgress() && client.player != null) {
+            // While a round-4 verdict is pending the total is not known yet: the announce waits for it (sent from
+            // tickRoundVerdict / settleRoundVerdictAsFour), so the first 4-round device of a session still says 4/4.
+            roundVerdictAnnounce = cfg.isAnnounceProgress() && awaitRoundVerdict;
+            if (cfg.isAnnounceProgress() && client.player != null && !awaitRoundVerdict) {
                 client.player.connection.sendCommand("pc SS " + roundsDone + "/" + TerminalLayouts.simonRounds());
             }
             if (wholeDeviceCompleted && client.player != null) {
@@ -1412,11 +1417,13 @@ public final class SimonSaysFeature {
      *  an old device always lights round 5 within about 3 s of round 4's last click. */
     private static void tickRoundVerdict() {
         if (!roundVerdictPending) {
+            roundVerdictAnnounce = false; // a verdict dropped without an answer (new attempt, left range) says nothing
             return;
         }
         if (!clickInOrder.isEmpty()) {
             roundVerdictPending = false;
             TerminalLayouts.noteSimonRounds(TerminalLayouts.OLD_SIMON_ROUNDS, "a fifth round was revealed");
+            sendHeldRoundFourAnnounce();
             return;
         }
         if (++roundVerdictTicks >= ROUND_VERDICT_TIMEOUT_TICKS) {
@@ -1424,9 +1431,18 @@ public final class SimonSaysFeature {
         }
     }
 
+    private static void sendHeldRoundFourAnnounce() {
+        Minecraft client = Minecraft.getInstance();
+        if (roundVerdictAnnounce && client.player != null) {
+            client.player.connection.sendCommand("pc SS " + TerminalLayouts.NEW_SIMON_ROUNDS + "/" + TerminalLayouts.simonRounds());
+        }
+        roundVerdictAnnounce = false;
+    }
+
     private static void settleRoundVerdictAsFour(String why) {
         roundVerdictPending = false;
         TerminalLayouts.noteSimonRounds(TerminalLayouts.NEW_SIMON_ROUNDS, why);
+        sendHeldRoundFourAnnounce();
         if (Minecraft.getInstance().player != null) {
             announceWholeDeviceCompleted(roundVerdictCompletedAtMs);
         }
