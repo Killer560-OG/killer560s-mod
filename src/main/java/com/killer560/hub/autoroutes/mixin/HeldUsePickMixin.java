@@ -22,6 +22,10 @@ public abstract class HeldUsePickMixin {
     private void killer560smod$heldUseBodyPick(float partialTick, CallbackInfo ci) {
         Minecraft self = (Minecraft) (Object) this;
         HitResult hit = RouteExecutor.heldUsePick(self);
+        if (hit == null) {
+            // Auto Clear holds the use key with the body turned and the camera held, by the same rule.
+            hit = com.killer560.hub.autoclear.AutoClearFeature.heldUsePick(self);
+        }
         if (hit != null) {
             self.hitResult = hit;
             self.crosshairPickEntity = null;

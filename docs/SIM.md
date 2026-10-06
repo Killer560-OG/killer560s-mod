@@ -2571,3 +2571,16 @@ Blood, Fairy, a trap or a pinned room, and lays the floor out again from every r
 - **`ModChat.send` says nothing from the main menu**: it drops the line when `client.player` is null, and the designer opens
   from the main menu. So none of `plan()`'s chat explanations ever reached him there; the designer's status line is the
   only thing he sees, which is why the filter note leads it ("filters too strict - used every room · ...").
+
+## Room clears, star tags and blast radii (2026-10-06, Auto Clear)
+
+- **The sim never cleared a room.** `SimScore.roomCleared()` had no caller and `SimRoomState` only knew FAILED, so nothing
+  client-side could see a room clear. `SimMobs` now records each starred mob's spawn spot (`STARRED_AT`) and a CONFIRMED
+  death (`STARRED_DEAD`: the entity is there and dead, or its section is entity-ticking and it is gone - missing is never
+  killed); a room whose recorded starred mobs are all dead is `SimRoomState.markCleared` (the map's white check) and counted.
+  `LiveMapFeature.isRoomCleared` reads it in the sim. Generated floors still spawn no starred mobs of their own; tests place
+  them (`SimMobs.spawnStarred`), and `SimRoomState.clearRoom(name)` un-clears a room for a second go.
+- **A sim star tag outlived its mob** (Hypixel's goes with it). It is discarded on the confirmed death now.
+- **Blast radii were below Hypixel's**: Wither Impact 5 and the Guided Bat 3, where hypixelskyblock.minecraft.wiki gives 6 for
+  both. Both 6 now. The wiki gives no bat range; the sim's ~29.6 blocks is still unmeasured on Hypixel.
+- Testkit 131-sim-auto-clear exercises all of it (only when named).

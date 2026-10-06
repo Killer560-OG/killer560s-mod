@@ -102,6 +102,11 @@ public final class WitherDoorsFeature {
         LOGGER.info("[WitherDoors] Registered (cheatBuild={})", BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
+    /** Whether the party has a Wither Key (Hypixel's pickup lines, until a wither door is opened). Read by Auto Clear. */
+    public static boolean isWitherKeyHeld() {
+        return witherKeyHeld;
+    }
+
     /** Forces the next client tick to rebuild the highlight snapshot (config change, world change). */
     public static void invalidateCache() {
         cacheStampMs = 0L;

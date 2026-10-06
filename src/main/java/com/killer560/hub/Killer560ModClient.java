@@ -254,6 +254,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autoroutes.AutoRoutesCommands.register();
         com.killer560.hub.autoroutes.AutoRoutesKeybinds.register();
         com.killer560.hub.autoroutes.AutoRoutesEditInput.register();
+        com.killer560.hub.autoclear.AutoClearFeature.register();
+        com.killer560.hub.util.CommandTreeRefresh.watch(() -> com.killer560.hub.autoclear.AutoClearConfig.getInstance().isEnabledRaw());
         com.killer560.hub.autosecret.AutoSecretFeature.register();
         // Insta-clear recorder for Auto Secret: passive, cheat build only (register() is a no-op in legit), idempotent.
         com.killer560.hub.autosecret.InstaClearTracker.register();

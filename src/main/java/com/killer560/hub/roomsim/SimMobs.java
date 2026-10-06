@@ -164,6 +164,60 @@ public final class SimMobs {
             countDeadCrypts(level);
             SimMiniboss.tick(level);
         });
+        // Client side: the snapshot the server task above publishes is read here, against the map's rooms.
+        if (++roomClearTicks >= 10) {
+            roomClearTicks = 0;
+            markClearedRooms();
+        }
+    }
+
+    private static int roomClearTicks = 0;
+
+    /**
+     * Where each starred mob stood when it was spawned (or woken), so its ROOM is known. Hypixel clears a room the moment
+     * its last starred mob dies (the map's white checkmark); until 2026-10-06 the sim never cleared any room, so nothing
+     * client-side (Auto Clear, the score's room count) could see a clear. Written on the server thread.
+     */
+    private static final java.util.Map<UUID, double[]> STARRED_AT = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Starred mobs confirmed DEAD: the entity is there and not alive, or its section is entity-ticking and it is gone. A
+     * mob in a section the server is not ticking entities in reads back as null, and missing is never killed (LESSONS:
+     * "An entity reads back only from a section the server ticks entities in"). Server thread writes, client reads.
+     */
+    private static final java.util.Set<UUID> STARRED_DEAD = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    private static void recordStarred(UUID id, double x, double y, double z) {
+        STARRED_AT.put(id, new double[]{x, y, z});
+    }
+
+    /**
+     * Marks every room whose recorded starred mobs are all confirmed dead as cleared ({@link SimRoomState#markCleared}),
+     * and counts it in the score. Client thread: the room of a position comes from the live map's own layout.
+     */
+    private static void markClearedRooms() {
+        if (STARRED_AT.isEmpty()) {
+            return;
+        }
+        com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
+        java.util.Map<String, Boolean> allDead = new java.util.HashMap<>();
+        for (java.util.Map.Entry<UUID, double[]> e : STARRED_AT.entrySet()) {
+            double[] p = e.getValue();
+            int room = layout.roomAtWorld(p[0], p[2]);
+            String name = layout.name(room);
+            if (name == null || "Unknown".equals(name)) {
+                continue;
+            }
+            boolean dead = STARRED_DEAD.contains(e.getKey());
+            allDead.merge(name, dead, Boolean::logicalAnd);
+        }
+        for (java.util.Map.Entry<String, Boolean> e : allDead.entrySet()) {
+            if (e.getValue() && SimRoomState.markCleared(e.getKey())) {
+                SimScore.roomCleared();
+                com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] room cleared: {} (every starred mob"
+                        + " in it is dead)", e.getKey());
+            }
+        }
     }
 
     public static void spawn(Minecraft client, BlockPos pos, Kind kind) {
@@ -242,6 +296,7 @@ public final class SimMobs {
         SPAWNED.add(boss.getUUID());
         if (starred) {
             STARRED.add(boss.getUUID());
+            recordStarred(boss.getUUID(), boss.getX(), boss.getY(), boss.getZ());
             // WITH a star stand, because that is how Hypixel does it - see attachStarTag for the log lines
             // off his own client. The stand was CONSTRUCTED alongside the boss in SimMiniboss.place so its
             // entity id is the boss's plus one, which is the first thing MobEspFeature.resolveMob looks at;
@@ -268,6 +323,7 @@ public final class SimMobs {
         SPAWNED.add(mob.getUUID());
         if (starred) {
             STARRED.add(mob.getUUID());
+            recordStarred(mob.getUUID(), mob.getX(), mob.getY(), mob.getZ());
             attachStarTag(level, mob);
         }
     }
@@ -479,6 +535,9 @@ public final class SimMobs {
         skull.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.SKELETON_SKULL));
         level.addFreshEntity(skull);
         FELS.add(new FelMarker(skull, starred));
+        if (starred) {
+            recordStarred(skull.getUUID(), skull.getX(), skull.getY(), skull.getZ());
+        }
     }
 
     /** Checks every dormant Fel against every player each tick and wakes the ones close enough. */
@@ -540,6 +599,9 @@ public final class SimMobs {
         SPAWNED.add(enderman.getUUID());
         if (fel.starred) {
             STARRED.add(enderman.getUUID());
+            // Recorded BEFORE the skull counts as gone below, so the room never reads "all dead" in between.
+            recordStarred(enderman.getUUID(), x, y, z);
+            STARRED_DEAD.add(fel.skull.getUUID());
         }
     }
 
@@ -555,6 +617,19 @@ public final class SimMobs {
             Entity entity = level.getEntity(id);
             if (entity != null && entity.isAlive()) {
                 alive.add(new StarredEntry(id, entity.getX(), entity.getY(), entity.getZ()));
+            } else if (!STARRED_DEAD.contains(id)) {
+                double[] at = STARRED_AT.get(id);
+                if (entity != null || (at != null
+                        && level.isPositionEntityTicking(BlockPos.containing(at[0], at[1], at[2])))) {
+                    STARRED_DEAD.add(id);
+                    // Hypixel's "star ... heart" name goes with its mob; the sim's stand used to stay up forever,
+                    // a starred name with nothing under it.
+                    UUID tag = STAR_TAGS.remove(id);
+                    Entity stand = tag == null ? null : level.getEntity(tag);
+                    if (stand != null) {
+                        stand.discard();
+                    }
+                }
             }
         }
         for (FelMarker fel : FELS) {
@@ -640,6 +715,9 @@ public final class SimMobs {
      */
     public static void forget() {
         SPAWNED.clear();
+        // A rebuilt floor's rooms must not be cleared by the last floor's dead.
+        STARRED_AT.clear();
+        STARRED_DEAD.clear();
         // Discarded is not killed: a crypt or mimic the build threw away must not score when it goes.
         CRYPT_MOBS.clear();
         SimMimic.forgetMob();
@@ -677,6 +755,8 @@ public final class SimMobs {
 
     private static void forgetAll() {
         SPAWNED.clear();
+        STARRED_AT.clear();
+        STARRED_DEAD.clear();
         CRYPT_MOBS.clear();
         SimMimic.forgetMob();
         STARRED.clear();

@@ -380,6 +380,37 @@ public final class MobEspFeature {
         }
     }
 
+    /**
+     * Every starred mob the client can see right now, resolved the way the ESP resolves them (the "star ... heart" stand
+     * down to its mob, plus the named minibosses), whatever the ESP's own settings, range or room scope say. Auto Clear's
+     * target list (killer560, 2026-10-06: "kills starred mobs only ... reuse" the ESP's detection). Client thread.
+     */
+    public static List<Entity> starredMobs(Minecraft client) {
+        List<Entity> out = new java.util.ArrayList<>();
+        if (client.level == null || client.player == null) {
+            return out;
+        }
+        Set<Integer> seen = new HashSet<>();
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (entity == client.player) {
+                continue;
+            }
+            Entity mob = null;
+            if (entity instanceof ArmorStand stand && stand.hasCustomName()) {
+                String name = stand.getName().getString();
+                if (name.contains(STAR) && name.contains(HEART)) {
+                    mob = resolveMob(client, stand, name);
+                }
+            } else if (entity instanceof Player p && isMiniboss(client, p)) {
+                mob = p;
+            }
+            if (mob != null && mob.isAlive() && !mob.isRemoved() && seen.add(mob.getId())) {
+                out.add(mob);
+            }
+        }
+        return out;
+    }
+
     private static boolean isSecretBat(Bat bat) {
         return bat.isAlive() && !bat.isPassenger() && !bat.isInvisible() && bat.getMaxHealth() != 6.0f;
     }

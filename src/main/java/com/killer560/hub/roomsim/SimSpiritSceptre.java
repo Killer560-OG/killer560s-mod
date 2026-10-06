@@ -71,8 +71,17 @@ public final class SimSpiritSceptre {
     /** How far off the look vector a bat may wander, per axis, at launch. */
     private static final double SPREAD = 0.06;
 
-    /** The radius the explosion damages in. */
-    private static final double BLAST_RADIUS = 3.0;
+    /**
+     * The radius the explosion damages in: 6, Hypixel's own number - hypixelskyblock.minecraft.wiki, Spirit Sceptre
+     * (2026-10-06): "Upon hitting a mob or block, the bat creates an explosion with a radius of 6 blocks". It was 3
+     * here, which made Auto Clear's sceptre plan (built on the wiki's 6) miss in the sim and nowhere else. Public for
+     * the testkit; Auto Clear keeps its own copy of the wiki figure ({@code autoclear.WeaponReach}).
+     */
+    public static final double BLAST_RADIUS = 6.0;
+
+    /** How far a bat flies before it explodes in the air - the sim's measured-in-code range, {@code SPEED * MAX_FLIGHT_TICKS}.
+     *  The wiki gives no range for the Guided Bat. */
+    public static final double RANGE = SPEED * MAX_FLIGHT_TICKS;
 
     /**
      * Damage one bat's explosion does.
