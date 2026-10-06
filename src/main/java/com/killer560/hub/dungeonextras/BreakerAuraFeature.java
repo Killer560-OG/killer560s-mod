@@ -31,7 +31,6 @@ import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,9 +39,10 @@ import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Breaker Aura (cheat build) - while holding a DUNGEONBREAKER with charges, breaks blocks that obstruct the
- * player's path (the player's 0.6x1.8 hitbox swept forward along movement direction, or look direction when
- * standing still) within reach.
+ * Breaker Aura (cheat build) - while holding a DUNGEONBREAKER with charges, breaks the blocks he has PICKED (pick
+ * key) once they are within Reach of his eyes - ahead, to the side, or under his feet. Nothing unpicked is ever
+ * broken: the automatic path sweep, Side Reach and the "Only Picked Blocks" switch were removed 2026-10-05
+ * (killer560: "the aura shouldn't randomly grab blocks, only ones I have selected").
  * <p>
  * Sources: QUOI {@code DungeonBreaker.kt} auto-db tick loop (charges cap per cycle, eye-to-centre reach, skip
  * recently-attempted positions) and {@code AuraManager.breakBlock(immediate = true)} (one
@@ -67,7 +67,6 @@ public final class BreakerAuraFeature {
      * hammered while the server is still answering, and four ticks is enough for that.
      */
     private static final long RETRY_MS = 200L;
-    private static final double FLOOR_CLEARANCE = 0.1;
 
     private static final Set<Block> BLACKLIST = Set.of(
             Blocks.BARRIER, Blocks.BEDROCK, Blocks.COMMAND_BLOCK, Blocks.CHAIN_COMMAND_BLOCK,
@@ -459,10 +458,12 @@ public final class BreakerAuraFeature {
         long now = System.currentTimeMillis();
         RECENT.values().removeIf(t -> now - t > RETRY_MS);
 
+        // PICKED BLOCKS ONLY, always. killer560 (2026-10-05): "the aura shouldn't randomly grab blocks, only ones
+        // I have selected." The automatic path sweep (and its Side Reach and "Only Picked Blocks" settings) is
+        // gone; what breaks is exactly what he picked, inside the normal Reach - to his side, ahead, or the block
+        // he is standing on ("If it is selected for breaker aura it should break").
         double reach = cfg.getBreakerAuraReach();
-        List<BlockPos> targets = cfg.isBreakerAuraSelectedOnly()
-                ? collectPickedTargets(player, level, reach, now)
-                : collectPathTargets(player, level, reach, now);
+        List<BlockPos> targets = collectPickedTargets(player, level, reach, now);
 
         // ARMED ON APPROACH, not on arrival. killer560 (2026-09-23): "The breaker aura seems to not be breaking a
         // block on the very first tick it is in range. It almost waits a little bit."
@@ -485,14 +486,12 @@ public final class BreakerAuraFeature {
         // pulled his hotbar slot back off whatever he had selected. Idle is judged on the real reach, exactly as
         // it was before, so Swap Back still fires on its own timer.
         List<BlockPos> approaching = targets.isEmpty() && autoSwap && selected != breakerSlot
-                ? (cfg.isBreakerAuraSelectedOnly()
-                        ? collectPickedTargets(player, level, reach + PRE_SWAP_REACH_MARGIN, now)
-                        : collectPathTargets(player, level, reach + PRE_SWAP_REACH_MARGIN, now))
+                ? collectPickedTargets(player, level, reach + PRE_SWAP_REACH_MARGIN, now)
                 : targets;
 
         if (targets.isEmpty()) {
             skip(approaching.isEmpty()
-                    ? (cfg.isBreakerAuraSelectedOnly() ? "no picked blocks in reach" : "no valid blocks in path")
+                    ? "no picked blocks in reach"
                     : "breaker coming to hand, a picked block is nearly in reach");
             // The cooldown is the gap between two breaks, and a tick with nothing to break is part of that gap.
             // It used to be decremented only past this point, so it FROZE while idle: at a cooldown of 2 or more,
@@ -510,7 +509,7 @@ public final class BreakerAuraFeature {
             }
             if (autoSwap && swappedFromSlot >= 0 && cfg.isBreakerAuraSwapBack()
                     && ++idleSinceSwapTicks >= cfg.getBreakerAuraSwapBackIdleTicks()) {
-                restoreSlot(client, "nothing left in the path");
+                restoreSlot(client, "no picked block left in reach");
             }
             return;
         }
@@ -700,65 +699,14 @@ public final class BreakerAuraFeature {
         });
     }
 
-    /** Blocks intersecting the player's hitbox swept forward up to reach, nearest first. */
-    private static List<BlockPos> collectPathTargets(LocalPlayer player, ClientLevel level, double reach, long now) {
-        Vec3 motion = player.getDeltaMovement();
-        Vec3 dir = new Vec3(motion.x, 0, motion.z);
-        if (dir.lengthSqr() < 0.0025) {
-            Vec3 look = player.getViewVector(1f);
-            dir = new Vec3(look.x, 0, look.z);
-        }
-        if (dir.lengthSqr() < 1.0E-6) {
-            return List.of();
-        }
-        dir = dir.normalize();
-        Vec3 feet = player.position();
-        Vec3 eye = player.getEyePosition();
-        double reachSq = reach * reach;
-        Set<BlockPos> ordered = new LinkedHashSet<>();
-        for (double t = 0; t <= reach; t += 0.25) {
-            double cx = feet.x + dir.x * t;
-            double cz = feet.z + dir.z * t;
-            // Review fix (2026-09-15): start the swept box FLOOR_CLEARANCE above the feet. At exactly feet.y a
-            // player whose y is a hair under an integer (float error, soul sand/farmland, setbacks) got the
-            // block they are STANDING ON counted as "in the path" and broken out from under them.
-            // His own half-width, plus Side Reach. At 0.0 this is the corridor that shipped: only what he
-            // would physically walk into. Wider is the only way a multi-break tick ever has a real queue
-            // to spend - a flat wall taken head-on only ever offers the next column's two blocks.
-            double half = 0.3 + DungeonExtrasConfig.getInstance().getBreakerAuraSideReach();
-            AABB box = new AABB(cx - half, feet.y + FLOOR_CLEARANCE, cz - half, cx + half, feet.y + 1.8, cz + half);
-            int minX = (int) Math.floor(box.minX), maxX = (int) Math.floor(box.maxX);
-            int minY = (int) Math.floor(box.minY), maxY = (int) Math.floor(box.maxY - 1.0E-4);
-            int minZ = (int) Math.floor(box.minZ), maxZ = (int) Math.floor(box.maxZ);
-            for (int y = minY; y <= maxY; y++) {
-                for (int x = minX; x <= maxX; x++) {
-                    for (int z = minZ; z <= maxZ; z++) {
-                        BlockPos pos = new BlockPos(x, y, z);
-                        if (ordered.contains(pos) || RECENT.containsKey(pos)) {
-                            continue;
-                        }
-                        if (eyeToBlockSq(eye, pos) > reachSq) {
-                            continue;
-                        }
-                        if (!isValidTarget(level, pos)) {
-                            continue;
-                        }
-                        VoxelShape collision = level.getBlockState(pos).getCollisionShape(level, pos);
-                        if (collision.isEmpty() || !collision.bounds().move(pos).intersects(box)) {
-                            continue;
-                        }
-                        ordered.add(pos);
-                    }
-                }
-            }
-        }
-        return new ArrayList<>(ordered);
-    }
-
     /**
-     * The blocks he has PICKED that are in reach and still there - the whole target list when
-     * {@code breakerAuraSelectedOnly} is on. A pick that has already been broken simply stops matching; one out of
-     * reach waits until he is closer, which is the point of picking a wall before you get to it.
+     * The blocks he has PICKED that are in reach and still there - the whole target list. A pick that has already
+     * been broken simply stops matching; one out of reach waits until he is closer, which is the point of picking a
+     * wall before you get to it.
+     * <p>
+     * No floor guard, on purpose: a picked block he is standing on breaks like any other (killer560, 2026-10-05:
+     * "If it is selected for breaker aura it should break"). The floor clearance that used to live here belonged to
+     * the automatic path sweep, which could otherwise take an UNPICKED block from under him; that sweep is gone.
      */
     private static List<BlockPos> collectPickedTargets(LocalPlayer player, ClientLevel level, double reach,
                                                        long now) {
@@ -796,13 +744,10 @@ public final class BreakerAuraFeature {
         if (!cfg.isBreakerAuraEnabled()) {
             return false;
         }
-        // Picking changes what this means: only a block he has actually marked is one the route may count on
-        // being gone. Treating every breakable block as air would let a route plan straight through a wall the
-        // aura has been told to leave alone.
-        if (cfg.isBreakerAuraSelectedOnly()) {
-            return isPicked(pos) && isValidTarget(level, pos);
-        }
-        return isValidTarget(level, pos);
+        // Only a block he has actually picked is one the route may count on being gone - the aura breaks nothing
+        // else. Treating every breakable block as air would let a route plan straight through a wall the aura will
+        // never touch.
+        return isPicked(pos) && isValidTarget(level, pos);
     }
 
     private static boolean isValidTarget(ClientLevel level, BlockPos pos) {

@@ -50,29 +50,6 @@ public final class DungeonExtrasConfig {
     private boolean breakerAuraEnabled = false;
     /** The measured limit, from the constant rather than a literal that has to be kept in step. */
     private double breakerAuraReach = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
-    /**
-     * How far EITHER SIDE of his own line the swept corridor looks, on top of his 0.3 half-width.
-     * <p>
-     * killer560 (2026-09-27): "allow it to break snow to the side of it as well so that way it can break way more
-     * than 1 per second if it is working right." Measured against a live anticheat the same day, Blocks Per Cycle
-     * could not exceed 2 however it was set: walking into a flat wall, the module clears it faster than he reaches
-     * it, so only the two body-height blocks of the next column are ever queued at once. Widening the corridor is
-     * the only way the higher settings have anything to work with.
-     * <p>
-     * Defaults to 0.0 - exactly the behaviour that shipped - because a wider corridor breaks blocks he was never
-     * going to walk into, and that is a visibility decision for him to make rather than one to turn on quietly.
-     */
-    private double breakerAuraSideReach = 0.0;
-    /** Kept so old configs still load. killer560 (2026-09-20) asked every aura to take one target per tick, so
-     *  Breaker Aura now always breaks exactly one block per cycle and this value is no longer read. */
-    /**
-     * Break only blocks he has PICKED, and nothing else. killer560 (2026-09-23): "For breaker aura it shouldnt
-     * break any block. I should have a keybind to select blocks. If a block is selected it will be broken."
-     * <p>
-     * Off gives back the original behaviour - anything obstructing the path - which is kept because it is what
-     * every earlier session was built and measured against, not because it is the default he asked for.
-     */
-    private boolean breakerAuraSelectedOnly = true;
     /** The pick/unpick key. Semicolon by default - killer560 (2026-09-23): "default the breaker key to ;". */
     private int breakerAuraSelectKey = org.lwjgl.glfw.GLFW.GLFW_KEY_SEMICOLON;
     /**
@@ -178,8 +155,8 @@ public final class DungeonExtrasConfig {
                 // 4.5, not 5.5: past the measured limit the server refuses the break outright. Clamped on LOAD as
                 // well as in the setter, or a config saved at 5.5 before this change would load unchanged.
                 cfg.breakerAuraReach = clamp((float) (o.has("breakerAuraReach") ? o.get("breakerAuraReach").getAsDouble() : cfg.breakerAuraReach), 1f, (float) com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH);
-                cfg.breakerAuraSideReach = clamp((float) (o.has("breakerAuraSideReach") ? o.get("breakerAuraSideReach").getAsDouble() : cfg.breakerAuraSideReach), 0f, 2f);
-                cfg.breakerAuraSelectedOnly = bool(o, "breakerAuraSelectedOnly", cfg.breakerAuraSelectedOnly);
+                // breakerAuraSideReach and breakerAuraSelectedOnly (removed 2026-10-05: picked blocks only, always)
+                // are simply not read any more; an old file carrying them loads fine and the next save drops them.
                 cfg.breakerAuraSelectKey = o.has("breakerAuraSelectKey")
                         ? o.get("breakerAuraSelectKey").getAsInt() : cfg.breakerAuraSelectKey;
                 cfg.breakerAuraSelected.clear();
@@ -243,11 +220,9 @@ public final class DungeonExtrasConfig {
             o.addProperty("autoDialogueOutsideDungeons", autoDialogueOutsideDungeons);
             o.addProperty("breakerAuraEnabled", breakerAuraEnabled);
             o.addProperty("breakerAuraReach", breakerAuraReach);
-            o.addProperty("breakerAuraSideReach", breakerAuraSideReach);
             o.addProperty("breakerAuraMultiBreak", breakerAuraMultiBreak);
             o.addProperty("breakerAuraMultiBreakDefaulted", breakerAuraMultiBreakDefaulted);
             o.addProperty("breakerAuraBlocksPerCycle", breakerAuraBlocksPerCycle);
-            o.addProperty("breakerAuraSelectedOnly", breakerAuraSelectedOnly);
             o.addProperty("breakerAuraSelectKey", breakerAuraSelectKey);
             com.google.gson.JsonArray sel = new com.google.gson.JsonArray();
             for (String k : breakerAuraSelected) {
@@ -306,8 +281,6 @@ public final class DungeonExtrasConfig {
     public void setAutoDialogueOutsideDungeons(boolean v) { autoDialogueOutsideDungeons = v; }
 
     // ---- Breaker Aura (cheat) ----
-    public boolean isBreakerAuraSelectedOnly() { return breakerAuraSelectedOnly; }
-    public void setBreakerAuraSelectedOnly(boolean v) { breakerAuraSelectedOnly = v; }
     public int getBreakerAuraSelectKey() { return breakerAuraSelectKey; }
     public void setBreakerAuraSelectKey(int v) { breakerAuraSelectKey = v; }
     /** LEGACY read only - see the field doc. {@link BreakerAuraFeature} no longer reads or writes this set. */
@@ -329,8 +302,6 @@ public final class DungeonExtrasConfig {
     public void setBreakerAuraEnabled(boolean v) { breakerAuraEnabled = v; }
     public double getBreakerAuraReach() { return breakerAuraReach; }
     public void setBreakerAuraReach(double v) { breakerAuraReach = clamp((float) v, 1f, (float) com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH); }
-    public double getBreakerAuraSideReach() { return breakerAuraSideReach; }
-    public void setBreakerAuraSideReach(double v) { breakerAuraSideReach = clamp((float) v, 0f, 2f); }
     public boolean isBreakerAuraEditMode() { return breakerAuraEditMode; }
     public void setBreakerAuraEditMode(boolean v) { breakerAuraEditMode = v; }
     public boolean isBreakerAuraMultiBreak() { return breakerAuraMultiBreak; }

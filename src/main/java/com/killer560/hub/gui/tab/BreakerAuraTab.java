@@ -119,15 +119,6 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 .build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Only Picked Blocks", cfg.isBreakerAuraSelectedOnly()),
-                btn -> {
-                    cfg.setBreakerAuraSelectedOnly(!cfg.isBreakerAuraSelectedOnly());
-                    cfg.save();
-                    btn.setMessage(onOff("Only Picked Blocks", cfg.isBreakerAuraSelectedOnly()));
-                }).bounds(contentX, y, contentWidth, 18)
-                .build());
-        y += 22;
-
         if (!cfg.isBreakerAuraEnabledRaw()) {
             return widgets;
         }
@@ -149,36 +140,16 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 cfg.save();
             }
         });
-        y += 20;
-        widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, sideReachText(cfg),
-                cfg.getBreakerAuraSideReach() / 2.0) {
-            @Override
-            protected void updateMessage() {
-                setMessage(sideReachText(cfg));
-            }
-
-            @Override
-            protected void applyValue() {
-                cfg.setBreakerAuraSideReach(Math.round(this.value * 2.0 * 10.0) / 10.0);
-                cfg.save();
-            }
-        });
-        y -= 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Zero Ping", cfg.isBreakerAuraZeroPingRaw()), btn -> {
-                    cfg.setBreakerAuraZeroPing(!cfg.isBreakerAuraZeroPingRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Zero Ping", cfg.isBreakerAuraZeroPingRaw()));
-                }).bounds(col2bX, y, col2W, 18).build());
-        y += 20;
-
+        // Cooldown beside Reach, then the switches two to a row. Every row steps down by exactly one row height and
+        // nothing ever steps back up: the old y += 20 ... y -= 20 side-steps left two pairs of controls on one
+        // rectangle, where the pane draws the later one but hands every press to the earlier one (2026-10-05,
+        // testkit 386-ui-sliders).
+        //
         // 0..20, not 1..20. setBreakerAuraCooldownTicks was widened to accept the field's own default of 0
         // (no cooldown) but this slider was left mapping onto 1..20, so the GUI half of that bug survived it:
         // 0 was unreachable, and on a fresh config the start position was (0 - 1) / 19 = -0.05, off the
         // widget's own scale, so the knob sat pinned left reading "0 ticks" and the first drag silently threw
         // the shipped default away for good.
-        // Right column, beside Side Reach. Side Reach (above) already took the left of this row, and with Cooldown
-        // on the same rectangle the content pane drew Cooldown on top but handed every press to Side Reach, the
-        // first child under the cursor: "I cannot slide the cooldown bar" (killer560, 2026-10-05; 386-ui-sliders).
         widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, cooldownText(cfg),
                 cfg.getBreakerAuraCooldownTicks() / 20.0) {
             @Override
@@ -194,6 +165,20 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
         });
         y += 20;
 
+        widgets.add(SettingsButtonWidget.builder(onOff("Zero Ping", cfg.isBreakerAuraZeroPingRaw()), btn -> {
+                    cfg.setBreakerAuraZeroPing(!cfg.isBreakerAuraZeroPingRaw());
+                    cfg.save();
+                    btn.setMessage(onOff("Zero Ping", cfg.isBreakerAuraZeroPingRaw()));
+                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Multi Break", cfg.isBreakerAuraMultiBreak()),
+                btn -> {
+                    cfg.setBreakerAuraMultiBreak(!cfg.isBreakerAuraMultiBreak());
+                    cfg.save();
+                    btn.setMessage(onOff("Multi Break", cfg.isBreakerAuraMultiBreak()));
+                }).bounds(col2bX, y, col2W, 18)
+                .build());
+        y += 20;
+
         widgets.add(SettingsButtonWidget.builder(onOff("Edit Mode", cfg.isBreakerAuraEditMode()),
                 btn -> {
                     cfg.setBreakerAuraEditMode(!cfg.isBreakerAuraEditMode());
@@ -201,25 +186,12 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Edit Mode", cfg.isBreakerAuraEditMode()));
                 }).bounds(contentX, y, col2W, 18)
                 .build());
-        y += 20;
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Multi Break", cfg.isBreakerAuraMultiBreak()),
-                btn -> {
-                    cfg.setBreakerAuraMultiBreak(!cfg.isBreakerAuraMultiBreak());
-                    cfg.save();
-                    btn.setMessage(onOff("Multi Break", cfg.isBreakerAuraMultiBreak()));
-                }).bounds(contentX, y, col2W, 18)
-                .build());
-        y -= 20;
-
         widgets.add(SettingsButtonWidget.builder(onOff("Pause In Edit Mode", cfg.isBreakerAuraRespectEditMode()), btn -> {
                     cfg.setBreakerAuraRespectEditMode(!cfg.isBreakerAuraRespectEditMode());
                     cfg.save();
                     btn.setMessage(onOff("Pause In Edit Mode", cfg.isBreakerAuraRespectEditMode()));
                 }).bounds(col2bX, y, col2W, 18).build());
-        // Past Multi Break's row too: += 20 put Auto Swap on top of Multi Break, so a click on "Auto Swap"
-        // toggled Multi Break.
-        y += 40;
+        y += 20;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Swap", cfg.isBreakerAuraAutoSwap()), btn -> {
                     cfg.setBreakerAuraAutoSwap(!cfg.isBreakerAuraAutoSwap());
@@ -268,23 +240,6 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
         }
 
         return widgets;
-    }
-
-    /**
-     * Side Reach, off at 0.0.
-     * <p>
-     * Measured 2026-09-27: at 0.0, walking into a flat wall, Blocks Per Cycle cannot exceed 2 however it is set -
-     * the aura clears the next column faster than you reach it, so only its two body-height blocks are ever
-     * queued. At 1.6 the same run reached the full 5 a tick, cleared 847 blocks instead of 195, and travelled
-     * through solid wall at exactly the speed it managed on open ground - the wall stopped slowing it at all.
-     * <p>
-     * Left off by default because a wider corridor breaks blocks you were never going to walk into, which is more
-     * visible automation, and that is a trade to choose rather than inherit.
-     */
-    private static Component sideReachText(DungeonExtrasConfig cfg) {
-        return Component.literal(cfg.getBreakerAuraSideReach() <= 0.0
-                ? "Side Reach: off (path only)"
-                : String.format(java.util.Locale.US, "Side Reach: %.1f", cfg.getBreakerAuraSideReach()));
     }
 
     private static Component reachText(DungeonExtrasConfig cfg) {

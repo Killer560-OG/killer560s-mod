@@ -588,7 +588,7 @@ final class SettingTooltipsData {
         d.put("beam color", "Colour of the custom Mage beam line.");
         d.put("auto dialogue", "Cheat build: clicks the first option in NPC dialogue, skipping anything that costs coins.");
         d.put("npc filter", "Cheat build: NPC names Auto Dialogue may answer, comma-separated; blank allows any.");
-        d.put("breaker aura", "Cheat build: breaks blocks in your path while you hold a charged Dungeon Breaker.");
+        d.put("breaker aura", "Cheat build: breaks the blocks you have picked (Pick Block Key) once they are in reach, while you hold a charged Dungeon Breaker. Nothing unpicked is broken.");
         d.put("zero ping", "Cheat build: blocks you break vanish instantly on your screen.");
         d.put("blocks/cycle", "Cheat build: most blocks Breaker Aura breaks at once (1-5).");
         d.put("cooldown", "Minimum wait between two automatic actions.");
@@ -1692,9 +1692,9 @@ final class SettingTooltipsData {
         d.put("custom mage beam/width", "How thick the custom Mage beam is drawn.");
         d.put("custom mage beam/duration", "How long each custom Mage beam stays drawn, 5-100 ticks.");
         d.put("auto dialogue/delay", "How long Auto Dialogue waits before clicking the option, 0-40 ticks (cheat build only).");
-        d.put("breaker aura/reach", "How far ahead Breaker Aura looks for blocks to break, 1.0-5.5 blocks (cheat build only).");
+        d.put("breaker aura/reach", "How far from your eyes a picked block can be and still be broken, 1.0 up to the measured limit (cheat build only).");
         d.put("breaker aura/zero ping", "Broken blocks vanish on your screen instantly instead of waiting for the server (cheat build only).");
-        d.put("breaker aura/cooldown", "How long Breaker Aura waits between breaks, 1-20 ticks (cheat build only).");
+        d.put("breaker aura/cooldown", "How long Breaker Aura waits between breaks, 0-20 ticks (cheat build only).");
         d.put("breaker aura/auto swap", "Lets Breaker Aura switch to your Dungeon Breaker by itself (cheat build only).");
         d.put("breaker aura/pause in edit mode", "Stops Breaker Aura swinging while Auto Routes edit mode is active (cheat build only).");
         d.put("breaker aura/swap delay", "Ticks to wait after swapping to the Dungeon Breaker before swinging (cheat build only).");
