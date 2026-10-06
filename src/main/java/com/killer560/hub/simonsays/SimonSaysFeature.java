@@ -942,6 +942,8 @@ public final class SimonSaysFeature {
             // close together" - his real log only ever showed multi-SECOND gaps). See that method's own
             // doc comment for the real fix: hooking the actual click event instead of polling state.
             resetSolveState();
+            // A new attempt's lanterns are not a fifth round: drop a round-4 verdict still waiting.
+            roundVerdictPending = false;
             firstPhase = true;
             autoSolveArmed = false;
             autoSolveClicksDoneThisAttempt = 0;
@@ -1625,6 +1627,8 @@ public final class SimonSaysFeature {
         expectedTotalClicksThisAttempt = totalClicksFrom(1);
         deviceStartedAtMs = 0L;
         totalClicksThisAttempt = 0;
+        // A new attempt's lanterns are not a fifth round: drop a round-4 verdict still waiting.
+        roundVerdictPending = false;
         resetRevealScale();
         startClickAnchorMs = 0L;
         rotateInProgressTarget = null;
