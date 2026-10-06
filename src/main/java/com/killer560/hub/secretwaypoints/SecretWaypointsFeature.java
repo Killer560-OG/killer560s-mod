@@ -585,7 +585,11 @@ public final class SecretWaypointsFeature {
                                 }
                                 pos.set(x, y, z);
                                 BlockPos real = pos.immutable();
-                                if (!seen.add(real)) {
+                                // A lever he has clicked stays hidden for the run, as a taken chest does (killer560,
+                                // 2026-10-06: "clicking levers doesn't hide them from secret waypoints"). The click
+                                // listener in register() always marked it; this scan put it straight back on the
+                                // next rebuild because, unlike addGroup, it never asked COLLECTED.
+                                if (COLLECTED.contains(real) || !seen.add(real)) {
                                     continue;
                                 }
                                 AABB box = boxFor(real, Kind.LEVER, cfg.getBoxSize());

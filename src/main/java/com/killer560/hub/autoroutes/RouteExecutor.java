@@ -1379,6 +1379,18 @@ public final class RouteExecutor {
             // tickAwait, which is this gate for any node now that AWAIT isn't its own type any more. Once it
             // clears, the action starts in this same tick.
             tickAwait(client, player, node);
+            if (!awaitPhaseDone && activeNode == node && takeSkipClick(client)) {
+                // killer560, 2026-10-06: "if I left click while on an await node then it should perform the teleport
+                // even if it didn't grab a secret yet". The click is consumed here, at START_CLIENT_TICK, so vanilla's
+                // handleKeybinds later this tick never sees it: no startAttack, no swing, no dig - the node's own
+                // action (the warp) is the only thing that click sends.
+                LOGGER.info("[AutoRoutes] Node #{} {}: left click skipped the await ({}/{} secrets) after {} tick(s)",
+                        route.indexOf(node) + 1, node.type, AwaitEvents.secrets(), Math.max(1, node.awaitAmount),
+                        actionAge);
+                awaitPhaseDone = true;
+                step = Step.PREP;
+                stepTicks = 0;
+            }
             if (!awaitPhaseDone || activeNode != node) {
                 return;
             }
@@ -1466,6 +1478,33 @@ public final class RouteExecutor {
      * On success it clears {@link #awaitPhaseDone} and resets {@link #step}
      * so the node's own action starts fresh the very next tick, rather than finishing the node outright.
      */
+    /**
+     * A left click of his since the last tick, taken away from vanilla: every queued attack click is consumed and the
+     * attack key let go, so {@code handleKeybinds} (later this same tick, javap 26.1.2 and 26.2) neither calls
+     * {@code startAttack} for the click nor {@code continueAttack(true)} for the held button - no swing, no
+     * START_DESTROY_BLOCK. The key stays up until he presses it again. Never under a screen: a click there is the
+     * screen's, not an attack. A mob under the crosshair makes no difference (killer560, 2026-10-06: his left click
+     * always skips the waiting node).
+     * <p>
+     * Only HIS clicks: the attack mapping's click count is raised by {@code KeyMapping.click}, which only the mouse and
+     * keyboard handlers call for real input. Nothing in this mod clicks or holds the attack mapping - Breaker Aura,
+     * Secret Aura, Auto Clear and the route's own nodes call {@code MultiPlayerGameMode} directly - so none of their
+     * attacks or digs can reach this.
+     */
+    private static boolean takeSkipClick(Minecraft client) {
+        if (McCompat.screen(client) != null) {
+            return false;
+        }
+        boolean clicked = false;
+        while (client.options.keyAttack.consumeClick()) {
+            clicked = true;
+        }
+        if (clicked) {
+            client.options.keyAttack.setDown(false);
+        }
+        return clicked;
+    }
+
     private static void tickAwait(Minecraft client, LocalPlayer player, RouteNode node) {
         boolean delay = node.awaitCondition == RouteNode.AwaitCondition.DELAY;
         if (step == Step.PREP) {
@@ -1889,6 +1928,15 @@ public final class RouteExecutor {
             return;
         }
         if (step == Step.CONFIRM) {
+            if (takeSkipClick(client)) {
+                // His left click skips the wait for kills too (killer560, 2026-10-06), consumed like the await's.
+                LOGGER.info("[AutoRoutes] Node #{} CRYPT: left click skipped the kill wait ({} of {} kill(s)) after "
+                        + "holding use {} tick(s)", route.indexOf(node) + 1, AwaitEvents.crypts(), goal, stepTicks);
+                releaseUse(client);
+                restoreCryptSlot(client, player);
+                finishAction();
+                return;
+            }
             if (AwaitEvents.crypts() >= goal) {
                 LOGGER.info("[AutoRoutes] Node #{} CRYPT: {} kill(s) after holding use {} tick(s)", route.indexOf(node) + 1,
                         AwaitEvents.crypts(), stepTicks);

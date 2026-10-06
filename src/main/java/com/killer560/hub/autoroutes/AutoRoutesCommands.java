@@ -148,9 +148,10 @@ public final class AutoRoutesCommands {
             "crypt", RouteNode.Type.CRYPT);
     private static final List<String> TYPE_WORDS = List.of("boom", "breaker", "ew", "etherwarp", "use", "walk", "path",
             "crypt");
-    /** Modifiers offered after any {@code /ar add <type>}. {@code x} is a placeholder: the command refuses
-     *  {@code await:} followed by anything but a number. */
-    private static final List<String> MOD_WORDS = List.of("await:x", "start");
+    /** Modifiers offered after any {@code /ar add <type>}. {@code await:} completes to just that, so the number is
+     *  typed straight after it (killer560, 2026-10-06: "make await fill as await: without the x"); the command
+     *  refuses {@code await:} followed by anything but a number. */
+    private static final List<String> MOD_WORDS = List.of("await:", "start");
     /** Bounded so a typed number can never overflow parseInt; a room never holds anywhere near this many secrets. */
     private static final java.util.regex.Pattern AWAIT_ARG = java.util.regex.Pattern.compile("await:(\\d{1,3})");
 

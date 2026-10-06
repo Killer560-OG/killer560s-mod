@@ -234,6 +234,14 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   from the last room. A dropped key leaves the CLIENT at ~100 blocks - gone is not picked up. `WitherDoorOpener` clicked a door
   with the AOTV in hand and the sim fired Instant Transmission; it now uses the key item or an empty slot.
 
+- Secret Waypoints' lever waypoints never hid on a click (2026-10-06): the click listener marked the lever in `COLLECTED`,
+  but `scanLevers` builds its waypoints outside `addGroup` and never asked `COLLECTED`, so the next rebuild (<= 1 s) put it
+  back. Any waypoint group added outside `addGroup` must apply the same collected filter.
+- To swallow his left click before vanilla acts on it, consume it at START_CLIENT_TICK: `while (keyAttack.consumeClick())`
+  then `keyAttack.setDown(false)`. `handleKeybinds` runs later in the same tick and only calls `startAttack` per queued
+  click and `continueAttack(true)` while the key reads down (javap 26.1.2 and 26.2), so nothing is swung or dug
+  (`RouteExecutor.takeSkipClick`, 96-ar-awaitskip / 62-argrim-awaitskip).
+
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session
