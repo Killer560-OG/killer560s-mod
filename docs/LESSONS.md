@@ -240,3 +240,17 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   read-then-act in `server.execute`; hand results back with `client.execute`. `ModChat.send` is safe from any thread since
   then (it hops), but `client.player`/screens/the tab list are not - read `client.player` once into a local if a server
   task must have the UUID.
+- **Auto Routes chain timing (2026-10-06, testkit 62-argrim-chain / 96-ar-chain).** An etherwarp chain ran at 4 ticks per
+  warp on the dedicated server (5 in the sim): landing seen, then the interact-delay settle, then a tick for the walk step to
+  re-fire. After a server-confirmed landing an etherwarp/path node that fires next now goes on that same tick: 1.00 tick per
+  warp (Grim clean), 2.00 in the sim, whose integrated server answers a tick later. Only warp-into-warp skips the settle: a
+  breaker stacked on the landing tile and fired on the landing tick sent its digs and the dedicated server broke nothing
+  (62-argrim-play, not traced). A warp fired on the landing tick stands 0.05 above the floor its look was recorded from, which
+  put a 16-block shallow warp one block long (96-ar-rotate), so a node fired off its own height re-aims from the eye with
+  `TeleportUtils.getEtherwarpDirection`, as path hops do.
+- **In obvious mode `Minecraft.pick` uses the HELD camera, not the body.** `Ap3ViewYawMixin` makes `getViewYRot/XRot`
+  return `ViewFreeze`'s view, and the crosshair pick reads those, so a vanilla key press while the body is turned acts on the
+  block the CAMERA looks at. The crypt node holds the real use key (vanilla `handleKeybinds`: held + `rightClickDelay == 0` ->
+  `startUseItem`, every 4 ticks, javap 26.1.2 and 26.2) and `autoroutes/mixin/HeldUsePickMixin` re-picks along the body at
+  the end of `pick` while it holds. Vanilla's held use with a sword on a floor sends `use_item_on`, `use_item`, `use_item_on`
+  (both hands), which 62-argrim-crypt compares against a harness-held key.

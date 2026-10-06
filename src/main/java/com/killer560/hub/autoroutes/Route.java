@@ -63,9 +63,11 @@ public final class Route {
 
     /**
      * Every node on {@code trigger}'s tile ({@link RouteNode#sameTile}), trigger included, in the order they fire:
-     * by {@link RouteNode#stackRank}, then a {@code start} node before the rest of its type, then by node number.
-     * A lone node is a stack of one. Recomputed from the live list each time, so a delete, an undo or a renumber
-     * is simply what the next stack sees.
+     * by {@link RouteNode#stackRank}, and nodes of the same rank in the order they were added (node number) - so a boom,
+     * a crypt and a boom fire boom, boom, crypt (killer560, 2026-10-06: "if i make a boom a crypt then a boom, it should
+     * do the first boom then the second then the crypt"). Whether a node is the {@code start} node no longer moves it
+     * ahead of an earlier node of its own type. A lone node is a stack of one. Recomputed from the live list each time,
+     * so a delete, an undo or a renumber is simply what the next stack sees.
      */
     public List<RouteNode> stackOf(RouteNode trigger) {
         List<RouteNode> stack = new ArrayList<>();
@@ -81,7 +83,6 @@ public final class Route {
             stack.add(trigger); // not (or no longer) in the list: it still fires itself
         }
         stack.sort(Comparator.comparingInt(RouteNode::stackRank)
-                .thenComparing(n -> !n.start)
                 .thenComparingInt(n -> {
                     int i = nodes.indexOf(n);
                     return i < 0 ? Integer.MAX_VALUE : i;

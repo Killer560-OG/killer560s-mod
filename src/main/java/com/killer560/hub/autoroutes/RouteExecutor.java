@@ -157,9 +157,21 @@ public final class RouteExecutor {
     private static float warpPitch;
     private static Vec3 warpLanding;
     private static BlockPos warpTarget;
-    /** PATH: the saved hop being flown, or -1 before the first; ticks to sit between two hops. */
+    /** PATH: the saved hop being flown, or -1 before the first. */
     private static int hopIndex = -1;
-    private static int hopSettleTicks;
+    /**
+     * The active node's teleport landed and the SERVER said so (its position packet arrived since the use). Then
+     * {@link #finishAction} skips the interact delay and {@link #tick} fires whatever comes next on that same tick
+     * ({@link #chainAfterLanding}): the server has already moved him, so there is nothing left to wait for - an
+     * unconditional etherwarp chain runs at one warp per tick at zero ping (killer560, 2026-10-06: "it should only
+     * really need to wait if it needs a secret or other nodes are going off").
+     */
+    private static boolean landingConfirmed;
+    /** Set by {@link #finishAction} after a {@link #landingConfirmed} node: {@link #tick} carries on this same tick. */
+    private static boolean chainAfterLanding;
+    /** {@link #planSneak}'s answer to "what fires next, and where he stands?" - read by {@link #settleAfter}. */
+    private static RouteNode plannedNext;
+    private static boolean plannedInPlace;
     /** PATH: a plan this node asked for, and how it came out ("ok", a reason, or null while it runs). */
     private static boolean planAsked;
     private static volatile String planOutcome;
@@ -177,8 +189,8 @@ public final class RouteExecutor {
     // ---- crypt ----
     /** The held slot before a crypt node swapped to its weapon, put back when it is done. */
     private static int cryptSlotBefore = -1;
-    private static int cryptUses;
-    private static int cryptLastUseTick;
+    /** A crypt node is holding the use key down ({@link #holdUse}); {@link #releaseUse} lets go, and so does {@link #stop}. */
+    private static boolean useHeld;
     /** A crypt node with no crypt or prince of his killed in this many ticks stops the route. */
     private static final int CRYPT_TIMEOUT = 100;
     private static final Map<BlockPos, BlockState> boomBefore = new HashMap<>();
@@ -225,7 +237,7 @@ public final class RouteExecutor {
      * the one he warped from included, in any order - that node fires. Two etherwarps aimed at each other therefore
      * ping-pong until something stops the route. Never the node just performed (a warp onto its own ring would
      * warp in place forever), and never same-tick: each fire still runs its whole sneak / swap / aim / use / landing
-     * cycle, and {@code settleTicks} sits between landing and the next fire.
+     * cycle; the next fire goes on the tick the server-confirmed landing is seen ({@link #chainAfterLanding}).
      */
     private static RouteNode landedFrom;
     /** True once a landing has sent the route BACK to an earlier node (a loop such as a ping-pong). From then a FRESH
@@ -324,6 +336,10 @@ public final class RouteExecutor {
         step = null;
         landedFrom = null;
         arrivalChain = false;
+        chainAfterLanding = false;
+        landingConfirmed = false;
+        // A crypt node stopped mid-hold must not leave right click held down.
+        releaseUse(Minecraft.getInstance());
         forceSneak = false;
         unsneakOverride = false;
         endWalkHold();
@@ -386,6 +402,8 @@ public final class RouteExecutor {
         activeNode = null;
         step = null;
         settleTicks = 0;
+        chainAfterLanding = false;
+        landingConfirmed = false;
         forceSneak = false;
         unsneakOverride = false;
         awaitPhaseDone = true;
@@ -698,6 +716,19 @@ public final class RouteExecutor {
             if (activeNode != null) {
                 clearMovement();
                 tickAction(client, player);
+                if (running && activeNode == null && chainAfterLanding) {
+                    // The server's position packet just put him on the landing (handled before this tick began, and
+                    // vanilla answered it with its teleport accept and a position packet of its own), so the next node
+                    // goes NOW: the rest of the stack, else whatever the walk step fires - the landing re-fire's node, or
+                    // the next node he stands in. One warp per tick at zero ping, instead of landing + settle + a tick.
+                    chainAfterLanding = false;
+                    clearMovement();
+                    if (!stackQueue.isEmpty()) {
+                        beginAction(stackQueue.poll());
+                    } else {
+                        tickWalk(client, player);
+                    }
+                }
             } else if (!stackQueue.isEmpty()) {
                 // The next node of the stack, now the one before it has finished and settled.
                 clearMovement();
@@ -1011,7 +1042,7 @@ public final class RouteExecutor {
         breakerQueue = new ArrayList<>();
         breakerSent.clear();
         hopIndex = -1;
-        hopSettleTicks = 0;
+        landingConfirmed = false;
         planAsked = false;
         planOutcome = null;
         blockWaitTicks = 0;
@@ -1019,7 +1050,7 @@ public final class RouteExecutor {
         boomTarget = null;
         boomBefore.clear();
         cryptSlotBefore = -1;
-        cryptUses = 0;
+        releaseUse(Minecraft.getInstance());
         // The node acts NOW, on the tick it fired - not on the next tick's pass through tick(). Waiting for that pass
         // was one of the dead ticks in his 2026-10-04 log (an etherwarp took 3-4 ticks from "begins" to the use).
         Minecraft client = Minecraft.getInstance();
@@ -1042,11 +1073,13 @@ public final class RouteExecutor {
         step = null;
         // What the next node's await counts starts now ("since the previous node finished").
         AwaitEvents.window(Minecraft.getInstance());
-        settleTicks = cfg.getInteractDelayTicks();
+        boolean landed = landingConfirmed;
+        landingConfirmed = false;
         bestTargetDistance = Double.MAX_VALUE;
         noProgressTicks = 0;
         if (!stackQueue.isEmpty()) {
             planSneak(finished);
+            settleAfter(landed, cfg);
             return; // the rest of the stack first - tick() begins the next node after the settle
         }
         // The stack is done: the route moves on from the trigger's place, past anything already fired this run.
@@ -1057,6 +1090,22 @@ public final class RouteExecutor {
         }
         stackTrigger = null;
         planSneak(finished);
+        settleAfter(landed, cfg);
+    }
+
+    /**
+     * The wait before the next node. Etherwarp into etherwarp after a SERVER-confirmed landing: none - the next warp goes
+     * on this same tick ({@link #chainAfterLanding}), so an unconditional chain runs at one warp per tick at zero ping
+     * (killer560, 2026-10-06). Anything else - a landing followed by a boom, breaker, use or crypt, or any node after a
+     * non-teleport - keeps the interact delay, as before: a breaker stacked on the landing tile and fired on the landing
+     * tick itself sent its digs and the dedicated server broke nothing (62-argrim-play, 2026-10-06, not traced further),
+     * while two ticks later, as before, it breaks them.
+     */
+    private static void settleAfter(boolean landed, AutoRoutesConfig cfg) {
+        boolean warpNext = landed && plannedInPlace && plannedNext != null
+                && (plannedNext.type == RouteNode.Type.ETHERWARP || plannedNext.type == RouteNode.Type.PATH);
+        chainAfterLanding = warpNext;
+        settleTicks = warpNext ? 0 : cfg.getInteractDelayTicks();
     }
 
     /**
@@ -1078,6 +1127,8 @@ public final class RouteExecutor {
      * Holding is just a held key: one input packet with shift down when it starts, nothing more until it ends.
      */
     private static void planSneak(RouteNode finished) {
+        plannedNext = null;
+        plannedInPlace = false;
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || route == null || !running) {
             return;
@@ -1111,6 +1162,8 @@ public final class RouteExecutor {
                         : n.pathIndex <= cursor;
             }
         }
+        plannedNext = up;
+        plannedInPlace = inPlace;
         boolean was = forceSneak;
         if (up == null) {
             forceSneak = false;
@@ -1271,6 +1324,21 @@ public final class RouteExecutor {
             if (node.hasLanding) {
                 warpLanding = RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ);
                 warpTarget = landingBlock(warpLanding);
+                // Fired on the landing tick of the warp before (a chain), he is still where that warp put him - a
+                // twentieth of a block above the floor the node's look was recorded from. On a long, shallow warp that
+                // is a block of landing (96-ar-rotate, 2026-10-06: 16 blocks at ~4.5 degrees landed one long). So when
+                // his feet are not at the node's height, aim from HERE at the same block, with the aim the Interactive
+                // Map uses (verified to land on it), as a path hop does; the recorded look when no such ray exists.
+                double nodeY = RouteCoords.toReal(frame, node.relativePos()).y;
+                if (Math.abs(player.getY() - nodeY) > 0.01) {
+                    Vec3 eye = new Vec3(player.getX(), player.getY() + TeleportUtils.eyeHeight(true), player.getZ());
+                    TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget,
+                            com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0);
+                    if (rot != null) {
+                        warpYaw = rot.yaw();
+                        warpPitch = rot.pitch();
+                    }
+                }
             } else {
                 warpLanding = null;
                 warpTarget = null;
@@ -1336,20 +1404,16 @@ public final class RouteExecutor {
                     node.pathHops.size(), route.indexOf(dest) + 1);
             loadHop(node, 0);
         }
-        if (hopSettleTicks > 0) {
-            hopSettleTicks--;
-            wantSneak = true;
-            return;
-        }
         if (!tickWarp(client, player, node)) {
             return;
         }
         if (hopIndex + 1 < node.pathHops.size()) {
+            // The next hop goes on THIS tick (killer560, 2026-10-06: "in theory I should be able to teleport 20 times a
+            // second if there is no waiting"): tickWarp only returns true once the server's position packet has put him
+            // on the landing, so the next warp already aims from where the server has him. It used to sit out the
+            // interact delay first - 2 ticks per hop more than the landing itself.
             loadHop(node, hopIndex + 1);
-            hopSettleTicks = AutoRoutesConfig.getInstance().getInteractDelayTicks();
-            if (hopSettleTicks <= 0) {
-                tickPath(client, player, node); // the next hop goes on this tick
-            }
+            tickPath(client, player, node);
             return;
         }
         LOGGER.info("[AutoRoutes] Node #{} PATH: all {} warp(s) landed", route.indexOf(node) + 1, node.pathHops.size());
@@ -1452,6 +1516,7 @@ public final class RouteExecutor {
             if (landed(player, warpLanding)) {
                 LOGGER.info("[AutoRoutes] Etherwarp: landed at {} {} tick(s) after the use ({} from firing)",
                         fmt(player.position()), stepTicks, actionAge);
+                landingConfirmed = teleportPacketSeen;
                 // Whether the sneak stays held for what comes next is planSneak's call, from finishAction.
                 RouteRotation.rebase();
                 cameraGraceTicks = 3;
@@ -1565,6 +1630,7 @@ public final class RouteExecutor {
             if (landed(player, node.hasLanding ? RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ)
                     : null)) {
                 LOGGER.info("[AutoRoutes] Use: landed {} tick(s) after the use", stepTicks);
+                landingConfirmed = teleportPacketSeen;
                 RouteRotation.rebase();
                 cameraGraceTicks = 3;
                 rejoinPathAfterTeleport(player, node);
@@ -1583,8 +1649,9 @@ public final class RouteExecutor {
 
     /**
      * A CRYPT node (killer560, 2026-10-05: "it will do the same attacking thing till either a prince or crypt are
-     * killed"): the Crypt Weapon setting's item, aimed straight down (it explodes, never teleports), used and used again
-     * with the interact delay between uses until {@code await:N} (1 without an await) crypt / prince kills of his have
+     * killed"): the Crypt Weapon setting's item, aimed straight down (it explodes, never teleports), with the use key HELD
+     * (vanilla then uses it every 4 ticks, as for a held right click - {@link #holdUse}) until {@code await:N} (1 without
+     * an await) crypt / prince kills of his have
      * been counted since the node before it finished ({@link AwaitEvents#crypts}) - never a secret. Crypt Attack Time
      * without a kill moves the route on to the next node.
      */
@@ -1615,18 +1682,22 @@ public final class RouteExecutor {
             if (!aimReady()) {
                 return;
             }
-            useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), 90f, false);
-            cryptUses = 1;
-            logActed(node, " (" + weapon.label() + ", waiting for " + goal + " crypt/prince kill(s))");
+            // HOLD the use key, as a player holding right click does (killer560, 2026-10-06: "only have the crypt node
+            // hold right click for its equivalent of attacking do not have it spam click"). Vanilla's handleKeybinds
+            // runs later in this same tick and turns a held use key into startUseItem whenever its rightClickDelay is
+            // 0 - so the first use goes on the firing tick and then one every 4 ticks, packet for packet what a held
+            // right click sends (javap, 26.1.2 and 26.2: keyUse.isDown && rightClickDelay == 0 && !isUsingItem).
+            holdUse(client, player, node);
+            logActed(node, " (" + weapon.label() + ", holding use until " + goal + " crypt/prince kill(s))");
             step = Step.CONFIRM;
             stepTicks = 0;
-            cryptLastUseTick = 0;
             return;
         }
         if (step == Step.CONFIRM) {
             if (AwaitEvents.crypts() >= goal) {
-                LOGGER.info("[AutoRoutes] Node #{} CRYPT: {} kill(s) after {} use(s), {} tick(s)", route.indexOf(node) + 1,
-                        AwaitEvents.crypts(), cryptUses, stepTicks);
+                LOGGER.info("[AutoRoutes] Node #{} CRYPT: {} kill(s) after holding use {} tick(s)", route.indexOf(node) + 1,
+                        AwaitEvents.crypts(), stepTicks);
+                releaseUse(client);
                 restoreCryptSlot(client, player);
                 finishAction();
                 return;
@@ -1635,22 +1706,65 @@ public final class RouteExecutor {
             if (stepTicks > attackTicks) {
                 // Moves ON rather than stopping the route (Crypt Attack Time slider): an undead that walked out of
                 // reach must not strand the rest of the route.
-                LOGGER.info("[AutoRoutes] Node #{} CRYPT: {} of {} kill(s) after {} use(s) - Crypt Attack Time "
-                        + "({} tick(s)) up, moving on", route.indexOf(node) + 1, AwaitEvents.crypts(), goal, cryptUses,
-                        attackTicks);
+                LOGGER.info("[AutoRoutes] Node #{} CRYPT: {} of {} kill(s) after holding use {} tick(s) - Crypt Attack "
+                        + "Time ({} tick(s)) up, moving on", route.indexOf(node) + 1, AwaitEvents.crypts(), goal,
+                        stepTicks, attackTicks);
                 AutoRoutesFeature.chatBad(String.format(java.util.Locale.US,
                         "Crypt node: no kill in %.1f s - moving on.", attackTicks / 20.0));
+                releaseUse(client);
                 restoreCryptSlot(client, player);
                 finishAction();
                 return;
             }
-            int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
-            if (stepTicks - cryptLastUseTick >= delay) {
-                useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), 90f, false);
-                cryptUses++;
-                cryptLastUseTick = stepTicks;
-            }
+            holdUse(client, player, node);
         }
+    }
+
+    /**
+     * One tick of a crypt node's held right click: the use key down (re-asserted every tick, as a mouse release event
+     * or a focus change could have lifted it) and, in obvious mode, the body kept straight down. Each tick held counts
+     * as a use of ours for the kill attribution ({@link AwaitEvents#onLocalWeaponUse}): in the sim a Hyperion's held use
+     * goes out as a use-on-block (the floor), which the useItem hook never sees.
+     */
+    private static void holdUse(Minecraft client, LocalPlayer player, RouteNode node) {
+        if (!AutoRoutesConfig.getInstance().isLegitMode()) {
+            turnBody(player, player.getYRot() + Mth.wrapDegrees(RouteCoords.toRealYaw(frame, node.yaw) - player.getYRot()),
+                    90f);
+        }
+        client.options.keyUse.setDown(true);
+        useHeld = true;
+        AwaitEvents.onLocalWeaponUse();
+    }
+
+    /** Lets go of a crypt node's held use key. Safe when nothing is held. */
+    private static void releaseUse(Minecraft client) {
+        if (!useHeld) {
+            return;
+        }
+        useHeld = false;
+        if (client != null) {
+            client.options.keyUse.setDown(false);
+        }
+    }
+
+    /**
+     * While a crypt node holds the use key in obvious mode, the block vanilla's held use acts on: the one along the BODY's
+     * look (straight down), not the held camera's. {@code Minecraft.pick} reads the camera's view rotation
+     * ({@code Ap3ViewYawMixin} returns the held view from {@code getViewYRot}/{@code getViewXRot}), so without this the held
+     * use would right-click whatever he is looking at - a chest, a lever - from a body facing the floor, which GrimAC's
+     * RotationPlace refuses. Null when nothing needs overriding (legit mode turns the real camera). From
+     * {@code mixin/HeldUsePickMixin}, at the end of {@code Minecraft.pick}.
+     */
+    public static HitResult heldUsePick(Minecraft client) {
+        if (!useHeld || !running || client.player == null || client.level == null
+                || AutoRoutesConfig.getInstance().isLegitMode()) {
+            return null;
+        }
+        LocalPlayer player = client.player;
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = TeleportUtils.getLook(player.getYRot(), player.getXRot()).scale(player.blockInteractionRange());
+        return client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE,
+                player));
     }
 
     private static void restoreCryptSlot(Minecraft client, LocalPlayer player) {
