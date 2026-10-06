@@ -25,6 +25,8 @@ final class AutoReposition {
     private enum Stage { IDLE, SNEAK_DELAY, AWAIT_STAND, USE, AWAIT_ARRIVE, AFTER_BOW, RELEASE_DELAY }
 
     private final String tag;
+    /** The owning auto's free camera, taken before the warp's aim turns him (see {@link FreeCam}). */
+    private final FreeCam camera;
     private Stage stage = Stage.IDLE;
     private BlockPos spot;
     private boolean bow;
@@ -34,8 +36,9 @@ final class AutoReposition {
     /** The last "not started" reason logged, so a per-tick refusal is one line, not twenty a second. */
     private String lastRefusal;
 
-    AutoReposition(String tag) {
+    AutoReposition(String tag, FreeCam camera) {
         this.tag = tag;
+        this.camera = camera;
     }
 
     boolean isActive() {
@@ -114,6 +117,7 @@ final class AutoReposition {
                     cancel(client);
                     return;
                 }
+                camera.engage(player); // before the aim turns him, so the held view is where he was looking
                 if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
                     return; // gate held this tick back - stay in USE and warp on a later tick
                 }

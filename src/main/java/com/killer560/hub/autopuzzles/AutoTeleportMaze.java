@@ -95,9 +95,11 @@ final class AutoTeleportMaze {
      * {@link ViewFreeze} hold every other puzzle auto uses. {@link AutoPuzzleUtil#rotateCamera} only took a lease
      * per pad hop, and the lease is 400 ms against walks of up to 3 s, so the camera was handed back mid-walk and
      * every teleport's turn and every re-aim whipped it round. Held every tick from the first maze teleport until
-     * the auto stops or finishes, then released.
+     * the auto stops or finishes, then released - since 2026-10-06 through {@link FreeCam}, which turns the body
+     * back under the held view before letting go (it used to just drop the hold, so the camera jumped onto the
+     * body's last walk direction at the end).
      */
-    private static boolean engaged = false;
+    private static final FreeCam CAMERA = new FreeCam("TeleportMaze");
     /** His view on the tick before, so the hold starts from where he was looking BEFORE the first teleport
      *  turned him, not after. */
     private static float lastYaw = Float.NaN;
@@ -112,6 +114,7 @@ final class AutoTeleportMaze {
 
     static void levelChanged(Minecraft client) {
         GUARD.levelChanged();
+        CAMERA.drop();
         reset(client);
         consumedArrival = com.killer560.hub.livemap.autoclear.ClearExecutor.arrivalSeq();
         startSeq = -1;
@@ -134,9 +137,7 @@ final class AutoTeleportMaze {
             }
         }
         if (startWalking) {
-            if (engaged) {
-                ViewFreeze.hold(client.player.getYRot(), client.player.getXRot());
-            }
+            CAMERA.keep(client.player);
             return;
         }
         if (!cfg.isAutoTeleportMazeEnabled() || !ROOM.equals(roomName)) {
@@ -155,9 +156,7 @@ final class AutoTeleportMaze {
         }
         wasInRoom = true;
 
-        if (engaged) {
-            ViewFreeze.hold(client.player.getYRot(), client.player.getXRot());
-        }
+        CAMERA.keep(client.player);
 
         if (finishStage != FinishStage.NONE) {
             tickFinish(client);
@@ -393,29 +392,23 @@ final class AutoTeleportMaze {
         startWalk(client, player, startPad, "the start pad (standing in the entrance)");
     }
 
-    /** Takes the free camera from the view he had on the tick before this teleport - see {@link #engaged}. */
+    /** Takes the free camera from the view he had on the tick before this teleport - see {@link #CAMERA}. */
     private static void engage(Minecraft client) {
-        if (engaged) {
+        if (CAMERA.isEngaged()) {
             return;
         }
-        engaged = true;
         float yaw = Float.isNaN(lastYaw) ? client.player.getYRot() : lastYaw;
         float pitch = Float.isNaN(lastPitch) ? client.player.getXRot() : lastPitch;
-        ViewFreeze.hold(yaw, pitch);
-        LOGGER.info("[AutoPuzzles] TeleportMaze: running - free camera held");
+        CAMERA.engage(client.player, yaw, pitch);
     }
 
-    /** Hands the camera straight back. Only releases a hold this auto took. */
+    /** Hands the camera back, body turned under it first ({@link FreeCam#release}). Only a hold this auto took. */
     private static void disengage() {
-        if (!engaged) {
-            return;
-        }
-        engaged = false;
-        ViewFreeze.release();
+        CAMERA.release(Minecraft.getInstance().player);
     }
 
     private static void rememberView(Minecraft client) {
-        if (client.player != null && !engaged) {
+        if (client.player != null && !CAMERA.isEngaged()) {
             lastYaw = client.player.getYRot();
             lastPitch = client.player.getXRot();
         }

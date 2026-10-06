@@ -37,7 +37,9 @@ final class AutoIceFill {
     private static final double EPS = 1e-4;
 
     private static final AutoGuard GUARD = new AutoGuard("Auto Ice Fill", "Ice Fill Solver");
-    private static final AutoReposition REPOSITION = new AutoReposition("IceFill");
+    /** Held from the first warp until the finish tile is packed ice (see {@link FreeCam}). */
+    private static final FreeCam CAMERA = new FreeCam("IceFill");
+    private static final AutoReposition REPOSITION = new AutoReposition("IceFill", CAMERA);
 
     private static List<Vec3> sourcePath = List.of();
     private static List<Vec3> path = List.of();
@@ -121,6 +123,7 @@ final class AutoIceFill {
 
     static void levelChanged(Minecraft client) {
         GUARD.levelChanged();
+        CAMERA.drop();
         reset(client);
     }
 
@@ -137,6 +140,10 @@ final class AutoIceFill {
             return;
         }
         wasInRoom = true;
+        CAMERA.keep(client.player);
+        if (!IceFillSolverConfig.getInstance().isEnabled()) {
+            CAMERA.release(client.player);
+        }
         if (!GUARD.solverOn(IceFillSolverConfig.getInstance().isEnabled()) || raw.isEmpty() || !GUARD.fresh()
                 || McCompat.screen(client) != null || done) {
             return;
@@ -171,6 +178,7 @@ final class AutoIceFill {
             done = true;
             REPOSITION.cancel(client);
             AutoReposition.releaseSneak(client);
+            CAMERA.release(client.player);
             return;
         }
         if (gaveUp) {
@@ -283,6 +291,7 @@ final class AutoIceFill {
             Vec3 next = path.get(lastIndex + 1);
             Vec3 from = new Vec3(current.x, current.y - 0.1 + player.getEyeHeight(), current.z);
             float[] dir = AutoPuzzleUtil.direction(from, next);
+            CAMERA.engage(player); // before the aim turns him
             if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
                 note("gate" + lastIndex, "hop {} held back by the action gate this tick", lastIndex);
                 return; // gate held this tick back - nothing warped, so lastIndex / ticks must not move
@@ -571,6 +580,7 @@ final class AutoIceFill {
     }
 
     private static void reset(Minecraft client) {
+        CAMERA.release(client.player);
         if (recovering >= 0) {
             LOGGER.info("[AutoIceFill] recovery of section {} abandoned - left the room or switched off", recovering + 1);
         }

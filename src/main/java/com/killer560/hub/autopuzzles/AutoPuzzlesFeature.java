@@ -130,6 +130,14 @@ public final class AutoPuzzlesFeature {
         // is anchored to Oruo's "[STATUE] ..." server format, so this mod's own client messages can't match.
         ChatObserver.subscribe(AutoPuzzlesFeature::onMessage);
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoPuzzlesFeature.onTick", AutoPuzzlesFeature::onTick));
+        // The free camera's hand sway (see ViewFreeze.followHandSway), at the end of the tick so it lands after
+        // aiStep's own update. AP3 does its own while it is the one holding the view.
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoPuzzlesFeature.handSway", client -> {
+            if (!com.killer560.hub.ap3.Ap3FreezeState.isFrozen()
+                    && Float.isNaN(com.killer560.hub.ap3.Ap3Executor.frozenViewYaw())) {
+                com.killer560.hub.util.ViewFreeze.followHandSway(client.player);
+            }
+        }));
         // Auto Boulder draws each tick's turn across the frames in between (no choppy 20 Hz camera).
         net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> {
             try {
