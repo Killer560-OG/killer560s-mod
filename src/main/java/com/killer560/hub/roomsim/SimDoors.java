@@ -359,6 +359,7 @@ public final class SimDoors {
      * turns a door's BARRIER blocks back to air once {@link #OPEN_DELAY_TICKS} has passed.
      */
     public static void register() {
+        SimKeys.register();
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
             Minecraft client = Minecraft.getInstance();
             // level.isClientSide(): this event also fires server-side; without this check the door would
@@ -382,12 +383,19 @@ public final class SimDoors {
                 if (hand != InteractionHand.MAIN_HAND) {
                     return InteractionResult.PASS;
                 }
+                SimKeys.useBloodKey();
                 openDoor(client, door, null);
                 return InteractionResult.SUCCESS;
             }
             ItemStack held = player.getItemInHand(hand);
             if (!WITHER_KEY_ID.equals(CheatUtils.skyblockId(held))) {
-                return InteractionResult.PASS;
+                // Hypixel's keys are the team's, not items (SimKeys): a picked-up key opens it with any hand.
+                if (hand != InteractionHand.MAIN_HAND || !SimKeys.useWitherKey()) {
+                    return InteractionResult.PASS;
+                }
+                openDoor(client, door, null);
+                announceWitherDoor(client);
+                return InteractionResult.SUCCESS;
             }
             openDoor(client, door, hand);
             return InteractionResult.SUCCESS;
@@ -657,7 +665,22 @@ public final class SimDoors {
         return doors.size();
     }
 
+    /** Hypixel's "<name> opened a WITHER door!" line, from the server. */
+    private static void announceWitherDoor(Minecraft client) {
+        var server = client.getSingleplayerServer();
+        if (server == null || client.player == null) {
+            return;
+        }
+        String name = client.player.getGameProfile().name();
+        server.execute(() -> {
+            for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
+                sp.sendSystemMessage(Component.literal(name + " opened a WITHER door!"));
+            }
+        });
+    }
+
     public static void clear() {
+        SimKeys.clear();
         DOORS.clear();
         BLOCK_INDEX.clear();
         CARVED.clear();

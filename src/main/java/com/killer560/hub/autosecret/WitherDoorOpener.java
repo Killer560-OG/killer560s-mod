@@ -82,9 +82,12 @@ final class WitherDoorOpener {
         return lastResult;
     }
 
-    /** True when the team has a wither key: Hypixel's sidebar count, or a key item in the hotbar (the sim's). */
+    /**
+     * True when the team has a wither key: {@link com.killer560.hub.doorkeys.DungeonKeys} (the sidebar's count, else the
+     * pickup / door chat lines - keys are the team's on Hypixel), or a key item in the hotbar (the sim's old key).
+     */
     static boolean haveKey(LocalPlayer player) {
-        return DungeonState.sidebarWitherKeys() > 0 || keySlot(player) >= 0;
+        return com.killer560.hub.doorkeys.DungeonKeys.witherKeys() > 0 || keySlot(player) >= 0;
     }
 
     private static int keySlot(LocalPlayer player) {

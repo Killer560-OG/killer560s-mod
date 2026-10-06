@@ -213,9 +213,55 @@ public final class RouteStore {
         return new ArrayList<>(routes.keySet());
     }
 
-    /** @return the route for this room, or null when none is saved. */
+    /**
+     * Routes another feature supplies for rooms this file has none for (Auto Trap's trap routes, 2026-10-06). Never used
+     * while recording, so a new recording never starts from someone else's route.
+     */
+    private static volatile java.util.function.Function<String, Route> overlay;
+
+    public static void setOverlay(java.util.function.Function<String, Route> supplier) {
+        overlay = supplier;
+    }
+
+    /**
+     * @return the route for this room, or null. The overlay (Auto Trap, when on and holding a route for this trap room in
+     * its current mode) wins over his own: it is the mode he or Dungeon Autopilot picked. Never while recording.
+     */
     public Route forRoom(String roomName) {
+        if (roomName == null) {
+            return null;
+        }
+        java.util.function.Function<String, Route> o = overlay;
+        if (o != null && !RouteRecorder.isRecording()) {
+            Route over = o.apply(roomName);
+            if (over != null) {
+                return over;
+            }
+        }
+        return routes.get(roomName);
+    }
+
+    /** His own saved route for this room (never the overlay's), or null. */
+    public Route ownRoute(String roomName) {
         return roomName == null ? null : routes.get(roomName);
+    }
+
+    /** A route from the routes file's JSON shape (Auto Trap stores its routes in it). Null when unreadable. */
+    public static Route routeFromJson(String roomName, JsonObject obj) {
+        try {
+            Route r = readRoute(roomName, obj);
+            if (r != null) {
+                migrateLegacyMarkers(r);
+            }
+            return r == null || r.isEmpty() ? null : r;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** A route in the routes file's JSON shape. */
+    public static JsonObject routeToJson(Route route) {
+        return writeRoute(route);
     }
 
     /** The route for this room, created empty if missing (not saved until {@link #save()}). */

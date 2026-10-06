@@ -849,6 +849,17 @@ public final class ClearExecutor {
             return;
         }
         LocalPlayer player = client.player;
+        // Never a hop from inside a trap room (killer560, 2026-10-06: "it shouldn't be able to etherwarp in trap - just
+        // to enter it"): a path may land him in one, but the next hop does not go out from there.
+        DungeonLayout layout = DungeonLayout.current();
+        int room = layout.roomAtWorld(player.getX(), player.getZ());
+        if (room >= 0 && AutoClearUtils.isTrap(layout, room)) {
+            LOGGER.warn("[Path] not warping from inside {} - no etherwarp in a trap room", layout.name(room));
+            cancel();
+            lastPathFailed = true;
+            ModChat.send(CHAT, ModChat.bad("Stopped: "), ModChat.text("in a trap room - no etherwarp from inside one"));
+            return;
+        }
         // Same direction as the target, expressed relative to the running (unwrapped) yaw.
         float yaw = player.getYRot() + Mth.wrapDegrees(interact[0] - player.getYRot());
         float pitch = Mth.clamp(interact[1], -90f, 90f);

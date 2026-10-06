@@ -23,6 +23,8 @@ final class SettingTooltipsData {
     }
 
     private static void autoSecret(Map<String, String> d) {
+        d.put("auto trap/auto trap", "Cheat build: plays your trap-room routes (New Trap, Old Trap) through Auto Routes - one etherwarp onto the route's start node to enter, no etherwarp inside, your route walks you out, and everything trap-related stops the moment you leave the room. Dungeon Autopilot does trap rooms only with this on.");
+        d.put("auto trap/mode", "Full Trap: the route that does the whole trap. Just Cleared: the route that only gets the room cleared. Each has its own captured route; this picks which one plays (Dungeon Autopilot Solo picks per score itself).");
         d.put("auto clear/autopilot", "Cheat build: Dungeon Autopilot - Auto Secret, Auto Clear and Auto Puzzles under one planner. Each step it re-reads the map and score and picks the next route, clear, puzzle or door. Any movement key takes over; a server correction only warns you.");
         d.put("auto clear/autopilot key", "Starts or stops Dungeon Autopilot (Esc clears it). Works only in a dungeon, outside the boss.");
         d.put("auto clear/run mode", "Solo: the best score per second toward 300, rooms, puzzles and only the secrets S+ needs, then the blood door last. Party: your routes first; clears and puzzles only when no route is left and no teammate is in the room; never the blood door.");

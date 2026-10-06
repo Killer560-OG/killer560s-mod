@@ -16,7 +16,11 @@ import com.killer560.hub.scorecalc.ScoreCalculator;
  *       values it at nothing; Party keeps a quarter of its value, because his secrets are the party's insurance against
  *       a teammate's death or a failed puzzle.</li>
  * </ul>
- * Crypts, the mimic and the prince enter only through the bonus the calculator already read; nothing here gets them.
+ * <ul>
+ *   <li><b>A crypt</b> (killer560, 2026-10-06: "Crypts and princes will come from auto routes"): a route's CRYPT nodes are
+ *       worth a bonus point each, up to the 5 the bonus counts, less the crypts already blown. The mimic and the prince
+ *       enter only through the bonus the calculator already read - nothing says which route gets a prince.</li>
+ * </ul>
  */
 public final class AutopilotScore {
 
@@ -35,7 +39,15 @@ public final class AutopilotScore {
      * blood and boss rooms in), -1 when it has none.
      */
     public record State(String floor, int totalRooms, int completedRooms, int totalSecrets, int secretsFound, int bonus,
-                        int deathPenalty, int puzzlesFailed, int speed, int currentTotal) {
+                        int deathPenalty, int puzzlesFailed, int speed, int currentTotal, int crypts) {
+    }
+
+    /** Crypts the bonus still pays for (it counts five). */
+    public static final int CRYPT_CAP = 5;
+
+    /** What a route with {@code cryptNodes} crypt nodes adds in crypt bonus: one a crypt, up to the five left. */
+    public static double cryptGain(State s, int cryptNodes) {
+        return Math.max(0, Math.min(cryptNodes, CRYPT_CAP - Math.max(0, s.crypts())));
     }
 
     /** Score for one more completed room. */

@@ -620,9 +620,11 @@ public final class AutoClearFeature {
             startTrip(client, player, () -> AutoClearUtils.pathToDoor(layout, door, false));
             return;
         }
-        boolean key = com.killer560.hub.roomsim.SimState.isActive()
+        // The team's key (DungeonKeys: sidebar, else the pickup / door chat lines - Hypixel keys are the team's).
+        boolean key = com.killer560.hub.doorkeys.DungeonKeys.witherKeys() > 0
+                || (com.killer560.hub.roomsim.SimState.isActive()
                 ? com.killer560.hub.roomsim.SimDoors.keysHeld() > 0
-                : com.killer560.hub.witherdoors.WitherDoorsFeature.isWitherKeyHeld();
+                : com.killer560.hub.witherdoors.WitherDoorsFeature.isWitherKeyHeld());
         if (!key) {
             action = "waiting at the wither door - no Wither Key";
             if (!saidNoKey) {

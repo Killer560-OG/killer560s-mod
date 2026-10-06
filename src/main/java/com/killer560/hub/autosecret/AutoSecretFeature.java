@@ -70,10 +70,11 @@ public final class AutoSecretFeature {
     static final String CHAT = "Auto Secret";
     private static final Logger LOGGER = ModLog.get("killer560smod-autosecret");
 
-    private enum Phase { IDLE, DECIDE, TRAVEL, AWAIT_ROUTE, ROUTE, ICE_FILL, PUZZLE_WAIT, SETTLE, AUTO_CLEAR, WAITING, DOOR }
+    private enum Phase { IDLE, DECIDE, TRAVEL, AWAIT_ROUTE, ROUTE, ICE_FILL, PUZZLE_WAIT, SETTLE, AUTO_CLEAR, WAITING, DOOR,
+        KEY_WAIT }
 
     /** What a TRAVEL is for, so its arrival knows what comes next. */
-    private enum Trip { START_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR, EXPLORE }
+    private enum Trip { START_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR, EXPLORE, KEY }
 
     /** Ticks to wait for a route to arm once he has landed on its start node. */
     private static final int ARM_TIMEOUT_TICKS = 40;
@@ -99,6 +100,16 @@ public final class AutoSecretFeature {
     private static int doorCell = -1;
     /** The door it is at is the blood door (Dungeon Autopilot only - Auto Secret alone never opens it). */
     private static boolean doorBlood;
+    /** The dropped key it is going to pick up, where it stands for it, and its distance from him last tick. */
+    private static com.killer560.hub.doorkeys.DungeonKeys.Dropped keyTarget;
+    private static BlockPos keyGoal;
+    private static double keyLastDist = -1;
+    private static int keyWitherBefore;
+    private static int keyBloodBefore;
+    /** Ticks to stand by a key for it to be picked up before calling the try failed. */
+    private static final int KEY_WAIT_TICKS = 40;
+    /** Within this many blocks a key vanishing from the client means it was taken (by him or a teammate). */
+    private static final double KEY_GONE_NEAR = 12.0;
     private static BlockPos doorGoal;
     private static BlockPos doorLock;
     private static int doorClicks;
@@ -109,6 +120,8 @@ public final class AutoSecretFeature {
     private static String blockedSecrets;
     private static String instaFrom;
     private static int runId;
+    /** The room he was last in by the map, for a decision made from a doorway (which reads as no room). */
+    private static String lastRoomName;
     /** This run is Dungeon Autopilot's: {@link Autopilot} decides, this class carries it out. */
     private static boolean pilot;
     private static Object level;
@@ -240,6 +253,7 @@ public final class AutoSecretFeature {
             return false;
         }
         runId++;
+        lastRoomName = null;
         secreted.clear();
         noRouteSaid.clear();
         instaTried.clear();
@@ -276,6 +290,7 @@ public final class AutoSecretFeature {
         }
         Phase was = phase;
         phase = Phase.IDLE;
+        keyTarget = null;
         WitherDoorOpener.cancel();
         if (pilot) {
             Autopilot.onStopped();
@@ -317,6 +332,9 @@ public final class AutoSecretFeature {
         }
         watchCorrections(client);
         phaseTicks++;
+        if (keyTarget != null && (phase == Phase.TRAVEL || phase == Phase.KEY_WAIT) && keyGone(client)) {
+            return;
+        }
         switch (phase) {
             case DECIDE -> decide(client);
             case TRAVEL -> tickTravel(client);
@@ -330,6 +348,7 @@ public final class AutoSecretFeature {
                 }
             }
             case DOOR -> tickDoor();
+            case KEY_WAIT -> tickKeyWait();
             case WAITING -> {
                 if (phaseTicks >= 20) {
                     setPhase(Phase.DECIDE);
@@ -501,9 +520,26 @@ public final class AutoSecretFeature {
         blockedSecrets = null;
         DungeonLayout layout = DungeonLayout.capture();
         int here = layout.currentRoom();
+        if (here >= 0) {
+            lastRoomName = layout.name(here);
+        } else if (lastRoomName != null && client.player != null && client.player.onGround()) {
+            // Standing in a doorway's connector cell (the spot two blocks back from a door it just opened, in
+            // 142-sim-autopilot2) reads as no room, and it waited there for good. The warp planner works from where he
+            // really stands; the room graph only needs the room he was in a moment ago.
+            here = roomIdOf(layout, lastRoomName);
+        }
+        if (here >= 0 && layout.entry(here) != null && "TRAP".equalsIgnoreCase(layout.entry(here).type)) {
+            // killer560 (docs/SIM.md "Trap rooms take your abilities"): no etherwarp, teleport or ability works in a trap
+            // room, so no trip can start here - waiting would be forever. His trap routes are meant to end outside it.
+            stop("in " + layout.name(here) + ", a trap room: no etherwarp or ability works in one, so it can't warp out -"
+                    + " walk out and start it again (a trap route should end outside the room)", false);
+            return;
+        }
         if (here < 0 || !AutoClearUtils.canPath(layout)) {
             status = "Waiting to be able to path from here";
             if (phaseTicks == 100) {
+                LOGGER.info("[AutoSecret] can't path from here: room {} ({}), on ground {}", here, here >= 0 ? layout.name(here)
+                        : "none", client.player != null && client.player.onGround());
                 say(ModChat.dim("Can't start a path from here yet (in the air, a maze, Boulder or past a trap's start)."));
             }
             return;
@@ -538,7 +574,9 @@ public final class AutoSecretFeature {
     }
 
     private static boolean eligibleForSecrets(RoomStatus.Room r) {
-        return !"Unknown".equals(r.name()) && !r.isType("PUZZLE") && !r.isType("TRAP") && !r.isType("BLOOD")
+        // Trap rooms only through Auto Trap (killer560, 2026-10-06: "it will use auto trap to do trap rooms").
+        return !"Unknown".equals(r.name()) && !r.isType("PUZZLE") && !r.isType("BLOOD")
+                && (!r.isType("TRAP") || com.killer560.hub.autotrap.AutoTrap.usable(r.name()))
                 && !r.isType("ENTRANCE") && r.unfound() > 0 && !secreted.contains(r.name());
     }
 
@@ -715,6 +753,7 @@ public final class AutoSecretFeature {
             }
             case DOOR -> goToDoor(layout, o.door(), o.blood(), o.why());
             case FINISH -> finishPilot(layout, rooms, dist, o);
+            case KEY -> goKey(o.key(), o.why());
             default -> setPhase(Phase.SETTLE);
         }
     }
@@ -736,6 +775,88 @@ public final class AutoSecretFeature {
         String why = o.why() + (Autopilot.bloodOpened() ? " - blood door open, over to you for the blood camp"
                 : " - over to you");
         stop(why, false);
+    }
+
+    // ------------------------------------------------------------------------------------------- dropped keys
+
+    /**
+     * Goes to pick up a dropped key: an Interactive Map warp onto the standable block nearest to it
+     * ({@link com.killer560.hub.livemap.autoclear.TeleportUtils#nearestEtherwarpable}), then waits there for the pickup.
+     * Hypixel picks a key up by being near it; the wiki gives no range (only a minister perk's +5 blocks), so it stands
+     * as close as a warp can put it rather than trusting a number, and logs how far it was when the key went - that
+     * distance on Hypixel is the measurement.
+     */
+    private static void goKey(com.killer560.hub.doorkeys.DungeonKeys.Dropped k, String why) {
+        Minecraft client = Minecraft.getInstance();
+        keyTarget = k;
+        keyLastDist = -1;
+        keyWitherBefore = com.killer560.hub.doorkeys.DungeonKeys.witherKeys();
+        keyBloodBefore = com.killer560.hub.doorkeys.DungeonKeys.bloodKey();
+        target = (k.blood() ? "the Blood Key" : "the Wither Key") + " #" + k.id();
+        targetRoomId = -1;
+        status = "Picking up " + target;
+        say(ModChat.text("Picking up the "), ModChat.value(k.blood() ? "Blood Key" : "Wither Key"), ModChat.dim(" - " + why));
+        BlockPos at = BlockPos.containing(k.x(), k.y(), k.z());
+        keyGoal = com.killer560.hub.livemap.autoclear.TeleportUtils.nearestEtherwarpable(at);
+        double d = client.player == null ? 99 : client.player.position().distanceTo(new net.minecraft.world.phys.Vec3(k.x(),
+                k.y(), k.z()));
+        LOGGER.info(String.format(java.util.Locale.US, "[AutoSecret] key: going for the %s key at %.1f %.1f %.1f (%.1f blocks"
+                        + " away), standing on %s", k.blood() ? "blood" : "wither", k.x(), k.y(), k.z(), d,
+                keyGoal == null ? "nothing found" : keyGoal.toShortString()));
+        if (keyGoal == null || d <= 2.0) {
+            beginKeyWait();
+            return;
+        }
+        etherPathTo(keyGoal, Trip.KEY);
+    }
+
+    private static void beginKeyWait() {
+        setPhase(Phase.KEY_WAIT);
+    }
+
+    private static void tickKeyWait() {
+        if (phaseTicks > KEY_WAIT_TICKS) {
+            LOGGER.info(String.format(java.util.Locale.US, "[AutoSecret] key: still lying there after %d ticks %.2f blocks"
+                    + " away - not picked up from here", KEY_WAIT_TICKS, keyLastDist));
+            say(ModChat.bad("The key was not picked up"), ModChat.dim(String.format(java.util.Locale.US,
+                    " from %.1f blocks - trying something else", keyLastDist)));
+            Autopilot.keyNotTaken(keyTarget.id());
+            keyTarget = null;
+            setPhase(Phase.SETTLE);
+        }
+    }
+
+    /**
+     * While going for a key: true (and the trip ends) once the key is gone from the world or the team's count went up -
+     * picked up, by him or a teammate. Records the distance it went at.
+     */
+    private static boolean keyGone(Minecraft client) {
+        net.minecraft.world.entity.Entity e = client.level == null ? null : client.level.getEntity(keyTarget.id());
+        boolean counted = keyTarget.blood() ? com.killer560.hub.doorkeys.DungeonKeys.bloodKey() == 1 && keyBloodBefore != 1
+                : com.killer560.hub.doorkeys.DungeonKeys.witherKeys() > keyWitherBefore;
+        if (e != null && !e.isRemoved() && !counted) {
+            keyLastDist = client.player.position().distanceTo(e.position());
+            return false;
+        }
+        // Gone from the CLIENT is not picked up: a stand far off simply leaves the client's tracking range while the
+        // path swings away (142-sim-autopilot2 run 2: "picked up" from 102 blocks, five times over). Only near it - well
+        // inside any pickup range, a minister perk's +5 included - or with the team's count up is it taken.
+        if (!counted && (keyLastDist < 0 || keyLastDist > KEY_GONE_NEAR)) {
+            return false;
+        }
+        String line = com.killer560.hub.doorkeys.DungeonKeys.lastPickupLine();
+        LOGGER.info(String.format(java.util.Locale.US, "[AutoSecret] key: picked up (%s) - %.2f blocks from it the tick"
+                        + " before it went; team now %d wither key(s), blood %d; chat: %s", counted ? "the team's count went up"
+                        : "the key left the world", keyLastDist, com.killer560.hub.doorkeys.DungeonKeys.witherKeys(),
+                com.killer560.hub.doorkeys.DungeonKeys.bloodKey(), line));
+        say(ModChat.good(keyTarget.blood() ? "Blood Key" : "Wither Key"), ModChat.dim(" picked up"));
+        if (phase == Phase.TRAVEL && ClearExecutor.isBusy()) {
+            ClearExecutor.cancel();
+        }
+        ClearExecutor.setExternalOwner(false);
+        keyTarget = null;
+        setPhase(Phase.SETTLE);
+        return true;
     }
 
     private static void goClear(DungeonLayout layout, RoomStatus.Room r, Map<Integer, Integer> dist) {
@@ -1013,7 +1134,8 @@ public final class AutoSecretFeature {
             return;
         }
         // The blood key is the team's sidebar tick; with no Keys line to read, one click is how to find out.
-        boolean key = doorBlood ? DungeonState.sidebarBloodKey() != 0 : WitherDoorOpener.haveKey(client.player);
+        boolean key = doorBlood ? com.killer560.hub.doorkeys.DungeonKeys.bloodKey() != 0
+                : WitherDoorOpener.haveKey(client.player);
         String kind = doorBlood ? "blood" : "wither";
         if (key && doorClicks < DOOR_CLICKS && phaseTicks - doorLastClickTick >= DOOR_CLICK_GAP_TICKS) {
             doorClicks++;
@@ -1027,7 +1149,10 @@ public final class AutoSecretFeature {
             WitherDoorOpener.click(doorLock, doorBlood);
             return;
         }
-        if (!key) {
+        if (!key && doorClicks > 0 && phaseTicks - doorLastClickTick < DOOR_CLICK_GAP_TICKS) {
+            // Our click spent the key ("opened a WITHER door!") and the door is still on its way out.
+            status = "Opening the " + kind + " door";
+        } else if (!key) {
             status = "Waiting at " + kind + " door (no key)";
             if (!noKeySaid) {
                 noKeySaid = true;
@@ -1116,6 +1241,8 @@ public final class AutoSecretFeature {
             int here = layout.currentRoom();
             arrived = trip == Trip.DOOR ? doorGoal != null && client.player != null
                     && client.player.blockPosition().distSqr(doorGoal) <= 9
+                    : trip == Trip.KEY ? keyGoal != null && client.player != null
+                    && client.player.blockPosition().below().distSqr(keyGoal) <= 4
                     : trip == Trip.INSTA_INTO ? instaLanding != null && client.player != null
                     && client.player.blockPosition().below().distSqr(instaLanding) <= 4
                     : here >= 0 && here == roomIdOf(layout, trip == Trip.INSTA_FROM ? instaFrom : target);
@@ -1160,12 +1287,20 @@ public final class AutoSecretFeature {
             case DOOR -> beginDoor();
             case FINAL -> stop("in " + target + ", which is left to clear - over to you", false);
             case EXPLORE -> setPhase(Phase.SETTLE);
+            case KEY -> beginKeyWait();
             default -> setPhase(Phase.DECIDE);
         }
     }
 
     /** A trip that did not get there. Two more tries from wherever he is, then that room is left out this run. */
     private static void tripFailed(String why) {
+        if (pilot) {
+            Autopilot.noteFailed();
+        }
+        if (trip == Trip.KEY && keyTarget != null) {
+            Autopilot.keyNotTaken(keyTarget.id());
+            keyTarget = null;
+        }
         int n = tripFailures.merge(String.valueOf(target), 1, Integer::sum);
         boolean giveUp = n > MAX_TRIP_FAILURES;
         LOGGER.info("[AutoSecret] trip to {} failed ({}){}", target, why, giveUp ? " - leaving it out" : " - trying again");
@@ -1195,6 +1330,7 @@ public final class AutoSecretFeature {
             return;
         }
         if (phaseTicks > ARM_TIMEOUT_TICKS) {
+            permitLeaveHere();
             secreted.add(target);
             LOGGER.info("[AutoSecret] {}: landed, but its start node did not arm - skipped", target);
             say(ModChat.bad("The start node of "), ModChat.value(target), ModChat.dim(" did not arm - skipped"));
@@ -1327,8 +1463,24 @@ public final class AutoSecretFeature {
     // ------------------------------------------------------------------------------------------- helpers
 
     private static void setPhase(Phase p) {
+        if (p == Phase.SETTLE) {
+            permitLeaveHere();
+        }
         phase = p;
         phaseTicks = 0;
+    }
+
+    /**
+     * Every SETTLE follows a step of ours that is over (a route, a puzzle, a clear, a landing): the room he is in is done
+     * with, so the map may path out of it even when its name (Maze, Boulder, Trap) would refuse
+     * ({@link AutoClearUtils#permitLeave}). Without this a trap route or a Teleport Maze stranded the run.
+     */
+    private static void permitLeaveHere() {
+        DungeonLayout layout = DungeonLayout.capture();
+        String name = layout.name(layout.currentRoom());
+        if (name != null) {
+            AutoClearUtils.permitLeave(name);
+        }
     }
 
     private static void say(Component... parts) {

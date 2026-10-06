@@ -5,6 +5,7 @@ import com.killer560.hub.autopuzzles.AutoPuzzlesConfig;
 import com.killer560.hub.autoroutes.AutoRoutesConfig;
 import com.killer560.hub.autoroutes.Route;
 import com.killer560.hub.autoroutes.RouteStore;
+import com.killer560.hub.doorkeys.DungeonKeys;
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.RoomStatus;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
@@ -53,7 +54,7 @@ final class Autopilot {
     private static final Logger LOGGER = ModLog.get("killer560smod-autosecret");
 
     /** What Auto Secret should do next. */
-    enum Type { SECRET, CLEAR, PUZZLE, EXPLORE, DOOR, FINISH }
+    enum Type { SECRET, CLEAR, PUZZLE, EXPLORE, DOOR, FINISH, KEY }
 
     /**
      * @param room       the target room (SECRET, CLEAR, PUZZLE, EXPLORE)
@@ -62,9 +63,10 @@ final class Autopilot {
      * @param tryWither  FINISH: open a wither door with something behind it first
      * @param openBlood  FINISH: then open the blood door (Solo)
      */
-    record Order(Type type, RoomStatus.Room room, int door, boolean blood, boolean tryWither, boolean openBlood, String why) {
+    record Order(Type type, RoomStatus.Room room, int door, boolean blood, boolean tryWither, boolean openBlood, String why,
+                 DungeonKeys.Dropped key) {
         static Order of(Type t, RoomStatus.Room r, String why) {
-            return new Order(t, r, -1, false, false, false, why);
+            return new Order(t, r, -1, false, false, false, why, null);
         }
     }
 
@@ -79,7 +81,6 @@ final class Autopilot {
     private static double routeSecondsPerNode = ROUTE_SECONDS_PER_NODE_START;
     private static boolean bloodOpened;
     private static final Set<Integer> explored = new HashSet<>();
-    private static final Set<String> strandSaid = new HashSet<>();
     private static final Set<String> teammateOverride = new HashSet<>();
     private static boolean noRoutesSaid;
     private static boolean noClearSaid;
@@ -105,7 +106,8 @@ final class Autopilot {
         routeSecondsPerNode = ROUTE_SECONDS_PER_NODE_START;
         bloodOpened = false;
         explored.clear();
-        strandSaid.clear();
+        keysGivenUp.clear();
+        keyTries.clear();
         noRoutesSaid = false;
         noClearSaid = false;
         noScoreSaid = false;
@@ -166,6 +168,7 @@ final class Autopilot {
             LOGGER.info("[Autopilot] the blood door reads open");
         }
 
+        lastDist = dist;
         List<AutopilotPlanner.Candidate> cands = candidates(layout, rooms, dist, secreted, clearsDone, puzzlesDone, s, party);
         String head = String.format(Locale.US, "[Autopilot] decide (%s%s): %s, useful secrets %d, room %.2f, secret %.2f,"
                         + " clear ~%.1fs, route ~%.2fs/node", party ? "PARTY" : "SOLO", cfg.isBloodFirst() ? "+BLOOD_FIRST" : "",
@@ -207,7 +210,7 @@ final class Autopilot {
         // The blood door only ever in Solo (Blood First opened it already, if that was on).
         boolean openBlood = !party && !bloodOpened;
         setHud(openBlood ? "Finishing: then the blood door" : "Finishing", why);
-        return new Order(Type.FINISH, null, -1, false, tryWither, openBlood, why);
+        return new Order(Type.FINISH, null, -1, false, tryWither, openBlood, why, null);
     }
 
     /**
@@ -263,9 +266,15 @@ final class Autopilot {
         if (near == null || near[2] == Integer.MAX_VALUE) {
             return null;   // another door first - the loop above already returned the first one, so this is a blood door
         }
-        boolean key = isBlood ? DungeonState.sidebarBloodKey() != 0
+        boolean key = isBlood ? DungeonKeys.bloodKey() != 0
                 : WitherDoorOpener.haveKey(Minecraft.getInstance().player);
         if (!key) {
+            // A key of that kind on the ground it can reach is the next step (killer560, 2026-10-06: "add in key logic").
+            DungeonKeys.Dropped lying = reachableKey(layout, isBlood);
+            if (lying != null) {
+                return keyOrder(lying, "Blood First: the next door wants " + (isBlood ? "the blood key" : "a wither key")
+                        + " and one is lying there");
+            }
             String what = isBlood ? "the blood key" : "a wither key";
             if (!what.equals(lastBloodFirstWait)) {
                 lastBloodFirstWait = what;
@@ -276,7 +285,53 @@ final class Autopilot {
         }
         lastBloodFirstWait = null;
         return new Order(Type.DOOR, null, door, isBlood, false, false,
-                isBlood ? "Blood First: the blood door is next" : "Blood First: the next wither door on the blood path");
+                isBlood ? "Blood First: the blood door is next" : "Blood First: the next wither door on the blood path", null);
+    }
+
+    // =========================================================================================== keys
+
+    /** Keys on the ground it has given up on (twice not picked up from as close as it could stand), by entity id. */
+    private static final Set<Integer> keysGivenUp = new HashSet<>();
+    private static final java.util.Map<Integer, Integer> keyTries = new java.util.HashMap<>();
+    /** The decision's dropped keys and the room each lies in, from {@link #candidates}. */
+    private static List<DungeonKeys.Dropped> lyingKeys = List.of();
+    private static Map<Integer, Integer> keyRoom = new java.util.HashMap<>();
+    private static Map<Integer, Integer> lastDist = Map.of();
+
+    /** A dropped key of that kind in a room it can reach, nearest first, or null. */
+    private static DungeonKeys.Dropped reachableKey(DungeonLayout layout, boolean blood) {
+        DungeonKeys.Dropped best = null;
+        double bestD = Double.MAX_VALUE;
+        Minecraft client = Minecraft.getInstance();
+        for (DungeonKeys.Dropped k : DungeonKeys.dropped(client)) {
+            if (k.blood() != blood || keysGivenUp.contains(k.id())) {
+                continue;
+            }
+            int room = layout.roomAtWorld(k.x(), k.z());
+            if (room < 0 || !lastDist.containsKey(room)) {
+                continue;
+            }
+            double d = client.player == null ? 0 : client.player.position().distanceToSqr(k.x(), k.y(), k.z());
+            if (d < bestD) {
+                bestD = d;
+                best = k;
+            }
+        }
+        return best;
+    }
+
+    private static Order keyOrder(DungeonKeys.Dropped k, String why) {
+        setHud("Picking up the " + (k.blood() ? "Blood Key" : "Wither Key"), why);
+        LOGGER.info(String.format(Locale.US, "[Autopilot] pick KEY %s at %.1f %.1f %.1f - %s", k.blood() ? "blood" : "wither",
+                k.x(), k.y(), k.z(), why));
+        return new Order(Type.KEY, null, -1, k.blood(), false, false, why, k);
+    }
+
+    /** Auto Secret went for a key and it is still lying there afterwards: twice, and that key is left alone. */
+    static void keyNotTaken(int entityId) {
+        if (keyTries.merge(entityId, 1, Integer::sum) >= 2) {
+            keysGivenUp.add(entityId);
+        }
     }
 
     private static Order begin(String head, AutopilotPlanner.Choice c, List<RoomStatus.Room> rooms) {
@@ -294,8 +349,25 @@ final class Autopilot {
         }
         current = p;
         currentStartMs = System.currentTimeMillis();
+        if (p.kind() == AutopilotPlanner.Kind.KEY) {
+            int id = Integer.parseInt(p.room().substring(p.room().indexOf('#') + 1));
+            currentTravel = travelByKey.getOrDefault(p.room(), 0.0);
+            currentNodes = 0;
+            for (DungeonKeys.Dropped k : lyingKeys) {
+                if (k.id() == id) {
+                    setHud("Picking up the " + (k.blood() ? "Blood Key" : "Wither Key"), c.why());
+                    return new Order(Type.KEY, null, -1, k.blood(), false, false, c.why(), k);
+                }
+            }
+            return finish(true, "the key it chose is gone");
+        }
         currentTravel = travelByKey.getOrDefault(p.room(), 0.0);
         currentNodes = 0;
+        if (p.kind() == AutopilotPlanner.Kind.SECRET && room != null && trapModes.containsKey(p.room())) {
+            com.killer560.hub.autotrap.AutoTrap.Mode m = trapModes.get(p.room());
+            com.killer560.hub.autotrap.AutoTrap.chooseForRun(room.name(), m);
+            LOGGER.info("[Autopilot] trap {}: Auto Trap plays its {} route", room.name(), m.label());
+        }
         if (p.kind() == AutopilotPlanner.Kind.SECRET && room != null) {
             Route route = RouteStore.getInstance().forRoom(room.name());
             currentNodes = route == null ? 0 : route.nodes().size();
@@ -305,6 +377,7 @@ final class Autopilot {
             case CLEAR -> "Clearing";
             case PUZZLE -> "Puzzle";
             case EXPLORE -> "Exploring";
+            case KEY -> "Key";
         };
         setHud(verb + " " + displayName(room, p.room()), String.format(Locale.US, "%.1f pts in ~%.0f s - %s", p.gain(),
                 p.seconds(), c.why()));
@@ -313,6 +386,7 @@ final class Autopilot {
             case CLEAR -> Type.CLEAR;
             case PUZZLE -> Type.PUZZLE;
             case EXPLORE -> Type.EXPLORE;
+            case KEY -> Type.KEY;
         };
         if (t == Type.EXPLORE && room != null) {
             explored.add(room.mainTile());
@@ -329,17 +403,28 @@ final class Autopilot {
         if (current == null) {
             return;
         }
+        boolean failed = currentFailed;
+        currentFailed = false;
         double took = (System.currentTimeMillis() - currentStartMs) / 1000.0;
         double work = Math.max(0.5, took - currentTravel);
         LOGGER.info(String.format(Locale.US, "[Autopilot] done %s %s in %.1f s (estimated %.1f s, travel ~%.1f s)",
                 current.kind(), current.room(), took, current.seconds(), currentTravel));
-        if (current.kind() == AutopilotPlanner.Kind.CLEAR) {
+        if (failed) {
+            LOGGER.info("[Autopilot] (that trip failed - not learnt from)");
+        } else if (current.kind() == AutopilotPlanner.Kind.CLEAR) {
             clearSeconds = clearSeconds * (1 - LEARN) + work * LEARN;
         } else if (current.kind() == AutopilotPlanner.Kind.SECRET && currentNodes > 0) {
             routeSecondsPerNode = routeSecondsPerNode * (1 - LEARN) + (work / currentNodes) * LEARN;
         }
         current = null;
     }
+
+    /** The action's trip failed: its time says nothing about how long the work takes. */
+    static void noteFailed() {
+        currentFailed = true;
+    }
+
+    private static boolean currentFailed;
 
     /** Auto Secret stopped: close the action so the log has its time. */
     static void onStopped() {
@@ -358,6 +443,7 @@ final class Autopilot {
         AutoSecretConfig cfg = AutoSecretConfig.getInstance();
         List<AutopilotPlanner.Candidate> out = new ArrayList<>();
         travelByKey.clear();
+        trapModes.clear();
         boolean routes = AutoRoutesConfig.getInstance().isEnabled();
         if (!routes && !noRoutesSaid) {
             noRoutesSaid = true;
@@ -379,15 +465,9 @@ final class Autopilot {
             int rushIndex = rush == null ? -1 : rush.indexOf(r.room());
             String key = keyOf(r);
             travelByKey.put(key, travel);
-            if (strands(r.name())) {
-                // The Interactive Map will not path out of a maze, Boulder or a trap room past its start line
-                // (AutoClearUtils.canPath, QUOI's rule), and it has no walk: going in would end the run there.
-                if (strandSaid.add(r.name()) && (r.unfound() > 0 || !r.cleared())) {
-                    LOGGER.info("[Autopilot] {} left out: the map cannot path out of it", r.name());
-                    AutoSecretFeature.sayAutopilot(r.name() + ": left for you - the map can't path back out of it");
-                }
-                continue;
-            }
+            // Maze, Boulder and Trap rooms are fine since autopilot2: once the work there is over Auto Secret permits the
+            // map to path back out (AutoClearUtils.permitLeave), so a trap route or a Boulder / Teleport Maze auto no
+            // longer strands the run.
             if ("Unknown".equals(r.name())) {
                 if (!explored.contains(r.mainTile())) {
                     // Unidentified: going there identifies it; worth about half a room until it is known.
@@ -396,13 +476,24 @@ final class Autopilot {
                 }
                 continue;
             }
-            if (routes && r.unfound() > 0 && !secreted.contains(r.name()) && !r.isType("PUZZLE") && !r.isType("TRAP")
+            if (r.isType("TRAP")) {
+                // Trap rooms only through Auto Trap (killer560, 2026-10-06: "it will use auto trap to do trap rooms"),
+                // and only with a route for the mode this run wants; otherwise left out, as before.
+                trapCandidate(out, r, key, travel, s, party, routes, secreted, mate, rushIndex);
+                continue;
+            }
+            if (routes && r.unfound() > 0 && !secreted.contains(r.name()) && !r.isType("PUZZLE")
                     && !r.isType("BLOOD") && !r.isType("ENTRANCE")) {
                 Route route = RouteStore.getInstance().forRoom(r.name());
                 if (route != null && route.startNode() != null) {
                     double secs = travel + 1.0 + routeSecondsPerNode * route.nodes().size();
+                    int crypts = 0;
+                    for (com.killer560.hub.autoroutes.RouteNode n : route.nodes()) {
+                        crypts += n.type() == com.killer560.hub.autoroutes.RouteNode.Type.CRYPT ? 1 : 0;
+                    }
                     out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.SECRET, key,
-                            AutopilotScore.secretGain(s, r.unfound(), party), secs, mate, rushIndex));
+                            AutopilotScore.secretGain(s, r.unfound(), party) + AutopilotScore.cryptGain(s, crypts), secs,
+                            mate, rushIndex));
                 }
             }
             if (clears && !r.cleared() && !clearsDone.contains(r.name()) && AutoClearFeature.isMobRoom(layout, r.room())) {
@@ -415,12 +506,72 @@ final class Autopilot {
                         travel + puzzleSeconds(r.name()), mate, -1));
             }
         }
+        // Keys on the ground (killer560, 2026-10-06: "add in key logic"). Keys are the team's, so any key picked up opens
+        // the next door of its kind for everyone. Worth two rooms while the team has none of that kind (it is what stands
+        // between it and the rooms behind a door), half a room as a spare; the trip is a warp onto the nearest block.
+        lyingKeys = DungeonKeys.dropped(Minecraft.getInstance());
+        keyRoom = new java.util.HashMap<>();
+        Minecraft client = Minecraft.getInstance();
+        for (DungeonKeys.Dropped k : lyingKeys) {
+            int room = layout.roomAtWorld(k.x(), k.z());
+            Integer steps = room < 0 ? null : dist.get(room);
+            if (keysGivenUp.contains(k.id()) || steps == null || client.player == null) {
+                continue;
+            }
+            keyRoom.put(k.id(), room);
+            boolean none = k.blood() ? DungeonKeys.bloodKey() != 1 : DungeonKeys.witherKeys() <= 0;
+            double d = client.player.position().distanceTo(new net.minecraft.world.phys.Vec3(k.x(), k.y(), k.z()));
+            int warps = Math.max(1, (int) Math.ceil(d * 1.25 / Math.max(1.0, ClearExecutor.hopRange())));
+            double secs = (14 + 2 * warps + 4 * steps) / 20.0 + 1.0;
+            String key = (k.blood() ? "Blood Key#" : "Wither Key#") + k.id();
+            travelByKey.put(key, secs - 1.0);
+            out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.KEY, key,
+                    AutopilotScore.roomValue(s) * (none ? 2.0 : 0.5), secs, false, -1));
+        }
         return out;
     }
 
-    /** Rooms {@code AutoClearUtils.canPath} refuses to path out of (by name, as it does): Maze, Boulder, Trap. */
-    static boolean strands(String name) {
-        return name.contains("Maze") || name.contains("Boulder") || name.contains("Trap");
+    /** The Auto Trap mode each trap candidate of the last decision would play, by {@link #keyOf}. */
+    private static final Map<String, com.killer560.hub.autotrap.AutoTrap.Mode> trapModes = new java.util.HashMap<>();
+
+    /**
+     * A trap room as a route target through Auto Trap. Which of its two routes: Party plays his selected mode; Solo picks
+     * per score - Full Trap only while the S+ still needs secrets and the trap has some (and a Full Trap route exists),
+     * else Just Cleared (if there is one). Worth the room (if not cleared yet), plus - Full Trap only - its secrets, plus
+     * its crypt nodes.
+     */
+    private static void trapCandidate(List<AutopilotPlanner.Candidate> out, RoomStatus.Room r, String key, double travel,
+                                      AutopilotScore.State s, boolean party, boolean routes, Set<String> secreted,
+                                      boolean mate, int rushIndex) {
+        if (!routes || secreted.contains(r.name()) || !com.killer560.hub.autotrap.AutoTrap.isEnabled()) {
+            return;
+        }
+        com.killer560.hub.autotrap.AutoTrap.Mode full = com.killer560.hub.autotrap.AutoTrap.Mode.FULL;
+        com.killer560.hub.autotrap.AutoTrap.Mode cleared = com.killer560.hub.autotrap.AutoTrap.Mode.CLEARED;
+        com.killer560.hub.autotrap.AutoTrap.Mode m;
+        if (party) {
+            m = com.killer560.hub.autotrap.AutoTrap.selectedMode(r.name());
+        } else {
+            boolean wantSecrets = AutopilotScore.usefulSecrets(s) > 0 && r.unfound() > 0
+                    && com.killer560.hub.autotrap.AutoTrap.hasRoute(r.name(), full);
+            m = wantSecrets ? full : com.killer560.hub.autotrap.AutoTrap.hasRoute(r.name(), cleared) ? cleared : full;
+        }
+        com.killer560.hub.autotrap.AutoTrap.Entry e = com.killer560.hub.autotrap.AutoTrap.entry(r.name(), m);
+        if (e == null || e.route().startNode() == null) {
+            return;
+        }
+        int crypts = 0;
+        for (com.killer560.hub.autoroutes.RouteNode n : e.route().nodes()) {
+            crypts += n.type() == com.killer560.hub.autoroutes.RouteNode.Type.CRYPT ? 1 : 0;
+        }
+        double gain = (r.cleared() ? 0 : AutopilotScore.roomValue(s))
+                + (m == full ? AutopilotScore.secretGain(s, r.unfound(), party) : 0) + AutopilotScore.cryptGain(s, crypts);
+        if (gain <= 0) {
+            return;
+        }
+        trapModes.put(key, m);
+        out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.SECRET, key, gain,
+                travel + 1.0 + routeSecondsPerNode * e.route().nodes().size(), mate, rushIndex));
     }
 
     /** A room's key in a candidate: its name, or its main tile for an unidentified one (several share "Unknown"). */
@@ -517,12 +668,13 @@ final class Autopilot {
                 AutoSecretFeature.sayAutopilot("Score Calculator has no reading - the 300 check is off, so it does everything");
             }
             return new AutopilotScore.State(DungeonState.getFloor(), Math.max(1, layout.roomCount()), mapCleared, mapSecrets,
-                    mapFound, 0, 0, 0, 100, -1);
+                    mapFound, 0, 0, 0, 100, -1, 0);
         }
         int totalRooms = res.totalRooms() > 0 ? res.totalRooms() : Math.max(1, layout.roomCount());
         int totalSecrets = Math.max(res.totalSecrets(), mapSecrets);
         int deathPenalty = Math.max(0, in.deaths() * 2 - (in.assumeSpiritPet() ? 1 : 0));
         return new AutopilotScore.State(in.floor(), totalRooms, Math.max(in.completedRooms(), mapCleared), totalSecrets,
-                Math.max(in.secretsFound(), mapFound), res.bonus(), deathPenalty, in.puzzlesFailed(), res.speed(), res.total());
+                Math.max(in.secretsFound(), mapFound), res.bonus(), deathPenalty, in.puzzlesFailed(), res.speed(), res.total(),
+                in.crypts());
     }
 }

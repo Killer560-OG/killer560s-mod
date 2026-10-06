@@ -14,7 +14,8 @@ import java.util.Locale;
  *   <li><b>Solo</b>: the best score per second, over everything. Rooms must all be cleared for 300 anyway, so in effect
  *       this orders the floor by travel - the room next door wins - while secrets drop out the moment the S+ need is
  *       met (their gain goes to zero).</li>
- *   <li><b>Party</b>: secrets first (his routes beat anyone's legit secrets), best per second among them. Only when no
+ *   <li><b>Party</b>: secrets (and picking up a dropped key - it opens the way for the whole party) first, best per
+ *       second among them. Only when no
  *       secret is left anywhere it can reach: puzzles, clears and unexplored rooms, never one a teammate stands in
  *       ("nobody else will").</li>
  *   <li><b>Blood First</b> (either mode, until the blood door is open): only clears on the Blood Rush Split path, in
@@ -27,7 +28,7 @@ public final class AutopilotPlanner {
     /** Below this an action is treated as this long, so a zero-travel estimate cannot divide to infinity. */
     public static final double MIN_SECONDS = 0.5;
 
-    public enum Kind { SECRET, CLEAR, PUZZLE, EXPLORE }
+    public enum Kind { SECRET, CLEAR, PUZZLE, EXPLORE, KEY }
 
     /**
      * One thing it could do next.
@@ -69,7 +70,7 @@ public final class AutopilotPlanner {
         List<Candidate> secrets = new ArrayList<>();
         List<Candidate> rest = new ArrayList<>();
         for (Candidate c : pool) {
-            if (c.kind() == Kind.SECRET) {
+            if (c.kind() == Kind.SECRET || c.kind() == Kind.KEY) {
                 secrets.add(c);
             } else if (!c.teammateInside()) {
                 rest.add(c);

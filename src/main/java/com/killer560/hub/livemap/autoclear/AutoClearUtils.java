@@ -59,7 +59,27 @@ public final class AutoClearUtils {
         return found == null ? null : found.clone();
     }
 
-    /** QUOI {@code canPath}: on ground, not in a maze/boulder room, not past the trap's start line. */
+    /** The room automation may path out of although its name would refuse it, and the level that permit is for. */
+    private static String leavePermit;
+    private static Object leavePermitLevel;
+
+    /**
+     * Lets {@link #canPath} path out of {@code roomName} - a maze, Boulder or trap room - because the work that brought
+     * him there is over (his route there ended, the puzzle's auto finished or was given up on). Dungeon Autopilot / Auto
+     * Secret call this after each thing they do; the permit is for this world only and names one room. Client thread.
+     */
+    public static void permitLeave(String roomName) {
+        Minecraft client = Minecraft.getInstance();
+        leavePermit = roomName;
+        leavePermitLevel = client == null ? null : client.level;
+    }
+
+    /**
+     * QUOI {@code canPath}: on ground, not in a maze or boulder room, never inside a trap room. Maze and Boulder refuse by
+     * room NAME while the puzzle is being done, and stop refusing once it is done: cleared on the map, finished or failed
+     * on the tab list, or a {@link #permitLeave} for it (the puzzle that took him in there has ended) - without that the
+     * Teleport Maze's end pad stranded Dungeon Autopilot. A trap room always refuses: no ability works in one.
+     */
     public static boolean canPath(DungeonLayout layout) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || !player.onGround()) {
@@ -70,6 +90,16 @@ public final class AutoClearUtils {
             return true;
         }
         String name = layout.name(room);
+        // killer560 (2026-10-06): "it shouldn't be able to etherwarp in trap - just to enter it, but not once it is
+        // actually in the room". Abilities do not work in one (docs/SIM.md), so nothing starts a path inside it, done or
+        // not; his Auto Routes trap config walks him out.
+        if (isTrap(layout, room)) {
+            return false;
+        }
+        boolean restricted = name.contains("Maze") || name.contains("Boulder");
+        if (restricted && roomDone(layout, room, name)) {
+            return true;
+        }
         if (name.contains("Maze") || name.contains("Boulder")) {
             return false;
         }
@@ -80,6 +110,36 @@ public final class AutoClearUtils {
             }
         }
         return true;
+    }
+
+    /** A trap room: the room database says TRAP, or (a room it does not know) the name says Trap. */
+    public static boolean isTrap(DungeonLayout layout, int room) {
+        if (room < 0) {
+            return false;
+        }
+        var entry = layout.entry(room);
+        if (entry != null && entry.type != null) {
+            return "TRAP".equalsIgnoreCase(entry.type);
+        }
+        String name = layout.name(room);
+        return name != null && name.contains("Trap");
+    }
+
+    private static boolean roomDone(DungeonLayout layout, int room, String name) {
+        Minecraft client = Minecraft.getInstance();
+        if (name.equals(leavePermit) && client != null && client.level == leavePermitLevel) {
+            return true;
+        }
+        int[] tiles = layout.tiles(room);
+        if (tiles != null) {
+            for (int t : tiles) {
+                if (com.killer560.hub.livemap.LiveMapFeature.isRoomCleared(t)) {
+                    return true;
+                }
+            }
+        }
+        char tab = com.killer560.hub.scorecalc.ScoreCalculatorFeature.puzzleState(name);
+        return tab == '✔' || tab == '✖';
     }
 
     /** QUOI {@code getLockedDoor}: nearest locked wither/blood door by room distance (locked doors passable). */

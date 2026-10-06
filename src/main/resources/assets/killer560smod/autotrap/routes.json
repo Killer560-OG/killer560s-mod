@@ -1,0 +1,4 @@
+{
+  "_note": "Auto Trap bundled trap routes: {\"routes\": {\"Old Trap\": {\"FULL\": <route>, \"CLEARED\": <route>}}}, each route in the Auto Routes file format. Copy from config/killer560/dungeons/autotrap/killer560smod-autotrap.json (the \"route\" objects) once recorded.",
+  "routes": {}
+}
