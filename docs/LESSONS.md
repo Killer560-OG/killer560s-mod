@@ -225,11 +225,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   after the first (102-sim-autosecret, 2026-10-06). A map press clears it in `InteractiveMapFeature.queue` via
   `cancelForInteractiveMap`; anything that drives the start-node warp must call that first, as Auto Secret now does.
 
-- **Two traps found by Dungeon Autopilot in 141-sim-autopilot (2026-10-06).** `AutoClearUtils.canPath` refuses by room NAME
-  (Maze, Boulder, a Trap room past its start line), and nothing walks, so a route ending inside Arrow Trap stranded the run
-  for good; autopilot2 lifts the rule once the room is done (map/tab, or `permitLeave` after our step there). And `WitherDoorOpener` clicked the sim's blood door with the AOTV the
-  map warps had left in hand: the sim took it as Instant Transmission and the door never opened; it now clicks with the key
-  item, else an empty slot. Whether Hypixel fires the ability on a door click is unverified; Auto Door Opener still doesn't swap.
+- **Dungeon Autopilot sim finds (2026-10-06).** `canPath` refuses Maze/Boulder by NAME and nothing walks: autopilot2 lifts it
+  once the room is done (map/tab, or `permitLeave` after our step); a TRAP room always refuses and `ClearExecutor` fires no hop
+  inside one (no ability works there - killer560). A doorway's connector cell reads as no room (`currentRoom` -1): decide
+  from the last room. A dropped key leaves the CLIENT at ~100 blocks - gone is not picked up. `WitherDoorOpener` clicked a door
+  with the AOTV in hand and the sim fired Instant Transmission; it now uses the key item or an empty slot.
 
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
