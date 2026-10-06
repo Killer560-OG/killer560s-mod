@@ -711,7 +711,12 @@ public final class BreakerAuraFeature {
         invoker.killer560smod$invokeStartPrediction(level, sequence -> {
             // Obsidian is zero-pinged like any other block (killer560, 2026-10-05: "it should be treated just as
             // any other block") - QUOI's BreakerHelper exempts it, this does not.
-            if (zeroPing) {
+            // Never for barrier or bedrock or anything unbreakable: the server never breaks them, so air here is a
+            // ghost hole (killer560, 2026-10-06, seen in the sim with Zero Ping on).
+            var state = level.getBlockState(pos);
+            boolean unbreakable = state.is(Blocks.BARRIER) || state.is(Blocks.BEDROCK)
+                    || state.getDestroySpeed(level, pos) < 0f;
+            if (zeroPing && !unbreakable) {
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
             }
             return new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face, sequence);

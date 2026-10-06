@@ -71,6 +71,13 @@ public final class DungeonBreakerFeature {
         if (getBreakerCharges(client.player.getMainHandItem()) <= 0) {
             return;
         }
+        // Never predict air for barrier or bedrock (or anything unbreakable): the server never breaks them, so
+        // clearing the client copy only left a ghost hole (killer560, 2026-10-06, seen in the sim).
+        var target = client.level.getBlockState(pos);
+        if (target.is(Blocks.BARRIER) || target.is(Blocks.BEDROCK)
+                || target.getDestroySpeed(client.level, pos) < 0f) {
+            return;
+        }
         // Real raycast validation, ported directly from QUOI's own real clip check - only ever clears the
         // exact position the player is genuinely looking at right now, never trusting the position alone.
         HitResult clip = client.level.clip(new ClipContext(
