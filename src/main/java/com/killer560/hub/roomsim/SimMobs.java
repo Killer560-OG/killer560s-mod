@@ -45,8 +45,9 @@ import com.killer560.hub.compat.McEntities;
  */
 public final class SimMobs {
 
-    /** Hypixel's Fel wakes once a player closes to about this range. */
-    public static final double FEL_WAKE_RADIUS = 4.0;
+    /** Hypixel's Fel wakes once a player closes to about this range: 4 blocks, 9 since SkyBlock 0.27.2 ("+5 blocks";
+     *  SimHypixelRules). */
+    public static final double FEL_WAKE_RADIUS = SimHypixelRules.FEL_WAKE_RADIUS;
     private static final double FEL_WAKE_RADIUS_SQ = FEL_WAKE_RADIUS * FEL_WAKE_RADIUS;
 
     /** "all mobs have one HP" - killer560. Applies to zombies, skeletons, and the enderman a Fel wakes into. */
