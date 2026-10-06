@@ -806,8 +806,7 @@ public final class AutoSecretFeature {
             // Already within the pickup range: no warp, just wait for it to be picked up.
             keyGoal = client.player.blockPosition().below();
             LOGGER.info(String.format(java.util.Locale.US, "[AutoSecret] key: the %s key is %.1f blocks away, inside the"
-                    + " %.1f-block pickup range (talisman %s) - no warp", k.blood() ? "blood" : "wither", d, range,
-                    cfg.isMagneticTalisman() ? "on" : "off"));
+                    + " %.1f-block pickup range - no warp", k.blood() ? "blood" : "wither", d, range));
             beginKeyWait();
             return;
         }
@@ -816,8 +815,8 @@ public final class AutoSecretFeature {
             keyGoal = com.killer560.hub.livemap.autoclear.TeleportUtils.nearestEtherwarpable(at);
         }
         LOGGER.info(String.format(java.util.Locale.US, "[AutoSecret] key: going for the %s key at %.1f %.1f %.1f (%.1f blocks"
-                        + " away, pickup range %.1f, talisman %s), standing on %s (%.1f from the key)",
-                k.blood() ? "blood" : "wither", k.x(), k.y(), k.z(), d, range, cfg.isMagneticTalisman() ? "on" : "off",
+                        + " away, pickup range %.1f), standing on %s (%.1f from the key)",
+                k.blood() ? "blood" : "wither", k.x(), k.y(), k.z(), d, range,
                 keyGoal == null ? "nothing found" : keyGoal.toShortString(), keyGoal == null ? -1.0
                         : keyPos.distanceTo(new net.minecraft.world.phys.Vec3(keyGoal.getX() + 0.5, keyGoal.getY() + 1.0,
                         keyGoal.getZ() + 0.5))));
