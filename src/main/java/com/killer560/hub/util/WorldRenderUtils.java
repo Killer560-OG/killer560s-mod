@@ -1,13 +1,21 @@
 package com.killer560.hub.util;
 
+import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import com.killer560.hub.compat.McRender;
+
+import java.util.Optional;
 
 /**
  * This mod's first world-space (3D) box renderer - killer560s-mod had none before (every prior HUD
@@ -146,27 +154,27 @@ public final class WorldRenderUtils {
         float x0 = (float) aabb.minX, y0 = (float) aabb.minY, z0 = (float) aabb.minZ;
         float x1 = (float) aabb.maxX, y1 = (float) aabb.maxY, z1 = (float) aabb.maxZ;
 
-        float[] corners = {
-                x0, y0, z0,
-                x1, y0, z0,
-                x1, y1, z0,
-                x0, y1, z0,
-                x0, y0, z1,
-                x1, y0, z1,
-                x1, y1, z1,
-                x0, y1, z1
-        };
-
+        // Corners 0-7 in the order x0y0z0, x1y0z0, x1y1z0, x0y1z0, then the same four at z1 - read straight off
+        // the index rather than from a per-box float[24], so a batch of thousands of boxes allocates nothing.
         for (int i = 0; i < EDGES.length; i += 2) {
-            int i0 = EDGES[i] * 3;
-            int i1 = EDGES[i + 1] * 3;
-            float sx = corners[i0], sy = corners[i0 + 1], sz = corners[i0 + 2];
-            float ex = corners[i1], ey = corners[i1 + 1], ez = corners[i1 + 2];
+            int k0 = EDGES[i];
+            int k1 = EDGES[i + 1];
+            float sx = cornerX(k0, x0, x1), sy = cornerY(k0, y0, y1), sz = k0 >= 4 ? z1 : z0;
+            float ex = cornerX(k1, x0, x1), ey = cornerY(k1, y0, y1), ez = k1 >= 4 ? z1 : z0;
             float dx = ex - sx, dy = ey - sy, dz = ez - sz;
 
             buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
             buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
         }
+    }
+
+    private static float cornerX(int k, float x0, float x1) {
+        int m = k & 3;
+        return m == 1 || m == 2 ? x1 : x0;
+    }
+
+    private static float cornerY(int k, float y0, float y1) {
+        return (k & 3) >= 2 ? y1 : y0;
     }
 
     private static void addChainedFilledBoxVertices(PoseStack.Pose pose, VertexConsumer buffer,
@@ -209,6 +217,72 @@ public final class WorldRenderUtils {
     private static void vertex(VertexConsumer buffer, org.joml.Matrix4f matrix, float x, float y, float z,
                                 float r, float g, float b, float a) {
         buffer.addVertex(matrix, x, y, z).setColor(r, g, b, a);
+    }
+
+    /**
+     * Must run at client init (before the level renderer precompiles {@code RenderPipelines}' list) by any feature
+     * that will call the batched methods below with {@code throughWalls = true}.
+     */
+    public static void initThroughWalls() {
+        RenderType unused = ThroughWalls.LINES;
+    }
+
+    /** Holder idiom. Same no-depth construction as SecretWaypointsRenderer / EtherwarpWaypointsRenderer, with
+     *  its own pipeline ids so the registrations cannot collide. */
+    private static final class ThroughWalls {
+        static final RenderType LINES = RenderType.create("killer560smod_worldrender_lines_through_walls",
+                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
+                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod",
+                                "pipeline/worldrender_lines_through_walls"))
+                        .withCull(false)
+                        .withDepthStencilState(Optional.<DepthStencilState>empty())
+                        .build())).createRenderSetup());
+
+        static final RenderType FILLED = RenderType.create("killer560smod_worldrender_filled_through_walls",
+                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod",
+                                "pipeline/worldrender_filled_through_walls"))
+                        .withCull(false)
+                        .withDepthStencilState(Optional.<DepthStencilState>empty())
+                        .build())).sortOnUpload().createRenderSetup());
+    }
+
+    /**
+     * Outlines the first {@code count} boxes in ONE camera-space pass (one pose push, one buffer), colour
+     * {@code rgba[4i..4i+3]} for box i. On 26.2 the callback runs later in the frame, so the caller must hand over
+     * arrays it will not touch again - a fresh pair per frame, never a live list's backing store.
+     * {@code throughWalls} needs {@link #initThroughWalls()} at init.
+     */
+    public static void renderOutlineBoxes(LevelRenderContext context, AABB[] boxes, float[] rgba, int count,
+                                          float thickness, boolean throughWalls) {
+        if (count <= 0) {
+            return;
+        }
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT,
+                (pose, buffer) -> {
+                    for (int i = 0; i < count; i++) {
+                        int c = i * 4;
+                        renderLineBox(pose, buffer, boxes[i], rgba[c], rgba[c + 1], rgba[c + 2], rgba[c + 3], thickness);
+                    }
+                });
+    }
+
+    /** Filled counterpart of {@link #renderOutlineBoxes}; each box's alpha is multiplied by {@code alphaScale}. */
+    public static void renderFilledBoxes(LevelRenderContext context, AABB[] boxes, float[] rgba, int count,
+                                         float alphaScale, boolean throughWalls) {
+        if (count <= 0) {
+            return;
+        }
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox(),
+                (pose, buffer) -> {
+                    for (int i = 0; i < count; i++) {
+                        int c = i * 4;
+                        AABB b = boxes[i];
+                        addChainedFilledBoxVertices(pose, buffer, (float) b.minX, (float) b.minY, (float) b.minZ,
+                                (float) b.maxX, (float) b.maxY, (float) b.maxZ,
+                                rgba[c], rgba[c + 1], rgba[c + 2], rgba[c + 3] * alphaScale);
+                    }
+                });
     }
 
     /** Unpacks an ARGB int (as used by this mod's existing color-cycle settings) into 0-1 float

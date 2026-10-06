@@ -237,8 +237,8 @@ public final class BreakerAuraFeature {
 
     /**
      * Draw the picked blocks, so choosing them is something he can see rather than something he has to remember.
-     * Orange, like the rest of this mod's world markers, and outlined rather than filled so he can still see the
-     * block he picked. Only in a dungeon, and only while Breaker Aura is switched on or the list is being
+     * Orange, like the rest of this mod's world markers. Outlined by default so he can still see the block he picked;
+     * Fill / Filled Outline and the through-walls Waypoint display are settings (2026-10-06). Only in a dungeon, and only while Breaker Aura is switched on or the list is being
      * edited - there is no point drawing a wall he marked three floors ago.
      *
      * <p>This used to say "while the pick key is bound", which is what the code below no longer does and
@@ -267,17 +267,71 @@ public final class BreakerAuraFeature {
         }
         double reachSq = cfg.getBreakerAuraReach() * cfg.getBreakerAuraReach();
         Vec3 eye = client.player.getEyePosition();
-        for (BlockPos pos : selectedBlocks()) {
+        // Display (2026-10-06): HIGHLIGHT is the original look - depth-tested, every loaded pick. WAYPOINT draws
+        // through walls, and is culled to the render distance (horizontal, from the camera) BEFORE any world
+        // lookup, so a 4000-pick config far away costs arithmetic only.
+        boolean waypoint = cfg.getBreakerAuraDisplay() == DungeonExtrasConfig.BreakerDisplay.WAYPOINT;
+        DungeonExtrasConfig.BreakerStyle style = cfg.getBreakerAuraStyle();
+        List<BlockPos> picks = selectedBlocks();
+        AABB[] allBoxes = selectedBoxesCache;
+        int n = Math.min(picks.size(), allBoxes.length);
+        if (n == 0) {
+            return;
+        }
+        Vec3 cam = com.killer560.hub.compat.McRender.cameraPos(context);
+        double maxH = client.options.getEffectiveRenderDistance() * 16.0;
+        double maxHSq = maxH * maxH;
+        if (renderScratch.length < n) {
+            renderScratch = new int[Math.max(n, renderScratch.length * 2)];
+        }
+        int[] vis = renderScratch;
+        int count = 0;
+        for (int i = 0; i < n; i++) {
+            BlockPos pos = picks.get(i);
+            if (waypoint) {
+                double dx = pos.getX() + 0.5 - cam.x;
+                double dz = pos.getZ() + 0.5 - cam.z;
+                if (dx * dx + dz * dz > maxHSq) {
+                    continue;
+                }
+            }
             if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()) {
                 continue;
             }
-            // Brighter once it is close enough to actually be broken, so the reach is visible too.
-            boolean inReach = eyeToBlockSq(eye, pos) <= reachSq;
-            AABB box = new AABB(pos).inflate(0.002);
-            WorldRenderUtils.renderOutlineBox(context, box, 1.0f, inReach ? 0.55f : 0.30f, 0.0f,
-                    inReach ? 0.95f : 0.55f, 2.0f);
+            // Brighter once it is close enough to actually be broken, so the reach is visible too. In reach is
+            // stored as the index, out of reach as its complement (~i < 0), so no second array is needed.
+            vis[count++] = eyeToBlockSq(eye, pos) <= reachSq ? i : ~i;
+        }
+        if (count == 0) {
+            return;
+        }
+        // A COPY for the draw callbacks: on 26.2 inCameraSpace runs them later in the frame, after a tick may have
+        // rebuilt the pick cache (docs/LESSONS.md, the inCameraSpace live-list entry). Exactly-sized, once a frame.
+        AABB[] boxes = new AABB[count];
+        float[] rgba = new float[count * 4];
+        for (int j = 0; j < count; j++) {
+            int v = vis[j];
+            boolean inReach = v >= 0;
+            boxes[j] = allBoxes[inReach ? v : ~v];
+            int c = j * 4;
+            rgba[c] = 1.0f;
+            rgba[c + 1] = inReach ? 0.55f : 0.30f;
+            rgba[c + 2] = 0.0f;
+            rgba[c + 3] = inReach ? 0.95f : 0.55f;
+        }
+        // Fill first, then outline: two flat passes, never interleaved per box (SecretWaypointsRenderer's crash
+        // note). A fill alone is stronger than one under an outline, so the block stays readable either way.
+        if (style != DungeonExtrasConfig.BreakerStyle.OUTLINE) {
+            WorldRenderUtils.renderFilledBoxes(context, boxes, rgba, count,
+                    style == DungeonExtrasConfig.BreakerStyle.FILL ? 0.45f : 0.30f, waypoint);
+        }
+        if (style != DungeonExtrasConfig.BreakerStyle.FILL) {
+            WorldRenderUtils.renderOutlineBoxes(context, boxes, rgba, count, 2.0f, waypoint);
         }
     }
+
+    /** Render-thread scratch for the indices that survive the cull (negative = out of reach); reused, not per frame. */
+    private static int[] renderScratch = new int[64];
 
     private static String key(BlockPos pos) {
         return pos.getX() + "," + pos.getY() + "," + pos.getZ();
@@ -308,6 +362,9 @@ public final class BreakerAuraFeature {
     // already had for an unpick-then-pick within one config (see the 2026-09-27 FPS pass note this replaces).
     private static int selectedBlocksCacheVersion = -1;
     private static List<BlockPos> selectedBlocksCache = List.of();
+    /** The drawn box of each pick, same order as {@link #selectedBlocksCache}, built with it - the renderer used to
+     *  allocate two AABBs per pick per frame. Immutable once published, so a draw callback may hold them. */
+    private static AABB[] selectedBoxesCache = new AABB[0];
 
     /** Every picked block IN THE ACTIVE CONFIG, for the renderer and the planner. */
     public static List<BlockPos> selectedBlocks() {
@@ -320,6 +377,12 @@ public final class BreakerAuraFeature {
                     out.add(p);
                 }
             }
+            AABB[] boxes = new AABB[out.size()];
+            for (int i = 0; i < boxes.length; i++) {
+                boxes[i] = new AABB(out.get(i)).inflate(0.002);
+            }
+            // Boxes first: the renderer reads both and takes the shorter length, so a half-updated pair is harmless.
+            selectedBoxesCache = boxes;
             selectedBlocksCache = out;
             selectedBlocksCacheVersion = v;
         }
