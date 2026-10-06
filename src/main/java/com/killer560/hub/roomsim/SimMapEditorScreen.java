@@ -38,6 +38,14 @@ public class SimMapEditorScreen extends Screen {
 
     private static final int ROW_H = 22;
 
+    /** The label lines of the last frame, "Name|0/6;Name|0/4;", for the gametest to read back. */
+    private static volatile String labelsDrawn = "";
+
+    /** What the last drawn frame wrote on the grid's rooms; each room's lines are joined by "|", rooms by ";". */
+    public static String labelsDrawn() {
+        return labelsDrawn;
+    }
+
     private final Screen parent;
 
     /** Anchor cell -> room name. A multi-tile room appears once, at its top-left. */
@@ -779,6 +787,15 @@ public class SimMapEditorScreen extends Screen {
         drawDoors(g);
         // Labels last, so a door never covers a room name (killer560, 2026-10-06: "have the room text be higher
         // up than the doors").
+        // The live map's Room Labels setting decides what is written (killer560, 2026-10-06: "if my normal map has
+        // the room name and secrets then this should also show the secrets under their name"). Off and Checkmarks
+        // have no text to show, and a designer with unnamed rooms is unusable, so they read as Room Name.
+        com.killer560.hub.livemap.LiveMapConfig labelCfg = com.killer560.hub.livemap.LiveMapConfig.getInstance();
+        int style = labelCfg.getRoomLabels() < 2 ? 3 : labelCfg.getRoomLabels();
+        int textColour = com.killer560.hub.livemap.MapPainter.unopenedTextColor();
+        float want = 0.4f * labelCfg.getFontScale() * cell
+                / (float) com.killer560.hub.livemap.MapPainter.ROOM_PITCH_UNITS;
+        StringBuilder drawnNow = new StringBuilder();
         for (Map.Entry<Integer, String> e : placements.entrySet()) {
             String name = e.getValue();
             int[] b = roomBox(e.getKey(), name);
@@ -786,14 +803,27 @@ public class SimMapEditorScreen extends Screen {
             int y0 = b[1];
             int x1 = b[2];
             int y1 = b[3];
+            // Nothing is found in a designer, so the secrets read the way the live map writes a room nobody has
+            // opened: 0/N, from the room database's count.
+            RoomEntry entry = RoomDatabase.lookupByName(name);
+            int secrets = entry == null ? 0 : entry.secrets;
+            java.util.List<String> lines = com.killer560.hub.livemap.MapPainter.labelLines(style,
+                    SimFloorGen.typeOf(name), name.split(" "), secrets,
+                    entry == null ? "?" : com.killer560.hub.livemap.MapPainter.unvisitedSecretsText(secrets), false);
+            if (lines.isEmpty()) {
+                continue;
+            }
+            drawnNow.append(String.join("|", lines)).append(';');
             // The live map's own fitting, not a truncation. killer560 (2026-10-04): "make it so the text will
             // fit rooms that are too small to load the whole text, just like our normal map would." One word a
             // line, scaled down until the longest word and the line count both fit the room, centred on it -
-            // MapPainter.drawFittedLines is the same code the dungeon map draws its names with.
-            com.killer560.hub.livemap.MapPainter.drawFittedLines(g, this.font, name.split(" "),
-                    x0 + (x1 - x0) / 2f, y0 + (y1 - y0) / 2f, x1 - x0 - 4, y1 - y0 - 4, 1.0f,
-                    0xFFFFFFFF, true);
+            // MapPainter.drawFittedLines is the same code the dungeon map draws its names with, at the same
+            // wanted scale.
+            com.killer560.hub.livemap.MapPainter.drawFittedLines(g, this.font, lines.toArray(new String[0]),
+                    x0 + (x1 - x0) / 2f, y0 + (y1 - y0) / 2f, x1 - x0 - 4, y1 - y0 - 4, want, textColour,
+                    com.killer560.hub.livemap.MapPainter.labelShadow(labelCfg, textColour, colourFor(name)));
         }
+        labelsDrawn = drawnNow.toString();
         if (mouseX >= gridX && mouseX < gridX + size && mouseY >= gridY && mouseY < gridY + size) {
             int gx = (mouseX - gridX) / cell;
             int gz = (mouseY - gridY) / cell;
