@@ -4,18 +4,15 @@ import com.killer560.hub.autoroutes.Route;
 import com.killer560.hub.autoroutes.RouteStore;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
-import com.killer560.hub.util.ModChat;
-import com.killer560.hub.util.ModPaths;
 
-import net.minecraft.client.Minecraft;
-
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Which sim rooms already have an Auto Route, for the room picker's Routes filter and the pause menu's
- * "Next room with no routes".
+ * Which sim rooms already have an Auto Route, for the sim's room filters' "Your routes" row ({@link SimRoomFilter})
+ * and All Rooms' route sets ({@link SimRoomCycle}). The pause menu's "Next room with no routes" for a room loaded by
+ * itself was replaced on 2026-10-07 by All Rooms' own next-room button: killer560 asked that a single room have no
+ * next-room action at all.
  *
  * <p>killer560 (2026-10-05): "I would like a way to sort maps based off of if they have secret routes in them or
  * not, and while in a solo map an option that says something like go to a new room with 0 routes in it [...]
@@ -38,67 +35,10 @@ import java.util.Locale;
  */
 public final class SimRoomRoutes {
 
-    /** The picker's Routes filter. */
-    public enum Filter {
-        ALL("Routes: All"), NONE("No routes"), HAS("Has routes");
-
-        public final String label;
-
-        Filter(String label) {
-            this.label = label;
-        }
-
-        public Filter next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-    }
-
-    /** Remembered across restarts, like every other setting. One word in a text file, like the sim's speed. */
-    private static final java.nio.file.Path FILE = ModPaths.config("killer560smod-sim-roompicker.txt");
-
-    private static Filter filter;
+    /** The "Your routes" row: any room, rooms with a route, rooms worth routing without one. */
+    public enum Filter { ALL, NONE, HAS }
 
     private SimRoomRoutes() {
-    }
-
-    // ------------------------------------------------------------------------------------------- setting
-
-    public static synchronized Filter getFilter() {
-        if (filter == null) {
-            load();
-        }
-        return filter;
-    }
-
-    public static synchronized void setFilter(Filter value) {
-        filter = value == null ? Filter.ALL : value;
-        save();
-    }
-
-    public static synchronized void load() {
-        filter = Filter.ALL;
-        try {
-            if (java.nio.file.Files.exists(FILE)) {
-                String raw = java.nio.file.Files.readString(FILE, java.nio.charset.StandardCharsets.UTF_8).trim();
-                for (Filter f : Filter.values()) {
-                    if (f.name().equalsIgnoreCase(raw)) {
-                        filter = f;
-                    }
-                }
-            }
-        } catch (Exception ignored) {
-            // Unreadable means unknown, and showing every room is a safe unknown.
-        }
-    }
-
-    public static synchronized void save() {
-        try {
-            java.nio.file.Files.createDirectories(FILE.getParent());
-            java.nio.file.Files.writeString(FILE, (filter == null ? Filter.ALL : filter).name(),
-                    java.nio.charset.StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-            // Losing the preference is not worth failing the click.
-        }
     }
 
     // ------------------------------------------------------------------------------------------- questions
@@ -142,66 +82,5 @@ public final class SimRoomRoutes {
         }
         List<SimRoomIndex.Placed> placed = SimRoomIndex.placed();
         return placed.size() == 1 ? placed.get(0).name() : null;
-    }
-
-    /**
-     * Every eligible room without a route, in the picker's order (the library's, alphabetical), starting with the
-     * first one AFTER {@code current} and wrapping round, {@code current} itself left out. Pressing "next" takes the
-     * head, so pressing it again from there walks the list.
-     */
-    public static List<String> roomsWithoutRoutesAfter(String current) {
-        List<String> names = RoomLibrary.names();
-        int start = 0;
-        if (current != null) {
-            for (int i = 0; i < names.size(); i++) {
-                if (names.get(i).equalsIgnoreCase(current)) {
-                    start = i + 1;
-                    break;
-                }
-            }
-        }
-        List<String> out = new ArrayList<>();
-        for (int k = 0; k < names.size(); k++) {
-            String name = names.get((start + k) % names.size());
-            if (current != null && name.equalsIgnoreCase(current)) {
-                continue;
-            }
-            if (matches(name, Filter.NONE)) {
-                out.add(name);
-            }
-        }
-        return out;
-    }
-
-    /**
-     * "Next room with no routes": loads the next eligible room that has no Auto Routes nodes, after the one
-     * standing. Says why in chat when it cannot.
-     *
-     * @return the room it started loading, or null when it loaded nothing
-     */
-    public static String loadNextWithoutRoutes(Minecraft client) {
-        if (!SimState.canAct(client)) {
-            ModChat.send("Sim", ModChat.text("Next room with no routes only works inside the dungeon sim."));
-            return null;
-        }
-        if (!RoomDatabase.isReady()) {
-            RoomDatabase.ensureLoading();
-            ModChat.send("Sim", ModChat.text("The room database is still loading - try again in a moment."));
-            return null;
-        }
-        String current = currentSoloRoom();
-        List<String> left = roomsWithoutRoutesAfter(current);
-        if (left.isEmpty()) {
-            ModChat.send("Sim", ModChat.text(current == null
-                    ? "Every eligible room already has Auto Routes."
-                    : "No other eligible room is without Auto Routes - every one but this has a route."));
-            return null;
-        }
-        String next = left.get(0);
-        ModChat.send("Sim", ModChat.text("Next room with no routes: "), ModChat.value(next),
-                ModChat.dim("  (" + left.size() + " without routes, excluding puzzles, Blood, Entrance, Fairy "
-                        + "and 0-secret rooms)"));
-        SimBuilder.buildSingleRoom(client, next);
-        return next;
     }
 }

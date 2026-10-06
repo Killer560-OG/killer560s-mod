@@ -40,23 +40,12 @@ public class SimMenuScreen extends Screen {
         }
     }
 
-    /** Room shape filter, the "2x2 and 1x1 or whatnot" he asked for. */
-    private enum ShapeFilter {
-        ANY("Any shape"), ONE_BY_ONE("1x1"), TWO_BY_TWO("2x2"), LARGE("Bigger");
-
-        final String label;
-
-        ShapeFilter(String label) {
-            this.label = label;
-        }
-    }
-
     private final Screen parent;
     private Mode mode = Mode.HOME;
 
     private EditBox search;
-    private ShapeFilter shape = ShapeFilter.ANY;
-    private boolean puzzlesOnly;
+    /** Kept across a visit to the Filters panel, which rebuilds this screen. */
+    private String searchText = "";
     private int scroll;
 
     private List<String> listed = List.of();
@@ -144,6 +133,9 @@ public class SimMenuScreen extends Screen {
         int y = panelY + 56;
         boolean ready = com.killer560.hub.roomdatabase.RoomDatabase.isReady();
         cycleBuiltWithDatabase = ready;
+        // All Rooms' own filters (killer560, 2026-10-07): the same Filters panel as the designer and Load a Room, on
+        // SimRoomFilters.CYCLE. The counts below are after them.
+        filtersButton(SimRoomFilters.CYCLE, "Narrows the rooms /next and /back step through.");
         for (SimRoomCycle.Choice c : SimRoomCycle.Choice.values()) {
             String count = ready ? " (" + SimRoomCycle.roomsFor(c).size() + ")" : " §7(loading...)";
             var button = SettingsButtonWidget.builder(Component.literal(c.label + count), b -> {
@@ -210,68 +202,41 @@ public class SimMenuScreen extends Screen {
     private void buildRoomPicker() {
         int x = panelX + 20;
         int y = panelY + 56;
-        // The row is sized from the TEXT, not from fixed pixels. "Any shape" is 51 px wide in Minecraft's font
-        // and its button was 50, so the label ran out of the box (killer560, 2026-09-30: "the text box to the
-        // left of it is too small and the text goes outside of it"); the Puzzles button beside it was also
-        // placed to end exactly on the panel border. The buttons are measured against the WIDEST label they
-        // can ever show - the shape button cycles, and a button that resized as he clicked would move under
-        // the cursor - and the search box takes whatever is left inside the panel's 20 px margins.
-        int gap = 4;
-        int shapeW = widestShapeLabel() + BUTTON_PAD;
-        int puzzleW = this.font.width("Puzzles") + BUTTON_PAD;
-        int routesW = widestRoutesLabel() + BUTTON_PAD;
         int right = panelX + panelW - 20;
-        search = new EditBox(this.font, x, y, right - x - shapeW - puzzleW - routesW - gap * 3, 18,
-                Component.literal("Search"));
+        // killer560 (2026-10-07): "the single room should have the same filter option." The Routes, shape and
+        // Puzzles buttons that sat here (2026-09-30, 2026-10-05) are rows of the shared Filters panel now, on
+        // Load a Room's own SimRoomFilters.PICKER; the button sits beside the search box.
+        int fw = filtersWidth();
+        search = new EditBox(this.font, x, y, right - x - fw - 4, 18, Component.literal("Search"));
         search.setHint(Component.literal("Search rooms..."));
+        search.setValue(searchText);
         search.setResponder(v -> {
+            searchText = v;
             scroll = 0;
             refreshRoomList();
         });
         addRenderableWidget(search);
-        // killer560 (2026-10-05): sort the rooms by whether they have secret routes, so swapping to one that
-        // still needs routing is not a scroll through the whole list. Remembered across restarts. The two
-        // filtered views leave out puzzles, Blood, Entrance, Fairy and 0-secret rooms - see SimRoomRoutes.
-        SimRoomRoutes.Filter routes = SimRoomRoutes.getFilter();
+        int active = SimRoomFilters.PICKER.activeCount();
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal(
-                routes == SimRoomRoutes.Filter.ALL ? "§7" + routes.label : "§6" + routes.label), b -> {
-                    SimRoomRoutes.setFilter(SimRoomRoutes.getFilter().next());
-                    scroll = 0;
-                    refreshRoomList();
-                    rebuildWidgets();
-                }).bounds(right - routesW - gap - shapeW - gap - puzzleW, y, routesW, 18).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal(shape.label), b -> {
-            shape = ShapeFilter.values()[(shape.ordinal() + 1) % ShapeFilter.values().length];
-            refreshRoomList();
-            rebuildWidgets();
-        }).bounds(right - shapeW - gap - puzzleW, y, shapeW, 18).build());
-        addRenderableWidget(SettingsButtonWidget.builder(
-                Component.literal(puzzlesOnly ? "§6Puzzles" : "§7Puzzles"), b -> {
-                    puzzlesOnly = !puzzlesOnly;
-                    refreshRoomList();
-                    rebuildWidgets();
-                }).bounds(right - puzzleW, y, puzzleW, 18).build());
+                active == 0 ? "Filters" : "§6Filters (" + active + ")"), b -> McCompat.setScreen(this.minecraft,
+                        new SimRoomFilterScreen(this, SimRoomFilters.PICKER, "Narrows the Load a Room list.")))
+                .bounds(right - fw, y, fw, 18).build());
         refreshRoomList();
         backButton();
     }
 
-    /** Horizontal space a button's label needs on top of its text: a border and a little air each side. */
-    private static final int BUTTON_PAD = 14;
-
-    private int widestShapeLabel() {
-        int widest = 0;
-        for (ShapeFilter f : ShapeFilter.values()) {
-            widest = Math.max(widest, this.font.width(f.label));
-        }
-        return widest;
+    private int filtersWidth() {
+        return this.font.width("Filters (99)") + 12;
     }
 
-    private int widestRoutesLabel() {
-        int widest = 0;
-        for (SimRoomRoutes.Filter f : SimRoomRoutes.Filter.values()) {
-            widest = Math.max(widest, this.font.width(f.label));
-        }
-        return widest;
+    /** A "Filters" button at the right of the title bar, opening the shared panel on {@code filter}. */
+    private void filtersButton(SimRoomFilter filter, String note) {
+        int fw = filtersWidth();
+        int active = filter.activeCount();
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal(
+                active == 0 ? "Filters" : "§6Filters (" + active + ")"), b -> McCompat.setScreen(this.minecraft,
+                        new SimRoomFilterScreen(this, filter, note)))
+                .bounds(panelX + panelW - 8 - fw, panelY + 6, fw, 18).build());
     }
 
     private void backButton() {
@@ -295,18 +260,8 @@ public class SimMenuScreen extends Screen {
             if (!query.isEmpty() && !name.toLowerCase(Locale.ROOT).contains(query)) {
                 continue;
             }
-            // The room database's own TYPE, not a look at the name. This was
-            // name.contains("puzzle"), and no room is called that - Boulder, Quiz and Ice Fill are named for
-            // what they are, so the filter matched nothing at all (killer560, 2026-09-30: "no puzzle is under
-            // the puzzle rooms tab"). rooms-modern.json holds 11 PUZZLE entries and every type is upper case.
-            if (puzzlesOnly && !"PUZZLE".equalsIgnoreCase(SimFloorGen.typeOf(name))) {
-                continue;
-            }
-            RoomLibrary.Room room = RoomLibrary.get(name);
-            if (room != null && !shapeMatches(room)) {
-                continue;
-            }
-            if (!SimRoomRoutes.matches(name, SimRoomRoutes.getFilter())) {
+            // The shared filter (SimRoomFilter): types come from the room database, never from the name.
+            if (!SimRoomFilters.PICKER.matches(name)) {
                 continue;
             }
             out.add(name);
@@ -334,17 +289,6 @@ public class SimMenuScreen extends Screen {
         SimMenuScreen screen = new SimMenuScreen(parent);
         screen.mode = Mode.ROOM;
         return screen;
-    }
-
-    private boolean shapeMatches(RoomLibrary.Room room) {
-        int tilesX = Math.max(1, room.sizeX / RoomLibrary.TILE);
-        int tilesZ = Math.max(1, room.sizeZ / RoomLibrary.TILE);
-        return switch (shape) {
-            case ANY -> true;
-            case ONE_BY_ONE -> tilesX == 1 && tilesZ == 1;
-            case TWO_BY_TWO -> tilesX == 2 && tilesZ == 2;
-            case LARGE -> tilesX > 2 || tilesZ > 2;
-        };
     }
 
     private int listTop() {
@@ -407,13 +351,15 @@ public class SimMenuScreen extends Screen {
             g.text(this.font, this.font.plainSubstrByWidth(
                     "One room at a time - /next and /back step through the set", panelW - 40),
                     panelX + 20, panelY + 42, ProfitPanels.DIM, false);
-            g.text(this.font, this.font.plainSubstrByWidth(
-                    "No puzzles, Blood, Entrance, Fairy or 0-secret rooms", panelW - 40),
+            int filters = SimRoomFilters.CYCLE.activeCount();
+            g.text(this.font, this.font.plainSubstrByWidth(filters == 0
+                    ? "No puzzles, Blood, Entrance, Fairy or 0-secret rooms"
+                    : filters + (filters == 1 ? " filter" : " filters") + " on - counts are after them", panelW - 40),
                     panelX + 20, panelY + 56 + 3 * 24 + 2, ProfitPanels.DIM, false);
             g.text(this.font, "KEYBINDS (sim only)", panelX + 20, panelY + 56 + 3 * 24 + 16,
                     ProfitPanels.ACCENT, false);
         } else if (mode == Mode.ROOM || mode == Mode.PREVIOUS) {
-            boolean needsDatabase = puzzlesOnly || SimRoomRoutes.getFilter() != SimRoomRoutes.Filter.ALL;
+            boolean needsDatabase = !SimRoomFilters.PICKER.isDefault();
             if (mode == Mode.ROOM && needsDatabase
                     && com.killer560.hub.roomdatabase.RoomDatabase.isReady() != listedWithDatabase) {
                 refreshRoomList();
