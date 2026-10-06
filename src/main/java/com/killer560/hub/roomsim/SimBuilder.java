@@ -722,11 +722,9 @@ public final class SimBuilder {
             }
             return null;
         }
-        if (name.equals("creeper beams")) {
-            // Four blocks off the centre column, any horizontal direction - the middle is where the puzzle's
-            // own structure is, and landing inside it is both disorienting and in the way of the shots.
-            return new Spawn(4, 0, false);
-        }
+        // Creeper Beams had its own "four blocks off the centre column" (2026-10-01) to keep him out of the puzzle's
+        // middle; the doorway landing every ordinary room now gets (doorwaySpot, 2026-10-06) does that as well and
+        // puts him on the floor he walks in on.
         if (name.equals("higher blaze") || name.equals("lower blaze")) {
             // ONE BLOCK IN FROM THE DOORWAY. A blaze room is a shaft; its middle is the chain, and the level
             // that matters is the one you walk in on. The side comes from the room's own measured doorway
@@ -884,6 +882,144 @@ public final class SimBuilder {
         return false;
     }
 
+    /**
+     * Where to stand for a room with no landing of its own: two blocks in from one of its doorways, at that
+     * doorway's floor, facing into the room. SERVER THREAD (it reads the ServerLevel).
+     *
+     * <p>Which doorway: on a generated floor, the one a run walks in by when the floor says ({@link #entranceSide},
+     * 1x1 rooms); otherwise one on the room's MAIN floor - the height most of its doorways share, the lowest on a
+     * tie - first in the mask's order. Each doorway's floor is measured in the world, in its own opening: the lowest
+     * y where all three columns have something to stand on and nothing in the three blocks above. The spot is two
+     * in, then one, three and four, each also one to either side, and must have a solid block under it and nothing
+     * (no block, no fluid) at the feet or head.
+     *
+     * @return {@code {x, y, z, yaw}} or null when no doorway gives a safe spot
+     */
+    private static int[] doorwaySpot(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ) {
+        if (room == null) {
+            return null;
+        }
+        RoomDoors.Mask mask = doorsAsPasted(room, gridX, gridZ);
+        if (mask == null || mask.edges().isEmpty()) {
+            return null;
+        }
+        java.util.List<int[]> doors = new java.util.ArrayList<>();   // {wallX, wallZ, side, floorY}
+        for (int[] c : RoomDoors.doorCells(mask, 0, 0)) {
+            int side = c[2];
+            var centre = DungeonLayout.cellCenter((gridZ + 2 * c[1]) * DungeonLayout.GRID + gridX + 2 * c[0]);
+            int wx = centre.getX() + RoomDoors.DX[side] * 15;
+            int wz = centre.getZ() + RoomDoors.DZ[side] * 15;
+            Integer floor = openingFloor(level, wx, wz, RoomDoors.DZ[side] != 0);
+            if (floor != null) {
+                doors.add(new int[]{wx, wz, side, floor});
+            }
+        }
+        if (doors.isEmpty()) {
+            return null;
+        }
+        // The main floor: the height most doorways share, lowest on a tie.
+        java.util.Map<Integer, Integer> count = new java.util.TreeMap<>();
+        for (int[] d : doors) {
+            count.merge(d[3], 1, Integer::sum);
+        }
+        int mainY = doors.get(0)[3];
+        int most = 0;
+        for (var e : count.entrySet()) {
+            if (e.getValue() > most) {
+                most = e.getValue();
+                mainY = e.getKey();
+            }
+        }
+        java.util.List<int[]> order = new java.util.ArrayList<>();
+        int way = mask.tilesX() == 1 && mask.tilesZ() == 1 ? entranceSide(gridX, gridZ) : -1;
+        for (int[] d : doors) {
+            if (d[2] == way) {
+                order.add(d);
+            }
+        }
+        for (int[] d : doors) {
+            if (d[3] == mainY && !order.contains(d)) {
+                order.add(d);
+            }
+        }
+        for (int[] d : doors) {
+            if (!order.contains(d)) {
+                order.add(d);
+            }
+        }
+        for (int[] d : order) {
+            int side = d[2];
+            int inX = -RoomDoors.DX[side];
+            int inZ = -RoomDoors.DZ[side];
+            for (int depth : new int[]{2, 1, 3, 4}) {
+                for (int w : new int[]{0, -1, 1}) {
+                    int x = d[0] + inX * depth + (inZ != 0 ? w : 0);
+                    int z = d[1] + inZ * depth + (inX != 0 ? w : 0);
+                    if (safeAt(level, x, d[3], z)) {
+                        // Facing into the room, (inX, inZ): yaw = atan2(-fx, fz), as for the trap rooms.
+                        int yaw = (int) Math.round(Math.toDegrees(Math.atan2(-inX, inZ)));
+                        return new int[]{x, d[3], z, yaw};
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The floor of the doorway at {@code (wx, wz)}: see {@link #doorwaySpot}. Null when the wall has none.
+     *
+     * <p>{@link RoomDoors}' own rule, read in the world: the lowest base, in Hypixel's doorway band (y 64..82 shifted
+     * by {@link SimAltitude}), where at least 11 of the 3x4 window's blocks are doorway - nothing to collide with, or a
+     * shut door (coal, red terracotta, the entrance gate). A first version took the lowest 3x3 gap anywhere in the
+     * wall column, which a captured shut door hid and a roof window then won (Blood measured 46 blocks up).
+     */
+    private static Integer openingFloor(ServerLevel level, int wx, int wz, boolean wallAlongX) {
+        int off = SimAltitude.offset();
+        for (int base = 64 + off; base <= 82 + off; base++) {
+            int hits = 0;
+            for (int w = -1; w <= 1; w++) {
+                for (int k = 0; k < 4; k++) {
+                    int x = wallAlongX ? wx + w : wx;
+                    int z = wallAlongX ? wz : wz + w;
+                    if (doorwayBlock(level, x, base + k, z)) {
+                        hits++;
+                    }
+                }
+            }
+            if (hits >= 11) {
+                return base;
+            }
+        }
+        return null;
+    }
+
+    private static boolean doorwayBlock(ServerLevel level, int x, int y, int z) {
+        var p = new net.minecraft.core.BlockPos(x, y, z);
+        var state = level.getBlockState(p);
+        if (state.getCollisionShape(level, p).isEmpty()) {
+            return true;
+        }
+        String id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
+        return id.equals("coal_block") || id.equals("red_terracotta") || id.equals("infested_chiseled_stone_bricks");
+    }
+
+    private static boolean solidAt(ServerLevel level, int x, int y, int z) {
+        var p = new net.minecraft.core.BlockPos(x, y, z);
+        return !level.getBlockState(p).getCollisionShape(level, p).isEmpty();
+    }
+
+    /** Solid under the feet, and nothing - no block, no fluid - at the feet or the head. */
+    private static boolean safeAt(ServerLevel level, int x, int y, int z) {
+        var feet = new net.minecraft.core.BlockPos(x, y, z);
+        var head = feet.above();
+        return solidAt(level, x, y - 1, z)
+                && level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
+                && level.getBlockState(feet).getFluidState().isEmpty()
+                && level.getBlockState(head).getCollisionShape(level, head).isEmpty()
+                && level.getBlockState(head).getFluidState().isEmpty();
+    }
+
     /** Whether anything solid stands anywhere above {@code fromY} in this column - a ceiling, not sky. */
     private static boolean coveredAbove(ServerLevel level, int x, int fromY, int z) {
         for (int y = fromY; y <= SimAltitude.maxWorldY(); y++) {
@@ -987,10 +1123,27 @@ public final class SimBuilder {
             // recoverable, suffocating is not.
             landing = SimAltitude.maxWorldY();
         }
+        Float doorYaw = null;
+        if (spawn == null) {
+            // THE ROOM'S MAIN FLOOR, BY A DOORWAY. killer560 (2026-10-06): "try to have me always spawn on the same
+            // height as the entrances to the room are as that is the 'main floor' area; some rooms put me in really
+            // random spots. You can put me really close to doors so the position is right. This should be used for
+            // all /goto as well." The scan above lands on the first covered floor in the tile's centre column,
+            // which in a room with a pit, a basement or a raised middle is not the floor anyone walks in on. Only
+            // for rooms with no rule of their own; the ones above (traps, Teleport Maze, Boulder, Ice Fill, the
+            // blaze rooms) were each placed where he asked and keep it.
+            int[] door = doorwaySpot(level, room, gridX, gridZ);
+            if (door != null) {
+                x = door[0];
+                landing = door[1];
+                z = door[2];
+                doorYaw = (float) door[3];
+            }
+        }
         final int y = landing;
         final int fx = x;
         final int fz = z;
-        final Float faceYaw = spawn == null ? null : spawn.yaw();
+        final Float faceYaw = doorYaw != null ? doorYaw : spawn == null ? null : spawn.yaw();
         // The same spot death sends him back to - one definition of "the middle of the room", so the place he
         // starts and the place he returns to cannot drift apart.
         SimSurvival.setHome(new net.minecraft.core.BlockPos(fx, y, fz));
@@ -1402,6 +1555,10 @@ public final class SimBuilder {
         // map, the room scan, secret routes). The room itself looked right, because the paste and the secrets
         // agreed with each other; only anything reading the grid disagreed.
         int centre = (DungeonLayout.GRID / 2) & ~1;
+        // This room's own map code. A single-room load never set one, so SimState.roomNameAt answered from
+        // whatever came before: nothing after a load from the menu (the sidebar's fallback, "Room: Entrance", while
+        // he stood in Altar - killer560, 2026-10-06), or the previous generated floor after one.
+        SimState.replaceMapCode(singleRoomCode(room, centre));
         SimWorld.buildProgress("Placing " + roomName);
         server.execute(() -> {
             ServerLevel level = server.overworld();
@@ -1490,19 +1647,8 @@ public final class SimBuilder {
      * floor's, and fixed the same way; see the long note at the {@code clayByRoom} assignment in {@link #build}.
      */
     private static void publishSingleRoomMap(RoomLibrary.Room room, int centre) {
-        int cells = DungeonLayout.GRID * DungeonLayout.GRID;
-        int[] cellRoom = new int[cells];
-        java.util.Arrays.fill(cellRoom, MapCode.NO_ROOM);
-        int[] cellDoor = new int[cells];   // DOOR_NONE everywhere: a single room has nothing to connect to
-        int tilesX = tilesOf(room.sizeX);
-        int tilesZ = tilesOf(room.sizeZ);
-        // Every cell the room covers, connectors included - the same convention the generated floor uses, and
-        // what lets the map group a multi-tile room back into one room instead of drawing its tiles apart.
-        for (int gz = centre; gz <= centre + (tilesZ - 1) * 2 && gz < DungeonLayout.GRID; gz++) {
-            for (int gx = centre; gx <= centre + (tilesX - 1) * 2 && gx < DungeonLayout.GRID; gx++) {
-                cellRoom[gz * DungeonLayout.GRID + gx] = 0;
-            }
-        }
+        int[] cellRoom = singleRoomCells(room, centre);
+        int[] cellDoor = new int[cellRoom.length];   // DOOR_NONE everywhere: a single room has nothing to connect to
         // From SimRoomIndex, which armFloor may have corrected off this room's own furniture - see its
         // correct(). Falls back to computing it when the room is somehow not in the index.
         int dbRotation = Math.floorMod(RoomCaptureRotation.of(room), 360);
@@ -1522,6 +1668,106 @@ public final class SimBuilder {
         com.killer560.hub.livemap.autoclear.LevelEtherGrid.dropMirror();
         com.killer560.hub.livemap.LiveMapFeature.publishSimFloor(cellRoom, cellDoor,
                 new String[]{room.name}, new int[][]{{clayX, clayZ, dbRotation}});
+    }
+
+    /**
+     * The map cells one room loaded on its own covers (index 0) - tiles and the connectors between them - for the
+     * dungeon map and the sim's own map code.
+     *
+     * <p>An L is NOT its bounding box. killer560 (2026-10-06), on Altar: "it has two names in the map and the one
+     * needs to be centered." This filled all four tiles of the 2x2 box, the live map's union refused a fourth tile
+     * for a room whose shape is "L" (three), and the box came apart into two groups both named Altar - two labels,
+     * neither where an L's label goes. Every L did it, not only the first room loaded; Altar was simply the first
+     * room of the set. The missing quarter is the capture's empty tile (no block in the dungeon's floor-to-roof
+     * band, the test {@link RoomTileAudit} uses), or failing that its emptiest one; its connectors and the box's
+     * middle cell go with it.
+     */
+    static int[] singleRoomCells(RoomLibrary.Room room, int centre) {
+        int g = DungeonLayout.GRID;
+        int[] cellRoom = new int[g * g];
+        java.util.Arrays.fill(cellRoom, MapCode.NO_ROOM);
+        int tilesX = tilesOf(room.sizeX);
+        int tilesZ = tilesOf(room.sizeZ);
+        boolean[][] present = new boolean[tilesX][tilesZ];
+        for (boolean[] row : present) {
+            java.util.Arrays.fill(row, true);
+        }
+        int[] missing = lMissingTile(room, tilesX, tilesZ);
+        if (missing != null) {
+            present[missing[0]][missing[1]] = false;
+        }
+        for (int tx = 0; tx < tilesX; tx++) {
+            for (int tz = 0; tz < tilesZ; tz++) {
+                if (!present[tx][tz]) {
+                    continue;
+                }
+                put(cellRoom, centre + tx * 2, centre + tz * 2);
+                if (tx + 1 < tilesX && present[tx + 1][tz]) {
+                    put(cellRoom, centre + tx * 2 + 1, centre + tz * 2);
+                }
+                if (tz + 1 < tilesZ && present[tx][tz + 1]) {
+                    put(cellRoom, centre + tx * 2, centre + tz * 2 + 1);
+                }
+                if (tx + 1 < tilesX && tz + 1 < tilesZ && present[tx + 1][tz] && present[tx][tz + 1]
+                        && present[tx + 1][tz + 1]) {
+                    put(cellRoom, centre + tx * 2 + 1, centre + tz * 2 + 1);
+                }
+            }
+        }
+        return cellRoom;
+    }
+
+    private static void put(int[] cellRoom, int gx, int gz) {
+        if (gx >= 0 && gz >= 0 && gx < DungeonLayout.GRID && gz < DungeonLayout.GRID) {
+            cellRoom[gz * DungeonLayout.GRID + gx] = 0;
+        }
+    }
+
+    /** For an L room (2x2 capture, database shape "L"), its missing quarter as {tx, tz}; null for any other room. */
+    private static int[] lMissingTile(RoomLibrary.Room room, int tilesX, int tilesZ) {
+        if (tilesX != 2 || tilesZ != 2) {
+            return null;
+        }
+        com.killer560.hub.roomdatabase.RoomEntry entry =
+                com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room.name);
+        if (entry == null || entry.shape == null || !"L".equalsIgnoreCase(entry.shape.trim())) {
+            return null;
+        }
+        int[] best = null;
+        long bestSolid = Long.MAX_VALUE;
+        for (int tx = 0; tx < 2; tx++) {
+            for (int tz = 0; tz < 2; tz++) {
+                int x0 = room.margin + tx * (RoomLibrary.TILE + 1);
+                int z0 = room.margin + tz * (RoomLibrary.TILE + 1);
+                long solid = 0;
+                for (int y = 66; y <= 99; y++) {
+                    for (int a = 0; a < RoomLibrary.TILE; a++) {
+                        for (int b = 0; b < RoomLibrary.TILE; b++) {
+                            short id = room.at(x0 + a, y, z0 + b);
+                            if (id >= 0 && id < room.palette.size() && !room.palette.get(id).endsWith("air")) {
+                                solid++;
+                            }
+                        }
+                    }
+                }
+                if (solid < bestSolid) {
+                    bestSolid = solid;
+                    best = new int[]{tx, tz};
+                }
+            }
+        }
+        if (bestSolid > 0) {
+            LOGGER.warn("Sim map: L room {} has no empty quarter - using tile {},{} ({} solid blocks)", room.name,
+                    best[0], best[1], bestSolid);
+        }
+        return best;
+    }
+
+    /** The map code for a room loaded on its own, so the sidebar's "Room:" and every room lookup name it. */
+    private static String singleRoomCode(RoomLibrary.Room room, int centre) {
+        int[] cellRoom = singleRoomCells(room, centre);
+        return MapCode.encodeDecoded(new MapCode.Decoded(new String[]{room.name}, cellRoom,
+                new int[cellRoom.length], new int[cellRoom.length]));
     }
 
     /** A captured size back to a tile count - {@code RoomLibrary.footprint}'s only inverse. */

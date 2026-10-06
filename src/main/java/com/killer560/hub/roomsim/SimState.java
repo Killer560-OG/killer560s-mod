@@ -153,8 +153,13 @@ public final class SimState {
         if (step == 0) {
             return null;
         }
-        int gx = Math.round((blockX - origin.getX()) / (float) step);
-        int gz = Math.round((blockZ - origin.getZ()) / (float) step);
+        // By TILE, not by nearest cell. Rooms sit on even cells two steps apart and a tile reaches a whole step
+        // either side of its centre; rounding to the nearest cell put the outer half of every 1x1 room's tile in
+        // the odd connector cell beside it, which no 1x1 room covers - so anywhere within about eight blocks of a
+        // wall the room was "nothing" and the sidebar fell back to "Room: Entrance". It went unseen while a single
+        // room dropped him in its middle; the doorway landing (2026-10-06) puts him right there.
+        int gx = 2 * Math.floorDiv(blockX - origin.getX() + step, 2 * step);
+        int gz = 2 * Math.floorDiv(blockZ - origin.getZ() + step, 2 * step);
         int grid = com.killer560.hub.livemap.DungeonLayout.GRID;
         if (gx < 0 || gz < 0 || gx >= grid || gz >= grid) {
             return null;

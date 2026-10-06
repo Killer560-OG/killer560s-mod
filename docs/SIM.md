@@ -1416,6 +1416,26 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   instance or vanilla registers a top-level `/next` or `/back` (constant-pool scan of every jar, 2026-10-06). Keys are
   raw-polled (`killer560smod-sim-roomcycle-keys.txt`), shared by the menu and the Sim Keybinds tab. Testkit
   `97-sim-roomcycle`.
+- **An L room on the map is three tiles, not its 2x2 box (2026-10-06).** `publishSingleRoomMap` marked the whole box;
+  `LiveMapFeature.union` refuses a fourth tile for shape "L", so the box split into two groups both named for the room -
+  two labels (his "Altar 0/6" twice). Every L did it (Altar, Chambers, Dino Site, Layers, Market, Melon, Pirate, Spider,
+  Well, Withermancer), not just the first room loaded. `SimBuilder.singleRoomCells` drops the capture's empty quarter
+  (no block in y 66..99, RoomTileAudit's test; emptiest tile otherwise, with a warning) and its connectors. Market is
+  the one L with no empty quarter (its emptiest, tile 0,1, still holds 18,311 blocks); whether that is its real missing
+  quarter is not verified.
+- **A single-room load had no map code**, so `SimState.roomNameAt` answered from the previous one ("" from the menu ->
+  the sidebar's fallback "Room: Entrance"). `buildSingleRoom` now sets one. And `roomNameAt` rounded to the NEAREST
+  cell, which puts the outer half of every 1x1 tile in an odd connector cell no 1x1 covers - anywhere within ~8 blocks of
+  a wall was "no room" (sidebar, trap-room ability rule). It maps by tile now: `2 * floorDiv(x - origin + 16, 32)`.
+- **Landing = the room's main floor, by a doorway (2026-10-06).** `snapPlayerTo` (single rooms, room cycle, `/goto`),
+  for every room without its own rule: `doorwaySpot` measures each mask doorway's floor in the world (RoomDoors' 3x4
+  window rule, >= 11 of 12 open or a shut door, in y 64..82 + `SimAltitude.offset()`), takes the height most doorways
+  share (lowest on a tie; the walk-in side first for a 1x1 on a generated floor), and stands two in (then 1, 3, 4, +-1
+  sideways) on solid with feet and head clear of blocks and fluid, facing in. Creeper Beams' "4 off centre" went to this
+  rule. Before (testkit `97-sim-roomspawn`, main d0b84c73): of 133 single rooms 67 landed off the doorway floor, 3
+  unsafe, 56 on it but 15+ blocks from any doorway, 7 by a doorway; `/goto` on an F7: 11 of 22 off the floor. After: 133
+  of 133 and 23 of 23. A doorway's floor must be searched in the doorway BAND: the lowest 3x3 gap in the wall column was
+  a roof window wherever the capture held a shut door (Blood measured 46 blocks up).
 
 ## The 2026-10-04 Map Logger round: damage, the key, crypts, landings and the sidebar
 
