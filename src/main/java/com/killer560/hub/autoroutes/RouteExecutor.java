@@ -1158,7 +1158,16 @@ public final class RouteExecutor {
         return sb.toString();
     }
 
+    /** Node actions begun, ever (only goes up). Auto Secret reads it to tell a route that is still working from one
+     *  waiting on a walk nobody will make. */
+    private static int actionsBegun = 0;
+
+    public static int actionsBegun() {
+        return actionsBegun;
+    }
+
     private static void beginAction(RouteNode node) {
+        actionsBegun++;
         LocalPlayer self = Minecraft.getInstance().player;
         if (node.type == RouteNode.Type.ETHERWARP) {
             Vec3 at = RouteCoords.toReal(frame, node.relativePos());
@@ -1697,7 +1706,14 @@ public final class RouteExecutor {
                         + "recorded landing {}", stepTicks, fmt(player.position()),
                         String.format(Locale.US, "%.2f", actionOrigin == null ? 0.0 : player.position().distanceTo(actionOrigin)),
                         fmt(actionOrigin), fmt(warpLanding));
-                stop("etherwarp didn't land where it was recorded");
+                // Not a stop (killer560's correction rule, 2026-10-06, applied here at the coordinator's request: the
+                // server not putting him on the landing is treated like a correction): chat line + alarm, the node is
+                // let go uncounted, and the route carries on - in its ring still, it fires again from where he is.
+                ServerCorrections.reportEvent("Auto Routes", String.format(Locale.US, "etherwarp #%d did not land where"
+                        + " it was recorded (%.1f blocks from the landing after %d ticks) - carrying on from here",
+                        route.indexOf(node) + 1, warpLanding == null ? 0.0 : player.position().distanceTo(warpLanding),
+                        stepTicks));
+                letGoAfterCorrection(client, player);
             }
         }
         return false;

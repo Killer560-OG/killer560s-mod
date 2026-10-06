@@ -118,6 +118,11 @@ public final class AutoPuzzlesFeature {
     private AutoPuzzlesFeature() {
     }
 
+    /** Auto Ice Fill's own "done" (the finish tile is packed ice), for Auto Secret waiting on it in the room. */
+    public static boolean isIceFillDone() {
+        return AutoIceFill.isDone();
+    }
+
     public static void register() {
         // ChatObserver, same as QuizSolverFeature (whose reset this re-arm mirrors): Odin/NoammAddons/Skyblocker can
         // cancel a server line via ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric

@@ -180,6 +180,19 @@ public final class ClearExecutor {
         return lastPathFailed;
     }
 
+    /** Server position packets that put him somewhere a running path did not plan (a correction), ever. Only goes
+     *  up, so a caller compares it with the value it last saw - Auto Secret reports each one. */
+    private static int serverCorrections = 0;
+
+    public static int serverCorrections() {
+        return serverCorrections;
+    }
+
+    /** Every server position packet seen, ever (only goes up): lets a feature notice one while no path runs. */
+    public static int positionPackets() {
+        return positionPackets;
+    }
+
     public static EtherwarpPathfinder.PathConfig pathConfig() {
         LiveMapConfig cfg = LiveMapConfig.getInstance();
         return new EtherwarpPathfinder.PathConfig(cfg.getYawStep(), cfg.getPitchStep(), cfg.getHWeight(),
@@ -582,6 +595,7 @@ public final class ClearExecutor {
                 lastGood = issued.get(match);
                 ticksSinceProgress = 0;
             } else if (lastGood == null || !landedOn(at, lastGood, LAND_XZ, LAND_Y)) {
+                serverCorrections++;
                 Vec3 want = confirmed < issued.size() ? issued.get(confirmed) : null;
                 offPath(want == null ? "the server moved you off the path"
                         : String.format(java.util.Locale.US, "warp %d put you %.1f blocks from where it was aimed",

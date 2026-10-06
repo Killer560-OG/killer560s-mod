@@ -34,6 +34,20 @@ public final class ServerCorrections {
      */
     public static void report(String feature, String what, double distance) {
         String dist = String.format(Locale.US, "%.2f", distance);
+        say(feature, "server moved you " + dist + " blocks " + what, "moved you " + dist + " blocks " + what + ".");
+    }
+
+    /**
+     * The same chat line + alarm for something that is not a measured move but is handled by the same rule - the server
+     * never putting him where an action was sent to (an etherwarp that did not land).
+     *
+     * @param what the whole sentence after "Server correction: ", without the full stop
+     */
+    public static void reportEvent(String feature, String what) {
+        say(feature, what, what + ".");
+    }
+
+    private static void say(String feature, String logText, String chatText) {
         int folded;
         synchronized (ServerCorrections.class) {
             reports++;
@@ -41,7 +55,7 @@ public final class ServerCorrections {
             long[] st = chatState.computeIfAbsent(feature, k -> new long[]{0L, 0L});
             if (st[0] != 0L && now - st[0] < CHAT_MIN_GAP_MS) {
                 st[1]++;
-                LOGGER.info("[Correction] {}: server moved you {} blocks {} (chat folded)", feature, dist, what);
+                LOGGER.info("[Correction] {}: {} (chat folded)", feature, logText);
                 ModSounds.playCorrectionAlarm();
                 return;
             }
@@ -49,9 +63,8 @@ public final class ServerCorrections {
             st[0] = now;
             st[1] = 0L;
         }
-        LOGGER.info("[Correction] {}: server moved you {} blocks {}", feature, dist, what);
-        ModChat.send(feature, ModChat.bad("Server correction: "), ModChat.text("moved you "), ModChat.value(dist),
-                ModChat.text(" blocks " + what + "."),
+        LOGGER.info("[Correction] {}: {}", feature, logText);
+        ModChat.send(feature, ModChat.bad("Server correction: "), ModChat.text(chatText),
                 folded > 0 ? ModChat.dim(" (+" + folded + " more)") : ModChat.text(""));
         ModSounds.playCorrectionAlarm();
     }

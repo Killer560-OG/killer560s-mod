@@ -114,6 +114,11 @@ final class AutoIceFill {
     private AutoIceFill() {
     }
 
+    /** True once the finish tile was seen packed ice while he was in the room (reset when he leaves it). */
+    static boolean isDone() {
+        return done;
+    }
+
     static void levelChanged(Minecraft client) {
         GUARD.levelChanged();
         reset(client);
