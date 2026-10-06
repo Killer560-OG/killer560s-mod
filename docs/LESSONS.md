@@ -227,7 +227,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 
 - **Two traps found by Dungeon Autopilot in 141-sim-autopilot (2026-10-06).** `AutoClearUtils.canPath` refuses by room NAME
   (Maze, Boulder, a Trap room past its start line), and nothing walks, so a route ending inside Arrow Trap stranded the run
-  for good - the autopilot now leaves those rooms out. And `WitherDoorOpener` clicked the sim's blood door with the AOTV the
+  for good; autopilot2 lifts the rule once the room is done (map/tab, or `permitLeave` after our step there). And `WitherDoorOpener` clicked the sim's blood door with the AOTV the
   map warps had left in hand: the sim took it as Instant Transmission and the door never opened; it now clicks with the key
   item, else an empty slot. Whether Hypixel fires the ability on a door click is unverified; Auto Door Opener still doesn't swap.
 
