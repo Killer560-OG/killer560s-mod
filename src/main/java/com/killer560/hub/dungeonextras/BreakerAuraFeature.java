@@ -629,7 +629,7 @@ public final class BreakerAuraFeature {
             // Say so before sending, so the outbound probe files this under OURS rather than under whatever other
             // mod happens to be running - see ForeignBreakerProbe.
             ForeignBreakerProbe.ours();
-            breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing());
+            breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing() || standsOn(player, pos));
             RECENT.put(pos, now);
             spentSinceLore++;
             sent++;
@@ -688,6 +688,22 @@ public final class BreakerAuraFeature {
             }
         }
         return -1;
+    }
+
+    /**
+     * Is this block holding him up - the box he stands in, lowered a hair, touches it from above?
+     * <p>
+     * Such a block is always predicted gone on the tick its dig is sent, Zero Ping or not. A vanilla client removes a
+     * block it breaks instantly the moment it sends the dig (MultiPlayerGameMode.startDestroyBlock -> destroyBlock,
+     * inside the same prediction), and a predicting anticheat models exactly that: GrimAC sets the block to air when it
+     * reads an instant START_DESTROY_BLOCK (CheckManagerListener.handleDigging, 2.3.74). With Zero Ping off the client
+     * kept standing on it until the server's update came back, and any movement packet sent in that gap claimed ground
+     * over air - GrimAC GroundSpoof "claimed true" plus a 0.0784 (one tick of gravity) Simulation offset
+     * (breaker-floor, 2026-10-06). If the server refuses the break, the prediction's own sequence ack puts the block
+     * back, exactly as for a hand.
+     */
+    private static boolean standsOn(LocalPlayer player, BlockPos pos) {
+        return pos.getY() < player.getY() && new AABB(pos).intersects(player.getBoundingBox().move(0.0, -0.05, 0.0));
     }
 
     private static void breakBlock(MultiPlayerGameModeInvoker invoker, ClientLevel level, BlockPos pos,
