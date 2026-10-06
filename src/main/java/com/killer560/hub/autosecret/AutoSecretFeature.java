@@ -73,7 +73,7 @@ public final class AutoSecretFeature {
     private enum Phase { IDLE, DECIDE, TRAVEL, AWAIT_ROUTE, ROUTE, ICE_FILL, PUZZLE_WAIT, SETTLE, AUTO_CLEAR, WAITING, DOOR }
 
     /** What a TRAVEL is for, so its arrival knows what comes next. */
-    private enum Trip { START_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR }
+    private enum Trip { START_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR, EXPLORE }
 
     /** Ticks to wait for a route to arm once he has landed on its start node. */
     private static final int ARM_TIMEOUT_TICKS = 40;
@@ -97,6 +97,8 @@ public final class AutoSecretFeature {
     private static BlockPos instaLanding;
     /** The closed wither door it is opening (a map cell), where it stands for it, and its lock block. */
     private static int doorCell = -1;
+    /** The door it is at is the blood door (Dungeon Autopilot only - Auto Secret alone never opens it). */
+    private static boolean doorBlood;
     private static BlockPos doorGoal;
     private static BlockPos doorLock;
     private static int doorClicks;
@@ -107,6 +109,8 @@ public final class AutoSecretFeature {
     private static String blockedSecrets;
     private static String instaFrom;
     private static int runId;
+    /** This run is Dungeon Autopilot's: {@link Autopilot} decides, this class carries it out. */
+    private static boolean pilot;
     private static Object level;
     private static String status = "Off";
 
@@ -125,6 +129,7 @@ public final class AutoSecretFeature {
     private static int quietTicks;
 
     private static boolean toggleWasDown;
+    private static boolean pilotKeyWasDown;
     /** Movement keys held when it started stay ignored until released: only a fresh press is him taking over. */
     private static final boolean[] latchedKeys = new boolean[5];
     private static final boolean[] keyWasDown = new boolean[5];
@@ -138,12 +143,55 @@ public final class AutoSecretFeature {
         }
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoSecretFeature.tick", AutoSecretFeature::tick));
         WitherDoorOpener.register();
+        AutopilotHud.register();
     }
 
     // ------------------------------------------------------------------------------------------- public API
 
     public static boolean isRunning() {
         return phase != Phase.IDLE;
+    }
+
+    /** Running as Dungeon Autopilot (rather than Auto Secret on its own). */
+    public static boolean isAutopilot() {
+        return phase != Phase.IDLE && pilot;
+    }
+
+    public static void toggleAutopilot() {
+        if (isRunning()) {
+            stop("you switched it off", true);
+        } else {
+            startAutopilot();
+        }
+    }
+
+    /** Dungeon Autopilot: secrets, clears and puzzles under one planner ({@link Autopilot}). @return true when it started */
+    public static boolean startAutopilot() {
+        return start(true);
+    }
+
+    /** The autopilot's HUD lines: {mode + action, score + why}. */
+    public static String[] autopilotHud() {
+        AutoSecretConfig cfg = AutoSecretConfig.getInstance();
+        String mode = cfg.getRunMode() == AutoSecretConfig.RunMode.PARTY ? "Party" : "Solo";
+        if (cfg.isBloodFirst()) {
+            mode += ", Blood First";
+        }
+        String why = phase == Phase.DOOR || phase == Phase.WAITING || phase == Phase.AUTO_CLEAR ? status : Autopilot.hudWhy();
+        return new String[]{"[" + mode + "] " + Autopilot.hudAction(), Autopilot.hudScore() + (why.isEmpty() ? "" : " | " + why)};
+    }
+
+    /** For the testkit: rooms to treat as having a teammate in them. */
+    public static void testSetTeammateRooms(java.util.Collection<String> names) {
+        Autopilot.testSetTeammateRooms(names);
+    }
+
+    static void sayAutopilot(String text) {
+        say(ModChat.dim(text));
+    }
+
+    private static String chatName() {
+        return pilot ? "Autopilot" : CHAT;
     }
 
     /** One line for the tab: what it is doing now. */
@@ -166,7 +214,15 @@ public final class AutoSecretFeature {
 
     /** @return true when it started */
     public static boolean start() {
+        return start(false);
+    }
+
+    private static boolean start(boolean withPilot) {
         Minecraft client = Minecraft.getInstance();
+        if (phase != Phase.IDLE) {
+            return false;
+        }
+        pilot = withPilot;
         if (!AutoSecretConfig.allowed()) {
             say(ModChat.bad("Cheat build and Skyblock only."));
             return false;
@@ -179,7 +235,7 @@ public final class AutoSecretFeature {
             say(ModChat.bad("Not in the boss."));
             return false;
         }
-        if (!AutoRoutesConfig.getInstance().isEnabled()) {
+        if (!withPilot && !AutoRoutesConfig.getInstance().isEnabled()) {
             say(ModChat.bad("Turn Auto Routes on first - Auto Secret plays your routes."));
             return false;
         }
@@ -200,10 +256,16 @@ public final class AutoSecretFeature {
         seenCorrections = ClearExecutor.serverCorrections();
         quietTicks = 0;
         latchHeldKeys(client);
+        if (withPilot) {
+            Autopilot.reset();
+        }
         setPhase(Phase.DECIDE);
         status = "Starting";
-        LOGGER.info("[AutoSecret] started (floor {})", DungeonState.getFloor());
-        say(ModChat.good("Started"), ModChat.dim(" - press a movement key to take over"));
+        AutoSecretConfig cfg = AutoSecretConfig.getInstance();
+        LOGGER.info("[AutoSecret] started (floor {}){}", DungeonState.getFloor(), withPilot ? " as Dungeon Autopilot: "
+                + cfg.getRunMode() + (cfg.isBloodFirst() ? ", Blood First" : "") + (cfg.isDoPuzzles() ? ", puzzles" : "") : "");
+        say(ModChat.good("Started"), ModChat.dim((withPilot ? " (" + cfg.getRunMode().label()
+                + (cfg.isBloodFirst() ? ", Blood First" : "") + ")" : "") + " - press a movement key to take over"));
         return true;
     }
 
@@ -215,6 +277,11 @@ public final class AutoSecretFeature {
         Phase was = phase;
         phase = Phase.IDLE;
         WitherDoorOpener.cancel();
+        if (pilot) {
+            Autopilot.onStopped();
+            Autopilot.setHud("Stopped", reason);
+            AutopilotHud.stopped(reason);
+        }
         runId++;
         if (cancelOurs) {
             if (was == Phase.TRAVEL && ClearExecutor.isBusy()) {
@@ -232,7 +299,7 @@ public final class AutoSecretFeature {
         }
         status = "Stopped: " + reason;
         LOGGER.info("[AutoSecret] stopped: {}", reason);
-        ModChat.send(CHAT, ModChat.bad("Stopped"), ModChat.dim(" - " + reason));
+        ModChat.send(chatName(), ModChat.bad("Stopped"), ModChat.dim(" - " + reason));
     }
 
     // ------------------------------------------------------------------------------------------- ticking
@@ -284,6 +351,13 @@ public final class AutoSecretFeature {
             toggle();
         }
         toggleWasDown = down;
+        int pkey = AutoSecretConfig.getInstance().getAutopilotKey();
+        boolean pdown = pkey != KeyUtil.NONE && client.getWindow() != null && McCompat.screen(client) == null
+                && KeyUtil.isBindDown(client.getWindow(), pkey);
+        if (pdown && !pilotKeyWasDown) {
+            toggleAutopilot();
+        }
+        pilotKeyWasDown = pdown;
     }
 
     /** @return true when it stopped */
@@ -305,7 +379,7 @@ public final class AutoSecretFeature {
             return true;
         }
         double percent = DungeonInfoFeature.secretsFoundPercent();
-        if (percent >= 100.0) {
+        if (percent >= 100.0 && !pilot) {
             stop("all secrets found (" + fmtPercent(percent) + "%)", true);
             return true;
         }
@@ -416,7 +490,7 @@ public final class AutoSecretFeature {
     private static void correction(Minecraft client, String what) {
         String where = client.player == null ? "?" : client.player.blockPosition().toShortString();
         LOGGER.warn("[AutoSecret] correction: {} at {} (phase {}, target {})", what, where, phase, target);
-        ModChat.send(CHAT, ModChat.bad("Server correction: "), ModChat.text(what), ModChat.dim(" at " + where
+        ModChat.send(chatName(), ModChat.bad("Server correction: "), ModChat.text(what), ModChat.dim(" at " + where
                 + " - carrying on"));
         ModSounds.playCorrectionAlarm();
     }
@@ -447,6 +521,10 @@ public final class AutoSecretFeature {
             }
         }
 
+        if (pilot) {
+            decidePilot(layout, rooms, dist, here);
+            return;
+        }
         if (decideIceFill(layout, rooms, dist)) {
             return;
         }
@@ -559,39 +637,134 @@ public final class AutoSecretFeature {
         open.sort(Comparator.comparingInt((RoomStatus.Room r) -> -r.unfound()).thenComparingInt(r -> dist.get(r.room())));
         String blockedText = describe(blocked);
         for (RoomStatus.Room r : open) {
-            Route route = RouteStore.getInstance().forRoom(r.name());
-            if (route == null || route.startNode() == null) {
-                secreted.add(r.name());
-                if (noRouteSaid.add(r.name())) {
-                    LOGGER.info("[AutoSecret] no route for {} ({} unfound) - skipped", r.name(), r.unfound());
-                    say(ModChat.bad("No route for "), ModChat.value(r.name()), ModChat.dim(" (" + r.unfound()
-                            + " unfound) - skipped"));
-                }
-                continue;
+            if (goSecret(layout, r, dist, describe(open), blockedText)) {
+                return true;
             }
-            target = r.name();
-            targetRoomId = r.room();
-            LOGGER.info("[AutoSecret] target {}: {} unfound, {} room(s) away; open {}; behind a closed door {}", r.name(),
-                    r.unfound(), dist.get(r.room()), describe(open), blockedText);
-            status = "Secreting " + r.name() + " (" + r.unfound() + " unfound)";
-            say(ModChat.text("Going to "), ModChat.value(r.name()), ModChat.dim(" (" + r.unfound() + " unfound)"));
-            // Exactly what a Go + Secret press does before its goal runs (InteractiveMapFeature.queue): it clears the
-            // "route just finished here" latch the last room's route left, which otherwise holds the next start node
-            // un-armed under him (found in 102-sim-autosecret: every room after the first "did not arm").
-            AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
-            if (!AutoRoutesFeature.warpToStartNode(layout, r.room())) {
-                secreted.add(r.name());
-                LOGGER.info("[AutoSecret] {}: could not warp to its start node - skipped", r.name());
-                say(ModChat.bad("Couldn't warp to the start node of "), ModChat.value(r.name()), ModChat.dim(" - skipped"));
-                continue;
-            }
-            beginTravel(Trip.START_NODE);
-            return true;
         }
         // Secret rooms behind a closed door are NOT waited on here (killer560, 2026-10-06: never wait at a door
         // while there is anything else useful to do) - the endgame does the useful things first, then the door.
         blockedSecrets = blocked.isEmpty() ? null : blockedText;
         return false;
+    }
+
+    /**
+     * Warps to {@code r}'s route start node (the route then plays). @return false when it cannot (no route, no warp) -
+     * the room is then left out this run, with a chat line
+     */
+    private static boolean goSecret(DungeonLayout layout, RoomStatus.Room r, Map<Integer, Integer> dist, String openText,
+                                    String blockedText) {
+        Route route = RouteStore.getInstance().forRoom(r.name());
+        if (route == null || route.startNode() == null) {
+            secreted.add(r.name());
+            if (noRouteSaid.add(r.name())) {
+                LOGGER.info("[AutoSecret] no route for {} ({} unfound) - skipped", r.name(), r.unfound());
+                say(ModChat.bad("No route for "), ModChat.value(r.name()), ModChat.dim(" (" + r.unfound()
+                        + " unfound) - skipped"));
+            }
+            return false;
+        }
+        target = r.name();
+        targetRoomId = r.room();
+        LOGGER.info("[AutoSecret] target {}: {} unfound, {} room(s) away; open {}; behind a closed door {}", r.name(),
+                r.unfound(), dist.get(r.room()), openText, blockedText);
+        status = "Secreting " + r.name() + " (" + r.unfound() + " unfound)";
+        say(ModChat.text("Going to "), ModChat.value(r.name()), ModChat.dim(" (" + r.unfound() + " unfound)"));
+        // Exactly what a Go + Secret press does before its goal runs (InteractiveMapFeature.queue): it clears the
+        // "route just finished here" latch the last room's route left, which otherwise holds the next start node
+        // un-armed under him (found in 102-sim-autosecret: every room after the first "did not arm").
+        AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
+        if (!AutoRoutesFeature.warpToStartNode(layout, r.room())) {
+            secreted.add(r.name());
+            LOGGER.info("[AutoSecret] {}: could not warp to its start node - skipped", r.name());
+            say(ModChat.bad("Couldn't warp to the start node of "), ModChat.value(r.name()), ModChat.dim(" - skipped"));
+            return false;
+        }
+        beginTravel(Trip.START_NODE);
+        return true;
+    }
+
+    // ------------------------------------------------------------------------------------------- Dungeon Autopilot
+
+    /** One decision as Dungeon Autopilot: a known insta clear first (Auto Secret's), then whatever {@link Autopilot} says. */
+    private static void decidePilot(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist, int here) {
+        if (decideInstaClear(layout, rooms, dist, here)) {
+            Autopilot.setHud("Insta clearing " + target, "a known insta-clear entry is a clear for one warp");
+            return;
+        }
+        Autopilot.Order o = Autopilot.decide(layout, rooms, dist, secreted, clearsDone, puzzlesDone);
+        RoomStatus.Room r = o.room();
+        switch (o.type()) {
+            case SECRET -> {
+                if (!goSecret(layout, r, dist, "-", "-")) {
+                    setPhase(Phase.SETTLE);
+                }
+            }
+            case CLEAR -> goClear(layout, r, dist);
+            case PUZZLE -> goPuzzle(layout, r, dist);
+            case EXPLORE -> {
+                target = Autopilot.keyOf(r);
+                targetRoomId = r.room();
+                status = "Exploring an unidentified room";
+                LOGGER.info("[AutoSecret] autopilot: exploring the unidentified room at tile {}", r.mainTile());
+                say(ModChat.text("Exploring an unidentified room"));
+                if (here == r.room()) {
+                    setPhase(Phase.SETTLE);
+                } else {
+                    pathToRoom(layout, r, Trip.EXPLORE);
+                }
+            }
+            case DOOR -> goToDoor(layout, o.door(), o.blood(), o.why());
+            case FINISH -> finishPilot(layout, rooms, dist, o);
+            default -> setPhase(Phase.SETTLE);
+        }
+    }
+
+    /** Nothing left the planner wants: a wither door with something behind it, then (Solo) the blood door, then hand back. */
+    private static void finishPilot(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
+                                    Autopilot.Order o) {
+        if (o.tryWither() && decideWitherDoor(layout, rooms, dist)) {
+            return;
+        }
+        int blood = layout.bloodDoor();
+        if (o.openBlood() && blood >= 0 && layout.isLocked(blood) && !secreted.contains(doorName(blood))) {
+            LOGGER.info("[AutoSecret] autopilot: {} - the blood door is the last thing (it starts the Watcher)", o.why());
+            say(ModChat.text(o.why() + " - "), ModChat.value("opening the blood door"),
+                    ModChat.dim(" (the last step: it starts the Watcher)"));
+            goToDoor(layout, blood, true, o.why() + ": the blood door last");
+            return;
+        }
+        String why = o.why() + (Autopilot.bloodOpened() ? " - blood door open, over to you for the blood camp"
+                : " - over to you");
+        stop(why, false);
+    }
+
+    private static void goClear(DungeonLayout layout, RoomStatus.Room r, Map<Integer, Integer> dist) {
+        clearsDone.add(r.name());
+        target = r.name();
+        targetRoomId = r.room();
+        status = "Going to clear " + r.name();
+        LOGGER.info("[AutoSecret] autopilot: clear {} ({} room(s) away) - Auto Clear", r.name(), dist.get(r.room()));
+        say(ModChat.text("Clearing "), ModChat.value(r.name()));
+        if (layout.currentRoom() == r.room()) {
+            arrived(Trip.CLEAR);
+            return;
+        }
+        pathToRoom(layout, r, Trip.CLEAR);
+    }
+
+    private static void goPuzzle(DungeonLayout layout, RoomStatus.Room r, Map<Integer, Integer> dist) {
+        puzzlesDone.add(r.name());
+        target = r.name();
+        targetRoomId = r.room();
+        status = "Going to the puzzle " + r.name();
+        LOGGER.info("[AutoSecret] autopilot: puzzle {} ({} room(s) away) - its Auto Puzzles auto", r.name(),
+                dist.get(r.room()));
+        say(ModChat.text("Puzzle: "), ModChat.value(r.name()));
+        if (layout.currentRoom() == r.room()) {
+            setPhase(Phase.PUZZLE_WAIT);
+            return;
+        }
+        pathToRoom(layout, r, Trip.PUZZLE);
     }
 
     /** Waits where he is for a door someone else must open (a blood door, a wither door with no reachable side). */
@@ -741,18 +914,9 @@ public final class AutoSecretFeature {
         if (best < 0) {
             return false;
         }
-        BlockPos goal = DungeonMapPathfinder.getDoorPos(layout, here, best);
-        if (goal == null) {
+        if (DungeonMapPathfinder.getDoorPos(layout, here, best) == null) {
             return false;
         }
-        if (best != doorCell) {
-            resetDoor();
-        }
-        doorCell = best;
-        doorGoal = goal;
-        doorLock = DungeonLayout.doorBlock(best);
-        target = doorName(best);
-        targetRoomId = -1;
         String said = best + "|" + bestWhat;
         if (!said.equals(lastDoorSaid)) {
             lastDoorSaid = said;
@@ -761,30 +925,57 @@ public final class AutoSecretFeature {
             say(ModChat.text("Nothing left on this side - going to the wither door"), ModChat.dim(" (" + bestWhat
                     + " beyond it)"));
         }
-        Minecraft client = Minecraft.getInstance();
-        if (client.player != null && client.player.blockPosition().distSqr(goal) <= 9) {
-            beginDoor();
-            return true;
-        }
-        AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
-        ClearExecutor.setExternalOwner(true);
-        if (!AutoClearUtils.pathToDoor(layout, best, false)) {
-            ClearExecutor.setExternalOwner(false);
-            tripFailed("the map would not path to the door");
-            return true;
-        }
-        status = "Going to the wither door";
-        beginTravel(Trip.DOOR);
+        goToDoor(layout, best, false, null);
         return true;
     }
 
+    /**
+     * Goes to a door's near side with the Interactive Map's door pathing ({@link AutoClearUtils#pathToDoor}, two blocks
+     * back from it) and then opens it in {@link Phase#DOOR}. {@code blood}: the blood door (Dungeon Autopilot only).
+     */
+    private static void goToDoor(DungeonLayout layout, int cell, boolean blood, String why) {
+        int here = layout.currentRoom();
+        BlockPos goal = here < 0 ? null : DungeonMapPathfinder.getDoorPos(layout, here, cell);
+        if (cell != doorCell || blood != doorBlood) {
+            resetDoor();
+        }
+        doorCell = cell;
+        doorBlood = blood;
+        doorGoal = goal;
+        doorLock = DungeonLayout.doorBlock(cell);
+        target = doorName(cell);
+        targetRoomId = -1;
+        if (why != null) {
+            LOGGER.info("[AutoSecret] going to the {} door at cell {}: {}", blood ? "blood" : "wither", cell, why);
+        }
+        if (goal == null) {
+            tripFailed("no way to the door from here");
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null && client.player.blockPosition().distSqr(goal) <= 9) {
+            beginDoor();
+            return;
+        }
+        AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
+        ClearExecutor.setExternalOwner(true);
+        if (!AutoClearUtils.pathToDoor(layout, cell, false)) {
+            ClearExecutor.setExternalOwner(false);
+            tripFailed("the map would not path to the door");
+            return;
+        }
+        status = blood ? "Going to the blood door" : "Going to the wither door";
+        beginTravel(Trip.DOOR);
+    }
+
     private static String doorName(int cell) {
-        return "the wither door at cell " + cell;
+        return "the door at cell " + cell;
     }
 
     private static void resetDoor() {
         WitherDoorOpener.cancel();
         doorCell = -1;
+        doorBlood = false;
         doorGoal = null;
         doorLock = null;
         doorClicks = 0;
@@ -807,9 +998,12 @@ public final class AutoSecretFeature {
         Minecraft client = Minecraft.getInstance();
         DungeonLayout layout = DungeonLayout.capture();
         if (doorCell < 0 || !layout.isLocked(doorCell)) {
-            LOGGER.info("[AutoSecret] the wither door at cell {} is open ({} click(s) of ours) - carrying on", doorCell,
-                    doorClicks);
-            say(ModChat.good("Wither door open"), ModChat.dim(" - carrying on"));
+            LOGGER.info("[AutoSecret] the {} door at cell {} is open ({} click(s) of ours) - carrying on",
+                    doorBlood ? "blood" : "wither", doorCell, doorClicks);
+            say(ModChat.good(doorBlood ? "Blood door open" : "Wither door open"), ModChat.dim(" - carrying on"));
+            if (doorBlood) {
+                Autopilot.onBloodDoorOpened();
+            }
             resetDoor();
             lastDoorSaid = null;
             setPhase(Phase.SETTLE);
@@ -818,33 +1012,37 @@ public final class AutoSecretFeature {
         if (WitherDoorOpener.isBusy()) {
             return;
         }
-        boolean key = WitherDoorOpener.haveKey(client.player);
+        // The blood key is the team's sidebar tick; with no Keys line to read, one click is how to find out.
+        boolean key = doorBlood ? DungeonState.sidebarBloodKey() != 0 : WitherDoorOpener.haveKey(client.player);
+        String kind = doorBlood ? "blood" : "wither";
         if (key && doorClicks < DOOR_CLICKS && phaseTicks - doorLastClickTick >= DOOR_CLICK_GAP_TICKS) {
             doorClicks++;
             doorLastClickTick = phaseTicks;
-            status = "Opening the wither door";
-            LOGGER.info("[AutoSecret] opening the wither door at cell {} (click {} of {})", doorCell, doorClicks, DOOR_CLICKS);
+            status = "Opening the " + kind + " door";
+            LOGGER.info("[AutoSecret] opening the {} door at cell {} (click {} of {})", kind, doorCell, doorClicks,
+                    DOOR_CLICKS);
             if (doorClicks == 1) {
-                say(ModChat.text("Opening the wither door"));
+                say(ModChat.text("Opening the " + kind + " door"));
             }
-            WitherDoorOpener.click(doorLock);
+            WitherDoorOpener.click(doorLock, doorBlood);
             return;
         }
         if (!key) {
-            status = "Waiting at wither door (no key)";
+            status = "Waiting at " + kind + " door (no key)";
             if (!noKeySaid) {
                 noKeySaid = true;
-                LOGGER.info("[AutoSecret] waiting at the wither door at cell {}: no wither key", doorCell);
-                say(ModChat.bad("No wither key"), ModChat.dim(" - waiting at the wither door for a key or a teammate"));
+                LOGGER.info("[AutoSecret] waiting at the {} door at cell {}: no {} key", kind, doorCell, kind);
+                say(ModChat.bad("No " + kind + " key"), ModChat.dim(" - waiting at the " + kind
+                        + " door for a key or a teammate"));
             }
         } else if (doorClicks >= DOOR_CLICKS && phaseTicks - doorLastClickTick >= DOOR_CLICK_GAP_TICKS) {
-            status = "Waiting at wither door";
+            status = "Waiting at " + kind + " door";
             if (!noKeySaid) {
                 noKeySaid = true;
                 String why = WitherDoorOpener.lastResult();
-                LOGGER.info("[AutoSecret] the wither door at cell {} stayed shut after {} click(s){}", doorCell, doorClicks,
+                LOGGER.info("[AutoSecret] the {} door at cell {} stayed shut after {} click(s){}", kind, doorCell, doorClicks,
                         why == null ? "" : " (" + why + ")");
-                say(ModChat.bad("The wither door stayed shut"), ModChat.dim(" - waiting there for a teammate"));
+                say(ModChat.bad("The " + kind + " door stayed shut"), ModChat.dim(" - waiting there for a teammate"));
             }
         }
         if (phaseTicks % 100 == 99) {
@@ -925,6 +1123,9 @@ public final class AutoSecretFeature {
         if (trip != Trip.START_NODE) {
             ClearExecutor.setExternalOwner(false);
         }
+        if (!arrived && trip == Trip.EXPLORE && !ClearExecutor.lastPathFailed()) {
+            arrived = true;   // the room it went to may have regrouped once identified; the trip ran, that is enough
+        }
         if (!arrived) {
             tripFailed(ClearExecutor.lastPathFailed() ? "no etherwarp path" : "the warp ended short");
             return;
@@ -958,6 +1159,7 @@ public final class AutoSecretFeature {
             case CLEAR -> handToAutoClear();
             case DOOR -> beginDoor();
             case FINAL -> stop("in " + target + ", which is left to clear - over to you", false);
+            case EXPLORE -> setPhase(Phase.SETTLE);
             default -> setPhase(Phase.DECIDE);
         }
     }
@@ -1064,11 +1266,30 @@ public final class AutoSecretFeature {
 
     private static void tickPuzzleWait() {
         status = "At the puzzle " + target;
+        if (pilot) {
+            RoomStatus.Room r = roomNamed(target);
+            boolean finished = r != null && Autopilot.puzzleFinished(r);
+            if (finished || phaseTicks > Autopilot.puzzleTimeoutSeconds(target) * 20) {
+                LOGGER.info("[AutoSecret] puzzle {}: {} after {} tick(s)", target,
+                        finished ? "finished" : "not finished in time - moving on", phaseTicks);
+                setPhase(Phase.SETTLE);
+            }
+            return;
+        }
         if (roomCleared(target) || phaseTicks > AutoSecretConfig.getInstance().getPuzzleWaitSeconds() * 20) {
             LOGGER.info("[AutoSecret] puzzle {}: {} after {} tick(s)", target, roomCleared(target) ? "done" : "moving on",
                     phaseTicks);
             setPhase(Phase.SETTLE);
         }
+    }
+
+    private static RoomStatus.Room roomNamed(String name) {
+        for (RoomStatus.Room r : RoomStatus.rooms()) {
+            if (r.name().equals(name)) {
+                return r;
+            }
+        }
+        return null;
     }
 
     private static boolean roomCleared(String name) {
@@ -1112,7 +1333,7 @@ public final class AutoSecretFeature {
 
     private static void say(Component... parts) {
         if (AutoSecretConfig.getInstance().isChatFeedback()) {
-            ModChat.send(CHAT, parts);
+            ModChat.send(chatName(), parts);
         }
     }
 

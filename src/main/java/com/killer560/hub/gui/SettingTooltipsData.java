@@ -23,6 +23,12 @@ final class SettingTooltipsData {
     }
 
     private static void autoSecret(Map<String, String> d) {
+        d.put("auto clear/autopilot", "Cheat build: Dungeon Autopilot - Auto Secret, Auto Clear and Auto Puzzles under one planner. Each step it re-reads the map and score and picks the next route, clear, puzzle or door. Any movement key takes over; a server correction only warns you.");
+        d.put("auto clear/autopilot key", "Starts or stops Dungeon Autopilot (Esc clears it). Works only in a dungeon, outside the boss.");
+        d.put("auto clear/run mode", "Solo: the best score per second toward 300, rooms, puzzles and only the secrets S+ needs, then the blood door last. Party: your routes first; clears and puzzles only when no route is left and no teammate is in the room; never the blood door.");
+        d.put("auto clear/blood first", "First clear the Blood Rush Split path and open its doors (wither doors with a key, then the blood door), then the rest of the floor by the Run Mode. Without the key it does the rest meanwhile.");
+        d.put("auto clear/do puzzles", "Treat puzzles like rooms: go to one and let its Auto Puzzles auto do it. Only puzzles whose auto is switched on.");
+        d.put("auto clear/autopilot hud", "A status line: the mode, what it is doing, the score estimate and why it chose it.");
         d.put("auto clear/auto secret", "Cheat build: secrets the floor with your Auto Routes - the reachable room with the most unfound secrets first, warping to its route's start node. Any movement key takes over. Needs Auto Routes on.");
         d.put("auto clear/auto secret key", "Starts or stops Auto Secret (Esc clears it). Works only in a dungeon, outside the boss.");
         d.put("auto clear/insta clear first", "Before secreting, warp into uncleared rooms through entries the Insta Clear tracker KNOWS clear them. Never a guessed entry.");

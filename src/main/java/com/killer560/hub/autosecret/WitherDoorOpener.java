@@ -38,6 +38,8 @@ final class WitherDoorOpener {
 
     private static Step step = Step.IDLE;
     private static BlockPos lock;
+    /** The door is the blood door: no wither key item is selected for it (the blood key is the team's, not an item). */
+    private static boolean blood;
     private static int clicks;
     private static String lastResult;
 
@@ -50,7 +52,13 @@ final class WitherDoorOpener {
 
     /** Asks for one click on {@code lockBlock}, sent over the next two START ticks. */
     static void click(BlockPos lockBlock) {
+        click(lockBlock, false);
+    }
+
+    /** As {@link #click(BlockPos)}; {@code bloodDoor} clicks the blood door, holding whatever is in hand. */
+    static void click(BlockPos lockBlock, boolean bloodDoor) {
         lock = lockBlock;
+        blood = bloodDoor;
         step = Step.AIM;
         lastResult = null;
     }
@@ -109,7 +117,7 @@ final class WitherDoorOpener {
         }
         if (step == Step.AIM) {
             // Tick t: the slot and the body's facing; this tick's movement packet reports the facing.
-            int slot = keySlot(player);
+            int slot = blood ? -1 : keySlot(player);
             if (slot >= 0 && player.getInventory().getSelectedSlot() != slot) {
                 player.getInventory().setSelectedSlot(slot);
                 if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
@@ -132,7 +140,8 @@ final class WitherDoorOpener {
         client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
         player.swing(InteractionHand.MAIN_HAND);
         clicks++;
-        LOGGER.info("[AutoSecret] right-clicked the wither door at {} (face {}, from {})", lock.toShortString(),
+        LOGGER.info("[AutoSecret] right-clicked the {} door at {} (face {}, from {})", blood ? "blood" : "wither",
+                lock.toShortString(),
                 hit.getDirection(), String.format(java.util.Locale.US, "%.2f %.2f %.2f", eye.x, eye.y, eye.z));
         step = Step.IDLE;
     }

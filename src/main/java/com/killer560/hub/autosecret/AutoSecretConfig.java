@@ -41,6 +41,30 @@ public final class AutoSecretConfig {
     private int routeStallSeconds = 20;
     private boolean chatFeedback = true;
 
+    // ---- Dungeon Autopilot (Auto Secret + Auto Clear + Auto Puzzles under one planner) ----
+    /** What the autopilot optimises for. */
+    public enum RunMode {
+        SOLO("Solo (300 score)"), PARTY("Party (secrets)");
+
+        private final String label;
+
+        RunMode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    private int autopilotKey = KeyUtil.NONE;
+    private RunMode runMode = RunMode.SOLO;
+    /** First push the Blood Rush Split path until the blood door is open, then the rest. */
+    private boolean bloodFirst = false;
+    /** Treat puzzles like rooms (only those whose Auto Puzzles auto is on). */
+    private boolean doPuzzles = true;
+    private boolean autopilotHud = true;
+
     private AutoSecretConfig() {
     }
 
@@ -63,6 +87,16 @@ public final class AutoSecretConfig {
                 cfg.setPuzzleWaitSeconds(ConfigJson.getInt(o, "puzzleWaitSeconds", cfg.puzzleWaitSeconds));
                 cfg.setRouteStallSeconds(ConfigJson.getInt(o, "routeStallSeconds", cfg.routeStallSeconds));
                 cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
+                cfg.autopilotKey = KeyUtil.sanitizeBind(ConfigJson.getInt(o, "autopilotKey", cfg.autopilotKey));
+                String mode = ConfigJson.getString(o, "runMode", cfg.runMode.name());
+                for (RunMode m : RunMode.values()) {
+                    if (m.name().equals(mode)) {
+                        cfg.runMode = m;
+                    }
+                }
+                cfg.bloodFirst = ConfigJson.getBool(o, "bloodFirst", cfg.bloodFirst);
+                cfg.doPuzzles = ConfigJson.getBool(o, "doPuzzles", cfg.doPuzzles);
+                cfg.autopilotHud = ConfigJson.getBool(o, "autopilotHud", cfg.autopilotHud);
             } catch (Exception e) {
                 // unreadable file - keep defaults
             }
@@ -81,6 +115,11 @@ public final class AutoSecretConfig {
             o.addProperty("puzzleWaitSeconds", puzzleWaitSeconds);
             o.addProperty("routeStallSeconds", routeStallSeconds);
             o.addProperty("chatFeedback", chatFeedback);
+            o.addProperty("autopilotKey", autopilotKey);
+            o.addProperty("runMode", runMode.name());
+            o.addProperty("bloodFirst", bloodFirst);
+            o.addProperty("doPuzzles", doPuzzles);
+            o.addProperty("autopilotHud", autopilotHud);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -111,4 +150,19 @@ public final class AutoSecretConfig {
 
     public boolean isChatFeedback() { return chatFeedback; }
     public void setChatFeedback(boolean v) { chatFeedback = v; }
+
+    public int getAutopilotKey() { return autopilotKey; }
+    public void setAutopilotKey(int v) { autopilotKey = KeyUtil.sanitizeBind(v); }
+
+    public RunMode getRunMode() { return runMode; }
+    public void setRunMode(RunMode v) { runMode = v == null ? RunMode.SOLO : v; }
+
+    public boolean isBloodFirst() { return bloodFirst; }
+    public void setBloodFirst(boolean v) { bloodFirst = v; }
+
+    public boolean isDoPuzzles() { return doPuzzles; }
+    public void setDoPuzzles(boolean v) { doPuzzles = v; }
+
+    public boolean isAutopilotHud() { return autopilotHud; }
+    public void setAutopilotHud(boolean v) { autopilotHud = v; }
 }
