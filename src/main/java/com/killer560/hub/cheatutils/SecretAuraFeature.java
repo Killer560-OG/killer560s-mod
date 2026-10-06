@@ -336,6 +336,31 @@ public final class SecretAuraFeature {
         return com.killer560.hub.roomsim.SimState.isActive() && com.killer560.hub.roomsim.SimState.canAct(client);
     }
 
+    /**
+     * Why Secret Aura would NOT open a chest {@code minReach} blocks from his eye right now, or null when it would -
+     * for Auto Boulder, which only leaves the chest to the aura when the aura will actually take it (killer560,
+     * 2026-10-06: "if I have chest aura off as well then it needs to go and press the buttons"). The same gates as
+     * {@link #tick} and {@code classify} for a chest: the switch, the Chests option, the range, the held-item pause.
+     * Sneaking is left out - it is momentary, and the run itself never sneaks.
+     */
+    public static String chestRefusal(Minecraft client, double minReach) {
+        CheatUtilsConfig cfg = CheatUtilsConfig.getInstance();
+        if (!cfg.isSecretAuraEnabled()) {
+            return "Secret Aura is off";
+        }
+        if (!cfg.isAuraChests()) {
+            return "Secret Aura's Chests option is off";
+        }
+        if (cfg.getAuraRange() < minReach) {
+            return String.format(Locale.ROOT, "Secret Aura's range %.1f is short of the %.1f the chest needs",
+                    cfg.getAuraRange(), minReach);
+        }
+        if (client.player != null && heldItemPaused(cfg, client.player.getMainHandItem())) {
+            return "Secret Aura is paused for the held item";
+        }
+        return null;
+    }
+
     private static boolean heldItemPaused(CheatUtilsConfig cfg, ItemStack held) {
         String list = cfg.getAuraPauseHolding();
         if (list == null || list.isBlank() || held == null || held.isEmpty()) {

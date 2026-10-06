@@ -125,6 +125,14 @@ public final class AutoPuzzlesFeature {
         // is anchored to Oruo's "[STATUE] ..." server format, so this mod's own client messages can't match.
         ChatObserver.subscribe(AutoPuzzlesFeature::onMessage);
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoPuzzlesFeature.onTick", AutoPuzzlesFeature::onTick));
+        // Auto Boulder draws each tick's turn across the frames in between (no choppy 20 Hz camera).
+        net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> {
+            try {
+                AutoBoulder.frame();
+            } catch (RuntimeException e) {
+                LOGGER.error("[AutoPuzzles] Boulder frame step threw", e);
+            }
+        });
         LOGGER.info("[AutoPuzzles] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 

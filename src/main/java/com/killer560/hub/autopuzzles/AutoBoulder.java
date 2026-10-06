@@ -95,6 +95,9 @@ public final class AutoBoulder {
     private static final long AURA_WAIT_BASE_MS = 1000L;
     private static final long ROOM_TIMEOUT_MS = 120_000L;
     private static final int MAX_REPLANS = 3;
+    /** Eye-to-box distance to the chest from against the bars, measured 4.29-4.42 (93-solve-boulder-aura, 2026-10-06):
+     *  an aura range under this cannot take it from there. */
+    private static final double AURA_CHEST_REACH = 4.4;
     private static final long SETTLE_AFTER_PRESS_MS = 400L;
     private static final long PLAN_RETRY_MS = 250L;
     private static final long PLAN_GIVE_UP_MS = 2500L;
@@ -178,6 +181,13 @@ public final class AutoBoulder {
 
     static void tick(Minecraft client, String roomName) {
         LocalPlayer player = client.player;
+        long t0 = System.nanoTime();
+        if (lastTickStartNanos != 0L) {
+            long d = Math.max(20_000_000L, Math.min(150_000_000L, t0 - lastTickStartNanos));
+            tickNanos = (long) (tickNanos * 0.7 + d * 0.3);
+        }
+        lastTickStartNanos = t0;
+        finishStep(player);
         boolean acting = false;
         try {
             acting = run(client, player, roomName);
@@ -186,6 +196,10 @@ public final class AutoBoulder {
                 settleBody(client, player);
             } else {
                 BODY.tick(player, true);
+            }
+            if (player != null) {
+                sentYaw = player.getYRot();
+                sentPitch = player.getXRot();
             }
         }
     }
@@ -395,20 +409,23 @@ public final class AutoBoulder {
             advance(Stage.DONE, "this room's chest was already taken");
             return;
         }
-        boolean aura = CheatUtilsConfig.getInstance().isSecretAuraEnabled();
+        // Whether Secret Aura will actually OPEN this chest, not just whether it is switched on (killer560,
+        // 2026-10-06: "if I have chest aura off as well then it needs to go and press the buttons").
+        String refusal = SecretAuraFeature.chestRefusal(client, AURA_CHEST_REACH);
+        boolean aura = refusal == null;
         double roofY = PuzzleCoords.real(15, ROOF_FEET_REL, 0, cr).getY();
         boolean onRoof = player.getY() > roofY - 0.6;
         LOGGER.info("[AutoPuzzles] Boulder: chest at {} (relative {}, {}, {}) from the {}; Secret Aura {}; feet y {} "
                         + "(roof {})", AutoPuzzleUtil.fmt(chestReal), chestRel.x, chestRel.y, chestRel.z, source,
-                aura ? "ON" : "off", fmt(player.getY()), (int) roofY);
+                aura ? "will take chests" : "will not take it (" + refusal + ")", fmt(player.getY()), (int) roofY);
         realCamera = !(aura && onRoof);
         if (aura && onRoof) {
             mode = Mode.AURA;
-            advance(Stage.RUN_TO_BARS, "Secret Aura is on - running along the roof to the bars");
+            advance(Stage.RUN_TO_BARS, "Secret Aura will take the chest - running along the roof to the bars");
         } else {
             mode = Mode.BUTTONS;
-            advance(Stage.PUSH, aura ? "Secret Aura is on but he is below the roof - pressing the buttons"
-                    : "Secret Aura is off - pressing the solver's buttons");
+            advance(Stage.PUSH, aura ? "Secret Aura would take the chest but he is below the roof - pressing the buttons"
+                    : refusal + " - pressing the solver's buttons");
         }
     }
 
@@ -648,7 +665,7 @@ public final class AutoBoulder {
             player.swing(InteractionHand.MAIN_HAND);
             LOGGER.info("[AutoPuzzles] Boulder: click on {} - crosshair on it: yes ({} hit {} face {}), turn {} tick(s) "
                             + "/ {} ms after the walk, {} ms since the previous click", label,
-                    realCamera ? "client raytrace" : "body ray", AutoPuzzleUtil.fmt(hit.getBlockPos()),
+                    realCamera ? "camera and last-sent rotation" : "body ray", AutoPuzzleUtil.fmt(hit.getBlockPos()),
                     hit.getDirection().getName(), aimTicks, now - aimStartMs, sincePrev);
             aimFor = null;
             aimTicks = 0;
@@ -671,12 +688,18 @@ public final class AutoBoulder {
      * is the same ray cast from his body's rotation.
      */
     private static BlockHitResult crosshairOn(Minecraft client, LocalPlayer player, BlockPos target) {
-        if (realCamera) {
-            return client.hitResult instanceof BlockHitResult bh && bh.getType() == HitResult.Type.BLOCK
-                    && bh.getBlockPos().equals(target) ? bh : null;
+        if (Float.isNaN(sentYaw)) {
+            return null;
         }
+        // The rotation now on screen (the step just finished) AND the one the server last heard must both be on it;
+        // the click is built from the latter, so the server sees a use where it already knows he is looking.
+        BlockHitResult now = ray(client, player, player.getYRot(), player.getXRot(), target);
+        return now == null ? null : ray(client, player, sentYaw, sentPitch, target);
+    }
+
+    private static BlockHitResult ray(Minecraft client, LocalPlayer player, float yaw, float pitch, BlockPos target) {
         Vec3 eye = player.getEyePosition();
-        Vec3 look = AutoPuzzleUtil.look(player.getYRot(), player.getXRot());
+        Vec3 look = AutoPuzzleUtil.look(yaw, pitch);
         HitResult hr = client.level.clip(new ClipContext(eye, eye.add(look.scale(CheatUtilsConfig.MEASURED_MAX_REACH)),
                 ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
         return hr instanceof BlockHitResult bh && hr.getType() == HitResult.Type.BLOCK
@@ -943,16 +966,107 @@ public final class AutoBoulder {
      */
     private static void turnToward(Minecraft client, LocalPlayer player, float yaw, float pitch) {
         float[] next = LOOK.step(client, player.getYRot(), player.getXRot(), yaw, pitch);
-        if (next[0] == player.getYRot() && next[1] == player.getXRot()) {
+        beginStep(player, next[0], next[1], !realCamera);
+    }
+
+    // ------------------------------------------------------------------ the rotation, drawn per frame
+    //
+    // killer560 (2026-10-06): "The boulder turning is really choppy." Each tick's turn (up to 28 degrees) used to be
+    // written at once, so at a high frame rate the camera sat still for several frames and then jumped. Now a tick's
+    // step is only PLANNED in the tick (beginStep); every render frame (frame) draws the rotation part-way from where
+    // the step started to where it ends, by how far through the tick that frame is; and the next tick first finishes
+    // the step exactly (finishStep). So the camera moves every frame by one frame's share of a step; each tick's
+    // movement packet carries a rotation that was fully drawn, a whole number of mouse counts on from the one before
+    // (HumanLook); and a click - sent at the START of a tick, before that tick's movement packet - goes out only when
+    // the ray from the rotation the LAST packet reported hits the target as well as the one now on screen.
+
+    private static boolean stepping = false;
+    private static boolean stepBody = false;
+    private static float fromYaw;
+    private static float fromPitch;
+    private static float toYaw;
+    private static float toPitch;
+    private static long stepStartNanos = 0L;
+    /** His rotation when this hook ended last tick - what that tick's movement packet reported. */
+    private static float sentYaw = Float.NaN;
+    private static float sentPitch = Float.NaN;
+    /** Render frames that drew a rotation part-way through a step (for the testkit's smoothness check). */
+    private static long partialFrames = 0L;
+    /** How long a client tick has been taking (smoothed), so a step is drawn over the tick it really spans. */
+    private static long tickNanos = 50_000_000L;
+    private static long lastTickStartNanos = 0L;
+    private static final double DRAW_FRACTION = 0.8;
+
+    private static void beginStep(LocalPlayer player, float yaw, float pitch, boolean body) {
+        if (yaw == player.getYRot() && pitch == player.getXRot()) {
             return;
         }
-        if (realCamera) {
-            player.setYRot(next[0]);
-            player.setYHeadRot(next[0]);
-            player.setXRot(next[1]);
-        } else {
-            BODY.turn(player, next[0], next[1]);
+        if (body) {
+            BODY.turn(player, player.getYRot(), player.getXRot()); // camera held from here; nothing moves yet
         }
+        fromYaw = player.getYRot();
+        fromPitch = player.getXRot();
+        toYaw = yaw;
+        toPitch = Mth.clamp(pitch, -90f, 90f);
+        stepBody = body;
+        stepStartNanos = System.nanoTime();
+        stepping = true;
+    }
+
+    /** Start of a tick: land the step the frames have been drawing, exactly where it was planned to end. */
+    private static void finishStep(LocalPlayer player) {
+        if (!stepping) {
+            return;
+        }
+        stepping = false;
+        if (player == null) {
+            return;
+        }
+        if (stepBody) {
+            BODY.turn(player, toYaw, toPitch);
+        } else {
+            player.setYRot(toYaw);
+            player.setYHeadRot(toYaw);
+            player.setXRot(toPitch);
+        }
+    }
+
+    /** The rotation {@link #frame} draws {@code nanos} into the current step, or null when not stepping. */
+    public static float[] rotationAt(long nanos) {
+        if (!stepping) {
+            return null;
+        }
+        // Drawn over 80% of a tick: a tick that comes a little early then finds the step already drawn, rather than
+        // landing the rest of it in one frame (a late one just holds the end for a frame or two).
+        double p = Mth.clamp((nanos - stepStartNanos) / (tickNanos * DRAW_FRACTION), 0.0, 1.0);
+        return new float[]{(float) (fromYaw + (toYaw - fromYaw) * p), (float) (fromPitch + (toPitch - fromPitch) * p)};
+    }
+
+    /** Every render frame (AutoPuzzlesFeature's level-render hook). */
+    public static void frame() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (!stepping || player == null) {
+            return;
+        }
+        long now = System.nanoTime();
+        float[] r = rotationAt(now);
+        player.setYRot(r[0]);
+        player.setYHeadRot(r[0]);
+        player.setXRot(r[1]);
+        long into = now - stepStartNanos;
+        if (into > 0L && into < tickNanos * DRAW_FRACTION) {
+            partialFrames++;
+        }
+    }
+
+    public static long partialFrames() {
+        return partialFrames;
+    }
+
+    /** The step being drawn, {fromYaw, fromPitch, toYaw, toPitch, startNanos, drawNanos}, or null - for the testkit. */
+    public static double[] currentStep() {
+        return stepping ? new double[]{fromYaw, fromPitch, toYaw, toPitch, stepStartNanos, tickNanos * DRAW_FRACTION}
+                : null;
     }
 
     /**
@@ -977,7 +1091,8 @@ public final class AutoBoulder {
         }
         LOOK.begin("settle");
         float[] next = LOOK.step(client, player.getYRot(), player.getXRot(), vy, vp);
-        BODY.turn(player, next[0], next[1]);
+        BODY.tick(player, true);
+        beginStep(player, next[0], next[1], true);
     }
 
     private static void releaseKeys(Minecraft client) {
