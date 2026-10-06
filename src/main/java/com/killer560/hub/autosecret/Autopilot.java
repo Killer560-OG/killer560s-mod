@@ -81,6 +81,7 @@ final class Autopilot {
     private static final Set<Integer> explored = new HashSet<>();
     private static final Set<String> teammateOverride = new HashSet<>();
     private static boolean noRoutesSaid;
+    private static boolean noClearSaid;
     private static boolean noScoreSaid;
     private static String lastBloodFirstWait;
 
@@ -104,6 +105,7 @@ final class Autopilot {
         bloodOpened = false;
         explored.clear();
         noRoutesSaid = false;
+        noClearSaid = false;
         noScoreSaid = false;
         lastBloodFirstWait = null;
         current = null;
@@ -359,6 +361,10 @@ final class Autopilot {
             AutoSecretFeature.sayAutopilot("Auto Routes is off - no secret routes this run");
         }
         boolean clears = AutoClearFeature.isAvailable();
+        if (!clears && !noClearSaid) {
+            noClearSaid = true;
+            AutoSecretFeature.sayAutopilot("Auto Clear is off - no room clears this run (Solo cannot reach 300 without them)");
+        }
         List<Integer> rush = AutoClearFeature.bloodRushRooms(layout);
         for (RoomStatus.Room r : rooms) {
             Integer steps = dist.get(r.room());
