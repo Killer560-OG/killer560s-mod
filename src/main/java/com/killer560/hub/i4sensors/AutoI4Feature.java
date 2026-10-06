@@ -93,6 +93,12 @@ public final class AutoI4Feature {
     private static final Set<BlockPos> doneTargets = new HashSet<>();
     private static final Map<BlockPos, BlockState> lastWall = new HashMap<>();
     private static final Map<BlockPos, Integer> predictionCounts = new HashMap<>();
+    // NoammAddons 1.2.9 (328e3444, "better prediction logic"): the lit target's aim point and its prediction's are
+    // decided once per light (I4Helper.targetAim / predictionAim) and the shots reuse them, and a prediction whose aim
+    // point equals the target's - one arrow already covers both - is re-rolled up to 3 times, excluding each one tried.
+    // Without pinning, the middle column's coin-flip aim was re-drawn at every shot, so "same aim" was not a fixed fact.
+    private static final Map<BlockPos, Vec3> pinnedAims = new HashMap<>();
+    private static final int MAX_PREDICTION_REROLLS = 3;
     // Continuous prefire (2026-09-14, killer560: "for i4 can you make it prefire more it doesnt really prefire much"):
     // Noamm only fires ONE prediction per newly lit target, then idles until the next one lights. Once the device has
     // started (first target lit this attempt), any moment nothing is lit/queued/aiming, it now keeps prefiring the
@@ -260,7 +266,7 @@ public final class AutoI4Feature {
             startCadence(cfg);
         }
         if (currentShot == null && shotQueue.isEmpty() && (deviceStarted || prefireWindow) && cfg.isAutoI4Predictions()) {
-            BlockPos prefire = predictNext(activeTarget);
+            BlockPos prefire = choosePrediction(activeTarget);
             if (prefire != null) {
                 shotQueue.add(prefire);
             }
@@ -364,8 +370,10 @@ public final class AutoI4Feature {
         // Keep that shot and let it fire; it now counts as the shot at the new target.
         boolean keepPrefire = currentShot != null && currentShot.prediction && covers(currentShot.aimPoint, pos);
         // A freshly lit target otherwise takes priority over whatever was being aimed at (Noamm's getEmerald
-        // retarget), and gets a fresh prediction after it.
+        // retarget), and gets a fresh prediction after it. Aims are decided afresh for this light (Noamm 1.2.9).
         shotQueue.clear();
+        pinnedAims.clear();
+        pinnedAims.put(pos, aimPointFor(pos));
         if (!keepPrefire) {
             currentShot = null;
             shotQueue.add(pos);
@@ -375,11 +383,42 @@ public final class AutoI4Feature {
             abilityPending = true;
         }
         if (I4SensorsConfig.getInstance().isAutoI4Predictions()) {
-            BlockPos prediction = predictNext(pos);
+            BlockPos prediction = choosePrediction(pos);
             if (prediction != null) {
                 shotQueue.add(prediction);
             }
         }
+    }
+
+    /**
+     * A prediction for {@code lit} (null = none lit) with NoammAddons 1.2.9's re-roll: a candidate whose aim point is the
+     * lit target's own is set aside and another drawn, at most {@link #MAX_PREDICTION_REROLLS} times; after that the
+     * last draw stands, and running out of candidates means no prediction (both as Noamm's I4Helper does). The chosen
+     * block's aim is pinned for its shot and it counts once toward the least-prefired rotation.
+     */
+    private static BlockPos choosePrediction(BlockPos lit) {
+        Vec3 litAim = lit == null ? null : pinnedAims.get(lit);
+        Set<BlockPos> excluded = new HashSet<>();
+        BlockPos chosen = null;
+        Vec3 chosenAim = null;
+        for (int roll = 0; roll <= MAX_PREDICTION_REROLLS; roll++) {
+            BlockPos candidate = predictNext(lit, excluded);
+            if (candidate == null) {
+                chosen = null;
+                break;
+            }
+            chosen = candidate;
+            chosenAim = aimPointFor(candidate);
+            if (litAim == null || !chosenAim.equals(litAim)) {
+                break;
+            }
+            excluded.add(candidate);
+        }
+        if (chosen != null) {
+            pinnedAims.put(chosen, chosenAim);
+            predictionCounts.merge(chosen, 1, Integer::sum);
+        }
+        return chosen;
     }
 
     private static String standName(Entity entity) {
@@ -423,6 +462,7 @@ public final class AutoI4Feature {
         doneTargets.clear();
         lastWall.clear();
         predictionCounts.clear();
+        pinnedAims.clear();
         deviceStarted = false;
         sessionBaseCps = 0.0;
         nextClickAtMs = 0L;
@@ -556,7 +596,8 @@ public final class AutoI4Feature {
         if (!prediction && !isLit(client, target)) {
             return;
         }
-        Vec3 aim = aimPointFor(target);
+        Vec3 pinned = pinnedAims.get(target);
+        Vec3 aim = pinned != null ? pinned : aimPointFor(target);
         // Shot Accuracy (2026-09-14, killer560's own request): with probability (100 - accuracy)%, aim a little
         // too high or too low so the arrow misses. Rows are 2 blocks apart, so ~1 block up/down lands the arrow in
         // the empty gap between rows instead of on a neighbouring target. A missed target stays lit and gets
@@ -660,12 +701,13 @@ public final class AutoI4Feature {
     }
 
     /** Noamm's getPredictionTarget: prefer one of a horizontally adjacent pair of still-unhit blocks, avoid
-     *  predicting the same block more than twice. */
-    private static BlockPos predictNext(BlockPos lastLit) {
+     *  predicting the same block more than twice; {@code exclude} is 1.2.9's re-roll list. Counting the pick is
+     *  {@link #choosePrediction}'s job, so a re-rolled draw does not count. */
+    private static BlockPos predictNext(BlockPos lastLit, Set<BlockPos> exclude) {
         Minecraft client = Minecraft.getInstance();
         List<BlockPos> valid = new ArrayList<>();
         for (BlockPos pos : I4SensorsFeature.DEV_BLOCKS) {
-            if (!doneTargets.contains(pos) && !pos.equals(lastLit)
+            if (!doneTargets.contains(pos) && !pos.equals(lastLit) && !exclude.contains(pos)
                     && I4SensorsFeature.blockId(client.level.getBlockState(pos)).equals("blue_terracotta")) {
                 valid.add(pos);
             }
@@ -694,9 +736,7 @@ public final class AutoI4Feature {
             }
         }
         List<BlockPos> pool = paired.isEmpty() ? candidates : paired;
-        BlockPos chosen = pool.get((int) (Math.random() * pool.size()));
-        predictionCounts.merge(chosen, 1, Integer::sum);
-        return chosen;
+        return pool.get((int) (Math.random() * pool.size()));
     }
 
     /** True if a Terminator shot at {@code aim} (one of the between-column aim points, at its row's aim height) also

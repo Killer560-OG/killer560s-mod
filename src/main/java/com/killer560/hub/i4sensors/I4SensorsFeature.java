@@ -29,7 +29,8 @@ import java.util.Locale;
  * reference at a local NoammAddons checkout): a 3x3 wall of target blocks at z=50, x in {68,66,64}, y in
  * {130,128,126}; a lit target is {@code EMERALD_BLOCK}, a hit one turns {@code BLUE_TERRACOTTA}; the player
  * stands on the device at y~127, x 62-65, z 34-37 and shoots them with a bow. Noamm times its rod swap /
- * mask swap / leap off server ticks counted from Storm's death line (174 / 244 / 307) and treats an armor
+ * mask swap / leap off server ticks counted from Storm's death line (174 / 244 / 307; since 1.2.9 from Goldor's
+ * "Who dares trespass" line, 70 / 140 / 203 - the same moments, minus its old 104-tick gap) and treats an armor
  * stand renamed "Active" or the "completed a device!" chat line as completion. The original version of this
  * class only diffed the standing platform (QUOI's pre4Box) and never watched the target wall at all.
  * <p>
@@ -49,11 +50,12 @@ public final class I4SensorsFeature {
     private static final String STORM_DEATH_LINE = "[BOSS] Storm: I should have known that I stood no chance.";
     /** P3's real start. Exact line, as in TickTimersFeature / Floor7Tracker. */
     private static final String GOLDOR_START_LINE = "[BOSS] Goldor: Who dares trespass into my domain?";
-    /** Storm's death line to Goldor's (P3's start) since SkyBlock 0.27.2: ~3 s, 2-4 s at the log's 1 s resolution -
-     *  Storm died 09:57:54 and 10:02:45, Goldor spoke 09:57:57 and 10:02:48 (killer560's runs, 2026-10-06). Before
-     *  0.27.2 it was 104 ticks (5.2 s, Odin's P3 start timer in TickTimersFeature), and still is for a party without
-     *  a completion each; the prefire window below starting early on that pacing only means more prefire. */
-    static final long STORM_TO_GOLDOR_MS = 3000L;
+    /** Storm's death line to Goldor's (P3's start) since SkyBlock 0.27.2: 17 server ticks, NoammAddons 1.2.9's
+     *  measurement (dev/Timer.kt), shared with Tick Timers' Goldor "Start:". Was 3000 ms from killer560's two runs
+     *  (Storm died 09:57:54 and 10:02:45, Goldor spoke 09:57:57 and 10:02:48, 1 s log resolution) - those disagree with
+     *  17 ticks and are unexplained; on that pacing the window below just opens about 2 s earlier than "a little". Before
+     *  0.27.2 it was 104 ticks. */
+    static final long STORM_TO_GOLDOR_MS = com.killer560.hub.ticktimers.TickTimersFeature.GOLDOR_START_TICKS * 50L;
 
     // --- session (player near the device) ---
     private static boolean near = false;

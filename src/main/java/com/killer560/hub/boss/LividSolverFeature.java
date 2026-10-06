@@ -74,6 +74,9 @@ public final class LividSolverFeature {
     /** 10 ticks = the 0.5s re-check killer560 asked for. NoammAddons re-reads the wool every single tick
      *  and Odin re-reads it on every block update; a one-shot read was our bug. */
     private static final int RESOLVE_INTERVAL_TICKS = 10;
+    /** Livid's opening invulnerability from his welcome line: 390 before SkyBlock 0.27.2, 350 since (NoammAddons 1.2.9
+     *  dungeon/solvers/LividSolver.kt, its old "todo: change to 350" applied in the 0.27.2 release). */
+    private static final int INVULN_TICKS = 350;
 
     private static Livid currentLivid = null;
     private static Entity lividEntity = null;
@@ -110,7 +113,7 @@ public final class LividSolverFeature {
         String plain = ChatFormatting.stripFormatting(message.getString());
         String raw = plain != null ? plain : message.getString();
         if (raw.equals(LIVID_START_LINE)) {
-            invulnTicks = 390;
+            invulnTicks = INVULN_TICKS;
         }
     }
 
@@ -252,7 +255,7 @@ public final class LividSolverFeature {
                     || HudVisibility.hidesHud() || invulnTicks <= 0) {
                 return;
             }
-            String color = invulnTicks > 260 ? "§a" : invulnTicks > 130 ? "§e" : "§c";
+            String color = invulnTicks > INVULN_TICKS * 2 / 3 ? "§a" : invulnTicks > INVULN_TICKS / 3 ? "§e" : "§c";
             String text = color + "Livid: " + invulnTicks + "t";
             HudSeen.markDrawn(id());
             graphics.text(Minecraft.getInstance().font, text, x, y, 0xFFFFFFFF, false);

@@ -42,7 +42,8 @@ public final class I4LeapFeature {
             new BlockPos(68, 128, 50), new BlockPos(66, 128, 50), new BlockPos(64, 128, 50),
             new BlockPos(68, 126, 50), new BlockPos(66, 126, 50), new BlockPos(64, 126, 50));
     // The 3-row Melody of 0.27.2 (2026-10-06) is announced as 1/3, 2/3, 33%, 66%/67% - both sets are accepted.
-    private static final Set<String> MELODY_PROGRESS = Set.of("1/3", "2/3", "33%", "66%", "67%",
+    // "34%" is NoammAddons 1.2.9 MelodyDisplay's ceil(1 * 33.33), which it accepts beside 33%/66%/67%.
+    private static final Set<String> MELODY_PROGRESS = Set.of("1/3", "2/3", "33%", "34%", "66%", "67%",
             "1/4", "2/4", "3/4", "25%", "50%", "75%");
     /**
      * The SENDER of a party line, anchored - not the last name-shaped token anywhere in it.
@@ -94,6 +95,8 @@ public final class I4LeapFeature {
         }
         if (cfg.getTargetType() == TargetType.MELODY) {
             Matcher party = MELODY_PARTY_LINE.matcher(unformatted);
+            // NoammAddons 1.2.9 MelodyDisplay.parseMelodyMessage ignores a progress line ending in ")". Not copied here:
+            // this mod's own announcement ended in ")" until 70e8dec7, so friends on an older jar would stop counting.
             if (party.matches()) {
                 String sender = party.group(1);
                 String body = party.group(2);

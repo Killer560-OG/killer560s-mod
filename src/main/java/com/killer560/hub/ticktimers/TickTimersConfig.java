@@ -55,20 +55,17 @@ public final class TickTimersConfig {
     private boolean showPrefix = true;
     private boolean necronTimer = true;
     private boolean goldorTimer = true;
-    // Odin TickTimers.kt's own "Start timer" setting (default false): shows Goldor's 104-tick "Start:"
-    // countdown after Storm dies. Off = the Goldor line only shows the repeating "Tick:" timer, like Odin.
+    // Odin TickTimers.kt's own "Start timer" setting (default false): shows Goldor's "Start:" countdown after Storm
+    // dies (104 ticks before SkyBlock 0.27.2, 17 since - NoammAddons 1.2.9). Off = the Goldor line only shows the repeating "Tick:" timer, like Odin.
     private boolean goldorStartTimer = false;
     private boolean stormTimer = true;
     // Devonian GoldorFrenzyTimer's "showTotal" (2026-09-20 merge): replaces the repeating "Tick:" countdown
     // with how long P3 has been running since Goldor's arrival line, once the Goldor Frenzy tab folded in here.
     private boolean goldorShowTotal = false;
-    // killer560, 2026-09-20: "the 1s death tick during clear" (NoammAddons TickTimers.kt's clear-section pulse,
-    // ported as a generic 20-server-tick countdown - see TickTimersFeature's class doc for why it uses the
-    // shared ServerTickClock instead of NoammAddons' own world-time-packet trick). New feature, ships OFF.
-    private boolean clearDeathTick = false;
-    // The "option to turn it off after the run starts" killer560 asked for. OFF (default): the tick keeps
-    // running once the boss fight starts too. ON: it stops as soon as DungeonState.isBossPhaseActive().
-    private boolean deathTickStopsAtBoss = false;
+    // NoammAddons 1.2.9 floor7/TickTimers.kt "Maxor Start" (default off there too): 83 ticks from Maxor's opening
+    // line. The 2026-09-20 clear "Death Tick" (clearDeathTick/deathTickStopsAtBoss) was removed 2026-10-06 - see
+    // TickTimersFeature's class doc; old files keep the two keys, which are no longer read.
+    private boolean maxorStartTimer = false;
     // One-off migration guard - see migrateFromGoldorFrenzy().
     private boolean goldorFrenzyMigrated = false;
 
@@ -119,8 +116,7 @@ public final class TickTimersConfig {
                 parsed.goldorStartTimer = getBool(obj, "goldorStartTimer", false);
                 parsed.stormTimer = getBool(obj, "stormTimer", true);
                 parsed.goldorShowTotal = getBool(obj, "goldorShowTotal", false);
-                parsed.clearDeathTick = getBool(obj, "clearDeathTick", false);
-                parsed.deathTickStopsAtBoss = getBool(obj, "deathTickStopsAtBoss", false);
+                parsed.maxorStartTimer = getBool(obj, "maxorStartTimer", false);
                 parsed.goldorFrenzyMigrated = getBool(obj, "goldorFrenzyMigrated", false);
                 parsed.padCycleTimer = getBool(obj, "padCycleTimer", true);
                 parsed.crushTimer = getBool(obj, "crushTimer", false);
@@ -264,8 +260,7 @@ public final class TickTimersConfig {
             obj.addProperty("goldorStartTimer", goldorStartTimer);
             obj.addProperty("stormTimer", stormTimer);
             obj.addProperty("goldorShowTotal", goldorShowTotal);
-            obj.addProperty("clearDeathTick", clearDeathTick);
-            obj.addProperty("deathTickStopsAtBoss", deathTickStopsAtBoss);
+            obj.addProperty("maxorStartTimer", maxorStartTimer);
             obj.addProperty("goldorFrenzyMigrated", goldorFrenzyMigrated);
             obj.addProperty("padCycleTimer", padCycleTimer);
             obj.addProperty("crushTimer", crushTimer);
@@ -354,20 +349,12 @@ public final class TickTimersConfig {
         this.goldorShowTotal = goldorShowTotal;
     }
 
-    public boolean isClearDeathTick() {
-        return clearDeathTick;
+    public boolean isMaxorStartTimer() {
+        return maxorStartTimer;
     }
 
-    public void setClearDeathTick(boolean clearDeathTick) {
-        this.clearDeathTick = clearDeathTick;
-    }
-
-    public boolean isDeathTickStopsAtBoss() {
-        return deathTickStopsAtBoss;
-    }
-
-    public void setDeathTickStopsAtBoss(boolean deathTickStopsAtBoss) {
-        this.deathTickStopsAtBoss = deathTickStopsAtBoss;
+    public void setMaxorStartTimer(boolean maxorStartTimer) {
+        this.maxorStartTimer = maxorStartTimer;
     }
 
     // ---- crush timer (F7/M7 P2 Storm) ----

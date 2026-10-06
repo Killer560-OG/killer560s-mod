@@ -105,22 +105,13 @@ public class TickTimersTab extends BaseTab {
                     btn.setMessage(onOff("Show Total", cfg.isGoldorShowTotal()));
                 }).bounds(col1, y, 108, 18).build());
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Death Tick", cfg.isClearDeathTick()), btn -> {
-                    cfg.setClearDeathTick(!cfg.isClearDeathTick());
+        // NoammAddons 1.2.9 floor7/TickTimers.kt "Maxor Start" - in the slot the removed clear Death Tick had.
+        widgets.add(SettingsButtonWidget.builder(onOff("Maxor Start", cfg.isMaxorStartTimer()), btn -> {
+                    cfg.setMaxorStartTimer(!cfg.isMaxorStartTimer());
                     cfg.save();
-                    btn.setMessage(onOff("Death Tick", cfg.isClearDeathTick()));
+                    btn.setMessage(onOff("Maxor Start", cfg.isMaxorStartTimer()));
                 }).bounds(col3, y, 108, 18).build());
-        y += 20;
-
-        if (cfg.isClearDeathTick()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Stop At Boss", cfg.isDeathTickStopsAtBoss()), btn -> {
-                        cfg.setDeathTickStopsAtBoss(!cfg.isDeathTickStopsAtBoss());
-                        cfg.save();
-                        btn.setMessage(onOff("Stop At Boss", cfg.isDeathTickStopsAtBoss()));
-                    }).bounds(col3, y, 108, 18).build());
-            y += 20;
-        }
-        y += 6;
+        y += 26;
 
         // ---- Storm Crush Timer (P2) - moved in from F7 Spots 2026-09-21, see class doc ----
         int gap = 8;
