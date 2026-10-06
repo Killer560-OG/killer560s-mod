@@ -101,6 +101,25 @@ public final class SimBreakerState {
         return true;
     }
 
+    /** Charges a secret gives back. killer560 (2026-10-06): "on gaining any secret you gain 2 breaker charges back". */
+    public static final int CHARGES_PER_SECRET = 2;
+
+    /**
+     * A secret of his was found (chest, item, bat, essence - every path that reaches {@code SimScore}'s secret count):
+     * {@link #CHARGES_PER_SECRET} charges back, never past the maximum. The lore follows on the next server tick.
+     *
+     * <p>Not on the item's wiki page (checked 2026-10-06: "2 charges are regenerated each second" is all it says about
+     * getting them back), nor in the 0.27.2 patch notes - this is his rule for the sim.
+     */
+    public static synchronized void secretFound() {
+        int before = charges;
+        charges = Math.min(MAX_CHARGES, charges + CHARGES_PER_SECRET);
+        if (charges != before) {
+            com.killer560.hub.util.ModLog.get("killer560smod-sim").info("Sim Dungeonbreaker: secret found, charges {} -> {}",
+                    before, charges);
+        }
+    }
+
     /** Remembers a block so it can be put back later. Called with the state BEFORE it was broken. */
     public static synchronized void remember(ServerLevel level, BlockPos pos, BlockState state) {
         PENDING.add(new Broken(level, pos.immutable(), state, tickCounter + RESTORE_TICKS));

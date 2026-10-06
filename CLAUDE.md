@@ -292,6 +292,10 @@ elements, Superpairs, Instant Transmission, item identity, gametest, `AttackBloc
   active: `SimBreakerState`'s regrowing blocks survived a leave that turned the sim off before the disconnect, and the next
   world's server tried to put them back into the dead level - its loading screen never finished (2026-10-05, 96-ar).
   `SimWorld.onWorldUnloaded` now resets it beside `SimBuildQueue.clear()`.
+- A Superboom does not break the block it lands on: it blows the crypt or wall NEAR it. Auto Routes' boom node watched only
+  the hit block and its six neighbours, so a boom that opened a crypt a block over read as "superboom didn't break anything"
+  and stopped the route (his Museum stack, 2026-10-06). It now watches a radius-3 cube, and a boom that changes nothing
+  within a round trip completes (nothing left to blow) instead of stopping; 96-ar-museum plays his exact route.
 - A Fabric event's first non-PASS listener wins. `/ar edit db`'s right clicks lost to the sim's ability hook (a held
   Superboom detonated, no block picked) until its `UseBlockCallback` moved to a phase ordered before the default. The sim's
   client-side essence listener lost the same way with any ability item held, so Secret Aura never collected essences

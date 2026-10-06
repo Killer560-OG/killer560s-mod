@@ -97,10 +97,12 @@ public final class SimScore {
     public static synchronized void batKilled() {
         batsKilled++;
         secretsFound++;
+        SimBreakerState.secretFound();
     }
 
     public static synchronized void secretFound() {
         secretsFound++;
+        SimBreakerState.secretFound();
     }
 
     /**
@@ -111,6 +113,8 @@ public final class SimScore {
      */
     public static synchronized void secretFound(net.minecraft.core.BlockPos at) {
         secretsFound++;
+        // Every secret gives the Dungeonbreaker 2 charges back (killer560, 2026-10-06) - see SimBreakerState.
+        SimBreakerState.secretFound();
         String room = roomAt(at);
         if (room != null) {
             FOUND_BY_ROOM.merge(room, 1, Integer::sum);

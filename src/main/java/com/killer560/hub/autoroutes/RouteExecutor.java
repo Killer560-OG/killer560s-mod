@@ -61,7 +61,8 @@ import com.killer560.hub.util.ModChat;
  * <p>
  * <b>Discrete actions wait for real confirmation</b> (never a timer alone): an etherwarp / teleporting item is done
  * when the player actually arrives at the recorded landing, a dungeon-breaker node when its blocks are actually air,
- * a superboom when the block it hit changed. Anything that cannot be confirmed within a generous timeout, any
+ * a superboom when a block within {@link #BOOM_WATCH_RADIUS} of its hit changed (and one that changes nothing within a
+ * round trip completes: there was nothing left to blow). Anything else that cannot be confirmed within a generous timeout, any
  * drift off the recorded path, the player taking the movement keys or the camera back, and any screen opening
  * <b>stops the route with a chat message</b> - "a stuck bot in a real run is worse than a stopped one". Mouse CLICKS
  * never stop it (killer560, 2026-10-04: "Auto routes should not stop if I click") - he clicks chests and levers
@@ -92,7 +93,16 @@ public final class RouteExecutor {
     private static final int SNEAK_TIMEOUT = 20;
     private static final int AIM_TIMEOUT = 80;
     private static final int LANDING_TIMEOUT = 60;
-    private static final int BOOM_TIMEOUT = 40;
+    /**
+     * How far round the block a superboom hit its confirmation watches for a change, as a cube. A Superboom does not
+     * break the block it lands on: it blows the crypt or weak wall NEAR it ("anywhere close to a crypt", killer560,
+     * 2026-10-01), so the old check - the hit block and its six neighbours - read a boom that opened a crypt one block
+     * over as "didn't break anything" and stopped the route (his Museum stack, 2026-10-06: the sim broke 30 blocks).
+     */
+    private static final int BOOM_WATCH_RADIUS = 3;
+    /** The least a boom that changed nothing waits for the server's answer before moving on, plus the round trip. */
+    private static final int BOOM_SETTLE_MIN_TICKS = 4;
+    private static final int BOOM_SETTLE_MAX_TICKS = 20;
     private static final int BREAKER_TIMEOUT = 40;
     private static final double LANDING_TOLERANCE = 2.0;
     /**
@@ -2063,15 +2073,24 @@ public final class RouteExecutor {
             }
             BlockHitResult hit = blockInSight(client, player, node, 4.5);
             if (hit == null) {
-                stop("superboom node isn't looking at a block");
+                // Nothing in reach along the recorded look: on a stack of booms that is usually the wall an earlier
+                // boom (or an earlier run) already blew. Nothing to blow is not a reason to strand the rest of the
+                // stack (killer560, 2026-10-06: his Museum booms never got to the crypt node), so it completes.
+                logActed(node, " (no block in sight within 4.5 - nothing left to blow, moving on)");
+                step = Step.CONFIRM;
+                stepTicks = 0;
+                finishAction();
                 return;
             }
             boomTarget = hit.getBlockPos();
             boomBefore.clear();
-            boomBefore.put(boomTarget, client.level.getBlockState(boomTarget));
-            for (Direction d : Direction.values()) {
-                BlockPos p = boomTarget.relative(d);
-                boomBefore.put(p, client.level.getBlockState(p));
+            for (int dx = -BOOM_WATCH_RADIUS; dx <= BOOM_WATCH_RADIUS; dx++) {
+                for (int dy = -BOOM_WATCH_RADIUS; dy <= BOOM_WATCH_RADIUS; dy++) {
+                    for (int dz = -BOOM_WATCH_RADIUS; dz <= BOOM_WATCH_RADIUS; dz++) {
+                        BlockPos p = boomTarget.offset(dx, dy, dz);
+                        boomBefore.put(p, client.level.getBlockState(p));
+                    }
+                }
             }
             // The same in the dungeon sim: its integrated server answers these packets the way Hypixel's does.
             if (AutoRoutesConfig.getInstance().isLegitMode()) {
@@ -2115,10 +2134,27 @@ public final class RouteExecutor {
             if (changed) {
                 LOGGER.info("[AutoRoutes] Boom: blocks changed {} tick(s) after the click", stepTicks);
                 finishAction();
-            } else if (stepTicks > BOOM_TIMEOUT) {
-                stop("superboom didn't break anything");
+            } else if (stepTicks >= boomSettleTicks()) {
+                // Nothing within reach of the hit changed once the server had a round trip to answer: the crypt or
+                // wall is already open (the stack's earlier boom, or an earlier run), so there was nothing left to
+                // blow. It COMPLETES - stopping here is what kept his stacked booms from reaching their crypt node
+                // (killer560, 2026-10-06). A route that really needed the wall gone fails at its next node instead.
+                LOGGER.info("[AutoRoutes] Boom: nothing changed within {} tick(s) of the click - nothing left to blow, "
+                        + "moving on", stepTicks);
+                finishAction();
             }
         }
+    }
+
+    /** Ticks a boom that changed nothing waits: the tab-list latency's round trip plus a margin, bounded. */
+    private static int boomSettleTicks() {
+        int ping = 0;
+        Minecraft client = Minecraft.getInstance();
+        if (client.getConnection() != null && client.player != null) {
+            net.minecraft.client.multiplayer.PlayerInfo info = client.getConnection().getPlayerInfo(client.player.getUUID());
+            ping = info == null ? 0 : Math.max(0, info.getLatency());
+        }
+        return Mth.clamp(BOOM_SETTLE_MIN_TICKS + (ping + 49) / 50, BOOM_SETTLE_MIN_TICKS, BOOM_SETTLE_MAX_TICKS);
     }
 
     private static void tickBreaker(Minecraft client, LocalPlayer player, RouteNode node) {
