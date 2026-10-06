@@ -31,6 +31,7 @@ public abstract class PuzzlePacketMixin {
     private void killer560smod$puzzles$onMovePlayer(ClientboundPlayerPositionPacket packet, CallbackInfo ci) {
         try {
             TeleportMazeSolverFeature.onPlayerPosition(packet);
+            com.killer560.hub.autopuzzles.AutoBoulder.onServerPosition();
         } catch (RuntimeException e) {
             killer560smod$puzzles$hookThrew("movePlayer", e);
         }

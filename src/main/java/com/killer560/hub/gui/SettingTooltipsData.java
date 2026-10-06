@@ -1110,14 +1110,14 @@ final class SettingTooltipsData {
         d.put("auto secret", "Cheat build: once every blaze is dead, walks to the nearest secret and auras it if it's a chest.");
         d.put("auto creeper beams", "Cheat build: shoots the two matching creeper-beam lanterns with your shortbow.");
         d.put("auto ice path", "Cheat build: shoots the silverfish along the solved ice path with your shortbow.");
-        d.put("auto boulder", "Cheat build: walks to the room's secret chest, auras it, then walks back to the door.");
+        d.put("auto boulder", "Cheat build: with Secret Aura on, runs along the roof to the bars and lets the aura take the chest; with it off, walks down the stairs, presses only the solver's buttons and opens the chest. Then walks back out so you can etherwarp.");
         d.put("auto water board", "Cheat build: etherwarps to the puzzle start, then flips the levers in the solved order.");
         d.put("auto tic tac toe", "Cheat build: walks to the play spot, then plays the best Tic Tac Toe square on your turn.");
         d.put("aura chest", "Cheat build: after the first move, walks to the room's secret chest and auras it, then returns to play.");
         d.put("auto teleport maze", "Cheat build: walks the Teleport Maze pads to the exit, then auras the nearest chest on the final pad.");
         d.put("auto ice fill", "Cheat build: walks the Ice Fill path for you.");
         d.put("shoot cooldown", "Cheat build: minimum wait between bow shots for the bow puzzles.");
-        d.put("boulder chest wait", "Cheat build: how long Auto Boulder waits at the standing spot before auraing the chest.");
+        d.put("boulder chest wait", "Cheat build: with Secret Aura on, how long Auto Boulder waits at the bars (on top of one second) for the aura before opening the chest itself.");
         d.put("ice fill delay", "Cheat build: wait in ticks between Auto Ice Fill's movement steps.");
         d.put("etherwarp reposition", "Cheat build: warps you onto each puzzle's standing spot before the auto starts.");
 

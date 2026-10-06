@@ -1,170 +1,361 @@
 package com.killer560.hub.autopuzzles;
 
+import com.killer560.hub.cheatutils.CheatUtilsConfig;
+import com.killer560.hub.cheatutils.SecretAuraFeature;
+import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.livemap.LiveMapFeature;
-import com.killer560.hub.livemap.autoclear.AutoClearUtils;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import com.killer560.hub.puzzlesolvers.BoulderSolverConfig;
 import com.killer560.hub.puzzlesolvers.BoulderSolverFeature;
 import com.killer560.hub.puzzlesolvers.PuzzleCoords;
 import com.killer560.hub.roomdatabase.RoomEntry;
+import com.killer560.hub.util.BlockHits;
+import com.killer560.hub.util.BodyAim;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ModLog;
+import com.killer560.hub.util.ViewFreeze;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.ButtonBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.slf4j.Logger;
-import com.killer560.hub.util.ModLog;
-import com.killer560.hub.compat.McCompat;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
- * Auto Boulder: push the boxes the Boulder Solver names, then walk to the reward chest and aura it.
+ * Auto Boulder: get the Boulder room's reward chest, then walk back out so he can etherwarp again.
  *
- * <p>History. killer560 (2026-09-27) had it redone as "pathfind to above the chest, then aura the chest", with no box
- * pushing. That cannot work in the room as it is built: the chest sits in the alcove past the far edge of the box
- * grid, under a barrier ceiling, and the only way to it is across the floor once the boxes are out of the way - which
- * is the puzzle. The 2026-10-04 93-solve run showed it: the "standing spot" (chest + 3 up, 3 back) is the air over
- * the barrier roof, "not etherwarpable", and etherwarp is refused inside Boulder anyway, so the Interactive Map walk
- * failed and the auto stopped with the boxes untouched. So now:
- * <ol>
- *   <li>Find the chest: the room database's chest secret if it lists one, otherwise the chest BLOCK found by scanning
- *   the room ({@link AutoPuzzleUtil#chestsInRoom}) - the database has no Boulder chest on Hypixel either.</li>
- *   <li>If he is up on the roof (the doorway is at the roof's height, relative y 69), walk to the edge of one of the
- *   holes in it in front of the grid and step in - down to the floor (relative feet y 64).</li>
- *   <li>Push: for each of {@link BoulderSolverFeature}'s remaining clicks, walk into reach of that button
- *   ({@link MazeWalk} round the boxes) and press it with a no-rotate interact. The solver drops a step when it is
- *   clicked (its own useItemOn hook), and the next button only exists once the box before it has moved, so a step is
- *   pressed only once its button is in the world.</li>
- *   <li>Walk into reach of the chest across the now-open floor and aura it - its own deliberate
- *   {@link AutoPuzzleUtil#interactBlock}, never {@code SecretAuraFeature}, so it works with Secret Aura off.</li>
- *   <li>Ask the Interactive Map to walk back to the doorway spot, once; where etherwarp is refused that simply logs.</li>
- * </ol>
- * Every walk is the camera turned towards the next point and the forward key held - one discrete key, nothing
- * written to position or velocity. Every stop and every refusal is an INFO line. Identical on Hypixel: the room, the
- * solver and the chest scan are the same, only the chest's real position there is still unverified.
+ * <p>killer560 (2026-10-06): "first detect if i have secret aura on or not, if i do then once I interactive map to the
+ * room or walk into it then it should walk straight forward towards those iron bars at the back ... it can just run on
+ * the barrier blocks and it should be able to reach the chest if it runs all the way forward ... If i dont have secret
+ * auras on then it needs to pathfind to the buttons that it actually needs ... that pathfinding needs to look legit ...
+ * after it gets both it needs to run back out of the room such that I am able to etherwarp again."
+ *
+ * <h2>Starting</h2>
+ * It starts when he walks into the room (the live map names it), or when an Interactive Map path ends at Boulder's
+ * doorway spot (relative 15,68,-2, which the map files under the tile next door) - the {@code ClearExecutor.arrivalSeq}
+ * trigger Auto Teleport Maze uses. Never while the map is still moving him.
+ *
+ * <h2>Secret Aura ON (checked once, at the start, with {@code CheatUtilsConfig.isSecretAuraEnabled})</h2>
+ * The doorway opens at roof height: the box grid is roofed with barrier at relative y 68, and at the far end the roof
+ * meets a block wall topped by iron bars (relative z 27), directly over the alcove holding the chest (15,66,29). Standing
+ * against that wall his eye is about 4.4 from the chest's box (Map Logger capture, decoded), inside the 4.5 reach. So he
+ * turns smoothly to face along the room towards the chest's column, holds forward and sprint, and lets go of both the
+ * moment the chest is inside Secret Aura's range - Secret Aura does the click. No button is pressed. If he is not on
+ * the roof (he fell, or came in some other way) the room is played as with Secret Aura off.
+ *
+ * <h2>Secret Aura OFF</h2>
+ * The buttons {@link BoulderSolverFeature} names - only those, one at a time, each once its button exists (it is laid
+ * after the box before it moves) - then the chest. Each is reached by {@link BoulderPath}, which plans across heights,
+ * so the walk from the doorway takes the stairs down instead of dropping through a hole in the roof; it never stands on
+ * the barrier roof. The walk is smooth: {@link HumanLook} turns (eased, capped, on the mouse grid), forward held only
+ * while roughly facing the way, sprint only on a long straight. At a button he turns to look at it and presses only
+ * when the crosshair ray actually hits it, on a tick where he did not turn - the use packet carries what the previous
+ * movement packet already reported. The chest is opened the same way.
+ *
+ * <h2>Out</h2>
+ * Then he walks back to the doorway and on out until the live map no longer files him under Boulder (where etherwarp
+ * is refused) - up the stairs in the legit mode, back along the roof in the aura one.
+ *
+ * <h2>Safety</h2>
+ * Movement is the forward and sprint keys and rotation only - nothing written to position or velocity. The body turns
+ * through {@link BodyAim} with the camera held by {@link ViewFreeze}, and after the room the body is turned back to his
+ * view at the same human pace before the camera is released (no snap). A server position correction while walking, any
+ * of S/A/D/jump pressed after it started, or a screen, stops or pauses it. Every stage change and refusal is an INFO line.
  */
-final class AutoBoulder {
+public final class AutoBoulder {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-autopuzzles");
     private static final String ROOM = "Boulder";
-    /** The measured block reach, squared. */
-    private static final double AURA_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
-    /** Where a walk aims to end: eye within this of the target's box, a little inside the 4.5 limit. */
-    private static final double WALK_EYE = 4.0;
-    private static final int MAX_AURA_ATTEMPTS = 3;
+
+    /** Relative heights, from the decoded capture: feet on the doorway platform / roof, feet on the box floor. */
+    private static final int ROOF_FEET_REL = 69;
+    private static final int FLOOR_FEET_REL = 64;
+    /** The iron-bars wall the aura run heads for, relative z. */
+    private static final int BARS_Z_REL = 27;
+
+    /** Press / open from a standing eye within this of the box when there is such a spot; else {@link #REACH_LOOSE}. */
+    private static final double REACH_SNUG = 3.3;
+    private static final double REACH_LOOSE = 4.0;
     private static final long PRESS_GAP_MS = 350L;
-    /** A step's button must turn up within this after the press before it; otherwise the auto stops. */
     private static final long BUTTON_WAIT_MS = 3000L;
-    /** How long to wait for the solver to read the arrangement before going for the chest anyway. */
     private static final long SOLVER_WAIT_MS = 4000L;
-    private static final int MAX_WALKS_PER_TARGET = 3;
+    /** Secret Aura's wait, plus the "Boulder Chest Wait" slider, before he opens the chest himself. */
+    private static final long AURA_WAIT_BASE_MS = 1000L;
+    private static final long ROOM_TIMEOUT_MS = 120_000L;
+    private static final int MAX_REPLANS = 3;
+    private static final long SETTLE_AFTER_PRESS_MS = 400L;
+    private static final long PLAN_RETRY_MS = 250L;
+    private static final long PLAN_GIVE_UP_MS = 2500L;
+    private static long lastPlanFailMs = 0L;
+    private static long planFailSinceMs = 0L;
+    private static final int AIM_MAX_TICKS = 60;
 
-    private enum Stage { NEED_CHEST, DESCEND, STEP_IN, PUSH, TO_CHEST, AURA, WALK_TO_EXIT, DONE }
+    private enum Mode { AURA, BUTTONS }
 
+    private enum Stage { NEED_CHEST, RUN_TO_BARS, AWAIT_AURA, PUSH, TO_CHEST, EXIT, DONE }
+
+    private static final BodyAim BODY = new BodyAim(() -> { });
+    private static final HumanLook LOOK = new HumanLook();
+    /** Decided once per room: Secret Aura off turns his real camera; the aura run turns only the body. */
+    private static boolean realCamera = false;
+    private static long aimStartMs = 0L;
+    private static BlockPos aimPointFor = null;
+    private static Vec3 aimPt = null;
+    private static long chestAtMs = 0L;
+    /** This walk is the Secret Aura run back out: sprint every tick once facing the way. */
+    private static boolean sprintAll = false;
+    private static boolean sprintStarted = false;
+
+    private static boolean engaged = false;
     private static Stage stage = Stage.NEED_CHEST;
+    private static Mode mode = Mode.BUTTONS;
+    private static int[] cr = null;
     private static BlockPos chestReal = null;
-    private static BlockPos exitReal = null;
-    private static int floorY = Integer.MIN_VALUE;
-    /** Relative (15, 64, 7): open floor in front of the grid's near row, which a hole's landing must walk to. */
-    private static BlockPos gridFront = null;
-    private static int auraAttempts = 0;
+    /** The chest already taken in this world, so walking back in does not run the room again. */
+    private static BlockPos doneChest = null;
+    private static long engagedMs = 0L;
     private static long stageStartMs = 0L;
-    private static long lastPressMs = 0L;
-    private static int presses = 0;
-    private static boolean noChestWarned = false;
-    private static boolean wasInRoom = false;
-    private static int scanCooldown = 0;
     private static String loggedWait = null;
+    private static int consumedArrival = Integer.MIN_VALUE;
+    private static boolean noChestWarned = false;
+    private static int scanCooldown = 0;
+    private static boolean sawContainer = false;
+    private static int presses = 0;
+    private static long lastPressMs = 0L;
+    private static long buttonMissingSinceMs = 0L;
+    private static long pushStartMs = 0L;
+    private static boolean sawSolution = false;
+    /** Physical S/A/D/jump: armed once seen up, so a key already held when it started is not a takeover. */
+    private static final boolean[] keyArmed = new boolean[4];
+    private static volatile boolean correction = false;
 
-    private static final MazeWalk WALK = new MazeWalk();
+    // walk
+    private static BoulderPath path = null;
+    private static List<Vec3> pts = List.of();
+    private static int ptIdx = 0;
     private static boolean walking = false;
+    private static String walkLabel = null;
     private static long walkStartMs = 0L;
     private static long walkTimeoutMs = 0L;
-    private static BlockPos walkFor = null;
-    private static int walksForTarget = 0;
-    /** The hole in the roof he steps into, and the roof block beside it he walks to first. */
-    private static BlockPos holeFeet = null;
-    private static BlockPos holeEdge = null;
-
-    /** How often the room is scanned for its chest while none has been found, in client ticks. */
-    private static final int SCAN_EVERY_TICKS = 20;
-    /** The room-relative box scanned: a 1x1 room's 31 blocks plus one either side, and a band around its floor
-     *  (the boxes stand on relative y 64..66 and the far alcove is at 66). Heights are relative, so PuzzleCoords
-     *  shifts them in the sim. */
-    private static final int SCAN_MIN_REL = -1;
-    private static final int SCAN_MAX_REL = 31;
-    private static final int SCAN_MIN_Y = 60;
-    private static final int SCAN_MAX_Y = 75;
+    private static double bestRemaining = Double.MAX_VALUE;
+    private static long bestAtMs = 0L;
+    private static int replans = 0;
+    private static BoulderPath.GoalTest walkGoal = null;
+    private static boolean walkAvoidBarrier = true;
+    /** The aim at a button or the chest: ticks spent turning onto it. */
+    private static int aimTicks = 0;
+    private static BlockPos aimFor = null;
+    /** RUN_TO_BARS: ticks in a row with forward held and no headway. */
+    private static int stalledTicks = 0;
 
     private AutoBoulder() {
     }
 
     static void levelChanged() {
-        reset();
+        disengage(Minecraft.getInstance(), null);
         doneChest = null;
+        consumedArrival = ClearExecutor.arrivalSeq();
     }
 
-    /** The chest already aura'd in this world, so walking out and back in does not run the room again. */
-    private static BlockPos doneChest = null;
+    /** From the position-packet hook: a server correction stops a walk. */
+    public static void onServerPosition() {
+        if (engaged && (walking || stage == Stage.RUN_TO_BARS)) {
+            correction = true;
+        }
+    }
 
     static void tick(Minecraft client, String roomName) {
-        AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
-        if (!cfg.isAutoBoulderEnabled() || !ROOM.equals(roomName)) {
-            if (wasInRoom) {
-                reset();
-            }
-            wasInRoom = false;
-            return;
-        }
-        wasInRoom = true;
         LocalPlayer player = client.player;
+        boolean acting = false;
+        try {
+            acting = run(client, player, roomName);
+        } finally {
+            if (!acting) {
+                settleBody(client, player);
+            } else {
+                BODY.tick(player, true);
+            }
+        }
+    }
+
+    /** @return true while it is driving his body this tick */
+    private static boolean run(Minecraft client, LocalPlayer player, String roomName) {
+        AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
+        if (!cfg.isAutoBoulderEnabled()) {
+            if (engaged) {
+                disengage(client, "Auto Boulder was switched off");
+            }
+            return false;
+        }
+        boolean inRoom = ROOM.equals(roomName);
+        if (!engaged) {
+            if (inRoom) {
+                int[] c = LiveMapFeature.currentRoomClayAndRotation();
+                if (c == null) {
+                    waitFor("the live map has no rotation for the room yet");
+                    return false;
+                }
+                if (ClearExecutor.isBusy()) {
+                    waitFor("the Interactive Map is moving him");
+                    return false;
+                }
+                engage(client, c, "he is in the room");
+            } else {
+                int[] c = mapArrivalAtDoor(player);
+                if (c == null) {
+                    return false;
+                }
+                engage(client, c, "the Interactive Map put him at the doorway");
+            }
+        }
         if (stage == Stage.DONE) {
-            return;
+            if (!inRoom && !nearDoor(player)) {
+                disengage(client, null);
+            }
+            return false;
+        }
+        if (stage == Stage.EXIT && !inRoom && outsideRoom(player)) {
+            finish(client, "out of the room - the live map no longer files him under Boulder, etherwarp is free");
+            return false;
+        }
+        if (!inRoom && stage != Stage.EXIT && !nearDoor(player)) {
+            disengage(client, "he left the room");
+            return false;
+        }
+        if (System.currentTimeMillis() - engagedMs > ROOM_TIMEOUT_MS) {
+            giveUp(client, "still not done after " + ROOM_TIMEOUT_MS / 1000 + " s");
+            return false;
         }
         if (McCompat.screen(client) != null) {
-            stopWalk(client, "a screen opened");
-            return;
+            if (stage == Stage.AWAIT_AURA || stage == Stage.TO_CHEST) {
+                sawContainer = true;
+            }
+            releaseKeys(client);
+            return true;
         }
-        if (ClearExecutor.isBusy() && stage != Stage.WALK_TO_EXIT) {
-            stopWalk(client, "the Interactive Map is moving him");
+        if (ClearExecutor.isBusy()) {
+            releaseKeys(client);
             waitFor("the Interactive Map is moving him");
-            return;
+            return true;
+        }
+        String takeover = takeover(client);
+        if (takeover != null) {
+            giveUp(client, "you pressed " + takeover);
+            return false;
+        }
+        if (correction) {
+            correction = false;
+            giveUp(client, "the server corrected his position while walking");
+            return false;
         }
         switch (stage) {
-            case NEED_CHEST -> findChest(client);
-            case DESCEND -> descend(client, player);
-            case STEP_IN -> stepIn(client, player);
+            case NEED_CHEST -> findChest(client, player);
+            case RUN_TO_BARS -> runToBars(client, player);
+            case AWAIT_AURA -> awaitAura(client, player);
             case PUSH -> push(client, player);
-            case TO_CHEST -> {
-                if (walkInto(client, player, chestReal, "the reward chest")) {
-                    advance(Stage.AURA, "the chest is in reach");
-                }
-            }
-            case AURA -> aura(client, player);
-            case WALK_TO_EXIT -> walkToExit(player);
+            case TO_CHEST -> toChest(client, player);
+            case EXIT -> exit(client, player);
             default -> {
             }
         }
+        return engaged && stage != Stage.DONE;
+    }
+
+    // ------------------------------------------------------------------ starting
+
+    private static void engage(Minecraft client, int[] c, String why) {
+        engaged = true;
+        cr = c;
+        engagedMs = System.currentTimeMillis();
+        stage = Stage.NEED_CHEST;
+        stageStartMs = engagedMs;
+        correction = false;
+        KeyMapping[] keys = ownKeys(client);
+        for (int i = 0; i < keys.length; i++) {
+            keyArmed[i] = !keys[i].isDown();
+        }
+        LOGGER.info("[AutoPuzzles] Boulder: started - {}", why);
+    }
+
+    /** Boulder's clay/rotation when an Interactive Map path has just ended with him at its doorway spot, else null. */
+    private static int[] mapArrivalAtDoor(LocalPlayer player) {
+        int arrival = ClearExecutor.arrivalSeq();
+        if (arrival == consumedArrival) {
+            return null;
+        }
+        if (System.currentTimeMillis() - ClearExecutor.arrivalMs() > 3000L) {
+            consumedArrival = arrival; // too old to act on
+            return null;
+        }
+        if (ClearExecutor.isBusy() || !player.onGround()) {
+            return null; // not settled yet - the 3 s window allows for it
+        }
+        consumedArrival = arrival;
+        int[] c = boulderClayRotation();
+        if (c == null) {
+            return null;
+        }
+        BlockPos door = PuzzleCoords.real(15, ROOF_FEET_REL, -1, c);
+        BlockPos feet = player.blockPosition();
+        if (Math.abs(feet.getX() - door.getX()) > 4 || Math.abs(feet.getZ() - door.getZ()) > 4
+                || Math.abs(feet.getY() - door.getY()) > 2) {
+            return null;
+        }
+        return c;
+    }
+
+    private static int[] boulderClayRotation() {
+        com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
+        if (layout == null) {
+            return null;
+        }
+        for (int r = 0; r < layout.roomCount(); r++) {
+            if (ROOM.equals(layout.name(r))) {
+                return layout.clayRotation(r);
+            }
+        }
+        return null;
+    }
+
+    private static BlockPos rel(LocalPlayer player) {
+        return PuzzleCoords.relative(player.blockPosition(), cr);
+    }
+
+    /** Within a few blocks outside the doorway (the map's spot is two out). */
+    private static boolean nearDoor(LocalPlayer player) {
+        if (cr == null) {
+            return false;
+        }
+        BlockPos r = rel(player);
+        return r.getZ() >= -5 && r.getZ() <= 1 && Math.abs(r.getX() - 15) <= 5;
+    }
+
+    /** Past the doorway gap, into the next tile. */
+    private static boolean outsideRoom(LocalPlayer player) {
+        return cr != null && rel(player).getZ() <= -1;
     }
 
     // ------------------------------------------------------------------ the chest
 
-    private static void findChest(Minecraft client) {
+    private static void findChest(Minecraft client, LocalPlayer player) {
         RoomEntry entry = LiveMapFeature.currentRoomEntry();
-        int[] cr = LiveMapFeature.currentRoomClayAndRotation();
-        if (entry == null || cr == null) {
-            waitFor("the live map has no rotation for the room yet");
-            return;
-        }
         RoomEntry.Pos chestRel = null;
         String source = null;
-        var chests = entry.secretCoords == null ? null : entry.secretCoords.chest;
+        var chests = entry == null || !ROOM.equals(entry.name) || entry.secretCoords == null ? null
+                : entry.secretCoords.chest;
         if (chests != null && !chests.isEmpty()) {
-            // Back-most known chest (largest relative z) - the doorway is at negative z.
             chestRel = chests.get(0);
             for (RoomEntry.Pos p : chests) {
                 if (p.z > chestRel.z) {
@@ -177,22 +368,19 @@ final class AutoBoulder {
                 scanCooldown--;
                 return;
             }
-            scanCooldown = SCAN_EVERY_TICKS;
-            BlockPos best = null;
+            scanCooldown = 20;
             BlockPos bestRel = null;
-            for (BlockPos real : AutoPuzzleUtil.chestsInRoom(client.level, cr, SCAN_MIN_REL, SCAN_MIN_Y, SCAN_MIN_REL,
-                    SCAN_MAX_REL, SCAN_MAX_Y, SCAN_MAX_REL)) {
-                BlockPos rel = PuzzleCoords.relative(real, cr);
-                if (bestRel == null || rel.getZ() > bestRel.getZ()) {
-                    best = real;
-                    bestRel = rel;
+            for (BlockPos real : AutoPuzzleUtil.chestsInRoom(client.level, cr, -1, 60, -1, 31, 75, 31)) {
+                BlockPos r = PuzzleCoords.relative(real, cr);
+                if (bestRel == null || r.getZ() > bestRel.getZ()) {
+                    bestRel = r;
                 }
             }
-            if (best == null) {
+            if (bestRel == null) {
                 if (!noChestWarned) {
                     noChestWarned = true;
                     LOGGER.info("[AutoPuzzles] Boulder: no chest secret in the room database and no chest block in "
-                            + "the room yet - looking again every {} ticks", SCAN_EVERY_TICKS);
+                            + "the room yet - looking again every 20 ticks");
                 }
                 return;
             }
@@ -204,157 +392,122 @@ final class AutoBoulder {
         }
         chestReal = PuzzleCoords.real(chestRel, cr);
         if (chestReal.equals(doneChest)) {
-            advance(Stage.DONE, "this room's chest was already aura'd");
+            advance(Stage.DONE, "this room's chest was already taken");
             return;
         }
-        // The floor the boxes stand on: relative feet y 64 (the boxes are y 64..66), through PuzzleCoords so it
-        // carries the sim's shift. Never a bare height.
-        floorY = PuzzleCoords.real(15, 64, 15, cr).getY();
-        gridFront = PuzzleCoords.real(15, 64, 7, cr);
-        int[] exitRel = AutoClearUtils.roomOverride(ROOM);
-        exitReal = exitRel == null ? null : PuzzleCoords.real(exitRel[0], exitRel[1], exitRel[2], cr);
-        LOGGER.info("[AutoPuzzles] Boulder: chest at {} (relative {}, {}, {}) from the {}; floor feet y {}",
-                AutoPuzzleUtil.fmt(chestReal), chestRel.x, chestRel.y, chestRel.z, source, floorY);
-        if (BlockHitsReach.inReach(client.player, chestReal)) {
-            advance(Stage.AURA, "the chest is already in reach");
-            return;
+        boolean aura = CheatUtilsConfig.getInstance().isSecretAuraEnabled();
+        double roofY = PuzzleCoords.real(15, ROOF_FEET_REL, 0, cr).getY();
+        boolean onRoof = player.getY() > roofY - 0.6;
+        LOGGER.info("[AutoPuzzles] Boulder: chest at {} (relative {}, {}, {}) from the {}; Secret Aura {}; feet y {} "
+                        + "(roof {})", AutoPuzzleUtil.fmt(chestReal), chestRel.x, chestRel.y, chestRel.z, source,
+                aura ? "ON" : "off", fmt(player.getY()), (int) roofY);
+        realCamera = !(aura && onRoof);
+        if (aura && onRoof) {
+            mode = Mode.AURA;
+            advance(Stage.RUN_TO_BARS, "Secret Aura is on - running along the roof to the bars");
+        } else {
+            mode = Mode.BUTTONS;
+            advance(Stage.PUSH, aura ? "Secret Aura is on but he is below the roof - pressing the buttons"
+                    : "Secret Aura is off - pressing the solver's buttons");
         }
-        advance(onFloor(client.player) ? Stage.PUSH : Stage.DESCEND, onFloor(client.player)
-                ? "on the floor" : String.format(java.util.Locale.US, "feet at y %.2f, above the floor", client.player.getY()));
     }
 
-    private static boolean onFloor(LocalPlayer player) {
-        return player.onGround() && player.getY() < floorY + 1.5;
+    private static boolean chestTaken(Minecraft client) {
+        if (chestReal == null) {
+            return false;
+        }
+        if (sawContainer || SecretAuraFeature.isDone(chestReal)) {
+            return true;
+        }
+        BlockEntity be = client.level.getBlockEntity(chestReal);
+        return be instanceof ChestBlockEntity chest && chest.getOpenNess(0f) > 0f;
     }
 
-    // ------------------------------------------------------------------ getting down off the roof
+    // ------------------------------------------------------------------ Secret Aura on: along the roof
 
-    /**
-     * Walks to the edge of a hole in the roof whose fall lands on the floor, then steps in. The hole is found in the
-     * world, not from a table: an air column at his own level whose first solid block below puts his feet on the
-     * floor height, next to a roof block he can walk to.
-     */
-    private static void descend(Minecraft client, LocalPlayer player) {
-        if (onFloor(player)) {
-            stopWalk(client, "on the floor");
-            advance(Stage.PUSH, "on the floor");
+    private static void runToBars(Minecraft client, LocalPlayer player) {
+        double reach = Math.min(CheatUtilsConfig.getInstance().getAuraRange(), CheatUtilsConfig.MEASURED_MAX_REACH)
+                - 0.08;
+        double dist = Math.sqrt(BlockHits.boxDistanceSq(player.getEyePosition(), chestReal));
+        if (chestTaken(client)) {
+            releaseKeys(client);
+            chestDone("Secret Aura took the chest on the way");
             return;
         }
-        if (!walking) {
-            if (!player.onGround()) {
-                return;
-            }
-            if (holeEdge != null && AutoPuzzleUtil.at(player, holeEdge.below())) {
-                advance(Stage.STEP_IN, "at the hole's edge");
-                return;
-            }
-            if (walksForTarget >= MAX_WALKS_PER_TARGET) {
-                giveUp("could not get down off the roof after " + walksForTarget + " walk(s)");
-                return;
-            }
-            walksForTarget++;
-            BlockPos[] drop = findDrop(client.level, player.position());
-            if (drop == null) {
-                giveUp("no hole in the roof near him drops onto the floor");
-                return;
-            }
-            holeEdge = drop[0];
-            holeFeet = drop[1];
-            startWalk(client, player, holeEdge, "the roof's edge at " + AutoPuzzleUtil.fmt(holeFeet));
+        if (dist <= reach) {
+            releaseKeys(client);
+            advance(Stage.AWAIT_AURA, "the chest is " + fmt(dist) + " from his eye, inside Secret Aura's " + fmt(reach));
             return;
         }
-        if (tickWalk(client)) {
+        double roofY = PuzzleCoords.real(15, ROOF_FEET_REL, 0, cr).getY();
+        if (player.onGround() && player.getY() < roofY - 1.0) {
+            releaseKeys(client);
+            mode = Mode.BUTTONS;
+            advance(Stage.PUSH, "he is off the roof (feet y " + fmt(player.getY()) + ") - pressing the buttons");
             return;
         }
-        advance(Stage.STEP_IN, "walked to the hole's edge");
-    }
-
-    /** Holds forward into the hole until he has dropped below the roof, then waits to land. */
-    private static void stepIn(Minecraft client, LocalPlayer player) {
-        if (onFloor(player)) {
-            client.options.keyUp.setDown(false);
-            advance(Stage.PUSH, "dropped onto the floor");
+        if (System.currentTimeMillis() - stageStartMs > 10_000L) {
+            giveUp(client, "the run to the bars took over 10 s (chest still " + fmt(dist) + " away)");
             return;
         }
-        if (System.currentTimeMillis() - stageStartMs > 3000L) {
-            client.options.keyUp.setDown(false);
-            walksForTarget = Math.max(walksForTarget, 1);
-            advance(Stage.DESCEND, "stepping into the hole timed out");
-            return;
+        // Straight along the room at the chest's column, towards the bars.
+        BlockPos bars = PuzzleCoords.real(15, ROOF_FEET_REL, BARS_Z_REL, cr);
+        Vec3 aim = new Vec3(chestReal.getX() + 0.5, player.getEyeY(), chestReal.getZ() + 0.5);
+        if (Math.hypot(aim.x - player.getX(), aim.z - player.getZ()) < 1.0) {
+            aim = new Vec3(bars.getX() + 0.5, player.getEyeY(), bars.getZ() + 0.5);
         }
-        if (holeFeet == null || player.getY() < holeFeet.getY() - 1.0) {
-            client.options.keyUp.setDown(false); // falling: let go so he lands under the hole
-            return;
-        }
-        float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), Vec3.atCenterOf(holeFeet));
-        AutoPuzzleUtil.rotateCamera(player, dir[0], 0f);
+        float yaw = AutoPuzzleUtil.direction(player.getEyePosition(), aim)[0];
+        LOOK.begin("bars");
+        turnToward(client, player, yaw, 10f);
+        // Forward AND sprint from the very first tick to the bars (killer560, 2026-10-06: sprinting the whole time).
+        // He is already roughly facing down the room on the way in; the turn finishes while he runs.
+        boolean forward = true;
         client.options.keyUp.setDown(true);
-    }
-
-    /** {roof block he walks to (feet), hole (feet)} nearest him by walk, or null. */
-    private static BlockPos[] findDrop(Level level, Vec3 from) {
-        int roofY = (int) Math.floor(from.y + 0.01);
-        int px = (int) Math.floor(from.x);
-        int pz = (int) Math.floor(from.z);
-        List<double[]> found = new ArrayList<>();
-        int[][] sides = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        for (int dx = -24; dx <= 24; dx++) {
-            for (int dz = -24; dz <= 24; dz++) {
-                int x = px + dx;
-                int z = pz + dz;
-                if (!clear(level, x, roofY, z) || !clear(level, x, roofY + 1, z) || !clear(level, x, roofY - 1, z)) {
-                    continue;
-                }
-                double landing = Double.NaN;
-                for (int y = roofY - 2; y >= floorY - 2; y--) {
-                    if (!clear(level, x, y, z)) {
-                        landing = MazeWalk.standHeight(level, x, y + 1, z);
-                        break;
-                    }
-                }
-                if (Double.isNaN(landing) || Math.abs(landing - floorY) > 0.6) {
-                    continue;
-                }
-                for (int[] s : sides) {
-                    double edge = MazeWalk.standHeight(level, x + s[0], roofY, z + s[1]);
-                    if (!Double.isNaN(edge) && Math.abs(edge - from.y) < 0.6) {
-                        found.add(new double[]{Math.hypot(x + s[0] + 0.5 - from.x, z + s[1] + 0.5 - from.z),
-                                x + s[0], z + s[1], x, z});
-                    }
+        client.options.keySprint.setDown(true);
+        double speed = Math.hypot(player.getDeltaMovement().x, player.getDeltaMovement().z);
+        if (forward && player.onGround() && speed < 0.02 && System.currentTimeMillis() - stageStartMs > 600L) {
+            if (++stalledTicks >= 10) {
+                releaseKeys(client);
+                double auraReach = Math.min(CheatUtilsConfig.getInstance().getAuraRange(),
+                        CheatUtilsConfig.MEASURED_MAX_REACH);
+                if (dist <= auraReach) {
+                    advance(Stage.AWAIT_AURA, "against the bars, the chest " + fmt(dist) + " from his eye");
+                } else {
+                    giveUp(client, "ran into something at " + AutoPuzzleUtil.fmt(player.blockPosition())
+                            + " with the chest " + fmt(dist) + " away - past Secret Aura's " + fmt(auraReach));
                 }
             }
+        } else {
+            stalledTicks = 0;
         }
-        found.sort((a, b) -> Double.compare(a[0], b[0]));
-        int tried = 0;
-        for (double[] f : found) {
-            if (++tried > 12) {
-                break;
-            }
-            BlockPos edge = new BlockPos((int) f[1], roofY, (int) f[2]);
-            // The landing must lead to the boxes: a hole into a side passage that does not join the floor in
-            // front of the grid is no use.
-            Vec3 land = new Vec3((int) f[3] + 0.5, floorY, (int) f[4] + 0.5);
-            if (gridFront != null && !new MazeWalk().plan(level, land, gridFront)) {
-                continue;
-            }
-            if (WALK.plan(level, from, edge)) {
-                return new BlockPos[]{edge, new BlockPos((int) f[3], roofY, (int) f[4])};
-            }
+    }
+
+    private static void awaitAura(Minecraft client, LocalPlayer player) {
+        releaseKeys(client);
+        if (chestTaken(client)) {
+            chestDone("Secret Aura took the chest");
+            return;
         }
-        return null;
+        long wait = AURA_WAIT_BASE_MS + AutoPuzzlesConfig.getInstance().getBoulderDelayMs();
+        if (System.currentTimeMillis() - stageStartMs > wait) {
+            LOGGER.info("[AutoPuzzles] Boulder: Secret Aura has not taken the chest in {} ms - opening it by looking at it",
+                    wait);
+            advance(Stage.TO_CHEST, "opening it himself");
+        }
     }
 
-    private static boolean clear(Level level, int x, int y, int z) {
-        BlockPos p = new BlockPos(x, y, z);
-        VoxelShape shape = level.getBlockState(p).getCollisionShape(level, p);
-        return shape.isEmpty();
+    private static void chestDone(String why) {
+        doneChest = chestReal;
+        ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Boulder: "), ModChat.good("reward chest"),
+                ModChat.text(" taken - walking out."));
+        chestAtMs = System.currentTimeMillis();
+        LOGGER.info("[AutoPuzzles] Boulder: chest {} taken ({}) after {} press(es) - solve time {} s from the start",
+                AutoPuzzleUtil.fmt(chestReal), why, presses, fmt((chestAtMs - engagedMs) / 1000.0));
+        stopWalk(Minecraft.getInstance(), null);
+        advance(Stage.EXIT, why);
     }
 
-    // ------------------------------------------------------------------ pushing
-
-    private static long buttonMissingSinceMs = 0L;
-    private static long pushStartMs = 0L;
-    private static boolean sawSolution = false;
+    // ------------------------------------------------------------------ Secret Aura off: the buttons
 
     private static void push(Minecraft client, LocalPlayer player) {
         if (pushStartMs == 0L) {
@@ -363,28 +516,28 @@ final class AutoBoulder {
         BlockPos next = BoulderSolverFeature.getNextClick();
         if (next != null) {
             sawSolution = true;
-        }
-        if (next == null) {
+        } else {
             if (!BoulderSolverConfig.getInstance().isEnabled()) {
                 waitFor("Boulder Solver is off - it names the buttons; going for the chest as the boxes stand");
                 advance(Stage.TO_CHEST, "no solver");
                 return;
             }
             if (sawSolution || System.currentTimeMillis() - pushStartMs > SOLVER_WAIT_MS) {
-                stopWalk(client, "no presses left");
+                stopWalk(client, null);
                 advance(Stage.TO_CHEST, sawSolution ? "every box the solver named was pushed (" + presses
                         + " press(es))" : "the solver read no known arrangement in " + SOLVER_WAIT_MS + " ms");
                 return;
             }
+            releaseKeys(client);
             waitFor("the solver has not read the arrangement yet");
             return;
         }
-        if (!(client.level.getBlockState(next).getBlock() instanceof net.minecraft.world.level.block.ButtonBlock)) {
-            // The step's button is only laid once the box before it has moved.
+        if (!(client.level.getBlockState(next).getBlock() instanceof ButtonBlock)) {
+            releaseKeys(client);
             if (buttonMissingSinceMs == 0L) {
                 buttonMissingSinceMs = System.currentTimeMillis();
             } else if (System.currentTimeMillis() - buttonMissingSinceMs > BUTTON_WAIT_MS) {
-                giveUp("the button at " + AutoPuzzleUtil.fmt(next) + " never appeared ("
+                giveUp(client, "the button at " + AutoPuzzleUtil.fmt(next) + " never appeared ("
                         + client.level.getBlockState(next).getBlock() + " there)");
                 return;
             }
@@ -392,103 +545,364 @@ final class AutoBoulder {
             return;
         }
         buttonMissingSinceMs = 0L;
-        if (!BlockHitsReach.inReach(player, next)) {
-            if (walkInto(client, player, next, "button " + AutoPuzzleUtil.fmt(next))) {
-                return; // walk ended in reach - pressed next tick
+        if (System.currentTimeMillis() - lastPressMs < SETTLE_AFTER_PRESS_MS) {
+            // The box the last press moved reaches the client a few ticks later; a walk planned before that plans
+            // round where it used to be (2026-10-06 run: "no walk", 223 nodes, the very tick of the press).
+            releaseKeys(client);
+            return;
+        }
+        if (approachAndClick(client, player, next, "button " + AutoPuzzleUtil.fmt(next))) {
+            presses++;
+            LOGGER.info("[AutoPuzzles] Boulder: pressed {} ({} left)", AutoPuzzleUtil.fmt(next),
+                    BoulderSolverFeature.getRemainingClicks());
+        }
+    }
+
+    private static void toChest(Minecraft client, LocalPlayer player) {
+        if (chestTaken(client)) {
+            chestDone(sawContainer ? "the chest opened" : "the chest is open");
+            return;
+        }
+        if (approachAndClick(client, player, chestReal, "the reward chest")) {
+            LOGGER.info("[AutoPuzzles] Boulder: opened the chest at {} looking at it, after {} press(es)",
+                    AutoPuzzleUtil.fmt(chestReal), presses);
+            chestDone("opened it looking at it");
+        }
+    }
+
+    /**
+     * Walks to a spot with {@code target} in reach and in sight, turns to look at it, and right-clicks it when the
+     * crosshair is on it.
+     *
+     * @return true on the tick the click was sent
+     */
+    private static boolean approachAndClick(Minecraft client, LocalPlayer player, BlockPos target, String label) {
+        Vec3 eye = player.getEyePosition();
+        boolean inSpot = BlockHits.boxDistanceSq(eye, target) <= REACH_LOOSE * REACH_LOOSE
+                && sees(client, eye, target) && player.onGround();
+        if (walking && !target.equals(aimFor)) {
+            // a walk for something else
+            stopWalk(client, null);
+        }
+        if (!inSpot || walking) {
+            if (walking) {
+                if (BlockHits.boxDistanceSq(eye, target) <= REACH_SNUG * REACH_SNUG && sees(client, eye, target)
+                        && player.onGround()) {
+                    stopWalk(client, label + " is in reach");
+                } else {
+                    tickWalk(client, player);
+                    return false;
+                }
+            } else {
+                if (!player.onGround()) {
+                    releaseKeys(client);
+                    return false;
+                }
+                aimFor = target;
+                long now = System.currentTimeMillis();
+                if (now - lastPlanFailMs < PLAN_RETRY_MS) {
+                    return false; // the world may still be catching up with a box that moved
+                }
+                if (!startWalk(client, player, spotGoal(client, target, REACH_SNUG), mode == Mode.BUTTONS, label)
+                        && !startWalk(client, player, spotGoal(client, target, REACH_LOOSE), mode == Mode.BUTTONS,
+                        label)) {
+                    lastPlanFailMs = now;
+                    if (planFailSinceMs == 0L) {
+                        planFailSinceMs = now;
+                    } else if (now - planFailSinceMs > PLAN_GIVE_UP_MS) {
+                        giveUp(client, "no walkable spot has " + label + " in reach and in sight");
+                    }
+                } else {
+                    planFailSinceMs = 0L;
+                }
+                return false;
             }
+        }
+        releaseKeys(client);
+        long now = System.currentTimeMillis();
+        if (!target.equals(aimFor) || aimStartMs == 0L) {
+            aimFor = target;
+            aimTicks = 0;
+            aimStartMs = now;
+            aimPointFor = null;
+        }
+        if (aimPointFor == null || !aimPointFor.equals(target)) {
+            aimPointFor = target;
+            aimPt = humanAimPoint(client, target);
+            LOOK.begin(target);
+        }
+        // FIRST, before any turn this tick: is his crosshair on it? The rotation he has now is the one the last
+        // movement packet reported, so a click now carries what the server already has (BadPacketsJ's rule).
+        BlockHitResult hit = crosshairOn(client, player, target);
+        if (hit != null) {
+            if (player.isShiftKeyDown()) {
+                waitFor("sneaking - a sneak-click would place the held item");
+                return false;
+            }
+            if (now - lastPressMs < PRESS_GAP_MS || !AutoPuzzleUtil.gateWorldClick()) {
+                return false;
+            }
+            long sincePrev = lastPressMs == 0L ? now - engagedMs : now - lastPressMs;
+            lastPressMs = now;
+            client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
+            player.swing(InteractionHand.MAIN_HAND);
+            LOGGER.info("[AutoPuzzles] Boulder: click on {} - crosshair on it: yes ({} hit {} face {}), turn {} tick(s) "
+                            + "/ {} ms after the walk, {} ms since the previous click", label,
+                    realCamera ? "client raytrace" : "body ray", AutoPuzzleUtil.fmt(hit.getBlockPos()),
+                    hit.getDirection().getName(), aimTicks, now - aimStartMs, sincePrev);
+            aimFor = null;
+            aimTicks = 0;
+            aimStartMs = 0L;
+            aimPointFor = null;
+            return true;
+        }
+        if (++aimTicks > AIM_MAX_TICKS) {
+            giveUp(client, "could not get the crosshair onto " + label + " in " + AIM_MAX_TICKS + " ticks");
+            return false;
+        }
+        float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), aimPt);
+        turnToward(client, player, dir[0], dir[1]);
+        return false;
+    }
+
+    /**
+     * The block his crosshair is on, if it is {@code target}. With his real camera that is the client's own pick
+     * ({@code Minecraft.hitResult}, what vanilla right-clicks); with the camera held (the Secret Aura run's fallback) it
+     * is the same ray cast from his body's rotation.
+     */
+    private static BlockHitResult crosshairOn(Minecraft client, LocalPlayer player, BlockPos target) {
+        if (realCamera) {
+            return client.hitResult instanceof BlockHitResult bh && bh.getType() == HitResult.Type.BLOCK
+                    && bh.getBlockPos().equals(target) ? bh : null;
+        }
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = AutoPuzzleUtil.look(player.getYRot(), player.getXRot());
+        HitResult hr = client.level.clip(new ClipContext(eye, eye.add(look.scale(CheatUtilsConfig.MEASURED_MAX_REACH)),
+                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+        return hr instanceof BlockHitResult bh && hr.getType() == HitResult.Type.BLOCK
+                && bh.getBlockPos().equals(target) ? bh : null;
+    }
+
+    /** A point inside the middle 60% of the target's outline, picked once per target - nobody aims at the exact centre. */
+    private static Vec3 humanAimPoint(Minecraft client, BlockPos target) {
+        VoxelShape shape = client.level.getBlockState(target).getShape(client.level, target);
+        if (shape.isEmpty()) {
+            return Vec3.atCenterOf(target);
+        }
+        var b = shape.bounds();
+        java.util.concurrent.ThreadLocalRandom r = java.util.concurrent.ThreadLocalRandom.current();
+        double fx = 0.2 + 0.6 * r.nextDouble();
+        double fy = 0.2 + 0.6 * r.nextDouble();
+        double fz = 0.2 + 0.6 * r.nextDouble();
+        return new Vec3(target.getX() + b.minX + (b.maxX - b.minX) * fx, target.getY() + b.minY + (b.maxY - b.minY) * fy,
+                target.getZ() + b.minZ + (b.maxZ - b.minZ) * fz);
+    }
+
+    private static BoulderPath.GoalTest spotGoal(Minecraft client, BlockPos target, double reach) {
+        return BoulderPath.eye(e -> BlockHits.boxDistanceSq(e, target) <= reach * reach && sees(client, e, target));
+    }
+
+    /** The middle of the block's outline (a button is a small box on a face). */
+    private static Vec3 aimPoint(Minecraft client, BlockPos target) {
+        VoxelShape shape = client.level.getBlockState(target).getShape(client.level, target);
+        if (shape.isEmpty()) {
+            return Vec3.atCenterOf(target);
+        }
+        return shape.bounds().getCenter().add(target.getX(), target.getY(), target.getZ());
+    }
+
+    /** Whether a ray from {@code eye} to the middle of {@code target}'s outline hits {@code target} first. */
+    private static boolean sees(Minecraft client, Vec3 eye, BlockPos target) {
+        Vec3 point = aimPoint(client, target);
+        HitResult hr = client.level.clip(new ClipContext(eye, point.add(point.subtract(eye).normalize().scale(0.3)),
+                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, client.player));
+        return hr instanceof BlockHitResult hit && hr.getType() == HitResult.Type.BLOCK
+                && hit.getBlockPos().equals(target);
+    }
+
+    // ------------------------------------------------------------------ out
+
+    private static void exit(Minecraft client, LocalPlayer player) {
+        if (walking) {
+            tickWalk(client, player);
+            if (walking) {
+                return;
+            }
+            if (stage != Stage.EXIT) {
+                return;
+            }
+            BlockPos r = rel(player);
+            if (r.getZ() <= 0) {
+                finish(client, "walked out to relative z " + r.getZ() + " - as far as there is floor");
+                return;
+            }
+        }
+        if (!player.onGround()) {
+            releaseKeys(client);
             return;
         }
-        stopWalk(client, "button " + AutoPuzzleUtil.fmt(next) + " is in reach");
-        if (player.isShiftKeyDown()) {
-            waitFor("sneaking - a sneak-click would place the held item");
+        if (replans > MAX_REPLANS) {
+            giveUp(client, "could not walk out of the room");
             return;
         }
-        if (System.currentTimeMillis() - lastPressMs < PRESS_GAP_MS || !AutoPuzzleUtil.gateWorldClick()) {
-            return;
+        // As far out as there is floor: the next tile first (where the live map stops calling it Boulder), then the
+        // doorway gap, then the doorway itself.
+        boolean avoid = mode == Mode.BUTTONS;
+        for (int z : new int[]{-3, -2, -1, 0}) {
+            final int limit = z;
+            BoulderPath.GoalTest out = (feet, s) -> {
+                BlockPos r = PuzzleCoords.relative(feet, cr);
+                return r.getZ() <= limit && Math.abs(r.getX() - 15) <= 2;
+            };
+            if (startWalk(client, player, out, avoid, "the way out (relative z <= " + z + ")")) {
+                return;
+            }
         }
-        lastPressMs = System.currentTimeMillis();
-        if (!AutoPuzzleUtil.interactBlock(client, next)) {
-            giveUp("no clickable shape at " + AutoPuzzleUtil.fmt(next));
-            return;
-        }
-        presses++;
-        walksForTarget = 0;
-        LOGGER.info("[AutoPuzzles] Boulder: pressed {} ({} left)", AutoPuzzleUtil.fmt(next),
-                BoulderSolverFeature.getRemainingClicks());
+        giveUp(client, "no walkable way back to the doorway");
     }
 
     // ------------------------------------------------------------------ walking
 
-    /**
-     * Walks until {@code target}'s box is within {@link #WALK_EYE} of his eye.
-     * @return true once it is within the server's reach (the caller acts); false while walking or when no walk
-     *         could be planned (logged, and given up after {@link #MAX_WALKS_PER_TARGET})
-     */
-    private static boolean walkInto(Minecraft client, LocalPlayer player, BlockPos target, String label) {
-        if (target == null) {
-            giveUp("no position for " + label);
+    /** Plans with a fresh grid (the boxes move) and starts following it. @return false if no path */
+    private static boolean startWalk(Minecraft client, LocalPlayer player, BoulderPath.GoalTest goal,
+                                     boolean avoidBarrier, String label) {
+        BlockPos a = PuzzleCoords.real(-3, FLOOR_FEET_REL - 4, -5, cr);
+        BlockPos b = PuzzleCoords.real(33, ROOF_FEET_REL + 5, 33, cr);
+        BoulderPath p = new BoulderPath(client.level, a, b, avoidBarrier);
+        if (!p.plan(player.position(), goal)) {
+            LOGGER.info("[AutoPuzzles] Boulder: no walk to {} ({} nodes searched{})", label, p.expanded(),
+                    avoidBarrier ? ", barrier roof excluded" : "");
             return false;
         }
-        if (!target.equals(walkFor)) {
-            stopWalk(client, "new target " + label);
-            walkFor = target;
-            walksForTarget = 0;
-        }
-        if (walking) {
-            if (BlockHitsReach.within(player, target, WALK_EYE)) {
-                stopWalk(client, label + " is in reach");
-                return true;
-            }
-            if (tickWalk(client)) {
-                return false;
-            }
-        }
-        if (BlockHitsReach.inReach(player, target)) {
-            return true;
-        }
-        if (!player.onGround()) {
-            return false;
-        }
-        if (walksForTarget >= MAX_WALKS_PER_TARGET) {
-            giveUp("could not walk into reach of " + label + " after " + walksForTarget + " walk(s)");
-            return false;
-        }
-        walksForTarget++;
-        BlockPos spot = MazeWalk.planToSpot(client.level, player.position(), target, 6,
-                eye -> com.killer560.hub.util.BlockHits.boxDistanceSq(eye, target) <= WALK_EYE * WALK_EYE, WALK);
-        if (spot == null) {
-            LOGGER.info("[AutoPuzzles] Boulder: no walkable spot within 6 blocks of {} has it in reach (try {}/{})",
-                    label, walksForTarget, MAX_WALKS_PER_TARGET);
-            return false;
-        }
-        startWalk(client, player, spot, label);
-        return false;
-    }
-
-    private static void startWalk(Minecraft client, LocalPlayer player, BlockPos goal, String label) {
+        path = p;
+        pts = p.points();
+        ptIdx = 0;
         walking = true;
+        walkLabel = label;
+        walkGoal = goal;
+        walkAvoidBarrier = avoidBarrier;
         walkStartMs = System.currentTimeMillis();
-        double len = WALK.length(player.position());
-        walkTimeoutMs = 2500L + (long) (len / 3.5 * 1000.0);
-        LOGGER.info("[AutoPuzzles] Boulder: walking to {} for {} - {} leg(s), {} blocks", AutoPuzzleUtil.fmt(goal),
-                label, WALK.legs(), String.format(java.util.Locale.US, "%.1f", len));
-        tickWalk(client);
+        aimTicks = 0;
+        sprintAll = !realCamera && stage == Stage.EXIT;
+        sprintStarted = false;
+        double len = p.length(player.position());
+        walkTimeoutMs = 3000L + (long) (len / 3.0 * 1000.0);
+        bestRemaining = Double.MAX_VALUE;
+        bestAtMs = walkStartMs;
+        int drops = 0;
+        double lowest = Double.MAX_VALUE;
+        for (int i = 1; i < pts.size(); i++) {
+            if (pts.get(i).y < pts.get(i - 1).y - 0.6) {
+                drops++;
+            }
+            lowest = Math.min(lowest, pts.get(i).y);
+        }
+        LOGGER.info("[AutoPuzzles] Boulder: walking to {} at {} - {} step(s), {} blocks, {} step(s) down, lowest feet y {}",
+                label, AutoPuzzleUtil.fmt(p.goal()), pts.size(), fmt(len), drops, pts.isEmpty() ? "-" : fmt(lowest));
+        return true;
     }
 
-    /** @return true while the walk is still going */
-    private static boolean tickWalk(Minecraft client) {
+    /** One tick of following the planned path: turn smoothly towards a point a little ahead and hold forward. */
+    private static void tickWalk(Minecraft client, LocalPlayer player) {
         if (!walking) {
-            return false;
+            return;
         }
-        if (System.currentTimeMillis() - walkStartMs > walkTimeoutMs) {
+        long now = System.currentTimeMillis();
+        if (now - walkStartMs > walkTimeoutMs) {
             stopWalk(client, "walk timed out after " + walkTimeoutMs + " ms");
-            return false;
+            replanOrFail(client, player);
+            return;
         }
-        if (WALK.tick(client)) {
-            return true;
+        Vec3 p = player.position();
+        // Advance past points he has reached; skip ahead to a nearer later one (a corner he cut).
+        while (ptIdx < pts.size() - 1 && hdist(p, pts.get(ptIdx)) < 0.75) {
+            ptIdx++;
         }
-        stopWalk(client, "walk finished");
-        return false;
+        for (int j = ptIdx + 1; j < Math.min(pts.size(), ptIdx + 4); j++) {
+            if (hdist(p, pts.get(j)) < hdist(p, pts.get(ptIdx)) && Math.abs(pts.get(j).y - p.y) < 0.7) {
+                ptIdx = j;
+            }
+        }
+        Vec3 last = pts.get(pts.size() - 1);
+        double remaining = hdist(p, pts.get(ptIdx));
+        for (int i = ptIdx + 1; i < pts.size(); i++) {
+            remaining += hdist(pts.get(i - 1), pts.get(i));
+        }
+        if (ptIdx == pts.size() - 1 && hdist(p, last) < 0.35 && Math.abs(p.y - last.y) < 0.7) {
+            stopWalk(client, "arrived");
+            return;
+        }
+        if (player.onGround() && ptIdx > 0 && offSegment(p, pts.get(ptIdx - 1), pts.get(ptIdx)) > 1.6) {
+            stopWalk(client, "pushed off the path");
+            replanOrFail(client, player);
+            return;
+        }
+        if (remaining < bestRemaining - 0.25) {
+            bestRemaining = remaining;
+            bestAtMs = now;
+        } else if (now - bestAtMs > 1500L) {
+            stopWalk(client, "no headway for 1.5 s");
+            replanOrFail(client, player);
+            return;
+        }
+        // Pure pursuit: a carrot 1.2 blocks along the path from the point he is heading for.
+        Vec3 carrot = pts.get(ptIdx);
+        double budget = 1.2 - hdist(p, carrot);
+        for (int i = ptIdx + 1; i < pts.size() && budget > 0; i++) {
+            Vec3 a = pts.get(i - 1);
+            Vec3 b = pts.get(i);
+            if (Math.abs(b.y - a.y) > 0.6) {
+                break; // never aim past a change of height - take the step square on
+            }
+            double seg = hdist(a, b);
+            if (seg >= budget) {
+                carrot = new Vec3(a.x + (b.x - a.x) * budget / seg, b.y, a.z + (b.z - a.z) * budget / seg);
+                budget = 0;
+            } else {
+                carrot = b;
+                budget -= seg;
+            }
+        }
+        // Eyes on the ground a few blocks ahead, as a walker's are.
+        Vec3 ahead = pts.get(Math.min(pts.size() - 1, ptIdx + 3));
+        double aheadDist = Math.max(2.0, hdist(p, ahead));
+        float pitch = (float) Mth.clamp(Math.toDegrees(Math.atan2(player.getEyeY() - (ahead.y + 0.3), aheadDist)),
+                -5.0, 40.0);
+        Vec3 eye = player.getEyePosition();
+        float yaw = AutoPuzzleUtil.direction(eye, new Vec3(carrot.x, eye.y, carrot.z))[0];
+        if (aimFor != null && remaining < 3.0) {
+            // The last few blocks: eyes already coming onto what he is walking to (pitch only - the yaw steers).
+            pitch = AutoPuzzleUtil.direction(eye, aimPoint(client, aimFor))[1];
+        }
+        LOOK.begin("walk " + walkLabel);
+        turnToward(client, player, yaw, pitch);
+        float err = Math.abs(Mth.wrapDegrees(yaw - player.getYRot()));
+        if (sprintAll) {
+            // The Secret Aura run back out: turn round where he stands (W held against the bars would end a sprint
+            // on the collision), then forward and sprint every tick until he is out.
+            if (!sprintStarted && err > 20f) {
+                releaseKeys(client);
+                bestAtMs = now;
+                return;
+            }
+            sprintStarted = true;
+            client.options.keyUp.setDown(true);
+            client.options.keySprint.setDown(true);
+            return;
+        }
+        boolean forward = err < (remaining < 0.8 ? 20f : 55f);
+        client.options.keyUp.setDown(forward);
+        client.options.keySprint.setDown(forward && err < 12f && remaining > 4.5);
+    }
+
+    private static void replanOrFail(Minecraft client, LocalPlayer player) {
+        if (++replans > MAX_REPLANS) {
+            giveUp(client, "could not walk to " + walkLabel + " after " + MAX_REPLANS + " re-plan(s)");
+            return;
+        }
+        if (walkGoal != null && player.onGround()) {
+            startWalk(client, player, walkGoal, walkAvoidBarrier, walkLabel);
+        }
     }
 
     private static void stopWalk(Minecraft client, String why) {
@@ -496,85 +910,122 @@ final class AutoBoulder {
             return;
         }
         walking = false;
-        client.options.keyUp.setDown(false);
-        LOGGER.info("[AutoPuzzles] Boulder: stopped walking - {}", why);
+        releaseKeys(client);
+        if (why != null) {
+            LOGGER.info("[AutoPuzzles] Boulder: stopped walking to {} - {}", walkLabel, why);
+        }
+        if ("arrived".equals(why) || (why != null && why.endsWith("in reach"))) {
+            replans = 0;
+        }
     }
 
-    // ------------------------------------------------------------------ the chest, and out
-
-    /** Its own single, deliberate chest interact - never {@code SecretAuraFeature} - so it fires "even if secret
-     *  aura is off". */
-    private static void aura(Minecraft client, LocalPlayer player) {
-        if (auraAttempts >= MAX_AURA_ATTEMPTS) {
-            LOGGER.warn("[AutoPuzzles] Boulder: gave up auraing the chest after {} attempts - walking to the exit anyway",
-                    MAX_AURA_ATTEMPTS);
-            advance(Stage.WALK_TO_EXIT, "aura gave up");
-            return;
-        }
-        BlockPos target = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
-        if (target == null) {
-            target = chestReal;
-        }
-        double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target);
-        if (player.isShiftKeyDown() || distSq > AURA_REACH_SQ) {
-            LOGGER.info("[AutoPuzzles] Boulder: chest aura blocked ({}), {} blocks to the box (limit {}) - attempt {} of {}",
-                    player.isShiftKeyDown() ? "sneaking" : "out of reach",
-                    String.format(java.util.Locale.US, "%.2f", Math.sqrt(distSq)),
-                    String.format(java.util.Locale.US, "%.2f", Math.sqrt(AURA_REACH_SQ)),
-                    auraAttempts + 1, MAX_AURA_ATTEMPTS);
-            auraAttempts++;
-            if (distSq > AURA_REACH_SQ) {
-                walksForTarget = 0;
-                advance(Stage.TO_CHEST, "the chest is out of reach again");
-            }
-            return;
-        }
-        if (!AutoPuzzleUtil.gateWorldClick()) {
-            return; // gate held this tick back - not burnt, retried next tick
-        }
-        auraAttempts++;
-        if (!AutoPuzzleUtil.interactBlock(client, target)) {
-            LOGGER.warn("[AutoPuzzles] Boulder: no clickable shape at {} (attempt {}/{})", target, auraAttempts, MAX_AURA_ATTEMPTS);
-            return;
-        }
-        ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Boulder: aura'd the "), ModChat.good("reward chest"),
-                ModChat.text("."));
-        LOGGER.info("[AutoPuzzles] Boulder: aura'd the chest at {} after {} press(es)", AutoPuzzleUtil.fmt(target), presses);
-        doneChest = chestReal;
-        advance(Stage.WALK_TO_EXIT, "aura'd the chest");
+    private static double hdist(Vec3 a, Vec3 b) {
+        return Math.hypot(a.x - b.x, a.z - b.z);
     }
 
-    /** One Interactive Map walk back to the doorway spot ("walk back to the exit so it can etherwarp again"). */
-    private static void walkToExit(LocalPlayer player) {
-        if (exitReal == null || AutoPuzzleUtil.at(player, exitReal)) {
-            advance(Stage.DONE, exitReal == null ? "no exit spot known" : "at the exit");
+    private static double offSegment(Vec3 p, Vec3 a, Vec3 b) {
+        double dx = b.x - a.x;
+        double dz = b.z - a.z;
+        double len2 = dx * dx + dz * dz;
+        if (len2 < 1e-6) {
+            return hdist(p, a);
+        }
+        double t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / len2));
+        return Math.hypot(p.x - (a.x + dx * t), p.z - (a.z + dz * t));
+    }
+
+    // ------------------------------------------------------------------ rotation and keys
+
+    /**
+     * One human step towards (yaw, pitch). Secret Aura off: his REAL rotation, camera and all - he actually looks
+     * where he walks and at what he clicks (killer560: "it needs to have the player actually looking at the button").
+     * Secret Aura's run: the body through {@link BodyAim}, camera held.
+     */
+    private static void turnToward(Minecraft client, LocalPlayer player, float yaw, float pitch) {
+        float[] next = LOOK.step(client, player.getYRot(), player.getXRot(), yaw, pitch);
+        if (next[0] == player.getYRot() && next[1] == player.getXRot()) {
             return;
         }
-        if (ClearExecutor.isBusy()) {
-            return;
-        }
-        if (System.currentTimeMillis() - stageStartMs > 15_000L) {
-            advance(Stage.DONE, "the walk to the exit timed out");
-            return;
-        }
-        if (AutoPuzzleUtil.pathIfMapOn(exitReal, null)) {
-            advance(Stage.DONE, "asked the Interactive Map for the exit");
+        if (realCamera) {
+            player.setYRot(next[0]);
+            player.setYHeadRot(next[0]);
+            player.setXRot(next[1]);
         } else {
-            waitFor("the Interactive Map is off or busy - not walking to the exit");
+            BODY.turn(player, next[0], next[1]);
         }
+    }
+
+    /**
+     * When nothing is driving him: if the body is still turned away from his held view, turn it back at the same
+     * human pace, and release the camera once they agree - so the end of a room is not a snap.
+     */
+    private static void settleBody(Minecraft client, LocalPlayer player) {
+        if (player == null || !BODY.isHeld()) {
+            return;
+        }
+        float vy = ViewFreeze.viewYaw();
+        float vp = ViewFreeze.viewPitch();
+        if (Float.isNaN(vy)) {
+            BODY.tick(player, false);
+            return;
+        }
+        float dy = Math.abs(Mth.wrapDegrees(vy - player.getYRot()));
+        float dp = Math.abs(vp - player.getXRot());
+        if (dy <= 1.5f && dp <= 1.5f) {
+            BODY.tick(player, false);
+            return;
+        }
+        LOOK.begin("settle");
+        float[] next = LOOK.step(client, player.getYRot(), player.getXRot(), vy, vp);
+        BODY.turn(player, next[0], next[1]);
+    }
+
+    private static void releaseKeys(Minecraft client) {
+        client.options.keyUp.setDown(false);
+        client.options.keySprint.setDown(false);
+    }
+
+    private static KeyMapping[] ownKeys(Minecraft client) {
+        return new KeyMapping[]{client.options.keyDown, client.options.keyLeft, client.options.keyRight,
+                client.options.keyJump};
+    }
+
+    /** The name of a movement key he pressed since it started (one already held then counts once released). */
+    private static String takeover(Minecraft client) {
+        KeyMapping[] keys = ownKeys(client);
+        String[] names = {"back", "left", "right", "jump"};
+        for (int i = 0; i < keys.length; i++) {
+            boolean down = keys[i].isDown();
+            if (!down) {
+                keyArmed[i] = true;
+            } else if (keyArmed[i]) {
+                return names[i];
+            }
+        }
+        return null;
     }
 
     // ------------------------------------------------------------------ bookkeeping
+
+    private static void finish(Minecraft client, String why) {
+        stopWalk(client, null);
+        releaseKeys(client);
+        LOGGER.info("[AutoPuzzles] Boulder: finished - {}", why);
+        stage = Stage.DONE;
+    }
 
     private static void advance(Stage next, String why) {
         LOGGER.info("[AutoPuzzles] Boulder: {} -> {} ({})", stage, next, why);
         stage = next;
         stageStartMs = System.currentTimeMillis();
         loggedWait = null;
+        replans = 0;
+        stalledTicks = 0;
     }
 
-    private static void giveUp(String why) {
-        stopWalk(Minecraft.getInstance(), "giving up");
+    private static void giveUp(Minecraft client, String why) {
+        stopWalk(client, null);
+        releaseKeys(client);
         LOGGER.info("[AutoPuzzles] Boulder: stopped for this room - {}", why);
         ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Boulder: "), ModChat.bad(why), ModChat.text("."));
         stage = Stage.DONE;
@@ -587,37 +1038,51 @@ final class AutoBoulder {
         }
     }
 
-    private static void reset() {
-        stopWalk(Minecraft.getInstance(), "left the room");
+    /** Back to idle. {@code why} null: silently. */
+    private static void disengage(Minecraft client, String why) {
+        if (engaged && why != null) {
+            LOGGER.info("[AutoPuzzles] Boulder: stopped - {}", why);
+        }
+        if (walking || engaged) {
+            walking = false;
+            if (client != null && client.options != null) {
+                releaseKeys(client);
+            }
+        }
+        engaged = false;
         stage = Stage.NEED_CHEST;
+        mode = Mode.BUTTONS;
+        cr = null;
         chestReal = null;
-        exitReal = null;
-        floorY = Integer.MIN_VALUE;
-        gridFront = null;
-        auraAttempts = 0;
         stageStartMs = 0L;
-        lastPressMs = 0L;
-        presses = 0;
+        loggedWait = null;
         noChestWarned = false;
         scanCooldown = 0;
-        loggedWait = null;
-        walkFor = null;
-        walksForTarget = 0;
-        holeEdge = null;
-        holeFeet = null;
+        sawContainer = false;
+        presses = 0;
+        lastPressMs = 0L;
         buttonMissingSinceMs = 0L;
         pushStartMs = 0L;
         sawSolution = false;
+        correction = false;
+        path = null;
+        pts = List.of();
+        ptIdx = 0;
+        walkLabel = null;
+        walkGoal = null;
+        replans = 0;
+        aimTicks = 0;
+        aimFor = null;
+        stalledTicks = 0;
+        lastPlanFailMs = 0L;
+        planFailSinceMs = 0L;
+        realCamera = false;
+        aimStartMs = 0L;
+        aimPointFor = null;
+        aimPt = null;
     }
 
-    /** Eye-to-box reach tests, standing eye as the client reports it. */
-    private static final class BlockHitsReach {
-        static boolean inReach(LocalPlayer player, BlockPos pos) {
-            return com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), pos) <= AURA_REACH_SQ;
-        }
-
-        static boolean within(LocalPlayer player, BlockPos pos, double blocks) {
-            return com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), pos) <= blocks * blocks;
-        }
+    private static String fmt(double v) {
+        return String.format(Locale.US, "%.2f", v);
     }
 }

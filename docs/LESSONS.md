@@ -192,6 +192,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   1-20 and was fixed 2026-09-30. A clamp has two halves - the setter and whatever widget feeds it - and a
   slider whose start position computes negative (`(0 - 1) / 19`) is the tell. Every other numeric setter in
   the repo was swept on 2026-09-30 and has its field default inside its clamp.
+- `MazeWalk` plans on ONE feet level, so it cannot take a staircase; Auto Boulder used to drop through a hole in the
+  roof instead ("struggles going down the stairs", 2026-10-06). `autopuzzles/BoulderPath` plans across heights (stairs
+  climbed from their low side, ledges cost extra). And a walk planned on the tick of a Boulder button press plans round
+  the box's OLD position (the move reaches the client ticks later: "no walk", 223 nodes) - wait ~400 ms after a press.
 
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
