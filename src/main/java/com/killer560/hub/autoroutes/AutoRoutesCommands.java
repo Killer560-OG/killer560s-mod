@@ -484,8 +484,8 @@ public final class AutoRoutesCommands {
     /**
      * The modifiers after {@code /ar add <type>}: {@code start} (this route's start node) and {@code await:<number>}
      * (wait for that many secrets before this node fires). Any order, either, neither, or both - and nothing else.
-     * {@code await:x}, a bare {@code await} and {@code await:0} are refused: the x is a placeholder for a number
-     * (killer560, 2026-10-04), and a node that silently waited for one secret when he typed a typo would be worse.
+     * A bare {@code await} or {@code await:} waits for 1. {@code await:x} and {@code await:0} are refused: the x is a
+     * placeholder for a number (killer560, 2026-10-04).
      * @return null (after saying why in chat) on anything unrecognised, so a typo never adds the node at all.
      */
     private static RouteRecorder.NodeModifiers parseModifiers(String mods) {
@@ -500,8 +500,11 @@ public final class AutoRoutesCommands {
                     continue;
                 }
                 if (t.equals("await") || t.startsWith("await:")) {
+                    // A bare "await" / "await:" means 1 (killer560, 2026-10-06: "tab fill await and press enter
+                    // itll default to 1 even if it is await:"). await:x and await:0 are still refused.
                     java.util.regex.Matcher m = AWAIT_ARG.matcher(t);
-                    int n = m.matches() ? Integer.parseInt(m.group(1)) : 0;
+                    int n = t.equals("await") || t.equals("await:") ? 1
+                            : m.matches() ? Integer.parseInt(m.group(1)) : 0;
                     if (n < 1) {
                         ModChat.send(FEATURE, ModChat.bad("\"" + raw + "\" needs a number of secrets"),
                                 ModChat.dim(" - e.g. "), ModChat.value("await:2"), ModChat.dim(". Nothing was added."));
