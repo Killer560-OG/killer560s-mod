@@ -70,8 +70,11 @@ public class TermismPracticeScreen extends Screen {
     // happens. A successful click advances to the next row (and picks a new random target column); after
     // row 4's click, the puzzle is done - matches Hypixel's real "Click the button on time!" 4-round
     // structure.
+    // Since the 2026-10-06 Hypixel update the band can be 3 rows instead of 4. This screen builds whichever
+    // TerminalLayouts.melodyRows() says (the last live board seen, else its ASSUME_NEW_LAYOUT switch): rows 1..N are
+    // the band and row N+1 holds the second marker, so a 3-row board is 9x5.
     private static final int MELODY_COLUMNS = 9;
-    private static final int MELODY_BUTTON_COLUMN = 7;
+    private static final int MELODY_BUTTON_COLUMN = com.killer560.hub.terminals.TerminalLayouts.MELODY_BUTTON_COLUMN;
     private static final long MELODY_MOVE_INTERVAL_MS = 500;
 
     private static final Map<Item, DyeColor> PANE_COLOR_LOOKUP = buildPaneColorLookup();
@@ -206,6 +209,8 @@ public class TermismPracticeScreen extends Screen {
     private int melodyLimeColumn;
     private int melodyLimeDirection;
     private int melodyCurrentRow;
+    /** Rows in the band this board was built with: 4 (old) or 3 (2026-10-06 update). */
+    private int melodyBandRows = com.killer560.hub.terminals.TerminalLayouts.OLD_MELODY_ROWS;
     private long melodyLastMoveAtMs;
 
     // Auto Terminals in Termism (2026-09-09) - per killer560's explicit "also make it work in termism"
@@ -269,6 +274,7 @@ public class TermismPracticeScreen extends Screen {
 
     private void generateMelody() {
         columns = MELODY_COLUMNS;
+        melodyBandRows = com.killer560.hub.terminals.TerminalLayouts.melodyRows();
         melodyCurrentRow = 1;
         melodyMagentaColumn = 1 + random.nextInt(5);
         melodyLimeColumn = 1;
@@ -279,7 +285,7 @@ public class TermismPracticeScreen extends Screen {
 
     private void rebuildMelodyCells() {
         List<ItemStack> newCells = new ArrayList<>();
-        int total = MELODY_COLUMNS * 6;
+        int total = MELODY_COLUMNS * (melodyBandRows + 2);
         for (int i = 0; i < total; i++) {
             newCells.add(melodyItemFor(i % MELODY_COLUMNS, i / MELODY_COLUMNS));
         }
@@ -287,7 +293,7 @@ public class TermismPracticeScreen extends Screen {
     }
 
     private ItemStack melodyItemFor(int col, int row) {
-        boolean inBand = row >= 1 && row < 5;
+        boolean inBand = row >= 1 && row <= melodyBandRows;
         if (col == melodyMagentaColumn && !inBand) {
             return new ItemStack(McItems.MAGENTA_STAINED_GLASS_PANE);
         }
@@ -417,9 +423,12 @@ public class TermismPracticeScreen extends Screen {
     // 2x7" report, round 11, and "numbers is not generating with all the numbers 1-14" follow-up, round
     // 12 - confirmed against Odin's own simpleTermGui(2, 7, ..); was still only randomly filling 4-7 of
     // the 14 cells, same sparse pattern Panes/Rubix legitimately use but Numbers apparently doesn't).
+    // 2026-10-06 Hypixel update: 10 numbers instead of 14. The count follows the last live board seen
+    // (TerminalLayouts.numbersCount(), else its ASSUME_NEW_LAYOUT switch), two rows of count/2. The real shape of
+    // the 10-number board is not known yet - 2x5 is this practice screen's guess, not Hypixel's.
     private void generateNumbers() {
-        columns = 7;
-        int gridSize = columns * 2;
+        int gridSize = com.killer560.hub.terminals.TerminalLayouts.numbersCount();
+        columns = Math.max(1, gridSize / 2);
         List<Integer> order = new ArrayList<>();
         for (int i = 1; i <= gridSize; i++) {
             order.add(i);
@@ -603,7 +612,7 @@ public class TermismPracticeScreen extends Screen {
                 if (col == MELODY_BUTTON_COLUMN && row == melodyCurrentRow && melodyLimeColumn == melodyMagentaColumn) {
                     melodyMagentaColumn = 1 + random.nextInt(5);
                     melodyCurrentRow++;
-                    if (melodyCurrentRow >= 5) {
+                    if (melodyCurrentRow > melodyBandRows) {
                         markSolved();
                     } else {
                         rebuildMelodyCells();

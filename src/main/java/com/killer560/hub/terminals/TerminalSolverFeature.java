@@ -212,7 +212,12 @@ public final class TerminalSolverFeature {
     private record ScheduledMelodyClick(long fireAtMs, int row) {
     }
     private static final Deque<ScheduledMelodyClick> scheduledMelodyClicks = new ArrayDeque<>();
-    private static final List<Integer> MELODY_CLAY_SLOTS = List.of(16, 25, 34, 43);
+    /** The open Melody board's row buttons, top row first, re-read from the board every frame
+     *  ({@link TerminalLayouts#melodyButtonSlots}): 16/25/34/43 on the old 4-row board, three slots on the
+     *  2026-10-06 3-row one. A row index anywhere in this class is an index into this array. */
+    private static int[] melodyButtons = {16, 25, 34, 43};
+    /** Set once per terminal when a settled "Click in order!" board's number count has been recorded. */
+    private static boolean numbersCountNoted;
 
     // Public - per killer560's round-13 "my solver overlay still isnt happening on [Termism]" request,
     // TermismPracticeScreen (a different package) reuses this exact record via the public #solve entry
@@ -352,6 +357,7 @@ public final class TerminalSolverFeature {
         clickContentStabilized = false;
         clickStabilitySnapshot = List.of();
         wasHoldingCarriedItem = false;
+        numbersCountNoted = false;
         resetAutoClickState();
         diagContainerId = screen.getMenu().containerId;
         diagScreenIdentity = System.identityHashCode(screen);
@@ -478,6 +484,13 @@ public final class TerminalSolverFeature {
         // every real terminal-grid item as-is, decluttered from the rest of the screen.
         if (type == TerminalType.MELODY) {
             currentHighlights = Map.of();
+            // Old (4 rows) or new (3 rows) layout, read off this frame's board: the rows are wherever the
+            // terracotta buttons are. Everything Melody below - auto click, lookahead, hover, the moving square -
+            // indexes rows through this array.
+            melodyButtons = TerminalLayouts.melodyButtonSlots(items);
+            if (melodyButtons.length > 0 && TerminalLayouts.isTerracotta(items.get(melodyButtons[0]))) {
+                TerminalLayouts.noteMelodyRows(melodyButtons.length);
+            }
         } else if (realContent) {
             // Per killer560's "flashes incorrect answers for about a frame... like it is opening two
             // menus and one gets closed" report (2026-09-09, round 11) on Numbers/Starts With or Select -
@@ -489,6 +502,13 @@ public final class TerminalSolverFeature {
             // simply keeping whatever was already showing otherwise - closes that same gap for the
             // highlights themselves, not just the panel's dimensions.
             currentHighlights = solve(type, title, items);
+            if (type == TerminalType.NUMBERS && hasStabilizedOnce && !numbersCountNoted) {
+                // 14 numbers (old) or 10 (new): every numbered pane, clicked (lime) or not (red), on the settled
+                // board. The solver itself is count-agnostic (it sorts whatever red panes there are); this only
+                // records which layout is live.
+                numbersCountNoted = true;
+                TerminalLayouts.noteNumbersCount(countNumberPanes(items));
+            }
         }
         checkPendingClicks(items, now);
         maybeClearAccidentalCarriedItem(screen);
@@ -793,14 +813,15 @@ public final class TerminalSolverFeature {
      *  lime-pane indicator and whichever slot holds the real target-marker pane (there's always at most
      *  one of each on a real board) and derives:
      *  <ul>
-     *  <li>{@code buttonRow} (0-3) - which of the 4 button rows the indicator is currently on, from the
-     *  lime slot's own row (real formula confirmed via decompile: {@code limeSlot/9 - 1}).
+     *  <li>{@code buttonRow} - which button row the indicator is currently on: the index into
+     *  {@link #melodyButtons} of the button sharing the lime slot's chest row (0-3 on the old 4-row board, 0-2
+     *  on the 2026-10-06 3-row one; was {@code limeSlot/9 - 1}, which assumed four rows from chest row 1).
      *  <li>{@code current} - the indicator's column position within that row ({@code limeSlot%9 - 1}).
      *  <li>{@code correct} - the target column ({@code targetSlot - 1}), kept from the last frame a
      *  target pane was actually found if it isn't visible this exact frame.
      *  </ul>
-     *  When {@code current == correct}, the real clickable button for that row (confirmed real slots:
-     *  16/25/34/43, one per row, matching {@code buttonRow*9+16}) is clicked - guarded against re-firing
+     *  When {@code current == correct}, the real clickable button for that row (the terracotta found on the
+     *  board; 16/25/34/43 on the old layout) is clicked - guarded against re-firing
      *  for the same row twice in a row (matching NoammAddons' own {@code lastClickedSlot} + 250ms cooldown
      *  pair) since a real match can stay true for several consecutive frames before the indicator moves
      *  on. See {@link #queueMelodyLookaheadClicks} for the optional "click ahead" burst on top of this.
@@ -840,14 +861,16 @@ public final class TerminalSolverFeature {
             melodyCorrectColumn = targetSlot % 9 - 1;
         }
         if (limeSlot != null) {
-            melodyButtonRow = (int) Math.floor(limeSlot / 9.0) - 1;
+            // The button row whose chest row holds the lime pane - an index into melodyButtons, so a 3-row board
+            // (2026-10-06 update) and a 4-row one both map without assuming the band starts at chest row 1.
+            melodyButtonRow = melodyButtonIndexForChestRow(limeSlot / 9);
             melodyCurrentColumn = limeSlot % 9 - 1;
         }
         if (melodyButtonRow == null || melodyCurrentColumn == null || melodyCorrectColumn == null) {
             return;
         }
         int buttonRow = melodyButtonRow;
-        if (buttonRow < 0 || buttonRow >= MELODY_CLAY_SLOTS.size()) {
+        if (buttonRow < 0 || buttonRow >= melodyButtons.length) {
             return;
         }
         if (!melodyCurrentColumn.equals(melodyCorrectColumn)) {
@@ -864,8 +887,18 @@ public final class TerminalSolverFeature {
         }
         lastMelodyClickedRow = buttonRow;
         lastMelodyClickAtMs = now;
-        sendTerminalClick(screen, MELODY_CLAY_SLOTS.get(buttonRow), 0, ContainerInput.CLONE);
+        sendTerminalClick(screen, melodyButtons[buttonRow], 0, ContainerInput.CLONE);
         queueMelodyLookaheadClicks(buttonRow);
+    }
+
+    /** @return the index into {@link #melodyButtons} of the button on chest row {@code chestRow}, or -1. */
+    private static int melodyButtonIndexForChestRow(int chestRow) {
+        for (int i = 0; i < melodyButtons.length; i++) {
+            if (melodyButtons[i] / GRID_COLUMNS == chestRow) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** Per killer560's explicit request (2026-09-09): "a configurable amount of first row clicks...
@@ -885,7 +918,7 @@ public final class TerminalSolverFeature {
      *  to the last one. */
     private static void queueMelodyLookaheadClicks(int matchedRow) {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-        int lastRow = MELODY_CLAY_SLOTS.size() - 1;
+        int lastRow = melodyButtons.length - 1;
         int extraRows;
         if (cfg.getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.ALL) {
             extraRows = lastRow - matchedRow;
@@ -916,7 +949,7 @@ public final class TerminalSolverFeature {
         long now = System.currentTimeMillis();
         while (!scheduledMelodyClicks.isEmpty() && scheduledMelodyClicks.peekFirst().fireAtMs() <= now) {
             ScheduledMelodyClick due = scheduledMelodyClicks.peekFirst();
-            if (currentType != TerminalType.MELODY || due.row() < 0 || due.row() >= MELODY_CLAY_SLOTS.size()) {
+            if (currentType != TerminalType.MELODY || due.row() < 0 || due.row() >= melodyButtons.length) {
                 // Not an interaction, just housekeeping - drop it without asking the gate for a slot.
                 scheduledMelodyClicks.pollFirst();
                 continue;
@@ -932,7 +965,7 @@ public final class TerminalSolverFeature {
             scheduledMelodyClicks.pollFirst();
             lastMelodyClickedRow = due.row();
             lastMelodyClickAtMs = now;
-            sendTerminalClick(screen, MELODY_CLAY_SLOTS.get(due.row()), 0, ContainerInput.CLONE);
+            sendTerminalClick(screen, melodyButtons[due.row()], 0, ContainerInput.CLONE);
             break; // one interaction per call - anything else still due fires on a later tick
         }
     }
@@ -1082,7 +1115,7 @@ public final class TerminalSolverFeature {
     static int findMelodyMovingSlot(List<Slot> slots, int slotCount) {
         int limit = Math.min(slotCount, slots.size());
         int activeRow = -1;
-        for (int buttonSlot : MELODY_CLAY_SLOTS) {
+        for (int buttonSlot : melodyButtons) {
             if (buttonSlot < limit && slots.get(buttonSlot).getItem().getItem() == McItems.LIME_TERRACOTTA) {
                 activeRow = buttonSlot / GRID_COLUMNS;
             }
@@ -1373,11 +1406,15 @@ public final class TerminalSolverFeature {
         if (limeSlot == null || hoverMelodyCorrectColumn == null) {
             return -1;
         }
-        int row = (int) Math.floor(limeSlot / 9.0) - 1;
-        if (row < 0 || row >= MELODY_CLAY_SLOTS.size()) {
-            return -1;
+        // The button on the lime pane's own chest row, from this board's buttons (3 or 4 rows, see melodyButtons).
+        int[] buttons = TerminalLayouts.melodyButtonSlots(items);
+        int chestRow = limeSlot / 9;
+        for (int button : buttons) {
+            if (button / 9 == chestRow) {
+                return limeSlot % 9 - 1 == hoverMelodyCorrectColumn ? button : -1;
+            }
         }
-        return limeSlot % 9 - 1 == hoverMelodyCorrectColumn ? MELODY_CLAY_SLOTS.get(row) : -1;
+        return -1;
     }
 
     private static Integer hoverMelodyCorrectColumn;
@@ -1523,6 +1560,17 @@ public final class TerminalSolverFeature {
      *  after that, then one after that as well" request - a fainter orange again, off by default via
      *  {@link TerminalSolverConfig#isNumbersThreeTierReveal()} since the 2-tier reveal is the one
      *  already confirmed working. */
+    /** @return how many numbered panes (red = still to click, lime = clicked) a "Click in order!" board holds. */
+    private static int countNumberPanes(List<ItemStack> items) {
+        int count = 0;
+        for (ItemStack stack : items) {
+            if (stack.getItem() == McItems.RED_STAINED_GLASS_PANE || stack.getItem() == McItems.LIME_STAINED_GLASS_PANE) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private static Map<Integer, SlotHighlight> solveNumbers(List<ItemStack> items) {
         List<Integer> slots = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {

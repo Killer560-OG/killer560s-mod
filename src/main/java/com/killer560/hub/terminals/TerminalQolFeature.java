@@ -14,6 +14,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -39,8 +40,8 @@ import com.killer560.hub.compat.McCompat;
  *     open so Q can't throw your Necron's Blade mid-terms. See {@link #restoreDropKeyAfterCrash()} for
  *     the one thing this does that Devonian's version does not.
  * <li><b>Melody Keys</b> ({@code MelodyKeys.kt}) - number keys 1-4 click Melody's four row buttons
- *     (real slots 16/25/34/43, i.e. {@code row * 9 + 16} - the same constants
- *     {@link TerminalSolverFeature}'s own {@code MELODY_CLAY_SLOTS} already uses).
+ *     (read off the board: 16/25/34/43 on the old 4-row layout, three buttons on the 2026-10-06 3-row one -
+ *     the same {@link TerminalLayouts#melodyButtonSlots} {@link TerminalSolverFeature} uses).
  * <li><b>Terminal GUI Scale</b> ({@code CustomTerminalScale.kt}) - a separate GUI scale while a terminal
  *     is open, and a second one just for Melody (whose board is much wider). 0 = auto = leave Minecraft's
  *     own scale alone, same as Devonian's sliders.
@@ -67,9 +68,8 @@ public final class TerminalQolFeature {
     private static final Pattern COMPLETION_REGEX = Pattern.compile(
             "^(\\w{1,16}) (?:activated a (?:terminal|lever)|completed a device)! \\(\\d+/\\d+\\)(?:\\s.*)?$");
 
-    /** Melody's four clickable row buttons. Same real slots {@link TerminalSolverFeature}'s own Melody code
-     *  uses ({@code MELODY_CLAY_SLOTS = 16, 25, 34, 43}); Devonian computes the identical {@code i * 9 + 16}. */
-    private static final int[] MELODY_BUTTON_SLOTS = {16, 25, 34, 43};
+    // Melody's row buttons are read off the open board (TerminalLayouts.melodyButtonSlots): 16/25/34/43 on the old
+    // 4-row layout (Devonian's i * 9 + 16), three buttons on the 2026-10-06 3-row one.
 
     private static final int[] MELODY_KEYS = {GLFW.GLFW_KEY_1, GLFW.GLFW_KEY_2, GLFW.GLFW_KEY_3, GLFW.GLFW_KEY_4};
     private static final int[] MELODY_NUMPAD_KEYS =
@@ -235,7 +235,16 @@ public final class TerminalQolFeature {
         if (row < 0) {
             return false;
         }
-        int slotIndex = MELODY_BUTTON_SLOTS[row];
+        // The board's own buttons, top row first (TerminalLayouts.melodyButtonSlots): four on the old layout, three
+        // since the 2026-10-06 update. Key N is the N-th button that is actually there.
+        List<ItemStack> all = screen.getMenu().getItems();
+        List<ItemStack> grid = all.subList(0, Math.max(0, all.size() - 36));
+        int[] buttons = TerminalLayouts.melodyButtonSlots(grid);
+        if (row >= buttons.length) {
+            // Consumed: falling through would make 4 a vanilla hotbar swap into whatever slot is hovered.
+            return true;
+        }
+        int slotIndex = buttons[row];
         List<Slot> slots = screen.getMenu().slots;
         if (slotIndex >= slots.size()) {
             LOGGER.warn("[TerminalQol] Melody key {} ignored: slot {} out of range (menu has {} slots)",
