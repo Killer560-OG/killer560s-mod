@@ -137,6 +137,9 @@ public final class TickTimersFeature {
         } else if (GOLDOR_REGEX.matcher(raw).matches()) {
             goldorTickTime = 60;
             goldorPhaseStartTick = ServerTickClock.now();
+            // "Start:" counts the old 104 ticks from Storm's death to Goldor's line; SkyBlock 0.27.2 sped up "Goldor
+            // Spawn ... and Phase Transition" (with a full-completion party), so the line itself ends the countdown.
+            goldorStartTime = -1;
         } else if (CORE_OPENING_REGEX.matcher(raw).matches()) {
             goldorStartTime = -1;
             goldorTickTime = -1;
