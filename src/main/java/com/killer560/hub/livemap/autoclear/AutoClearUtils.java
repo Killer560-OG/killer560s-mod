@@ -59,7 +59,27 @@ public final class AutoClearUtils {
         return found == null ? null : found.clone();
     }
 
-    /** QUOI {@code canPath}: on ground, not in a maze/boulder room, not past the trap's start line. */
+    /** The room automation may path out of although its name would refuse it, and the level that permit is for. */
+    private static String leavePermit;
+    private static Object leavePermitLevel;
+
+    /**
+     * Lets {@link #canPath} path out of {@code roomName} - a maze, Boulder or trap room - because the work that brought
+     * him there is over (his route there ended, the puzzle's auto finished or was given up on). Dungeon Autopilot / Auto
+     * Secret call this after each thing they do; the permit is for this world only and names one room. Client thread.
+     */
+    public static void permitLeave(String roomName) {
+        Minecraft client = Minecraft.getInstance();
+        leavePermit = roomName;
+        leavePermitLevel = client == null ? null : client.level;
+    }
+
+    /**
+     * QUOI {@code canPath}: on ground, not in a maze/boulder room, not past the trap's start line - those three refuse by
+     * room NAME while the room is still being done. Lifted for a room that is done: cleared on the map, its puzzle
+     * finished or failed on the tab list, or a {@link #permitLeave} for it (the trap route or puzzle that took him in
+     * there has ended). Without that, nothing could ever warp him back out (killer560, 2026-10-06).
+     */
     public static boolean canPath(DungeonLayout layout) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || !player.onGround()) {
@@ -70,6 +90,10 @@ public final class AutoClearUtils {
             return true;
         }
         String name = layout.name(room);
+        boolean restricted = name.contains("Maze") || name.contains("Boulder") || name.contains("Trap");
+        if (restricted && roomDone(layout, room, name)) {
+            return true;
+        }
         if (name.contains("Maze") || name.contains("Boulder")) {
             return false;
         }
@@ -80,6 +104,23 @@ public final class AutoClearUtils {
             }
         }
         return true;
+    }
+
+    private static boolean roomDone(DungeonLayout layout, int room, String name) {
+        Minecraft client = Minecraft.getInstance();
+        if (name.equals(leavePermit) && client != null && client.level == leavePermitLevel) {
+            return true;
+        }
+        int[] tiles = layout.tiles(room);
+        if (tiles != null) {
+            for (int t : tiles) {
+                if (com.killer560.hub.livemap.LiveMapFeature.isRoomCleared(t)) {
+                    return true;
+                }
+            }
+        }
+        char tab = com.killer560.hub.scorecalc.ScoreCalculatorFeature.puzzleState(name);
+        return tab == '✔' || tab == '✖';
     }
 
     /** QUOI {@code getLockedDoor}: nearest locked wither/blood door by room distance (locked doors passable). */

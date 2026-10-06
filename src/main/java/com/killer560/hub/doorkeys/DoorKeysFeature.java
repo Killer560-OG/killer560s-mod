@@ -42,6 +42,7 @@ public final class DoorKeysFeature {
     }
 
     public static void register() {
+        DungeonKeys.register();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DoorKeysFeature.tick", DoorKeysFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(DoorKeysFeature::onWorldRender);
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {

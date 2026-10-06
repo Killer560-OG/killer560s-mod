@@ -57,28 +57,14 @@ public final class AutoDoorOpenerFeature {
     /** Same three chat patterns {@code doorhelpers}' old Look At Door trusted for key state - arms the pending
      *  window for the matching door type. Not filtered by whose name is in the message: any party member
      *  obtaining the key means a door of that type is about to need clicking, same as the feature it replaces. */
-    /** {@code <Name> has obtained Wither Key!} exactly - see the note in onChat. */
-    private static final java.util.regex.Pattern KEY_OBTAINED_WITHER =
-            java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16} has obtained Wither Key!?$");
-
-    /** {@code <Name> has obtained Blood Key!} exactly. */
-    private static final java.util.regex.Pattern KEY_OBTAINED_BLOOD =
-            java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16} has obtained Blood Key!?$");
-
-    /** "Wither Key was picked up!" - Hypixel has been seen both with and without a leading "A ", and the two
-     *  door classes had each anchored a different one; accept both, anchored. */
-    private static final java.util.regex.Pattern WITHER_KEY_PICKED_UP =
-            java.util.regex.Pattern.compile("^(?:A )?Wither Key was picked up!?$");
-
-    private static final java.util.regex.Pattern BLOOD_KEY_PICKED_UP =
-            java.util.regex.Pattern.compile("^(?:A )?Blood Key was picked up!?$");
-
-    /** "<Name> opened a WITHER door!" - the server line; a player's chat always has a prefix before the name. */
-    private static final java.util.regex.Pattern WITHER_DOOR_OPENED =
-            java.util.regex.Pattern.compile("^[A-Za-z0-9_]{1,16} opened a WITHER door!?$");
-
-    private static final java.util.regex.Pattern BLOOD_DOOR_OPENED =
-            java.util.regex.Pattern.compile("^The BLOOD DOOR has been opened!?$");
+    // The key and door lines are com.killer560.hub.doorkeys.DungeonKeys' (one anchored copy, shared with Dungeon
+    // Autopilot's key tracking).
+    private static final java.util.regex.Pattern KEY_OBTAINED_WITHER = com.killer560.hub.doorkeys.DungeonKeys.WITHER_OBTAINED;
+    private static final java.util.regex.Pattern KEY_OBTAINED_BLOOD = com.killer560.hub.doorkeys.DungeonKeys.BLOOD_OBTAINED;
+    private static final java.util.regex.Pattern WITHER_KEY_PICKED_UP = com.killer560.hub.doorkeys.DungeonKeys.WITHER_PICKED_UP;
+    private static final java.util.regex.Pattern BLOOD_KEY_PICKED_UP = com.killer560.hub.doorkeys.DungeonKeys.BLOOD_PICKED_UP;
+    private static final java.util.regex.Pattern WITHER_DOOR_OPENED = com.killer560.hub.doorkeys.DungeonKeys.WITHER_DOOR_OPENED;
+    private static final java.util.regex.Pattern BLOOD_DOOR_OPENED = com.killer560.hub.doorkeys.DungeonKeys.BLOOD_DOOR_OPENED;
 
     static void onChat(String raw) {
         String msg = ChatFormatting.stripFormatting(raw);
