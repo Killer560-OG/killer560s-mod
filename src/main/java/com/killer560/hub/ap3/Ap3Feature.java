@@ -100,6 +100,14 @@ public final class Ap3Feature {
     /** Call once from {@code Killer560ModClient#onInitializeClient} (see API.md). */
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Ap3Feature.tick", Ap3Feature::tick));
+        // A USE node's packets go out at the START of the tick after its box was entered - the first thing on the
+        // wire after the movement packet that put him there (Ap3Executor.tickStart). Registered after ActionGate's
+        // own START observer (Killer560ModClient registers that first), so the tick it asks for is this one.
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("Ap3Feature.tickStart", client -> {
+            if (Ap3Config.getInstance().isEnabled()) {
+                Ap3Executor.tickStart(client);
+            }
+        }));
         // Recording is deliberately outside the AP3 tick: he may want to record a movement he makes BY HAND,
         // with the mod driving nothing at all, which is the whole point of it.
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Ap3Trajectory.onClientTick", Ap3Trajectory::onClientTick));
@@ -912,7 +920,10 @@ public final class Ap3Feature {
 
     // ------------------------------------------------------------------------------------------- stopwatch HUD
 
-    /** The STOPWATCH node's optional HUD - the running time while one is going, the last time otherwise. */
+    /** The stopped time stays on the HUD this long, then it hides until the next start. */
+    static final long STOPWATCH_HUD_TIMEOUT_MS = 10_000L;
+
+    /** The STOPWATCH node's optional HUD - the running time while one is going, the last time for 10 s after. */
     public static final HudElement STOPWATCH_HUD = new HudElement() {
         @Override
         public String id() {
@@ -963,6 +974,11 @@ public final class Ap3Feature {
             if (running >= 0) {
                 value = Ap3Executor.formatStopwatch(running);
             } else if (last >= 0) {
+                // killer560 (2026-10-06): "make it so the stopwatch hud times out after 10s of not running". The HUD
+                // editor keeps previewing it.
+                if (!example && System.currentTimeMillis() - Ap3Executor.stopwatchStoppedAtMs() > STOPWATCH_HUD_TIMEOUT_MS) {
+                    return;
+                }
                 value = Ap3Executor.formatStopwatch(last);
             } else if (example) {
                 value = "12.345s";

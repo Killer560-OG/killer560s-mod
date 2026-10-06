@@ -50,3 +50,14 @@ Route nodes, the align planners and their measured physics. Split out of the pro
 - `Ap3Node.copy()` does NOT copy `useItemId` or any Path field (`pathIndex`, start/end, speed window, dir, term).
   It is fine for `replaceNode`'s position probe, but anything that must restore a node whole (undo/redo) uses
   `Ap3Node.snapshot()` / `copyFrom()`, added 2026-10-04 with every field.
+- **Anything that turns the camera must turn the VIEW while a view freeze is up.** With the defaults (Camera Planner +
+  Freeze View) a held walk freezes the view and `applyHoldRealYaw` snaps the REAL yaw onto the walk every tick, so a
+  LOOK that set the real yaw during a run was invisible: testkit 63-ap3-look-walk on main 59412f59 read the view at
+  yaw -90 (the walk's) with only the pitch moved. `doLook` now turns `viewYaw`/`viewPitch` in that case, and `tickView`
+  holds the freeze for any aim (a USE's aim was glided back under the view before its movement packet went out).
+- **A USE must not let go of its aim before the use goes out.** `endAim` ran before `useItem`, so the use packet
+  carried the pitch he had before the node (63-ap3-use-walk: node -35, packet 0). GrimAC's BadPacketsJ compares a
+  use's yaw/pitch with the NEXT movement packet's rotation (javap, common-2.3.74), so the order that passes is: aim at
+  END t, use at START t+1 (`Ap3Executor.tickStart`), aim released at END t+1. AP3 still ticks on END; its USE packets
+  are the only ones moved to START so far - BLOCK and BOOM still send at END and draw GrimAC Post (63-ap3-hold-block:
+  Post on held item change and block placement, BadPacketsA from the hand-made slot packet).

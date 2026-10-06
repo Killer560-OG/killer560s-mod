@@ -106,11 +106,23 @@ public final class Ap3Node {
             return this == ALIGN || this == AXIS_ALIGN || this == FAST_ALIGN;
         }
 
-        /** Nodes that fire WITHOUT ending a held walk (killer560, 2026-09-21: "make both things that can go after
-         *  something like a walk command as well") - the walk keeps driving while they jump. USE too (killer560,
-         *  2026-10-05: "if i hit a use node it should still have me continue running or walking"); STOPWATCH as well ("stopwatch shouldnt make you stop walking"). */
+        /** Nodes that fire WITHOUT ending a held walk - every type but the four that are about movement itself.
+         *  killer560 (2026-10-06): "hitting a node doesnt stop another node unless it is something like i am using a
+         *  run and hit a walk i should start walking or if i hit a stop node or align node." So only WALK / RUN
+         *  (they replace the hold), STOP and the aligns end it, plus LEAP (a teleport: "drops all movement") and
+         *  PATH (the route takes the movement over). Before that it was a list of exceptions (JUMP, EDGE, BLOCK, USE,
+         *  STOPWATCH) and a LOOK, BOOM, TERMINAL, LEAP_COUNTER or TERM_AURA silently stopped the run. */
         public boolean keepsHold() {
-            return this == JUMP || this == EDGE || this == BLOCK || this == USE || this == STOPWATCH;
+            return switch (this) {
+                case WALK, RUN, STOP, ALIGN, AXIS_ALIGN, FAST_ALIGN, LEAP, PATH -> false;
+                default -> true;
+            };
+        }
+
+        /** The nodes that take over or end the movement (see {@link #keepsHold}): a WALK / RUN / JUMP / EDGE hit
+         *  while one of these is being performed or waits ahead of it in the queue waits its turn. */
+        public boolean ownsMovement() {
+            return !keepsHold() && !isMover();
         }
 
         /** The two movers (they start a held walk that lasts until any other node fires). */
