@@ -991,6 +991,20 @@ public final class SimWaterPuzzle {
                 level.setBlock(p.head(), out ? p.headState() : p.wool(), WRITE_FLAGS);
                 level.setBlock(p.push(), out ? p.wool() : Blocks.AIR.defaultBlockState(), WRITE_FLAGS);
             }
+            // The five pistons leave the top-middle cell (15, 57, z) open; a real blocker is solid there too
+            // (killer560, 2026-10-06: "missing that top middle block in the blockers"). Fill it with the wool while
+            // out, and only clear it again if it is still that wool, so nothing else in the room is ever removed.
+            BlockPos topMiddle = at(15, WOOL_OUT_Y + 1, colour.relZ());
+            if (topMiddle != null) {
+                BlockState wool = layer.get(0).wool();
+                if (out) {
+                    if (level.getBlockState(topMiddle).isAir()) {
+                        level.setBlock(topMiddle, wool, WRITE_FLAGS);
+                    }
+                } else if (level.getBlockState(topMiddle).is(wool.getBlock())) {
+                    level.setBlock(topMiddle, Blocks.AIR.defaultBlockState(), WRITE_FLAGS);
+                }
+            }
             return;
         }
         BlockPos inPos = at(15, WOOL_IN_Y, colour.relZ());
