@@ -115,7 +115,7 @@ public final class MelodyTrackerFeature {
 
     /**
      * "Send Melody Progress" (killer560, 2026-10-06): when the lit clay row moves to row N, N-1 rows are done; post
-     * "Melody done/rows (pct%)" - both the fraction and the percent, so mods reading either style ("1/3", "33%")
+     * "Melody done/rows - pct%" - both the fraction and the percent, so mods reading either style ("1/3", "33%")
      * pick it up. F7/M7 boss only, straight to party chat (like the coords callout), never the last row (the
      * terminal closing says that), never twice for the same step.
      */
@@ -135,7 +135,8 @@ public final class MelodyTrackerFeature {
         }
         lastSentDone = done;
         int pct = Math.round(done * 100f / rows);
-        client.player.connection.sendCommand("pc Melody " + done + "/" + rows + " (" + pct + "%)");
+        // No trailing ")": NoammAddons' MelodyDisplay ignores progress lines ending in ")" (1.2.9, PR #419).
+        client.player.connection.sendCommand("pc Melody " + done + "/" + rows + " - " + pct + "%");
     }
 
     private static void closeIfOpen() {
