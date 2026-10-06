@@ -75,6 +75,8 @@ public final class WitherDragonsFeature {
     private static WitherDragon priorityDragon = null;
     private static WitherDragon lastDragonDeath = null;
     private static final Map<UUID, EnderDragon> DRAGON_ENTITIES = new LinkedHashMap<>();
+    /** Dragons already seen dying this run, so a dying dragon re-added (chunk reload) is not a new spawn. */
+    private static final java.util.Set<UUID> DEAD_DRAGON_UUIDS = new java.util.HashSet<>();
     private static Object lastLevel = null;
 
     private WitherDragonsFeature() {
@@ -109,6 +111,7 @@ public final class WitherDragonsFeature {
             lastLevel = client.level;
             WitherDragon.resetAll();
             DRAGON_ENTITIES.clear();
+            DEAD_DRAGON_UUIDS.clear();
             priorityDragon = null;
             lastDragonDeath = null;
             P5State.reset();
@@ -156,9 +159,15 @@ public final class WitherDragonsFeature {
         if (uuid != null) {
             d.entityUUID = uuid;
         }
-        if (d.state != WitherDragon.State.SPAWNING) {
+        // The flame-particle burst puts a dragon into SPAWNING; normally the entity arrives after it. SkyBlock 0.27.2:
+        // "The next Dragon now spawns immediately if all are dead (M7)" - a spawn that may come with no burst, or
+        // before the 100-tick countdown runs out. The ENTITY is the fact, so an entity in the dragon's box makes it
+        // alive from any state but ALIVE, unless it is a dragon already seen dying (re-added on a chunk reload).
+        boolean entitySpawn = uuid != null && !DEAD_DRAGON_UUIDS.contains(uuid);
+        if (d.state == WitherDragon.State.ALIVE || (d.state != WitherDragon.State.SPAWNING && !entitySpawn)) {
             return;
         }
+        d.timeToSpawn = 0;
         d.state = WitherDragon.State.ALIVE;
         d.timesSpawned++;
         d.spawnedTick = ServerTickClock.now();
@@ -174,6 +183,9 @@ public final class WitherDragonsFeature {
     private static void setDead(WitherDragon d, boolean realTime) {
         boolean wasAlive = d.state == WitherDragon.State.ALIVE;
         d.state = WitherDragon.State.DEAD;
+        if (d.entityUUID != null) {
+            DEAD_DRAGON_UUIDS.add(d.entityUUID);
+        }
         d.entityUUID = null;
         lastDragonDeath = d;
         boolean wasPriority = priorityDragon == d;

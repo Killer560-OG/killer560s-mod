@@ -81,7 +81,12 @@ public final class ItemIdentity {
             Map.entry("INFINITE_SPIRIT_LEAP", "SPIRIT_LEAP"),
             // Infinityboom TNT is the same for Superboom.
             Map.entry("SUPERBOOM_TNT", "SUPERBOOM"),
-            Map.entry("INFINITE_SUPERBOOM_TNT", "SUPERBOOM"));
+            Map.entry("INFINITE_SUPERBOOM_TNT", "SUPERBOOM"),
+            // Name-derived keys (fromName, a stack with no Skyblock id): the old names and SkyBlock 0.27.2's
+            // renames "InfiniBoom™ TNT" / "InfiniLeap™" (fromName drops the ™).
+            Map.entry("INFINITYBOOM_TNT", "SUPERBOOM"),
+            Map.entry("INFINIBOOM_TNT", "SUPERBOOM"),
+            Map.entry("INFINILEAP", "SPIRIT_LEAP"));
 
     private ItemIdentity() {
     }
@@ -126,6 +131,7 @@ public final class ItemIdentity {
         }
         String s = raw.replaceAll("§.", "");
         s = s.replace("✪", "");                       // ✪ dungeon stars
+        s = s.replace("™", "");                        // ™ (0.27.2: "InfiniBoom™ TNT", "InfiniLeap™")
         s = s.replaceAll("[➊-➎]", "");            // ➊..➎ master-star pips (RevertMasterStarsFeature)
         s = s.trim().replaceAll("\\s+", " ");
         if (s.isEmpty()) {

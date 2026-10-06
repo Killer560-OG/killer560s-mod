@@ -5,6 +5,7 @@ import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.terminals.TerminalLayouts;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.WorldRenderUtils;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -171,6 +172,21 @@ public final class SimonSaysFeature {
     // and every button air" and uses a longer 30-tick window so a slow reveal-to-buttons handoff can never
     // false-trigger a restart (which would reset a device that was actually fine).
     private static final int BREAK_CONFIRM_TICKS = 30;
+    // --- 4 or 5 rounds (Hypixel's 2026-10-06 update cut the device from 5 rounds to 4; TerminalLayouts) ---
+    // Any player's "completed a device!" line (no rank prefix on it; a name group no chat prefix can fake).
+    private static final Pattern DEVICE_COMPLETE_PATTERN =
+            Pattern.compile("^[A-Za-z0-9_]{1,16} completed a device! \\(\\d{1,2}/\\d{1,2}\\)(?:\\s.*)?$");
+    // How close to round 4's last click the completion line must be to count as this device's.
+    private static final long DEVICE_LINE_MATCH_MS = 3000L;
+    // An old device lights round 5 about 2.7 s after round 4's last click (TRANSITION_OVERHEAD_MS); 5 s with nothing
+    // lit means the device ended at round 4.
+    private static final int ROUND_VERDICT_TIMEOUT_TICKS = 100;
+    private static boolean roundVerdictPending = false;
+    private static int roundVerdictTicks = 0;
+    private static long roundVerdictCompletedAtMs = 0L;
+    private static long deviceCompleteLineAtMs = 0L;
+    // Round 4's "SS 4/N" announce, held until the verdict decides N.
+    private static boolean roundVerdictAnnounce = false;
     private static final int AUTO_RESTART_SETTLE_TICKS = 10;
     private static boolean breakArmed = false;
     private static int blankGridTicks = 0;
@@ -183,8 +199,8 @@ public final class SimonSaysFeature {
 
     // --- auto-solve pacing (Target ± Variance overall for the WHOLE device attempt - moved here from
     // Auto Start's old model 2026-09-14, see SimonSaysConfig's own doc comment) ---
-    private static final int TOTAL_REAL_CLICKS_PER_DEVICE = 1 + 2 + 3 + 4 + 5; // 15 - confirmed real:
-    // exactly 5 rounds, round N has N steps (see this class's own doc comment).
+    // A whole device is totalClicksFrom(1) clicks: round N has N steps, 5 rounds (15 clicks) on the old layout and
+    // 4 rounds (10 clicks) since Hypixel's 2026-10-06 update - see TerminalLayouts.simonRounds().
     // Measured directly from real full-device runs (2026-09-14): the real reveal/transition overhead at
     // each of the 4 round boundaries (round1->2, 2->3, 3->4, 4->5) consistently grows with the size of the
     // round being revealed - roughly 1.4s, 1.9s, 2.2s, 2.6s (~8.1s total for a full 5-round solve). Real
@@ -207,7 +223,7 @@ public final class SimonSaysFeature {
     // once per attempt, the first time the real starting round is detected (see
     // tickAutoSolveAndTriggerBot's own currentRoundNumber detection) - defaults to the normal full total
     // until then.
-    private static int expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
+    private static int expectedTotalClicksThisAttempt = totalClicksFrom(1);
 
     /** Sum of {@link #TRANSITION_OVERHEAD_MS} for every round transition still ahead of the CURRENT
      *  round - e.g. round 1 (nothing completed yet) has all 4 ahead (~8.1s); round 4 (working on the
@@ -215,7 +231,9 @@ public final class SimonSaysFeature {
     private static long estimatedRemainingRevealMs() {
         double[] estimates = transitionEstimates();
         double total = 0.0;
-        for (int i = currentRoundNumber - 1; i < estimates.length; i++) {
+        // Only the transitions this device actually has: 4 on the old 5-round layout, 3 on the new 4-round one.
+        int transitions = Math.min(estimates.length, TerminalLayouts.simonRounds() - 1);
+        for (int i = currentRoundNumber - 1; i < transitions; i++) {
             if (i >= 0) {
                 total += estimates[i] * attemptRevealScale;
             }
@@ -269,12 +287,12 @@ public final class SimonSaysFeature {
         attemptExpectedTransitionMs = 0.0;
     }
 
-    /** Real total clicks from {@code startRound} through round 5 inclusive (round N always has exactly N
-     *  steps) - e.g. {@code totalClicksFrom(2)} = 2+3+4+5 = 14, the real total for an attempt that skipped
-     *  round 1 entirely. */
+    /** Real total clicks from {@code startRound} through the device's last round inclusive (round N always has
+     *  exactly N steps) - e.g. on the old 5-round device {@code totalClicksFrom(2)} = 2+3+4+5 = 14, the real total
+     *  for an attempt that skipped round 1 entirely; on the 4-round device of the 2026-10-06 update, 2+3+4 = 9. */
     private static int totalClicksFrom(int startRound) {
         int total = 0;
-        for (int r = startRound; r <= 5; r++) {
+        for (int r = startRound; r <= TerminalLayouts.simonRounds(); r++) {
             total += r;
         }
         return total;
@@ -582,6 +600,9 @@ public final class SimonSaysFeature {
                 return;
             }
             String plain = com.killer560.hub.util.ChatObserver.strip(message);
+            if (DEVICE_COMPLETE_PATTERN.matcher(plain).matches()) {
+                onDeviceCompleteLine();
+            }
             if (AUTO_START_TRIGGER_PATTERN.matcher(plain).find()) {
                 goldorLineSeenThisPhase = true;
                 SimonSaysConfig c = SimonSaysConfig.getInstance();
@@ -775,6 +796,7 @@ public final class SimonSaysFeature {
             startClickAnchorMs = 0L;
             breakArmed = false;
             blankGridTicks = 0;
+            roundVerdictPending = false;
             wasActive = false;
             return;
         }
@@ -792,7 +814,7 @@ public final class SimonSaysFeature {
             wasBlockedByReveal = false;
             lastRoundCompletedAtMs = 0L;
             currentRoundNumber = 1;
-            expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
+            expectedTotalClicksThisAttempt = totalClicksFrom(1);
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             resetRevealScale();
@@ -811,6 +833,7 @@ public final class SimonSaysFeature {
         tickStartButton(client, cfg);
 
         detectGridChanges(client, cfg);
+        tickRoundVerdict();
         tickBreakDetection(client, cfg);
         tickRestartKeybind(client, cfg);
         tickAutoStart(client, cfg);
@@ -921,6 +944,8 @@ public final class SimonSaysFeature {
             // close together" - his real log only ever showed multi-SECOND gaps). See that method's own
             // doc comment for the real fix: hooking the actual click event instead of polling state.
             resetSolveState();
+            // A new attempt's lanterns are not a fifth round: drop a round-4 verdict still waiting.
+            roundVerdictPending = false;
             firstPhase = true;
             autoSolveArmed = false;
             autoSolveClicksDoneThisAttempt = 0;
@@ -931,7 +956,7 @@ public final class SimonSaysFeature {
             wasBlockedByReveal = false;
             lastRoundCompletedAtMs = 0L;
             currentRoundNumber = 1;
-            expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
+            expectedTotalClicksThisAttempt = totalClicksFrom(1);
             deviceStartedAtMs = 0L;
             totalClicksThisAttempt = 0;
             resetRevealScale();
@@ -972,6 +997,9 @@ public final class SimonSaysFeature {
             if (now.is(Blocks.OBSIDIAN) && old.is(Blocks.SEA_LANTERN) && !clickInOrder.contains(pos)) {
                 clickInOrder.add(pos.immutable());
                 lastLanternChangeTick = 0;
+                if (clickInOrder.size() >= TerminalLayouts.OLD_SIMON_ROUNDS) {
+                    TerminalLayouts.noteSimonRounds(TerminalLayouts.OLD_SIMON_ROUNDS, "a fifth step was revealed");
+                }
                 if (firstPhase) {
                     if (clickInOrder.size() == 2) {
                         // Real bug found and fixed (2026-09-14, killer560's own report: "it kept the first
@@ -1158,7 +1186,7 @@ public final class SimonSaysFeature {
                 wasBlockedByReveal = false;
                 lastRoundCompletedAtMs = 0L;
                 currentRoundNumber = 1;
-                expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
+                expectedTotalClicksThisAttempt = totalClicksFrom(1);
                 deviceStartedAtMs = 0L;
                 resetRevealScale();
             }
@@ -1210,12 +1238,6 @@ public final class SimonSaysFeature {
             // "from the first ss start click" anchor point.
             deviceStartedAtMs = System.currentTimeMillis();
         }
-        // Real format ported from Odin's own announceProgress ("pc SS ${clickInOrder.size}/5") - only
-        // sent on the LAST click of the current round (real Hypixel Simon Says is always exactly 5
-        // rounds, round N has N steps, so clickInOrder.size() at round-completion IS the round number).
-        if (cfg.isAnnounceProgress() && client.player != null && clickNeeded >= clickInOrder.size()) {
-            client.player.connection.sendCommand("pc SS " + clickInOrder.size() + "/5");
-        }
         if (clickNeeded >= clickInOrder.size()) {
             // Anchor for the round-transition timing in tickAutoSolveAndTriggerBot - marks the exact moment
             // this round's last click landed, so the NEXT round becoming clickable can measure the real
@@ -1228,101 +1250,52 @@ public final class SimonSaysFeature {
             // attempt is only 2+3+4+5=14, which the hardcoded 15 check would never reach - the whole-
             // device message simply never fired after a skip. clickInOrder.size() at THIS exact
             // completion point already IS the real round number (round N always has exactly N steps,
-            // same fact the "SS N/5" announce message above already relies on) - checking for round 5
-            // specifically is skip-proof, since round 5 is always the last regardless of which round the
-            // attempt started on.
-            boolean wholeDeviceCompleted = clickInOrder.size() >= 5;
-            if (wholeDeviceCompleted && client.player != null) {
-                long completedAtMs = System.currentTimeMillis();
-                long deviceTookMs = deviceStartedAtMs > 0 ? completedAtMs - deviceStartedAtMs : 0;
-                // Headline number counts from the first start-button click, same as Hypixel's own device
-                // timer (see startClickAnchorMs's own doc comment); falls back to the first grid click if no
-                // start click was seen this attempt (e.g. entered range mid-device).
-                long fromStartMs = startClickAnchorMs > 0 && startClickAnchorMs <= completedAtMs
-                        ? completedAtMs - startClickAnchorMs : -1L;
-                LOGGER.info("[SimonSays] Whole device completed in {} ms from first start-button click, {} ms from first grid click ({} ms of that was real reveal/transition delay).",
-                        fromStartMs, deviceTookMs, autoSolveBlockedMsThisAttempt);
-                // Client-side only (sendSystemMessage, same technique this mod's other features already
-                // use for a local-only notice) - killer560 asked for a message to himself, not a real
-                // party announcement. Breaks out the real reveal/transition delay (2026-09-14, killer560's
-                // own request: "figure out how long it takes to actually go through that transition phase
-                // because that needs to be factored into the overall time it takes") whenever Auto Solve's
-                // Target/Variance mode measured any - only that mode tracks it, so a manual/Trigger Bot/
-                // Fixed-Delay solve just gets the plain total.
-                if (!com.killer560.hub.splittimers.TerminalTimersConfig.getInstance().isSimonSaysTime()) {
-                    // Bundled into Terminal Timers (2026-09-14, killer560's own request) - the log line above still records it.
-                } else if (fromStartMs >= 0) {
-                    // Orange theme (2026-09-14, killer560: "all client side stuff should be that orange theme").
-                    com.killer560.hub.util.ModChat.send("Simon Says",
-                            com.killer560.hub.util.ModChat.text("Whole device solved in "),
-                            com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", fromStartMs / 1000.0)),
-                            com.killer560.hub.util.ModChat.dim(" from start click ("),
-                            com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", deviceTookMs / 1000.0)),
-                            com.killer560.hub.util.ModChat.dim(" from first grid click, "),
-                            com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", autoSolveBlockedMsThisAttempt / 1000.0)),
-                            com.killer560.hub.util.ModChat.dim(" reveal delay)"));
-                } else if (autoSolveBlockedMsThisAttempt > 0) {
-                    com.killer560.hub.util.ModChat.send("Simon Says",
-                            com.killer560.hub.util.ModChat.text("Whole device solved in "),
-                            com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", deviceTookMs / 1000.0)),
-                            com.killer560.hub.util.ModChat.dim(" ("),
-                            com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", autoSolveBlockedMsThisAttempt / 1000.0)),
-                            com.killer560.hub.util.ModChat.dim(" reveal delay)"));
+            // same fact the "SS N/5" announce message above already relies on) - checking for the LAST round
+            // specifically is skip-proof, since it is always the last regardless of which round the attempt
+            // started on.
+            // Old layout: 5 rounds. Since Hypixel's 2026-10-06 update: 4 (TerminalLayouts). Which one this device is
+            // comes from the device itself - a fifth step being revealed, or the device completing right after round
+            // 4 (its "completed a device!" line, or no fifth round lighting within ROUND_VERDICT_TIMEOUT_TICKS).
+            boolean wholeDeviceCompleted = false;
+            boolean awaitRoundVerdict = false;
+            int roundsDone = clickInOrder.size();
+            if (roundsDone >= TerminalLayouts.OLD_SIMON_ROUNDS) {
+                wholeDeviceCompleted = true;
+            } else if (roundsDone == TerminalLayouts.NEW_SIMON_ROUNDS) {
+                if (TerminalLayouts.simonRoundsSeen()) {
+                    wholeDeviceCompleted = TerminalLayouts.simonRounds() == TerminalLayouts.NEW_SIMON_ROUNDS;
+                } else if (System.currentTimeMillis() - deviceCompleteLineAtMs <= DEVICE_LINE_MATCH_MS) {
+                    TerminalLayouts.noteSimonRounds(TerminalLayouts.NEW_SIMON_ROUNDS,
+                            "\"completed a device!\" arrived with round 4's last click");
+                    wholeDeviceCompleted = true;
                 } else {
-                    com.killer560.hub.util.ModChat.send("Simon Says",
-                            com.killer560.hub.util.ModChat.text("Whole device solved in "),
-                            com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", deviceTookMs / 1000.0)));
+                    awaitRoundVerdict = true;
                 }
-                // Real bug found and fixed (2026-09-14, real boot-test log evidence: idleSuppressedAfter-
-                // Completion flipped true right after round 1's own "Round completed in 900 ms." - at that
-                // exact moment clickInOrder.size() was only 1, not >=5 - and then never reverted for the
-                // rest of the whole 5-round attempt, so idle-look never engaged again after round 1. This
-                // flag must only suppress idle after the WHOLE device (round 5) finishes, matching the
-                // original intent below ("after it finishes dont have it go back to the start button" -
-                // "it finishes" meant the whole device, not each individual round) - moved inside this
-                // round-5-only block instead of running unconditionally on every round completion.
-                idleSuppressedAfterCompletion = true;
-                breakArmed = false; // a finished device goes blank for good - that's not a break
+            }
+            // Real format ported from Odin's own announceProgress ("pc SS ${clickInOrder.size}/5") - only sent on the
+            // LAST click of the current round (round N has N steps, so clickInOrder.size() at round-completion IS the
+            // round number). The total is the device's: /5 on the old one, /4 since the 2026-10-06 update - sent
+            // after the round count was decided above, so a device that just showed it has 4 rounds says "4/4".
+            // While a round-4 verdict is pending the total is not known yet: the announce waits for it (sent from
+            // tickRoundVerdict / settleRoundVerdictAsFour), so the first 4-round device of a session still says 4/4.
+            roundVerdictAnnounce = cfg.isAnnounceProgress() && awaitRoundVerdict;
+            if (cfg.isAnnounceProgress() && client.player != null && !awaitRoundVerdict) {
+                client.player.connection.sendCommand("pc SS " + roundsDone + "/" + TerminalLayouts.simonRounds());
+            }
+            if (wholeDeviceCompleted && client.player != null) {
+                announceWholeDeviceCompleted(System.currentTimeMillis());
             }
             resetSolveState();
             firstPhase = false;
             if (wholeDeviceCompleted) {
-                // Real bug found and fixed (2026-09-14, killer560's own report: "the solver is messing
-                // up. It is keeping all 3 lighted buttons as options when it should discard the first.
-                // Make sure it resets the discard first one every time ss is reset"): a real boot-test log
-                // proved firstPhase (which gates the size==3 "drop the first" skip-detection correction in
-                // detectGridChanges) was only ever getting re-armed at its two documented trigger points
-                // (fresh device encounter, real start-button press mid-attempt) - NEITHER of which fires
-                // when one device attempt finishes and Hypixel moves straight into a brand new one while
-                // the player never left range and never manually pressed start. The log showed exactly
-                // that: firstPhase went false after device 1's round 1 and simply never came back, so
-                // devices 2 and 3 both kept all 3 lanterns from a landed skip's reveal instead of dropping
-                // the first. Whole-device completion is functionally identical to those other two trigger
-                // points - a guaranteed brand new attempt is about to begin - so it now resets the same
-                // per-attempt bookkeeping fresh device encounter does (see tick()'s own "entered device
-                // range" branch), not just firstPhase alone, so nothing about the next attempt starts
-                // stale. Runs AFTER the unconditional firstPhase=false right above (which would otherwise
-                // immediately undo this same-event firstPhase=true). Deliberately excludes
-                // idleSuppressedAfterCompletion and rememberedFirstButton - those two are idle-look's own
-                // state, not solve state, and must survive until the next attempt's actual reveal begins
-                // (see their own doc comments).
-                firstPhase = true;
-                autoSolveArmed = false;
-                autoSolveClicksDoneThisAttempt = 0;
-                lastBlockedTrackAtMs = 0L;
-                autoSolveBlockedMsThisAttempt = 0L;
-                autoApproachOverheadEmaMs = APPROACH_OVERHEAD_EMA_SEED_MS;
-                lastScheduledDelayMs = 0L;
-                wasBlockedByReveal = false;
-                lastRoundCompletedAtMs = 0L;
-                currentRoundNumber = 1;
-                expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
-                deviceStartedAtMs = 0L;
-                totalClicksThisAttempt = 0;
-                resetRevealScale();
-                startClickAnchorMs = 0L;
-                autoStartClickedThisPhase = false;
-                realStartButtonPressCountThisPhase = 0;
+                resetForNextAttempt();
+            }
+            if (awaitRoundVerdict) {
+                // Round 4 just ended on a device whose round count has not been seen yet: hold the whole-device
+                // decision (and break detection) until the device says - see tickRoundVerdict.
+                roundVerdictPending = true;
+                roundVerdictTicks = 0;
+                roundVerdictCompletedAtMs = System.currentTimeMillis();
             }
             // Real bug found and fixed (2026-09-14, "it goes down a bit or up a bit then over, make it
             // much more straight and direct... after it finishes dont have it go back to the start
@@ -1343,6 +1316,149 @@ public final class SimonSaysFeature {
     // ------------------------------------------------------------------
     // Auto-start - real trigger + settings ported from NoammAddons' own SimonSays.kt
     // ------------------------------------------------------------------
+
+    /** The whole device is done: the client-side completion message (Terminal Timers' Simon Says time), and idle
+     *  look / break detection stand down. {@code completedAtMs} is when the last click landed. */
+    private static void announceWholeDeviceCompleted(long completedAtMs) {
+        long deviceTookMs = deviceStartedAtMs > 0 ? completedAtMs - deviceStartedAtMs : 0;
+        // Headline number counts from the first start-button click, same as Hypixel's own device
+        // timer (see startClickAnchorMs's own doc comment); falls back to the first grid click if no
+        // start click was seen this attempt (e.g. entered range mid-device).
+        long fromStartMs = startClickAnchorMs > 0 && startClickAnchorMs <= completedAtMs
+                ? completedAtMs - startClickAnchorMs : -1L;
+        LOGGER.info("[SimonSays] Whole device completed in {} ms from first start-button click, {} ms from first grid click ({} ms of that was real reveal/transition delay).",
+                fromStartMs, deviceTookMs, autoSolveBlockedMsThisAttempt);
+        // Client-side only (sendSystemMessage, same technique this mod's other features already
+        // use for a local-only notice) - killer560 asked for a message to himself, not a real
+        // party announcement. Breaks out the real reveal/transition delay (2026-09-14, killer560's
+        // own request: "figure out how long it takes to actually go through that transition phase
+        // because that needs to be factored into the overall time it takes") whenever Auto Solve's
+        // Target/Variance mode measured any - only that mode tracks it, so a manual/Trigger Bot/
+        // Fixed-Delay solve just gets the plain total.
+        if (!com.killer560.hub.splittimers.TerminalTimersConfig.getInstance().isSimonSaysTime()) {
+            // Bundled into Terminal Timers (2026-09-14, killer560's own request) - the log line above still records it.
+        } else if (fromStartMs >= 0) {
+            // Orange theme (2026-09-14, killer560: "all client side stuff should be that orange theme").
+            com.killer560.hub.util.ModChat.send("Simon Says",
+                    com.killer560.hub.util.ModChat.text("Whole device solved in "),
+                    com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", fromStartMs / 1000.0)),
+                    com.killer560.hub.util.ModChat.dim(" from start click ("),
+                    com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", deviceTookMs / 1000.0)),
+                    com.killer560.hub.util.ModChat.dim(" from first grid click, "),
+                    com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", autoSolveBlockedMsThisAttempt / 1000.0)),
+                    com.killer560.hub.util.ModChat.dim(" reveal delay)"));
+        } else if (autoSolveBlockedMsThisAttempt > 0) {
+            com.killer560.hub.util.ModChat.send("Simon Says",
+                    com.killer560.hub.util.ModChat.text("Whole device solved in "),
+                    com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", deviceTookMs / 1000.0)),
+                    com.killer560.hub.util.ModChat.dim(" ("),
+                    com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", autoSolveBlockedMsThisAttempt / 1000.0)),
+                    com.killer560.hub.util.ModChat.dim(" reveal delay)"));
+        } else {
+            com.killer560.hub.util.ModChat.send("Simon Says",
+                    com.killer560.hub.util.ModChat.text("Whole device solved in "),
+                    com.killer560.hub.util.ModChat.value(String.format(Locale.US, "%.2fs", deviceTookMs / 1000.0)));
+        }
+        // Real bug found and fixed (2026-09-14, real boot-test log evidence: idleSuppressedAfter-
+        // Completion flipped true right after round 1's own "Round completed in 900 ms." - at that
+        // exact moment clickInOrder.size() was only 1, not >=5 - and then never reverted for the
+        // rest of the whole 5-round attempt, so idle-look never engaged again after round 1. This
+        // flag must only suppress idle after the WHOLE device (round 5) finishes, matching the
+        // original intent below ("after it finishes dont have it go back to the start button" -
+        // "it finishes" meant the whole device, not each individual round) - moved inside this
+        // round-5-only block instead of running unconditionally on every round completion.
+        idleSuppressedAfterCompletion = true;
+        breakArmed = false; // a finished device goes blank for good - that's not a break
+    }
+
+    /** Per-attempt bookkeeping after a whole device completes, so the next attempt starts clean. */
+    private static void resetForNextAttempt() {
+        // Real bug found and fixed (2026-09-14, killer560's own report: "the solver is messing
+        // up. It is keeping all 3 lighted buttons as options when it should discard the first.
+        // Make sure it resets the discard first one every time ss is reset"): a real boot-test log
+        // proved firstPhase (which gates the size==3 "drop the first" skip-detection correction in
+        // detectGridChanges) was only ever getting re-armed at its two documented trigger points
+        // (fresh device encounter, real start-button press mid-attempt) - NEITHER of which fires
+        // when one device attempt finishes and Hypixel moves straight into a brand new one while
+        // the player never left range and never manually pressed start. The log showed exactly
+        // that: firstPhase went false after device 1's round 1 and simply never came back, so
+        // devices 2 and 3 both kept all 3 lanterns from a landed skip's reveal instead of dropping
+        // the first. Whole-device completion is functionally identical to those other two trigger
+        // points - a guaranteed brand new attempt is about to begin - so it now resets the same
+        // per-attempt bookkeeping fresh device encounter does (see tick()'s own "entered device
+        // range" branch), not just firstPhase alone, so nothing about the next attempt starts
+        // stale. Runs AFTER the unconditional firstPhase=false right above (which would otherwise
+        // immediately undo this same-event firstPhase=true). Deliberately excludes
+        // idleSuppressedAfterCompletion and rememberedFirstButton - those two are idle-look's own
+        // state, not solve state, and must survive until the next attempt's actual reveal begins
+        // (see their own doc comments).
+        firstPhase = true;
+        autoSolveArmed = false;
+        autoSolveClicksDoneThisAttempt = 0;
+        lastBlockedTrackAtMs = 0L;
+        autoSolveBlockedMsThisAttempt = 0L;
+        autoApproachOverheadEmaMs = APPROACH_OVERHEAD_EMA_SEED_MS;
+        lastScheduledDelayMs = 0L;
+        wasBlockedByReveal = false;
+        lastRoundCompletedAtMs = 0L;
+        currentRoundNumber = 1;
+        expectedTotalClicksThisAttempt = totalClicksFrom(1);
+        deviceStartedAtMs = 0L;
+        totalClicksThisAttempt = 0;
+        resetRevealScale();
+        startClickAnchorMs = 0L;
+        autoStartClickedThisPhase = false;
+        realStartButtonPressCountThisPhase = 0;
+    }
+
+    /** Settles a round-4 verdict (see {@code awaitRoundVerdict} in onButtonPressed) - called every tick in range.
+     *  A fifth step revealed (detectGridChanges) means 5 rounds; the device's own "completed a device!" line
+     *  (onDeviceCompleteLine), or no fifth round lighting within {@link #ROUND_VERDICT_TIMEOUT_TICKS}, means 4 -
+     *  an old device always lights round 5 within about 3 s of round 4's last click. */
+    private static void tickRoundVerdict() {
+        if (!roundVerdictPending) {
+            roundVerdictAnnounce = false; // a verdict dropped without an answer (new attempt, left range) says nothing
+            return;
+        }
+        if (!clickInOrder.isEmpty()) {
+            roundVerdictPending = false;
+            TerminalLayouts.noteSimonRounds(TerminalLayouts.OLD_SIMON_ROUNDS, "a fifth round was revealed");
+            sendHeldRoundFourAnnounce();
+            return;
+        }
+        if (++roundVerdictTicks >= ROUND_VERDICT_TIMEOUT_TICKS) {
+            settleRoundVerdictAsFour("no fifth round lit within " + ROUND_VERDICT_TIMEOUT_TICKS + " ticks of round 4");
+        }
+    }
+
+    private static void sendHeldRoundFourAnnounce() {
+        Minecraft client = Minecraft.getInstance();
+        if (roundVerdictAnnounce && client.player != null) {
+            client.player.connection.sendCommand("pc SS " + TerminalLayouts.NEW_SIMON_ROUNDS + "/" + TerminalLayouts.simonRounds());
+        }
+        roundVerdictAnnounce = false;
+    }
+
+    private static void settleRoundVerdictAsFour(String why) {
+        roundVerdictPending = false;
+        TerminalLayouts.noteSimonRounds(TerminalLayouts.NEW_SIMON_ROUNDS, why);
+        sendHeldRoundFourAnnounce();
+        if (Minecraft.getInstance().player != null) {
+            announceWholeDeviceCompleted(roundVerdictCompletedAtMs);
+        }
+        resetForNextAttempt();
+    }
+
+    /** ChatObserver: any player's "completed a device!" line while at the Simon Says device. */
+    private static void onDeviceCompleteLine() {
+        if (!wasActive) {
+            return;
+        }
+        deviceCompleteLineAtMs = System.currentTimeMillis();
+        if (roundVerdictPending) {
+            settleRoundVerdictAsFour("\"completed a device!\" right after round 4");
+        }
+    }
 
     /** Noamm-style "SS broke" detection - see {@link #BREAK_CONFIRM_TICKS}. Restarts it when Auto Restart SS is on. */
     private static void tickBreakDetection(Minecraft client, SimonSaysConfig cfg) {
@@ -1365,7 +1481,9 @@ public final class SimonSaysFeature {
                 break;
             }
         }
-        if (!breakArmed || autoStartRunning || !allButtonsGone) {
+        // A blank grid while a round-4 verdict is pending is the device possibly having ENDED (4-round layout),
+        // not a break - tickRoundVerdict settles it first.
+        if (!breakArmed || autoStartRunning || !allButtonsGone || roundVerdictPending) {
             blankGridTicks = 0;
             return;
         }
@@ -1522,9 +1640,11 @@ public final class SimonSaysFeature {
         wasBlockedByReveal = false;
         lastRoundCompletedAtMs = 0L;
         currentRoundNumber = 1;
-        expectedTotalClicksThisAttempt = TOTAL_REAL_CLICKS_PER_DEVICE;
+        expectedTotalClicksThisAttempt = totalClicksFrom(1);
         deviceStartedAtMs = 0L;
         totalClicksThisAttempt = 0;
+        // A new attempt's lanterns are not a fifth round: drop a round-4 verdict still waiting.
+        roundVerdictPending = false;
         resetRevealScale();
         startClickAnchorMs = 0L;
         rotateInProgressTarget = null;
@@ -1980,7 +2100,7 @@ public final class SimonSaysFeature {
             // reserved separately) and rolled forward - one share per round boundary, all piling onto round 5. Those
             // round-opening clicks now get weight 0: they fire as soon as their round becomes clickable, and their
             // share goes to clicks that can actually use it.
-            int futureRoundOpeners = Math.max(0, 5 - currentRoundNumber);
+            int futureRoundOpeners = Math.max(0, TerminalLayouts.simonRounds() - currentRoundNumber);
             int unknownClicks = Math.max(0, remainingAfter - knownHops);
             weightSum += Math.max(0, unknownClicks - futureRoundOpeners);
             if (knownHops == 0 && futureRoundOpeners > 0) {

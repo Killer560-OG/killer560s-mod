@@ -343,9 +343,10 @@ public final class SimSecretItems {
         SimItems.applySkyblockTooltip(stack, kind[0]);
 
         ItemEntity drop = new ItemEntity(level, at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5, stack);
-        // A SHORT delay, not setNeverPickUp(). Ten ticks is vanilla's own "just dropped" delay and stops the
-        // item being swallowed in the same tick it appears, which would look like nothing happened at all.
-        drop.setPickUpDelay(10);
+        // A SHORT delay, not setNeverPickUp(): it stops the item being swallowed in the same tick it appears, which
+        // would look like nothing happened at all. Hypixel's secret pickup time - 11 ticks, 5 since SkyBlock 0.27.2
+        // (SimHypixelRules; was vanilla's 10 here before that).
+        drop.setPickUpDelay(SimHypixelRules.SECRET_PICKUP_TICKS);
         drop.setUnlimitedLifetime();
         drop.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
         drop.setNoGravity(true);

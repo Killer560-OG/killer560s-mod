@@ -197,7 +197,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
                 // every time a new ROUND started, applying the full target duration to that round's
                 // handful of clicks alone (round 1 has just ONE click, so it waited the full ~12s target
                 // just to press it once). Now arms exactly once per full device attempt and paces across
-                // the real total of 15 clicks across all 5 rounds, so the target is genuinely the time
+                // the real total across all rounds (15 clicks old, 10 on the 4-round device), so the target is genuinely the time
                 // for the WHOLE solve.
                 int minTarget = SimonSaysConfig.MIN_CLICK_TIMER_TARGET_MS;
                 int maxTarget = SimonSaysConfig.MAX_CLICK_TIMER_TARGET_MS;

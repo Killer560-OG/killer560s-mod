@@ -42,11 +42,11 @@ import com.killer560.hub.compat.McItems;
  */
 final class MelodySlotReader {
 
-    /** Same four clay/terracotta button slots {@code TerminalSolverFeature.MELODY_CLAY_SLOTS} clicks and
-     *  {@code BridgeTables}' Odin research names - index 0 = row 1, ... index 3 = row 4. */
-    private static final int[] CLAY_SLOTS = {16, 25, 34, 43};
+    // The clay/terracotta buttons are read off the board each scan (TerminalLayouts.melodyButtonSlots, the same
+    // call TerminalSolverFeature clicks through): 16/25/34/43 on the old 4-row layout, three on the 2026-10-06
+    // 3-row one.
 
-    /** @param highestLitClayRow 1-4 (Odin's own clay row numbering), or -1 if none of the four are lit yet.
+    /** @param highestLitClayRow 1-4 (1-3 on the 3-row layout; Odin's own clay row numbering), or -1 if none is lit yet.
      *  @param target            0-4 target/purple column, or -1 if no target pane is visible this scan.
      *  @param current           0-4 moving/lime column, or -1 if no lime pane is visible this scan. */
     record Result(int highestLitClayRow, int target, int current) {
@@ -74,10 +74,13 @@ final class MelodySlotReader {
         int target = targetSlot == null ? -1 : targetSlot % 9 - 1;
 
         int highestLit = -1;
-        for (int row = 0; row < CLAY_SLOTS.length; row++) {
-            int slot = CLAY_SLOTS[row];
-            if (slot < items.size() && items.get(slot).getItem() == McItems.LIME_TERRACOTTA) {
-                highestLit = row + 1; // Odin's own clay row numbering is 1-4, not the 0-based array index.
+        int[] buttons = com.killer560.hub.terminals.TerminalLayouts.melodyButtonSlots(items);
+        if (buttons.length > 0 && com.killer560.hub.terminals.TerminalLayouts.isTerracotta(items.get(buttons[0]))) {
+            com.killer560.hub.terminals.TerminalLayouts.noteMelodyRows(buttons.length);
+        }
+        for (int slot : buttons) {
+            if (items.get(slot).getItem() == McItems.LIME_TERRACOTTA) {
+                highestLit = slot / 9; // Odin's own clay value: the lit terracotta's slot / 9 (row 1 = first button row).
             }
         }
         return new Result(highestLit, target, current);

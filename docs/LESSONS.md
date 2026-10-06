@@ -163,6 +163,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   lime pane (a finished row keeping its marker, which Odin handles with indexOfLast) has none, so after a row or an
   auto terminal's skip nothing was drawn as moving (killer560, 2026-10-05). Find a terminal's piece by position from
   the current slots (`findMelodyMovingSlot`), never by colour counts; testkit 218 fails 5/16 on the old rule.
+- Terminal and device SIZES are read off the board/device, never constants (SkyBlock 0.27.2: Melody 3 rows, Click in
+  order 10, Simon Says 4 rounds; `terminals/TerminalLayouts`). The old Melody code was row-generic only by accident
+  (`MELODY_CLAY_SLOTS[r-1] == r*9+7` for rows 1-4), so a 3-row board still auto-clicked; what broke was indexing past
+  the last row - Melody Keys' key 4 pressed slot 43, the bottom marker row (testkit 290 fails on main 5813cb91).
 - On 26.2 `McRender.inCameraSpace` runs its callback LATER in the frame (`submitCustomGeometry`, built in
   `CustomFeatureRenderer.buildGroup`), after the tick may have rebuilt whatever list the callback reads. Secret
   Waypoints indexed its live list there and crashed the client ("Index 6 out of bounds for length 6", Render Frame)

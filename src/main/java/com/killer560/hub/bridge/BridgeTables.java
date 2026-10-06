@@ -327,8 +327,9 @@ public final class BridgeTables {
      * in</b>. So type 2 (magenta/purple pane - the target) and type 5 (lime pane - the moving marker) are both
      * a plain column 0-4, directly comparable: the player is "on time" when pane == purple.</li>
      * <li>Type 1 (clay) is {@code packet.slot / 9} of the {@code LIME_TERRACOTTA} slot (offsets 80-90), no
-     * range mapping. The four buttons are the terracotta at slots 16, 25, 34, 43 (same slots as our own
-     * {@code TerminalSolverFeature.MELODY_CLAY_SLOTS}), so clay is the button ROW, 1-4.</li>
+     * range mapping. The four buttons are the terracotta at slots 16, 25, 34, 43, so clay is the button ROW, 1-4
+     * (1-3 on the 3-row board of the 2026-10-06 update, whose buttons {@code TerminalLayouts.melodyButtonSlots}
+     * finds the same way).</li>
      * <li>{@code clayProgress = hashMapOf(2 to "Melody 25%", 3 to "Melody 50%", 4 to "Melody 75%")}
      * ({@code <clinit>} offsets 747-795): Odin itself reads clay 1 as 0% done, 2 as 25%, 3 as 50%, 4 as 75%.</li>
      * </ul>
@@ -338,12 +339,15 @@ public final class BridgeTables {
     public static final int MELODY_MIN_CLAY_ROW = 1;
     public static final int MELODY_MAX_CLAY_ROW = 4;
 
-    /** Percent of the Melody terminal a player has finished, from their clay row, exactly as Odin labels it
-     *  ({@code clayProgress}); -1 if out of range. */
+    /** Percent of the Melody terminal a player has finished, from their clay row; -1 if out of range. On the
+     *  old 4-row board this is exactly Odin's {@code clayProgress} (0/25/50/75). Since the 2026-10-06 update the
+     *  board can have 3 rows (clay 1-3, so 0/33/67): the row count is the one the local player's own board last
+     *  showed ({@code TerminalLayouts.melodyRows()}), never below the row being reported. */
     public static int melodyPercentForClayRow(int clayRow) {
         if (clayRow < MELODY_MIN_CLAY_ROW || clayRow > MELODY_MAX_CLAY_ROW) {
             return -1;
         }
-        return (clayRow - 1) * 25;
+        int rows = Math.max(com.killer560.hub.terminals.TerminalLayouts.melodyRows(), clayRow);
+        return Math.round((clayRow - 1) * 100f / rows);
     }
 }

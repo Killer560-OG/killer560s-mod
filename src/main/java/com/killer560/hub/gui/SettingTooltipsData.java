@@ -56,7 +56,7 @@ final class SettingTooltipsData {
         d.put("dungeon/prevent misclicks", "Blocks clicks on the wrong Simon Says buttons; hold Shift to click anyway.");
         d.put("new/prevent misclicks", "Blocks right-clicks on an Arrow Align frame that already points the right way.");
         d.put("prevent misclicks", "Blocks clicks that would be wrong for the current puzzle.");
-        d.put("announce progress", "Sends 'SS n/5' in party chat after each Simon Says round.");
+        d.put("announce progress", "Sends 'SS n/5' in party chat after each Simon Says round ('n/4' on the 4-round device).");
         d.put("party tracker", "Shows each teammate's Simon Says progress and ETA from party chat.");
         d.put("announce key", "Keybind that sends your reset message to party chat.");
         d.put("auto message", "Sends your reset message in party chat whenever the device resets.");
