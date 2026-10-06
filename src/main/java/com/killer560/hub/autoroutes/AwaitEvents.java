@@ -50,7 +50,7 @@ public final class AwaitEvents {
     private static final Logger LOGGER = ModLog.get("killer560smod-autoroutes");
 
     /** A new secret bat closer than this (blocks, player to bat when it first appears) is one secret. */
-    public static final double BAT_SPAWN_RANGE = 7.0;
+    public static final double BAT_SPAWN_RANGE = 10.0; // QUOI AwaitArgument uses 10 (killer560, 2026-10-06)
     /** A crypt / prince kill counts as ours when one of our weapon uses was at most this many ticks before it. The
      *  tab list's crypt line refreshes about once a second (the sim's every 20 ticks), so this is three of those. */
     public static final int CRYPT_WINDOW = 60;
