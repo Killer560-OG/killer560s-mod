@@ -176,6 +176,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   their undead do not exist until the tomb is blown, so `secretwaypoints/CryptScanner` finds them from blocks. The
   rule was fitted against the captures vs the database count (112/134 rooms exact); the census scripts and misses
   are in killer560s-mod-logs/crypt-waypoints.md. Re-run that census before changing the rule.
+- **Two mod-menu rows on one rectangle look like the top one and act as the bottom one.** ModScreen's content pane draws
+  children in order (last on top) but gives a press to the FIRST under the cursor. Breaker Aura's `y += 20 ... y -= 20`
+  side-step left Cooldown on Side Reach's rect and Auto Swap on Multi Break's, so dragging "Cooldown" moved Side Reach
+  (2026-10-05). Testkit `386-ui-sliders` checks every tab, toggles flipped, for overlapping rows.
 
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 

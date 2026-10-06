@@ -176,7 +176,10 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
         // 0 was unreachable, and on a fresh config the start position was (0 - 1) / 19 = -0.05, off the
         // widget's own scale, so the knob sat pinned left reading "0 ticks" and the first drag silently threw
         // the shipped default away for good.
-        widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, cooldownText(cfg),
+        // Right column, beside Side Reach. Side Reach (above) already took the left of this row, and with Cooldown
+        // on the same rectangle the content pane drew Cooldown on top but handed every press to Side Reach, the
+        // first child under the cursor: "I cannot slide the cooldown bar" (killer560, 2026-10-05; 386-ui-sliders).
+        widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, cooldownText(cfg),
                 cfg.getBreakerAuraCooldownTicks() / 20.0) {
             @Override
             protected void updateMessage() {
@@ -214,7 +217,9 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     btn.setMessage(onOff("Pause In Edit Mode", cfg.isBreakerAuraRespectEditMode()));
                 }).bounds(col2bX, y, col2W, 18).build());
-        y += 20;
+        // Past Multi Break's row too: += 20 put Auto Swap on top of Multi Break, so a click on "Auto Swap"
+        // toggled Multi Break.
+        y += 40;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Swap", cfg.isBreakerAuraAutoSwap()), btn -> {
                     cfg.setBreakerAuraAutoSwap(!cfg.isBreakerAuraAutoSwap());
