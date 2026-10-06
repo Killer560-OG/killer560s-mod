@@ -7,6 +7,7 @@
 		"AutoRoutesInputMixin",
 		"AwaitEventsGameModeMixin",
 		"AwaitEventsPacketMixin",
+		"HeldUsePickMixin",
 		"KeyMappingKeyAccessor"
 	],
 	"injectors": {
