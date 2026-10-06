@@ -605,6 +605,58 @@ public final class SimDoors {
         return n;
     }
 
+    /**
+     * Turns every plain door of the named room into a shut WITHER door - coal blocks in the world (the same carve a
+     * built wither door gets, registered so a right-click with a Wither Key opens it) and a wither door on the map - so
+     * the room can only be reached by opening one. Client thread; the carve runs on the integrated server. For practising
+     * (and testing) a clear that has to open wither doors; generated floors still build none (no key drops).
+     *
+     * @return how many doors it turned, or -1 when the sim cannot act or the room is not on the map
+     */
+    public static int witherDoorsAround(Minecraft client, String roomName) {
+        var server = client.getSingleplayerServer();
+        if (!SimState.canAct(client) || server == null) {
+            return -1;
+        }
+        DungeonLayout layout = DungeonLayout.capture();
+        int room = -1;
+        for (int r = 0; r < layout.roomCount(); r++) {
+            if (roomName != null && roomName.equalsIgnoreCase(layout.name(r))) {
+                room = r;
+            }
+        }
+        if (room < 0) {
+            return -1;
+        }
+        List<Integer> doors = new ArrayList<>();
+        int[][] dirs = {{0, -1}, {0, 1}, {1, 0}, {-1, 0}};
+        for (int tile : layout.tiles(room)) {
+            int x = tile % DungeonLayout.GRID;
+            int z = tile / DungeonLayout.GRID;
+            for (int[] d : dirs) {
+                int dx = x + d[0];
+                int dz = z + d[1];
+                int nx = x + d[0] * 2;
+                int nz = z + d[1] * 2;
+                if (nx < 0 || nx > 10 || nz < 0 || nz > 10) {
+                    continue;
+                }
+                int idx = dz * DungeonLayout.GRID + dx;
+                int next = layout.roomOfCell(nz * DungeonLayout.GRID + nx);
+                if (layout.doorType(idx) == DungeonLayout.DOOR_NORMAL && next >= 0 && next != room) {
+                    doors.add(idx);
+                }
+            }
+        }
+        for (int idx : doors) {
+            boolean alongX = (idx % DungeonLayout.GRID) % 2 != 0;
+            BlockPos centre = DungeonLayout.cellCenter(idx);
+            server.execute(() -> carveDoorway(server.overworld(), centre, alongX, DungeonLayout.DOOR_WITHER));
+            com.killer560.hub.livemap.LiveMapFeature.setSimDoorWither(idx);
+        }
+        return doors.size();
+    }
+
     public static void clear() {
         DOORS.clear();
         BLOCK_INDEX.clear();

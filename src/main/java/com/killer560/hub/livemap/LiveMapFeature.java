@@ -780,6 +780,15 @@ public final class LiveMapFeature {
         return state == DungeonMapScanner.STATE_GREEN || state == DungeonMapScanner.STATE_CLEARED;
     }
 
+    /** The sim turned this door cell into a wither door ({@code SimDoors.witherDoorsAround}); its map tile follows. */
+    public static void setSimDoorWither(int idx) {
+        if (!com.killer560.hub.roomsim.SimState.isActive() || idx < 0 || idx >= GRID * GRID) {
+            return;
+        }
+        grid[idx] = Tile.DOOR_WITHER;
+        groupsDirty = true;
+    }
+
     /** Whether anything can say a room is cleared: the dungeon map item is read, or the sim says so itself. Off both
      *  (a test server, a dungeon before the map item arrives) {@link #isRoomCleared} is false for every room. */
     public static boolean hasRoomStates() {

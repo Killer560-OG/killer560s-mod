@@ -11,6 +11,7 @@ import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.livemap.autoclear.AutoClearUtils;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
+import com.killer560.hub.livemap.autoclear.DungeonMapPathfinder;
 import com.killer560.hub.livemap.autoclear.TeleportUtils;
 import com.killer560.hub.mobesp.MobEspFeature;
 import com.killer560.hub.secrets.DungeonState;
@@ -269,6 +270,7 @@ public final class AutoClearFeature {
         travelStarted = false;
         skippedRooms.clear();
         skippedMobs.clear();
+        doorTarget = -1;
         roomsCleared = 0;
         mobsKilled = 0;
         corrections = 0;
@@ -532,6 +534,12 @@ public final class AutoClearFeature {
             if (skippedRooms.contains(singleRoom)) {
                 return -1;   // giveUpRoom already stopped the run
             }
+            AutoClearTargets.Choice only = AutoClearTargets.choose(layout, List.of(r));
+            if (only != null && only.door() >= 0) {
+                openDoor(layout, only.door(), singleRoom);
+                return -1;
+            }
+            doorTarget = -1;
             return r;
         }
         List<Integer> candidates = AutoClearTargets.candidates(layout, cfg.getMode(), skippedRooms);
@@ -544,12 +552,122 @@ public final class AutoClearFeature {
                     : " (gave up on " + String.join(", ", skippedRooms) + ")"));
             return -1;
         }
-        int r = AutoClearTargets.nearest(layout, candidates);
-        if (r < 0) {
-            finish("the uncleared rooms left are behind locked doors");
+        AutoClearTargets.Choice c = AutoClearTargets.choose(layout, candidates);
+        if (c == null) {
+            finish("the uncleared rooms left are behind doors it does not open");
             return -1;
         }
-        return r;
+        if (c.door() >= 0) {
+            // Nothing else reachable: the wither door on the way is the only thing left before it can go on.
+            openDoor(layout, c.door(), layout.name(c.room()));
+            return -1;
+        }
+        doorTarget = -1;
+        List<Integer> rush = AutoClearTargets.bloodRushRooms(layout);
+        LOGGER.info("[AutoClear] next room {} ({}) - order {}", layout.name(c.room()),
+                rush != null && rush.contains(c.room()) ? "on the blood rush" : "off the blood rush",
+                AutoClearTargets.ordered(layout, candidates).stream().map(layout::name).toList());
+        return c.room();
+    }
+
+    // ---- wither doors (killer560, 2026-10-06: only when opening one is the only thing left before it can progress) ----
+
+    private static int doorTarget = -1;
+    private static int doorCooldown = 0;
+    private static boolean saidNoKey = false;
+
+    /**
+     * Gets through a shut wither door: the Interactive Map's door pathing to its approach spot (Auto Blood Rush's
+     * pathToDoor), then a right-click on the door with the Wither Key. No key: it waits there and says so once.
+     * Called each decision while the door is the only way on; it notices the door open (the block goes) and moves on.
+     */
+    private static void openDoor(DungeonLayout layout, int door, String behind) {
+        Minecraft client = Minecraft.getInstance();
+        LocalPlayer player = client.player;
+        releaseUse(client);
+        if (door != doorTarget) {
+            doorTarget = door;
+            saidNoKey = false;
+            doorCooldown = 0;
+            say(ModChat.text("Wither door in the way of "), ModChat.value(behind), ModChat.dim(" - going to open it"));
+            LOGGER.info("[AutoClear] only a wither door ({}) stands before {} - going to it", door, behind);
+        }
+        int cur = layout.currentRoom();
+        BlockPos approach = cur < 0 ? null : DungeonMapPathfinder.getDoorPos(layout, cur, door);
+        if (approach == null) {
+            action = "no way to the wither door";
+            return;
+        }
+        double dx = player.getX() - (approach.getX() + 0.5);
+        double dz = player.getZ() - (approach.getZ() + 0.5);
+        if (dx * dx + dz * dz > 2.5 * 2.5 || Math.abs(player.getY() - (approach.getY() + 1)) > 2.0) {
+            if (!AutoClearUtils.canPath(layout)) {
+                action = "waiting to land before the trip to the wither door";
+                return;
+            }
+            action = "etherwarp to the wither door";
+            LOGGER.info("[AutoClear] trip to wither door {} (approach {})", door, approach.toShortString());
+            startTrip(client, player, () -> AutoClearUtils.pathToDoor(layout, door, false));
+            return;
+        }
+        boolean key = com.killer560.hub.roomsim.SimState.isActive()
+                ? com.killer560.hub.roomsim.SimDoors.keysHeld() > 0
+                : com.killer560.hub.witherdoors.WitherDoorsFeature.isWitherKeyHeld();
+        if (!key) {
+            action = "waiting at the wither door - no Wither Key";
+            if (!saidNoKey) {
+                saidNoKey = true;
+                say(ModChat.bad("Waiting at the wither door"), ModChat.dim(" - nobody has the Wither Key yet"));
+                LOGGER.info("[AutoClear] at wither door {} with no key - waiting", door);
+            }
+            return;
+        }
+        if (doorCooldown > 0) {
+            doorCooldown--;
+            action = "opening the wither door";
+            return;
+        }
+        int keySlot = ItemIdentity.findHotbarSlotById(player, "WITHER_KEY");
+        if (keySlot >= 0 && player.getInventory().getSelectedSlot() != keySlot) {
+            select(client, player, keySlot);
+            return;
+        }
+        BlockPos lock = DungeonLayout.doorBlock(door);
+        BlockPos target = null;
+        for (BlockPos p : new BlockPos[]{lock.above(), lock, lock.above(2)}) {
+            if (!client.level.getBlockState(p).getShape(client.level, p).isEmpty()) {
+                target = p;
+                break;
+            }
+        }
+        if (target == null) {
+            action = "waiting for the wither door to finish opening";
+            return;
+        }
+        Vec3 eye = player.getEyePosition();
+        Vec3 aimAt = Vec3.atCenterOf(target);
+        TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, aimAt);
+        float yaw = player.getYRot() + Mth.wrapDegrees(r.yaw() - player.getYRot());
+        float pitch = Mth.clamp(r.pitch(), -90f, 90f);
+        bodyWanted = true;
+        if (!BODY.isHeld() || Math.abs(yaw - player.getYRot()) > 0.5f || Math.abs(pitch - player.getXRot()) > 0.5f) {
+            // Turn first: the click goes out a tick later, from a body a movement packet has already reported.
+            BODY.turn(player, yaw, pitch);
+            action = "turning to the wither door";
+            return;
+        }
+        var shape = client.level.getBlockState(target).getShape(client.level, target);
+        net.minecraft.world.phys.BlockHitResult hit = shape.clip(eye,
+                eye.add(aimAt.subtract(eye).normalize().scale(eye.distanceTo(aimAt) + 1.5)), target);
+        if (hit == null) {
+            action = "no face of the wither door to click";
+            return;
+        }
+        client.gameMode.useItemOn(player, net.minecraft.world.InteractionHand.MAIN_HAND, hit);
+        player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        doorCooldown = 20;
+        action = "opening the wither door";
+        LOGGER.info("[AutoClear] clicked wither door {} at {} with the key", door, target.toShortString());
     }
 
     private static void roomDoneWithoutMap() {
