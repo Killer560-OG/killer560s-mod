@@ -234,6 +234,14 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   map warps had left in hand: the sim took it as Instant Transmission and the door never opened; it now clicks with the key
   item, else an empty slot. Whether Hypixel fires the ability on a door click is unverified; Auto Door Opener still doesn't swap.
 
+- Secret Waypoints' lever waypoints never hid on a click (2026-10-06): the click listener marked the lever in `COLLECTED`,
+  but `scanLevers` builds its waypoints outside `addGroup` and never asked `COLLECTED`, so the next rebuild (<= 1 s) put it
+  back. Any waypoint group added outside `addGroup` must apply the same collected filter.
+- To swallow his left click before vanilla acts on it, consume it at START_CLIENT_TICK: `while (keyAttack.consumeClick())`
+  then `keyAttack.setDown(false)`. `handleKeybinds` runs later in the same tick and only calls `startAttack` per queued
+  click and `continueAttack(true)` while the key reads down (javap 26.1.2 and 26.2), so nothing is swung or dug
+  (`RouteExecutor.takeSkipClick`, 96-ar-awaitskip / 62-argrim-awaitskip).
+
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session
