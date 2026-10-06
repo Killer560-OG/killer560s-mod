@@ -724,11 +724,18 @@ public final class SimItems {
      * he would have to rebuild the map to try the same puzzle twice, which is the opposite of drilling it.
      */
     private static boolean architectDraft(ServerPlayer sp) {
-        // Consumed, like the real one - a reset that costs nothing is not the same decision.
-        sp.getInventory().getSelectedItem().shrink(1);
+        // Consumed, like the real one - but only when it reset something (only failed puzzles, and Boulder, can
+        // be reset; killer560 2026-10-06). The stack is shrunk back on the server thread once the client knows.
+        var stack = sp.getInventory().getSelectedItem();
+        var server = sp.level().getServer();
         SimAbilities.onClient(() -> {
-            com.killer560.hub.roomsim.puzzles.SimPuzzles.resetAll();
-            ModChat.send("Sim", ModChat.text("Puzzle reset"));
+            int n = com.killer560.hub.roomsim.puzzles.SimPuzzles.resetForPlayer();
+            if (n > 0) {
+                server.execute(() -> stack.shrink(1));
+                ModChat.send("Sim", ModChat.text("Puzzle reset"));
+            } else {
+                ModChat.send("Sim", ModChat.dim("Nothing to reset - only a failed puzzle (or Boulder) can be reset"));
+            }
         });
         return true;
     }

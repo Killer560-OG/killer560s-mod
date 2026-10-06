@@ -497,6 +497,11 @@ public final class SimBoulderPuzzle {
         complete = false;
     }
 
+    /** Whether a Boulder board is up (so a player reset has something to put back). */
+    public static boolean isBuilt() {
+        return grid != null;
+    }
+
     /** The same arrangement back, boxes and buttons, for an Architect's First Draft or {@code /simpuzzle reset}. */
     public static void reset() {
         Minecraft client = Minecraft.getInstance();

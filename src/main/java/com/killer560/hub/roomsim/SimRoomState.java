@@ -63,6 +63,17 @@ public final class SimRoomState {
         }
     }
 
+    /** The rooms currently painted failed. */
+    public static java.util.List<String> failedRooms() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        STATES.forEach((room, state) -> {
+            if (state == STATE_FAILED) {
+                out.add(room);
+            }
+        });
+        return out;
+    }
+
     public static boolean isFailed(String roomName) {
         return roomName != null && STATES.getOrDefault(roomName, -1) == STATE_FAILED;
     }

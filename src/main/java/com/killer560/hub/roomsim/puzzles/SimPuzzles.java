@@ -145,8 +145,9 @@ public final class SimPuzzles {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) ->
                 dispatcher.register(ClientCommands.literal("simpuzzle")
                         .then(ClientCommands.literal("reset").executes(ctx -> {
-                            resetAll();
-                            ModChat.send("Sim", ModChat.text("Puzzles reset"));
+                            int n = resetForPlayer();
+                            ModChat.send("Sim", n > 0 ? ModChat.text("Puzzles reset: " + n)
+                                    : ModChat.dim("Nothing to reset - only failed puzzles (and Boulder) can be reset"));
                             return 1;
                         }))
                         .then(ClientCommands.argument("name", StringArgumentType.word())
@@ -273,6 +274,39 @@ public final class SimPuzzles {
         }
         return true;
     }
+
+    /**
+     * The player's reset (an Architect's First Draft or {@code /simpuzzle reset}), by killer560's rules
+     * (2026-10-06): "you shouldnt be able to reset completed puzzles only failed ones", Water Board can never be
+     * reset, and Boulder can be reset whether or not it failed. Failed rooms come from {@link
+     * com.killer560.hub.roomsim.SimRoomState}, which is what paints them red.
+     *
+     * @return how many puzzles were reset (0 = nothing to reset, so a draft is not used up)
+     */
+    public static int resetForPlayer() {
+        java.util.Set<String> keys = new java.util.LinkedHashSet<>();
+        for (String room : com.killer560.hub.roomsim.SimRoomState.failedRooms()) {
+            String key = com.killer560.hub.roomsim.SimRoomPuzzles.puzzleKey(room);
+            if (key != null && !key.equals("water")) {
+                keys.add(key);
+                com.killer560.hub.roomsim.SimRoomState.clearRoom(room);
+            }
+        }
+        keys.add("boulder");
+        int n = 0;
+        for (String key : keys) {
+            if (key.equals("boulder") && !BUILT_BOULDER.getAsBoolean()) {
+                continue;
+            }
+            if (reset(key)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** Whether a Boulder arena is up to reset. */
+    private static final java.util.function.BooleanSupplier BUILT_BOULDER = SimBoulderPuzzle::isBuilt;
 
     /** Clears every puzzle's state, for leaving the sim or restarting a run. */
     public static void resetAll() {
