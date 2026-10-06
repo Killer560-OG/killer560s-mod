@@ -1384,9 +1384,10 @@ public final class RouteExecutor {
                 // even if it didn't grab a secret yet". The click is consumed here, at START_CLIENT_TICK, so vanilla's
                 // handleKeybinds later this tick never sees it: no startAttack, no swing, no dig - the node's own
                 // action (the warp) is the only thing that click sends.
-                LOGGER.info("[AutoRoutes] Node #{} {}: left click skipped the await ({}/{} secrets) after {} tick(s)",
-                        route.indexOf(node) + 1, node.type, AwaitEvents.secrets(), Math.max(1, node.awaitAmount),
-                        actionAge);
+                LOGGER.info("[AutoRoutes] Node #{} {}: left click skipped the await ({}) after {} tick(s)",
+                        route.indexOf(node) + 1, node.type, node.awaitCondition == RouteNode.AwaitCondition.SECRET
+                                ? AwaitEvents.secrets() + "/" + Math.max(1, node.awaitAmount) + " secrets"
+                                : "await " + node.awaitCondition.name().toLowerCase(java.util.Locale.ROOT), actionAge);
                 awaitPhaseDone = true;
                 step = Step.PREP;
                 stepTicks = 0;
@@ -1509,11 +1510,22 @@ public final class RouteExecutor {
         boolean delay = node.awaitCondition == RouteNode.AwaitCondition.DELAY;
         if (step == Step.PREP) {
             awaitStartMs = System.currentTimeMillis();
+            killAwaitClearTicks = 0;
+            killAwaitLastAlive = -1;
             step = Step.CONFIRM;
         }
         boolean done;
         if (delay) {
             done = System.currentTimeMillis() - awaitStartMs >= node.awaitAmount;
+        } else if (node.awaitCondition == RouteNode.AwaitCondition.KILL) {
+            done = killAwaitDone(client, node);
+        } else if (node.awaitCondition == RouteNode.AwaitCondition.BAT) {
+            // A secret bat that appeared near him since the previous node finished has died (not just appeared).
+            done = AwaitEvents.batKills() >= 1;
+            if (done) {
+                LOGGER.info("[AutoRoutes] Node #{} {}: await bat met - a bat that spawned near you died",
+                        route.indexOf(node) + 1, node.type);
+            }
         } else {
             // Only what HE did since the previous node finished counts (AwaitEvents): his clicks on secret blocks, his
             // pickups, a secret bat appearing next to him, a mimic of his dying. Never a crypt - that is a crypt
@@ -1529,6 +1541,45 @@ public final class RouteExecutor {
             step = Step.PREP;
             stepTicks = 0;
         }
+    }
+
+    /** Ticks in a row {@code await:kill} has seen no counted mob alive in his room. */
+    private static int killAwaitClearTicks;
+    /** The last "N alive" the kill await logged, so it logs a change rather than every tick. */
+    private static int killAwaitLastAlive = -1;
+    /** How long the room must read empty before {@code await:kill} believes it: a starred name tag can blink out for
+     *  a tick while its mob is hit or re-tagged, and right after a warp the stands may not have reached him yet. */
+    private static final int KILL_AWAIT_EMPTY_TICKS = 10;
+
+    /**
+     * {@code await:kill} (killer560, 2026-10-06): every mob the room's clear counts is dead - the starred mobs standing
+     * in the room he is in, read through {@link com.killer560.hub.autoclear.RoomMobs}, the same set Auto Clear kills - or
+     * the dungeon map shows the room cleared. With no counted mob alive it waits {@link #KILL_AWAIT_EMPTY_TICKS} first.
+     */
+    private static boolean killAwaitDone(Minecraft client, RouteNode node) {
+        com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
+        int room = layout == null ? -1 : layout.currentRoom();
+        if (com.killer560.hub.autoclear.RoomMobs.cleared(layout, room)) {
+            LOGGER.info("[AutoRoutes] Node #{} {}: await kill met - the map shows {} cleared", route.indexOf(node) + 1,
+                    node.type, layout.name(room));
+            return true;
+        }
+        int alive = com.killer560.hub.autoclear.RoomMobs.aliveIn(client, layout, room).size();
+        if (alive != killAwaitLastAlive) {
+            LOGGER.info("[AutoRoutes] Node #{} {}: await kill - {} counted mob(s) alive in {}", route.indexOf(node) + 1,
+                    node.type, alive, room < 0 ? "no known room" : layout.name(room));
+            killAwaitLastAlive = alive;
+        }
+        if (room < 0 || alive > 0) {
+            killAwaitClearTicks = 0;
+            return false;
+        }
+        if (++killAwaitClearTicks < KILL_AWAIT_EMPTY_TICKS) {
+            return false;
+        }
+        LOGGER.info("[AutoRoutes] Node #{} {}: await kill met - no counted mob alive in {} for {} ticks",
+                route.indexOf(node) + 1, node.type, layout.name(room), killAwaitClearTicks);
+        return true;
     }
 
     /**
@@ -1890,7 +1941,7 @@ public final class RouteExecutor {
      * without a kill moves the route on to the next node.
      */
     private static void tickCrypt(Minecraft client, LocalPlayer player, RouteNode node) {
-        int goal = node.awaitEnabled && node.awaitCondition != RouteNode.AwaitCondition.DELAY
+        int goal = node.awaitEnabled && node.awaitCondition == RouteNode.AwaitCondition.SECRET
                 ? Math.max(1, node.awaitAmount) : 1;
         AutoRoutesConfig.CryptWeapon weapon = AutoRoutesConfig.getInstance().getCryptWeapon();
         if (step == Step.PREP) {
