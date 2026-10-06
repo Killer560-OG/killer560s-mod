@@ -21,10 +21,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DirectionalBlock;
 import net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
+import net.minecraft.world.level.block.piston.PistonHeadBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
+import net.minecraft.world.level.block.state.properties.PistonType;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -57,8 +61,11 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li><b>Water reaching a colour's column moves that wool.</b> The five colours each own a column at
  *       {@code x=15}; the wool sits at {@code (15, 55, z)} and is pushed up to {@code (15, 56, z)}. That upper
  *       block is exactly what {@code WaterSolverFeature.scan} reads to decide which three are "extended", so
- *       the sim moving it between those two positions is the same event his solver watches for.</li>
+ *       the sim moving it between those two positions is the same event his solver watches for. Since 2026-10-06
+ *       the whole LAYER moves, all five of its pistons - see {@link LayerPiston}.</li>
  * </ol>
+ *
+ * <p>Solving it places the reward chest at the end of the walkway under the glass - see {@link #CHEST_SPOT}.
  *
  * <h2>What is real here</h2>
  *
@@ -120,6 +127,55 @@ public final class SimWaterPuzzle {
     /** The colour wool's two positions: retracted, and pushed up into the walkway where the solver reads it. */
     private static final int WOOL_IN_Y = 55;
     private static final int WOOL_OUT_Y = 56;
+
+    /**
+     * THE BOTTOM PATH: a colour that is out fills its whole layer, not just the middle block.
+     *
+     * <p>killer560 (2026-10-06): "make it so the bottom path isn't just the one bottom middle block up for the ones
+     * it needs to fix it should be that entire layer is out". Decoded from {@code Water_Board.json} (all three
+     * capture sets agree): under the glass floor a walkway runs from the stairs at relative z 9..11 to z 23, three
+     * wide (x 14..16), and each colour owns one layer of it at its own z (red 15 .. purple 19). Every layer has FIVE
+     * sticky pistons, not one: the up-facing one under the middle at {@code (15, 54, z)}, and two facing in from
+     * each side at {@code (12, 56|57, z)} and {@code (18, 56|57, z)}, each with its colour's wool in front of it
+     * ({@code (13|17, 56|57, z)}). The capture is a retracted frame, so the walkway is open; out, all five fire and
+     * the layer is wool from x 14 to 16 - which is what blocks the path to the reward chest until the water has
+     * reached that colour. The sim used to move only the middle wool, which is the solver's read cell
+     * {@code (15, 56, z)} and still is.
+     *
+     * <p>The pistons are read off the room at arm time, facing and all, so no rotation is guessed. Each has a power
+     * cell behind it, swapped to a redstone block while it is out - the board's own rule (see {@link #setSlot}): a
+     * piston whose power agrees with its state stays put if an update ever reaches it.
+     */
+    private record LayerPiston(BlockPos piston, BlockPos head, BlockPos push, BlockPos power,
+                               BlockState retracted, BlockState extended, BlockState headState, BlockState wool,
+                               BlockState powerOff) {
+    }
+
+    /** Room-relative cells that may hold one of a colour layer's pistons; z is the colour's own. */
+    private static final int[][] LAYER_PISTONS = {{15, 54}, {12, 56}, {12, 57}, {18, 56}, {18, 57}};
+
+    /** Each colour's layer pistons, read at arm time. Empty for a standalone arena, which falls back to the middle. */
+    private static final Map<WoolColor, List<LayerPiston>> LAYERS = new ConcurrentHashMap<>();
+
+    /**
+     * THE REWARD CHEST, placed when the board is solved.
+     *
+     * <p>killer560 (2026-10-06): "Waterboard needs a chest that spawns in once I complete the puzzle, it should be
+     * in between those carpets down low but closer to the exit between them not touching the wall." Decoded: the far
+     * end of the walkway under the glass has gray carpet at {@code (13|14|16|17, 56, 22)} and {@code (14|16, 56, 23)},
+     * the walkway's end wall at z 24. So the middle of the carpets is x 15; z 23 touches the end wall, z 22 does not
+     * and is the one nearer the way out (the stairs at the low-z end). The chest stands on the walkway floor at
+     * {@code (15, 56, 22)}, facing back up the walkway. That is also the block straight under QUOI's own chest spot
+     * {@code (15, 58, 22)}, which {@code AutoWater} warps onto when the board is done - so Secret Aura reaches it from
+     * there, as on Hypixel.
+     *
+     * <p>Not a secret: the room database lists none for Water Board, so opening it is the puzzle's reward and does
+     * not count toward the secret total ({@code SimMimic.markPuzzleReward}).
+     */
+    private static final int[] CHEST_SPOT = {15, 56, 22};
+    private static final int[] CHEST_FRONT = {15, 56, 21};
+    private static volatile BlockPos rewardChest = null;
+    private static volatile boolean rewardOpened = false;
 
     /**
      * THE BACK LEVER IS THE LAPIS SLOT.
@@ -277,6 +333,53 @@ public final class SimWaterPuzzle {
                 powerOn == null ? "none" : powerOn.getBlock(), powerOff == null ? "none" : powerOff.getBlock());
     }
 
+    /**
+     * Reads every colour layer's pistons into {@link #LAYERS} - see {@link LayerPiston}. Server thread, at arm time.
+     * A cell that is not a sticky piston with this colour's wool in front of it is skipped and the count is logged,
+     * so a re-captured room that moved them says so instead of half-filling a layer.
+     */
+    private static void readLayers(ServerLevel level) {
+        LAYERS.clear();
+        int found = 0;
+        for (WoolColor colour : WoolColor.values()) {
+            BlockState wool = woolFor(colour).defaultBlockState();
+            List<LayerPiston> list = new ArrayList<>();
+            for (int[] xy : LAYER_PISTONS) {
+                BlockPos piston = at(xy[0], xy[1], colour.relZ());
+                if (piston == null) {
+                    continue;
+                }
+                BlockState state = level.getBlockState(piston);
+                if (!state.is(Blocks.STICKY_PISTON)) {
+                    continue;
+                }
+                Direction facing = state.getValue(DirectionalBlock.FACING);
+                BlockPos head = piston.relative(facing);
+                BlockPos push = head.relative(facing);
+                BlockPos power = piston.relative(facing.getOpposite());
+                boolean out = state.getValue(PistonBaseBlock.EXTENDED);
+                if (!level.getBlockState(out ? push : head).is(wool.getBlock())) {
+                    continue;   // not this colour's piston
+                }
+                BlockState powerOff = level.getBlockState(power);
+                if (powerOff.is(Blocks.REDSTONE_BLOCK)) {
+                    powerOff = Blocks.STONE.defaultBlockState();
+                }
+                BlockState headState = Blocks.PISTON_HEAD.defaultBlockState()
+                        .setValue(DirectionalBlock.FACING, facing)
+                        .setValue(PistonHeadBlock.TYPE, PistonType.STICKY);
+                list.add(new LayerPiston(piston, head, push, power,
+                        state.setValue(PistonBaseBlock.EXTENDED, Boolean.FALSE),
+                        state.setValue(PistonBaseBlock.EXTENDED, Boolean.TRUE), headState, wool, powerOff));
+            }
+            if (!list.isEmpty()) {
+                LAYERS.put(colour, List.copyOf(list));
+                found += list.size();
+            }
+        }
+        LOGGER.info("Sim Water Board: bottom path read - {} layer piston(s) over {} colour(s)", found, LAYERS.size());
+    }
+
     // ------------------------------------------------------------------------------------------- the board
 
     /** The three colours this board starts with pushed out, in the order the water reaches them. */
@@ -320,6 +423,20 @@ public final class SimWaterPuzzle {
             onLeverClicked(client, lever);
             // PASS, not SUCCESS: vanilla's own lever toggle (sound, redstone, animation) is what makes this
             // read as a real lever - we only observe the click, never fake or consume it.
+            return InteractionResult.PASS;
+        });
+        // The reward chest is opened on the SERVER, from the use-on packet - a real click, Secret Aura's useItemOn
+        // and a raw packet all land here (SimBoulderPuzzle's reward chest, the same way). PASS: the chest opens.
+        UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
+            BlockPos chest = rewardChest;
+            if (level.isClientSide() || chest == null || !SimState.isActive()
+                    || !chest.equals(hitResult.getBlockPos())) {
+                return InteractionResult.PASS;
+            }
+            if (!rewardOpened) {
+                rewardOpened = true;
+                LOGGER.info("Sim Water Board: reward chest {} opened", chest);
+            }
             return InteractionResult.PASS;
         });
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimWaterPuzzle.tick", SimWaterPuzzle::tick));
@@ -447,6 +564,8 @@ public final class SimWaterPuzzle {
         // The back wall IS the gates - see Slot. A standalone arena has no wall, so it reads nothing and the
         // levers simply have nothing to move; the rules still work.
         readBoard(level);
+        readLayers(level);
+        removeRewardChest(level);
 
         int identifier = identifierAt(level);
         if (identifier < 0) {
@@ -803,6 +922,56 @@ public final class SimWaterPuzzle {
         }
         complete = true;
         ModChat.send("Sim", ModChat.good("Water Board"), ModChat.text(" solved."));
+        // Queued after syncWool's own server task, so the last layer is already down when the chest appears.
+        server.execute(() -> placeRewardChest(server.overworld()));
+    }
+
+    /**
+     * Places the reward chest - see {@link #CHEST_SPOT}. Server thread. Only in a captured room (a standalone arena
+     * has no walkway), only into air, and the outcome is logged either way: a re-captured room that moved the
+     * walkway reports it instead of burying a chest in a wall (Boulder's and Ice Fill's rule).
+     */
+    private static void placeRewardChest(ServerLevel level) {
+        SimRoomPuzzles.Anchor a = anchor;
+        if (a == null || rewardChest != null || !complete) {
+            return;
+        }
+        BlockPos spot = a.world(CHEST_SPOT);
+        BlockPos front = a.world(CHEST_FRONT);
+        Direction facing = null;
+        for (Direction d : Direction.values()) {
+            if (d.getStepY() == 0 && spot.relative(d).equals(front)) {
+                facing = d;
+            }
+        }
+        if (!level.getBlockState(spot).isAir() || facing == null) {
+            LOGGER.warn("Sim Water Board: no reward chest - the spot {} (relative 15,56,22) holds {}. If Water Board"
+                    + " has been re-captured that coordinate needs re-measuring.", spot,
+                    level.getBlockState(spot).getBlock());
+            return;
+        }
+        level.setBlockAndUpdate(spot, Blocks.CHEST.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.ChestBlock.FACING, facing));
+        rewardChest = spot.immutable();
+        rewardOpened = false;
+        com.killer560.hub.roomsim.SimMimic.markPuzzleReward(rewardChest);
+        LOGGER.info("Sim Water Board: reward chest at {} facing {} (relative 15,56,22, database rotation {})",
+                spot, facing, a.rotation());
+    }
+
+    /** Takes the reward chest away again, for a reset. Server thread; only ever removes a chest it placed. */
+    private static void removeRewardChest(ServerLevel level) {
+        BlockPos chest = rewardChest;
+        rewardChest = null;
+        rewardOpened = false;
+        if (chest == null) {
+            return;
+        }
+        com.killer560.hub.roomsim.SimMimic.unmarkPuzzleReward(chest);
+        if (level.getBlockState(chest).is(Blocks.CHEST)) {
+            level.setBlockAndUpdate(chest, Blocks.AIR.defaultBlockState());
+        }
+        LOGGER.info("Sim Water Board: reward chest at {} removed", chest);
     }
 
     /**
@@ -812,6 +981,18 @@ public final class SimWaterPuzzle {
      * Only one of the two ever holds the wool, so the room reads the same way to the solver as a real one.
      */
     private static void setWool(ServerLevel level, WoolColor colour, boolean out) {
+        List<LayerPiston> layer = LAYERS.get(colour);
+        if (layer != null && !layer.isEmpty()) {
+            // The whole layer - see LayerPiston. The middle piston is one of them, so (15, 56, z) still holds the
+            // wool exactly when the colour is out, which is all the solver reads.
+            for (LayerPiston p : layer) {
+                level.setBlock(p.power(), out ? Blocks.REDSTONE_BLOCK.defaultBlockState() : p.powerOff(), WRITE_FLAGS);
+                level.setBlock(p.piston(), out ? p.extended() : p.retracted(), WRITE_FLAGS);
+                level.setBlock(p.head(), out ? p.headState() : p.wool(), WRITE_FLAGS);
+                level.setBlock(p.push(), out ? p.wool() : Blocks.AIR.defaultBlockState(), WRITE_FLAGS);
+            }
+            return;
+        }
         BlockPos inPos = at(15, WOOL_IN_Y, colour.relZ());
         BlockPos outPos = at(15, WOOL_OUT_Y, colour.relZ());
         if (inPos == null || outPos == null) {
@@ -896,11 +1077,22 @@ public final class SimWaterPuzzle {
                 }
             }
             setFlowing(level, false);
+            removeRewardChest(level);
         });
     }
 
     public static boolean isComplete() {
         return complete;
+    }
+
+    /** Where the reward chest stands, or null before the board is solved. For the testkit's 93-solve-waterboard. */
+    public static BlockPos rewardChestPos() {
+        return rewardChest;
+    }
+
+    /** Whether the reward chest has been opened (right-clicked) since it appeared. */
+    public static boolean isRewardChestOpened() {
+        return rewardOpened;
     }
 
     /**
@@ -931,6 +1123,13 @@ public final class SimWaterPuzzle {
         pistonOut = null;
         pistonIn = null;
         GATES_OPEN.clear();
+        LAYERS.clear();
+        BlockPos chest = rewardChest;
+        if (chest != null) {
+            com.killer560.hub.roomsim.SimMimic.unmarkPuzzleReward(chest);
+        }
+        rewardChest = null;
+        rewardOpened = false;
         board = List.of();
         openColours.clear();
         preFlow.clear();

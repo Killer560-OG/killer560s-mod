@@ -240,6 +240,8 @@ public final class SimBoulderPuzzle {
         level.setBlockAndUpdate(spot, Blocks.CHEST.defaultBlockState()
                 .setValue(net.minecraft.world.level.block.ChestBlock.FACING, facing));
         rewardChest = spot.immutable();
+        // The puzzle's reward, not a secret: the room database lists none for Boulder.
+        com.killer560.hub.roomsim.SimMimic.markPuzzleReward(rewardChest);
         LOGGER.info("Sim boulder: reward chest at {} facing {} (database rotation {})", spot, facing,
                 anchor.rotation());
     }
@@ -479,6 +481,10 @@ public final class SimBoulderPuzzle {
      * positions held here are absolute and would land inside the new floor.
      */
     public static void forget() {
+        BlockPos chest = rewardChest;
+        if (chest != null) {
+            com.killer560.hub.roomsim.SimMimic.unmarkPuzzleReward(chest);
+        }
         rewardChest = null;
         rewardOpened = false;
         BUTTONS.clear();

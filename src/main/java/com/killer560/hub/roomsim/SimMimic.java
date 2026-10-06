@@ -64,6 +64,24 @@ public final class SimMimic {
     // Added to on the render thread (the chest-open hook below), cleared on the server thread by a build's reset.
     private static final Set<BlockPos> OPENED = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
+    /**
+     * Puzzle reward chests (Water Board's, Boulder's): opening one is the puzzle's reward, not a secret - the room
+     * database lists no secrets for either room, so counting them made the run's secret total read high. Added on
+     * the server thread when the puzzle places the chest, read on the render thread by the hook below. Not cleared
+     * by {@link #reset}: a puzzle can place its chest before a build's reset runs, so each puzzle removes its own.
+     */
+    private static final Set<BlockPos> PUZZLE_REWARDS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Marks a puzzle's reward chest, so opening it is not counted as a secret. */
+    public static void markPuzzleReward(BlockPos pos) {
+        PUZZLE_REWARDS.add(pos.immutable());
+    }
+
+    /** Forgets a puzzle reward chest the puzzle has taken away (or whose floor is gone). */
+    public static void unmarkPuzzleReward(BlockPos pos) {
+        PUZZLE_REWARDS.remove(pos);
+    }
+
     private SimMimic() {
     }
 
@@ -76,7 +94,7 @@ public final class SimMimic {
                 // A chest is a secret whether or not it bites. Counted here rather than in a second hook: one
                 // place that sees a chest click is easier to keep honest than two that must agree.
                 if ((level.getBlockState(pos).is(Blocks.CHEST) || level.getBlockState(pos).is(Blocks.TRAPPED_CHEST))
-                        && OPENED.add(pos.immutable())) {
+                        && !PUZZLE_REWARDS.contains(pos) && OPENED.add(pos.immutable())) {
                     SimScore.secretFound(pos.immutable());
                 }
                 onChestOpened(client, pos);

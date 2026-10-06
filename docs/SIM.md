@@ -2481,3 +2481,29 @@ unreachable fairy is retried four times), blood 0 -> 0. `tools/layoutsim -Dpinro
 
 **88 "the world CHANGED"** was the test server's own random tick: the one failure's block counts differ by exactly one
 grass_block turned dirt. The testkit compares the arena position by position and ignores a grass/dirt swap.
+
+## Water Board: whole colour layers, and the reward chest (2026-10-06, sim-waterboard)
+
+killer560: "make it so the bottom path isn't just the one bottom middle block up for the ones it needs to fix it should
+be that entire layer is out", and "Waterboard needs a chest that spawns in once I complete the puzzle, it should be in
+between those carpets down low but closer to the exit between them not touching the wall."
+
+- **The bottom path is a walkway under the glass.** Decoded (shipped/Ashfall, Map Logger and Mod Only Test captures
+  agree): stairs at relative z 9..11 lead from the lever floor down to y 56, a walkway x 14..16 runs to an end wall at
+  z 24, and each colour owns one layer of it at its z (red 15 .. purple 19). A layer has FIVE sticky pistons - up under
+  the middle at (15, 54, z), and inward at (12, 56|57, z) and (18, 56|57, z) with the colour's wool at (13|17, 56|57, z).
+  Every capture is a retracted frame. The sim used to move only the middle wool; `SimWaterPuzzle.LayerPiston` now reads
+  all five per colour at arm time (facing off the block, so no rotation guessed) and moves them together, with a power
+  cell behind each (redstone while out, the board's own rule). The solver still reads only (15, 56, z).
+- **The reward chest is relative (15, 56, 22), facing back up the walkway.** Gray carpet sits at (13|14|16|17, 56, 22)
+  and (14|16, 56, 23): between them is x 15, and z 23 touches the end wall while z 22 does not and is nearer the stairs.
+  It is the block straight under QUOI's/`AutoWater`'s chest spot (15, 58, 22), so after the auto's last warp Secret
+  Aura opens it through the glass (server reach has no line-of-sight check). Placed on solve (a server task queued
+  after the last layer's), removed by a puzzle reset, dropped by `forget`. Opened is recorded on the server
+  (`isRewardChestOpened`).
+- **Puzzle reward chests are not secrets.** `SimMimic`'s hook counted every opened chest; the room database lists 0
+  secrets for Water Board and Boulder, so both reward chests are now `SimMimic.markPuzzleReward`ed and skipped.
+- Testkit 93-solve-waterboard asserts all of it through `PuzzleCoords` (the solver's path, not the sim's anchor): 3
+  whole layers out at the start, chest absent; after the solve the chest at (15,56,22) and equal to the sim's, the path
+  clear, Secret Aura opening it, secrets unchanged; a reset removing it and refilling the layers. Passed on Mod Only
+  Test and Map Logger captures; the old jar fails it at the start ("0,0,1,1,1").
