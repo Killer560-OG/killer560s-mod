@@ -134,8 +134,7 @@ public final class SimRoomRoutes {
     }
 
     /**
-     * The room loaded on its own right now, or null when what is loaded is a generated floor, the All Rooms line,
-     * or nothing yet.
+     * The room loaded on its own right now, or null when what is loaded is a generated floor or nothing yet.
      */
     public static String currentSoloRoom() {
         if (SimState.isGeneratedFloor()) {
