@@ -47,6 +47,13 @@ public final class I4SensorsFeature {
             new BlockPos(68, 126, 50), new BlockPos(66, 126, 50), new BlockPos(64, 126, 50));
     private static final AABB NEAR_BOX = new AABB(45, 110, 20, 85, 150, 65);
     private static final String STORM_DEATH_LINE = "[BOSS] Storm: I should have known that I stood no chance.";
+    /** P3's real start. Exact line, as in TickTimersFeature / Floor7Tracker. */
+    private static final String GOLDOR_START_LINE = "[BOSS] Goldor: Who dares trespass into my domain?";
+    /** Storm's death line to Goldor's (P3's start) since SkyBlock 0.27.2: ~3 s, 2-4 s at the log's 1 s resolution -
+     *  Storm died 09:57:54 and 10:02:45, Goldor spoke 09:57:57 and 10:02:48 (killer560's runs, 2026-10-06). Before
+     *  0.27.2 it was 104 ticks (5.2 s, Odin's P3 start timer in TickTimersFeature), and still is for a party without
+     *  a completion each; the prefire window below starting early on that pacing only means more prefire. */
+    static final long STORM_TO_GOLDOR_MS = 3000L;
 
     // --- session (player near the device) ---
     private static boolean near = false;
@@ -54,6 +61,7 @@ public final class I4SensorsFeature {
     // --- timeline (persists across sessions within a world, reset on world change) ---
     private static long stormDeathAtMs = 0L;
     private static int stormDeathClientTick = -1;
+    private static int goldorLineClientTick = -1;
     private static int clientTick = 0;
     private static Object lastLevel = null;
 
@@ -89,7 +97,11 @@ public final class I4SensorsFeature {
         if (plain.equals(STORM_DEATH_LINE)) {
             stormDeathAtMs = System.currentTimeMillis();
             stormDeathClientTick = clientTick;
+            goldorLineClientTick = -1;
             return;
+        }
+        if (plain.equals(GOLDOR_START_LINE) && stormDeathClientTick >= 0) {
+            goldorLineClientTick = clientTick;
         }
     }
 
@@ -104,6 +116,7 @@ public final class I4SensorsFeature {
             if (lastLevel != null) {
                 stormDeathAtMs = 0L;
                 stormDeathClientTick = -1;
+                goldorLineClientTick = -1;
             }
             lastLevel = client.level;
         }
@@ -126,6 +139,23 @@ public final class I4SensorsFeature {
      *  server-tick counter (this mod has no server-tick source) - equal to it without lag. */
     static int ticksSinceStormDeath() {
         return stormDeathClientTick < 0 ? -1 : clientTick - stormDeathClientTick;
+    }
+
+    /**
+     * Whether Auto i4 may prefire before the device's first target lights (killer560, 2026-10-06: "prefiring dev is
+     * something that it needs to do as well a little bit before it starts"). P3 - and the device - starts at Goldor's
+     * line, which comes {@link #STORM_TO_GOLDOR_MS} after Storm's death on 0.27.2's pacing: the window opens
+     * {@code leadMs} before that expected moment, and at Goldor's line itself whichever is first. Closed before
+     * Storm's death this world.
+     */
+    static boolean inPrefireWindow(int leadMs) {
+        if (stormDeathClientTick < 0) {
+            return false;
+        }
+        if (goldorLineClientTick >= 0) {
+            return true;
+        }
+        return (clientTick - stormDeathClientTick) * 50L >= STORM_TO_GOLDOR_MS - leadMs;
     }
 
     /** Wall-clock ms of the last Storm death line (0 = none) - changes when a new timeline starts. */

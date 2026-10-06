@@ -40,15 +40,13 @@ import com.killer560.hub.compat.McCompat;
  * passes in ({@link #swapOrder}); Mask Invincibility's proc timers keep their own Spirit, Phoenix, Bonzo
  * default. {@link MaskSwapper#pickTarget} takes the order from the caller exactly so the two can differ.
  * <p>
- * <b>Timing</b> - NoammAddons AutoI4.kt (origin/26.1.2), counted from Storm's death line: rod 174, mask 244,
- * leap 307. Its {@code when} picks the FIRST matching branch, so with Auto Rod on the mask swaps at 244 and
- * with Auto Rod off (this mod has no rod swap) it swaps at 174. Here both 174 and 244 are swap points: each
- * one asks for the first item in the order that hasn't popped (and isn't already on), so a pop between 174 and
- * 244 gets the next item on at 244. Like Noamm, a swap point is skipped when the player isn't on the device,
- * and nothing runs after the device completes or past tick 307. A swap point that lands inside the Machine Gun
- * Shortbow's Rapid Fire window waits until it ends (killer560: "not swap until it ends"), and so does one that
- * lands while a container menu is open or while a swap is already running. Ticks are CLIENT ticks since the
- * Storm line ({@link I4SensorsFeature#ticksSinceStormDeath()}) - Noamm counts server ticks; identical without lag.
+ * <b>Timing</b> - on the proc itself (killer560, 2026-10-06: "auto mask swap for i4 just needs to swap after it
+ * procs so no real timing needed"). Until then it swapped at NoammAddons' fixed 174/244 ticks after Storm's death,
+ * which SkyBlock 0.27.2's faster Goldor transition (Storm's death to Goldor's line ~3 s instead of 5.2 s) left ~2 s
+ * late. Now a pop line (below) while he is on the device, after Storm's death this world and before the device
+ * completes, asks for the next item in the order that has not popped. A proc that lands inside the Machine Gun
+ * Shortbow's Rapid Fire window waits until it ends (killer560: "not swap until it ends"), and so does one that lands
+ * while a container menu is open or while a swap is already running.
  * <p>
  * <b>Pops</b> (order advance) - real chat lines from Noamm MaskTimers.kt / Odin (Spirit's also on the wiki):
  * "Your [⚚ ]Bonzo's Mask saved your life!", "Second Wind Activated! Your Spirit Mask saved your life!",
@@ -62,10 +60,6 @@ public final class I4AutoMask {
     /** The label {@link MaskSwapper} logs and reports this caller under. */
     private static final String REQUESTER = "Auto i4";
 
-    private static final int MASK_TICK_FIRST = 174;
-    private static final int MASK_TICK_SECOND = 244;
-    private static final int LEAP_TICK = 307;
-
     private static final Pattern BONZO_POP = Pattern.compile("^Your (?:.+ )?Bonzo's Mask saved your life!");
     private static final Pattern SPIRIT_POP = Pattern.compile("^Second Wind Activated! Your Spirit Mask saved your life!");
     private static final Pattern PHOENIX_POP = Pattern.compile("^Your Phoenix Pet saved you from certain death!");
@@ -74,9 +68,8 @@ public final class I4AutoMask {
     private static final Map<DeathItem, Long> usedUntilMs = new EnumMap<>(DeathItem.class);
 
     private static long timelineStormAtMs = 0L;
-    private static boolean firstPointDone = false;
-    private static boolean secondPointDone = false;
-    private static String deferredPoint = null;
+    /** A proc waiting for its swap (cleared once the swap is asked for, or the timeline ends). */
+    private static String pendingProc = null;
     /** See {@link #onCooldown} - at most one rod throw per Storm-death timeline. */
     private static boolean phoenixRequestedThisTimeline = false;
     private static Object lastLevel = null;
@@ -113,6 +106,10 @@ public final class I4AutoMask {
             case PHOENIX -> 60_000L;
         };
         usedUntilMs.put(popped, System.currentTimeMillis() + cooldownMs);
+        // The swap itself: next tick, after the gates in tick(). Only in an i4 timeline (Storm's death seen).
+        if (I4SensorsFeature.stormDeathAtMs() > 0) {
+            pendingProc = popped.name().toLowerCase(java.util.Locale.ROOT) + " proc";
+        }
     }
 
     private static long bonzoLoreCooldownMs(LocalPlayer player) {
@@ -164,8 +161,8 @@ public final class I4AutoMask {
         }
         // MaskSwapper can see a mask already on your head, but nothing client-side can see whether the Phoenix
         // pet is already summoned - the old /pets walk read that off the pet's lore, and that route is gone.
-        // So the rod goes out at most once per Storm-death timeline; without this the second swap point would
-        // throw it again 3.5s after the first.
+        // So the rod goes out at most once per Storm-death timeline; without this a second proc would throw it
+        // again.
         return target == MaskSwapper.Target.PHOENIX && phoenixRequestedThisTimeline;
     }
 
@@ -186,7 +183,7 @@ public final class I4AutoMask {
     }
 
     // ------------------------------------------------------------------
-    // Tick - the timeline. The swap itself belongs to MaskSwapper.
+    // Tick - a proc's swap, once nothing blocks it. The swap itself belongs to MaskSwapper.
     // ------------------------------------------------------------------
 
     private static void tick() {
@@ -194,7 +191,7 @@ public final class I4AutoMask {
         if (client.level != lastLevel) {
             usedUntilMs.clear();
             phoenixRequestedThisTimeline = false;
-            deferredPoint = null;
+            pendingProc = null;
             lastLevel = client.level;
         }
         LocalPlayer player = client.player;
@@ -205,54 +202,35 @@ public final class I4AutoMask {
         long stormAt = I4SensorsFeature.stormDeathAtMs();
         if (stormAt != timelineStormAtMs) {
             timelineStormAtMs = stormAt;
-            firstPointDone = false;
-            secondPointDone = false;
-            deferredPoint = null;
             phoenixRequestedThisTimeline = false;
         }
         I4SensorsConfig cfg = I4SensorsConfig.getInstance();
-        int t = I4SensorsFeature.ticksSinceStormDeath();
-        if (!cfg.isAutoMask() || !cfg.isAutoI4Enabled() || t < 0 || t >= LEAP_TICK) {
-            if (deferredPoint != null) {
-                deferredPoint = null;
-            }
+        if (!cfg.isAutoMask() || !cfg.isAutoI4Enabled() || stormAt <= 0) {
+            pendingProc = null;
             return;
         }
-        String point = null;
-        if (!firstPointDone && t >= MASK_TICK_FIRST) {
-            firstPointDone = true;
-            point = "tick " + MASK_TICK_FIRST;
-        } else if (!secondPointDone && t >= MASK_TICK_SECOND) {
-            secondPointDone = true;
-            point = "tick " + MASK_TICK_SECOND;
-        }
-        if (point == null) {
-            point = deferredPoint;
-        }
+        String point = pendingProc;
         if (point == null) {
             return;
         }
-        deferredPoint = null;
         // A swap already running is a wait, not a skip: MaskSwapper.request would refuse, and refusals are
         // never retried, so burning the swap point on one would silently lose it.
         String deferReason = AutoI4Feature.isAbilityHoldActive() ? "Rapid Fire still active"
                 : MaskSwapper.isBusy() ? "another swap is already running"
                 : ActionGate.containerScreenOpen(client)
                         ? "a container menu is open (\"" + McCompat.screen(client).getTitle().getString() + "\")" : null;
-        if (!I4SensorsFeature.isOnDevice(player.position())) {
-            return;
-        }
-        if (AutoI4Feature.isDeviceCompleted()) {
+        if (!I4SensorsFeature.isOnDevice(player.position()) || AutoI4Feature.isDeviceCompleted()) {
+            pendingProc = null;
             return;
         }
         if (deferReason != null) {
-            deferredPoint = point;
-            return;
+            return; // pendingProc stays: the swap waits for the hold / swap / menu to end
         }
+        pendingProc = null;
         startSwap(player, cfg, point);
     }
 
-    /** Picks the target and hands it over. Exactly one {@code request} per swap point, refusal included. */
+    /** Picks the target and hands it over. Exactly one {@code request} per proc, refusal included. */
     private static void startSwap(LocalPlayer player, I4SensorsConfig cfg, String point) {
         long now = System.currentTimeMillis();
         List<MaskSwapper.Target> order = swapOrder(cfg.getMaskOrder());

@@ -52,7 +52,7 @@ public final class BloodCampMoveTimer {
      *  (the same list {@code splittimers.SplitTimersFeature} already matches on). */
     private static final Pattern BLOOD_OPEN = Pattern.compile(
             "^\\[BOSS] The Watcher: (Congratulations, you made it through the Entrance\\.|Ah, you've finally arrived\\.|"
-                    + "Ah, we meet again\\.\\.\\.|So you made it this far\\.\\.\\. interesting\\.|"
+                    + "Ah, we meet again\\.\\.\\.|Ah, we meet again\\. As I foresaw\\.\\.\\.|So you made it this far\\.\\.\\. interesting\\.|"
                     + "You've managed to scratch and claw your way here, eh\\?|"
                     + "I'm starting to get tired of seeing you around here\\.\\.\\.|Oh\\.\\. hello\\?|"
                     + "Things feel a little more roomy now, eh\\?)$");
@@ -112,6 +112,11 @@ public final class BloodCampMoveTimer {
                 return;
             }
             double gapSeconds = (now - bloodOpenTick) / 20.0;
+            if (gapSeconds < FAST_WATCHER_GAP_SECONDS) {
+                LOGGER.info("[BloodCamp] Last wave out {} s after the greeting - the 0.27.2 fast Watcher; its move time is "
+                        + "unmeasured, so no move prediction.", String.format(Locale.US, "%.2f", gapSeconds));
+                return;
+            }
             double moveAtSeconds = moveAtSeconds(gapSeconds);
             moveAtTick = bloodOpenTick + Math.round(moveAtSeconds * 20.0);
             LOGGER.info("[BloodCamp] Last wave out {} s after the greeting -> Watcher moves at {} s ({} ticks away).",
@@ -119,6 +124,12 @@ public final class BloodCampMoveTimer {
                     String.format(Locale.US, "%.0f", moveAtSeconds), moveAtTick - now);
         }
     }
+
+    /** Greeting to last wave shorter than this is SkyBlock 0.27.2's sped-up Watcher ("Sped up Boss/Watcher dialogue",
+     *  "The Watcher now spawns its summons faster"): killer560's two post-update runs measured 16 s and 15 s
+     *  (09:55:42-09:55:58, 10:00:39-10:00:54), below every bucket of the old table, whose move times were measured on
+     *  the old pacing. Nothing has measured when the fast Watcher moves, so no prediction is made for it. */
+    static final double FAST_WATCHER_GAP_SECONDS = 18.0;
 
     /** Seconds after the greeting at which the Watcher moves - see this class's own doc for the source. */
     private static double moveAtSeconds(double gapSeconds) {

@@ -25,6 +25,8 @@ public final class I4SensorsConfig {
     // killer560 (2026-09-14): "Add a slider to adjust how fast it rotates" - 0-400ms, used in Rotate mode even
     // with Predictions on (Noamm forces 170ms there; that override is gone).
     public static final int MAX_ROTATION_TIME_MS = 400;
+    /** Prefire Lead slider range: how long before P3's expected start Auto i4 begins prefiring. */
+    public static final int MAX_PREFIRE_LEAD_MS = 3000;
 
     public enum Weapon {
         TERMINATOR("Terminator", "TERMINATOR", "Terminator"),
@@ -92,6 +94,9 @@ public final class I4SensorsConfig {
     private boolean autoI4Rotate = true;
     // Defaults ported from NoammAddons' AutoI4.kt ("Rotation Time" 170ms, "Predictions" on).
     private int autoI4RotationTimeMs = 170;
+    // How long before P3's expected start (Goldor's line, ~3 s after Storm's death since SkyBlock 0.27.2) the
+    // Terminator starts prefiring the device (killer560, 2026-10-06: "a little bit before it starts").
+    private int autoI4PrefireLeadMs = 1000;
     private boolean autoI4Predictions = true;
     private Weapon autoI4Weapon = Weapon.TERMINATOR;
     private boolean autoSwapToBow = false;
@@ -136,6 +141,7 @@ public final class I4SensorsConfig {
             cfg.autoI4Enabled = obj.has("autoI4Enabled") && obj.get("autoI4Enabled").getAsBoolean();
             cfg.autoI4Rotate = !obj.has("autoI4Rotate") || obj.get("autoI4Rotate").getAsBoolean();
             cfg.setAutoI4RotationTimeMs(obj.has("autoI4RotationTimeMs") ? obj.get("autoI4RotationTimeMs").getAsInt() : 170);
+            cfg.setAutoI4PrefireLeadMs(obj.has("autoI4PrefireLeadMs") ? obj.get("autoI4PrefireLeadMs").getAsInt() : 1000);
             cfg.autoI4Predictions = !obj.has("autoI4Predictions") || obj.get("autoI4Predictions").getAsBoolean();
             if (obj.has("autoI4Weapon")) {
                 try {
@@ -176,6 +182,7 @@ public final class I4SensorsConfig {
             obj.addProperty("autoI4Enabled", autoI4Enabled);
             obj.addProperty("autoI4Rotate", autoI4Rotate);
             obj.addProperty("autoI4RotationTimeMs", autoI4RotationTimeMs);
+            obj.addProperty("autoI4PrefireLeadMs", autoI4PrefireLeadMs);
             obj.addProperty("autoI4Predictions", autoI4Predictions);
             obj.addProperty("autoI4Weapon", autoI4Weapon.name());
             obj.addProperty("autoSwapToBow", autoSwapToBow);
@@ -254,6 +261,14 @@ public final class I4SensorsConfig {
 
     public void setAutoI4RotationTimeMs(int ms) {
         this.autoI4RotationTimeMs = Math.max(0, Math.min(MAX_ROTATION_TIME_MS, ms));
+    }
+
+    public int getAutoI4PrefireLeadMs() {
+        return autoI4PrefireLeadMs;
+    }
+
+    public void setAutoI4PrefireLeadMs(int ms) {
+        this.autoI4PrefireLeadMs = Math.max(0, Math.min(MAX_PREFIRE_LEAD_MS, ms));
     }
 
     /** Terminator only - a Machine Gun Shortbow fires one arrow, so there is nothing to pre-fire with. */
