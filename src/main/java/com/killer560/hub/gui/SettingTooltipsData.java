@@ -1443,6 +1443,7 @@ final class SettingTooltipsData {
         d.put("sharp shooter (i4)/solver", "Highlights the i4 targets you still need to hit and draws dots showing where to aim.");
         d.put("sharp shooter (i4)/mode", "Rotate turns your camera to each target before shooting; No Rotate only sends the aim with the shot (cheat build only).");
         d.put("sharp shooter (i4)/weapon", "Which bow Auto i4 uses: Terminator or Machine Gun Shortbow (cheat build only).");
+        d.put("sharp shooter (i4)/prefire lead", "How long before P3 starts (Goldor's first line, about 3 s after Storm dies) the Terminator starts prefiring the device, 0-3000 ms (cheat build only).");
         d.put("sharp shooter (i4)/rotation time", "How long the camera takes to turn to each target, 0-400 ms (cheat build only).");
         d.put("sharp shooter (i4)/predictions", "Also fires at the likely next target so the arrow is already in flight (cheat build only).");
         d.put("sharp shooter (i4)/cps", "Auto i4 shooting speed range, 1-15 clicks per second (cheat build only).");

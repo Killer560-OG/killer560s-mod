@@ -109,6 +109,25 @@ public class I4SensorsTab extends BaseTab {
             if (cfg.isAutoI4Rotate() || terminator) {
                 y += 22;
             }
+            if (terminator) {
+                double leadNorm = cfg.getAutoI4PrefireLeadMs() / (double) I4SensorsConfig.MAX_PREFIRE_LEAD_MS;
+                widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
+                        Component.literal(prefireLeadLabel(cfg)), leadNorm) {
+                    @Override
+                    protected void updateMessage() {
+                        setMessage(Component.literal(prefireLeadLabel(cfg)));
+                    }
+
+                    @Override
+                    protected void applyValue() {
+                        // 100 ms steps
+                        int ms = (int) Math.round(this.value * I4SensorsConfig.MAX_PREFIRE_LEAD_MS / 100.0) * 100;
+                        cfg.setAutoI4PrefireLeadMs(ms);
+                        cfg.save();
+                    }
+                });
+                y += 22;
+            }
 
             widgets.add(SettingsButtonWidget.builder(onOff("Auto Swap To Bow", cfg.isAutoSwapToBow()), btn -> {
                         cfg.setAutoSwapToBow(!cfg.isAutoSwapToBow());
@@ -171,6 +190,10 @@ public class I4SensorsTab extends BaseTab {
 
     private static String accuracyLabel(I4SensorsConfig cfg) {
         return "Shot Accuracy: " + cfg.getShotAccuracyPercent() + "%";
+    }
+
+    private static String prefireLeadLabel(I4SensorsConfig cfg) {
+        return "Prefire Lead: " + cfg.getAutoI4PrefireLeadMs() + "ms";
     }
 
     private static String rotationLabel(I4SensorsConfig cfg) {

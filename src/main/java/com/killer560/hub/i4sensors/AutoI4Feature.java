@@ -252,7 +252,14 @@ public final class AutoI4Feature {
                 && now - lastShotAtActiveMs >= RESHOOT_AFTER_MS && isLit(client, activeTarget)) {
             shotQueue.add(activeTarget);
         }
-        if (currentShot == null && shotQueue.isEmpty() && deviceStarted && cfg.isAutoI4Predictions()) {
+        // Prefire before the first target lights, too (killer560, 2026-10-06: "prefiring dev is something that it
+        // needs to do as well a little bit before it starts"): from Prefire Lead before P3's expected start.
+        boolean prefireWindow = !deviceStarted && cfg.isAutoI4Predictions()
+                && I4SensorsFeature.inPrefireWindow(cfg.getAutoI4PrefireLeadMs());
+        if (prefireWindow) {
+            startCadence(cfg);
+        }
+        if (currentShot == null && shotQueue.isEmpty() && (deviceStarted || prefireWindow) && cfg.isAutoI4Predictions()) {
             BlockPos prefire = predictNext(activeTarget);
             if (prefire != null) {
                 shotQueue.add(prefire);
@@ -337,12 +344,18 @@ public final class AutoI4Feature {
         }
     }
 
+    /** Picks this attempt's base CPS once - when the device starts, or when prefiring starts before it. */
+    private static void startCadence(I4SensorsConfig cfg) {
+        if (sessionBaseCps <= 0) {
+            sessionBaseCps = cfg.getCpsMin() + Math.random() * (cfg.getCpsMax() - cfg.getCpsMin());
+            nextClickAtMs = 0L;
+        }
+    }
+
     private static void setActiveTarget(BlockPos pos, String why) {
         activeTarget = pos;
         if (!deviceStarted) {
-            I4SensorsConfig cfg = I4SensorsConfig.getInstance();
-            sessionBaseCps = cfg.getCpsMin() + Math.random() * (cfg.getCpsMax() - cfg.getCpsMin());
-            nextClickAtMs = 0L;
+            startCadence(I4SensorsConfig.getInstance());
         }
         deviceStarted = true;
         lastShotAtActiveMs = 0L;
@@ -594,7 +607,7 @@ public final class AutoI4Feature {
             }
         }
         // Clicking only once the device has started, holding the bow, with no menu open.
-        if (!deviceStarted || sessionBaseCps <= 0 || McCompat.screen(client) != null || !player.getMainHandItem().is(Items.BOW)
+        if (sessionBaseCps <= 0 || McCompat.screen(client) != null || !player.getMainHandItem().is(Items.BOW)
                 || now < nextClickAtMs) {
             return;
         }

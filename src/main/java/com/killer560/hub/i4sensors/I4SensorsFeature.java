@@ -49,10 +49,11 @@ public final class I4SensorsFeature {
     private static final String STORM_DEATH_LINE = "[BOSS] Storm: I should have known that I stood no chance.";
     /** P3's real start. Exact line, as in TickTimersFeature / Floor7Tracker. */
     private static final String GOLDOR_START_LINE = "[BOSS] Goldor: Who dares trespass into my domain?";
-    /** Storm's death line to Goldor's before SkyBlock 0.27.2: 104 ticks (Odin's P3 start timer, TickTimersFeature).
-     *  Since 0.27.2 (full-completion party) it measured ~3 s, 2-4 s at the log's 1 s resolution: Storm died 09:57:54
-     *  and 10:02:45, Goldor spoke 09:57:57 and 10:02:48 (killer560's runs, 2026-10-06). */
-    static final int OLD_STORM_TO_GOLDOR_TICKS = 104;
+    /** Storm's death line to Goldor's (P3's start) since SkyBlock 0.27.2: ~3 s, 2-4 s at the log's 1 s resolution -
+     *  Storm died 09:57:54 and 10:02:45, Goldor spoke 09:57:57 and 10:02:48 (killer560's runs, 2026-10-06). Before
+     *  0.27.2 it was 104 ticks (5.2 s, Odin's P3 start timer in TickTimersFeature), and still is for a party without
+     *  a completion each; the prefire window below starting early on that pacing only means more prefire. */
+    static final long STORM_TO_GOLDOR_MS = 3000L;
 
     // --- session (player near the device) ---
     private static boolean near = false;
@@ -141,20 +142,20 @@ public final class I4SensorsFeature {
     }
 
     /**
-     * The i4 timeline in the OLD pacing's ticks-after-Storm's-death, anchored on P3's real start: until Goldor's line
-     * it is the ticks since Storm's death; from Goldor's line on it is {@code 104 + ticks since that line}. On the
-     * old pacing (line 104 ticks after the death) that is exactly {@link #ticksSinceStormDeath()}; since SkyBlock
-     * 0.27.2 sped up "Goldor Spawn ... and Phase Transition" (line ~3 s after the death) it moves every later point
-     * with P3's start instead of leaving them ~2 s late. -1 before Storm's death.
+     * Whether Auto i4 may prefire before the device's first target lights (killer560, 2026-10-06: "prefiring dev is
+     * something that it needs to do as well a little bit before it starts"). P3 - and the device - starts at Goldor's
+     * line, which comes {@link #STORM_TO_GOLDOR_MS} after Storm's death on 0.27.2's pacing: the window opens
+     * {@code leadMs} before that expected moment, and at Goldor's line itself whichever is first. Closed before
+     * Storm's death this world.
      */
-    static int timelineTicks() {
+    static boolean inPrefireWindow(int leadMs) {
         if (stormDeathClientTick < 0) {
-            return -1;
+            return false;
         }
         if (goldorLineClientTick >= 0) {
-            return OLD_STORM_TO_GOLDOR_TICKS + (clientTick - goldorLineClientTick);
+            return true;
         }
-        return clientTick - stormDeathClientTick;
+        return (clientTick - stormDeathClientTick) * 50L >= STORM_TO_GOLDOR_MS - leadMs;
     }
 
     /** Wall-clock ms of the last Storm death line (0 = none) - changes when a new timeline starts. */
