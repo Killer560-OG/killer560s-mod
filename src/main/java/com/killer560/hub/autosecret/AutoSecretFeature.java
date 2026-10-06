@@ -70,10 +70,10 @@ public final class AutoSecretFeature {
     static final String CHAT = "Auto Secret";
     private static final Logger LOGGER = ModLog.get("killer560smod-autosecret");
 
-    private enum Phase { IDLE, DECIDE, TRAVEL, AWAIT_ROUTE, ROUTE, ICE_FILL, PUZZLE_WAIT, SETTLE, AUTO_CLEAR, WAITING }
+    private enum Phase { IDLE, DECIDE, TRAVEL, AWAIT_ROUTE, ROUTE, ICE_FILL, PUZZLE_WAIT, SETTLE, AUTO_CLEAR, WAITING, DOOR }
 
     /** What a TRAVEL is for, so its arrival knows what comes next. */
-    private enum Trip { START_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL }
+    private enum Trip { START_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR }
 
     /** Ticks to wait for a route to arm once he has landed on its start node. */
     private static final int ARM_TIMEOUT_TICKS = 40;
@@ -95,6 +95,16 @@ public final class AutoSecretFeature {
     private static int routeActions;
     private static int routeIdleTicks;
     private static BlockPos instaLanding;
+    /** The closed wither door it is opening (a map cell), where it stands for it, and its lock block. */
+    private static int doorCell = -1;
+    private static BlockPos doorGoal;
+    private static BlockPos doorLock;
+    private static int doorClicks;
+    private static int doorLastClickTick;
+    private static String lastDoorSaid;
+    private static boolean noKeySaid;
+    /** Secret rooms behind a closed door, from the last decision (waited on only when nothing else is left). */
+    private static String blockedSecrets;
     private static String instaFrom;
     private static int runId;
     private static Object level;
@@ -127,6 +137,7 @@ public final class AutoSecretFeature {
             return;
         }
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoSecretFeature.tick", AutoSecretFeature::tick));
+        WitherDoorOpener.register();
     }
 
     // ------------------------------------------------------------------------------------------- public API
@@ -181,6 +192,9 @@ public final class AutoSecretFeature {
         tripFailures.clear();
         iceFillTried = false;
         lastWaiting = null;
+        resetDoor();
+        lastDoorSaid = null;
+        blockedSecrets = null;
         level = client.level;
         seenPositionPackets = ClearExecutor.positionPackets();
         seenCorrections = ClearExecutor.serverCorrections();
@@ -200,6 +214,7 @@ public final class AutoSecretFeature {
         }
         Phase was = phase;
         phase = Phase.IDLE;
+        WitherDoorOpener.cancel();
         runId++;
         if (cancelOurs) {
             if (was == Phase.TRAVEL && ClearExecutor.isBusy()) {
@@ -247,6 +262,7 @@ public final class AutoSecretFeature {
                     setPhase(Phase.DECIDE);
                 }
             }
+            case DOOR -> tickDoor();
             case WAITING -> {
                 if (phaseTicks >= 20) {
                     setPhase(Phase.DECIDE);
@@ -408,6 +424,7 @@ public final class AutoSecretFeature {
     // ------------------------------------------------------------------------------------------- deciding
 
     private static void decide(Minecraft client) {
+        blockedSecrets = null;
         DungeonLayout layout = DungeonLayout.capture();
         int here = layout.currentRoom();
         if (here < 0 || !AutoClearUtils.canPath(layout)) {
@@ -571,17 +588,21 @@ public final class AutoSecretFeature {
             beginTravel(Trip.START_NODE);
             return true;
         }
-        if (!blocked.isEmpty()) {
-            if (!blockedText.equals(lastWaiting)) {
-                lastWaiting = blockedText;
-                LOGGER.info("[AutoSecret] waiting: {} behind a closed door", blockedText);
-                say(ModChat.text("Waiting for a teammate to open the way to "), ModChat.value(blockedText));
-            }
-            status = "Waiting for a door: " + blockedText;
-            setPhase(Phase.WAITING);
-            return true;
-        }
+        // Secret rooms behind a closed door are NOT waited on here (killer560, 2026-10-06: never wait at a door
+        // while there is anything else useful to do) - the endgame does the useful things first, then the door.
+        blockedSecrets = blocked.isEmpty() ? null : blockedText;
         return false;
+    }
+
+    /** Waits where he is for a door someone else must open (a blood door, a wither door with no reachable side). */
+    private static void waitForTeammate(String what) {
+        if (!what.equals(lastWaiting)) {
+            lastWaiting = what;
+            LOGGER.info("[AutoSecret] waiting: {} behind a closed door", what);
+            say(ModChat.text("Waiting for a teammate to open the way to "), ModChat.value(what));
+        }
+        status = "Waiting for a door: " + what;
+        setPhase(Phase.WAITING);
     }
 
     private static void decideEndgame(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
@@ -625,6 +646,17 @@ public final class AutoSecretFeature {
             }
         }
         uncleared.sort(Comparator.comparingInt(r -> dist.get(r.room())));
+        boolean handOffRooms = cfg.isAutoClearRooms() && AutoClearFeature.isAvailable();
+        if (!handOffRooms || uncleared.isEmpty()) {
+            // Nothing left on this side but a closed door: open it (killer560, 2026-10-06).
+            if (decideWitherDoor(layout, rooms, dist)) {
+                return;
+            }
+            if (blockedSecrets != null) {
+                waitForTeammate(blockedSecrets);
+                return;
+            }
+        }
         if (!uncleared.isEmpty()) {
             RoomStatus.Room r = uncleared.get(0);
             clearsDone.add(r.name());
@@ -646,6 +678,179 @@ public final class AutoSecretFeature {
             }
         }
         stop("nothing left to do - over to you", false);
+    }
+
+    // ------------------------------------------------------------------------------------------- wither doors
+
+    /**
+     * killer560, 2026-10-06: never wait at a door while anything else is useful; but when the ONLY thing left before it
+     * can go further is a closed wither door, Auto Secret opens it - goes to it with the Interactive Map's own door
+     * pathing ({@link AutoClearUtils#pathToDoor}, the Locked Door key's call, which stands two blocks back on this side
+     * of a closed door) and right-clicks it ({@link WitherDoorOpener}) with the team's wither key; with no key it waits
+     * there and says so; a teammate opening it first just lets it carry on. Of the closed wither doors it can reach,
+     * the one whose far side holds the most: unfound secrets of identified rooms beyond it, plus one per unidentified or
+     * uncleared room there, plus one when the map shows nothing past it yet; nearest first on a tie.
+     *
+     * @return true when it is going to a door or is at one
+     */
+    private static boolean decideWitherDoor(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
+        int here = layout.currentRoom();
+        int best = -1;
+        int bestScore = 0;
+        int bestDist = Integer.MAX_VALUE;
+        String bestWhat = null;
+        for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
+            if (layout.doorType(idx) != DungeonLayout.DOOR_WITHER || !layout.isLocked(idx)
+                    || secreted.contains(doorName(idx))) {
+                continue;
+            }
+            int[] near = DungeonMapPathfinder.resolve(layout, here, idx, false);
+            if (near == null || near[2] == Integer.MAX_VALUE) {
+                continue; // another closed door is in front of this one
+            }
+            int farCell = 2 * idx - near[1];
+            int far = farCell >= 0 && farCell < DungeonLayout.GRID * DungeonLayout.GRID ? layout.roomOfCell(farCell) : -1;
+            int unfound = 0;
+            int others = 0;
+            if (far < 0) {
+                others = 1; // the map shows nothing past it yet: assume more rooms
+            } else {
+                for (RoomStatus.Room r : rooms) {
+                    if (dist.containsKey(r.room()) || r.isType("BLOOD")) {
+                        continue;
+                    }
+                    if (r.room() != far && DungeonMapPathfinder.findPath(layout, far, r.room(), true) == null) {
+                        continue;
+                    }
+                    if ("Unknown".equals(r.name())) {
+                        others++;
+                    } else {
+                        unfound += r.unfound();
+                        others += r.cleared() ? 0 : 1;
+                    }
+                }
+            }
+            int score = unfound + others;
+            if (score > bestScore || score == bestScore && score > 0 && near[2] < bestDist) {
+                best = idx;
+                bestScore = score;
+                bestDist = near[2];
+                bestWhat = unfound + " unfound secret(s), " + others + " room(s) to explore or clear";
+            }
+        }
+        if (best < 0) {
+            return false;
+        }
+        BlockPos goal = DungeonMapPathfinder.getDoorPos(layout, here, best);
+        if (goal == null) {
+            return false;
+        }
+        if (best != doorCell) {
+            resetDoor();
+        }
+        doorCell = best;
+        doorGoal = goal;
+        doorLock = DungeonLayout.doorBlock(best);
+        target = doorName(best);
+        targetRoomId = -1;
+        String said = best + "|" + bestWhat;
+        if (!said.equals(lastDoorSaid)) {
+            lastDoorSaid = said;
+            LOGGER.info("[AutoSecret] wither door at cell {}: {} beyond it, {} room(s) away - the only way on", best,
+                    bestWhat, bestDist);
+            say(ModChat.text("Nothing left on this side - going to the wither door"), ModChat.dim(" (" + bestWhat
+                    + " beyond it)"));
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null && client.player.blockPosition().distSqr(goal) <= 9) {
+            beginDoor();
+            return true;
+        }
+        AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
+        ClearExecutor.setExternalOwner(true);
+        if (!AutoClearUtils.pathToDoor(layout, best, false)) {
+            ClearExecutor.setExternalOwner(false);
+            tripFailed("the map would not path to the door");
+            return true;
+        }
+        status = "Going to the wither door";
+        beginTravel(Trip.DOOR);
+        return true;
+    }
+
+    private static String doorName(int cell) {
+        return "the wither door at cell " + cell;
+    }
+
+    private static void resetDoor() {
+        WitherDoorOpener.cancel();
+        doorCell = -1;
+        doorGoal = null;
+        doorLock = null;
+        doorClicks = 0;
+        doorLastClickTick = -1000;
+        noKeySaid = false;
+    }
+
+    private static void beginDoor() {
+        LOGGER.info("[AutoSecret] at the wither door at cell {}", doorCell);
+        setPhase(Phase.DOOR);
+        doorLastClickTick = -1000;
+    }
+
+    /** Clicks to try before waiting for a teammate instead, and the ticks to let each one show. */
+    private static final int DOOR_CLICKS = 3;
+    private static final int DOOR_CLICK_GAP_TICKS = 40;
+
+    /** At the door: open it if the team has a key; otherwise wait, saying so; carry on the moment it reads open. */
+    private static void tickDoor() {
+        Minecraft client = Minecraft.getInstance();
+        DungeonLayout layout = DungeonLayout.capture();
+        if (doorCell < 0 || !layout.isLocked(doorCell)) {
+            LOGGER.info("[AutoSecret] the wither door at cell {} is open ({} click(s) of ours) - carrying on", doorCell,
+                    doorClicks);
+            say(ModChat.good("Wither door open"), ModChat.dim(" - carrying on"));
+            resetDoor();
+            lastDoorSaid = null;
+            setPhase(Phase.SETTLE);
+            return;
+        }
+        if (WitherDoorOpener.isBusy()) {
+            return;
+        }
+        boolean key = WitherDoorOpener.haveKey(client.player);
+        if (key && doorClicks < DOOR_CLICKS && phaseTicks - doorLastClickTick >= DOOR_CLICK_GAP_TICKS) {
+            doorClicks++;
+            doorLastClickTick = phaseTicks;
+            status = "Opening the wither door";
+            LOGGER.info("[AutoSecret] opening the wither door at cell {} (click {} of {})", doorCell, doorClicks, DOOR_CLICKS);
+            if (doorClicks == 1) {
+                say(ModChat.text("Opening the wither door"));
+            }
+            WitherDoorOpener.click(doorLock);
+            return;
+        }
+        if (!key) {
+            status = "Waiting at wither door (no key)";
+            if (!noKeySaid) {
+                noKeySaid = true;
+                LOGGER.info("[AutoSecret] waiting at the wither door at cell {}: no wither key", doorCell);
+                say(ModChat.bad("No wither key"), ModChat.dim(" - waiting at the wither door for a key or a teammate"));
+            }
+        } else if (doorClicks >= DOOR_CLICKS && phaseTicks - doorLastClickTick >= DOOR_CLICK_GAP_TICKS) {
+            status = "Waiting at wither door";
+            if (!noKeySaid) {
+                noKeySaid = true;
+                String why = WitherDoorOpener.lastResult();
+                LOGGER.info("[AutoSecret] the wither door at cell {} stayed shut after {} click(s){}", doorCell, doorClicks,
+                        why == null ? "" : " (" + why + ")");
+                say(ModChat.bad("The wither door stayed shut"), ModChat.dim(" - waiting there for a teammate"));
+            }
+        }
+        if (phaseTicks % 100 == 99) {
+            // Something else may have become useful (a teammate opened another way, the map showed more).
+            setPhase(Phase.DECIDE);
+        }
     }
 
     private static String describe(List<RoomStatus.Room> rooms) {
@@ -711,7 +916,9 @@ public final class AutoSecretFeature {
         if (!arrived) {
             DungeonLayout layout = DungeonLayout.capture();
             int here = layout.currentRoom();
-            arrived = trip == Trip.INSTA_INTO ? instaLanding != null && client.player != null
+            arrived = trip == Trip.DOOR ? doorGoal != null && client.player != null
+                    && client.player.blockPosition().distSqr(doorGoal) <= 9
+                    : trip == Trip.INSTA_INTO ? instaLanding != null && client.player != null
                     && client.player.blockPosition().below().distSqr(instaLanding) <= 4
                     : here >= 0 && here == roomIdOf(layout, trip == Trip.INSTA_FROM ? instaFrom : target);
         }
@@ -749,6 +956,7 @@ public final class AutoSecretFeature {
             }
             case PUZZLE -> setPhase(Phase.PUZZLE_WAIT);
             case CLEAR -> handToAutoClear();
+            case DOOR -> beginDoor();
             case FINAL -> stop("in " + target + ", which is left to clear - over to you", false);
             default -> setPhase(Phase.DECIDE);
         }

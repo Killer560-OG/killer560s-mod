@@ -254,6 +254,30 @@ public final class DungeonState {
         return null;
     }
 
+    /** Hypixel's "Keys: ■ ✗ ■ 1x" sidebar line: the second ■ is the team's wither key count. */
+    private static final java.util.regex.Pattern KEYS_LINE =
+            java.util.regex.Pattern.compile("^Keys: \\S [✗✓] \\S (\\d{1,2})x$");
+
+    /** The team's wither keys as the sidebar shows them, or -1 when there is no Keys line. */
+    public static int sidebarWitherKeys() {
+        String raw = readSidebarText();
+        if (raw == null || raw.isBlank()) {
+            return -1;
+        }
+        for (String line : raw.split("\n")) {
+            String plain = com.killer560.hub.util.ChatObserver.stripCodes(line);
+            java.util.regex.Matcher m = KEYS_LINE.matcher(plain == null ? "" : plain.trim());
+            if (m.matches()) {
+                try {
+                    return Integer.parseInt(m.group(1));
+                } catch (NumberFormatException e) {
+                    return -1;
+                }
+            }
+        }
+        return -1;
+    }
+
     private static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.level == null) {
