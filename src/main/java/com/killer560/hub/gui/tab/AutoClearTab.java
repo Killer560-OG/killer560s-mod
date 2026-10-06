@@ -145,6 +145,13 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         toggle(w, contentX, y[0], half, "Do Puzzles", cfg::isDoPuzzles, cfg::setDoPuzzles);
         toggle(w, contentX + half + GAP, y[0], right, "Autopilot HUD", cfg::isAutopilotHud, cfg::setAutopilotHud);
         y[0] += ROW;
+        toggle(w, contentX, y[0], half, "Magnetic Talisman", cfg::isMagneticTalisman, cfg::setMagneticTalisman);
+        double kSpan = AutoSecretConfig.MAX_KEY_BASE - AutoSecretConfig.MIN_KEY_BASE;
+        slider(w, contentX + half + GAP, y[0], right, () -> String.format(java.util.Locale.US,
+                        "Key Base Range: %.1f (-> %.1f)", cfg.getKeyBaseRange(), cfg.keyPickupRange()),
+                (cfg.getKeyBaseRange() - AutoSecretConfig.MIN_KEY_BASE) / kSpan,
+                v -> cfg.setKeyBaseRange(Math.round((AutoSecretConfig.MIN_KEY_BASE + v * kSpan) * 10) / 10.0));
+        y[0] += ROW;
 
         header(w, contentX, y, contentWidth, "Auto Secret");
         w.add(SettingsButtonWidget.builder(runText(), btn -> {

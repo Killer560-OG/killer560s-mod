@@ -797,17 +797,69 @@ public final class AutoSecretFeature {
         status = "Picking up " + target;
         say(ModChat.text("Picking up the "), ModChat.value(k.blood() ? "Blood Key" : "Wither Key"), ModChat.dim(" - " + why));
         BlockPos at = BlockPos.containing(k.x(), k.y(), k.z());
-        keyGoal = com.killer560.hub.livemap.autoclear.TeleportUtils.nearestEtherwarpable(at);
-        double d = client.player == null ? 99 : client.player.position().distanceTo(new net.minecraft.world.phys.Vec3(k.x(),
-                k.y(), k.z()));
+        net.minecraft.world.phys.Vec3 keyPos = new net.minecraft.world.phys.Vec3(k.x(), k.y(), k.z());
+        double d = client.player == null ? 99 : client.player.position().distanceTo(keyPos);
+        AutoSecretConfig cfg = AutoSecretConfig.getInstance();
+        double range = cfg.keyPickupRange();
+        double reach = Math.max(1.0, range - KEY_RANGE_MARGIN);
+        if (d <= reach) {
+            // Already within the pickup range: no warp, just wait for it to be picked up.
+            keyGoal = client.player.blockPosition().below();
+            LOGGER.info(String.format(java.util.Locale.US, "[AutoSecret] key: the %s key is %.1f blocks away, inside the"
+                    + " %.1f-block pickup range (talisman %s) - no warp", k.blood() ? "blood" : "wither", d, range,
+                    cfg.isMagneticTalisman() ? "on" : "off"));
+            beginKeyWait();
+            return;
+        }
+        keyGoal = standWithin(keyPos, reach, client.player.position());
+        if (keyGoal == null) {
+            keyGoal = com.killer560.hub.livemap.autoclear.TeleportUtils.nearestEtherwarpable(at);
+        }
         LOGGER.info(String.format(java.util.Locale.US, "[AutoSecret] key: going for the %s key at %.1f %.1f %.1f (%.1f blocks"
-                        + " away), standing on %s", k.blood() ? "blood" : "wither", k.x(), k.y(), k.z(), d,
-                keyGoal == null ? "nothing found" : keyGoal.toShortString()));
-        if (keyGoal == null || d <= 2.0) {
+                        + " away, pickup range %.1f, talisman %s), standing on %s (%.1f from the key)",
+                k.blood() ? "blood" : "wither", k.x(), k.y(), k.z(), d, range, cfg.isMagneticTalisman() ? "on" : "off",
+                keyGoal == null ? "nothing found" : keyGoal.toShortString(), keyGoal == null ? -1.0
+                        : keyPos.distanceTo(new net.minecraft.world.phys.Vec3(keyGoal.getX() + 0.5, keyGoal.getY() + 1.0,
+                        keyGoal.getZ() + 0.5))));
+        if (keyGoal == null) {
             beginKeyWait();
             return;
         }
         etherPathTo(keyGoal, Trip.KEY);
+    }
+
+    /** Stay this far inside the pickup range: the landing is a block, the range a measurement of feet. */
+    private static final double KEY_RANGE_MARGIN = 0.75;
+
+    /**
+     * The landing block (etherwarpable, inside the dungeon) whose feet position is within {@code reach} of the key and
+     * nearest to {@code from} - the shortest warp that still puts the key in range. Null when none is.
+     */
+    private static BlockPos standWithin(net.minecraft.world.phys.Vec3 key, double reach, net.minecraft.world.phys.Vec3 from) {
+        int r = (int) Math.ceil(reach);
+        BlockPos centre = BlockPos.containing(key);
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                for (int dy = -4; dy <= 3; dy++) {
+                    BlockPos p = centre.offset(dx, dy, dz);
+                    net.minecraft.world.phys.Vec3 feet = new net.minecraft.world.phys.Vec3(p.getX() + 0.5, p.getY() + 1.0,
+                            p.getZ() + 0.5);
+                    if (feet.distanceTo(key) > reach) {
+                        continue;
+                    }
+                    double toHim = feet.distanceToSqr(from);
+                    if (toHim >= bestD || !com.killer560.hub.livemap.autoclear.TeleportUtils.etherwarpable(p)
+                            || !com.killer560.hub.livemap.autoclear.TeleportUtils.underCover(p)) {
+                        continue;
+                    }
+                    bestD = toHim;
+                    best = p.immutable();
+                }
+            }
+        }
+        return best;
     }
 
     private static void beginKeyWait() {
@@ -841,13 +893,19 @@ public final class AutoSecretFeature {
         // Gone from the CLIENT is not picked up: a stand far off simply leaves the client's tracking range while the
         // path swings away (142-sim-autopilot2 run 2: "picked up" from 102 blocks, five times over). Only near it - well
         // inside any pickup range, a minister perk's +5 included - or with the team's count up is it taken.
-        if (!counted && (keyLastDist < 0 || keyLastDist > KEY_GONE_NEAR)) {
+        double gone = Math.max(KEY_GONE_NEAR, AutoSecretConfig.getInstance().keyPickupRange() + 4.0);
+        if (!counted && (keyLastDist < 0 || keyLastDist > gone)) {
             return false;
         }
         String line = com.killer560.hub.doorkeys.DungeonKeys.lastPickupLine();
-        LOGGER.info(String.format(java.util.Locale.US, "[AutoSecret] key: picked up (%s) - %.2f blocks from it the tick"
-                        + " before it went; team now %d wither key(s), blood %d; chat: %s", counted ? "the team's count went up"
-                        : "the key left the world", keyLastDist, com.killer560.hub.doorkeys.DungeonKeys.witherKeys(),
+        // Where he stands NOW against where the key lay: mid-warp the tick before is a whole hop back (run 1 logged
+        // 38.17 for a pickup the sim made at 6.32). The server took it somewhere between the two.
+        double now = client.player.position().distanceTo(new net.minecraft.world.phys.Vec3(keyTarget.x(), keyTarget.y(),
+                keyTarget.z()));
+        LOGGER.info(String.format(java.util.Locale.US, "[AutoSecret] key: picked up (%s) - %.2f blocks from it now, %.2f the"
+                        + " tick before (pickup range %.1f); team now %d wither key(s), blood %d; chat: %s",
+                counted ? "the team's count went up" : "the key left the world", now, keyLastDist,
+                AutoSecretConfig.getInstance().keyPickupRange(), com.killer560.hub.doorkeys.DungeonKeys.witherKeys(),
                 com.killer560.hub.doorkeys.DungeonKeys.bloodKey(), line));
         say(ModChat.good(keyTarget.blood() ? "Blood Key" : "Wither Key"), ModChat.dim(" picked up"));
         if (phase == Phase.TRAVEL && ClearExecutor.isBusy()) {
