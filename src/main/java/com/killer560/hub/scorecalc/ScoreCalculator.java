@@ -200,18 +200,29 @@ public final class ScoreCalculator {
         int secretsNeeded = -1;
         int secretsRemaining = -1;
         if (totalSecrets > 0 && !"E".equals(floor)) {
-            int failedPenalty = Math.max(0, in.puzzlesFailed()) * 10;
-            int requiredSecretScore = 40 - bonus + deathPenalty + failedPenalty + (100 - speed);
-            if (requiredSecretScore > 40) {
-                secretsNeeded = Integer.MAX_VALUE;
-            } else {
-                secretsNeeded = (int) Math.ceil(totalSecrets * req * Math.max(0, requiredSecretScore) / 40.0);
+            secretsNeeded = secretsNeededFor(floor, totalSecrets, bonus, deathPenalty, in.puzzlesFailed(), speed);
+            if (secretsNeeded != Integer.MAX_VALUE) {
                 secretsRemaining = Math.max(0, secretsNeeded - in.secretsFound());
             }
         }
 
         return new Result(total, skill, explore, roomScore, secretScore, speed, bonus, totalRooms, totalSecrets,
                 secretsNeeded, secretsRemaining, rank(total));
+    }
+
+    /**
+     * Secrets an S+ needs once every room and puzzle is done (Odin {@code neededSecretsAmount}, extended): room score
+     * 60, skill 100 less deaths and failed puzzles, speed and bonus as they are now. {@link Integer#MAX_VALUE} when
+     * secrets alone cannot get there. {@code deathPenalty} is already the spirit-pet-adjusted one.
+     */
+    public static int secretsNeededFor(String floor, int totalSecrets, int bonus, int deathPenalty, int puzzlesFailed,
+                                       int speed) {
+        int failedPenalty = Math.max(0, puzzlesFailed) * 10;
+        int requiredSecretScore = 40 - bonus + deathPenalty + failedPenalty + (100 - speed);
+        if (requiredSecretScore > 40) {
+            return Integer.MAX_VALUE;
+        }
+        return (int) Math.ceil(totalSecrets * requiredSecretFraction(floor) * Math.max(0, requiredSecretScore) / 40.0);
     }
 
     private static int clamp(int v, int min, int max) {

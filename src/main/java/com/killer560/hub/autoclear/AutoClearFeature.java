@@ -219,6 +219,16 @@ public final class AutoClearFeature {
         return running;
     }
 
+    /** Whether Auto Clear would clear {@code room} at all: a NORMAL, RARE or CHAMPION room (Dungeon Autopilot asks). */
+    public static boolean isMobRoom(DungeonLayout layout, int room) {
+        return AutoClearTargets.isMobRoom(layout, room);
+    }
+
+    /** The rooms of the Blood Rush Split path, Entrance first, or null while the Blood door is not on the map. */
+    public static List<Integer> bloodRushRooms(DungeonLayout layout) {
+        return AutoClearTargets.bloodRushRooms(layout);
+    }
+
     /** Stops whatever is running, with no callback (the caller cancelled). */
     public static void cancel() {
         if (running) {

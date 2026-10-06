@@ -254,28 +254,45 @@ public final class DungeonState {
         return null;
     }
 
-    /** Hypixel's "Keys: ■ ✗ ■ 1x" sidebar line: the second ■ is the team's wither key count. */
+    /**
+     * Hypixel's "Keys: ■ ✗ ■ 1x" sidebar line: the first ■ is the blood key with ✓ (the team has it) or ✗, the second ■
+     * the team's wither key count.
+     */
     private static final java.util.regex.Pattern KEYS_LINE =
-            java.util.regex.Pattern.compile("^Keys: \\S [✗✓] \\S (\\d{1,2})x$");
+            java.util.regex.Pattern.compile("^Keys: \\S ([✗✓]) \\S (\\d{1,2})x$");
 
     /** The team's wither keys as the sidebar shows them, or -1 when there is no Keys line. */
     public static int sidebarWitherKeys() {
+        java.util.regex.Matcher m = keysLine();
+        if (m == null) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(m.group(2));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /** The team's blood key as the sidebar shows it: 1 has it, 0 does not, -1 when there is no Keys line. */
+    public static int sidebarBloodKey() {
+        java.util.regex.Matcher m = keysLine();
+        return m == null ? -1 : "✓".equals(m.group(1)) ? 1 : 0;
+    }
+
+    private static java.util.regex.Matcher keysLine() {
         String raw = readSidebarText();
         if (raw == null || raw.isBlank()) {
-            return -1;
+            return null;
         }
         for (String line : raw.split("\n")) {
             String plain = com.killer560.hub.util.ChatObserver.stripCodes(line);
             java.util.regex.Matcher m = KEYS_LINE.matcher(plain == null ? "" : plain.trim());
             if (m.matches()) {
-                try {
-                    return Integer.parseInt(m.group(1));
-                } catch (NumberFormatException e) {
-                    return -1;
-                }
+                return m;
             }
         }
-        return -1;
+        return null;
     }
 
     private static String readSidebarText() {
