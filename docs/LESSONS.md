@@ -214,6 +214,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `McCompat.hudHidden`, because `options.hideGui` is gone on 26.2. To draw in SCREEN pixels from any pose, `pose().identity()`
   then `scale(1f / guiScale)` - an int `fill` is then one framebuffer pixel.
 
+- A standalone sim puzzle builds IN PLACE of the room's floor (its floor sits at the player's feet minus one), so its
+  reset must put back what was there, not air. The Teleport Maze reset aired its 52 floor blocks and the player fell
+  into the void (testkit 78: "[Sim] back to the middle of the room", then "icepath: built nothing"; 26.1.2 and 26.2
+  alike, only when he stood on the arena). It now records the prior states on the server and restores them
+  (2026-10-06). Tic Tac Toe's reset still leaves 1-3 blocks fewer than before (78's "arena after reset"; not traced).
+
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session

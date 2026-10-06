@@ -130,8 +130,15 @@ public final class SimTeleportMazePuzzle {
      */
     private static final Map<BlockPos, int[]> PAD_INDEX = new java.util.concurrent.ConcurrentHashMap<>();
 
-    /** Every block position this session has placed, for {@link #reset} to clear. */
-    private static volatile List<BlockPos> builtBlocks = List.of();
+    /**
+     * Every block this session has placed, with what was there before it, for {@link #reset} to put back. Until
+     * 2026-10-06 reset set the FLOOR positions to air - but the floor is laid at the player's own feet level minus
+     * one, i.e. in place of the room's floor, so a reset left a 52-block hole in it (and pads/the end marker were
+     * never cleared at all). Testkit 78-sim-puzzles saw the player fall through it into the void whenever he stood
+     * on the arena ("[Sim] back to the middle of the room", then Ice Path measured nothing). Filled on the server
+     * thread by the build's own task, which runs before any later clear's task.
+     */
+    private static volatile Map<BlockPos, net.minecraft.world.level.block.state.BlockState> builtBlocks = Map.of();
 
     /** Anchor for cell {@code c}'s floor/pads: the block one below where the player stands entering that cell. */
     private static volatile BlockPos[] cellAnchor = new BlockPos[0];
@@ -183,13 +190,11 @@ public final class SimTeleportMazePuzzle {
         correctPad = chosen;
 
         PAD_INDEX.clear();
-        List<BlockPos> toPlace = new ArrayList<>();
         Map<BlockPos, net.minecraft.world.level.block.state.BlockState> painted = new HashMap<>();
         for (int c = 0; c <= CELL_COUNT; c++) {
             BlockPos cellAnchorPos = anchors[c];
             for (int[] off : FLOOR_OFFSETS) {
                 BlockPos pos = cellAnchorPos.offset(off[0], off[1], off[2]).immutable();
-                toPlace.add(pos);
                 painted.put(pos, Blocks.SMOOTH_STONE.defaultBlockState());
             }
             if (c == CELL_COUNT) {
@@ -205,14 +210,16 @@ public final class SimTeleportMazePuzzle {
                 PAD_INDEX.put(padPos.above(), new int[]{c, p});
             }
         }
-        builtBlocks = List.copyOf(toPlace);
         currentCell = 0;
         complete = false;
         server.execute(() -> {
             ServerLevel level = server.overworld();
+            Map<BlockPos, net.minecraft.world.level.block.state.BlockState> prior = new HashMap<>();
             for (Map.Entry<BlockPos, net.minecraft.world.level.block.state.BlockState> e : painted.entrySet()) {
+                prior.put(e.getKey(), level.getBlockState(e.getKey()));
                 level.setBlockAndUpdate(e.getKey(), e.getValue());
             }
+            builtBlocks = prior;
         });
         built = true;
         ModChat.send("Sim", ModChat.text("Teleport Maze built - find the right pad, "),
@@ -248,7 +255,7 @@ public final class SimTeleportMazePuzzle {
         // In-memory only, NOT clearBlocks(): that queues air writes at the PREVIOUS arena's positions for the
         // next server tick, which on a rebuild of the same room would be inside the room just pasted. The
         // build's own wipe has already removed the last floor.
-        builtBlocks = List.of();
+        builtBlocks = Map.of();
         // The chamber centres, one per cell, plus the end pad as the final landing spot. Worked out from the
         // pads themselves so a room whose chambers are laid out differently still lands the player inside one.
         BlockPos[] anchors = new BlockPos[CELL_COUNT + 1];
@@ -605,7 +612,7 @@ public final class SimTeleportMazePuzzle {
      * unrelated block on the new floor count as a move in a puzzle that is not on it.
      */
     public static void forget() {
-        builtBlocks = List.of();
+        builtBlocks = Map.of();
         cellAnchor = new BlockPos[0];
         correctPad = new int[0];
         PAD_INDEX.clear();
@@ -644,8 +651,8 @@ public final class SimTeleportMazePuzzle {
     }
 
     private static void clearBlocks(Minecraft client) {
-        List<BlockPos> old = builtBlocks;
-        builtBlocks = List.of();
+        Map<BlockPos, net.minecraft.world.level.block.state.BlockState> old = builtBlocks;
+        builtBlocks = Map.of();
         if (old.isEmpty() || !SimState.canAct(client)) {
             return;
         }
@@ -655,8 +662,8 @@ public final class SimTeleportMazePuzzle {
         }
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            for (BlockPos pos : old) {
-                level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+            for (Map.Entry<BlockPos, net.minecraft.world.level.block.state.BlockState> e : old.entrySet()) {
+                level.setBlockAndUpdate(e.getKey(), e.getValue());
             }
         });
     }
