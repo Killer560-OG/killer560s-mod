@@ -448,6 +448,10 @@ public final class SimMobs {
         server.execute(() -> {
             ServerLevel level = server.overworld();
             SimZombie undead = new SimZombie(McEntities.ZOMBIE, level);
+            // killer560 (2026-10-06): "have crypt mobs spawn with the word crypt above them". No star, so nothing
+            // that looks for starred mobs counts it.
+            undead.setCustomName(Component.literal(scoringPrince ? "Crypt Prince" : "Crypt Undead"));
+            undead.setCustomNameVisible(true);
             spawnDummy(level, undead, pos, false);
             CRYPT_MOBS.put(undead.getUUID(), scoringPrince);
         });
