@@ -729,7 +729,7 @@ public class SimMapEditorScreen extends Screen {
      * <p>Read from the plan's own door cells - the generated plan when there is one, otherwise the quiet plan
      * of the drawing - so a gap with no door in it is drawn as the wall it will be. An ordinary doorway is a
      * narrow opening; wither, blood and entrance doors are wider blocks in the live map's configured colours,
-     * and a wither door gets the same amber outline the live map gives it so it cannot vanish against the grid.
+     * a wither door plain black and blood plain red, with no outline.
      */
     private void drawDoors(GuiGraphicsExtractor g) {
         MapCode.Decoded plan = generated != null ? generated.decoded() : drawnPlan;
@@ -773,8 +773,12 @@ public class SimMapEditorScreen extends Screen {
                 boolean wither = type == com.killer560.hub.livemap.DungeonLayout.DOOR_WITHER || theoretical;
                 int across = Math.max(3, cell / 3);
                 int along = Math.max(3, normal ? cell / 5 : cell / 8);
-                if (!normal) {
-                    colour = (colour & 0x00FFFFFF) | (wither ? 0x99000000 : 0xCC000000);
+                // Plain black for a wither door, plain red for blood, no outline (killer560, 2026-10-06: "remove
+                // the orange highlight for the wither doors just make them black or red for the blood one").
+                if (wither) {
+                    colour = 0xFF000000;
+                } else if (type == com.killer560.hub.livemap.DungeonLayout.DOOR_BLOOD) {
+                    colour = 0xFFB23030;
                 }
                 int x0;
                 int y0;
@@ -788,13 +792,6 @@ public class SimMapEditorScreen extends Screen {
                 int x1 = x0 + (betweenX ? along : across);
                 int y1 = y0 + (betweenX ? across : along);
                 g.fill(x0, y0, x1, y1, colour);
-                if (type == com.killer560.hub.livemap.DungeonLayout.DOOR_WITHER || theoretical) {
-                    // A theoretical one (an ordinary door in the build) gets the same amber outline as on the
-                    // live map; the designer never shows a real one, since the sim builds none.
-                    g.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
-                } else if (!normal) {
-                    g.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFF000000);
-                }
             }
         }
     }
