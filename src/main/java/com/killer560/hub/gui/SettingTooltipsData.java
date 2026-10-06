@@ -1110,7 +1110,7 @@ final class SettingTooltipsData {
         d.put("auto secret", "Cheat build: once every blaze is dead, walks to the nearest secret and auras it if it's a chest.");
         d.put("auto creeper beams", "Cheat build: shoots the two matching creeper-beam lanterns with your shortbow.");
         d.put("auto ice path", "Cheat build: shoots the silverfish along the solved ice path with your shortbow.");
-        d.put("auto boulder", "Cheat build: with Secret Aura on, runs along the roof to the bars and lets the aura take the chest; with it off, walks down the stairs, presses only the solver's buttons and opens the chest. Then walks back out so you can etherwarp.");
+        d.put("auto boulder", "Cheat build: with Secret Aura (and its Chests option) on, runs along the roof to the bars and lets the aura take the chest; otherwise walks down the stairs, presses only the solver's buttons and opens the chest. Then walks back out so you can etherwarp.");
         d.put("auto water board", "Cheat build: etherwarps to the puzzle start, then flips the levers in the solved order.");
         d.put("auto tic tac toe", "Cheat build: walks to the play spot, then plays the best Tic Tac Toe square on your turn.");
         d.put("aura chest", "Cheat build: after the first move, walks to the room's secret chest and auras it, then returns to play.");
