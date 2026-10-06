@@ -1443,9 +1443,15 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   three sides) cannot fill. `97-sim-roomspawn` now lists blocks below each room's capture band: the first floor built
   after the 133-room single sweep had a previous single room's lower blocks (y -63..-49, stone, slabs, terracotta)
   still standing under it, clean on the floors after. So the landing now uses `openingFloor` (the band rule) and falls
-  back to `doorwaySpot` when that side has no doorway or the spot is unsafe. **The leftovers are still open**: which
-  clear misses them was not found (ClearJob's band covers y -63 for every bottom-aligned single room; the x/z bounds
-  come from `touchedBounds`). The scenario prints a WARNING line for them rather than failing.
+  back to `doorwaySpot` when that side has no doorway or the spot is unsafe. **The leftovers were the wipe's x/z
+  box (fixed same day):** `SimSecrets.place` runs from the completion callback, after the queue has moved the build's
+  chunks into `lastBuiltBounds` and emptied the live set, and it calls `SimBuildQueue.touched` for its chests. So
+  `touchedBounds()` (live set if non-empty, else last build) handed the next wipe ONLY the secret chunks. A next
+  single room at the same bottom altitude mostly overwrote its predecessor, which hid it; a top-aligned floor (y 121+)
+  stood on the old room. Second half: the clear's y band was the previous offset's, so once a top-aligned floor had
+  been built the junk below y 121 was out of reach for every later clear too. Now `touchedBounds` is the union of
+  both, and `ClearJob` clears the whole world height (all-air sections skip in one call). 97-sim-roomspawn fails on
+  any block outside a room's capture band, above or below.
 
 ## The 2026-10-04 Map Logger round: damage, the key, crypts, landings and the sidebar
 

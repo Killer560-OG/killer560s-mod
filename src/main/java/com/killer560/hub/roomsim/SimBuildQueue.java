@@ -82,10 +82,31 @@ public final class SimBuildQueue {
         touchedChunks.add((((long) (x >> 4)) << 32) ^ ((z >> 4) & 0xffffffffL));
     }
 
-    /** The region those chunks cover, or null when nothing has been built yet. */
+    /**
+     * The region those chunks cover, or null when nothing has been built yet.
+     *
+     * <p>The UNION of the live set and the last finished build, never one or the other. It returned the live set
+     * whenever that was non-empty, and it nearly always was: {@code SimSecrets.place} runs from the build's
+     * completion callback, after the queue had already moved the build's chunks into {@link #lastBuiltBounds} and
+     * emptied the set, and it records the one or two chunks its chests went into. So the next build cleared only
+     * the chunks holding the last room's secrets, and the rest of that room stayed standing wherever the next paste
+     * did not happen to write over it. 2026-10-06: the first floor generated after the 133-room single sweep was
+     * top-aligned (y 121..505) and stood on a single room's blocks from y -63 to 20 under Flags and Museum
+     * (97-sim-roomspawn). Anything that writes after the queue finishes - secrets, doors, secret items picked up
+     * and put back - now adds to the box instead of replacing it.
+     */
     public static synchronized int[] touchedBounds() {
-        int[] live = boundsOf(touchedChunks);
-        return live != null ? live : lastBuiltBounds;
+        return union(boundsOf(touchedChunks), lastBuiltBounds);
+    }
+
+    private static int[] union(int[] a, int[] b) {
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
+        return new int[]{Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])};
     }
 
     /** What the last finished build covered, so the next one knows what to clear. */
@@ -443,9 +464,12 @@ public final class SimBuildQueue {
         private final int maxX;
         private final int maxZ;
         /**
-         * The band the OLD floor occupies, not the new one: the clear runs before the pastes and its job is to
-         * remove what was there. Read ONCE, here, because {@code SimAltitude.plan} moves the current offset
-         * into "previous" and any read after that would be measuring the wrong floor.
+         * The WHOLE world height, not the old floor's band. It was {@code SimAltitude.previousMinWorldY()..
+         * previousMaxWorldY()}, which is right only if every block in the box was written at the last build's
+         * offset - so anything left by an older build (see {@code touchedBounds}) under a top-aligned floor's
+         * band (y 121 and up) was out of reach for good. An all-air section is skipped in one
+         * {@code hasOnlyAir()} call, so the extra height costs a few hundred calls, and the clear no longer
+         * depends on {@code SimAltitude} bookkeeping at all.
          */
         private final int minY;
         private final int maxY;
@@ -466,8 +490,8 @@ public final class SimBuildQueue {
             this.minZ = minZ;
             this.maxX = maxX;
             this.maxZ = maxZ;
-            this.minY = SimAltitude.previousMinWorldY();
-            this.maxY = SimAltitude.previousMaxWorldY();
+            this.minY = level.getMinY();
+            this.maxY = level.getMaxY();
             this.total = (long) (maxX - minX + 1) * (maxZ - minZ + 1)
                     * Math.max(0, maxY - minY + 1);
             for (int cx = minX >> 4; cx <= (maxX >> 4); cx++) {
@@ -625,7 +649,9 @@ public final class SimBuildQueue {
                 // The bounds are kept BEFORE the set is emptied. They are what the next build clears instead
                 // of sweeping the whole grid, and losing them here would quietly undo that - the next load
                 // would go back to four million reads and look like the speed fix had been reverted.
-                lastBuiltBounds = boundsOf(touchedChunks);
+                // Unioned, not replaced: a job queued by something other than a build (nothing today) must not
+                // shrink the box the next wipe clears.
+                lastBuiltBounds = union(boundsOf(touchedChunks), lastBuiltBounds);
                 JOBS.add(new FinishJob(server, new ArrayList<>(touchedChunks)));
                 touchedChunks.clear();
             }

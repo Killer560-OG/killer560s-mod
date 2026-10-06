@@ -1573,15 +1573,10 @@ public final class SimBuilder {
             // on the map is the current room." The whole grid, not a margin round the new room - a margin
             // leaves the last room still standing wherever it was, and a single-room test with someone else's
             // room over the horizon is not a single-room test.
-            // ALTITUDE FIRST, then the wipe. This was the other way round and it meant Change Room cleared
-            // NOTHING.
-            //
-            // The clear job reads its start y once, in a field initialiser, when submitClear builds it - from
-            // SimAltitude.previousMinWorldY(). plan() is what moves the current offset into "previous". Called
-            // after the wipe was queued, the job started at the UNSHIFTED y 60 while its end bound, read live,
-            // had already become 17 - so the first step saw 60 > 17, called itself done, and the whole
-            // previous floor stayed standing with the new room pasted through it. build() has always had this
-            // order right; this path did not.
+            // ALTITUDE FIRST, then the wipe, the same order build() uses. The clear once read its y band from
+            // SimAltitude's "previous" offset, and with the order reversed it cleared NOTHING; since 2026-10-06 it
+            // clears the whole world height and no longer depends on the order, but the paste reads the offset
+            // live, so plan() still has to come before anything is queued.
             SimMimic.reset();
             SimDoors.clear();
             SimBuilder.clearEntranceDoor();
