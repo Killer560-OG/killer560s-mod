@@ -624,6 +624,7 @@ public final class WarpGraph {
             byColumn.clear();
             byRepColumn.clear();
             repsByColumn.clear();
+            bannedEdges.clear();   // a new floor (a ban left after a smaller change only ever costs a warp)
         }
         int[] c;
         List<int[]> boxes = null;
@@ -1560,6 +1561,14 @@ public final class WarpGraph {
         public EtherSearch.CellTest region;
         /** The map tile {@link #region} is the click region of ({@link Tiles}), or -1. */
         public int tile = -1;
+        /**
+         * Not NaN: of the landings in the region reached in the FEWEST warps, the one nearest this point (x, z - the
+         * clicked tile's centre). Never a warp more for it. killer560 (2026-10-06): "the quadrant I click on it takes
+         * me essentially still in the hallway to that room" and "I want it to go as central and far into the square as
+         * possible with the exact same etherwarps."
+         */
+        public double preferX = Double.NaN;
+        public double preferZ = Double.NaN;
 
         /** Non-null: landings to settle for when the exact block cannot be reached (an alcove chest). */
         public EtherSearch.CellTest near;
@@ -1618,8 +1627,17 @@ public final class WarpGraph {
             labelStamp = Arrays.copyOf(labelStamp, n);
             label = Arrays.copyOf(label, n);
             startMark = Arrays.copyOf(startMark, n);
+            fW = Arrays.copyOf(fW, n);
         }
     }
+
+    /** The bound on total warps each node was pushed with (its f), for the preferred-landing search. */
+    private int[] fW = new int[1024];
+
+    /** How long a click may spend, after it found its fewest warps, looking for the landing nearest the centre. */
+    private static final long PREFER_NANOS = 5_000_000L;
+    /** The last region search's landing, as the larger of its x and z offsets from the preferred point; or -1. */
+    public int lastDepth = -1;
 
     private void push(int node, double key) {
         if (heapSize == heap.length) {
@@ -1704,6 +1722,111 @@ public final class WarpGraph {
      */
     public List<EtherSearch.Hop> plan(EtherSearch.Grid grid, EtherSearch.Hop start, Goal goal, long deadlineNanos,
                                       int maxWarps) {
+        bannedFromStart.clear();
+        bannedIntoGoal.clear();
+        directBanned = false;
+        firmFixed = 0;
+        firmDropped = 0;
+        fragileLeft = false;
+        List<EtherSearch.Hop> path = null;
+        for (int attempt = 0; attempt <= MAX_FIRM_REPLANS; attempt++) {
+            path = planAimed(grid, start, goal, deadlineNanos, maxWarps);
+            if (path == null || path.isEmpty()) {
+                return path;
+            }
+            List<Integer> bad = firmUp(path, goal);
+            if (bad.isEmpty()) {
+                return path;
+            }
+            if (System.nanoTime() > deadlineNanos) {
+                break;
+            }
+            // Every fragile hop of this path at once, so a path with several costs one search more, not several.
+            for (int i : bad) {
+                dropFragile(i);
+                firmDropped++;
+            }
+        }
+        // Still a hop that only lands at the exact float aim: run it anyway (the executor plans again from wherever
+        // the server leaves him), but say so in the log.
+        fragileLeft = true;
+        return path;
+    }
+
+    /** How many times a plan is searched again after dropping a hop that lands only at its exact aim. */
+    private static final int MAX_FIRM_REPLANS = 6;
+    /** Hops of the last plan whose aim was moved to one that holds (EtherSearch.AIM_MARGIN). */
+    public int firmFixed;
+    /** Hops dropped from the graph by the last plan because no aim at their block holds. */
+    public int firmDropped;
+    /** The last plan still has a hop that lands only at its exact aim (out of attempts or time). */
+    public boolean fragileLeft;
+
+    /** Edges (from << 32 | to) no aim holds for: never taken again by this graph. */
+    private final java.util.HashSet<Long> bannedEdges = new java.util.HashSet<>();
+    /** Per plan: landings his own position has no firm aim at, and nodes with no firm aim onto the exact goal. */
+    private final java.util.HashSet<Integer> bannedFromStart = new java.util.HashSet<>();
+    private final java.util.HashSet<Integer> bannedIntoGoal = new java.util.HashSet<>();
+    /** Per plan: his own position has no firm aim onto the exact goal. */
+    private boolean directBanned;
+
+    private static long edgeKey(int from, int to) {
+        return ((long) from << 32) | (to & 0xFFFFFFFFL);
+    }
+
+    private boolean edgeBanned(int from, int to) {
+        return !bannedEdges.isEmpty() && bannedEdges.contains(edgeKey(from, to));
+    }
+
+    /**
+     * Makes every hop of a path land for any aim within {@link EtherSearch#AIM_MARGIN} of the one it will send: a hop
+     * that lands only at its exact float aim is aimed again at the same block through another aim point, if one holds.
+     * Returns the indices of the hops no aim holds for (empty when every hop is firm).
+     */
+    private List<Integer> firmUp(List<EtherSearch.Hop> path, Goal goal) {
+        List<Integer> bad = new ArrayList<>();
+        EtherSearch s = owner.search;
+        for (int i = 0; i < path.size(); i++) {
+            EtherSearch.Hop h = path.get(i);
+            int land = i < lastLands.size() ? lastLands.get(i) : -1;
+            int bx = land >= 0 ? nx[land] : goal.x;
+            int by = land >= 0 ? ny[land] : goal.y;
+            int bz = land >= 0 ? nz[land] : goal.z;
+            double ey = h.y + EtherSearch.SNEAK_EYE;
+            if (s.holds(h.x, ey, h.z, h.yaw, h.pitch, bx, by, bz, range)) {
+                continue;
+            }
+            if (s.aimFirm(h.x, ey, h.z, bx, by, bz, range)) {
+                h.yaw = s.aimYaw;
+                h.pitch = s.aimPitch;
+                firmFixed++;
+                continue;
+            }
+            bad.add(i);
+        }
+        return bad;
+    }
+
+    /** Takes the hop {@code i} of the last path out of the next search (see {@link #firmUp}). */
+    private void dropFragile(int i) {
+        int from = i == 0 ? startFromNode : lastLands.get(i - 1);
+        int land = lastLands.get(i);
+        if (land < 0) {
+            if (from >= 0) {
+                bannedIntoGoal.add(from);
+            } else {
+                directBanned = true;
+            }
+        } else if (from >= 0) {
+            bannedEdges.add(edgeKey(from, land));
+        } else {
+            bannedFromStart.add(land);
+        }
+    }
+
+    /** {@link #plan} without the firm-aim check: the search, and the first hop aimed again from where he stands. */
+    private List<EtherSearch.Hop> planAimed(EtherSearch.Grid grid, EtherSearch.Hop start, Goal goal,
+                                            long deadlineNanos, int maxWarps) {
         allowNodeStart = true;
         List<EtherSearch.Hop> path = planOnce(grid, start, goal, deadlineNanos, maxWarps);
         if (startFromNode < 0 || path == null || path.isEmpty()) {
@@ -2129,17 +2252,28 @@ public final class WarpGraph {
         double gx = goal.x + 0.5;
         double gy = goal.y + 0.5;
         double gz = goal.z + 0.5;
+        // A tile click: ties among equally few warps go to the landing nearest the tile's centre, not the clicked
+        // block (which is the tile's block nearest HIM, so on his side of the room - the doorway).
+        boolean preferOn = region != null && !Double.isNaN(goal.preferX) && !Double.isNaN(goal.preferZ);
+        if (preferOn) {
+            gx = goal.preferX;
+            gz = goal.preferZ;
+        }
+        lastDepth = -1;
         if (region != null) {
             int bx = (int) Math.floor(sx);
             int by = (int) Math.floor(sy - 0.2);
             int bz = (int) Math.floor(sz);
             if (region.test(bx, by, bz) && search.etherwarpable(bx, by, bz)) {
-                return new ArrayList<>();
+                return new ArrayList<>();   // already there: no warp, wherever in the tile (the count is sacred)
             }
         }
-        if (exact != null && search.aim(sx, sy + EtherSearch.SNEAK_EYE, sz, exact.x, exact.y, exact.z, range)) {
+        if (exact != null && !directBanned
+                && search.aim(sx, sy + EtherSearch.SNEAK_EYE, sz, exact.x, exact.y, exact.z, range)) {
             List<EtherSearch.Hop> one = new ArrayList<>(1);
             one.add(new EtherSearch.Hop(sx, sy, sz, start.bx, start.by, start.bz, search.aimYaw, search.aimPitch));
+            lastLands.clear();
+            lastLands.add(-1);
             return one;
         }
         ensureArrays();
@@ -2225,6 +2359,10 @@ public final class WarpGraph {
         usedFields = labels || altOn;
         for (int k = 0; k < startN; k++) {
             int t = node(startPos[k]);
+            if ((!bannedFromStart.isEmpty() && bannedFromStart.contains(t))
+                    || (startFromNode >= 0 && edgeBanned(startFromNode, t))) {
+                continue;   // no aim at it from here holds (firmUp)
+            }
             double dx = nx[t] + 0.5 - sx;
             double dy = ny[t] + standOffset - sy;
             double dz = nz[t] + 0.5 - sz;
@@ -2243,20 +2381,47 @@ public final class WarpGraph {
             parent[t] = START;
             pYaw[t] = startYaw[k];
             pPitch[t] = startPitch[k];
+            fW[t] = 1 + h;
             push(t, key(1 + h, 1, len, distTo(t, gx, gy, gz)));
         }
+        // The preferred-landing search (preferOn): the best region node so far, its warps, its distance from the
+        // preferred point, and when to stop looking.
+        int bestU = -1;
+        int bestW = 0;
+        double bestS = 0;
+        long preferUntil = 0;
         while (heapSize > 0) {
             int u = pop();
             if (closed[u]) {
                 continue;
             }
+            if (bestU >= 0 && (fW[u] > bestW || System.nanoTime() > preferUntil)) {
+                // Every landing with the fewest warps has come off once f passes them. Never a warp more for a
+                // landing nearer the centre (killer560, 2026-10-06: "if it is going to take even 1 extra
+                // etherwarp to go more center I don't want that").
+                break;
+            }
             closed[u] = true;
             int g = gWarps[u];
             if (region != null) {
                 if (region.test(nx[u], ny[u], nz[u])) {
-                    return reconstruct(start, u, Float.NaN, Float.NaN);
+                    if (!preferOn) {
+                        return reconstruct(start, u, Float.NaN, Float.NaN);
+                    }
+                    // Nearest the centre wins; then the deeper in (the larger of the x and z offsets, smaller).
+                    double s = preferDist(u, gx, gz) + 0.001 * preferDepth(u, gx, gz);
+                    if (bestU < 0) {
+                        bestW = g;
+                        preferUntil = Math.min(deadlineNanos, System.nanoTime() + PREFER_NANOS);
+                    }
+                    if (bestU < 0 || (g == bestW && s < bestS)) {
+                        bestU = u;
+                        bestS = s;
+                    }
+                    continue;   // a landing in the tile is never a step to another (that is a warp more)
                 }
-            } else if (inGoal[u] == stamp && g + 1 <= maxWarps) {
+            } else if (inGoal[u] == stamp && g + 1 <= maxWarps
+                    && (bannedIntoGoal.isEmpty() || !bannedIntoGoal.contains(u))) {
                 // h is 1 here and nodes come off in key order, so g + 1 is the fewest warps there are.
                 return reconstruct(start, u, goalYaw[u], goalPitch[u]);
             }
@@ -2264,6 +2429,9 @@ public final class WarpGraph {
                 continue;
             }
             if (eTo[u] == null && System.nanoTime() > deadlineNanos) {
+                if (bestU >= 0) {
+                    break;
+                }
                 timedOut = true;
                 return null;
             }
@@ -2274,8 +2442,12 @@ public final class WarpGraph {
             double base = gDist[u];
             int ng = g + 1;
             edgesScanned += to.length;
+            boolean anyBanned = !bannedEdges.isEmpty();
             for (int e = 0; e < to.length; e++) {
                 int v = to[e];
+                if (anyBanned && bannedEdges.contains(edgeKey(u, v))) {
+                    continue;   // no aim along it holds (firmUp)
+                }
                 // Deep-first ignores distance entirely; otherwise the hop's length, worked out here rather than
                 // stored with every one of a few million edges.
                 double nd = deepFirst ? 0.0 : base + hopLength(u, v);
@@ -2298,10 +2470,27 @@ public final class WarpGraph {
                 parent[v] = u;
                 pYaw[v] = yaw[e];
                 pPitch[v] = pitch[e];
+                fW[v] = ng + h;
                 push(v, key(ng + h, ng, nd, distTo(v, gx, gy, gz)));
             }
         }
+        if (bestU >= 0) {
+            lastDepth = preferDepth(bestU, gx, gz);
+            return reconstruct(start, bestU, Float.NaN, Float.NaN);
+        }
         return null;
+    }
+
+    /** Horizontal distance of a node's landing (its block's centre) from the preferred point. */
+    private double preferDist(int u, double px, double pz) {
+        double dx = nx[u] + 0.5 - px;
+        double dz = nz[u] + 0.5 - pz;
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+
+    /** The larger of a node's x and z offsets from the preferred point, in whole blocks. */
+    private int preferDepth(int u, double px, double pz) {
+        return (int) Math.floor(Math.max(Math.abs(nx[u] + 0.5 - px), Math.abs(nz[u] + 0.5 - pz)));
     }
 
     /**
@@ -2387,13 +2576,19 @@ public final class WarpGraph {
      */
     private List<EtherSearch.Hop> reconstruct(EtherSearch.Hop start, int last, float lastYaw, float lastPitch) {
         ArrayList<EtherSearch.Hop> out = new ArrayList<>();
+        // The node each hop lands on, in the same (reversed, then turned round) order; -1 for the exact goal block.
+        lastLands.clear();
+        lastLandX = Float.isNaN(lastYaw) ? nx[last] : Integer.MIN_VALUE;
+        lastLandZ = Float.isNaN(lastYaw) ? nz[last] : Integer.MIN_VALUE;
         if (!Float.isNaN(lastYaw)) {
             out.add(new EtherSearch.Hop(standX(last), standY(last), standZ(last), nx[last], ny[last], nz[last],
                     lastYaw, lastPitch));
+            lastLands.add(-1);
         }
         int at = last;
         while (true) {
             int p = parent[at];
+            lastLands.add(at);
             if (p == START) {
                 out.add(new EtherSearch.Hop(start.x, start.y, start.z, start.bx, start.by, start.bz, pYaw[at],
                         pPitch[at]));
@@ -2404,8 +2599,16 @@ public final class WarpGraph {
             at = p;
         }
         java.util.Collections.reverse(out);
+        java.util.Collections.reverse(lastLands);
         return out;
     }
+
+    /** The block x/z the last region path lands on (MIN_VALUE after an exact-goal path). */
+    public int lastLandX = Integer.MIN_VALUE;
+    public int lastLandZ = Integer.MIN_VALUE;
+
+    /** For the path {@link #reconstruct} returned last: the node each hop lands on, or -1 for an exact goal block. */
+    private final ArrayList<Integer> lastLands = new ArrayList<>();
 
     // ------------------------------------------------------------------------------------------- warming
 

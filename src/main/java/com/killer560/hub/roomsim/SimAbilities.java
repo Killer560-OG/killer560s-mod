@@ -285,6 +285,11 @@ public final class SimAbilities {
         var hit = com.killer560.hub.livemap.autoclear.TeleportUtils.traverseVoxels(level,
                 from.x, from.y, from.z, to.x, to.y, to.z, true);
         if (!hit.succeeded() || hit.pos() == null) {
+            // The exact ray the server resolved, so a refused hop can be compared with the plan's (2026-10-06: the
+            // plan's yaw 173.65981 arrived as 173.65979 and caught a block corner - see EtherSearch.AIM_MARGIN).
+            com.killer560.hub.util.ModLog.get("killer560smod-sim").info(String.format(java.util.Locale.ROOT,
+                    "[Sim] etherwarp refused: feet (%.4f, %.4f, %.4f) yaw %.5f pitch %.5f range %.1f, stopped at %s %s",
+                    sp.getX(), sp.getY(), sp.getZ(), sp.getYRot(), sp.getXRot(), range, hit.pos(), hit.state()));
             fail("no etherwarp target there");
             return false;
         }

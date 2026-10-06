@@ -311,6 +311,17 @@ public final class ClearExecutor {
                 for (EtherwarpPathfinder.Node n : result) {
                     list.add(ClearNode.toEther(n));
                 }
+                String impossible = implausible(from, list, hopRange);
+                if (impossible != null) {
+                    // Never run a plan that cannot happen: plan again from here, or stop and say why.
+                    LOGGER.warn("[Path] refused an impossible plan of {} warp(s) from {} to {}: {}", list.size(),
+                            fmt(from), to, impossible);
+                    goalTo = to;
+                    goalTile = tileIdx;
+                    goalComplete = complete;
+                    offPath("the plan was impossible (" + impossible + ")", complete);
+                    return;
+                }
                 ModChat.send(CHAT, ModChat.text("Found path in "), ModChat.value(took + "ms"), ModChat.dim(" ("
                         + result.size() + " warps)"));
                 LOGGER.info("[Path] running {} warp(s) from {} to {}{}", list.size(), fmt(from), to,
@@ -318,6 +329,45 @@ public final class ClearExecutor {
                 startQueue(list, complete);
             });
         });
+    }
+
+    /**
+     * Why a planned path cannot happen as planned, or null. Each hop is cast exactly as {@link ClearNode.EtherNode}
+     * will cast it (its stand, sneaking eye, float yaw and pitch): it must land, within the hop range (the block's
+     * centre at most {@code range + 1} from the eye - the server refuses anything past its own reach), and on the
+     * next hop's stand. The first hop must start where he is. Together that also bounds the warps against the
+     * distance: no N-warp plan reaches further than N hop ranges. Client thread.
+     */
+    static String implausible(Vec3 from, List<ClearNode> path, double range) {
+        if (path.isEmpty()) {
+            return null;
+        }
+        if (path.get(0).pos.distanceTo(from) > 1.5) {
+            return String.format(java.util.Locale.US, "its first warp starts %.1f blocks from him",
+                    path.get(0).pos.distanceTo(from));
+        }
+        for (int i = 0; i < path.size(); i++) {
+            ClearNode n = path.get(i);
+            Vec3 eye = new Vec3(n.pos.x, n.pos.y + TeleportUtils.eyeHeight(true), n.pos.z);
+            TeleportUtils.RaycastResult hit = TeleportUtils.getEtherPos(eye, n.yaw, n.pitch, 61.0);
+            if (!hit.succeeded() || hit.pos() == null) {
+                return "warp " + (i + 1) + " lands nowhere";
+            }
+            double reach = eye.distanceTo(Vec3.atCenterOf(hit.pos()));
+            if (reach > range + 1.0) {
+                return String.format(java.util.Locale.US, "warp %d reaches %.1f blocks, past the %.0f-block range",
+                        i + 1, reach, range);
+            }
+            if (i + 1 < path.size()) {
+                Vec3 next = path.get(i + 1).pos;
+                Vec3 land = new Vec3(hit.pos().getX() + 0.5, hit.pos().getY() + 1.05, hit.pos().getZ() + 0.5);
+                if (!landedOn(land, next, LAND_XZ, LAND_Y)) {
+                    return String.format(java.util.Locale.US, "warp %d lands %.1f blocks from where warp %d starts",
+                            i + 1, land.distanceTo(next), i + 2);
+                }
+            }
+        }
+        return null;
     }
 
     /**

@@ -116,6 +116,12 @@ public final class EtherwarpPathfinder {
         return planFloor(from, to, tileIdx, cfg, dist, layout);
     }
 
+    /**
+     * Test hook (docs/TESTING-HOOKS.md): every tile click also plans itself without the centre preference and logs
+     * that plan's warps and landing, so the testkit can check the preference never costs a warp.
+     */
+    private static final String CHECK_FEWEST = "killer560.test.checkFewest";
+
     /** No path is longer than this. */
     private static final int MAX_WARPS = 48;
     /**
@@ -157,6 +163,10 @@ public final class EtherwarpPathfinder {
             int t = tile6;
             goal.region = (x, y, z) -> tiles.tileOf(x, y, z) == t;
             goal.tile = t;
+            // Of the landings the fewest warps reach, the one nearest the middle of the clicked tile, not just past
+            // its doorway - never a warp more for it.
+            goal.preferX = tiles.x0 + 32 * (t % 6) + 0.5;
+            goal.preferZ = tiles.z0 + 32 * (t / 6) + 0.5;
             kind = "tile";
             if (new EtherSearch(grid).etherwarpable(to.getX(), to.getY(), to.getZ())) {
                 // No landing of the tile's floor band reachable: the block etherwarpableInTile picked, exactly.
@@ -204,15 +214,37 @@ public final class EtherwarpPathfinder {
             LOGGER.info("[Path] not a proof of no way because: {}", graph.noWayWhy);
             return legacyDungeonPath(from, to, cfg, dist, layout);
         }
+        String landing = graph.firmFixed > 0 || graph.firmDropped > 0 || graph.fragileLeft
+                ? "; " + graph.firmFixed + " aim(s) moved to one that holds, " + graph.firmDropped
+                + " fragile hop(s) dropped" + (graph.fragileLeft ? ", ONE STILL FRAGILE" : "") : "";
+        if (tile6 >= 0 && !graphs.usedExact && graph.lastDepth >= 0) {
+            landing += "; landing " + graph.lastDepth + " block(s) from the tile centre";
+            if (Boolean.getBoolean(CHECK_FEWEST)) {
+                // The testkit's check that the centre preference never costs a warp: the same click on the same
+                // graph with the preference off, which lands where the search first reaches the tile.
+                WarpGraph.Goal plain = new WarpGraph.Goal();
+                plain.x = goal.x;
+                plain.y = goal.y;
+                plain.z = goal.z;
+                plain.region = goal.region;
+                plain.tile = goal.tile;
+                plain.deadEnd = goal.deadEnd;
+                List<EtherSearch.Hop> p2 = graph.plan(grid, start, plain, System.nanoTime() + 200_000_000L, MAX_WARPS);
+                landing += p2 == null ? "; [check] without the centre preference: nothing"
+                        : String.format(java.util.Locale.ROOT, "; [check] without the centre preference: %d warp(s),"
+                        + " landing %d block(s) from the tile centre", p2.size(), (int) Math.floor(Math.max(
+                        Math.abs(graph.lastLandX + 0.5 - goal.preferX), Math.abs(graph.lastLandZ + 0.5 - goal.preferZ))));
+            }
+        }
         // One line a click, so the cost can be read off his log rather than guessed at.
         LOGGER.info("[Path] {} warp(s) ({}{}), total {} ms on the {} graph: start {} ms, aim set {} ms ({} node(s)),"
                         + " backward labels {} ms ({} node(s)); {} node(s) worked out now, {} known, {} edge(s), {}"
-                        + " ray(s); exact heuristic {}; graph {} node(s), warm-up {}; {} section(s) filled",
+                        + " ray(s); exact heuristic {}; graph {} node(s), warm-up {}; {} section(s) filled{}",
                 path.size(), kind, graph.endedNear ? ", near: the block itself cannot be reached" : "",
                 ms(end - t0), graphs.usedName, ms(graph.nanosStart), ms(graph.nanosAimSet), graph.goalSetSize,
                 ms(graph.nanosLabels), graph.labelled, graph.expandedCold, graph.expandedWarm, graph.edgesScanned,
                 graph.rays, graph.usedFields ? "yes" : "no", graph.nodeCount(), warm ? "done" : "still running",
-                grid.filled);
+                grid.filled, landing);
         return toNodes(path);
     }
 

@@ -317,6 +317,75 @@ public final class EtherSearch {
         return false;
     }
 
+    /**
+     * How far off the planned yaw and pitch the server may resolve a hop, in degrees. The use packet carries the
+     * RUNNING yaw (the player's unwrapped yaw plus the wrapped turn - never wrapped, per the anticheat rules), and a
+     * float near 900 or 10,000 degrees keeps fewer fraction bits than the wrapped aim it stands for: the sim's server
+     * wrapped 893.65979 back to 173.65979 where 173.65981 was planned (95-sim-map-warp, 2026-10-06), and that ray
+     * caught the corner of a block 13 blocks out that the planned one cleared by a few millionths of a block. Hypixel
+     * computes its look from the raw float, which loses the same bits. 0.01 degrees covers a running yaw up to about
+     * 100,000 degrees (a float's step there is 0.008) and is about a centimetre at 57 blocks.
+     */
+    public static final float AIM_MARGIN = 0.01f;
+
+    /**
+     * Whether a hop aimed {@code yaw/pitch} from {@code eye} lands on the block for every aim within
+     * {@link #AIM_MARGIN} of it (the aim itself and four nudged ones), not only for the exact float values.
+     */
+    public boolean holds(double ex, double ey, double ez, float yaw, float pitch, int bx, int by, int bz,
+                         double range) {
+        for (int k = 0; k < 5; k++) {
+            float dy = k == 1 ? AIM_MARGIN : k == 2 ? -AIM_MARGIN : 0f;
+            float dp = k == 3 ? AIM_MARGIN : k == 4 ? -AIM_MARGIN : 0f;
+            look(yaw + dy, pitch + dp, lookTmp);
+            int r = cast(ex, ey, ez, ex + lookTmp[0] * range, ey + lookTmp[1] * range, ez + lookTmp[2] * range);
+            if (r != LANDS || hitX != bx || hitY != by || hitZ != bz) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * {@link #aim} restricted to aims that {@link #holds}: every aim point in the same order, the first whose hop
+     * still lands on the block when the server reads the yaw or pitch a little off. Sets {@link #aimYaw}/{@link
+     * #aimPitch}.
+     */
+    public boolean aimFirm(double ex, double ey, double ez, int bx, int by, int bz, double range) {
+        double cx = bx + 0.5 - ex;
+        double cy = by + 0.5 - ey;
+        double cz = bz + 0.5 - ez;
+        if (cx * cx + cy * cy + cz * cz > (range + 1) * (range + 1)) {
+            return false;
+        }
+        for (double[][] set : new double[][][]{AIM_POINTS, FIRM_POINTS}) {
+            for (double[] o : set) {
+                double dx = bx + o[0] - ex;
+                double dy = by + o[1] - ey;
+                double dz = bz + o[2] - ez;
+                double distXZ = Math.sqrt(dx * dx + dz * dz);
+                float yaw = wrapDegrees((float) -Math.toDegrees(Math.atan2(dx, dz)));
+                float pitch = wrapDegrees((float) -Math.toDegrees(Math.atan2(dy, distXZ)));
+                if (holds(ex, ey, ez, yaw, pitch, bx, by, bz, range)) {
+                    aimYaw = yaw;
+                    aimPitch = pitch;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * More top-face points for {@link #aimFirm}, off the half-block lattice: from a stand at a block's centre, a line
+     * to another block's centre (or its quarter points) with whole-number offsets runs exactly through block corners
+     * on the way - yaw 18.43495 is atan(1/3) - which is what makes an aim fragile in the first place.
+     */
+    private static final double[][] FIRM_POINTS = {
+            {0.37, 0.97, 0.61}, {0.63, 0.97, 0.39}, {0.41, 0.97, 0.43}, {0.59, 0.97, 0.57},
+            {0.23, 0.97, 0.62}, {0.77, 0.97, 0.38}, {0.62, 0.97, 0.23}, {0.38, 0.97, 0.77}
+    };
+
     // Blocks already seen to stop a line toward the block {@link #aimPast} is aiming at.
     private final int[] blockX = new int[18];
     private final int[] blockY = new int[18];

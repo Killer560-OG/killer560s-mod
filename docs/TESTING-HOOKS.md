@@ -32,6 +32,13 @@ pipe), the Proxy Client (the game connection itself), and anything Minecraft or 
   Sorter tabs, the update and Discord buttons on the home tab, and the Shorts player's browser and sign-in
   windows (both of which then do nothing further).
 
+## Interactive Map warp count (`livemap/autoclear/EtherwarpPathfinder`)
+
+- `-Dkiller560.test.checkFewest=true` makes every tile click plan itself a second time without the centre
+  preference and append `[check] without the centre preference: N warp(s), landing D block(s) from the tile centre`
+  to its `[Path] ... warp(s) (tile)` line, so a harness can check that landing nearer the centre never costs a warp
+  (testkit 95-sim-map-warp). Costs one more search per click; never set outside the testkit.
+
 ## Chat listener failures (`util/ChatObserver`)
 
 No property. `ChatObserver.failures()` counts every listener or rewriter throw it has caught since start-up,

@@ -196,6 +196,14 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   roof instead ("struggles going down the stairs", 2026-10-06). `autopuzzles/BoulderPath` plans across heights (stairs
   climbed from their low side, ledges cost extra). And a walk planned on the tick of a Boulder button press plans round
   the box's OLD position (the move reaches the client ticks later: "no walk", 223 nodes) - wait ~400 ms after a press.
+- An etherwarp aim verified at its exact float yaw is not verified (2026-10-06, 95-sim-map-warp): the use packet carries
+  the RUNNING yaw (player yaw + wrapped turn, ~900 degrees here), which keeps fewer fraction bits, so the server read
+  173.65979 where 173.65981 was planned and the ray caught a block corner the plan cleared by millionths of a block.
+  Rays at lattice slopes (yaw 18.43495 = atan(1/3)) pass exactly through block corners, so this is common, and a replan
+  from the same spot picks the same cached edge. `WarpGraph.plan` now runs every hop through `EtherSearch.holds`
+  (lands for yaw/pitch +-0.01 degrees), re-aims a fragile one with `aimFirm`, else drops that edge and plans again.
+  The diagnosis that found it: log the server's refusal, then cast the server's exact ray through the client planner's
+  grid - BLOCKED on both sides meant the worlds agreed and the aim was the fault.
 
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
