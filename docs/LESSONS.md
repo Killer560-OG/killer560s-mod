@@ -225,16 +225,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   after the first (102-sim-autosecret, 2026-10-06). A map press clears it in `InteractiveMapFeature.queue` via
   `cancelForInteractiveMap`; anything that drives the start-node warp must call that first, as Auto Secret now does.
 
-- **`AutoClearUtils.canPath` refuses by room NAME**: anything containing Maze or Boulder, and a Trap room past its start
-  line. Anything that warps him INTO such a room with the Interactive Map can never warp him out, and nothing in the mod
-  walks: Dungeon Autopilot sat on "Can't start a path from here yet" for good after a route ended inside Arrow Trap
-  (141-sim-autopilot, 2026-10-06). The autopilot now leaves those rooms (and the Boulder / Teleport Maze puzzles) out.
-
-- **A door click must not be made with an ability item in hand.** `WitherDoorOpener` clicked the sim's blood door with the
-  Aspect of the Void the map warps had left selected; the sim answered the use-on as Instant Transmission ("the server
-  moved you" after each click) and the door never opened (141-sim-autopilot, 2026-10-06). It now clicks with the key item,
-  else an empty slot, else a slot not on its ability list. Whether Hypixel also fires the ability on a door click is not
-  verified; Auto Door Opener still clicks with whatever is held.
+- **Two traps found by Dungeon Autopilot in 141-sim-autopilot (2026-10-06).** `AutoClearUtils.canPath` refuses by room NAME
+  (Maze, Boulder, a Trap room past its start line), and nothing walks, so a route ending inside Arrow Trap stranded the run
+  for good - the autopilot now leaves those rooms out. And `WitherDoorOpener` clicked the sim's blood door with the AOTV the
+  map warps had left in hand: the sim took it as Instant Transmission and the door never opened; it now clicks with the key
+  item, else an empty slot. Whether Hypixel fires the ability on a door click is unverified; Auto Door Opener still doesn't swap.
 
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
