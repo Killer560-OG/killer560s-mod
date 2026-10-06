@@ -74,7 +74,9 @@ public final class BreakerAuraFeature {
             Blocks.WITHER_SKELETON_SKULL, Blocks.WITHER_SKELETON_WALL_SKULL, Blocks.TNT,
             Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.END_PORTAL_FRAME, Blocks.END_PORTAL,
             Blocks.PISTON, Blocks.PISTON_HEAD, Blocks.STICKY_PISTON, Blocks.MOVING_PISTON,
-            Blocks.LEVER, Blocks.STONE_BUTTON, Blocks.PLAYER_HEAD, Blocks.PLAYER_WALL_HEAD, Blocks.OBSIDIAN);
+            Blocks.LEVER, Blocks.STONE_BUTTON, Blocks.PLAYER_HEAD, Blocks.PLAYER_WALL_HEAD);
+    // Obsidian left this list 2026-10-05 (killer560: "breaker aura should be able to add obsidian as well"). It is
+    // still never zero-pinged (breakBlock), as in QUOI's BreakerHelper.
 
     private static final Map<BlockPos, Long> RECENT = new HashMap<>();
     /** Edge state for the pick key, so holding it toggles once rather than every tick. */
