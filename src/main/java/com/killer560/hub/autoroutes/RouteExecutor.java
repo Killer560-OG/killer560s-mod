@@ -169,6 +169,26 @@ public final class RouteExecutor {
     private static boolean landingConfirmed;
     /** Set by {@link #finishAction} after a {@link #landingConfirmed} node: {@link #tick} carries on this same tick. */
     private static boolean chainAfterLanding;
+    /**
+     * Etherwarps Per Second (killer560, 2026-10-06: "something you use as a general time constraint, not a hard cap"):
+     * a PACE, not a per-second budget. {@link #execTicks} counts executor ticks since the route started; a warp may go
+     * out once it reaches {@link #nextWarpAt}, which each warp sets 20/rate ticks on. Fractions carry: a warp sent on the
+     * tick the pace allowed schedules the next from the pace itself (3/s goes 0, 7, 14, 20 - 6.67 on average); a warp that
+     * something else held longer (the landing, an await, a boom) schedules from its own tick, so time already spent counts
+     * and nothing waits twice. Never ahead of the server: the landing check still comes first.
+     */
+    private static long execTicks;
+    private static double nextWarpAt = Double.NEGATIVE_INFINITY;
+    /** Ticks the warp under way has waited for the pace (for its "acted" line). */
+    private static int warpPacedTicks;
+
+    /** A warp is being sent on this tick: where the pace puts the next one. */
+    private static void notePacedWarp() {
+        double spacing = 20.0 / AutoRoutesConfig.getInstance().getEtherwarpsPerSecond();
+        double from = execTicks - nextWarpAt < 1.0 ? nextWarpAt : execTicks;
+        nextWarpAt = from + spacing;
+    }
+
     /** {@link #planSneak}'s answer to "what fires next, and where he stands?" - read by {@link #settleAfter}. */
     private static RouteNode plannedNext;
     private static boolean plannedInPlace;
@@ -404,6 +424,8 @@ public final class RouteExecutor {
         settleTicks = 0;
         chainAfterLanding = false;
         landingConfirmed = false;
+        execTicks = 0;
+        nextWarpAt = Double.NEGATIVE_INFINITY;
         forceSneak = false;
         unsneakOverride = false;
         awaitPhaseDone = true;
@@ -600,6 +622,7 @@ public final class RouteExecutor {
             releaseKeys();
             return;
         }
+        execTicks++;
         LocalPlayer player = client.player;
         if (player == null || client.level == null || client.level != lastLevel) {
             stop("world change");
@@ -1462,6 +1485,7 @@ public final class RouteExecutor {
      */
     private static boolean tickWarp(Minecraft client, LocalPlayer player, RouteNode node) {
         if (step == Step.PREP) {
+            warpPacedTicks = 0;
             int slot = ItemIdentity.findEtherwarpSlot(player);
             if (slot < 0) {
                 LOGGER.info("[AutoRoutes] Etherwarp: no hotbar item with ethermerge / ETHERWARP_CONDUIT");
@@ -1499,10 +1523,17 @@ public final class RouteExecutor {
             if (!aimReady()) {
                 return false;
             }
+            // Etherwarps Per Second: not before the pace allows. Sneak stays held while it waits.
+            if (execTicks < Math.ceil(nextWarpAt - 1e-9)) {
+                warpPacedTicks++;
+                return false;
+            }
+            notePacedWarp();
             actionOrigin = player.position();
             teleportPacketSeen = false;
             useHeldItem(client, player, warpYaw, warpPitch, false);
             logActed(node, (hopIndex >= 0 ? " (path warp " + (hopIndex + 1) + "/" + node.pathHops.size() + ")" : "")
+                    + (warpPacedTicks > 0 ? " (paced " + warpPacedTicks + " tick(s) by Etherwarps Per Second)" : "")
                     + " (sneak " + (hopIndex > 0 ? "held from the last warp" : sneakReadyAge == awaitDoneAge ? "already held"
                     : "went out in the firing tick's input packet") + ", "
                     + ItemIdentity.skyblockId(player.getMainHandItem()) + ")");

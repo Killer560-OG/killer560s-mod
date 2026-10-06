@@ -186,6 +186,13 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                 v -> cfg.setCryptAttackTicks((int) Math.round(AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS
                         + v * (AutoRoutesConfig.MAX_CRYPT_ATTACK_TICKS - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS))));
         y[0] += 24;
+        // killer560, 2026-10-06: a pace for chained etherwarps, 1-20 a second - a spacing, not a per-second budget.
+        int warpSpan = AutoRoutesConfig.MAX_WARPS_PER_SECOND - AutoRoutesConfig.MIN_WARPS_PER_SECOND;
+        slider(w, contentX, y[0], contentWidth,
+                () -> "Etherwarps Per Second: " + cfg.getEtherwarpsPerSecond(),
+                (cfg.getEtherwarpsPerSecond() - AutoRoutesConfig.MIN_WARPS_PER_SECOND) / (double) warpSpan,
+                v -> cfg.setEtherwarpsPerSecond((int) Math.round(AutoRoutesConfig.MIN_WARPS_PER_SECOND + v * warpSpan)));
+        y[0] += 24;
 
         // killer560, 2026-10-04: "Move the open routes folder near the top" - where AP3 keeps Open AP3 Folder.
         // Filename and share/reload instructions are in the two buttons' tooltips.

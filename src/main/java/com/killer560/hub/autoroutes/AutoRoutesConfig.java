@@ -119,6 +119,12 @@ public final class AutoRoutesConfig {
     public static final int MIN_CRYPT_ATTACK_TICKS = 10;
     public static final int MAX_CRYPT_ATTACK_TICKS = 200;
     private int cryptAttackTicks = 100;
+    /** Etherwarps Per Second (killer560, 2026-10-06: "make a slider in auto routes for etherwarps per second from 1-20 ...
+     *  it should just be something you use as a general time constraint, not a hard cap"). A PACE: consecutive etherwarps
+     *  of a chain (and path hops) are at least 20/rate ticks apart; 20 = as fast as the server confirms landings. */
+    public static final int MIN_WARPS_PER_SECOND = 1;
+    public static final int MAX_WARPS_PER_SECOND = 20;
+    private int etherwarpsPerSecond = 20;
     private boolean uniformColor = false;
     private int uniformColorArgb = 0xFF00FFFF;
     private int activeColorArgb = 0xFFFFFFFF;
@@ -189,6 +195,7 @@ public final class AutoRoutesConfig {
                 cfg.killMimic = ConfigJson.getEnum(o, "killMimic", KillMimic.class, cfg.killMimic);
                 cfg.cryptWeapon = ConfigJson.getEnum(o, "cryptWeapon", CryptWeapon.class, cfg.cryptWeapon);
                 cfg.setCryptAttackTicks(ConfigJson.getInt(o, "cryptAttackTicks", cfg.cryptAttackTicks));
+                cfg.setEtherwarpsPerSecond(ConfigJson.getInt(o, "etherwarpsPerSecond", cfg.etherwarpsPerSecond));
                 cfg.uniformColor = ConfigJson.getBool(o, "uniformColor", cfg.uniformColor);
                 cfg.uniformColorArgb = ConfigJson.getInt(o, "uniformColorArgb", cfg.uniformColorArgb);
                 cfg.activeColorArgb = ConfigJson.getInt(o, "activeColorArgb", cfg.activeColorArgb);
@@ -232,6 +239,7 @@ public final class AutoRoutesConfig {
             o.addProperty("killMimic", killMimic.name());
             o.addProperty("cryptWeapon", cryptWeapon.name());
             o.addProperty("cryptAttackTicks", cryptAttackTicks);
+            o.addProperty("etherwarpsPerSecond", etherwarpsPerSecond);
             o.addProperty("uniformColor", uniformColor);
             o.addProperty("colorsSectionOpen", colorsSectionOpen);
             o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
@@ -323,6 +331,10 @@ public final class AutoRoutesConfig {
     public int getCryptAttackTicks() { return cryptAttackTicks; }
     public void setCryptAttackTicks(int v) {
         cryptAttackTicks = Math.max(MIN_CRYPT_ATTACK_TICKS, Math.min(MAX_CRYPT_ATTACK_TICKS, v));
+    }
+    public int getEtherwarpsPerSecond() { return etherwarpsPerSecond; }
+    public void setEtherwarpsPerSecond(int v) {
+        etherwarpsPerSecond = Math.max(MIN_WARPS_PER_SECOND, Math.min(MAX_WARPS_PER_SECOND, v));
     }
 
     public RenderStyle getRenderStyle() { return renderStyle; }
