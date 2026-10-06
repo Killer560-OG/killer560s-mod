@@ -363,6 +363,11 @@ final class Autopilot {
         }
         currentTravel = travelByKey.getOrDefault(p.room(), 0.0);
         currentNodes = 0;
+        if (p.kind() == AutopilotPlanner.Kind.SECRET && room != null && trapModes.containsKey(p.room())) {
+            com.killer560.hub.autotrap.AutoTrap.Mode m = trapModes.get(p.room());
+            com.killer560.hub.autotrap.AutoTrap.chooseForRun(room.name(), m);
+            LOGGER.info("[Autopilot] trap {}: Auto Trap plays its {} route", room.name(), m.label());
+        }
         if (p.kind() == AutopilotPlanner.Kind.SECRET && room != null) {
             Route route = RouteStore.getInstance().forRoom(room.name());
             currentNodes = route == null ? 0 : route.nodes().size();
@@ -438,6 +443,7 @@ final class Autopilot {
         AutoSecretConfig cfg = AutoSecretConfig.getInstance();
         List<AutopilotPlanner.Candidate> out = new ArrayList<>();
         travelByKey.clear();
+        trapModes.clear();
         boolean routes = AutoRoutesConfig.getInstance().isEnabled();
         if (!routes && !noRoutesSaid) {
             noRoutesSaid = true;
@@ -468,6 +474,12 @@ final class Autopilot {
                     out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.EXPLORE, key,
                             AutopilotScore.roomValue(s) * 0.5, travel, mate, -1));
                 }
+                continue;
+            }
+            if (r.isType("TRAP")) {
+                // Trap rooms only through Auto Trap (killer560, 2026-10-06: "it will use auto trap to do trap rooms"),
+                // and only with a route for the mode this run wants; otherwise left out, as before.
+                trapCandidate(out, r, key, travel, s, party, routes, secreted, mate, rushIndex);
                 continue;
             }
             if (routes && r.unfound() > 0 && !secreted.contains(r.name()) && !r.isType("PUZZLE")
@@ -517,6 +529,49 @@ final class Autopilot {
                     AutopilotScore.roomValue(s) * (none ? 2.0 : 0.5), secs, false, -1));
         }
         return out;
+    }
+
+    /** The Auto Trap mode each trap candidate of the last decision would play, by {@link #keyOf}. */
+    private static final Map<String, com.killer560.hub.autotrap.AutoTrap.Mode> trapModes = new java.util.HashMap<>();
+
+    /**
+     * A trap room as a route target through Auto Trap. Which of its two routes: Party plays his selected mode; Solo picks
+     * per score - Full Trap only while the S+ still needs secrets and the trap has some (and a Full Trap route exists),
+     * else Just Cleared (if there is one). Worth the room (if not cleared yet), plus - Full Trap only - its secrets, plus
+     * its crypt nodes.
+     */
+    private static void trapCandidate(List<AutopilotPlanner.Candidate> out, RoomStatus.Room r, String key, double travel,
+                                      AutopilotScore.State s, boolean party, boolean routes, Set<String> secreted,
+                                      boolean mate, int rushIndex) {
+        if (!routes || secreted.contains(r.name()) || !com.killer560.hub.autotrap.AutoTrap.isEnabled()) {
+            return;
+        }
+        com.killer560.hub.autotrap.AutoTrap.Mode full = com.killer560.hub.autotrap.AutoTrap.Mode.FULL;
+        com.killer560.hub.autotrap.AutoTrap.Mode cleared = com.killer560.hub.autotrap.AutoTrap.Mode.CLEARED;
+        com.killer560.hub.autotrap.AutoTrap.Mode m;
+        if (party) {
+            m = com.killer560.hub.autotrap.AutoTrap.selectedMode(r.name());
+        } else {
+            boolean wantSecrets = AutopilotScore.usefulSecrets(s) > 0 && r.unfound() > 0
+                    && com.killer560.hub.autotrap.AutoTrap.hasRoute(r.name(), full);
+            m = wantSecrets ? full : com.killer560.hub.autotrap.AutoTrap.hasRoute(r.name(), cleared) ? cleared : full;
+        }
+        com.killer560.hub.autotrap.AutoTrap.Entry e = com.killer560.hub.autotrap.AutoTrap.entry(r.name(), m);
+        if (e == null || e.route().startNode() == null) {
+            return;
+        }
+        int crypts = 0;
+        for (com.killer560.hub.autoroutes.RouteNode n : e.route().nodes()) {
+            crypts += n.type() == com.killer560.hub.autoroutes.RouteNode.Type.CRYPT ? 1 : 0;
+        }
+        double gain = (r.cleared() ? 0 : AutopilotScore.roomValue(s))
+                + (m == full ? AutopilotScore.secretGain(s, r.unfound(), party) : 0) + AutopilotScore.cryptGain(s, crypts);
+        if (gain <= 0) {
+            return;
+        }
+        trapModes.put(key, m);
+        out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.SECRET, key, gain,
+                travel + 1.0 + routeSecondsPerNode * e.route().nodes().size(), mate, rushIndex));
     }
 
     /** A room's key in a candidate: its name, or its main tile for an unidentified one (several share "Unknown"). */

@@ -108,6 +108,8 @@ public final class AutoSecretFeature {
     private static int keyBloodBefore;
     /** Ticks to stand by a key for it to be picked up before calling the try failed. */
     private static final int KEY_WAIT_TICKS = 40;
+    /** Within this many blocks a key vanishing from the client means it was taken (by him or a teammate). */
+    private static final double KEY_GONE_NEAR = 12.0;
     private static BlockPos doorGoal;
     private static BlockPos doorLock;
     private static int doorClicks;
@@ -559,8 +561,9 @@ public final class AutoSecretFeature {
     }
 
     private static boolean eligibleForSecrets(RoomStatus.Room r) {
-        // Trap rooms are route targets (killer560, 2026-10-06: "I will use auto routes for trap as well").
+        // Trap rooms only through Auto Trap (killer560, 2026-10-06: "it will use auto trap to do trap rooms").
         return !"Unknown".equals(r.name()) && !r.isType("PUZZLE") && !r.isType("BLOOD")
+                && (!r.isType("TRAP") || com.killer560.hub.autotrap.AutoTrap.usable(r.name()))
                 && !r.isType("ENTRANCE") && r.unfound() > 0 && !secreted.contains(r.name());
     }
 
@@ -820,6 +823,12 @@ public final class AutoSecretFeature {
                 : com.killer560.hub.doorkeys.DungeonKeys.witherKeys() > keyWitherBefore;
         if (e != null && !e.isRemoved() && !counted) {
             keyLastDist = client.player.position().distanceTo(e.position());
+            return false;
+        }
+        // Gone from the CLIENT is not picked up: a stand far off simply leaves the client's tracking range while the
+        // path swings away (142-sim-autopilot2 run 2: "picked up" from 102 blocks, five times over). Only near it - well
+        // inside any pickup range, a minister perk's +5 included - or with the team's count up is it taken.
+        if (!counted && (keyLastDist < 0 || keyLastDist > KEY_GONE_NEAR)) {
             return false;
         }
         String line = com.killer560.hub.doorkeys.DungeonKeys.lastPickupLine();

@@ -306,6 +306,12 @@ public final class RouteExecutor {
         return running;
     }
 
+    /** The room of the route being played, or null when none is (Auto Trap stops a trap route the moment he leaves). */
+    public static String runningRoom() {
+        Route r = route;
+        return running && r != null ? r.roomName() : null;
+    }
+
     /** Stops playback and tells the user why (chat, when chat feedback is on). Safe to call when idle. */
     /** {@code /ar stop} and its key - one of the user-stop reasons below. */
     private static final String STOPPED_BY_COMMAND = "you stopped it";
