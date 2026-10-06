@@ -40,7 +40,7 @@ import java.util.regex.Pattern;
  * <pre>
  * { "version": 2,
  *   "chains": {
- *     "BOSS":      { "class": "",     "nodes": [ { "type": "ALIGN", "x": 100.5, "y": 110.0, "z": 60.5, "yaw": -90.0, "pitch": 0.0, "width": 3.0, "length": 3.0 }, ... ] },
+ *     "BOSS":      { "class": "",     "nodes": [ { "type": "ALIGN", "x": 100.5, "y": 110.0, "z": 60.5, "width": 3.0, "length": 3.0 }, ... ] },
  *     "BOSS:MAGE": { "class": "MAGE", "nodes": [ ... ] }
  *   } }
  * </pre>
@@ -568,7 +568,8 @@ public final class Ap3Store {
         n.setWidth(ConfigJson.getDouble(o, "width", n.width));
         n.precise = ConfigJson.getBool(o, "precise", false);
         n.setWaitAfterMs(ConfigJson.getInt(o, "waitAfterMs", 0));
-        n.closeGate = ConfigJson.getBool(o, "close", false);
+        // "close" (the close gate) is no longer read: the modifier was removed on 2026-10-06 and an old file's flag
+        // is dropped here, so the node simply fires when it is walked into.
         n.jumpMod = ConfigJson.getEnum(o, "jump", Ap3Node.JumpMod.class, Ap3Node.JumpMod.NONE);
         if (o.has("name") && o.get("name").isJsonPrimitive()) {
             String nm = o.get("name").getAsString().trim();
@@ -612,6 +613,9 @@ public final class Ap3Store {
         if (colour != null) {
             n.colour = parseColour(colour);
         }
+        // Last, after the version-1 wall migration above has had the yaw it needs: an old file wrote yaw, pitch and
+        // the rest for every type, and a type that never reads them now loads exactly as a fresh save of it would.
+        n.clearUnusedFields();
         return n;
     }
 
@@ -642,8 +646,14 @@ public final class Ap3Store {
         o.addProperty("x", Ap3Node.roundSaved(n.x));
         o.addProperty("y", Ap3Node.roundSaved(n.y));
         o.addProperty("z", Ap3Node.roundSaved(n.z));
-        o.addProperty("yaw", Ap3Node.roundSaved(n.yaw));
-        o.addProperty("pitch", Ap3Node.roundSaved(n.pitch));
+        // Only for a type that reads them (killer560, 2026-10-06: "For nodes like align i do not need yaw or pitch so
+        // dont have it saved"); a missing yaw / pitch loads as 0, which is what Ap3Node.clearUnusedFields holds.
+        if (n.type.usesYaw()) {
+            o.addProperty("yaw", Ap3Node.roundSaved(n.yaw));
+        }
+        if (n.type.usesPitch()) {
+            o.addProperty("pitch", Ap3Node.roundSaved(n.pitch));
+        }
         o.addProperty("width", Ap3Node.roundSaved(n.width));
         o.addProperty("length", Ap3Node.roundSaved(n.length));
         if (n.precise) {
@@ -652,22 +662,19 @@ public final class Ap3Store {
         if (n.waitAfterMs > 0) {
             o.addProperty("waitAfterMs", n.waitAfterMs);
         }
-        if (n.closeGate) {
-            o.addProperty("close", true);
-        }
         if (n.jumpMod != Ap3Node.JumpMod.NONE) {
             o.addProperty("jump", n.jumpMod.name());
         }
-        if (n.name != null) {
+        if (n.name != null && n.type.usesName()) {
             o.addProperty("name", n.name);
         }
-        // Written for EVERY node type that has one, outside the switch.
+        // Written outside the switch (only a USE has one since 2026-10-06, but the place stays).
         //
         // It used to be written only under `case LEAP`, so a USE node's item - the item he was holding when he
         // placed the node, which is the whole reason USE swaps at all - was never saved. It survived until the
         // game was closed and then silently became "use whatever is in my hand". The load path always read it
         // unconditionally, so only the write side was ever wrong.
-        if (n.useItemId != null && !n.useItemId.isBlank()) {
+        if (n.type.usesItem() && n.useItemId != null && !n.useItemId.isBlank()) {
             o.addProperty("useItemId", n.useItemId);
         }
         switch (n.type) {

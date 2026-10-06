@@ -35,7 +35,7 @@ import com.killer560.hub.compat.McCompat;
  * keybind rows. Adding a command means one constant here and one {@code .then(...)} in {@link #register()}.
  * <p>
  * <b>{@code /ap3 add <type> [modifiers]}</b> (2026-09-20 rework): the type is one word, everything after it is
- * modifiers parsed by {@link #parseSpec} - {@code w1 l1} (trigger box in blocks), {@code wait:1000}, {@code close},
+ * modifiers parsed by {@link #parseSpec} - {@code w1 l1} (trigger box in blocks), {@code wait:1000},
  * {@code precise}, a class name for a leap ({@code bers}), a count for a leap counter. They apply to any node type
  * that has a use for them; a modifier the type cannot use is refused by name.
  * <p>
@@ -140,7 +140,7 @@ public final class Ap3Commands {
     private static final List<String> TYPE_WORDS = List.of("align", "axisalign", "fastalign", "path", "nogo", "termaura", "walk", "run", "leap",
             "leapcounter", "terminal", "stop", "look", "boom", "stopwatch", "jump", "edge", "block", "use");
     /** Modifiers offered after any {@code /ap3 add <type>}. */
-    private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "close", "precise", "jump", "edge");
+    private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "precise", "jump", "edge");
     /** Extra words {@code /ap3 add path} takes: the speed window, the heading and the terminal stop. */
     private static final List<String> PATH_MODS =
             List.of("start", "end", "1", "2", "3", "4", "exact", "speed:", "dir:", "dirtol:", "term");
@@ -172,7 +172,7 @@ public final class Ap3Commands {
 
     /**
      * Suggests {@code options} for the LAST whitespace-separated token of the argument's input, so completion works
-     * inside a greedy modifier string ("walk w1 cl" -> "close") as well as for a single word.
+     * inside a greedy modifier string ("walk w1 pr" -> "precise") as well as for a single word.
      */
     private static CompletableFuture<Suggestions> suggestTokens(SuggestionsBuilder b, List<String> options) {
         String remaining = b.getRemaining();
@@ -393,7 +393,7 @@ public final class Ap3Commands {
                                                     new Ap3EditScreen(null, index)));
                                             return 1;
                                         })))
-                        // "/ap3 set <n> length|width|wait|close|precise|count|leap|colour ..." - the per-node fields.
+                        // "/ap3 set <n> length|width|wait|precise|count|leap|colour ..." - the per-node fields.
                         .then(ClientCommands.literal("set")
                                 .then(ClientCommands.argument("n", IntegerArgumentType.integer(1))
                                         .then(ClientCommands.literal("length")
@@ -411,11 +411,6 @@ public final class Ap3Commands {
                                                         .executes(context -> setWaitMs(
                                                                 IntegerArgumentType.getInteger(context, "n") - 1,
                                                                 IntegerArgumentType.getInteger(context, "ms")) ? 1 : 0)))
-                                        .then(ClientCommands.literal("close")
-                                                .then(ClientCommands.literal("on").executes(context -> setClose(
-                                                        IntegerArgumentType.getInteger(context, "n") - 1, true) ? 1 : 0))
-                                                .then(ClientCommands.literal("off").executes(context -> setClose(
-                                                        IntegerArgumentType.getInteger(context, "n") - 1, false) ? 1 : 0)))
                                         .then(ClientCommands.literal("precise")
                                                 .then(ClientCommands.literal("on").executes(context -> setPrecise(
                                                         IntegerArgumentType.getInteger(context, "n") - 1, true) ? 1 : 0))
@@ -468,7 +463,6 @@ public final class Ap3Commands {
             {"/ap3 replace <n> [pos|look]", "Re-place node n where you stand / look"},
             {"/ap3 set <n> width|length <v>", "Trigger box in blocks (any node)"},
             {"/ap3 set <n> wait <ms>", "Wait after the node, 0 = none (any node)"},
-            {"/ap3 set <n> close on|off", "Fire only on left click / after a GUI closes (any node)"},
             {"/ap3 set <n> precise on|off", "Align: exact coordinates instead of the block centre"},
             {"/ap3 set <n> count <k>", "Leap Counter: teammates that must leap"},
             {"/ap3 set <n> leap default|class <c>|ign <name>", "Leap node target"},
@@ -600,7 +594,7 @@ public final class Ap3Commands {
         for (String[] line : EDIT_HELP) {
             ModChat.send(FEATURE, ModChat.value(line[0]), ModChat.dim(" - " + line[1]));
         }
-        ModChat.send(FEATURE, ModChat.dim("Modifiers after any /ap3 add: w<n> l<n> (trigger box in blocks), wait:<ms>, close, precise."));
+        ModChat.send(FEATURE, ModChat.dim("Modifiers after any /ap3 add: w<n> l<n> (trigger box in blocks), wait:<ms>, precise."));
         ModChat.send(FEATURE, ModChat.dim("<n> is the node's number from /ap3 list and its world label (first node = 1)."));
     }
 
@@ -651,7 +645,7 @@ public final class Ap3Commands {
 
     /**
      * The modifiers after {@code /ap3 add <type>}: {@code w<n>} / {@code l<n>} (or {@code width:<n>} /
-     * {@code length:<n>} / {@code <w>x<l>}), {@code wait:<ms>}, {@code close}, {@code precise}, a class word or
+     * {@code length:<n>} / {@code <w>x<l>}), {@code wait:<ms>}, {@code precise}, a class word or
      * {@code ign <name>} for a leap, a bare count for a leap counter. Returns null (after saying why) on anything it
      * does not understand, so a typo never silently adds a node with the wrong shape.
      */
@@ -665,9 +659,7 @@ public final class Ap3Commands {
             String raw = tokens[i];
             String t = raw.toLowerCase(Locale.ROOT);
             try {
-                if (t.equals("close")) {
-                    spec.close = true;
-                } else if (t.equals("jump") && type != Ap3Node.Type.JUMP && type != Ap3Node.Type.EDGE) {
+                if (t.equals("jump") && type != Ap3Node.Type.JUMP && type != Ap3Node.Type.EDGE) {
                     spec.jumpMod = Ap3Node.JumpMod.JUMP;
                 } else if ((t.equals("edge") || t.equals("edgejump")) && type != Ap3Node.Type.JUMP && type != Ap3Node.Type.EDGE) {
                     spec.jumpMod = Ap3Node.JumpMod.EDGE;
@@ -744,7 +736,7 @@ public final class Ap3Commands {
                     spec.name = raw;
                 } else {
                     ModChat.send(FEATURE, ModChat.bad("Unknown modifier "), ModChat.value(raw),
-                            ModChat.text(" for " + type.label() + " - w<n> l<n>, wait:<ms>, close, precise"
+                            ModChat.text(" for " + type.label() + " - w<n> l<n>, wait:<ms>, precise"
                                     + (type == Ap3Node.Type.LEAP ? ", a class, ign <name>" : "")
                                     + (type == Ap3Node.Type.LEAP_COUNTER ? ", a count" : "")
                                     + (type == Ap3Node.Type.STOPWATCH ? ", a name (one word)" : "") + "."));
@@ -801,7 +793,7 @@ public final class Ap3Commands {
         Ap3Executor.setTestMode(on);
         if (on) {
             ModChat.send(FEATURE, ModChat.text("Test mode "), ModChat.good("ON"),
-                    ModChat.dim(" - nodes still fire when you walk into them, as a dry run: terminals, leap counters and close gates are skipped, a failed leap is skipped, and ANY key or button stops everything. /ap3 testmode again to leave."));
+                    ModChat.dim(" - nodes still fire when you walk into them, as a dry run: terminals and leap counters are skipped, a failed leap is skipped, and ANY key or button stops everything. /ap3 testmode again to leave."));
         } else {
             if (Ap3Executor.isRunning()) {
                 Ap3Executor.stop("test mode off");
@@ -898,10 +890,6 @@ public final class Ap3Commands {
 
     public static boolean setWaitMs(int index, int ms) {
         return edit(index, ms == 0 ? "no wait" : "wait " + ms + " ms", n -> true, "", n -> n.setWaitAfterMs(ms));
-    }
-
-    public static boolean setClose(int index, boolean on) {
-        return edit(index, "close " + (on ? "on" : "off"), n -> true, "", n -> n.closeGate = on);
     }
 
     public static boolean setPrecise(int index, boolean on) {
@@ -1094,7 +1082,7 @@ public final class Ap3Commands {
 
     /**
      * One-line description of a node for {@code /ap3 list} and the tab's rows: type, the per-type modifier
-     * (leap target, count, wall side), the general modifiers (box, wait, close, precise) and the position.
+     * (leap target, count, wall side), the general modifiers (box, wait, precise) and the position.
      */
     public static String describe(Ap3Node node) {
         StringBuilder sb = new StringBuilder(typeName(node.type()));
@@ -1117,9 +1105,6 @@ public final class Ap3Commands {
         }
         if (node.waitAfterMs() > 0) {
             sb.append(" wait:").append(node.waitAfterMs());
-        }
-        if (node.closeGate()) {
-            sb.append(" close");
         }
         if (node.jumpMod != Ap3Node.JumpMod.NONE) {
             sb.append(node.jumpMod == Ap3Node.JumpMod.EDGE ? " edge" : " jump");

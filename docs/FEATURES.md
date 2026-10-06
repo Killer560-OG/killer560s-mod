@@ -195,7 +195,8 @@ AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phas
 
 *Placing nodes* - `/ap3 add <type> [modifiers]`, or a keybind for each type
 - Nodes snap to the nearest half block (a block centre, or the line between two or four blocks) unless you add `precise`; the height is your exact feet height, so nodes on carpet or slabs sit on top.
-- The angle recorded is where you are looking (or where your free camera looks while Freeze State is on).
+- The angle recorded is where you are looking (or where your free camera looks while Freeze State is on). Only the nodes that use an angle keep it: Walk and Run keep the yaw, Look, Boom, Block and Use keep yaw and pitch, and every other node is saved without one.
+- `/ap3 edit <n>` opens the node editor: position, box, wait, jump/edge and the fields that node's type actually uses. The type is a dropdown; picking another type adds or removes rows on the spot (switching an Align to a Look adds Yaw and Pitch, starting at your current view). A Use node's item is a dropdown of your hotbar - click the item to use, or "Held item / none"; an item saved earlier that is no longer on the bar still shows. Nothing is applied until Save.
 - `/ap3 list`, `/ap3 undo`, `/ap3 redo`, `/ap3 delete [n]`, `/ap3 replace <n>`, `/ap3 clear`, `/ap3 reload`, `/ap3 stop`, `/ap3 testmode`. Routes are saved per config file in the killer560smod-ap3 folder; Choose AP3 Config switches between them. `/ap3 undo` now takes back the last add, delete, move, re-place, editor change or clear, whatever area it was in and as many steps back as you like (until the game closes or `/ap3 reload`) - it used to remember only the last added node; with nothing left it still deletes the last node of the chain you stand in. `/ap3 redo` (and its keybind) re-applies what undo took back; any new change clears the redo history. Sliders in the AP3 tab are not undo steps.
 
 *Node types*
@@ -217,7 +218,7 @@ AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phas
 - **Stopwatch** - the first one starts a timer, the next one stops it and prints the time. Name the starting one (`/ap3 add stopwatch s3`) and, with Send Stopwatch to Party on, the time goes to party chat as "s3 took 12.345s". The Stopwatch HUD shows the time while it runs and for 10 seconds after it stops, then hides until the next start (the HUD editor always previews it).
 
 *Modifiers* (any node, after the type)
-- `w<n> l<n>` (also `w.5`, `.5x.5`) - the trigger box size. `precise` - no snapping. `wait:<ms>` - hold the next node that long after this one. `close` - only fire on a left click or after a menu closes.
+- `w<n> l<n>` (also `w.5`, `.5x.5`) - the trigger box size. `precise` - no snapping. `wait:<ms>` - hold the next node that long after this one. (The old `close` modifier is gone; chains saved with it still load and the node simply fires when you walk into it.)
 - `jump` / `edge` - after the node has done its part, jump (or edge-jump). `/ap3 add run edge` runs at the node's angle and jumps at the edge.
 
 *Display*

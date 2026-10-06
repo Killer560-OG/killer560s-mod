@@ -63,3 +63,10 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   change, block placement and digging, plus BadPacketsA). The old one-tick-early pre-aim is gone - it only existed to
   place at END of the entry tick, which is the Post position. A Block's swap back is just `setSelectedSlot`; the game
   mode's own tick sends it at the next START, once.
+- A node's yaw and pitch are FLOATS, so the file's sixth decimal is past what they hold for any angle above ~10 degrees:
+  `33.123456` loads as 33.12345504... and is written back `33.123455` (2026-10-06, testkit 387). The angle the game uses
+  does not change, so compare angles as floats, never as the file's decimal text.
+- Since 2026-10-06 a type saves only what it reads (`Ap3Node.Type.usesYaw/usesPitch/usesItem/usesName`); yaw also laid the
+  trigger box out (`boxYaw`), so `clearUnusedFields` swaps width and length for an east/west yaw when it drops the yaw.
+  The route planner had always read a Path box as X = width, Z = length whatever its yaw, so a non-square Path box at an
+  east/west yaw was planned 90 degrees off its drawn box until then.
