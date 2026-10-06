@@ -88,14 +88,7 @@ public final class RouteNode {
         /** {@link #awaitAmount} secrets HE got since the wait began - his clicks on chests/levers/skulls, his item pickups, secret bats appearing near him ({@link AwaitEvents}). */
         SECRET,
         /** {@link #awaitAmount} milliseconds. */
-        DELAY,
-        /** {@code await:kill} (killer560, 2026-10-06: awaits should "cover bats and kills of all mobs as well"): every
-         *  mob the room's clear counts is dead - the starred mobs standing in the room he is in, the same set Auto Clear
-         *  kills ({@code autoclear/RoomMobs}) - or the map shows the room cleared. {@link #awaitAmount} is unused. */
-        KILL,
-        /** {@code await:bat}: a secret bat that appeared near him since the previous node finished has DIED - not merely
-         *  appeared, as a secret await's bat does ({@link AwaitEvents#batKills}). {@link #awaitAmount} is unused. */
-        BAT
+        DELAY
     }
 
     public static final double DEFAULT_RADIUS = 1.0;
@@ -309,10 +302,8 @@ public final class RouteNode {
             if (start) {
                 sb.append(", ");
             }
-            sb.append("await ").append(awaitCondition.name().toLowerCase(Locale.ROOT));
-            if (awaitCondition == AwaitCondition.SECRET || awaitCondition == AwaitCondition.DELAY) {
-                sb.append(' ').append(awaitAmount).append(awaitCondition == AwaitCondition.DELAY ? "ms" : "");
-            }
+            sb.append("await ").append(awaitCondition.name().toLowerCase(Locale.ROOT)).append(' ')
+                    .append(awaitAmount).append(awaitCondition == AwaitCondition.DELAY ? "ms" : "");
         }
         sb.append(']');
         return sb.toString();

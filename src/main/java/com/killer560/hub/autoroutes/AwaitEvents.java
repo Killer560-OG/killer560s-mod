@@ -65,13 +65,6 @@ public final class AwaitEvents {
     private static boolean active;
     private static int secrets;
     private static int crypts;
-    /** Secret bats seen appearing near him since the window opened, and not yet seen dying: id -> last position. */
-    private static final java.util.Map<Integer, Vec3> spawnedBats = new java.util.HashMap<>();
-    /** How many of {@link #spawnedBats} have died since the window opened ({@code await:bat}). */
-    private static int batKills;
-    /** A tracked bat that leaves the client's world within this many blocks of him died; further away it may only
-     *  have flown out of range. */
-    private static final double BAT_KILL_SEEN_RANGE = 16.0;
     private static final Set<String> counted = new HashSet<>();
     private static final Set<Integer> seenBats = new HashSet<>();
     private static final List<String> pending = new ArrayList<>();
@@ -120,8 +113,6 @@ public final class AwaitEvents {
     static void window(Minecraft client) {
         secrets = 0;
         crypts = 0;
-        batKills = 0;
-        spawnedBats.clear();
         counted.clear();
         pending.clear();
         seenBats.clear();
@@ -138,11 +129,9 @@ public final class AwaitEvents {
         active = false;
         counted.clear();
         seenBats.clear();
-        spawnedBats.clear();
         pending.clear();
         secrets = 0;
         crypts = 0;
-        batKills = 0;
     }
 
     static int secrets() {
@@ -151,11 +140,6 @@ public final class AwaitEvents {
 
     static int crypts() {
         return crypts;
-    }
-
-    /** Secret bats that appeared near him since the previous node finished and have since died ({@code await:bat}). */
-    static int batKills() {
-        return batKills;
     }
 
     /** The events since the last call, as log lines ("await secret 1/1: lever at x,y,z (clicked by you)"). */
@@ -197,9 +181,7 @@ public final class AwaitEvents {
             }
             addSecret("bat " + bat.getId(), "bat spawned at " + p.toShortString()
                     + String.format(Locale.US, " (%.1f blocks from you)", d));
-            spawnedBats.put(bat.getId(), bat.position());
         }
-        tickBatKills(client, player);
         int now = com.killer560.hub.scorecalc.ScoreCalculatorFeature.tabCrypts(client);
         if (now >= 0) {
             if (lastTabCrypts >= 0 && now > lastTabCrypts) {
@@ -208,34 +190,6 @@ public final class AwaitEvents {
                 }
             }
             lastTabCrypts = now;
-        }
-    }
-
-    /** A bat counted as spawned dies: seen dying, or gone from the client's world while it was near him. */
-    private static void tickBatKills(Minecraft client, LocalPlayer player) {
-        var it = spawnedBats.entrySet().iterator();
-        while (it.hasNext()) {
-            var e = it.next();
-            Entity bat = client.level.getEntity(e.getKey());
-            String how;
-            if (bat == null || bat.isRemoved()) {
-                if (e.getValue().distanceTo(player.position()) > BAT_KILL_SEEN_RANGE) {
-                    LOGGER.debug("[AutoRoutes] await ignored: a tracked bat left the world {} blocks away",
-                            String.format(Locale.US, "%.1f", e.getValue().distanceTo(player.position())));
-                    it.remove();
-                    continue;
-                }
-                how = "gone next to you";
-            } else if (bat instanceof Bat b && b.isDeadOrDying()) {
-                how = "dying";
-            } else {
-                e.setValue(bat.position());
-                continue;
-            }
-            it.remove();
-            batKills++;
-            pending.add("await bat kill " + batKills + ": bat at " + BlockPos.containing(e.getValue()).toShortString()
-                    + " " + how);
         }
     }
 
