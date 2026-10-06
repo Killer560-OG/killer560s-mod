@@ -114,7 +114,7 @@ Two topics have their own files, because they had grown to half this one:
 **[docs/SIM.md](docs/SIM.md)** for the dungeon sim (`roomsim/`) - room captures, floor generation,
 secret placement, doors and altitude - and **[docs/AP3.md](docs/AP3.md)** for AP3's nodes and align
 physics. Read the relevant one before touching either area. Feature-specific lessons (Bazaar, HUD
-elements, Superpairs, Instant Transmission, item identity, gametest) are in
+elements, Superpairs, Instant Transmission, item identity, gametest, `AttackBlockCallback` per tick, slider clamps) are in
 **[docs/LESSONS.md](docs/LESSONS.md)**. The Room Recorder was removed on 2026-10-04 and lives at git tag
 `room-recorder-last`; the last section of docs/SIM.md says how to restore it.
 
@@ -161,13 +161,6 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
 - Run gradle through Bash, not PowerShell: PowerShell wraps native stderr in ErrorRecords and splits compiler
   messages mid-line, so error counts and file paths become unreadable. Gradle also prints compiler output
   TWICE, so `grep -c "error:"` is double - the `N errors` line javac prints is the authoritative number.
-- **Cancelling a block break makes `AttackBlockCallback` fire every TICK, not once per click.**
-  `MultiPlayerGameMode.continueDestroyBlock` only continues an existing break when `isDestroying` is set, and
-  that field is set inside `startDestroyBlock` - which is where the callback lives and which a cancel returns
-  from first. So holding the button re-enters the callback twenty times a second (verified by `javap -c`:
-  `continueDestroyBlock` calls `startDestroyBlock` on its fallback path). The sim's Dungeon Breaker spent its
-  whole twenty-charge bar in one second this way. Anything that consumes that callback needs its own
-  edge-detection - track the block and clear it when `keyAttack` comes up.
 - **One room must not have two answers.** A room's clay corner and its rotation are published once and read
   everywhere; if any second place computes them, they will disagree and the symptom will be "my solvers point at
   the wrong block". `SimBuilder` published the PASTE rotation beside a corner computed for the DATABASE rotation,
@@ -237,11 +230,6 @@ elements, Superpairs, Instant Transmission, item identity, gametest) are in
   the command starting the feature, and the Escape that closes the settings tab starting it, each stop it
   immediately - which reads as "I turn it on and it auto turns off". Name the key in the stop message too; "key
   pressed" cannot tell a walk from the feature killing itself.
-- `setBreakerAuraCooldownTicks` clamped to a minimum of 1 while the field defaults to 0, so the default
-  could never be restored once the setter ran. Fixed 2026-09-27; the SLIDER driving it still mapped onto
-  1-20 and was fixed 2026-09-30. A clamp has two halves - the setter and whatever widget feeds it - and a
-  slider whose start position computes negative (`(0 - 1) / 19`) is the tell. Every other numeric setter in
-  the repo was swept on 2026-09-30 and has its field default inside its clamp.
 - **A fix applied to one of a set is the thing to go looking for.** The 2026-09-30 audit found four, all of
   the same shape: the Wither Key line was anchored and the Blood Key line beside it left on `contains()`;
   `Floor7Tracker` and `LeverAura` got the `[A-Za-z0-9_]{1,16}` name group and `Ap3Feature`'s copy of the same
