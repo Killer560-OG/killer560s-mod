@@ -36,6 +36,31 @@ public final class DungeonKeys {
     public static final Pattern WITHER_DOOR_OPENED = Pattern.compile("^[A-Za-z0-9_]{1,16} opened a WITHER door!?$");
     public static final Pattern BLOOD_DOOR_OPENED = Pattern.compile("^The BLOOD DOOR has been opened!?$");
 
+    // ---- pickup range (killer560, 2026-10-06: "make sure they have the new updated longer pickup range ... assuming they
+    // have the magnetic talisman") ----
+    /**
+     * SOURCED: Hypixel SkyBlock 0.27.2 (the Minister Update, a permanent addition - "the complete set of 'Minister Perks'"),
+     * F22_Raptor's Folf Shard & Dungeon Improvements: "Increased the pickup range of Wither Keys and Blood Keys in the
+     * Catacombs by 5 blocks" (hypixel.net patch notes; hypixelskyblock.minecraft.wiki Changelog/2026/October 6).
+     */
+    public static final double KEY_RANGE_BONUS = 5.0;
+    /**
+     * SOURCED for ITEMS: hypixelskyblock.minecraft.wiki Magnetic Talisman - "increases the player's item pickup range by 3x
+     * the normal range. Its effects do not stack." UNVERIFIED that it touches keys, which are armour stands, not items.
+     */
+    public static final double TALISMAN_MULTIPLIER = 3.0;
+    /**
+     * UNVERIFIED default for the base key pickup range: neither the wiki nor the patch notes give one. 1 block is
+     * vanilla's own item pickup reach (26.1.2 {@code Player.aiStep}: the hitbox inflated by 1, 0.5, 1 - javap), the
+     * "normal range" the talisman multiplies for items. A setting (Key Base Range) so a measurement can replace it.
+     */
+    public static final double DEFAULT_BASE_RANGE = 1.0;
+
+    /** Blocks from his feet to a key within which it is picked up: base (x3 with the talisman) + the 0.27.2 bonus. */
+    public static double pickupRange(double base, boolean talisman) {
+        return Math.max(0.0, base) * (talisman ? TALISMAN_MULTIPLIER : 1.0) + KEY_RANGE_BONUS;
+    }
+
     /** A key on the ground: its entity id, where it is, and which key. */
     public record Dropped(int id, double x, double y, double z, boolean blood) {
     }

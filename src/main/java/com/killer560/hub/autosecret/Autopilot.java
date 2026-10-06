@@ -520,9 +520,11 @@ final class Autopilot {
             }
             keyRoom.put(k.id(), room);
             boolean none = k.blood() ? DungeonKeys.bloodKey() != 1 : DungeonKeys.witherKeys() <= 0;
-            double d = client.player.position().distanceTo(new net.minecraft.world.phys.Vec3(k.x(), k.y(), k.z()));
-            int warps = Math.max(1, (int) Math.ceil(d * 1.25 / Math.max(1.0, ClearExecutor.hopRange())));
-            double secs = (14 + 2 * warps + 4 * steps) / 20.0 + 1.0;
+            // Only as far as the pickup range from it (talisman and the 0.27.2 +5, AutoSecretConfig.keyPickupRange).
+            double d = client.player.position().distanceTo(new net.minecraft.world.phys.Vec3(k.x(), k.y(), k.z()))
+                    - AutoSecretConfig.getInstance().keyPickupRange();
+            int warps = d <= 0 ? 0 : Math.max(1, (int) Math.ceil(d * 1.25 / Math.max(1.0, ClearExecutor.hopRange())));
+            double secs = (warps == 0 ? 0 : (14 + 2 * warps + 4 * steps) / 20.0) + 1.0;
             String key = (k.blood() ? "Blood Key#" : "Wither Key#") + k.id();
             travelByKey.put(key, secs - 1.0);
             out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.KEY, key,

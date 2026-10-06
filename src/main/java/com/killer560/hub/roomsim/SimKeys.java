@@ -22,13 +22,19 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@code "<name> has obtained Wither Key!"} in chat, as Hypixel does; a wither door opened with the team's key says
  * {@code "<name> opened a WITHER door!"} ({@link SimDoors}).
  *
- * <p>The pickup RANGE is not on the wiki (only that a minister perk adds 5 blocks), so {@link #PICKUP_RANGE} is a guess;
- * anything that picks keys up should stand as close as it can rather than lean on this number.
+ * <p>The pickup range is {@link #pickupRange}.
  */
 public final class SimKeys {
 
-    /** Blocks from the player's feet to the stand. A guess - see the class doc. */
-    public static final double PICKUP_RANGE = 3.0;
+    /**
+     * Blocks from the player's feet to the stand: Hypixel's range as the mod models it
+     * ({@link com.killer560.hub.doorkeys.DungeonKeys#pickupRange} - the 0.27.2 +5 is sourced, the base 1 block is vanilla's
+     * item reach and unverified for keys, the talisman's x3 is sourced for items). The Autopilot's Magnetic Talisman /
+     * Key Base Range settings stand in for what he carries, since the sim has no accessory bag. Was a flat 3-block guess.
+     */
+    public static double pickupRange() {
+        return com.killer560.hub.autosecret.AutoSecretConfig.getInstance().keyPickupRange();
+    }
 
     /** Dropped keys not yet picked up: the stand's UUID -> blood key? */
     private static final Map<UUID, Boolean> DROPPED = new ConcurrentHashMap<>();
@@ -108,6 +114,7 @@ public final class SimKeys {
         }
         try {
             ServerLevel level = server.overworld();
+            double range = pickupRange();
             for (Map.Entry<UUID, Boolean> e : DROPPED.entrySet()) {
                 Entity stand = level.getEntity(e.getKey());
                 if (stand == null) {
@@ -115,7 +122,7 @@ public final class SimKeys {
                 }
                 for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
                     double d = sp.position().distanceTo(stand.position());
-                    if (d > PICKUP_RANGE) {
+                    if (d > range) {
                         continue;
                     }
                     boolean blood = e.getValue();

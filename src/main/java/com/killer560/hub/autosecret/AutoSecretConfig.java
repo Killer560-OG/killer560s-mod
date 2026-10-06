@@ -64,6 +64,12 @@ public final class AutoSecretConfig {
     /** Treat puzzles like rooms (only those whose Auto Puzzles auto is on). */
     private boolean doPuzzles = true;
     private boolean autopilotHud = true;
+    /** He carries a Magnetic Talisman: key pickup range x3 (DungeonKeys - the x3 is sourced for items only). */
+    private boolean magneticTalisman = true;
+    /** The base key pickup range in blocks (unverified - see DungeonKeys.DEFAULT_BASE_RANGE). */
+    private double keyBaseRange = com.killer560.hub.doorkeys.DungeonKeys.DEFAULT_BASE_RANGE;
+    public static final double MIN_KEY_BASE = 0.5;
+    public static final double MAX_KEY_BASE = 5.0;
 
     private AutoSecretConfig() {
     }
@@ -97,6 +103,10 @@ public final class AutoSecretConfig {
                 cfg.bloodFirst = ConfigJson.getBool(o, "bloodFirst", cfg.bloodFirst);
                 cfg.doPuzzles = ConfigJson.getBool(o, "doPuzzles", cfg.doPuzzles);
                 cfg.autopilotHud = ConfigJson.getBool(o, "autopilotHud", cfg.autopilotHud);
+                cfg.magneticTalisman = ConfigJson.getBool(o, "magneticTalisman", cfg.magneticTalisman);
+                if (o.has("keyBaseRange")) {
+                    cfg.setKeyBaseRange(o.get("keyBaseRange").getAsDouble());
+                }
             } catch (Exception e) {
                 // unreadable file - keep defaults
             }
@@ -120,6 +130,8 @@ public final class AutoSecretConfig {
             o.addProperty("bloodFirst", bloodFirst);
             o.addProperty("doPuzzles", doPuzzles);
             o.addProperty("autopilotHud", autopilotHud);
+            o.addProperty("magneticTalisman", magneticTalisman);
+            o.addProperty("keyBaseRange", keyBaseRange);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -165,4 +177,15 @@ public final class AutoSecretConfig {
 
     public boolean isAutopilotHud() { return autopilotHud; }
     public void setAutopilotHud(boolean v) { autopilotHud = v; }
+
+    public boolean isMagneticTalisman() { return magneticTalisman; }
+    public void setMagneticTalisman(boolean v) { magneticTalisman = v; }
+
+    public double getKeyBaseRange() { return keyBaseRange; }
+    public void setKeyBaseRange(double v) { keyBaseRange = Math.max(MIN_KEY_BASE, Math.min(MAX_KEY_BASE, v)); }
+
+    /** The key pickup range these settings give (DungeonKeys.pickupRange). */
+    public double keyPickupRange() {
+        return com.killer560.hub.doorkeys.DungeonKeys.pickupRange(keyBaseRange, magneticTalisman);
+    }
 }
