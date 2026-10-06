@@ -80,12 +80,13 @@ public final class SimBuilder {
                                             SimRun.begin(Minecraft.getInstance(), null);
                                             return 1;
                                         }))
-                                // The pause menu's "Next room with no routes", for a keybind or a chat macro.
+                                // The next room of All Rooms' set with no routes, for a keybind or a chat macro.
+                                // Only in All Rooms, like /next (SimRoomCycle.isActive).
                                 .then(net.fabricmc.fabric.api.client.command.v2.ClientCommands
                                         .literal("noroutes")
                                         .executes(ctx -> {
                                             Minecraft mc = Minecraft.getInstance();
-                                            mc.execute(() -> SimRoomRoutes.loadNextWithoutRoutes(mc));
+                                            mc.execute(() -> SimRoomCycle.nextWithoutRoutes(mc));
                                             return 1;
                                         }))
                                 .executes(ctx -> {
@@ -1539,6 +1540,15 @@ public final class SimBuilder {
      * than making him generate a whole map to reach it.
      */
     public static void buildSingleRoom(Minecraft client, String roomName) {
+        buildSingleRoom(client, roomName, false);
+    }
+
+    /**
+     * {@link #buildSingleRoom(Minecraft, String)}, saying whether All Rooms asked for it ({@code fromCycle}): any
+     * other single-room load ends the cycle, so {@code /next} and {@code /back} stop working on a room loaded by
+     * itself ({@link SimRoomCycle#isActive}).
+     */
+    static void buildSingleRoom(Minecraft client, String roomName, boolean fromCycle) {
         SimState.setGeneratedFloor(false);
         floorPlan = null;   // a lone room has no doors on the map; spawnFor falls back to its measured doorway
         RoomLibrary.Room room = RoomLibrary.get(roomName);
@@ -1551,9 +1561,10 @@ public final class SimBuilder {
             // Not in a world yet - which is the normal case, because this is reached from the MAIN MENU. It
             // used to open an empty sim here and ask him to run a command once inside, so the room he picked
             // was never placed. The build is queued instead and runs the moment the world exists.
-            SimWorld.open(client, "", c -> buildSingleRoom(c, roomName), "Loading " + roomName);
+            SimWorld.open(client, "", c -> buildSingleRoom(c, roomName, fromCycle), "Loading " + roomName);
             return;
         }
+        SimRoomCycle.noteSingleRoomLoad(fromCycle);
         // An EVEN cell. GRID/2 is 5, which is odd, and rooms live on even cells - so a single-room build
         // landed at -105, half a tile off the lattice every grid-keyed feature measures against (the live
         // map, the room scan, secret routes). The room itself looked right, because the paste and the secrets

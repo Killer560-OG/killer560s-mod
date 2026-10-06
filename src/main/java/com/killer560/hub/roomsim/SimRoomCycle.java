@@ -40,8 +40,16 @@ import com.killer560.hub.compat.McCompat;
  *
  * <p>Each step loads through {@link SimBuilder#buildSingleRoom}, the picker's path, which wipes the grid first - so
  * exactly one room exists at a time, and secrets, waypoints, Auto Routes and room detection behave as they do for
- * a picked room. If he loads a different room from the picker meanwhile and it is in the set, the next step
- * continues from that room.
+ * a picked room.
+ *
+ * <p><b>Filters (2026-10-07).</b> The set is also narrowed by All Rooms' own {@link SimRoomFilters#CYCLE}, edited
+ * from the All Rooms page with the same Filters panel as the designer and the picker. With no filter it is exactly
+ * the set above; see {@link SimRoomFilter} for how choosing a Kind or a Secrets bucket replaces the exclusion.
+ *
+ * <p><b>Only in All Rooms (2026-10-07).</b> killer560: "If i load a single room by itself without doing the one that
+ * goes through all rooms [...] it shouldnt have the next room [...] work or the menu thing for it." So {@code /next},
+ * {@code /back}, their keys and the pause menu's next-room button act only while {@link #isActive}: the room standing
+ * was loaded BY this cycle and is one of its set. A room loaded from the picker ends the cycle, and so does a floor.
  */
 public final class SimRoomCycle {
 
@@ -61,26 +69,32 @@ public final class SimRoomCycle {
     private static Choice choice;
     private static List<String> rooms;
     private static int index = -1;
+    /** Whether the last single-room load was this cycle's own. */
+    private static boolean cycling;
 
     private SimRoomCycle() {
     }
 
     // ------------------------------------------------------------------------------------------- the set
 
-    /** The rooms a choice covers right now, in the picker's order. Empty while the room database is loading. */
+    /**
+     * The rooms a choice covers right now, in the picker's order: All Rooms' filter ({@link SimRoomFilters#CYCLE},
+     * which with nothing chosen is {@link SimRoomRoutes#isEligible}), then the choice's routes test. Empty while the
+     * room database is loading.
+     */
     public static List<String> roomsFor(Choice c) {
         List<String> out = new ArrayList<>();
         if (!RoomDatabase.isReady()) {
             return out;
         }
         for (String name : RoomLibrary.names()) {
-            if (!SimRoomRoutes.isEligible(name)) {
+            if (!SimRoomFilters.CYCLE.matches(name)) {
                 continue;
             }
             boolean keep = switch (c) {
                 case ALL -> true;
-                case WITHOUT_ROUTES -> SimRoomRoutes.matches(name, SimRoomRoutes.Filter.NONE);
-                case WITH_ROUTES -> SimRoomRoutes.matches(name, SimRoomRoutes.Filter.HAS);
+                case WITHOUT_ROUTES -> SimRoomRoutes.routeNodes(name) == 0;
+                case WITH_ROUTES -> SimRoomRoutes.routeNodes(name) > 0;
             };
             if (keep) {
                 out.add(name);
@@ -104,6 +118,45 @@ public final class SimRoomCycle {
         return index;
     }
 
+    /**
+     * Called by {@link SimBuilder#buildSingleRoom} for every single room it places: {@code fromCycle} true only for
+     * this class's own loads. Any other load (the picker) ends the cycle.
+     */
+    static synchronized void noteSingleRoomLoad(boolean fromCycle) {
+        cycling = fromCycle;
+    }
+
+    /**
+     * Whether All Rooms is running: the room standing was loaded by this cycle and is in its set. False on a room
+     * loaded by itself and on a generated floor - which is when {@code /next}, {@code /back}, their keys and the
+     * pause menu's next-room button do nothing.
+     */
+    public static boolean isActive() {
+        List<String> list;
+        synchronized (SimRoomCycle.class) {
+            if (!cycling || rooms == null) {
+                return false;
+            }
+            list = rooms;
+        }
+        String standing = SimRoomRoutes.currentSoloRoom();
+        if (standing == null) {
+            return false;
+        }
+        for (String r : list) {
+            if (r.equalsIgnoreCase(standing)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The "/next and /back only work in All Rooms" line, said when one is used anywhere else. */
+    private static void sayOnlyInAllRooms() {
+        ModChat.send("Sim", ModChat.text("/next and /back only work in All Rooms"),
+                ModChat.dim(" - Dungeon Sim > All Rooms (route practice)"));
+    }
+
     // ------------------------------------------------------------------------------------------- actions
 
     /**
@@ -122,9 +175,11 @@ public final class SimRoomCycle {
             return false;
         }
         List<String> list = roomsFor(c);
+        int filters = SimRoomFilters.CYCLE.activeCount();
+        String which = filters == 0 ? "puzzles, Blood, Entrance, Fairy and 0-secret rooms left out"
+                : filters + (filters == 1 ? " filter" : " filters") + " on";
         if (list.isEmpty()) {
-            ModChat.send("Sim", ModChat.text("No rooms in "), ModChat.value(c.label),
-                    ModChat.dim(" (puzzles, Blood, Entrance, Fairy and 0-secret rooms are left out)"));
+            ModChat.send("Sim", ModChat.text("No rooms in "), ModChat.value(c.label), ModChat.dim(" (" + which + ")"));
             return false;
         }
         synchronized (SimRoomCycle.class) {
@@ -134,8 +189,7 @@ public final class SimRoomCycle {
         }
         ModChat.send("Sim", ModChat.text(c.label + ": "), ModChat.value(String.valueOf(list.size())),
                 ModChat.text(" room(s), one at a time. "),
-                ModChat.dim("/next and /back step through them (puzzles, Blood, Entrance, Fairy and 0-secret "
-                        + "rooms left out)"));
+                ModChat.dim("/next and /back step through them (" + which + ")"));
         load(client);
         return true;
     }
@@ -150,26 +204,16 @@ public final class SimRoomCycle {
             ModChat.send("Sim", ModChat.text("Only works inside the dungeon sim."));
             return false;
         }
+        // A room loaded by itself, a generated floor, or no set picked yet: nothing to step through.
+        if (!isActive()) {
+            sayOnlyInAllRooms();
+            return false;
+        }
         List<String> list;
         int at;
         synchronized (SimRoomCycle.class) {
             list = rooms;
             at = index;
-        }
-        if (list == null || list.isEmpty()) {
-            ModChat.send("Sim", ModChat.text("Pick a set first: "),
-                    ModChat.value("Dungeon Sim > All Rooms (route practice)"), ModChat.dim(" (or /map in the sim)"));
-            return false;
-        }
-        // He may have loaded another room from the picker since; continue from it when it is in the set.
-        String standing = SimRoomRoutes.currentSoloRoom();
-        if (standing != null) {
-            for (int i = 0; i < list.size(); i++) {
-                if (list.get(i).equalsIgnoreCase(standing)) {
-                    at = i;
-                    break;
-                }
-            }
         }
         int target = at + delta;
         if (target < 0 || target >= list.size()) {
@@ -189,6 +233,49 @@ public final class SimRoomCycle {
         return true;
     }
 
+    /**
+     * {@code /simbuild noroutes}: the next room of the set, after the one standing, with no Auto Routes nodes. Like
+     * {@code /next}, only in All Rooms.
+     *
+     * @return the room it started loading, or null when it loaded nothing
+     */
+    public static String nextWithoutRoutes(Minecraft client) {
+        if (!SimState.canAct(client)) {
+            ModChat.send("Sim", ModChat.text("Only works inside the dungeon sim."));
+            return null;
+        }
+        if (!isActive()) {
+            sayOnlyInAllRooms();
+            return null;
+        }
+        List<String> list;
+        int at;
+        synchronized (SimRoomCycle.class) {
+            list = rooms;
+            at = index;
+        }
+        int target = -1;
+        for (int i = at + 1; i < list.size(); i++) {
+            if (SimRoomRoutes.routeNodes(list.get(i)) == 0) {
+                target = i;
+                break;
+            }
+        }
+        if (target < 0) {
+            ModChat.send("Sim", ModChat.text("No room after this one in " + choice.label + " is without routes."));
+            return null;
+        }
+        if (SimBuildQueue.isBusy()) {
+            ModChat.send("Sim", ModChat.text("Still building the last room - try again in a moment."));
+            return null;
+        }
+        synchronized (SimRoomCycle.class) {
+            index = target;
+        }
+        load(client);
+        return list.get(target);
+    }
+
     /** Says which room, then loads it through the picker's own single-room path. */
     private static void load(Minecraft client) {
         String name;
@@ -205,7 +292,7 @@ public final class SimRoomCycle {
         ModChat.send("Sim", ModChat.text("Room " + (at + 1) + "/" + total + ": "), ModChat.value(name),
                 ModChat.dim(" (" + secrets + (secrets == 1 ? " secret" : " secrets") + ", routes: "
                         + (routed ? "yes" : "no") + ")"));
-        SimBuilder.buildSingleRoom(client, name);
+        SimBuilder.buildSingleRoom(client, name, true);
     }
 
     // ------------------------------------------------------------------------------------------- keybinds
@@ -290,10 +377,11 @@ public final class SimRoomCycle {
         }
         boolean next = KeyUtil.isBindDown(client.getWindow(), getNextKey());
         boolean back = KeyUtil.isBindDown(client.getWindow(), getBackKey());
-        if (next && !nextWasDown) {
-            step(client, 1);
-        } else if (back && !backWasDown) {
-            step(client, -1);
+        // Outside All Rooms the keys do nothing at all - no step, and no chat line on every press.
+        if ((next && !nextWasDown) || (back && !backWasDown)) {
+            if (isActive()) {
+                step(client, next && !nextWasDown ? 1 : -1);
+            }
         }
         nextWasDown = next;
         backWasDown = back;

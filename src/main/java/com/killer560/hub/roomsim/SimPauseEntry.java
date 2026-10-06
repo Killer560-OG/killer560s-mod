@@ -101,17 +101,19 @@ public final class SimPauseEntry {
         ownButton = new WeakReference<>(button);
         nextButton = new WeakReference<>(null);
 
-        // killer560 (2026-10-05): "while in a solo map an option that says something like go to a new room with
-        // 0 routes in it". Only on a room loaded on its own - on a generated floor "the next room" means nothing.
-        if (SimRoomRoutes.currentSoloRoom() == null) {
+        // All Rooms' next room, as /next. Only while All Rooms is running: killer560 (2026-10-07), "If i load a
+        // single room by itself without doing the one that goes through all rooms [...] it shouldnt have the next
+        // room [...] work or the menu thing for it." Until then this was "Next room with no routes" on any room
+        // loaded by itself.
+        if (!SimRoomCycle.isActive()) {
             return;
         }
         Button next = Button.builder(Component.literal(NEXT_LABEL), btn -> {
-                    if (SimRoomRoutes.loadNextWithoutRoutes(client) != null) {
+                    if (SimRoomCycle.step(client, 1)) {
                         McCompat.setScreen(client, null);
                     } else {
                         // Said in chat as well; the button says it where he is looking.
-                        btn.setMessage(Component.literal("No other room without routes"));
+                        btn.setMessage(Component.literal("That is the last room"));
                         btn.active = false;
                     }
                 })
@@ -122,7 +124,7 @@ public final class SimPauseEntry {
         nextButton = new WeakReference<>(next);
     }
 
-    static final String NEXT_LABEL = "Next room with no routes";
+    static final String NEXT_LABEL = "Next room (All Rooms)";
 
     private static WeakReference<AbstractWidget> nextButton = new WeakReference<>(null);
 

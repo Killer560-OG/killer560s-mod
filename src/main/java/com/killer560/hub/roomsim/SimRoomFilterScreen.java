@@ -1,39 +1,67 @@
 package com.killer560.hub.roomsim;
 
 import com.killer560.hub.compat.McCompat;
-import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.profit.ProfitPanels;
 import com.killer560.hub.roomdatabase.RoomDatabase;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.narration.NarratedElementType;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.IntConsumer;
 
 /**
- * The map designer's room filters, as a popup over the designer.
+ * The sim's Filters panel: one widget for every room filter the sim has (the Map Designer's, Load a Room's and All
+ * Rooms'), so the three cannot look or behave differently. The rules live in {@link SimRoomFilter}; this only edits
+ * one.
  *
- * <p>killer560 (2026-10-06): "in the generate a map thing have a filter section where i can filter based on things
- * like puzzles, room size, secrets in a room, etc." The rules themselves live in {@link SimRoomFilters}; this only
- * edits them. A screen of its own rather than a panel inside the designer, because the designer has no free space
- * at a small window - its grid, list and two button rows already fill it - and a popup cannot overlap any of them.
+ * <p>killer560 (2026-10-07), with a mockup: a dark panel titled "Filters" with a "Clear all" pill top-right, and one
+ * row per category - a grey label on the left, rounded chips on the right, a chosen chip drawn with a lighter fill
+ * and border. Rows: Size, Kind, Rare room, Secrets and Your routes from the mockup, then Puzzles and Crypts, which the
+ * designer's filters already had and are kept in the same style.
  *
- * <p>The rows flow: toggles wrap onto as many lines as the width needs, and when that is taller than the window the
- * rows scroll (mouse wheel) between the header and the footer, so nothing is ever drawn over anything else.
+ * <p>The chips flow: they wrap onto as many lines as the width needs, and on a narrow window the labels go on a line
+ * of their own above their chips. When that is taller than the window the rows scroll (mouse wheel) between the
+ * header and the footer, so nothing is ever drawn over anything else - testkit 75 and 97-sim-roomcycle check every
+ * chip's box against every other at several window sizes.
  */
 public class SimRoomFilterScreen extends Screen {
 
-    private static final int BTN_H = 16;
-    private static final int PITCH = 18;
+    static final int CHIP_H = 16;
+    private static final int CHIP_GAP = 4;
+    private static final int LINE = CHIP_H + 4;
+    private static final int ROW_GAP = 5;
     private static final int PAD = 12;
+    private static final int HEADER = 28;
+    private static final int FOOTER = 26;
+    /** Below this many pixels for chips beside the labels, each label takes a line of its own. */
+    private static final int MIN_CHIP_AREA = 150;
+
+    // The mockup's greys.
+    private static final int SHADE = 0xAA000000;
+    private static final int PANEL_BG = 0xFF17191C;
+    private static final int PANEL_BORDER = 0xFF2E3238;
+    private static final int TITLE = 0xFFF2F2F2;
+    private static final int LABEL = 0xFF9BA0A6;
+    private static final int DIM = 0xFF6E737A;
+    static final int CHIP_BG = 0xFF1C1F23;
+    static final int CHIP_BORDER = 0xFF3A3F46;
+    static final int CHIP_BORDER_HOVER = 0xFF5C626B;
+    static final int CHIP_TEXT = 0xFFDADDE1;
+    static final int CHIP_ON_BG = 0xFF4B5058;
+    static final int CHIP_ON_BORDER = 0xFFBFC4CB;
+    static final int CHIP_ON_TEXT = 0xFFFFFFFF;
+    static final int CHIP_OFF_TEXT = 0xFF555A61;
 
     private final Screen parent;
+    private final SimRoomFilter filter;
+    private final String note;
 
     private int panelX;
     private int panelY;
@@ -52,136 +80,154 @@ public class SimRoomFilterScreen extends Screen {
     private int shown;
     private int total;
 
+    /** The Map Designer's filters - what its Filters button opens. */
     public SimRoomFilterScreen(Screen parent) {
-        super(Component.literal("Room filters"));
+        this(parent, SimRoomFilters.DESIGNER,
+                "Narrows the list, Fill and Generate. Required rooms always generate.");
+    }
+
+    public SimRoomFilterScreen(Screen parent, SimRoomFilter filter, String note) {
+        super(Component.literal("Filters"));
         this.parent = parent;
+        this.filter = filter;
+        this.note = note;
+    }
+
+    /** The filter this panel edits. For the testkit. */
+    public SimRoomFilter filter() {
+        return filter;
     }
 
     @Override
     protected void init() {
-        baseY.clear();
-        labels.clear();
-        panelW = Math.min(this.width - 20, 520);
-        panelH = Math.min(this.height - 20, 310);
-        panelX = (this.width - panelW) / 2;
-        panelY = (this.height - panelH) / 2;
-        contentTop = panelY + 56;
-        contentBottom = panelY + panelH - 30;
-
-        int labelW = 0;
-        for (String l : new String[]{"Type", "Puzzles", "Size", "Secrets", "Crypts", "Routes"}) {
-            labelW = Math.max(labelW, this.font.width(l));
+        panelW = Math.min(this.width - 16, 480);
+        layout(Math.min(this.height - 16, 340));
+        // Shrink the panel to its rows when they need less than the window gives, as the mockup's panel does; the
+        // second pass lays everything out again at the new height, so nothing is moved after the fact.
+        int fitted = HEADER + contentHeight + FOOTER + 2;
+        if (fitted < panelH) {
+            clearWidgets();
+            layout(fitted);
         }
-        int x0 = panelX + PAD + labelW + 8;
-        int x1 = panelX + panelW - PAD - 4;   // 4 for the scrollbar
-        int y = contentTop + 2;
-
-        List<Toggle> types = new ArrayList<>();
-        for (String t : SimRoomFilters.presentTypes()) {
-            types.add(new Toggle(SimRoomFilters.typeLabel(t), SimRoomFilters.isTypeShown(t), true,
-                    () -> SimRoomFilters.setTypeShown(t, !SimRoomFilters.isTypeShown(t))));
-        }
-        y = flowRow("Type", types, x0, x1, y);
-
-        boolean puzzlesOn = SimRoomFilters.isTypeShown("PUZZLE");
-        List<String> puzzles = SimRoomFilters.puzzleNames();
-        List<Toggle> pz = new ArrayList<>();
-        pz.add(new Toggle("All", null, puzzlesOn, () -> puzzles.forEach(p -> SimRoomFilters.setPuzzleShown(p, true))));
-        pz.add(new Toggle("None", null, puzzlesOn, () -> puzzles.forEach(p -> SimRoomFilters.setPuzzleShown(p, false))));
-        for (String p : puzzles) {
-            pz.add(new Toggle(p, SimRoomFilters.isPuzzleShown(p), puzzlesOn,
-                    () -> SimRoomFilters.setPuzzleShown(p, !SimRoomFilters.isPuzzleShown(p))));
-        }
-        y = flowRow("Puzzles", pz, x0, x1, y);
-
-        List<Toggle> shapes = new ArrayList<>();
-        for (String s : SimRoomFilters.SHAPES) {
-            shapes.add(new Toggle(s, SimRoomFilters.isShapeShown(s), true,
-                    () -> SimRoomFilters.setShapeShown(s, !SimRoomFilters.isShapeShown(s))));
-        }
-        y = flowRow("Size", shapes, x0, x1, y);
-
-        int[] max = SimRoomFilters.maxima();
-        y = rangeRow("Secrets", max[0], SimRoomFilters.getMinSecrets(), SimRoomFilters.getMaxSecrets(),
-                v -> SimRoomFilters.setSecrets(v, SimRoomFilters.getMaxSecrets()),
-                v -> SimRoomFilters.setSecrets(SimRoomFilters.getMinSecrets(), v), x0, x1, y);
-        y = rangeRow("Crypts", max[1], SimRoomFilters.getMinCrypts(), SimRoomFilters.getMaxCrypts(),
-                v -> SimRoomFilters.setCrypts(v, SimRoomFilters.getMaxCrypts()),
-                v -> SimRoomFilters.setCrypts(SimRoomFilters.getMinCrypts(), v), x0, x1, y);
-
-        SimRoomRoutes.Filter routes = SimRoomFilters.getRoutes();
-        List<Toggle> rt = new ArrayList<>();
-        for (SimRoomRoutes.Filter f : SimRoomRoutes.Filter.values()) {
-            String label = switch (f) {
-                case ALL -> "Any";
-                case HAS -> "Has Auto Routes";
-                case NONE -> "No Auto Routes";
-            };
-            rt.add(new Toggle(label, routes == f, true, () -> SimRoomFilters.setRoutes(f)));
-        }
-        y = flowRow("Routes", rt, x0, x1, y);
-        contentHeight = y - contentTop;
-
-        // Footer: outside the scrolling band, so always reachable.
-        int fy = panelY + panelH - 24;
-        int fw = Math.min(110, (panelW - PAD * 2 - 6) / 2);
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset filters"), b -> {
-            SimRoomFilters.reset();
-            rebuildWidgets();
-        }).bounds(panelX + PAD, fy, fw, 18).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aDone"), b -> onClose())
-                .bounds(panelX + panelW - PAD - fw, fy, fw, 18).build());
-
         applyScroll();
         recount();
     }
 
-    /** A toggle button: {@code on} null for a plain action button ("All", "None"). */
-    private record Toggle(String label, Boolean on, boolean active, Runnable press) {
+    private void layout(int height) {
+        baseY.clear();
+        labels.clear();
+        panelH = height;
+        panelX = (this.width - panelW) / 2;
+        panelY = (this.height - panelH) / 2;
+        contentTop = panelY + HEADER;
+        contentBottom = panelY + panelH - FOOTER;
+
+        // Header: "Clear all" top-right.
+        int clearW = this.font.width("Clear all") + 16;
+        addRenderableWidget(new Chip("Clear all", "", false, true, () -> {
+            filter.clear();
+            rebuildWidgets();
+        }, panelX + panelW - PAD - clearW, panelY + 6, clearW));
+        // Footer: Done bottom-right, outside the scrolling band so it is always reachable.
+        int doneW = this.font.width("Done") + 24;
+        addRenderableWidget(new Chip("Done", "", false, true, this::onClose,
+                panelX + panelW - PAD - doneW, panelY + panelH - FOOTER + 5, doneW));
+
+        String[] names = {"Size", "Kind", "Rare room", "Secrets", "Your routes", "Puzzles", "Crypts"};
+        int labelW = 0;
+        for (String l : names) {
+            labelW = Math.max(labelW, this.font.width(l));
+        }
+        int left = panelX + PAD;
+        int x1 = panelX + panelW - PAD - 4;   // 4 for the scrollbar
+        boolean stacked = x1 - (left + labelW + 10) < MIN_CHIP_AREA;
+        int x0 = stacked ? left : left + labelW + 10;
+        int y = contentTop + 4;
+
+        List<Chip> size = new ArrayList<>();
+        for (String s : SimRoomFilter.SIZES) {
+            size.add(chip("Size", "L".equals(s) ? "L shape" : s, filter.hasSize(s), true,
+                    () -> filter.toggleSize(s)));
+        }
+        y = row("Size", size, left, x0, x1, y, stacked);
+
+        List<Chip> kind = new ArrayList<>();
+        for (String k : SimRoomFilter.KINDS) {
+            kind.add(chip("Kind", SimRoomFilter.kindLabel(k), filter.hasKind(k), true, () -> filter.toggleKind(k)));
+        }
+        y = row("Kind", kind, left, x0, x1, y, stacked);
+
+        List<Chip> rare = new ArrayList<>();
+        for (SimRoomFilter.Rare r : SimRoomFilter.Rare.values()) {
+            rare.add(chip("Rare room", r.label, filter.rare() == r, true, () -> filter.setRare(r)));
+        }
+        y = row("Rare room", rare, left, x0, x1, y, stacked);
+
+        List<Chip> secrets = new ArrayList<>();
+        for (SimRoomFilter.Count c : SimRoomFilter.Count.values()) {
+            secrets.add(chip("Secrets", c.label, filter.secrets() == c, true, () -> filter.setSecrets(c)));
+        }
+        y = row("Secrets", secrets, left, x0, x1, y, stacked);
+
+        List<Chip> routes = new ArrayList<>();
+        for (SimRoomRoutes.Filter f : new SimRoomRoutes.Filter[]{
+                SimRoomRoutes.Filter.ALL, SimRoomRoutes.Filter.HAS, SimRoomRoutes.Filter.NONE}) {
+            String label = switch (f) {
+                case ALL -> "Any";
+                case HAS -> "Has routes";
+                case NONE -> "No routes";
+            };
+            routes.add(chip("Your routes", label, filter.routes() == f, true, () -> filter.setRoutes(f)));
+        }
+        y = row("Your routes", routes, left, x0, x1, y, stacked);
+
+        boolean puzzlesOn = filter.puzzlesInPlay();
+        List<Chip> puzzles = new ArrayList<>();
+        for (String p : SimRoomFilters.puzzleNames()) {
+            puzzles.add(chip("Puzzles", p, filter.hasPuzzle(p), puzzlesOn, () -> filter.togglePuzzle(p)));
+        }
+        if (!puzzles.isEmpty()) {
+            y = row("Puzzles", puzzles, left, x0, x1, y, stacked);
+        }
+
+        List<Chip> crypts = new ArrayList<>();
+        for (SimRoomFilter.Count c : SimRoomFilter.Count.values()) {
+            crypts.add(chip("Crypts", c.label, filter.crypts() == c, true, () -> filter.setCrypts(c)));
+        }
+        y = row("Crypts", crypts, left, x0, x1, y, stacked);
+        contentHeight = y - contentTop;
     }
 
-    /** Lays toggles left to right from x0, wrapping before x1; returns the y below the row. */
-    private int flowRow(String label, List<Toggle> toggles, int x0, int x1, int y) {
-        labels.add(new Object[]{label, panelX + PAD, y + 4});
+    private Chip chip(String row, String label, boolean on, boolean active, Runnable change) {
+        Chip c = new Chip(label, row, on, active, () -> {
+            change.run();
+            rebuildWidgets();
+        }, 0, 0, 0);
+        return c;
+    }
+
+    /** Lays a row's chips left to right from x0, wrapping before x1; returns the y below the row. */
+    private int row(String label, List<Chip> chips, int left, int x0, int x1, int y, boolean stacked) {
+        if (stacked) {
+            labels.add(new Object[]{label, left, y});
+            y += 11;
+        } else {
+            labels.add(new Object[]{label, left, y + (CHIP_H - 8) / 2});
+        }
         int x = x0;
-        for (Toggle t : toggles) {
-            int w = Math.min(x1 - x0, this.font.width(t.label()) + 12);
+        for (Chip c : chips) {
+            int w = Math.min(x1 - x0, this.font.width(c.label) + 16);
             if (x + w > x1 && x > x0) {
                 x = x0;
-                y += PITCH;
+                y += LINE;
             }
-            String text = t.on() == null ? "§7" + t.label()
-                    : t.on() ? "§6" + t.label() : "§8§m" + t.label();
-            SettingsButtonWidget b = SettingsButtonWidget.builder(Component.literal(text), btn -> {
-                t.press().run();
-                rebuildWidgets();
-            }).bounds(x, y, w, BTN_H).build();
-            b.active = t.active();
-            addScrolled(b, y);
-            x += w + 4;
+            c.setX(x);
+            c.setWidth(w);
+            baseY.put(c, y);
+            addRenderableWidget(c);
+            x += w + CHIP_GAP;
         }
-        return y + PITCH + 4;
-    }
-
-    /** A "min" and a "max" slider side by side; the max slider's last stop is "any". */
-    private int rangeRow(String label, int top, int min, int max, IntConsumer onMin, IntConsumer onMax,
-                         int x0, int x1, int y) {
-        labels.add(new Object[]{label, panelX + PAD, y + 4});
-        int w = (x1 - x0 - 6) / 2;
-        addScrolled(new RangeSlider(x0, y, w, "Min", 0, top, false, Math.min(min, top), v -> {
-            onMin.accept(v);
-            recount();
-        }), y);
-        addScrolled(new RangeSlider(x0 + w + 6, y, w, "Max", 0, top, true, max < 0 ? -1 : Math.min(max, top), v -> {
-            onMax.accept(v);
-            recount();
-        }), y);
-        return y + PITCH + 4;
-    }
-
-    private void addScrolled(AbstractWidget w, int y) {
-        baseY.put(w, y);
-        addRenderableWidget(w);
+        return y + CHIP_H + ROW_GAP + 4;
     }
 
     private int maxScroll() {
@@ -193,7 +239,7 @@ public class SimRoomFilterScreen extends Screen {
         for (Map.Entry<AbstractWidget, Integer> e : baseY.entrySet()) {
             AbstractWidget w = e.getKey();
             w.setY(e.getValue() - scroll);
-            // Only a widget wholly inside the band is shown, and so clickable - never one under the header/footer.
+            // Only a chip wholly inside the band is shown, and so clickable - never one under the header/footer.
             w.visible = w.getY() >= contentTop && w.getY() + w.getHeight() <= contentBottom;
         }
     }
@@ -203,7 +249,7 @@ public class SimRoomFilterScreen extends Screen {
         total = all.size();
         int n = 0;
         for (String name : all) {
-            n += SimRoomFilters.listMatches(name) ? 1 : 0;
+            n += filter.matches(name) ? 1 : 0;
         }
         shown = n;
     }
@@ -211,7 +257,7 @@ public class SimRoomFilterScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double dx, double dy) {
         if (maxScroll() > 0) {
-            scroll -= (int) (dy * PITCH);
+            scroll -= (int) (dy * LINE);
             applyScroll();
             return true;
         }
@@ -225,64 +271,40 @@ public class SimRoomFilterScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        g.fill(0, 0, this.width, this.height, 0xCC000000);
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, ProfitPanels.PANEL_BG);
-        g.outline(panelX, panelY, panelW, panelH, ProfitPanels.BORDER);
-        g.fill(panelX, panelY, panelX + panelW, panelY + 30, 0xFF000000);
-        g.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
-        g.text(this.font, "ROOM FILTERS", panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
+        g.fill(0, 0, this.width, this.height, SHADE);
+        pill(g, panelX, panelY, panelW, panelH, 6, PANEL_BG, PANEL_BORDER);
+        g.text(this.font, "Filters", panelX + PAD, panelY + 10, TITLE, false);
         String count = shown + " of " + total + " rooms";
-        g.text(this.font, count, panelX + panelW - 10 - this.font.width(count), panelY + 11,
-                shown == total ? ProfitPanels.DIM : ProfitPanels.ACCENT, false);
-        int lineW = panelW - 20;
-        g.text(this.font, fit("Filters the room list, Fill and Generate.", "Filters the list, Fill and Generate",
-                lineW), panelX + 10, panelY + 34, ProfitPanels.TEXT, false);
-        g.text(this.font, fit("Generate always keeps Entrance, Blood, Fairy and Trap. Puzzles follow only their own toggles.",
-                "Entrance/Blood/Fairy/Trap always generate", lineW), panelX + 10, panelY + 44, ProfitPanels.DIM, false);
-        if (!RoomDatabase.isReady()) {
-            g.text(this.font, fit("room database loading...", null, lineW), panelX + 10, contentBottom + 2,
-                    ProfitPanels.DIM, false);
+        int countX = panelX + PAD + this.font.width("Filters") + 10;
+        int clearX = panelX + panelW - PAD - this.font.width("Clear all") - 16;
+        if (countX + this.font.width(count) < clearX - 6) {
+            g.text(this.font, count, countX, panelY + 10, filter.isDefault() ? DIM : LABEL, false);
         }
+        g.fill(panelX + 1, contentTop - 2, panelX + panelW - 1, contentTop - 1, PANEL_BORDER);
+        g.fill(panelX + 1, contentBottom + 1, panelX + panelW - 1, contentBottom + 2, PANEL_BORDER);
+        int noteW = panelW - PAD * 2 - this.font.width("Done") - 24 - 8;
+        String foot = RoomDatabase.isReady() ? note : "room database loading...";
+        g.text(this.font, this.font.plainSubstrByWidth(foot, Math.max(0, noteW)), panelX + PAD,
+                panelY + panelH - FOOTER + 9, DIM, false);
 
         g.enableScissor(panelX + 1, contentTop, panelX + panelW - 1, contentBottom);
         for (Object[] l : labels) {
             int ly = (Integer) l[2] - scroll;
-            // Same rule as the widgets (applyScroll): a label shows only when its row's first line fits whole, so a
-            // label is never left standing beside controls that are scrolled out of sight.
-            int rowY = ly - 4;
-            if (rowY >= contentTop && rowY + BTN_H <= contentBottom) {
-                g.text(this.font, (String) l[0], (Integer) l[1], ly, ProfitPanels.TEXT, false);
+            // Same rule as the chips (applyScroll): a label shows only when it fits whole in the band.
+            if (ly >= contentTop && ly + 9 <= contentBottom) {
+                g.text(this.font, (String) l[0], (Integer) l[1], ly, LABEL, false);
             }
         }
         g.disableScissor();
         if (maxScroll() > 0) {
             int band = contentBottom - contentTop;
-            int bar = Math.max(12, band * band / (contentHeight));
+            int bar = Math.max(12, band * band / contentHeight);
             int by = contentTop + (band - bar) * scroll / maxScroll();
-            int sx = panelX + panelW - PAD + 2;
-            g.fill(sx, contentTop, sx + 3, contentBottom, 0xFF1A1A1A);
-            g.fill(sx, by, sx + 3, by + bar, ProfitPanels.ACCENT);
+            int sx = panelX + panelW - PAD + 4;
+            g.fill(sx, contentTop, sx + 3, contentBottom, 0xFF22252A);
+            g.fill(sx, by, sx + 3, by + bar, CHIP_ON_BORDER);
         }
         super.extractRenderState(g, mouseX, mouseY, partialTick);
-    }
-
-    /** The full text if it fits, else the shorter one, else the shorter one trimmed with an ellipsis. */
-    private String fit(String full, String shorter, int maxWidth) {
-        if (this.font.width(full) <= maxWidth) {
-            return full;
-        }
-        if (shorter != null && this.font.width(shorter) <= maxWidth) {
-            return shorter;
-        }
-        String c = shorter != null ? shorter : full;
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < c.length(); i++) {
-            if (this.font.width(sb.toString() + c.charAt(i) + "...") > maxWidth) {
-                break;
-            }
-            sb.append(c.charAt(i));
-        }
-        return sb + "...";
     }
 
     @Override
@@ -291,54 +313,79 @@ public class SimRoomFilterScreen extends Screen {
     }
 
     /**
-     * A whole-number slider for a bound. With {@code anyAtTop} the track has one stop past {@code max}, which
-     * reads "any" and reports -1 - the same "one extra stop" idea as {@link SimSlider}'s Random.
+     * A rounded box: the border colour as a rounded fill, then the fill colour one pixel in. Corners are cut row by
+     * row from a circle of radius {@code r}.
      */
-    static final class RangeSlider extends AbstractSliderButton {
+    static void pill(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int fill, int border) {
+        rounded(g, x, y, w, h, r, border);
+        rounded(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), fill);
+    }
+
+    private static void rounded(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int colour) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        r = Math.min(r, Math.min(w, h) / 2);
+        for (int d = 0; d < r; d++) {
+            double dy = r - d - 0.5;
+            int inset = r - (int) Math.round(Math.sqrt(Math.max(0, r * r - dy * dy)));
+            g.fill(x + inset, y + d, x + w - inset, y + d + 1, colour);
+            g.fill(x + inset, y + h - d - 1, x + w - inset, y + h - d, colour);
+        }
+        if (h - 2 * r > 0) {
+            g.fill(x, y + r, x + w, y + h - r, colour);
+        }
+    }
+
+    /**
+     * One rounded chip: a toggle in a row, or a plain action ("Clear all", "Done") when {@code row} is empty. Its
+     * message is the bare label, so a test can find it by name; {@link #row()} says which row it is in.
+     */
+    public static final class Chip extends AbstractWidget {
         private final String label;
-        private final int min;
-        private final int max;
-        private final boolean anyAtTop;
-        private final IntConsumer onChange;
+        private final String row;
+        private final boolean selected;
+        private final Runnable press;
 
-        RangeSlider(int x, int y, int width, String label, int min, int max, boolean anyAtTop, int value,
-                    IntConsumer onChange) {
-            super(x, y, width, BTN_H, Component.empty(), position(value, min, max, anyAtTop));
+        Chip(String label, String row, boolean selected, boolean active, Runnable press, int x, int y, int width) {
+            super(x, y, width, CHIP_H, Component.literal(label));
             this.label = label;
-            this.min = min;
-            this.max = max;
-            this.anyAtTop = anyAtTop;
-            this.onChange = onChange;
-            updateMessage();
+            this.row = row;
+            this.selected = selected;
+            this.press = press;
+            this.active = active;
         }
 
-        private static double position(int value, int min, int max, boolean anyAtTop) {
-            int top = anyAtTop ? max + 1 : max;
-            if (top <= min) {
-                return 0.0;
-            }
-            int v = anyAtTop && value < 0 ? top : Math.max(min, Math.min(max, value));
-            return (double) (v - min) / (top - min);
+        /** The row's label ("Size", "Kind", ...), or "" for an action chip. */
+        public String row() {
+            return row;
         }
 
-        /** @return the bound, or -1 for "any" */
-        int intValue() {
-            int top = anyAtTop ? max + 1 : max;
-            int raw = (int) Math.round(min + this.value * (top - min));
-            return anyAtTop && raw > max ? -1 : raw;
+        public boolean selected() {
+            return selected;
         }
 
         @Override
-        protected void updateMessage() {
-            int v = intValue();
-            setMessage(Component.literal(label + ": " + (v < 0 ? "§7any" : "§6" + v)));
+        protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+            int bg = selected ? CHIP_ON_BG : CHIP_BG;
+            int border = selected ? CHIP_ON_BORDER : (isHovered && active ? CHIP_BORDER_HOVER : CHIP_BORDER);
+            int text = !active ? CHIP_OFF_TEXT : selected ? CHIP_ON_TEXT : CHIP_TEXT;
+            pill(g, getX(), getY(), getWidth(), getHeight(), CHIP_H / 2, bg, border);
+            var font = Minecraft.getInstance().font;
+            String shown = font.width(label) <= getWidth() - 8 ? label : font.plainSubstrByWidth(label, getWidth() - 8);
+            g.text(font, shown, getX() + (getWidth() - font.width(shown)) / 2, getY() + (getHeight() - 8) / 2,
+                    text, false);
         }
 
         @Override
-        protected void applyValue() {
-            int v = intValue();
-            this.value = position(v, min, max, anyAtTop);
-            onChange.accept(v);
+        public void onClick(MouseButtonEvent event, boolean doubleClick) {
+            press.run();
+        }
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput output) {
+            output.add(NarratedElementType.TITLE, Component.literal(row.isEmpty() ? label
+                    : row + ": " + label + (selected ? " (selected)" : "")));
         }
     }
 }

@@ -1399,7 +1399,9 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   "Skyblock Only" feature in the sim depends on that.
 - The pause screen's Change Room button is a vanilla `Button` placed 4 px under the lowest button in the centre
   column, read from the screen's widgets, instead of pinned to `height - 46`.
-- **Routes filter and "Next room with no routes" (2026-10-05)** live in `SimRoomRoutes`. Eligible = the room
+- **Routes filter and "Next room with no routes" (2026-10-05)** live in `SimRoomRoutes`. (Superseded 2026-10-07: the
+  picker's Routes button is the Filters panel's "Your routes" row and the solo-room pause button is gone - see "One
+  Filters panel" below.) Eligible = the room
   database entry exists, type is not PUZZLE/BLOOD/ENTRANCE/FAIRY, `secrets > 0` (113 of his 135; every CHAMPION room
   has 0 secrets so they drop out too). "Has routes" = `RouteStore.forRoom(name)` has at least one node; library names
   and database names match for all 135, and routes are stored room-relative, so there is no rotation key to worry
@@ -1411,7 +1413,7 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   `SimRoomRoutes.isEligible` plus `matches(NONE/HAS)`, so the picker's filter and this cannot disagree; order is
   `RoomLibrary.names()`. The list is FROZEN when the set is picked (a room routed mid-walk would otherwise shift every
   index). Each step goes through `SimBuilder.buildSingleRoom`, which wipes the grid, so one room exists at a time.
-  `/next`/`/back` stop at the ends (no wrap), resync to `currentSoloRoom()` if he picked another room of the set, refuse
+  `/next`/`/back` stop at the ends (no wrap), act only while `SimRoomCycle.isActive()` (since 2026-10-07), refuse
   while `SimBuildQueue.isBusy()`, and are `requires(SimState.canAct)` like `/goto`. No installed mod in his Dungeons
   instance or vanilla registers a top-level `/next` or `/back` (constant-pool scan of every jar, 2026-10-06). Keys are
   raw-polled (`killer560smod-sim-roomcycle-keys.txt`), shared by the menu and the Sim Keybinds tab. Testkit
@@ -2571,6 +2573,34 @@ Blood, Fairy, a trap or a pinned room, and lays the floor out again from every r
 - **`ModChat.send` says nothing from the main menu**: it drops the line when `client.player` is null, and the designer opens
   from the main menu. So none of `plan()`'s chat explanations ever reached him there; the designer's status line is the
   only thing he sees, which is why the filter note leads it ("filters too strict - used every room · ...").
+
+## One Filters panel, and /next only in All Rooms (2026-10-07, sim-filters)
+
+killer560, with a mockup of chip rows: "for the room filters it should look kind of like this. If i load a single room by
+itself without doing the one that goes through all rooms [...] it shouldnt have the next room [...] work or the menu thing
+for it. Also the single room should have the same filter option."
+
+- `SimRoomFilter` is the one model (rows, save/load, `matches`), `SimRoomFilterScreen` the one panel (chips are its
+  `Chip` widgets), and `SimRoomFilters` holds three instances - `DESIGNER`, `PICKER`, `CYCLE` - each in its own file. The
+  only per-place difference is the `Use`: the designer exempts puzzles from every row but Kind and Puzzles (Generate's
+  reason, above); All Rooms adds its old exclusion back as the DEFAULT (no Kind chosen: no puzzle/Blood/Entrance/Fairy;
+  no Kind and Secrets Any: no 0-secret room), which with nothing chosen is exactly `SimRoomRoutes.isEligible`. Rows that
+  multi-select store what is CHOSEN, empty meaning any - the reverse of the first designer build's hidden-sets, whose file
+  is read as no filter.
+- All the rows are real database data: Kind is `typeOf` with RARE read as Normal and Old/New Trap as Trap; Rare room is
+  the RARE type (11 in `rooms-modern.json`); Champion is CHAMPION (Default, Dragon, King Midas, Shadow Assassin, all 0
+  secrets); Fairy is FAIRY. Nothing was invented.
+- "Single room" means `SimRoomCycle.isActive()` is false: the last `buildSingleRoom` was not the cycle's own
+  (`buildSingleRoom(client, name, fromCycle)` tells it, AFTER the no-world branch so the main-menu re-entry keeps the flag)
+  or the standing solo room is not in the frozen set. `/next`, `/back` and `/simbuild noroutes` then say "/next and /back
+  only work in All Rooms"; the keys are silent no-ops (checked only on a press, so `currentSoloRoom` is not read every
+  tick); the pause button (`Next room (All Rooms)`, which is `step(+1)`) is not added. The old "continue from a room he
+  picked in the picker" resync went with it - a picker load ends the cycle.
+- The All Rooms submenu itself (Dungeon Sim > All Rooms) is NOT hidden on a single room: it is how a cycle starts.
+- Testkit: `97-sim-roomcycle` (key positive control in All Rooms, then a single room: commands and key build nothing and
+  leave the blocks alone, no pause button; Size 1x1 via the real panel steps only 1x1 rooms), `97-sim-roompick` (Your
+  routes and Size on the picker's panel, persistence, no solo next-room button), `75-sim-map-editor-filters` (chips),
+  `386-ui-sliders` (`ui/FilterPanelCases`: all three filters at four window sizes, every scroll position, wrap proved).
 
 ## Room clears, star tags and blast radii (2026-10-06, Auto Clear)
 
