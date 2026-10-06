@@ -695,6 +695,19 @@ public class SimMapEditorScreen extends Screen {
             int x1 = gridX + Math.min(GRID, ax + fp[0]) * cell - 1;
             int y1 = gridY + Math.min(GRID, az + fp[1]) * cell - 1;
             g.fill(x0, y0, x1, y1, colourFor(name));
+        }
+        drawDoors(g);
+        // Labels last, so a door never covers a room name (killer560, 2026-10-06: "have the room text be higher
+        // up than the doors").
+        for (Map.Entry<Integer, String> e : placements.entrySet()) {
+            String name = e.getValue();
+            int[] fp = footprintOf(name, rotations.getOrDefault(e.getKey(), 0));
+            int ax = e.getKey() % GRID;
+            int az = e.getKey() / GRID;
+            int x0 = gridX + ax * cell + 1;
+            int y0 = gridY + az * cell + 1;
+            int x1 = gridX + Math.min(GRID, ax + fp[0]) * cell - 1;
+            int y1 = gridY + Math.min(GRID, az + fp[1]) * cell - 1;
             // The live map's own fitting, not a truncation. killer560 (2026-10-04): "make it so the text will
             // fit rooms that are too small to load the whole text, just like our normal map would." One word a
             // line, scaled down until the longest word and the line count both fit the room, centred on it -
@@ -703,7 +716,6 @@ public class SimMapEditorScreen extends Screen {
                     x0 + (x1 - x0) / 2f, y0 + (y1 - y0) / 2f, x1 - x0 - 4, y1 - y0 - 4, 1.0f,
                     0xFFFFFFFF, true);
         }
-        drawDoors(g);
         if (mouseX >= gridX && mouseX < gridX + size && mouseY >= gridY && mouseY < gridY + size) {
             int gx = (mouseX - gridX) / cell;
             int gz = (mouseY - gridY) / cell;
@@ -756,8 +768,14 @@ public class SimMapEditorScreen extends Screen {
                     default -> 0xFF8A6A48;
                 };
                 // Across the gap: an ordinary doorway is a third of a cell wide, a special door half of one.
-                int across = Math.max(3, normal ? cell / 3 : cell / 2);
-                int along = Math.max(3, cell / 5);
+                // Special doors are slim bars (killer560, 2026-10-06: "a little overbearing"): narrower across, a
+                // thinner stroke along, and a translucent fill so the room colour shows through.
+                boolean wither = type == com.killer560.hub.livemap.DungeonLayout.DOOR_WITHER || theoretical;
+                int across = Math.max(3, cell / 3);
+                int along = Math.max(3, normal ? cell / 5 : cell / 8);
+                if (!normal) {
+                    colour = (colour & 0x00FFFFFF) | (wither ? 0x99000000 : 0xCC000000);
+                }
                 int x0;
                 int y0;
                 if (betweenX) {
