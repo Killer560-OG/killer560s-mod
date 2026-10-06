@@ -110,9 +110,38 @@ public final class MelodyTrackerFeature {
         applySelf(r);
     }
 
+    /** Rows already announced this opening, so each step goes to party chat once. */
+    private static int lastSentDone = 0;
+
+    /**
+     * "Send Melody Progress" (killer560, 2026-10-06): when the lit clay row moves to row N, N-1 rows are done; post
+     * "Melody done/rows (pct%)" - both the fraction and the percent, so mods reading either style ("1/3", "33%")
+     * pick it up. F7/M7 boss only, straight to party chat (like the coords callout), never the last row (the
+     * terminal closing says that), never twice for the same step.
+     */
+    private static void maybeSendProgress(int clayRow) {
+        if (!com.killer560.hub.terminals.TerminalSolverConfig.getInstance().isMelodySendProgress()
+                || !com.killer560.hub.fastleap.Floor7Tracker.inF7Boss()) {
+            return;
+        }
+        int rows = Math.max(com.killer560.hub.terminals.TerminalLayouts.melodyRows(), clayRow);
+        int done = clayRow - 1;
+        if (done <= lastSentDone || done >= rows) {
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            return;
+        }
+        lastSentDone = done;
+        int pct = Math.round(done * 100f / rows);
+        client.player.connection.sendCommand("pc Melody " + done + "/" + rows + " (" + pct + "%)");
+    }
+
     private static void closeIfOpen() {
         if (open) {
             open = false;
+            lastSentDone = 0;
             lastLitRow = -1;
             lastTarget = -1;
             lastCurrent = -1;
@@ -128,6 +157,7 @@ public final class MelodyTrackerFeature {
                 && r.highestLitClayRow() <= BridgeTables.MELODY_MAX_CLAY_ROW) {
             lastLitRow = r.highestLitClayRow();
             MelodyIntel.offer(self, BridgeTables.MELODY_TYPE_CLAY, lastLitRow);
+            maybeSendProgress(lastLitRow);
         }
         if (r.target() != lastTarget && r.target() >= BridgeTables.MELODY_MIN_COLUMN
                 && r.target() <= BridgeTables.MELODY_MAX_COLUMN) {

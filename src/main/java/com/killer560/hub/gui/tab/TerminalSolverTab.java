@@ -166,6 +166,13 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                         btn.setMessage(melodySendCoordsText());
                     }).bounds(contentX, y, 220, 20).build());
             y += 24;
+            widgets.add(SettingsButtonWidget.builder(melodySendProgressText(), btn -> {
+                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+                        cfg.setMelodySendProgress(!cfg.isMelodySendProgress());
+                        cfg.save();
+                        btn.setMessage(melodySendProgressText());
+                    }).bounds(contentX, y, 220, 20).build());
+            y += 24;
         }
         y += 6;
 
@@ -456,6 +463,11 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
     private static Component melodySendCoordsText() {
         return Component.literal("Send Mel Coords On Open: "
                 + (TerminalSolverConfig.getInstance().isMelodySendCoordsOnOpen() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component melodySendProgressText() {
+        return Component.literal("Send Melody Progress: "
+                + (TerminalSolverConfig.getInstance().isMelodySendProgress() ? "§aON" : "§cOFF"));
     }
 
     private static Component melodyText() {

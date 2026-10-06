@@ -151,6 +151,8 @@ public final class TerminalSolverConfig {
     // your position to party chat the moment the Melody terminal opens. Off by default: it types into
     // party chat, so it's opt-in like every other chat-sending feature here.
     private boolean melodySendCoordsOnOpen = false;
+    /** Party-chat "Melody 1/3 (33%)" as each row is done (killer560, 2026-10-06). Off by default. */
+    private boolean melodySendProgress = false;
     private boolean customGuiEnabled = false;
     // Per killer560's "have a setting where I can make it show the one I need to click, the one after
     // that, then one after that as well" request (2026-09-09, round 11) - extends Numbers' existing
@@ -252,6 +254,7 @@ public final class TerminalSolverConfig {
             cfg.selectEnabled = ConfigJson.getBool(obj, "selectEnabled", true);
             cfg.melodyEnabled = ConfigJson.getBool(obj, "melodyEnabled", true);
             cfg.melodySendCoordsOnOpen = ConfigJson.getBool(obj, "melodySendCoordsOnOpen", false);
+            cfg.melodySendProgress = ConfigJson.getBool(obj, "melodySendProgress", false);
             cfg.customGuiEnabled = ConfigJson.getBool(obj, "customGuiEnabled", false);
             cfg.numbersThreeTierReveal = ConfigJson.getBool(obj, "numbersThreeTierReveal", false);
             cfg.autoTerminalsEnabled = ConfigJson.getBool(obj, "autoTerminalsEnabled", false);
@@ -299,6 +302,7 @@ public final class TerminalSolverConfig {
             obj.addProperty("selectEnabled", selectEnabled);
             obj.addProperty("melodyEnabled", melodyEnabled);
             obj.addProperty("melodySendCoordsOnOpen", melodySendCoordsOnOpen);
+            obj.addProperty("melodySendProgress", melodySendProgress);
             obj.addProperty("customGuiEnabled", customGuiEnabled);
             obj.addProperty("numbersThreeTierReveal", numbersThreeTierReveal);
             obj.addProperty("autoTerminalsEnabled", autoTerminalsEnabled);
@@ -414,6 +418,14 @@ public final class TerminalSolverConfig {
      *  by the solver detecting the Melody terminal in the first place. */
     public boolean isMelodySendCoordsOnOpen() {
         return melodySendCoordsOnOpen;
+    }
+
+    public boolean isMelodySendProgress() {
+        return melodySendProgress;
+    }
+
+    public void setMelodySendProgress(boolean v) {
+        this.melodySendProgress = v;
     }
 
     public void setMelodySendCoordsOnOpen(boolean melodySendCoordsOnOpen) {
