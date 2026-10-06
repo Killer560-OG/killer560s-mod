@@ -102,10 +102,33 @@ public final class ChunkCacheManager {
         // emptied a map under that walk and crashed the client with an NPE in fastutil's iterator (26.2 sim, leaving
         // F7, 2026-10-05; the same race exists on 26.1.2 and on any real server). Everything this cache does with a
         // chunk happens on the render thread, so hand the release over to it; there it can never overlap clearLevel.
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
-            active = false;
-            onLevelChanged(null);
-        }));
+        //
+        // Handed over as a flag the render tick drains, not only as a client.execute task: a pause-menu leave closes
+        // the channel and then Minecraft.disconnect starts with dropAllTasks() (javap 26.1.2), which threw the task
+        // away (the same loss SimWorld had, 97-sim-leave-build). The task stays for promptness; first one wins.
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            PENDING_RELEASE.set(handler);
+            client.execute(() -> drainRelease(client));
+        });
+        ClientTickEvents.END_CLIENT_TICK.register(ChunkCacheManager::drainRelease);
+    }
+
+    /** The connection that closed, until the render thread has released the cache for it. */
+    private static final java.util.concurrent.atomic.AtomicReference<Object> PENDING_RELEASE =
+            new java.util.concurrent.atomic.AtomicReference<>();
+
+    /** Render thread: releases the cache once for a pending disconnect, unless a newer connection already exists. */
+    private static void drainRelease(net.minecraft.client.Minecraft client) {
+        Object closed = PENDING_RELEASE.getAndSet(null);
+        if (closed == null) {
+            return;
+        }
+        var now = client.getConnection();
+        if (now != null && now != closed) {
+            return;
+        }
+        active = false;
+        onLevelChanged(null);
     }
 
     // ---------------------------------------------------------------- state
