@@ -898,9 +898,14 @@ public final class AutoSecretFeature {
             return false;
         }
         String line = com.killer560.hub.doorkeys.DungeonKeys.lastPickupLine();
-        LOGGER.info(String.format(java.util.Locale.US, "[AutoSecret] key: picked up (%s) - %.2f blocks from it the tick"
-                        + " before it went; team now %d wither key(s), blood %d; chat: %s", counted ? "the team's count went up"
-                        : "the key left the world", keyLastDist, com.killer560.hub.doorkeys.DungeonKeys.witherKeys(),
+        // Where he stands NOW against where the key lay: mid-warp the tick before is a whole hop back (run 1 logged
+        // 38.17 for a pickup the sim made at 6.32). The server took it somewhere between the two.
+        double now = client.player.position().distanceTo(new net.minecraft.world.phys.Vec3(keyTarget.x(), keyTarget.y(),
+                keyTarget.z()));
+        LOGGER.info(String.format(java.util.Locale.US, "[AutoSecret] key: picked up (%s) - %.2f blocks from it now, %.2f the"
+                        + " tick before (pickup range %.1f); team now %d wither key(s), blood %d; chat: %s",
+                counted ? "the team's count went up" : "the key left the world", now, keyLastDist,
+                AutoSecretConfig.getInstance().keyPickupRange(), com.killer560.hub.doorkeys.DungeonKeys.witherKeys(),
                 com.killer560.hub.doorkeys.DungeonKeys.bloodKey(), line));
         say(ModChat.good(keyTarget.blood() ? "Blood Key" : "Wither Key"), ModChat.dim(" picked up"));
         if (phase == Phase.TRAVEL && ClearExecutor.isBusy()) {
