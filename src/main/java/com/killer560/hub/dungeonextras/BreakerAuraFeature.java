@@ -75,8 +75,8 @@ public final class BreakerAuraFeature {
             Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.END_PORTAL_FRAME, Blocks.END_PORTAL,
             Blocks.PISTON, Blocks.PISTON_HEAD, Blocks.STICKY_PISTON, Blocks.MOVING_PISTON,
             Blocks.LEVER, Blocks.STONE_BUTTON, Blocks.PLAYER_HEAD, Blocks.PLAYER_WALL_HEAD);
-    // Obsidian left this list 2026-10-05 (killer560: "breaker aura should be able to add obsidian as well"). It is
-    // still never zero-pinged (breakBlock), as in QUOI's BreakerHelper.
+    // Obsidian left this list 2026-10-05 (killer560: "breaker aura should be able to add obsidian as well") and is
+    // treated as any other block, zero-ping included.
 
     private static final Map<BlockPos, Long> RECENT = new HashMap<>();
     /** Edge state for the pick key, so holding it toggles once rather than every tick. */
@@ -692,9 +692,10 @@ public final class BreakerAuraFeature {
 
     private static void breakBlock(MultiPlayerGameModeInvoker invoker, ClientLevel level, BlockPos pos,
                                    Direction face, boolean zeroPing) {
-        BlockState state = level.getBlockState(pos);
         invoker.killer560smod$invokeStartPrediction(level, sequence -> {
-            if (zeroPing && !state.is(Blocks.OBSIDIAN)) {
+            // Obsidian is zero-pinged like any other block (killer560, 2026-10-05: "it should be treated just as
+            // any other block") - QUOI's BreakerHelper exempts it, this does not.
+            if (zeroPing) {
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
             }
             return new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face, sequence);
