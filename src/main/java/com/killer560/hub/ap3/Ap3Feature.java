@@ -223,13 +223,12 @@ public final class Ap3Feature {
     /**
      * Everything {@code /ap3 add <type> ...} can say after the type, applied to the new node. Every field is a
      * modifier in killer560's sense ("design these as general modifiers that apply to any node"): the box size
-     * ({@code w1 l1}), {@code wait:<ms>}, {@code close}, {@code precise}, and the leap / leap-counter targets.
+     * ({@code w1 l1}), {@code wait:<ms>}, {@code precise}, and the leap / leap-counter targets.
      */
     public static final class NodeSpec {
         public Double width;
         public Double length;
         public Integer waitMs;
-        public boolean close;
         public Ap3Node.JumpMod jumpMod;
         public String name;
         public boolean precise;
@@ -258,7 +257,6 @@ public final class Ap3Feature {
             if (waitMs != null) {
                 node.setWaitAfterMs(waitMs);
             }
-            node.closeGate = close;
             if (jumpMod != null) {
                 node.jumpMod = jumpMod;
             }
@@ -617,7 +615,7 @@ public final class Ap3Feature {
         return removed;
     }
 
-    /** Persist after the tab edits a node's fields in place (box, wait, close, leap modifier, colour...). */
+    /** Persist after the tab edits a node's fields in place (box, wait, leap modifier, colour...). */
     public static void saveChains() {
         Ap3Store store = Ap3Store.getInstance();
         store.markEdited();

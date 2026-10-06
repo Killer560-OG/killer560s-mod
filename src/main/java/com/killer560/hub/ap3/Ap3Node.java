@@ -27,8 +27,8 @@ import java.util.Locale;
  * ({@link #snapCentre}) unless the node is {@link #precise}; Y snaps to the block floor.
  * <p>
  * <b>Modifiers</b> (his "modifiers, replacing the wait node", and they apply to ANY node): {@link #waitAfterMs}
- * holds the next queued node by that long after this one is done; {@link #closeGate} makes this node perform only
- * on a manual left click or after a terminal/GUI closes.
+ * holds the next queued node by that long after this one is done. (The {@code close} modifier, which made a node
+ * wait for a manual left click or a closed GUI, was removed on 2026-10-06.)
  * <p>
  * A stored {@link #yaw} is <b>data</b>: it is only ever turned into a world direction ({@link #dir()}) or handed to
  * {@code RouteRotation} as a target that becomes a wrapped delta on the live yaw. It is never written to the player
@@ -150,6 +150,38 @@ public final class Ap3Node {
             };
         }
 
+        /**
+         * Whether a node of this type reads its {@link Ap3Node#yaw}: the travel direction of a WALK / RUN, and the aim of
+         * the four nodes that look somewhere ({@link #usesPitch()}). Every other type is placed and run without it
+         * (traced through {@code Ap3Executor}, {@code Ap3Renderer} and the route planner, 2026-10-06), so its yaw is
+         * neither shown in the editor nor saved - killer560 (2026-10-06): "For nodes like align i do not need yaw or
+         * pitch so dont have it saved". The trigger box's orientation is the one thing a yaw also decided for those
+         * types; {@link #clearUnusedFields()} keeps that exact by turning the box instead.
+         */
+        public boolean usesYaw() {
+            return this == WALK || this == RUN || usesPitch();
+        }
+
+        /** Whether a node of this type reads its {@link Ap3Node#pitch}: the nodes that aim (LOOK, BOOM, BLOCK, USE). */
+        public boolean usesPitch() {
+            return this == LOOK || this == BOOM || this == BLOCK || this == USE;
+        }
+
+        /** Whether {@link Ap3Node#useItemId} means anything: only a USE swaps to an item. */
+        public boolean usesItem() {
+            return this == USE;
+        }
+
+        /** Whether {@link Ap3Node#name} means anything: only a STOPWATCH reports its time under a name. */
+        public boolean usesName() {
+            return this == STOPWATCH;
+        }
+
+        /** Whether the Precise flag can be set from the editor - the types {@code /ap3 set <n> precise} accepts. */
+        public boolean usesPrecise() {
+            return isAlign() || this == PATH;
+        }
+
         /** Nodes that block waiting for something outside the executor's control. A manual LEFT-CLICK satisfies
          *  any of them (killer560: "if I ever left click manually, then it should act like the terminal was
          *  completed. Same thing for leaps or any other type of wait modifier"). */
@@ -215,7 +247,9 @@ public final class Ap3Node {
     public Direction wallDir;
     /** Modifier ({@code wait:1000}): milliseconds to hold the chain after this node before the next one; 0 = none. */
     public int waitAfterMs;
-    /** Modifier ({@code close}): this node fires only on a manual left click or after a terminal / GUI closes. */
+    /** REMOVED modifier ({@code close}, 2026-10-06 - killer560: "I dont know what close gate does but I dont think
+     *  that is ever needed"): it held a node until a manual left click or a closed GUI. Always false now - neither
+     *  loaded nor saved ({@code Ap3Store}) - and kept only so the executor's old check reads false. */
     public boolean closeGate;
     /** Modifier on ANY node (killer560, 2026-09-21: "/ap3 add run edge ... should run at the right degree then jump
      *  at the edge"): once this node has done its thing, jump (JUMP) or jump at the edge (EDGE). */
@@ -342,6 +376,39 @@ public final class Ap3Node {
         pitch = (float) roundSaved(pitch);
         width = roundSaved(width);
         length = roundSaved(length);
+        clearUnusedFields();
+    }
+
+    /**
+     * Drops what this node's type never reads ({@link Type#usesYaw()} and the rest), so memory holds exactly what
+     * {@code Ap3Store} writes: a type without a yaw is saved without one and reloads with 0, and this makes the node
+     * read 0 the moment it is placed or edited too, not only after a restart.
+     *
+     * <p>The trigger box is laid out along {@link #boxYaw()}, so for a non-square box the yaw also decided which way
+     * round the box lay. Dropping it to 0 must not turn the box: a box whose yaw snapped to east or west has its
+     * width and length swapped instead, which is the same rectangle on the ground with length along Z. (That is also
+     * how the route planner already read a Path node's box, X = width, Z = length, whatever its yaw.)
+     */
+    public void clearUnusedFields() {
+        if (!type.usesYaw()) {
+            if (yaw != 0f && Math.abs(Math.abs(boxYaw()) - 90f) < 1e-3f) {
+                double w = width;
+                width = length;
+                length = w;
+            }
+            yaw = 0f;
+        }
+        if (!type.usesPitch()) {
+            pitch = 0f;
+        }
+        if (!type.usesItem()) {
+            useItemId = null;
+        }
+        if (!type.usesName()) {
+            name = null;
+        }
+        // The close gate was removed on 2026-10-06 (killer560: "I dont think that is ever needed"); nothing sets it.
+        closeGate = false;
     }
     public double length() { return length; }
     public double width() { return width; }
@@ -545,9 +612,6 @@ public final class Ap3Node {
         }
         if (waitAfterMs > 0) {
             sb.append(" wait:").append(waitAfterMs);
-        }
-        if (closeGate) {
-            sb.append(" close");
         }
         if (jumpMod != JumpMod.NONE) {
             sb.append(jumpMod == JumpMod.EDGE ? " edge" : " jump");

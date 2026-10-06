@@ -65,12 +65,13 @@ public final class Ap3Renderer {
             }
             renderNodeBox(ctx, node, active, height, c, alpha, thickness);
             switch (node.type) {
-                case WALK, RUN -> renderArrow(ctx, node, c, alpha, thickness);
+                case WALK, RUN -> renderArrow(ctx, node, node.yaw, c, alpha, thickness);
                 case AXIS_ALIGN -> renderWallSide(ctx, node, c, alpha, thickness);
                 case LOOK, BOOM, BLOCK -> renderLookRay(ctx, node, c, alpha, thickness);
                 case PATH -> {
                     if (node.hasDir) {
-                        renderArrow(ctx, node, c, alpha, thickness);
+                        // The heading the route must cross at - a Path node has no yaw of its own (2026-10-06).
+                        renderArrow(ctx, node, (float) node.dirDeg, c, alpha, thickness);
                     }
                 }
                 default -> {
@@ -181,9 +182,6 @@ public final class Ap3Renderer {
         if (node.waitAfterMs > 0) {
             append(sb, "wait:" + node.waitAfterMs);
         }
-        if (node.closeGate) {
-            append(sb, "close");
-        }
         return sb.toString();
     }
 
@@ -212,11 +210,13 @@ public final class Ap3Renderer {
         WorldRenderUtils.renderOutlineBox(ctx, box, c[0], c[1], c[2], alpha, thickness);
     }
 
-    /** Travel direction of a WALK / RUN at its REAL stored yaw (the box around it is grid-snapped; the arrow is not).
-     *  The walk is held until a STOP / align, so no length is drawn. */
-    private static void renderArrow(LevelRenderContext ctx, Ap3Node node, float[] c, float alpha, float thickness) {
-        Vec3 d = node.dir();
-        Vec3 l = node.left();
+    /** Travel direction of a WALK / RUN at its REAL stored yaw (the box around it is grid-snapped; the arrow is not),
+     *  or a Path node's required heading. The walk is held until a STOP / align, so no length is drawn. */
+    private static void renderArrow(LevelRenderContext ctx, Ap3Node node, float yaw, float[] c, float alpha,
+                                    float thickness) {
+        double r = Math.toRadians(yaw);
+        Vec3 d = new Vec3(-Math.sin(r), 0.0, Math.cos(r));
+        Vec3 l = new Vec3(Math.cos(r), 0.0, Math.sin(r));
         double y = node.y + GROUND_OFFSET;
         Vec3 start = new Vec3(node.x, y, node.z);
         Vec3 end = new Vec3(node.x + d.x * ARROW_LENGTH, y, node.z + d.z * ARROW_LENGTH);
