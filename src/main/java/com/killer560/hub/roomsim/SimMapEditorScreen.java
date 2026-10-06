@@ -678,6 +678,31 @@ public class SimMapEditorScreen extends Screen {
         return panelY + panelH - 58;
     }
 
+    /** Map units to screen pixels: one grid cell is the live map's room-plus-gap pitch. */
+    private int unitPx(float units) {
+        return Math.round(units * cell / (float) com.killer560.hub.livemap.MapPainter.ROOM_PITCH_UNITS);
+    }
+
+    /**
+     * A placed room's box {@code {x0, y0, x1, y1}} in the live map's geometry: the room is 16 units and the
+     * next one starts 4 units later, so the gap between neighbours is where a doorway is drawn. A room covering
+     * several cells runs straight through the gaps inside it.
+     */
+    private int[] roomBox(int key, String name) {
+        int[] fp = footprintOf(name, rotations.getOrDefault(key, 0));
+        int ax = key % GRID;
+        int az = key / GRID;
+        int w = Math.min(GRID, ax + fp[0]) - ax;
+        int h = Math.min(GRID, az + fp[1]) - az;
+        int pitch = com.killer560.hub.livemap.MapPainter.ROOM_PITCH_UNITS;
+        int size = com.killer560.hub.livemap.MapPainter.ROOM_SIZE_UNITS;
+        return new int[]{
+                gridX + ax * cell,
+                gridY + az * cell,
+                gridX + unitPx((ax + w - 1) * pitch + size),
+                gridY + unitPx((az + h - 1) * pitch + size)};
+    }
+
     private void drawGrid(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         int size = cell * GRID;
         g.fill(gridX, gridY, gridX + size, gridY + size, ProfitPanels.INNER_BG);
@@ -687,27 +712,19 @@ public class SimMapEditorScreen extends Screen {
         }
         for (Map.Entry<Integer, String> e : placements.entrySet()) {
             String name = e.getValue();
-            int[] fp = footprintOf(name, rotations.getOrDefault(e.getKey(), 0));
-            int ax = e.getKey() % GRID;
-            int az = e.getKey() / GRID;
-            int x0 = gridX + ax * cell + 1;
-            int y0 = gridY + az * cell + 1;
-            int x1 = gridX + Math.min(GRID, ax + fp[0]) * cell - 1;
-            int y1 = gridY + Math.min(GRID, az + fp[1]) * cell - 1;
-            g.fill(x0, y0, x1, y1, colourFor(name));
+            int[] b = roomBox(e.getKey(), name);
+            g.fill(b[0], b[1], b[2], b[3], colourFor(name));
         }
         drawDoors(g);
         // Labels last, so a door never covers a room name (killer560, 2026-10-06: "have the room text be higher
         // up than the doors").
         for (Map.Entry<Integer, String> e : placements.entrySet()) {
             String name = e.getValue();
-            int[] fp = footprintOf(name, rotations.getOrDefault(e.getKey(), 0));
-            int ax = e.getKey() % GRID;
-            int az = e.getKey() / GRID;
-            int x0 = gridX + ax * cell + 1;
-            int y0 = gridY + az * cell + 1;
-            int x1 = gridX + Math.min(GRID, ax + fp[0]) * cell - 1;
-            int y1 = gridY + Math.min(GRID, az + fp[1]) * cell - 1;
+            int[] b = roomBox(e.getKey(), name);
+            int x0 = b[0];
+            int y0 = b[1];
+            int x1 = b[2];
+            int y1 = b[3];
             // The live map's own fitting, not a truncation. killer560 (2026-10-04): "make it so the text will
             // fit rooms that are too small to load the whole text, just like our normal map would." One word a
             // line, scaled down until the longest word and the line count both fit the room, centred on it -
@@ -767,33 +784,49 @@ public class SimMapEditorScreen extends Screen {
                     case com.killer560.hub.livemap.DungeonLayout.DOOR_ENTRANCE -> cfg.getColorEntrance();
                     default -> 0xFF8A6A48;
                 };
-                // Across the gap: an ordinary doorway is a third of a cell wide, a special door half of one.
-                // Special doors are slim bars (killer560, 2026-10-06: "a little overbearing"): narrower across, a
-                // thinner stroke along, and a translucent fill so the room colour shows through.
                 boolean wither = type == com.killer560.hub.livemap.DungeonLayout.DOOR_WITHER || theoretical;
-                int across = Math.max(3, cell / 3);
-                int along = Math.max(3, normal ? cell / 5 : cell / 8);
                 // Plain black for a wither door, plain red for blood, no outline (killer560, 2026-10-06: "remove
                 // the orange highlight for the wither doors just make them black or red for the blood one").
                 if (wither) {
                     colour = 0xFF000000;
                 } else if (type == com.killer560.hub.livemap.DungeonLayout.DOOR_BLOOD) {
                     colour = 0xFFB23030;
+                } else if (normal) {
+                    // The live map's own connector colour: that of the joined room with the best type priority.
+                    colour = connectorColour(plan, gx, gz, betweenX);
                 }
-                int x0;
-                int y0;
-                if (betweenX) {
-                    x0 = gridX + ((gx + 1) / 2) * cell - along / 2;
-                    y0 = gridY + (gz / 2) * cell + cell / 2 - across / 2;
-                } else {
-                    x0 = gridX + (gx / 2) * cell + cell / 2 - across / 2;
-                    y0 = gridY + ((gz + 1) / 2) * cell - along / 2;
-                }
-                int x1 = x0 + (betweenX ? along : across);
-                int y1 = y0 + (betweenX ? across : along);
-                g.fill(x0, y0, x1, y1, colour);
+                // Exactly the live map's doorway box (killer560, 2026-10-06: "make the paths between rooms on the
+                // map the exact same as they look on the normal map").
+                float[] box = com.killer560.hub.livemap.MapPainter.doorUnits(gx, gz);
+                g.fill(gridX + unitPx(box[0]), gridY + unitPx(box[1]),
+                        gridX + unitPx(box[0] + box[2]), gridY + unitPx(box[1] + box[3]), colour);
             }
         }
+    }
+
+    /** MapPainter.connectorColor's rule for the designer's palette: the joined room with the best type priority. */
+    private static int connectorColour(MapCode.Decoded plan, int gx, int gz, boolean betweenX) {
+        int best = Integer.MAX_VALUE;
+        int colour = 0xFF6B4A2F;
+        for (int side = 0; side < 2; side++) {
+            int nx = betweenX ? gx + (side == 0 ? -1 : 1) : gx;
+            int nz = betweenX ? gz : gz + (side == 0 ? -1 : 1);
+            int idx = nz * com.killer560.hub.livemap.DungeonLayout.GRID + nx;
+            if (nx < 0 || nz < 0 || idx >= plan.cellRoom().length) {
+                continue;
+            }
+            int id = plan.cellRoom()[idx];
+            if (id < 0 || id >= plan.nameTable().length) {
+                continue;
+            }
+            String name = plan.nameTable()[id];
+            int prio = com.killer560.hub.livemap.MapPainter.typePriority(SimFloorGen.typeOf(name));
+            if (prio < best) {
+                best = prio;
+                colour = colourFor(name);
+            }
+        }
+        return colour;
     }
 
     private void drawList(GuiGraphicsExtractor g, int mouseX, int mouseY) {

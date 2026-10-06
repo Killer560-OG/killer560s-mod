@@ -348,7 +348,7 @@ public final class MapPainter {
 
     /** Devonian {@code RoomTypes.prio} - which neighbour a plain door borrows its colour from. Fairy sits BELOW
      *  normal because NoammAddons' {@code DoorTile.getColor} explicitly prefers a non-fairy neighbour. */
-    private static int typePriority(String type) {
+    public static int typePriority(String type) {
         return switch (type) {
             case "BLOOD" -> 0;
             case "ENTRANCE" -> 10;
@@ -676,7 +676,26 @@ public final class MapPainter {
      *  locked-wither-door outline below, so it reads as "the mod's own accent", not a new colour language. */
     private static final int REPORTED_MARK_COLOR = 0xFFFFAA00;
 
-    /** NoammAddons {@code drawRoomConnector}: the stub starts at exactly {@code +roomSize} so it is flush with the
+    /**
+     * A doorway's box in map units, {@code {x, z, width, height}}, for the odd grid cell {@code (gx, gz)} that
+     * holds it: the {@link #GAP_UNITS}-long stub across the gap, 6 units wide across the doorway, centred on the
+     * 16-unit room. Shared with the Dungeon Sim's map designer so both draw the same doorway.
+     */
+    public static float[] doorUnits(int gx, int gz) {
+        float ux = gx % 2 == 1 ? cellPos(gx) : cellPos(gx) + 5;
+        float uz = gz % 2 == 1 ? cellPos(gz) : cellPos(gz) + 5;
+        float uw = gx % 2 == 1 ? GAP_UNITS : 6;
+        float uh = gz % 2 == 1 ? GAP_UNITS : 6;
+        return new float[]{ux, uz, uw, uh};
+    }
+
+    /** Map units from one room's origin to the next: the room plus the gap after it. */
+    public static final int ROOM_PITCH_UNITS = ROOM_UNITS + GAP_UNITS;
+    /** Map units a room is wide; the rest of a pitch is the gap a doorway crosses. */
+    public static final int ROOM_SIZE_UNITS = ROOM_UNITS;
+
+    /**
+     * NoammAddons {@code drawRoomConnector}: the stub starts at exactly {@code +roomSize} so it is flush with the
      *  rooms on both sides, is the 4-unit gap long, and 6 units wide across the doorway. */
     static void drawDoors(GuiGraphicsExtractor graphics, DungeonLayout layout, LiveMapConfig cfg,
                           float ox, float oy, float ppu, int hoveredDoor) {
@@ -716,10 +735,11 @@ public final class MapPainter {
                     && DungeonMapScanner.stateAt(idx) == DungeonMapScanner.STATE_UNOPENED) {
                 color = multiply(color, 1f - cfg.getDarkenUnopened());
             }
-            float ux = gx % 2 == 1 ? cellPos(gx) : cellPos(gx) + 5;
-            float uz = gz % 2 == 1 ? cellPos(gz) : cellPos(gz) + 5;
-            float uw = gx % 2 == 1 ? GAP_UNITS : 6;
-            float uh = gz % 2 == 1 ? GAP_UNITS : 6;
+            float[] box = doorUnits(gx, gz);
+            float ux = box[0];
+            float uz = box[1];
+            float uw = box[2];
+            float uh = box[3];
             if (idx == hoveredDoor) {
                 color = multiply(color, 1.15f);
             }
@@ -772,10 +792,11 @@ public final class MapPainter {
             if (mark) {
                 color = multiply(color, REPORTED_DIM);
             }
-            float ux = gx % 2 == 1 ? cellPos(gx) : cellPos(gx) + 5;
-            float uz = gz % 2 == 1 ? cellPos(gz) : cellPos(gz) + 5;
-            float uw = gx % 2 == 1 ? GAP_UNITS : 6;
-            float uh = gz % 2 == 1 ? GAP_UNITS : 6;
+            float[] box = doorUnits(gx, gz);
+            float ux = box[0];
+            float uz = box[1];
+            float uw = box[2];
+            float uh = box[3];
             int x0 = px(ox, ux, ppu);
             int y0 = px(oy, uz, ppu);
             int x1 = px(ox, ux + uw, ppu);
