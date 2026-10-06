@@ -554,6 +554,30 @@ public final class AutoBoulder {
                 advance(Stage.TO_CHEST, "no solver");
                 return;
             }
+            RoomEntry here = LiveMapFeature.currentRoomEntry();
+            if (!sawSolution && (here == null || !ROOM.equals(here.name)) && rel(player).getZ() < 1) {
+                // THE SOLVER ONLY READS THE BOXES FROM INSIDE THE ROOM. 142-sim-autopilot2 (2026-10-06): the map put
+                // him on Boulder's doorway spot (relative z -2), which the live map files under the tile next door;
+                // Boulder Solver scans only while the live map says Boulder, so it never read the arrangement, the
+                // 4 s wait ran out where he stood, and with the boxes unmoved "no walkable spot has the reward chest
+                // in reach and in sight". He walks in first (the nearest spot inside the tile, as he would), and the
+                // solver's wait starts there. Same on Hypixel: the map lands on the doorway there too.
+                pushStartMs = System.currentTimeMillis();
+                if (walking) {
+                    tickWalk(client, player);
+                    return;
+                }
+                if (!player.onGround()) {
+                    releaseKeys(client);
+                    return;
+                }
+                BoulderPath.GoalTest inside = (feet, s) -> PuzzleCoords.relative(feet, cr).getZ() >= 1;
+                String label = "into the room (the solver reads the boxes from inside)";
+                if (!startWalk(client, player, inside, true, label) && !startWalk(client, player, inside, false, label)) {
+                    giveUp(client, "no walk from the doorway into the room");
+                }
+                return;
+            }
             if (sawSolution || System.currentTimeMillis() - pushStartMs > SOLVER_WAIT_MS) {
                 stopWalk(client, null);
                 advance(Stage.TO_CHEST, sawSolution ? "every box the solver named was pushed (" + presses
@@ -729,11 +753,26 @@ public final class AutoBoulder {
         }
         var b = shape.bounds();
         java.util.concurrent.ThreadLocalRandom r = java.util.concurrent.ThreadLocalRandom.current();
-        double fx = 0.2 + 0.6 * r.nextDouble();
-        double fy = 0.2 + 0.6 * r.nextDouble();
-        double fz = 0.2 + 0.6 * r.nextDouble();
-        return new Vec3(target.getX() + b.minX + (b.maxX - b.minX) * fx, target.getY() + b.minY + (b.maxY - b.minY) * fy,
-                target.getZ() + b.minZ + (b.maxZ - b.minZ) * fz);
+        // A point he can actually SEE from here. The walk stops once the outline's middle is in sight, but a random
+        // point of the outline can be behind a stair edge: 93-solve-boulder-mapdoor (2026-10-06) stood 2.2 blocks
+        // below and beside the alcove's chest, aimed at a point the step hid, and gave up "could not get the crosshair
+        // onto the reward chest in 60 ticks" with the chest in plain sight. Up to eight tries, else the middle, which
+        // sees() already checked.
+        Vec3 eye = client.player.getEyePosition();
+        for (int i = 0; i < 8; i++) {
+            double fx = 0.2 + 0.6 * r.nextDouble();
+            double fy = 0.2 + 0.6 * r.nextDouble();
+            double fz = 0.2 + 0.6 * r.nextDouble();
+            Vec3 p = new Vec3(target.getX() + b.minX + (b.maxX - b.minX) * fx,
+                    target.getY() + b.minY + (b.maxY - b.minY) * fy, target.getZ() + b.minZ + (b.maxZ - b.minZ) * fz);
+            HitResult hr = client.level.clip(new ClipContext(eye, p.add(p.subtract(eye).normalize().scale(0.3)),
+                    ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, client.player));
+            if (hr instanceof BlockHitResult hit && hr.getType() == HitResult.Type.BLOCK
+                    && hit.getBlockPos().equals(target)) {
+                return p;
+            }
+        }
+        return aimPoint(client, target);
     }
 
     private static BoulderPath.GoalTest spotGoal(Minecraft client, BlockPos target, double reach) {
