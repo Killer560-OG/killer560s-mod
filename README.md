@@ -32,7 +32,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **Mining (WIP)** - Crystal Hollows Map, Interactive Crystal Hollows Map, Nucleus Run Profit Tracker, Profit Per Hour Tracker
 
-**Display & Menus** - Borderless Fullscreen, Fullbright, Motion Blur, Skyblock Only, Themed Main Menu, Window Layout
+**Display & Menus** - Borderless Fullscreen, Custom Crosshair, Fullbright, Motion Blur, Skyblock Only, Themed Main Menu, Window Layout
 
 **Accounts, Home & Profiles** - Account Switcher, Auto Scale (monitor), Bug Report, HUD Editor, Menu Memory, Profiles, Proxy Client, Update Notice
 

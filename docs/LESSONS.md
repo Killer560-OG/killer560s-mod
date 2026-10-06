@@ -205,6 +205,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   The diagnosis that found it: log the server's refusal, then cast the server's exact ray through the client planner's
   grid - BLOCKED on both sides meant the worlds agreed and the aim was the fault.
 
+- To replace a vanilla HUD piece, wrap its Fabric layer instead of mixing into `Gui`: `HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> ...)` (identical in Fabric API 0.155.2+26.1.2 and 0.160.0+26.2, javap) calls the
+  vanilla layer only when you do, so there is no 26.2 descriptor to break. The Custom Crosshair does this (2026-10-06); F1 is
+  `McCompat.hudHidden`, because `options.hideGui` is gone on 26.2. To draw in SCREEN pixels from any pose, `pose().identity()`
+  then `scale(1f / guiScale)` - an int `fill` is then one framebuffer pixel.
+
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session
