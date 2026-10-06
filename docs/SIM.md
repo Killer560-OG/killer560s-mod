@@ -1436,6 +1436,16 @@ bundled coordinate as "the block", check whether it is the block or the space ab
   unsafe, 56 on it but 15+ blocks from any doorway, 7 by a doorway; `/goto` on an F7: 11 of 22 off the floor. After: 133
   of 133 and 23 of 23. A doorway's floor must be searched in the doorway BAND: the lowest 3x3 gap in the wall column was
   a roof window wherever the capture held a shut door (Blood measured 46 blocks up).
+- **The special landings (traps, Teleport Maze, Boulder, Ice Fill) read the doorway floor the same way since
+  2026-10-06.** They scanned the wall column UP FROM THE BOTTOM OF THE WORLD for the first two-air gap. On a generated
+  floor the entrance side can be a carved door, and the column below a room is not always empty: `/goto New Trap`
+  stood him at y -56 under a doorway at -9 (full check, 26.1.2), in a column New Trap's capture (y 60..100, solid on
+  three sides) cannot fill. `97-sim-roomspawn` now lists blocks below each room's capture band: the first floor built
+  after the 133-room single sweep had a previous single room's lower blocks (y -63..-49, stone, slabs, terracotta)
+  still standing under it, clean on the floors after. So the landing now uses `openingFloor` (the band rule) and falls
+  back to `doorwaySpot` when that side has no doorway or the spot is unsafe. **The leftovers are still open**: which
+  clear misses them was not found (ClearJob's band covers y -63 for every bottom-aligned single room; the x/z bounds
+  come from `touchedBounds`). The scenario prints a WARNING line for them rather than failing.
 
 ## The 2026-10-04 Map Logger round: damage, the key, crypts, landings and the sidebar
 

@@ -1053,16 +1053,20 @@ public final class SimBuilder {
         // The doorway's floor, read in the doorway itself: up from the bottom, the first standable block in the
         // wall's column is the threshold, because everything under a doorway is wall.
         Integer doorLevel = null;
+        boolean doorFallback = false;
         if (spawn != null && spawn.atDoorLevel()) {
             int wx = origin.getX() + spawn.doorDx();
             int wz = origin.getZ() + spawn.doorDz();
-            for (int y = SimAltitude.minWorldY(); y <= SimAltitude.maxWorldY() - 3; y++) {
-                if (!level.getBlockState(new net.minecraft.core.BlockPos(wx, y, wz)).isAir()
-                        && level.getBlockState(new net.minecraft.core.BlockPos(wx, y + 1, wz)).isAir()
-                        && level.getBlockState(new net.minecraft.core.BlockPos(wx, y + 2, wz)).isAir()) {
-                    doorLevel = y + 1;
-                    break;
-                }
+            // In the doorway BAND, by the doorway rule (openingFloor), not the first two-air gap coming up the wall
+            // column from the bottom of the world. That scan found a pocket in the capture's underground on a
+            // generated floor and stood him 47 blocks under New Trap's floor, in a sealed cavity (testkit
+            // 97-sim-roomspawn, /goto New Trap at y -56 against a doorway at -9, 2026-10-06). A single-room load
+            // happened to hit the doorway. When the side has no doorway in the band, or the spot one in from it is
+            // not safe, the room's own doorways decide (doorwaySpot) - still at a doorway, still facing in.
+            doorLevel = openingFloor(level, wx, wz, spawn.doorDz() != 0);
+            if (doorLevel == null || !safeAt(level, x, doorLevel, z)) {
+                doorLevel = null;
+                doorFallback = true;
             }
         }
         // Upwards from the bottom. Scanning DOWN from the top finds the first standable surface from above,
@@ -1124,7 +1128,7 @@ public final class SimBuilder {
             landing = SimAltitude.maxWorldY();
         }
         Float doorYaw = null;
-        if (spawn == null) {
+        if (spawn == null || doorFallback) {
             // THE ROOM'S MAIN FLOOR, BY A DOORWAY. killer560 (2026-10-06): "try to have me always spawn on the same
             // height as the entrances to the room are as that is the 'main floor' area; some rooms put me in really
             // random spots. You can put me really close to doors so the position is right. This should be used for
