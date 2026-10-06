@@ -28,8 +28,10 @@ public final class TerminalLayouts {
     private static final Logger LOGGER = ModLog.get("killer560smod-autoterminal");
 
     /** THE layout switch for anything that has seen no live board yet. false = old (4-row Melody, 14 numbers,
-     *  5-round Simon Says); true = new (3 / 10 / 4). Flip once the 2026-10-06 update is confirmed live. */
-    public static final boolean ASSUME_NEW_LAYOUT = false;
+     *  5-round Simon Says); true = new (3 / 10 / 4). True since the official SkyBlock 0.27.2 patch notes confirmed
+     *  all three ("Reduced the amount of rows on the Melody Terminal from 4 -> 3", Numbers 14 -> 10, "Removed one set
+     *  of lights from the Simon Says terminal"). */
+    public static final boolean ASSUME_NEW_LAYOUT = true;
 
     public static final int OLD_MELODY_ROWS = 4;
     public static final int NEW_MELODY_ROWS = 3;
