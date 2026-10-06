@@ -798,8 +798,16 @@ public class SimMapEditorScreen extends Screen {
                 // Exactly the live map's doorway box (killer560, 2026-10-06: "make the paths between rooms on the
                 // map the exact same as they look on the normal map").
                 float[] box = com.killer560.hub.livemap.MapPainter.doorUnits(gx, gz);
-                g.fill(gridX + unitPx(box[0]), gridY + unitPx(box[1]),
-                        gridX + unitPx(box[0] + box[2]), gridY + unitPx(box[1] + box[3]), colour);
+                int bx0 = gridX + unitPx(box[0]);
+                int by0 = gridY + unitPx(box[1]);
+                int bx1 = gridX + unitPx(box[0] + box[2]);
+                int by1 = gridY + unitPx(box[1] + box[3]);
+                g.fill(bx0, by0, bx1, by1, colour);
+                if (wither) {
+                    // A thin light-grey rim so a black door reads against the dark gap (killer560, 2026-10-06:
+                    // "change something so the black doors are easier to be seen").
+                    g.outline(bx0, by0, bx1 - bx0, by1 - by0, 0xFFB0B0B0);
+                }
             }
         }
     }
