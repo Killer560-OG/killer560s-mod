@@ -241,6 +241,9 @@ public final class LiveMapFeature {
         // map is the teleport pathing") - no separate flag left to report here.
         if (LiveMapConfig.getInstance().isInteractiveMapEnabled()) sb.append("InteractiveMap,");
         if (LiveMapConfig.getInstance().isBloodRushEnabled()) sb.append("BloodRush,");
+        // The insta-clear recorder reads room states off the dungeon map, which is only sampled while scanning.
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
+                && com.killer560.hub.autosecret.InstaClearTracker.wantsMapScan()) sb.append("InstaClear,");
         return sb.length() == 0 ? "" : sb.substring(0, sb.length() - 1);
     }
 
@@ -769,6 +772,23 @@ public final class LiveMapFeature {
         return state == DungeonMapScanner.STATE_GREEN || state == DungeonMapScanner.STATE_CLEARED;
     }
 
+    /** Hypixel's dungeon-map state of a cell, for {@code autosecret.InstaClearTracker}: one of {@code MAP_*} below,
+     *  or -1 while there is no calibrated map (the sim, p3sim, boss, before the run). The same
+     *  {@link DungeonMapScanner#stateAt} the map's checkmarks read. */
+    public static final int MAP_GREEN = DungeonMapScanner.STATE_GREEN;
+    public static final int MAP_CLEARED = DungeonMapScanner.STATE_CLEARED;
+    public static final int MAP_DISCOVERED = DungeonMapScanner.STATE_DISCOVERED;
+    public static final int MAP_FAILED = DungeonMapScanner.STATE_FAILED;
+    public static final int MAP_UNOPENED = DungeonMapScanner.STATE_UNOPENED;
+    public static final int MAP_UNDISCOVERED = DungeonMapScanner.STATE_UNDISCOVERED;
+
+    public static int mapStateAt(int idx) {
+        if (!DungeonMapScanner.isCalibrated() || idx < 0 || idx >= GRID * GRID) {
+            return -1;
+        }
+        return DungeonMapScanner.stateAt(idx);
+    }
+
     /** @return the room identity for any cell of a room (every tile/connector of a multi-tile room gives
      *  the same entry), or null. */
     public static RoomEntry roomEntryAt(int idx) {
@@ -888,7 +908,7 @@ public final class LiveMapFeature {
     // Interactive map / pathing accessors (package-private, main thread)
     // ---------------------------------------------------------------------------------------------
 
-    static int resetGeneration() {
+    public static int resetGeneration() {
         return resetGeneration;
     }
 

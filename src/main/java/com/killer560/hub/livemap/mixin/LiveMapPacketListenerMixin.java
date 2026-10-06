@@ -50,6 +50,8 @@ public abstract class LiveMapPacketListenerMixin {
             ClearExecutor.onServerPositionPacket();
             // Auto Routes' landing check: a teleport really happened (see RouteExecutor#landed).
             com.killer560.hub.autoroutes.RouteExecutor.onServerPositionPacket();
+            // Insta-clear recorder: the next room entry came by teleport (etherwarp, AOTV, leap), not on foot.
+            com.killer560.hub.autosecret.InstaClearTracker.onServerPositionPacket();
         } catch (RuntimeException e) {
             killer560smod$liveMap$hookThrew("movePlayer", e);
         }
