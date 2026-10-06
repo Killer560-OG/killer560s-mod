@@ -272,6 +272,9 @@ public final class AutoBoulder {
             giveUp(client, "you pressed " + takeover);
             return false;
         }
+        if (correction && ServerCorrections.lastMoveDistance() < ServerCorrections.MIN_MOVE_BLOCKS) {
+            correction = false; // rotation-only packet: nothing moved
+        }
         if (correction) {
             correction = false;
             // Mod rule (killer560, 2026-10-06): a correction never stops an auto - chat line + alarm, then carry on from

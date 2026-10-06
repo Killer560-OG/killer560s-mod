@@ -20,6 +20,8 @@ public final class ServerCorrections {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-corrections");
     private static final long CHAT_MIN_GAP_MS = 2000L;
+    /** A position packet moving him less than this is a rotation-only packet, not a correction. */
+    public static final double MIN_MOVE_BLOCKS = 0.01;
 
     private static final Map<String, long[]> chatState = new HashMap<>();
     private static int reports;
@@ -34,6 +36,12 @@ public final class ServerCorrections {
      */
     public static void report(String feature, String what, double distance) {
         String dist = String.format(Locale.US, "%.2f", distance);
+        if (distance < MIN_MOVE_BLOCKS) {
+            // A rotation-only packet (or one that leaves him where he is) moves nothing: logged, never announced.
+            LOGGER.info("[Correction] {}: position packet moved you {} blocks {} - not a correction, ignored", feature,
+                    dist, what);
+            return;
+        }
         say(feature, "server moved you " + dist + " blocks " + what, "moved you " + dist + " blocks " + what + ".");
     }
 

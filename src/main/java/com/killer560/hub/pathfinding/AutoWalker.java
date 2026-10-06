@@ -192,7 +192,8 @@ public final class AutoWalker {
         if (packets != positionPacketsSeen) {
             positionPacketsSeen = packets;
             double moved = ServerCorrections.lastMoveDistance();
-            if (!EtherwarpHopper.isBusy() && !EnderPearlHopper.isBusy() && moved <= CORRECTION_MAX_BLOCKS) {
+            if (!EtherwarpHopper.isBusy() && !EnderPearlHopper.isBusy() && moved <= CORRECTION_MAX_BLOCKS
+                    && moved >= ServerCorrections.MIN_MOVE_BLOCKS) {
                 // Mod rule (2026-10-06): a correction never stops anything - chat line + alarm, the camera check is
                 // re-based (the packet may carry a rotation of its own), and the path is planned again from here.
                 ServerCorrections.report("Auto Walk", "- carrying on from here", moved);

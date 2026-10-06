@@ -512,6 +512,9 @@ public final class RouteExecutor {
             return;
         }
         positionPacketsHandled = packets;
+        if (ServerCorrections.lastMoveDistance() < ServerCorrections.MIN_MOVE_BLOCKS) {
+            return; // rotation-only: he is where he was
+        }
         RouteNode node = activeNode;
         boolean warping = node != null && step == Step.CONFIRM
                 && (node.type == RouteNode.Type.ETHERWARP || node.type == RouteNode.Type.PATH);
