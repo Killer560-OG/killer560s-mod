@@ -99,6 +99,49 @@ final class WitherDoorOpener {
         return -1;
     }
 
+    /** SkyBlock items whose right click does something of its own (teleports, abilities, menus). */
+    private static final java.util.Set<String> ACTIVE_ITEMS = java.util.Set.of("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END",
+            "ETHERWARP_CONDUIT", "HYPERION", "ASTRAEA", "SCYLLA", "VALKYRIE", "NECRON_BLADE", "BAT_WAND", "STARRED_BAT_WAND",
+            "SKYBLOCK_MENU", "INFINITE_SUPERBOOM_TNT", "SUPERBOOM_TNT", "BONZO_STAFF", "STARRED_BONZO_STAFF", "JERRY_STAFF",
+            "ICE_SPRAY_WAND", "STARRED_ICE_SPRAY_WAND", "GYROKINETIC_WAND", "DUNGEONBREAKER", "SPRING_BOOTS",
+            "GRAPPLING_HOOK", "TERMINATOR", "LAST_BREATH", "JUJU_SHORTBOW", "INK_WAND", "SOUL_WHIP", "FLOWER_OF_TRUTH");
+
+    /**
+     * The hotbar slot to click a door with when there is no key item: an empty hand first (the selected slot if it is
+     * empty, else the first empty one) - the list below cannot know every ability - then the selected slot if it holds
+     * nothing on {@link #ACTIVE_ITEMS}, then any such slot. -1 = keep the hand (every slot is an ability item).
+     */
+    private static int quietSlot(LocalPlayer player) {
+        int selected = player.getInventory().getSelectedSlot();
+        if (player.getInventory().getItem(selected).isEmpty()) {
+            return selected;
+        }
+        for (int slot = 0; slot <= 8; slot++) {
+            if (player.getInventory().getItem(slot).isEmpty()) {
+                return slot;
+            }
+        }
+        if (quiet(player, selected)) {
+            return selected;
+        }
+        for (int slot = 0; slot <= 8; slot++) {
+            if (quiet(player, slot)) {
+                return slot;
+            }
+        }
+        LOGGER.warn("[AutoSecret] every hotbar slot holds an ability item - clicking the door with the one in hand");
+        return -1;
+    }
+
+    private static boolean quiet(LocalPlayer player, int slot) {
+        var stack = player.getInventory().getItem(slot);
+        if (stack.isEmpty()) {
+            return true;
+        }
+        String id = ItemIdentity.skyblockId(stack);
+        return id != null && !ACTIVE_ITEMS.contains(id);
+    }
+
     private static void tick(Minecraft client) {
         LocalPlayer player = client.player;
         BODY.tick(player, step == Step.CLICK);
@@ -117,7 +160,13 @@ final class WitherDoorOpener {
         }
         if (step == Step.AIM) {
             // Tick t: the slot and the body's facing; this tick's movement packet reports the facing.
+            // The key item when there is one (the sim's); otherwise a hand that does nothing on a right click: a held
+            // Aspect of the Void turned the sim's blood-door click into Instant Transmission (141-sim-autopilot,
+            // 2026-10-06), and Hypixel's abilities fire on a block click the same way.
             int slot = blood ? -1 : keySlot(player);
+            if (slot < 0) {
+                slot = quietSlot(player);
+            }
             if (slot >= 0 && player.getInventory().getSelectedSlot() != slot) {
                 player.getInventory().setSelectedSlot(slot);
                 if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {

@@ -984,7 +984,7 @@ public final class AutoSecretFeature {
     }
 
     private static void beginDoor() {
-        LOGGER.info("[AutoSecret] at the wither door at cell {}", doorCell);
+        LOGGER.info("[AutoSecret] at the {} door at cell {}", doorBlood ? "blood" : "wither", doorCell);
         setPhase(Phase.DOOR);
         doorLastClickTick = -1000;
     }
