@@ -66,7 +66,7 @@ public final class SplitTimersFeature {
             "\\[NPC\\] Mort: Here, I found this map when I first entered the dungeon\\.|\\[NPC\\] Mort: Right-click the Orb for spells, and Left-click \\(or Drop\\) to use your Ultimate!",
             "§2Blood Open");
     private static final SplitDef BLOOD_CLEAR = def(
-            "^\\[BOSS\\] The Watcher: (Congratulations, you made it through the Entrance\\.|Ah, you've finally arrived\\.|Ah, we meet again\\.\\.\\.|So you made it this far\\.\\.\\. interesting\\.|You've managed to scratch and claw your way here, eh\\?|I'm starting to get tired of seeing you around here\\.\\.\\.|Oh\\.\\. hello\\?|Things feel a little more roomy now, eh\\?)$|^The BLOOD DOOR has been opened!$",
+            "^\\[BOSS\\] The Watcher: (Congratulations, you made it through the Entrance\\.|Ah, you've finally arrived\\.|Ah, we meet again\\.\\.\\.|Ah, we meet again\\. As I foresaw\\.\\.\\.|So you made it this far\\.\\.\\. interesting\\.|You've managed to scratch and claw your way here, eh\\?|I'm starting to get tired of seeing you around here\\.\\.\\.|Oh\\.\\. hello\\?|Things feel a little more roomy now, eh\\?)$|^The BLOOD DOOR has been opened!$",
             "§bBlood Clear");
     private static final SplitDef PORTAL_ENTRY = def(
             "\\[BOSS\\] The Watcher: You have proven yourself\\. You may pass\\.", "§dPortal Entry");
