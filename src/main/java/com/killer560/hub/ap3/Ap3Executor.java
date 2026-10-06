@@ -60,7 +60,9 @@ import com.killer560.hub.compat.McCompat;
  * tick in this order (killer560: "stop should go first, then align, then look, then walk, then boom, then leap. So
  * if i hit a boom and leap node on the same tick then it should boom then the next tick leap"):
  * {@code STOPWATCH > STOP > ALIGN / AXIS_ALIGN > LOOK > TERMINAL > LEAP_COUNTER > WALK / RUN > BOOM > LEAP}
- * ({@link Ap3Node.Type#priority()}). A triggered node waits in the {@link #queue} until the executor is free (the
+ * ({@link Ap3Node.Type#priority()}). Since 2026-10-06 LOOK, STOPWATCH, USE, and (unless a STOP / align / leap / path
+ * owns the movement) WALK / RUN / JUMP / EDGE do not wait at all: they fire on the tick their box is entered, beside
+ * whatever is being performed - see {@link #fireInstant}. A triggered node waits in the {@link #queue} until the executor is free (the
  * previous node finished and any {@code wait:} modifier has elapsed) and then fires - <b>even if you have left its
  * box by then</b> (killer560: "yes it should still fire even if you leave the box by then"). Entering a box queues a
  * node once: it cannot be queued twice by a quick exit and re-entry while it is still waiting or being performed.
@@ -73,9 +75,12 @@ import com.killer560.hub.compat.McCompat;
  * the far side until a node THERE fires. Every one of those goes through {@link #stop} or {@link #onLeapHappened}.
  * <p>
  * <b>Held walk.</b> A WALK / RUN sets a <b>held</b> walk in its recorded world direction and completes at once; the
- * hold carries you along and lasts <b>until any other node fires</b> (killer560: "keep me walking until i hit a
- * different node") - so the node that ends it can be anything, a STOP, an ALIGN, a LOOK, a BOOM. With nothing
- * after it a walk keeps you moving until you take control.
+ * hold carries you along until a node that is about movement fires - killer560 (2026-10-06): "hitting a node doesnt
+ * stop another node unless it is something like i am using a run and hit a walk i should start walking or if i hit a
+ * stop node or align node". So a WALK / RUN replaces it, a STOP or an align ends it, a LEAP drops it (a teleport) and a
+ * PATH takes it over; every other node fires with the walk still going ({@link Ap3Node.Type#keepsHold()}). With
+ * nothing after it a walk keeps you moving until you take control. While a screen a node asked for is open (a
+ * terminal) the walk is kept but presses nothing.
  * <p>
  * <b>Leaping drops all movement</b> - killer560 (2026-09-20): "if it even encounters a leap node, it should stop all
  * movement when it goes to leap, so that tick it would look like drops all movement, leaps, and then no movement
@@ -271,7 +276,6 @@ public final class Ap3Executor {
     private static long lastFrameStepNanos;
 
     // ---- boom ----
-    private static boolean swapSent;
     private static BlockPos boomTarget;
     private static final Map<BlockPos, BlockState> boomBefore = new HashMap<>();
     /** Set by {@link #onGateDestroyed()} from the chat hook: Hypixel's own confirmation that a boom worked. */
@@ -284,6 +288,7 @@ public final class Ap3Executor {
     // ---- stopwatch (survives across areas; reset on world change) ----
     private static long stopwatchStartMs;
     private static long lastStopwatchMs = -1L;
+    private static long stopwatchStoppedAtMs = -1L;
 
     // ---- alignment progress ----
     private static int settleTicks;
@@ -312,7 +317,7 @@ public final class Ap3Executor {
     /** True while AP3 is doing something: performing a node, holding a walk, or holding triggered nodes in the
      *  queue. Nodes stay ARMED regardless - this is "busy", not "armed". */
     public static boolean isRunning() {
-        return activeNode != null || holdDir != null || !queue.isEmpty()
+        return activeNode != null || holdDir != null || !queue.isEmpty() || actNode != null
                 || jumpPendingTicks > 0 || edgeArmedTicks > 0 || wantJump;
     }
 
@@ -367,9 +372,9 @@ public final class Ap3Executor {
         queue.clear();
         Ap3RouteRunner.stop();
         restoreSlotOnStop(Minecraft.getInstance().player);
-        preAimed = null;
-        preAimPrevSlot = -1;
         endAim(Minecraft.getInstance().player);
+        actNode = null;
+        actFired = false;
         placedGraceTicks = 0;
         placedBlocking = false;
         blockWatchPos = null;
@@ -409,6 +414,12 @@ public final class Ap3Executor {
     static void resetStopwatch() {
         stopwatchStartMs = 0L;
         lastStopwatchMs = -1L;
+        stopwatchStoppedAtMs = -1L;
+    }
+
+    /** Wall-clock time the stopwatch last stopped, or -1 (the HUD hides 10 s after it - Ap3Feature.STOPWATCH_HUD). */
+    public static long stopwatchStoppedAtMs() {
+        return stopwatchStoppedAtMs;
     }
 
     // ------------------------------------------------------------------------------------------- arming
@@ -755,6 +766,7 @@ public final class Ap3Executor {
         }
         try {
             clearMovement(); // every node writes its own input; the held walk fills in below when none did
+            finishAct(player); // a USE / BLOCK / BOOM sent at this tick's START: its aim went out with the movement packet
             // With a screen the active node did not ask for open (chat, inventory, the mod menu) nothing new is
             // entered or begun - a box is "walked into" when you can act; the edge is seen once the screen closes.
             boolean canAct = !screenOpen || screenAllowed();
@@ -767,14 +779,19 @@ public final class Ap3Executor {
                     reportQueued();
                     applyJumps(player);
                     applyHold(player);
-                    preAim(player);
                     applyFallbackKeys(client);
                     return;
                 }
                 waitUntilMs = 0L;
             }
-            if (activeNode == null && !queue.isEmpty() && canAct) {
-                // ONE node per tick, highest priority first; the rest wait for the following ticks.
+            if (canAct) {
+                // LOOK, STOPWATCH, WALK / RUN, JUMP, EDGE and USE do not wait for the executor - see fireInstant.
+                fireInstant(client, player);
+            }
+            if (activeNode == null && !queue.isEmpty() && canAct && actNode == null) {
+                // ONE node per tick, highest priority first; the rest wait for the following ticks. Not while a USE
+                // aimed this tick is waiting for its START: a BLOCK / BOOM / align beginning now would turn him away
+                // from the rotation the use is about to carry.
                 beginNode(queue.remove(0), player);
             }
             reportQueued();
@@ -783,7 +800,6 @@ public final class Ap3Executor {
             }
             applyJumps(player); // first: the held walk faces straight ahead on a jump tick (see applyHoldRealYaw)
             applyHold(player);
-            preAim(player); // last: may turn you toward a Block / Boom box you enter next tick
             if (activeNode == null && chain != null && prePlanAfterAlign) {
                 // The align that just finished is the best possible moment to start the search.
                 prePlanAfterAlign = false;
@@ -876,7 +892,7 @@ public final class Ap3Executor {
     /** Queues a triggered node in priority order. A node already waiting or being performed is not queued again -
      *  stepping out and back in while it waits its turn must not fire it twice. */
     private static void trigger(Ap3Node node) {
-        if (node == activeNode) {
+        if (node == activeNode || node == actNode) {
             return;
         }
         for (Ap3Node q : queue) {
@@ -969,11 +985,7 @@ public final class Ap3Executor {
         activeNode = node;
         stepTicks = 0;
         settleTicks = 0;
-        swapSent = false;
         gateSawScreen = false;
-        if (preAimed != null && preAimed != node) {
-            cancelPreAim(player); // turned for a Block / Boom that this node beat to it
-        }
         if (!node.type.isMover() && !node.type.keepsHold()) {
             // "keep me walking until i hit a different node" - this is that node, whatever it is. A WALK / RUN
             // replaces the hold with its own instead; a JUMP / EDGE jumps without ending it.
@@ -1008,22 +1020,115 @@ public final class Ap3Executor {
         // ...and drop the grace window with it. Click-skipping a LEAP used to leave 205 ticks of grace
         // running, which silently made the next LOOK node uninterruptible by the mouse (2026-09-16 review).
         cameraGraceTicks = 0;
-        if (activeNode != null && activeNode.jumpMod != Ap3Node.JumpMod.NONE) {
+        applyModifiers(activeNode);
+        activeNode = null;
+        step = null;
+    }
+
+    /** A node is done: its jump / edge and {@code wait:} modifiers take effect (the active node's, or an instant one's). */
+    private static void applyModifiers(Ap3Node node) {
+        if (node != null && node.jumpMod != Ap3Node.JumpMod.NONE) {
             // The jump / edge modifier: the node has done its part (a walk is now held, an align has landed) -
             // arm the jump exactly like a JUMP / EDGE node would.
-            if (activeNode.jumpMod == Ap3Node.JumpMod.EDGE) {
+            if (node.jumpMod == Ap3Node.JumpMod.EDGE) {
                 edgeArmedTicks = EDGE_WAIT_TICKS;
             } else {
                 jumpPendingTicks = JUMP_WAIT_TICKS;
             }
         }
-        if (activeNode != null && activeNode.waitAfterMs > 0) {
+        if (node != null && node.waitAfterMs > 0) {
             // "/ap3 add walk wait:1000 waits 1000ms after that node" - the next queued node waits that long; a
             // held walk keeps going meanwhile.
-            waitUntilMs = System.currentTimeMillis() + activeNode.waitAfterMs;
+            waitUntilMs = System.currentTimeMillis() + node.waitAfterMs;
         }
-        activeNode = null;
-        step = null;
+    }
+
+    /**
+     * The nodes that do not wait for the executor (killer560, 2026-10-06: "look nodes mean that the second I hit the
+     * look node I should be looking that direction tick 1" and "Same concept for use nodes they should go off the
+     * tick i enter it"). Run on the tick their box is entered, straight after the scan, whatever node is being
+     * performed or queued ahead of them - one node per tick still holds for everything else:
+     * <ul>
+     * <li>LOOK and STOPWATCH: always. A look only moves the view, a stopwatch is a timestamp.</li>
+     * <li>WALK / RUN, JUMP, EDGE: unless a node that owns the movement (STOP, an align, LEAP, PATH) is being
+     *     performed or is queued ahead of them - "stop, then walk" in one box still brakes first.</li>
+     * <li>USE: unless something else is aiming or turning him (an align, BLOCK / BOOM, PATH, a leap, a terminal, a
+     *     pre-aim, another USE) - the aim cannot serve two nodes in one tick, so it waits its turn instead.</li>
+     * </ul>
+     * A STOP or align that has to wait for the active node still ends the held walk the tick it is hit ("if i hit a
+     * stop node or align node" it stops) - its own braking / aligning waits its turn. A node with the {@code close}
+     * modifier always takes the normal path (its gate is the point), and so does everything behind a {@code wait:}.
+     */
+    private static void fireInstant(Minecraft client, LocalPlayer player) {
+        boolean movementOwned = activeNode != null && activeNode.type.ownsMovement();
+        for (int i = 0; i < queue.size(); ) {
+            Ap3Node node = queue.get(i);
+            boolean gated = node.closeGate && !testMode;
+            boolean fire = !gated && switch (node.type) {
+                case LOOK, STOPWATCH -> true;
+                case WALK, RUN, JUMP, EDGE -> !movementOwned;
+                case USE -> !aimBusy(client);
+                default -> false;
+            };
+            if (!fire) {
+                if (node.type.ownsMovement()) {
+                    movementOwned = true;
+                    if (node.type != Ap3Node.Type.LEAP && node.type != Ap3Node.Type.PATH) {
+                        endHold(); // a STOP / align still ends the run now, even if its own work waits its turn
+                    }
+                }
+                i++;
+                continue;
+            }
+            queue.remove(i);
+            switch (node.type) {
+                case LOOK -> doLook(player, node);
+                case STOPWATCH -> toggleStopwatch(node);
+                case WALK, RUN -> {
+                    jumpPendingTicks = 0;
+                    edgeArmedTicks = 0;
+                    holdDir = node.dir();
+                    holdNode = node;
+                    holdSprint = node.type == Ap3Node.Type.RUN;
+                }
+                case JUMP -> jumpPendingTicks = JUMP_WAIT_TICKS;
+                case EDGE -> edgeArmedTicks = EDGE_WAIT_TICKS;
+                case USE -> {
+                    if (!armAct(node, player)) {
+                        return; // failed: everything stopped
+                    }
+                    continue; // modifiers apply when it has gone out (finishUse)
+                }
+                default -> {
+                }
+            }
+            applyModifiers(node);
+            if (waitUntilMs > 0L) {
+                return; // its wait: holds whatever is behind it
+            }
+        }
+    }
+
+    /** The held walk ends (a STOP / align was hit): the run, and the jump / edge its modifier armed. */
+    private static void endHold() {
+        holdDir = null;
+        jumpPendingTicks = 0;
+        edgeArmedTicks = 0;
+    }
+
+    /** Something is aiming or turning him, or a screen is open: a USE waits for the normal path. */
+    private static boolean aimBusy(Minecraft client) {
+        if (actNode != null || aiming || McCompat.screen(client) != null) {
+            return true;
+        }
+        if (activeNode == null) {
+            return false;
+        }
+        return switch (activeNode.type) {
+            case ALIGN, AXIS_ALIGN, FAST_ALIGN, BLOCK, PATH, LEAP, TERMINAL, TERM_AURA, USE -> true;
+            case BOOM -> step != Step.CONFIRM; // waiting for the gate to break aims at nothing
+            default -> false;
+        };
     }
 
     private static void tickNode(Minecraft client, LocalPlayer player) {
@@ -1088,93 +1193,204 @@ public final class Ap3Executor {
      * wand or an ender pearl at the sky needs.
      */
     private static void tickUse(Minecraft client, LocalPlayer player, Ap3Node node) {
-        // The phases FALL THROUGH within one tick wherever there is nothing to wait for.
-        //
-        // killer560 (2026-09-29): "my use item nodes come out like half a second late." Each phase was its own
-        // `case` that set the next step and returned, so PREP, SWAP and AIM each cost a whole client tick even
-        // when none of them had anything to wait for - four ticks before the click went out, six or seven when
-        // a swap was involved. Only two of those waits are real: the server must see the new rotation before
-        // the use, and it must have acknowledged a hotbar change. Everything else was the shape of the switch.
-        if (step == Step.PREP) {
-            if (takePreAim(node, player)) {
-                preAimPrevSlot = -1;
+        // Reached through the normal path only (a close-gated USE, or one that waited for an aim to finish); the
+        // instant path arms it from fireInstant. Either way: armed here, sent at the next START, finished at the
+        // END after that (finishUse). The DO step has nothing left to do on its own.
+        if (step == Step.PREP || step == Step.SWAP || step == Step.AIM) {
+            if (armAct(node, player)) {
                 step = Step.DO;
                 stepTicks = 0;
-            } else {
-                beginAim(player);
-                step = Step.SWAP;
-                stepTicks = 0;
             }
         }
-        if (step == Step.SWAP) {
-            // The item he was HOLDING when he made the node. killer560 (2026-09-29): "make sure it will
-            // swap to the proper item as well the item that I was holding when I placed the node."
-            //
-            // A node made with an empty hand has no id and uses whatever is held, which is the only
-            // sensible reading of "use" with nothing recorded. The swap is the same shape BOOM's is: it
-            // takes the tick's interaction slot, and a refused tick simply asks again.
-            if (node.useItemId == null || node.useItemId.isBlank()) {
-                step = Step.AIM;
-                stepTicks = 0;
+    }
+
+    // ---- USE, on the entry tick -------------------------------------------------------------------------------
+    //
+    // killer560 (2026-10-06): "Same concept for use nodes they should go off the tick i enter it."
+    //
+    // AP3 ticks at END_CLIENT_TICK, so the box is entered at END of tick t, after t's movement packet - the one that
+    // puts him in it. The use goes out at START of t+1: the very next thing on the wire after that movement packet,
+    // before anything else of t+1 (no movement packet in between - the testkit's 63-ap3-use-* prove it). It cannot
+    // go earlier without firing before he is in the box, and sending it at END t, after the movement packet, is the
+    // GrimAC Post order (Breaker Aura: 808 violations at END, 0 at START, 2026-09-27).
+    //
+    // The rotation: armUse aims at END t (the walk's keys for t+1 are re-picked for the aimed yaw, so the run stays on
+    // its line), the use packet carries that rotation, and t+1's movement packet carries the same one - the order a
+    // hand produces when it flicks and right-clicks in one tick, and exactly what GrimAC's BadPacketsJ asks (a use's
+    // yaw/pitch must be what the next movement packet reports). The aim is let go at END t+1, after that packet.
+    //
+    // The swap: a recorded item in another hotbar slot is selected at START t+1 just before the use, through the
+    // game mode's own ensureHasSentCarriedItem - slot packet then use packet, the order a hotbar key and a right
+    // click in the same tick produce, sent once (a hand-made slot packet is sent twice: GrimAC BadPacketsA).
+    //
+    // Until 2026-10-06 the use went out at END t+1 (one movement packet late, three with a swap), and endAim ran
+    // BEFORE the use, so the packet carried the pitch he had before the node instead of the node's own.
+
+    /** The USE armed for the next START (actFired false) or sent at this tick's START (actFired true); null = none. */
+    private static Ap3Node actNode;
+    private static boolean actFired;
+    /** Hotbar slot to select just before the use, or -1 to use what is held. */
+    private static int actSlot = -1;
+    /** BLOCK: the slot he held before the swap, put back after the place (finishAct) or on a stop; -1 = none. */
+    private static int actPrevSlot = -1;
+    private static int actWaitTicks;
+
+    /** END of the entry tick: find the item, aim. False when it failed (everything was stopped). USE, BLOCK and BOOM
+     *  all go this way (BLOCK and BOOM since 2026-10-06: they sent from END with a hand-made slot packet - GrimAC Post
+     *  and BadPacketsA on every one, testkit 63-ap3-hold-block / -boom). */
+    private static boolean armAct(Ap3Node node, LocalPlayer player) {
+        int slot = -1;
+        if (node.type == Ap3Node.Type.BLOCK) {
+            slot = findBlockSlot(player);
+            if (slot < 0) {
+                failNode("no block or slab in the hotbar");
+                return false;
+            }
+            actPrevSlot = player.getInventory().getSelectedSlot(); // a Block swaps back to what he held
+        } else if (node.type == Ap3Node.Type.BOOM) {
+            slot = ItemIdentity.findHotbarSlotById(player, BOOM_IDS);
+            if (slot < 0) {
+                failNode("no Superboom in the hotbar");
+                return false;
+            }
+        } else if (node.useItemId != null && !node.useItemId.isBlank()) {
+            // The item he was HOLDING when he made the node (killer560, 2026-09-29: "make sure it will swap to the
+            // proper item as well"). A node made with an empty hand has no id and uses whatever is held.
+            slot = ItemIdentity.findHotbarSlotById(player, node.useItemId);
+            if (slot < 0) {
+                failNode("no " + node.useItemId + " in the hotbar for use #" + number(node));
+                return false;
+            }
+        }
+        beginAim(player);
+        aimAt(player, node);
+        actNode = node;
+        actSlot = slot;
+        actFired = false;
+        actWaitTicks = 0;
+        return true;
+    }
+
+    /**
+     * START_CLIENT_TICK (from {@link Ap3Feature}): the armed USE goes out - hotbar change first if it needs one, then
+     * the use along the rotation set at the previous END. Nothing else happens here.
+     */
+    static void tickStart(Minecraft client) {
+        if (actNode == null || actFired || Ap3FreezeState.isFrozen()) {
+            return;
+        }
+        LocalPlayer player = client.player;
+        if (player == null || client.level == null || client.gameMode == null || McCompat.screen(client) != null) {
+            return; // finishUse times it out
+        }
+        // The gate decides whether this tick's one automated interaction is ours; a refused tick tries again next one.
+        if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+            return;
+        }
+        if (actSlot >= 0 && player.getInventory().getSelectedSlot() != actSlot) {
+            player.getInventory().setSelectedSlot(actSlot);
+            if (client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker) {
+                invoker.killer560smod$invokeEnsureHasSentCarriedItem();
             } else {
-                int slot = ItemIdentity.findHotbarSlotById(player, node.useItemId);
-                if (slot < 0) {
-                    failNode("no " + node.useItemId + " in the hotbar for use #" + number(node));
+                player.connection.send(new ServerboundSetCarriedItemPacket(actSlot));
+            }
+        }
+        // The ray is the rotation the packet will carry: the aim set at END (the node's angle, or one that hits the
+        // same block - chooseAim), from the eye where it is now.
+        Ap3Node node = actNode;
+        Vec3 eye = player.getEyePosition();
+        double reach = node.type == Ap3Node.Type.USE ? USE_REACH : BOOM_REACH;
+        Vec3 look = lookVector(player.getYRot(), player.getXRot()).scale(reach);
+        HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, player));
+        BlockHitResult b = hit instanceof BlockHitResult bh && hit.getType() == HitResult.Type.BLOCK ? bh : null;
+        actFired = true;
+        switch (node.type) {
+            case BLOCK -> {
+                if (b == null) {
+                    failNode("block #" + number(node) + " isn't looking at a block to place against");
                     return;
                 }
-                if (player.getInventory().getSelectedSlot() != slot) {
-                    if (!swapSent) {
-                        if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
-                            return;
+                // gameMode.useItemOn places client-side at once - the ghost block - whatever the server decides.
+                net.minecraft.world.InteractionResult r = client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, b);
+                blockWatchPos = b.getBlockPos().relative(b.getDirection()).immutable();
+                blockWatchTicks = 0;
+                placedWasSolid = false;
+                placedBlocking = false;
+                placedGraceTicks = 0;
+                if (r.consumesAction()) {
+                    player.swing(InteractionHand.MAIN_HAND);
+                }
+            }
+            case BOOM -> {
+                if (b == null) {
+                    failNode("boom #" + number(node) + " isn't looking at a block");
+                    return;
+                }
+                boomTarget = b.getBlockPos();
+                boomBefore.clear();
+                // Snapshot a cube around the hit block, not just its 6 faces - a Superboom breaks a wider area.
+                for (int dx = -BOOM_SCAN_RADIUS; dx <= BOOM_SCAN_RADIUS; dx++) {
+                    for (int dy = -BOOM_SCAN_RADIUS; dy <= BOOM_SCAN_RADIUS; dy++) {
+                        for (int dz = -BOOM_SCAN_RADIUS; dz <= BOOM_SCAN_RADIUS; dz++) {
+                            BlockPos p = boomTarget.offset(dx, dy, dz);
+                            boomBefore.put(p, client.level.getBlockState(p));
                         }
-                        player.getInventory().setSelectedSlot(slot);
-                        player.connection.send(new ServerboundSetCarriedItemPacket(slot));
-                        swapSent = true;
-                        stepTicks = 0;
-                    } else if (stepTicks > SWAP_TIMEOUT) {
-                        failNode("couldn't switch to " + node.useItemId);
                     }
-                    return;
                 }
-                if (!swapSent || stepTicks >= 2) { // the tick after a swap the server has seen it
-                    step = Step.AIM;
-                    stepTicks = 0;
-                } else {
-                    return;
+                // Same tap Auto Routes' superboom sends: a START on the face the eye sees, and the ABORT with the face
+                // vanilla sends (DOWN) - any other abort face is GrimAC PositionBreakB on every later dig.
+                player.connection.send(new ServerboundPlayerActionPacket(
+                        ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, boomTarget, b.getDirection()));
+                player.connection.send(new ServerboundPlayerActionPacket(
+                        ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, boomTarget, Direction.DOWN));
+                player.swing(InteractionHand.MAIN_HAND);
+            }
+            default -> {
+                // USE: a block under the ray gets useItemOn at the real hit (a lever, a chest); nothing under it gets a
+                // plain useItem (a wand or a pearl at the sky).
+                net.minecraft.world.InteractionResult r = b != null
+                        ? client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, b)
+                        : client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+                if (r.consumesAction()) {
+                    player.swing(InteractionHand.MAIN_HAND);
                 }
             }
         }
-        if (step == Step.AIM) {
-            aimAt(player, node);
-            step = Step.DO;
+    }
+
+    /** END, first thing: a use sent at this tick's START is done - its rotation went out with the movement packet in
+     *  between, so the aim is let go now. One that could not go out within {@link #SWAP_TIMEOUT} ticks fails. */
+    private static void finishAct(LocalPlayer player) {
+        if (actNode == null) {
+            return;
+        }
+        Ap3Node node = actNode;
+        if (!actFired) {
+            if (++actWaitTicks > SWAP_TIMEOUT) {
+                failNode("use #" + number(node) + " couldn't go out");
+            }
+            return;
+        }
+        actNode = null;
+        actFired = false;
+        endAim(player);
+        if (actPrevSlot >= 0) {
+            // BLOCK: back to what he held. Selected now, sent by the game mode's own tick at the next START - before
+            // that tick's movement packet, once, the way a hotbar key's change goes out.
+            if (player != null && player.getInventory().getSelectedSlot() != actPrevSlot) {
+                player.getInventory().setSelectedSlot(actPrevSlot);
+            }
+            actPrevSlot = -1;
+        }
+        if (node == activeNode && node.type == Ap3Node.Type.BOOM) {
+            step = Step.CONFIRM; // tickBoom waits for the gate to break
             stepTicks = 0;
-            // The one wait that has to stay. The rotation leaves with this tick's movement packet; sending the
-            // use now would put it in front of the rotation the server is meant to click along, which is the
-            // PositionPlace this mod has already paid for once.
-            return;
-        }
-        if (step == Step.DO) {
-            // The gate decides whether this tick's one automated interaction is ours; a refused tick costs
-            // nothing, the same use is asked for again next tick.
-            if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
-                return;
-            }
-            Vec3 eye = player.getEyePosition();
-            Vec3 look = lookVector(aimYawFor(node), aimPitchFor(node)).scale(USE_REACH);
-            HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
-                    ClipContext.Fluid.NONE, player));
-            endAim(player);
-            if (hit instanceof BlockHitResult b && hit.getType() == HitResult.Type.BLOCK
-                    && client.gameMode != null) {
-                client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, b);
-            } else if (client.gameMode != null) {
-                client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-            }
-            player.swing(InteractionHand.MAIN_HAND);
+        } else if (node == activeNode) {
             finishNode();
-            return;
+        } else {
+            applyModifiers(node);
         }
-        finishNode();
     }
 
     /** How far a USE node's ray looks for a block before treating the use as "at the air". */
@@ -2016,11 +2232,13 @@ public final class Ap3Executor {
             releaseView(player, 0f);
             return;
         }
-        boolean holding = freezeViewWanted() && (holdDir != null
+        boolean holding = (freezeViewWanted() && (holdDir != null
                 || (activeNode != null && step == Step.DO && activeNode.type.isAlign())
                 || (activeNode != null && activeNode.type == Ap3Node.Type.PATH)
-                || (activeNode != null && (activeNode.type == Ap3Node.Type.BLOCK || activeNode.type == Ap3Node.Type.BOOM))
-                || preAimed != null);
+                || (activeNode != null && (activeNode.type == Ap3Node.Type.BLOCK || activeNode.type == Ap3Node.Type.BOOM))))
+                // A LOOK's view during a walk, whatever the freeze setting; and any aim (a USE too - until 2026-10-06
+                // a USE's aim was glided back under the view before its movement packet went out).
+                || (lookView && holdDir != null) || aiming;
         if (!holding) {
             float delta = Mth.wrapDegrees(viewYaw - player.getYRot());
             if (Math.abs(delta) <= ALIGN_YAW_STEP) {
@@ -2046,6 +2264,11 @@ public final class Ap3Executor {
         player.yBob += shift;
         player.yBobO += shift;
         viewYaw = Float.NaN;
+        if (lookView && !aiming && !Float.isNaN(viewPitch)) {
+            player.setXRot(viewPitch); // a LOOK's pitch: the real pitch joins the view with the yaw
+            viewPitch = Float.NaN;
+        }
+        lookView = false;
     }
 
     /** Takes the sent yaw over for a Sent-Yaw align (seeded from the live yaw when it is not already ours). */
@@ -2663,19 +2886,52 @@ public final class Ap3Executor {
     // ---- LOOK: client-side rotation only ----------------------------------------------------------------------
 
     private static void tickLook(LocalPlayer player, Ap3Node node) {
-        // An instant snap (killer560, 2026-10-05: "the look node should be an instant snap"), no eased approach: a
-        // wrapped delta on the live yaw in one go, as aimAt does. Still client-side only - Ap3RotationSendMixin
-        // keeps it off the wire while lookHeld - and lifted the moment he turns the camera himself.
+        // Only a close-gated LOOK gets here; every other one is done by fireInstant on the tick its box is entered.
+        doLook(player, node);
+        finishNode();
+    }
+
+    /**
+     * The LOOK itself: an instant snap of the VIEW to the node's angle (killer560, 2026-10-05: "the look node should
+     * be an instant snap"; 2026-10-06: "the second I hit the look node I should be looking that direction tick 1"),
+     * done at END of the tick the box is entered, so the very next frame is drawn at the node's angle.
+     * <p>
+     * Two cases, because a held walk owns the real yaw - {@link #applyHoldRealYaw} snaps it onto the walk every tick,
+     * and the walk is kept now (a LOOK no longer ends it):
+     * <ul>
+     * <li>A view freeze is up (a held walk, an align, an aim) or a walk is held: the frozen VIEW is turned to the
+     *     node's angle (yaw by a wrapped delta on the running view yaw, pitch too) and the real rotation is left to the
+     *     walk - nothing is sent. When the walk ends the real yaw glides under the view as after any freeze, and the
+     *     pitch joins it ({@link #releaseView}). Until 2026-10-06 this case turned the REAL yaw, which tickView then
+     *     pulled straight back under the frozen view: a LOOK during a run never showed.</li>
+     * <li>Nothing holds the view: the real rotation, client-side only as before - {@code Ap3RotationSendMixin} keeps it
+     *     off the wire while {@link #lookHeld}, lifted the moment he turns the camera himself.</li>
+     * </ul>
+     */
+    private static void doLook(LocalPlayer player, Ap3Node node) {
+        float pitch = Mth.clamp(node.pitch, -90f, 90f);
+        if (!Float.isNaN(viewYaw) || (holdDir != null && viewMixinApplied)) {
+            if (Float.isNaN(viewYaw)) {
+                viewYaw = player.getYRot();
+            }
+            viewYaw += Mth.wrapDegrees(node.yaw - viewYaw);
+            viewPitch = pitch;
+            lookView = true;
+            return;
+        }
         float yaw = player.getYRot();
         player.setYRot(yaw + Mth.wrapDegrees(node.yaw - yaw));
-        player.setXRot(Mth.clamp(node.pitch, -90f, 90f));
+        player.setXRot(pitch);
         RouteRotation.rebase();
         RouteRotation.clearUserMoved();
         lookHeld = true;
         lookYaw = player.getYRot();
         lookPitch = player.getXRot();
-        finishNode();
     }
+
+    /** A LOOK turned the frozen view (see {@link #doLook}): hold it while the walk runs, then let the real rotation
+     *  - pitch included - join it. */
+    private static boolean lookView;
 
     // ---- BOOM: superboom where the node was looking, from where you stand ---------------------------------
 
@@ -2688,7 +2944,6 @@ public final class Ap3Executor {
     // gameMode.useItemOn, so the block appears client-side at once (the ghost block) whatever the server decides.
     // It does not end a held walk (Type.keepsHold) and swaps back to the slot you had afterwards.
 
-    private static int blockPrevSlot = -1;
     /** Dev diagnostics: the spot the last Block node placed into, watched for a second. */
     private static BlockPos blockWatchPos;
     private static int blockWatchTicks;
@@ -2741,123 +2996,19 @@ public final class Ap3Executor {
      * endAim puts the pitch back (where you moved the frozen view to, if you did). The yaw is left to the walk, which
      * snaps it onto its own angle, or to the view freeze's glide back.
      */
-    /**
-     * Look-ahead for BLOCK / BOOM (killer560, 2026-09-21: "it needs to be placing the block on the first tick I enter
-     * the block node though, so maybe have it so it predicts if I am going to enter so it does the rotation 1 tick
-     * early"). After this tick's input is decided: if the next tick's move - current velocity plus the push of the
-     * keys just chosen - ends inside a Block / Boom box you are not in yet, swap to the item and turn to the node's
-     * angle NOW. The next tick's movement packet then carries both, and the node uses its item on the very tick you
-     * enter (tickBlock / tickBoom skip straight to the use when the pre-aim matches). The held walk's keys are
-     * re-picked for the turned yaw so that one tick still heads the walk's way. A prediction that doesn't come true
-     * is dropped two ticks later (pitch and slot put back).
-     */
-    private static Ap3Node preAimed;
-    private static long preAimTick;
-    private static int preAimPrevSlot = -1;
+    // The BLOCK / BOOM look-ahead (preAim, 2026-09-21) is gone (2026-10-06): it turned and swapped one tick early so
+    // the place could go out at END of the entry tick - after that tick's movement packet, which GrimAC flags as Post,
+    // with a hand-made slot packet the game mode then sent again (BadPacketsA). Every interaction now aims at END of the
+    // entry tick and goes out at the next START (armAct / tickStart), which is the same packet position without
+    // either flag and without guessing where he will be.
 
-    private static void preAim(LocalPlayer player) {
-        if (preAimed != null && tickCounter - preAimTick > 2 && activeNode != preAimed) {
-            cancelPreAim(player);
-        }
-        if (preAimed == null && preAimPrevSlot >= 0 && activeNode == null) {
-            retrySlotBack(player); // a cancel whose swap-back the gate refused
-        }
-        Minecraft mc = Minecraft.getInstance();
-        if (chain == null || preAimed != null || activeNode != null || holdDir == null || McCompat.screen(mc) != null
-                || physicalMovementKeyDown(mc)) {
-            // Only while an AP3 walk is carrying you: never when AP3 is idle, under a node in progress, with a
-            // screen open or with your own keys down (a node you walk into by hand doesn't fire anyway).
-            return;
-        }
-        Vec3 pos = player.position();
-        Vec3 v = player.getDeltaMovement();
-        double dx = v.x;
-        double dz = v.z;
-        if (driving) {
-            Ap3DiscretePlanner.Model m = modelFor(player, false);
-            boolean diagonal = (wantForward || wantBackward) && (wantLeft || wantRight);
-            double push = m.tickSpeed(wantSprint || player.isSprinting()) * (diagonal ? 1.0 : Ap3AlignMath.INPUT_SCALE);
-            double len = Math.sqrt(driveX * driveX + driveZ * driveZ);
-            if (len > 1e-6) {
-                dx += driveX / len * push;
-                dz += driveZ / len * push;
-            }
-        }
-        Vec3 next = new Vec3(pos.x + dx, pos.y + v.y, pos.z + dz);
-        for (Ap3Node node : chain.nodes()) {
-            if ((node.type != Ap3Node.Type.BLOCK && node.type != Ap3Node.Type.BOOM) || inside.contains(node)
-                    || node.contains(pos) || !node.contains(next) || queue.contains(node) || node.closeGate) {
-                continue;
-            }
-            int slot = node.type == Ap3Node.Type.BLOCK ? findBlockSlot(player) : ItemIdentity.findHotbarSlotById(player, BOOM_IDS);
-            if (slot < 0) {
-                return; // the node itself will report it when you enter
-            }
-            int held = player.getInventory().getSelectedSlot();
-            if (slot != held) {
-                if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
-                    return;
-                }
-                player.getInventory().setSelectedSlot(slot);
-                player.connection.send(new ServerboundSetCarriedItemPacket(slot));
-            }
-            preAimPrevSlot = held;
-            beginAim(player);
-            aimAt(player, node);
-            if (holdDir != null) {
-                applyAimedHold(player); // re-pick this tick's keys for the aimed yaw: straight, fastest
-            }
-            preAimed = node;
-            preAimTick = tickCounter;
-            return;
-        }
-    }
-
-    /** The node the pre-aim was for has started: true (once) when it can use its item this very tick. */
-    private static boolean takePreAim(Ap3Node node, LocalPlayer player) {
-        if (preAimed == null) {
-            return false;
-        }
-        if (preAimed != node || tickCounter - preAimTick > 2) {
-            // Pre-aimed for another node, or too long ago: undo it (pitch, slot) so the fresh aim starts clean.
-            cancelPreAim(player);
-            return false;
-        }
-        preAimed = null;
-        return true;
-    }
-
-    /** stop() mid Block / pre-aim: put back the item you held (a Block node swaps it). */
+    /** stop() with a Block's swap still to undo: the slot he held goes back (vanilla's next game-mode tick sends it,
+     *  once - no hand-made packet). */
     private static void restoreSlotOnStop(LocalPlayer player) {
-        int back = preAimPrevSlot >= 0 ? preAimPrevSlot
-                : (activeNode != null && activeNode.type == Ap3Node.Type.BLOCK ? blockPrevSlot : -1);
-        if (player != null && back >= 0 && player.getInventory().getSelectedSlot() != back) {
-            player.getInventory().setSelectedSlot(back);
-            player.connection.send(new ServerboundSetCarriedItemPacket(back));
+        if (player != null && actPrevSlot >= 0 && player.getInventory().getSelectedSlot() != actPrevSlot) {
+            player.getInventory().setSelectedSlot(actPrevSlot);
         }
-        blockPrevSlot = -1;
-    }
-
-    private static void cancelPreAim(LocalPlayer player) {
-        preAimed = null;
-        endAim(player);
-        retrySlotBack(player);
-    }
-
-    /** Puts back the slot a pre-aim swapped away from; if the gate refuses this tick, preAim retries next tick. */
-    private static void retrySlotBack(LocalPlayer player) {
-        if (player == null || preAimPrevSlot < 0) {
-            return;
-        }
-        if (player.getInventory().getSelectedSlot() == preAimPrevSlot) {
-            preAimPrevSlot = -1;
-            return;
-        }
-        if (ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
-            player.getInventory().setSelectedSlot(preAimPrevSlot);
-            player.connection.send(new ServerboundSetCarriedItemPacket(preAimPrevSlot));
-            preAimPrevSlot = -1;
-        }
+        actPrevSlot = -1;
     }
 
     private static void beginAim(LocalPlayer player) {
@@ -2866,11 +3017,13 @@ public final class Ap3Executor {
         }
         aimPrevPitch = player.getXRot();
         aiming = true;
-        if (freezeViewWanted()) {
+        if (freezeViewWanted() || !Float.isNaN(viewYaw)) {
             if (Float.isNaN(viewYaw)) {
                 viewYaw = player.getYRot();
             }
-            viewPitch = player.getXRot();
+            if (Float.isNaN(viewPitch)) {
+                viewPitch = player.getXRot(); // a LOOK's frozen pitch stays what he sees
+            }
         }
     }
 
@@ -2922,21 +3075,9 @@ public final class Ap3Executor {
         if (holdDir == null || player.level() == null) {
             return;
         }
-        // Where the eye will be on the tick the use goes out.
-        Vec3 v = player.getDeltaMovement();
-        double dx = v.x;
-        double dz = v.z;
-        {
-            // The held walk pushes along holdDir next tick (on the AIM step inside tickNode 'driving' is still false).
-            Ap3DiscretePlanner.Model m = modelFor(player, false);
-            double push = m.tickSpeed(holdSprint || player.isSprinting());
-            double len = Math.sqrt(holdDir.x * holdDir.x + holdDir.z * holdDir.z);
-            if (len > 1e-6) {
-                dx += holdDir.x / len * push;
-                dz += holdDir.z / len * push;
-            }
-        }
-        Vec3 eye = player.getEyePosition().add(dx, 0.0, dz);
+        // The click goes out at the next START, before that tick's move: from the eye where it is now. (Until
+        // 2026-10-06 it went out after the move and this predicted the eye one push ahead.)
+        Vec3 eye = player.getEyePosition();
         BlockHitResult ref = rayAt(player, eye, node.yaw, node.pitch);
         float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
         // Fallback when nothing lines up exactly (killer560: "it slows down way too much now. It needs to keep moving
@@ -2996,7 +3137,7 @@ public final class Ap3Executor {
 
     /** While aimed, the held walk presses the chosen keys (or nothing) instead of turning to its own angle. */
     private static boolean applyAimedHold(LocalPlayer player) {
-        if (!aimLock || (aimNode != activeNode && aimNode != preAimed)) {
+        if (!aimLock || (aimNode != activeNode && aimNode != actNode)) {
             return false; // no aim, or a stale one left from a node that never ran - walk normally
         }
         if (aimKey == null) {
@@ -3022,96 +3163,12 @@ public final class Ap3Executor {
     }
 
     private static void tickBlock(Minecraft client, LocalPlayer player, Ap3Node node) {
-        switch (step) {
-            case PREP -> {
-                if (takePreAim(node, player)) {
-                    // Swapped and turned last tick by preAim: place on this, the entry tick.
-                    blockPrevSlot = preAimPrevSlot;
-                    preAimPrevSlot = -1;
-                    step = Step.DO;
-                    stepTicks = 0;
-                    tickBlock(client, player, node);
-                    return;
-                }
-                blockPrevSlot = player.getInventory().getSelectedSlot();
-                beginAim(player);
-                step = Step.SWAP;
-                stepTicks = 0;
-            }
-            case SWAP -> {
-                int slot = findBlockSlot(player);
-                if (slot < 0) {
-                    failNode("no block or slab in the hotbar");
-                    return;
-                }
-                if (player.getInventory().getSelectedSlot() != slot) {
-                    if (!swapSent) {
-                        if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
-                            return;
-                        }
-                        player.getInventory().setSelectedSlot(slot);
-                        player.connection.send(new ServerboundSetCarriedItemPacket(slot));
-                        swapSent = true;
-                        stepTicks = 0;
-                    } else if (stepTicks > SWAP_TIMEOUT) {
-                        failNode("couldn't switch to the block");
-                    }
-                    return;
-                }
-                if (!swapSent || stepTicks >= 1) {
-                    step = Step.AIM;
-                    stepTicks = 0;
-                }
-            }
-            case AIM -> {
-                aimAt(player, node);
+        // Armed here (aim at END of the entry tick), placed at the next START by tickStart, finished by finishAct.
+        if (step == Step.PREP || step == Step.SWAP || step == Step.AIM) {
+            if (armAct(node, player)) {
                 step = Step.DO;
                 stepTicks = 0;
             }
-            case DO -> {
-                Vec3 eye = player.getEyePosition();
-                Vec3 look = lookVector(aimYawFor(node), aimPitchFor(node)).scale(BOOM_REACH);
-                HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
-                        ClipContext.Fluid.NONE, player));
-                if (!(hit instanceof BlockHitResult b) || hit.getType() != HitResult.Type.BLOCK) {
-                    failNode("block #" + number(node) + " isn't looking at a block to place against");
-                    return;
-                }
-                if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
-                    return;
-                }
-                net.minecraft.world.InteractionResult r = client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, b);
-                // Diagnostics (2026-09-22, chest-placement setback on p3sim): what was placed, where, from where, and
-                // what the client world then shows at that spot over the next second (tickBlockWatch).
-                blockWatchPos = b.getBlockPos().relative(b.getDirection()).immutable();
-                blockWatchTicks = 0;
-                placedWasSolid = false;
-                placedBlocking = false;
-                placedGraceTicks = 0;
-                if (r.consumesAction()) {
-                    player.swing(InteractionHand.MAIN_HAND);
-                }
-                endAim(player); // placed: the walk takes yaw and keys back this same tick - one aimed tick, no more
-                step = Step.CONFIRM;
-                stepTicks = 0;
-            }
-            case CONFIRM -> {
-                endAim(player);
-                // Back to what was held (one packet, next tick), then done - the walk never stopped.
-                if (blockPrevSlot >= 0 && blockPrevSlot != player.getInventory().getSelectedSlot()) {
-                    if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
-                        if (stepTicks > SWAP_TIMEOUT) {
-                            finishNode();
-                        }
-                        return;
-                    }
-                    player.getInventory().setSelectedSlot(blockPrevSlot);
-                    player.connection.send(new ServerboundSetCarriedItemPacket(blockPrevSlot));
-                }
-                blockPrevSlot = -1;
-                finishNode();
-            }
-            default -> finishNode();
         }
     }
 
@@ -3145,86 +3202,13 @@ public final class Ap3Executor {
 
     private static void tickBoom(Minecraft client, LocalPlayer player, Ap3Node node) {
         switch (step) {
-            case PREP -> {
+            case PREP, SWAP, AIM -> {
+                // Armed here, the Superboom tap goes out at the next START (tickStart); finishAct moves it to CONFIRM.
                 boomChatConfirmed = false;
-                if (takePreAim(node, player)) {
-                    preAimPrevSlot = -1;
+                if (armAct(node, player)) {
                     step = Step.DO;
                     stepTicks = 0;
-                    tickBoom(client, player, node);
-                    return;
                 }
-                beginAim(player);
-                step = Step.SWAP;
-                stepTicks = 0;
-            }
-            case SWAP -> {
-                int slot = ItemIdentity.findHotbarSlotById(player, BOOM_IDS);
-                if (slot < 0) {
-                    failNode("no Superboom in the hotbar");
-                    return;
-                }
-                if (player.getInventory().getSelectedSlot() != slot) {
-                    if (!swapSent) {
-                        // The swap packet takes the tick's interaction slot like any other automated action; a
-                        // refused tick costs nothing - the same swap is asked for again next tick.
-                        if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
-                            return;
-                        }
-                        player.getInventory().setSelectedSlot(slot);
-                        player.connection.send(new ServerboundSetCarriedItemPacket(slot));
-                        swapSent = true;
-                        stepTicks = 0;
-                    } else if (stepTicks > SWAP_TIMEOUT) {
-                        failNode("couldn't switch to the Superboom");
-                    }
-                    return;
-                }
-                if (!swapSent || stepTicks >= 2) { // the tick after a swap the server has seen it
-                    step = Step.AIM;
-                    stepTicks = 0;
-                }
-            }
-            case AIM -> {
-                aimAt(player, node); // face it; the Superboom goes out next tick (see beginAim)
-                step = Step.DO;
-                stepTicks = 0;
-            }
-            case DO -> {
-                // killer560: "uses superboom exactly where you are looking, on that facing angle" - the ray is the
-                // node's recorded yaw/pitch from the live eye position; the camera is not turned.
-                Vec3 eye = player.getEyePosition();
-                Vec3 look = lookVector(aimYawFor(node), aimPitchFor(node)).scale(BOOM_REACH);
-                HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
-                        ClipContext.Fluid.NONE, player));
-                if (!(hit instanceof BlockHitResult b) || hit.getType() != HitResult.Type.BLOCK) {
-                    failNode("boom #" + number(node) + " isn't looking at a block");
-                    return;
-                }
-                // Last check before anything is sent: the gate decides whether this tick's interaction is ours.
-                if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
-                    return;
-                }
-                boomTarget = b.getBlockPos();
-                endAim(player); // the swing is sent; look back where you were
-                boomBefore.clear();
-                // Snapshot a cube around the hit block, not just its 6 faces - a Superboom breaks a wider area.
-                for (int dx = -BOOM_SCAN_RADIUS; dx <= BOOM_SCAN_RADIUS; dx++) {
-                    for (int dy = -BOOM_SCAN_RADIUS; dy <= BOOM_SCAN_RADIUS; dy++) {
-                        for (int dz = -BOOM_SCAN_RADIUS; dz <= BOOM_SCAN_RADIUS; dz++) {
-                            BlockPos p = boomTarget.offset(dx, dy, dz);
-                            boomBefore.put(p, client.level.getBlockState(p));
-                        }
-                    }
-                }
-                // Same packets Auto Routes' superboom node sends: a start + abort is the tap Hypixel reads as a click.
-                player.connection.send(new ServerboundPlayerActionPacket(
-                        ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, boomTarget, b.getDirection()));
-                player.connection.send(new ServerboundPlayerActionPacket(
-                        ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, boomTarget, b.getDirection()));
-                player.swing(InteractionHand.MAIN_HAND);
-                step = Step.CONFIRM;
-                stepTicks = 0;
             }
             case CONFIRM -> {
                 boolean changed = boomChatConfirmed; // Hypixel's "gate destroyed" line is proof enough on its own
@@ -3273,6 +3257,7 @@ public final class Ap3Executor {
         } else {
             lastStopwatchMs = now - stopwatchStartMs;
             stopwatchStartMs = 0L;
+            stopwatchStoppedAtMs = now;
             String time = formatStopwatch(lastStopwatchMs);
             chat(ModChat.text("Stopwatch" + (stopwatchName == null ? "" : " " + stopwatchName) + ": "), ModChat.value(time));
             if (Ap3Config.getInstance().isStopwatchToParty()) {
@@ -3334,6 +3319,13 @@ public final class Ap3Executor {
 
     private static void applyHold(LocalPlayer player) {
         if (driving || holdDir == null) {
+            return;
+        }
+        if (McCompat.screen(Minecraft.getInstance()) != null) {
+            // A screen the node asked for is open (a TERMINAL's GUI, a close gate, the leap menu): the run is kept
+            // but nothing moves under it - vanilla releases every key when a screen opens, and moving with a
+            // container open is the inventory walk he declined. It carries on when the screen closes.
+            clearMovement();
             return;
         }
         boolean ahead = placedBlocking && blockWatchPos != null && headOnInto(player, blockWatchPos);
