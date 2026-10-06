@@ -107,9 +107,10 @@ public final class Ap3Node {
         }
 
         /** Nodes that fire WITHOUT ending a held walk (killer560, 2026-09-21: "make both things that can go after
-         *  something like a walk command as well") - the walk keeps driving while they jump. */
+         *  something like a walk command as well") - the walk keeps driving while they jump. USE too (killer560,
+         *  2026-10-05: "if i hit a use node it should still have me continue running or walking"). */
         public boolean keepsHold() {
-            return this == JUMP || this == EDGE || this == BLOCK;
+            return this == JUMP || this == EDGE || this == BLOCK || this == USE;
         }
 
         /** The two movers (they start a held walk that lasts until any other node fires). */
