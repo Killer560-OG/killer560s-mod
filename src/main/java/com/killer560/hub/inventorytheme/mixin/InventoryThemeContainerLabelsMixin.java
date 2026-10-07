@@ -23,7 +23,7 @@ public abstract class InventoryThemeContainerLabelsMixin {
     @Inject(method = "extractLabels", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$themeLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CallbackInfo ci) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
-        if (!InventoryThemeFeature.shouldTheme(self) || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle().getString())) {
+        if (!InventoryThemeFeature.shouldTheme(self) || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle())) {
             return;
         }
         InventoryThemeFeature.drawLabels(graphics, self);

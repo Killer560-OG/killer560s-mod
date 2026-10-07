@@ -43,6 +43,8 @@ final class PlayerNameCache {
     /** Hard cap so years of sessions (parties, class overrides, leap order, the friends/bestfriends trackers)
      *  can't grow this file without bound; the oldest-refreshed entries are trimmed first. */
     static final int MAX_ENTRIES = 4096;
+    /** How stale an unchanged name's timestamp may get before a sighting refreshes it (see {@link #put}). */
+    static final long SEEN_REFRESH_MS = 10L * 60L * 1000L;
 
     private record Entry(String name, long updatedAtMs) {
     }
@@ -161,7 +163,12 @@ final class PlayerNameCache {
             return;
         }
         Entry existing = byUuid.get(id);
-        if (existing != null && existing.name().equals(name) && existing.updatedAtMs() >= atMs) {
+        // An unchanged name only refreshes its timestamp once per SEEN_REFRESH_MS. The tab-list scan notes every
+        // listed player every 500 ms, and a strictly newer timestamp used to count as a change: in any lobby the
+        // cache went dirty on every scan and the whole file (up to 4096 entries) was re-serialised and rewritten
+        // every two seconds, forever (FPS sweep, 2026-10-07). The timestamp only orders trim() and gates the
+        // once-a-day name refresh in PlayerNames.resolveAsync, and ten minutes of slack changes neither.
+        if (existing != null && existing.name().equals(name) && atMs - existing.updatedAtMs() < SEEN_REFRESH_MS) {
             return;
         }
         if (existing != null && !existing.name().equalsIgnoreCase(name)) {

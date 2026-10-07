@@ -35,14 +35,16 @@ public final class WitherDragonsPackets {
     }
 
     public static void onAddEntity(ClientboundAddEntityPacket packet, ClientLevel level) {
-        if (level == null) {
+        // Both handlers return at once unless dragon tracking is on; asking first spares every entity packet in every
+        // world a capturing lambda and an entity lookup (FPS sweep, 2026-10-07).
+        if (level == null || !WitherDragonsFeature.trackingActive()) {
             return;
         }
         guard("addEntity", () -> WitherDragonsFeature.onAddEntity(level.getEntity(packet.getId())));
     }
 
     public static void onEntityData(ClientboundSetEntityDataPacket packet, ClientLevel level) {
-        if (level == null) {
+        if (level == null || !WitherDragonsFeature.trackingActive()) {
             return;
         }
         guard("entityData", () -> WitherDragonsFeature.onEntityData(level.getEntity(packet.id())));

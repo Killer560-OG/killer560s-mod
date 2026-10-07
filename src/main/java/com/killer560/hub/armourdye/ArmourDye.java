@@ -243,12 +243,16 @@ public final class ArmourDye {
         if (cached != null && cached.stack().get() == stack) {
             return cached.entry();
         }
+        // Not armour (or nothing configured): no entry, and nothing worth remembering - the memo is for repeated reads
+        // of one armour piece. The item model of EVERY drawn stack is read through here while the feature is on, and
+        // each non-armour item used to evict the memo and allocate a new one (FPS sweep, 2026-10-07).
+        if (snapshot.isEmpty() || raw(stack, DataComponents.EQUIPPABLE) == null) {
+            return null;
+        }
         ArmourDyeEntry entry = null;
-        if (raw(stack, DataComponents.EQUIPPABLE) != null) {
-            String id = identityOf(stack);
-            if (id != null) {
-                entry = snapshot.get(id);
-            }
+        String id = identityOf(stack);
+        if (id != null) {
+            entry = snapshot.get(id);
         }
         memo = new Memo(new WeakReference<>(stack), entry);
         return entry;

@@ -97,17 +97,23 @@ public final class ItemRarityFeature {
         int alpha = Math.round(cfg.getOpacity() * 2.55f);
         int color = (alpha << 24) | entry.rarity.rgb;
         switch (cfg.getStyle()) {
+            // OUTLINE and CIRCLE are several fills per slot; submitted as one render-state element each (GuiRects) so a
+            // full menu is not hundreds of elements each intersection-tested against every item before it. Same fills.
             case OUTLINE -> {
                 // Inset rings, one per pixel of width, so a thicker outline grows inward and never leaves the slot.
                 int w = cfg.getOutlineWidth();
+                com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
                 for (int i = 0; i < w; i++) {
-                    graphics.outline(x + i, y + i, 16 - 2 * i, 16 - 2 * i, color);
+                    rects.outline(x + i, y + i, 16 - 2 * i, 16 - 2 * i, color);
                 }
+                rects.submit();
             }
             case CIRCLE -> {
+                com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
                 for (int[] run : CIRCLE_RUNS) {
-                    graphics.fill(x + run[2], y + run[0], x + 16 - run[2], y + run[0] + run[1], color);
+                    rects.fill(x + run[2], y + run[0], x + 16 - run[2], y + run[0] + run[1], color);
                 }
+                rects.submit();
             }
             default -> graphics.fill(x, y, x + 16, y + 16, color);
         }

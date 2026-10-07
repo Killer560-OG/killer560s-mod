@@ -467,8 +467,38 @@ public final class StorageOverlayFeature {
      *  the "Storage" overview screen itself, since the grid now shows there too and having both up
      *  looked cluttered. Public so the hide-mixins (a different package) can share this exact check. */
     public static boolean shouldHideVanilla(String title) {
-        return storageKeyForTitle(title) != null || title.equals(OVERVIEW_TITLE);
+        // Asked once per SLOT per frame by the hide mixins in every container (the overlay is on by default). It used
+        // to build the full storage key to test it for null - two regexes plus, on a storage page, a whole-sidebar
+        // read for the profile name, ~90 times a frame. The key is never null for a matching title, so the answer is
+        // the title match alone, and it only changes when the title does (FPS sweep, 2026-10-07).
+        HideMemo memo = hideMemo;
+        if (memo != null && memo.title.equals(title)) {
+            return memo.hide;
+        }
+        boolean hide = ENDER_CHEST_TITLE.matcher(title).matches() || BACKPACK_TITLE.matcher(title).matches()
+                || title.equals(OVERVIEW_TITLE);
+        hideMemo = new HideMemo(title, hide, null);
+        return hide;
     }
+
+    /** {@link #shouldHideVanilla(String)} for a screen title, without flattening the same immutable title to a
+     *  string for every slot of every frame. */
+    public static boolean shouldHideVanilla(Component title) {
+        HideMemo memo = hideMemo;
+        if (memo != null && memo.component == title && title != null) {
+            return memo.hide;
+        }
+        String text = title == null ? "" : title.getString();
+        boolean hide = shouldHideVanilla(text);
+        hideMemo = new HideMemo(text, hide, title);
+        return hide;
+    }
+
+    /** One immutable record, swapped whole, so a reader never sees one title's answer for another. */
+    private record HideMemo(String title, boolean hide, Component component) {
+    }
+
+    private static volatile HideMemo hideMemo;
 
     /** Called from {@link com.killer560.hub.storageoverlay.mixin.StorageOverlayContainerMixin} on
      *  every container screen's own render pass - draws the 3-column grid of every known storage for

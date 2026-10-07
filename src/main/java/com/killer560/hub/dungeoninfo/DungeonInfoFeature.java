@@ -153,12 +153,8 @@ public final class DungeonInfoFeature {
         // reads the same "Secrets Found" lines in both places.
         boolean matchedAny = false;
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
-            Component display = info.getTabListDisplayName();
-            if (display == null) {
-                continue;
-            }
-            String raw = display.getString();
-            String plain = com.killer560.hub.util.ChatObserver.stripCodes(raw);
+            // Every tick in a dungeon, ~80 entries: flattened once per entry change, not once per tick (TabText).
+            String plain = com.killer560.hub.util.TabText.plain(info);
             if (plain == null || !plain.contains("Secrets Found")) {
                 continue;
             }

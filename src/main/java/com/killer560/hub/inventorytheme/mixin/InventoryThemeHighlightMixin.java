@@ -26,7 +26,7 @@ public abstract class InventoryThemeHighlightMixin {
     @Inject(method = "extractSlotHighlightBack", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$themeHighlightBack(GuiGraphicsExtractor graphics, CallbackInfo ci) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
-        if (!InventoryThemeFeature.shouldTheme(self) || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle().getString())) {
+        if (!InventoryThemeFeature.shouldTheme(self) || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle())) {
             return;
         }
         InventoryThemeFeature.drawSlotHighlight(graphics, self, hoveredSlot);
@@ -36,7 +36,7 @@ public abstract class InventoryThemeHighlightMixin {
     @Inject(method = "extractSlotHighlightFront", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$themeHighlightFront(GuiGraphicsExtractor graphics, CallbackInfo ci) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
-        if (!InventoryThemeFeature.shouldTheme(self) || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle().getString())) {
+        if (!InventoryThemeFeature.shouldTheme(self) || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle())) {
             return;
         }
         // Our own highlight was already drawn in the "Back" pass above - just suppress vanilla's

@@ -10,7 +10,6 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -84,9 +83,22 @@ public final class CheatUtils {
         if (server == null || server.ip == null) {
             return false;
         }
+        // A pure function of the address string, asked by twenty callers - some per slot per frame (Inventory Theme) -
+        // so the answer is kept for the address object it was worked out from (FPS sweep, 2026-10-07).
+        IpVerdict last = lastIpVerdict;
+        if (last != null && last.ip == server.ip) {
+            return last.dungeon;
+        }
         String ip = server.ip.toLowerCase(Locale.US);
-        return ip.contains("hypixel.net") || ip.contains("p3sim.net") || localTestServerOverride(ip);
+        boolean dungeon = ip.contains("hypixel.net") || ip.contains("p3sim.net") || localTestServerOverride(ip);
+        lastIpVerdict = new IpVerdict(server.ip, dungeon);
+        return dungeon;
     }
+
+    private record IpVerdict(String ip, boolean dungeon) {
+    }
+
+    private static volatile IpVerdict lastIpVerdict;
 
     /**
      * Whether a LOCAL server should be treated as a dungeon server.
@@ -113,11 +125,10 @@ public final class CheatUtils {
         if (stack == null || stack.isEmpty()) {
             return null;
         }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack); // read only, no deep copy (held item, every tick)
+        if (tag == null) {
             return null;
         }
-        CompoundTag tag = data.copyTag();
         return tag.contains("id") ? tag.getStringOr("id", null) : null;
     }
 

@@ -128,6 +128,11 @@ public final class InventoryThemeFeature {
         return StorageOverlayConfig.getInstance().isEnabled() && StorageOverlayFeature.shouldHideVanilla(title);
     }
 
+    /** {@link #isOwnedByStorageOverlay(String)} for a screen's title, without flattening it for every slot. */
+    public static boolean isOwnedByStorageOverlay(net.minecraft.network.chat.Component title) {
+        return StorageOverlayConfig.getInstance().isEnabled() && StorageOverlayFeature.shouldHideVanilla(title);
+    }
+
     /** killer560: "remove the offhand slot ... for now." True for the player's real offhand slot
      *  (container index {@link Inventory#SLOT_OFFHAND}) wherever it's embedded in an in-scope screen. */
     public static boolean isOffhandSlot(Slot slot) {
@@ -188,12 +193,16 @@ public final class InventoryThemeFeature {
         // the "empty orange inventory grid at the bottom right" with the real panel left slot-less.
         int x = slot.x - 1;
         int y = slot.y - 1;
-        graphics.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, SLOT_BG);
         // killer560: "I can no longer see the lines between slots" - same root cause as the outer
         // border above (a hardcoded dim brown, 0xFF663D1A, that barely read against SLOT_BG). Per-slot
         // outlines now use the same accent color as the rest of the border, so the grid lines between
         // slots are back and consistent with the rest of the panel.
-        graphics.outline(x, y, SLOT_SIZE, SLOT_SIZE, InventoryThemeConfig.getInstance().getAccentColor());
+        // One render-state element, not five: the same fill and outline, but a menu's 450 separate fills were each
+        // intersection-tested against every item already drawn - 8% of the render thread with a chest open (GuiRects).
+        com.killer560.hub.hud.GuiRects.begin(graphics)
+                .fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, SLOT_BG)
+                .outline(x, y, SLOT_SIZE, SLOT_SIZE, InventoryThemeConfig.getInstance().getAccentColor())
+                .submit();
     }
 
     /** Themed replacement for vanilla's white hover-highlight box, drawn once (in place of vanilla's own

@@ -674,6 +674,16 @@ public final class MapPainter {
 
     static void drawRoom(GuiGraphicsExtractor graphics, LiveMapFeature.RoomGroup group, int gid, int color,
                          float ox, float oy, float ppu) {
+        com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
+        drawRoom(rects, group, gid, color, ox, oy, ppu);
+        rects.submit();
+    }
+
+    /** {@link #drawRoom(GuiGraphicsExtractor, LiveMapFeature.RoomGroup, int, int, float, float, float)} into a batch,
+     *  so the HUD map can submit every room as one render-state element (rooms never overlap one another). */
+    static void drawRoom(com.killer560.hub.hud.GuiRects graphics, LiveMapFeature.RoomGroup group, int gid, int color,
+                         float ox, float oy, float ppu) {
+        int n = 0;
         for (int c : group.cells) {
             int gx = c % LiveMapFeature.GRID;
             int gz = c / LiveMapFeature.GRID;
@@ -683,8 +693,59 @@ public final class MapPainter {
             if (!cellRevealed(c)) {
                 continue;
             }
-            graphics.fill(px(ox, cellPos(gx), ppu), px(oy, cellPos(gz), ppu),
-                    px(ox, cellPos(gx) + cellSize(gx), ppu), px(oy, cellPos(gz) + cellSize(gz), ppu), color);
+            if (n * 4 + 4 > ROOM_RECTS.length) {
+                fillMerged(graphics, ROOM_RECTS, n, color);
+                n = 0;
+            }
+            ROOM_RECTS[n * 4] = px(ox, cellPos(gx), ppu);
+            ROOM_RECTS[n * 4 + 1] = px(oy, cellPos(gz), ppu);
+            ROOM_RECTS[n * 4 + 2] = px(ox, cellPos(gx) + cellSize(gx), ppu);
+            ROOM_RECTS[n * 4 + 3] = px(oy, cellPos(gz) + cellSize(gz), ppu);
+            n++;
+        }
+        fillMerged(graphics, ROOM_RECTS, n, color);
+    }
+
+    /** Scratch for {@link #drawRoom}'s cell rectangles (render thread only): x0, y0, x1, y1 per cell. */
+    private static final int[] ROOM_RECTS = new int[4 * 64];
+
+    /**
+     * Fills {@code n} disjoint rectangles of one colour as few fills as cover exactly the same pixels: rectangles that
+     * share a full edge are joined, along rows first and then down columns. A room of four cells and its connectors was
+     * nine fills, and every GUI fill is a render-state element that the next one is intersection-tested against (see
+     * the GUI fill lesson in docs/LESSONS-GUI.md); the map was ~120 fills a frame on F7 (FPS sweep, 2026-10-07). Only
+     * rectangles meeting edge to edge are joined, so nothing ever overlaps and a translucent room colour blends once.
+     */
+    static void fillMerged(com.killer560.hub.hud.GuiRects graphics, int[] r, int n, int color) {
+        boolean merged = true;
+        while (merged) {
+            merged = false;
+            for (int i = 0; i < n; i++) {
+                if (r[i * 4] == Integer.MIN_VALUE) {
+                    continue;
+                }
+                for (int j = 0; j < n; j++) {
+                    if (j == i || r[j * 4] == Integer.MIN_VALUE) {
+                        continue;
+                    }
+                    int a = i * 4;
+                    int b = j * 4;
+                    if (r[a + 1] == r[b + 1] && r[a + 3] == r[b + 3] && r[a + 2] == r[b]) {
+                        r[a + 2] = r[b + 2]; // b continues a's row to the right
+                        r[b] = Integer.MIN_VALUE;
+                        merged = true;
+                    } else if (r[a] == r[b] && r[a + 2] == r[b + 2] && r[a + 3] == r[b + 1]) {
+                        r[a + 3] = r[b + 3]; // b continues a's column downwards
+                        r[b] = Integer.MIN_VALUE;
+                        merged = true;
+                    }
+                }
+            }
+        }
+        for (int i = 0; i < n; i++) {
+            if (r[i * 4] != Integer.MIN_VALUE) {
+                graphics.fill(r[i * 4], r[i * 4 + 1], r[i * 4 + 2], r[i * 4 + 3], color);
+            }
         }
     }
 
@@ -759,6 +820,8 @@ public final class MapPainter {
      *  rooms on both sides, is the 4-unit gap long, and 6 units wide across the doorway. */
     static void drawDoors(GuiGraphicsExtractor graphics, DungeonLayout layout, LiveMapConfig cfg,
                           float ox, float oy, float ppu, int hoveredDoor) {
+        // Every door's fill and outlines as ONE render-state element, in the same order (hud/GuiRects).
+        com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
         for (int idx = 0; idx < LiveMapFeature.GRID * LiveMapFeature.GRID; idx++) {
             int type = layout.doorType(idx);
             boolean locked = layout.isLocked(idx);
@@ -807,22 +870,23 @@ public final class MapPainter {
             int y0 = px(oy, uz, ppu);
             int x1 = px(ox, ux + uw, ppu);
             int y1 = px(oy, uz + uh, ppu);
-            graphics.fill(x0, y0, x1, y1, color);
+            rects.fill(x0, y0, x1, y1, color);
             if (type == DungeonLayout.DOOR_WITHER && locked) {
                 // killer560, 2026-09-20: "wither doors are very hard to see on the map" - the real map's own byte
                 // for a locked wither door is near-black (default #101010), which vanishes into the HUD background.
                 // A double amber outline (the mod's own accent colour) makes it read as a warning at a glance
                 // without touching the fill colour itself, which is still the real map's own and still a picker.
-                graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
-                graphics.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
+                rects.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
+                rects.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
             }
             if (theoreticalWither) {
-                graphics.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
+                rects.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
             }
             if (idx == hoveredDoor) {
-                graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xB4FFFFFF);
+                rects.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xB4FFFFFF);
             }
         }
+        rects.submit();
     }
 
     /**

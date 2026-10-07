@@ -326,11 +326,7 @@ public final class ScoreCalculatorFeature {
             return -1;
         }
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
-            Component display = info.getTabListDisplayName();
-            if (display == null) {
-                continue;
-            }
-            String plain = com.killer560.hub.util.ChatObserver.stripCodes(display.getString());
+            String plain = com.killer560.hub.util.TabText.plain(info);
             if (plain == null) {
                 continue;
             }
@@ -354,11 +350,7 @@ public final class ScoreCalculatorFeature {
         boolean matchedAny = false;
         Map<String, Character> states = new HashMap<>();
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
-            Component display = info.getTabListDisplayName();
-            if (display == null) {
-                continue;
-            }
-            String plain = com.killer560.hub.util.ChatObserver.stripCodes(display.getString());
+            String plain = com.killer560.hub.util.TabText.plain(info);
             if (plain == null || plain.isBlank()) {
                 continue;
             }

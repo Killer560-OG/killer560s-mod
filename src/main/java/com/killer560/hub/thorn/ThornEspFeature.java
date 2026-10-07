@@ -52,11 +52,13 @@ public final class ThornEspFeature {
     }
 
     public static boolean shouldGlow(Entity entity) {
-        return entity != null && glowTargets.containsKey(entity.getId());
+        Map<Integer, Integer> targets = glowTargets; // per entity per frame: no boxed id when nothing glows
+        return entity != null && !targets.isEmpty() && targets.containsKey(entity.getId());
     }
 
     public static Integer glowColor(Entity entity) {
-        return entity == null ? null : glowTargets.get(entity.getId());
+        Map<Integer, Integer> targets = glowTargets;
+        return entity == null || targets.isEmpty() ? null : targets.get(entity.getId());
     }
 
     static void reset() {

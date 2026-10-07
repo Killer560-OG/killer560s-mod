@@ -4,12 +4,10 @@ import com.killer560.hub.objecthider.ObjectHiderConfig;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ItemInHandRenderer;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -70,11 +68,10 @@ public abstract class ObjectHiderItemAnimMixin {
         if (stack == null || stack.isEmpty()) {
             return false;
         }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack); // read only: per arm render, no deep copy
+        if (tag == null) {
             return false;
         }
-        CompoundTag tag = data.copyTag();
         String id = tag.contains("id") ? tag.getStringOr("id", null) : null;
         return id != null && id.contains("SHORTBOW");
     }

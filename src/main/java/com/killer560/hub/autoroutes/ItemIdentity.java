@@ -4,7 +4,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 
 import java.util.Locale;
 import java.util.Map;
@@ -204,11 +203,10 @@ public final class ItemIdentity {
         if (stack == null || stack.isEmpty()) {
             return null;
         }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack); // read only, no deep copy
+        if (tag == null) {
             return null;
         }
-        CompoundTag tag = data.copyTag();
         return tag.getStringOr("id", null);
     }
 
@@ -227,11 +225,10 @@ public final class ItemIdentity {
         if (stack == null || stack.isEmpty()) {
             return false;
         }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack); // read only, no deep copy
+        if (tag == null) {
             return false;
         }
-        CompoundTag tag = data.copyTag();
         return tag.getIntOr("ethermerge", 0) == 1 || "ETHERWARP_CONDUIT".equals(tag.getStringOr("id", null));
     }
 

@@ -415,7 +415,12 @@ public final class CustomScoreboardFeature {
             HudSeen.markDrawn(ELEMENT_ID);
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);
-            drawBoard(graphics, font, 0, 0, lines, cfg, true);
+            com.killer560.hub.hud.HudTextCache.begin(); // the board's lines keep their visual order between frames
+            try {
+                drawBoard(graphics, font, 0, 0, lines, cfg, true);
+            } finally {
+                com.killer560.hub.hud.HudTextCache.end();
+            }
         } catch (RuntimeException e) {
             // A broken frame must never take down the rest of the HUD.
         } finally {
@@ -536,11 +541,28 @@ public final class CustomScoreboardFeature {
         return popup == null ? w : w + font.width(popup);
     }
 
+    /** {@link #contentWidth} of the last list measured: one frame asks it four times (position, box, inner width,
+     *  hover layout), each time measuring every line with the font - most of the board's own text cost (FPS sweep,
+     *  2026-10-07). Same list, same font and the same millisecond (popups expire by the clock) is the same answer. */
+    private static List<ScoreboardLine> widthLines;
+    private static Font widthFont;
+    private static long widthAtMs;
+    private static int widthValue;
+
     private static int contentWidth(Font font, List<ScoreboardLine> lines) {
         long now = System.currentTimeMillis();
+        if (lines == widthLines && font == widthFont && now == widthAtMs) {
+            return widthValue;
+        }
         int w = 0;
         for (ScoreboardLine line : lines) {
             w = Math.max(w, lineWidth(font, line, now));
+        }
+        if (Minecraft.getInstance().isSameThread()) {
+            widthLines = lines;
+            widthFont = font;
+            widthAtMs = now;
+            widthValue = w;
         }
         return w;
     }

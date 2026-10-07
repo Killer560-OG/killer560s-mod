@@ -95,7 +95,17 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   throws. MiningProfitTracker did that every tick once trackers went on by default; null-check before any `Set.of` lookup.
 - Measure FPS work with the testkit's `95-fps-bench` (sim F7, ON/OFF alternated, frame and tick CPU time, JFR dumps;
   `tools/fps-jfr.py` attributes samples to mod code). Compare the ON-OFF DELTA within one run: absolute numbers
-  drifted ~0.06 ms between identical runs, which is larger than most single fixes.
+  drifted ~0.06 ms between identical runs, which is larger than most single fixes. 95 is a dungeon; a hub (80-entry
+  tab list, ~180 entities, chat, an open chest, an Ender Chest page) is `403-perf-hub` (testkit docs/fps-bench.md).
+- **Server-sent text can be memoised by object identity.** A tab entry's display name, a team's prefix/suffix and an
+  entry's display are REPLACED with a new `Component` when the server updates them, never edited, so "same object (and
+  same `Language`), same string" is exact. `util/TabText` and `DungeonState.readSidebarText` key on that (2026-10-07):
+  a dozen tab readers had each re-flattened and regex-stripped all ~80 entries, and the sidebar was rebuilt every tick
+  in every world. In a weak-keyed cache never store the key itself as its value (Name Changer stores `NO_MATCH`): a
+  strong value that names its key keeps the entry alive forever.
+- A cache that is never clean costs the whole save every time: `PlayerNameCache.put` treated a newer timestamp as a
+  change, so the 500 ms tab-list scan made it dirty on every pass and the whole name file was rewritten every two
+  seconds in any lobby (found 2026-10-07; a sighting now refreshes an unchanged name at most once per ten minutes).
 - **On 26.2 a PEACEFUL level hides every hostile mob from the client.** `ClientPacketListener.handleAddEntity` goes
   through `EntityType.create` -> `canSpawn`, which refuses a type not `isAllowedInPeaceful` while the level reads
   PEACEFUL ("Skipping Entity with id entity.minecraft.silverfish"; javap 26.2). The server has the mob, the client never

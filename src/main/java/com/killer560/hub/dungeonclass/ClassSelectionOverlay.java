@@ -78,6 +78,10 @@ public final class ClassSelectionOverlay {
         ClassSelectionOverlayConfig cfg = ClassSelectionOverlayConfig.getInstance();
         if (!cfg.isEnabled() || client.player == null || !(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             clear();
+            if (nameMemoScreen != null) {
+                nameMemo.clear(); // holds the closed screen's slots and stacks; nothing to keep them for
+                nameMemoScreen = null;
+            }
             return;
         }
         if (screen != scannedScreen) {
@@ -89,7 +93,18 @@ public final class ClassSelectionOverlay {
         }
     }
 
+    private record NameMemo(ItemStack stack, DungeonClass cls) {
+    }
+
+    /** Per slot of {@link #nameMemoScreen}: the class read off the stack that was in it (client thread only). */
+    private static final Map<Slot, NameMemo> nameMemo = new java.util.IdentityHashMap<>();
+    private static Object nameMemoScreen;
+
     private static void rescan(Minecraft client, AbstractContainerScreen<?> screen) {
+        if (screen != nameMemoScreen) {
+            nameMemo.clear();
+            nameMemoScreen = screen;
+        }
         Map<DungeonClass, Slot> found = new EnumMap<>(DungeonClass.class);
         for (Slot slot : screen.getMenu().slots) {
             if (slot.container == client.player.getInventory()) {
@@ -99,7 +114,18 @@ public final class ClassSelectionOverlay {
             if (stack == null || stack.isEmpty()) {
                 continue;
             }
-            DungeonClass cls = classOfName(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
+            // This runs every tick in every open container (the overlay is on by default), and reading each stack's
+            // hover name means a Component flatten, the hover-name mixins and a regex strip per slot. A slot's answer
+            // is kept for the stack OBJECT it was read from: a server update puts a new stack in the slot, which is
+            // read afresh (FPS sweep, 2026-10-07).
+            NameMemo memo = nameMemo.get(slot);
+            DungeonClass cls;
+            if (memo != null && memo.stack() == stack) {
+                cls = memo.cls();
+            } else {
+                cls = classOfName(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
+                nameMemo.put(slot, new NameMemo(stack, cls));
+            }
             if (cls != null) {
                 found.putIfAbsent(cls, slot);
             }

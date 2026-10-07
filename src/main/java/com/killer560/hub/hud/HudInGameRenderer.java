@@ -53,8 +53,13 @@ public final class HudInGameRenderer {
         // time. One call per frame, not per element.
         HudSeen.markHudFrame();
         List<HudElement> elements = drawList();
-        for (int i = 0; i < elements.size(); i++) {
-            com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, elements.get(i));
+        HudTextCache.begin(); // these elements' String lines keep their visual order between frames
+        try {
+            for (int i = 0; i < elements.size(); i++) {
+                com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, elements.get(i));
+            }
+        } finally {
+            HudTextCache.end();
         }
     }
 
