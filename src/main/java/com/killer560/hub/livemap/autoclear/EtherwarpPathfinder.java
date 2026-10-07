@@ -364,7 +364,7 @@ public final class EtherwarpPathfinder {
             int floor = 69 + off;
             int topY = level.getMaxY();
             WarpGraph.LandingRule rule = (g, x, y, z) -> x >= minX && x <= maxX && z >= minZ && z <= maxZ
-                    && (!sim || covered(g, x, y, z, floor, topY));
+                    && covered(g, x, y, z, floor, topY);
             WarpGraph made = new WarpGraph(range, STAND_OFFSET, BUCKET, rule, floor - 20, floor + 45);
             FloorTiles tiles = new FloorTiles(first.getX(), first.getZ(), floor);
             made.setTiles(tiles);
@@ -774,13 +774,10 @@ public final class EtherwarpPathfinder {
     private static final int COVER_FLOOR_SLACK = 6;
 
     /**
-     * {@link TeleportUtils#underCover} read through the grid: outside the sim always true; in it, a landing well
-     * above floor height must have something other than air above it, or it is the roof of a pasted room.
+     * {@link TeleportUtils#underCover} read through the grid: a landing well above floor height must have something
+     * other than air above it, or it is on the roof of the dungeon - in the sim and on Hypixel alike.
      */
     private static EtherSearch.CellTest coverTest(EtherSearch.Grid grid, Level level) {
-        if (!com.killer560.hub.roomsim.SimState.isActive()) {
-            return (x, y, z) -> true;
-        }
         int floor = 69 + DungeonLayout.simYOffset();
         int maxY = level.getMaxY();
         return (x, y, z) -> {
