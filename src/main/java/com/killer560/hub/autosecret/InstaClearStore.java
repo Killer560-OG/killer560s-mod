@@ -51,6 +51,13 @@ final class InstaClearStore {
         NO_MAP,
         /** Not counted: the flip happened while he was too far from the room to see its mobs. */
         UNOBSERVED,
+        /** Not counted: he only passed through - left within a few seconds, and the room did not flip while he was
+         *  in it or just after (a mid-path landing of an Interactive Map trip, say). Not a failure: he never gave it
+         *  the chance to flip. */
+        PASS_THROUGH,
+        /** Not counted: a KILLED / NO_CLEAR written by the version 1 recorder, which counted every room an
+         *  Interactive Map path passed through as a failure. The original outcome is kept in {@code v1Outcome}. */
+        LEGACY,
         /** Manual verdict only: "this was not an insta clear" - counted as a failure. */
         NOT_INSTA,
         /** Manual verdict only: drop this entry from the counts. */
@@ -80,8 +87,12 @@ final class InstaClearStore {
         int kills;           // of those, how many disappeared while he was close enough to see it
         int aliveAtFlip = -1;
         long flipMs = -1;    // ms from entry to the map flip, -1 when it never flipped
+        long dwellMs = -1;   // ms he stayed before first leaving the room, -1 when he had not left by the close
+        int lateStars = -1;  // starred mobs first seen standing AFTER a flip that came before any could be seen
+        long verifyMs = -1;  // ms from the flip to that late sighting (or to giving up on one)
         Outcome outcome;
         Outcome verdict;     // manual override, or null
+        Outcome v1Outcome;   // a version 1 failure demoted to LEGACY on migration: what it said then
 
         Outcome effective() {
             return verdict != null ? verdict : outcome;
@@ -102,8 +113,12 @@ final class InstaClearStore {
             o.addProperty("kills", kills);
             o.addProperty("aliveAtFlip", aliveAtFlip);
             o.addProperty("flipMs", flipMs);
+            o.addProperty("dwellMs", dwellMs);
+            if (lateStars >= 0) o.addProperty("lateStars", lateStars);
+            if (verifyMs >= 0) o.addProperty("verifyMs", verifyMs);
             o.addProperty("outcome", outcome == null ? null : outcome.name());
             if (verdict != null) o.addProperty("verdict", verdict.name());
+            if (v1Outcome != null) o.addProperty("v1Outcome", v1Outcome.name());
             return o;
         }
 
@@ -122,8 +137,12 @@ final class InstaClearStore {
             b.kills = ConfigJson.getInt(o, "kills", 0);
             b.aliveAtFlip = ConfigJson.getInt(o, "aliveAtFlip", -1);
             b.flipMs = ConfigJson.getLong(o, "flipMs", -1L);
+            b.dwellMs = ConfigJson.getLong(o, "dwellMs", -1L);
+            b.lateStars = ConfigJson.getInt(o, "lateStars", -1);
+            b.verifyMs = ConfigJson.getLong(o, "verifyMs", -1L);
             b.outcome = outcome(str(o, "outcome"));
             b.verdict = outcome(str(o, "verdict"));
+            b.v1Outcome = outcome(str(o, "v1Outcome"));
             return b;
         }
 
@@ -148,6 +167,13 @@ final class InstaClearStore {
     static final int MAX_PER_KEY = 100;
     static final int DEFAULT_MIN_SUCCESSES = 2;
     static final int DEFAULT_WINDOW_SECONDS = 15;
+    /**
+     * File format version. 2 (2026-10-06): pass-throughs are PASS_THROUGH and the Entrance is not recorded. A version 1
+     * file is migrated on load ({@link #fromJson}): its KILLED / NO_CLEAR become LEGACY (the v1 recorder counted every
+     * room an Interactive Map path passed through as a failure, and it kept nothing that tells a pass from a stop), and
+     * its Entrance entries are dropped. INSTA and manual verdicts are kept as they were.
+     */
+    static final int VERSION = 2;
 
     /** No HTML escaping: entry keys hold '=', which Gson would otherwise write as a unicode escape and make the file unreadable. */
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
@@ -158,6 +184,17 @@ final class InstaClearStore {
     private Obs last;
     private String lastRoom;
     private String lastKey;
+    /** The version of the file last read when it was older than {@link #VERSION} (so it was migrated), else 0. */
+    private int migratedFrom;
+
+    synchronized int migratedFrom() {
+        return migratedFrom;
+    }
+
+    /** The room the recorder never records (and a migration drops): the Entrance never insta clears. */
+    static boolean excludedRoom(String room) {
+        return room != null && room.equalsIgnoreCase("Entrance");
+    }
 
     synchronized int minSuccesses() {
         return minSuccesses;
@@ -324,7 +361,7 @@ final class InstaClearStore {
 
     synchronized JsonObject toJson() {
         JsonObject root = new JsonObject();
-        root.addProperty("version", 1);
+        root.addProperty("version", VERSION);
         JsonObject settings = new JsonObject();
         settings.addProperty("minSuccesses", minSuccesses);
         settings.addProperty("windowSeconds", windowSeconds);
@@ -350,8 +387,14 @@ final class InstaClearStore {
         clear();
         minSuccesses = DEFAULT_MIN_SUCCESSES;
         windowSeconds = DEFAULT_WINDOW_SECONDS;
+        migratedFrom = 0;
         if (root == null) {
             return;
+        }
+        int version = ConfigJson.getInt(root, "version", 1);
+        boolean migrate = version < VERSION;
+        if (migrate) {
+            migratedFrom = version;
         }
         JsonElement s = root.get("settings");
         if (s != null && s.isJsonObject()) {
@@ -363,7 +406,7 @@ final class InstaClearStore {
             return;
         }
         for (Map.Entry<String, JsonElement> room : r.getAsJsonObject().entrySet()) {
-            if (!room.getValue().isJsonObject()) {
+            if (!room.getValue().isJsonObject() || (migrate && excludedRoom(room.getKey()))) {
                 continue;
             }
             for (Map.Entry<String, JsonElement> key : room.getValue().getAsJsonObject().entrySet()) {
@@ -373,7 +416,12 @@ final class InstaClearStore {
                 for (JsonElement o : key.getValue().getAsJsonArray()) {
                     if (o.isJsonObject()) {
                         try {
-                            add(room.getKey(), key.getKey(), Obs.fromJson(o.getAsJsonObject()));
+                            Obs obs = Obs.fromJson(o.getAsJsonObject());
+                            if (migrate && (obs.outcome == Outcome.KILLED || obs.outcome == Outcome.NO_CLEAR)) {
+                                obs.v1Outcome = obs.outcome;
+                                obs.outcome = Outcome.LEGACY;
+                            }
+                            add(room.getKey(), key.getKey(), obs);
                         } catch (RuntimeException ignored) {
                             // one bad observation is dropped, never the file
                         }

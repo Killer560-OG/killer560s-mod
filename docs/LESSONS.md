@@ -241,6 +241,15 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   then `keyAttack.setDown(false)`. `handleKeybinds` runs later in the same tick and only calls `startAttack` per queued
   click and `continueAttack(true)` while the key reads down (javap 26.1.2 and 26.2), so nothing is swung or dug
   (`RouteExecutor.takeSkipClick`, 96-ar-awaitskip / 62-argrim-awaitskip).
+- `ClearExecutor.isActive()` goes false two ticks after the last hop is SENT (`compDelay`), before its landing comes back,
+  so anything asking "is the Interactive Map moving him?" at the landing must use `isBusy()` (true through the arrival
+  sync), and read it when the position packet arrives. The insta-clear recorder used `isActive` on the next tick and
+  logged every map path's final landing as "teleport by manual" (Mage, Hall, his live F7 runs 2026-10-06).
+- An insta-clear observation must know whether he STOPPED in the room. A map path lands in rooms on the way for a tick
+  each; the v1 recorder judged them like stops, so they closed NO_CLEAR (one failure blocks an entry for good), or NO_STARS
+  when the room flipped ~200 ms after landing, before its mobs had loaded (Duncan, a real insta). Now: left within 3 s and
+  no flip by 1.5 s after leaving is PASS_THROUGH; a flip with no starred mob in sight waits (up to 60 s) to see the mobs,
+  which Hypixel leaves standing in an insta-cleared room. 98-sim-insta-clear-live replays both on a sim floor.
 
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 

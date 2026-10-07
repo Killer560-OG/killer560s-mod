@@ -49,7 +49,25 @@ import java.util.regex.Pattern;
  * driving, the map state of both rooms, and then - for up to the window (15 s by default) - the room's starred
  * name-tag stands and the room's map state. It closes as one of {@link InstaClearStore.Outcome}: INSTA when the map
  * flips to cleared with starred mobs still standing, KILLED when it flips only after every starred stand seen in it is
- * gone, NO_CLEAR when it never flips; the rest are recorded but not counted.
+ * gone, NO_CLEAR when he stopped in it and it never flips; the rest are recorded but not counted. The Entrance is never
+ * recorded (it never insta clears).
+ *
+ * <p><b>Live F7 runs, 2026-10-06</b> (Interactive Map travel only) changed three rules:
+ * <ul>
+ *   <li><b>Pass-through.</b> A room he leaves within {@link #STOP_MS} of entering, and that does not flip while he is
+ *       in it or within {@link #FLIP_GRACE_MS} of his leaving, closes PASS_THROUGH - not counted. Before, every room a
+ *       map path landed in mid-way closed NO_CLEAR, and since "known" needs zero failures one pass blocked an entry for
+ *       good. A flip that comes later than that is not his entry's doing and is PASS_THROUGH too.</li>
+ *   <li><b>A flip before the mobs are seen.</b> Mid-path, a room can flip ~200 ms after he lands, before its mobs have
+ *       loaded or rendered. Hypixel does not remove the mobs of an insta-cleared room, so instead of closing NO_STARS
+ *       the observation stays open for up to {@link #verifySeconds} s: starred mobs seen standing in the room later
+ *       mean INSTA; standing in the room for {@link #SETTLE_MS} with none in it means NO_STARS; never seeing it means
+ *       UNOBSERVED.</li>
+ *   <li><b>Who drove.</b> The driver and method are read when the position packet arrives, with the Interactive Map
+ *       counted while its executor is busy (to the end of the arrival sync), so a map path's last landing is
+ *       "etherwarp by interactivemap", not "teleport by manual".</li>
+ * </ul>
+ * A starred stand that disappears counts as a kill only while he is inside the room.
  *
  * <p><b>Known rule</b> ({@link #knownToInstaClear}): {@code >= N} INSTA observations and no KILLED/NO_CLEAR at all
  * for that room + entry key, N = 2 by default ({@code /autosecret instaclear threshold <n>}).
@@ -69,6 +87,14 @@ public final class InstaClearTracker {
     private static final double KILL_SEEN_RANGE = 40.0;
     private static final int SCAN_EVERY_TICKS = 2;
     private static final String FEATURE = "Insta Clear";
+    /** Leaving a room sooner than this after entering it, with no flip, is a pass-through, not a stop. */
+    static final long STOP_MS = 3000;
+    /** A flip this soon after he left (map updates lag) still belongs to the entry; later, it is someone else's. */
+    static final long FLIP_GRACE_MS = 1500;
+    /** Standing in the room this long after a flip with no starred stand in it: the room has none (NO_STARS). */
+    static final long SETTLE_MS = 1500;
+    /** How long after a flip that came before any starred mob was seen to keep looking for them. Not persisted. */
+    private static int verifySeconds = 60;
 
     private static final InstaClearStore STORE = new InstaClearStore();
     private static Path file;
@@ -85,6 +111,8 @@ public final class InstaClearTracker {
     private static boolean teleportPending;
     private static Vec3 teleportFrom;
     private static String teleportMethod;
+    /** Who was driving when the position packet came (read then, not on the next tick, when a path may be done). */
+    private static String teleportDriver;
     private static long automatedUntilMs;
     private static String automatedBy;
     private static final Map<String, Pending> PENDING = new LinkedHashMap<>();
@@ -103,6 +131,12 @@ public final class InstaClearTracker {
         final Map<Integer, Vec3> standsAlive = new HashMap<>();
         final Set<Integer> standsSeen = new HashSet<>();
         final Set<Integer> killed = new HashSet<>();
+        /** When he was first seen outside the room after the entry, or -1. */
+        long leftMs = -1;
+        /** When the room flipped with no starred mob visible, so it is waiting to see them; -1 otherwise. */
+        long flipAtMs = -1;
+        /** While waiting: when he last came to stand inside the room, or -1 while he is outside it. */
+        long insideSinceMs = -1;
 
         Pending(String room, String key, long startMs) {
             this.room = room;
@@ -293,8 +327,13 @@ public final class InstaClearTracker {
         }
         teleportPending = true;
         teleportFrom = player.position();
+        teleportDriver = driver();
         boolean etherItem = ItemIdentity.isEtherwarpItem(player.getMainHandItem());
-        teleportMethod = etherItem && player.isShiftKeyDown() ? "etherwarp" : "teleport";
+        // An Interactive Map path only ever etherwarps (ClearNode.toEther), and its forced sneak is released before
+        // the last hop's landing comes back - so its own landing is not judged by the sneak key (Mage and Hall,
+        // 2026-10-06, read "teleport by manual").
+        boolean mapPath = "interactivemap".equals(teleportDriver);
+        teleportMethod = etherItem && (player.isShiftKeyDown() || mapPath) ? "etherwarp" : "teleport";
     }
 
     // ============================================================================================== recording
@@ -333,9 +372,10 @@ public final class InstaClearTracker {
                 fromRoom = identified(layout, fromId) ? layout.name(fromId) : null;
             }
             String method = teleported ? teleportMethod : "walk";
+            String driver = teleported && teleportDriver != null ? teleportDriver : driver();
             BlockPos landing = teleported ? player.blockPosition().below() : null;
             try {
-                onEntry(client, layout, roomId, room, fromRoom, from, pos, landing, method);
+                onEntry(client, layout, roomId, room, fromRoom, from, pos, landing, method, driver);
             } catch (RuntimeException e) {
                 LOGGER.warn("[InstaClear] could not open an observation for {}", room, e);
             }
@@ -352,10 +392,13 @@ public final class InstaClearTracker {
     }
 
     private static void onEntry(Minecraft client, DungeonLayout layout, int roomId, String room, String fromRoom,
-                                Vec3 from, Vec3 to, BlockPos landing, String method) {
+                                Vec3 from, Vec3 to, BlockPos landing, String method, String driver) {
         ensureLoaded();
         if (PENDING.containsKey(room)) {
             return; // back in a room already being watched - the first entry is the one that counts
+        }
+        if (isEntrance(layout, roomId, room)) {
+            return; // the Entrance never insta clears: every walk out of it was noise
         }
         String key = entryKeyFor(room, landing, fromRoom);
         if (key == null) {
@@ -371,7 +414,7 @@ public final class InstaClearTracker {
         o.fromState = fromId >= 0 ? stateName(roomState(layout, fromId, fromRoom)) : null;
         o.before = stateName(before);
         o.method = method;
-        o.driver = driver();
+        o.driver = driver;
         o.travel = from == null ? 0.0 : from.distanceTo(to);
         o.skip = fromId >= 0 ? skipBetween(layout, fromId, roomId) : -1;
         if (before == LiveMapFeature.MAP_CLEARED || before == LiveMapFeature.MAP_GREEN) {
@@ -379,7 +422,7 @@ public final class InstaClearTracker {
             return;
         }
         PENDING.put(room, p);
-        scanRoom(client, layout, p, roomId);
+        scanRoom(client, layout, p, roomId, true);
     }
 
     private static void scan(Minecraft client, DungeonLayout layout) {
@@ -391,24 +434,51 @@ public final class InstaClearTracker {
                 done.add(p.room);
                 continue;
             }
-            int alive = scanRoom(client, layout, p, roomId);
-            int state = roomState(layout, roomId, p.room);
-            boolean flipped = state == LiveMapFeature.MAP_CLEARED || state == LiveMapFeature.MAP_GREEN;
+            boolean inside = nearRoom(client, layout, roomId, 0);
+            if (!inside && p.leftMs < 0) {
+                p.leftMs = now;
+                p.obs.dwellMs = now - p.startMs;
+            }
+            int alive = scanRoom(client, layout, p, roomId, inside);
             InstaClearStore.Obs o = p.obs;
             o.stars = p.standsSeen.size();
             o.kills = p.killed.size();
+            if (p.flipAtMs >= 0) {
+                if (!verify(p, now, alive, inside)) {
+                    continue;
+                }
+                done.add(p.room);
+                close(p);
+                continue;
+            }
+            int state = roomState(layout, roomId, p.room);
+            boolean flipped = state == LiveMapFeature.MAP_CLEARED || state == LiveMapFeature.MAP_GREEN;
+            // A pass: he left soon after entering. Its flip only counts while he is in the room or just out of it.
+            boolean passed = p.leftMs >= 0 && p.leftMs - p.startMs < STOP_MS;
+            boolean pastGrace = passed && now - p.leftMs > FLIP_GRACE_MS;
             if (flipped) {
                 o.flipMs = now - p.startMs;
                 o.aliveAtFlip = alive;
-                if (!nearRoom(client, layout, roomId, 16)) {
-                    o.outcome = InstaClearStore.Outcome.UNOBSERVED;
-                } else if (p.standsSeen.isEmpty()) {
-                    o.outcome = InstaClearStore.Outcome.NO_STARS;
+                if (pastGrace) {
+                    // Flipped long after he passed through (19:29:45: Flags, Balcony and Pirate, all ~5.3 s later).
+                    o.outcome = InstaClearStore.Outcome.PASS_THROUGH;
                 } else if (alive > 0) {
                     o.outcome = InstaClearStore.Outcome.INSTA;
+                } else if (!p.standsSeen.isEmpty() && p.killed.containsAll(p.standsSeen)) {
+                    o.outcome = InstaClearStore.Outcome.KILLED;
+                } else if (p.standsSeen.isEmpty() || !nearRoom(client, layout, roomId, 16)) {
+                    // Nothing to judge by yet: no starred mob seen (Duncan, flip 197 ms mid-path), or he is too far
+                    // to see the ones he did. They stay standing if it insta-cleared, so wait to see them.
+                    p.flipAtMs = now;
+                    LOGGER.info("[InstaClear] {} flipped {} ms after entry with {} starred mob(s) in sight - waiting up"
+                            + " to {} s to see its mobs", p.room, o.flipMs, alive, verifySeconds);
+                    continue;
                 } else {
                     o.outcome = InstaClearStore.Outcome.KILLED;
                 }
+            } else if (pastGrace) {
+                o.aliveAtFlip = -1;
+                o.outcome = InstaClearStore.Outcome.PASS_THROUGH;
             } else if (now - p.startMs >= STORE.windowSeconds() * 1000L) {
                 o.aliveAtFlip = -1;
                 if (state < 0) {
@@ -429,18 +499,70 @@ public final class InstaClearTracker {
         }
     }
 
+    /**
+     * A room that flipped before any of its starred mobs could be seen: decide once they can be.
+     *
+     * @return true when the observation is decided (outcome set)
+     */
+    private static boolean verify(Pending p, long now, int alive, boolean inside) {
+        InstaClearStore.Obs o = p.obs;
+        if (alive > 0) {
+            // Hypixel leaves an insta-cleared room's mobs standing, so starred mobs alive in a cleared room are the
+            // proof - however late they came into view.
+            o.outcome = InstaClearStore.Outcome.INSTA;
+            o.lateStars = alive;
+            o.verifyMs = now - p.flipAtMs;
+            return true;
+        }
+        if (inside) {
+            if (p.insideSinceMs < 0) {
+                p.insideSinceMs = now;
+            } else if (now - p.insideSinceMs >= SETTLE_MS) {
+                // Standing in it, entities long loaded, not one starred mob: it had none (or they died since).
+                o.outcome = p.standsSeen.isEmpty() ? InstaClearStore.Outcome.NO_STARS
+                        : InstaClearStore.Outcome.UNOBSERVED;
+                o.verifyMs = now - p.flipAtMs;
+                return true;
+            }
+        } else {
+            p.insideSinceMs = -1;
+        }
+        if (now - p.flipAtMs >= verifySeconds * 1000L) {
+            o.outcome = InstaClearStore.Outcome.UNOBSERVED;
+            o.verifyMs = now - p.flipAtMs;
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean isEntrance(DungeonLayout layout, int roomId, String room) {
+        if (InstaClearStore.excludedRoom(room)) {
+            return true;
+        }
+        var entry = roomId < 0 ? null : layout.entry(roomId);
+        return entry != null && "ENTRANCE".equalsIgnoreCase(entry.type);
+    }
+
     private static void close(Pending p) {
         InstaClearStore.Obs o = p.obs;
         STORE.add(p.room, p.key, o);
         int[] c = STORE.counts(p.room, p.key);
-        LOGGER.info("[InstaClear] {} via {} ({} by {}, from {}): {} - stars {}, kills {}, alive at flip {}, flip {} ms;"
-                        + " entry now {} ok / {} fail", p.room, p.key, o.method, o.driver, o.from, o.outcome, o.stars,
-                o.kills, o.aliveAtFlip, o.flipMs, c[0], c[1]);
+        LOGGER.info("[InstaClear] {} via {} ({} by {}, from {}): {} - stars {}, kills {}, alive at flip {}, flip {} ms,"
+                        + " stayed {} ms{}; entry now {} ok / {} fail", p.room, p.key, o.method, o.driver, o.from,
+                o.outcome, o.stars, o.kills, o.aliveAtFlip, o.flipMs, o.dwellMs,
+                o.verifyMs >= 0 ? ", seen " + Math.max(0, o.lateStars) + " starred " + o.verifyMs + " ms after the flip"
+                        : "", c[0], c[1]);
         save();
     }
 
-    /** Updates the room's starred stands and @return how many are standing in it right now. */
-    private static int scanRoom(Minecraft client, DungeonLayout layout, Pending p, int roomId) {
+    /**
+     * Updates the room's starred stands and @return how many are standing in it right now.
+     *
+     * @param inside whether he is in the room: a stand that dies or disappears counts as a kill only then. From
+     *               outside, a disappearing stand is as likely to have left his view, or to be a teammate's kill
+     *               (Golden Oasis, 2026-10-06: "kills 5" for a room he passed through in under a second).
+     */
+    private static int scanRoom(Minecraft client, DungeonLayout layout, Pending p, int roomId, boolean inside) {
         int[] tiles = layout.tiles(roomId);
         Set<Integer> present = new HashSet<>();
         int alive = 0;
@@ -457,7 +579,7 @@ public final class InstaClearTracker {
             }
             int id = stand.getId();
             if (ZERO_HEALTH.matcher(name).find()) {
-                if (p.standsSeen.contains(id)) {
+                if (inside && p.standsSeen.contains(id)) {
                     p.killed.add(id);
                 }
                 p.standsAlive.remove(id);
@@ -476,7 +598,7 @@ public final class InstaClearTracker {
                 continue;
             }
             Vec3 at = e.getValue();
-            if (player != null && sq(player.getX() - at.x) + sq(player.getY() - at.y) + sq(player.getZ() - at.z)
+            if (inside && player != null && sq(player.getX() - at.x) + sq(player.getY() - at.y) + sq(player.getZ() - at.z)
                     <= KILL_SEEN_RANGE * KILL_SEEN_RANGE) {
                 p.killed.add(e.getKey());
             }
@@ -594,7 +716,10 @@ public final class InstaClearTracker {
         if (com.killer560.hub.autoroutes.RouteExecutor.isRunning()) {
             return "autoroutes";
         }
-        if (com.killer560.hub.livemap.autoclear.ClearExecutor.isActive()) {
+        // isBusy, not isActive: isActive drops two ticks after the last hop is SENT, before its landing comes back
+        // (any real ping), while isBusy holds through the arrival sync.
+        if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()
+                || com.killer560.hub.livemap.autoclear.ClearExecutor.isActive()) {
             return "interactivemap";
         }
         return "manual";
@@ -617,6 +742,9 @@ public final class InstaClearTracker {
         try {
             if (STORE.load(path())) {
                 LOGGER.info("[InstaClear] loaded {} observation(s) from {}", STORE.size(), path());
+                if (STORE.migratedFrom() > 0) {
+                    migrateFile(STORE.migratedFrom());
+                }
             }
         } catch (Exception e) {
             // Keep the unreadable file: never overwrite evidence because one read failed.
@@ -624,6 +752,28 @@ public final class InstaClearTracker {
             file = path().resolveSibling("insta-clear.unreadable-" + System.currentTimeMillis() + ".json");
             STORE.fromJson(null);
         }
+    }
+
+    /**
+     * An older file was just loaded and migrated in memory ({@link InstaClearStore#fromJson}). The original is copied
+     * aside unchanged first - never deleted - and only then is the migrated store written over it.
+     */
+    private static void migrateFile(int fromVersion) {
+        Path original = path();
+        Path aside = original.resolveSibling("insta-clear.v" + fromVersion + "-" + System.currentTimeMillis() + ".json");
+        try {
+            java.nio.file.Files.copy(original, aside);
+        } catch (Exception e) {
+            // Without a copy the file is left as it was; the migration still applies in memory, and is redone at
+            // the next load, but nothing is written over the only copy of his evidence.
+            LOGGER.warn("[InstaClear] could not copy {} aside - leaving it unmigrated on disk", original, e);
+            file = original.resolveSibling("insta-clear.unmigrated-" + System.currentTimeMillis() + ".json");
+            return;
+        }
+        save();
+        LOGGER.info("[InstaClear] migrated {} from version {} to {}: old failures are now LEGACY (not counted), Entrance"
+                + " entries dropped; the original is kept as {}", original.getFileName(), fromVersion,
+                InstaClearStore.VERSION, aside.getFileName());
     }
 
     private static void save() {
@@ -803,13 +953,19 @@ public final class InstaClearTracker {
         return summaryLines();
     }
 
-    /** Open observations as {@code room|key|method|stars|kills}. */
+    /** Open observations as {@code room|key|method|stars|kills|driver|waiting} (waiting: flipped, looking for mobs). */
     public static List<String> testPending() {
         List<String> out = new ArrayList<>();
         for (Pending p : PENDING.values()) {
-            out.add(p.room + "|" + p.key + "|" + p.obs.method + "|" + p.standsSeen.size() + "|" + p.killed.size());
+            out.add(p.room + "|" + p.key + "|" + p.obs.method + "|" + p.standsSeen.size() + "|" + p.killed.size()
+                    + "|" + p.obs.driver + "|" + (p.flipAtMs >= 0));
         }
         return out;
+    }
+
+    /** How long a flip with no starred mob in sight waits to see them (default 60 s; not persisted). */
+    public static void testSetVerifySeconds(int s) {
+        verifySeconds = Math.max(1, s);
     }
 
     /** {@code {successes, failures, notCounted}} for one room + key. */
