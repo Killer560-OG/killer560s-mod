@@ -206,6 +206,19 @@ public final class DungeonState {
         if (sidebar.isEmpty()) {
             return null;
         }
+        if (sidebar == floorFromSidebar) {
+            return floorFromSidebarResult; // the very text the last answer was read from (see readSidebarText)
+        }
+        String floor = floorFrom(sidebar);
+        floorFromSidebar = sidebar;
+        floorFromSidebarResult = floor;
+        return floor;
+    }
+
+    private static String floorFromSidebar;
+    private static String floorFromSidebarResult;
+
+    private static String floorFrom(String sidebar) {
         // Real bug found and fixed (2026-09-09, round 23) - killer560's own log from AFTER the round-22
         // fix proved the sidebar text itself was now being read correctly, but Hypixel embeds literal
         // color codes MID-WORD (e.g. "The Catac§combs §7(F7)"), which the plain CATACOMBS_FLOOR_PATTERN
@@ -317,12 +330,61 @@ public final class DungeonState {
         if (sidebar == null) {
             return "";
         }
+        java.util.Collection<PlayerScoreEntry> entries = scoreboard.listPlayerScores(sidebar);
+        // Read every tick in every world (floor detection), so the text is rebuilt only when something it is made of
+        // changed. Every input is compared by identity - a team's prefix/suffix and an entry's display are replaced,
+        // never edited, when the server updates them - plus the owner names and their order. Same inputs, same text
+        // (FPS sweep, 2026-10-07: this flattening was the largest always-on tick cost in a dungeon after Dungeon Info).
+        boolean onClientThread = client.isSameThread();
+        Object[] key = null;
+        if (onClientThread) {
+            key = new Object[3 + entries.size() * 5];
+            int k = 0;
+            key[k++] = sidebar;
+            key[k++] = sidebar.getDisplayName();
+            key[k++] = net.minecraft.locale.Language.getInstance();
+            for (PlayerScoreEntry entry : entries) {
+                PlayerTeam team = scoreboard.getPlayersTeam(entry.owner());
+                key[k++] = entry.owner();
+                key[k++] = entry.display();
+                key[k++] = team;
+                key[k++] = team == null ? null : team.getPlayerPrefix();
+                key[k++] = team == null ? null : team.getPlayerSuffix();
+            }
+            if (sameSidebarKey(key, sidebarKey)) {
+                return sidebarText;
+            }
+        }
         StringBuilder sb = new StringBuilder();
         sb.append(sidebar.getDisplayName().getString()).append('\n');
-        for (PlayerScoreEntry entry : scoreboard.listPlayerScores(sidebar)) {
+        for (PlayerScoreEntry entry : entries) {
             sb.append(realLineText(scoreboard, entry)).append('\n');
         }
-        return sb.toString();
+        String text = sb.toString();
+        if (onClientThread) {
+            sidebarKey = key;
+            sidebarText = text;
+        }
+        return text;
+    }
+
+    /** What {@link #readSidebarText} last built, and from what (client thread only). */
+    private static Object[] sidebarKey;
+    private static String sidebarText = "";
+
+    /** Element by element: identity for components, teams and objectives; equals for the owner name strings. */
+    private static boolean sameSidebarKey(Object[] a, Object[] b) {
+        if (b == null || a.length != b.length) {
+            return false;
+        }
+        for (int i = 0; i < a.length; i++) {
+            Object x = a[i];
+            Object y = b[i];
+            if (x != y && !(x instanceof String && x.equals(y))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** @return the real visible text for one sidebar line - see {@link #readSidebarText()}'s doc comment
