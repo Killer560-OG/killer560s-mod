@@ -80,6 +80,18 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   for a packet during the arrival settle ("ended N blocks from the planned landing"). Both are corrections now: reported,
   and the goal planned again from where he was put without counting against `MAX_REPLANS`. Auto Clear ignored every packet
   during its trips and so never counted a trip's correction; it now adds `ClearExecutor.serverCorrections()` to its own.
+- **A held key does nothing under a screen.** `Minecraft.tick` runs `handleKeybinds` only while `overlay == null && screen
+  == null` (javap 26.1.2 and 26.2), so the crypt node's held use key sent no use at all with the Interactive Map open (Run
+  While Map Open), and timed out (2026-10-07, testkit 96-ar-405-crypt-mapopen: 0 uses / 101 ticks against 3 uses / 9 ticks).
+  `HeldUsePickMixin` now runs vanilla's held-use step itself after the tick's `pick` while `RouteExecutor.heldUseUnderScreen`
+  (same rule: key down, `rightClickDelay == 0`, not using; the delay counts down whatever the screen). Every other node sends
+  its packets directly or through the input mixin, which run under screens.
+- **`tickAwait` uses the same `step` field as the action**: an etherwarp node waiting on its await is in `Step.CONFIRM` before
+  its PREP has set `warpLanding`. `checkCorrections` read that as the warp's confirm and measured a 1-block server move from a
+  stale landing (his #6 of a stopped run, "47.4 from its landing"), let the start node go, and the route stood still (his 1 in 5
+  "map warp put me off the node", 2026-10-07). It now requires `awaitPhaseDone`, and `beginAction` clears the warp fields.
+  What moved him that block in his sim is NOT found: 20 map warps with his mimic, slot, speed 600 and the map open never moved
+  him (96-ar-405-startwarp), so the case injects the move.
 - **The map planner calls an exact goal within five blocks "already there"**, so a caller that insists on being closer
   asks again for ever: Auto Clear's wither door required 2.5 blocks from the approach spot and, standing 3.6 off, logged a
   "trip to wither door" and an "Already there" every tick without ever clicking (2026-10-07, testkit 131). Once a trip to

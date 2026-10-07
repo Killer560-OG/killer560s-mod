@@ -549,7 +549,11 @@ public final class RouteExecutor {
             return; // rotation-only: he is where he was
         }
         RouteNode node = activeNode;
-        boolean warping = node != null && step == Step.CONFIRM
+        // The WARP's confirm, not the await's: tickAwait runs its own PREP/CONFIRM cycle on the same step field before
+        // the node acts, and a packet then was judged against warpLanding - unset for this node, so another warp's - and
+        // let a start node go that had sent nothing (killer560, 2026-10-07: "the interactive map was off when it tried
+        // to take me to the start node", testkit 96-ar-405-startwarp).
+        boolean warping = node != null && awaitPhaseDone && step == Step.CONFIRM
                 && (node.type == RouteNode.Type.ETHERWARP || node.type == RouteNode.Type.PATH);
         if (warping) {
             if (warpLanding == null || player.position().distanceTo(warpLanding) <= LANDING_TOLERANCE) {
@@ -1259,6 +1263,13 @@ public final class RouteExecutor {
         breakerWaitTicks = 0;
         breakerWaitSaid = false;
         hopIndex = -1;
+        // The last warp's landing and aim belong to that warp. Left over, checkCorrections measured a packet during
+        // this node's await from them - in killer560's 2026-10-07 log from the landing of #6 of a run stopped two
+        // minutes earlier, "47.4 from its landing" - and let the start node go (see checkCorrections).
+        warpLanding = null;
+        warpTarget = null;
+        warpSpot = null;
+        warpAimFrom = null;
         landingConfirmed = false;
         planAsked = false;
         planOutcome = null;
@@ -2074,6 +2085,8 @@ public final class RouteExecutor {
             // runs later in this same tick and turns a held use key into startUseItem whenever its rightClickDelay is
             // 0 - so the first use goes on the firing tick and then one every 4 ticks, packet for packet what a held
             // right click sends (javap, 26.1.2 and 26.2: keyUse.isDown && rightClickDelay == 0 && !isUsingItem).
+            // Under the Interactive Map (Run While Map Open) handleKeybinds does not run; HeldUsePickMixin takes
+            // that step instead (heldUseUnderScreen).
             holdUse(client, player, node);
             logActed(node, " (" + weapon.label() + ", holding use until " + goal + " crypt/prince kill(s))");
             step = Step.CONFIRM;
@@ -2161,6 +2174,20 @@ public final class RouteExecutor {
         Vec3 look = TeleportUtils.getLook(player.getYRot(), player.getXRot()).scale(player.blockInteractionRange());
         return client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE,
                 player));
+    }
+
+    /**
+     * Whether vanilla's held-use step has to be run by hand this tick: a crypt node holds the use key while a screen the
+     * route runs under is open - the Interactive Map with Run While Map Open ({@link AutoRoutesFeature#screenBlocks} false).
+     * {@code Minecraft.tick} skips {@code handleKeybinds} under any screen (javap 26.1.2 and 26.2), so the held key
+     * would send nothing there; {@code mixin/HeldUsePickMixin} then calls {@code startUseItem} by vanilla's own rule
+     * (key down, {@code rightClickDelay == 0}, not using an item) right after the tick's pick - a use every 4 ticks, as
+     * with no screen (killer560, 2026-10-07: "the crypt node is not working while I have the interactive map menu open",
+     * testkit 96-ar-405-crypt-mapopen). Any other screen holds the route and sends nothing, as vanilla would.
+     */
+    public static boolean heldUseUnderScreen(Minecraft client) {
+        return useHeld && running && client.player != null && McCompat.screen(client) != null
+                && !AutoRoutesFeature.screenBlocks(client);
     }
 
     private static void restoreCryptSlot(Minecraft client, LocalPlayer player) {
