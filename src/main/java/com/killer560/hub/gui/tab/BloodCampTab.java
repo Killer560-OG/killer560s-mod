@@ -1,11 +1,9 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.bloodcamp.BloodCampConfig;
-import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -14,7 +12,8 @@ import java.util.List;
 /** Blood Camp settings - see {@link com.killer560.hub.bloodcamp.BloodCampFeature}'s class doc for the
  *  real Noamm-ported mechanic this is built on. Every label reads a {@code ...Raw()} getter: the gated
  *  getters are false outside Skyblock, so reading them here made every row show OFF and made a click
- *  write true no matter what the saved value was. */
+ *  write true no matter what the saved value was. The cheat build's Trigger Bot and Aura rows moved to their
+ *  own {@link AutoBloodCampTab} on 2026-10-07 (killer560: "make auto blood camp its own cheat tab"). */
 public class BloodCampTab extends BaseTab {
 
     public BloodCampTab() {
@@ -118,52 +117,71 @@ public class BloodCampTab extends BaseTab {
             }
         }
 
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return widgets;
-        }
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Cheat Build - Automation", true), net.minecraft.client.Minecraft.getInstance().font));
-        y += 16;
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Trigger Bot", cfg.getTriggerBotRaw()), btn -> {
-                    cfg.setTriggerBotEnabled(!cfg.getTriggerBotRaw());
+        // Countdown sounds (killer560, 2026-10-07): legit, both builds.
+        widgets.add(SettingsButtonWidget.builder(onOff("Countdown Start Sound", cfg.isCountdownStartSound()), btn -> {
+                    cfg.setCountdownStartSound(!cfg.isCountdownStartSound());
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(col2aX, y, col2W, 18).build());
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Aura", cfg.getAuraRaw()), btn -> {
-                    cfg.setAuraEnabled(!cfg.getAuraRaw());
+        widgets.add(SettingsButtonWidget.builder(onOff("Kill Sound", cfg.isKillSound()), btn -> {
+                    cfg.setKillSound(!cfg.isKillSound());
                     cfg.save();
-                    btn.setMessage(onOff("Aura", cfg.getAuraRaw()));
+                    requestRebuild.run();
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 22;
 
-        if (cfg.getTriggerBotRaw()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Auto Detect Lag", cfg.isAutoDetectLag()), btn -> {
-                        cfg.setAutoDetectLag(!cfg.isAutoDetectLag());
-                        cfg.save();
-                        btn.setMessage(onOff("Auto Detect Lag", cfg.isAutoDetectLag()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
-            y += 20;
-
-            double offsetNorm = (cfg.getManualTickOffset() + 20) / 40.0;
-            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
-                    Component.literal("Click Offset: " + cfg.getManualTickOffset() + "t"), offsetNorm) {
+        if (cfg.isCountdownStartSound() || cfg.isKillSound()) {
+            if (cfg.isCountdownStartSound()) {
+                widgets.add(SettingsButtonWidget.builder(startSoundText(cfg), btn -> {
+                            cfg.setCountdownStartSoundId(nextSound(cfg.getCountdownStartSoundId()));
+                            cfg.save();
+                            btn.setMessage(startSoundText(cfg));
+                        }).bounds(col2aX, y, col2W, 18).build());
+            }
+            if (cfg.isKillSound()) {
+                widgets.add(SettingsButtonWidget.builder(killSoundText(cfg), btn -> {
+                            cfg.setKillSoundId(nextSound(cfg.getKillSoundId()));
+                            cfg.save();
+                            btn.setMessage(killSoundText(cfg));
+                        }).bounds(col2bX, y, col2W, 18).build());
+            }
+            y += 22;
+            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, soundVolumeText(cfg), cfg.getSoundVolume()) {
                 @Override
                 protected void updateMessage() {
-                    setMessage(Component.literal("Click Offset: " + cfg.getManualTickOffset() + "t"));
+                    setMessage(soundVolumeText(cfg));
                 }
 
                 @Override
                 protected void applyValue() {
-                    cfg.setManualTickOffset((int) Math.round(this.value * 40) - 20);
+                    cfg.setSoundVolume(Math.round(this.value * 20) / 20f);
                     cfg.save();
                 }
             });
+            y += 22;
         }
 
         return widgets;
+    }
+
+    private static String nextSound(String id) {
+        com.killer560.hub.dungeonalerts.SecretSound.SoundChoice[] all =
+                com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.values();
+        return all[(com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(id).ordinal() + 1) % all.length].name();
+    }
+
+    private static Component startSoundText(BloodCampConfig cfg) {
+        return Component.literal("Start Sound Type: "
+                + com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(cfg.getCountdownStartSoundId()).label);
+    }
+
+    private static Component killSoundText(BloodCampConfig cfg) {
+        return Component.literal("Kill Sound Type: "
+                + com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(cfg.getKillSoundId()).label);
+    }
+
+    private static Component soundVolumeText(BloodCampConfig cfg) {
+        return Component.literal(String.format(java.util.Locale.US, "Sound Volume: %.2f", cfg.getSoundVolume()));
     }
 
     private static Component onOff(String label, boolean value) {

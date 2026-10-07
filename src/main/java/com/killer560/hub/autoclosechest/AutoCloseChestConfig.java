@@ -12,7 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Auto Close Chest setting - ships disabled by default, same as every other new feature in
- *  this mod. */
+ *  this mod. Cheat build only since 2026-10-07: see {@link #isEnabled()}. */
 public final class AutoCloseChestConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -59,8 +59,18 @@ public final class AutoCloseChestConfig {
         }
     }
 
+    /** Cheat build only (killer560, 2026-10-07: "auto close chest should be in a cheat only version"). The
+     *  constant folds this to {@code false} in a legit jar, so a saved {@code "enabled": true} carried over
+     *  from a cheat install does nothing there. */
     public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled
+                && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    /** The saved value, ungated - for the tab's label, so the button never shows OFF just because the
+     *  Skyblock gate is closed (the trap {@code BloodCampConfig}'s class doc describes). */
+    public boolean isEnabledRaw() {
+        return enabled;
     }
 
     public void setEnabled(boolean enabled) {

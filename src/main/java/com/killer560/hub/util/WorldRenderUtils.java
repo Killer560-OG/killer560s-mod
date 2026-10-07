@@ -143,6 +143,19 @@ public final class WorldRenderUtils {
         });
     }
 
+    /** One straight line, optionally through walls ({@link #initThroughWalls()} at init for that). */
+    public static void renderLine(LevelRenderContext context, Vec3 start, Vec3 end, float r, float g, float b, float a,
+                                  float thickness, boolean throughWalls) {
+        final float sx = (float) start.x, sy = (float) start.y, sz = (float) start.z;
+        final float ex = (float) end.x, ey = (float) end.y, ez = (float) end.z;
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT,
+                (pose, buffer) -> {
+                    float dx = ex - sx, dy = ey - sy, dz = ez - sz;
+                    buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
+                    buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
+                });
+    }
+
     private static final int[] EDGES = {
             0, 1, 1, 5, 5, 4, 4, 0,
             3, 2, 2, 6, 6, 7, 7, 3,

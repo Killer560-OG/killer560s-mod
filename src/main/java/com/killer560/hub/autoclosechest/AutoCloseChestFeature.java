@@ -24,6 +24,10 @@ import java.util.Set;
  * since a real vanilla "Chest"/"Large Chest"/"Trapped Chest" title is common enough outside dungeons
  * (a player's own storage, a friend's island) that this needs a real scope guard to avoid closing chests
  * having nothing to do with dungeon secrets.
+ * <p>
+ * Cheat build only (killer560, 2026-10-07: "auto close chest should be in a cheat only version"): both methods
+ * are wrapped in {@code BuildVariant.CHEAT_FEATURES_ENABLED}, so a legit jar carries neither the check nor the
+ * close packet, and its tab is added only in {@code NewTab}'s cheat block.
  */
 public final class AutoCloseChestFeature {
 
@@ -41,26 +45,33 @@ public final class AutoCloseChestFeature {
      *  - a real screen-opening packet the game hasn't acted on yet. @return true if the mixin should
      *  cancel the vanilla handler entirely (the screen never opens). */
     public static boolean shouldAutoClose(ClientboundOpenScreenPacket packet) {
-        AutoCloseChestConfig cfg = AutoCloseChestConfig.getInstance();
-        if (!cfg.isEnabled() || !DungeonState.isInDungeon()) {
-            return false;
+        // Cheat build only (killer560, 2026-10-07). The whole body sits inside the constant so javac drops
+        // it from the legit jar rather than merely skipping it.
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            AutoCloseChestConfig cfg = AutoCloseChestConfig.getInstance();
+            if (!cfg.isEnabled() || !DungeonState.isInDungeon()) {
+                return false;
+            }
+            if (!SECRET_CHEST_MENU_TYPES.contains(packet.getType())) {
+                return false;
+            }
+            String title = extractPlainTitle(packet.getTitle());
+            return SECRET_CHEST_TITLES.contains(title);
         }
-        if (!SECRET_CHEST_MENU_TYPES.contains(packet.getType())) {
-            return false;
-        }
-        String title = extractPlainTitle(packet.getTitle());
-        return SECRET_CHEST_TITLES.contains(title);
+        return false;
     }
 
     /** Sends the real close-container packet back to the server, matching what vanilla would send if the
      *  player had opened then immediately closed the chest themselves - the server never even needs to
-     *  know the client refused to render the screen. */
+     *  know the client refused to render the screen. Empty in a legit jar. */
     public static void autoClose(ClientboundOpenScreenPacket packet) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return;
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            Minecraft client = Minecraft.getInstance();
+            if (client.player == null) {
+                return;
+            }
+            client.player.connection.send(new ServerboundContainerClosePacket(packet.getContainerId()));
         }
-        client.player.connection.send(new ServerboundContainerClosePacket(packet.getContainerId()));
     }
 
     private static String extractPlainTitle(Component title) {

@@ -671,7 +671,6 @@ final class SettingTooltipsData {
         d.put("proximity voice", "Voice chat with party members who also run the mod, louder the closer they are.");
         d.put("push to talk", "ON sends your mic only while the key is held; OFF sends it all the time.");
         d.put("muted", "Stops sending your microphone to teammates.");
-        d.put("auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected.");
         d.put("blood camp", "Tracks the Watcher's blood mobs and predicts where each will land.");
         d.put("show overlay", "Draws a countdown box where each blood mob will settle, green when it is ready to hit.");
         d.put("aura", "Cheat build: acts on targets around you without needing to aim at them.");
@@ -1748,10 +1747,17 @@ final class SettingTooltipsData {
         d.put("blood camp/show overlay", "Draws the predicted landing box and countdown over each blood mob.");
         d.put("blood camp/kill popup", "Shows a KILL popup just before the Watcher's final move.");
         d.put("blood camp/kill popup lead", "Ticks before the predicted move that the popup switches to KILL, 0-20.");
-        d.put("blood camp/trigger bot", "Left-clicks a blood mob when its countdown ends, if you are aiming at its spot (cheat build only).");
-        d.put("blood camp/aura", "Turns your camera toward the spot a blood mob is about to land (cheat build only).");
-        d.put("blood camp/auto detect lag", "Clicks earlier by your ping so the click lands when the mob becomes hittable.");
-        d.put("blood camp/click offset", "Extra ticks on top of Auto Detect Lag, -20 to +20.");
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // Cheat-only tabs (2026-10-07): Blood Camp's automation in its own Auto Blood Camp tab, and Auto Close
+            // Chest. Inside the constant, so a legit jar carries none of these strings.
+            d.put("auto blood camp/trigger bot", "Left-clicks a blood mob when its countdown ends, if you are aiming at its spot (cheat build only; needs Blood Camp on).");
+            d.put("auto blood camp/aura", "Turns your camera toward the spot a blood mob is about to land (cheat build only; needs Blood Camp on).");
+            d.put("auto blood camp/auto detect lag", "Clicks earlier by your ping so the click lands when the mob becomes hittable.");
+            d.put("auto blood camp/click offset", "Extra ticks on top of Auto Detect Lag, -20 to +20.");
+            d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
+            d.put("auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
+            d.put("auto close chest/auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
+        }
         d.put("auto fairy souls/auto walk path", "Turns on the walking engine Auto Fairy Souls needs to move you.");
         d.put("auto fairy souls/auto mode", "How it crosses gaps it can't walk: Walk, Etherwarp, Fast Etherwarp or Pearls Only.");
         d.put("tick timers/pad cycle timer", "Repeating 1-second countdown during Storm's P2 for timing pad drops.");
@@ -2005,8 +2011,13 @@ final class SettingTooltipsData {
         d.put("thorn (f4)/overkill to party", "Also sends each Spirit Bear's overkill count to party chat (/pc).");
         d.put("thorn (f4)/spirit bear hud", "Shows Spirit Bear kills and a spawn countdown in F4/M4.");
         d.put("blood camp/timer text scale", "Size of the countdown text on each blood mob's box, 1x-4x.");
-        d.put("blood camp/spawn line", "Draws a line from where the Watcher spawns a mob to where it will land.");
+        d.put("blood camp/spawn line", "Draws a cyan line from each blood mob's skull in the wall to the spot it will land, through walls.");
         d.put("blood camp/spawn line width", "Line thickness for Spawn Line, 1-10.");
+        d.put("blood camp/countdown start sound", "Plays a sound when a blood mob's countdown starts (its landing box appears). Mobs starting together make one sound.");
+        d.put("blood camp/kill sound", "Plays a sound the moment a blood mob's countdown reaches zero and it can be killed. Mobs due together make one sound.");
+        d.put("blood camp/start sound type", "Which sound Countdown Start Sound plays. Click to cycle.");
+        d.put("blood camp/kill sound type", "Which sound Kill Sound plays. Click to cycle.");
+        d.put("blood camp/sound volume", "Volume of both countdown sounds, 0-1.");
         d.put("ap3/align timer (dev)", "Dev builds only: prints how long each Align took.");
         d.put("advanced position/advanced position", "Shows your exact X, Y and Z as a small movable HUD.");
         d.put("advanced position/decimal places", "How many decimal places the HUD shows (0-8).");

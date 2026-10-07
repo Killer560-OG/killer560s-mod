@@ -266,6 +266,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   item was not captured. It now waits a cursor stack out mid-pair and gates each step on the menu's state id changing
   (`AbstractContainerMenu.getStateId`, which only the server's slot/content packets move), so a client prediction is never
   read as the server's answer. 292-297 then passed twice on 26.2.
+- Blood Camp's prediction is NoammAddons' (killer560 asked for it, 2026-10-07), including a Kotlin quirk: Noamm sums
+  `packet.xa / 4096` with a Short and an Int, which is INTEGER division, so a blood mob's sub-block step adds nothing and the
+  trip starts at the skull's spot in the wall. Ours divided by 4096.0, started one packet out of the wall, and landed the
+  predicted spot one step (0.215 blocks in test 392) too far along. Keep the integer division; it is the model, not a typo.
 
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
