@@ -48,8 +48,34 @@ public final class ClearExecutor {
     private static final ExecutorService PLANNER = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "killer560smod-etherplanner");
         t.setDaemon(true);
+        EtherwarpPathfinder.bindPlannerThread(t);
         return t;
     });
+
+    /** Plans other features queued or running on {@link #PLANNER} - the warm-up gives way to them as to a click. */
+    private static final java.util.concurrent.atomic.AtomicInteger externalPlans =
+            new java.util.concurrent.atomic.AtomicInteger();
+
+    /**
+     * Runs {@code task} on the Interactive Map's planner thread, the only thread the floor graph may be used from
+     * ({@link EtherwarpPathfinder#findDungeonPath} and the warm-up share one graph, which is not thread-safe). The
+     * warm-up yields to it at its next slice, as it does to a map click.
+     */
+    public static void onPlanner(Runnable task) {
+        externalPlans.incrementAndGet();
+        try {
+            PLANNER.submit(() -> {
+                try {
+                    task.run();
+                } finally {
+                    externalPlans.decrementAndGet();
+                }
+            });
+        } catch (RuntimeException e) {
+            externalPlans.decrementAndGet();
+            throw e;
+        }
+    }
 
     private static List<ClearNode> nodes = null;
     private static int syncDelay = 0;
@@ -511,7 +537,7 @@ public final class ClearExecutor {
         }
         // Keep the floor-wide etherwarp graph warm while he is in a dungeon, so a click only has to search it.
         if (cfg.isInteractiveMapEnabled() && client.level != null && DungeonLayout.current().roomCount() > 0) {
-            EtherwarpPathfinder.tickWarm(PLANNER, () -> pathPending, hopRange());
+            EtherwarpPathfinder.tickWarm(PLANNER, () -> pathPending || externalPlans.get() > 0, hopRange());
         }
         // Before this tick's hop: the body is given back once the path has no hop left to send.
         BODY.tick(client.player, aiming());

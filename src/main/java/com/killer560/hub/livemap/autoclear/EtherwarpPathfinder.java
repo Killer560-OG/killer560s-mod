@@ -350,8 +350,27 @@ public final class EtherwarpPathfinder {
         }
     }
 
+    /**
+     * The one thread allowed to touch {@link #graph}: the Interactive Map's planner ({@code ClearExecutor}), which
+     * hands it over on creation. WarpGraph is not thread-safe - two threads in {@code WarpGraph.node} at once can push
+     * its node count past its arrays without growing them, and from then on every new node throws
+     * ArrayIndexOutOfBounds one index higher and nothing plans for the rest of the floor (2026-10-06, 96-ar: Auto
+     * Routes' path planner ran its search on its own thread while the warm-up ran on this one). Anything else that
+     * wants a floor-graph plan submits it through {@code ClearExecutor.onPlanner}.
+     */
+    private static volatile Thread plannerThread;
+
+    static void bindPlannerThread(Thread t) {
+        plannerThread = t;
+    }
+
     /** Planner thread. The floor's graphs, made fresh when the floor changes, with any block changes applied. */
     private static FloorGraphs graphFor(Level level, double range) {
+        Thread owner = plannerThread;
+        if (owner != null && Thread.currentThread() != owner) {
+            throw new IllegalStateException("the floor graph is planner-thread only, called from "
+                    + Thread.currentThread().getName());
+        }
         boolean sim = com.killer560.hub.roomsim.SimState.isActive();
         int off = DungeonLayout.simYOffset();
         if (graph == null || graphLevel != level || graphRange != range || graphSim != sim || graphYOffset != off) {
@@ -510,8 +529,15 @@ public final class EtherwarpPathfinder {
                             gr.full.nodeCount(), ms(warmNanos), workerCount);
                     warmNanos = 0;
                 }
+                warmFailureTraced = false;
             } catch (RuntimeException e) {
-                LOGGER.warn("[Path] warm-up failed: {}", e.toString());
+                // A retry follows every 50 ms, so the stack trace goes out once per run of failures, not 20 a second.
+                if (!warmFailureTraced) {
+                    warmFailureTraced = true;
+                    LOGGER.warn("[Path] warm-up failed", e);
+                } else {
+                    LOGGER.warn("[Path] warm-up failed: {}", e.toString());
+                }
             } finally {
                 warmInFlight = false;
             }
@@ -519,6 +545,8 @@ public final class EtherwarpPathfinder {
     }
 
     private static long warmNanos;
+    /** Planner thread: the current run of warm-up failures has had its stack trace logged. */
+    private static boolean warmFailureTraced;
 
     /**
      * The planner before the floor graph, kept as its fallback: QUOI {@code findDungeonPath}, room-by-room legs

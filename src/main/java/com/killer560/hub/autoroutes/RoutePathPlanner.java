@@ -13,8 +13,6 @@ import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
@@ -35,11 +33,6 @@ import java.util.function.Consumer;
 public final class RoutePathPlanner {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-autoroutes");
-    private static final ExecutorService PLANNER = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "killer560smod-autoroutes-path");
-        t.setDaemon(true);
-        return t;
-    });
     /** Plans started since the game opened - read by the testkit to prove a replay did not plan again. */
     private static volatile int plansStarted;
     private static volatile boolean planning;
@@ -121,7 +114,10 @@ public final class RoutePathPlanner {
         plansStarted++;
         LOGGER.info("[AutoRoutes] Path #{} -> #{}: planning with the Interactive Map's floor planner, {} to {}", a, b,
                 fmt(from), goal.toShortString());
-        PLANNER.submit(() -> {
+        // On the Interactive Map's planner thread, never one of our own: the floor graph is shared with the map's
+        // warm-up and is not thread-safe. A search here racing the warm-up pushed the graph's node count past its
+        // arrays, after which nothing planned for the rest of the floor (2026-10-06).
+        ClearExecutor.onPlanner(() -> {
             long t0 = System.currentTimeMillis();
             List<EtherwarpPathfinder.Node> path = null;
             try {
