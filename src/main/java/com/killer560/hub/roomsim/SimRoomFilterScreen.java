@@ -1,6 +1,8 @@
 package com.killer560.hub.roomsim;
 
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.profit.ProfitPanels;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -21,10 +23,15 @@ import java.util.Map;
  * Rooms'), so the three cannot look or behave differently. The rules live in {@link SimRoomFilter}; this only edits
  * one.
  *
- * <p>killer560 (2026-10-07), with a mockup: a dark panel titled "Filters" with a "Clear all" pill top-right, and one
- * row per category - a grey label on the left, rounded chips on the right, a chosen chip drawn with a lighter fill
- * and border. Rows: Size, Kind, Rare room, Secrets and Your routes from the mockup, then Puzzles and Crypts, which the
- * designer's filters already had and are kept in the same style.
+ * <p>killer560 (2026-10-07), with a mockup: a panel titled "Filters", and one row per category - a label on the left,
+ * chips on the right. Rows: Size, Kind, Rare room, Secrets and Your routes from the mockup, then Puzzles and Crypts,
+ * which the designer's filters already had.
+ *
+ * <p>Drawn in the mod's own style, not the mockup's (killer560, 2026-10-07: "make sure that the filter section for
+ * creating the map is in our mods style and not a direct copy"): the panel, header bar, title and "N of M rooms" are
+ * Design a Map's ({@link SimMapEditorScreen}), with {@link ProfitPanels}' colours; a chip is a
+ * {@link SettingsButtonWidget} box, and a chosen one has the amber border and a §6 label, the way the mod marks the
+ * chosen value everywhere else; Clear all and Done are plain {@link SettingsButtonWidget}s.
  *
  * <p>The chips flow: they wrap onto as many lines as the width needs, and on a narrow window the labels go on a line
  * of their own above their chips. When that is taller than the window the rows scroll (mouse wheel) between the
@@ -38,26 +45,14 @@ public class SimRoomFilterScreen extends Screen {
     private static final int LINE = CHIP_H + 4;
     private static final int ROW_GAP = 5;
     private static final int PAD = 12;
-    private static final int HEADER = 28;
-    private static final int FOOTER = 26;
+    /** Design a Map's 30-pixel header bar, and a gap under it. */
+    private static final int BAR = 30;
+    private static final int HEADER = BAR + 6;
+    /** The footer's buttons are the mod's 20-pixel height, as on Design a Map. */
+    private static final int BUTTON_H = 20;
+    private static final int FOOTER = BUTTON_H + 12;
     /** Below this many pixels for chips beside the labels, each label takes a line of its own. */
     private static final int MIN_CHIP_AREA = 150;
-
-    // The mockup's greys.
-    private static final int SHADE = 0xAA000000;
-    private static final int PANEL_BG = 0xFF17191C;
-    private static final int PANEL_BORDER = 0xFF2E3238;
-    private static final int TITLE = 0xFFF2F2F2;
-    private static final int LABEL = 0xFF9BA0A6;
-    private static final int DIM = 0xFF6E737A;
-    static final int CHIP_BG = 0xFF1C1F23;
-    static final int CHIP_BORDER = 0xFF3A3F46;
-    static final int CHIP_BORDER_HOVER = 0xFF5C626B;
-    static final int CHIP_TEXT = 0xFFDADDE1;
-    static final int CHIP_ON_BG = 0xFF4B5058;
-    static final int CHIP_ON_BORDER = 0xFFBFC4CB;
-    static final int CHIP_ON_TEXT = 0xFFFFFFFF;
-    static final int CHIP_OFF_TEXT = 0xFF555A61;
 
     private final Screen parent;
     private final SimRoomFilter filter;
@@ -122,16 +117,16 @@ public class SimRoomFilterScreen extends Screen {
         contentTop = panelY + HEADER;
         contentBottom = panelY + panelH - FOOTER;
 
-        // Header: "Clear all" top-right.
-        int clearW = this.font.width("Clear all") + 16;
-        addRenderableWidget(new Chip("Clear all", "", false, true, () -> {
+        // Footer: Clear all and Done bottom-right, the mod's own buttons, outside the scrolling band so they are
+        // always reachable. The header bar keeps "N of M rooms" on the right, as Design a Map does.
+        int buttonW = footerButtonW();
+        int by = panelY + panelH - BUTTON_H - 6;
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), b -> onClose())
+                .bounds(panelX + panelW - PAD - buttonW, by, buttonW, BUTTON_H).build());
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Clear all"), b -> {
             filter.clear();
             rebuildWidgets();
-        }, panelX + panelW - PAD - clearW, panelY + 6, clearW));
-        // Footer: Done bottom-right, outside the scrolling band so it is always reachable.
-        int doneW = this.font.width("Done") + 24;
-        addRenderableWidget(new Chip("Done", "", false, true, this::onClose,
-                panelX + panelW - PAD - doneW, panelY + panelH - FOOTER + 5, doneW));
+        }).bounds(panelX + panelW - PAD - buttonW * 2 - 6, by, buttonW, BUTTON_H).build());
 
         String[] names = {"Size", "Kind", "Rare room", "Secrets", "Your routes", "Puzzles", "Crypts"};
         int labelW = 0;
@@ -230,6 +225,28 @@ public class SimRoomFilterScreen extends Screen {
         return y + CHIP_H + ROW_GAP + 4;
     }
 
+    /**
+     * The note at this width: whole, else its leading sentences that fit, else trimmed with an ellipsis - never cut
+     * mid-word, which is what a plain trim did beside the footer's two buttons.
+     */
+    private String fitNote(String text, int maxW) {
+        if (this.font.width(text) <= maxW) {
+            return text;
+        }
+        for (int cut = text.lastIndexOf(". "); cut > 0; cut = text.lastIndexOf(". ", cut - 1)) {
+            String head = text.substring(0, cut + 1);
+            if (this.font.width(head) <= maxW) {
+                return head;
+            }
+        }
+        return this.font.plainSubstrByWidth(text, Math.max(0, maxW - this.font.width("..."))) + "...";
+    }
+
+    /** Clear all and Done share one width, so the footer reads as a row of buttons like Design a Map's. */
+    private int footerButtonW() {
+        return Math.max(this.font.width("Clear all"), this.font.width("Done")) + 20;
+    }
+
     private int maxScroll() {
         return Math.max(0, contentHeight - (contentBottom - contentTop));
     }
@@ -271,38 +288,44 @@ public class SimRoomFilterScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        g.fill(0, 0, this.width, this.height, SHADE);
-        pill(g, panelX, panelY, panelW, panelH, 6, PANEL_BG, PANEL_BORDER);
-        g.text(this.font, "Filters", panelX + PAD, panelY + 10, TITLE, false);
-        String count = shown + " of " + total + " rooms";
-        int countX = panelX + PAD + this.font.width("Filters") + 10;
-        int clearX = panelX + panelW - PAD - this.font.width("Clear all") - 16;
-        if (countX + this.font.width(count) < clearX - 6) {
-            g.text(this.font, count, countX, panelY + 10, filter.isDefault() ? DIM : LABEL, false);
-        }
-        g.fill(panelX + 1, contentTop - 2, panelX + panelW - 1, contentTop - 1, PANEL_BORDER);
-        g.fill(panelX + 1, contentBottom + 1, panelX + panelW - 1, contentBottom + 2, PANEL_BORDER);
-        int noteW = panelW - PAD * 2 - this.font.width("Done") - 24 - 8;
+        // Design a Map's frame (SimMapEditorScreen.extractRenderState): shade, panel, border, black header bar with an
+        // amber rule under it, the title in capitals in the accent colour, and the room count right-aligned in the bar.
+        g.fill(0, 0, this.width, this.height, 0xCC000000);
+        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, ProfitPanels.PANEL_BG);
+        g.outline(panelX, panelY, panelW, panelH, ProfitPanels.BORDER);
+        g.fill(panelX, panelY, panelX + panelW, panelY + BAR, 0xFF000000);
+        g.fill(panelX, panelY + BAR - 1, panelX + panelW, panelY + BAR, ProfitPanels.ACCENT);
+        g.text(this.font, "FILTERS", panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
+        String count = shown + " of " + total + " rooms" + (filter.isDefault() ? "" : " (filtered)");
+        int maxW = panelW - 20 - this.font.width("FILTERS") - 10;
+        String shownCount = this.font.width(count) <= maxW ? count : shown + "/" + total;
+        g.text(this.font, shownCount, panelX + panelW - 10 - this.font.width(shownCount), panelY + 11,
+                filter.isDefault() ? ProfitPanels.DIM : ProfitPanels.ACCENT, false);
+
+        // The footer's rule, then the note beside Clear all and Done.
+        g.fill(panelX + 1, contentBottom + 1, panelX + panelW - 1, contentBottom + 2, ProfitPanels.BORDER);
+        int noteW = panelW - PAD * 2 - footerButtonW() * 2 - 6 - 8;
         String foot = RoomDatabase.isReady() ? note : "room database loading...";
-        g.text(this.font, this.font.plainSubstrByWidth(foot, Math.max(0, noteW)), panelX + PAD,
-                panelY + panelH - FOOTER + 9, DIM, false);
+        g.text(this.font, fitNote(foot, Math.max(0, noteW)), panelX + PAD,
+                panelY + panelH - BUTTON_H / 2 - 6 - 4, ProfitPanels.DIM, false);
 
         g.enableScissor(panelX + 1, contentTop, panelX + panelW - 1, contentBottom);
         for (Object[] l : labels) {
             int ly = (Integer) l[2] - scroll;
             // Same rule as the chips (applyScroll): a label shows only when it fits whole in the band.
             if (ly >= contentTop && ly + 9 <= contentBottom) {
-                g.text(this.font, (String) l[0], (Integer) l[1], ly, LABEL, false);
+                g.text(this.font, (String) l[0], (Integer) l[1], ly, ProfitPanels.DIM, false);
             }
         }
         g.disableScissor();
         if (maxScroll() > 0) {
+            // The main menu's scrollbar (ModScreen): a dark track and an amber thumb.
             int band = contentBottom - contentTop;
             int bar = Math.max(12, band * band / contentHeight);
             int by = contentTop + (band - bar) * scroll / maxScroll();
             int sx = panelX + panelW - PAD + 4;
-            g.fill(sx, contentTop, sx + 3, contentBottom, 0xFF22252A);
-            g.fill(sx, by, sx + 3, by + bar, CHIP_ON_BORDER);
+            g.fill(sx, contentTop, sx + 3, contentBottom, 0xFF1A1A1A);
+            g.fill(sx, by, sx + 3, by + bar, ProfitPanels.ACCENT);
         }
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
@@ -313,33 +336,9 @@ public class SimRoomFilterScreen extends Screen {
     }
 
     /**
-     * A rounded box: the border colour as a rounded fill, then the fill colour one pixel in. Corners are cut row by
-     * row from a circle of radius {@code r}.
-     */
-    static void pill(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int fill, int border) {
-        rounded(g, x, y, w, h, r, border);
-        rounded(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), fill);
-    }
-
-    private static void rounded(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int colour) {
-        if (w <= 0 || h <= 0) {
-            return;
-        }
-        r = Math.min(r, Math.min(w, h) / 2);
-        for (int d = 0; d < r; d++) {
-            double dy = r - d - 0.5;
-            int inset = r - (int) Math.round(Math.sqrt(Math.max(0, r * r - dy * dy)));
-            g.fill(x + inset, y + d, x + w - inset, y + d + 1, colour);
-            g.fill(x + inset, y + h - d - 1, x + w - inset, y + h - d, colour);
-        }
-        if (h - 2 * r > 0) {
-            g.fill(x, y + r, x + w, y + h - r, colour);
-        }
-    }
-
-    /**
-     * One rounded chip: a toggle in a row, or a plain action ("Clear all", "Done") when {@code row} is empty. Its
-     * message is the bare label, so a test can find it by name; {@link #row()} says which row it is in.
+     * One chip: a toggle in a row, drawn as a {@link SettingsButtonWidget} box. Its message is the bare label, so a
+     * test can find it by name; {@link #row()} says which row it is in. The colour is added only when drawing: §6 when
+     * chosen, §8 when the row is switched off, as the mod's tabs colour a chosen or disabled value.
      */
     public static final class Chip extends AbstractWidget {
         private final String label;
@@ -367,14 +366,12 @@ public class SimRoomFilterScreen extends Screen {
 
         @Override
         protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-            int bg = selected ? CHIP_ON_BG : CHIP_BG;
-            int border = selected ? CHIP_ON_BORDER : (isHovered && active ? CHIP_BORDER_HOVER : CHIP_BORDER);
-            int text = !active ? CHIP_OFF_TEXT : selected ? CHIP_ON_TEXT : CHIP_TEXT;
-            pill(g, getX(), getY(), getWidth(), getHeight(), CHIP_H / 2, bg, border);
+            SettingsButtonWidget.drawBox(g, getX(), getY(), getWidth(), getHeight(), isHovered && active, selected);
             var font = Minecraft.getInstance().font;
             String shown = font.width(label) <= getWidth() - 8 ? label : font.plainSubstrByWidth(label, getWidth() - 8);
-            g.text(font, shown, getX() + (getWidth() - font.width(shown)) / 2, getY() + (getHeight() - 8) / 2,
-                    text, false);
+            String code = !active ? "§8" : selected ? "§6" : "";
+            g.centeredText(font, Component.literal(code + shown), getX() + getWidth() / 2,
+                    getY() + (getHeight() - 8) / 2, 0xFFFFFFFF);
         }
 
         @Override

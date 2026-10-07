@@ -120,6 +120,18 @@ public final class SettingsButtonWidget extends AbstractWidget {
     }
 
     /**
+     * Draws a box in this button's style, for a widget that has to be its own class but must look like one of these
+     * (the sim's filter chips, which carry a row and a selected state). {@code selected} is the mod's "this one is
+     * chosen" look: the full-amber border this button shows on hover, kept on, with the label in §6 by the caller.
+     */
+    public static void drawBox(GuiGraphicsExtractor graphics, int x, int y, int w, int h, boolean hovered,
+            boolean selected) {
+        int border = selected ? (hovered ? PRIMARY_BORDER_HOVER : BORDER_HOVER) : (hovered ? BORDER_HOVER : BORDER);
+        graphics.fill(x, y, x + w, y + h, hovered ? BG_HOVER : BG);
+        graphics.outline(x, y, w, h, border);
+    }
+
+    /**
      * This colour at the widget's current opacity.
      *
      * <p>Every colour here was a hardcoded {@code 0xFF......}, so the widget drew fully opaque no matter what
