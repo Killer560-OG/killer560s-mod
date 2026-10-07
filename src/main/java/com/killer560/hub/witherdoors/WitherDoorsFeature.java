@@ -50,8 +50,9 @@ import java.util.List;
  */
 public final class WitherDoorsFeature {
 
-    /** One ready-to-draw box. Built on the tick, consumed by {@link WitherDoorsRenderer} on the frame. */
-    record DoorBox(AABB box, float r, float g, float b) {
+    /** One ready-to-draw box. Built on the tick, consumed by {@link WitherDoorsRenderer} on the frame. {@code fr/fg/fb}
+     *  is the fill colour: the outline's own (the door's state colour) unless a custom Fill Color is set. */
+    record DoorBox(AABB box, float r, float g, float b, float fr, float fg, float fb) {
     }
 
     private static final Logger LOGGER = ModLog.get("killer560smod-witherdoors");
@@ -91,6 +92,9 @@ public final class WitherDoorsFeature {
     public static void register() {
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
             WitherDoorsRenderer.init();
+            // The Fill style's through-walls pass is WorldRenderUtils' shared no-depth FILLED pipeline; like every
+            // pipeline it must exist before the level renderer precompiles the list, so touch its holder now.
+            com.killer560.hub.util.WorldRenderUtils.initThroughWalls();
         }
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WitherDoorsFeature.tick", WitherDoorsFeature::tick));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
@@ -263,12 +267,14 @@ public final class WitherDoorsFeature {
 
     private static void addBox(WitherDoorScanner.Door door, int argb) {
         float[] rgba = com.killer560.hub.util.WorldRenderUtils.argbToFloats(argb);
+        WitherDoorsConfig cfg = WitherDoorsConfig.getInstance();
+        float[] fill = cfg.isCustomFillColor() ? com.killer560.hub.util.WorldRenderUtils.argbToFloats(cfg.getFillColor()) : rgba;
         double cx = door.x() + 0.5;
         double cz = door.z() + 0.5;
         AABB box = door.wallAlongZ()
                 ? new AABB(cx - HALF_THIN, DOOR_Y_MIN, cz - HALF_OPEN, cx + HALF_THIN, DOOR_Y_MAX, cz + HALF_OPEN)
                 : new AABB(cx - HALF_OPEN, DOOR_Y_MIN, cz - HALF_THIN, cx + HALF_OPEN, DOOR_Y_MAX, cz + HALF_THIN);
-        CACHED.add(new DoorBox(box, rgba[0], rgba[1], rgba[2]));
+        CACHED.add(new DoorBox(box, rgba[0], rgba[1], rgba[2], fill[0], fill[1], fill[2]));
     }
 
     private static void onWorldRender(LevelRenderContext context) {
@@ -277,6 +283,7 @@ public final class WitherDoorsFeature {
         if (CACHED.isEmpty()) {
             return;
         }
-        WitherDoorsRenderer.draw(context, CACHED, WitherDoorsConfig.getInstance().isThroughWalls());
+        WitherDoorsConfig cfg = WitherDoorsConfig.getInstance();
+        WitherDoorsRenderer.draw(context, CACHED, cfg.isThroughWalls(), cfg.getStyle(), cfg.getFillOpacity() / 100f);
     }
 }

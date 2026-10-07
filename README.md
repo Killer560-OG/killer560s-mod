@@ -24,7 +24,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Ability Timers, Advanced Position, Auto Join Skyblock, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, GIF Player, Health and Mana Bars, No Fire, Object Hider, Pathfinding †, Performance HUD, Quiver Display, Real Time, Screenshot Copy, Trail, Trajectories, Waypoint Routes, Video Browser
 
-**Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Auto Close Chest, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Waypoints, Simon Says †, Solver Highlights, Teleport Maze Solver, Terminal Solver †, Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver
+**Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Auto Close Chest, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Waypoints, Simon Says †, Solver Highlights, Teleport Maze Solver, Terminal Solver †, Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver, Wither Doors
 
 **Dungeon: Map, Leap & Party** - Chunk Cache, Class Selection Overlay, Custom Leap Menu, Dungeon Map, Dungeon Queue, Leap Message, Leap Order, Posmsg
 

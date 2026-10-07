@@ -33,6 +33,36 @@ public final class WitherDoorsConfig {
     public static final int DEFAULT_LOCKED_COLOR = 0xFFFF0000; // red - killer560: "make them red"
     public static final int DEFAULT_READY_COLOR = 0xFF00FF00;  // green - "the closest one green once you get a key"
 
+    public static final int MIN_FILL_OPACITY = 5;
+    public static final int MAX_FILL_OPACITY = 100;
+    public static final int DEFAULT_FILL_OPACITY = 35;
+    public static final int DEFAULT_FILL_COLOR = DEFAULT_LOCKED_COLOR;
+
+    /** Outline (the original look), Fill, or both - killer560, 2026-10-07: "make it so wither doors also have a fill
+     *  color option". Same three choices as Breaker Aura's Box Style. */
+    public enum Style {
+        OUTLINE("Outline"), FILL("Fill"), FILLED_OUTLINE("Filled Outline");
+
+        public final String label;
+
+        Style(String label) {
+            this.label = label;
+        }
+
+        public Style next() {
+            Style[] v = values();
+            return v[(ordinal() + 1) % v.length];
+        }
+
+        public boolean fills() {
+            return this != OUTLINE;
+        }
+
+        public boolean outlines() {
+            return this != FILL;
+        }
+    }
+
     private static WitherDoorsConfig instance;
 
     private boolean enabled = false;
@@ -41,6 +71,13 @@ public final class WitherDoorsConfig {
     private int bloodLockedColor = DEFAULT_LOCKED_COLOR;
     private int bloodReadyColor = DEFAULT_READY_COLOR;
     private int renderDistance = 96;
+    /** Ships OUTLINE, so nothing changes for anyone who never touches it. */
+    private Style style = Style.OUTLINE;
+    /** Percent, {@link #MIN_FILL_OPACITY}..{@link #MAX_FILL_OPACITY}. */
+    private int fillOpacity = DEFAULT_FILL_OPACITY;
+    /** false: the fill takes the door's current state colour (locked / key), so the two stay readable. */
+    private boolean customFillColor = false;
+    private int fillColor = DEFAULT_FILL_COLOR;
     /** Cheat build only: draw every locked Wither door and the Blood door, not just the closest Wither
      *  door. Ships OFF - the legit jar can never set this true regardless of a hand-edited config file. */
     private boolean showAllDoors = false;
@@ -72,6 +109,10 @@ public final class WitherDoorsConfig {
             cfg.bloodLockedColor = ConfigJson.getInt(obj, "bloodLockedColor", cfg.bloodLockedColor);
             cfg.bloodReadyColor = ConfigJson.getInt(obj, "bloodReadyColor", cfg.bloodReadyColor);
             cfg.setRenderDistance(ConfigJson.getInt(obj, "renderDistance", cfg.renderDistance));
+            cfg.setStyle(ConfigJson.getEnum(obj, "style", Style.class, cfg.style));
+            cfg.setFillOpacity(ConfigJson.getInt(obj, "fillOpacity", cfg.fillOpacity));
+            cfg.customFillColor = ConfigJson.getBool(obj, "customFillColor", cfg.customFillColor);
+            cfg.fillColor = ConfigJson.getInt(obj, "fillColor", cfg.fillColor);
             cfg.showAllDoors = ConfigJson.getBool(obj, "showAllDoors", cfg.showAllDoors);
             cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", cfg.throughWalls);
             instance = cfg;
@@ -91,6 +132,10 @@ public final class WitherDoorsConfig {
             obj.addProperty("bloodLockedColor", bloodLockedColor);
             obj.addProperty("bloodReadyColor", bloodReadyColor);
             obj.addProperty("renderDistance", renderDistance);
+            obj.addProperty("style", style.name());
+            obj.addProperty("fillOpacity", fillOpacity);
+            obj.addProperty("customFillColor", customFillColor);
+            obj.addProperty("fillColor", fillColor);
             obj.addProperty("showAllDoors", showAllDoors);
             obj.addProperty("throughWalls", throughWalls);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -149,6 +194,38 @@ public final class WitherDoorsConfig {
 
     public void setRenderDistance(int renderDistance) {
         this.renderDistance = clampDistance(renderDistance);
+    }
+
+    public Style getStyle() {
+        return style;
+    }
+
+    public void setStyle(Style style) {
+        this.style = style == null ? Style.OUTLINE : style;
+    }
+
+    public int getFillOpacity() {
+        return fillOpacity;
+    }
+
+    public void setFillOpacity(int fillOpacity) {
+        this.fillOpacity = Math.max(MIN_FILL_OPACITY, Math.min(MAX_FILL_OPACITY, fillOpacity));
+    }
+
+    public boolean isCustomFillColor() {
+        return customFillColor;
+    }
+
+    public void setCustomFillColor(boolean customFillColor) {
+        this.customFillColor = customFillColor;
+    }
+
+    public int getFillColor() {
+        return fillColor;
+    }
+
+    public void setFillColor(int fillColor) {
+        this.fillColor = fillColor;
     }
 
     /** Cheat-gated: the legit jar can never show every door, whatever the saved value says. */
