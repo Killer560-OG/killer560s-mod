@@ -531,7 +531,8 @@ public final class AutoRoutesCommands {
         AutoRoutesFeature.setEditMode(on);
         if (on) {
             ModChat.send(FEATURE, ModChat.text("Breaker edit mode "), ModChat.good("ON"),
-                    ModChat.text(" - right-click a block to add it, shift-right-click to remove. Your held item won't fire."));
+                    ModChat.text(" - hold your Dungeon Breaker: right-click adds a block, shift-right-click removes it."
+                            + " Any other item clicks normally."));
             ModChat.send(FEATURE, ModChat.dim("/ar edit db again to finish."));
         } else {
             AutoRoutesEditInput.reset();

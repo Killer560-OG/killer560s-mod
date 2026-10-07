@@ -422,8 +422,8 @@ public final class AutoRoutesFeature {
         chat(ModChat.text("Edit mode "), ModChat.good("ON"),
                 ModChat.text(number > 0 ? " at #" + number + " " + node.type.label() : ""),
                 editBreakerNode == null ? ModChat.dim(" - no breaker node in this room to right-click blocks into.")
-                        : ModChat.dim(" - right-click blocks for breaker #" + breakerIndex()
-                        + ", shift-right-click removes. /ar edit db to finish."));
+                        : ModChat.dim(" - hold your Dungeon Breaker: right-click adds blocks to breaker #" + breakerIndex()
+                        + ", shift-right-click removes. Other items click normally. /ar edit db to finish."));
     }
 
     /** The node a Go-to is travelling to, until it lands or the path fails. */
