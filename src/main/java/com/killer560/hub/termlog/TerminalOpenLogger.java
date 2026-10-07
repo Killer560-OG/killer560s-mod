@@ -108,6 +108,8 @@ public final class TerminalOpenLogger {
     /** How long the logger stays armed after the boss gate last held. */
     private static final int BOSS_GRACE_TICKS = 100;
     private static long lastBossTick = -1;
+    /** The world the boss gate last held in; the grace never carries into another world. */
+    private static Object lastBossLevel;
 
     private static volatile boolean enabled;
     /** Enabled AND in an F7/M7 boss, decided once per tick. The packet, screen and chat hooks read only this. */
@@ -595,10 +597,14 @@ public final class TerminalOpenLogger {
         boolean bossNow = enabled && mc.player != null && inBoss();
         if (bossNow) {
             lastBossTick = clientTick;
+            lastBossLevel = mc.level;
         }
         // A short grace, so a sidebar that blinks out for a tick (seen in the testkit right after a terminal opened)
-        // does not drop a click; it is still OFF the moment the setting is.
-        boolean nowArmed = enabled && (bossNow || (lastBossTick >= 0 && clientTick - lastBossTick <= BOSS_GRACE_TICKS));
+        // does not drop a click; it is still OFF the moment the setting is, and it ends at once on leaving the world or
+        // the floor (testkit 409 found it still armed outside any dungeon 5 s after a boss).
+        boolean graceHolds = lastBossTick >= 0 && clientTick - lastBossTick <= BOSS_GRACE_TICKS
+                && mc.level != null && mc.level == lastBossLevel && DungeonState.isF7OrM7();
+        boolean nowArmed = enabled && (bossNow || graceHolds);
         if (nowArmed != armed) {
             armed = nowArmed;
             LOGGER.info("[TermLog] {} (floor {}, boss phase {})", nowArmed ? "armed - in the boss" : "disarmed",

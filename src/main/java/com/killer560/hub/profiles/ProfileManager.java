@@ -340,6 +340,7 @@ public final class ProfileManager {
                 com.killer560.hub.autoclear.AutoClearConfig::load,
                 com.killer560.hub.autosecret.AutoSecretConfig::load,
                 com.killer560.hub.util.CorrectionAlarmConfig::load,
+                com.killer560.hub.termlog.TerminalOpenLoggerConfig::load,
                 com.killer560.hub.bazaarflip.BazaarFlipConfig::load,
                 com.killer560.hub.bugreport.BugReportConfig::load,
                 com.killer560.hub.invsort.InventorySorterConfig::load,
