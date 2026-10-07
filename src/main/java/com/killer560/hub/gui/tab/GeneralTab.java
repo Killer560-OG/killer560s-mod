@@ -12,7 +12,9 @@ public class GeneralTab extends FolderTab {
         super("General", List.of(
                 new GeneralMainTab(),
                 // Moved here from Helpers 2026-10-04.
-                new EtherwarpOverlayTab()
+                new EtherwarpOverlayTab(),
+                // Visual-only camera glide on teleports (2026-10-07), beside the other teleport visual.
+                new SmoothTeleportTab()
         ));
         pinFirstSection();
     }

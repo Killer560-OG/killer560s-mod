@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.smoothtp.mixin",
+	"client": [
+		"SmoothTpCameraMixin",
+		"SmoothTpOutboundMixin",
+		"SmoothTpPositionMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

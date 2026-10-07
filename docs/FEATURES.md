@@ -252,6 +252,7 @@ AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phas
 **General**
 - Auto Join Skyblock — automatically runs `/skyblock` the moment you connect to Hypixel
 - Etherwarp Overlay — while holding a real Etherwarp item, highlights exactly where you'd land (green if safe, red if not by default - both colours and Outline / Filled / Filled+Outline style are configurable) using a real voxel raycast. Never moves you — the real server still handles the actual warp (in General since 2026-10-04; it used to sit in Helpers)
+- Smooth Teleport — when an Etherwarp, Instant Transmission (AOTE/AOTV), Wither Impact (Hyperion, Astraea, Scylla, Valkyrie) or Sinseeker/Leech teleport lands you, the camera glides from where it was to where you landed over a set time (50-500 ms, default 100) instead of snapping, in first person. Purely visual: you are already at the landing, and your crosshair, clicks and every automation aim from there from the first tick. A server position change that does not answer one of your own teleport uses (a lag-back, a correction, a warp) is never smoothed and cancels a glide in progress. Each teleport type has its own toggle. Off by default; in General, under Etherwarp Overlay
 
 **Display**
 - Borderless Fullscreen — F11 toggles between windowed and borderless fullscreen, never true exclusive fullscreen

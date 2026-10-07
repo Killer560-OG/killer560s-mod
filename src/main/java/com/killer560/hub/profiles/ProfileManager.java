@@ -397,6 +397,7 @@ public final class ProfileManager {
                 // reason com.killer560.hub.routes.RouteStore::load is in this list for Waypoint Routes.
                 com.killer560.hub.etherwarp.EtherwarpWaypointsStore::load,
                 com.killer560.hub.etherwarpoverlay.EtherwarpOverlayConfig::load,
+                com.killer560.hub.smoothtp.SmoothTeleportConfig::load,
                 com.killer560.hub.experiments.ExperimentsConfig::load,
                 com.killer560.hub.fastleap.FastLeapConfig::load,
                 com.killer560.hub.fastleap.I4LeapConfig::load,
