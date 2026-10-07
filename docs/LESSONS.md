@@ -246,3 +246,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   (testkit 310 caught it once another case had left Score Calculator on, 2026-10-07).
 GUI, HUD and rendering lessons are in [LESSONS-GUI.md](LESSONS-GUI.md).
 Compiling lessons (API names across versions, the cloud-session javac filter) are in [COMPILING.md](COMPILING.md).
+
+- `api.docilelm.top` (Devonian's Party Finder stats) answers HTTP 200 `{"result":{}}` to every User-Agent except Devonian's own
+  (`Mozilla/5.0 (Devonian)`, checked 2026-10-07), so an empty result is an access refusal, not "player not found". Do not
+  impersonate Devonian; Party Finder uses SkyBlockPV (or his own Hypixel key) instead.
