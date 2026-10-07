@@ -401,6 +401,7 @@ public final class ProfileManager {
                 com.killer560.hub.fastleap.FastLeapConfig::load,
                 com.killer560.hub.fastleap.I4LeapConfig::load,
                 com.killer560.hub.fullbright.FullbrightConfig::load,
+                com.killer560.hub.packdisabler.PackDisablerConfig::load,
                 com.killer560.hub.gifplayer.GifPlayerConfig::load,
                 com.killer560.hub.helditem.HeldItemConfig::load,
                 com.killer560.hub.hud.HudConfig::load,

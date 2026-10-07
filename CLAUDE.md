@@ -77,7 +77,9 @@ directly: files live in `config/killer560/<category>/<feature>/` under their unc
 picked from the prefix table in `ModPaths` (add a row for a new feature, or it lands in `other/`). Code that lists
 setting files uses `ModPaths.settingFiles()`. The client entrypoint's `ModPaths.migrateAll()` moves old root files in.
 
-Every setting must survive a restart: add the field, load it, save it, and expose a getter and setter.
+Every setting must survive a restart: add the field, load it, save it, and expose a getter and setter. A new config
+class's `load` also goes in `ProfileManager.reloadAllConfigs`, or applying a profile is undone by its next save (testkit
+320 names the class; Pack Disabler missed it, 2026-10-07).
 A new feature gets its name in the README list and its full text in `docs/FEATURES.md`, then the features
 Google Doc is regenerated. Sharing and receiving settings default ON. The GUI is orange-themed. Never carry
 his typos into a command, label or alias.
