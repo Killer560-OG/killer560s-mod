@@ -44,21 +44,23 @@ are only ever boot testing on the mod only variant."
 Never swap a jar over a running game; stage it as `.jar.pending`. Never blanket `taskkill javaw` — kill
 only the PID that was launched, and if the log shows a server join, he took the window, so leave it.
 
-Deploying updates **Mod Only Test does not reach the instances he plays on.** As of 2026-09-30 SIX
-instances run the cheat variant - `26.1.2 (Dungeons)`, `26.1.2`, `26.1.2 ALT`, `Map Logger`,
-`Ashfall rooms` and `26.1.2 (Mod Only Test)` - and `26.1.2 (Legit Test)` runs a legit build. After a session's work lands, check
+Deploying updates **Mod Only Test does not reach the instance he plays on.** Since 2026-10-07 there are six:
+`26.1.2 (Dungeons)` (his play instance, cheat), `26.1.2 (Mod Only Test)` (cheat), `26.1.2 Legit`, `26.2 Cheat`,
+and two private testing instances, `26.1.2 Untested Cheat` and `26.1.2 Untested Legit`, which take only the
+`-PtestingBuild` jars. The other eight were moved to `C:\Users\Hunter\PrismInstances-removed-2026-10-07`, and
+every instance's `options.txt` is a copy of Dungeons'. After a session's work lands, check
 every one by md5 and promote or delete any leftover `.jar.pending`: on 2026-09-29 four instances were two
 builds behind with a stale `.pending` nothing had ever promoted.
 
 **Enumerate the instances directory, never trust this list.** It has been wrong twice in one day:
 `AP3 Competition Instance` was missing from it, then that instance disappeared and two new ones showed up.
 
-**There is now a `26.2 mod only` instance**, created 2026-09-30 as the 26.2 twin of `26.1.2 (Mod Only Test)`:
-MC 26.2, Fabric Loader 0.19.5, Fabric API 0.160.0+26.2, Mod Menu 20.0.2, Kotlin, and the mod. It is the only
-place a 26.2 build may be booted. A newly created instance is invisible to a running Prism until it rescans,
-so restart the launcher before looking for it.
+**`26.2 Cheat` is the only 26.2 instance** (2026-10-07; it replaced `26.2 mod only`, `26.2` and `26.2 ALT`):
+MC 26.2, Fabric Loader 0.19.5, Fabric API 0.160.0+26.2, Mod Menu 20.0.2, Kotlin, and the mod. Boot-test 26.2
+through the testkit, not this instance. A newly created instance is invisible to a running Prism until it
+rescans, so restart the launcher before looking for it.
 
-**`26.2` and `26.2 ALT` get the 26.2 build, not the 26.1.2 one.** killer560 lifted the old do-not-deploy rule on 2026-09-30 ("you can deploy the proper version of the mod to the proper instance") when 26.2 became a supported target: 26.1.2 stays the main release because most people play it, and a good few play 26.2. Four jars now ship - legit and cheat for each - and the Minecraft version is in every jar's name so `*-legit.jar` cannot match two different builds. The 26.1.2 jar still will not load on 26.2 and vice versa, because each declares its own `minecraft` range; that is the point, not a bug to widen away.
+**26.2 instances get the 26.2 build, not the 26.1.2 one.** killer560 lifted the old do-not-deploy rule on 2026-09-30 ("you can deploy the proper version of the mod to the proper instance") when 26.2 became a supported target: 26.1.2 stays the main release because most people play it, and a good few play 26.2. Four jars now ship - legit and cheat for each - and the Minecraft version is in every jar's name so `*-legit.jar` cannot match two different builds. The 26.1.2 jar still will not load on 26.2 and vice versa, because each declares its own `minecraft` range; that is the point, not a bug to widen away.
 
 There is an anticheat harness at `C:\Users\Hunter\killer560s-mod-testkit` that runs features against a real
 GrimAC on a real dedicated server. See its own `CLAUDE.md`. Harness system properties (network fakes/offline, no OS opens) are in **[docs/TESTING-HOOKS.md](docs/TESTING-HOOKS.md)**.
