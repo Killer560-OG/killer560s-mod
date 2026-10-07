@@ -2651,3 +2651,15 @@ THAT run - into the next build of the room, on top of a fresh break of the same 
 rebuild at 01:17:17, run at 01:17:21 broke #5's wall, the old restore put it back within a second, and #7's etherwarp through
 it was refused by the sim on every retry. Fixed both ways: the single-room build resets it, and a newer break of a block drops
 any older restore still waiting for it. Testkit 96-ar-398-regrow.
+
+## A new floor carried the last session's starred mobs (2026-10-07, fix-sim)
+
+Two ways, both found by flaky testkit scenarios. `SimMobs.forget()`, which every build calls after sweeping the level's mobs,
+cleared SPAWNED but kept STARRED, the Fel markers and the star tags, so a build after a leave that had skipped
+`resetPerMapState` (SimState already off when the unload handler ran) started with the old floor's starred mobs still counted:
+89-sim-starred-mobs read "1 spawned, 5 starred" after one plain zombie, the five being 96-ar-mimic's mimics. `forget()` now
+does everything `forgetAll()` does. And reopening the existing sim world for a build kept the last session's SAVED entities:
+sim mobs are persistent, their chunks wrote them to disk, and they loaded back after `SimBuilder.clearFloorMobs` had swept, so
+the previous floor's starred zombies stood in rooms of the new one (98-sim-insta-clear-live's U and Z). `SimWorld.open` now
+deletes the overworld's `entities/` region files before reopening the world for a build. A rebuild INSIDE an open sim world
+still relies on the sweep, which cannot see mobs in chunks that are unloaded at the time; not seen to matter yet.
