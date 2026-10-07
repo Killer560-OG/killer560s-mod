@@ -35,7 +35,7 @@ import java.util.function.Supplier;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * AP3 settings - automated F7/M7 boss-fight movement. Cheat build only ({@link NewTab}'s cheat block), red headers,
+ * AP3 settings - automated F7/M7 boss-fight movement. Cheat build only (its category's cheat block), red headers,
  * collapses to the master toggle while OFF (AutoRoutesTab / LeverAuraTab pattern: an unused feature costs one line).
  * <p>
  * Top to bottom (killer560's 2026-09-21 order): the master toggle; right under it "Choose AP3 Config" (which chains
@@ -65,7 +65,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         super("AP3");
     }
 
-    /** Only added to {@link NewTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
+    /** Only added to its category behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
     @Override
     public boolean isCheatOnly() {
         return true;

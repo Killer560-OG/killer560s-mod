@@ -10,7 +10,6 @@ import com.killer560.hub.gui.tab.HelpersTab;
 import com.killer560.hub.gui.tab.HomeTab;
 import com.killer560.hub.gui.tab.HudElementsTab;
 import com.killer560.hub.gui.tab.KeyCaptureTab;
-import com.killer560.hub.gui.tab.NewTab;
 import com.killer560.hub.gui.tab.ProfilesTab;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -101,13 +100,15 @@ public class ModScreen extends Screen {
             tabs = new ArrayList<>();
             tabs.add(new HomeTab());
             tabs.add(new ProfilesTab());
-            tabs.add(new NewTab());
             // "Mining (WIP)" (MiningWipTab) is shelved until after 2.0: shelved/mining/README.md.
             tabs.add(new GeneralTab());
             tabs.add(new DisplayTab());
             // Custom Crosshair has its own tab (killer560, 2026-10-06): the editor needs the room for its preview.
             tabs.add(new com.killer560.hub.gui.tab.CrosshairTab());
             tabs.add(new ChatTab());
+            // Social and Items (2026-10-07) took their features out of the removed New category.
+            tabs.add(new com.killer560.hub.gui.tab.SocialTab());
+            tabs.add(new com.killer560.hub.gui.tab.ItemsTab());
             tabs.add(new HudElementsTab());
             tabs.add(new HelpersTab());
             tabs.add(new DungeonTab());

@@ -55,7 +55,19 @@ public class DungeonTab extends FolderTab {
                 // One home for everything secret-related (killer560, 2026-09-20): sound, waypoints,
                 // etherwarp waypoints, and the cheat-only Secret Aura/Triggerbot/Lever Aura/Full Block,
                 // which the folder gates internally so none of them exist in the legit jar.
-                new SecretsTab()
+                new SecretsTab(),
+                // Out of the New category, removed 2026-10-07 (killer560: every feature moves to the category
+                // it lives in for the release). Solver and secret helpers flat here; the map/party and
+                // timers/boss groups as folders of their own.
+                new DungeonInfoTab(),
+                new DoorKeysTab(),
+                new WitherDoorsTab(),
+                new ArchitectDraftTab(),
+                new ArrowAlignTab(),
+                new DungeonMapPartyTab(),
+                new DungeonTimersBossTab(),
+                new SimSettingsTab(),
+                new SimKeybindsTab()
         ));
         // Leap Menu, Fast Leap, Posmsg, Ability Timers, Dungeon Info, Mob ESP, Mapping, Etherwarp
         // (landed just before this session, 2026-09-13) and Simon Says, Tick Timers, Split Timers,
@@ -83,6 +95,19 @@ public class DungeonTab extends FolderTab {
             // once that folder came back the same day. It is the cheat half - the solvers only show you
             // the answer, this plays the puzzle for you - so the legit build has no such section at all.
             tabs.add(new AutoPuzzlesTab());
+            // Out of the New category's cheat block, removed 2026-10-07. Same gate as before.
+            tabs.add(new AutoRoutesTab());
+            tabs.add(new AutoClearTab());
+            tabs.add(new AutoTrapTab());
+            tabs.add(new DoorHelpersTab());
+            tabs.add(new DungeonBreakerTab());
+            tabs.add(new BreakerAuraTab());
+            tabs.add(new AutoDialogueTab());
+            tabs.add(new DioriteGlassTab());
+            tabs.add(new TerminalAuraTab());
+            tabs.add(new TerminalTriggerbotTab());
+            tabs.add(new Ap3Tab());
+            tabs.add(new FreezeStateTab());
         }
         return tabs;
     }

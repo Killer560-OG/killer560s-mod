@@ -23,7 +23,7 @@ public class AutoChocolateFactoryTab extends BaseTab {
         super("Auto Chocolate Factory");
     }
 
-    /** Only added to {@link NewTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
+    /** Only added to its category behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
     @Override
     public boolean isCheatOnly() {
         return true;

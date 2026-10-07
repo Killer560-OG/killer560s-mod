@@ -2,7 +2,7 @@
 
 The detailed version of the feature list in the README. Keep this file up to date whenever a feature is added or changed - the public features Doc is generated from it.
 
-> **New tab:** every feature that's new or was just changed lives in the mod menu's **New** tab first, so it's easy to find what still needs testing. Once confirmed working it moves to its normal category tab below.
+> **Menu:** every feature sits in its own category in the mod menu (`/killer560`): Home, Profiles, General, Display, Crosshair, Chat, Social, Items, Hud Elements, Helpers and Dungeon (with Map, Leap & Party and Timers, Score & Boss folders inside it). The old New staging tab was removed on 2026-10-07.
 
 **Chat**
 - Translate — auto-translates your chat messages into another language before sending

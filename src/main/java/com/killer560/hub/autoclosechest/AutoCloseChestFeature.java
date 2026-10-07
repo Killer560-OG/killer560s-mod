@@ -27,7 +27,7 @@ import java.util.Set;
  * <p>
  * Cheat build only (killer560, 2026-10-07: "auto close chest should be in a cheat only version"): both methods
  * are wrapped in {@code BuildVariant.CHEAT_FEATURES_ENABLED}, so a legit jar carries neither the check nor the
- * close packet, and its tab is added only in {@code NewTab}'s cheat block.
+ * close packet, and its tab is added only in its menu category's cheat block.
  */
 public final class AutoCloseChestFeature {
 

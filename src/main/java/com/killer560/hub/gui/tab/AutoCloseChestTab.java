@@ -10,7 +10,7 @@ import java.util.List;
 
 /** Auto Close Chest settings - see {@link com.killer560.hub.autoclosechest.AutoCloseChestFeature}'s class
  *  doc for the real QUOI-ported secret-chest detection this is built on. Cheat build only since 2026-10-07
- *  (killer560: "auto close chest should be in a cheat only version"): added only in {@link NewTab}'s cheat
+ *  (killer560: "auto close chest should be in a cheat only version"): added only in its category's cheat
  *  block, red title, and it builds nothing in a legit jar. */
 public class AutoCloseChestTab extends BaseTab {
 
@@ -18,7 +18,7 @@ public class AutoCloseChestTab extends BaseTab {
         super("Auto Close Chest");
     }
 
-    /** Only added to {@link NewTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
+    /** Only added to its category behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
     @Override
     public boolean isCheatOnly() {
         return true;

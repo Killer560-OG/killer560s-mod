@@ -54,7 +54,6 @@ final class SettingTooltipsData {
         d.put("panes", "Highlights the red panes to click in the panes terminal.");
         d.put("rubix", "Shows which panes to click, and how many times, in the same-color terminal.");
         d.put("dungeon/numbers", "Highlights the next pane to click in the Click in Order terminal.");
-        d.put("new/numbers", "Shows each waypoint's number above it; on the scoreboard, picks long or short numbers.");
         d.put("numbers", "Changes how numbers are shown for this feature.");
         d.put("starts with", "Highlights every item starting with the requested letter in the What Starts With terminal.");
         d.put("select", "Highlights every item of the requested color in the Select All terminal.");
@@ -65,17 +64,14 @@ final class SettingTooltipsData {
         d.put("show highlights", "Draws boxes on the Simon Says buttons you still need to click.");
         d.put("show numbers", "Writes each button's order number on the Simon Says buttons.");
         d.put("dungeon/style", "How Simon Says highlights are drawn: filled, outline, or both.");
-        d.put("new/style", "How this highlight is drawn: filled, outline, or both.");
         d.put("style", "How this highlight is drawn: filled, outline only, or both.");
         d.put("dungeon/scale", "Size of the numbers drawn on the Simon Says buttons.");
         d.put("hud elements/scale", "Size of the Storage Overlay (50-200%) or the DVD box.");
-        d.put("new/scale", "Size of what this feature draws on screen.");
         d.put("scale", "Size of this feature's on-screen element.");
         d.put("1st color", "Color of the highlight on the button to click next.");
         d.put("2nd color", "Color of the highlight on the button after the next one.");
         d.put("3rd color", "Color of the highlight on every later button in the sequence.");
         d.put("dungeon/prevent misclicks", "Blocks clicks on the wrong Simon Says buttons; hold Shift to click anyway.");
-        d.put("new/prevent misclicks", "Blocks right-clicks on an Arrow Align frame that already points the right way.");
         d.put("prevent misclicks", "Blocks clicks that would be wrong for the current puzzle.");
         d.put("announce progress", "Sends 'SS n/5' in party chat after each Simon Says round ('n/4' on the 4-round device).");
         d.put("party tracker", "Shows each teammate's Simon Says progress and ETA from party chat.");
@@ -83,19 +79,15 @@ final class SettingTooltipsData {
         d.put("auto message", "Sends your reset message in party chat whenever the device resets.");
         d.put("reset message", "The party chat text sent when Simon Says resets or restarts.");
         d.put("dungeon/trigger bot", "Clicks the next correct Simon Says button once your crosshair is on it (cheat build only).");
-        d.put("new/trigger bot", "Clicks blood mobs and Arrow Align frames for you once your crosshair is on them (cheat build only).");
         d.put("trigger bot", "Clicks the correct target once your crosshair is on it (cheat build only).");
         d.put("auto solve", "Clicks the whole Simon Says sequence for you each round (cheat build only).");
         d.put("dungeon/trigger bot delay", "How long (0-500 ms) your crosshair must stay on the button before clicking (cheat build only).");
-        d.put("new/trigger bot delay", "Wait in milliseconds between Trigger Bot clicks.");
         d.put("trigger bot delay", "How many milliseconds Trigger Bot waits before clicking (cheat build only).");
         d.put("dungeon/mode", "Auto Solve click style: Rotate aims your camera at each button, No Rotate does not (cheat build only).");
         d.put("helpers/mode", "Solver Only highlights slots; Autonomous also clicks, opens games and claims rewards (cheat build only).");
-        d.put("new/mode", "Click to cycle how this feature behaves.");
         d.put("mode", "Click to cycle how this feature behaves.");
         d.put("pacing", "How Auto Solve times its clicks: fixed delay or a target total time (cheat build only).");
         d.put("dungeon/click delay", "Milliseconds (0-3000) Auto Solve waits between clicks (cheat build only).");
-        d.put("new/click delay", "Minimum time between fast leap clicks, 100-500 ms.");
         d.put("click delay", "Minimum time in milliseconds between clicks for this feature.");
         d.put("timer target", "Total time (11-13s) Auto Solve aims to take for the whole device (cheat build only).");
         d.put("variance", "Random jitter up to 250 ms added to the target time (cheat build only).");
@@ -103,7 +95,6 @@ final class SettingTooltipsData {
         d.put("restart key", "Keybind that restarts Simon Says by clicking the start button (cheat build only).");
         d.put("auto start", "Clicks the start button for a skip when Goldor's opening line appears (cheat build only).");
         d.put("dungeon/delay", "Gap between Auto Start clicks, 1-20 ticks (cheat build only).");
-        d.put("new/delay", "Wait before clicking: ticks for Auto Dialogue, milliseconds for Secret Triggerbot (cheat build only).");
         d.put("delay", "Wait before this feature acts, in ticks or ms.");
         d.put("full block", "Enlarges the click hitboxes of levers, buttons, chests and Wither Essence (cheat build only).");
         d.put("dungeon/levers", "Enlarges lever click hitboxes so they are easier to hit (cheat build only).");
@@ -124,10 +115,8 @@ final class SettingTooltipsData {
         d.put("auto select", "Auto-clicks the Select All terminal (cheat build only).");
         d.put("auto melody", "Auto-clicks the Melody terminal when the moving pane lines up (cheat build only).");
         d.put("dungeon/min delay", "Shortest random wait between auto terminal clicks, 80-500 ms (cheat build only).");
-        d.put("new/min delay", "Shortest random wait in milliseconds between automated clicks (cheat build only).");
         d.put("min delay", "Shortest random wait in milliseconds between automated clicks (cheat build only).");
         d.put("dungeon/max delay", "Longest random wait between auto terminal clicks, 80-500 ms (cheat build only).");
-        d.put("new/max delay", "Longest random wait in milliseconds between automated clicks (cheat build only).");
         d.put("max delay", "Longest random wait in milliseconds between automated clicks (cheat build only).");
         d.put("block input while auto-clicking", "Ignores your own clicks and keys in a terminal while it is being auto-clicked (cheat build only).");
         d.put("melody skip mode", "Edges bursts extra rows only on first or last row matches; All clicks every remaining row (cheat build only).");
@@ -147,7 +136,6 @@ final class SettingTooltipsData {
         d.put("max titanic price", "Cheat build: the most the bot pays for a Titanic Experience Bottle, 0 disables. Drag in 50k steps or type an exact amount.");
         d.put("chat/set", "Applies the percent typed in the box as the cat sound volume.");
         d.put("hud elements/set", "Applies the value typed in the box next to it.");
-        d.put("new/set", "Saves the typed Leaping To message.");
         d.put("set", "Applies the number typed in the box next to it.");
         d.put("click protection", "Blocks clicks on the wrong Chronomatron or Ultrasequencer slot; hold Shift to click anyway.");
         d.put("notify max clicks reached", "Sends a chat message and sound when you hit the max Superpairs click bonus or run out of clicks.");
@@ -172,7 +160,6 @@ final class SettingTooltipsData {
         d.put("play cat noises", "Plays a cat sound each time Auto Meow replies.");
         d.put("chat/volume", "Loudness of the Auto Meow cat sound, 0-200%.");
         d.put("hud elements/volume", "Loudness of the GIF Player audio, 0-100%.");
-        d.put("new/volume", "Loudness of this feature's audio.");
         d.put("volume", "Loudness of this feature's sound, from silent to full.");
         d.put("open cringe lines folder", "Opens the folder with cringe-lines.txt, the lines /cringe picks from.");
         d.put("reload lines", "Reloads cringe-lines.txt so your edits apply to /cringe.");
@@ -200,7 +187,6 @@ final class SettingTooltipsData {
         d.put("+ add new dvd", "Adds a new bouncing DVD-screensaver box and opens its setup.");
         d.put("edit", "Opens this DVD box's setup to change its content, look and speed.");
         d.put("hud elements/delete", "Removes this DVD box and its settings immediately.");
-        d.put("new/delete", "Removes this entry from the list.");
         d.put("profiles/delete", "Permanently deletes this saved profile.");
         d.put("delete", "Removes this entry.");
         d.put("text", "Makes this box show text; type the words in the text step.");
@@ -209,13 +195,11 @@ final class SettingTooltipsData {
         d.put("text color hex", "Type a 6-digit hex colour for the text, like FF00AA, then press Set Color.");
         d.put("set color (hex, e.g. ff00aa)", "Applies the hex colour typed in the box to the DVD text.");
         d.put("hud elements/background", "Draws a dark box behind the DVD text.");
-        d.put("new/background", "Sets the backdrop drawn behind this element.");
         d.put("background", "Draws a backdrop behind this element.");
         d.put("change color on corner hit", "Switches the text to a random colour when the box hits a corner exactly.");
         d.put("change color on any wall hit", "Switches the text to a random colour every time the box bounces off an edge.");
         d.put("next ->", "Goes to the next DVD setup step.");
         d.put("hud elements/width", "Width of the GIF box in pixels; type it, then press Set Width.");
-        d.put("new/width", "Line thickness of the custom Mage beam (1-6).");
         d.put("width", "Width or line thickness of this element.");
         d.put("height", "Height of the GIF box in pixels; type it, then press Set Height.");
         d.put("corner sound", "Click to pick which audio file plays when the box hits a corner exactly, or None.");
@@ -423,7 +407,6 @@ final class SettingTooltipsData {
         d.put("auto routes/breaker block display", "How a breaker node's blocks are drawn in edit mode (/ar edit db): Highlight draws them normally; Waypoint draws them through walls anywhere within your render distance. White is still standing, red already broken (cheat build only).");
         d.put("auto routes/breaker block style", "Draws a breaker node's blocks in edit mode as outlines, filled boxes, or filled boxes with an outline (cheat build only).");
         d.put("thickness", "Line thickness of the node markers, 1-8.");
-        d.put("new/height", "Height of each node marker in blocks, 0.1-1.0.");
         d.put("keybinds", "Cheat build: bind one key per /ar command; click a row and press a key.");
         d.put("start recording key", "Same as /ar start record.");
         d.put("stop recording key", "Same as /ar stop record.");
@@ -877,10 +860,8 @@ final class SettingTooltipsData {
         d.put("load", "Applies this profile's settings right away.");
         d.put("export", "Zips this profile so you can send it to someone.");
         d.put("import profile (open folder)", "Opens the import folder. Drop a profile .zip in and it is imported within a couple of seconds, named after the file.");
-        d.put("new/every run", "Waypoint can be sent any number of times; click for Once Per Run.");
-        d.put("new/once per run", "Waypoint can be sent once per run; click for Every Run.");
 
-        // Lever Aura (tab in New; describe() scopes by top-level tab "new")
+        // Lever Aura (in Dungeon > Secrets since 2026-09-21)
         d.put("lever aura", "Flicks the F7/M7 P3 Section 2 Lights levers for you (cheat build only).");
         d.put("pre-flick lights before s2", "Flicks each unlit Lights lever once in range before S2 opens.");
         d.put("finish lights when s2 opens", "After S1 is cleared, flicks the last unlit Lights lever.");
@@ -1310,7 +1291,6 @@ final class SettingTooltipsData {
         d.put("protect key", "Keybind to add or remove the hovered item from the protected list.");
         d.put("show protected key", "Hold this key in an inventory to outline every protected item.");
         d.put("item id fallback", "Protects items with no Skyblock UUID by item ID, which covers every copy.");
-        d.put("new/highlight color", "Opens a color picker for the outline on protected items.");
         d.put("auto-protect starred", "Treats dungeon-starred items as protected without listing them.");
         d.put("prevent hotbar drops", "Blocks the drop key while you hold a protected or locked item.");
         d.put("confirm to force", "Lets you press drop again within 3 seconds to drop a protected item anyway.");
@@ -1450,6 +1430,18 @@ final class SettingTooltipsData {
         d.put("24h skyblock time", "Shows the SkyBlock clock as 13:40 instead of 1:40pm.");
         d.put("ap3/movement", "Cheat build only. How AP3 moves you between nodes and whether chains roll into the next area.");
         d.put("auto routes/colour", "The colour every Auto Routes node marker uses while Uniform Colour is ON.");
+        // Categories and folders added 2026-10-07 when the New category was removed.
+        // Re-keyed from "new/..." (scoped by the old New category, which no longer exists) to the sub-tab that shows
+        // them; every other "new/..." entry was shadowed by a sub-tab or plain key and is gone. Testkit 412 compares
+        // every former New row's tooltip with what it showed there.
+        d.put("ability timers/delete", "Removes this entry from the list.");
+        d.put("arrow align/prevent misclicks", "Blocks right-clicks on an Arrow Align frame that already points the right way.");
+        d.put("arrow align/trigger bot", "Clicks blood mobs and Arrow Align frames for you once your crosshair is on them (cheat build only).");
+        d.put("thorn (f4)", "Helpers for the F4/M4 boss Thorn: Spirit Bear kill counter, highlights and stun-spot waypoints.");
+        d.put("social", "Friends, best friends, the profile viewer, cosmetics and the nickhider.");
+        d.put("items", "Inventory, storage, item, pet, auction house and bazaar features.");
+        d.put("map, leap & party", "The dungeon map, leap helpers, Dungeon Queue, Auto Kick and party sharing.");
+        d.put("timers, score & boss", "Run timers, score, run summaries, Blood Camp, chest profit and the boss helpers.");
         d.put("chat", "Chat options: translation, typo fixing, emotes, copying messages, voice to text, Spotify and the /cringe and meow replies.");
         d.put("auto door opener/mode", "Cheat build only. Triggerbot clicks locked doors you aim at; Aura clicks the nearest locked door in range.");
         d.put("auto door opener/range", "Cheat build only. How close a locked door must be before Aura clicks it, 2.0-6.0 blocks.");
@@ -1658,7 +1650,6 @@ final class SettingTooltipsData {
         d.put("terminal triggerbot/cooldown", "Cheat build: minimum time between two terminal opens, 0-2000 ms.");
         d.put("terminal triggerbot/range", "Cheat build: how far away you can open a terminal you look at, 1-4 blocks.");
         d.put("dungeon/termism", "Opens fake F7/M7 terminals to practice on anywhere; /termism opens it too.");
-        d.put("new/thorn (f4)", "Helpers for the F4/M4 boss Thorn: Spirit Bear kill counter, highlights and stun-spot waypoints.");
         d.put("thorn (f4)/thorn highlights", "Coloured boxes or a glow on Thorn-fight targets during the F4/M4 boss.");
         d.put("trajectories/bows", "Draws the arrow path and landing spot while you hold a bow.");
         d.put("trajectories/ender pearls", "Draws the throw path and landing spot while you hold an Ender Pearl.");

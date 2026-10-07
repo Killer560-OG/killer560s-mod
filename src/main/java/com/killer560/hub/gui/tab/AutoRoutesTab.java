@@ -32,7 +32,7 @@ import java.util.function.Supplier;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Auto Routes settings - see {@link AutoRoutesFeature}. Cheat build only ({@link NewTab}'s cheat block), red
+ * Auto Routes settings - see {@link AutoRoutesFeature}. Cheat build only (its category's cheat block), red
  * headers, collapses to the master toggle while OFF (LeverAuraTab / PosmsgTab pattern: an unused feature costs one
  * line).
  * <p>
@@ -91,7 +91,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         super("Auto Routes");
     }
 
-    /** Only added to {@link NewTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
+    /** Only added to its category behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
     @Override
     public boolean isCheatOnly() {
         return true;
