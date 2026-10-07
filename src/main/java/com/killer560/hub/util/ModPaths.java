@@ -122,6 +122,7 @@ public final class ModPaths {
         // ---- skyblock --------------------------------------------------------------------------------------------
         t.put("experiments", "skyblock/experiments");
         t.put("auction", "skyblock/auction");
+        t.put("bazaar-orders", "skyblock/auction");
         t.put("bazaarflip", "skyblock/bazaarflip");
         // The three mining rows are KEPT although mining is shelved until after 2.0 (shelved/mining/README.md):
         // they only name folders, and dropping them would make migrateAll move an old root mining file into

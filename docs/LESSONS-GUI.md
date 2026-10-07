@@ -130,3 +130,10 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   saved position, and the HUD editor skips `setPosition` for those elements; so switching back to Custom draws every bar
   on the exact pixels it had (testkit 407 compares them). The editor's bottom button row sat on the areas beside the
   hotbar and took their clicks; it moves under the instructions while Predefined readouts are listed.
+
+- **Hypixel's item resource is not an icon source for the Bazaar.** 1,174 of 2,201 bazaar ids are not in
+  `/v2/resources/skyblock/items` (every `ENCHANTMENT_*`, `SHARD_*`, `ESSENCE_*`, `FACTION_*`), ~480 more are only a
+  `hypixel_skyblock:` resource-pack model on a paper base, and `durability` was ignored, so 1,744 drew as paper without the
+  pack (2026-10-07). The browser now reads the bundled `assets/killer560smod/bazaar/products.json` (tools/bazaar, from NEU
+  incl. its pre-resource-pack commit 26169fe for old head textures) and uses a pack model only when
+  `getResource("items/<path>.json")` finds it: 47 still fall back (all newer than that commit). Testkit 425 counts them.

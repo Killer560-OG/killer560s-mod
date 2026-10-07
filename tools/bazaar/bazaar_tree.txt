@@ -1,0 +1,92 @@
+# Hypixel's Bazaar menu taxonomy, category > group > product display name.
+# Source: hypixelskyblock.minecraft.wiki "Bazaar/Item List" (the treeview on the Bazaar page), read 2026-10-07.
+# Groups the wiki nests one level deeper (Gemstones > Ruby Gemstone, Wood > Oak) are flattened to their top group.
+# Enchantments, Shards, Essence and Faction Rabbits are assigned by product-id prefix in gen_bazaar_data.py.
+C:Farming
+G:Wheat & Seeds|Wheat;Enchanted Bread;Enchanted Wheat;Enchanted Hay Bale;Hay Bale;Tightly-Tied Hay Bale;Seeds;Enchanted Seeds;Box of Seeds
+G:Carrot|Carrot;Enchanted Carrot;Enchanted Carrot on a Stick;Enchanted Golden Carrot
+G:Potato|Potato;Poisonous Potato;Enchanted Potato;Enchanted Poisonous Potato;Enchanted Baked Potato
+G:Pumpkin|Pumpkin;Enchanted Pumpkin;Polished Pumpkin
+G:Melon|Melon Slice;Enchanted Melon Slice;Enchanted Glistering Melon Slice;Melon;Enchanted Melon
+G:Mushrooms|Red Mushroom;Enchanted Red Mushroom;Red Mushroom Block;Enchanted Red Mushroom Block;Brown Mushroom;Enchanted Brown Mushroom;Brown Mushroom Block;Enchanted Brown Mushroom Block
+G:Cocoa Beans|Cocoa Beans;Enchanted Cocoa Beans;Enchanted Cookie
+G:Cactus|Cactus;Enchanted Cactus Green;Enchanted Cactus
+G:Sugar Cane|Sugar Cane;Enchanted Sugar;Enchanted Paper;Enchanted Sugar Cane
+G:Leather & Beef|Leather;Enchanted Leather;Raw Beef;Enchanted Raw Beef
+G:Pork|Raw Porkchop;Enchanted Raw Porkchop;Enchanted Cooked Porkchop
+G:Chicken & Feather|Raw Chicken;Enchanted Raw Chicken;Enchanted Cake;Feather;Enchanted Feather;Egg;Enchanted Egg;Super Enchanted Egg;Omega Enchanted Egg
+G:Mutton|Raw Mutton;Enchanted Raw Mutton;Enchanted Cooked Mutton;White Wool;Enchanted Wool
+G:Rabbit|Raw Rabbit;Enchanted Raw Rabbit;Enchanted Cooked Rabbit;Rabbit's Foot;Rabbit Hide;Enchanted Rabbit Foot;Enchanted Rabbit Hide
+G:Nether Warts|Nether Wart;Enchanted Nether Wart;Mutant Nether Wart
+G:Garden|Compost;Compost Bundle;Cropie;Squash;Fermento;Condensed Fermento;Dung;Tasty Cheese;Plant Matter;Honey Jar;Wriggling Larva;Fine Flour
+C:Mining
+G:Cobblestone|Cobblestone;Enchanted Cobblestone
+G:Coal|Coal;Enchanted Coal;Enchanted Charcoal;Enchanted Block of Coal;Enchanted Coal Block
+G:Iron|Iron Ingot;Enchanted Iron Ingot;Enchanted Iron Block;Enchanted Block of Iron
+G:Gold|Gold Ingot;Enchanted Gold Ingot;Enchanted Gold Block;Enchanted Block of Gold
+G:Diamond|Diamond;Enchanted Diamond;Enchanted Diamond Block;Enchanted Block of Diamond;Refined Diamond
+G:Lapis|Lapis Lazuli;Enchanted Lapis Lazuli;Enchanted Lapis Lazuli Block;Enchanted Lapis Block
+G:Emerald|Emerald;Enchanted Emerald;Enchanted Emerald Block;Enchanted Block of Emerald
+G:Redstone|Redstone Dust;Redstone;Enchanted Redstone Dust;Enchanted Redstone;Enchanted Redstone Block;Enchanted Block of Redstone
+G:Obsidian|Obsidian;Enchanted Obsidian
+G:End Stone|End Stone;Enchanted End Stone
+G:Flint & Gravel|Flint;Enchanted Flint;Gravel
+G:Sand|Sand;Enchanted Sand
+G:Ice|Ice;Packed Ice;Enchanted Ice;Enchanted Packed Ice;Glacial Fragment
+G:Snow|Snowball;Snow Block;Enchanted Snow Block
+G:Hard Stone|Hard Stone;Enchanted Hard Stone;Concentrated Stone
+G:Gemstones|*GEM
+G:Goblin Eggs|Goblin Egg;Red Goblin Egg;Blue Goblin Egg;Yellow Goblin Egg;Green Goblin Egg
+G:Dwarven Mines|Mithril;Enchanted Mithril;Refined Mithril;Starfall;Titanium;Enchanted Titanium;Refined Titanium;Treasurite;Sorrow
+G:Forge|Plasma;Glacite Jewel;Fuel Canister;Bejeweled Handle;Gemstone Mixture;Mithril Plate;Drill Motor;Golden Plate
+G:Crystal Hollows|Precursor Apparatus;Electron Transmitter;FTX 3070;Robotron Reflector;Superlite Motor;Control Switch;Synthetic Heart;Jungle Key;Jungle Heart;Divan Fragment;Corleonite;Sludge Juice;Yoggie;Ascension Rope;Wishing Compass;Bob-omb
+G:Crimson Isle|Glowstone Dust;Enchanted Glowstone Dust;Enchanted Glowstone;Enchanted Redstone Lamp;Netherrack;Enchanted Netherrack;Nether Quartz;Enchanted Nether Quartz;Enchanted Quartz Block;Enchanted Quartz;Red Sand;Enchanted Red Sand;Enchanted Red Sand Cube;Sulphur;Enchanted Sulphur;Enchanted Sulphur Cube;Mycelium;Enchanted Mycelium;Enchanted Mycelium Cube
+G:Glacite Tunnels|Umber;Enchanted Umber;Refined Umber;Umber Plate;Umber Key;Tungsten;Enchanted Tungsten;Refined Tungsten;Tungsten Plate;Tungsten Key;Glacite;Enchanted Glacite;Glacite Amalgamation;Perfect Plate;Skeleton Key;Suspicious Scrap
+C:Combat
+G:Rotten Flesh|Rotten Flesh;Enchanted Rotten Flesh
+G:Bone|Bone;Enchanted Bone;Enchanted Bone Block;Enchanted Bone Meal
+G:Arachnids|String;Enchanted String;Spider Eye;Enchanted Spider Eye;Enchanted Fermented Spider Eye;Soul String;Arachne's Calling;Arachne Fragment;Arachne's Keeper Fragment;Arachne's Fang
+G:Gunpowder|Gunpowder;Enchanted Gunpowder;Enchanted Firework Rocket
+G:Ender Pearl|Ender Pearl;Enchanted Ender Pearl;Enchanted Eye of Ender;Absolute Ender Pearl;Tessellated Ender Pearl
+G:Ghast Tear|Ghast Tear;Enchanted Ghast Tear;Silver Fang
+G:Slimes|Slimeball;Enchanted Slimeball;Enchanted Slime Block;Poison Sample
+G:Magma Cream|Magma Cream;Enchanted Magma Cream;Whipped Magma Cream
+G:Blaze Rod|Blaze Rod;Enchanted Blaze Powder;Enchanted Blaze Rod
+G:The End|Summoning Eye;Crystal Fragment;Protector Dragon Fragment;Old Dragon Fragment;Unstable Dragon Fragment;Strong Dragon Fragment;Young Dragon Fragment;Wise Dragon Fragment;Superior Dragon Fragment;Holy Dragon Fragment;Ritual Residue;Mite Gel
+G:Crimson Isle|Blaze Ashes;Mutated Blaze Ashes;Millennia-Old Blaze Ashes;Spectre Dust;Wither Soul;Bezos;Magmag;Digested Mushrooms;Burning Eye;Magma Chunk;Gazing Pearl;Flames;Kada Lead;Match-Sticks;Tentacle Meat;Corrupted Fragment;Hallowed Skull;Spell Powder;Leather Cloth;Lumino Fiber;Compact Ooze;Rekindled Ember Fragment;Nether Star;Heavy Pearl;Kuudra Teeth;X;Y;Z
+G:Slayers|Revenant Flesh;Revenant Viscera;Golden Powder;Undead Catalyst;Revenant Catalyst;Tarantula Web;Tarantula Silk;Spider Catalyst;Tarantula Catalyst;Fly Swatter;Toxic Arrow Poison;Wolf Tooth;Golden Tooth;Weak Wolf Catalyst;Null Sphere;Null Ovoid;Null Atom;Raw Soulflow;Soulflow;Braided Griffin Feather;Twilight Arrow Poison;Null Blade;Null Edge;Derelict Ashe;Amalgamated Crimsonite;Molten Powder;Blaze Rod Distillate;Gabagool Distillate;Glowstone Distillate;Magma Cream Distillate;Nether Wart Distillate;Bundle of Magma Arrows;Kelvin Inverter;Subzero Inverter
+G:Catacombs|Jolly Pink Rock;L.A.S.R.'s Eye;Bigfoot's Lasso;Diamante's Handle;Mimic Fragment;Fel Pearl;Ancient Rose;Healing Tissue;Dungeon Chest Key;Superboom TNT;Trap;Spirit Leap;Inflatable Jerry;Decoy;Architect's First Draft;Kismet Feather;Wither Catalyst;Spirit Wing;Spirit Bone
+C:Woods & Fishes
+G:Wood|Oak Log;Enchanted Oak Log;Spruce Log;Enchanted Spruce Log;Birch Log;Enchanted Birch Log;Dark Oak Log;Enchanted Dark Oak Log;Acacia Log;Enchanted Acacia Log;Jungle Log;Enchanted Jungle Log;Fig Log;Enchanted Fig Log;Figstone;Mangrove Log;Enchanted Mangrove Log;Mangcore
+G:Fish|Raw Cod;Raw Fish;Enchanted Raw Cod;Enchanted Raw Fish;Enchanted Cooked Cod;Enchanted Cooked Fish;Raw Salmon;Enchanted Raw Salmon;Enchanted Cooked Salmon;Tropical Fish;Clownfish;Enchanted Tropical Fish;Enchanted Clownfish;Pufferfish;Enchanted Pufferfish
+G:Flowers|Poppy;Enchanted Poppy;Dandelion;Enchanted Dandelion
+G:Prismarine|Prismarine Shard;Enchanted Prismarine Shard;Prismarine Crystals;Enchanted Prismarine Crystals
+G:Clay|Clay Ball;Clay;Enchanted Clay Ball;Enchanted Clay;Enchanted Clay Block
+G:Sponge|Sponge;Enchanted Sponge;Enchanted Wet Sponge
+G:Lily Pad|Lily Pad;Enchanted Lily Pad
+G:Ink Sac|Ink Sac;Enchanted Ink Sac
+G:Baits|Carrot Bait;Minnow Bait;Fish Bait;Light Bait;Dark Bait;Spooky Bait;Spiked Bait;Blessed Bait;Ice Bait;Frozen Bait;Whale Bait;Shark Bait;Corrupted Bait;Hot Bait;Glowy Chum Bait;Worm Bait;Golden Bait;Treasure Bait;Hotspot Bait;Wooden Bait
+G:Mob Drops|Worm Membrane;Hunk of Ice;Hunk of Blue Ice;Emperor's Skull;Bobbin' Scriptures;Magma Core;Half-Eaten Mushroom;Singed Powder;Fried Feather;Scorched Crab Stick;Brimstone Handle;Broken Radar;Blue Ring
+G:Lava Fishing|Magmafish;Silver Magmafish;Gold Magmafish;Diamond Magmafish;Lava Shell;Lump of Magma;Moogma Pelt;Cup of Blood;Pyroclastic Scale;Flaming Heart;Orb of Energy;Horn of Taurus;Thunder Fragment;Thunder Shards;Magma Lord Fragment
+G:Water Orbs|Water Orb;Lava Water Orb;Spooky Water Orb;Shark Water Orb;Winter Water Orb;Bayou Water Orb;Hotspot Water Orb
+G:Chum Fishing|Chum;Glowing Mushroom;Empty Chum Bucket;Full Chum Bucket
+G:Backwater Bayou|Rusty Coin;Busted Belt Buckle;Old Leather Boot;Torn Cloth;Bronze Bowl;Alligator Skin;Titanoboa Shed;Can of Worms
+G:Moonglade Marsh|Vinesap;Enchanted Vinesap;Tender Wood;Enchanted Tender Wood;Sea Lumies;Enchanted Sea Lumies;Flexbone;Lushlilac;Lushlilac Bonbon;Exalted Lushlilac Bonbon;Prime Lushlilac Bonbon;Candycomb;Oceandy;Wet Water;Gill Membrane;Sturdy Bone;Starlyn Prize;Deep Root
+C:Oddities
+G:Booster Cookie|Booster Cookie
+G:Modifiers|Recombobulator 3000;Wood Singularity;Silex;Transmission Tuner;Divan's Powder Coating;Golden Bounty;Mana Disintegrator;A Beginner's Guide to Pesthunting;Gold Bottle Cap;Troubled Bubble;Severed Pincer;Octopus Tendril;Chain of the End Times;Ensnared Snail;Implosion;Wither Shield;Shadow Warp;First Master Star;Second Master Star;Third Master Star;Fourth Master Star;Fifth Master Star;Hot Potato Book;Fuming Potato Book;Book of Stats;The Art of War;Farming for Dummies;The Art of Peace;Jalapeno Book;Bookworm's Favorite Book;Polarvoid Book;Wet Book;Fighting Booster;Foraging Fortune Booster;Foraging Wisdom Booster;Sweep Booster
+G:Enchantments|*ENCHANTMENT
+G:EXP Bottles|Experience Bottle;Grand Experience Bottle;Titanic Experience Bottle;Colossal Experience Bottle
+G:Shards|*SHARD
+G:Reforge Stones|Hardened Wood;Overflowing Trash Can;Salt Cube;Warped Stone;Blazen Sphere;Blaze Wax;Burrowing Spores;Calcified Heart;Candy Corn;Diamond Atom;Diamonite;Dragon Claw;Dragon Scale;Dwarven Treasure;End Stone Geode;Entropy Suppressor;Flowering Bouquet;Full-Jaw Fanging Kit;Jaderald;Jerry Stone;Lapis Crystal;Large Walnut;Mangrove Gem;Meteor Chunk;Midas Jewel;Molten Cube;Moonglade Jewel;Necromancer's Brooch;Black Diamond;Optical Lens;Overgrown Grass;Pitchin' Koi;Premium Flesh;Presumed Gallon of Red Paint;Pure Mithril;Rare Diamond;Red Nose;Red Scarf;Dwarven Geode;Rusty Anchor;Kaleidoscopic Mineral;Searing Stone;Shiny Prism;SkyMart Brochure;Spirit Stone;Squeaky Toy;Suspicious Vial;Terry's Snowglobe;Titanium Tesseract;Amber Material;Beady Eyes;Blessed Fruit;Bulky Stone;Clipped Wings;Deep Sea Orb;Dragon Horn;Frozen Bauble;Giant Tooth;Gleaming Crystal;Golden Ball;Kuudra Mandible;Lucky Dice;Petrified Starfall;Pocket Iceberg;Precursor Gear;Andesite Whetstone;Sadan's Brooch;Wither Blood;Frigid Husk;Scorched Topaz
+G:Power Stones|Displaced Leech;Luxurious Spool;Rock Candy;Acacia Birdhouse;Beating Heart;Dark Orb;Ender Monocle;End Stone Shulker;Furball;Mandraa;Obsidian Tablet;Horns of Torment;Magma Urchin;Precious Pearl;Bubba Blister;Fang-tastic Chocolate Chip;Eccentric Painting;Glacite Chunk;Hazmat Enderman;Vitamin Death;Scorched Books;Stock of Stonks
+G:Pet Upgrades|Simple Carrot Candy;Great Carrot Candy;Superb Carrot Candy;Ultimate Carrot Candy;Chyme;Pet Cake;Lucky Clover Core;Exp Share Core;Tier Boost Core;Radioactive Vial;Enderman Cortex Rewriter;Jerry 3D Glasses;Vampire Fang;Mixed Mite Gel;Pure Mithril Gem;Black Woolen Yarn;Magic Top Hat;Guardian Lucky Block;Chocolate Syringe;Scuttler Shell
+G:Inferno Minion|Crude Gabagool;Very Crude Gabagool;Fuel Gabagool;Heavy Gabagool;Hypergolic Gabagool;Inferno Vertex;Inferno Apex;Reaper Pepper;Chili Pepper;Stuffed Chili Pepper;Inferno Fuel Block;Hypergolic Ionized Ceramics;Sulphuric Coal;Re-heated Gummy Polar Bear;Capsaicin Eyedrops
+G:Minion Upgrades|Small Storage;Medium Storage;Large Storage;X-Large Storage;XX-Large Storage;Compactor;Dwarven Super Compactor;Super Compactor 3000;Diamond Spreading;Minion Expander;Potato Spreading;Auto Smelter;Soulflow Engine;Lesser Soulflow Engine;Budget Hopper;Enchanted Hopper;Corrupt Soil;Mithril Infusion;Berberis Fuel Injector;Flycatcher;Sleepy Hollow;Free Will;Fishing Minion XII Upgrade Stone;Clay Minion XII Upgrade Stone;Revenant Minion XII Upgrade Stone;Tarantula Minion XII Upgrade Stone
+G:Fuels|Enchanted Lava Bucket;Magma Bucket;Plasma Bucket;Hamster Wheel;Foul Flesh;Power Crystal;Catalyst;Hyper Catalyst;Solar Panel;Oil Barrel;Scorched Power Crystal;Volta
+G:Essence|*ESSENCE
+G:Events|Green Candy;Purple Candy;Dark Candy;Ectoplasm;Pumpkin Guts;Spooky Fragment;Werewolf Skin;Soul Fragment;Bat Firework;Blast o' Lantern;Horseman's Candle;Expired Pumpkin;White Gift;Green Gift;Red Gift;Party Gift;Refined Bottle of Jyrre;Volcanic Rock;Refined Mineral;Glossy Gemstone;Jacob's Ticket;Agatha's Coupon;Griffin Feather;Daedalus Stick;Ancient Claw;Enchanted Ancient Claw;Nurse Shark Tooth;Blue Shark Tooth;Tiger Shark Tooth;Great White Shark Tooth;Shark Fin;Enchanted Shark Fin;Great White Tooth Meal;Green Jerry Box;Blue Jerry Box;Purple Jerry Box;Golden Jerry Box;Avaricious Chalice;Freshly-Minted Coins;Blood-Stained Coins;Blood-Soaked Coins;Supreme Chocolate Bar;Refined Dark Cacao Truffle;Bouncy Beach Ball;Giant Bouncy Beach Ball;*MYTHOS
+G:Consumables|Magical Mushroom Soup;Mystical Mushroom Soup;Metaphysical Serum;Dwarven O's Ore Oats;Dwarven O's Block Bran;Dwarven O's Gemstone Grahams;Dwarven O's Metallic Minis;Spotlite;Moby-Duck: Collector's Edition;Vial of Venom;Festering Maggot
+G:Cross-Dimensional|Lush Berberis;Enchanted Lush Berberis;Agarimoo Tongue;Exportable Carrots;Hemovibe;Hemoglass;Hemobomb;Highlite;Extremely Real Shuriken
+G:Upgrade Fragments|Bonzo Fragment;Dark Queen's Soul;Golden Fragment;Livid Fragment;Scarf Fragment;Thorn Fragment;Winter Fragment
+G:Faction Rabbits|*FACTION

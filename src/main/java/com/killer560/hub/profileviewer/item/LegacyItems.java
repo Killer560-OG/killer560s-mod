@@ -165,18 +165,28 @@ public final class LegacyItems {
             legacyName = "minecraft:" + legacyName;
         }
         int damage = tag.getShortOr("Damage", (short) 0);
+        Item item = legacyItem(legacyName, damage);
+        return item == null ? Items.BARRIER : item;
+    }
+
+    /** A 1.8 item name ({@code minecraft:dye}) and damage value (3) -> the modern item (cocoa beans), through
+     *  vanilla's own flattening fix plus the post-1.13 renames; null if nothing in this version's registry. */
+    public static Item legacyItem(String legacyName, int damage) {
+        if (legacyName == null || legacyName.isBlank()) {
+            return null;
+        }
+        if (!legacyName.contains(":")) {
+            legacyName = "minecraft:" + legacyName;
+        }
         String flattened = ItemStackTheFlatteningFix.updateItem(legacyName, damage);
         String name = flattened != null ? flattened : legacyName;
         name = POST_FLATTEN_RENAMES.getOrDefault(name, name);
         Identifier id = Identifier.tryParse(name);
         if (id == null) {
-            return Items.BARRIER;
+            return null;
         }
         Optional<Item> item = BuiltInRegistries.ITEM.getOptional(id);
-        if (item.isEmpty()) {
-            return Items.BARRIER;
-        }
-        return item.get();
+        return item.isPresent() && item.get() != Items.AIR ? item.get() : null;
     }
 
     private static void applyTag(ItemStack stack, CompoundTag tag) {

@@ -99,6 +99,9 @@ public final class BazaarFeature {
         // killer560, 2026-09-27: "make sure it auto rescans the ah and bazaar fairly often by default" -
         // see AuctionHouseFeature#tick's matching comment; same reasoning, same fix, Bazaar half.
         BazaarApi.ensureAutoStarted();
+        if (cfg.isTrackBazaarOrders()) {
+            BazaarOrders.tick(client);
+        }
         int code = cfg.getOpenBazaarKeyCode();
         if (code < 0 || client.getWindow() == null) {
             keyWasDown = false;

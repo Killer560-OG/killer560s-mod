@@ -129,6 +129,8 @@ public final class AuctionConfig {
     /** Last-picked Bazaar category rail filter (from the shared item catalog's {@code category} field),
      *  or "" for "All" - see {@code BazaarScreen}'s category rail. */
     private String lastBazaarCategoryFilter = "";
+    /** Read the player's own orders from Hypixel's Manage Orders menu for the browser's My Orders view (read only). */
+    private boolean trackBazaarOrders = true;
 
     private AuctionConfig() {
     }
@@ -163,6 +165,7 @@ public final class AuctionConfig {
                 cfg.lastListingMode = ConfigJson.getEnum(obj, "lastListingMode", ListingMode.class, ListingMode.BIN);
                 cfg.lastCategoryFilter = ConfigJson.getString(obj, "lastCategoryFilter", "");
                 cfg.lastBazaarCategoryFilter = ConfigJson.getString(obj, "lastBazaarCategoryFilter", "");
+                cfg.trackBazaarOrders = ConfigJson.getBool(obj, "trackBazaarOrders", true);
             } catch (Exception ignored) {
                 // Keep defaults for this session on a malformed file - never throw out of a config load.
             }
@@ -188,6 +191,7 @@ public final class AuctionConfig {
             obj.addProperty("lastListingMode", lastListingMode.name());
             obj.addProperty("lastCategoryFilter", lastCategoryFilter);
             obj.addProperty("lastBazaarCategoryFilter", lastBazaarCategoryFilter);
+            obj.addProperty("trackBazaarOrders", trackBazaarOrders);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -317,5 +321,13 @@ public final class AuctionConfig {
 
     public synchronized void setLastBazaarCategoryFilter(String v) {
         lastBazaarCategoryFilter = v == null ? "" : v;
+    }
+
+    public synchronized boolean isTrackBazaarOrders() {
+        return trackBazaarOrders;
+    }
+
+    public synchronized void setTrackBazaarOrders(boolean v) {
+        trackBazaarOrders = v;
     }
 }

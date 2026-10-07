@@ -2007,6 +2007,8 @@ final class SettingTooltipsData {
         d.put("bazaar/bazaar browser", "Turns on the custom Bazaar browser, opened with /killer560bz or a keybind.");
         d.put("bazaar/open key", "Optional keybind that opens the Bazaar browser, same as /killer560bz.");
         d.put("bazaar/bz override", "Makes /bz open this browser instead of Hypixel's menu; /hypixelbz still opens Hypixel's.");
+        d.put("bazaar/track my orders", "Reads your buy orders and sell offers whenever you open Hypixel's Manage Orders menu, for the browser's My Orders view. Read only: nothing is clicked.");
+        d.put("bazaar/open my orders", "Opens the Bazaar browser on My Orders: what Manage Orders showed last, and whether each order is still the top one.");
         d.put("video browser/site", "Which site opens in the companion window.");
         d.put("video browser/set url", "The web address to open when Site is set to Custom URL.");
         d.put("video browser/placement", "Where the window sits: anchored to a screen edge, at a custom spot, or bouncing like a DVD logo.");

@@ -62,6 +62,19 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SettingsButtonWidget.builder(Component.literal(BazaarApi.isRefreshing() ? "Refreshing..." : "Refresh Now"),
                         btn -> BazaarApi.refreshAsync())
                 .bounds(colBX, y, colW, 18).build());
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Track My Orders", cfg.isTrackBazaarOrders()), btn -> {
+                    cfg.setTrackBazaarOrders(!cfg.isTrackBazaarOrders());
+                    cfg.save();
+                    btn.setMessage(onOff("Track My Orders", cfg.isTrackBazaarOrders()));
+                }).bounds(contentX, y, colW, 18).build());
+
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open My Orders"), btn -> {
+                    cfg.setLastBazaarCategoryFilter("@orders");
+                    cfg.save();
+                    BazaarFeature.openDeferred();
+                }).bounds(colBX, y, colW, 18).build());
         y += 26;
 
         int count = BazaarApi.getProducts().size();

@@ -6,9 +6,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
-import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -31,9 +28,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Real Hypixel Bazaar scanner - killer560's item 8.1, Bazaar half ("the same for Bazaar"). One GET to the
  * keyless {@code https://api.hypixel.net/v2/skyblock/bazaar} resource returns every product at once (no
  * pagination, unlike the Auction House), so a "scan" here is just that one request, off the render/tick
- * thread, on the same background/auto-refresh schedule as the item catalog and the AH scan. Icons and
- * display names come from the shared real item catalog ({@link SkyblockItemRepository} /
- * {@link SkyblockItemStackFactory}), per the brief - the Bazaar resource itself has no icon data.
+ * thread, on the same background/auto-refresh schedule as the item catalog and the AH scan. Names, categories and
+ * rarity come from the bundled {@link BazaarCatalog} (then the live {@link SkyblockItemRepository} for products newer
+ * than it); icons from {@link BazaarIcons}, built on the render thread - the Bazaar resource itself has no icon data.
  */
 public final class BazaarApi {
 
@@ -206,22 +203,52 @@ public final class BazaarApi {
             if (response.statusCode() / 100 != 2) {
                 return List.of();
             }
-            JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
-            if (!root.has("success") || !root.get("success").getAsBoolean() || !root.has("products")) {
-                return List.of();
-            }
-            JsonObject productsJson = root.getAsJsonObject("products");
-            List<BazaarProduct> out = new ArrayList<>(productsJson.size());
-            for (Map.Entry<String, JsonElement> entry : productsJson.entrySet()) {
+            return parseResponse(response.body());
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /** Levels of each side of the order book kept per product: what the browser's detail view shows. */
+    public static final int BOOK_DEPTH = 6;
+
+    /**
+     * Parses one {@code /v2/skyblock/bazaar} response body into products. Public so a test can feed a recorded or
+     * synthetic response through exactly the code a live fetch uses ({@link #applyResponseForTest}).
+     */
+    public static List<BazaarProduct> parseResponse(String body) {
+        BazaarCatalog.ensureLoaded();
+        JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+        if (!root.has("success") || !root.get("success").getAsBoolean() || !root.has("products")) {
+            return List.of();
+        }
+        JsonObject productsJson = root.getAsJsonObject("products");
+        List<BazaarProduct> out = new ArrayList<>(productsJson.size());
+        for (Map.Entry<String, JsonElement> entry : productsJson.entrySet()) {
+            try {
+                if (!entry.getValue().isJsonObject()) {
+                    continue;
+                }
                 BazaarProduct product = parseProduct(entry.getKey(), entry.getValue().getAsJsonObject());
                 if (product != null) {
                     out.add(product);
                 }
+            } catch (Exception e) {
+                // One malformed product must not cost the other two thousand.
             }
-            return out;
-        } catch (Exception e) {
-            return List.of();
         }
+        return out;
+    }
+
+    /** Replaces the product list with {@code body}'s, as if it had just been fetched. Returns the product count. */
+    public static int applyResponseForTest(String body) {
+        List<BazaarProduct> parsed = parseResponse(body);
+        if (!parsed.isEmpty()) {
+            products = parsed;
+            lastFetchedMs = System.currentTimeMillis();
+            lastError = null;
+        }
+        return parsed.size();
     }
 
     private static BazaarProduct parseProduct(String id, JsonObject obj) {
@@ -229,19 +256,56 @@ public final class BazaarApi {
             return null;
         }
         JsonObject qs = obj.getAsJsonObject("quick_status");
-        double buy = qs.has("buyPrice") ? qs.get("buyPrice").getAsDouble() : 0;
-        double sell = qs.has("sellPrice") ? qs.get("sellPrice").getAsDouble() : 0;
-        long buyVol = qs.has("buyVolume") ? qs.get("buyVolume").getAsLong() : 0;
-        long sellVol = qs.has("sellVolume") ? qs.get("sellVolume").getAsLong() : 0;
+        double buy = num(qs, "buyPrice");
+        double sell = num(qs, "sellPrice");
+        long buyVol = (long) num(qs, "buyVolume");
+        long sellVol = (long) num(qs, "sellVolume");
+        long buyWeek = (long) num(qs, "buyMovingWeek");
+        long sellWeek = (long) num(qs, "sellMovingWeek");
+        int buyOrders = (int) num(qs, "buyOrders");
+        int sellOrders = (int) num(qs, "sellOrders");
+        // sell_summary = the buy orders (an instant SELL fills them), best = highest; buy_summary = the sell offers,
+        // best = lowest. See fetchInstantBuyBooks for the naming trap.
+        List<BazaarOrderLevel> buyOrderBook = book(obj, "sell_summary", false);
+        List<BazaarOrderLevel> sellOfferBook = book(obj, "buy_summary", true);
 
-        SkyblockItemEntry catalogEntry = SkyblockItemRepository.findById(id);
-        String displayName = catalogEntry != null ? catalogEntry.name() : titleCase(id);
-        // SkyblockItemStackFactory itself already goes catalog-icon-safe when a pack disabler is detected
-        // (see its own doc) - nothing extra needed here for killer560's pack-disabler ask.
-        ItemStack icon = catalogEntry != null ? SkyblockItemStackFactory.build(catalogEntry) : new ItemStack(Items.PAPER);
-        String category = catalogEntry != null ? catalogEntry.category() : null;
-        String tier = catalogEntry != null ? catalogEntry.tier() : null;
-        return new BazaarProduct(id, displayName, buy, sell, buyVol, sellVol, category, tier, icon);
+        BazaarCatalog.Entry row = BazaarCatalog.get(id);
+        SkyblockItemEntry catalogEntry = row == null ? SkyblockItemRepository.findById(id) : null;
+        String displayName = row != null && row.name() != null ? row.name()
+                : catalogEntry != null ? catalogEntry.name() : titleCase(id);
+        String tier = row != null ? row.tier() : catalogEntry != null ? catalogEntry.tier() : null;
+        int groupIndex = row != null ? row.group() : -1;
+        BazaarCatalog.Group group = BazaarCatalog.group(groupIndex);
+        String category = group != null ? group.category() : "Oddities";
+        String groupName = group != null ? group.name() : "Other";
+        return new BazaarProduct(id, displayName, buy, sell, buyVol, sellVol, buyWeek, sellWeek, buyOrders, sellOrders,
+                category, groupName, groupIndex, tier, row != null && row.ultimate(), buyOrderBook, sellOfferBook);
+    }
+
+    private static double num(JsonObject o, String key) {
+        return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsDouble() : 0;
+    }
+
+    private static List<BazaarOrderLevel> book(JsonObject obj, String key, boolean ascending) {
+        if (!obj.has(key) || !obj.get(key).isJsonArray()) {
+            return List.of();
+        }
+        List<BazaarOrderLevel> levels = new ArrayList<>();
+        for (JsonElement el : obj.getAsJsonArray(key)) {
+            if (!el.isJsonObject()) {
+                continue;
+            }
+            JsonObject lvl = el.getAsJsonObject();
+            double ppu = num(lvl, "pricePerUnit");
+            long amount = (long) num(lvl, "amount");
+            int orders = (int) num(lvl, "orders");
+            if (ppu > 0 && amount > 0) {
+                levels.add(new BazaarOrderLevel(ppu, amount, orders));
+            }
+        }
+        java.util.Comparator<BazaarOrderLevel> byPrice = java.util.Comparator.comparingDouble(BazaarOrderLevel::pricePerUnit);
+        levels.sort(ascending ? byPrice : byPrice.reversed());
+        return List.copyOf(levels.subList(0, Math.min(BOOK_DEPTH, levels.size())));
     }
 
     private static String titleCase(String raw) {
