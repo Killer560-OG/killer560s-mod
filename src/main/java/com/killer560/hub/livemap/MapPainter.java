@@ -118,6 +118,9 @@ public final class MapPainter {
      * <p><b>In the sim:</b> the sim reports M7 but lays out every floor size on the full 6x6, anywhere in it. The
      * whole floor is published at once ({@code LiveMapFeature.publishSimFloor}), so its measured bounding box is
      * known exactly from the start and is used instead - an F1-sized sim floor fills the frame like a real F1.
+     * A single room is published with the whole 6x6 as its extent instead (killer560, 2026-10-07: "if it is only a
+     * single room on the map for sim, then have it at the normal F7 scale size"), so it draws at F7's cell size in
+     * its own slot rather than blown up to fill the frame.
      */
     static int[] gridExtent(java.util.List<LiveMapFeature.RoomGroup> groups) {
         int[] sim = LiveMapFeature.simRoomExtent();
@@ -1193,8 +1196,24 @@ public final class MapPainter {
 
     // ------------------------------------------------------------------------------------------- players
 
+    /** His own marker's fill. Unchanged green; what keeps it off a green room is the contrast outline below. */
+    static final int SELF_MARKER_COLOR = 0xFF55FF55;
+    /** Outline thickness of an arrow / heading tick, in marker units (one unit = one skin pixel on a head). */
+    private static final float MARKER_OUTLINE = 1f;
+    /** Sub-rows per unit a triangle is filled at, so a one-unit outline stays one unit at any rotation. */
+    private static final int TRI_RES = 2;
+
     /** One player marker. {@code markerScale} is a straight multiplier on the icon size so the full-screen map can
      *  keep its fixed 8px icons while the HUD scales them with the map.
+     *  <p>
+     *  killer560, 2026-10-07: "make an option to have people's symbols be by player head for the default ones. It
+     *  should work on your own head as well. Also don't make the green blend in so well with green room for the
+     *  arrow pointer." With Player Heads on, a player whose skin is known ({@link MapHeads}) is drawn as their face
+     *  - upright, so it stays recognisable - with a small heading tick orbiting it; anyone else keeps the arrow.
+     *  (The skin-head option removed on 2026-09-20, "i do not want it showing the white heads for mobs", drew mobs
+     *  because the marker list took every Player entity; {@link InteractiveMapFeature#players} only takes vouched
+     *  teammates since, so no mob can get a head.) Every arrow and tick has a solid outline in the colour that
+     *  contrasts with its own fill ({@link #outlineFor}), which is what keeps the green arrow off a green room.
      *  @return whether {@code (mouseX, mouseY)} is over this marker. */
     static boolean drawMarker(GuiGraphicsExtractor graphics, Font font, InteractiveMapFeature.MapPlayer mp,
                               LiveMapConfig cfg, float ox, float oy, float ppu, float markerScale,
@@ -1203,15 +1222,18 @@ public final class MapPainter {
         float y = oy + (float) worldToUnits(mp.worldZ()) * ppu;
         int size = Math.max(5, Math.round(8 * cfg.getIconScale() * markerScale));
         DungeonClass cls = mp.dungeonClass();
+        int fillColor = mp.self() ? SELF_MARKER_COLOR : (classColours && cls != null ? cls.color() : 0xFFFFFFFF);
 
-        // killer560, 2026-09-20: "i do not want it showing the white heads for mobs" - player markers are always
-        // the arrow now; the skin-head option (and its border swatch) is gone.
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(x, y);
-        graphics.pose().rotate((float) Math.toRadians(180.0 + mp.yaw()));
-        int fillColor = mp.self() ? 0xFF55FF55 : (classColours && cls != null ? cls.color() : 0xFFFFFFFF);
-        drawArrow(graphics, Math.round(size * 0.9f), fillColor);
-        graphics.pose().popMatrix();
+        net.minecraft.world.entity.player.PlayerSkin skin = cfg.isPlayerHeads() ? MapHeads.skinFor(mp) : null;
+        if (skin != null) {
+            drawHead(graphics, skin, x, y, size, mp.yaw(), fillColor);
+        } else {
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(x, y);
+            graphics.pose().rotate((float) Math.toRadians(180.0 + mp.yaw()));
+            drawArrow(graphics, Math.round(size * 0.9f), fillColor);
+            graphics.pose().popMatrix();
+        }
 
         if (showName) {
             float nameScale = 0.6f * cfg.getIconScale();
@@ -1225,22 +1247,95 @@ public final class MapPainter {
         return Math.abs(mouseX - x) <= size / 2f + 1 && Math.abs(mouseY - y) <= size / 2f + 1;
     }
 
+    /** A {@code size}-unit face (skin face + hat layer) centred on {@code (x, y)}, framed by a one-unit black edge,
+     *  with a heading tick in the marker's colour just outside it. The tick is drawn first, so the face covers anything
+     *  of it inside the frame and only the point shows - at every angle, corners included. */
+    private static void drawHead(GuiGraphicsExtractor graphics, net.minecraft.world.entity.player.PlayerSkin skin,
+                                 float x, float y, int size, float yaw, int tickColor) {
+        float half = size / 2f;
+        float tickLen = Math.max(2.5f, size * 0.45f);
+        graphics.pose().pushMatrix();
+        try {
+            graphics.pose().translate(x, y);
+            graphics.pose().pushMatrix();
+            graphics.pose().rotate((float) Math.toRadians(180.0 + yaw));
+            // Base on the frame's edge (its outline then lies under the frame), point tickLen beyond it: on a straight
+            // heading the whole tick shows, on a diagonal the face covers its base and the point clears the corner.
+            outlinedTriangle(graphics, -(half + 1 + tickLen), -(half + 1), tickColor);
+            graphics.pose().popMatrix();
+
+            graphics.pose().translate(-half, -half);
+            graphics.fill(-1, -1, size + 1, size + 1, 0xFF000000);
+            net.minecraft.resources.Identifier texture = skin.body().texturePath();
+            float scale = size / 8.0f;
+            graphics.pose().scale(scale, scale);
+            graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, texture, 0, 0, 8f, 8f, 8, 8, 64, 64);
+            graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, texture, 0, 0, 40f, 8f, 8, 8, 64, 64);
+        } finally {
+            graphics.pose().popMatrix();
+        }
+    }
+
     /** Map marker pointing towards local -y (rotated to the player's heading by the caller).
      *  <p>
-     *  killer560, 2026-09-20 (screenshot 14.52.05): "the player arrow should read as an arrow at small scale" - the
-     *  old shape narrowed back down over its last two rows to notch the tail, which at an 8px HUD size (the default)
-     *  made a rhombus/diamond, not a pointer - exactly what shows up in his screenshot. Width is now strictly
-     *  non-decreasing from the tip (row 0, the heading) to a flat back edge, so it is a plain triangle at any size. */
+     *  killer560, 2026-09-20 (screenshot 14.52.05): "the player arrow should read as an arrow at small scale" - a
+     *  plain triangle, width non-decreasing from the tip (the heading) to a flat back edge, at any size.
+     *  <p>
+     *  killer560, 2026-10-07: "don't make the green blend in so well with green room for the arrow pointer". The old
+     *  arrow's dark edge was one-unit side strips drawn row by row: the tip rows were all edge, the back edge had none,
+     *  and under the heading rotation the thin strips break up, so on the Entrance's #00FF00 his #55FF55 arrow had
+     *  next to nothing around it. It is now two solid triangles: an outline triangle {@link #MARKER_OUTLINE} unit
+     *  bigger on every side, then the fill. Same point, same back edge, same size setting. */
     private static void drawArrow(GuiGraphicsExtractor graphics, int size, int color) {
         int half = Math.max(3, size / 2);
-        int rows = half * 2;
-        for (int row = 0; row < rows; row++) {
-            int w = Math.max(1, Math.round((row + 1) * (half / (float) rows)));
-            graphics.fill(-w, -half + row, w, -half + row + 1, 0xFF000000);
-            if (w > 1) {
-                graphics.fill(-w + 1, -half + row, w - 1, -half + row + 1, color);
+        outlinedTriangle(graphics, -half, half, color);
+    }
+
+    /** A filled triangle from {@code tipY} (point, x = 0) down to a flat edge at {@code baseY}, half as wide as it is
+     *  tall on each side, inside a solid outline {@link #MARKER_OUTLINE} unit thick on all three sides. */
+    private static void outlinedTriangle(GuiGraphicsExtractor graphics, float tipY, float baseY, int color) {
+        float t = MARKER_OUTLINE;
+        // Offsetting the two slanted sides (half-angle atan(0.5)) outward by t moves the point by t / sin = t * sqrt 5.
+        fillTriangle(graphics, tipY - t * 2.2360680f, baseY + t, outlineFor(color));
+        fillTriangle(graphics, tipY, baseY, color);
+    }
+
+    /** Rows of a point-up triangle at {@link #TRI_RES} sub-rows per unit, rows of equal width merged into one fill
+     *  (every GUI fill costs a render-state element; docs/LESSONS.md "Every GUI fill"). Full-width rows abut
+     *  exactly, so the shape has no gaps under any rotation. */
+    private static void fillTriangle(GuiGraphicsExtractor graphics, float tipY, float baseY, int color) {
+        int top = Math.round(tipY * TRI_RES);
+        int bottom = Math.round(baseY * TRI_RES);
+        if (bottom <= top) {
+            return;
+        }
+        graphics.pose().pushMatrix();
+        graphics.pose().scale(1f / TRI_RES, 1f / TRI_RES);
+        int runStart = top;
+        int runW = -1;
+        for (int r = top; r < bottom; r++) {
+            // Half-width = half the distance from the point, at the row's middle; never less than one sub-unit.
+            int w = Math.max(1, Math.round((r + 0.5f - tipY * TRI_RES) * 0.5f));
+            if (w != runW) {
+                if (runW > 0) {
+                    graphics.fill(-runW, runStart, runW, r, color);
+                }
+                runStart = r;
+                runW = w;
             }
         }
+        graphics.fill(-runW, runStart, runW, bottom, color);
+        graphics.pose().popMatrix();
+    }
+
+    /** Black around a light fill, white around a dark one. Either way the outline is far from the fill, so whatever
+     *  colour a room is (and every room colour is a picker), it cannot match both: the marker always has an edge. */
+    static int outlineFor(int fill) {
+        int r = (fill >> 16) & 0xFF;
+        int g = (fill >> 8) & 0xFF;
+        int b = fill & 0xFF;
+        float luma = (0.2126f * r + 0.7152f * g + 0.0722f * b) / 255f;
+        return luma < 0.4f ? 0xFFFFFFFF : 0xFF000000;
     }
 
     // ------------------------------------------------------------------------------------------- etherwarp path

@@ -38,6 +38,12 @@ public final class LiveMapConfig {
      *  client has not scanned itself. Default ON, unlike most new settings - it only ever adds what a
      *  teammate's own mod legitimately shared, same as the merge itself. */
     private boolean markReportedRooms = true;
+    /** killer560, 2026-10-07: "make an option to have people's symbols be by player head for the default ones. It
+     *  should work on your own head as well." Both maps draw each player as their skin's face (with an orbiting
+     *  heading tick) instead of the arrow; a player whose skin is not known falls back to the arrow. Default OFF.
+     *  Saved under a NEW key: the old {@code playerHeads} option was removed on 2026-09-20, and an ancient config
+     *  still carrying it must not switch this on by itself. */
+    private boolean playerHeads = false;
     /** Pixels per 16-unit room. The map is 116 units square (6 rooms + 5 gaps), so the HUD map is
      *  {@code 116 * roomPx / 16} pixels wide - see {@link MapPainter}. Replaced the old uniform "cellSize". */
     private int roomPx = 16;
@@ -166,6 +172,7 @@ public final class LiveMapConfig {
                 cfg.showTeammates = ConfigJson.getBool(obj, "showTeammates", true);
                 cfg.classRecolorTeammates = ConfigJson.getBool(obj, "classRecolorTeammates", true);
                 cfg.markReportedRooms = ConfigJson.getBool(obj, "markReportedRooms", true);
+                cfg.playerHeads = ConfigJson.getBool(obj, "playerHeadMarkers", false);
                 // Migration: the old uniform "cellSize" (4..16, default 8) was one grid step; a room is now two
                 // of those, so an existing config keeps roughly the map size it had.
                 cfg.setRoomPx(ConfigJson.getInt(obj, "roomPx", ConfigJson.getInt(obj, "cellSize", 8) * 2));
@@ -254,6 +261,7 @@ public final class LiveMapConfig {
             obj.addProperty("showTeammates", showTeammates);
             obj.addProperty("classRecolorTeammates", classRecolorTeammates);
             obj.addProperty("markReportedRooms", markReportedRooms);
+            obj.addProperty("playerHeadMarkers", playerHeads);
             obj.addProperty("roomPx", roomPx);
             obj.addProperty("roomLabels", roomLabels);
             obj.addProperty("peekKeyCode", peekKeyCode);
@@ -370,6 +378,14 @@ public final class LiveMapConfig {
 
     public void setMarkReportedRooms(boolean markReportedRooms) {
         this.markReportedRooms = markReportedRooms;
+    }
+
+    public boolean isPlayerHeads() {
+        return playerHeads;
+    }
+
+    public void setPlayerHeads(boolean playerHeads) {
+        this.playerHeads = playerHeads;
     }
 
     public int getRoomPx() {

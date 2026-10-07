@@ -293,5 +293,8 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `Camera.alignWithEntity` changes only where the frame is drawn from (chunks, culling, every renderer reading the camera).
   Smooth Teleport (`smoothtp/`, 2026-10-07) relies on it; testkit 396-sim-smooth-tp hits a wall 2.5 blocks past the landing on
   the first frame while the camera is still 14.5 blocks back.
+- A marker outline drawn as one-unit side strips per row is not an outline: the back edge had none and the tip rows were all
+  edge, so only 69% of the old map arrow's edge was dark and his green arrow vanished on the green Entrance (testkit 395,
+  2026-10-07). Draw a solid outline shape one unit bigger UNDER the fill (`MapPainter.outlinedTriangle`): 100%, 15.3:1.
 
 Compiling lessons (API names across versions, the cloud-session javac filter) are in [COMPILING.md](COMPILING.md).

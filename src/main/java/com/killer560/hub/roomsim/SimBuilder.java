@@ -1676,8 +1676,9 @@ public final class SimBuilder {
         // A single room has no mirror of its own; the last floor's would be stale, so the grid goes back to the
         // client's world (see LevelEtherGrid.mirror).
         com.killer560.hub.livemap.autoclear.LevelEtherGrid.dropMirror();
+        // false: one room draws at the normal F7 (6x6) cell size, not blown up to fill the map.
         com.killer560.hub.livemap.LiveMapFeature.publishSimFloor(cellRoom, cellDoor,
-                new String[]{room.name}, new int[][]{{clayX, clayZ, dbRotation}});
+                new String[]{room.name}, new int[][]{{clayX, clayZ, dbRotation}}, false);
     }
 
     /**

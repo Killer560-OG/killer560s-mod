@@ -38,6 +38,8 @@ import com.killer560.hub.compat.McCompat;
  * both data-gathering tools for reverse-engineering those placeholders - were dropped rather than moved; see the
  * staging notes for why. Same pass also added switchable map themes and moved recolouring into its own subheader,
  * and removed the current-room colour changer, Room Name Below Map, and the player-head marker option entirely.
+ * Player Heads came back as an opt-in on 2026-10-07 (killer560 asked for it), for him and vouched teammates only - see
+ * {@code MapPainter.drawMarker}.
  */
 public class LiveMapTab extends BaseTab implements KeyCaptureTab {
 
@@ -79,6 +81,8 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
             widgets.add(toggle("Recolor by Class", cfg::isClassRecolorTeammates, cfg::setClassRecolorTeammates, cfg, colB, y, colW));
             y += 20;
             widgets.add(toggle("Mark Reported Rooms", cfg::isMarkReportedRooms, cfg::setMarkReportedRooms, cfg, contentX, y, colW));
+            // killer560, 2026-10-07: player heads instead of arrows, on this map and the Interactive Map alike.
+            widgets.add(toggle("Player Heads", cfg::isPlayerHeads, cfg::setPlayerHeads, cfg, colB, y, colW));
             y += 20;
             widgets.add(keyButton("Peek Key", KeyTarget.PEEK, cfg.getPeekKeyCode(), contentX, y, colW));
             widgets.add(slider("Peek Scale", cfg::getPeekScale, v -> cfg.setPeekScale((float) v), 1.25, 4, "x", cfg, colB, y, colW));
