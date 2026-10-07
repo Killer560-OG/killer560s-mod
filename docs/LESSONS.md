@@ -288,4 +288,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   after the clicktranslate HEAD hook has dispatched it - Chat Tidy injects at that method's `Predicate.test` call (2026-10-07;
   testkit 87 checks every hidden line still reached `ChatObserver`). Hide Chat Messages (Object Hider) still uses `ALLOW_GAME`.
 
+- Vitality is NOT a Rift stat: it is a combat resource (healing abilities, Wither Shield, Creeper Veil - "Not enough vitality!
+  Creeper Veil De-activated!" is in his own logs) shown on the action bar as `current/max` + U+E028 (hypixelskyblock wiki),
+  which the generic Other readout caught until 2026-10-07. `PlayerStatsFeature.VITALITY_REGEX` reads it and Other skips U+E028.
+- Mouse cursors: `GuiGraphicsExtractor.requestCursor(CursorType)` during `extractRenderState` sets the window cursor for that
+  frame (javap, 26.1.2 and 26.2). `CursorTypes` has only the straight resize arrows; the diagonals come from
+  `CursorType.createStandardCursor(GLFW.GLFW_RESIZE_NWSE_CURSOR, name, fallback)` (LWJGL 3.4.1 / GLFW 3.4), created lazily on
+  the render thread. The HUD editor does this; testkit 399 reads `pendingCursor` and the window's `currentCursor`.
+
 Compiling lessons (API names across versions, the cloud-session javac filter) are in [COMPILING.md](COMPILING.md).

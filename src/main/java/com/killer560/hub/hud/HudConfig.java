@@ -48,6 +48,17 @@ public final class HudConfig {
      *  fraction of any window. The HUD Scale slider still multiplies on top. Lives here, beside {@link #globalScale},
      *  so profiles carry it with the positions it affects. */
     private boolean autoScale = true;
+    /**
+     * HUD editor snapping (2026-10-07, killer560: "Those should kind of do a snapping style where they snap to align with
+     * things. You can choose what all they will align with."). The master switch and what a dragged or resized box
+     * snaps to; all on by default. Hold Alt while dragging to place freely. See {@link HudSnap}.
+     */
+    private boolean editorSnap = true;
+    private boolean snapElementEdges = true;
+    private boolean snapElementCentres = true;
+    private boolean snapScreenEdges = true;
+    private boolean snapScreenCentre = true;
+    private boolean snapEqualSpacing = true;
 
     private HudConfig() {
     }
@@ -69,6 +80,12 @@ public final class HudConfig {
                 cfg.editorShowAll = ConfigJson.getBool(obj, "editorShowAll", false);
                 cfg.globalScale = clampGlobalScale(ConfigJson.getFloat(obj, "globalScale", 1.0f));
                 cfg.autoScale = ConfigJson.getBool(obj, "autoScale", true);
+                cfg.editorSnap = ConfigJson.getBool(obj, "editorSnap", true);
+                cfg.snapElementEdges = ConfigJson.getBool(obj, "snapElementEdges", true);
+                cfg.snapElementCentres = ConfigJson.getBool(obj, "snapElementCentres", true);
+                cfg.snapScreenEdges = ConfigJson.getBool(obj, "snapScreenEdges", true);
+                cfg.snapScreenCentre = ConfigJson.getBool(obj, "snapScreenCentre", true);
+                cfg.snapEqualSpacing = ConfigJson.getBool(obj, "snapEqualSpacing", true);
                 JsonObject positions = ConfigJson.getObject(obj, "positions");
                 if (positions != null) {
                     for (String id : positions.keySet()) {
@@ -104,6 +121,12 @@ public final class HudConfig {
             obj.addProperty("editorShowAll", editorShowAll);
             obj.addProperty("globalScale", globalScale);
             obj.addProperty("autoScale", autoScale);
+            obj.addProperty("editorSnap", editorSnap);
+            obj.addProperty("snapElementEdges", snapElementEdges);
+            obj.addProperty("snapElementCentres", snapElementCentres);
+            obj.addProperty("snapScreenEdges", snapScreenEdges);
+            obj.addProperty("snapScreenCentre", snapScreenCentre);
+            obj.addProperty("snapEqualSpacing", snapEqualSpacing);
             JsonObject positions = new JsonObject();
             for (Map.Entry<String, int[]> entry : this.positions.entrySet()) {
                 JsonObject pos = new JsonObject();
@@ -205,5 +228,53 @@ public final class HudConfig {
 
     public void setEditorShowAll(boolean editorShowAll) {
         this.editorShowAll = editorShowAll;
+    }
+
+    public boolean isEditorSnap() {
+        return editorSnap;
+    }
+
+    public void setEditorSnap(boolean v) {
+        this.editorSnap = v;
+    }
+
+    public boolean isSnapElementEdges() {
+        return snapElementEdges;
+    }
+
+    public void setSnapElementEdges(boolean v) {
+        this.snapElementEdges = v;
+    }
+
+    public boolean isSnapElementCentres() {
+        return snapElementCentres;
+    }
+
+    public void setSnapElementCentres(boolean v) {
+        this.snapElementCentres = v;
+    }
+
+    public boolean isSnapScreenEdges() {
+        return snapScreenEdges;
+    }
+
+    public void setSnapScreenEdges(boolean v) {
+        this.snapScreenEdges = v;
+    }
+
+    public boolean isSnapScreenCentre() {
+        return snapScreenCentre;
+    }
+
+    public void setSnapScreenCentre(boolean v) {
+        this.snapScreenCentre = v;
+    }
+
+    public boolean isSnapEqualSpacing() {
+        return snapEqualSpacing;
+    }
+
+    public void setSnapEqualSpacing(boolean v) {
+        this.snapEqualSpacing = v;
     }
 }

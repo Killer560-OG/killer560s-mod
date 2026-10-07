@@ -100,7 +100,27 @@ public final class HudElementRegistry {
         if (f == 1.0f) {
             return new int[]{x, y};
         }
-        return new int[]{Math.round(x / f), Math.round(y / f)};
+        return new int[]{toSaved(x, f), toSaved(y, f)};
+    }
+
+    /**
+     * The saved value that draws back at exactly {@code screen} ({@code Math.round(saved * f) == screen}) when one
+     * exists, else the nearest. Below factor 1 plain {@code round(screen / f)} always round-trips; above it not every
+     * screen pixel is reachable and plain rounding could land one pixel off a neighbour it was snapped to in the HUD
+     * editor (2026-10-07), so the neighbours of the rounded value are tried too.
+     */
+    static int toSaved(int screen, float f) {
+        int s = Math.round(screen / f);
+        int best = s;
+        int bestErr = Math.abs(Math.round(s * f) - screen);
+        for (int c = s - 1; c <= s + 1 && bestErr > 0; c++) {
+            int err = Math.abs(Math.round(c * f) - screen);
+            if (err < bestErr) {
+                best = c;
+                bestErr = err;
+            }
+        }
+        return best;
     }
 
     /**
