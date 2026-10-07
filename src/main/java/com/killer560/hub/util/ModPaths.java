@@ -136,6 +136,7 @@ public final class ModPaths {
         t.put("quiverdisplay", "skyblock/quiverdisplay");
         t.put("ragaxe", "skyblock/ragaxe");
         t.put("autosell", "skyblock/autosell");
+        t.put("autoanvil", "skyblock/autoanvil");
         t.put("ability", "skyblock/abilities");
         t.put("slotbinds", "skyblock/slotbinds");
         t.put("loadoutkeybinds", "skyblock/loadoutkeybinds");

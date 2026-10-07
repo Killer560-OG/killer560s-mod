@@ -2078,6 +2078,13 @@ final class SettingTooltipsData {
         d.put("auto inventory sorter", "Saves your inventory layout and re-applies it any time with /invsort.");
         d.put("open layouts folder", "Opens the folder holding your saved inventory layouts.");
         d.put("auto sell", "Sells items on your sell list automatically while a sell screen is open; start it with /autosell start.");
+        // Auto Anvil (killer560, 2026-10-07). Scoped under its own tab name: Min/Max Delay and Close When Done are
+        // generic labels other tabs use too.
+        d.put("auto anvil", "In Hypixel's Anvil, combines two identical single-enchant books into the next level, where the anvil can make it (cheat build only).");
+        d.put("auto anvil/combine results again", "Books Auto Anvil just made are paired again, so four III books end as one V.");
+        d.put("auto anvil/close when done", "Closes the anvil once nothing is left to combine, if anything was combined.");
+        d.put("auto anvil/min delay", "Shortest random wait after the server answers one Auto Anvil click, 50-1000 ms.");
+        d.put("auto anvil/max delay", "Longest random wait after the server answers one Auto Anvil click, 50-1000 ms.");
     }
 
     /** Auto Kick (killer560, 2026-09-27 - "create auto kick. I really Like Odins."). Scoped to "auto kick/"
