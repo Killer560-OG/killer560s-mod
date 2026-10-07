@@ -501,14 +501,16 @@ public final class TeleportUtils {
     private static final int COVER_FLOOR_SLACK = 6;
 
     /**
-     * Whether a landing is somewhere INSIDE the dungeon rather than on top of it. Always true outside the sim.
+     * Whether a landing is somewhere INSIDE the dungeon rather than on top of it, in the sim and on Hypixel.
      *
      * <p>killer560 (2026-10-01): "somehow my etherwarp pathfound onto the roof of the dungeon while using
      * interactive map."
      *
-     * <p>On Hypixel that cannot happen and nothing here ever had to stop it: a real dungeon is a solid block of
-     * rock with rooms carved out of it, so there is no outside surface to stand on and no line of sight to one.
-     * The sim is the opposite shape. Each room is pasted as its own captured column - rock above the ceiling
+     * <p>This used to run in the sim only, on the belief that a real dungeon is a solid block of rock with no
+     * outside surface to stand on. It is not: on 2026-10-06 an F5 map path on Hypixel stood him at y 100 on the
+     * corner where four rooms meet (Dungeons log, "running 5 warp(s) from (-41.50, 100.00, -169.50)"), and
+     * killer560: "It should never take me outside of the map." So it applies everywhere now. The sim is the
+     * more extreme shape. Each room is pasted as its own captured column - rock above the ceiling
      * included, which is why the room files run up to y 99 and beyond - but the CELLS BETWEEN the rooms are
      * simply empty air, because nothing was captured there. So the sim's map is a cluster of rock towers with
      * open sky over them and gaps you can see out through, and a pathfinder whose moves are "etherwarp at
@@ -520,9 +522,6 @@ public final class TeleportUtils {
      * column read costs nothing on the normal path and only runs for a candidate that is already suspicious.
      */
     public static boolean underCover(BlockPos landing) {
-        if (!com.killer560.hub.roomsim.SimState.isActive()) {
-            return true;
-        }
         int floor = 69 + com.killer560.hub.livemap.DungeonLayout.simYOffset();
         if (landing.getY() <= floor + COVER_FLOOR_SLACK) {
             return true;
