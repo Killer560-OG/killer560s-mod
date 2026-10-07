@@ -268,7 +268,14 @@ public class HudEditorScreen extends Screen {
             graphics.fill(x - BOX_PAD, y - BOX_PAD, x + scaledW + BOX_PAD, y + scaledH + BOX_PAD,
                     dragging ? BOX_BG_DRAGGING : BOX_BG);
             graphics.outline(x - BOX_PAD, y - BOX_PAD, scaledW + 2 * BOX_PAD, scaledH + 2 * BOX_PAD, BOX_OUTLINE);
-            graphics.text(this.font, element.displayName() + sizeNote(element, own), x, y - 10 - BOX_PAD, 0xFFFFFFFF);
+            // The name above the box is cut to the box's own width so side-by-side boxes' names never run into
+            // each other ("Health Bar (1.0x, 100x8)" over "Mana Bar"); the one being hovered or dragged shows in full.
+            String label = element.displayName() + sizeNote(element, own);
+            int labelRoom = Math.max(scaledW + 2 * BOX_PAD, 24);
+            if (!dragging && element != hover && this.font.width(label) > labelRoom) {
+                label = this.font.plainSubstrByWidth(label, labelRoom - this.font.width("...")) + "...";
+            }
+            graphics.text(this.font, label, x, y - 10 - BOX_PAD, 0xFFFFFFFF);
 
             graphics.pose().pushMatrix();
             try {
