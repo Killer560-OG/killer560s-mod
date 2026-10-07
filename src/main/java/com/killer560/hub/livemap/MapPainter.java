@@ -674,6 +674,15 @@ public final class MapPainter {
 
     static void drawRoom(GuiGraphicsExtractor graphics, LiveMapFeature.RoomGroup group, int gid, int color,
                          float ox, float oy, float ppu) {
+        com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
+        drawRoom(rects, group, gid, color, ox, oy, ppu);
+        rects.submit();
+    }
+
+    /** {@link #drawRoom(GuiGraphicsExtractor, LiveMapFeature.RoomGroup, int, int, float, float, float)} into a batch,
+     *  so the HUD map can submit every room as one render-state element (rooms never overlap one another). */
+    static void drawRoom(com.killer560.hub.hud.GuiRects graphics, LiveMapFeature.RoomGroup group, int gid, int color,
+                         float ox, float oy, float ppu) {
         int n = 0;
         for (int c : group.cells) {
             int gx = c % LiveMapFeature.GRID;
@@ -707,7 +716,7 @@ public final class MapPainter {
      * the GUI fill lesson in docs/LESSONS-GUI.md); the map was ~120 fills a frame on F7 (FPS sweep, 2026-10-07). Only
      * rectangles meeting edge to edge are joined, so nothing ever overlaps and a translucent room colour blends once.
      */
-    static void fillMerged(GuiGraphicsExtractor graphics, int[] r, int n, int color) {
+    static void fillMerged(com.killer560.hub.hud.GuiRects graphics, int[] r, int n, int color) {
         boolean merged = true;
         while (merged) {
             merged = false;
@@ -811,6 +820,8 @@ public final class MapPainter {
      *  rooms on both sides, is the 4-unit gap long, and 6 units wide across the doorway. */
     static void drawDoors(GuiGraphicsExtractor graphics, DungeonLayout layout, LiveMapConfig cfg,
                           float ox, float oy, float ppu, int hoveredDoor) {
+        // Every door's fill and outlines as ONE render-state element, in the same order (hud/GuiRects).
+        com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
         for (int idx = 0; idx < LiveMapFeature.GRID * LiveMapFeature.GRID; idx++) {
             int type = layout.doorType(idx);
             boolean locked = layout.isLocked(idx);
@@ -859,22 +870,23 @@ public final class MapPainter {
             int y0 = px(oy, uz, ppu);
             int x1 = px(ox, ux + uw, ppu);
             int y1 = px(oy, uz + uh, ppu);
-            graphics.fill(x0, y0, x1, y1, color);
+            rects.fill(x0, y0, x1, y1, color);
             if (type == DungeonLayout.DOOR_WITHER && locked) {
                 // killer560, 2026-09-20: "wither doors are very hard to see on the map" - the real map's own byte
                 // for a locked wither door is near-black (default #101010), which vanishes into the HUD background.
                 // A double amber outline (the mod's own accent colour) makes it read as a warning at a glance
                 // without touching the fill colour itself, which is still the real map's own and still a picker.
-                graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
-                graphics.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
+                rects.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xFFFFAA00);
+                rects.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
             }
             if (theoreticalWither) {
-                graphics.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
+                rects.outline(x0, y0, x1 - x0, y1 - y0, 0xFFFFAA00);
             }
             if (idx == hoveredDoor) {
-                graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xB4FFFFFF);
+                rects.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, 0xB4FFFFFF);
             }
         }
+        rects.submit();
     }
 
     /**

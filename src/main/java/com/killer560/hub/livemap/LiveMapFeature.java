@@ -1223,13 +1223,17 @@ public final class LiveMapFeature {
 
             // killer560, 2026-09-20: "remove the current-room colour changer" - every revealed room just draws its
             // real colour now, current room or not.
+            // All rooms as ONE render-state element (hud/GuiRects): rooms never overlap one another, and each separate
+            // fill was placement-tested against everything already on the HUD (95-fps-bench JFR, 2026-10-07).
+            com.killer560.hub.hud.GuiRects roomRects = com.killer560.hub.hud.GuiRects.begin(graphics);
             for (int gid = 0; gid < groups.size(); gid++) {
                 RoomGroup group = groups.get(gid);
                 if (!MapPainter.isRevealed(group)) {
                     continue; // legit build: the map item has not shown this room yet
                 }
-                MapPainter.drawRoom(graphics, group, gid, MapPainter.roomColor(group, cfg), ox, oy, ppu);
+                MapPainter.drawRoom(roomRects, group, gid, MapPainter.roomColor(group, cfg), ox, oy, ppu);
             }
+            roomRects.submit();
 
             // killer560s-mod-relay task (2026-09-21): teammate-reported rooms this client has not scanned
             // itself yet - PartyMapIntel already dropped any cell local scanning has since taken over.
