@@ -642,7 +642,7 @@ final class SettingTooltipsData {
         d.put("count color", "Text colour of the member count drawn on party heads.");
         d.put("tooltip stats", "Adds each member's Catacombs level, secrets and floor PB to party tooltips.");
         d.put("show missing", "Adds a line to party tooltips listing the classes nobody has picked.");
-        d.put("pb mode", "Which personal best to show in tooltips: S, S+ or Both.");
+        d.put("pb mode", "Which personal best to show in tooltips: S, S+ or Both. Both shows S+, else S, else the fastest clear at any score in grey.");
         d.put("rank name colors", "Colours member names by Hypixel rank instead of dungeon class.");
         d.put("custom style", "Type the member line format for Custom style, using placeholders and & colour codes.");
         d.put("motion blur", "Blends each frame with the previous ones for a motion blur effect.");

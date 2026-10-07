@@ -23,7 +23,9 @@ public final class PartyFinderParser {
     public static final int GATE_CLASS_SLOT = 45;
 
     private static final Pattern TYPE = Pattern.compile("^Dungeon: (Master Mode )?(The Catacombs)$");
-    private static final Pattern FLOOR = Pattern.compile("^Floor: Floor ([IV]+)$");
+    /** "Floor: Floor VII", or "Floor: Entrance" (floor 0, Hypixel's key "0" for its times). Devonian matches only the
+     *  first, which left an Entrance party with floor -1 and no PB for anyone. */
+    private static final Pattern FLOOR = Pattern.compile("^Floor: (?:Floor ([IV]+)|(Entrance))$");
     // killer560 9.1: was anchored ^...$ (the whole line had to be EXACTLY " Name: Class (Level)", nothing
     // after), so anything appended to that line - most notably another mod restyling the same lore (Devonian's
     // Party Finder Overview tacking its own extra stats on the end every tick; see
@@ -103,7 +105,7 @@ public final class PartyFinderParser {
             if (floor == -1) {
                 Matcher f = FLOOR.matcher(line);
                 if (f.matches()) {
-                    floor = parseRoman(f.group(1));
+                    floor = f.group(2) != null ? 0 : parseRoman(f.group(1));
                     continue;
                 }
             }

@@ -28,7 +28,8 @@ public final class PartyFinderOverlayConfig {
     public static final int DEFAULT_BLOCKED_COLOR = 0xFFFF0000;
     public static final int DEFAULT_COUNT_COLOR = 0xFFFFFFFF;
 
-    /** Devonian "Overview PB": Both = S+ when it exists, otherwise S. */
+    /** Devonian "Overview PB": Both = S+ when it exists, otherwise S - and here, failing both, the floor's fastest
+     *  clear at any score (grey, labelled "Any"), so a player with runs but no S is not shown as "NO PB". */
     public enum PbMode {
         BOTH("Both"), S("S"), S_PLUS("S+");
 

@@ -330,8 +330,9 @@ public final class PartyFinderOverlay {
         String[] pb = known ? personalBest(cfg, party, stats) : new String[]{null, null};
         String pbTime = pb[0];
         String pbType = pb[1];
-        // The PB as each style shows it: "&a4:12", "&cNO PB", or "&7?" while unknown.
-        String pbCell = !known ? "&7?" : pbTime == null ? "&cNO PB" : "&a" + pbTime;
+        // The PB as each style shows it: "&a4:12" (S+ or S), "&74:12" (Both, a clear below S - no S or S+ on this
+        // floor), "&cNO PB" (never cleared it), or "&7?" while unknown.
+        String pbCell = !known ? "&7?" : pbTime == null ? "&cNO PB" : (ANY.equals(pbType) ? "&7" : "&a") + pbTime;
         String nameColor = role.colorCode;
         if (cfg.isRankNameColors()) {
             String rank = rankColorCode(original, name);
@@ -387,7 +388,7 @@ public final class PartyFinderOverlay {
                         + (known ? NumberFormat.getNumberInstance(Locale.US).format(stats.secrets()) : "?")
                         + " &7| &b" + avg2 + "&8]";
                 if (known && pbTime != null && cfg.getPbMode() == PartyFinderOverlayConfig.PbMode.BOTH) {
-                    suffix += " &8[&a" + pbType + " " + pbTime + "&8]";
+                    suffix += " &8[" + (ANY.equals(pbType) ? "&7" : "&a") + pbType + " " + pbTime + "&8]";
                 } else {
                     suffix += " &8[" + pbCell + "&8]";
                 }
@@ -396,16 +397,24 @@ public final class PartyFinderOverlay {
         };
     }
 
-    /** @return {time or null, "S"/"S+"} for the party's floor, per the PB mode. */
+    /** The PB label for a clear below S (Hypixel's {@code fastest_time}), shown only in Both mode. */
+    static final String ANY = "Any";
+
+    /**
+     * @return {time or null, "S"/"S+"/"Any"} for the party's floor, per the PB mode. Both is S+, then S, then the
+     * floor's fastest clear at any score - real players with runs on a floor but no S on it otherwise read "NO PB",
+     * which claims they never cleared it (killer560, 2026-10-07: "the vast majority still do not have any times").
+     */
     private static String[] personalBest(PartyFinderOverlayConfig cfg, Party party, PlayerStats stats) {
         JsonObject map = party.masterMode() ? stats.pbMaster() : stats.pbNormal();
         String floorKey = "floor_" + party.floor();
         String s = ConfigJson.getString(ConfigJson.getObject(map, "s"), floorKey, null);
         String sPlus = ConfigJson.getString(ConfigJson.getObject(map, "s_plus"), floorKey, null);
+        String any = ConfigJson.getString(ConfigJson.getObject(map, "any"), floorKey, null);
         return switch (cfg.getPbMode()) {
             case S -> new String[]{s, "S"};
             case S_PLUS -> new String[]{sPlus, "S+"};
-            case BOTH -> sPlus != null ? new String[]{sPlus, "S+"} : new String[]{s, "S"};
+            case BOTH -> sPlus != null ? new String[]{sPlus, "S+"} : s != null ? new String[]{s, "S"} : new String[]{any, ANY};
         };
     }
 

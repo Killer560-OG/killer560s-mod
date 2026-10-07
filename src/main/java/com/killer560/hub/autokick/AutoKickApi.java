@@ -70,10 +70,9 @@ public final class AutoKickApi {
 
     private static PopulateResult apply(String playerName, ProfileViewerApi.ProfilesResult result) {
         List<SbProfile> profiles = result.profiles();
-        // SbProfile.parseAll already sorts the selected profile first (falling back to alphabetical when
-        // none is marked selected) - see that method's own sort call - so index 0 is exactly "the profile
-        // this player is actually playing on" whenever Hypixel reports one.
-        SbProfile profile = profiles.isEmpty() ? null : profiles.get(0);
+        // The selected profile, or the one with the most Catacombs XP when none is selected or the selected one
+        // has no dungeon data - the same rule the Party Finder stats use (SbProfile.dungeonProfile).
+        SbProfile profile = SbProfile.dungeonProfile(profiles);
 
         AutoKickConfig cfg = AutoKickConfig.getInstance();
         int set = 0;
