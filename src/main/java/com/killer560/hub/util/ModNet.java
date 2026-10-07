@@ -51,6 +51,8 @@ import java.util.concurrent.CompletableFuture;
  *   <li>{@code coflnet} - sky.coflnet.com: lowest-BIN prices</li>
  *   <li>{@code github-api} - api.github.com: the update check</li>
  *   <li>{@code relay} - the relay worker (and the Supporters endpoints on it); overrides the configured base</li>
+ *   <li>{@code pf-relay} - the relay's {@code /pf/stats} only (Party Finder stats cache), applied on top of
+ *       {@code relay}, so a harness can fake it without touching Mod Chat or Supporters</li>
  *   <li>{@code lrclib} - lrclib.net: Spotify lyrics</li>
  *   <li>{@code google-translate} - translate.googleapis.com</li>
  *   <li>{@code mymemory} - api.mymemory.translated.net: the translate fallback</li>

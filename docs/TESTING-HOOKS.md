@@ -18,7 +18,9 @@ default)` and goes out through `ModNet.send` / `sendAsync` / `open` / `webSocket
 
 Service keys: `hypixel`, `noamm`, `noamm-ws`, `odin-ws`, `devonian-ws`, `pv-backend`, `mojang`,
 `minecraftservices`, `microsoft`, `xboxlive`, `github-raw`, `jsdelivr`, `coflnet`, `github-api`, `relay`,
-`lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`. `ModNet`'s javadoc says which host and feature each one is.
+`pf-relay`, `lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`. `ModNet`'s javadoc says which host and
+feature each one is. `pf-relay` is the relay's `/pf/stats` alone (Party Finder stats) and, unlike the others, is read
+on every request, so a case may set it at run time; the testkit points it at its HTTP fake (`/pfrelay`).
 
 Not routed: the Shorts player's DevTools client (127.0.0.1, a browser the mod launched), Discord RPC (a local
 pipe), the Proxy Client (the game connection itself), and anything Minecraft or authlib does on its own
