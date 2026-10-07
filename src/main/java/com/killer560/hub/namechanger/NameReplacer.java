@@ -42,6 +42,9 @@ public final class NameReplacer {
                 }
             });
 
+    /** {@link #SEQ_CACHE} value for a sequence that holds no name to replace. */
+    private static final FormattedCharSequence NO_MATCH = sink -> true;
+
     private static final ThreadLocal<Scanner> SCANNER = ThreadLocal.withInitial(Scanner::new);
 
     private NameReplacer() {
@@ -141,13 +144,18 @@ public final class NameReplacer {
         }
         FormattedCharSequence cached = SEQ_CACHE.get(seq);
         if (cached != null) {
-            return cached;
+            return cached == NO_MATCH ? seq : cached;
         }
         Scanner sc = SCANNER.get();
         sc.begin(table);
         seq.accept(sc);
         sc.flush();
         if (sc.matchCount == 0) {
+            // Remembered too: text with no name in it is nearly all text, and it was rescanned glyph by glyph on every
+            // draw and width call - every chat line, tab entry and sidebar line, every frame, while Name Changer is on
+            // (FPS sweep, 2026-10-07). Stored as NO_MATCH, never as the sequence itself: a strong value naming its own
+            // weak key would keep it alive forever. A table rebuild clears this cache like any other.
+            SEQ_CACHE.put(seq, NO_MATCH);
             return seq;
         }
         Replaced out = sc.buildSequence(seq);
@@ -181,6 +189,7 @@ public final class NameReplacer {
         sc.feedLegacyString(s, true);
         sc.flush();
         if (sc.matchCount == 0) {
+            STRING_CACHE.put(s, s); // see replaceSeq: a miss is remembered as itself
             return s;
         }
         String out = sc.buildString(s);
