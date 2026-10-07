@@ -29,7 +29,7 @@ public abstract class InventoryThemeSlotMixin {
     )
     private void killer560smod$drawSlotBackdrop(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
-        if (!InventoryThemeFeature.shouldTheme(self) || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle().getString())) {
+        if (!InventoryThemeFeature.shouldTheme(self) || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle())) {
             return;
         }
         InventoryThemeFeature.drawSlotBackdrop(graphics, self, slot);
@@ -45,7 +45,7 @@ public abstract class InventoryThemeSlotMixin {
     private void killer560smod$hideOffhandSlot(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
         if (InventoryThemeFeature.shouldTheme(self) && InventoryThemeFeature.isOffhandSlot(slot)
-                && !InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle().getString())) {
+                && !InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle())) {
             ci.cancel();
         }
     }

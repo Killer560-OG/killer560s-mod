@@ -22,7 +22,7 @@ public abstract class InventoryThemeContainerBackgroundMixin {
     private void killer560smod$themeContainerBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY,
                                                           float partialTick, CallbackInfo ci) {
         ContainerScreen self = (ContainerScreen) (Object) this;
-        if (!InventoryThemeFeature.shouldTheme(self) || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle().getString())) {
+        if (!InventoryThemeFeature.shouldTheme(self) || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle())) {
             return;
         }
         InventoryThemeFeature.drawBackground(graphics, self);
