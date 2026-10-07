@@ -284,13 +284,29 @@ public final class MelodyTrackerFeature {
 
         @Override
         public int width() {
-            return BAR_WIDTH + 10;
+            // What render() draws: the waiting line, or the widest of the shown rows' labels and bars (it was a
+            // fixed bar + 10 by four rows, round a one-line "waiting..." most of the time).
+            Font font = Minecraft.getInstance().font;
+            if (rowCount == 0) {
+                return font.width(WAITING);
+            }
+            int w = BAR_WIDTH;
+            for (int i = 0; i < Math.min(rowCount, VISIBLE_ROWS); i++) {
+                w = Math.max(w, font.width(ROWS[i].label));
+            }
+            return w;
         }
 
         @Override
         public int height() {
-            return ROW_HEIGHT * VISIBLE_ROWS;
+            if (rowCount == 0) {
+                return com.killer560.hub.hud.HudText.ROW;
+            }
+            // Each row is a label with its bar 10 below; rows are ROW_HEIGHT apart.
+            return (Math.min(rowCount, VISIBLE_ROWS) - 1) * ROW_HEIGHT + 10 + BAR_HEIGHT;
         }
+
+        private static final String WAITING = "Team Melody: waiting...";
 
         @Override
         public boolean isEnabledInSettings() {
@@ -308,7 +324,7 @@ public final class MelodyTrackerFeature {
             // calling this at all, so past this point the element really is on screen.
             HudSeen.markDrawn(id());
             if (rowCount == 0) {
-                graphics.text(font, "Team Melody: waiting...", x, y, COLOR_DIM, false);
+                graphics.text(font, WAITING, x, y, COLOR_DIM, false);
                 return;
             }
             int lineY = y;

@@ -110,12 +110,23 @@ public final class AbilityCooldownFeature {
 
         @Override
         public int width() {
-            return 150;
+            // Swatch (unless Text Only) + the widest drawn line (2026-10-07 box audit: it was a fixed 150); 150 with
+            // nothing on cooldown, so the HUD editor still has something to grab.
+            List<Line> lines = lines();
+            if (lines.isEmpty()) {
+                return 150;
+            }
+            int indent = AbilityCooldownConfig.getInstance().isTextOnly() ? 0 : 12;
+            int w = 1;
+            for (Line line : lines) {
+                w = Math.max(w, indent + Minecraft.getInstance().font.width(line.text));
+            }
+            return w;
         }
 
         @Override
         public int height() {
-            return 12 * Math.max(1, lines().size());
+            return com.killer560.hub.hud.HudText.height(lines().size(), 12);
         }
 
         @Override

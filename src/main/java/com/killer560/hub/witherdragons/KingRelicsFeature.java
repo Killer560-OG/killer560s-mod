@@ -349,12 +349,30 @@ public final class KingRelicsFeature {
 
         @Override
         public int width() {
-            return 90;
+            // The drawn text (it was a fixed 90).
+            String text = text();
+            return com.killer560.hub.hud.HudText.width(text != null ? text : "§3Relics: 1.90s");
         }
 
         @Override
         public int height() {
-            return 12;
+            return com.killer560.hub.hud.HudText.ROW;
+        }
+
+        /** What render() draws right now, or null. */
+        private static String text() {
+            Minecraft client = Minecraft.getInstance();
+            WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
+            if (!cfg.isRelicsEnabled() || !cfg.isRelicSpawnTimer()) {
+                return null;
+            }
+            if (McCompat.screen(client) instanceof HudEditorScreen) {
+                return "§3Relics: 1.90s";
+            }
+            if (!HudVisibility.hidesHud() && relicTicksToSpawn > 0) {
+                return "§3Relics: " + String.format(Locale.US, "%.2f", relicTicksToSpawn / 20f) + "s";
+            }
+            return null;
         }
 
         @Override
@@ -367,16 +385,8 @@ public final class KingRelicsFeature {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
-            WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
-            if (!cfg.isRelicsEnabled() || !cfg.isRelicSpawnTimer()) {
-                return;
-            }
-            String text;
-            if (McCompat.screen(client) instanceof HudEditorScreen) {
-                text = "§3Relics: 1.90s";
-            } else if (!HudVisibility.hidesHud() && relicTicksToSpawn > 0) {
-                text = "§3Relics: " + String.format(Locale.US, "%.2f", relicTicksToSpawn / 20f) + "s";
-            } else {
+            String text = text();
+            if (text == null) {
                 return;
             }
             HudSeen.markDrawn(id());

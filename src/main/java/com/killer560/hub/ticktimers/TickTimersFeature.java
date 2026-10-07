@@ -313,12 +313,15 @@ public final class TickTimersFeature {
 
         @Override
         public int width() {
-            return 160;
+            // The widest drawn line (2026-10-07 box audit: it was a fixed 160). Nothing active draws nothing, and
+            // the box keeps a grabbable 160 for the HUD editor.
+            List<String> lines = activeLines();
+            return lines.isEmpty() ? 160 : com.killer560.hub.hud.HudText.width(lines);
         }
 
         @Override
         public int height() {
-            return 12 * Math.max(1, activeLines().size());
+            return com.killer560.hub.hud.HudText.height(activeLines().size(), 12);
         }
 
         private List<String> activeLines() {

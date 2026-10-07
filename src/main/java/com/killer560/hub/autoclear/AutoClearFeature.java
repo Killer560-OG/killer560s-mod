@@ -1098,12 +1098,18 @@ public final class AutoClearFeature {
 
         @Override
         public int width() {
-            return 220;
+            // The two drawn lines, one unit in (it was a fixed 220).
+            String[] l = lines();
+            if (l == null) {
+                return 20;
+            }
+            var font = Minecraft.getInstance().font;
+            return 1 + Math.max(font.width("Auto Clear: ") + font.width(l[0]), font.width(l[1]));
         }
 
         @Override
         public int height() {
-            return 20;
+            return 11 + com.killer560.hub.hud.HudText.ROW;
         }
 
         @Override
@@ -1112,24 +1118,31 @@ public final class AutoClearFeature {
             return cfg.isEnabled() && cfg.isStatusHud();
         }
 
+        /** {line1, line2} as drawn right now, or null; render() and the box both read it. */
+        private String[] lines() {
+            if (running) {
+                return new String[]{
+                        (singleRoom != null ? "Room " + singleRoom : AutoClearConfig.getInstance().getMode().label())
+                                + (roomName == null ? "" : " - " + roomName),
+                        (targetName.isEmpty() ? "" : targetName + ": ") + action};
+            }
+            if (lastReason != null && System.currentTimeMillis() - lastReasonMs < 6000L) {
+                return new String[]{"Stopped", lastReason};
+            }
+            if (HudVisibility.menuOpen()) {
+                return new String[]{"Any Mob Room - Mushroom", "Zombie: Wither Impact in place"};
+            }
+            return null;
+        }
+
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            boolean example = HudVisibility.menuOpen();
-            String line1;
-            String line2;
-            if (running) {
-                line1 = (singleRoom != null ? "Room " + singleRoom : AutoClearConfig.getInstance().getMode().label())
-                        + (roomName == null ? "" : " - " + roomName);
-                line2 = (targetName.isEmpty() ? "" : targetName + ": ") + action;
-            } else if (lastReason != null && System.currentTimeMillis() - lastReasonMs < 6000L) {
-                line1 = "Stopped";
-                line2 = lastReason;
-            } else if (example) {
-                line1 = "Any Mob Room - Mushroom";
-                line2 = "Zombie: Wither Impact in place";
-            } else {
+            String[] l = lines();
+            if (l == null) {
                 return;
             }
+            String line1 = l[0];
+            String line2 = l[1];
             var font = Minecraft.getInstance().font;
             HudSeen.markDrawn(id());
             String label = "Auto Clear: ";

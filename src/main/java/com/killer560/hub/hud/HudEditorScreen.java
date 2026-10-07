@@ -64,6 +64,16 @@ public class HudEditorScreen extends Screen {
     private static final int BOX_BG = 0x55FFFFFF;
     private static final int BOX_BG_DRAGGING = 0x8055FF55;
     private static final int BOX_OUTLINE = 0xFFCC6600;
+    /**
+     * Screen pixels the box stands out from the element on every side - the same for every element at every scale.
+     *
+     * <p>2026-10-07 (killer560: "those split timers the box is way too large for how big they actually are"): the
+     * box is the element's own {@code width()/height()} at its drawn scale, grown by this, and the preview is drawn
+     * at exactly the position it is drawn at in game. It used to be drawn 2 px right and down of the box's corner,
+     * so every preview sat 2 px off its real spot and against the box's left/top edge while the padding all landed
+     * on the right and bottom.
+     */
+    static final int BOX_PAD = 2;
     private static final float SCALE_STEP = 0.1f;
     // No upper bound; only a small positive floor so scale can't hit zero/negative (which would
     // make the element invisible or flip it) - killer560 explicitly wants the old 0.5x-3x range gone.
@@ -140,13 +150,15 @@ public class HudEditorScreen extends Screen {
             int scaledH = scaledHeight(element, scale);
             boolean dragging = element.id().equals(draggingId);
 
-            graphics.fill(x, y, x + scaledW, y + scaledH, dragging ? BOX_BG_DRAGGING : BOX_BG);
-            graphics.outline(x, y, scaledW, scaledH, BOX_OUTLINE);
-            graphics.text(this.font, element.displayName() + String.format(" (%.1fx)", own), x + 2, y - 10, 0xFFFFFFFF);
+            graphics.fill(x - BOX_PAD, y - BOX_PAD, x + scaledW + BOX_PAD, y + scaledH + BOX_PAD,
+                    dragging ? BOX_BG_DRAGGING : BOX_BG);
+            graphics.outline(x - BOX_PAD, y - BOX_PAD, scaledW + 2 * BOX_PAD, scaledH + 2 * BOX_PAD, BOX_OUTLINE);
+            graphics.text(this.font, element.displayName() + String.format(" (%.1fx)", own), x, y - 10 - BOX_PAD,
+                    0xFFFFFFFF);
 
             graphics.pose().pushMatrix();
             try {
-                graphics.pose().translate(x + 2, y + 2);
+                graphics.pose().translate(x, y);
                 graphics.pose().scale(scale, scale);
                 element.render(graphics, 0, 0);
             } catch (RuntimeException e) {
@@ -200,7 +212,8 @@ public class HudEditorScreen extends Screen {
             float scale = drawScale(element.id());
             int scaledW = scaledWidth(element, scale);
             int scaledH = scaledHeight(element, scale);
-            if (mx >= pos[0] && mx <= pos[0] + scaledW && my >= pos[1] && my <= pos[1] + scaledH) {
+            if (mx >= pos[0] - BOX_PAD && mx <= pos[0] + scaledW + BOX_PAD
+                    && my >= pos[1] - BOX_PAD && my <= pos[1] + scaledH + BOX_PAD) {
                 return element;
             }
         }

@@ -61,8 +61,9 @@ public final class MapPainter {
      * the dungeon's north-west corner, so a small floor occupies slots {@code 0..across-1, 0..down-1}.
      *
      * <p>The sim reports M7 ({@link com.killer560.hub.secrets.DungeonState#getFloor}) and its generator lays
-     * every floor out on the full 6x6 ({@code SimFloorGen.ROOM_GRID}), so 6x6 is also its true size. Unknown or
-     * unparseable floor: 6x6, the largest, so nothing can fall outside it.
+     * every floor out anywhere on the full 6x6 ({@code SimFloorGen.ROOM_GRID}), so the map fits a sim floor to its
+     * published extent instead ({@link #gridExtent}). Unknown or unparseable floor: 6x6, the largest, so nothing
+     * can fall outside it.
      */
     static int[] floorRooms(String floor) {
         int number = -1;
@@ -89,47 +90,100 @@ public final class MapPainter {
     }
 
     /**
-     * The grid being drawn, in map units: {@code {unitsX, unitsZ}}.
-     *
-     * <p>The floor's own grid ({@link #floorRooms}). The one exception is a drawn room that lies OUTSIDE it, which
-     * only happens if the table above is wrong for some floor: the grid is then widened to take that room in
-     * rather than painting it over the outline. That can only ever grow the grid, never cut it down to the rooms
-     * found so far, so it is not the old fit-to-revealed behaviour; on a correct table it never fires.
+     * The grid being drawn, in map units: {@code {unitsX, unitsZ}} - the size half of {@link #gridExtent}.
      */
     static int[] gridUnits(java.util.List<LiveMapFeature.RoomGroup> groups) {
-        int[] rooms = floorRooms(com.killer560.hub.secrets.DungeonState.getFloor());
-        int across = rooms[0];
-        int down = rooms[1];
-        for (LiveMapFeature.RoomGroup group : groups) {
-            if (!isRevealed(group)) {
-                continue;
-            }
-            for (int cell : group.cells) {
-                across = Math.max(across, (cell % LiveMapFeature.GRID) / 2 + 1);
-                down = Math.max(down, (cell / LiveMapFeature.GRID) / 2 + 1);
+        int[] e = gridExtent(groups);
+        return new int[]{e[2], e[3]};
+    }
+
+    /** Room slots {@code {across, down}} of the floor being played - {@link #floorRooms} of the current floor. */
+    static int[] currentFloorRooms() {
+        return floorRooms(com.killer560.hub.secrets.DungeonState.getFloor());
+    }
+
+    /**
+     * The part of the 6x6 room grid the map shows, in map units: {@code {startX, startZ, unitsX, unitsZ}}.
+     *
+     * <p><b>On Hypixel:</b> the floor's own grid from its north-west corner ({@link #floorRooms}). It is widened
+     * only by a room the vanilla map ITEM shows outside it, which would mean the table is wrong for some floor.
+     * Until 2026-10-07 it was also widened by any room the WORLD SCAN or a teammate reported outside it, and that is
+     * exactly what broke small floors (killer560, 2026-10-07: "the map doesn't rescale very well for other floors").
+     * Floor 1's boss arena (Bonzo's, x &gt; -71, z &gt; -39) stands in room slots (4..5, 5) of the 6x6 footprint;
+     * the block scan read its roof as two ROOM tiles, the grid widened to 6x6 to take them in, and the real 4x5
+     * floor sat in the top-left two thirds of the frame with two brown "rooms" floating at the bottom right. The
+     * scan no longer looks outside the floor's grid ({@code LiveMapFeature.scan}), and nothing but the map item may
+     * widen it.
+     *
+     * <p><b>In the sim:</b> the sim reports M7 but lays out every floor size on the full 6x6, anywhere in it. The
+     * whole floor is published at once ({@code LiveMapFeature.publishSimFloor}), so its measured bounding box is
+     * known exactly from the start and is used instead - an F1-sized sim floor fills the frame like a real F1.
+     */
+    static int[] gridExtent(java.util.List<LiveMapFeature.RoomGroup> groups) {
+        int[] sim = LiveMapFeature.simRoomExtent();
+        int x0;
+        int z0;
+        int x1;
+        int z1;
+        if (sim != null && com.killer560.hub.roomsim.SimState.isActive()) {
+            x0 = sim[0];
+            z0 = sim[1];
+            x1 = sim[2];
+            z1 = sim[3];
+        } else {
+            int[] rooms = currentFloorRooms();
+            x0 = 0;
+            z0 = 0;
+            x1 = rooms[0] - 1;
+            z1 = rooms[1] - 1;
+            if (DungeonMapScanner.isCalibrated()) {
+                for (int idx = 0; idx < LiveMapFeature.GRID * LiveMapFeature.GRID; idx++) {
+                    if (DungeonMapScanner.kindAt(idx) == DungeonMapScanner.KIND_ROOM) {
+                        x1 = Math.max(x1, (idx % LiveMapFeature.GRID) / 2);
+                        z1 = Math.max(z1, (idx / LiveMapFeature.GRID) / 2);
+                    }
+                }
             }
         }
-        for (PartyMapIntel.ReportedRoom rr : PartyMapIntel.reportedRoomsView()) {
-            across = Math.max(across, rr.col() / 2 + 1);
-            down = Math.max(down, rr.row() / 2 + 1);
-        }
-        return new int[]{roomsToUnits(Math.min(across, 6)), roomsToUnits(Math.min(down, 6))};
+        x1 = Math.min(x1, 5);
+        z1 = Math.min(z1, 5);
+        int step = ROOM_UNITS + GAP_UNITS;
+        return new int[]{x0 * step, z0 * step, roomsToUnits(x1 - x0 + 1), roomsToUnits(z1 - z0 + 1)};
+    }
+
+    /** Whether grid cell {@code idx} (of the 11x11) lies inside the part of the map {@link #gridExtent} shows. */
+    static boolean insideExtent(int[] extent, int idx) {
+        int step = ROOM_UNITS + GAP_UNITS;
+        int col = (idx % LiveMapFeature.GRID) / 2;
+        int row = (idx / LiveMapFeature.GRID) / 2;
+        int c0 = extent[0] / step;
+        int r0 = extent[1] / step;
+        int c1 = c0 + (extent[2] + GAP_UNITS) / step - 1;
+        int r1 = r0 + (extent[3] + GAP_UNITS) / step - 1;
+        return col >= c0 && col <= c1 && row >= r0 && row <= r1;
+    }
+
+    /** A teammate's report of a cell outside this floor's grid: an older scan of a boss arena (see
+     *  {@link #gridExtent}). Not drawn - it would land outside the fitted map. */
+    private static boolean outsideFloor(int idx) {
+        return !insideExtent(gridExtent(LiveMapFeature.groupsView()), idx);
     }
 
     /**
      * How to draw the floor's grid inside the fixed {@link #MAP_UNITS}-square outline:
      * {@code {scale, offsetUnitsX, offsetUnitsY}}.
      *
-     * <p>{@code scale} blows the floor's grid up until its long side fills the outline (1 on a 6x6 floor, about
-     * 1.5 on the Entrance's 4x4); the offsets, in the floor's own units, centre the short side so a 4x5 or 6x5
-     * floor sits in the middle of the square instead of against one edge. Multiply the pixels-per-unit by the
-     * scale and add the offsets times that ppu to the origin, and every drawing call stays untouched.
+     * <p>{@code scale} blows the shown part of the grid ({@link #gridExtent}) up until its long side fills the
+     * outline (1 on a 6x6 floor, about 1.5 on the Entrance's 4x4); the offsets, in the floor's own units, centre the
+     * short side and shift a part that does not start at slot 0 (a sim floor) back to the outline's corner. Multiply
+     * the pixels-per-unit by the scale and add the offsets times that ppu to the origin, and every drawing call
+     * stays untouched.
      */
     static float[] floorFit(java.util.List<LiveMapFeature.RoomGroup> groups) {
-        int[] units = gridUnits(groups);
-        float scale = MAP_UNITS / (float) Math.max(units[0], units[1]);
+        int[] e = gridExtent(groups);
+        float scale = MAP_UNITS / (float) Math.max(e[2], e[3]);
         float inner = MAP_UNITS / scale;
-        return new float[]{scale, (inner - units[0]) / 2f, (inner - units[1]) / 2f};
+        return new float[]{scale, (inner - e[2]) / 2f - e[0], (inner - e[3]) / 2f - e[1]};
     }
 
     static final int ROOM_UNITS = 16;
@@ -496,6 +550,9 @@ public final class MapPainter {
      *  why a multi-tile room only ever gets one box here. */
     static void drawReportedRoom(GuiGraphicsExtractor graphics, PartyMapIntel.ReportedRoom room, LiveMapConfig cfg,
                                  float ox, float oy, float ppu) {
+        if (outsideFloor(room.idx())) {
+            return;
+        }
         int gx = room.col();
         int gz = room.row();
         int color = reportedRoomColor(room, cfg);
@@ -532,7 +589,7 @@ public final class MapPainter {
      *  {@code roomLabels} style so it does not visually contradict the local rooms around it. */
     static void drawReportedLabel(GuiGraphicsExtractor graphics, Font font, int style, LiveMapConfig cfg,
                                   PartyMapIntel.ReportedRoom room, float ox, float oy, float ppu) {
-        if (style == 0 || style == 1) {
+        if (style == 0 || style == 1 || outsideFloor(room.idx())) {
             return; // style 1 (checkmarks) has nothing to draw here - a reported room has no scan state
         }
         RoomEntry entry = room.entry();
@@ -780,6 +837,9 @@ public final class MapPainter {
         boolean mark = cfg.isMarkReportedRooms();
         for (PartyMapIntel.ReportedDoor door : PartyMapIntel.reportedDoorsView()) {
             int idx = door.idx();
+            if (outsideFloor(idx)) {
+                continue;
+            }
             int type = door.type();
             int gx = idx % LiveMapFeature.GRID;
             int gz = idx / LiveMapFeature.GRID;

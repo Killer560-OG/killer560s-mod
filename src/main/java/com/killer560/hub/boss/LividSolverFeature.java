@@ -233,12 +233,13 @@ public final class LividSolverFeature {
 
         @Override
         public int width() {
-            return 140;
+            // The drawn text (2026-10-07 box audit: it was a fixed 140 round "Livid: 120t").
+            return Minecraft.getInstance().font.width("§aLivid: " + Math.max(0, invulnTicks) + "t");
         }
 
         @Override
         public int height() {
-            return 12;
+            return com.killer560.hub.hud.HudText.ROW;
         }
 
         @Override

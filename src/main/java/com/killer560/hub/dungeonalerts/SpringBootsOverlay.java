@@ -143,12 +143,15 @@ final class SpringBootsOverlay {
 
         @Override
         public int width() {
-            return 80;
+            // The drawn line, one unit in (it was a fixed 80).
+            var font = Minecraft.getInstance().font;
+            boolean example = DungeonAlertsFeature.isEditorOpen() || blockAmount == 0f;
+            return 1 + font.width("Height: ") + font.width(colored(example ? 33.0f : blockAmount));
         }
 
         @Override
         public int height() {
-            return 10;
+            return 1 + com.killer560.hub.hud.HudText.ROW;
         }
 
         @Override

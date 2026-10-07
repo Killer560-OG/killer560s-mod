@@ -164,9 +164,31 @@ public final class ScoreCalculatorFeature {
 
     // ------------------------------------------------------------------ tick
 
+    /**
+     * Whether anything wants this run's estimate: the Score Calculator itself, or a map's Extra Info section.
+     *
+     * <p>killer560 (2026-10-07): "I have the extra info overlay on for the map but the info isn't coming up below the
+     * map." The tracking below used to run only with Score Calculator on - off in a fresh config - so Extra Info had
+     * nothing to show unless a second, unrelated feature was switched on too. The TRACKING (tab list, sidebar, the
+     * bonus chat lines, the formula) now runs for either consumer. Everything that DOES something - the 270/300
+     * titles and party messages, the bonus-kill party alerts, the Party Interop flags, the election fetch and the
+     * Score Calculator's own HUD - still needs Score Calculator on, so turning on Extra Info sends and draws nothing
+     * new beyond the map's own lines.
+     */
+    public static boolean estimateWanted() {
+        return ScoreCalculatorConfig.getInstance().isEnabled() || mapExtraInfoWanted();
+    }
+
+    /** Either map's Extra Info is on: the Dungeon Map HUD's (Map Extras) or the Interactive Map legend's. */
+    public static boolean mapExtraInfoWanted() {
+        com.killer560.hub.livemap.LiveMapConfig map = com.killer560.hub.livemap.LiveMapConfig.getInstance();
+        return (map.isEnabled() && com.killer560.hub.mapping.MappingConfig.getInstance().isExtraInfoEnabled())
+                || (map.isInteractiveMapEnabled() && map.isShowExtraInfo());
+    }
+
     private static void tick(Minecraft client) {
         ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
-        if (!cfg.isEnabled() || client.level == null || client.player == null || !DungeonState.isInDungeon()) {
+        if (!estimateWanted() || client.level == null || client.player == null || !DungeonState.isInDungeon()) {
             return;
         }
         if (client.level != runLevel.get()) {
@@ -184,7 +206,8 @@ public final class ScoreCalculatorFeature {
                 pollCounter = 0;
                 readTabList(client);
                 readSidebar(client);
-                if (cfg.getPaulMode() == ScoreCalculatorConfig.PaulMode.AUTO) {
+                // The election fetch is a network request; only the Score Calculator itself makes it.
+                if (cfg.isEnabled() && cfg.getPaulMode() == ScoreCalculatorConfig.PaulMode.AUTO) {
                     maybeFetchElection();
                 }
                 recalculate(cfg);
@@ -265,6 +288,9 @@ public final class ScoreCalculatorFeature {
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity instanceof Zombie zombie && zombie.isBaby() && zombie.isDeadOrDying()) {
                 mimicKilled = true;
+                if (!ScoreCalculatorConfig.getInstance().isEnabled()) {
+                    return; // tracking for a map's Extra Info only: nothing is offered or sent
+                }
                 // We saw it ourselves, so this is the most trustworthy version of the fact the party has.
                 PartyInteropState.offerFlag(PartyInteropState.Flag.MIMIC_KILLED, InteropSource.SELF, null);
                 maybeSendKillAlert("Mimic", ScoreCalculatorConfig.getInstance().isMimicAlertEnabled(),
@@ -440,13 +466,18 @@ public final class ScoreCalculatorFeature {
 
     private static void onChat(Component message) {
         ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
-        if (!cfg.isEnabled() || !DungeonState.isInDungeon()) {
+        if (!estimateWanted() || !DungeonState.isInDungeon()) {
             return;
         }
+        // Map-only tracking records the kills but offers no Party Interop flag and sends no alert.
+        boolean acts = cfg.isEnabled();
         String plain = ChatObserver.strip(message).trim();
         if (PRINCE_KILLED.matcher(plain).matches()) {
             if (!princeKilled) {
                 princeKilled = true;
+                if (!acts) {
+                    return;
+                }
                 // The bonus-score line is public server chat identical for the whole party, so this is a
                 // SELF fact for Party Interop - same as DungeonInfoFeature used to offer it.
                 PartyInteropState.offerFlag(PartyInteropState.Flag.PRINCE_KILLED, InteropSource.SELF, null);
@@ -457,6 +488,9 @@ public final class ScoreCalculatorFeature {
         if (BAT_KILLED.matcher(plain).matches()) {
             if (!batKilled) {
                 batKilled = true;
+                if (!acts) {
+                    return;
+                }
                 PartyInteropState.offerFlag(PartyInteropState.Flag.BAT_KILLED, InteropSource.SELF, null);
                 maybeSendKillAlert("Bat", cfg.isBatAlertEnabled(), cfg.getBatAlertMessage(), PartyInteropState.Flag.BAT_KILLED);
             }
@@ -501,8 +535,8 @@ public final class ScoreCalculatorFeature {
         ScoreCalculator.Result result = ScoreCalculator.calculate(inputs);
         lastInputs = inputs;
         lastResult = result;
-        if (!tabDataSeen) {
-            return; // never alert off an empty tab list
+        if (!tabDataSeen || !cfg.isEnabled()) {
+            return; // never alert off an empty tab list, nor while only a map's Extra Info is tracking
         }
         if (!said300 && result.total() >= 300) {
             said300 = true;
@@ -720,6 +754,43 @@ public final class ScoreCalculatorFeature {
         return r.secretsRemaining() + " more (" + secretsFound + "/" + r.secretsNeeded() + ")";
     }
 
+    /**
+     * The Dungeon Map HUD's Extra Info lines, drawn under the map (killer560, 2026-10-07). One list for both the
+     * drawing and the HUD box, so the box is always exactly these lines. Before the first estimate of a run the
+     * numbers read "?" rather than the section vanishing; {@code demo} is the HUD editor's sample.
+     */
+    public static List<String> mapInfoLines(boolean demo) {
+        ScoreCalculator.Result r = demo ? new ScoreCalculator.Result(302, 100, 100, 60, 40, 100, 2, 36, 60, 57, 3, "S+")
+                : currentResult();
+        List<String> out = new ArrayList<>(4);
+        if (r == null) {
+            out.add("§6Score §7?");
+            out.add("§6Secrets §7?");
+        } else {
+            String sc = r.total() < 270 ? "§c" : r.total() < 300 ? "§e" : "§a";
+            out.add("§6Score " + sc + r.total() + " §7(" + sc + r.rank() + "§7)");
+            int found = demo ? 54 : secretsFound;
+            if (r.secretsNeeded() < 0) {
+                out.add("§6Secrets §f" + found + " §7/ ?");
+            } else if (r.secretsNeeded() == Integer.MAX_VALUE) {
+                out.add("§6Secrets §f" + found + " §cS+ out of reach");
+            } else {
+                out.add("§6Secrets " + (r.secretsRemaining() <= 0 ? "§a" : "§f") + found
+                        + "§7/" + r.secretsNeeded());
+            }
+        }
+        int c = demo ? 5 : getCrypts();
+        int d = demo ? 0 : DungeonState.isInDungeon() ? deaths : 0;
+        out.add("§6Crypts " + (c >= 5 ? "§a" : "§f") + c + "§7/5  §6Deaths "
+                + (d > 0 ? "§c" : "§f") + d);
+        boolean mimicFloor = demo || ScoreCalculator.floorNumber(DungeonState.getFloor()) >= 6;
+        boolean m = demo || isMimicKilled();
+        boolean p = !demo && isPrinceKilled();
+        out.add((mimicFloor ? "§6Mimic " + (m ? "§a✔" : "§c✘") + "  " : "")
+                + "§6Prince " + (p ? "§a✔" : "§c✘"));
+        return out;
+    }
+
     private static int parseInt(String s, int def) {
         if (s == null) {
             return def;
@@ -881,7 +952,8 @@ public final class ScoreCalculatorFeature {
 
         @Override
         public int height() {
-            return Math.max(10, currentLines().size() * 10);
+            // Rows 10 apart, the last one only a text row tall.
+            return com.killer560.hub.hud.HudText.height(currentLines().size(), 10);
         }
 
         @Override

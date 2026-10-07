@@ -113,12 +113,23 @@ public final class QuiverDisplayFeature {
 
         @Override
         public int width() {
-            return 150;
+            // The drawn text (2026-10-07 box audit: it was a fixed 150); 150 before the quiver has been read.
+            String text = text();
+            return text == null ? 150 : Minecraft.getInstance().font.width(text);
         }
 
         @Override
         public int height() {
-            return 12;
+            return com.killer560.hub.hud.HudText.ROW;
+        }
+
+        /** What render() draws, or null before the quiver count is known. */
+        private static String text() {
+            if (cachedCount == null) {
+                return null;
+            }
+            return (QuiverDisplayConfig.getInstance().isShowName() && cachedName != null
+                    ? cachedName + " §8x" : "§8x") + "§a" + cachedCount;
         }
 
         @Override
@@ -132,8 +143,7 @@ public final class QuiverDisplayFeature {
                     || cachedCount == null) {
                 return;
             }
-            String text = (QuiverDisplayConfig.getInstance().isShowName() && cachedName != null
-                    ? cachedName + " §8x" : "§8x") + "§a" + cachedCount;
+            String text = text();
             HudSeen.markDrawn(id());
             graphics.text(Minecraft.getInstance().font, text, x, y, 0xFFFFFFFF, false);
         }

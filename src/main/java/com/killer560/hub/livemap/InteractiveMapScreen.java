@@ -108,15 +108,19 @@ public class InteractiveMapScreen extends Screen {
         return Math.min(basePpu(), fit) * MapPainter.floorFit(LiveMapFeature.groupsView())[0] * zoom;
     }
 
-    /** The floor's grid is centred in the panel, so a 4x5 or 6x5 floor sits in the middle of the square. */
+    /** The shown part of the grid ({@link MapPainter#gridExtent}) is centred in the panel, so a 4x5 or 6x5 floor
+     *  sits in the middle of the square, and a sim floor that does not start at slot 0 is shifted back into it. This
+     *  is the origin of grid unit 0, which is what {@link #cellAt} and every drawing call measure from. */
     private float originX() {
         int[] p = panel();
-        return (p[0] + p[2]) / 2f - MapPainter.gridUnits(LiveMapFeature.groupsView())[0] * ppu() / 2f + panX;
+        int[] e = MapPainter.gridExtent(LiveMapFeature.groupsView());
+        return (p[0] + p[2]) / 2f - (e[0] + e[2] / 2f) * ppu() + panX;
     }
 
     private float originY() {
         int[] p = panel();
-        return (p[1] + p[3]) / 2f - MapPainter.gridUnits(LiveMapFeature.groupsView())[1] * ppu() / 2f + panY;
+        int[] e = MapPainter.gridExtent(LiveMapFeature.groupsView());
+        return (p[1] + p[3]) / 2f - (e[1] + e[3] / 2f) * ppu() + panY;
     }
 
     /** @return grid index of the cell under a screen point, or -1. */
@@ -459,10 +463,14 @@ public class InteractiveMapScreen extends Screen {
         if (BloodRush.isRunning()) {
             ty = text(g, "Blood Rush", x + PAD, ty + 2, BAD);
         }
-        // killer560, 2026-09-27: "the extra info ... s+ secrets" - only actually drawn once Score Calculator
-        // has a live estimate for this run (same gate that HUD element itself uses), so a blank/disabled
-        // Score Calculator never leaves a half-empty "Extra Info" header with nothing under it.
-        if (cfg.isShowExtraInfo() && ScoreCalculatorFeature.currentResult() != null) {
+        // killer560, 2026-09-27: "the extra info ... s+ secrets". Since 2026-10-07 the estimate is tracked whenever
+        // this toggle is on (ScoreCalculatorFeature.estimateWanted), Score Calculator or not - it used to draw only
+        // with Score Calculator on, so the toggle alone showed nothing. Before the run's first estimate the section
+        // says so in one dim line instead of vanishing.
+        if (cfg.isShowExtraInfo() && ScoreCalculatorFeature.currentResult() == null) {
+            ty = legendHeader(g, "Extra Info", null, x, ty + SECTION_GAP);
+            ty = text(g, fit("Waiting for the run's tab list", LEGEND_W - 2 * PAD), x + PAD, ty, DIM);
+        } else if (cfg.isShowExtraInfo()) {
             ty = legendHeader(g, "Extra Info", null, x, ty + SECTION_GAP);
             ty = infoRow(g, x, ty, "Crypts", ScoreCalculatorFeature.getCrypts() + "/5", TEXT);
             ty = flagsRow(g, x, ty, new String[]{"Bat", "Mimic", "Prince"}, new boolean[]{

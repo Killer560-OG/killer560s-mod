@@ -159,14 +159,31 @@ public final class ThornFeature {
             return 140;
         }
 
+        /** The lines drawn right now ({line1, line2-or-null}), or null when nothing is; render() and the box both
+         *  read this, so the HUD editor's box is the drawn text (it was a fixed 110x22). */
+        private static String[] lines() {
+            Minecraft client = Minecraft.getInstance();
+            ThornConfig cfg = ThornConfig.getInstance();
+            if (McCompat.screen(client) instanceof HudEditorScreen) {
+                return new String[]{"§6Bear: §d17/25", "§6Overkill: §e3"};
+            }
+            if (!cfg.isBearHudEnabled() || !inThornBoss()) {
+                return null;
+            }
+            return new String[]{"§6Bear: " + SpiritBearTracker.stateText(),
+                    cfg.isShowOverkill() ? SpiritBearTracker.overkillText() : null};
+        }
+
         @Override
         public int width() {
-            return 110;
+            String[] l = lines();
+            return l == null ? 20 : com.killer560.hub.hud.HudText.width(l);
         }
 
         @Override
         public int height() {
-            return 22;
+            String[] l = lines();
+            return l != null && l[1] != null ? 11 + com.killer560.hub.hud.HudText.ROW : com.killer560.hub.hud.HudText.ROW;
         }
 
         @Override
@@ -178,19 +195,12 @@ public final class ThornFeature {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
-            ThornConfig cfg = ThornConfig.getInstance();
-            String line1;
-            String line2;
-            if (McCompat.screen(client) instanceof HudEditorScreen) {
-                line1 = "§6Bear: §d17/25";
-                line2 = "§6Overkill: §e3";
-            } else {
-                if (!cfg.isBearHudEnabled() || !inThornBoss()) {
-                    return;
-                }
-                line1 = "§6Bear: " + SpiritBearTracker.stateText();
-                line2 = cfg.isShowOverkill() ? SpiritBearTracker.overkillText() : null;
+            String[] l = lines();
+            if (l == null) {
+                return;
             }
+            String line1 = l[0];
+            String line2 = l[1];
             HudSeen.markDrawn(id());
             graphics.text(client.font, line1, x, y, 0xFFFFFFFF, true);
             if (line2 != null) {

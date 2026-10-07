@@ -15,7 +15,13 @@ import java.nio.file.Path;
  *  extra info, mimic-room show/hide, player-head class recolor - all things SkyblockAddons-style mods do
  *  by drawing on top of Hypixel's own real vanilla map item, not a custom-rendered minimap).
  *  <p>
- *  <b>Honesty note:</b> none of those 4 toggles below actually change anything yet. Drawing the right
+ *  <p>
+ *  <b>Extra info is real since 2026-10-07:</b> it draws score, secrets for S+, crypts, deaths and bonus kills under
+ *  the Dungeon Map HUD ({@code LiveMapFeature.LiveMapHudElement}), from the Score Calculator's tracking, which runs
+ *  for it with Score Calculator off. It needs no map pixel data. killer560 turned it on and saw nothing, which is
+ *  how it was found to be a placeholder.
+ *  <p>
+ *  <b>Honesty note:</b> the other 3 toggles below still do not change anything. Drawing the right
  *  thing on top of the map requires knowing exactly which pixel colors/positions on Hypixel's real F7/M7
  *  map mean "this room is the mimic room" or "this icon is a player of class X" - that's real per-pixel
  *  reverse-engineering data this mod doesn't have confirmed, and guessing at pixel color meanings would

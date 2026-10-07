@@ -311,14 +311,41 @@ public final class DungeonInfoFeature {
             return 260;
         }
 
+        /**
+         * The line this element draws right now, or null when it draws nothing - one answer for render() and the box.
+         *
+         * <p>Clear only (killer560, 2026-10-07: "in boss room remove the secrets: 0/? menu - that should be hidden in
+         * boss fights and only shown during clear"). Hidden from the moment the run enters the boss for the rest of
+         * that run: {@link LiveMapFeature#isInBoss()} latches on every floor's boss room by position (and on F7/M7 on
+         * Maxor's line through {@link DungeonState#isBossPhaseActive()}), and only a new dungeon clears it. In the
+         * HUD editor it shows a sample whenever it would not draw for real, so it can still be moved.
+         */
+        private static String line() {
+            DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
+            if (!cfg.isSecretsHudEnabled() || HudVisibility.hidesHud()) {
+                return null;
+            }
+            boolean live = DungeonState.isInDungeon() && !LiveMapFeature.isInBoss();
+            if (!live) {
+                return HudVisibility.editorOpen() ? "Secrets: 3/7" : null;
+            }
+            RoomEntry entry = LiveMapFeature.currentRoomEntry();
+            String found = roomSecretsFound >= 0 ? String.valueOf(roomSecretsFound) : "?";
+            String total = entry != null ? String.valueOf(entry.secrets) : "?";
+            return "Secrets: " + found + "/" + total;
+        }
+
         @Override
         public int width() {
-            return 140;
+            // The drawn text's own width (it was a fixed 140, about twice "Secrets: 0/3").
+            String text = line();
+            return Math.max(1, Minecraft.getInstance().font.width(text != null ? text : "Secrets: 3/7"));
         }
 
         @Override
         public int height() {
-            return 12;
+            // One text row (it was 12).
+            return Minecraft.getInstance().font.lineHeight;
         }
 
         @Override
@@ -328,15 +355,14 @@ public final class DungeonInfoFeature {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            DungeonInfoConfig cfg = DungeonInfoConfig.getInstance();
-            if (!cfg.isSecretsHudEnabled() || !DungeonState.isInDungeon() || HudVisibility.hidesHud()) {
+            String text = line();
+            if (text == null) {
                 return;
             }
-            RoomEntry entry = LiveMapFeature.currentRoomEntry();
-            String found = roomSecretsFound >= 0 ? String.valueOf(roomSecretsFound) : "?";
-            String total = entry != null ? String.valueOf(entry.secrets) : "?";
-            HudSeen.markDrawn(id());
-            graphics.text(Minecraft.getInstance().font, "Secrets: " + found + "/" + total, x, y, 0xFFFFFFFF, false);
+            if (!HudVisibility.editorOpen()) {
+                HudSeen.markDrawn(id());
+            }
+            graphics.text(Minecraft.getInstance().font, text, x, y, 0xFFFFFFFF, false);
         }
     }
 }

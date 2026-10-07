@@ -95,12 +95,27 @@ public final class AbilityTimersFeature {
 
         @Override
         public int width() {
-            return 150;
+            // Swatch + the widest drawn line (2026-10-07 box audit: it was a fixed 150). With nothing running it
+            // draws nothing, and the box keeps a grabbable 150 for the HUD editor.
+            List<AbilityTimerEntry> entries = runningEntries();
+            if (entries.isEmpty()) {
+                return 150;
+            }
+            long now = System.currentTimeMillis();
+            int w = 1;
+            for (AbilityTimerEntry e : entries) {
+                w = Math.max(w, 12 + Minecraft.getInstance().font.width(lineText(e, now)));
+            }
+            return w;
         }
 
         @Override
         public int height() {
-            return 12 * Math.max(1, runningEntries().size());
+            return com.killer560.hub.hud.HudText.height(runningEntries().size(), 12);
+        }
+
+        private static String lineText(AbilityTimerEntry e, long now) {
+            return String.format(Locale.US, "%s: %.1fs", e.name, (e.expiresAtMs - now) / 1000.0);
         }
 
         @Override
@@ -116,10 +131,8 @@ public final class AbilityTimersFeature {
             long now = System.currentTimeMillis();
             int lineY = y;
             for (AbilityTimerEntry e : runningEntries()) {
-                double remaining = (e.expiresAtMs - now) / 1000.0;
                 graphics.fill(x, lineY + 1, x + 8, lineY + 9, e.color());
-                graphics.text(Minecraft.getInstance().font,
-                        String.format(Locale.US, "%s: %.1fs", e.name, remaining), x + 12, lineY, 0xFFFFFFFF, false);
+                graphics.text(Minecraft.getInstance().font, lineText(e, now), x + 12, lineY, 0xFFFFFFFF, false);
                 lineY += 12;
             }
             if (lineY != y) {

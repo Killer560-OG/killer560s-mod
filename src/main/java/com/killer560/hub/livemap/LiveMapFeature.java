@@ -201,7 +201,16 @@ public final class LiveMapFeature {
         });
     }
 
+    /** A published sim floor's room-slot bounding box {@code {minCol, minRow, maxCol, maxRow}}, or null. */
+    private static int[] simRoomExtent;
+
+    /** See {@link #simRoomExtent}; what {@link MapPainter#gridExtent} fits a sim floor to. */
+    static int[] simRoomExtent() {
+        return simRoomExtent;
+    }
+
     private static void resetGrid(String reason) {
+        simRoomExtent = null;
         java.util.Arrays.fill(grid, Tile.UNKNOWN);
         java.util.Arrays.fill(roomEntryGrid, null);
         java.util.Arrays.fill(rotationGrid, -1);
@@ -334,6 +343,24 @@ public final class LiveMapFeature {
             };
         }
         groupsDirty = true;
+        int[] extent = null;
+        for (int idx = 0; idx < GRID * GRID; idx++) {
+            int room = idx < roomCells.length ? roomCells[idx] : -1;
+            if (room < 0 || room >= names.length) {
+                continue;
+            }
+            int col = (idx % GRID) / 2;
+            int row = (idx / GRID) / 2;
+            if (extent == null) {
+                extent = new int[]{col, row, col, row};
+            } else {
+                extent[0] = Math.min(extent[0], col);
+                extent[1] = Math.min(extent[1], row);
+                extent[2] = Math.max(extent[2], col);
+                extent[3] = Math.max(extent[3], row);
+            }
+        }
+        simRoomExtent = extent;
         // Where Hypixel would have put wither doors on this floor - the sim builds none. Drawn only in the sim.
         com.killer560.hub.roomsim.SimWitherDoors.publish(roomCells, doorCells, names);
         LOGGER.info("[LiveMap] Sim floor published: {} room(s)", names.length);
@@ -344,8 +371,15 @@ public final class LiveMapFeature {
         if (client.level == null) {
             return;
         }
-        for (int x = 0; x < GRID; x++) {
-            for (int z = 0; z < GRID; z++) {
+        // Only the floor's own grid (killer560, 2026-10-07: "the map doesn't rescale very well for other floors").
+        // A small floor's boss arena stands inside the 6x6 footprint - F1's in room slots (4..5, 5) - and its roof
+        // read as ROOM tiles, which widened the map to 6x6 and drew two brown rooms below the floor. See
+        // MapPainter.gridExtent. Unknown floor: the whole grid, as before.
+        int[] rooms = MapPainter.currentFloorRooms();
+        int maxX = rooms[0] * 2 - 1;
+        int maxZ = rooms[1] * 2 - 1;
+        for (int x = 0; x < maxX; x++) {
+            for (int z = 0; z < maxZ; z++) {
                 int idx = x + z * GRID;
                 int wx = START_X + x * HALF_ROOM;
                 int wz = START_Z + z * HALF_ROOM;
@@ -859,10 +893,14 @@ public final class LiveMapFeature {
         return cell[0] + cell[1] * GRID;
     }
 
+    /** Whether (x, z) is over a room slot of the CURRENT floor's grid. It used to test the full 6x6 for every floor,
+     *  and on Floor 1 the boss arena's near half is inside that 6x6 (slots 4..5, row 5) - so entering Bonzo's room
+     *  did not latch the boss state until he walked deep into it, and the map kept scanning the arena as rooms. */
     private static boolean insideGridFootprint(double x, double z) {
         long roomIndexX = Math.round((x - START_X) / 32.0);
         long roomIndexZ = Math.round((z - START_Z) / 32.0);
-        return roomIndexX >= 0 && roomIndexX <= 5 && roomIndexZ >= 0 && roomIndexZ <= 5;
+        int[] rooms = MapPainter.currentFloorRooms();
+        return roomIndexX >= 0 && roomIndexX < rooms[0] && roomIndexZ >= 0 && roomIndexZ < rooms[1];
     }
 
     /** @return true while the player is in (or has entered, this run) the current floor's boss room -
@@ -1040,8 +1078,54 @@ public final class LiveMapFeature {
 
         @Override
         public int height() {
-            // killer560, 2026-09-20: "remove room name below map" - the HUD is exactly the map now, no extra row.
-            return mapPx();
+            // killer560, 2026-09-20: "remove room name below map" - the HUD is exactly the map, plus the Extra Info
+            // section under it when that is on (2026-10-07), measured from the same lines it draws.
+            return mapPx() + extraInfoHeight(extraInfoLines());
+        }
+
+        /** Gap between the map and the Extra Info section, and the height of one of its rows. */
+        private static final int EXTRA_GAP = 2;
+        private static final int EXTRA_ROW = 10;
+
+        /** Extra Info's lines, or none when the Map Extras toggle is off. One list for the drawing and the box. */
+        private static List<String> extraInfoLines() {
+            if (!com.killer560.hub.mapping.MappingConfig.getInstance().isExtraInfoEnabled()) {
+                return List.of();
+            }
+            return com.killer560.hub.scorecalc.ScoreCalculatorFeature.mapInfoLines(false);
+        }
+
+        private static int extraInfoHeight(List<String> lines) {
+            return lines.isEmpty() ? 0 : EXTRA_GAP + lines.size() * EXTRA_ROW;
+        }
+
+        /**
+         * Extra Info under the map (killer560, 2026-10-07: "I have the extra info overlay on for the map but the
+         * info isn't coming up below the map" - the Map Extras toggle was a saved placeholder that drew nothing).
+         * Score, secrets for S+, crypts, deaths and the bonus kills, from the Score Calculator's live tracking, which
+         * runs for this toggle whether or not Score Calculator itself is on. On the map's own background, as wide as
+         * the map; a line too long for a small Room Size is scaled down to fit rather than spilling past the box.
+         */
+        private static void renderExtraInfo(GuiGraphicsExtractor graphics, int x, int y, LiveMapConfig cfg,
+                                            List<String> lines) {
+            if (lines.isEmpty()) {
+                return;
+            }
+            int w = mapPx();
+            int h = extraInfoHeight(lines);
+            graphics.fill(x, y, x + w, y + h, cfg.getMapBackground());
+            net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+            int lineY = y + EXTRA_GAP + 1;
+            for (String line : lines) {
+                int tw = font.width(line);
+                float s = tw > w - 4 ? (w - 4) / (float) tw : 1f;
+                graphics.pose().pushMatrix();
+                graphics.pose().translate(x + 2, lineY);
+                graphics.pose().scale(s, s);
+                graphics.text(font, line, 0, 0, 0xFFFFFFFF, cfg.isTextShadow());
+                graphics.pose().popMatrix();
+                lineY += EXTRA_ROW;
+            }
         }
 
         @Override
@@ -1085,6 +1169,7 @@ public final class LiveMapFeature {
             try {
                 HudSeen.markDrawn(id());
                 renderMap(graphics, x, y, cfg, client);
+                renderExtraInfo(graphics, x, y + mapPx(), cfg, extraInfoLines());
             } finally {
                 if (peeking) {
                     graphics.pose().popMatrix();

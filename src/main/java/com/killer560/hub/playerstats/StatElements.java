@@ -103,7 +103,9 @@ public final class StatElements {
             if (r.bar) {
                 return PlayerStatsConfig.getInstance().getBarWidth();
             }
-            return 90;
+            // The drawn readout (2026-10-07 box audit: it was a fixed 90); its label when there is no value yet.
+            String text = text(true);
+            return Math.max(1, Minecraft.getInstance().font.width(text));
         }
 
         @Override
@@ -202,6 +204,17 @@ public final class StatElements {
         }
 
         private boolean drawText(GuiGraphicsExtractor g, PlayerStatsConfig cfg, int x, int y, boolean preview) {
+            String text = text(preview);
+            if (text == null) {
+                return false;
+            }
+            g.text(Minecraft.getInstance().font, text, x, y, cfg.getReadoutColor(r), cfg.isTextShadow());
+            return true;
+        }
+
+        /** The readout drawText draws: the live value, or (in the HUD editor) its label until there is one; null
+         *  when it draws nothing. */
+        private String text(boolean preview) {
             String text = switch (r) {
                 case HEALTH_TEXT -> PlayerStatsFeature.healthCur < 0 ? null
                         : "❤ " + fmt(PlayerStatsFeature.healthCur) + "/" + fmt(PlayerStatsFeature.healthMax);
@@ -221,14 +234,10 @@ public final class StatElements {
                         : fmt(PlayerStatsFeature.otherCur) + "/" + fmt(PlayerStatsFeature.otherMax)
                         + PlayerStatsFeature.otherIcon;
             };
-            if (text == null) {
-                if (!preview) {
-                    return false;
-                }
+            if (text == null && preview) {
                 text = r.label;
             }
-            g.text(Minecraft.getInstance().font, text, x, y, cfg.getReadoutColor(r), cfg.isTextShadow());
-            return true;
+            return text;
         }
     }
 

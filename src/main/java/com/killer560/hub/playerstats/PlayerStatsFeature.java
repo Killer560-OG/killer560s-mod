@@ -306,7 +306,29 @@ public final class PlayerStatsFeature {
 
         @Override
         public int width() {
-            return 220;
+            // The bars' width or the text line's, whichever is drawn wider (2026-10-07 box audit: it was a fixed 220
+            // round 200-unit bars).
+            PlayerStatsConfig cfg = PlayerStatsConfig.getInstance();
+            int w = cfg.isShowBar() && (cfg.isShowHealth() || cfg.isShowMana()) ? BAR_WIDTH : 1;
+            if (cfg.isShowText()) {
+                w = Math.max(w, Minecraft.getInstance().font.width(textLine(cfg).stripTrailing()));
+            }
+            return w;
+        }
+
+        /** The text row render() draws (empty before anything has been scraped). */
+        private static String textLine(PlayerStatsConfig cfg) {
+            StringBuilder text = new StringBuilder();
+            if (cfg.isShowHealth() && health != null) {
+                text.append("§cHP: §f").append(health).append("  ");
+            }
+            if (cfg.isShowMana() && mana != null) {
+                text.append("§bMP: §f").append(mana).append("  ");
+            }
+            if (cfg.isShowDefense() && defense != null) {
+                text.append("§aDEF: §f").append(defense);
+            }
+            return text.toString();
         }
 
         @Override
@@ -345,18 +367,9 @@ public final class PlayerStatsFeature {
             }
             boolean drew = rowY != y;
             if (cfg.isShowText()) {
-                StringBuilder text = new StringBuilder();
-                if (cfg.isShowHealth() && health != null) {
-                    text.append("§cHP: §f").append(health).append("  ");
-                }
-                if (cfg.isShowMana() && mana != null) {
-                    text.append("§bMP: §f").append(mana).append("  ");
-                }
-                if (cfg.isShowDefense() && defense != null) {
-                    text.append("§aDEF: §f").append(defense);
-                }
+                String text = textLine(cfg);
                 if (!text.isEmpty()) {
-                    graphics.text(Minecraft.getInstance().font, text.toString(), x, rowY, 0xFFFFFFFF, false);
+                    graphics.text(Minecraft.getInstance().font, text, x, rowY, 0xFFFFFFFF, false);
                     drew = true;
                 }
             }
