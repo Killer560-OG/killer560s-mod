@@ -14,7 +14,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 
 import java.util.List;
@@ -78,8 +77,9 @@ public final class ItemProtect {
         if (stack == null || stack.isEmpty()) {
             return null;
         }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        return data == null ? null : data.copyTag();
+        // Read only (every caller here only reads keys): asked for every slot of an open menu every frame, where
+        // copyTag deep-copied each item's whole ExtraAttributes up to three times per slot (FPS sweep).
+        return com.killer560.hub.util.ItemNbt.view(stack);
     }
 
     /** The key this item is remembered by in the protected list: its UUID, or (with the fallback setting on)
