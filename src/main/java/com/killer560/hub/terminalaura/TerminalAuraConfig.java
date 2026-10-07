@@ -43,6 +43,10 @@ public final class TerminalAuraConfig {
 
     public static final int MAX_DELAY_MS = 2000;
 
+    /** Aura FOV bounds, QUOI's: 360 means any direction, which is also the default. */
+    public static final int MIN_FOV = 10;
+    public static final int MAX_FOV = 360;
+
     private static TerminalAuraConfig instance;
 
     private boolean enabled = false;
@@ -53,6 +57,7 @@ public final class TerminalAuraConfig {
     private boolean groundOnly = false;
     private boolean leapDelayEnabled = false;
     private double leapDelaySeconds = 0.5;
+    private int fovDegrees = MAX_FOV;
 
     private TerminalAuraConfig() {
     }
@@ -79,6 +84,7 @@ public final class TerminalAuraConfig {
                 cfg.leapDelayEnabled = ConfigJson.getBool(root, "leapDelayEnabled", false);
                 cfg.leapDelaySeconds = ConfigJson.getDouble(root, "leapDelaySeconds", 0.5);
                 cfg.pauseOnMovementKeys = ConfigJson.getBool(root, "pauseOnMovementKeys", false);
+                cfg.fovDegrees = ConfigJson.getInt(root, "fovDegrees", MAX_FOV);
             } catch (Exception ignored) {
                 // Unreadable file: the per-key readers keep whatever parsed, the rest stay at defaults.
             }
@@ -97,6 +103,7 @@ public final class TerminalAuraConfig {
             root.addProperty("leapDelayEnabled", leapDelayEnabled);
             root.addProperty("leapDelaySeconds", leapDelaySeconds);
             root.addProperty("pauseOnMovementKeys", pauseOnMovementKeys);
+            root.addProperty("fovDegrees", fovDegrees);
             Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -170,5 +177,14 @@ public final class TerminalAuraConfig {
 
     public void setLeapDelaySeconds(double leapDelaySeconds) {
         this.leapDelaySeconds = leapDelaySeconds;
+    }
+
+    /** Only terminals within this cone around where you look count; 360 is every direction (QUOI's "Aura FOV"). */
+    public int getFovDegrees() {
+        return Math.min(MAX_FOV, Math.max(MIN_FOV, fovDegrees));
+    }
+
+    public void setFovDegrees(int fovDegrees) {
+        this.fovDegrees = fovDegrees;
     }
 }

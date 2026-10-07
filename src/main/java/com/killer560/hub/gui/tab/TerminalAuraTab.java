@@ -85,7 +85,8 @@ public class TerminalAuraTab extends BaseTab {
                     cfg.setPauseOnMovementKeys(!cfg.isPauseOnMovementKeys());
                     cfg.save();
                     btn.setMessage(onOff("Pause On Movement Keys", cfg.isPauseOnMovementKeys()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
+                }).bounds(contentX, y, halfW, ROW).build());
+        widgets.add(fovSlider(contentX + halfW + GAP, y, Math.max(1, contentWidth - halfW - GAP), cfg));
         y += ROW + GAP;
 
         if (cfg.isLeapDelayEnabled()) {
@@ -137,6 +138,33 @@ public class TerminalAuraTab extends BaseTab {
                 cfg.save();
             }
         };
+    }
+
+    /** Aura FOV, {@value TerminalAuraConfig#MIN_FOV} to {@value TerminalAuraConfig#MAX_FOV} degrees in whole steps. */
+    private static com.killer560.hub.gui.ThemedSliderButton fovSlider(int x, int y, int width, TerminalAuraConfig cfg) {
+        double span = TerminalAuraConfig.MAX_FOV - TerminalAuraConfig.MIN_FOV;
+        double normalized = Math.max(0.0, Math.min(1.0, (cfg.getFovDegrees() - TerminalAuraConfig.MIN_FOV) / span));
+        return new com.killer560.hub.gui.ThemedSliderButton(x, y, width, ROW, fovLabel(cfg.getFovDegrees()), normalized) {
+            private int valueAt() {
+                return (int) Math.round(TerminalAuraConfig.MIN_FOV
+                        + this.value * (TerminalAuraConfig.MAX_FOV - TerminalAuraConfig.MIN_FOV));
+            }
+
+            @Override
+            protected void updateMessage() {
+                setMessage(fovLabel(valueAt()));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setFovDegrees(valueAt());
+                cfg.save();
+            }
+        };
+    }
+
+    private static Component fovLabel(int degrees) {
+        return Component.literal("Aura FOV: " + (degrees >= TerminalAuraConfig.MAX_FOV ? "Any" : degrees + "°"));
     }
 
     private static Component rangeText(TerminalAuraConfig cfg) {

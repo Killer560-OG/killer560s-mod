@@ -321,24 +321,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
             y += 22;
         }
 
-        // ---- Terminal Open Logger (2026-10-07) ----
-        com.killer560.hub.termlog.TerminalOpenLoggerConfig log = com.killer560.hub.termlog.TerminalOpenLoggerConfig.getInstance();
-        y += 4;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Terminal Open Logger", false), mc.font));
-        y += 14;
-        widgets.add(SettingsButtonWidget.builder(onOff("Terminal Open Logger", log.isEnabled()), btn -> {
-                    log.setEnabled(!log.isEnabled());
-                    log.save();
-                    btn.setMessage(onOff("Terminal Open Logger", log.isEnabled()));
-                }).bounds(contentX, y, col2W, 20).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Logger Chat Lines", log.isChatLines()), btn -> {
-                    log.setChatLines(!log.isChatLines());
-                    log.save();
-                    btn.setMessage(onOff("Logger Chat Lines", log.isChatLines()));
-                }).bounds(col2bX, y, col2W, 20).build());
-        y += 22;
-
         return y;
     }
 

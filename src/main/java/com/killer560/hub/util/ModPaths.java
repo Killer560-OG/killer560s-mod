@@ -95,8 +95,6 @@ public final class ModPaths {
                 "leveraura", "arrowalign"}) {
             t.put(terminal, "dungeons/terminals");
         }
-        // Terminal Open Logger: its settings and its attempts log (killer560smod-termlog-attempts.jsonl).
-        t.put("termlog", "dungeons/termlog");
 
         for (String boss : new String[]{"maxor", "witherdragons", "thorn", "f7spots", "p4platformhighlight",
                 "lividsolver", "bloodcamp"}) {

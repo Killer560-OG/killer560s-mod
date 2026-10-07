@@ -1352,7 +1352,6 @@ final class SettingTooltipsData {
         d.put("terminal solver/hide completion titles", "Hides the terminal completion title and subtitle on screen.");
         d.put("terminal solver/hide completion chat", "Hides the terminal completion lines in chat, including Terminal Timers' split times.");
         d.put("terminal solver/only hide others'", "Hides only the other players' completion lines and keeps your own.");
-        d.put("terminal solver/terminal open logger", "Diagnostic, on by default: in any F7/M7 boss it logs every right click you make near a terminal - where you stood and looked, the stand and block, and whether it opened - to config/killer560/dungeons/termlog. Sends nothing; does nothing outside the boss. /termlog summary shows the open rate by height and pitch.");
         d.put("terminal solver/logger chat lines", "One chat line per logged attempt: OPEN or NO OPEN, the delay, your eye height against the stand and block, pitch, distance and line of sight.");
         d.put("goldor frenzy/goldor frenzy timer", "Counts down to Goldor's next damage tick during Phase 3.");
         d.put("goldor frenzy/pre-goldor", "Also counts the gap between Storm dying and Goldor arriving.");
@@ -1654,6 +1653,7 @@ final class SettingTooltipsData {
                 + "Red past 3.0 - that is the furthest measured not to draw a Reach flag, because a terminal is "
                 + "an armour stand and an entity gets a tighter limit than a block's 4.5.");
         d.put("terminal aura/delay", "Cheat build: minimum time between two terminal opens, 0-2000 ms.");
+        d.put("terminal aura/aura fov", "Cheat build: only terminals within this angle of where you are looking are opened, 10-360 degrees; Any (360) means every direction. Terminals above your eyes are always skipped, since they no longer open from below.");
         d.put("terminal solver/numbers", "Highlights the next two panes to click in the 'Click in order!' terminal.");
         d.put("terminal triggerbot/delay", "Cheat build: how long your crosshair must stay on a terminal before it opens, 0-1000 ms.");
         d.put("terminal triggerbot/cooldown", "Cheat build: minimum time between two terminal opens, 0-2000 ms.");

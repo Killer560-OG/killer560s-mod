@@ -106,7 +106,7 @@ public final class TerminalAuraFeature {
             return;
         }
 
-        if (clickNearest(client, player, cfg.getRange())) {
+        if (clickNearest(client, player, cfg.getRange(), cfg.getFovDegrees())) {
             lastClickMs = now;
         }
     }
@@ -119,11 +119,22 @@ public final class TerminalAuraFeature {
      * {@link TerminalAuraConfig#isEnabled()}, and the caller owns the retry.
      */
     public static boolean clickNearest(Minecraft client, Player player, double range) {
+        return clickNearest(client, player, range, TerminalAuraConfig.MAX_FOV);
+    }
+
+    /**
+     * As above, but only terminals within {@code fovDegrees} of where you are looking (360 = any direction), as
+     * QUOI's "Aura FOV".
+     */
+    public static boolean clickNearest(Minecraft client, Player player, double range, int fovDegrees) {
         if (client.level == null || client.gameMode == null || range <= 0) {
             return false;
         }
         Vec3 eyes = player.getEyePosition();
         double rangeSqr = range * range;
+        Vec3 look = player.getViewVector(1f).normalize();
+        boolean fullCircle = fovDegrees >= TerminalAuraConfig.MAX_FOV;
+        double minFovDot = Math.cos(Math.toRadians(fovDegrees / 2.0));
         // Sorted by distance, so "the nearest terminal" is what actually happens.
         //
         // This walked getEntitiesOfClass order and took the first one in range, which is chunk and spawn
@@ -135,6 +146,14 @@ public final class TerminalAuraFeature {
                 st -> eyes.distanceToSqr(TerminalStands.center(st))));
         for (ArmorStand stand : stands) {
             Vec3 center = TerminalStands.center(stand);
+            // Since Hypixel's 2026 terminal update a terminal does not open from below: QUOI (jcnlk's fork,
+            // 077adbe/44eac98, 2026-10-07) skips any stand whose feet are above your EYES, not your feet.
+            if (eyes.y < stand.getY()) {
+                continue;
+            }
+            if (!fullCircle && center.subtract(eyes).normalize().dot(look) < minFovDot) {
+                continue;
+            }
             // To the BOX. The centre reads further than the server measures, so a terminal at the edge of
             // the 3.0 entity limit was refused when it was really in range.
             if (com.killer560.hub.util.BlockHits.boxDistanceSq(eyes,
