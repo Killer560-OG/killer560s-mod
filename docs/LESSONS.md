@@ -246,6 +246,15 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   the room the room-by-room planner had just walked him up (2026-10-06). When the block itself matters, use
   `ClearExecutor.etherPathExact` (room by room before a near landing or a graph "no way"), and filter goals with
   `EtherwarpPathfinder.isEtherwarpable`: a carpet-topped spot he stood on is not one, and the planner searches nothing.
+- `ClearExecutor.isActive()` goes false two ticks after the last hop is SENT (`compDelay`), before its landing comes back,
+  so anything asking "is the Interactive Map moving him?" at the landing must use `isBusy()` (true through the arrival
+  sync), and read it when the position packet arrives. The insta-clear recorder used `isActive` on the next tick and
+  logged every map path's final landing as "teleport by manual" (Mage, Hall, his live F7 runs 2026-10-06).
+- An insta-clear observation must know whether he STOPPED in the room. A map path lands in rooms on the way for a tick
+  each; the v1 recorder judged them like stops, so they closed NO_CLEAR (one failure blocks an entry for good), or NO_STARS
+  when the room flipped ~200 ms after landing, before its mobs had loaded (Duncan, a real insta). Now: left within 3 s and
+  no flip by 1.5 s after leaving is PASS_THROUGH; a flip with no starred mob in sight waits (up to 60 s) to see the mobs,
+  which Hypixel leaves standing in an insta-cleared room. 98-sim-insta-clear-live replays both on a sim floor.
 
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
