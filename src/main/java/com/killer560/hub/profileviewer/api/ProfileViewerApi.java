@@ -596,8 +596,12 @@ public final class ProfileViewerApi {
             try {
                 mc.services().sessionService().joinServer(user.getProfileId(), user.getAccessToken(), serverId);
             } catch (Exception e) {
-                // Never log the exception detail - some authlib messages include request context.
-                throw new ApiException("Mojang session check failed (offline account or expired login).");
+                // Never log the exception detail - some authlib messages include request context. Ask the
+                // backend anyway and let it decide: as of 2026-10-07 its /authenticate check is switched off and
+                // it hands every caller a guest token (checked by hand: any username, an unjoined server id, a
+                // token back), so an offline account or a lapsed login still gets data. If the check is on, the
+                // backend answers 401 and the caller reports that.
+                LOGGER.info("[ProfileViewer] Mojang session join failed; asking the backend for a guest token");
             }
             return new String[]{user.getName(), serverId};
         }, EXECUTOR).thenCompose(pair -> {

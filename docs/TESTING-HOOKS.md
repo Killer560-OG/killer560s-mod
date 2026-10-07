@@ -16,7 +16,7 @@ default)` and goes out through `ModNet.send` / `sendAsync` / `open` / `webSocket
   dead network gives, so each caller's own failure path runs. Hosts named by a `killer560.net.<service>`
   override are still reachable, so a harness can run offline with only its fakes. Read on every call.
 
-Service keys: `hypixel`, `noamm`, `noamm-ws`, `odin-ws`, `devonian-ws`, `docilelm`, `pv-backend`, `mojang`,
+Service keys: `hypixel`, `noamm`, `noamm-ws`, `odin-ws`, `devonian-ws`, `pv-backend`, `mojang`,
 `minecraftservices`, `microsoft`, `xboxlive`, `github-raw`, `jsdelivr`, `coflnet`, `github-api`, `relay`,
 `lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`. `ModNet`'s javadoc says which host and feature each one is.
 
