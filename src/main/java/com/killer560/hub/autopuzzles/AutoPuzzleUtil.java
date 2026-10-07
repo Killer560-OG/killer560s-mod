@@ -649,6 +649,43 @@ public final class AutoPuzzleUtil {
         return ActionGate.tryAct(ActionGate.Actor.PUZZLE_WORLD);
     }
 
+    /** The body turn for a puzzle click the reported look does not reach (util/TurnFirst); the camera never moves. */
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
+
+    /** Every puzzle tick, FIRST, whatever the gates: holds a turned body for its click and gives it back after. */
+    static void turnTick(Minecraft client) {
+        TURN.tick(client.player);
+    }
+
+    /**
+     * {@link #gateWorldClick()} for a click on {@code pos}, which may be anywhere around him (these autos pick blocks
+     * by reach, not by the crosshair): false also when the reported look does not reach it, in which case the BODY
+     * was turned to it this tick and the click goes on a later tick - "held back, retry", exactly like a denied gate.
+     * A block use the reported look misses draws GrimAC RotationPlace (testkit 419, 2026-10-07).
+     */
+    public static boolean gateWorldClick(Minecraft client, BlockPos pos) {
+        if (!gateWorldClick()) {
+            return false;
+        }
+        if (pos == null) {
+            return true; // nothing to aim at; the caller's own null handling decides
+        }
+        BlockHitResult aim = com.killer560.hub.util.BlockHits.surface(client.level, pos, client.player.getEyePosition());
+        return aim == null || TURN.readyBlock(client.player, client.level, pos, aim.getLocation(),
+                client.player.getEyePosition().distanceTo(aim.getLocation()) + 1.0);
+    }
+
+    /** The same for an entity (a Three Weirdos NPC): an interact the reported look misses draws GrimAC Hitboxes. */
+    public static boolean gateWorldClick(Minecraft client, net.minecraft.world.entity.Entity entity) {
+        if (!gateWorldClick()) {
+            return false;
+        }
+        Vec3 eye = client.player.getEyePosition();
+        Vec3 aim = entity.getBoundingBox().clip(eye, entity.getBoundingBox().getCenter())
+                .orElse(entity.getBoundingBox().getCenter());
+        return TURN.readyBox(client.player, entity.getBoundingBox(), aim, eye.distanceTo(aim) + 1.0);
+    }
+
     /** No-rotate block interact - same as {@code AutoPuzzlesFeature}'s (QUOI {@code BlockPos.getHitResult()}):
      *  {@code useItemOn} with the eye-to-shape-centre ray clipped against the real shape, then a main-hand swing.
      *  Callers must have claimed the tick with {@link #gateWorldClick()} first.

@@ -164,6 +164,7 @@ public final class AutoPuzzlesFeature {
     }
 
     private static void onTick(Minecraft client) {
+        AutoPuzzleUtil.turnTick(client); // first, always: a body turned for a click is given back the tick after
         if (client.level != lastLevel) {
             lastLevel = client.level;
             resetQuiz();
@@ -271,8 +272,10 @@ public final class AutoPuzzlesFeature {
         if (blocker != null) {
             return;
         }
-        if (!AutoPuzzleUtil.gateWorldClick()) {
-            return; // gate held this tick back - the question is not marked acted, we just click on a later tick
+        // THE BUTTON - see below. Asked before the gate so a click the reported look misses turns the body first.
+        BlockPos quizClick = QuizSolverFeature.getCorrectAnswerButton(client.level);
+        if (!AutoPuzzleUtil.gateWorldClick(client, quizClick)) {
+            return; // gate held this tick back (or the body was turned to it) - not marked acted, clicked later
         }
         quizActed = true; // once per question, even if the click itself can't be built
         // THE BUTTON, not the pillar. killer560 (2026-10-01): "auto quiz isnt workign on sim."
@@ -281,7 +284,7 @@ public final class AutoPuzzlesFeature {
         // decoding Quiz.json puts four of the room's twelve wall buttons around each one, which is all twelve.
         // Right-clicking the pillar itself does nothing in either the sim or a real dungeon, so this asks the
         // solver which button to press and falls back to the pillar only if the room has none.
-        BlockPos click = QuizSolverFeature.getCorrectAnswerButton(client.level);
+        BlockPos click = quizClick;
         if (!interactBlockNoRotate(client, click)) {
             LOGGER.warn("[AutoPuzzles] Quiz: no clickable shape at {} (state={}) - not clicking this question",
                     click, client.level.getBlockState(click));
@@ -382,8 +385,8 @@ public final class AutoPuzzlesFeature {
             weirdosWait("not opening " + AutoPuzzleUtil.fmt(chest) + " - " + blocker);
             return;
         }
-        if (!AutoPuzzleUtil.gateWorldClick()) {
-            return; // gate held this tick back - the room is not marked acted, we just open on a later tick
+        if (!AutoPuzzleUtil.gateWorldClick(client, chest)) {
+            return; // gate held this tick back (or the body was turned to it) - not marked acted, opened later
         }
         weirdosActedPos = chest;
         if (!interactBlockNoRotate(client, chest)) {
@@ -441,8 +444,8 @@ public final class AutoPuzzlesFeature {
                     + clickedNpcIds.size() + " of 3 talked to)");
             return;
         }
-        if (!AutoPuzzleUtil.gateWorldClick()) {
-            return; // gate held this tick back - nothing clicked, so the NPC stays unmarked and the gap untouched
+        if (!AutoPuzzleUtil.gateWorldClick(client, best)) {
+            return; // gate held this tick back (or the body was turned to it) - the NPC stays unmarked
         }
         // A point ON the stand's box, not the stand's own position.
         //

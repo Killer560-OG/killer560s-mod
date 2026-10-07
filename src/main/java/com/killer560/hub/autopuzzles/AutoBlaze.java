@@ -1205,8 +1205,8 @@ final class AutoBlaze {
             secretAuraAttempts++;
             return;
         }
-        if (!AutoPuzzleUtil.gateWorldClick()) {
-            return; // gate held this tick back - not burnt, retried next tick
+        if (!AutoPuzzleUtil.gateWorldClick(client, target)) {
+            return; // gate held this tick back (or the body was turned to it) - not burnt, retried next tick
         }
         secretAuraAttempts++;
         if (!AutoPuzzleUtil.interactBlock(client, target)) {

@@ -118,7 +118,11 @@ public final class ArrowAlignFeature {
     // Tick: scan frames, confirm pending clicks, match layout
     // ------------------------------------------------------------------
 
+    /** The body turn for a frame the reported look does not reach (util/TurnFirst); the camera never moves. */
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
+
     private static void tick(Minecraft client) {
+        TURN.tick(client.player); // first, always: a body turned for a click is given back the tick after
         if (client.level != lastLevel) {
             reset();
             lastLevel = client.level;
@@ -344,8 +348,17 @@ public final class ArrowAlignFeature {
         if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.ARROW_ALIGN)) {
             return false;
         }
-        // Centre of the east (+X, player-facing) face - where a real crosshair ray lands on the frame.
-        Vec3 hit = new Vec3(box.maxX, (box.minY + box.maxY) / 2.0, (box.minZ + box.maxZ) / 2.0);
+        // Where the line from the eye meets the frame's box - the point a real click reports. (It was the centre of
+        // the east face, right only for a player standing east of the frames.) Falls back to that face's centre.
+        Vec3 eye = client.player.getEyePosition();
+        Vec3 hit = box.clip(eye, box.getCenter())
+                .orElse(new Vec3(box.maxX, (box.minY + box.maxY) / 2.0, (box.minZ + box.maxZ) / 2.0));
+        // Aura picks frames by range in any direction: one the reported look does not reach gets the BODY turned to it
+        // this tick and is clicked on the next, the camera held (util/TurnFirst) - an interact the look misses is
+        // GrimAC Hitboxes (testkit 415/418). False is the callers' "retry".
+        if (!TURN.readyBox(client.player, box, hit, eye.distanceTo(hit) + 1.0)) {
+            return false;
+        }
         syntheticClickInProgress = true;
         try {
             client.gameMode.interact(client.player, frame, new EntityHitResult(frame, hit), InteractionHand.MAIN_HAND);

@@ -198,8 +198,8 @@ final class AutoTicTacToe {
             waitFor("used all " + MAX_ATTEMPTS + " clicks on " + AutoPuzzleUtil.fmt(best) + " and the board did not change");
             return;
         }
-        if (!AutoPuzzleUtil.gateWorldClick()) {
-            return; // gate held this tick back - no attempt is burnt and the 500ms gap is untouched
+        if (!AutoPuzzleUtil.gateWorldClick(client, best)) {
+            return; // gate held this tick back (or the body was turned to it) - nothing burnt, gap untouched
         }
         attempts++;
         lastClickMs = now;
@@ -445,7 +445,7 @@ final class AutoTicTacToe {
             chestAuraAttempts++;
             return;
         }
-        if (!AutoPuzzleUtil.gateWorldClick()) {
+        if (!AutoPuzzleUtil.gateWorldClick(client, target)) {
             return;
         }
         chestAuraAttempts++;

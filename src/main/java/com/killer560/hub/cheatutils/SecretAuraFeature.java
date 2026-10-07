@@ -87,7 +87,12 @@ public final class SecretAuraFeature {
     private SecretAuraFeature() {
     }
 
+    /** The body turn for a secret the reported look does not reach (see util/TurnFirst); the camera never moves. */
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
+
     static void tick(Minecraft client) {
+        // First, always: a body turned for a click is held for it and given back the tick after, whatever gates below.
+        TURN.tick(client.player);
         CheatUtilsConfig cfg = CheatUtilsConfig.getInstance();
         // A NEW RUN, not only a new world. The done-set is keyed by block position, and a rebuilt room puts its
         // secrets back on exactly the same blocks. killer560 (2026-10-06, Map Logger, sim): "I would regenerate
@@ -227,6 +232,15 @@ public final class SecretAuraFeature {
         // Shared one-interaction-per-tick gate. Must sit above the attempt/cooldown bookkeeping below so a refused
         // tick costs nothing - the same (nearest) secret is simply re-picked next tick.
         if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.SECRET_AURA)) {
+            return;
+        }
+        // A secret the look the server was told about does not reach - one behind him - is clicked with the BODY
+        // turned to it: turned this tick, clicked next tick once the movement packet has reported it, given back the
+        // tick after. Clicked as it was, a lever behind him drew GrimAC RotationPlace (testkit 419, 2026-10-07).
+        BlockHitResult aimHit = com.killer560.hub.util.BlockHits.surface(
+                client.level, bestPos, client.player.getEyePosition());
+        if (aimHit != null && !TURN.readyBlock(client.player, client.level, bestPos, aimHit.getLocation(),
+                Math.sqrt(bestDist) + 2.0)) {
             return;
         }
         long key = bestPos.asLong();

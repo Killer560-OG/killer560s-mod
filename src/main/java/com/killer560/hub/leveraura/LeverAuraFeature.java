@@ -60,8 +60,9 @@ import java.util.regex.Pattern;
  * optionally once more beforehand ("early"). The stand check stops any re-click after they activated.
  * <li>Everything resets on world change and on Goldor's "Who dares trespass" line; nothing happens past S2.
  * </ul>
- * Click is {@code SecretAuraFeature}'s: no rotation, {@code gameMode.useItemOn} with a synthetic BlockHitResult, eye to
- * block-center range, no line-of-sight check (SecretAura has none either), never with a screen open. Human-ish pacing: a
+ * Click is {@code SecretAuraFeature}'s: {@code gameMode.useItemOn} with a surface hit clipped from the eye, box range,
+ * no line-of-sight check (SecretAura has none either), never with a screen open; a lever the reported look does not
+ * reach gets the body (never the camera) turned to it a tick first (util/TurnFirst). Human-ish pacing: a
  * lever must be in range for a random min..max delay before its first click, and clicks are spaced by a fresh random
  * min..max delay.
  */
@@ -196,7 +197,12 @@ public final class LeverAuraFeature {
     // Tick
     // ------------------------------------------------------------------------------------------------------------
 
+    /** The body turn for a lever the reported look does not reach (see util/TurnFirst); the camera never moves. */
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
+
     private static void tick(Minecraft client) {
+        // First, always: a body turned for a flick is held for it and given back the tick after.
+        TURN.tick(client.player);
         if (client.level != lastLevel) {
             lastLevel = client.level;
             resetRun("world change");
@@ -326,14 +332,17 @@ public final class LeverAuraFeature {
         if (!ActionGate.tryAct(ActionGate.Actor.LEVER_AURA)) {
             return;
         }
+        if (!click(client, cfg, target, reason, s2Open)) {
+            return; // the body was turned to it this tick (or no hit yet): the flick goes next tick
+        }
         if (ACTIVATION_REASON.equals(reason)) {
             lightsActivationClicked = true;
         }
-        click(client, cfg, target, reason, s2Open);
         nextClickAllowedMs = now + randomDelay(cfg);
     }
 
-    private static void click(Minecraft client, LeverAuraConfig cfg, BlockPos pos, String reason, boolean s2Open) {
+    /** False when nothing went out this tick (no hit yet, or the body was turned to the lever first). */
+    private static boolean click(Minecraft client, LeverAuraConfig cfg, BlockPos pos, String reason, boolean s2Open) {
         BlockState st = client.level.getBlockState(pos);
         Direction face = Direction.UP;
         if (st.hasProperty(LeverBlock.FACE) && st.hasProperty(LeverBlock.FACING)) {
@@ -355,7 +364,13 @@ public final class LeverAuraFeature {
             // centre is a point INSIDE the block and no raycast returns it. The lever is deliberately not
             // marked done here, so the next tick tries again once the geometry allows a real hit; marking it
             // first was what made a skip impossible without losing the lever entirely.
-            return;
+            return false;
+        }
+        // A lever the look the server was told about does not reach (behind him) gets the BODY turned to it first,
+        // the camera held: Secret Aura's identical click drew GrimAC RotationPlace from behind (testkit 419).
+        if (!TURN.readyBlock(client.player, client.level, pos, hit.getLocation(),
+                client.player.getEyePosition().distanceTo(hit.getLocation()) + 1.0)) {
+            return false;
         }
         (s2Open ? clickedS2 : clickedEarly).add(pos.asLong());
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
@@ -365,6 +380,7 @@ public final class LeverAuraFeature {
         if (cfg.isChatFeedback()) {
             ModChat.send(CHAT_TAG, ModChat.text("Flicked "), ModChat.value(pos.toShortString()), ModChat.dim(" (" + reason + ")"));
         }
+        return true;
     }
 
     /** A lever must have been in range for a random min..max delay (rolled when it came into range) before a click. */

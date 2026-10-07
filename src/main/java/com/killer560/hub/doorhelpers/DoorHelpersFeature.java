@@ -41,6 +41,7 @@ public final class DoorHelpersFeature {
     }
 
     private static void onEndTick(Minecraft client) {
+        AutoDoorOpenerFeature.turnTick(client); // first, always: a body turned for a door click is given back
         DoorHelpersConfig cfg = DoorHelpersConfig.getInstance();
         boolean anyEnabled = cfg.isAutoDoorEnabled();
         String gate = gate(client, anyEnabled);

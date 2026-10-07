@@ -772,9 +772,13 @@ public final class SimonSaysFeature {
     // Tick: detection, auto-start pacing, auto-solve pacing, trigger bot, announce key
     // ------------------------------------------------------------------
 
+    /** The body turn for a button the reported look does not reach (util/TurnFirst); the camera never moves. */
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
+
     private static void tick() {
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
+        TURN.tick(client.player); // first, always: a body turned for a click is given back the tick after
         boolean active = cfg.isEnabled() && client.player != null && client.level != null && isDeviceInRange(client);
 
         tickAnnounceKeybind(client, cfg);
@@ -2845,6 +2849,12 @@ public final class SimonSaysFeature {
                         * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH) {
             return false;
         }
+        // Never a click on a button that is not there. The device takes its buttons away between rounds, and a click
+        // into the empty block (surfaceOrCentre's centre fallback) is GrimAC AirLiquidPlace - testkit 422/423 drew one
+        // per round from Auto Solve, before and after the turn below. False is the callers' "retry next tick".
+        if (!(client.level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ButtonBlock)) {
+            return false;
+        }
         if (!ActionGate.tryAct(ActionGate.Actor.SIMON_SAYS)) {
             return false;
         }
@@ -2854,6 +2864,14 @@ public final class SimonSaysFeature {
         // BlockHits.
         BlockHitResult hitResult = com.killer560.hub.util.BlockHits.surfaceOrCentre(
                 client.level, pos, client.player.getEyePosition());
+        // A button the reported look does not reach - any but the one under the crosshair, or all of them with his
+        // back to the device - gets the BODY turned to it this tick and is clicked on the next, the camera held
+        // (util/TurnFirst). GrimAC flags a use the look misses as RotationPlace and drops it (SimonSaysCases' own
+        // first run, and testkit 419 for Secret Aura). False here is the callers' "retry next tick".
+        if (!TURN.readyBlock(client.player, client.level, pos, hitResult.getLocation(),
+                client.player.getEyePosition().distanceTo(hitResult.getLocation()) + 1.0)) {
+            return false;
+        }
         // Flagged so onRealBlockInteractAttempt (called from the same useItemOn this goes through) knows
         // to ignore this as one of the mod's own clicks rather than a real one.
         syntheticClickInProgress = true;

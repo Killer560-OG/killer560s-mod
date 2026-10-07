@@ -186,8 +186,8 @@ final class AutoWater {
             waitFor("not clicking " + AutoPuzzleUtil.fmt(next.pos()) + " - " + blocker);
             return;
         }
-        if (!AutoPuzzleUtil.gateWorldClick()) {
-            return; // gate held this tick back - the lever stays due and nothing is marked clicked/stopped
+        if (!AutoPuzzleUtil.gateWorldClick(client, next.pos())) {
+            return; // gate held this tick back (or the body was turned to it) - the lever stays due, nothing marked
         }
         int countedBefore = WaterSolverFeature.getCountedClicks();
         lastClickTick = tick;

@@ -389,7 +389,11 @@ public final class AutoCroesusFeature {
 
     // ---- state machine ---------------------------------------------------------------------------
 
+    /** The body turn for re-opening Croesus when the reported look misses him (util/TurnFirst); camera never moves. */
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
+
     private static void tick(Minecraft client) {
+        TURN.tick(client.player); // first, always: a body turned for the re-open is given back the tick after
         try {
             tickUnsafe(client);
         } catch (Exception e) {
@@ -875,8 +879,17 @@ public final class AutoCroesusFeature {
         if (!ActionGate.tryAct(ActionGate.Actor.CROESUS_NPC)) {
             return;
         }
+        // A point ON his box where the eye's line meets it (EntityHitResult(entity) reported his feet, which no ray
+        // produces), and the BODY turned to him first when the reported look misses him - an interact or attack the
+        // look misses is GrimAC Hitboxes (testkit 415/418). Turned this tick, clicked next tick, given back after.
+        net.minecraft.world.phys.Vec3 eye = client.player.getEyePosition();
+        net.minecraft.world.phys.AABB box = entity.getBoundingBox();
+        net.minecraft.world.phys.Vec3 aim = box.clip(eye, box.getCenter()).orElse(box.getCenter());
+        if (!TURN.readyBox(client.player, box, aim, eye.distanceTo(aim) + 1.0)) {
+            return;
+        }
         if (reopenAttempts == 0) {
-            client.gameMode.interact(client.player, entity, new EntityHitResult(entity), InteractionHand.MAIN_HAND);
+            client.gameMode.interact(client.player, entity, new EntityHitResult(entity, aim), InteractionHand.MAIN_HAND);
         } else {
             client.gameMode.attack(client.player, entity);
         }

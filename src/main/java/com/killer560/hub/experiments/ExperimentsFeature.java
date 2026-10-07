@@ -704,7 +704,11 @@ public final class ExperimentsFeature {
         }
     }
 
+    /** The body turn for the table re-open when the reported look misses it (util/TurnFirst); camera never moves. */
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
+
     private static void tick() {
+        TURN.tick(Minecraft.getInstance().player); // first, always: a turned body is given back the tick after
         // Either half can keep this ticking on its own since the 2026-09-30 split - the solver for its
         // highlights and observation, the automation for its clicking and menu navigation.
         ExperimentsConfig gate = ExperimentsConfig.getInstance();
@@ -1023,6 +1027,12 @@ public final class ExperimentsFeature {
                 eye.distanceTo(centre) + 1.0))).orElse(null);
         if (aim == null) {
             LOGGER.warn("Wanted to reopen the table but no ray from the eye reaches the entity's box");
+            return;
+        }
+        // Behind him by now (he walked or turned in that second): the BODY is turned to it first and the click goes
+        // next tick (util/TurnFirst) - an interact the reported look misses is GrimAC Hitboxes (testkit 415/418).
+        if (!TURN.readyBox(client.player, box, aim, eye.distanceTo(aim) + 1.0)) {
+            pendingReopenAtMs = now; // retried next tick
             return;
         }
         client.gameMode.interact(client.player, entity, new EntityHitResult(entity, aim),

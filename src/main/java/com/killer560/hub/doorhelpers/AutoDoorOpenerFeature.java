@@ -115,6 +115,14 @@ public final class AutoDoorOpenerFeature {
         }
     }
 
+    /** The body turn for a door the reported look does not reach (see util/TurnFirst); the camera never moves. */
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
+
+    /** Every tick, whatever the gates: holds a turned body for its click and gives it back the tick after. */
+    static void turnTick(Minecraft client) {
+        TURN.tick(client.player);
+    }
+
     static void tick(Minecraft client, DoorHelpersConfig cfg) {
         // killer560: "only click the door the second the key is grabbed" - nothing to do outside the pickup
         // window; no continuous scan of every locked door regardless of key any more.
@@ -149,6 +157,13 @@ public final class AutoDoorOpenerFeature {
         // Aura / Secret Aura / a lever flick. Claimed here, as the last check before lastClick moves, so a
         // denied tick costs nothing - the same door is simply clicked on the next tick the gate allows.
         if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.DOOR_OPENER)) {
+            return;
+        }
+        // Aura mode can pick a door behind him: the BODY is turned to it this tick and the click goes next tick, the
+        // camera held (util/TurnFirst; a block use the reported look misses draws GrimAC RotationPlace, testkit 419).
+        BlockHitResult aimHit = hitResult(client, doorPos);
+        if (aimHit != null && !TURN.readyBlock(client.player, client.level, doorPos, aimHit.getLocation(),
+                client.player.getEyePosition().distanceTo(aimHit.getLocation()) + 1.0)) {
             return;
         }
         boolean sent = interactBlock(client, doorPos);
