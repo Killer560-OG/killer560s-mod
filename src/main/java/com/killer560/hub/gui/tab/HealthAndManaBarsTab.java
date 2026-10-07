@@ -3,12 +3,13 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
-import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.objecthider.ObjectHiderConfig;
 import com.killer560.hub.playerstats.PlayerStatsConfig;
 import com.killer560.hub.playerstats.StatElements;
+import com.killer560.hub.playerstats.StatElements.Readout;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -16,34 +17,46 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
+import java.util.function.Supplier;
 
 /** Health and Mana Bars - the home for the mod's own player-status bars.
  *  <p>
- *  Created 2026-09-30 from killer560's request: "move the player display hide to another section called
- *  something like fancy bars or something where we will reskin the health hearts into a custom health bar
- *  and make a mana bar and whatnot." Every vanilla-bar hide here still reads and writes the SAME
+ *  Created 2026-09-30 from killer560's request to move the vanilla bar hides out of Object Hider; the custom bars
+ *  and texts ({@link StatElements}) arrived 2026-10-04. Every vanilla-bar hide here still reads and writes the SAME
  *  {@link ObjectHiderConfig} fields under the same JSON keys it always did.
  *  <p>
- *  2026-10-04, killer560: "There should be a few dropdowns inside of the overarching dropdown. First the hide
- *  stuff ... Then I want you to make custom health, intel, vitality, defence, true defence, and other such
- *  bars ... Also add an option to hide the text Hypixel has like 3000/3000 with the heart symbol ... Also add
- *  an option to hide the enchanting bar and its level. But make options for custom text, custom bars and
- *  whatnot all scalable." So the old Stat Bars section (it lived in New) moved in here whole, and the section
- *  is now the Stat Bars master toggle over four nested dropdowns: Hide, Bars, Text and Classic Display. Each
- *  custom bar and text is its own HUD element ({@link StatElements}) with its own colour and scale; the scale
- *  slider writes the same {@link HudConfig} scale the HUD editor does. No saved setting changed key. */
+ *  Redone 2026-10-07, killer560: "redo the bar section. It is way too complicated looking. Also no one needs to
+ *  adjust scale there, they just use the edit hud menu portion." The four nested dropdowns are gone; the page is the
+ *  Stat Bars switch, then one row per stat (bar and text side by side, each with its colour once it is on), then
+ *  Vanilla HUD, then Text, with Classic Display folded away at the bottom. The per-readout Scale sliders were removed:
+ *  they wrote the very same {@code HudConfig} scale the HUD editor scrolls ({@code hud.setScale(r.hudId, ...)}), so
+ *  there is nothing to migrate - every saved size is already the editor's and keeps drawing through
+ *  {@code HudElementRegistry.resolveScale}. Bar Width and Bar Height stay: they set the bars' SHAPE (length against
+ *  thickness, independently, and leave the number on the bar its normal size), which a uniform scale cannot do. */
 public class HealthAndManaBarsTab extends BaseTab {
 
     private static final int GAP = 6;
-    // Which nested dropdowns are open. Session-only, like FolderTab's own accordion state.
-    private static boolean hideOpen;
-    private static boolean barsOpen;
-    private static boolean textOpen;
+    private static final int ROW_H = 18;
+    private static final int ROW = 22;
+    /** Width of the "Colour: ■" button beside a readout's toggle. */
+    private static final int SWATCH_W = 52;
+    /** Classic Display stays folded away (session-only, like FolderTab's accordion state): it is the old one-line
+     *  element most people never use. */
     private static boolean classicOpen;
+
+    /** The rows of the bar list: a stat's bar on the left and its text on the right, then the text-only stats. */
+    private static final Readout[][] PAIRS = {
+            {Readout.HEALTH_BAR, Readout.HEALTH_TEXT},
+            {Readout.MANA_BAR, Readout.MANA_TEXT},
+            {Readout.DEFENCE_BAR, Readout.DEFENCE_TEXT},
+            {Readout.OTHER_BAR, Readout.OTHER_TEXT},
+            {Readout.OVERFLOW_TEXT, Readout.INTELLIGENCE_TEXT},
+            {Readout.EFFECTIVE_HEALTH_TEXT, null},
+    };
 
     public HealthAndManaBarsTab() {
         super("Health and Mana Bars");
@@ -53,220 +66,178 @@ public class HealthAndManaBarsTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         PlayerStatsConfig ps = PlayerStatsConfig.getInstance();
+        ObjectHiderConfig oh = ObjectHiderConfig.getInstance();
         int half = (contentWidth - GAP) / 2;
         int col2 = contentX + half + GAP;
         int[] y = {contentY};
+        boolean master = ps.isEnabledRaw();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Stat Bars", ps.isEnabledRaw()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Stat Bars", master), btn -> {
                     ps.setEnabled(!ps.isEnabledRaw());
                     ps.save();
                     requestRebuild.run();
                 }).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += 24;
 
-        // ---------------- Hide ----------------
-        y[0] = CollapsibleSection.header(widgets, contentX, y[0], contentWidth, "Hide", false, hideOpen, () -> {
-            hideOpen = !hideOpen;
-            requestRebuild.run();
-        });
-        if (hideOpen) {
-            buildHide(widgets, contentX, contentWidth, half, col2, y, requestRebuild);
-        }
-
-        // ---------------- Bars ----------------
-        y[0] = CollapsibleSection.header(widgets, contentX, y[0], contentWidth, "Bars", false, barsOpen, () -> {
-            barsOpen = !barsOpen;
-            requestRebuild.run();
-        });
-        if (barsOpen) {
-            if (!needsMaster(widgets, contentX, contentWidth, y, ps)) {
-                buildBars(widgets, contentX, contentWidth, half, col2, y, requestRebuild);
+        // ---------------- Bars and text: one row per stat ----------------
+        if (master) {
+            header(widgets, contentX, contentWidth, y, "Bars");
+            for (Readout[] pair : PAIRS) {
+                readout(widgets, contentX, half, y[0], pair[0], requestRebuild);
+                if (pair[1] != null) {
+                    readout(widgets, col2, half, y[0], pair[1], requestRebuild);
+                }
+                y[0] += ROW;
+            }
+            boolean anyBar = false;
+            for (Readout r : Readout.values()) {
+                anyBar |= r.bar && ps.isReadoutOn(r);
+            }
+            if (anyBar) {
+                y[0] += 4;
+                slider(widgets, contentX, y[0], half, () -> "Bar Width: " + ps.getBarWidth(),
+                        (ps.getBarWidth() - PlayerStatsConfig.MIN_BAR_WIDTH)
+                                / (double) (PlayerStatsConfig.MAX_BAR_WIDTH - PlayerStatsConfig.MIN_BAR_WIDTH),
+                        v -> {
+                            ps.setBarWidth((int) Math.round(PlayerStatsConfig.MIN_BAR_WIDTH
+                                    + v * (PlayerStatsConfig.MAX_BAR_WIDTH - PlayerStatsConfig.MIN_BAR_WIDTH)));
+                            ps.save();
+                        });
+                slider(widgets, col2, y[0], half, () -> "Bar Height: " + ps.getBarHeight(),
+                        (ps.getBarHeight() - PlayerStatsConfig.MIN_BAR_HEIGHT)
+                                / (double) (PlayerStatsConfig.MAX_BAR_HEIGHT - PlayerStatsConfig.MIN_BAR_HEIGHT),
+                        v -> {
+                            ps.setBarHeight((int) Math.round(PlayerStatsConfig.MIN_BAR_HEIGHT
+                                    + v * (PlayerStatsConfig.MAX_BAR_HEIGHT - PlayerStatsConfig.MIN_BAR_HEIGHT)));
+                            ps.save();
+                        });
+                y[0] += ROW;
+                toggle(widgets, contentX, y[0], half, "Show Value", ps::isBarShowValue, ps::setBarShowValue,
+                        ps::save, null);
+                colour(widgets, col2, y[0], half, "Background", ps.getBarBackground(),
+                        PlayerStatsConfig.DEFAULT_BAR_BACKGROUND, ps::setBarBackground);
+                y[0] += ROW;
+                if (ps.isReadoutOn(Readout.HEALTH_BAR)) {
+                    colour(widgets, contentX, y[0], half, "Absorption Colour", ps.getAbsorptionColor(),
+                            PlayerStatsConfig.DEFAULT_ABSORPTION_COLOR, ps::setAbsorptionColor);
+                    y[0] += ROW;
+                }
             }
         }
+
+        // ---------------- Vanilla HUD ----------------
+        header(widgets, contentX, contentWidth, y, "Vanilla HUD");
+        if (master) {
+            note(widgets, contentX, contentWidth, y, "Hidden while Stat Bars is on:");
+            toggle(widgets, contentX, y[0], half, "Hearts", ps::isHideVanillaHearts, ps::setHideVanillaHearts,
+                    ps::save, requestRebuild);
+            toggle(widgets, col2, y[0], half, "Hunger Bar", ps::isHideVanillaHunger, ps::setHideVanillaHunger,
+                    ps::save, null);
+            y[0] += ROW;
+            toggle(widgets, contentX, y[0], half, "Armour Bar", ps::isHideVanillaArmour, ps::setHideVanillaArmour,
+                    ps::save, null);
+            toggle(widgets, col2, y[0], half, "Air Bar", ps::isHideVanillaAir, ps::setHideVanillaAir, ps::save, null);
+            y[0] += ROW;
+            if (ps.isHideVanillaHearts()) {
+                toggle(widgets, contentX, y[0], half, "Unhide Hearts In Rift", ps::isShowHeartsInRift,
+                        ps::setShowHeartsInRift, ps::save, null);
+                y[0] += ROW;
+            }
+        }
+        // These never depended on Stat Bars, so they show whether it is on or not.
+        note(widgets, contentX, contentWidth, y, "Always hidden:");
+        toggle(widgets, contentX, y[0], half, "Health", oh::getHideHealthBarRaw, oh::setHideHealthBar, oh::save, null);
+        toggle(widgets, col2, y[0], half, "Absorption", oh::getHideAbsorptionHeartsRaw, oh::setHideAbsorptionHearts,
+                oh::save, null);
+        y[0] += ROW;
+        toggle(widgets, contentX, y[0], half, "Mount Health", oh::getHideMountHealthBarRaw, oh::setHideMountHealthBar,
+                oh::save, null);
+        toggle(widgets, col2, y[0], half, "Regeneration Bounce", oh::getHideRegenBounceRaw, oh::setHideRegenBounce,
+                oh::save, null);
+        y[0] += ROW;
+        toggle(widgets, contentX, y[0], half, "Armour", oh::getHideArmorBarRaw, oh::setHideArmorBar, oh::save, null);
+        toggle(widgets, col2, y[0], half, "Hunger", oh::getHideHungerBarRaw, oh::setHideHungerBar, oh::save, null);
+        y[0] += ROW;
+        toggle(widgets, contentX, y[0], half, "XP Bar And Level", ps::isHideXpBar, ps::setHideXpBar, ps::save, null);
+        y[0] += ROW;
 
         // ---------------- Text ----------------
-        y[0] = CollapsibleSection.header(widgets, contentX, y[0], contentWidth, "Text", false, textOpen, () -> {
-            textOpen = !textOpen;
-            requestRebuild.run();
-        });
-        if (textOpen) {
-            if (!needsMaster(widgets, contentX, contentWidth, y, ps)) {
-                for (StatElements.Readout r : StatElements.Readout.values()) {
-                    if (!r.bar) {
-                        readoutRows(widgets, contentX, contentWidth, half, col2, y, r, requestRebuild);
-                    }
-                }
-                toggle(widgets, contentX, y[0], contentWidth, "Text Shadow", ps::isTextShadow, ps::setTextShadow,
-                        ps, null);
-                y[0] += 24;
-            }
+        header(widgets, contentX, contentWidth, y, "Text");
+        // Hypixel's own numbers on the action bar: independent of Stat Bars, like the hides above.
+        toggle(widgets, contentX, y[0], half, "Hide Hypixel Stat Text", ps::isHideHypixelStatText,
+                ps::setHideHypixelStatText, ps::save, null);
+        if (master) {
+            toggle(widgets, col2, y[0], half, "Text Shadow", ps::isTextShadow, ps::setTextShadow, ps::save, null);
         }
+        y[0] += ROW;
 
         // ---------------- Classic Display (the original one-line Stat Bars element) ----------------
-        y[0] = CollapsibleSection.header(widgets, contentX, y[0], contentWidth, "Classic Display", false,
-                classicOpen, () -> {
-                    classicOpen = !classicOpen;
-                    requestRebuild.run();
-                });
-        if (classicOpen) {
-            if (!needsMaster(widgets, contentX, contentWidth, y, ps)) {
-                toggle(widgets, contentX, y[0], half, "Show Health", ps::isShowHealth, ps::setShowHealth, ps, null);
-                toggle(widgets, col2, y[0], half, "Show Mana", ps::isShowMana, ps::setShowMana, ps, null);
-                y[0] += 22;
-                toggle(widgets, contentX, y[0], contentWidth, "Show Defense", ps::isShowDefense, ps::setShowDefense,
-                        ps, null);
-                y[0] += 22;
+        if (master) {
+            y[0] = CollapsibleSection.header(widgets, contentX, y[0], contentWidth, "Classic Display", false,
+                    classicOpen, () -> {
+                        classicOpen = !classicOpen;
+                        requestRebuild.run();
+                    });
+            if (classicOpen) {
+                toggle(widgets, contentX, y[0], half, "Show Health", ps::isShowHealth, ps::setShowHealth, ps::save,
+                        null);
+                toggle(widgets, col2, y[0], half, "Show Mana", ps::isShowMana, ps::setShowMana, ps::save, null);
+                y[0] += ROW;
+                toggle(widgets, contentX, y[0], half, "Show Defense", ps::isShowDefense, ps::setShowDefense,
+                        ps::save, null);
+                y[0] += ROW;
                 // killer560: "I should have an option to hide or show the text and the bar when the bars are
                 // working as well" - independent of which of Health/Mana/Defense above are on.
-                toggle(widgets, contentX, y[0], half, "Show Text", ps::isShowText, ps::setShowText, ps, null);
-                toggle(widgets, col2, y[0], half, "Show Bar", ps::isShowBar, ps::setShowBar, ps, null);
-                y[0] += 24;
+                toggle(widgets, contentX, y[0], half, "Show Text", ps::isShowText, ps::setShowText, ps::save, null);
+                toggle(widgets, col2, y[0], half, "Show Bar", ps::isShowBar, ps::setShowBar, ps::save, null);
+                y[0] += ROW;
             }
         }
-
         return widgets;
     }
 
-    private static void buildHide(List<AbstractWidget> widgets, int contentX, int contentWidth, int half, int col2,
-                                  int[] y, Runnable requestRebuild) {
-        ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
-        PlayerStatsConfig ps = PlayerStatsConfig.getInstance();
-
-        ObjectHiderTab.header(widgets, contentX, contentWidth, y, "Vanilla Bars");
-        ObjectHiderTab.toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Health", cfg::getHideHealthBarRaw, cfg::setHideHealthBar);
-        ObjectHiderTab.toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Absorption", cfg::getHideAbsorptionHeartsRaw, cfg::setHideAbsorptionHearts);
-        ObjectHiderTab.toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Mount Health", cfg::getHideMountHealthBarRaw, cfg::setHideMountHealthBar);
-        ObjectHiderTab.toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Regeneration Bounce", cfg::getHideRegenBounceRaw, cfg::setHideRegenBounce);
-        ObjectHiderTab.toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Armour", cfg::getHideArmorBarRaw, cfg::setHideArmorBar);
-        ObjectHiderTab.toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Hunger", cfg::getHideHungerBarRaw, cfg::setHideHungerBar);
-
-        ObjectHiderTab.header(widgets, contentX, contentWidth, y, "Hypixel Text and XP");
-        toggle(widgets, contentX, y[0], contentWidth, "Hypixel Stat Text", ps::isHideHypixelStatText,
-                ps::setHideHypixelStatText, ps, null);
-        y[0] += 22;
-        toggle(widgets, contentX, y[0], contentWidth, "XP Bar And Level", ps::isHideXpBar, ps::setHideXpBar, ps, null);
-        y[0] += 24;
-
-        // The Stat Bars set (they moved here from the old Stat Bars section on 2026-10-04): these only act while
-        // Stat Bars is on, which is why they are listed separately from the always-on hides above.
-        if (ps.isEnabledRaw()) {
-            ObjectHiderTab.header(widgets, contentX, contentWidth, y, "While Stat Bars Is On");
-            toggle(widgets, contentX, y[0], half, "Hearts", ps::isHideVanillaHearts, ps::setHideVanillaHearts, ps,
-                    requestRebuild);
-            toggle(widgets, col2, y[0], half, "Hunger Bar", ps::isHideVanillaHunger, ps::setHideVanillaHunger, ps,
-                    null);
-            y[0] += 22;
-            toggle(widgets, contentX, y[0], half, "Armor Bar", ps::isHideVanillaArmour, ps::setHideVanillaArmour, ps,
-                    null);
-            toggle(widgets, col2, y[0], half, "Air Bar", ps::isHideVanillaAir, ps::setHideVanillaAir, ps, null);
-            y[0] += 22;
-            if (ps.isHideVanillaHearts()) {
-                toggle(widgets, contentX, y[0], contentWidth, "Unhide Hearts In Rift", ps::isShowHeartsInRift,
-                        ps::setShowHeartsInRift, ps, null);
-                y[0] += 22;
-            }
-            y[0] += 2;
-        }
-    }
-
-    private static void buildBars(List<AbstractWidget> widgets, int contentX, int contentWidth, int half, int col2,
-                                  int[] y, Runnable requestRebuild) {
-        PlayerStatsConfig ps = PlayerStatsConfig.getInstance();
-        for (StatElements.Readout r : StatElements.Readout.values()) {
-            if (r.bar) {
-                readoutRows(widgets, contentX, contentWidth, half, col2, y, r, requestRebuild);
-            }
-        }
-        ObjectHiderTab.header(widgets, contentX, contentWidth, y, "All Bars");
-        slider(widgets, contentX, y[0], half,
-                () -> "Bar Width: " + ps.getBarWidth(),
-                (ps.getBarWidth() - PlayerStatsConfig.MIN_BAR_WIDTH)
-                        / (double) (PlayerStatsConfig.MAX_BAR_WIDTH - PlayerStatsConfig.MIN_BAR_WIDTH),
-                v -> {
-                    ps.setBarWidth((int) Math.round(PlayerStatsConfig.MIN_BAR_WIDTH
-                            + v * (PlayerStatsConfig.MAX_BAR_WIDTH - PlayerStatsConfig.MIN_BAR_WIDTH)));
-                    ps.save();
-                });
-        slider(widgets, col2, y[0], half,
-                () -> "Bar Height: " + ps.getBarHeight(),
-                (ps.getBarHeight() - PlayerStatsConfig.MIN_BAR_HEIGHT)
-                        / (double) (PlayerStatsConfig.MAX_BAR_HEIGHT - PlayerStatsConfig.MIN_BAR_HEIGHT),
-                v -> {
-                    ps.setBarHeight((int) Math.round(PlayerStatsConfig.MIN_BAR_HEIGHT
-                            + v * (PlayerStatsConfig.MAX_BAR_HEIGHT - PlayerStatsConfig.MIN_BAR_HEIGHT)));
-                    ps.save();
-                });
-        y[0] += 22;
-        toggle(widgets, contentX, y[0], half, "Show Value", ps::isBarShowValue, ps::setBarShowValue, ps, null);
-        colour(widgets, col2, y[0], half, "Background", ps.getBarBackground(),
-                PlayerStatsConfig.DEFAULT_BAR_BACKGROUND, ps::setBarBackground);
-        y[0] += 22;
-        colour(widgets, contentX, y[0], contentWidth, "Absorption Colour", ps.getAbsorptionColor(),
-                PlayerStatsConfig.DEFAULT_ABSORPTION_COLOR, ps::setAbsorptionColor);
-        y[0] += 24;
-    }
-
-    /** One readout: "<Name>: ON/OFF" beside its colour, and its scale slider underneath while it is on. */
-    private static void readoutRows(List<AbstractWidget> widgets, int contentX, int contentWidth, int half, int col2,
-                                    int[] y, StatElements.Readout r, Runnable requestRebuild) {
+    /** One readout in a half-width cell: "<Name>: ON/OFF", and its colour beside it while it is on. */
+    private static void readout(List<AbstractWidget> widgets, int x, int width, int y, Readout r,
+                                Runnable requestRebuild) {
         PlayerStatsConfig ps = PlayerStatsConfig.getInstance();
         boolean on = ps.isReadoutOn(r);
+        int toggleW = on ? width - SWATCH_W - 4 : width;
         widgets.add(SettingsButtonWidget.builder(onOff(r.label, on), btn -> {
                     ps.setReadoutOn(r, !ps.isReadoutOn(r));
                     ps.save();
                     requestRebuild.run();
-                }).bounds(contentX, y[0], on ? half : contentWidth, 18).build());
+                }).bounds(x, y, Math.max(1, toggleW), ROW_H).build());
         if (on) {
-            colour(widgets, col2, y[0], half, "Colour", ps.getReadoutColor(r), r.defaultColor,
+            colour(widgets, x + width - SWATCH_W, y, SWATCH_W, "Colour", ps.getReadoutColor(r), r.defaultColor,
                     c -> ps.setReadoutColor(r, c));
-            y[0] += 20;
-            HudConfig hud = HudConfig.getInstance();
-            slider(widgets, contentX, y[0], contentWidth,
-                    () -> String.format(Locale.US, "Scale: %.2fx", hud.getScale(r.hudId, 1.0f)),
-                    (hud.getScale(r.hudId, 1.0f) - MIN_SCALE) / (MAX_SCALE - MIN_SCALE),
-                    v -> {
-                        float s = (float) (MIN_SCALE + v * (MAX_SCALE - MIN_SCALE));
-                        hud.setScale(r.hudId, Math.round(s * 20f) / 20f);
-                        hud.save();
-                    });
-            y[0] += 24;
-        } else {
-            y[0] += 22;
         }
     }
 
-    private static final double MIN_SCALE = 0.5;
-    private static final double MAX_SCALE = 4.0;
+    private static void header(List<AbstractWidget> widgets, int x, int width, int[] y, String title) {
+        y[0] += 4;
+        widgets.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false),
+                Minecraft.getInstance().font));
+        y[0] += 16;
+    }
 
-    /** Shows a one-line note instead of a section's rows while Stat Bars itself is off. @return true if shown. */
-    private static boolean needsMaster(List<AbstractWidget> widgets, int x, int width, int[] y, PlayerStatsConfig ps) {
-        if (ps.isEnabledRaw()) {
-            return false;
-        }
-        widgets.add(new StringWidget(x, y[0], width, 12,
-                Component.literal("§7Turn on Stat Bars above to use these."), Minecraft.getInstance().font));
-        y[0] += 18;
-        return true;
+    private static void note(List<AbstractWidget> widgets, int x, int width, int[] y, String text) {
+        y[0] += 2;
+        widgets.add(new StringWidget(x, y[0], width, 10, Component.literal("§7" + text),
+                Minecraft.getInstance().font));
+        y[0] += 13;
     }
 
     private static void toggle(List<AbstractWidget> widgets, int x, int y, int width, String label,
-                               BooleanSupplier get, Consumer<Boolean> set, PlayerStatsConfig ps,
-                               Runnable rebuildOrNull) {
+                               BooleanSupplier get, Consumer<Boolean> set, Runnable save, Runnable rebuildOrNull) {
         widgets.add(SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {
                     set.accept(!get.getAsBoolean());
-                    ps.save();
+                    save.run();
                     if (rebuildOrNull != null) {
                         rebuildOrNull.run();
                     } else {
                         btn.setMessage(onOff(label, get.getAsBoolean()));
                     }
-                }).bounds(x, y, Math.max(1, width), 18).build());
+                }).bounds(x, y, Math.max(1, width), ROW_H).build());
     }
 
     private static void colour(List<AbstractWidget> widgets, int x, int y, int width, String label, int argb,
@@ -278,13 +249,12 @@ public class HealthAndManaBarsTab extends BaseTab {
                                 apply.accept(picked);
                                 PlayerStatsConfig.getInstance().save();
                             }));
-                }).bounds(x, y, Math.max(1, width), 18).build());
+                }).bounds(x, y, Math.max(1, width), ROW_H).build());
     }
 
-    private static void slider(List<AbstractWidget> widgets, int x, int y, int width,
-                               java.util.function.Supplier<String> text, double normalized,
-                               java.util.function.DoubleConsumer apply) {
-        widgets.add(new ThemedSliderButton(x, y, Math.max(1, width), 18, Component.literal(text.get()),
+    private static void slider(List<AbstractWidget> widgets, int x, int y, int width, Supplier<String> text,
+                               double normalized, DoubleConsumer apply) {
+        widgets.add(new ThemedSliderButton(x, y, Math.max(1, width), ROW_H, Component.literal(text.get()),
                 Math.max(0.0, Math.min(1.0, normalized))) {
             @Override
             protected void updateMessage() {
