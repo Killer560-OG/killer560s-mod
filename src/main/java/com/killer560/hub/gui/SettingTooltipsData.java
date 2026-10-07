@@ -163,6 +163,10 @@ final class SettingTooltipsData {
         d.put("chat emotes enabled", "Turns Hypixel emote codes like <3 or :shrug: into the real emote text, no MVP++ rank needed.");
         d.put("click translate enabled", "Left-click any chat message to translate it.");
         d.put("translate to", "The language clicked chat messages are translated into.");
+        d.put("stack duplicate messages", "When a chat line repeats the newest one exactly (same text and colours), the newest copy is replaced by one line ending in a grey (x2), (x3)... Blank lines and separators never stack.");
+        d.put("hide damage messages", "Hides Hypixel's combat spam from the chat window: your ability damage lines and the hits you take. Other features still read them, and the log keeps them.");
+        d.put("ability damage lines", "With Hide Damage Messages on: hides lines like 'Your Implosion hit 2 enemies for 14,736,463.2 damage.' (any ability).");
+        d.put("incoming hit lines", "With Hide Damage Messages on: hides 'A Crypt Wither Skull exploded, hitting you for 23,760 damage.', 'Maxor's Frenzy hit you for...', '... struck you for...', 'The Lost Adventurer used Dragon's Breath on you!' and bone plating lines.");
         d.put("copy chat", "Shift+Left-Click a chat message to copy its text; Shift+Right-Click copies just that line.");
         d.put("auto meow enabled", "Replies with a random cat line when a chat message says meow, purr, nya or mew.");
         d.put("play cat noises", "Plays a cat sound each time Auto Meow replies.");
