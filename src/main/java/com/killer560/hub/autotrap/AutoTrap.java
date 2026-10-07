@@ -192,6 +192,11 @@ public final class AutoTrap {
             inTrap = null;
             return;
         }
+        if (inTrap == null && !com.killer560.hub.secrets.DungeonState.isInDungeon()) {
+            // Nothing to leave and no trap room to be in: skip the layout snapshot, which this tick handler used to
+            // take every tick in every world - the hub included - whether or not Auto Trap was on (FPS sweep).
+            return;
+        }
         DungeonLayout layout = DungeonLayout.current();
         int room = layout.roomAtWorld(client.player.getX(), client.player.getZ());
         String now = room >= 0 && AutoClearUtils.isTrap(layout, room) ? layout.name(room) : null;

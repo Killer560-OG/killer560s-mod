@@ -283,8 +283,10 @@ public final class LiveMapFeature {
         // why the map, the interactive map and every pathfinder that reads the layout were all blank in
         // there, and why the map feature could not be tested in the sim at all.
         boolean sim = com.killer560.hub.roomsim.SimState.isActive();
-        String consumers = scanConsumers();
-        boolean scanning = !consumers.isEmpty() && inDungeon && !isInBoss() && !sim;
+        // The consumer list (fifteen config reads and a string) is only built where a scan could happen at all: it
+        // used to be built every tick in every world (FPS sweep, 2026-10-07). isInBoss is a plain read, so the order
+        // of the tests changes nothing else.
+        boolean scanning = inDungeon && !isInBoss() && !sim && !scanConsumers().isEmpty();
         if (!scanning) {
             return;
         }
