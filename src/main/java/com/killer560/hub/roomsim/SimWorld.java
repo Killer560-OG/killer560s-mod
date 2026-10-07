@@ -364,10 +364,11 @@ public final class SimWorld {
      * begin on a server.
      */
     public static void onWorldLoaded(Minecraft client) {
-        LOGGER.info("[SimPhase] world loaded, starting the build");
+        // Every world join lands here, Hypixel's server changes included; only a pending sim request does anything.
         if (pendingCode == null) {
             return;
         }
+        LOGGER.info("[SimPhase] world loaded, starting the build");
         String code = pendingCode;
         pendingCode = null;
         java.util.function.Consumer<Minecraft> build = pendingBuild;

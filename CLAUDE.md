@@ -115,7 +115,8 @@ Two topics have their own files, because they had grown to half this one:
 secret placement, doors and altitude - and **[docs/AP3.md](docs/AP3.md)** for AP3's nodes and align
 physics. Read the relevant one before touching either area. Feature-specific lessons (Bazaar, HUD
 elements, Superpairs, Instant Transmission, item identity, gametest, `AttackBlockCallback` per tick, slider clamps) are in
-**[docs/LESSONS.md](docs/LESSONS.md)**. The Room Recorder was removed on 2026-10-04 and lives at git tag
+**[docs/LESSONS.md](docs/LESSONS.md)**; automation runtime ones (Auto Routes on GrimAC, chain timing, ViewFreeze, key
+range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. The Room Recorder was removed on 2026-10-04 and lives at git tag
 `room-recorder-last`; the last section of docs/SIM.md says how to restore it.
 
 - **Nothing in this mod ever stops, pauses or disables on a server correction** (killer560, 2026-10-06): it calls
