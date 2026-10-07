@@ -239,6 +239,11 @@ public class ModScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        // A list that scrolls itself (the Custom Scoreboard's line list) gets the wheel first while it can still move.
+        if (contentPane != null && contentPane.hoveredChild((int) mouseX, (int) mouseY) instanceof WheelTarget target
+                && target.wheel(mouseX, mouseY, scrollY)) {
+            return true;
+        }
         if (maxScroll > 0 && mouseX >= contentX && mouseX <= panelX + panelW
                 && mouseY >= contentY && mouseY <= panelY + panelH) {
             scrollOffset -= (int) Math.round(scrollY * 16);
