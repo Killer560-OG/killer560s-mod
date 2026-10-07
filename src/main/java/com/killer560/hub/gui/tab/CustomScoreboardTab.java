@@ -7,12 +7,14 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.scoreboard.CustomScoreboardConfig;
 import com.killer560.hub.scoreboard.CustomScoreboardFeature;
-import com.killer560.hub.scoreboard.CustomScoreboardConfig.Row;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.scoreboard.ScoreboardEntry;
-import com.killer560.hub.scoreboard.ScoreboardEvent;
+import com.killer560.hub.scoreboard.ScoreboardListEditor;
+import com.killer560.hub.scoreboard.ScoreboardListEditor.Section;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -21,12 +23,24 @@ import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 import com.killer560.hub.compat.McCompat;
 
-/** Custom Scoreboard settings - see {@link com.killer560.hub.scoreboard.CustomScoreboardFeature}. */
+/**
+ * Custom Scoreboard settings - see {@link com.killer560.hub.scoreboard.CustomScoreboardFeature}.
+ * <p>
+ * Redone 2026-10-07 (killer560: "redo the custom scoreboard such that things are draggable to be in order and it has
+ * the add and trashcan system SkyHanni uses instead of an individual toggle system"). Lines, Events and Chunked Stats
+ * are each one {@link ScoreboardListEditor}: an Add dropdown of what is not on the board, Reset Order, and a list you
+ * drag to reorder with a trash can per row. The board draws exactly that list, top to bottom. Lines opens first.
+ * <p>
+ * The old Line Options page is gone: each of its settings belongs to one line, so it now shows beside the list when
+ * that line is clicked (Mayor's perks under Mayor, Tuning Amount under Maxwell Tuning, ...), as do the General
+ * settings that only one line reads (Show Profile Name, the Party ones, Date In Lobby Code, Exact SkyBlock Minutes).
+ * Settings read by more than one place (title, footer, date format, 24h time - the off-Skyblock board uses them too)
+ * stay on General.
+ */
 public class CustomScoreboardTab extends BaseTab {
 
     private enum Page {
-        GENERAL("General"), LINES("Lines"), OPTIONS("Line Options"), STATS("Chunked Stats"), EVENTS("Events"),
-        BACKGROUND("Background");
+        LINES("Lines"), EVENTS("Events"), STATS("Chunked Stats"), GENERAL("General"), BACKGROUND("Background");
 
         final String label;
 
@@ -35,7 +49,12 @@ public class CustomScoreboardTab extends BaseTab {
         }
     }
 
-    private Page page = Page.GENERAL;
+    private static final int GAP = 8;
+    /** Rows the list shows before it scrolls: the menu is always laid out about 480 units tall (Auto Scale), so
+     *  this keeps the page buttons, the Add row and the whole list on one screen. */
+    private static final int LIST_ROWS = 13;
+
+    private Page page = Page.LINES;
 
     public CustomScoreboardTab() {
         super("Custom Scoreboard");
@@ -52,7 +71,7 @@ public class CustomScoreboardTab extends BaseTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
-        y += 28;
+        y += 24;
 
         if (!cfg.isEnabled()) {
             return widgets;
@@ -61,40 +80,153 @@ public class CustomScoreboardTab extends BaseTab {
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Visual Editor"), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new com.killer560.hub.scoreboard.ScoreboardEditorScreen(McCompat.screen(client)));
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
 
         int gap = 4;
-        int perRow = 3;
-        int pageW = (contentWidth - gap * (perRow - 1)) / perRow;
+        int n = Page.values().length;
+        int pageW = (contentWidth - gap * (n - 1)) / n;
         for (Page p : Page.values()) {
-            int px = contentX + (p.ordinal() % perRow) * (pageW + gap);
-            int py = y + (p.ordinal() / perRow) * 22;
+            int px = contentX + p.ordinal() * (pageW + gap);
             String label = p == page ? "§6" + p.label : p.label;
             widgets.add(SettingsButtonWidget.builder(Component.literal(label), btn -> {
                         page = p;
                         requestRebuild.run();
-                    }).bounds(px, py, pageW, 18).build());
+                    }).bounds(px, y, p.ordinal() == n - 1 ? contentX + contentWidth - px : pageW, 18).build());
         }
-        y += ((Page.values().length + perRow - 1) / perRow) * 22 + 4;
+        y += 26;
 
         switch (page) {
-            case GENERAL -> buildGeneral(widgets, cfg, contentX, y, contentWidth, requestRebuild);
-            case LINES -> buildRows(widgets, cfg, cfg.entries(), e -> e.label, contentX, y, contentWidth, requestRebuild,
-                    cfg::resetEntries);
-            case OPTIONS -> buildOptions(widgets, cfg, contentX, y, contentWidth);
-            case STATS -> buildStats(widgets, cfg, contentX, y, contentWidth, requestRebuild);
+            case LINES -> buildLines(widgets, cfg, contentX, y, contentWidth, requestRebuild);
             case EVENTS -> buildEvents(widgets, cfg, contentX, y, contentWidth, requestRebuild);
+            case STATS -> buildStats(widgets, cfg, contentX, y, contentWidth, requestRebuild);
+            case GENERAL -> buildGeneral(widgets, cfg, contentX, y, contentWidth, requestRebuild);
             case BACKGROUND -> buildBackground(widgets, cfg, contentX, y, contentWidth, requestRebuild);
         }
         return widgets;
     }
 
+    /** Left: the list. Right: the clicked line's own settings. */
+    private void buildLines(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width,
+                            Runnable requestRebuild) {
+        y = ScoreboardListEditor.buildControls(widgets, Section.LINES, x, y, width, requestRebuild);
+        int listW = (width - GAP) * 11 / 20;
+        int rightX = x + listW + GAP;
+        int rightW = x + width - rightX;
+        ScoreboardListEditor.buildList(widgets, Section.LINES, x, y, listW, LIST_ROWS, requestRebuild);
+        ScoreboardEntry selected = (ScoreboardEntry) ScoreboardListEditor.selected(Section.LINES);
+        if (selected == null) {
+            hint(widgets, rightX, y, rightW, "Click a line for its options.");
+            hint(widgets, rightX, y + 14, rightW, "Drag a line to move it.");
+            hint(widgets, rightX, y + 28, rightW, "The trash can takes it off.");
+            return;
+        }
+        widgets.add(new StringWidget(rightX, y, rightW, 12, SectionHeaders.header(selected.label, false),
+                Minecraft.getInstance().font));
+        y += 16;
+        if (!lineOptions(widgets, cfg, selected, rightX, y, rightW, requestRebuild)) {
+            hint(widgets, rightX, y, rightW, "This line has no options.");
+        }
+    }
+
+    /** The settings only {@code entry} reads, stacked from {@code y}. Returns false if it has none. */
+    private boolean lineOptions(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, ScoreboardEntry entry, int x,
+                                int y, int w, Runnable requestRebuild) {
+        List<AbstractWidget> rows = new ArrayList<>();
+        switch (entry) {
+            case MAYOR -> {
+                rows.add(toggle("Mayor Perks", cfg::isShowMayorPerks, cfg::setShowMayorPerks, cfg, x, 0, w));
+                rows.add(toggle("Next Mayor Timer", cfg::isShowMayorTime, cfg::setShowMayorTime, cfg, x, 0, w));
+                rows.add(toggle("Show Minister", cfg::isShowMinister, cfg::setShowMinister, cfg, x, 0, w));
+                rows.add(toggle("Perkpocalypse Mayor", cfg::isShowJerryMayor, cfg::setShowJerryMayor, cfg, x, 0, w));
+            }
+            case POWER -> rows.add(toggle("Magical Power", cfg::isShowMagicalPower, cfg::setShowMagicalPower, cfg, x, 0, w));
+            case TUNING -> {
+                rows.add(toggle("Compact Tuning", cfg::isCompactTuning, cfg::setCompactTuning, cfg, x, 0, w));
+                rows.add(slider(x, 0, w, cfg.getTuningAmount(), 1, 8, v -> "Tuning Amount: " + v, cfg::setTuningAmount, cfg));
+            }
+            case QUIVER -> {
+                rows.add(cycle(() -> "Arrow Amount: §6" + cfg.getArrowDisplay().label,
+                        () -> cfg.setArrowDisplay(cfg.getArrowDisplay().next()),
+                        () -> cfg.setArrowDisplay(cfg.getArrowDisplay().previous()), cfg, x, 0, w));
+                rows.add(toggle("Color Arrow Amount", cfg::isColorArrowAmount, cfg::setColorArrowAmount, cfg, x, 0, w));
+            }
+            case PLAYER_AMOUNT -> rows.add(toggle("Max Island Players", cfg::isShowMaxIslandPlayers,
+                    cfg::setShowMaxIslandPlayers, cfg, x, 0, w));
+            case PARTY -> {
+                rows.add(toggle("Party Leader", cfg::isShowPartyLeader, cfg::setShowPartyLeader, cfg, x, 0, w));
+                rows.add(slider(x, 0, w, cfg.getMaxPartyMembers(), 1, 25, v -> "Max Party Members: " + v,
+                        cfg::setMaxPartyMembers, cfg));
+                rows.add(toggle("Party Everywhere", cfg::isShowPartyEverywhere, cfg::setShowPartyEverywhere, cfg, x, 0, w));
+            }
+            case BITS -> rows.add(toggle("Unclaimed Bits", cfg::isShowUnclaimedBits, cfg::setShowUnclaimedBits, cfg, x, 0, w));
+            case POWDER -> rows.add(cycle(() -> "Powder Display: §6" + cfg.getPowderDisplay().label,
+                    () -> cfg.setPowderDisplay(cfg.getPowderDisplay().next()),
+                    () -> cfg.setPowderDisplay(cfg.getPowderDisplay().previous()), cfg, x, 0, w));
+            case PURSE -> rows.add(toggle("Hide Purse In Dungeons", cfg::isHidePurseInDungeons, cfg::setHidePurseInDungeons,
+                    cfg, x, 0, w));
+            case PROFILE -> rows.add(toggle("Show Profile Name", cfg::isShowProfileName, cfg::setShowProfileName, cfg, x, 0, w));
+            case LOBBY_CODE -> rows.add(toggle("Date In Lobby Code", cfg::isDateInLobbyCode, cfg::setDateInLobbyCode, cfg,
+                    x, 0, w));
+            case TIME -> rows.add(toggle("Exact SkyBlock Minutes", cfg::isTimeExactMinutes, cfg::setTimeExactMinutes, cfg,
+                    x, 0, w));
+            case EVENTS -> rows.add(SettingsButtonWidget.builder(Component.literal("Edit Events"), btn -> {
+                        page = Page.EVENTS;
+                        requestRebuild.run();
+                    }).bounds(x, 0, w, 18).build());
+            case CHUNKED_STATS -> rows.add(SettingsButtonWidget.builder(Component.literal("Edit Chunked Stats"), btn -> {
+                        page = Page.STATS;
+                        requestRebuild.run();
+                    }).bounds(x, 0, w, 18).build());
+            default -> {
+            }
+        }
+        for (AbstractWidget r : rows) {
+            r.setY(y);
+            widgets.add(r);
+            y += 22;
+        }
+        return !rows.isEmpty();
+    }
+
+    private static void hint(List<AbstractWidget> widgets, int x, int y, int w, String text) {
+        widgets.add(new StringWidget(x, y, w, 10, Component.literal("§7" + text), Minecraft.getInstance().font));
+    }
+
+    private void buildEvents(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width,
+                             Runnable requestRebuild) {
+        y = ScoreboardListEditor.buildControls(widgets, Section.EVENTS, x, y, width, requestRebuild);
+        int listW = (width - GAP) * 11 / 20;
+        int rightX = x + listW + GAP;
+        int rightW = x + width - rightX;
+        ScoreboardListEditor.buildList(widgets, Section.EVENTS, x, y, listW, LIST_ROWS, requestRebuild);
+        widgets.add(toggle("Show All Active Events", cfg::isShowAllActiveEvents, cfg::setShowAllActiveEvents, cfg,
+                rightX, y, rightW));
+        widgets.add(toggle("Separator Between Events", cfg::isSeparatorBetweenEvents, cfg::setSeparatorBetweenEvents, cfg,
+                rightX, y + 22, rightW));
+        hint(widgets, rightX, y + 46, rightW, "Higher in the list wins when");
+        hint(widgets, rightX, y + 58, rightW, "only one event is shown.");
+    }
+
+    private void buildStats(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width,
+                            Runnable requestRebuild) {
+        y = ScoreboardListEditor.buildControls(widgets, Section.STATS, x, y, width, requestRebuild);
+        int listW = (width - GAP) * 11 / 20;
+        int rightX = x + listW + GAP;
+        int rightW = x + width - rightX;
+        ScoreboardListEditor.buildList(widgets, Section.STATS, x, y, listW, LIST_ROWS, requestRebuild);
+        widgets.add(slider(rightX, y, rightW, cfg.getStatsPerLine(), 1, 10, v -> "Stats Per Line: " + v,
+                cfg::setStatsPerLine, cfg));
+        if (!cfg.isEntryEnabled(ScoreboardEntry.CHUNKED_STATS)) {
+            hint(widgets, rightX, y + 24, rightW, "Add the Chunked Stats line");
+            hint(widgets, rightX, y + 36, rightW, "to show these on the board.");
+        }
+    }
+
     private void buildGeneral(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width,
                               Runnable requestRebuild) {
-        int gap = 8;
-        int colW = (width - gap) / 2;
-        int colBX = x + colW + gap;
+        int colW = (width - GAP) / 2;
+        int colBX = x + colW + GAP;
 
         widgets.add(toggle("Hide Vanilla Scoreboard", cfg::isHideVanillaScoreboard, cfg::setHideVanillaScoreboard, cfg, x, y, colW));
         widgets.add(toggle("Custom Lines", cfg::isUseCustomLines, cfg::setUseCustomLines, cfg, colBX, y, colW));
@@ -118,60 +250,48 @@ public class CustomScoreboardTab extends BaseTab {
         y += 22;
 
         widgets.add(slider(x, y, colW, cfg.getLineSpacing(), 0, 10, v -> "Line Spacing: " + v, cfg::setLineSpacing, cfg));
-        widgets.add(slider(colBX, y, colW, cfg.getMaxPartyMembers(), 1, 25, v -> "Max Party Members: " + v,
-                cfg::setMaxPartyMembers, cfg));
-        y += 22;
-
         widgets.add(cycle(() -> "Numbers: §6" + cfg.getNumberFormat().label,
-                () -> cfg.setNumberFormat(cfg.getNumberFormat().next()), () -> cfg.setNumberFormat(cfg.getNumberFormat().previous()), cfg, x, y, colW));
+                () -> cfg.setNumberFormat(cfg.getNumberFormat().next()), () -> cfg.setNumberFormat(cfg.getNumberFormat().previous()), cfg, colBX, y, colW));
+        y += 22;
+
         widgets.add(cycle(() -> "Number Style: " + cfg.getNumberDisplayFormat().label,
-                () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().next()), () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().previous()), cfg, colBX, y, colW));
+                () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().next()), () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().previous()), cfg, x, y, colW));
+        widgets.add(toggle("Hide Empty Lines", cfg::isHideEmptyLines, cfg::setHideEmptyLines, cfg, colBX, y, colW));
         y += 22;
 
-        widgets.add(toggle("Hide Empty Lines", cfg::isHideEmptyLines, cfg::setHideEmptyLines, cfg, x, y, colW));
-        widgets.add(toggle("Hide Irrelevant Lines", cfg::isHideIrrelevantLines, cfg::setHideIrrelevantLines, cfg, colBX, y, colW));
+        widgets.add(toggle("Hide Irrelevant Lines", cfg::isHideIrrelevantLines, cfg::setHideIrrelevantLines, cfg, x, y, colW));
+        widgets.add(toggle("Hide Double Separators", cfg::isHideConsecutiveEmptyLines, cfg::setHideConsecutiveEmptyLines, cfg, colBX, y, colW));
         y += 22;
 
-        widgets.add(toggle("Hide Double Separators", cfg::isHideConsecutiveEmptyLines, cfg::setHideConsecutiveEmptyLines, cfg, x, y, colW));
-        widgets.add(toggle("Hide Edge Separators", cfg::isHideEmptyLinesAtTopAndBottom, cfg::setHideEmptyLinesAtTopAndBottom, cfg, colBX, y, colW));
+        widgets.add(toggle("Hide Edge Separators", cfg::isHideEmptyLinesAtTopAndBottom, cfg::setHideEmptyLinesAtTopAndBottom, cfg, x, y, colW));
+        widgets.add(toggle("Hide With Tab List", cfg::isHideWhenTab, cfg::setHideWhenTab, cfg, colBX, y, colW));
         y += 22;
 
-        widgets.add(toggle("Show Profile Name", cfg::isShowProfileName, cfg::setShowProfileName, cfg, x, y, colW));
-        widgets.add(toggle("Party Everywhere", cfg::isShowPartyEverywhere, cfg::setShowPartyEverywhere, cfg, colBX, y, colW));
-        y += 22;
-
-        widgets.add(toggle("Hide With Tab List", cfg::isHideWhenTab, cfg::setHideWhenTab, cfg, x, y, colW));
-        widgets.add(toggle("Hide With Chat Open", cfg::isHideWhenChat, cfg::setHideWhenChat, cfg, colBX, y, colW));
-        y += 22;
-
+        widgets.add(toggle("Hide With Chat Open", cfg::isHideWhenChat, cfg::setHideWhenChat, cfg, x, y, colW));
         widgets.add(cycle(() -> "Outside Skyblock: §6" + cfg.getOutsideSkyblockMode().label,
-                () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().next()), () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().previous()), cfg, x, y, colW));
-        widgets.add(toggle("Cache On Island Switch", cfg::isCacheOnIslandSwitch, cfg::setCacheOnIslandSwitch, cfg, colBX, y, colW));
+                () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().next()), () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().previous()), cfg, colBX, y, colW));
         y += 22;
 
-        widgets.add(toggle("Clickable Lines", cfg::isLineActions, cfg::setLineActions, cfg, x, y, colW));
-        widgets.add(toggle("Show Number Changes", cfg::isShowNumberDifference, cfg::setShowNumberDifference, cfg, colBX, y, colW));
+        widgets.add(toggle("Cache On Island Switch", cfg::isCacheOnIslandSwitch, cfg::setCacheOnIslandSwitch, cfg, x, y, colW));
+        widgets.add(toggle("Clickable Lines", cfg::isLineActions, cfg::setLineActions, cfg, colBX, y, colW));
         y += 22;
 
-        widgets.add(toggle("Unknown Line Warning", cfg::isUnknownLinesWarning, cfg::setUnknownLinesWarning, cfg, x, y, colW));
-        widgets.add(toggle("24h SkyBlock Time", cfg::isTime24h, cfg::setTime24h, cfg, colBX, y, colW));
+        widgets.add(toggle("Show Number Changes", cfg::isShowNumberDifference, cfg::setShowNumberDifference, cfg, x, y, colW));
+        widgets.add(toggle("Unknown Line Warning", cfg::isUnknownLinesWarning, cfg::setUnknownLinesWarning, cfg, colBX, y, colW));
         y += 22;
 
-        widgets.add(toggle("Date In Lobby Code", cfg::isDateInLobbyCode, cfg::setDateInLobbyCode, cfg, x, y, colW));
+        widgets.add(toggle("24h SkyBlock Time", cfg::isTime24h, cfg::setTime24h, cfg, x, y, colW));
         widgets.add(cycle(() -> "Date Format: §6" + cfg.getDateFormat().pattern,
                 () -> cfg.setDateFormat(cfg.getDateFormat().next()), () -> cfg.setDateFormat(cfg.getDateFormat().previous()), cfg, colBX, y, colW));
         y += 22;
 
-        widgets.add(toggle("Exact SkyBlock Minutes", cfg::isTimeExactMinutes, cfg::setTimeExactMinutes, cfg, x, y, colW));
         widgets.add(toggle("Custom Title Off Skyblock", cfg::isUseCustomTitleOutsideSkyblock,
-                cfg::setUseCustomTitleOutsideSkyblock, cfg, colBX, y, colW));
-        y += 22;
-
+                cfg::setUseCustomTitleOutsideSkyblock, cfg, x, y, colW));
         widgets.add(SettingsButtonWidget.builder(onOff("Custom Title", cfg.isUseCustomTitle()), btn -> {
                     cfg.setUseCustomTitle(!cfg.isUseCustomTitle());
                     cfg.save();
                     requestRebuild.run();
-                }).bounds(x, y, width, 18).build());
+                }).bounds(colBX, y, colW, 18).build());
         y += 22;
 
         Minecraft client = Minecraft.getInstance();
@@ -210,98 +330,10 @@ public class CustomScoreboardTab extends BaseTab {
         widgets.add(alphaFooter);
     }
 
-    private void buildOptions(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width) {
-        int gap = 8;
-        int colW = (width - gap) / 2;
-        int colBX = x + colW + gap;
-
-        widgets.add(toggle("Mayor Perks", cfg::isShowMayorPerks, cfg::setShowMayorPerks, cfg, x, y, colW));
-        widgets.add(toggle("Next Mayor Timer", cfg::isShowMayorTime, cfg::setShowMayorTime, cfg, colBX, y, colW));
-        y += 22;
-
-        widgets.add(toggle("Show Minister", cfg::isShowMinister, cfg::setShowMinister, cfg, x, y, colW));
-        widgets.add(toggle("Magical Power", cfg::isShowMagicalPower, cfg::setShowMagicalPower, cfg, colBX, y, colW));
-        y += 22;
-
-        widgets.add(toggle("Compact Tuning", cfg::isCompactTuning, cfg::setCompactTuning, cfg, x, y, colW));
-        widgets.add(slider(colBX, y, colW, cfg.getTuningAmount(), 1, 8, v -> "Tuning Amount: " + v, cfg::setTuningAmount, cfg));
-        y += 22;
-
-        widgets.add(cycle(() -> "Arrow Amount: §6" + cfg.getArrowDisplay().label,
-                () -> cfg.setArrowDisplay(cfg.getArrowDisplay().next()), () -> cfg.setArrowDisplay(cfg.getArrowDisplay().previous()), cfg, x, y, colW));
-        widgets.add(toggle("Color Arrow Amount", cfg::isColorArrowAmount, cfg::setColorArrowAmount, cfg, colBX, y, colW));
-        y += 22;
-
-        widgets.add(toggle("Max Island Players", cfg::isShowMaxIslandPlayers, cfg::setShowMaxIslandPlayers, cfg, x, y, colW));
-        widgets.add(toggle("Party Leader", cfg::isShowPartyLeader, cfg::setShowPartyLeader, cfg, colBX, y, colW));
-        y += 22;
-
-        widgets.add(toggle("Unclaimed Bits", cfg::isShowUnclaimedBits, cfg::setShowUnclaimedBits, cfg, x, y, colW));
-        widgets.add(cycle(() -> "Powder Display: §6" + cfg.getPowderDisplay().label,
-                () -> cfg.setPowderDisplay(cfg.getPowderDisplay().next()), () -> cfg.setPowderDisplay(cfg.getPowderDisplay().previous()), cfg, colBX, y, colW));
-        y += 22;
-
-        widgets.add(toggle("Perkpocalypse Mayor", cfg::isShowJerryMayor, cfg::setShowJerryMayor, cfg, x, y, colW));
-        widgets.add(toggle("Hide Purse In Dungeons", cfg::isHidePurseInDungeons, cfg::setHidePurseInDungeons, cfg, colBX, y, colW));
-    }
-
-    private void buildStats(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width,
-                            Runnable requestRebuild) {
-        widgets.add(slider(x, y, width, cfg.getStatsPerLine(), 1, 10, v -> "Stats Per Line: " + v, cfg::setStatsPerLine, cfg));
-        y += 24;
-        buildRows(widgets, cfg, cfg.chunkedStats(), s -> s.label, x, y, width, requestRebuild, cfg::resetChunkedStats);
-    }
-
-    private void buildEvents(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width,
-                             Runnable requestRebuild) {
-        int gap = 8;
-        int colW = (width - gap) / 2;
-        widgets.add(toggle("Show All Active Events", cfg::isShowAllActiveEvents, cfg::setShowAllActiveEvents, cfg, x, y, colW));
-        widgets.add(toggle("Separator Between Events", cfg::isSeparatorBetweenEvents, cfg::setSeparatorBetweenEvents, cfg,
-                x + colW + gap, y, colW));
-        y += 24;
-        buildRows(widgets, cfg, cfg.events(), e -> e.label, x, y, width, requestRebuild, cfg::resetEvents);
-    }
-
-    private <E extends Enum<E>> void buildRows(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, List<Row<E>> rows,
-                                               java.util.function.Function<E, String> label, int x, int y, int width,
-                                               Runnable requestRebuild, Runnable reset) {
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Reset Order"), btn -> {
-                    reset.run();
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(x, y, width, 18).build());
-        y += 24;
-
-        int arrowW = 20;
-        int toggleW = width - 2 * (arrowW + 4);
-        for (int i = 0; i < rows.size(); i++) {
-            Row<E> row = rows.get(i);
-            int index = i;
-            widgets.add(SettingsButtonWidget.builder(onOff((i + 1) + ". " + label.apply(row.id), row.enabled), btn -> {
-                        row.enabled = !row.enabled;
-                        cfg.save();
-                        btn.setMessage(onOff((index + 1) + ". " + label.apply(row.id), row.enabled));
-                    }).bounds(x, y, toggleW, 18).build());
-            widgets.add(SettingsButtonWidget.builder(Component.literal("▲"), btn -> {
-                        CustomScoreboardConfig.move(rows, index, -1);
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(x + toggleW + 4, y, arrowW, 18).build());
-            widgets.add(SettingsButtonWidget.builder(Component.literal("▼"), btn -> {
-                        CustomScoreboardConfig.move(rows, index, 1);
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(x + toggleW + 4 + arrowW + 4, y, arrowW, 18).build());
-            y += 20;
-        }
-    }
-
     private void buildBackground(List<AbstractWidget> widgets, CustomScoreboardConfig cfg, int x, int y, int width,
                                  Runnable requestRebuild) {
-        int gap = 8;
-        int colW = (width - gap) / 2;
-        int colBX = x + colW + gap;
+        int colW = (width - GAP) / 2;
+        int colBX = x + colW + GAP;
 
         widgets.add(toggle("Background", cfg::isBackgroundEnabled, cfg::setBackgroundEnabled, cfg, x, y, colW));
         widgets.add(colorButton("Background Color", cfg.getBackgroundColor(), CustomScoreboardConfig.DEFAULT_BACKGROUND_COLOR,

@@ -229,11 +229,11 @@ public final class CustomScoreboardFeature {
             }
             lines.addAll(ScoreboardLine.of(ScoreboardData.sidebar()));
         } else {
-            for (CustomScoreboardConfig.Row<ScoreboardEntry> row : cfg.entries()) {
-                if (!row.enabled || !row.id.visible(cfg)) {
+            for (ScoreboardEntry entry : cfg.entries().active()) {
+                if (!entry.visible(cfg)) {
                     continue;
                 }
-                List<ScoreboardLine> elementLines = row.id.lines(cfg);
+                List<ScoreboardLine> elementLines = entry.lines(cfg);
                 if (elementLines.isEmpty()) {
                     continue;
                 }
@@ -777,7 +777,7 @@ public final class CustomScoreboardFeature {
     }
 
     /** Board content for a preview with no live board of its own (HUD editor, {@link ScoreboardEditorScreen}):
-     *  the real current board when one exists, otherwise each enabled line's own sample text. Package-private
+     *  the real current board when one exists, otherwise each line on the board's own sample text, in board order. Package-private
      *  so both editors share exactly one "what would this look like" implementation. */
     static List<ScoreboardLine> previewLines() {
         if ((isActive() || minimalActive()) && !current.isEmpty()) {
@@ -785,18 +785,15 @@ public final class CustomScoreboardFeature {
         }
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
         List<ScoreboardLine> out = new ArrayList<>();
-        for (CustomScoreboardConfig.Row<ScoreboardEntry> row : cfg.entries()) {
-            if (!row.enabled) {
-                continue;
-            }
-            if (row.id == ScoreboardEntry.TITLE || row.id == ScoreboardEntry.FOOTER) {
-                out.addAll(row.id.lines(cfg));
-            } else if (row.id.isSeparator()) {
+        for (ScoreboardEntry entry : cfg.entries().active()) {
+            if (entry == ScoreboardEntry.TITLE || entry == ScoreboardEntry.FOOTER) {
+                out.addAll(entry.lines(cfg));
+            } else if (entry.isSeparator()) {
                 if (!out.isEmpty() && !out.get(out.size() - 1).isBlank()) {
                     out.add(ScoreboardLine.of(""));
                 }
             } else {
-                out.addAll(ScoreboardLine.of(row.id.sample()));
+                out.addAll(ScoreboardLine.of(entry.sample()));
             }
         }
         return trimBlankEdges(out);

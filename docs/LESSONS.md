@@ -147,6 +147,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `MouseHandler.getScaledXPos/YPos(Window, double)` (javap 26.1.2 and 26.2), which `AutoScaleMouseMixin` divides. So a mod
   screen must take its size from `this.width/height`, never from `getWindow().getGuiScaledWidth()`, and must read the mouse
   from its event arguments, never from `mouseHandler.xpos()`.
+- In the mod menu a drag is delivered only to the widget that took the PRESS (`ContainerEventHandler` routes `mouseDragged`
+  and `mouseReleased` to the focused child, javap 26.1.2), and every change rebuilds every widget. So a reorderable list is
+  ONE widget with its scroll kept outside it (`gui/DragListWidget`, 2026-10-07), not a widget per row. `ModScreen` also
+  scrolls the page on a wheel turn before any child sees it; a widget that scrolls itself implements `gui/WheelTarget`.
 - A `FolderTab` section that is pinned (always open, no header) is never in `expanded`, so
   `findListeningKeyCaptureTab` did not ask it: Home's "Edit HUD Keybind" sat on "Press any key..." forever. Pinned
   sections are now checked first.

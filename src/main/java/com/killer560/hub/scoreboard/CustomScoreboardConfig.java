@@ -3,8 +3,6 @@ package com.killer560.hub.scoreboard;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -14,15 +12,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 /**
  * Persisted Custom Scoreboard settings - see {@link CustomScoreboardFeature}. Every field survives a restart,
- * including the order and on/off state of each line, event and chunked stat. Position/scale live in {@code HudConfig}
+ * including which lines, events and chunked stats are on the board and their order ({@link EntryOrder}). Position/scale live in {@code HudConfig}
  * under {@link CustomScoreboardFeature#ELEMENT_ID}. Defaults mirror SkyHanni's CustomScoreboardConfig/DisplayConfig/
  * BackgroundConfig/InformationFilteringConfig (plus a few SkyBlock Custom Scoreboard options), with the colours swapped
  * to this mod's orange theme. Cached game data (Maxwell, cookie buff, quiver, mayor) lives in
@@ -215,17 +210,6 @@ public final class CustomScoreboardConfig {
         }
     }
 
-    /** One row of an ordered, toggleable list. */
-    public static final class Row<E extends Enum<E>> {
-        public final E id;
-        public boolean enabled;
-
-        Row(E id, boolean enabled) {
-            this.id = id;
-            this.enabled = enabled;
-        }
-    }
-
     public static final int DEFAULT_BACKGROUND_COLOR = 0xAA1A1108;
     public static final int DEFAULT_BORDER_COLOR = 0xFFCC6600;
     public static final int DEFAULT_BORDER_BOTTOM_COLOR = 0xFFFFA040;
@@ -316,14 +300,14 @@ public final class CustomScoreboardConfig {
     private int borderSoftness = 0;
     private boolean backgroundBlur = false;
     private int blurStrength = 6;
-    private final List<Row<ScoreboardEntry>> entries = new ArrayList<>();
-    private final List<Row<ScoreboardEvent>> events = new ArrayList<>();
-    private final List<Row<ChunkedStat>> chunkedStats = new ArrayList<>();
+    /** The board's lines, events and chunked stats: what is on it, in order, and the pool Add offers. */
+    private final EntryOrder<ScoreboardEntry> entries = new EntryOrder<>(ScoreboardEntry.class, e -> e.enabledByDefault);
+    private final EntryOrder<ScoreboardEvent> events = new EntryOrder<>(ScoreboardEvent.class, e -> e.enabledByDefault);
+    private final EntryOrder<ChunkedStat> chunkedStats = new EntryOrder<>(ChunkedStat.class, s -> true);
+    /** Which shape each list was read from on the last load ("current", "legacy" = migrated, "default"). */
+    private String loadedFrom = "default";
 
     private CustomScoreboardConfig() {
-        resetEntries();
-        resetEvents();
-        resetChunkedStats();
     }
 
     public static CustomScoreboardConfig getInstance() {
@@ -415,63 +399,14 @@ public final class CustomScoreboardConfig {
                 cfg.borderSoftness = clamp(ConfigJson.getInt(obj, "borderSoftness", cfg.borderSoftness), 0, 10);
                 cfg.backgroundBlur = ConfigJson.getBool(obj, "backgroundBlur", cfg.backgroundBlur);
                 cfg.blurStrength = clamp(ConfigJson.getInt(obj, "blurStrength", cfg.blurStrength), 1, 20);
-                loadRows(ConfigJson.getArray(obj, "entries"), cfg.entries, ScoreboardEntry.class);
-                loadRows(ConfigJson.getArray(obj, "events"), cfg.events, ScoreboardEvent.class);
-                loadRows(ConfigJson.getArray(obj, "chunkedStats"), cfg.chunkedStats, ChunkedStat.class);
+                // New keys first; a save from before the add/trash editor (only "entries"/"events"/"chunkedStats",
+                // each row with an on/off flag) migrates to the same lines in the same order - see EntryOrder.
+                cfg.loadedFrom = cfg.entries.load(obj.get("lineOrder"), ConfigJson.getArray(obj, "entries"))
+                        + "/" + cfg.events.load(obj.get("eventOrder"), ConfigJson.getArray(obj, "events"))
+                        + "/" + cfg.chunkedStats.load(obj.get("statOrder"), ConfigJson.getArray(obj, "chunkedStats"));
             }
         }
         instance = cfg;
-    }
-
-    /**
-     * Saved order first (unknown ids dropped). An id missing from the file (e.g. a line added in a newer build) is
-     * inserted right after the nearest id that precedes it in the default order, keeping its default on/off state,
-     * so new lines land where they belong instead of after the footer.
-     */
-    private static <E extends Enum<E>> void loadRows(JsonArray array, List<Row<E>> rows, Class<E> type) {
-        if (array == null) {
-            return;
-        }
-        List<Row<E>> loaded = new ArrayList<>();
-        Set<E> seen = EnumSet.noneOf(type);
-        for (JsonElement el : array) {
-            if (!el.isJsonObject()) {
-                continue;
-            }
-            JsonObject o = el.getAsJsonObject();
-            E id = ConfigJson.getEnum(o, "id", type, null);
-            if (id == null || !seen.add(id)) {
-                continue;
-            }
-            loaded.add(new Row<>(id, ConfigJson.getBool(o, "enabled", true)));
-        }
-        for (int d = 0; d < rows.size(); d++) {
-            Row<E> def = rows.get(d);
-            if (seen.contains(def.id)) {
-                continue;
-            }
-            int insertAt = loaded.size();
-            for (int p = d - 1; p >= 0; p--) {
-                int idx = indexOfId(loaded, rows.get(p).id);
-                if (idx >= 0) {
-                    insertAt = idx + 1;
-                    break;
-                }
-            }
-            loaded.add(insertAt, def);
-            seen.add(def.id);
-        }
-        rows.clear();
-        rows.addAll(loaded);
-    }
-
-    private static <E extends Enum<E>> int indexOfId(List<Row<E>> rows, E id) {
-        for (int i = 0; i < rows.size(); i++) {
-            if (rows.get(i).id == id) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     public void save() {
@@ -550,23 +485,16 @@ public final class CustomScoreboardConfig {
             obj.addProperty("borderSoftness", borderSoftness);
             obj.addProperty("backgroundBlur", backgroundBlur);
             obj.addProperty("blurStrength", blurStrength);
-            obj.add("entries", saveRows(entries));
-            obj.add("events", saveRows(events));
-            obj.add("chunkedStats", saveRows(chunkedStats));
+            obj.add("lineOrder", entries.toJson());
+            obj.add("eventOrder", events.toJson());
+            obj.add("statOrder", chunkedStats.toJson());
+            // The old toggle-list shape too, so an older jar (or a friend's, receiving shared settings) draws the same board.
+            obj.add("entries", entries.toLegacyJson());
+            obj.add("events", events.toLegacyJson());
+            obj.add("chunkedStats", chunkedStats.toLegacyJson());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
-    }
-
-    private static <E extends Enum<E>> JsonArray saveRows(List<Row<E>> rows) {
-        JsonArray array = new JsonArray();
-        for (Row<E> row : rows) {
-            JsonObject o = new JsonObject();
-            o.addProperty("id", row.id.name());
-            o.addProperty("enabled", row.enabled);
-            array.add(o);
-        }
-        return array;
     }
 
     private static int clamp(int v, int min, int max) {
@@ -574,56 +502,62 @@ public final class CustomScoreboardConfig {
     }
 
     public void resetEntries() {
-        entries.clear();
-        for (ScoreboardEntry e : ScoreboardEntry.values()) {
-            entries.add(new Row<>(e, e.enabledByDefault));
-        }
+        entries.reset();
     }
 
     public void resetEvents() {
-        events.clear();
-        for (ScoreboardEvent e : ScoreboardEvent.values()) {
-            events.add(new Row<>(e, e.enabledByDefault));
-        }
+        events.reset();
     }
 
     public void resetChunkedStats() {
-        chunkedStats.clear();
-        for (ChunkedStat s : ChunkedStat.values()) {
-            chunkedStats.add(new Row<>(s, true));
-        }
+        chunkedStats.reset();
     }
 
-    /** Moves row {@code index} by {@code delta} (-1 up, +1 down); no-op at the ends. */
-    public static <E extends Enum<E>> void move(List<Row<E>> rows, int index, int delta) {
-        int target = index + delta;
-        if (index < 0 || index >= rows.size() || target < 0 || target >= rows.size()) {
-            return;
-        }
-        Row<E> row = rows.remove(index);
-        rows.add(target, row);
-    }
-
-    /** True if {@code entry}'s row is switched on. */
+    /** True if {@code entry} is on the board. */
     public boolean isEntryEnabled(ScoreboardEntry entry) {
-        for (Row<ScoreboardEntry> row : entries) {
-            if (row.id == entry) {
-                return row.enabled;
-            }
-        }
-        return false;
+        return entries.contains(entry);
     }
 
-    public List<Row<ScoreboardEntry>> entries() {
+    /** The board's lines, top to bottom, and the pool the editor's Add offers. */
+    public EntryOrder<ScoreboardEntry> entries() {
         return entries;
     }
 
-    public List<Row<ScoreboardEvent>> events() {
+    public EntryOrder<ScoreboardEvent> events() {
         return events;
     }
 
-    public List<Row<ChunkedStat>> chunkedStats() {
+    public EntryOrder<ChunkedStat> chunkedStats() {
         return chunkedStats;
+    }
+
+    public List<ScoreboardEntry> getLineOrder() {
+        return entries.active();
+    }
+
+    public void setLineOrder(List<ScoreboardEntry> v) {
+        entries.setActive(v);
+    }
+
+    public List<ScoreboardEvent> getEventOrder() {
+        return events.active();
+    }
+
+    public void setEventOrder(List<ScoreboardEvent> v) {
+        events.setActive(v);
+    }
+
+    public List<ChunkedStat> getStatOrder() {
+        return chunkedStats.active();
+    }
+
+    public void setStatOrder(List<ChunkedStat> v) {
+        chunkedStats.setActive(v);
+    }
+
+    /** "current", "legacy" (migrated from the toggle lists) or "default", per list: lines/events/stats. */
+    public String getLoadedFrom() {
+        return loadedFrom;
     }
 
     public boolean isEnabled() {

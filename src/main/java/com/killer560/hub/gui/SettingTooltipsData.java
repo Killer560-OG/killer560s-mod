@@ -722,8 +722,8 @@ final class SettingTooltipsData {
         d.put(">", "Steps forward to the next region or time zone in the list.");
         d.put("custom scoreboard", "Replaces the sidebar with a custom styled scoreboard.");
         d.put("general", "Shows the general scoreboard settings.");
-        d.put("lines", "Shows the page to turn scoreboard lines on or off and reorder them.");
-        d.put("events", "Shows the page to choose which events appear and their priority.");
+        d.put("lines", "Shows the Lines page: drag the scoreboard's lines into order, trash the ones you do not want, Add puts them back.");
+        d.put("events", "Shows the Events page: which events can appear and their priority, top first.");
         d.put("hide vanilla scoreboard", "Hides Hypixel's normal sidebar while the custom one is shown.");
         d.put("custom lines", "ON builds the board from the Lines list; OFF only restyles the real lines.");
         d.put("text align", "Left, center or right alignment for normal scoreboard lines inside the box.");
@@ -744,9 +744,7 @@ final class SettingTooltipsData {
         d.put("title", "Your custom title text; use && for color codes.");
         d.put("footer", "Footer text at the bottom of the board; use && for color codes.");
         d.put("show all active events", "Lists every active event; OFF shows only the highest-priority one.");
-        d.put("reset order", "Restores the default order and on/off state of every row on this page.");
-        d.put("▲", "Moves this row one place up in the scoreboard order.");
-        d.put("▼", "Moves this row one place down in the scoreboard order.");
+        d.put("reset order", "Puts this list back to the default entries in the default order.");
         d.put("background color", "Opens a color picker for the scoreboard background.");
         d.put("padding", "Pixels of space between the text and the edge of the box (0-20).");
         d.put("rounded corners", "Rounds the corners of the background and border.");
@@ -1078,6 +1076,34 @@ final class SettingTooltipsData {
         d.put("show elapsed time", "Shows an elapsed-time timer on your Discord profile.");
     }
 
+    /** Custom Scoreboard's list editor (2026-10-07, SkyHanni's add / trash can / drag system). */
+    private static void scoreboardEditor(Map<String, String> d) {
+        d.put("custom scoreboard/add line", "Opens a list of the lines not on your board; pick one to add it at the bottom, then drag it where you want it.");
+        d.put("custom scoreboard/add event", "Opens a list of the events not in your list; pick one to add it at the bottom (lowest priority).");
+        d.put("custom scoreboard/add stat", "Opens a list of the stats not in your Chunked Stats line; pick one to add it at the end.");
+        d.put("custom scoreboard/scoreboard lines", "Your board, top to bottom. Drag a line to move it, the trash can takes it off (Add puts it back), click a line for its own options.");
+        d.put("custom scoreboard/scoreboard events", "Events that can show on the Events line, highest priority first. Drag to reorder, trash to remove, Add to put back.");
+        d.put("custom scoreboard/scoreboard chunked stats", "The stats in the Chunked Stats line, in order. Drag to reorder, trash to remove, Add to put back.");
+        d.put("custom scoreboard/edit events", "Opens the Events page, where you choose which events the Events line shows and in what order.");
+        d.put("custom scoreboard/edit chunked stats", "Opens the Chunked Stats page, where you choose which stats the line shows and in what order.");
+        // The Add dropdown's "+ <name>" buttons. Purse, Bits and the other currencies are both a line and a Chunked Stat,
+        // so one wording that is right on either page.
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (com.killer560.hub.scoreboard.ScoreboardEntry e : com.killer560.hub.scoreboard.ScoreboardEntry.values()) {
+            names.add(e.label);
+        }
+        for (com.killer560.hub.scoreboard.ScoreboardEvent e : com.killer560.hub.scoreboard.ScoreboardEvent.values()) {
+            names.add(e.label);
+        }
+        for (com.killer560.hub.scoreboard.ChunkedStat s : com.killer560.hub.scoreboard.ChunkedStat.values()) {
+            names.add(s.label);
+        }
+        for (String n : names) {
+            d.put("custom scoreboard/+ " + n.toLowerCase(java.util.Locale.ROOT), "Puts " + n
+                    + " back at the bottom of this list; drag it up from there.");
+        }
+    }
+
     /** 2026-09-16 sweep: descriptions for the newer tabs that shipped without any. */
     private static void part3(Map<String, String> d) {
         // ---- shared cheat-build section headers ----
@@ -1086,8 +1112,8 @@ final class SettingTooltipsData {
         d.put("cheat build - thorn esp", "Cheat build: Thorn ESP extras below this line that see through blocks.");
 
         // ---- Custom Scoreboard ----
-        d.put("line options", "Page of per-line options for the custom scoreboard.");
-        d.put("chunked stats", "Page for choosing which stats appear in the combined stats line.");
+        scoreboardEditor(d);
+        d.put("chunked stats", "Page for the stats in the combined Chunked Stats line: drag into order, trash, Add.");
         d.put("hide with tab list", "Hides the custom scoreboard while you hold the player-list key.");
         d.put("hide with chat open", "Hides the custom scoreboard while the chat box is open.");
         d.put("outside skyblock", "What to show outside SkyBlock: the server's own sidebar (Vanilla) or a minimal custom board.");
@@ -1955,7 +1981,7 @@ final class SettingTooltipsData {
         d.put("command shortcuts/burning", "Adds a shortcut that queues the Burning Kuudra tier.");
         d.put("command shortcuts/fiery", "Adds a shortcut that queues the Fiery Kuudra tier.");
         d.put("command shortcuts/infernal", "Adds a shortcut that queues the Infernal Kuudra tier.");
-        d.put("custom scoreboard/open visual editor", "Opens a drag-and-drop editor with a live preview to reorder or disable scoreboard lines.");
+        d.put("custom scoreboard/open visual editor", "Opens the same line, event and stat lists full screen beside a live preview of the board.");
         d.put("dungeon queue/party finder style", "How party member lines look in Party Finder tooltips.");
         d.put("dungeon queue/style preview", "Shows a live sample of the chosen Party Finder style.");
         d.put("posmsg/set to my position", "Saves where you are standing as this waypoint's centre.");

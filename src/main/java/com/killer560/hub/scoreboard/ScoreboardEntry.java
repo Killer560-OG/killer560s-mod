@@ -400,11 +400,11 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             List<ScoreboardLine> out = new ArrayList<>();
-            for (CustomScoreboardConfig.Row<ScoreboardEvent> row : cfg.events()) {
-                if (!row.enabled || !row.id.visible(cfg)) {
+            for (ScoreboardEvent event : cfg.events().active()) {
+                if (!event.visible(cfg)) {
                     continue;
                 }
-                List<ScoreboardLine> lines = row.id.lines(cfg);
+                List<ScoreboardLine> lines = event.lines(cfg);
                 if (lines.isEmpty()) {
                     continue;
                 }
@@ -811,11 +811,11 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             List<String> parts = new ArrayList<>();
-            for (CustomScoreboardConfig.Row<ChunkedStat> row : cfg.chunkedStats()) {
-                if (!row.enabled || !row.id.entry.visible(cfg)) {
+            for (ChunkedStat stat : cfg.chunkedStats().active()) {
+                if (!stat.entry.visible(cfg)) {
                     continue;
                 }
-                String display = row.id.display(cfg);
+                String display = stat.display(cfg);
                 if (display != null) {
                     parts.add(display);
                 }
