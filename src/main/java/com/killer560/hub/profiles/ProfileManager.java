@@ -335,6 +335,7 @@ public final class ProfileManager {
                 // profile wrote their file but left the old values in memory, and the next save put those back.
                 com.killer560.hub.autodebuff.AutoDebuffConfig::load,
                 com.killer560.hub.autosell.AutoSellConfig::load,
+                com.killer560.hub.autoanvil.AutoAnvilConfig::load,
                 com.killer560.hub.bazaarflip.BazaarFlipConfig::load,
                 com.killer560.hub.bugreport.BugReportConfig::load,
                 com.killer560.hub.invsort.InventorySorterConfig::load,

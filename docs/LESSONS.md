@@ -261,6 +261,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   three now also reset when `LiveMapFeature.resetGeneration()` changes (world change, dungeon entered, sim floor published).
   99-sim-aura-rebuild rebuilds Museum three times in one world and fails on 5008e4d6.
 
+- Container automation must not treat a cursor stack mid-click as the player's. On 26.2 Auto Anvil's first build stopped with
+  "something is on your cursor" in the first pair of testkit 292 and 293 (2026-10-07, not on 26.1.2, not on a rerun); the
+  item was not captured. It now waits a cursor stack out mid-pair and gates each step on the menu's state id changing
+  (`AbstractContainerMenu.getStateId`, which only the server's slot/content packets move), so a client prediction is never
+  read as the server's answer. 292-297 then passed twice on 26.2.
+
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session

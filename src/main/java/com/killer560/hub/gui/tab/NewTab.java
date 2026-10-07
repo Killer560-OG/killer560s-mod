@@ -150,6 +150,9 @@ public class NewTab extends FolderTab {
             // both are cheat-only like everything else in this block.
             tabs.add(new InventorySorterTab());
             tabs.add(new AutoSellTab());
+            // Auto Anvil (killer560, 2026-10-07): combines identical enchanted books in Hypixel's anvil - container
+            // clicks, so cheat-only beside Auto Sell.
+            tabs.add(new AutoAnvilTab());
             // Bazaar-to-NPC Flipper (killer560, 2026-09-29: "a bazaar flipper"). Buys out of the Bazaar and
             // sells to the /trades NPC, so it is automation that spends coins - cheat-only like the rest of
             // this block.
