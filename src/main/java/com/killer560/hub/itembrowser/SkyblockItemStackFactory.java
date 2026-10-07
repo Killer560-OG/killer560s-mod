@@ -1,5 +1,7 @@
 package com.killer560.hub.itembrowser;
 
+import com.killer560.hub.packdisabler.ItemLooks;
+import com.killer560.hub.packdisabler.PackDisabler;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.mojang.authlib.GameProfile;
@@ -100,7 +102,8 @@ public final class SkyblockItemStackFactory {
      *  that changes an item's skin/material (a background {@code SkyblockItemRepository} refresh can swap
      *  the whole catalog in mid-session) still invalidates correctly even though the {@code entry.id()} it
      *  came from didn't change. */
-    private record VisualKey(String skinValue, String skinSignature, String material, String itemModel) {
+    private record VisualKey(String skinValue, String skinSignature, String material, String itemModel,
+            boolean packDisabled) {
     }
 
     /** FPS fix: the item browser panel and craft/obtain popup call this once per visible grid cell every
@@ -112,7 +115,8 @@ public final class SkyblockItemStackFactory {
     private static final Map<VisualKey, ItemStack> BUILD_CACHE = new ConcurrentHashMap<>();
 
     public static ItemStack build(SkyblockItemEntry entry) {
-        VisualKey key = new VisualKey(entry.skinValue(), entry.skinSignature(), entry.material(), entry.itemModel());
+        VisualKey key = new VisualKey(entry.skinValue(), entry.skinSignature(), entry.material(), entry.itemModel(),
+                entry.itemModel() != null && (DetectedMods.isPackDisablerActive() || PackDisabler.isActive()));
         ItemStack cached = BUILD_CACHE.get(key);
         if (cached != null) {
             return cached;
@@ -154,7 +158,11 @@ public final class SkyblockItemStackFactory {
         // broken/missing) model that id resolves to under the default pack instead of a clean vanilla
         // item. Skipping the tag entirely falls back to the plain base item below, which always renders
         // correctly with or without a resource pack.
-        if (entry.itemModel() != null && !DetectedMods.isPackDisablerActive()) {
+        // With a pack disabler on (Noamm's, or this mod's own Pack Disabler), the item's pre-pack look from the shared
+        // table, the same answer the game and the Bazaar give.
+        if (entry.itemModel() != null && (DetectedMods.isPackDisablerActive() || PackDisabler.isActive())) {
+            ItemLooks.applyLook(stack, entry.id());
+        } else if (entry.itemModel() != null) {
             Identifier modelId = Identifier.tryParse(entry.itemModel());
             if (modelId != null) {
                 stack.set(DataComponents.ITEM_MODEL, modelId);

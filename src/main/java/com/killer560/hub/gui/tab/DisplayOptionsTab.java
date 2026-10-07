@@ -3,6 +3,8 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.fullbright.FullbrightConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.mainmenu.MainMenuThemeConfig;
+import com.killer560.hub.packdisabler.PackDisabler;
+import com.killer560.hub.packdisabler.PackDisablerConfig;
 import com.killer560.hub.window.WindowModeConfig;
 import com.killer560.hub.window.WindowModeFeature;
 import net.minecraft.client.Minecraft;
@@ -55,8 +57,14 @@ public class DisplayOptionsTab extends BaseTab {
                 }).bounds(contentX, y, 220, 20).build());
         y += 22;
 
-
-
+        // Pack Disabler (2026-10-07): SkyBlock items drawn with their pre-resource-pack look. Default OFF.
+        widgets.add(SettingsButtonWidget.builder(packDisablerText(), btn -> {
+                    PackDisablerConfig cfg = PackDisablerConfig.getInstance();
+                    cfg.setEnabled(!cfg.isEnabled());
+                    cfg.save();
+                    btn.setMessage(packDisablerText());
+                }).bounds(contentX, y, 220, 20).build());
+        y += 22;
 
         return widgets;
     }
@@ -72,6 +80,12 @@ public class DisplayOptionsTab extends BaseTab {
     }
 
 
+
+    private static Component packDisablerText() {
+        boolean on = PackDisablerConfig.getInstance().isEnabled();
+        String state = !on ? "§cOFF" : PackDisabler.noammInstalled() ? "§eON (idle: PackDisabler mod installed)" : "§aON";
+        return Component.literal("Pack Disabler: " + state);
+    }
 
     private static Component fullbrightText() {
         return Component.literal("Fullbright: "

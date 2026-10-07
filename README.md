@@ -32,7 +32,7 @@ Open the menu in game with `/killer560`; every feature sits in its own category 
 
 **Mining** - shelved until after the 2.0 release; not in the jar (see `shelved/mining/`)
 
-**Display & Menus** - Borderless Fullscreen, Custom Crosshair, Fullbright, Motion Blur, Skyblock Only, Themed Main Menu, Window Layout
+**Display & Menus** - Borderless Fullscreen, Custom Crosshair, Fullbright, Motion Blur, Pack Disabler, Skyblock Only, Themed Main Menu, Window Layout
 
 **Accounts, Home & Profiles** - Account Switcher, Auto Scale (monitor), Bug Report, HUD Editor, Menu Memory, Profiles, Proxy Client, Update Notice
 

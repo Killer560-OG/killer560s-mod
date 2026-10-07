@@ -255,3 +255,15 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   class's constant pool (seen with javap -v, 2026-10-07). So gating normal code on a flag that lives in a package left out of
   a jar (`com.killer560.hub.testing`) still puts that package's name in every gated class; the testing build gates on
   `BuildVariant.TESTING` instead, and a byte grep of the normal jars for `hub/testing` comes back empty.
+
+- **Hypixel's SkyBlock resource pack is required**: the 0.26 announcement (hypixel.net thread 6117801) says it is
+  force-enabled and SkyBlock cannot be joined without loading it, and players who declined report being kicked with
+  "failed to load resource pack". Noamm's PackDisabler gets round that by answering ACCEPTED + SUCCESSFULLY_LOADED and
+  cancelling the push, i.e. reporting a pack it never applied. Our Pack Disabler leaves the push to vanilla (the pack
+  really loads) and only swaps the model each SkyBlock item is drawn with, at `ItemModelResolver.appendItemLayers`
+  (2026-10-07). Hypixel's pack overrides no vanilla item textures, so a vanilla look still comes from his own packs.
+- NotEnoughUpdates moved items onto Hypixel's pack models in SEVERAL commits on 2026-07-09 (Auction House, Other,
+  Bazaar Items, Recipe, More), so the parent of the Bazaar one (26169fe) already had 299 items on pack models. The
+  pre-pack look comes from the newest snapshot where an item was not yet a pack model: 26169fe, then 0046933 (the
+  parent of the first conversion), then 60e030e (April). With those, 95 of the 1,366 pack-model items have no old
+  look anywhere (`tools/items/gen_item_looks.py`); they are the ones with our own textures.

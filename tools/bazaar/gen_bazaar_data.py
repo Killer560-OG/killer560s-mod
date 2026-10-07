@@ -1,21 +1,17 @@
 """Generates src/main/resources/assets/killer560smod/bazaar/products.json: every Bazaar product's name, Hypixel
-Bazaar category/group, rarity and a real icon, so the Bazaar browser never has to guess.
+Bazaar category/group and rarity. Its ICON comes from the shared item table (tools/items/gen_item_looks.py, also read
+by Pack Disabler), which must be generated first; BazaarCatalog joins the two at load.
 
 Inputs (download them into one folder, pass it as the only argument):
   bazaar.json     https://api.hypixel.net/v2/skyblock/bazaar                 (the product ids)
   items.json      https://api.hypixel.net/v2/resources/skyblock/items        (names, tiers, skins, materials)
   neu.zip         NotEnoughUpdates-REPO master archive (MIT, Moulberry)      (enchantments, shards, essences, factions)
-  neu-old.zip     NotEnoughUpdates-REPO at 26169fef95cc5614a25e8593b074cb41beb7e8de, the parent of c36f36d22c
-                  "Resourcepack -> Bazaar Items" (2026-07-09), the commit that moved ~480 bazaar items from player
-                  heads to Hypixel's resource-pack models. Its skull textures are the fallback icon when that pack
-                  is not loaded (a pack disabler, or the browser opened off Hypixel).
   vanilla_items.txt  one vanilla item id per line (assets/minecraft/items/*.json of the 26.1.2 client jar)
 And tools/bazaar/bazaar_tree.txt (Hypixel's Bazaar menu taxonomy, from the wiki).
 
 Run:  python -X utf8 tools/bazaar/gen_bazaar_data.py <data folder>
-It prints the products with no icon source; those are what still draw as paper.
+It prints the products with no icon source in the shared table; those are what still draw as paper.
 """
-import base64
 import json
 import os
 import re
@@ -51,7 +47,11 @@ def load_neu(name):
 
 
 neu, shard_table = load_neu('neu.zip')
-neu_old, _ = load_neu('neu-old.zip')
+# Icons are NOT decided here: every product's look comes from the shared SkyBlock item table that Pack Disabler also
+# reads (tools/items/gen_item_looks.py -> assets/killer560smod/skyblock/item_looks.json), so one item has one answer.
+# Run that generator first.
+LOOKS = json.load(open(os.path.join(HERE, '..', '..', 'src', 'main', 'resources', 'assets', 'killer560smod', 'skyblock',
+                                    'item_looks.json'), encoding='utf-8'))['items']
 
 COLOR = re.compile('§.')
 TIERS = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC', 'DIVINE', 'SPECIAL', 'VERY_SPECIAL']
@@ -112,70 +112,6 @@ def neu_key(pid):
     if pid.startswith('SHARD_') and pid in shard_table:
         return shard_table[pid]['internalName']
     return pid.replace(':', '-')
-
-
-def skin_hash(value):
-    try:
-        url = json.loads(base64.b64decode(value + '==='))['textures']['SKIN']['url']
-        return url.rsplit('/', 1)[1]
-    except Exception:
-        return None
-
-
-def icon_from_neu(item):
-    """(icon dict, pack model or None) from a NEU item json."""
-    tag = item.get('nbttag', '')
-    out = {}
-    model = None
-    m = re.search(r'ItemModel:\\?"([^"\\]+)\\?"', tag)
-    v = re.search(r'Value:\\?"([A-Za-z0-9+/=]+)\\?"', tag)
-    if m and not m.group(1).startswith('minecraft:'):
-        model = m.group(1)
-    if v and (not m or m.group(1) in ('minecraft:player_head',) or model):
-        h = skin_hash(v.group(1))
-        if h:
-            out['s'] = h
-    elif m and m.group(1).startswith('minecraft:') and m.group(1)[10:] in vanilla:
-        out['i'] = m.group(1)[10:]
-    if not out and not model:
-        itemid = item.get('itemid', '')
-        if itemid:
-            out['l'] = itemid + ':' + str(item.get('damage', 0))
-    if 'ench:' in tag:
-        out['e'] = 1
-    return out, model
-
-
-LEGACY = {'INK_SACK': 'dye', 'RAW_FISH': 'fish', 'COOKED_FISH': 'cooked_fish', 'LOG_2': 'log2', 'CARROT_ITEM': 'carrot',
-          'POTATO_ITEM': 'potato', 'NETHER_STALK': 'nether_wart', 'MYCEL': 'mycelium', 'ENDER_STONE': 'end_stone',
-          'SULPHUR': 'gunpowder', 'PORK': 'porkchop', 'WATER_LILY': 'waterlily', 'SEEDS': 'wheat_seeds',
-          'SUGAR_CANE': 'reeds', 'RAW_CHICKEN': 'chicken', 'RAW_BEEF': 'beef', 'SNOW_BALL': 'snowball',
-          'RED_ROSE': 'red_flower', 'YELLOW_FLOWER': 'yellow_flower', 'EXP_BOTTLE': 'experience_bottle',
-          'SKULL_ITEM': 'skull', 'NETHER_BRICK_ITEM': 'netherbrick', 'HUGE_MUSHROOM_1': 'brown_mushroom_block',
-          'HUGE_MUSHROOM_2': 'red_mushroom_block', 'WATCH': 'clock', 'FIREWORK': 'fireworks',
-          'EYE_OF_ENDER': 'ender_eye', 'SNOW_BLOCK': 'snow', 'MELON': 'melon', 'MELON_BLOCK': 'melon_block',
-          'SPECKLED_MELON': 'speckled_melon', 'GRILLED_PORK': 'cooked_porkchop', 'LEASH': 'lead', 'WEB': 'web',
-          'TRAP_DOOR': 'trapdoor', 'MONSTER_EGG': 'spawn_egg', 'REDSTONE_LAMP_OFF': 'redstone_lamp',
-          'IRON_PLATE': 'heavy_weighted_pressure_plate', 'CARROT_STICK': 'carrot_on_a_stick', 'COMMAND': 'command_block', 'WOOL': 'wool'}
-
-
-def icon_from_catalog(c):
-    out = {}
-    if c.get('skin'):
-        h = skin_hash(c['skin'].get('value', ''))
-        if h:
-            out['s'] = h
-    else:
-        mat = c.get('material', '')
-        out['l'] = 'minecraft:' + LEGACY.get(mat, mat.lower()) + ':' + str(c.get('durability', 0))
-    if c.get('glowing'):
-        out['e'] = 1
-    model = c.get('item_model')
-    if model and model.startswith('minecraft:'):
-        if model[10:] in vanilla:
-            out = {'i': model[10:], **({'e': 1} if c.get('glowing') else {})}
-        model = None
-    return out, model
 
 
 # ---- taxonomy ----
@@ -270,6 +206,8 @@ unmatched_group = []
 for pid in sorted(bazaar):
     if pid.startswith('ENCHANTMENT_'):
         entry = enchant_entry(pid)
+        entry.pop('i', None)
+        entry.pop('e', None)
         entry['g'] = group_of(pid, entry['n'])
         products[pid] = entry
         before_paper.append(pid)
@@ -310,23 +248,7 @@ for pid in sorted(bazaar):
     if not name:
         name = ' '.join(w.capitalize() for w in pid.replace(':', '_').split('_'))
 
-    icon, model = ({}, None)
-    if ni:
-        icon, model = icon_from_neu(ni)
-    if (not icon) and c:
-        icon, cmodel = icon_from_catalog(c)
-        model = model or cmodel
-    if model and not icon.get('s') and not icon.get('i'):
-        old = neu_old.get(nk)
-        if old:
-            oicon, omodel = icon_from_neu(old)
-            if not omodel and (oicon.get('s') or oicon.get('i') or oicon.get('l')):
-                icon = oicon
-    if model and not icon:
-        # Nothing but the pack model and a paper base: keep the catalog material so it is not invented.
-        if c:
-            mat = c.get('material', 'PAPER')
-            icon = {'l': 'minecraft:' + LEGACY.get(mat, mat.lower()) + ':' + str(c.get('durability', 0))}
+    look = LOOKS.get(pid, {})
     if pid in ALIASES:
         # Only the ICON is borrowed: BAZAAR_COOKIE and BOOSTER_COOKIE are separate products, and sharing a name would
         # make a Manage Orders line ambiguous.
@@ -336,11 +258,9 @@ for pid in sorted(bazaar):
         unmatched_group.append(pid + ' (' + name + ')')
     if tier:
         entry['t'] = tier
-    entry.update(icon)
-    if model:
-        entry['m'] = model
-    if not (entry.get('s') or entry.get('i') or (entry.get('l') and not entry['l'].startswith('minecraft:paper'))):
-        after_paper.append(pid + ' (' + name + ')' + (' [pack model ' + model + ']' if model else ''))
+    if not (look.get('s') or look.get('i') or look.get('o')
+            or (look.get('l') and not look['l'].startswith('minecraft:paper'))):
+        after_paper.append(pid + ' (' + name + ')' + (' [pack model ' + look['m'] + ']' if look.get('m') else ''))
     products[pid] = entry
 
 os.makedirs(os.path.dirname(OUT), exist_ok=True)

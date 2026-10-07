@@ -136,4 +136,5 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   `hypixel_skyblock:` resource-pack model on a paper base, and `durability` was ignored, so 1,744 drew as paper without the
   pack (2026-10-07). The browser now reads the bundled `assets/killer560smod/bazaar/products.json` (tools/bazaar, from NEU
   incl. its pre-resource-pack commit 26169fe for old head textures) and uses a pack model only when
-  `getResource("items/<path>.json")` finds it: 47 still fall back (all newer than that commit). Testkit 425 counts them.
+  `getResource("items/<path>.json")` finds it. Since Pack Disabler (2026-10-07) the icons come from the shared
+  `skyblock/item_looks.json` (older NEU snapshots plus our own textures) and none fall back. Testkit 425/432 count them.

@@ -187,6 +187,7 @@ public final class ModPaths {
         t.put("tooltipscroll", "interface/tooltipscroll");
         t.put("motionblur", "interface/motionblur");
         t.put("fullbright", "interface/fullbright");
+        t.put("packdisabler", "interface/packdisabler");
         t.put("nofire", "interface/nofire");
         t.put("objecthider", "interface/objecthider");
         t.put("trail", "interface/trail");

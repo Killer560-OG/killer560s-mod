@@ -1425,7 +1425,10 @@ final class SettingTooltipsData {
         d.put("croesus / chest profit", "Shows what each dungeon reward chest is worth, logs your claims, and (cheat build) claims the best chest.");
         d.put("croesus / chest profit/min delay", "Cheat build only. Shortest random wait between Auto Croesus's clicks, 100-2000 ms.");
         d.put("croesus / chest profit/max delay", "Cheat build only. Longest random wait between Auto Croesus's clicks, 100-2000 ms.");
-        d.put("display options", "Borderless fullscreen, fullbright and the Amber main menu theme.");
+        d.put("display options", "Borderless fullscreen, fullbright, Pack Disabler and the Amber main menu theme.");
+        d.put("display options/pack disabler", "Draws every SkyBlock item the way it looked before Hypixel's resource "
+                + "pack: its old item or head, through your own resource packs. Items that never had an old look get "
+                + "the mod's own textures. Hypixel's pack still loads (SkyBlock requires it); only item looks change.");
         d.put("24h skyblock time", "Shows the SkyBlock clock as 13:40 instead of 1:40pm.");
         d.put("ap3/movement", "Cheat build only. How AP3 moves you between nodes and whether chains roll into the next area.");
         d.put("auto routes/colour", "The colour every Auto Routes node marker uses while Uniform Colour is ON.");

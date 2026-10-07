@@ -1,0 +1,1 @@
+# SkyBlock ids with no pre-pack look and no texture of ours (gen_item_looks.py output)

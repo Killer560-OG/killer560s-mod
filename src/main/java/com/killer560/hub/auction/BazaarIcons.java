@@ -2,6 +2,8 @@ package com.killer560.hub.auction;
 
 import com.killer560.hub.interop.DetectedMods;
 import com.killer560.hub.itembrowser.SkyblockItemEntry;
+import com.killer560.hub.packdisabler.ItemLooks;
+import com.killer560.hub.packdisabler.PackDisabler;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
 import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
 import com.killer560.hub.profileviewer.item.ItemIcons;
@@ -30,8 +32,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * <ol>
  *   <li>Hypixel's own resource-pack model, when that model is really loaded (checked against the client's resources,
  *       so a pack disabler or a lobby without the pack falls through instead of drawing paper);</li>
- *   <li>the bundled table ({@link BazaarCatalog}): a player-head texture, a modern item id, or a 1.8 id + damage
- *       through vanilla's flattening fix ({@link LegacyItems#legacyItem});</li>
+ *   <li>the shared SkyBlock item table ({@link ItemLooks}, via {@link BazaarCatalog}): a player-head texture, a
+ *       modern item id, or a 1.8 id + damage through vanilla's flattening fix ({@link LegacyItems#legacyItem}), or
+ *       for an item that never had one, Pack Disabler's own texture;</li>
  *   <li>the live item catalog, for products newer than the table;</li>
  *   <li>paper, counted as a fallback ({@link #fallbacks}).</li>
  * </ol>
@@ -40,7 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class BazaarIcons {
 
     /** Where an icon came from. {@code FALLBACK} is the only one that means "we do not know this item". */
-    public enum Source { PACK_MODEL, SKULL, VANILLA, LEGACY, CATALOG, FALLBACK }
+    public enum Source { PACK_MODEL, SKULL, VANILLA, LEGACY, OWN_TEXTURE, CATALOG, FALLBACK }
 
     private record Resolved(ItemStack stack, Source source) {
     }
@@ -164,6 +167,12 @@ public final class BazaarIcons {
                 return new Resolved(stack, Source.LEGACY);
             }
         }
+        if (e.ownTexture() != null) {
+            ItemStack stack = new ItemStack(Items.PAPER);
+            stack.set(DataComponents.ITEM_MODEL, ItemLooks.ownModel(e.ownTexture()));
+            glint(stack, e.glint());
+            return new Resolved(stack, Source.OWN_TEXTURE);
+        }
         return new Resolved(new ItemStack(Items.PAPER), Source.FALLBACK);
     }
 
@@ -176,7 +185,8 @@ public final class BazaarIcons {
     /** Is {@code model} (an item_model id) defined by a loaded resource pack? Its definition lives at
      *  {@code assets/<ns>/items/<path>.json}. A pack disabler means Hypixel's pack never loads, so skip the lookup. */
     static boolean packModelLoaded(String model) {
-        if (model == null || DetectedMods.isPackDisablerActive()) {
+        // Either pack disabler (Noamm's mod, or ours switched on) means the old look is wanted, not Hypixel's model.
+        if (model == null || DetectedMods.isPackDisablerActive() || PackDisabler.isActive()) {
             return false;
         }
         return MODEL_LOADED.computeIfAbsent(model, m -> {

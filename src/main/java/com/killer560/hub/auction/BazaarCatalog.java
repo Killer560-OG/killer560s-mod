@@ -3,6 +3,7 @@ package com.killer560.hub.auction;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.packdisabler.ItemLooks;
 import com.killer560.hub.util.ModLog;
 import org.slf4j.Logger;
 
@@ -34,11 +35,13 @@ public final class BazaarCatalog {
     private static final Logger LOGGER = ModLog.get("killer560smod-bazaar");
     private static final String PATH = "/assets/killer560smod/bazaar/products.json";
 
-    /** One product's row. {@code skinHash} is the texture id on textures.minecraft.net; {@code vanillaId} a modern
+    /** One product's row. Name, group, tier and ultimate come from products.json; the look fields come from the shared
+     *  {@link ItemLooks} table: {@code skinHash} is the texture id on textures.minecraft.net; {@code vanillaId} a modern
      *  item id; {@code legacy} a 1.8 {@code minecraft:name:damage} pushed through vanilla's flattening fix;
-     *  {@code packModel} Hypixel's resource-pack model, used only when that model is actually loaded. */
+     *  {@code packModel} Hypixel's resource-pack model, used only when that model is actually loaded;
+     *  {@code ownTexture} our own texture for an item that never had a look of its own. */
     public record Entry(String productId, String name, int group, String tier, String skinHash, String vanillaId,
-            String legacy, String packModel, boolean glint, boolean ultimate) {
+            String legacy, String packModel, boolean glint, boolean ultimate, String ownTexture) {
     }
 
     /** A Bazaar category ("Farming") and one of its groups ("Wheat &amp; Seeds"). */
@@ -93,9 +96,13 @@ public final class BazaarCatalog {
         rows.sort(Map.Entry.comparingByKey());
         for (Map.Entry<String, JsonElement> e : rows) {
             JsonObject o = e.getValue().getAsJsonObject();
+            // The icon is the shared SkyBlock item table's answer (Pack Disabler reads the same rows), so the browser and
+            // the game never disagree about what an item looks like.
+            ItemLooks.Look look = ItemLooks.get(e.getKey());
             Entry entry = new Entry(e.getKey(), str(o, "n"), o.has("g") ? o.get("g").getAsInt() : g.size() - 1,
-                    str(o, "t"), str(o, "s"), str(o, "i"), str(o, "l"), str(o, "m"),
-                    o.has("e"), o.has("u"));
+                    str(o, "t"), look == null ? null : look.skinHash(), look == null ? null : look.vanillaId(),
+                    look == null ? null : look.legacy(), look == null ? null : look.packModel(),
+                    look != null && look.glint(), o.has("u"), look == null ? null : look.ownTexture());
             ids.put(entry.productId(), entry);
             if (entry.name() != null) {
                 names.putIfAbsent(entry.name().toLowerCase(Locale.ROOT), entry.productId());

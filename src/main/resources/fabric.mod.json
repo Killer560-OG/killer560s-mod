@@ -22,6 +22,7 @@
   "mixins": [
     "killer560smod.mixins.json",
     "killer560smod-proxy.mixins.json",
+    "killer560smod-packdisabler.mixins.json",
     "killer560smod-rngmeter.mixins.json",
     "killer560smod-translate.mixins.json",
     "killer560smod-inventorytheme.mixins.json",

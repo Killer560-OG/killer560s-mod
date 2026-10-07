@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
+import com.killer560.hub.packdisabler.ItemLooks;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -225,9 +226,12 @@ public final class LegacyItems {
         tag.getString("ItemModel").ifPresent(model -> {
             Identifier modelId = Identifier.tryParse(model);
             // Only vanilla models: a Hypixel pack model id renders as missing-texture when the pack
-            // isn't loaded (e.g. viewing from singleplayer).
+            // isn't loaded (e.g. viewing from singleplayer). A Hypixel model is replaced by the item's pre-pack look
+            // from the shared table (the same answer Pack Disabler and the Bazaar give) instead of its paper base.
             if (modelId != null && "minecraft".equals(modelId.getNamespace())) {
                 stack.set(DataComponents.ITEM_MODEL, modelId);
+            } else if (modelId != null) {
+                ItemLooks.applyLook(stack, skyblockId(stack));
             }
         });
 
