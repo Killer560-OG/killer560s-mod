@@ -1,6 +1,8 @@
 package com.killer560.hub.hud;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.playerstats.PlayerStatsConfig;
+import com.killer560.hub.playerstats.StatLayout;
 import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.cursor.CursorType;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
@@ -54,6 +56,13 @@ import com.killer560.hub.compat.McCompat;
  * Snapping (same day: "Those should kind of do a snapping style where they snap to align with things. You can choose
  * what all they will align with."): see {@link HudSnap}. The Snapping button opens the list of what to snap to; Alt
  * held while dragging places freely.
+ * <p>
+ * Health and Mana Bars' Predefined layout (same day: "predefined spots or fully custom ... look at how Skyblocker has
+ * their snap-to-area kind of set up"): its readouts are placed by {@link StatLayout}, not by position. Dragging one shows
+ * every area it can go to (the one under the cursor highlighted) and the others making room for it where it would land;
+ * dropping it there moves it into that area at that place, Hidden included (the tray at the left). Dropped anywhere else
+ * it goes back. No handles: the area decides a bar's length; scroll still scales it. Its own saved position is never
+ * written here, so switching back to Custom finds it where it was.
  */
 public class HudEditorScreen extends Screen {
 
@@ -85,6 +94,10 @@ public class HudEditorScreen extends Screen {
     private int pressH;
     /** Guides of the current snap, drawn until the drag ends. */
     private final List<HudSnap.Guide> guides = new ArrayList<>();
+    /** While a Predefined stat readout is dragged: the areas it can go to (laid out without it), and where it would
+     *  land now (null = nowhere: a drop puts it back). */
+    private StatLayout.Layout dragZones;
+    private StatLayout.Target dragTarget;
 
     private SettingsButtonWidget showAllButton;
     /** Whether the snapping options list is open above its button (session-only). */
@@ -104,6 +117,11 @@ public class HudEditorScreen extends Screen {
     private static final int BOX_OUTLINE = 0xFFCC6600;
     private static final int HANDLE = 0xFFFF8800;
     private static final int GUIDE = 0xFFFF9933;
+    private static final int ZONE_FILL = 0x33FF8800;
+    private static final int ZONE_EDGE = 0xCCFF8800;
+    private static final int ZONE_FILL_TARGET = 0x55FF8800;
+    private static final int ZONE_EDGE_TARGET = 0xFFFF8800;
+    private static final int TRAY_FILL = 0x66000000;
     /**
      * Screen pixels the box stands out from the element on every side - the same for every element at every scale.
      *
@@ -136,16 +154,35 @@ public class HudEditorScreen extends Screen {
         addButtons();
     }
 
+    /**
+     * Where the button row goes: the bottom edge, except while Health and Mana Bars use the Predefined layout, whose
+     * areas ARE the bottom of the screen round the hotbar - there the buttons sat on the side columns and took their
+     * clicks (2026-10-07, seen in testkit 407's picture), so the row moves up under the instructions.
+     */
+    private int buttonY() {
+        return StatLayout.predefined() && anyStatListed() ? 58 : this.height - 28;
+    }
+
+    private boolean anyStatListed() {
+        for (HudElement e : shown) {
+            if (StatLayout.manages(e)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void addButtons() {
+        int by = buttonY();
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
-                .bounds(this.width / 2 - 40, this.height - 28, 80, 20).build());
+                .bounds(this.width / 2 - 40, by, 80, 20).build());
         showAllButton = SettingsButtonWidget.builder(showAllLabel(), btn -> {
             HudConfig cfg = HudConfig.getInstance();
             cfg.setEditorShowAll(!cfg.isEditorShowAll());
             cfg.save();
             btn.setMessage(showAllLabel());
             rebuildList();
-        }).bounds(this.width / 2 + 48, this.height - 28, 110, 20).build();
+        }).bounds(this.width / 2 + 48, by, 110, 20).build();
         this.addRenderableWidget(showAllButton);
 
         int snapX = this.width / 2 - 48 - 110;
@@ -154,7 +191,7 @@ public class HudEditorScreen extends Screen {
             snapPanelOpen = !snapPanelOpen;
             clearWidgets();
             addButtons();
-        }).bounds(snapX, this.height - 28, 110, 20).build());
+        }).bounds(snapX, by, 110, 20).build());
         if (snapPanelOpen) {
             String[] labels = {"Snapping", "Element Edges", "Element Centres", "Screen Edges", "Screen Centre",
                     "Equal Spacing"};
@@ -165,7 +202,8 @@ public class HudEditorScreen extends Screen {
                     () -> cfg.setSnapScreenEdges(!cfg.isSnapScreenEdges()),
                     () -> cfg.setSnapScreenCentre(!cfg.isSnapScreenCentre()),
                     () -> cfg.setSnapEqualSpacing(!cfg.isSnapEqualSpacing())};
-            int y = this.height - 28 - 4 - labels.length * 18;
+            // Opens upward from a bottom row, downward from a top one.
+            int y = by > this.height / 2 ? by - 4 - labels.length * 18 : by + 24;
             for (int i = 0; i < labels.length; i++) {
                 int k = i;
                 this.addRenderableWidget(SettingsButtonWidget.builder(snapOption(k, labels[k]), btn -> {
@@ -210,6 +248,7 @@ public class HudEditorScreen extends Screen {
         draggingId = null;
         resizeEdges = 0;
         guides.clear();
+        endAreaDrag();
         shown.clear();
         livePositions.clear();
         liveScales.clear();
@@ -222,7 +261,10 @@ public class HudEditorScreen extends Screen {
                 disabled++;
                 continue;
             }
-            if (!showUnseen && !HudSeen.drawnWithinGrace(element.id(), asOfMs)) {
+            // A Predefined readout in Hidden never draws, so it can never be "seen"; it is listed in the tray regardless,
+            // or it could never be dragged back out.
+            boolean hiddenReadout = isHiddenReadout(element);
+            if (!showUnseen && !hiddenReadout && !HudSeen.drawnWithinGrace(element.id(), asOfMs)) {
                 continue;
             }
             shown.add(element);
@@ -235,11 +277,28 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        StatLayout.newFrame();
         graphics.fill(0, 0, this.width, this.height, 0x33000000);
         graphics.text(this.font, "§eDrag a box to move it, drag a corner or edge to resize it, scroll to scale it.",
                 8, 8, 0xFFFFFFFF);
         graphics.text(this.font, listingLine(), 8, 20, 0xFFFFFFFF);
         graphics.text(this.font, "§7Hold Alt while dragging to place it without snapping.", 8, 32, 0xFFFFFFFF);
+
+        // Predefined stat readouts go where their layout puts them, every frame (it moves as others are dragged).
+        boolean anyAnchored = false;
+        for (HudElement e : shown) {
+            if (StatLayout.manages(e)) {
+                anyAnchored = true;
+                if (!e.id().equals(draggingId)) {
+                    livePositions.put(e.id(), HudElementRegistry.resolvePosition(e));
+                }
+            }
+        }
+        if (anyAnchored) {
+            graphics.text(this.font, "§7Health and Mana Bars (Predefined): drag a bar onto an area; Hidden hides it.",
+                    8, 44, 0xFFFFFFFF);
+            drawAreas(graphics);
+        }
 
         // What the cursor is over: a handle of some box, or the inside of one (topmost first).
         HudElement hover = null;
@@ -270,7 +329,23 @@ public class HudEditorScreen extends Screen {
             graphics.outline(x - BOX_PAD, y - BOX_PAD, scaledW + 2 * BOX_PAD, scaledH + 2 * BOX_PAD, BOX_OUTLINE);
             // The name above the box is cut to the box's own width so side-by-side boxes' names never run into
             // each other ("Health Bar (1.0x, 100x8)" over "Mana Bar"); the one being hovered or dragged shows in full.
-            String label = element.displayName() + sizeNote(element, own);
+            boolean anchored = StatLayout.manages(element);
+            if (anchored && !dragging && element != hover) {
+                // Laid-out readouts sit a few pixels apart in rows and columns, so a name over each would cover the
+                // next row; the area says what they are, and hovering one names it.
+                graphics.pose().pushMatrix();
+                try {
+                    graphics.pose().translate(x, y);
+                    graphics.pose().scale(scale, scale);
+                    element.render(graphics, 0, 0);
+                } catch (RuntimeException e) {
+                    // as below
+                } finally {
+                    graphics.pose().popMatrix();
+                }
+                continue;
+            }
+            String label = element.displayName() + (anchored ? String.format(" (%.1fx)", own) : sizeNote(element, own));
             int labelRoom = Math.max(scaledW + 2 * BOX_PAD, 24);
             if (!dragging && element != hover && this.font.width(label) > labelRoom) {
                 label = this.font.plainSubstrByWidth(label, labelRoom - this.font.width("...")) + "...";
@@ -302,6 +377,48 @@ public class HudEditorScreen extends Screen {
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+    }
+
+    /** The Hidden tray, always; while a Predefined readout is dragged, every area it can go to, the target strongest. */
+    private void drawAreas(GuiGraphicsExtractor g) {
+        StatLayout.Layout now = StatLayout.current();
+        StatLayout.Zone tray = now == null ? null : now.zone(StatLayout.Area.HIDDEN);
+        if (dragZones != null) {
+            for (StatLayout.Zone z : dragZones.zones) {
+                boolean target = dragTarget != null && dragTarget.area() == z.area();
+                g.fill(z.x0(), z.y0(), z.x1(), z.y1(), target ? ZONE_FILL_TARGET : ZONE_FILL);
+                g.outline(z.x0(), z.y0(), z.x1() - z.x0(), z.y1() - z.y0(), target ? ZONE_EDGE_TARGET : ZONE_EDGE);
+                if (z.area() == StatLayout.Area.HIDDEN) {
+                    tray = null; // drawn here already
+                    g.text(this.font, "§6Hidden", z.x0() + 3, z.y0() + 2, 0xFFFFFFFF);
+                }
+            }
+            String where = dragTarget == null ? "§7Not on an area: it goes back" : "§6" + dragTarget.area().label;
+            int[] p = livePositions.get(draggingId);
+            if (p != null) {
+                g.text(this.font, where, p[0], Math.max(0, p[1] - 22), 0xFFFFFFFF);
+            }
+        }
+        if (tray != null) {
+            g.fill(tray.x0(), tray.y0(), tray.x1(), tray.y1(), TRAY_FILL);
+            g.outline(tray.x0(), tray.y0(), tray.x1() - tray.x0(), tray.y1() - tray.y0(), ZONE_EDGE);
+            g.text(this.font, "§6Hidden", tray.x0() + 3, tray.y0() + 2, 0xFFFFFFFF);
+        }
+    }
+
+    /** Whether {@code element} is a Predefined stat readout sitting in Hidden. */
+    private static boolean isHiddenReadout(HudElement element) {
+        if (!StatLayout.manages(element)) {
+            return false;
+        }
+        var r = StatLayout.readout(element.id());
+        return r != null && PlayerStatsConfig.getInstance().getArea(r) == StatLayout.Area.HIDDEN;
+    }
+
+    private void endAreaDrag() {
+        dragZones = null;
+        dragTarget = null;
+        StatLayout.clearPreview();
     }
 
     /** "(1.0x)", and for a resizable element its size in its own units too while it can be resized: "(1.0x, 100x8)". */
@@ -437,6 +554,9 @@ public class HudEditorScreen extends Screen {
      * {@link #HANDLE_OUT} outside the outline to {@link #HANDLE_IN} inside it.
      */
     int handleAt(HudElement element, double mx, double my) {
+        if (StatLayout.manages(element)) {
+            return 0; // its area decides its length; it only moves (between areas) and scrolls (scale)
+        }
         HudSnap.Box b = box(element);
         int x0 = b.x0() - BOX_PAD;
         int y0 = b.y0() - BOX_PAD;
@@ -541,6 +661,13 @@ public class HudEditorScreen extends Screen {
                     pressH = r.resizeHeight();
                 }
                 guides.clear();
+                if (StatLayout.manages(element)) {
+                    var readout = StatLayout.readout(element.id());
+                    dragZones = StatLayout.zonesWithout(readout);
+                    dragTarget = StatLayout.targetAt(dragZones, event.x(), event.y());
+                    StatLayout.setPreview(readout, dragTarget == null ? null : dragTarget.area(),
+                            dragTarget == null ? 0 : dragTarget.index());
+                }
                 return true;
             }
         }
@@ -561,6 +688,14 @@ public class HudEditorScreen extends Screen {
             }
             int newX = (int) Math.round(event.x() - dragOffsetX);
             int newY = (int) Math.round(event.y() - dragOffsetY);
+            if (dragZones != null) {
+                // A Predefined readout follows the mouse freely; where it lands is the area under the mouse.
+                dragTarget = StatLayout.targetAt(dragZones, event.x(), event.y());
+                StatLayout.setPreview(StatLayout.readout(draggingId), dragTarget == null ? null : dragTarget.area(),
+                        dragTarget == null ? 0 : dragTarget.index());
+                livePositions.put(draggingId, new int[]{newX, newY});
+                return true;
+            }
             if (snapping(event)) {
                 HudSnap.Box b = box(element);
                 HudSnap.Moved m = HudSnap.move(new HudSnap.Box(newX, newY, newX + b.w(), newY + b.h()),
@@ -656,6 +791,24 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+        if (draggingId != null && dragZones != null) {
+            // A Predefined readout: into the area it was dropped on, at that place. Its own position is not touched.
+            var readout = StatLayout.readout(draggingId);
+            if (dragTarget != null && readout != null) {
+                PlayerStatsConfig cfg = PlayerStatsConfig.getInstance();
+                cfg.moveTo(readout, dragTarget.area(), StatLayout.beforeOf(dragZones, dragTarget));
+                cfg.save();
+            }
+            endAreaDrag();
+            HudElement e = byId(draggingId);
+            if (e != null) {
+                livePositions.put(draggingId, HudElementRegistry.resolvePosition(e));
+            }
+            draggingId = null;
+            resizeEdges = 0;
+            guides.clear();
+            return true;
+        }
         if (draggingId != null) {
             int[] pos = livePositions.get(draggingId);
             // Saved in baseline units (Auto Scale): resolvePosition multiplies back, so the box draws where it dropped.
@@ -702,7 +855,14 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public void onClose() {
+        endAreaDrag();
         McCompat.setScreen(this.minecraft, parent);
+    }
+
+    @Override
+    public void removed() {
+        endAreaDrag();
+        super.removed();
     }
 
     @Override

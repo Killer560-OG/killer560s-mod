@@ -52,6 +52,8 @@ public final class HudInGameRenderer {
         // editor's ten-second window is measured against - see HudSeen#markHudFrame for why it cannot be wall
         // time. One call per frame, not per element.
         HudSeen.markHudFrame();
+        // Health and Mana Bars' Predefined layout reads values and vanilla rows that change between frames.
+        com.killer560.hub.playerstats.StatLayout.newFrame();
         List<HudElement> elements = drawList();
         HudTextCache.begin(); // these elements' String lines keep their visual order between frames
         try {
