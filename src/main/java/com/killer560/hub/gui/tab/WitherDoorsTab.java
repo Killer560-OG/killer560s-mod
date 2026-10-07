@@ -62,6 +62,45 @@ public class WitherDoorsTab extends BaseTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 22;
 
+        // Style and fill (killer560, 2026-10-07: "make it so wither doors also have a fill color option"). Always shown,
+        // whatever the style, so the rows never move under the cursor when the style is cycled.
+        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
+                    cfg.setStyle(cfg.getStyle().next());
+                    cfg.save();
+                    btn.setMessage(styleText(cfg));
+                }).bounds(col2aX, y, col2W, 18).build());
+        int fMin = WitherDoorsConfig.MIN_FILL_OPACITY;
+        int fMax = WitherDoorsConfig.MAX_FILL_OPACITY;
+        widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, opacityText(cfg),
+                (cfg.getFillOpacity() - fMin) / (double) (fMax - fMin)) {
+            @Override
+            protected void updateMessage() {
+                setMessage(opacityText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setFillOpacity((int) Math.round(fMin + this.value * (fMax - fMin)));
+                cfg.save();
+            }
+        });
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(fillModeText(cfg), btn -> {
+                    cfg.setCustomFillColor(!cfg.isCustomFillColor());
+                    cfg.save();
+                    btn.setMessage(fillModeText(cfg));
+                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Custom Fill Color", cfg.getFillColor()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Custom Fill Color",
+                            cfg.getFillColor(), WitherDoorsConfig.DEFAULT_FILL_COLOR, argb -> {
+                        cfg.setFillColor(argb);
+                        cfg.save();
+                    }));
+                }).bounds(col2bX, y, col2W, 18).build());
+        y += 22;
+
         int min = WitherDoorsConfig.MIN_RENDER_DISTANCE;
         int max = WitherDoorsConfig.MAX_RENDER_DISTANCE;
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, distanceText(cfg),
@@ -126,6 +165,18 @@ public class WitherDoorsTab extends BaseTab {
 
     private static Component distanceText(WitherDoorsConfig cfg) {
         return Component.literal("Render Distance: " + cfg.getRenderDistance() + " blocks");
+    }
+
+    private static Component styleText(WitherDoorsConfig cfg) {
+        return Component.literal("Style: §6" + cfg.getStyle().label);
+    }
+
+    private static Component opacityText(WitherDoorsConfig cfg) {
+        return Component.literal("Fill Opacity: " + cfg.getFillOpacity() + "%");
+    }
+
+    private static Component fillModeText(WitherDoorsConfig cfg) {
+        return Component.literal("Fill Color: " + (cfg.isCustomFillColor() ? "§6Custom" : "§7Same as Outline"));
     }
 
     private static Component onOff(String label, boolean value) {

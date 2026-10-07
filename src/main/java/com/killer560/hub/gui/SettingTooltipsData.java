@@ -1835,6 +1835,10 @@ final class SettingTooltipsData {
         d.put("wither doors/enabled", "Highlights the nearest locked Wither door, turning green once you have a Wither Key.");
         d.put("wither doors/wither door color", "Color of a locked Wither door you have no key for.");
         d.put("wither doors/wither door (key) color", "Color the nearest Wither door turns once you have a Wither Key.");
+        d.put("wither doors/style", "Outline draws the door's edges (the original look), Fill shades the whole door, Filled Outline does both.");
+        d.put("wither doors/fill opacity", "How opaque the fill is, 5-100%. Only used by the Fill and Filled Outline styles.");
+        d.put("wither doors/fill color", "Same as Outline: the fill takes the door's current colour, so locked and key-held stay apart. Custom: one fill colour for every door.");
+        d.put("wither doors/custom fill color", "The fill colour used when Fill Color is set to Custom.");
         d.put("wither doors/render distance", "How far away a door can be and still be highlighted, 32-256 blocks.");
         d.put("wither doors/show all doors", "Also highlights every other locked Wither door and the Blood door (cheat build only).");
         d.put("wither doors/blood door color", "Color of the locked Blood door while you lack the Blood Key (cheat build only).");
