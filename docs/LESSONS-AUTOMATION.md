@@ -56,3 +56,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `findDungeonPath` on its own thread while the warm-up ran on `killer560smod-etherplanner`; two threads in `WarpGraph.node`
   pushed the node count past its 1024-long arrays without growing them, and every later node threw AIOOBE one index higher
   until the world changed (96-ar, 2026-10-06). Submit through `ClearExecutor.onPlanner`; `graphFor` now throws if called elsewhere.
+- **A command the player triggers must not ask `ActionGate.tryAct`.** Its screen-transition settle fires on ANY screen
+  change, the mod's own wheel included, so Pet Wheel's /pets waited 3-4 ticks after a quick flick and a tick after any claim
+  (testkit 397, 2026-10-07: 4 ticks / 200 ms on the old jar, 0 now). Send it at once and call `ActionGate.noteCommand`, which
+  only books the tick for later automation. Screen-driven picks belong in the screen's own `keyReleased`/`mouseReleased`, not a tick poll.

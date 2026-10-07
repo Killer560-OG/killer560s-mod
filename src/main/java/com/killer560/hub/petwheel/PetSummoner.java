@@ -36,11 +36,19 @@ import com.killer560.hub.compat.McCompat;
  * <b>Speed (2026-10-04, killer560: "it needs to be a lot faster").</b> The old machine waited on fixed 400 ms
  * timers: 400 before sending {@code /pets}, 400 after, 400 more once the menu had items, and 400 after every
  * page turn - about 1.2 s of pure waiting on top of the round trip for a first-page pet. Now every step reacts
- * to state instead: {@code /pets} goes out from {@link #request} itself (the frame the slice is picked) when the
- * gate allows, the menu is accepted the first tick its items are present, the pet is clicked that same tick if
+ * to state instead: {@code /pets} goes out from {@link #request} itself (the frame the slice is picked), the menu
+ * is accepted the first tick its items are present, the pet is clicked that same tick if
  * it is on the page, and only a "not on this page" verdict waits {@link #NOT_FOUND_SETTLE_TICKS} unchanged ticks
  * before turning the page (so a page still filling in is never judged empty). A page turn is recognised by the
  * new menu object Hypixel's re-sent open-screen packet creates, not by a timer. Each phase logs its duration.
+ * <p>
+ * <b>{@code /pets} is never held</b> (killer560, 2026-10-07: release over a pet and "that same in-game tick with 0
+ * delay it should do /pets"). It used to ask {@link ActionGate#tryAct} and retry from {@link #tick} when refused,
+ * and the gate refused it routinely: opening the wheel is a screen change, which starts the gate's three-tick
+ * settle, so a quick flick waited out the settle, and closing the wheel started another. The command is the
+ * player's own key or click, so {@link #request} now sends it on the spot and only tells the gate it happened
+ * ({@link ActionGate#noteCommand}), which keeps automated actors off the rest of that tick. Everything after
+ * it - the Pets menu click, paging, closing - is automation and still asks the gate every time.
  * <p>
  * <b>No walking while it runs</b> (killer560, same day: "make it so I cannot walk while it is in progress").
  * {@link #suppressesMovement()} is read by {@code petwheel.mixin.PetWheelInputMixin}, which zeroes the
@@ -71,7 +79,7 @@ public final class PetSummoner {
     /** Per-phase timeout (reset on each page turn): the whole summon gives up if one phase stalls this long. */
     private static final long TIMEOUT_MS = 5_000L;
 
-    private enum Stage { IDLE, SEND_PETS, AWAIT_PETS, CLICK_PET }
+    private enum Stage { IDLE, AWAIT_PETS, CLICK_PET }
 
     private static Stage stage = Stage.IDLE;
     private static PetEntry target = null;
@@ -137,10 +145,8 @@ public final class PetSummoner {
         hiddenTitle = null;
         pagedFrom = null;
         resetSettle();
-        stage = Stage.SEND_PETS;
-        // Send /pets right now, in the frame the slice was picked, rather than waiting for the next tick: a chat
-        // command has no position or screen to be stale against, and the gate still decides whether this frame
-        // may act. If it says no, tick() retries every tick.
+        // Send /pets right now, in the frame the slice was picked: this is the player's own input, so the gate is
+        // told rather than asked (see the class doc). The refusals above still stand.
         sendPets(client.player, startedMs);
         return true;
     }
@@ -195,7 +201,6 @@ public final class PetSummoner {
             return;
         }
         switch (stage) {
-            case SEND_PETS -> sendPets(player, now);
             case AWAIT_PETS -> awaitPets(client, now);
             case CLICK_PET -> clickPet(client, player, now);
             default -> finish(client, "unreachable");
@@ -203,9 +208,9 @@ public final class PetSummoner {
     }
 
     private static void sendPets(LocalPlayer player, long now) {
-        if (!ActionGate.tryAct(ActionGate.Actor.PET_WHEEL_CMD)) {
-            return;
-        }
+        ActionGate.noteCommand(ActionGate.Actor.PET_WHEEL_CMD);
+        // "pets" is not a client command of this mod (nothing registers that literal), so sendCommand hands it
+        // straight to the server; ServerCommands.toServer is only needed for a name the mod itself registers.
         player.connection.sendCommand("pets");
         cmdSentMs = now;
         LOGGER.info("[PetWheel] {}: /pets sent +{}ms after the pick.", target.shortLabel(), now - startedMs);

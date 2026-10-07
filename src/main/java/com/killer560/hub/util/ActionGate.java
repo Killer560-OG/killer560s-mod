@@ -185,7 +185,8 @@ public final class ActionGate {
         AUTO_GFS(Kind.COMMAND),
         /** Pet Wheel clicking a slot in the real /pets menu after a wheel selection. */
         PET_WHEEL_MENU(Kind.SCREEN),
-        /** Pet Wheel sending the /pets command itself. */
+        /** Pet Wheel sending the /pets command itself. The summon's /pets is the player's own pick and goes through
+         *  {@link #noteCommand} (never held); the Edit Pets right-click still asks {@link #tryAct}. */
         PET_WHEEL_CMD(Kind.COMMAND),
         /** Auto Inventory Sorter clicking slots in the player's own inventory screen to apply a saved layout
          *  (killer560: "I should be able to save item locations in my inventory and have them sorted there"). A
@@ -429,6 +430,33 @@ public final class ActionGate {
             return deny(actor, "no headless menu");
         }
         return tryActInternal(actor, null, ownMenu);
+    }
+
+    /**
+     * Records a chat command the PLAYER just caused, which is sent at once and is never held back.
+     * <p>
+     * killer560 (2026-10-07), on the Pet Wheel: releasing the bind over a pet "should do /pets to open the menu"
+     * in that same tick, "with 0 delay ... since the game doesn't need to know I am in my mod menu". A command
+     * he triggers with his own key or click is his input, not an automated interaction, so none of the gate's
+     * holds apply to it: not the screen-transition settle (opening and closing the wheel itself started one,
+     * which held /pets for up to three ticks), not the teleport settle, not priority yielding, and not a tick
+     * some automation already claimed. What it still does is take the current tick if it is free and reset the
+     * spacing clock, so an AUTOMATED action that asks later in the same tick waits for the next one rather than
+     * riding along with the command.
+     * <p>
+     * Only {@link Kind#COMMAND} actors may use this, and only for a command the player triggered in the same
+     * frame; anything the mod decides to do on its own goes through {@link #tryAct}.
+     */
+    public static void noteCommand(Actor actor) {
+        if (actor.kind != Kind.COMMAND) {
+            throw new IllegalArgumentException(actor + " is not a command actor");
+        }
+        if (armed && claimedTick != tick) {
+            claimedTick = tick;
+            claimant = actor;
+        }
+        lastActionNanos = System.nanoTime();
+        spacingNanos = rollSpacing();
     }
 
     private static boolean tryActInternal(Actor actor, Screen ownScreen, AbstractContainerMenu headlessMenu) {
