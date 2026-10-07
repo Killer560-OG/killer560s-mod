@@ -86,7 +86,7 @@ public final class AuctionHouseFeature {
      *  if the feature is on, otherwise tells him where to turn it on instead of silently doing nothing. */
     public static void openOrExplain() {
         if (!AuctionConfig.getInstance().isAhEnabled()) {
-            ModChat.send("Auction House", ModChat.bad("Turn on the Auction House Browser in the New tab first."));
+            ModChat.send("Auction House", ModChat.bad("Turn on the Auction House Browser in the Items tab first."));
             return;
         }
         openDeferred();

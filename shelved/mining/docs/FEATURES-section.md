@@ -1,0 +1,7 @@
+**Mining (WIP)**
+- Crystal Hollows Map — a map of the Crystal Hollows with the Nucleus at its real fixed coordinate, your live position, and waypoints you add yourself. The five zone shapes are deliberately *not* drawn: their per-lobby boundaries couldn't be confirmed from any citable source, so the live zone name from the scoreboard is shown instead of an invented outline
+- Interactive Crystal Hollows Map — the same map, clickable: pick a spot or a waypoint and it shows live distance and compass bearing to it. It never moves you
+- Profit Per Hour Tracker — watches what your inventory actually gains and prices it from the mod's existing market data, against a clock that pauses rather than resets. On by default
+- Nucleus Run Profit Tracker — the same, per nucleus run, detecting the end of a run from Hypixel's own loot-bundle chat block. Run count is exact; per-item coin value is best effort, and lines it can't price are skipped rather than guessed at. On by default
+- Planned — one page inside the Mining tab listing everything still to come, including Auto Commissions, Auto Crystal and Auto Nucleus Run. Those three briefly had a settings tab each containing nothing but a "not wired yet" label, which put coming-soon work in two places at once; they are lines on this page now, each with the actual blocker written down — Dwarven Mines terrain pathfinding (the mod only paths the dungeon's fixed room grid) and a reliable way to tell a crystal block from terrain
+

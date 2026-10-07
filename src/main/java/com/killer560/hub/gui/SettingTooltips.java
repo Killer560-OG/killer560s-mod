@@ -69,6 +69,11 @@ public final class SettingTooltips {
         }
     }
 
+    /** The sub-tab that built {@code widget}, or null. */
+    public static String scopeOf(net.minecraft.client.gui.components.AbstractWidget widget) {
+        return widget == null ? null : SCOPES.get(widget);
+    }
+
     /** Called by {@code ModScreen} before a rebuild - the widgets themselves are thrown away each time. */
     public static void clearScopes() {
         SCOPES.clear();

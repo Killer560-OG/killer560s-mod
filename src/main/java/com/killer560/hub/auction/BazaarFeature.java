@@ -79,7 +79,7 @@ public final class BazaarFeature {
 
     public static void openOrExplain() {
         if (!AuctionConfig.getInstance().isBazaarEnabled()) {
-            ModChat.send("Bazaar", ModChat.bad("Turn on the Bazaar Browser in the New tab first."));
+            ModChat.send("Bazaar", ModChat.bad("Turn on the Bazaar Browser in the Items tab first."));
             return;
         }
         openDeferred();

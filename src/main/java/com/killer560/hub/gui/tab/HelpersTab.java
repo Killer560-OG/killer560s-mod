@@ -15,8 +15,13 @@ public class HelpersTab extends FolderTab {
 
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
-                new ExperimentsTab()
+                new ExperimentsTab(),
                 // Etherwarp Overlay moved out of New 2026-09-16, then on to General 2026-10-04 (killer560).
+                // Out of the New category, removed 2026-10-07 (killer560).
+                new WaypointRoutesTab(),
+                new PathfindingTab(),
+                new TrajectoriesTab(),
+                new AbilityKeybindsTab()
         ));
         // The autonomous Experimentation Table macro got its own section here 2026-09-30, per killer560:
         // "Move the auto etable stuff into its own red header in the same helpers tab but different area."
@@ -25,6 +30,10 @@ public class HelpersTab extends FolderTab {
         // Auto Puzzles over in Dungeon.
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new AutoExperimentsTab());
+            // Out of the New category's cheat block, removed 2026-10-07: the Fairy Souls walker sits under
+            // Helpers beside Fairy Souls, and the Chocolate Factory clicker beside it.
+            tabs.add(new AutoFairySoulsTab());
+            tabs.add(new AutoChocolateFactoryTab());
         }
         return tabs;
     }

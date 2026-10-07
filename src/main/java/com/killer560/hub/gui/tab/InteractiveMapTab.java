@@ -20,7 +20,7 @@ import java.util.List;
  * <p>
  * <b>Cheat build only</b> - killer560, 2026-09-20: "the interactive map is the one where I click on a room and it
  * etherwarps me to that room. and it can also start my secret route by clicking on it again and whatnot. That is a
- * cheat." Clicking a room to teleport is the whole point of the screen, so the tab is only added to {@link NewTab}
+ * cheat." Clicking a room to teleport is the whole point of the screen, so the tab is only added to its category
  * behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} and gets the red title; the legit jar does not have it at all.
  * <p>
  * killer560, 2026-09-27: "You do not need teleport pathing. The entire portion of interactive map is the teleport
@@ -41,7 +41,7 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
         super("Interactive Map");
     }
 
-    /** Only added to {@link NewTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
+    /** Only added to its category behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
     @Override
     public boolean isCheatOnly() {
         return true;

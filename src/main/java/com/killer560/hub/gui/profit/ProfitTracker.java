@@ -3,10 +3,6 @@ package com.killer560.hub.gui.profit;
 import com.killer560.hub.croesus.CroesusProfitLog;
 import com.killer560.hub.croesus.CroesusTrackerScreen;
 import com.killer560.hub.experiments.ExperimentsProfitTracker;
-import com.killer560.hub.mining.nucleus.NucleusRunProfitTracker;
-import com.killer560.hub.mining.profit.MiningItemPricer;
-import com.killer560.hub.mining.profit.MiningProfitConfig;
-import com.killer560.hub.mining.profit.MiningProfitTracker;
 import net.minecraft.client.gui.screens.Screen;
 
 import java.util.ArrayList;
@@ -29,11 +25,9 @@ public enum ProfitTracker {
             parent -> new CroesusTrackerScreen(parent, CroesusTrackerScreen.View.OVERVIEW),
             ProfitTracker::croesusSummary),
     EXPERIMENTS("Experimentation Table", "Superpairs, Chronomatron, Ultrasequencer", List.of("etable", "experiments"),
-            ExperimentsProfitScreen::new, ProfitTracker::experimentsSummary),
-    MINING("Mining Profit", "Items gained per hour", List.of("mining"),
-            MiningProfitScreen::new, ProfitTracker::miningSummary),
-    NUCLEUS("Nucleus Runs", "Crystal Nucleus run loot", List.of("nucleus"),
-            NucleusProfitScreen::new, ProfitTracker::nucleusSummary);
+            ExperimentsProfitScreen::new, ProfitTracker::experimentsSummary);
+    // MINING ("Mining Profit") and NUCLEUS ("Nucleus Runs") are shelved until after 2.0 with the rest of the mining
+    // features - shelved/mining/README.md has both constants and their summary methods to put back.
 
     /** One line under a card's name: the text, and the colour it is drawn in. */
     public record Summary(String text, int color) {
@@ -119,24 +113,5 @@ public enum ProfitTracker {
         }
         return new Summary(ExperimentsProfitTracker.formatShort(ExperimentsProfitTracker.getTotalValueCoins())
                 + " coins, " + sessions + " experiments", ProfitPanels.GOOD);
-    }
-
-    private static Summary miningSummary() {
-        boolean on = MiningProfitConfig.getInstance().isEnabledRaw();
-        if (MiningProfitTracker.getActiveMs() <= 0 && MiningProfitTracker.getTotalValueCoins() <= 0) {
-            return new Summary(on ? "Nothing tracked yet" : "Tracker is off", ProfitPanels.DIM);
-        }
-        return new Summary(MiningItemPricer.shortNumber(MiningProfitTracker.getCoinsPerHour()) + " coins/hour, "
-                + MiningItemPricer.shortNumber(MiningProfitTracker.getTotalValueCoins()) + " total",
-                ProfitPanels.GOOD);
-    }
-
-    private static Summary nucleusSummary() {
-        long runs = NucleusRunProfitTracker.getRunsCompleted();
-        if (runs == 0) {
-            return new Summary("No runs yet", ProfitPanels.DIM);
-        }
-        return new Summary(runs + " runs, " + MiningItemPricer.shortNumber(NucleusRunProfitTracker.getCoinsPerRun())
-                + " coins/run", ProfitPanels.GOOD);
     }
 }

@@ -72,9 +72,9 @@ public class Killer560ModClient implements ClientModInitializer {
     private static final Logger LOGGER = ModLog.get("killer560smod");
     private static boolean editKeyWasDown = false;
     // ModScreen's tab order: Home, Chat, Dungeon, Spotify, GIF Player - see ModScreen.init().
-    // Translate lives inside the Chat folder tab (as its first sub-tab), so opening this index
-    // lands on Chat, which defaults to showing Translate.
-    private static final int TRANSLATE_TAB_INDEX = 1;
+    // Translate lives inside the Chat folder tab (as its first sub-tab), so opening Chat lands on Translate. By
+    // name: the old index (1) had pointed at Profiles since categories were added in front of Chat.
+    private static final String TRANSLATE_TAB = "Chat";
 
     @Override
     public void onInitializeClient() {
@@ -214,12 +214,11 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.blessings.BlessingsFeature.register();
         com.killer560.hub.runsummary.RunSummaryFeature.register();
         com.killer560.hub.runsummary.RunLogCommands.register();
-        // Mining (WIP) tab, 2026-09-27: Profit Per Hour + Nucleus Run Profit trackers. Both purely
-        // observational (never click/move) - see each tracker's own class doc.
-        com.killer560.hub.mining.profit.MiningProfitTracker.register();
-        com.killer560.hub.mining.nucleus.NucleusRunProfitTracker.register();
-        com.killer560.hub.mining.chmap.ChDiscovery.register();
-        com.killer560.hub.mining.chmap.ChShare.register();
+        if (com.killer560.hub.BuildVariant.TESTING) {
+            com.killer560.hub.testing.TestingCommands.register();
+        }
+        // Mining features (Profit Per Hour, Nucleus Run Profit, Crystal Hollows Map + sharing) are shelved until
+        // after the 2.0 release (killer560, 2026-10-07): code in shelved/mining/, restore steps in its README.md.
         HudElementRegistry.register(com.killer560.hub.blessings.BlessingsFeature.HUD);
         com.killer560.hub.maxor.MaxorCrystalsFeature.register();
         HudElementRegistry.register(com.killer560.hub.maxor.MaxorCrystalsFeature.HUD);
@@ -602,7 +601,7 @@ public class Killer560ModClient implements ClientModInitializer {
                     .executes(context -> {
                         Minecraft client = Minecraft.getInstance();
                         TranslateTab.openPickerOnNextBuild = true;
-                        client.execute(() -> client.setScreenAndShow(new ModScreen(McCompat.screen(client), TRANSLATE_TAB_INDEX)));
+                        client.execute(() -> client.setScreenAndShow(ModScreen.atTab(McCompat.screen(client), TRANSLATE_TAB)));
                         return 1;
                     })
                     .then(ClientCommands.argument("language", StringArgumentType.greedyString())

@@ -11,7 +11,7 @@ import java.util.Locale;
 
 /**
  * A standalone profit screen for a tracker that used to live only in a settings tab (Experimentation Table,
- * Mining Profit, Nucleus Runs): headline cards, a ranked list on the left, and on the right either a graph or a
+ * and the shelved Mining Profit / Nucleus Runs): headline cards, a ranked list on the left, and on the right either a graph or a
  * few detail lines. Everything is drawn with {@link ProfitPanels}, the same pieces the Croesus screen uses; a
  * subclass only supplies the numbers.
  *

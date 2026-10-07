@@ -21,7 +21,16 @@ public class HudElementsTab extends FolderTab {
                 // Sits right after Object Hider, which is where both of these used to be a header.
                 new HealthAndManaBarsTab(),
                 new HidePlayersTab(),
-                new StorageOverlayTab()
+                new StorageOverlayTab(),
+                // Out of the New category, removed 2026-10-07 (killer560): the README's HUD features.
+                new AbilityTimersTab(),
+                new AbilityCooldownTab(),
+                new QuiverDisplayTab(),
+                new SpringBootsTab(),
+                new CustomScoreboardTab(),
+                new LagDisplayTab(),
+                new PositionTab(),
+                new TrailTab()
         ));
     }
 }

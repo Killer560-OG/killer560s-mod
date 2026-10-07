@@ -369,7 +369,7 @@ public final class AutoRoutesCommands {
             return false;
         }
         if (!AutoRoutesConfig.getInstance().isEnabledRaw()) {
-            ModChat.send(FEATURE, ModChat.bad("Auto Routes is OFF - turn it on in the New tab first."));
+            ModChat.send(FEATURE, ModChat.bad("Auto Routes is OFF - turn it on in the Dungeon tab first."));
             return false;
         }
         if (Minecraft.getInstance().player == null) {
