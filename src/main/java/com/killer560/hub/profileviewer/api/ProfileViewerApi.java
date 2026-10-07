@@ -637,7 +637,9 @@ public final class ProfileViewerApi {
             }
             if (res.statusCode() == 429) {
                 long wait = retryAfterMs(res.headers().firstValue("Retry-After"));
-                long until = System.currentTimeMillis() + wait;
+                // One second of margin: Retry-After is whole seconds, and a request sent the moment it lapses was
+                // often answered "Retry-After: 1" again (measured by the pf-stats-2 work, 2026-10-07).
+                long until = System.currentTimeMillis() + wait + 1000;
                 if (until > backendRetryAtMs) {
                     backendRetryAtMs = until;
                 }
