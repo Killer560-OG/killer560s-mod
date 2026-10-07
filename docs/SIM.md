@@ -2642,3 +2642,12 @@ for it. Also the single room should have the same filter option."
 - Testkit: `93-solve-boulder-mapdoor` (map arrival faked by setting ClearExecutor's arrival fields) and
   `93-solve-teleportmaze-budget` (30 s, and `ExitWatch`: the sim's exit pad must stay among the solver's candidates after every
   teleport). Main 264ea8c1: mapdoor 0/4, budget 1/4 (exit lost 3 times, one not solved). Fixed: 6/6 and 6/6 (Map Logger).
+
+## A single-room rebuild kept the last run's Dungeon Breaker regrows (2026-10-07)
+
+`SimBuilder.buildSingleRoom` (the menu's room picker, "Built Museum") never reset `SimBreakerState`, unlike every other rebuild
+(`SimWorld.resetPerMapState`). Its pending restores carry their own due tick, so a run's breaks came back ten seconds after
+THAT run - into the next build of the room, on top of a fresh break of the same block. killer560's Museum: run at 01:17:11,
+rebuild at 01:17:17, run at 01:17:21 broke #5's wall, the old restore put it back within a second, and #7's etherwarp through
+it was refused by the sim on every retry. Fixed both ways: the single-room build resets it, and a newer break of a block drops
+any older restore still waiting for it. Testkit 96-ar-398-regrow.

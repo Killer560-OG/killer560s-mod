@@ -167,9 +167,24 @@ public final class SimBreakerState {
         }
     }
 
-    /** Remembers a block so it can be put back later. Called with the state BEFORE it was broken. */
+    /**
+     * Remembers a block so it can be put back later. Called with the state BEFORE it was broken.
+     *
+     * <p>A newer break of the same block replaces any older restore still waiting for it. The older one can only still
+     * be waiting if something else put the block back first - a rebuild of the room - and left to run it would refill
+     * the NEW hole up to ten seconds early: killer560's 2026-10-07 Museum run broke a cobblestone wall at 01:17:21, the
+     * restore from his run ten seconds before (01:17:11, before he rebuilt the room) put it straight back, and the
+     * etherwarp through that hole was refused four times over.
+     */
     public static synchronized void remember(ServerLevel level, BlockPos pos, BlockState state) {
-        PENDING.add(new Broken(level, pos.immutable(), state, tickCounter + RESTORE_TICKS));
+        BlockPos at = pos.immutable();
+        PENDING.removeIf(b -> b.level() == level && b.pos().equals(at));
+        PENDING.add(new Broken(level, at, state, tickCounter + RESTORE_TICKS));
+    }
+
+    /** Restores still waiting to run (the testkit reads it). */
+    public static synchronized int pendingRestores() {
+        return PENDING.size();
     }
 
     private static void tick(net.minecraft.server.MinecraftServer server) {
