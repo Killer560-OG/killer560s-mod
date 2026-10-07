@@ -60,7 +60,15 @@ public final class HudConfig {
     private boolean snapScreenCentre = true;
     private boolean snapEqualSpacing = true;
 
+    /** Bumped by every load and every scale change, so a cached layout that depends on scales (the Health and Mana
+     *  Bars Predefined layout) knows to recompute. */
+    private static int version;
+
     private HudConfig() {
+    }
+
+    public static int version() {
+        return version;
     }
 
     public static HudConfig getInstance() {
@@ -71,6 +79,7 @@ public final class HudConfig {
     }
 
     public static void load() {
+        version++;
         HudConfig cfg = new HudConfig();
         if (Files.exists(CONFIG_PATH)) {
             try {
@@ -180,6 +189,7 @@ public final class HudConfig {
 
     public void setScale(String id, float scale) {
         scales.put(id, scale);
+        version++;
     }
 
     public int getEditKeyCode() {
@@ -196,6 +206,7 @@ public final class HudConfig {
 
     public void setGlobalScale(float globalScale) {
         this.globalScale = clampGlobalScale(globalScale);
+        version++;
     }
 
     /** The multiplier every HUD element is drawn at on top of its own scale: the HUD Scale slider times the Auto
@@ -211,6 +222,7 @@ public final class HudConfig {
 
     public void setAutoScale(boolean autoScale) {
         this.autoScale = autoScale;
+        version++;
     }
 
     /** Snaps to the slider's 5% steps and keeps it inside 5%..300%; NaN (a hand-edited file) means 100%. */

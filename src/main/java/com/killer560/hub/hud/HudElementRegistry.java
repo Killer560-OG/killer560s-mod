@@ -65,6 +65,15 @@ public final class HudElementRegistry {
      * view, again without persisting, so it can still be grabbed in the editor.
      */
     public static int[] resolvePosition(HudElement element) {
+        int[] laid;
+        try {
+            laid = element.layoutPosition();
+        } catch (RuntimeException e) {
+            laid = null; // a broken layout falls back to the saved position rather than breaking the HUD
+        }
+        if (laid != null) {
+            return laid;
+        }
         HudConfig cfg = HudConfig.getInstance();
         boolean saved = cfg.hasPosition(element.id());
         int[] pos = cfg.getPosition(element.id(), element.defaultX(), element.defaultY());

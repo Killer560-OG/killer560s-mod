@@ -75,8 +75,35 @@ public final class PlayerStatsConfig {
     private int absorptionColor = DEFAULT_ABSORPTION_COLOR;
     private int barBackground = DEFAULT_BAR_BACKGROUND;
     private boolean textShadow = true;
+    /**
+     * Layout: Predefined (true) or Custom (false) - killer560, 2026-10-07: "a setting that is predefined spots or fully
+     * custom ... look at how Skyblocker has their snap-to-area kind of set up and use that." Predefined puts every
+     * readout in one of {@link StatLayout.Area}'s areas around the hotbar, laid out by {@link StatLayout}; Custom is
+     * each readout's own HUD-editor position. The two never share a value: switching back to Custom finds every
+     * readout's saved position exactly as it was, because Predefined never writes one.
+     * <p>
+     * Default: Predefined for a fresh config, and for an existing file that has no readout on (it draws nothing
+     * today, so nothing moves). An existing file that already draws a readout keeps Custom, so an update never moves
+     * a bar he can see. Decided in {@link #load()} from the OLD file's keys (docs/LESSONS.md, the migration lesson).
+     */
+    private boolean predefinedLayout = true;
+    /** Per readout: its area ({@link StatLayout.Area#key}) and its place in that area, keyed by Readout key. Absent =
+     *  {@link StatLayout#defaultArea} and the readout's enum order. */
+    private final java.util.Map<String, String> readoutArea = new java.util.HashMap<>();
+    private final java.util.Map<String, Integer> readoutOrder = new java.util.HashMap<>();
+    /** Bumped by every change that can move or resize a readout in the Predefined layout (and by every load), so
+     *  {@link StatLayout} knows its cached layout is stale. */
+    private static int layoutVersion;
 
     private PlayerStatsConfig() {
+    }
+
+    static int layoutVersion() {
+        return layoutVersion;
+    }
+
+    private static void layoutChanged() {
+        layoutVersion++;
     }
 
     public static PlayerStatsConfig getInstance() {
@@ -87,6 +114,7 @@ public final class PlayerStatsConfig {
     }
 
     public static void load() {
+        layoutChanged();
         if (!Files.exists(CONFIG_PATH)) {
             instance = new PlayerStatsConfig();
             return;
@@ -124,8 +152,28 @@ public final class PlayerStatsConfig {
                     if (h > 0) {
                         cfg.readoutHeight.put(e.getKey(), clamp(h, MIN_BAR_HEIGHT, MAX_BAR_HEIGHT));
                     }
+                    if (r.has("area") && r.get("area").isJsonPrimitive()
+                            && StatLayout.Area.byKey(r.get("area").getAsString()) != null) {
+                        cfg.readoutArea.put(e.getKey(), r.get("area").getAsString());
+                    }
+                    if (r.has("order") && r.get("order").isJsonPrimitive()) {
+                        cfg.readoutOrder.put(e.getKey(), ConfigJson.getInt(r, "order", 0));
+                    }
                 }
             }
+            // Layout (2026-10-07). A file from before the setting decides from ITS OWN keys: a readout switched on
+            // there is drawing at its own position today, and stays Custom so nothing he can see moves.
+            boolean oldFileDrawsReadouts = false;
+            if (!obj.has("layout") && obj.has("readouts") && obj.get("readouts").isJsonObject()) {
+                for (var e : obj.getAsJsonObject("readouts").entrySet()) {
+                    if (e.getValue().isJsonObject() && ConfigJson.getBool(e.getValue().getAsJsonObject(), "on", false)) {
+                        oldFileDrawsReadouts = true;
+                    }
+                }
+            }
+            cfg.predefinedLayout = obj.has("layout")
+                    ? !"custom".equals(ConfigJson.getString(obj, "layout", "predefined"))
+                    : !oldFileDrawsReadouts;
             cfg.barWidth = clamp(obj.has("barWidth") ? obj.get("barWidth").getAsInt() : cfg.barWidth,
                     MIN_BAR_WIDTH, MAX_BAR_WIDTH);
             cfg.barHeight = clamp(obj.has("barHeight") ? obj.get("barHeight").getAsInt() : cfg.barHeight,
@@ -168,9 +216,18 @@ public final class PlayerStatsConfig {
                 if (h != null) {
                     o.addProperty("height", h);
                 }
+                String area = readoutArea.get(r.key);
+                if (area != null) {
+                    o.addProperty("area", area);
+                }
+                Integer order = readoutOrder.get(r.key);
+                if (order != null) {
+                    o.addProperty("order", order);
+                }
                 readouts.add(r.key, o);
             }
             obj.add("readouts", readouts);
+            obj.addProperty("layout", predefinedLayout ? "predefined" : "custom");
             obj.addProperty("barWidth", barWidth);
             obj.addProperty("barHeight", barHeight);
             obj.addProperty("barShowValue", barShowValue);
@@ -188,6 +245,7 @@ public final class PlayerStatsConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+        layoutChanged();
     }
 
     public boolean isHideVanillaHearts() {
@@ -262,6 +320,7 @@ public final class PlayerStatsConfig {
 
     public void setReadoutOn(StatElements.Readout r, boolean on) {
         readoutOn.put(r.key, on);
+        layoutChanged();
     }
 
     public int getReadoutColor(StatElements.Readout r) {
@@ -283,6 +342,7 @@ public final class PlayerStatsConfig {
     public void setBarWidth(int v) {
         this.barWidth = clamp(v, MIN_BAR_WIDTH, MAX_BAR_WIDTH);
         readoutWidth.clear();
+        layoutChanged();
     }
 
     /** The shared bar thickness (the tab's Bar Height slider). */
@@ -294,6 +354,7 @@ public final class PlayerStatsConfig {
     public void setBarHeight(int v) {
         this.barHeight = clamp(v, MIN_BAR_HEIGHT, MAX_BAR_HEIGHT);
         readoutHeight.clear();
+        layoutChanged();
     }
 
     /** This bar's length: its own HUD-editor size, else the shared Bar Width. */
@@ -305,6 +366,7 @@ public final class PlayerStatsConfig {
     /** Sets one bar's length (the HUD editor's edge drag), clamped to the slider's range. */
     public void setBarWidth(StatElements.Readout r, int v) {
         readoutWidth.put(r.key, clamp(v, MIN_BAR_WIDTH, MAX_BAR_WIDTH));
+        layoutChanged();
     }
 
     /** This bar's thickness: its own HUD-editor size, else the shared Bar Height. */
@@ -315,6 +377,7 @@ public final class PlayerStatsConfig {
 
     public void setBarHeight(StatElements.Readout r, int v) {
         readoutHeight.put(r.key, clamp(v, MIN_BAR_HEIGHT, MAX_BAR_HEIGHT));
+        layoutChanged();
     }
 
     /**
@@ -364,6 +427,10 @@ public final class PlayerStatsConfig {
         int[] at = hud.getPosition(CLASSIC_HUD_ID, 0, 0);
         float scale = hud.getScale(CLASSIC_HUD_ID, 1.0f);
         int y = at[1];
+        if (!on.isEmpty()) {
+            // Classic Display drew at its own place, so its replacements do too: Custom (see predefinedLayout).
+            predefinedLayout = false;
+        }
         for (StatElements.Readout r : on) {
             readoutOn.put(r.key, true);
             if (placed && !hud.hasPosition(r.hudId)) {
@@ -387,6 +454,7 @@ public final class PlayerStatsConfig {
 
     public void setBarShowValue(boolean v) {
         this.barShowValue = v;
+        layoutChanged();
     }
 
     public int getAbsorptionColor() {
@@ -411,5 +479,64 @@ public final class PlayerStatsConfig {
 
     public void setTextShadow(boolean v) {
         this.textShadow = v;
+    }
+
+    /** Layout: true = Predefined (areas around the hotbar, {@link StatLayout}), false = Custom (own positions). */
+    public boolean isPredefinedLayout() {
+        return predefinedLayout;
+    }
+
+    public void setPredefinedLayout(boolean predefined) {
+        this.predefinedLayout = predefined;
+        layoutChanged();
+    }
+
+    /** The area {@code r} sits in under the Predefined layout. */
+    public StatLayout.Area getArea(StatElements.Readout r) {
+        String key = readoutArea.get(r.key);
+        StatLayout.Area a = key == null ? null : StatLayout.Area.byKey(key);
+        return a != null ? a : StatLayout.defaultArea(r);
+    }
+
+    /** Puts {@code r} at the end of {@code area}. */
+    public void setArea(StatElements.Readout r, StatLayout.Area area) {
+        moveTo(r, area, null);
+    }
+
+    /** {@code r}'s place in its area: lower first (left in a row, nearest the hotbar's bottom in a side column). */
+    public int getOrder(StatElements.Readout r) {
+        Integer o = readoutOrder.get(r.key);
+        return o != null ? o : r.ordinal();
+    }
+
+    public void setOrder(StatElements.Readout r, int order) {
+        readoutOrder.put(r.key, order);
+        layoutChanged();
+    }
+
+    /**
+     * Moves {@code r} into {@code area}, just before {@code before} (another readout already in that area), or at its
+     * end when {@code before} is null or not there; every readout of the area, and of the one {@code r} left, is then
+     * numbered 0, 1, 2... in that order, so the order is explicit from then on. Not saved.
+     */
+    public void moveTo(StatElements.Readout r, StatLayout.Area area, StatElements.Readout before) {
+        StatLayout.Area from = getArea(r);
+        readoutArea.put(r.key, area.key);
+        java.util.List<StatElements.Readout> list = StatLayout.inOrder(this, area);
+        list.remove(r);
+        int at = before == null ? -1 : list.indexOf(before);
+        list.add(at < 0 ? list.size() : at, r);
+        for (int i = 0; i < list.size(); i++) {
+            readoutOrder.put(list.get(i).key, i);
+            readoutArea.put(list.get(i).key, area.key);
+        }
+        if (from != area) {
+            java.util.List<StatElements.Readout> old = StatLayout.inOrder(this, from);
+            for (int i = 0; i < old.size(); i++) {
+                readoutOrder.put(old.get(i).key, i);
+                readoutArea.put(old.get(i).key, from.key);
+            }
+        }
+        layoutChanged();
     }
 }

@@ -47,4 +47,15 @@ public interface HudElement {
 
     /** Draws the element's real content at the given top-left position (already resolved from config). */
     void render(GuiGraphicsExtractor graphics, int x, int y);
+
+    /**
+     * Where a layout places this element right now, in GUI pixels, or null when its own saved position applies (every
+     * element but the Health and Mana Bars readouts under their Predefined layout, 2026-10-07). When non-null,
+     * {@link HudElementRegistry#resolvePosition} returns it as it is: the layout keeps it on screen itself, and the
+     * element's saved position is left untouched for when the layout is switched off. The returned array is shared;
+     * callers must not change it.
+     */
+    default int[] layoutPosition() {
+        return null;
+    }
 }

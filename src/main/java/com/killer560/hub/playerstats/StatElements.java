@@ -79,6 +79,17 @@ public final class StatElements {
         }
     }
 
+    /** Whether {@code r} has something to show in game right now (a value read, or for XP a player). */
+    static boolean hasValue(Readout r) {
+        return r.bar ? barValue(r) != null : text(r, false) != null;
+    }
+
+    /** Width in its own units of what text readout {@code r} draws (its label in the editor while it has no value). */
+    static int textWidth(Readout r, boolean preview) {
+        String t = text(r, preview);
+        return t == null ? 1 : Math.max(1, Minecraft.getInstance().font.width(t));
+    }
+
     /** True for an id this class registered - {@code HudInGameRenderer} draws these. */
     public static boolean isStatElementId(String id) {
         return id.startsWith("statbar_") || id.startsWith("stattext_");
@@ -146,11 +157,23 @@ public final class StatElements {
         @Override
         public int width() {
             if (r.bar) {
-                return PlayerStatsConfig.getInstance().getBarWidth(r);
+                return barWidthNow();
             }
             // The drawn readout (2026-10-07 box audit: it was a fixed 90); its label when there is no value yet.
-            String text = text(true);
+            String text = text(r, true);
             return Math.max(1, Minecraft.getInstance().font.width(text));
+        }
+
+        /** The bar's length now: the Predefined layout's share of its area, else its own length. */
+        int barWidthNow() {
+            StatLayout.Placed p = StatLayout.placed(r);
+            return p != null && p.widthLocal() > 0 ? p.widthLocal() : PlayerStatsConfig.getInstance().getBarWidth(r);
+        }
+
+        @Override
+        public int[] layoutPosition() {
+            StatLayout.Placed p = StatLayout.placed(r);
+            return p == null ? null : p.pos();
         }
 
         @Override
@@ -175,6 +198,10 @@ public final class StatElements {
                 return;
             }
             boolean preview = HudVisibility.editorOpen();
+            if (!preview && StatLayout.predefined() && StatLayout.placed(r) == null) {
+                // Predefined: Hidden, or nothing to show - the layout gave it no place, so it draws nothing.
+                return;
+            }
             boolean drew = r.bar ? drawBar(graphics, cfg, x, y, preview) : drawText(graphics, cfg, x, y, preview);
             if (drew) {
                 HudSeen.markDrawn(id());
@@ -182,54 +209,18 @@ public final class StatElements {
         }
 
         private boolean drawBar(GuiGraphicsExtractor g, PlayerStatsConfig cfg, int x, int y, boolean preview) {
-            long cur;
-            long max;
-            String value;
-            switch (r) {
-                case HEALTH_BAR -> {
-                    cur = PlayerStatsFeature.healthCur;
-                    max = PlayerStatsFeature.healthMax;
-                    value = cur < 0 ? null : fmt(cur) + "/" + fmt(max);
-                }
-                case MANA_BAR -> {
-                    cur = PlayerStatsFeature.manaCur;
-                    max = PlayerStatsFeature.manaMax;
-                    value = cur < 0 ? null : fmt(cur) + "/" + fmt(max);
-                }
-                case DEFENCE_BAR -> {
-                    long def = PlayerStatsFeature.defenceValue;
-                    // Damage reduction as a fraction of 1000 so the shared fill code can use it.
-                    cur = def < 0 ? -1 : Math.round(1000.0 * def / (def + 100.0));
-                    max = 1000;
-                    value = def < 0 ? null : fmt(def) + " (" + String.format(Locale.US, "%.1f", cur / 10.0) + "%)";
-                }
-                case VITALITY_BAR -> {
-                    cur = PlayerStatsFeature.vitalityCur;
-                    max = PlayerStatsFeature.vitalityMax;
-                    value = cur < 0 ? null : fmt(cur) + "/" + fmt(max);
-                }
-                case XP_BAR -> {
-                    float[] xp = xp();
-                    cur = xp == null ? -1 : Math.round(1000.0 * xp[1]);
-                    max = 1000;
-                    value = xp == null ? null : xpLabel(xp);
-                }
-                default -> {
-                    cur = PlayerStatsFeature.otherCur;
-                    max = PlayerStatsFeature.otherMax;
-                    value = cur < 0 ? null : fmt(cur) + "/" + fmt(max) + PlayerStatsFeature.otherIcon;
-                }
-            }
+            Object[] v = barValue(r);
+            long cur = v == null ? 1 : (Long) v[0];
+            long max = v == null ? 2 : (Long) v[1];
+            String value = v == null ? null : (String) v[2];
             if (value == null) {
                 if (!preview) {
                     return false;
                 }
                 // Nothing read yet: the HUD editor still gets a half-full bar to place.
-                cur = 1;
-                max = 2;
                 value = r.label;
             }
-            int w = cfg.getBarWidth(r);
+            int w = barWidthNow();
             int h = cfg.getBarHeight(r);
             int top = y + Math.max(0, (height() - h) / 2);
             g.fill(x, top, x + w, top + h, cfg.getBarBackground());
@@ -252,55 +243,106 @@ public final class StatElements {
             }
             if (cfg.isBarShowValue()) {
                 Font font = Minecraft.getInstance().font;
-                int tx = x + (w - font.width(value)) / 2;
-                int ty = y + (height() - 8) / 2;
-                g.text(font, value, tx, ty, 0xFFFFFFFF, true);
+                if (StatLayout.predefined() && font.width(value) > w) {
+                    // A share of a row can be narrower than "12,345/12,345": the current value alone, else nothing,
+                    // so a number never runs over the next bar in the row.
+                    int slash = value.indexOf('/');
+                    value = slash > 0 && font.width(value.substring(0, slash)) <= w ? value.substring(0, slash) : null;
+                }
+                if (value != null) {
+                    int tx = x + (w - font.width(value)) / 2;
+                    int ty = y + (height() - 8) / 2;
+                    g.text(font, value, tx, ty, 0xFFFFFFFF, true);
+                }
             }
             return true;
         }
 
         private boolean drawText(GuiGraphicsExtractor g, PlayerStatsConfig cfg, int x, int y, boolean preview) {
-            String text = text(preview);
+            String text = text(r, preview);
             if (text == null) {
                 return false;
             }
             g.text(Minecraft.getInstance().font, text, x, y, cfg.getReadoutColor(r), cfg.isTextShadow());
             return true;
         }
+    }
 
-        /** The readout drawText draws: the live value, or (in the HUD editor) its label until there is one; null
-         *  when it draws nothing. */
-        private String text(boolean preview) {
-            String text = switch (r) {
-                case HEALTH_TEXT -> PlayerStatsFeature.healthCur < 0 ? null
-                        : "❤ " + fmt(PlayerStatsFeature.healthCur) + "/" + fmt(PlayerStatsFeature.healthMax);
-                case MANA_TEXT -> PlayerStatsFeature.manaCur < 0 ? null
-                        : "✎ " + fmt(PlayerStatsFeature.manaCur) + "/" + fmt(PlayerStatsFeature.manaMax);
-                case OVERFLOW_TEXT -> PlayerStatsFeature.overflowMana < 0 ? null
-                        : "ʬ " + fmt(PlayerStatsFeature.overflowMana);
-                case INTELLIGENCE_TEXT -> PlayerStatsFeature.manaMax < 100 ? null
-                        : "Intelligence " + fmt(PlayerStatsFeature.manaMax - 100);
-                case DEFENCE_TEXT -> PlayerStatsFeature.defenceValue < 0 ? null
-                        : "❈ " + fmt(PlayerStatsFeature.defenceValue);
-                case EFFECTIVE_HEALTH_TEXT -> PlayerStatsFeature.healthCur < 0 || PlayerStatsFeature.defenceValue < 0
-                        ? null
-                        : "EHP " + fmt(Math.round(PlayerStatsFeature.healthCur
-                        * (1.0 + PlayerStatsFeature.defenceValue / 100.0)));
-                case VITALITY_TEXT -> PlayerStatsFeature.vitalityCur < 0 ? null
-                        : "Vitality " + fmt(PlayerStatsFeature.vitalityCur) + "/" + fmt(PlayerStatsFeature.vitalityMax);
-                case XP_TEXT -> {
-                    float[] xp = xp();
-                    yield xp == null ? null : xpLabel(xp);
-                }
-                default -> PlayerStatsFeature.otherCur < 0 ? null
-                        : fmt(PlayerStatsFeature.otherCur) + "/" + fmt(PlayerStatsFeature.otherMax)
-                        + PlayerStatsFeature.otherIcon;
-            };
-            if (text == null && preview) {
-                text = r.label;
+    /** {cur, max, the number drawn on the bar} for bar {@code r}, or null when nothing has been read for it. */
+    private static Object[] barValue(Readout r) {
+        long cur;
+        long max;
+        String value;
+        switch (r) {
+            case HEALTH_BAR -> {
+                cur = PlayerStatsFeature.healthCur;
+                max = PlayerStatsFeature.healthMax;
+                value = cur < 0 ? null : fmt(cur) + "/" + fmt(max);
             }
-            return text;
+            case MANA_BAR -> {
+                cur = PlayerStatsFeature.manaCur;
+                max = PlayerStatsFeature.manaMax;
+                value = cur < 0 ? null : fmt(cur) + "/" + fmt(max);
+            }
+            case DEFENCE_BAR -> {
+                long def = PlayerStatsFeature.defenceValue;
+                // Damage reduction as a fraction of 1000 so the shared fill code can use it.
+                cur = def < 0 ? -1 : Math.round(1000.0 * def / (def + 100.0));
+                max = 1000;
+                value = def < 0 ? null : fmt(def) + " (" + String.format(Locale.US, "%.1f", cur / 10.0) + "%)";
+            }
+            case VITALITY_BAR -> {
+                cur = PlayerStatsFeature.vitalityCur;
+                max = PlayerStatsFeature.vitalityMax;
+                value = cur < 0 ? null : fmt(cur) + "/" + fmt(max);
+            }
+            case XP_BAR -> {
+                float[] xp = xp();
+                cur = xp == null ? -1 : Math.round(1000.0 * xp[1]);
+                max = 1000;
+                value = xp == null ? null : xpLabel(xp);
+            }
+            default -> {
+                cur = PlayerStatsFeature.otherCur;
+                max = PlayerStatsFeature.otherMax;
+                value = cur < 0 ? null : fmt(cur) + "/" + fmt(max) + PlayerStatsFeature.otherIcon;
+            }
         }
+        return value == null ? null : new Object[]{cur, max, value};
+    }
+
+    /** The readout a text element draws: the live value, or (in the HUD editor) its label until there is one; null
+     *  when it draws nothing. */
+    private static String text(Readout r, boolean preview) {
+        String text = switch (r) {
+            case HEALTH_TEXT -> PlayerStatsFeature.healthCur < 0 ? null
+                    : "❤ " + fmt(PlayerStatsFeature.healthCur) + "/" + fmt(PlayerStatsFeature.healthMax);
+            case MANA_TEXT -> PlayerStatsFeature.manaCur < 0 ? null
+                    : "✎ " + fmt(PlayerStatsFeature.manaCur) + "/" + fmt(PlayerStatsFeature.manaMax);
+            case OVERFLOW_TEXT -> PlayerStatsFeature.overflowMana < 0 ? null
+                    : "ʬ " + fmt(PlayerStatsFeature.overflowMana);
+            case INTELLIGENCE_TEXT -> PlayerStatsFeature.manaMax < 100 ? null
+                    : "Intelligence " + fmt(PlayerStatsFeature.manaMax - 100);
+            case DEFENCE_TEXT -> PlayerStatsFeature.defenceValue < 0 ? null
+                    : "❈ " + fmt(PlayerStatsFeature.defenceValue);
+            case EFFECTIVE_HEALTH_TEXT -> PlayerStatsFeature.healthCur < 0 || PlayerStatsFeature.defenceValue < 0
+                    ? null
+                    : "EHP " + fmt(Math.round(PlayerStatsFeature.healthCur
+                    * (1.0 + PlayerStatsFeature.defenceValue / 100.0)));
+            case VITALITY_TEXT -> PlayerStatsFeature.vitalityCur < 0 ? null
+                    : "Vitality " + fmt(PlayerStatsFeature.vitalityCur) + "/" + fmt(PlayerStatsFeature.vitalityMax);
+            case XP_TEXT -> {
+                float[] xp = xp();
+                yield xp == null ? null : xpLabel(xp);
+            }
+            default -> PlayerStatsFeature.otherCur < 0 ? null
+                    : fmt(PlayerStatsFeature.otherCur) + "/" + fmt(PlayerStatsFeature.otherMax)
+                    + PlayerStatsFeature.otherIcon;
+        };
+        if (text == null && preview) {
+            text = r.label;
+        }
+        return text;
     }
 
     /** {level, progress 0..1} from the client's own player, or null with no player. Progress is clamped: it is

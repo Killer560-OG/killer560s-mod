@@ -123,15 +123,34 @@ public final class PlayerStatsFeature {
     public static void registerVanillaSuppression() {
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement noOp = (graphics, deltaTracker) -> {
         };
-        HudElementRegistry.replaceElement(VanillaHudElements.HEALTH_BAR, orig ->
-                suppressing() && PlayerStatsConfig.getInstance().isHideVanillaHearts() && !heartsForcedByRift()
-                        ? noOp : orig);
-        HudElementRegistry.replaceElement(VanillaHudElements.FOOD_BAR, orig ->
-                suppressing() && PlayerStatsConfig.getInstance().isHideVanillaHunger() ? noOp : orig);
-        HudElementRegistry.replaceElement(VanillaHudElements.ARMOR_BAR, orig ->
-                suppressing() && PlayerStatsConfig.getInstance().isHideVanillaArmour() ? noOp : orig);
-        HudElementRegistry.replaceElement(VanillaHudElements.AIR_BAR, orig ->
-                suppressing() && PlayerStatsConfig.getInstance().isHideVanillaAir() ? noOp : orig);
+        HudElementRegistry.replaceElement(VanillaHudElements.HEALTH_BAR, orig -> hidesVanillaHearts() ? noOp : orig);
+        HudElementRegistry.replaceElement(VanillaHudElements.FOOD_BAR, orig -> hidesVanillaHunger() ? noOp : orig);
+        HudElementRegistry.replaceElement(VanillaHudElements.ARMOR_BAR, orig -> hidesVanillaArmour() ? noOp : orig);
+        HudElementRegistry.replaceElement(VanillaHudElements.AIR_BAR, orig -> hidesVanillaAir() ? noOp : orig);
+    }
+
+    // The one answer to "is this vanilla row hidden right now", read by the hides above and by StatLayout, which keeps
+    // the Predefined areas clear of every vanilla row still drawn (2026-10-07).
+
+    public static boolean hidesVanillaHearts() {
+        return suppressing() && PlayerStatsConfig.getInstance().isHideVanillaHearts() && !heartsForcedByRift();
+    }
+
+    public static boolean hidesVanillaHunger() {
+        return suppressing() && PlayerStatsConfig.getInstance().isHideVanillaHunger();
+    }
+
+    public static boolean hidesVanillaArmour() {
+        return suppressing() && PlayerStatsConfig.getInstance().isHideVanillaArmour();
+    }
+
+    public static boolean hidesVanillaAir() {
+        return suppressing() && PlayerStatsConfig.getInstance().isHideVanillaAir();
+    }
+
+    /** Whether the vanilla XP bar and its level are hidden ({@code hideXpBar}, Skyblock Only). */
+    public static boolean hidesVanillaXp() {
+        return hidingXp();
     }
 
     private static boolean suppressing() {

@@ -90,6 +90,16 @@ public class HealthAndManaBarsTab extends BaseTab {
         y[0] += 24;
 
         if (master) {
+            // Layout (2026-10-07, killer560: "a setting that is predefined spots or fully custom"): Predefined puts the
+            // readouts in areas round the hotbar (StatLayout), Custom leaves each where Edit HUD put it.
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Layout: "
+                            + (ps.isPredefinedLayout() ? "§6Predefined" : "§6Custom")), btn -> {
+                        ps.setPredefinedLayout(!ps.isPredefinedLayout());
+                        ps.save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y[0], contentWidth, ROW_H).build());
+            y[0] += ROW;
+
             // ---------------- Bars ----------------
             header(widgets, contentX, contentWidth, y, "Bars");
             grid(widgets, contentX, col2, half, y, BARS, requestRebuild);

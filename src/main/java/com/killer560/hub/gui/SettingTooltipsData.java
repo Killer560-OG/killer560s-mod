@@ -1871,6 +1871,7 @@ final class SettingTooltipsData {
         d.put("health and mana bars/xp bar", "Your experience bar: level and progress, as the game has them. Hypixel sometimes uses this bar for a countdown instead, and then that is what it shows.");
         d.put("health and mana bars/xp text", "Your experience level and how far the bar is to the next one, as text.");
         d.put("health and mana bars/hide vanilla xp bar", "Hides the vanilla experience bar and its level while you use the custom one (the same setting as XP Bar And Level under Hide).");
+        d.put("health and mana bars/layout", "Predefined: the bars and texts sit in areas round the hotbar (two rows above it, left of it, right of it), share a row's width and stay clear of the vanilla rows still shown; in Edit HUD drag one onto another area, or onto Hidden. Custom: each one goes exactly where you drag it in Edit HUD. Switching keeps both arrangements.");
         d.put("health and mana bars/show value", "Draws the number on each custom bar.");
         d.put("health and mana bars/background", "Colour of the empty part of every custom bar.");
         d.put("health and mana bars/absorption colour", "Colour of the health bar's part past your max health.");

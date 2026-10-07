@@ -124,3 +124,9 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   frame (javap, 26.1.2 and 26.2). `CursorTypes` has only the straight resize arrows; the diagonals come from
   `CursorType.createStandardCursor(GLFW.GLFW_RESIZE_NWSE_CURSOR, name, fallback)` (LWJGL 3.4.1 / GLFW 3.4), created lazily on
   the render thread. The HUD editor does this; testkit 399 reads `pendingCursor` and the window's `currentCursor`.
+
+- **A layout that places HUD elements must not write their saved positions.** Health and Mana Bars' Predefined layout
+  (`playerstats/StatLayout`, 2026-10-07) answers `HudElement.layoutPosition()`, which `resolvePosition` returns before any
+  saved position, and the HUD editor skips `setPosition` for those elements; so switching back to Custom draws every bar
+  on the exact pixels it had (testkit 407 compares them). The editor's bottom button row sat on the areas beside the
+  hotbar and took their clicks; it moves under the instructions while Predefined readouts are listed.
