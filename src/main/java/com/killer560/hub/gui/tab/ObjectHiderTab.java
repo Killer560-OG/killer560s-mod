@@ -183,8 +183,7 @@ public class ObjectHiderTab extends BaseTab {
         y[0] += 16;
     }
 
-    /** Package-private so the sections split out of this tab (Health and Mana Bars, Hide Chat Messages,
-     *  Hide Players) keep the exact same row shape instead of each re-implementing it. */
+    /** Package-private so the sections split out of this tab (Hide Chat Messages, Hide Players) keep the exact same row shape instead of each re-implementing it. */
     static void toggle(List<AbstractWidget> widgets, int x, int width, int[] y, ObjectHiderConfig cfg,
                         Runnable requestRebuild, String label, BooleanSupplier get, Consumer<Boolean> set) {
         widgets.add(SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {

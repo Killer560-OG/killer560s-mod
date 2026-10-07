@@ -14,8 +14,8 @@ import java.util.Locale;
  * The custom stat bars and text readouts under Health and Mana Bars (killer560, 2026-10-04: "make custom
  * health, intel, vitality, defence, true defence, and other such bars that a player may find useful ... make
  * options for custom text, custom bars and whatnot all scalable"). Every readout is its own {@link HudElement},
- * so each one moves and scales on its own in the HUD editor (and from the scale slider in its settings row),
- * and is drawn in game by {@code HudInGameRenderer}.
+ * so each one moves and scales on its own in the HUD editor (the settings row's own scale slider was removed on
+ * 2026-10-07; it wrote this same HudConfig scale), and is drawn in game by {@code HudInGameRenderer}.
  * <p>
  * Only what Hypixel actually puts on the action bar can be shown live: health, mana, defence, overflow mana
  * and one further "current/max" resource with its own icon (see {@link PlayerStatsFeature}). True Defence and
