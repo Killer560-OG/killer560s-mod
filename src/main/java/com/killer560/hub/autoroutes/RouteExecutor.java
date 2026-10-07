@@ -114,7 +114,7 @@ public final class RouteExecutor {
      */
     private static final double BREAKER_RANGE_SQ = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
     private static final String[] BOOM_IDS = {"INFINITE_SUPERBOOM_TNT", "SUPERBOOM_TNT"};
-    private static final String BREAKER_ID = "DUNGEONBREAKER";
+    private static final String BREAKER_ID = ItemIdentity.BREAKER_ID;
     private static final Pattern CHARGES = Pattern.compile("Charges: (\\d+)/(\\d+)");
 
     /** PREP runs on the tick a node fires and asks for everything at once (hotbar slot, sneak, aim); AIM waits only
@@ -224,6 +224,13 @@ public final class RouteExecutor {
     private static List<BlockPos> breakerQueue = new ArrayList<>();
     /** Charges the breaker had when the node fired, less what it has sent since - a node never asks for more. */
     private static int breakerChargesLeft;
+    /** The breaker node has had enough charges for its standing blocks and is breaking; until then it waits. */
+    private static boolean breakerReady;
+    /** Ticks the breaker node has waited for charges, and whether chat has been told. */
+    private static int breakerWaitTicks;
+    private static boolean breakerWaitSaid;
+    /** How long a breaker node waits for its charges before the route gives up (30 s; 2 come back a second). */
+    private static final int BREAKER_WAIT_TIMEOUT = 600;
     private static final Set<BlockPos> breakerSent = new HashSet<>();
     private static BlockPos boomTarget;
     // ---- crypt ----
@@ -721,7 +728,19 @@ public final class RouteExecutor {
             RouteRotation.clear();
             return false;
         }
+        if (breakerWaiting()) {
+            // A breaker node waiting for charges can wait up to 30 s: a fresh movement key is him taking over, on a
+            // path-less route too (a node's own few ticks of action override it; this is not a few ticks).
+            stop("you moved");
+            return false;
+        }
         return acting;
+    }
+
+    /** A breaker node is holding for charges ({@link #tickBreaker}), nothing sent yet. */
+    private static boolean breakerWaiting() {
+        return activeNode != null && activeNode.type == RouteNode.Type.DUNGEON_BREAKER && step == Step.DO
+                && !breakerReady && breakerWaitTicks > 0;
     }
 
     /** Driving the player this tick (the mixin asks this). Sneak alone (an etherwarp prep) still counts. */
@@ -1226,6 +1245,9 @@ public final class RouteExecutor {
         nodeActed = false;
         breakerQueue = new ArrayList<>();
         breakerSent.clear();
+        breakerReady = false;
+        breakerWaitTicks = 0;
+        breakerWaitSaid = false;
         hopIndex = -1;
         landingConfirmed = false;
         planAsked = false;
@@ -2173,18 +2195,74 @@ public final class RouteExecutor {
                 stop("no Dungeon Breaker in the hotbar");
                 return;
             }
-            select(client, player, slot);
-            // The item's lore, in the sim too: the sim's server keeps that line current as Hypixel's does. The
-            // client's selected slot changed above, so this already reads the breaker.
-            int charges = breakerCharges(player.getMainHandItem());
-            LOGGER.info("[AutoRoutes] Breaker: {} block(s) queued, {} charge(s)", breakerQueue.size(), charges);
-            if (charges <= 0) {
+            // The item's lore, in the sim too: the sim's server keeps that line current as Hypixel's does. Read from
+            // the hotbar slot, so a node that has to wait for charges sends nothing at all - not even the swap -
+            // until it breaks.
+            int[] charges = breakerCharges(player.getInventory().getItem(slot));
+            LOGGER.info("[AutoRoutes] Breaker: {} block(s) queued, {} charge(s)", breakerQueue.size(),
+                    charges == null ? "no" : String.valueOf(charges[0]));
+            if (charges == null) {
+                // No "Charges: N/M" line at all: not a breaker this can read. A low count is waited for (DO).
                 stop("Dungeon Breaker has no charges");
                 return;
             }
-            breakerChargesLeft = charges;
+            breakerChargesLeft = charges[0];
+            breakerReady = false;
+            breakerWaitTicks = 0;
+            breakerWaitSaid = false;
             step = Step.DO;
             stepTicks = 0;
+        }
+        if (step == Step.DO && !breakerReady) {
+            // killer560, 2026-10-06: "if it steps on an ar breaker node and it doesn't have enough charges then it
+            // should wait to break until it does." Needed = the picked blocks still standing (air needs no charge),
+            // loaded and in reach - at most the breaker's maximum, or a node of more blocks than it can ever hold
+            // would wait forever; it then breaks as many as it has, as before. Read every tick: Hypixel gives back
+            // two a second (the sim the same). Sneak, position and look stay as the node holds them; nothing is sent.
+            int slot = ItemIdentity.findHotbarSlotById(player, BREAKER_ID);
+            if (slot < 0) {
+                stop("no Dungeon Breaker in the hotbar");
+                return;
+            }
+            int[] charges = breakerCharges(player.getInventory().getItem(slot));
+            if (charges == null) {
+                stop("Dungeon Breaker has no charges");
+                return;
+            }
+            Vec3 eye = player.getEyePosition();
+            int needed = 0;
+            for (BlockPos pos : breakerQueue) {
+                if (client.level.isLoaded(pos) && !client.level.getBlockState(pos).isAir()
+                        && com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) <= BREAKER_RANGE_SQ) {
+                    needed++;
+                }
+            }
+            int required = Math.min(needed, charges[1]);
+            if (charges[0] < required) {
+                breakerWaitTicks++;
+                if (!breakerWaitSaid) {
+                    breakerWaitSaid = true;
+                    LOGGER.info("[AutoRoutes] Breaker: {} block(s) standing in reach, {} charge(s) - waiting for {}",
+                            needed, charges[0], required);
+                    AutoRoutesFeature.chat(ModChat.text("Waiting for "), ModChat.value(String.valueOf(required)),
+                            ModChat.text(" breaker charges (have "), ModChat.value(String.valueOf(charges[0])),
+                            ModChat.text(")."));
+                }
+                if (breakerWaitTicks > BREAKER_WAIT_TIMEOUT) {
+                    stop("the Dungeon Breaker never had " + required + " charges (has " + charges[0] + " after "
+                            + BREAKER_WAIT_TIMEOUT / 20 + " s)");
+                }
+                return;
+            }
+            if (breakerWaitTicks > 0) {
+                LOGGER.info("[AutoRoutes] Breaker: {} charge(s) after waiting {} tick(s) - breaking {}", charges[0],
+                        breakerWaitTicks, needed);
+            }
+            breakerWaitTicks = 0;
+            breakerReady = true;
+            breakerChargesLeft = charges[0];
+            select(client, player, slot);
+            stepTicks = 0; // the first block goes now, on the tick the charges are there
         }
         if (step == Step.DO) {
             // Breaker Aura's own Multi Break setting decides (coordinator, 2026-10-05: a node of N blocks took N
@@ -2203,15 +2281,17 @@ public final class RouteExecutor {
             Vec3 eye = player.getEyePosition();
             int sentNow = 0;
             while (!breakerQueue.isEmpty()) {
+                BlockPos pos = breakerQueue.get(0);
+                if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()) {
+                    breakerQueue.remove(0); // air needs no charge, so it never counts as "not sent"
+                    continue;
+                }
                 if (breakerChargesLeft <= 0) {
                     LOGGER.info("[AutoRoutes] Breaker: out of charges - {} block(s) not sent", breakerQueue.size());
                     breakerQueue.clear();
                     break;
                 }
-                BlockPos pos = breakerQueue.remove(0);
-                if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()) {
-                    continue;
-                }
+                breakerQueue.remove(0);
                 // To the BOX, not the centre. The constant above was tightened to the real 4.5 and this
                 // measure was left on distToCenterSqr, which reads up to sqrt(0.75) further - so the gate
                 // its own javadoc describes was still off by that much, refusing blocks well inside reach.
@@ -2500,25 +2580,29 @@ public final class RouteExecutor {
         return hit instanceof BlockHitResult b && hit.getType() == HitResult.Type.BLOCK ? b : null;
     }
 
-    /** {@code dungeonbreaker/DungeonBreakerFeature.getBreakerCharges}: the count is only in the item's lore. */
-    private static int breakerCharges(ItemStack stack) {
+    /**
+     * {@code dungeonbreaker/DungeonBreakerFeature.getBreakerCharges}: the count is only in the item's lore.
+     *
+     * @return {charges, maximum} from its "Charges: N/M" line, or null when the stack is not a breaker or has no such line
+     */
+    private static int[] breakerCharges(ItemStack stack) {
         if (stack == null || stack.isEmpty() || !BREAKER_ID.equalsIgnoreCase(ItemIdentity.skyblockId(stack))) {
-            return 0;
+            return null;
         }
         ItemLore lore = stack.get(DataComponents.LORE);
         if (lore == null) {
-            return 0;
+            return null;
         }
         for (Component line : lore.lines()) {
             Matcher m = CHARGES.matcher(line.getString());
             if (m.find()) {
                 try {
-                    return Integer.parseInt(m.group(1));
+                    return new int[]{Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2))};
                 } catch (NumberFormatException e) {
-                    return 0;
+                    return null;
                 }
             }
         }
-        return 0;
+        return null;
     }
 }

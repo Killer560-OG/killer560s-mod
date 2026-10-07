@@ -212,6 +212,15 @@ public final class ItemIdentity {
         return tag.getStringOr("id", null);
     }
 
+    /** The Dungeon Breaker's Skyblock id - what a breaker node swaps to and breaker edit mode answers to. */
+    public static final String BREAKER_ID = "DUNGEONBREAKER";
+
+    /** True for the Dungeon Breaker, by its Skyblock id (the breaker node's own match). */
+    public static boolean isDungeonBreaker(ItemStack stack) {
+        String id = skyblockId(stack);
+        return id != null && id.equalsIgnoreCase(BREAKER_ID);
+    }
+
     /** True for an etherwarp-capable item (AOTV/AOTE with the {@code ethermerge} tag, or an Etherwarp Conduit) -
      *  the same test {@code EtherwarpHopper.hotbarItem} makes, on one stack. */
     public static boolean isEtherwarpItem(ItemStack stack) {

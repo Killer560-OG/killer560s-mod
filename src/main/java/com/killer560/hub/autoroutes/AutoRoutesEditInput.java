@@ -11,9 +11,11 @@ import com.killer560.hub.util.ModLog;
 
 /**
  * The clicking half of {@code /ar edit db}: "lets me right-click blocks to add them to that breaker and
- * shift-right-click to remove them" (killer560, 2026-09-16). While {@link AutoRoutesFeature#isEditMode()} is on,
- * a right-click on a block goes to {@link AutoRoutesFeature#onEditRightClick} and the real interaction is
- * suppressed so the held item (AOTV, sceptre, superboom...) doesn't also fire.
+ * shift-right-click to remove them" (killer560, 2026-09-16). While {@link AutoRoutesFeature#isEditMode()} is on
+ * AND the Dungeon Breaker is in his main hand, a right-click on a block goes to
+ * {@link AutoRoutesFeature#onEditRightClick} and the real interaction is suppressed. With any other item in hand
+ * (AOTV, Hyperion, sceptre...) edit mode leaves both mouse buttons alone, so etherwarps and abilities work as usual
+ * (killer560, 2026-10-06).
  * <p>
  * No mixin needed - this is exactly what Fabric's {@link UseBlockCallback} is for, and this repo already uses
  * it (KingRelicsFeature). Verified against fabric-events-interaction-v0 5.2.6 + the 26.1.2 jar: the client-side
@@ -23,9 +25,7 @@ import com.killer560.hub.util.ModLog;
  * use nor the follow-up item use (nor the off-hand pass) happens. QUOI does the same job by watching outgoing
  * packets; hooking before the packet exists is the cleaner way to get "don't also use your item".
  * <p>
- * Every click in edit mode is suppressed, consumed by the feature or not: edit mode is a deliberate, temporary
- * state the user typed a command to enter, and a mis-aimed click firing a teleport mid-edit is worse than a chest
- * not opening until {@code /ar edit db} is typed again.
+ * With the breaker held, every right click on a block is suppressed, consumed by the feature or not.
  */
 public final class AutoRoutesEditInput {
 
@@ -63,6 +63,11 @@ public final class AutoRoutesEditInput {
                     return InteractionResult.PASS;
                 }
                 if (!AutoRoutesFeature.isEditMode() || !AutoRoutesConfig.getInstance().isEnabledRaw()) {
+                    return InteractionResult.PASS;
+                }
+                // Only with the Dungeon Breaker in hand (killer560, 2026-10-06: holding his AOTV or Hyperion in edit
+                // mode he "should be able to do things like etherwarp and whatnot"). Anything else is a normal click.
+                if (!ItemIdentity.isDungeonBreaker(player.getMainHandItem())) {
                     return InteractionResult.PASS;
                 }
                 // The main-hand FAIL already ends startUseItem before the off-hand pass, but if anything else
@@ -103,8 +108,13 @@ public final class AutoRoutesEditInput {
      * the screen's). Breaker Aura stands down in edit mode through its own "Pause In Edit Mode" (on by default).
      */
     private static void onStartTick(Minecraft client) {
-        if (!AutoRoutesFeature.isEditMode() || client.options == null
+        if (!AutoRoutesFeature.isEditMode() || client.options == null || client.player == null
                 || com.killer560.hub.compat.McCompat.screen(client) != null) {
+            return;
+        }
+        // Only while the Dungeon Breaker is held: with an AOTV, Hyperion or anything else a left click is a normal left
+        // click (killer560, 2026-10-06).
+        if (!ItemIdentity.isDungeonBreaker(client.player.getMainHandItem())) {
             return;
         }
         boolean clicked = false;
