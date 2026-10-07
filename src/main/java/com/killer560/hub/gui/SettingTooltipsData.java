@@ -1352,6 +1352,8 @@ final class SettingTooltipsData {
         d.put("terminal solver/hide completion titles", "Hides the terminal completion title and subtitle on screen.");
         d.put("terminal solver/hide completion chat", "Hides the terminal completion lines in chat, including Terminal Timers' split times.");
         d.put("terminal solver/only hide others'", "Hides only the other players' completion lines and keeps your own.");
+        d.put("terminal solver/terminal open logger", "Diagnostic, on by default: in any F7/M7 boss it logs every right click you make near a terminal - where you stood and looked, the stand and block, and whether it opened - to config/killer560/dungeons/termlog. Sends nothing; does nothing outside the boss. /termlog summary shows the open rate by height and pitch.");
+        d.put("terminal solver/logger chat lines", "One chat line per logged attempt: OPEN or NO OPEN, the delay, your eye height against the stand and block, pitch, distance and line of sight.");
         d.put("goldor frenzy/goldor frenzy timer", "Counts down to Goldor's next damage tick during Phase 3.");
         d.put("goldor frenzy/pre-goldor", "Also counts the gap between Storm dying and Goldor arriving.");
         d.put("goldor frenzy/show total", "Shows how long Phase 3 has been running instead of the countdown.");
