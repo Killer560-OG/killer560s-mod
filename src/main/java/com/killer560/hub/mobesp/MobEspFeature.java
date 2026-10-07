@@ -116,12 +116,14 @@ public final class MobEspFeature {
 
     /** Glow mixin hook: whether this entity should get the vanilla glow outline. */
     public static boolean shouldGlow(Entity entity) {
-        return entity != null && glowTargets.containsKey(entity.getId());
+        Map<Integer, Integer> targets = glowTargets; // per entity per frame: no boxed id when nothing glows
+        return entity != null && !targets.isEmpty() && targets.containsKey(entity.getId());
     }
 
     /** Glow mixin hook: the ARGB outline colour for this entity, or null if Dungeon ESP isn't glowing it. */
     public static Integer glowColor(Entity entity) {
-        return entity == null ? null : glowTargets.get(entity.getId());
+        Map<Integer, Integer> targets = glowTargets;
+        return entity == null || targets.isEmpty() ? null : targets.get(entity.getId());
     }
 
     private static void tick() {
