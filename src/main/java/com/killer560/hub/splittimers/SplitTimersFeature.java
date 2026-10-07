@@ -569,25 +569,75 @@ public final class SplitTimersFeature {
         }
 
         private static final int SPLIT_COLUMN_WIDTH = 160;
-        private static final int P5_COLUMN_WIDTH = 130;
+
+        /** One drawn line: its text and where it goes, relative to the element's top-left. */
+        private record Line(String text, int dx, int dy) {
+        }
+
+        /**
+         * Every line this element draws right now, placed. render() draws exactly this list and width()/height()
+         * measure exactly this list, so the HUD editor's box is the drawn text and nothing else.
+         *
+         * <p>killer560 (2026-10-07): "those split timers the box is way too large for how big they actually are for
+         * the editor portion". height() used to count the live split rows, which the editor never draws, and width()
+         * was a fixed 160-unit column (plus 130 for the P5 column): in his editor the three sample lines (Total, No
+         * Lag, Lag) sat in a box about twice as wide and four rows taller than they were.
+         */
+        private static List<Line> layout() {
+            List<Line> out = new ArrayList<>();
+            int lineY = 0;
+            // Real rows in game (chat included - killer560: "dont make it hide the gui if i open chat"); the
+            // editor shows only the sample P5 / core-entry blocks below.
+            if (!HudVisibility.editorOpen()) {
+                for (SplitRow row : displayRows()) {
+                    out.add(new Line(rowText(row), 0, lineY));
+                    lineY += ROW_HEIGHT;
+                }
+            }
+            boolean right = SplitTimersConfig.getInstance().isP5LinesRight();
+            int p5X = right ? SPLIT_COLUMN_WIDTH : 0;
+            int p5Y = right ? 0 : lineY;
+            for (String line : p5Lines()) {
+                out.add(new Line(line, p5X, p5Y));
+                p5Y += ROW_HEIGHT;
+            }
+            // Core entry / totals / slowest-into-core rows always sit in the left column, under whatever
+            // is already there, in that order - the last two are the "very bottom" blocks killer560 asked for.
+            int coreY = right ? lineY : p5Y;
+            for (String line : coreLines()) {
+                out.add(new Line(line, 0, coreY));
+                coreY += ROW_HEIGHT;
+            }
+            for (String line : totalsLines()) {
+                out.add(new Line(line, 0, coreY));
+                coreY += ROW_HEIGHT;
+            }
+            for (String line : slowestCoreLine()) {
+                out.add(new Line(line, 0, coreY));
+                coreY += ROW_HEIGHT;
+            }
+            return out;
+        }
 
         @Override
         public int width() {
-            return SPLIT_COLUMN_WIDTH + (p5Lines().isEmpty() || !SplitTimersConfig.getInstance().isP5LinesRight() ? 0 : P5_COLUMN_WIDTH);
+            net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+            int w = 0;
+            for (Line line : layout()) {
+                w = Math.max(w, line.dx() + font.width(line.text()));
+            }
+            return Math.max(20, w);
         }
 
         @Override
         public int height() {
-            int rows = displayRows().size();
-            int p5 = p5Lines().size();
-            int core = coreLines().size();
-            int totals = totalsLines().size();
-            int slowest = slowestCoreLine().size();
-            int total = SplitTimersConfig.getInstance().isP5LinesRight()
-                    ? Math.max(rows, p5) + core + totals + slowest : rows + p5 + core + totals + slowest;
             // Compact (killer560, 2026-09-27: "have it show the splits hud more compact") - tighter row
             // spacing (was 12) plus dropped header/divider rows, see coreLines()/p5Lines()/totalsLines().
-            return ROW_HEIGHT * Math.max(1, total);
+            int h = 0;
+            for (Line line : layout()) {
+                h = Math.max(h, line.dy() + ROW_HEIGHT);
+            }
+            return Math.max(ROW_HEIGHT, h);
         }
 
         /** Tighter than vanilla's 9px line height would allow overlap; this is the least padding that still
@@ -799,46 +849,13 @@ public final class SplitTimersFeature {
             if (!SplitTimersConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
-            int lineY = y;
-            // Every block below is optional and any of them can come out empty, so "did this element put
-            // anything on screen" is counted, not assumed - see HudSeen for why the count has to be real.
-            int drawnRows = 0;
-            // Real rows in game (chat included - killer560: "dont make it hide the gui if i open chat"); the
-            // editor shows only the sample P5 / core-entry blocks below.
-            if (!HudVisibility.editorOpen()) {
-                for (SplitRow row : displayRows()) {
-                    graphics.text(Minecraft.getInstance().font, rowText(row), x, lineY, 0xFFFFFFFF, false);
-                    lineY += ROW_HEIGHT;
-                    drawnRows++;
-                }
+            // Every block is optional and any of them can come out empty, so "did this element put anything on
+            // screen" is counted, not assumed - see HudSeen for why the count has to be real.
+            List<Line> lines = layout();
+            for (Line line : lines) {
+                graphics.text(Minecraft.getInstance().font, line.text(), x + line.dx(), y + line.dy(), 0xFFFFFFFF, false);
             }
-            boolean right = SplitTimersConfig.getInstance().isP5LinesRight();
-            int p5X = right ? x + SPLIT_COLUMN_WIDTH : x;
-            int p5Y = right ? y : lineY;
-            for (String line : p5Lines()) {
-                graphics.text(Minecraft.getInstance().font, line, p5X, p5Y, 0xFFFFFFFF, false);
-                p5Y += ROW_HEIGHT;
-                drawnRows++;
-            }
-            // Core entry / totals / slowest-into-core rows always sit in the left column, under whatever
-            // is already there, in that order - the last two are the "very bottom" blocks killer560 asked for.
-            int coreY = right ? lineY : p5Y;
-            for (String line : coreLines()) {
-                graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
-                coreY += ROW_HEIGHT;
-                drawnRows++;
-            }
-            for (String line : totalsLines()) {
-                graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
-                coreY += ROW_HEIGHT;
-                drawnRows++;
-            }
-            for (String line : slowestCoreLine()) {
-                graphics.text(Minecraft.getInstance().font, line, x, coreY, 0xFFFFFFFF, false);
-                coreY += ROW_HEIGHT;
-                drawnRows++;
-            }
-            if (drawnRows > 0) {
+            if (!lines.isEmpty()) {
                 HudSeen.markDrawn(id());
             }
         }

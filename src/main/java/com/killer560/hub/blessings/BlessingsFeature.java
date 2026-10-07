@@ -86,12 +86,43 @@ public final class BlessingsFeature {
 
         @Override
         public int width() {
-            return 80;
+            // The drawn lines (it was a fixed 80 by every blessing's row, shown or not).
+            int w = 1;
+            for (Row line : lines()) {
+                w = Math.max(w, Minecraft.getInstance().font.width(line.text()));
+            }
+            return w;
         }
 
         @Override
         public int height() {
-            return 9 * Blessing.values().length;
+            return com.killer560.hub.hud.HudText.height(lines().size(), 9);
+        }
+
+        private record Row(String text, int color) {
+        }
+
+        /** The rows render() draws; render() and the box both read it. */
+        private static java.util.List<Row> lines() {
+            Minecraft client = Minecraft.getInstance();
+            BlessingsConfig cfg = BlessingsConfig.getInstance();
+            boolean editor = McCompat.screen(client) instanceof HudEditorScreen;
+            java.util.List<Row> out = new java.util.ArrayList<>();
+            if (!editor && !cfg.isHudEnabled()) {
+                return out;
+            }
+            Blessing[] all = Blessing.values();
+            for (int i = 0; i < all.length; i++) {
+                Blessing blessing = all[i];
+                if (!cfg.isShown(blessing)) {
+                    continue;
+                }
+                int level = editor ? EXAMPLE[i] : BlessingTracker.level(blessing);
+                if (level > 0) {
+                    out.add(new Row(lineFor(blessing, level, cfg), cfg.getColor(blessing)));
+                }
+            }
+            return out;
         }
 
         @Override
@@ -103,24 +134,9 @@ public final class BlessingsFeature {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
-            BlessingsConfig cfg = BlessingsConfig.getInstance();
-            boolean editor = McCompat.screen(client) instanceof HudEditorScreen;
-            if (!editor && !cfg.isHudEnabled()) {
-                return;
-            }
             int row = 0;
-            Blessing[] all = Blessing.values();
-            for (int i = 0; i < all.length; i++) {
-                Blessing blessing = all[i];
-                if (!cfg.isShown(blessing)) {
-                    continue;
-                }
-                int level = editor ? EXAMPLE[i] : BlessingTracker.level(blessing);
-                if (level <= 0) {
-                    continue;
-                }
-                graphics.text(client.font, lineFor(blessing, level, cfg), x, y + row * 9,
-                        0xFF000000 | cfg.getColor(blessing), true);
+            for (Row line : lines()) {
+                graphics.text(client.font, line.text(), x, y + row * 9, 0xFF000000 | line.color(), true);
                 row++;
             }
             if (row > 0) {

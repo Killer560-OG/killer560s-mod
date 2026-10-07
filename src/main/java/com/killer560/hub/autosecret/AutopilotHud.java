@@ -57,12 +57,19 @@ final class AutopilotHud {
 
         @Override
         public int width() {
-            return 240;
+            // The two drawn lines, one unit in (it was a fixed 240 while the editor's sample second line ran
+            // to about 315).
+            String[] l = lines();
+            if (l == null) {
+                return 20;
+            }
+            var font = Minecraft.getInstance().font;
+            return 1 + Math.max(font.width("Autopilot ") + font.width(l[0]), font.width(l[1]));
         }
 
         @Override
         public int height() {
-            return 20;
+            return 11 + com.killer560.hub.hud.HudText.ROW;
         }
 
         @Override
@@ -70,23 +77,29 @@ final class AutopilotHud {
             return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && AutoSecretConfig.getInstance().isAutopilotHud();
         }
 
+        /** {line1, line2} as drawn right now, or null; render() and the box both read it. */
+        private String[] lines() {
+            if (AutoSecretFeature.isAutopilot()) {
+                return AutoSecretFeature.autopilotHud();
+            }
+            if (lastStop != null && System.currentTimeMillis() - lastStopMs < 6000L) {
+                return new String[]{"Stopped", lastStop};
+            }
+            if (HudVisibility.menuOpen()) {
+                return new String[]{"[Solo] Clearing Mushroom",
+                        "score 243 (S) | 4.7 pts in ~9 s - Solo: best score per second"};
+            }
+            return null;
+        }
+
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            String line1;
-            String line2;
-            if (AutoSecretFeature.isAutopilot()) {
-                String[] lines = AutoSecretFeature.autopilotHud();
-                line1 = lines[0];
-                line2 = lines[1];
-            } else if (lastStop != null && System.currentTimeMillis() - lastStopMs < 6000L) {
-                line1 = "Stopped";
-                line2 = lastStop;
-            } else if (HudVisibility.menuOpen()) {
-                line1 = "[Solo] Clearing Mushroom";
-                line2 = "score 243 (S) | 4.7 pts in ~9 s - Solo: best score per second";
-            } else {
+            String[] l = lines();
+            if (l == null) {
                 return;
             }
+            String line1 = l[0];
+            String line2 = l[1];
             var font = Minecraft.getInstance().font;
             HudSeen.markDrawn(id());
             String label = "Autopilot ";

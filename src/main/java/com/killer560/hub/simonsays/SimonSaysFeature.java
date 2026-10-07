@@ -3019,12 +3019,35 @@ public final class SimonSaysFeature {
 
         @Override
         public int width() {
-            return 180;
+            // The widest drawn line (2026-10-07 box audit: it was a fixed 180); 180 with nothing to show, so the
+            // HUD editor still has something to grab.
+            List<Map.Entry<String, PartyProgress>> entries = visibleEntries();
+            if (entries.isEmpty()) {
+                return 180;
+            }
+            long now = System.currentTimeMillis();
+            int w = 1;
+            for (Map.Entry<String, PartyProgress> e : entries) {
+                w = Math.max(w, Minecraft.getInstance().font.width(lineText(e, now)));
+            }
+            return w;
         }
 
         @Override
         public int height() {
-            return 12 * Math.max(1, visibleEntries().size());
+            return com.killer560.hub.hud.HudText.height(visibleEntries().size(), 12);
+        }
+
+        private static String lineText(Map.Entry<String, PartyProgress> e, long now) {
+            PartyProgress p = e.getValue();
+            String eta = "";
+            long elapsed = now - p.startedAtMs;
+            if (p.progress > 0 && elapsed > 0) {
+                double msPerStep = elapsed / (double) p.progress;
+                long remainingMs = (long) (msPerStep * (p.total - p.progress));
+                eta = String.format(Locale.US, " (~%.1fs)", remainingMs / 1000.0);
+            }
+            return String.format(Locale.US, "%s: %d/%d%s", e.getKey(), p.progress, p.total, eta);
         }
 
         private List<Map.Entry<String, PartyProgress>> visibleEntries() {
@@ -3052,17 +3075,7 @@ public final class SimonSaysFeature {
             long now = System.currentTimeMillis();
             int lineY = y;
             for (Map.Entry<String, PartyProgress> e : visibleEntries()) {
-                PartyProgress p = e.getValue();
-                String eta = "";
-                long elapsed = now - p.startedAtMs;
-                if (p.progress > 0 && elapsed > 0) {
-                    double msPerStep = elapsed / (double) p.progress;
-                    long remainingMs = (long) (msPerStep * (p.total - p.progress));
-                    eta = String.format(Locale.US, " (~%.1fs)", remainingMs / 1000.0);
-                }
-                graphics.text(Minecraft.getInstance().font,
-                        String.format(Locale.US, "%s: %d/%d%s", e.getKey(), p.progress, p.total, eta),
-                        x, lineY, 0xFFFFFFFF, false);
+                graphics.text(Minecraft.getInstance().font, lineText(e, now), x, lineY, 0xFFFFFFFF, false);
                 lineY += 12;
             }
             if (lineY != y) {

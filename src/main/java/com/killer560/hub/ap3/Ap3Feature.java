@@ -945,12 +945,15 @@ public final class Ap3Feature {
 
         @Override
         public int width() {
-            return 90;
+            // The drawn line, one unit in (it was a fixed 90, short of "Stopwatch: 12.345s").
+            String value = value();
+            var font = Minecraft.getInstance().font;
+            return 1 + font.width("Stopwatch: ") + font.width(value != null ? value : "12.345s");
         }
 
         @Override
         public int height() {
-            return 10;
+            return 1 + com.killer560.hub.hud.HudText.ROW;
         }
 
         @Override
@@ -959,30 +962,36 @@ public final class Ap3Feature {
             return cfg.isEnabled() && cfg.isStopwatchHud();
         }
 
-        @Override
-        public void render(GuiGraphicsExtractor graphics, int x, int y) {
+        /** The stopwatch value render() draws right now, or null when it draws nothing. */
+        private String value() {
             Ap3Config cfg = Ap3Config.getInstance();
             boolean example = HudVisibility.menuOpen();
             if (!example && (!cfg.isEnabled() || !cfg.isStopwatchHud())) {
-                return;
+                return null;
             }
             long running = Ap3Executor.stopwatchRunningMs();
             long last = Ap3Executor.lastStopwatchMs();
-            String value;
             if (running >= 0) {
-                value = Ap3Executor.formatStopwatch(running);
-            } else if (last >= 0) {
+                return Ap3Executor.formatStopwatch(running);
+            }
+            if (last >= 0) {
                 // killer560 (2026-10-06): "make it so the stopwatch hud times out after 10s of not running". The HUD
                 // editor keeps previewing it.
                 if (!example && System.currentTimeMillis() - Ap3Executor.stopwatchStoppedAtMs() > STOPWATCH_HUD_TIMEOUT_MS) {
-                    return;
+                    return null;
                 }
-                value = Ap3Executor.formatStopwatch(last);
-            } else if (example) {
-                value = "12.345s";
-            } else {
+                return Ap3Executor.formatStopwatch(last);
+            }
+            return example ? "12.345s" : null;
+        }
+
+        @Override
+        public void render(GuiGraphicsExtractor graphics, int x, int y) {
+            String value = value();
+            if (value == null) {
                 return;
             }
+            long running = Ap3Executor.stopwatchRunningMs();
             var font = Minecraft.getInstance().font;
             String label = "Stopwatch: ";
             HudSeen.markDrawn(id());

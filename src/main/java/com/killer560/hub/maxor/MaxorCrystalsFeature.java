@@ -341,14 +341,35 @@ public final class MaxorCrystalsFeature {
             return 460;
         }
 
+        /** The rows drawn right now - the editor's sample or the live ones; render() and the box both read it
+         *  (the box was a fixed 110x29). */
+        private static java.util.List<String> lines() {
+            Minecraft client = Minecraft.getInstance();
+            MaxorConfig cfg = MaxorConfig.getInstance();
+            if (McCompat.screen(client) instanceof HudEditorScreen) {
+                return java.util.List.of("§bCrystals: §f1.70", "§e⚠ §bCrystal §e⚠", "§6Active: §e2§7/§e5");
+            }
+            java.util.List<String> out = new java.util.ArrayList<>(3);
+            if (cfg.isSpawnTimerEnabled() && tickTimer >= 0) {
+                out.add("§bCrystals: §f" + String.format(Locale.US, "%.2f", tickTimer / 20.0));
+            }
+            if (cfg.isPlaceAlertEnabled() && inP1() && holdingUnplacedCrystal()) {
+                out.add("§e⚠ §bCrystal §e⚠");
+            }
+            if (cfg.isActiveCounterEnabled() && totalCrystals > 0) {
+                out.add("§6Active: §e" + activeCrystals + "§7/§e" + totalCrystals);
+            }
+            return out;
+        }
+
         @Override
         public int width() {
-            return 110;
+            return com.killer560.hub.hud.HudText.width(lines());
         }
 
         @Override
         public int height() {
-            return 29;
+            return com.killer560.hub.hud.HudText.height(lines().size(), 10);
         }
 
         @Override
@@ -361,30 +382,12 @@ public final class MaxorCrystalsFeature {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
-            MaxorConfig cfg = MaxorConfig.getInstance();
-            if (McCompat.screen(client) instanceof HudEditorScreen) {
-                graphics.text(client.font, "§bCrystals: §f1.70", x, y, 0xFFFFFFFF, true);
-                graphics.text(client.font, "§e⚠ §bCrystal §e⚠", x, y + 10, 0xFFFFFFFF, true);
-                graphics.text(client.font, "§6Active: §e2§7/§e5", x, y + 20, 0xFFFFFFFF, true);
-                return;
+            java.util.List<String> rows = lines();
+            for (int row = 0; row < rows.size(); row++) {
+                graphics.text(client.font, rows.get(row), x, y + row * 10, 0xFFFFFFFF, true);
             }
-            int row = 0;
-            if (cfg.isSpawnTimerEnabled() && tickTimer >= 0) {
-                graphics.text(client.font, "§bCrystals: §f" + String.format(Locale.US, "%.2f", tickTimer / 20.0),
-                        x, y + row * 10, 0xFFFFFFFF, true);
-                row++;
-            }
-            if (cfg.isPlaceAlertEnabled() && inP1() && holdingUnplacedCrystal()) {
-                graphics.text(client.font, "§e⚠ §bCrystal §e⚠", x, y + row * 10, 0xFFFFFFFF, true);
-                row++;
-            }
-            if (cfg.isActiveCounterEnabled() && totalCrystals > 0) {
-                graphics.text(client.font, "§6Active: §e" + activeCrystals + "§7/§e" + totalCrystals,
-                        x, y + row * 10, 0xFFFFFFFF, true);
-                row++;
-            }
-            // All three rows are optional, so row is the only honest "did anything land on screen" answer.
-            if (row > 0) {
+            // All three rows are optional, so the row count is the only honest "did anything land on screen" answer.
+            if (!rows.isEmpty() && !(McCompat.screen(client) instanceof HudEditorScreen)) {
                 HudSeen.markDrawn(id());
             }
         }

@@ -345,19 +345,22 @@ public final class PathfindingFeature {
 
         @Override
         public int width() {
-            Font font = Minecraft.getInstance().font;
-            int width = 90;
-            if (font != null) {
-                for (String line : hudLines()) {
-                    width = Math.max(width, font.width(line) + 2);
-                }
-            }
-            return width;
+            // The drawn lines (2026-10-07 box audit: it had a 90 floor and 2 spare units).
+            return com.killer560.hub.hud.HudText.width(drawnLines());
         }
 
         @Override
         public int height() {
-            return Math.max(10, hudLines().size() * 10);
+            return com.killer560.hub.hud.HudText.height(drawnLines().size(), 10);
+        }
+
+        /** What render() draws: the HUD lines, or the editor's sample when there are none. */
+        private static List<String> drawnLines() {
+            List<String> lines = hudLines();
+            if (lines.isEmpty() && McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen) {
+                return List.of("§6Fairy Souls §f0/80");
+            }
+            return lines;
         }
 
         @Override
@@ -373,10 +376,7 @@ public final class PathfindingFeature {
             if (!cfg.isEnabled() && !editor) {
                 return;
             }
-            List<String> lines = hudLines();
-            if (lines.isEmpty() && editor) {
-                lines = List.of("§6Fairy Souls §f0/80");
-            }
+            List<String> lines = drawnLines();
             if (!lines.isEmpty()) {
                 HudSeen.markDrawn(id());
             }

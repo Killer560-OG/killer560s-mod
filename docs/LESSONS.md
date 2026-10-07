@@ -38,7 +38,15 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   mouseReleased` persists a position for any press-release on a box, drag or not: one click in the editor
   while the window was briefly 854x480 froze `storage_overlay` at the clamped `x:0` and it stayed there at
   2560x1441, which is what "the storage overlay is no longer centered" turned out to be. A saved position is
-  never re-clamped, so the cure is deleting the element's entry from `killer560smod-hud.json`.
+  never re-clamped, so the cure is deleting the element's entry from `killer560smod-hud.json`. And `width()`/
+  `height()` must measure the SAME lines `render()` draws (one `lines()`/`layout()` method both read, sizes via
+  `hud/HudText`): fixed guesses left 20 of 50 boxes more than 3 units off (Split Timers +70, Autopilot -76) until
+  2026-10-07; testkit 390-ui-hud-boxes checks every element. Centred elements (Room Alerts, blood camp popup) keep
+  a fixed box, since their centre is the anchor and a hugging box would move the text.
+- **The live map's world scan must stay inside the floor's room grid.** Floor 1's boss arena stands in slots
+  (4..5, 5) of the 6x6 footprint; scanning all 121 cells read its roof as two ROOM tiles, which widened the map's
+  fit to 6x6 (his "doesn't rescale for other floors") and kept the boss latch off until he was deep in the arena.
+  `scan()` and `insideGridFootprint` now use `MapPainter.currentFloorRooms()` (2026-10-07).
 - **Superpairs powerups come in two kinds, told apart by lore.** "Instant powerup!" (the `+479,095 XP` lapis
   block, "Gained +3 Clicks") applies on the spot; only "Powerup for next click!" (Instant Find) matches the next
   click. Arming on both spent a lone click on an Enchanted Book and reserved it, blocking its pair (2026-10-01).

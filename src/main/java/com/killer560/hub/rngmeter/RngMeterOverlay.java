@@ -76,6 +76,20 @@ public final class RngMeterOverlay {
     private static final int STABLE_FRAMES_REQUIRED = 3;
     private static final int MAX_UNSTABLE_FRAMES = 40;
     private static final int VISIBLE_ROWS = 8;
+
+    /** The HUD editor's sample ranking: as many rows as the real panel shows at most. */
+    private static final List<RngMeterEngine.RankedItem> PREVIEW_ROWS = previewRows();
+    private static final SelectedDropInfo PREVIEW_SELECTED = new SelectedDropInfo("Example Item A", 42.0, 4_200, 10_000);
+
+    private static List<RngMeterEngine.RankedItem> previewRows() {
+        List<RngMeterEngine.RankedItem> out = new ArrayList<>();
+        for (int i = 0; i < VISIBLE_ROWS; i++) {
+            String name = "Example Item " + (char) ('A' + i);
+            out.add(new RngMeterEngine.RankedItem(new RngItem("", name, "", RngSource.BAZAAR, 10_000 * (i + 1), false),
+                    5_000_000L / (i + 1), 500.0 / (i + 1), i + 1));
+        }
+        return List.copyOf(out);
+    }
     private static volatile int scrollOffset = 0;
 
     private RngMeterOverlay() {
@@ -103,14 +117,17 @@ public final class RngMeterOverlay {
                 return 20;
             }
 
+            /** The editor preview's panel, measured from the same lines it draws (2026-10-07: the box was a fixed
+             *  220x100 round a 236x43 preview). The real panel over the RNG Meter menu grows with the menu's rows;
+             *  the preview shows the same number of sample rows the real one shows at most. */
             @Override
             public int width() {
-                return 220;
+                return rankingSize(PREVIEW_ROWS, PREVIEW_SELECTED)[0];
             }
 
             @Override
             public int height() {
-                return 100;
+                return rankingSize(PREVIEW_ROWS, PREVIEW_SELECTED)[1];
             }
 
             @Override
@@ -124,11 +141,7 @@ public final class RngMeterOverlay {
             @Override
             public void render(GuiGraphicsExtractor graphics, int x, int y) {
                 // HUD position editor preview - no real menu is open, so show placeholder sample rows.
-                List<RngMeterEngine.RankedItem> sample = List.of(
-                        new RngMeterEngine.RankedItem(new RngItem("", "Example Item A", "", RngSource.BAZAAR, 10_000, false), 5_000_000L, 500.0, 1),
-                        new RngMeterEngine.RankedItem(new RngItem("", "Example Item B", "", RngSource.BAZAAR, 20_000, false), 2_000_000L, 100.0, 2)
-                );
-                renderRanking(graphics, x, y, "RNG Meter", sample, new SelectedDropInfo("Example Item A", 42.0, 4_200, 10_000));
+                renderRanking(graphics, x, y, "RNG Meter", PREVIEW_ROWS, PREVIEW_SELECTED);
             }
         });
 
@@ -584,9 +597,33 @@ public final class RngMeterOverlay {
         return String.format(Locale.US, "§b§lKiller560's Mod: §b%,.1f coins/pt", cpp);
     }
 
+    /** One line of the ranking panel: text, colour, and its offset below the panel's top. */
+    private record RankLine(String text, int color, int dy) {
+    }
+
     private static void renderRanking(GuiGraphicsExtractor graphics, int x, int y, String title, List<RngMeterEngine.RankedItem> rows, SelectedDropInfo selected) {
         var font = Minecraft.getInstance().font;
-        int cursorY = y;
+        for (RankLine line : rankingLines(rows, selected)) {
+            graphics.text(font, line.text(), x, y + line.dy(), line.color());
+        }
+    }
+
+    /** {width, height} of the ranking panel for these rows - what renderRanking draws, measured. */
+    private static int[] rankingSize(List<RngMeterEngine.RankedItem> rows, SelectedDropInfo selected) {
+        var font = Minecraft.getInstance().font;
+        int w = 1;
+        int h = 1;
+        for (RankLine line : rankingLines(rows, selected)) {
+            w = Math.max(w, font.width(line.text()));
+            h = Math.max(h, line.dy() + font.lineHeight);
+        }
+        return new int[]{w, h};
+    }
+
+    /** The ranking panel's lines, placed; renderRanking draws exactly these and rankingSize measures them. */
+    private static List<RankLine> rankingLines(List<RngMeterEngine.RankedItem> rows, SelectedDropInfo selected) {
+        List<RankLine> out = new ArrayList<>();
+        int cursorY = 0;
 
         String header = "§6§lRNG Meter";
         if (rows.size() > VISIBLE_ROWS) {
@@ -594,22 +631,22 @@ public final class RngMeterOverlay {
             int to = Math.min(rows.size(), from + VISIBLE_ROWS - 1);
             header += String.format(Locale.US, " §7(%d-%d of %d, scroll for more)", from, to, rows.size());
         }
-        graphics.text(font, header, x, cursorY, 0xFFFFFFFF);
+        out.add(new RankLine(header, 0xFFFFFFFF, cursorY));
         cursorY += 12;
 
         if (selected != null) {
             String selectedLine = String.format(Locale.US, "§dSelected: %s §7(%.1f%%, %,d/%,d)",
                     selected.name(), selected.percent(), selected.current(), selected.required());
-            graphics.text(font, selectedLine, x, cursorY, 0xFFFFFFFF);
+            out.add(new RankLine(selectedLine, 0xFFFFFFFF, cursorY));
             cursorY += 11;
         }
 
         HypixelMarketPrices prices = RngMeterEngine.PRICES;
         if (prices.isRefreshing()) {
-            graphics.text(font, "§7Fetching live prices...", x, cursorY, 0xFFAAAAAA);
+            out.add(new RankLine("§7Fetching live prices...", 0xFFAAAAAA, cursorY));
             cursorY += 11;
         } else if (prices.getLastRefreshedAtMs() == 0) {
-            graphics.text(font, "§7No price data yet.", x, cursorY, 0xFFAAAAAA);
+            out.add(new RankLine("§7No price data yet.", 0xFFAAAAAA, cursorY));
             cursorY += 11;
         }
 
@@ -628,10 +665,11 @@ public final class RngMeterOverlay {
                 String cpp = r.coinsPerPity() != null ? String.format(Locale.US, "%,.1f", r.coinsPerPity()) : "N/A";
                 line = String.format(Locale.US, "%s%s: %s coins/pt", color, r.item().name(), cpp);
             }
-            graphics.text(font, line, x, cursorY, 0xFFFFFFFF);
+            out.add(new RankLine(line, 0xFFFFFFFF, cursorY));
             cursorY += 10;
             shown++;
         }
+        return out;
     }
 
     /** Reward names in this project are always literally "<Color> Dye". */

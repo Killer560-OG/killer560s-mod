@@ -517,7 +517,7 @@ final class SettingTooltipsData {
         d.put("diagnostic logging", "Logs held-map changes to the log file, for map research only.");
         d.put("dump held map now", "Saves the raw data of the map you are holding to a dump folder.");
         d.put("funny map", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
-        d.put("extra info overlay", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
+        d.put("extra info overlay", "Shows score, secrets for S+, crypts, deaths and bonus kills under the Dungeon Map. Works with Score Calculator off.");
         d.put("mimic room show/hide", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
         d.put("player-head class recolor", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
         d.put("etherwarp waypoints/etherwarp waypoints", "Use /ew waypoint add [name] to mark the block you stand on with a box.");
@@ -1111,7 +1111,7 @@ final class SettingTooltipsData {
 
         // ---- Live Map / Interactive Map ----
         d.put("interactive map", "Cheat build: full-screen dungeon map; click a room to etherwarp to it or start its secret route.");
-        d.put("extra info", "Adds Crypts, bonus kills and secrets still needed for S+ to the map legend (needs Score Calculator).");
+        d.put("extra info", "Adds Crypts, bonus kills and secrets still needed for S+ to the map legend. Works with Score Calculator off.");
         d.put("open from hud click", "Click the small HUD map (with chat open) to open the full map.");
         d.put("map scale", "Size of the full Interactive Map, 1-10.");
         d.put("font scale", "Size of the text drawn on the Interactive Map, 0.5x to 3x.");

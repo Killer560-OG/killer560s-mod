@@ -189,14 +189,47 @@ public final class RagAxeFeature {
             return 100;
         }
 
+        /** The rows drawn right now as {label, value}; render() and the box both read it (the box was a fixed
+         *  110x30 around what is usually one row). */
+        private java.util.List<String[]> rows() {
+            RagAxeConfig cfg = RagAxeConfig.getInstance();
+            boolean example = editorOpen();
+            java.util.List<String[]> out = new java.util.ArrayList<>(3);
+            if (!example && !cfg.isEnabled()) {
+                return out;
+            }
+            if (cfg.isChannelTimer()) {
+                addRow(out, "Rag in: ", example ? 2_400L : RagAxeState.channelRemainingMs());
+            }
+            if (cfg.isBuffTimer()) {
+                addRow(out, "Ragnarock: ", example ? 7_300L : RagAxeState.buffRemainingMs());
+            }
+            if (cfg.isCooldownTimer()) {
+                addRow(out, "Rag CD: ", example ? 12_100L : RagAxeState.cooldownRemainingMs());
+            }
+            return out;
+        }
+
+        private void addRow(java.util.List<String[]> out, String label, long left) {
+            if (left > 0) {
+                out.add(new String[]{label, String.format(Locale.US, "%.1fs", left / 1000.0)});
+            }
+        }
+
         @Override
         public int width() {
-            return 110;
+            Font font = Minecraft.getInstance().font;
+            int w = 1;
+            for (String[] r : rows()) {
+                w = Math.max(w, 1 + font.width(r[0]) + font.width(r[1]));
+            }
+            return w;
         }
 
         @Override
         public int height() {
-            return 30;
+            // Rows sit one unit in from the corner (the +1 in line()).
+            return 1 + com.killer560.hub.hud.HudText.height(rows().size(), 10);
         }
 
         @Override
@@ -206,44 +239,20 @@ public final class RagAxeFeature {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            RagAxeConfig cfg = RagAxeConfig.getInstance();
-            boolean example = editorOpen();
-            if (!example && !cfg.isEnabled()) {
-                return;
+            java.util.List<String[]> rows = rows();
+            for (int row = 0; row < rows.size(); row++) {
+                line(graphics, x, y + row * 10, rows.get(row)[0], rows.get(row)[1]);
             }
-            int row = 0;
-            if (cfg.isChannelTimer()) {
-                long left = example ? 2_400L : RagAxeState.channelRemainingMs();
-                if (left > 0) {
-                    line(graphics, x, y + row * 10, "Rag in: ", left);
-                    row++;
-                }
-            }
-            if (cfg.isBuffTimer()) {
-                long left = example ? 7_300L : RagAxeState.buffRemainingMs();
-                if (left > 0) {
-                    line(graphics, x, y + row * 10, "Ragnarock: ", left);
-                    row++;
-                }
-            }
-            if (cfg.isCooldownTimer()) {
-                long left = example ? 12_100L : RagAxeState.cooldownRemainingMs();
-                if (left > 0) {
-                    line(graphics, x, y + row * 10, "Rag CD: ", left);
-                    row++;
-                }
-            }
-            // All three rows are optional, so row is the only honest "did anything land on screen" answer.
-            if (row > 0) {
+            // All three rows are optional, so the row count is the only honest "did anything land on screen" answer.
+            if (!rows.isEmpty()) {
                 HudSeen.markDrawn(id());
             }
         }
 
-        private void line(GuiGraphicsExtractor graphics, int x, int y, String label, long remainingMs) {
+        private void line(GuiGraphicsExtractor graphics, int x, int y, String label, String value) {
             Font font = Minecraft.getInstance().font;
             graphics.text(font, label, x + 1, y + 1, 0xFF000000 | ModChat.ORANGE, true);
-            graphics.text(font, String.format(Locale.US, "%.1fs", remainingMs / 1000.0), x + 1 + font.width(label),
-                    y + 1, 0xFF000000 | ModChat.LIGHT_ORANGE, true);
+            graphics.text(font, value, x + 1 + font.width(label), y + 1, 0xFF000000 | ModChat.LIGHT_ORANGE, true);
         }
     };
 
@@ -274,12 +283,13 @@ public final class RagAxeFeature {
 
         @Override
         public int width() {
-            return 40;
+            // The prompt text as drawn, one unit in from the corner (it was a fixed 40).
+            return 1 + Minecraft.getInstance().font.width(RagAxeConfig.getInstance().getPromptText());
         }
 
         @Override
         public int height() {
-            return 10;
+            return 1 + com.killer560.hub.hud.HudText.ROW;
         }
 
         @Override

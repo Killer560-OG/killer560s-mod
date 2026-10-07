@@ -286,14 +286,48 @@ public final class MaskInvincibilityFeature {
             return 440;
         }
 
+        /**
+         * The box is the rows as drawn (2026-10-07, killer560: the editor box was "wider/taller than its 3 rows"):
+         * the widest row's icon + text, and every row but the last at full row pitch with the last one only as tall
+         * as its icon or text. It was a fixed 150 wide and a whole row pitch per row.
+         */
         @Override
         public int width() {
-            return 150;
+            boolean icons = MaskInvincibilityConfig.getInstance().isShowItemIcons();
+            net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+            int w = 0;
+            for (Type t : Type.values()) {
+                if (shown(t)) {
+                    w = Math.max(w, (icons ? 20 : 0) + font.width(rowText(t)));
+                }
+            }
+            return Math.max(20, w);
         }
 
         @Override
         public int height() {
-            return rowHeight() * (int) java.util.Arrays.stream(Type.values()).filter(MaskInvincibilityFeature::shown).count();
+            int rows = (int) java.util.Arrays.stream(Type.values()).filter(MaskInvincibilityFeature::shown).count();
+            if (rows == 0) {
+                return rowHeight();
+            }
+            int last = MaskInvincibilityConfig.getInstance().isShowItemIcons() ? 16 : Minecraft.getInstance().font.lineHeight;
+            return (rows - 1) * rowHeight() + last;
+        }
+
+        /** One row's text, exactly as render() draws it. */
+        private static String rowText(Type t) {
+            MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
+            // Hiding the name only makes sense when there's an icon to identify the row by, so it is ignored
+            // without one - otherwise the HUD would be three unlabelled numbers.
+            boolean names = !(cfg.isShowItemIcons() && cfg.isHideMaskNames());
+            int active = activeRemaining.get(t);
+            int cooldown = cooldownRemaining.get(t);
+            String status = active > 0
+                    ? String.format(Locale.US, "%.1fs", active / 20f)
+                    : cooldown > 0
+                    ? String.format(Locale.US, "%.1fs", cooldown / 20f)
+                    : "Ready";
+            return names ? t.label + ": " + status : status;
         }
 
         @Override
@@ -304,14 +338,13 @@ public final class MaskInvincibilityFeature {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!MaskInvincibilityConfig.getInstance().isEnabled() || HudVisibility.hidesHud() || !passesLocationGates()) {
+            // The HUD editor previews it wherever he is, so Only In Dungeons / Boss Only never leave an empty box.
+            if (!MaskInvincibilityConfig.getInstance().isEnabled() || HudVisibility.hidesHud()
+                    || !(passesLocationGates() || HudVisibility.editorOpen())) {
                 return;
             }
             MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
             boolean icons = cfg.isShowItemIcons();
-            // Hiding the name only makes sense when there's an icon to identify the row by, so it is ignored
-            // without one - otherwise the HUD would be three unlabelled numbers.
-            boolean names = !(icons && cfg.isHideMaskNames());
             int row = rowHeight();
             int lineY = y;
             for (Type t : Type.values()) {
@@ -320,11 +353,6 @@ public final class MaskInvincibilityFeature {
                 }
                 int active = activeRemaining.get(t);
                 int cooldown = cooldownRemaining.get(t);
-                String status = active > 0
-                        ? String.format(Locale.US, "%.1fs", active / 20f)
-                        : cooldown > 0
-                        ? String.format(Locale.US, "%.1fs", cooldown / 20f)
-                        : "Ready";
                 int color = active > 0 ? 0xFFFFAA00 : cooldown > 0 ? 0xFFFF5555 : 0xFF55FF55;
                 int textX = x;
                 if (icons) {
@@ -333,8 +361,7 @@ public final class MaskInvincibilityFeature {
                 }
                 // Centre the 8px-tall line against a 16px icon; without icons keep the old flush-top layout.
                 int textY = icons ? lineY + 4 : lineY;
-                graphics.text(Minecraft.getInstance().font, names ? t.label + ": " + status : status,
-                        textX, textY, color, false);
+                graphics.text(Minecraft.getInstance().font, rowText(t), textX, textY, color, false);
                 lineY += row;
             }
             if (lineY != y) {

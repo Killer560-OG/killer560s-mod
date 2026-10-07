@@ -237,8 +237,11 @@ public final class PositionFeature {
         @Override
         public int height() {
             PositionConfig cfg = PositionConfig.getInstance();
-            int lines = 3 + (cfg.isShowFacing() ? 2 : 0) + (cfg.isShowBlock() ? 1 : 0) + (cfg.isShowVelocity() ? 1 : 0);
-            return 12 * lines;
+            LocalPlayer player = Minecraft.getInstance().player;
+            int lines = player != null ? lines(cfg, player).length
+                    : 3 + (cfg.isShowFacing() ? 2 : 0) + (cfg.isShowBlock() ? 1 : 0) + (cfg.isShowVelocity() ? 1 : 0);
+            // Rows 12 apart, the last one only a text row tall (it counted a full 12 for every row).
+            return com.killer560.hub.hud.HudText.height(lines, 12);
         }
 
         @Override

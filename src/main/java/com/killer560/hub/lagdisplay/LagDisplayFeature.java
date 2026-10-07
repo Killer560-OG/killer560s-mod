@@ -226,12 +226,18 @@ public final class LagDisplayFeature {
 
         @Override
         public int width() {
-            return 110;
+            // The widest drawn line (it was a fixed 110 around about 45 units of text).
+            Font font = Minecraft.getInstance().font;
+            int w = 1;
+            for (Line line : lines()) {
+                w = Math.max(w, font.width(line.text()));
+            }
+            return w;
         }
 
         @Override
         public int height() {
-            return 12 * Math.max(1, lines().size());
+            return com.killer560.hub.hud.HudText.height(lines().size(), 12);
         }
 
         @Override

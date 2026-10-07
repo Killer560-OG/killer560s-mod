@@ -203,9 +203,15 @@ public final class StorageOverlayFeature {
 
             @Override
             public void render(GuiGraphicsExtractor graphics, int x, int y) {
-                // HUD position editor preview - a real grid isn't necessarily open right now, so show
-                // a label only. The real overlay only draws while a storage screen is actually open.
-                graphics.text(Minecraft.getInstance().font, "§bStorage Overlay (shown when a storage is open)", x, y, 0xFFFFFFFF);
+                // HUD position editor preview - a real grid isn't necessarily open right now. The real overlay only
+                // draws while a storage screen is open, and its grid is this element's box (see width()), so the
+                // preview shows that footprint as a panel with the label in it rather than a lone line of text in
+                // the corner of a 510x160 box (2026-10-07 HUD box audit).
+                int w = width();
+                int h = height();
+                graphics.fill(x, y, x + w, y + h, 0x40000000);
+                graphics.outline(x, y, w, h, 0x80FFFFFF);
+                graphics.text(Minecraft.getInstance().font, "§bStorage Overlay (shown when a storage is open)", x + 3, y + 3, 0xFFFFFFFF);
             }
         });
 

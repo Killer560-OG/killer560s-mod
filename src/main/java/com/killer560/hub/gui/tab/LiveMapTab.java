@@ -153,7 +153,8 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         }
 
         // ---------------------------------------------------------------- map extras (moved from the deleted
-        // Mapping tab - see this class's doc). All 4 are still placeholders; MappingConfig's class doc has the
+        // Mapping tab - see this class's doc). Extra Info Overlay is real (2026-10-07); the other 3 are still
+        // placeholders; MappingConfig's class doc has the
         // full "honesty note" on why, and the tooltips below give the short version instead of an in-panel
         // paragraph (mod-wide: explanatory paragraphs move to hover text).
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,

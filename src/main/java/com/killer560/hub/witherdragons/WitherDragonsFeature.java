@@ -520,12 +520,14 @@ public final class WitherDragonsFeature {
 
         @Override
         public int width() {
-            return 110;
+            // The drawn lines (it was a fixed 110).
+            return com.killer560.hub.hud.HudText.width(lines());
         }
 
         @Override
         public int height() {
-            return 12 * Math.max(1, lines().size());
+            // Rows 12 apart; the last one only a text row tall.
+            return com.killer560.hub.hud.HudText.height(lines().size(), 12);
         }
 
         private static List<String> lines() {
