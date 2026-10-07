@@ -96,3 +96,11 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   asks again for ever: Auto Clear's wither door required 2.5 blocks from the approach spot and, standing 3.6 off, logged a
   "trip to wither door" and an "Already there" every tick without ever clicking (2026-10-07, testkit 131). Once a trip to
   the door has finished it now clicks from where he stands, and stops saying why if the door is out of reach.
+- **An aura's click is judged against the rotation the movement packets report, not the camera.** A block use the reported
+  look misses is GrimAC RotationPlace (and dropped); an entity interact is Hitboxes. Turn the BODY first with
+  `util/TurnFirst` (or BodyAim), camera held, and send only after a movement packet has carried the turn: an AP3 Term Aura
+  click sent at the START right after an END turn preceded every packet facing the stand, and after an earlier flag GrimAC
+  let none through (testkit 416, 2026-10-07). Digs are not judged this way (54: behind and through a wall, 0 lines).
+- **Never release a `ViewFreeze` hold you did not take.** It is one global lease; a second owner releasing it drops the
+  camera onto a body another auto is still turning (93-solve-blazemiss-lower, -boulder-aura). `ViewFreeze.holdCount()` says
+  whether anybody else held it since you did.
