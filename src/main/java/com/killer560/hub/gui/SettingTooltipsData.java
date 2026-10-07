@@ -14,7 +14,7 @@ final class SettingTooltipsData {
         part1(d);
         part2(d);
         part3(d);
-        mining(d);
+        // mining(d): shelved until after 2.0 (shelved/mining/README.md).
         invSortAndAutoSell(d);
         autoKick(d);
         bazaarFlip(d);
@@ -1256,7 +1256,6 @@ final class SettingTooltipsData {
         d.put("display", "Chooses what the pathfinder draws: the path, route, target label and chat feedback.");
         d.put("island", "Shows which SkyBlock island the pathfinder has data for.");
         d.put("m7 phase 5 lines", "Adds split lines for M7 P5, one per dragon and per King relic.");
-        d.put("mining - planned (not in 1.3)", "Mining features planned for later; nothing here does anything yet.");
         d.put("memory", "How much of the chunk cache may stay in RAM.");
         d.put("sessions", "How many Experimentation Table sessions you have tracked, by game.");
         d.put("reward value", "Total Bazaar value of your tracked wins, plus XP and bits spent.");
@@ -2116,24 +2115,6 @@ final class SettingTooltipsData {
         d.put("rewind 1 tick key", "Keybind: one tick back in time. Refused on Hypixel (instant ban).");
         d.put("forward 1 tick key", "Keybind: one tick forward again. Refused on Hypixel (instant ban).");
         d.put("ap3/freeze view (freecam)", "Keeps your screen view steady while an Align or Walk/Run node turns your real yaw.");
-    }
-
-    /** Mining (WIP) tab, 2026-09-27 - scoped under "mining (wip)/" (the top-level tab name passed to
-     *  {@link SettingTooltips#describe}) so these never override an unrelated tab's same-worded button
-     *  (e.g. Waypoint Routes' own "Remove Last", Interactive Map's own "Map Scale"). */
-    private static void mining(Map<String, String> d) {
-        d.put("mining (wip)/profit per hour tracker", "Tracks the items you gain and their Bazaar/AH value, showing Coins/Hour.");
-        d.put("mining (wip)/mining islands only", "On only counts time on mining islands; off counts it anywhere.");
-        d.put("mining (wip)/nucleus run profit tracker", "Counts Crystal Nucleus runs from the loot message and prices the rewards.");
-        d.put("mining (wip)/crystal hollows map", "A top-down Crystal Hollows map showing you, found structures and your waypoints.");
-        d.put("crystal hollows map/show borders", "Draws a box round each structure you have found, covering the part you have walked.");
-        d.put("crystal hollows map/show waypoints", "Puts a named marker at the middle of each structure you have found.");
-        d.put("crystal hollows map/share my finds", "Shares the structures you find with other mod users in the same lobby.");
-        d.put("crystal hollows map/receive others'", "Shows structures other mod users found in this lobby, with a dashed border.");
-        d.put("mining (wip)/open map", "Opens the full Crystal Hollows map; left-click sets a travel target, right-click clears it.");
-        d.put("mining (wip)/map scale", "Zoom multiplier for the Crystal Hollows map, 0.5x-4x.");
-        d.put("mining (wip)/add waypoint here", "Saves your current position as a Crystal Hollows waypoint.");
-        d.put("mining (wip)/remove last", "Removes the most recently added Crystal Hollows waypoint.");
     }
 
     /** Auto Inventory Sorter and Auto Sell (killer560, 2026-09-27). Bare (unscoped) keys - both labels are

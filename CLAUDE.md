@@ -68,7 +68,7 @@ GrimAC on a real dedicated server. See its own `CLAUDE.md`. Harness system prope
 Source under `src/main/java/com/killer560/hub/`, one package per feature area (`ap3`, `dungeonextras`,
 `secrets`, `livemap`, `autopuzzles`, `terminals`, `leveraura`, `gui/tab`, `util`, …). Mixins live in a
 `mixin` subpackage of the feature that owns them. Docs: `docs/FEATURES.md` holds the full text for every
-feature; `README.md` holds the name list.
+feature; `README.md` holds the name list. Mining is shelved until after 2.0 (never compiled): **[shelved/mining/README.md](shelved/mining/README.md)**.
 
 Shared pieces worth knowing: `util/ActionGate` is the mod-wide one-automated-interaction-per-tick arbiter
 with actor priority; `util/SkyblockGate` is the "Skyblock Only" gate; `secrets/DungeonState` owns floor and
