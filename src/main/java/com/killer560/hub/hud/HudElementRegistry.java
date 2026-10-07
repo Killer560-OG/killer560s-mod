@@ -164,14 +164,18 @@ public final class HudElementRegistry {
     /** {@code pos} may be null: the Auto Scale path passes the scaled x/y as ints and only allocates the array when
      *  the memo misses, so a scaled, unchanged element costs no allocation per frame (same rule as getPosition). */
     private static int[] memoisedClamp(HudElement element, int rawX, int rawY, int[] pos) {
-        int[] screen = screenSize();
-        if (screen == null) {
+        Minecraft client = Minecraft.getInstance();
+        Window window = client == null ? null : client.getWindow();
+        if (window == null) {
             return pos != null ? pos : new int[]{rawX, rawY};
         }
+        // Read straight off the window: screenSize() allocated an array for every element every frame just to compare.
+        int screenW = window.getGuiScaledWidth();
+        int screenH = window.getGuiScaledHeight();
         float scale = resolveScale(element);
         ClampMemo memo = CLAMP_MEMOS.get(element.id());
         if (memo != null && memo.rawX == rawX && memo.rawY == rawY && memo.scale == scale
-                && memo.screenW == screen[0] && memo.screenH == screen[1]
+                && memo.screenW == screenW && memo.screenH == screenH
                 // Within the TTL nothing needs re-measuring; beyond it, only an element that is actually
                 // live (or being previewed in the HUD editor, where a disabled element draws demo content
                 // and so does have a size) can have changed size.
@@ -189,10 +193,10 @@ public final class HudElementRegistry {
         memo.rawX = rawX;
         memo.rawY = rawY;
         memo.scale = scale;
-        memo.screenW = screen[0];
-        memo.screenH = screen[1];
+        memo.screenW = screenW;
+        memo.screenH = screenH;
         memo.measuredAtMs = System.currentTimeMillis();
-        memo.result = clampIntoScreen(element, pos, screen);
+        memo.result = clampIntoScreen(element, pos, new int[]{screenW, screenH});
         return memo.result;
     }
 
@@ -277,15 +281,18 @@ public final class HudElementRegistry {
 
     /** Leaves a saved position alone unless not one pixel of the box is on screen any more. */
     private static int[] rescueIfInvisible(HudElement element, int[] pos) {
-        int[] screen = screenSize();
-        if (screen == null) {
+        Minecraft client = Minecraft.getInstance();
+        Window window = client == null ? null : client.getWindow();
+        if (window == null) {
             return pos;
         }
         // Top-left corner on screen means at least that pixel is visible - skip width()/height() (which for some
         // elements builds their whole line list) on this per-frame path unless the corner is actually outside.
-        if (pos[0] >= 0 && pos[0] < screen[0] && pos[1] >= 0 && pos[1] < screen[1]) {
+        // (And no screen array for that test: this runs for every saved element every frame at Auto Scale 1.)
+        if (pos[0] >= 0 && pos[0] < window.getGuiScaledWidth() && pos[1] >= 0 && pos[1] < window.getGuiScaledHeight()) {
             return pos;
         }
+        int[] screen = screenSize();
         int[] size = scaledSize(element);
         boolean visible = pos[0] < screen[0] && pos[0] + size[0] > 0 && pos[1] < screen[1] && pos[1] + size[1] > 0;
         return visible ? pos : clampIntoScreen(element, pos);
