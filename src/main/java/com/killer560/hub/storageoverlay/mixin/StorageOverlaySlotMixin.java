@@ -33,7 +33,7 @@ public abstract class StorageOverlaySlotMixin {
         if (!StorageOverlayConfig.getInstance().isEnabled()) {
             return;
         }
-        if (StorageOverlayFeature.shouldHideVanilla(self.getTitle().getString())) {
+        if (StorageOverlayFeature.shouldHideVanilla(self.getTitle())) {
             ci.cancel();
         }
     }
@@ -53,7 +53,7 @@ public abstract class StorageOverlaySlotMixin {
         if (!StorageOverlayConfig.getInstance().isEnabled() || hoveredSlot == null) {
             return;
         }
-        if (StorageOverlayFeature.shouldHideVanilla(self.getTitle().getString())) {
+        if (StorageOverlayFeature.shouldHideVanilla(self.getTitle())) {
             ci.cancel();
         }
     }
@@ -68,7 +68,7 @@ public abstract class StorageOverlaySlotMixin {
         if (!StorageOverlayConfig.getInstance().isEnabled()) {
             return;
         }
-        if (StorageOverlayFeature.shouldHideVanilla(self.getTitle().getString())) {
+        if (StorageOverlayFeature.shouldHideVanilla(self.getTitle())) {
             ci.cancel();
         }
     }

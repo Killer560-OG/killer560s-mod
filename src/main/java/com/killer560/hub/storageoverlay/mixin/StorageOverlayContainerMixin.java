@@ -134,7 +134,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
         if (StorageOverlayFeature.isRenamePending()) {
             return;
         }
-        if (com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().isEnabled() && StorageOverlayFeature.shouldHideVanilla(this.getTitle().getString())) {
+        if (com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().isEnabled() && StorageOverlayFeature.shouldHideVanilla(this.getTitle())) {
             cir.setReturnValue(true);
         }
     }
@@ -146,7 +146,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
         if (StorageOverlayFeature.isRenamePending()) {
             return;
         }
-        if (com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().isEnabled() && StorageOverlayFeature.shouldHideVanilla(this.getTitle().getString())) {
+        if (com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().isEnabled() && StorageOverlayFeature.shouldHideVanilla(this.getTitle())) {
             cir.setReturnValue(true);
         }
     }
