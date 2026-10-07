@@ -288,4 +288,8 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   after the clicktranslate HEAD hook has dispatched it - Chat Tidy injects at that method's `Predicate.test` call (2026-10-07;
   testkit 87 checks every hidden line still reached `ChatObserver`). Hide Chat Messages (Object Hider) still uses `ALLOW_GAME`.
 
+- A marker outline drawn as one-unit side strips per row is not an outline: the back edge had none and the tip rows were all
+  edge, so only 69% of the old map arrow's edge was dark and his green arrow vanished on the green Entrance (testkit 395,
+  2026-10-07). Draw a solid outline shape one unit bigger UNDER the fill (`MapPainter.outlinedTriangle`): 100%, 15.3:1.
+
 Compiling lessons (API names across versions, the cloud-session javac filter) are in [COMPILING.md](COMPILING.md).

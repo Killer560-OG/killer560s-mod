@@ -667,8 +667,8 @@ final class SettingTooltipsData {
         d.put("auto swap to bow", "Cheat build: swaps your hotbar to the selected weapon while on the i4 device.");
         d.put("cps", "Cheat build: click rate range for Auto i4.");
         d.put("auto mask", "Cheat build: puts on your next death item (Phoenix, then the mask in Order) after Storm dies.");
-        d.put("show teammates", "Draws a dot on the map for each party member's current room.");
-        d.put("recolor by class", "Colors teammate dots by their class; OFF draws them white.");
+        d.put("show teammates", "Draws each teammate on the map where they stand: an arrow, or their head with Player Heads on.");
+        d.put("recolor by class", "Colors teammate arrows (the heading tick with Player Heads) by their class; OFF draws them white.");
         d.put("cell size", "Size of each map grid cell in pixels (4-16).");
         d.put("room labels", "What each room shows on the map: Off, Checkmarks, Secrets, Room Name, or Room Name + Secrets. One setting for both maps - the Dungeon Map and the Interactive Map always match.");
         d.put("secret waypoints", "Draws a coloured box on every secret in rooms the mod has recognised.");
@@ -2011,6 +2011,7 @@ final class SettingTooltipsData {
         d.put("party interop/noammaddons bridge", "Shares rooms, doors, secrets and dragon spawns with NoammAddons users in your run.");
         d.put("party interop/odin bridge", "Shows Odin users' Melody progress in F7/M7 P3, and shares yours if Share My Progress is on.");
         d.put("dungeon map/mark reported rooms", "Marks rooms and doors your party shared that you haven't seen yourself.");
+        d.put("dungeon map/player heads", "Draws you and your teammates as your skins' faces, with a small tick showing which way each is facing, on the Dungeon Map and the Interactive Map. Anyone whose skin isn't known yet keeps the arrow.");
         d.put("team melody/team melody hud", "Shows each teammate's Melody terminal progress during Phase 3.");
         d.put("team melody/share my progress", "Lets teammates see your live Melody terminal progress.");
         d.put("team melody/scale", "Resizes the Team Melody HUD.");

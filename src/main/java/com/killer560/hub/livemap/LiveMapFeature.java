@@ -316,6 +316,18 @@ public final class LiveMapFeature {
      * @param clay       per room name index, {@code {clayX, clayZ, rotation}}
      */
     public static void publishSimFloor(int[] roomCells, int[] doorCells, String[] names, int[][] clay) {
+        publishSimFloor(roomCells, doorCells, names, clay, names.length > 1);
+    }
+
+    /**
+     * As {@link #publishSimFloor(int[], int[], String[], int[][])}; {@code fitToRooms} says whether the maps fit their
+     * grid to the published rooms' bounding box. Only a floor is fitted. killer560, 2026-10-07: "if it is only a
+     * single room on the map for sim, then have it at the normal F7 scale size, not scaled up for just the one room."
+     * A single room (Load a Room, All Rooms) or a one-room map code draws on the full 6x6 grid at F7's cell size,
+     * where the world put it, exactly like a 6x6 floor would show that slot.
+     */
+    public static void publishSimFloor(int[] roomCells, int[] doorCells, String[] names, int[][] clay,
+                                       boolean fitToRooms) {
         resetGrid("Sim floor built");
         for (int idx = 0; idx < GRID * GRID; idx++) {
             int room = idx < roomCells.length ? roomCells[idx] : -1;
@@ -360,7 +372,7 @@ public final class LiveMapFeature {
                 extent[3] = Math.max(extent[3], row);
             }
         }
-        simRoomExtent = extent;
+        simRoomExtent = extent == null || fitToRooms ? extent : new int[]{0, 0, 5, 5};
         // Where Hypixel would have put wither doors on this floor - the sim builds none. Drawn only in the sim.
         com.killer560.hub.roomsim.SimWitherDoors.publish(roomCells, doorCells, names);
         LOGGER.info("[LiveMap] Sim floor published: {} room(s)", names.length);
