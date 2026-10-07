@@ -218,5 +218,9 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - Vitality is NOT a Rift stat: it is a combat resource (healing abilities, Wither Shield, Creeper Veil - "Not enough vitality!
   Creeper Veil De-activated!" is in his own logs) shown on the action bar as `current/max` + U+E028 (hypixelskyblock wiki),
   which the generic Other readout caught until 2026-10-07. `PlayerStatsFeature.VITALITY_REGEX` reads it and Other skips U+E028.
+- A migration that reads an old file must decide from the OLD file's keys, never from the new config's fields after the
+  carry-over: those already hold the new file's own values wherever an old key is missing. Score Calculator's legacy
+  alert migration tested its own `mimicAlertEnabled`/... and so switched `enabled` on when nothing legacy was on
+  (testkit 310 caught it once another case had left Score Calculator on, 2026-10-07).
 GUI, HUD and rendering lessons are in [LESSONS-GUI.md](LESSONS-GUI.md).
 Compiling lessons (API names across versions, the cloud-session javac filter) are in [COMPILING.md](COMPILING.md).

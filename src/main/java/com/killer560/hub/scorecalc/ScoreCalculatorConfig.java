@@ -164,8 +164,14 @@ public final class ScoreCalculatorConfig {
             // migrateOldDefault used to apply to the mimic/prince/bat text.
             // These alerts used to fire from Dungeon Info on their own; here they only fire while the Score
             // Calculator is on. If any was switched on before the move, switch the Score Calculator on too so
-            // the move does not silently mute an alert he had set up.
-            if (!cfg.enabled && (cfg.mimicAlertEnabled || cfg.princeAlertEnabled || cfg.batAlertEnabled)) {
+            // the move does not silently mute an alert he had set up. Only the LEGACY file's own keys count:
+            // this used to test the Score Calculator's current alert fields, which already hold whatever this
+            // file says when the old keys are missing, so a run of this migration on a config with no legacy
+            // alerts at all turned "enabled" on behind his back (testkit 310, 2026-10-07).
+            boolean legacyAlertOn = ConfigJson.getBool(legacy, "mimicMessageEnabled", false)
+                    || ConfigJson.getBool(legacy, "princeMessageEnabled", false)
+                    || ConfigJson.getBool(legacy, "batMessageEnabled", false);
+            if (!cfg.enabled && legacyAlertOn) {
                 cfg.enabled = true;
             }
             String legacy270 = ConfigJson.getString(legacy, "score270Message", null);
