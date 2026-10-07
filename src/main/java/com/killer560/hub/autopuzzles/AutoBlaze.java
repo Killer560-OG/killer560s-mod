@@ -51,6 +51,10 @@ import com.killer560.hub.compat.McCompat;
  * killer560, 2026-10-06: "make higher lower blaze enter a free cam state right now it just snaps my camera around
  * everywhere. It should be the same state used for ap3." The camera is held by {@link FreeCam} from the first aim
  * (shot or reposition) to the last shot, renewed every tick, and handed back with the body turned under it.
+ * <p>
+ * killer560, 2026-10-06, Auto Secret: the trip starts the tick after the volley at the last blaze leaves the bow
+ * ({@link #earlyPending}), not after the kill; it walks to a block within aura reach of the chest on the exit side
+ * ({@link #auraSpots}), not onto it; and a miss found on the way is shot again only after the secret is taken.
  */
 final class AutoBlaze {
 
@@ -80,6 +84,10 @@ final class AutoBlaze {
      *  lease was not enough. */
     private static final FreeCam CAMERA = new FreeCam("Blaze");
     private static final AutoReposition REPOSITION = new AutoReposition("Blaze", CAMERA);
+    /** The secret trip's own last-leg warp and its camera, held only for that warp (see {@link #walkToSecret}). */
+    private static final FreeCam SECRET_CAM = new FreeCam("Blaze secret");
+    private static final AutoReposition SECRET_WARP = new AutoReposition("Blaze secret", SECRET_CAM);
+    private static final java.util.Set<BlockPos> directTried = new java.util.HashSet<>();
 
     private static long lastShotTime = 0L;
     private static boolean waitingForUpdate = false;
@@ -119,12 +127,50 @@ final class AutoBlaze {
     private static boolean noSecretWarned = false;
     private static boolean secretMapOffWarned = false;
 
+    /**
+     * Early secret (killer560, 2026-10-06): "the second the arrows that are going to hit the last blaze are shot leave
+     * the bow it pathfinds to the secret. It doesn't need to wait at all." Set on the tick the volley at the LAST
+     * listed blaze leaves the bow - the auto gives every blaze exactly one volley and only shoots again once that
+     * volley's simulated flight is over with the blaze still listed, so the volley at the last one is the one that
+     * finishes the room. The trip starts on the NEXT tick, after that tick's movement packet has reported the aim
+     * (see {@link AutoPuzzleUtil#useItemRotated}: turning the body back under the camera in the shot's own tick
+     * would leave the aim unreported, which GrimAC flags as BadPacketsJ).
+     */
+    private static boolean earlyPending = false;
+    /** Ticks of this room visit, a clock for the log and for {@link #testProbe}. */
+    private static int ticks = 0;
+    private static int finalReleaseTick = -1;
+    private static int secretWalkTick = -1;
+    private static int secretAuraTick = -1;
+    private static int resumeTick = -1;
+    /** The trip ended with a blaze still listed (the final volley missed); the next shot is the resume. */
+    private static boolean resumePending = false;
+    /** The block he stood on for the final volley, and - after a miss - where he goes back to shoot again. */
+    private static BlockPos finalShotFrom = null;
+    private static BlockPos returnTo = null;
+    private static long returnStartMs = 0L;
+    private static boolean returnPathIssued = false;
+    /** Where he stood when he came into the room - the doorway, on Hypixel; the exit side when no door is known. */
+    private static Vec3 entryPos = null;
+    /**
+     * Standable blocks within aura reach of a chest secret, best exit first (killer560, 2026-10-06: "for going to the
+     * secret it doesn't need to go on top of it it just needs to be within aura range on whatever block gives the
+     * best exit angle"). {@link #standIdx} moves on when the planner finds no path to one.
+     */
+    private static List<BlockPos> standSpots = List.of();
+    private static int standIdx = 0;
+    private static boolean walkIssued = false;
+    private static long auraWaitStartMs = 0L;
+    /** How long to wait at the chest for it to appear, or for the landing sneak to let go. */
+    private static final long CHEST_WAIT_MS = 6_000L;
+
     private AutoBlaze() {
     }
 
     static void levelChanged(Minecraft client) {
         GUARD.levelChanged();
         CAMERA.drop();
+        SECRET_CAM.drop();
         reset(client);
     }
 
@@ -141,8 +187,12 @@ final class AutoBlaze {
             wasInRoom = false;
             return;
         }
-        wasInRoom = true;
         LocalPlayer player = client.player;
+        if (!wasInRoom && player != null) {
+            entryPos = player.position();
+        }
+        wasInRoom = true;
+        ticks++;
         // Every tick of the run, whatever this tick goes on to do (wait out an arrow, a cooldown, a screen, a warp's
         // landing): the camera stays free from the first aim to the last shot.
         CAMERA.keep(player);
@@ -150,31 +200,59 @@ final class AutoBlaze {
             CAMERA.release(player);
             return;
         }
-        if (blazes.isEmpty() && lastBlazeCount > 0 && ++emptyTicks < DONE_TICKS) {
-            say("the solver's list is empty - waiting " + DONE_TICKS + " ticks before calling the room done");
-            return;
-        }
-        if (!blazes.isEmpty()) {
-            emptyTicks = 0;
+        if (earlyPending) {
+            earlyPending = false;
+            if (cfg.isAutoBlazeSecretEnabled() && secretStage == SecretStage.NONE) {
+                // The final volley left the bow last tick and its aim has been reported: hand the camera back
+                // (body turned under his view, as at the end of a run) and set off for the secret.
+                REPOSITION.cancel(client);
+                AutoReposition.releaseSneak(client);
+                CAMERA.release(player);
+                secretStage = SecretStage.FIND;
+                LOGGER.info("[AutoPuzzles] Blaze: final volley released at tick {} - going for the secret now "
+                        + "(tick {}), not waiting for the kill", finalReleaseTick, ticks);
+            }
         }
         if (blazes.isEmpty()) {
             if (lastBlazeCount > 0) {
-                LOGGER.info("[AutoPuzzles] Blaze: done - the solver has listed no blaze for {} ticks", DONE_TICKS);
-                ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Blaze: "), ModChat.good("done"), ModChat.text("."));
-                REPOSITION.cancel(client);
-                AutoReposition.releaseSneak(client);
-                CAMERA.release(player); // the last shot has landed: body back under his view, camera handed back
-                if (cfg.isAutoBlazeSecretEnabled() && secretStage == SecretStage.NONE) {
-                    secretStage = SecretStage.FIND;
+                if (++emptyTicks < DONE_TICKS) {
+                    // The list also goes empty for a moment when a failed chain's stands are replaced, so the room
+                    // is only called done once it has stayed empty; a secret trip already under way carries on.
+                    say("the solver's list is empty - waiting " + DONE_TICKS + " ticks before calling the room done");
+                } else {
+                    LOGGER.info("[AutoPuzzles] Blaze: done - the solver has listed no blaze for {} ticks", DONE_TICKS);
+                    ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Blaze: "), ModChat.good("done"), ModChat.text("."));
+                    REPOSITION.cancel(client);
+                    AutoReposition.releaseSneak(client);
+                    CAMERA.release(player); // the last shot has landed: body back under his view, camera handed back
+                    if (cfg.isAutoBlazeSecretEnabled() && secretStage == SecretStage.NONE) {
+                        secretStage = SecretStage.FIND;
+                    }
+                    lastBlazeCount = 0;
                 }
             }
-            lastBlazeCount = 0;
-            if (secretStage != SecretStage.NONE && secretStage != SecretStage.DONE) {
-                tickSecret(client, player);
+            if (secretTripActive()) {
+                tickSecret(client, player, blazes);
             }
             return;
         }
+        emptyTicks = 0;
         lastBlazeCount = blazes.size();
+        if (secretTripActive()) {
+            // killer560, 2026-10-06: "If while it goes to get the secret it realizes it missed a blaze then it can get
+            // it again after getting the secret." So a miss never cuts the trip short: the walk and the aura run to
+            // the end, and only then does the shooting below pick the survivor up again.
+            tickSecret(client, player, blazes);
+            if (secretTripActive()) {
+                return;
+            }
+            resumePending = true;
+            returnTo = finalShotFrom;
+            returnStartMs = System.currentTimeMillis();
+            returnPathIssued = false;
+            LOGGER.info("[AutoPuzzles] Blaze: secret trip over at tick {} with {} blaze(s) still alive - the final "
+                    + "volley missed, shooting again", ticks, blazes.size());
+        }
         if (!GUARD.fresh()) {
             return; // AutoGuard logs this one itself
         }
@@ -243,6 +321,36 @@ final class AutoBlaze {
             shotsHere = 0;
             hitDir = null;
         }
+        if (hitDir == null && returnTo != null) {
+            // Back from the secret with the last blaze still alive. The chest ledge is usually somewhere no listed spot
+            // or searched ledge is one warp from (93-solve-blazemiss-higher, 2026-10-06: it stood there for a minute),
+            // but the spot the final volley left from had a clean shot at this very blaze moments ago, and the walk
+            // out came from there - so go back to it.
+            if (AutoPuzzleUtil.at(player, returnTo) || returnPathIssued
+                    && !com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()
+                    || System.currentTimeMillis() - returnStartMs > SECRET_WALK_TIMEOUT_MS) {
+                returnTo = null; // there, or the walk back is over - from here on the usual reposition decides
+            } else if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+                return; // the Interactive Map is walking him back
+            } else {
+                engageCamera(player);
+                if (REPOSITION.start(client, returnTo, true, false, false)) {
+                    say("going back to " + AutoPuzzleUtil.fmt(returnTo) + ", where the final volley was shot from");
+                } else if (AutoPuzzleUtil.pathIfMapOn(returnTo, null, true)) {
+                    returnPathIssued = true;
+                    say("asking the Interactive Map to path back to " + AutoPuzzleUtil.fmt(returnTo)
+                            + ", where the final volley was shot from");
+                } else {
+                    returnTo = null; // no way back from here: the usual reposition below takes over
+                }
+                if (returnTo != null) {
+                    return;
+                }
+            }
+        }
+        if (hitDir != null) {
+            returnTo = null;
+        }
         if (hitDir == null) {
             if (blaze != loggedNoShot) {
                 loggedNoShot = blaze;
@@ -291,6 +399,51 @@ final class AutoBlaze {
         LOGGER.info("[AutoPuzzles] Blaze: shot at '{}' from {}, yaw {} pitch {}, {} blocks", nameOf(blaze),
                 fmt(eye), String.format("%.1f", dir[0]), String.format("%.1f", dir[1]),
                 String.format("%.1f", eye.distanceTo(blaze.position())));
+        if (resumePending) {
+            resumePending = false;
+            resumeTick = ticks;
+        }
+        if (blazes.size() == 1 && cfg.isAutoBlazeSecretEnabled() && secretStage == SecretStage.NONE) {
+            earlyPending = true;
+            finalReleaseTick = ticks;
+            finalShotFrom = returnSpot(standing);
+        }
+    }
+
+    /**
+     * A block the Interactive Map's planner will take as a goal, at or right beside {@code standing} - where to go
+     * back to after a miss. The block he stands on is not always one: the final volley of 93-solve-blazemiss-higher
+     * left from a carpet-topped ledge the planner calls "not etherwarpable", and the walk back never started.
+     */
+    private static BlockPos returnSpot(BlockPos standing) {
+        for (int dy : new int[]{0, -1, 1}) {
+            for (int dx : new int[]{0, -1, 1}) {
+                for (int dz : new int[]{0, -1, 1}) {
+                    BlockPos b = standing.offset(dx, dy, dz);
+                    if (com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.isEtherwarpable(b)) {
+                        return b;
+                    }
+                }
+            }
+        }
+        return standing;
+    }
+
+    private static boolean secretTripActive() {
+        return secretStage == SecretStage.FIND || secretStage == SecretStage.WALK || secretStage == SecretStage.AURA;
+    }
+
+    /**
+     * For the testkit: {ticks, final release tick, secret walk start tick, secret aura tick, resume shot tick}, -1 for
+     * what has not happened in this room visit.
+     */
+    static int[] testProbe() {
+        return new int[]{ticks, finalReleaseTick, secretWalkTick, secretAuraTick, resumeTick};
+    }
+
+    /** For the testkit: {the secret, the block he walks to for it}, either null. */
+    static BlockPos[] testSecretPos() {
+        return new BlockPos[]{secretReal, standGoal()};
     }
 
     /** One INFO line per change of reason - every place this auto declines to act says why, once. */
@@ -754,20 +907,25 @@ final class AutoBlaze {
 
     // ------------------------------------------------------------------ Auto Secret (killer560, 2026-09-27)
 
-    private static void tickSecret(Minecraft client, LocalPlayer player) {
+    private static void tickSecret(Minecraft client, LocalPlayer player, List<Entity> blazes) {
         if (McCompat.screen(client) != null) {
             return;
         }
         switch (secretStage) {
-            case FIND -> findSecret(player);
+            case FIND -> {
+                findSecret(client, player);
+                if (secretStage == SecretStage.WALK) {
+                    walkToSecret(client, player); // same tick: the walk starts the tick the secret is picked
+                }
+            }
             case WALK -> walkToSecret(client, player);
-            case AURA -> auraSecret(client, player);
+            case AURA -> auraSecret(client, player, blazes);
             default -> {
             }
         }
     }
 
-    private static void findSecret(LocalPlayer player) {
+    private static void findSecret(Minecraft client, LocalPlayer player) {
         RoomEntry entry = LiveMapFeature.currentRoomEntry();
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (entry == null || cr == null) {
@@ -808,7 +966,107 @@ final class AutoBlaze {
         secretReal = bestReal;
         secretIsChest = bestIsChest;
         secretLegStartMs = System.currentTimeMillis();
+        standSpots = secretIsChest ? auraSpots(client, player, secretReal) : List.of();
+        standIdx = 0;
+        walkIssued = false;
+        auraWaitStartMs = 0L;
+        directTried.clear();
+        LOGGER.info("[AutoPuzzles] Blaze: secret {} at {}; {} standable block(s) within aura reach, walking to {}",
+                secretIsChest ? "chest" : "item", AutoPuzzleUtil.fmt(secretReal), standSpots.size(),
+                AutoPuzzleUtil.fmt(standGoal()));
         secretStage = SecretStage.WALK;
+    }
+
+    /** The block the walk is heading for: the best aura spot still in play, or the secret itself. */
+    private static BlockPos standGoal() {
+        return standIdx < standSpots.size() ? standSpots.get(standIdx) : secretReal;
+    }
+
+    /**
+     * Standable blocks (solid, two clear above, inside the room) from which BOTH his standing and his sneaking eye
+     * reach the chest's box within {@link #AURA_REACH_SQ} - the measured 4.5-block reach Secret Aura is capped at and
+     * {@link #auraSecret} clicks with - and see it unobstructed, ordered by distance to the room's exit: the door he
+     * will leave by, so the trip ends on the way out rather than on top of the chest.
+     */
+    private static List<BlockPos> auraSpots(Minecraft client, LocalPlayer player, BlockPos chest) {
+        List<BlockPos> out = new ArrayList<>();
+        if (client.level == null) {
+            return out;
+        }
+        int idx = LiveMapFeature.currentRoomIndex();
+        int[] bounds = idx < 0 ? null : LiveMapFeature.roomWorldBounds(idx);
+        Vec3 exit = exitPoint(player);
+        Vec3 chestCentre = Vec3.atCenterOf(chest);
+        int r = (int) Math.ceil(Math.sqrt(AURA_REACH_SQ)) + 1;
+        for (int x = chest.getX() - r; x <= chest.getX() + r; x++) {
+            for (int z = chest.getZ() - r; z <= chest.getZ() + r; z++) {
+                if (bounds != null && (x < bounds[0] || x > bounds[2] || z < bounds[1] || z > bounds[3])) {
+                    continue;
+                }
+                for (int y = chest.getY() - r - 1; y <= chest.getY() + r - 1; y++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (pos.equals(chest) || AutoPuzzleUtil.isPassable(client.level.getBlockState(pos))
+                            || !client.level.getBlockState(pos.above()).isAir()
+                            || !client.level.getBlockState(pos.above(2)).isAir()
+                            || !com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.isEtherwarpable(pos)) {
+                        continue;
+                    }
+                    if (!reachesChest(client, player, pos, AutoPuzzleUtil.EYE_SNEAKING, chest, chestCentre)
+                            || !reachesChest(client, player, pos, 1.62, chest, chestCentre)) {
+                        continue;
+                    }
+                    out.add(pos);
+                }
+            }
+        }
+        out.sort(java.util.Comparator.comparingDouble((BlockPos b) -> Vec3.atCenterOf(b).distanceToSqr(exit))
+                .thenComparingDouble(b -> b.distSqr(chest)));
+        return out;
+    }
+
+    private static boolean reachesChest(Minecraft client, LocalPlayer player, BlockPos stand, double eyeHeight,
+                                        BlockPos chest, Vec3 chestCentre) {
+        Vec3 eye = new Vec3(stand.getX() + 0.5, stand.getY() + 1 + eyeHeight, stand.getZ() + 0.5);
+        if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, chest) > AURA_REACH_SQ) {
+            return false;
+        }
+        net.minecraft.world.phys.HitResult hit = client.level.clip(new net.minecraft.world.level.ClipContext(eye,
+                chestCentre, net.minecraft.world.level.ClipContext.Block.OUTLINE,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, player));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS
+                || (hit instanceof net.minecraft.world.phys.BlockHitResult b && b.getBlockPos().equals(chest));
+    }
+
+    /**
+     * Where he leaves the room: the centre of the room's door nearest where he came in (a puzzle room has one door),
+     * or where he came in when the map knows no door, or where he stands.
+     */
+    private static Vec3 exitPoint(LocalPlayer player) {
+        Vec3 from = entryPos != null ? entryPos : player.position();
+        int idx = LiveMapFeature.currentRoomIndex();
+        if (idx < 0) {
+            return from;
+        }
+        com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.capture();
+        int grid = com.killer560.hub.livemap.DungeonLayout.GRID;
+        int gx = idx % grid;
+        int gz = idx / grid;
+        int[][] around = {{gx + 1, gz}, {gx - 1, gz}, {gx, gz + 1}, {gx, gz - 1}};
+        Vec3 best = null;
+        for (int[] c : around) {
+            if (c[0] < 0 || c[0] >= grid || c[1] < 0 || c[1] >= grid) {
+                continue;
+            }
+            int door = c[1] * grid + c[0];
+            if (!layout.isDoor(door)) {
+                continue;
+            }
+            Vec3 centre = com.killer560.hub.livemap.DungeonLayout.doorCentre(door);
+            if (best == null || centre.distanceToSqr(from) < best.distanceToSqr(from)) {
+                best = centre;
+            }
+        }
+        return best != null ? best : from;
     }
 
     private static void addCandidates(List<SecretCandidate> out, List<RoomEntry.Pos> src, boolean chest) {
@@ -825,12 +1083,31 @@ final class AutoBlaze {
             secretStage = SecretStage.DONE;
             return;
         }
-        if (AutoPuzzleUtil.at(player, secretReal)) {
+        if (SECRET_WARP.isActive()) {
+            SECRET_CAM.keep(player);
+            SECRET_WARP.tick(client);
+            if (SECRET_WARP.isActive()) {
+                return;
+            }
+            SECRET_CAM.release(player);
+        }
+        BlockPos goal = standGoal();
+        boolean busy = com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy();
+        boolean inReach = secretIsChest && !busy && com.killer560.hub.util.BlockHits.boxDistanceSq(
+                player.getEyePosition(), secretReal) <= AURA_REACH_SQ;
+        if (AutoPuzzleUtil.at(player, goal) || inReach) {
             secretMapOffWarned = false;
+            if (busy) {
+                // On the block while the walk is still settling (an "off the plan" re-plan warped him off it again
+                // after the chest was taken, 93-solve-blazemiss-higher): he is where he needs to be, so it is over.
+                com.killer560.hub.livemap.autoclear.ClearExecutor.cancel();
+            }
+            LOGGER.info("[AutoPuzzles] Blaze: at {} for the secret at {} (tick {})", fmt(player.position()),
+                    AutoPuzzleUtil.fmt(secretReal), ticks);
             secretStage = secretIsChest ? SecretStage.AURA : SecretStage.DONE;
             return;
         }
-        if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+        if (busy) {
             return; // already walking there
         }
         if (System.currentTimeMillis() - secretLegStartMs > SECRET_WALK_TIMEOUT_MS) {
@@ -838,26 +1115,93 @@ final class AutoBlaze {
             secretStage = SecretStage.DONE;
             return;
         }
-        if (!AutoPuzzleUtil.pathIfMapOn(secretReal, null) && !secretMapOffWarned) {
+        // The last leg is one etherwarp of the auto's own onto the best-exit spot it can see from here: the Interactive
+        // Map's planner works on a coarse graph, and for a ledge block it often lands "near" it - up to five blocks
+        // off, out of the chest's reach (93-solve-higherblaze, 2026-10-06: five plans in a row before one landed).
+        if (AutoPuzzlesConfig.getInstance().isAutoPuzzlePathingEnabled()) {
+            for (BlockPos spot : standSpots) {
+                if (directTried.contains(spot) || AutoPuzzleUtil.etherwarpAim(client.level, player, spot) == null) {
+                    continue;
+                }
+                directTried.add(spot);
+                if (SECRET_WARP.start(client, spot, false, false, false)) {
+                    if (secretWalkTick < 0) {
+                        secretWalkTick = ticks;
+                    }
+                    LOGGER.info("[AutoPuzzles] Blaze: warping onto {} for the secret (tick {})", AutoPuzzleUtil.fmt(spot),
+                            ticks);
+                    return;
+                }
+            }
+        }
+        if (walkIssued && standIdx < standSpots.size()) {
+            // The walk to that block is over and did not bring him within reach (no path, or the planner's "near"
+            // landing beside it): the next best one, planned from where he is now.
+            LOGGER.info("[AutoPuzzles] Blaze: {} {} - trying the next spot in aura reach",
+                    com.killer560.hub.livemap.autoclear.ClearExecutor.lastPathFailed() ? "no path to" : "did not reach",
+                    AutoPuzzleUtil.fmt(goal));
+            standIdx++;
+            goal = standGoal();
+        }
+        walkIssued = AutoPuzzleUtil.pathIfMapOn(goal, null, secretIsChest);
+        if (walkIssued && secretWalkTick < 0) {
+            secretWalkTick = ticks;
+            LOGGER.info("[AutoPuzzles] Blaze: walking to {} for the secret (tick {})", AutoPuzzleUtil.fmt(goal), ticks);
+        }
+        if (!walkIssued && !secretMapOffWarned) {
             secretMapOffWarned = true;
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Secret needs "), ModChat.value("Interactive Map"),
                     ModChat.text(" on to walk to it."));
         }
     }
 
-    private static void auraSecret(Minecraft client, LocalPlayer player) {
+    private static void auraSecret(Minecraft client, LocalPlayer player, List<Entity> blazes) {
         if (secretAuraAttempts >= MAX_AURA_ATTEMPTS) {
             secretStage = SecretStage.DONE;
             return;
+        }
+        long now = System.currentTimeMillis();
+        if (auraWaitStartMs == 0L) {
+            auraWaitStartMs = now;
+        }
+        boolean alive = !blazes.isEmpty();
+        if (alive && now - lastShotTime <= shotFlightMs) {
+            return; // the final volley is still in the air: a chest may only open once the room is done
         }
         BlockPos target = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
         if (target == null) {
             target = secretReal;
         }
+        net.minecraft.world.level.block.state.BlockState state = client.level.getBlockState(target);
+        boolean chestThere = state.is(net.minecraft.world.level.block.Blocks.CHEST)
+                || state.is(net.minecraft.world.level.block.Blocks.TRAPPED_CHEST);
+        if (!chestThere) {
+            if (alive) {
+                // Missed, and no chest until the room is done: shoot again, and come back for it at the end.
+                LOGGER.info("[AutoPuzzles] Blaze: no chest at {} yet and a blaze is still alive - shooting again, the "
+                        + "secret is fetched once the room is done", AutoPuzzleUtil.fmt(target));
+                secretStage = SecretStage.NONE;
+                return;
+            }
+            if (now - auraWaitStartMs > CHEST_WAIT_MS) {
+                LOGGER.warn("[AutoPuzzles] Blaze: no chest appeared at {} - giving up for this room",
+                        AutoPuzzleUtil.fmt(target));
+                secretStage = SecretStage.DONE;
+            }
+            return; // arrived early: wait for it
+        }
+        if (player.isShiftKeyDown()) {
+            // The etherwarp landing's sneak lets go a tick or two after the walk ends; a sneaking click on a chest
+            // with an item in hand does not open it, so wait rather than burn an attempt.
+            if (now - auraWaitStartMs > CHEST_WAIT_MS) {
+                secretAuraAttempts++;
+            }
+            return;
+        }
         // To the box, like the picker above - measuring the gate one way and the choice another is how a
         // module ends up clicking at something it cannot reach.
         double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target);
-        if (player.isShiftKeyDown() || distSq > AURA_REACH_SQ) {
+        if (distSq > AURA_REACH_SQ) {
             secretAuraAttempts++;
             return;
         }
@@ -871,6 +1215,9 @@ final class AutoBlaze {
         }
         ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Higher/Lower: aura'd the "), ModChat.good("secret"),
                 ModChat.text("."));
+        secretAuraTick = ticks;
+        LOGGER.info("[AutoPuzzles] Blaze: aura'd the secret at {} from {} (tick {})", AutoPuzzleUtil.fmt(target),
+                fmt(player.position()), ticks);
         secretStage = SecretStage.DONE;
     }
 
@@ -905,5 +1252,22 @@ final class AutoBlaze {
         secretLegStartMs = 0L;
         noSecretWarned = false;
         secretMapOffWarned = false;
+        earlyPending = false;
+        ticks = 0;
+        finalReleaseTick = -1;
+        secretWalkTick = -1;
+        secretAuraTick = -1;
+        resumeTick = -1;
+        resumePending = false;
+        standSpots = List.of();
+        standIdx = 0;
+        walkIssued = false;
+        auraWaitStartMs = 0L;
+        SECRET_WARP.cancel(client);
+        SECRET_CAM.release(client.player);
+        directTried.clear();
+        finalShotFrom = null;
+        returnTo = null;
+        returnStartMs = 0L;
     }
 }

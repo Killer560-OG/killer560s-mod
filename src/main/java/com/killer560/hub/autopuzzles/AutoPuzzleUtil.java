@@ -502,6 +502,12 @@ public final class AutoPuzzleUtil {
      * again on a later tick rather than treat false as a failure.
      */
     public static boolean pathIfMapOn(BlockPos target, Runnable onArrive) {
+        return pathIfMapOn(target, onArrive, false);
+    }
+
+    /** {@link #pathIfMapOn}; {@code exact} asks for that block rather than a landing near it
+     *  ({@code ClearExecutor.etherPathExact}). */
+    public static boolean pathIfMapOn(BlockPos target, Runnable onArrive, boolean exact) {
         // The one place the section-wide walking toggle is enforced. Every auto-puzzle walk comes through here,
         // so there is exactly one check rather than one per puzzle - and no way to add a new walk that forgets it.
         if (!AutoPuzzlesConfig.getInstance().isAutoPuzzlePathingEnabled()) {
@@ -513,7 +519,11 @@ public final class AutoPuzzleUtil {
         if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
             return false;
         }
-        com.killer560.hub.livemap.autoclear.ClearExecutor.etherPath(target, onArrive);
+        if (exact) {
+            com.killer560.hub.livemap.autoclear.ClearExecutor.etherPathExact(target, onArrive);
+        } else {
+            com.killer560.hub.livemap.autoclear.ClearExecutor.etherPath(target, onArrive);
+        }
         return true;
     }
 

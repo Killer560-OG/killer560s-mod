@@ -229,8 +229,23 @@ public final class ClearExecutor {
 
     /** QUOI {@code etherPath}: search on a background thread, then run the smoothed path. */
     public static void etherPath(BlockPos to, Runnable complete) {
+        goalExact = false;
         etherPath(to, -1, complete);
     }
+
+    /**
+     * {@link #etherPath} for a caller that needs THAT block and gains nothing from the planner's "near" landing (up to
+     * five blocks off): when the floor graph can only land near it, the room-by-room planner is asked for the block
+     * itself before the near landing is settled for. Auto Blaze's walk to a block within aura reach of a ledge chest,
+     * where a near landing is out of reach and costs a second plan (2026-10-06).
+     */
+    public static void etherPathExact(BlockPos to, Runnable complete) {
+        goalExact = true;
+        etherPath(to, -1, complete);
+    }
+
+    /** Set by {@link #etherPathExact}, read by every {@link #plan} for that goal (replans too). */
+    private static boolean goalExact = false;
 
     /**
      * A map click on a tile: fewest warps to ANY landing in that tile at its floor height (see
@@ -238,6 +253,7 @@ public final class ClearExecutor {
      * them can be reached.
      */
     public static void etherPathToTile(BlockPos to, int tileIdx, Runnable complete) {
+        goalExact = false;
         etherPath(to, tileIdx, complete);
     }
 
@@ -276,6 +292,7 @@ public final class ClearExecutor {
         // 57 blocks plus one per Transmission Tuner, as Hypixel does - see hopRange().
         double hopRange = hopRange();
         int gen = generation;
+        boolean exact = goalExact;
         pathPending = true;
         pendingGen = gen;
         pathPendingTicks = 0;
@@ -288,7 +305,7 @@ public final class ClearExecutor {
                 // lands an etherwarp there too (SimAbilities.ETHERWARP_LANDING_OFFSET), so there is one value.
                 path = tileIdx >= 0
                         ? EtherwarpPathfinder.findDungeonPathToTile(from, to, tileIdx, cfg, hopRange, layout)
-                        : EtherwarpPathfinder.findDungeonPath(from, to, cfg, hopRange, layout);
+                        : EtherwarpPathfinder.findDungeonPath(from, to, cfg, hopRange, layout, exact);
             } catch (Throwable e) {
                 // Throwable, not RuntimeException: anything else escaping here skipped the hand-back below, which
                 // left pathPending set for good and every later click silently refused.

@@ -100,7 +100,22 @@ public final class EtherwarpPathfinder {
      */
     public static List<Node> findDungeonPath(Vec3 from, BlockPos to, PathConfig cfg, double dist,
                                              DungeonLayout layout) {
-        return planFloor(from, to, -1, cfg, dist, layout);
+        return planFloor(from, to, -1, cfg, dist, layout, false);
+    }
+
+    /** Whether the planner will take {@code pos} as a goal at all: solid, with standing room over it. Client thread. */
+    public static boolean isEtherwarpable(BlockPos pos) {
+        Level level = Minecraft.getInstance().level;
+        return level != null && new EtherSearch(new LevelEtherGrid(level)).etherwarpable(pos.getX(), pos.getY(), pos.getZ());
+    }
+
+    /**
+     * {@link #findDungeonPath}, and with {@code exact} a "near" landing from the floor graph is not settled for
+     * until the room-by-room planner has been asked for the block itself (see {@code ClearExecutor.etherPathExact}).
+     */
+    public static List<Node> findDungeonPath(Vec3 from, BlockPos to, PathConfig cfg, double dist,
+                                             DungeonLayout layout, boolean exact) {
+        return planFloor(from, to, -1, cfg, dist, layout, exact);
     }
 
     /**
@@ -113,7 +128,7 @@ public final class EtherwarpPathfinder {
      */
     public static List<Node> findDungeonPathToTile(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
                                                    DungeonLayout layout) {
-        return planFloor(from, to, tileIdx, cfg, dist, layout);
+        return planFloor(from, to, tileIdx, cfg, dist, layout, false);
     }
 
     /**
@@ -136,7 +151,7 @@ public final class EtherwarpPathfinder {
     private static final double PARTIAL_FROM = 0.3;
 
     private static List<Node> planFloor(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
-                                        DungeonLayout layout) {
+                                        DungeonLayout layout, boolean exactWanted) {
         Level level = Minecraft.getInstance().level;
         if (level == null) {
             return null;
@@ -195,11 +210,24 @@ public final class EtherwarpPathfinder {
         WarpGraph graph = graphs.used;
         boolean warm = graph.warmDone() || graph.warmedOnce();
         long end = System.nanoTime();
+        if (exactWanted && tile6 < 0 && path != null && graph.endedNear) {
+            // The graph only lands NEAR the block (its 2x2 buckets can miss a ledge's own landings), or calls him
+            // "already there" for standing within five blocks of it. The room-by-room planner aims at the block itself
+            // first; take its plan when it has one, the graph's otherwise.
+            List<Node> legacy = legacyDungeonPath(from, to, cfg, dist, layout);
+            LOGGER.info("[Path] the floor graph only lands near {} - room by room: {}", to,
+                    legacy == null ? "nothing, keeping the graph's plan" : legacy.size() + " warp(s)");
+            if (legacy != null) {
+                return legacy;
+            }
+        }
         if (path != null && path.isEmpty()) {
             LOGGER.info("[Path] already there ({}), {} ms", kind, ms(end - t0));
             return new ArrayList<>();
         }
-        if (path == null && graphs.provedNoWay) {
+        // Not for an exact request: the graph's 2x2 buckets miss ledge landings, and "no way" from a ledge chest down
+        // to the spot Auto Blaze shot from was wrong - the room-by-room planner had just walked him up it.
+        if (path == null && graphs.provedNoWay && !exactWanted) {
             // The warm graph proves nothing reaches it from here (a closed door, a sealed room); the room-by-room
             // planner's landings are a subset of the graph's, so it would only spend its 670 ms failing too.
             LOGGER.info("[Path] no way to {} {} from here on the floor graph ({} ms) - not trying room by room", kind,

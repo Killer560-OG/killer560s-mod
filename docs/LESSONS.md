@@ -241,6 +241,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   then `keyAttack.setDown(false)`. `handleKeybinds` runs later in the same tick and only calls `startAttack` per queued
   click and `continueAttack(true)` while the key reads down (javap 26.1.2 and 26.2), so nothing is swung or dug
   (`RouteExecutor.takeSkipClick`, 96-ar-awaitskip / 62-argrim-awaitskip).
+- The Interactive Map's floor graph (2x2 buckets) misses ledge landings: asked for a block beside Higher Blaze's chest it
+  landed up to five blocks off ("near"), or called him "already there", and from that ledge it "proved" no way back down
+  the room the room-by-room planner had just walked him up (2026-10-06). When the block itself matters, use
+  `ClearExecutor.etherPathExact` (room by room before a near landing or a graph "no way"), and filter goals with
+  `EtherwarpPathfinder.isEtherwarpable`: a carpet-topped spot he stood on is not one, and the planner searches nothing.
 
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
