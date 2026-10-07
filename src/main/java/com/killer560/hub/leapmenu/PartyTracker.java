@@ -160,11 +160,7 @@ public final class PartyTracker {
         wasInDungeon = true;
         List<String> fromTab = new ArrayList<>();
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
-            Component display = info.getTabListDisplayName();
-            if (display == null) {
-                continue;
-            }
-            String plain = com.killer560.hub.util.ChatObserver.stripCodes(display.getString());
+            String plain = com.killer560.hub.util.TabText.plain(info);
             if (plain == null) {
                 continue;
             }

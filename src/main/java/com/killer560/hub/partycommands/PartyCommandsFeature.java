@@ -354,11 +354,7 @@ public final class PartyCommandsFeature {
             return false;
         }
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
-            Component display = info.getTabListDisplayName();
-            if (display == null) {
-                continue;
-            }
-            String plain = ChatFormatting.stripFormatting(display.getString());
+            String plain = com.killer560.hub.util.TabText.plain(info);
             if (plain == null) {
                 continue;
             }
