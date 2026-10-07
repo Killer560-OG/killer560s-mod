@@ -520,6 +520,14 @@ public final class AutoBoulder {
             chestDone("Secret Aura took the chest");
             return;
         }
+        // Look at it while Secret Aura takes it, at the same human pace as every other turn here: Secret Aura clicks only
+        // along a look the server was told about, and would otherwise snap his body round to it (util/TurnFirst).
+        net.minecraft.world.phys.BlockHitResult face = chestReal == null ? null
+                : com.killer560.hub.util.BlockHits.surface(client.level, chestReal, player.getEyePosition());
+        if (face != null) {
+            float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), face.getLocation());
+            turnToward(client, player, dir[0], dir[1]);
+        }
         long wait = AURA_WAIT_BASE_MS + AutoPuzzlesConfig.getInstance().getBoulderDelayMs();
         if (System.currentTimeMillis() - stageStartMs > wait) {
             LOGGER.info("[AutoPuzzles] Boulder: Secret Aura has not taken the chest in {} ms - opening it by looking at it",

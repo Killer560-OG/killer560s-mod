@@ -1292,6 +1292,14 @@ public final class Ap3Executor {
         if (player == null || client.level == null || client.gameMode == null || McCompat.screen(client) != null) {
             return; // finishUse times it out
         }
+        // A turned click waits one more tick: the turn was made at END, after that tick's movement packet, so the
+        // first packet to report it is the NEXT one. Clicking at this START put the interact on the wire before any
+        // packet had said he faces the stand, and after testkit 415's Hitboxes flag GrimAC let none of those reach
+        // the server (416, 2026-10-07). Now: turned move, interact, turned move, then the body is given back - the
+        // order Terminal Aura's own Turn To Terminal sends (414).
+        if (actNode.type == Ap3Node.Type.TERM_AURA && termAuraTurnTick >= 0L && tickCounter <= termAuraTurnTick) {
+            return;
+        }
         // The gate decides whether this tick's one automated interaction is ours; a refused tick tries again next one.
         if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
             return;
@@ -1731,6 +1739,8 @@ public final class Ap3Executor {
 
     /** The terminal stand the armed Term Aura click is for (sent at the next START by {@link #tickStart}). */
     private static net.minecraft.world.entity.decoration.ArmorStand termAuraStand;
+    /** {@link #tickCounter} when the body was turned for the armed click, or -1 when no turn was needed. */
+    private static long termAuraTurnTick = -1L;
     /** The terminal screen a Term Aura node opened: AP3 carries on under it (see {@link #screenAllowed}). */
     private static net.minecraft.client.gui.screens.Screen termAuraScreen;
 
@@ -1774,6 +1784,7 @@ public final class Ap3Executor {
             return;
         }
         if (termAuraTries >= TERM_AURA_TRIES) {
+            LOGGER.info("[AP3] Term Aura #{}: no terminal opened after {} tries", number(node), termAuraTries);
             finishNode();
             return;
         }
@@ -1797,10 +1808,12 @@ public final class Ap3Executor {
             termAuraGap = TERM_AURA_GAP;
             return;
         }
+        termAuraTurnTick = -1L;
         if (turn) {
             float[] aim = com.killer560.hub.terminalaura.TerminalAuraFeature.aimAt(player, t.stand());
             beginAim(player, true);
             aimBody(player, node, aim[0], aim[1]);
+            termAuraTurnTick = tickCounter;
         }
         termAuraStand = t.stand();
         actNode = node;
@@ -1814,9 +1827,12 @@ public final class Ap3Executor {
     private static void fireTermAura(Minecraft client, LocalPlayer player) {
         net.minecraft.world.entity.decoration.ArmorStand stand = termAuraStand;
         termAuraStand = null;
-        if (stand != null) {
-            com.killer560.hub.terminalaura.TerminalAuraFeature.clickNow(client, player, stand,
-                    com.killer560.hub.terminalaura.TerminalAuraConfig.getInstance().getRange());
+        if (stand != null && !com.killer560.hub.terminalaura.TerminalAuraFeature.clickNow(client, player, stand,
+                com.killer560.hub.terminalaura.TerminalAuraConfig.getInstance().getRange())) {
+            LOGGER.info("[AP3] Term Aura: click not sent - stand alive={} removed={}, {} blocks from the eye",
+                    stand.isAlive(), stand.isRemoved(), String.format(java.util.Locale.ROOT, "%.2f",
+                            Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(),
+                                    stand.getBoundingBox()))));
         }
     }
 

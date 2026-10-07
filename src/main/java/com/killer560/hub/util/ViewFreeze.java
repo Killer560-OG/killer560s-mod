@@ -34,6 +34,8 @@ public final class ViewFreeze {
     private static float yaw = Float.NaN;
     private static float pitch = Float.NaN;
     private static long heldUntil;
+    /** Every {@link #hold} ever made, so an owner can tell whether anybody else has held the camera since it did. */
+    private static long holds;
 
     private ViewFreeze() {
     }
@@ -47,6 +49,7 @@ public final class ViewFreeze {
      * @param currentPitch his real pitch right now, same
      */
     public static void hold(float currentYaw, float currentPitch) {
+        holds++;
         if (!isHeld()) {
             yaw = currentYaw;
             pitch = currentPitch;
@@ -59,6 +62,11 @@ public final class ViewFreeze {
         yaw = Float.NaN;
         pitch = Float.NaN;
         heldUntil = 0L;
+    }
+
+    /** The number of {@link #hold} calls so far (see util/TurnFirst: it never takes away a hold somebody else renewed). */
+    public static long holdCount() {
+        return holds;
     }
 
     public static boolean isHeld() {
