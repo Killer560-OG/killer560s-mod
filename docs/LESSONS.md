@@ -87,6 +87,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   an unjoined server id got a JWT with `sub` all zeros), and its source (meowdding/skyblock-pv-backend) shows that is
   the "authentication disabled" branch. So `ProfileViewerApi.backendToken` no longer gives up when Mojang's
   `joinServer` fails; the backend decides. Hypixel's `fastest_time_s`/`_s_plus` are MILLISECONDS (263003 = 4:23).
+- The SkyBlockPV backend rate-limits `/profiles`: 3-4 requests pass, then 429 "Retry-After: 10" (measured 2026-10-07 on 25
+  real players: 4 answered, 19 x 429 inside two seconds). Party Finder stats cached each 429 as a 3-minute failure, so a
+  full menu showed about four players. A 429 is now `ProfileViewerApi.RateLimitedException`; the PF worker waits out
+  `backendRetryAtMs()` and requeues the name. Also: Hypixel records no S/S+ on Entrance (every real player's Entrance
+  time is `fastest_time` only), so S/S+-only PBs never show there. The PF parser now also accepts "Floor: Entrance"
+  (floor 0); that lore wording is assumed, not yet seen in a real menu.
 - A Minecraft colour code can be a DIGIT (`§3` is dark aqua), so `([\d,]+)` with optional codes BEFORE it reads
   Hypixel's overflow mana `§3200ʬ` as 3200. Start the match where a number cannot continue and let the pattern take
   the codes itself: `(?<![§\d,])(?:§.)*([\d,]+)` (`PlayerStatsFeature.NUMBER_START`, 2026-10-04, found by a scratch

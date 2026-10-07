@@ -65,7 +65,8 @@ public final class SbProfile {
     public record SlayerStat(long xp, Map<Integer, Integer> kills) {
     }
 
-    public record Floor(long completions, long fastestS, long fastestSPlus, long bestScore) {
+    /** {@code fastest} is Hypixel's {@code fastest_time} - the floor's best clear at ANY score, milliseconds. */
+    public record Floor(long completions, long fastestS, long fastestSPlus, long bestScore, long fastest) {
     }
 
     public record DungeonStats(long catacombsXp, String selectedClass, Map<String, Long> classXp, long secrets,
@@ -242,6 +243,34 @@ public final class SbProfile {
 
     // ------------------------------------------------------------------ dungeons
 
+    /**
+     * The profile whose dungeon stats speak for this player: the SELECTED one (Hypixel marks it per player, and it is
+     * what Odin's and Devonian's Party Finder tools read), unless it has no Catacombs data at all - then the profile
+     * with the most Catacombs XP. Real answers where that matters (SkyBlockPV backend, 2026-10-07): a player with no
+     * profile marked selected, and a selected bingo/ironman side profile beside a main with every run on it. Null
+     * only for an empty list. One rule for every reader (Party Finder stats, Auto Kick's populate).
+     */
+    public static SbProfile dungeonProfile(List<SbProfile> profiles) {
+        if (profiles == null || profiles.isEmpty()) {
+            return null;
+        }
+        SbProfile selected = null;
+        SbProfile most = null;
+        for (SbProfile p : profiles) {
+            if (p.selected && selected == null) {
+                selected = p;
+            }
+            if (most == null || p.dungeons.catacombsXp() > most.dungeons.catacombsXp()) {
+                most = p;
+            }
+        }
+        if (selected != null && (selected.dungeons.catacombsXp() > 0 || selected.dungeons.totalRuns() > 0
+                || most.dungeons.catacombsXp() <= 0)) {
+            return selected;
+        }
+        return most;
+    }
+
     private static DungeonStats parseDungeons(JsonObject d) {
         if (d == null) {
             return new DungeonStats(0, "", Map.of(), 0, Map.of(), Map.of(), 0);
@@ -274,14 +303,16 @@ public final class SbProfile {
         JsonObject sPlus = asObj(type.get("fastest_time_s_plus"));
         JsonObject s = asObj(type.get("fastest_time_s"));
         JsonObject score = asObj(type.get("best_score"));
+        JsonObject any = asObj(type.get("fastest_time"));
         for (int floor = 0; floor <= 7; floor++) {
             String k = String.valueOf(floor);
             long comps = completions == null ? 0 : (long) num(completions.get(k));
             long fs = s == null ? 0 : (long) num(s.get(k));
             long fsp = sPlus == null ? 0 : (long) num(sPlus.get(k));
             long best = score == null ? 0 : (long) num(score.get(k));
-            if (comps > 0 || fs > 0 || fsp > 0 || best > 0) {
-                out.put(floor, new Floor(comps, fs, fsp, best));
+            long fa = any == null ? 0 : (long) num(any.get(k));
+            if (comps > 0 || fs > 0 || fsp > 0 || best > 0 || fa > 0) {
+                out.put(floor, new Floor(comps, fs, fsp, best, fa));
             }
         }
         return out;

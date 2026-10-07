@@ -91,10 +91,46 @@ public final class ProfileViewerApi {
     private static final int MAX_CACHED_NAMES = 256;
 
     /** A fetch failure whose message is safe to show on screen (never contains a key). */
-    public static final class ApiException extends RuntimeException {
+    public static class ApiException extends RuntimeException {
         public ApiException(String message) {
             super(message, null, false, false);
         }
+    }
+
+    /**
+     * The source answered 429. {@code retryAfterMs} is its Retry-After (or Hypixel's RateLimit-Reset), clamped to
+     * 1-120 s, 10 s when it sent none. A throttle is not an answer about the player: callers should wait and ask
+     * again, never cache it as a failure. Measured on the SkyBlockPV backend 2026-10-07: three or four profile
+     * requests pass, then 429 with "Retry-After: 10" (counting down across a burst), then three more pass.
+     */
+    public static final class RateLimitedException extends ApiException {
+        public final long retryAfterMs;
+
+        public RateLimitedException(String message, long retryAfterMs) {
+            super(message);
+            this.retryAfterMs = retryAfterMs;
+        }
+    }
+
+    /** Wall time before which the SkyBlockPV backend asked not to be called again (0 = no pause). */
+    private static volatile long backendRetryAtMs;
+
+    /** When the backend's last 429 said it may be asked again; in the past (or 0) when there is no pause. Background
+     *  callers that make many requests (the Party Finder stats) wait for it instead of collecting more 429s. */
+    public static long backendRetryAtMs() {
+        return backendRetryAtMs;
+    }
+
+    static long retryAfterMs(Optional<String> header) {
+        long s = 10;
+        if (header.isPresent()) {
+            try {
+                s = (long) Math.ceil(Double.parseDouble(header.get().trim()));
+            } catch (NumberFormatException ignored) {
+                // An HTTP-date Retry-After: keep the default.
+            }
+        }
+        return Math.max(1, Math.min(120, s)) * 1000L;
     }
 
     public record ResolvedPlayer(UUID uuid, String name) {
@@ -112,6 +148,8 @@ public final class ProfileViewerApi {
 
     private static volatile String backendToken;
     private static volatile long backendTokenAt;
+    /** The /authenticate request in flight, shared by every caller that needs a token meanwhile. */
+    private static CompletableFuture<String> tokenInFlight;
 
     private ProfileViewerApi() {
     }
@@ -443,11 +481,43 @@ public final class ProfileViewerApi {
         return order;
     }
 
-    private static CompletableFuture<Raw> runAttempts(List<Attempt> order, int index, List<String> errors,
+    /** One source's failure: its message, and its wait when it was a 429 (0 otherwise). */
+    private record Failure(String message, long retryAfterMs) {
+    }
+
+    private static String label(Attempt attempt) {
+        return switch (attempt) {
+            case USER_KEY -> "Your API key";
+            case BACKEND -> "SkyBlockPV backend";
+        };
+    }
+
+    private static long throttle(Throwable t) {
+        return unwrap(t) instanceof RateLimitedException r ? r.retryAfterMs : 0;
+    }
+
+    /** Every source failed: a {@link RateLimitedException} (the longest wait) when any of them was throttled, since
+     *  asking again later can still succeed; a plain {@link ApiException} otherwise. */
+    private static ApiException allFailed(List<Failure> errors) {
+        if (errors.isEmpty()) {
+            return new ApiException("No data source available.");
+        }
+        StringBuilder msg = new StringBuilder();
+        long wait = 0;
+        for (Failure f : errors) {
+            if (msg.length() > 0) {
+                msg.append('\n');
+            }
+            msg.append(f.message());
+            wait = Math.max(wait, f.retryAfterMs());
+        }
+        return wait > 0 ? new RateLimitedException(msg.toString(), wait) : new ApiException(msg.toString());
+    }
+
+    private static CompletableFuture<Raw> runAttempts(List<Attempt> order, int index, List<Failure> errors,
                                                       java.util.function.Function<Attempt, CompletableFuture<Raw>> run) {
         if (index >= order.size()) {
-            String msg = errors.isEmpty() ? "No data source available." : String.join("\n", errors);
-            return CompletableFuture.failedFuture(new ApiException(msg));
+            return CompletableFuture.failedFuture(allFailed(errors));
         }
         Attempt attempt = order.get(index);
         CompletableFuture<Raw> f;
@@ -457,11 +527,7 @@ public final class ProfileViewerApi {
             f = CompletableFuture.failedFuture(t);
         }
         return f.exceptionallyCompose(t -> {
-            String label = switch (attempt) {
-                case USER_KEY -> "Your API key";
-                case BACKEND -> "SkyBlockPV backend";
-            };
-            errors.add(label + ": " + messageFor(t));
+            errors.add(new Failure(label(attempt) + ": " + messageFor(t), throttle(t)));
             return runAttempts(order, index + 1, errors, run);
         });
     }
@@ -484,10 +550,9 @@ public final class ProfileViewerApi {
         return runAttempts(uuid, order, 0, new ArrayList<>());
     }
 
-    private static CompletableFuture<Raw> runAttempts(UUID uuid, List<Attempt> order, int index, List<String> errors) {
+    private static CompletableFuture<Raw> runAttempts(UUID uuid, List<Attempt> order, int index, List<Failure> errors) {
         if (index >= order.size()) {
-            String msg = errors.isEmpty() ? "No data source available." : String.join("\n", errors);
-            return CompletableFuture.failedFuture(new ApiException(msg));
+            return CompletableFuture.failedFuture(allFailed(errors));
         }
         Attempt attempt = order.get(index);
         CompletableFuture<Raw> f = switch (attempt) {
@@ -495,11 +560,7 @@ public final class ProfileViewerApi {
             case BACKEND -> backend(uuid, true);
         };
         return f.exceptionallyCompose(t -> {
-            String label = switch (attempt) {
-                case USER_KEY -> "Your API key";
-                case BACKEND -> "SkyBlockPV backend";
-            };
-            errors.add(label + ": " + messageFor(t));
+            errors.add(new Failure(label(attempt) + ": " + messageFor(t), throttle(t)));
             return runAttempts(uuid, order, index + 1, errors);
         });
     }
@@ -530,8 +591,9 @@ public final class ProfileViewerApi {
                 case 429 -> {
                     Optional<String> reset = res.headers().firstValue("RateLimit-Reset")
                             .or(() -> res.headers().firstValue("Retry-After"));
-                    throw new ApiException("Hypixel rate limit reached (429)"
-                            + reset.map(s -> " - try again in " + s + "s.").orElse(" - try again shortly."));
+                    throw new RateLimitedException("Hypixel rate limit reached (429)"
+                            + reset.map(s -> " - try again in " + s + "s.").orElse(" - try again shortly."),
+                            retryAfterMs(reset));
                 }
                 default -> {
                     String cause = body != null && body.has("cause") && body.get("cause").isJsonPrimitive()
@@ -573,6 +635,15 @@ public final class ProfileViewerApi {
             if (res.statusCode() == 404 && notFoundIsEmpty) {
                 return CompletableFuture.completedFuture(new Raw(null, "SkyBlockPV backend"));
             }
+            if (res.statusCode() == 429) {
+                long wait = retryAfterMs(res.headers().firstValue("Retry-After"));
+                long until = System.currentTimeMillis() + wait;
+                if (until > backendRetryAtMs) {
+                    backendRetryAtMs = until;
+                }
+                return CompletableFuture.failedFuture(new RateLimitedException(
+                        "rate limited (429) - try again in " + (wait / 1000) + "s.", wait));
+            }
             String msg = switch (res.statusCode()) {
                 case 401 -> "authentication failed (401).";
                 case 403 -> "access refused (403).";
@@ -589,6 +660,17 @@ public final class ProfileViewerApi {
         if (!force && token != null && System.currentTimeMillis() - backendTokenAt < 23L * 60 * 60 * 1000) {
             return CompletableFuture.completedFuture(token);
         }
+        synchronized (ProfileViewerApi.class) {
+            if (tokenInFlight != null && !tokenInFlight.isDone()) {
+                return tokenInFlight;
+            }
+            CompletableFuture<String> f = fetchBackendToken();
+            tokenInFlight = f;
+            return f;
+        }
+    }
+
+    private static CompletableFuture<String> fetchBackendToken() {
         return CompletableFuture.supplyAsync(() -> {
             Minecraft mc = Minecraft.getInstance();
             User user = mc.getUser();
