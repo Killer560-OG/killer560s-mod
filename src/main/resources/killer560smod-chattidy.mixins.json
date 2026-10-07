@@ -1,0 +1,13 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.chattidy.mixin",
+	"client": [
+		"ChatTidyAccessor",
+		"ChatTidyMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

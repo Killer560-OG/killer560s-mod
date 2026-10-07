@@ -261,6 +261,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   three now also reset when `LiveMapFeature.resetGeneration()` changes (world change, dungeon entered, sim floor published).
   99-sim-aura-rebuild rebuilds Museum three times in one world and fails on 5008e4d6.
 
+- A chat line dropped through Fabric's `ALLOW_GAME`/`ALLOW_CHAT` never reaches `ChatObserver` either: a cancel there skips both
+  the GAME event and `ChatComponent.addMessage`, its two sources. To hide a line only from the WINDOW, cancel inside `addMessage`
+  after the clicktranslate HEAD hook has dispatched it - Chat Tidy injects at that method's `Predicate.test` call (2026-10-07;
+  testkit 87 checks every hidden line still reached `ChatObserver`). Hide Chat Messages (Object Hider) still uses `ALLOW_GAME`.
+
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session

@@ -374,6 +374,7 @@ public final class ProfileManager {
                 com.killer560.hub.clicktranslate.ClickTranslateConfig::load,
                 com.killer560.hub.commandkeybinds.CommandKeybindsConfig::load,
                 com.killer560.hub.copychat.CopyChatConfig::load,
+                com.killer560.hub.chattidy.ChatTidyConfig::load,
                 com.killer560.hub.croesus.CroesusConfig::load,
                 com.killer560.hub.diorite.DioriteGlassConfig::load,
                 com.killer560.hub.doorkeys.DoorKeysConfig::load,
