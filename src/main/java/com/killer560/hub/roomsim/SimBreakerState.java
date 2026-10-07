@@ -101,19 +101,66 @@ public final class SimBreakerState {
         return true;
     }
 
-    /** Charges a secret gives back. killer560 (2026-10-06): "on gaining any secret you gain 2 breaker charges back". */
-    public static final int CHARGES_PER_SECRET = 2;
+    /**
+     * The highest "Echoes of the Lost" level, which is also the most charges a secret can give back.
+     *
+     * <p>Source, checked 2026-10-06 on hypixelskyblock.minecraft.wiki/w/Essence_Shops/Wither: the Wither Essence
+     * Shop perk "Echoes of the Lost" - "Restore 1 charge on your Dungeonbreaker after collecting a secret." - has
+     * five levels whose "Increase" row reads 1, 2, 3, 4, 5, at 250, 500, 1,000, 2,000 and 5,000 Wither Essence.
+     */
+    public static final int MAX_SECRET_CHARGES = 5;
+
+    /** Every level of the perk is on until he turns it down: the sim's default is the maxed shop. */
+    public static final int DEFAULT_SECRET_CHARGES = MAX_SECRET_CHARGES;
+
+    private static final java.nio.file.Path SECRET_FILE =
+            com.killer560.hub.util.ModPaths.config("killer560smod-sim-breaker-secret-charges.txt");
+
+    /** -1 until read. Guarded by the class monitor, like the charge count. */
+    private static int secretCharges = -1;
+
+    /**
+     * Charges a secret gives back: the sim's "Echoes of the Lost" level, 0 (off) to {@link #MAX_SECRET_CHARGES}.
+     * killer560 (2026-10-06): "the regaining charges should be an optional slider or setting somewhere. The main
+     * server it is under the essence shop for either essence or for undead that gives charges back each secret".
+     */
+    public static synchronized int secretCharges() {
+        if (secretCharges < 0) {
+            secretCharges = DEFAULT_SECRET_CHARGES;
+            try {
+                if (java.nio.file.Files.exists(SECRET_FILE)) {
+                    int v = Integer.parseInt(java.nio.file.Files
+                            .readString(SECRET_FILE, java.nio.charset.StandardCharsets.UTF_8).trim());
+                    secretCharges = Math.max(0, Math.min(MAX_SECRET_CHARGES, v));
+                }
+            } catch (Exception ignored) {
+                // Unreadable means unknown, and the default is a safe unknown.
+            }
+        }
+        return secretCharges;
+    }
+
+    public static synchronized void setSecretCharges(int level) {
+        secretCharges = Math.max(0, Math.min(MAX_SECRET_CHARGES, level));
+        try {
+            java.nio.file.Files.createDirectories(SECRET_FILE.getParent());
+            java.nio.file.Files.writeString(SECRET_FILE, String.valueOf(secretCharges),
+                    java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception ignored) {
+            // Losing the preference is not worth failing the click he just made.
+        }
+    }
 
     /**
      * A secret of his was found (chest, item, bat, essence - every path that reaches {@code SimScore}'s secret count):
-     * {@link #CHARGES_PER_SECRET} charges back, never past the maximum. The lore follows on the next server tick.
+     * {@link #secretCharges()} charges back, never past the maximum. The lore follows on the next server tick.
      *
-     * <p>Not on the item's wiki page (checked 2026-10-06: "2 charges are regenerated each second" is all it says about
-     * getting them back), nor in the 0.27.2 patch notes - this is his rule for the sim.
+     * <p>The 2-a-second regeneration is the item page's own ("2 charges are regenerated each second"); the per-secret
+     * restore is the Wither shop perk above. It was a flat 2 on his word until the perk was found.
      */
     public static synchronized void secretFound() {
         int before = charges;
-        charges = Math.min(MAX_CHARGES, charges + CHARGES_PER_SECRET);
+        charges = Math.min(MAX_CHARGES, charges + secretCharges());
         if (charges != before) {
             com.killer560.hub.util.ModLog.get("killer560smod-sim").info("Sim Dungeonbreaker: secret found, charges {} -> {}",
                     before, charges);

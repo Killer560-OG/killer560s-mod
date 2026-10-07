@@ -101,6 +101,7 @@ public class NewTab extends FolderTab {
                 new LoadoutKeybindsTab(),
                 new AbilityKeybindsTab(),
                 new SimKeybindsTab(),
+                new SimSettingsTab(),
                 new P4PlatformHighlightTab(),
                 // Moved into New 2026-09-20 ("move all solvers into the New category for now"), then back
                 // out the same day once killer560 tested them and changed his mind: all 11 puzzle/boss

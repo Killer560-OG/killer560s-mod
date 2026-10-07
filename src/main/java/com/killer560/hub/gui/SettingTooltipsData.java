@@ -1729,6 +1729,7 @@ final class SettingTooltipsData {
         d.put("custom mage beam/width", "How thick the custom Mage beam is drawn.");
         d.put("custom mage beam/duration", "How long each custom Mage beam stays drawn, 5-100 ticks.");
         d.put("auto dialogue/delay", "How long Auto Dialogue waits before clicking the option, 0-40 ticks (cheat build only).");
+        d.put("echoes of the lost", "Dungeon Sim only: Dungeon Breaker charges each secret gives back. This is the Wither Essence Shop perk Echoes of the Lost (levels 1-5 restore 1-5 charges); 0 is off. Defaults to the maxed perk. The breaker still holds 20 and regenerates 2 a second.");
         d.put("breaker aura/reach", "How far from your eyes a picked block can be and still be broken, 1.0 up to the measured limit (cheat build only).");
         d.put("breaker aura/zero ping", "Broken blocks vanish on your screen instantly instead of waiting for the server (cheat build only).");
         d.put("breaker aura/cooldown", "How long Breaker Aura waits between breaks, 0-20 ticks (cheat build only).");
