@@ -9,7 +9,7 @@ Everything here is in the repo but outside `src/`, so Gradle/Loom never compiles
 adds `src/main/java`, the generated BuildVariant dir and one `src/mc26_x/java` compat dir). Players' saved mining
 config files are left on disk untouched; the mod simply no longer reads them.
 
-Shelved by commit **SHELVE_COMMIT** on branch `shelve-mining` ("Shelve all mining features until after 2.0").
+Shelved by commit **aa09fd82** on branch `shelve-mining` ("Shelve all mining features until after 2.0").
 `git log --follow` on any file below shows its full history.
 
 ## What was shelved
