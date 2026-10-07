@@ -187,7 +187,7 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. The Room
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** Method names and some
   block/sound constants differ between 26.1.2 and 26.2 (`snapTo` not `moveTo`, `McBlocks.RED_WOOL`, holder vs plain
   `SoundEvent`); copy the shape of an existing use. Examples, and the cloud-session `javac` filter that catches
-  structural errors without the Minecraft jar: [docs/LESSONS.md](docs/LESSONS.md) "Compiling".
+  structural errors without the Minecraft jar: [docs/COMPILING.md](docs/COMPILING.md).
 - **A mixin that compiles on 26.2 can still crash 26.2 at startup.** Mixin descriptors are only checked when the
   game loads, so `@Inject(method = "extractRenderState")` on `Gui` with 26.1.2's `(GuiGraphicsExtractor, DeltaTracker)`
   built fine and crashed every 26.2 launch (26.2's is `(DeltaTracker, boolean, boolean)`). Seven overlays did it until

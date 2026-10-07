@@ -336,6 +336,10 @@ public final class ProfileManager {
                 com.killer560.hub.autodebuff.AutoDebuffConfig::load,
                 com.killer560.hub.autosell.AutoSellConfig::load,
                 com.killer560.hub.autoanvil.AutoAnvilConfig::load,
+                // Also missing until the testkit's 320-ui-profiles caught them on 2026-10-07.
+                com.killer560.hub.autoclear.AutoClearConfig::load,
+                com.killer560.hub.autosecret.AutoSecretConfig::load,
+                com.killer560.hub.util.CorrectionAlarmConfig::load,
                 com.killer560.hub.bazaarflip.BazaarFlipConfig::load,
                 com.killer560.hub.bugreport.BugReportConfig::load,
                 com.killer560.hub.invsort.InventorySorterConfig::load,
