@@ -375,6 +375,8 @@ public final class Ap3Executor {
         endAim(Minecraft.getInstance().player);
         actNode = null;
         actFired = false;
+        termAuraStand = null;
+        termAuraScreen = null;
         placedGraceTicks = 0;
         placedBlocking = false;
         blockWatchPos = null;
@@ -958,14 +960,34 @@ public final class Ap3Executor {
     }
 
     private static boolean screenAllowed() {
+        if (termAuraScreenOpen()) {
+            return true;
+        }
         if (activeNode == null) {
             return false;
+        }
+        if (activeNode.type == Ap3Node.Type.TERM_AURA) {
+            // The terminal it clicked opened (a container): tickTermAura finishes on it this tick. Chat or the menu
+            // still stops it, as before.
+            return McCompat.screen(Minecraft.getInstance())
+                    instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>;
         }
         // The terminal GUI is the whole point of a TERMINAL node; the leap menu may show while LeapManager clicks it;
         // a close-gated node is waiting for exactly a GUI to open and close.
         return activeNode.type == Ap3Node.Type.TERMINAL
                 || (activeNode.type == Ap3Node.Type.LEAP && LeapManager.isBusy())
                 || step == Step.GATE;
+    }
+
+    /** The terminal a Term Aura node opened, while it is still the open screen: AP3 asked for it, so the chain carries
+     *  on under it (a TERMINAL node after it waits for it to be done) instead of stopping on "a screen opened". Until
+     *  2026-10-07 the node's own success stopped everything, a tick after the terminal opened (testkit 416/417). */
+    private static boolean termAuraScreenOpen() {
+        net.minecraft.client.gui.screens.Screen now = McCompat.screen(Minecraft.getInstance());
+        if (termAuraScreen != null && now != termAuraScreen) {
+            termAuraScreen = null;
+        }
+        return termAuraScreen != null;
     }
 
     // ------------------------------------------------------------------------------------------- nodes
@@ -1274,6 +1296,11 @@ public final class Ap3Executor {
         if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
             return;
         }
+        if (actNode.type == Ap3Node.Type.TERM_AURA) {
+            actFired = true;
+            fireTermAura(client, player);
+            return;
+        }
         if (actSlot >= 0 && player.getInventory().getSelectedSlot() != actSlot) {
             player.getInventory().setSelectedSlot(actSlot);
             if (client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker) {
@@ -1362,6 +1389,9 @@ public final class Ap3Executor {
         actNode = null;
         actFired = false;
         endAim(player);
+        if (node.type == Ap3Node.Type.TERM_AURA) {
+            return; // the node itself waits for the terminal to open, or retries (tickTermAura)
+        }
         if (actPrevSlot >= 0) {
             // BLOCK: back to what he held. Selected now, sent by the game mode's own tick at the next START - before
             // that tick's movement packet, once, the way a hotbar key's change goes out.
@@ -1699,15 +1729,45 @@ public final class Ap3Executor {
     private static int termAuraTries;
     private static int termAuraGap;
 
+    /** The terminal stand the armed Term Aura click is for (sent at the next START by {@link #tickStart}). */
+    private static net.minecraft.world.entity.decoration.ArmorStand termAuraStand;
+    /** The terminal screen a Term Aura node opened: AP3 carries on under it (see {@link #screenAllowed}). */
+    private static net.minecraft.client.gui.screens.Screen termAuraScreen;
+
+    /**
+     * The click goes the way every other AP3 interaction does since 2026-10-06 ({@link #armAct}): chosen and aimed at END
+     * of the tick, sent at the next START, the aim let go at the END after that. Until 2026-10-07 it was sent from here,
+     * at END - after that tick's movement packet - and with the look ray it happened to have.
+     * <p>
+     * A terminal the look ray misses (one behind him) gets the BODY turned to it, never the camera - the same rule as
+     * Terminal Aura's Turn To Terminal (TerminalAuraConfig, read here too, so switching the turn off switches it off for
+     * the node as well): the interact names an entity, and GrimAC's Hitboxes check flags one the reported rotation does
+     * not point at (testkit 414/415, and 416/418 for this node). The camera is held for the aim and the body is given
+     * straight back to it once the following movement packet has reported the turned rotation (endAim). The Terminal
+     * Aura setting itself is never read: the node works with it off (see TerminalAuraFeature.nearest).
+     */
     private static void tickTermAura(Minecraft client, LocalPlayer player, Ap3Node node) {
         if (step == Step.PREP) {
             step = Step.DO;
             termAuraTries = 0;
             termAuraGap = 0;
         }
-        if (McCompat.screen(client) != null) {
-            finishNode(); // it opened - that was the whole job
+        net.minecraft.client.gui.screens.Screen screen = McCompat.screen(client);
+        if (screen != null) {
+            // It opened - that was the whole job. A click still armed is dropped (it would only time out under the
+            // screen), and the screen is one AP3 asked for, so the chain carries on under it.
+            if (actNode == node) {
+                actNode = null;
+                actFired = false;
+                termAuraStand = null;
+                endAim(player);
+            }
+            termAuraScreen = screen;
+            finishNode();
             return;
+        }
+        if (actNode == node) {
+            return; // armed: goes out at the next START, let go at the END after it (finishAct)
         }
         if (termAuraGap > 0) {
             termAuraGap--;
@@ -1717,18 +1777,47 @@ public final class Ap3Executor {
             finishNode();
             return;
         }
-        double range = com.killer560.hub.terminalaura.TerminalAuraConfig.getInstance().getRange();
-        boolean sent = com.killer560.hub.terminalaura.TerminalAuraFeature.clickNearest(client, player, range);
+        com.killer560.hub.terminalaura.TerminalAuraConfig ta = com.killer560.hub.terminalaura.TerminalAuraConfig.getInstance();
+        com.killer560.hub.terminalaura.TerminalAuraFeature.Target t =
+                com.killer560.hub.terminalaura.TerminalAuraFeature.nearest(client, player, ta.getRange());
+        boolean turn = t != null && !t.lookHits() && ta.isTurnToTerminal();
+        if (turn && strafeLock) {
+            return; // the sent yaw is still gliding back after a Sent-Yaw align: the turn would not be what goes out
+        }
         termAuraTries++;
-        if (!sent && termAuraTries == 1) {
-            if (Ap3Config.getInstance().isChatFeedback()) {
-                chat(ModChat.text("Term Aura "), ModChat.value("#" + number(node)),
-                        ModChat.dim(" - no terminal in range"));
+        if (t == null) {
+            if (termAuraTries == 1) {
+                if (Ap3Config.getInstance().isChatFeedback()) {
+                    chat(ModChat.text("Term Aura "), ModChat.value("#" + number(node)),
+                            ModChat.dim(" - no terminal in range"));
+                }
+                finishNode();
+                return;
             }
-            finishNode();
+            termAuraGap = TERM_AURA_GAP;
             return;
         }
+        if (turn) {
+            float[] aim = com.killer560.hub.terminalaura.TerminalAuraFeature.aimAt(player, t.stand());
+            beginAim(player, true);
+            aimBody(player, node, aim[0], aim[1]);
+        }
+        termAuraStand = t.stand();
+        actNode = node;
+        actSlot = -1;
+        actFired = false;
+        actWaitTicks = 0;
         termAuraGap = TERM_AURA_GAP;
+    }
+
+    /** The armed Term Aura click, at START (from {@link #tickStart}, which has asked the ActionGate). */
+    private static void fireTermAura(Minecraft client, LocalPlayer player) {
+        net.minecraft.world.entity.decoration.ArmorStand stand = termAuraStand;
+        termAuraStand = null;
+        if (stand != null) {
+            com.killer560.hub.terminalaura.TerminalAuraFeature.clickNow(client, player, stand,
+                    com.killer560.hub.terminalaura.TerminalAuraConfig.getInstance().getRange());
+        }
     }
 
     /** Restarts a node's dev clock on the first tick AP3 controls the movement (it was started on box entry). */
@@ -2951,14 +3040,24 @@ public final class Ap3Executor {
     }
 
     private static void beginAim(LocalPlayer player) {
+        beginAim(player, false);
+    }
+
+    /**
+     * {@code holdView}: the camera is held for this aim whatever the freeze setting, and - when nothing else was holding
+     * it - given straight back by {@link #endAim} (the body joins it) instead of gliding back. A Term Aura turn: the
+     * body turns to a terminal, the camera never does.
+     */
+    private static void beginAim(LocalPlayer player, boolean holdView) {
         if (aiming) {
             return; // already aimed: keep the pitch / view to return to from the FIRST aim
         }
         aimPrevPitch = player.getXRot();
         aiming = true;
-        if (freezeViewWanted() || !Float.isNaN(viewYaw)) {
+        if (holdView || freezeViewWanted() || !Float.isNaN(viewYaw)) {
             if (Float.isNaN(viewYaw)) {
                 viewYaw = player.getYRot();
+                aimOwnsView = holdView;
             }
             if (Float.isNaN(viewPitch)) {
                 viewPitch = player.getXRot(); // a LOOK's frozen pitch stays what he sees
@@ -2970,6 +3069,23 @@ public final class Ap3Executor {
         chooseAim(player, node);
         float yaw = player.getYRot();
         player.setYRot(yaw + Mth.wrapDegrees(aimYaw - yaw));
+        player.setXRot(aimPitch);
+        RouteRotation.rebase();
+        aimLock = true;
+    }
+
+    /**
+     * Aims the body at an angle chosen elsewhere (a Term Aura node's terminal): a wrapped delta on the running yaw, pitch
+     * within +-90. A held walk presses the key combination nearest the walk at that yaw for the aim tick
+     * ({@link #applyAimedHold}), as for a USE.
+     */
+    private static void aimBody(LocalPlayer player, Ap3Node node, float yaw, float pitch) {
+        aimNode = node;
+        aimYaw = yaw;
+        aimPitch = Mth.clamp(pitch, -90f, 90f);
+        aimKey = holdDir == null ? null : nearestKey8(holdDir.x, holdDir.z, aimYaw);
+        float cur = player.getYRot();
+        player.setYRot(cur + Mth.wrapDegrees(aimYaw - cur));
         player.setXRot(aimPitch);
         RouteRotation.rebase();
         aimLock = true;
@@ -3099,7 +3215,20 @@ public final class Ap3Executor {
             player.setXRot(Float.isNaN(viewPitch) ? aimPrevPitch : viewPitch);
         }
         viewPitch = Float.NaN;
+        if (aimOwnsView) {
+            // The aim held the camera itself (beginAim's holdView): the body goes straight back to it - where his
+            // mouse has steered the held view, if it did - and the camera is let go, nothing on screen moving.
+            aimOwnsView = false;
+            if (player != null && !Float.isNaN(viewYaw)) {
+                releaseView(player, Mth.wrapDegrees(viewYaw - player.getYRot()));
+            } else {
+                viewYaw = Float.NaN;
+            }
+        }
     }
+
+    /** {@link #beginAim} took the camera hold for this aim and {@link #endAim} gives it back. */
+    private static boolean aimOwnsView;
 
     private static void tickBlock(Minecraft client, LocalPlayer player, Ap3Node node) {
         // Armed here (aim at END of the entry tick), placed at the next START by tickStart, finished by finishAct.

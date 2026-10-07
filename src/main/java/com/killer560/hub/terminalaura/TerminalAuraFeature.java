@@ -128,15 +128,14 @@ public final class TerminalAuraFeature {
         }
         if (!t.lookHits() && cfg.isTurnToTerminal()) {
             // Turn this tick, click next tick, once this tick's movement packet has reported the turned look.
-            Vec3 d = TerminalStands.center(t.stand()).subtract(player.getEyePosition());
-            float yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));
-            float pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)));
-            AIM.turnTo(player, yaw, Mth.clamp(pitch, -90f, 90f));
+            float[] aim = aimAt(player, t.stand());
+            AIM.turnTo(player, aim[0], aim[1]);
             pendingStand = t.stand();
             pendingTicks = 0;
             return;
         }
-        if (send(client, player, t)) {
+        if (ActionGate.tryAct(ActionGate.Actor.TERMINAL_AURA)) {
+            interact(client, player, t.stand(), t.hit());
             lastClickMs = now;
         }
     }
@@ -144,54 +143,78 @@ public final class TerminalAuraFeature {
     /** The click a body turn was made for, one tick later; retried for a few ticks if the ActionGate is busy. */
     private static void clickPending(Minecraft client, LocalPlayer player) {
         ArmorStand stand = pendingStand;
-        double range = TerminalAuraConfig.getInstance().getRange();
-        Vec3 eyes = player.getEyePosition();
-        boolean stillThere = stand.isAlive() && !stand.isRemoved() && McCompat.screen(client) == null
-                && com.killer560.hub.util.BlockHits.boxDistanceSq(eyes, stand.getBoundingBox()) <= range * range;
-        Vec3 hit = stand.getBoundingBox().inflate(TerminalStands.INFLATE)
-                .clip(eyes, TerminalStands.center(stand)).orElse(null);
-        if (!stillThere || hit == null || ++pendingTicks > 5) {
+        if (McCompat.screen(client) != null || ++pendingTicks > 5) {
             pendingStand = null;
             return;
         }
-        if (send(client, player, new Target(stand, hit, true))) {
+        Vec3 hit = hitFromEye(player, stand, TerminalAuraConfig.getInstance().getRange());
+        if (hit == null) {
+            pendingStand = null;
+            return;
+        }
+        if (ActionGate.tryAct(ActionGate.Actor.TERMINAL_AURA)) {
+            interact(client, player, stand, hit);
             lastClickMs = System.currentTimeMillis();
             pendingStand = null;
         }
     }
 
-    /** A chosen terminal, the point to report, and whether the current look ray already hits its box. */
-    private record Target(ArmorStand stand, Vec3 hit, boolean lookHits) {
+    /**
+     * A chosen terminal, the point on its box the line from the eye meets, and whether the current look ray already
+     * hits that box (when it does not, the click needs the body turned to it first - see the class doc).
+     */
+    public record Target(ArmorStand stand, Vec3 hit, boolean lookHits) {
     }
 
     /**
-     * Clicks the nearest terminal within {@code range}, once, and reports whether the interact went out. Used by the
-     * aura's own tick above and by AP3's Term Aura node - killer560 (2026-09-22): "once I step onto it if there is a
-     * term in my range it will click it to open it once... It should effectively toggle term aura for a packet if
-     * that makes sense. But not actually turn the setting on or off" - so this deliberately does NOT read
-     * {@link TerminalAuraConfig#isEnabled()}, and the caller owns the retry.
+     * The nearest terminal within {@code range} in any direction, or null - for AP3's Term Aura node. killer560
+     * (2026-09-22): "once I step onto it if there is a term in my range it will click it to open it once... It should
+     * effectively toggle term aura for a packet if that makes sense. But not actually turn the setting on or off" - so
+     * this deliberately does NOT read {@link TerminalAuraConfig#isEnabled()}. The node owns the timing, the body turn
+     * ({@link #aimAt}) and the retry, and sends with {@link #clickNow}.
      */
-    public static boolean clickNearest(Minecraft client, Player player, double range) {
-        return clickNearest(client, player, range, TerminalAuraConfig.MAX_FOV);
+    public static Target nearest(Minecraft client, Player player, double range) {
+        return pick(client, player, range, TerminalAuraConfig.MAX_FOV);
+    }
+
+    /** {yaw, pitch} from the eye to the stand's box centre; pitch within +-90, yaw in any wrapping (turn by delta). */
+    public static float[] aimAt(Player player, ArmorStand stand) {
+        Vec3 d = TerminalStands.center(stand).subtract(player.getEyePosition());
+        float yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));
+        float pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)));
+        return new float[]{yaw, Mth.clamp(pitch, -90f, 90f)};
     }
 
     /**
-     * As above, but only terminals within {@code fovDegrees} of where you are looking (360 = any direction), as
-     * QUOI's "Aura FOV".
+     * Interacts with {@code stand} now, from where the eye is now, if it is still there and in range. Does NOT ask the
+     * {@link ActionGate}: the caller (AP3's tick start) already has this tick's interaction.
      */
-    public static boolean clickNearest(Minecraft client, Player player, double range, int fovDegrees) {
-        Target t = pick(client, player, range, fovDegrees);
-        return t != null && send(client, player, t);
-    }
-
-    /** Mod-wide one-interaction-per-tick gate, then the interact and the swing. */
-    private static boolean send(Minecraft client, Player player, Target t) {
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_AURA)) {
+    public static boolean clickNow(Minecraft client, Player player, ArmorStand stand, double range) {
+        if (client.gameMode == null || McCompat.screen(client) != null) {
             return false;
         }
-        client.gameMode.interact(player, t.stand(), new EntityHitResult(t.stand(), t.hit()), InteractionHand.MAIN_HAND);
-        player.swing(InteractionHand.MAIN_HAND);
+        Vec3 hit = hitFromEye(player, stand, range);
+        if (hit == null) {
+            return false;
+        }
+        interact(client, player, stand, hit);
         return true;
+    }
+
+    /** Where the line from the eye to the stand meets its (inflated) box, or null if it is gone or out of range. */
+    private static Vec3 hitFromEye(Player player, ArmorStand stand, double range) {
+        Vec3 eyes = player.getEyePosition();
+        if (!stand.isAlive() || stand.isRemoved()
+                || com.killer560.hub.util.BlockHits.boxDistanceSq(eyes, stand.getBoundingBox()) > range * range) {
+            return null;
+        }
+        return stand.getBoundingBox().inflate(TerminalStands.INFLATE).clip(eyes, TerminalStands.center(stand)).orElse(null);
+    }
+
+    /** The interact and the swing; the caller has asked the ActionGate. */
+    private static void interact(Minecraft client, Player player, ArmorStand stand, Vec3 hit) {
+        client.gameMode.interact(player, stand, new EntityHitResult(stand, hit), InteractionHand.MAIN_HAND);
+        player.swing(InteractionHand.MAIN_HAND);
     }
 
     /** The nearest terminal the aura may click, or null. */
@@ -236,8 +259,8 @@ public final class TerminalAuraFeature {
             if (hit == null) {
                 continue;
             }
-            // One per pass, so the delay actually paces them. The ActionGate is asked in send(), after the target
-            // is chosen but before anything is sent or lastClickMs moves, so a denied tick costs nothing.
+            // One per pass, so the delay actually paces them. The ActionGate is asked after the target is chosen
+            // but before anything is sent or lastClickMs moves, so a denied tick costs nothing.
             boolean lookHits = box.clip(eyes, eyes.add(look.scale(range + 1.0))).isPresent();
             return new Target(stand, hit, lookHits);
         }
