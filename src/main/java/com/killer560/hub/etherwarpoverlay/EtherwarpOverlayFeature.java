@@ -101,6 +101,15 @@ public final class EtherwarpOverlayFeature {
         }
 
         ItemStack mainHand = client.player.getMainHandItem();
+        if (!client.player.isShiftKeyDown()) {
+            // Not sneaking: only the bare conduit shows the overlay (the test below), and that is an id read. Asked
+            // first so whatever he is holding is not lore-scanned every frame just to be turned away (FPS sweep).
+            CompoundTag held = com.killer560.hub.util.ItemNbt.view(mainHand);
+            String heldId = held == null || !held.contains("id") ? null : held.getStringOr("id", null);
+            if (!ETHERWARP_CONDUIT_ID.equals(heldId)) {
+                return;
+            }
+        }
         CompoundTag etherData = getEtherwarpData(mainHand);
         if (etherData == null) {
             return;

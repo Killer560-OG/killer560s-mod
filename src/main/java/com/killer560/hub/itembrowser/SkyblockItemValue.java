@@ -3,10 +3,8 @@ package com.killer560.hub.itembrowser;
 import com.killer560.hub.rngmeter.RngItem;
 import com.killer560.hub.rngmeter.RngMeterEngine;
 import com.killer560.hub.rngmeter.RngSource;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 
 import java.util.Locale;
 
@@ -60,11 +58,11 @@ public final class SkyblockItemValue {
         if (stack == null || stack.isEmpty()) {
             return null;
         }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
+        // Read only, no deep copy: the item value tooltip asks this for the hovered stack every frame.
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack);
+        if (tag == null) {
             return null;
         }
-        CompoundTag tag = data.copyTag();
         String id = tag.getStringOr("id", null);
         if (id == null || id.isEmpty()) {
             return null;
