@@ -66,6 +66,7 @@ public final class SecretTriggerbotFeature {
     private static long lastClickMs = 0;
     private static BlockPos lastClickedChest = null;
     private static Object lastLevel = null;
+    private static int lastGeneration = 0;
 
     private SecretTriggerbotFeature() {
     }
@@ -75,9 +76,15 @@ public final class SecretTriggerbotFeature {
     }
 
     private static void tick(Minecraft client) {
+        // A new run as well as a new world: positions repeat when the same room is rebuilt (see SecretAuraFeature).
+        int generation = LiveMapFeature.resetGeneration();
         if (client.level != lastLevel) {
             lastLevel = client.level;
+            lastGeneration = generation;
             reset("world change");
+        } else if (generation != lastGeneration) {
+            lastGeneration = generation;
+            reset("map reset (new run)");
         }
         LocalPlayer player = client.player;
         if (client.level == null || player == null || client.gameMode == null) {

@@ -40,7 +40,8 @@ import com.killer560.hub.compat.McCompat;
  * cooldown also spaces consecutive clicks. A retry is allowed once after 1s if the click didn't take (chest
  * never opened / lever didn't flip / skull still there), then the block is done for the run.
  * <li>Done detection (QUOI): chest open-ness &gt; 0, lever POWERED changed (incl. flipped by a teammate), essence
- * skull removed. Everything resets on world change / leaving the dungeon.
+ * skull removed. Everything resets on world change / leaving the dungeon / a live map reset (a new run, which
+ * includes every sim rebuild - the same room rebuilt puts its secrets back on the same blocks).
  * <li>QUOI room skips via LiveMap's current room: Three Weirdos (wrong chest fails the puzzle) skipped
  * entirely; no levers in Water Board / Tic Tac Toe. QUOI's conditional Ice Path / Ice Fill / Teleport Maze
  * checks need room-relative coordinates, so those rooms are skipped entirely instead (conservative).
@@ -80,6 +81,7 @@ public final class SecretAuraFeature {
     private static long lastClickMs = 0;
     private static Long lastClickKey = null;
     private static Object lastLevel = null;
+    private static int lastGeneration = 0;
     private static boolean wasActive = false;
 
     private SecretAuraFeature() {
@@ -87,9 +89,21 @@ public final class SecretAuraFeature {
 
     static void tick(Minecraft client) {
         CheatUtilsConfig cfg = CheatUtilsConfig.getInstance();
+        // A NEW RUN, not only a new world. The done-set is keyed by block position, and a rebuilt room puts its
+        // secrets back on exactly the same blocks. killer560 (2026-10-06, Map Logger, sim): "I would regenerate
+        // the same room I had a route in and the secret aura wasn't working really after the first run through" -
+        // every rebuild of Museum happens inside the one sim world, so a reset keyed on the level alone never
+        // fired and every chest and lever of run 1 still read "done". The live map's reset generation is bumped
+        // on everything that starts a run - a world change, entering a dungeon, a sim floor being published - so
+        // it is the run boundary the done-set belongs to, on Hypixel and in the sim alike.
+        int generation = LiveMapFeature.resetGeneration();
         if (client.level != lastLevel) {
             lastLevel = client.level;
+            lastGeneration = generation;
             reset("world change");
+        } else if (generation != lastGeneration) {
+            lastGeneration = generation;
+            reset("map reset (new run)");
         }
         boolean inDungeon = DungeonState.isInDungeon();
         if (wasActive && !inDungeon) {
