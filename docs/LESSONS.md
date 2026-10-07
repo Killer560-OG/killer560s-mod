@@ -255,6 +255,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   when the room flipped ~200 ms after landing, before its mobs had loaded (Duncan, a real insta). Now: left within 3 s and
   no flip by 1.5 s after leaving is PASS_THROUGH; a flip with no starred mob in sight waits (up to 60 s) to see the mobs,
   which Hypixel leaves standing in an insta-cleared room. 98-sim-insta-clear-live replays both on a sim floor.
+- A per-position "done" set must reset on a new RUN, not only a new world. Secret Aura, the Secret Triggerbot and Secret
+  Waypoints' collected set cleared on world change / leaving the dungeon; a sim rebuild of the same room is neither and puts
+  every secret back on the same blocks, so after run 1 the aura clicked nothing (his Museum, Map Logger, 2026-10-06). All
+  three now also reset when `LiveMapFeature.resetGeneration()` changes (world change, dungeon entered, sim floor published).
+  99-sim-aura-rebuild rebuilds Museum three times in one world and fails on 5008e4d6.
 
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 

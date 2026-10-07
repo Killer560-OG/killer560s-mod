@@ -99,6 +99,7 @@ public final class SecretWaypointsFeature {
     private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3> NEAR_BATS = new java.util.HashMap<>();
 
     private static boolean wasInDungeon = false;
+    private static int lastGeneration = 0;
 
     /** Interactive map per-room toggles (room names): shown while the feature is off, hidden while it is on. */
 
@@ -246,7 +247,12 @@ public final class SecretWaypointsFeature {
 
     private static void tick() {
         boolean inDungeon = DungeonState.isInDungeon();
-        if (!inDungeon && wasInDungeon) {
+        // Or a new run without leaving: a sim rebuild of the same room puts its secrets back on the same blocks, and
+        // a remembered "collected" there would hide their waypoints (see SecretAuraFeature, 2026-10-06).
+        int generation = LiveMapFeature.resetGeneration();
+        boolean newRun = generation != lastGeneration;
+        lastGeneration = generation;
+        if ((!inDungeon && wasInDungeon) || newRun) {
             COLLECTED.clear();
             CRYPTS.clear();
             invalidateCache();
