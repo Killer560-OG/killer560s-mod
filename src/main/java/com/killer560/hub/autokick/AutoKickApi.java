@@ -31,8 +31,9 @@ import java.util.concurrent.CompletableFuture;
  * it deliberately does NOT use: {@code fastest_time_s_plus} (fastest S+-scored run) is frequently empty for
  * a player who hasn't chased S+ on every floor, and populating from an empty field would silently skip
  * floors that field never fired on while a real, slower clear time sits right next to it unused.
- * fastest_time_s is already in seconds, matching {@link AutoKickConfig#getTargetSeconds}'s own unit - no
- * conversion needed.
+ * fastest_time_s is in MILLISECONDS (checked 2026-10-07 against real profiles: AntsRNG's F7 is 263003, a 4:23
+ * clear), so it is converted to whole seconds, rounded up, for {@link AutoKickConfig#getTargetSeconds}. Read as
+ * seconds, every floor used to clamp to {@link AutoKickConfig#MAX_TARGET_SECONDS}.
  * <p>
  * <b>Never overwrites a floor he already set.</b> {@link #populate} only fills a floor whose target is
  * still 0 - a deliberately-tuned value is never silently clobbered by a later populate for a different
@@ -96,7 +97,7 @@ public final class AutoKickApi {
                 // its map by.
                 int floorNum = Integer.parseInt(floor.name().substring(1));
                 SbProfile.Floor f = floors.get(floorNum);
-                long seconds = f == null ? 0L : f.fastestS();
+                long seconds = f == null ? 0L : targetSecondsFromMillis(f.fastestS());
                 if (seconds > 0) {
                     cfg.setTargetSeconds(floor, (int) Math.min(seconds, AutoKickConfig.MAX_TARGET_SECONDS));
                     set++;
@@ -112,5 +113,10 @@ public final class AutoKickApi {
         }
 
         return new PopulateResult(playerName, set, noData, alreadySet);
+    }
+
+    /** A profile's {@code fastest_time_s} (milliseconds) as whole seconds, rounded up; 0 stays 0 (no clear). */
+    public static long targetSecondsFromMillis(long ms) {
+        return ms <= 0 ? 0L : (ms + 999) / 1000;
     }
 }
