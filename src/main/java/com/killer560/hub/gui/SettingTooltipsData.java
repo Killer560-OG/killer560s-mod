@@ -1653,7 +1653,8 @@ final class SettingTooltipsData {
                 + "Red past 3.0 - that is the furthest measured not to draw a Reach flag, because a terminal is "
                 + "an armour stand and an entity gets a tighter limit than a block's 4.5.");
         d.put("terminal aura/delay", "Cheat build: minimum time between two terminal opens, 0-2000 ms.");
-        d.put("terminal aura/aura fov", "Cheat build: only terminals within this angle of where you are looking are opened, 10-360 degrees; Any (360) means every direction - but the aura never turns you, so a terminal behind you is clicked with a look that misses it, which GrimAC flags as Hitboxes; 180 or less avoids that. Terminals above your eyes are always skipped, since they no longer open from below.");
+        d.put("terminal aura/turn to terminal", "Cheat build, on by default: for a terminal your look does not already hit, the aura turns your body to it for one tick, clicks on the next, and turns it back - your camera never moves. Without it, a terminal clicked behind you draws GrimAC's Hitboxes flag.");
+        d.put("terminal aura/aura fov", "Cheat build: only terminals within this angle of where you are looking are opened, 10-360 degrees; Any (360) means every direction; with Turn To Terminal off, a terminal behind you is clicked with a look that misses it, which GrimAC flags as Hitboxes. Terminals above your eyes are always skipped, since they no longer open from below.");
         d.put("terminal solver/numbers", "Highlights the next two panes to click in the 'Click in order!' terminal.");
         d.put("terminal triggerbot/delay", "Cheat build: how long your crosshair must stay on a terminal before it opens, 0-1000 ms.");
         d.put("terminal triggerbot/cooldown", "Cheat build: minimum time between two terminal opens, 0-2000 ms.");

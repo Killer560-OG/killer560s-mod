@@ -58,6 +58,7 @@ public final class TerminalAuraConfig {
     private boolean leapDelayEnabled = false;
     private double leapDelaySeconds = 0.5;
     private int fovDegrees = MAX_FOV;
+    private boolean turnToTerminal = true;
 
     private TerminalAuraConfig() {
     }
@@ -85,6 +86,7 @@ public final class TerminalAuraConfig {
                 cfg.leapDelaySeconds = ConfigJson.getDouble(root, "leapDelaySeconds", 0.5);
                 cfg.pauseOnMovementKeys = ConfigJson.getBool(root, "pauseOnMovementKeys", false);
                 cfg.fovDegrees = ConfigJson.getInt(root, "fovDegrees", MAX_FOV);
+                cfg.turnToTerminal = ConfigJson.getBool(root, "turnToTerminal", true);
             } catch (Exception ignored) {
                 // Unreadable file: the per-key readers keep whatever parsed, the rest stay at defaults.
             }
@@ -104,6 +106,7 @@ public final class TerminalAuraConfig {
             root.addProperty("leapDelaySeconds", leapDelaySeconds);
             root.addProperty("pauseOnMovementKeys", pauseOnMovementKeys);
             root.addProperty("fovDegrees", fovDegrees);
+            root.addProperty("turnToTerminal", turnToTerminal);
             Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -186,5 +189,17 @@ public final class TerminalAuraConfig {
 
     public void setFovDegrees(int fovDegrees) {
         this.fovDegrees = fovDegrees;
+    }
+
+    /**
+     * Turn the body (never the camera) to a terminal the look misses, for the click - see TerminalAuraFeature. On by
+     * default: without it a terminal behind you draws GrimAC's Hitboxes flag (testkit 414, 2026-10-07).
+     */
+    public boolean isTurnToTerminal() {
+        return turnToTerminal;
+    }
+
+    public void setTurnToTerminal(boolean turnToTerminal) {
+        this.turnToTerminal = turnToTerminal;
     }
 }

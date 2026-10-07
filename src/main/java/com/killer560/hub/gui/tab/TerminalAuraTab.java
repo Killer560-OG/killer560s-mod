@@ -89,6 +89,13 @@ public class TerminalAuraTab extends BaseTab {
         widgets.add(fovSlider(contentX + halfW + GAP, y, Math.max(1, contentWidth - halfW - GAP), cfg));
         y += ROW + GAP;
 
+        widgets.add(SettingsButtonWidget.builder(onOff("Turn To Terminal", cfg.isTurnToTerminal()), btn -> {
+                    cfg.setTurnToTerminal(!cfg.isTurnToTerminal());
+                    cfg.save();
+                    btn.setMessage(onOff("Turn To Terminal", cfg.isTurnToTerminal()));
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + GAP;
+
         if (cfg.isLeapDelayEnabled()) {
             widgets.add(SettingsButtonWidget.builder(leapDelayText(cfg), btn -> {
                         double next = cfg.getLeapDelaySeconds() + 0.1;
