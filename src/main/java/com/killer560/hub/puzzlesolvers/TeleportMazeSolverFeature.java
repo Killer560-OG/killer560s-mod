@@ -53,6 +53,8 @@ public final class TeleportMazeSolverFeature {
     private static List<Set<BlockPos>> realCells = new ArrayList<>();
     private static Set<BlockPos> correctPortals = new LinkedHashSet<>();
     private static final Set<BlockPos> visited = new LinkedHashSet<>();
+    /** Pad stepped on -> pad it sent him to, learnt from this visit's teleports (see {@link #onPlayerPosition}). */
+    private static final java.util.Map<BlockPos, BlockPos> links = new java.util.LinkedHashMap<>();
     private static BlockPos best = null;
     private static int teleportSeq = 0;
 
@@ -87,6 +89,11 @@ public final class TeleportMazeSolverFeature {
 
     public static BlockPos getBest() {
         return best;
+    }
+
+    /** The links learnt this visit: pad stepped on -> pad landed on (the way back assumed, see onPlayerPosition). */
+    public static java.util.Map<BlockPos, BlockPos> getLinks() {
+        return Collections.unmodifiableMap(links);
     }
 
     /** Incremented on every maze teleport handled - lets the auto react once per teleport. */
@@ -148,17 +155,46 @@ public final class TeleportMazeSolverFeature {
             return;
         }
         float yaw = packet.change().yRot();
-        AABB landing = new AABB(pos.x, pos.y, pos.z, pos.x + 1, pos.y + 1, pos.z + 1).inflate(1.0, 0.0, 1.0);
+        // The landing's own block, a quarter block either way. QUOI's box started AT the landing (x.5) and ran one
+        // block on, inflated by one: x-0.5 .. x+2.5 of the pad's block - which takes in the pad two blocks over in +x
+        // or +z. The maze has eleven such pairs, every one across a wall into the next chamber ((4,12)/(4,14),
+        // (10,20)/(10,22), ...), so landing on one marked its neighbour visited too and reported the wrong landing
+        // pad. 93-solve-teleportmaze-budget (2026-10-06): a landing on (4,12) logged as (4,14), and the auto then
+        // went round between two chambers following a link it had learnt wrong.
+        AABB landing = new AABB(pos.x - 0.5, pos.y, pos.z - 0.5, pos.x + 0.5, pos.y + 1, pos.z + 0.5)
+                .inflate(0.25, 0.0, 0.25);
         AABB playerBox = client.player.getBoundingBox().inflate(1.0, 0.0, 1.0);
+        BlockPos from = null;
+        BlockPos to = null;
         for (BlockPos pad : tpPads) {
             AABB padBox = new AABB(pad);
-            if (landing.intersects(padBox) || playerBox.intersects(padBox)) {
+            boolean landed = landing.intersects(padBox);
+            boolean stood = playerBox.intersects(padBox);
+            if (landed || stood) {
                 visited.add(pad);
             }
+            if (landed && to == null) {
+                to = pad;
+            }
+            if (stood && !landed && from == null) {
+                from = pad;
+            }
+        }
+        // The pad he stepped on and the pad it put him on: one link of the maze, learnt. Every link is two-way (the
+        // pad you land on takes you back), so the way back is assumed until a teleport says otherwise.
+        if (from != null && to != null) {
+            links.put(from, to);
+            links.putIfAbsent(to, from);
         }
         getCorrectPortals(client, pos, yaw, packet.change().xRot());
         best = getBestPad(pos, yaw);
         teleportSeq++;
+        com.killer560.hub.util.ModLog.get("killer560smod-puzzles").info(
+                "[TeleportMaze] teleport {}: {} -> {}, yaw {} pitch {}, {} exit candidate(s){}", teleportSeq,
+                from == null ? "?" : from.toShortString(), to == null ? "?" : to.toShortString(),
+                String.format(java.util.Locale.US, "%.1f", yaw), String.format(java.util.Locale.US, "%.1f",
+                        packet.change().xRot()), correctPortals.size(),
+                correctPortals.size() == 1 ? " " + correctPortals.iterator().next().toShortString() : "");
     }
 
     private static void getCorrectPortals(Minecraft client, Vec3 pos, float yaw, float pitch) {
@@ -173,7 +209,12 @@ public final class TeleportMazeSolverFeature {
             }
             AABB column = new AABB(it.getX(), it.getY(), it.getZ(), it.getX() + 1.0, it.getY() + 4.0, it.getZ() + 1.0)
                     .inflate(0.75, 0.0, 0.75);
-            if (isXZInterceptable(column, 32.0, pos, yaw, pitch) && !new AABB(it).inflate(0.5, 0.0, 0.5).intersects(playerBox)) {
+            // PITCH 0: the test is a horizontal one, and the room is up to 31 blocks across. With the landing's pitch
+            // the 32-block ray shrinks by cos(pitch) - looking down at the pad he walked to (40-60 degrees) it stopped
+            // 16-24 blocks out, short of a far exit pad, which then dropped out of the candidates for good and the
+            // solver never named it (2026-10-06, 93-solve-teleportmaze-budget: in the exit's chamber the auto took
+            // another pad). Every pad is at the same height, so nothing is lost by levelling it.
+            if (isXZInterceptable(column, 32.0, pos, yaw, 0f) &&!new AABB(it).inflate(0.5, 0.0, 0.5).intersects(playerBox)) {
                 next.add(it);
             }
         }
@@ -315,6 +356,7 @@ public final class TeleportMazeSolverFeature {
     private static void reset() {
         correctPortals = new LinkedHashSet<>();
         visited.clear();
+        links.clear();
         best = null;
     }
 }

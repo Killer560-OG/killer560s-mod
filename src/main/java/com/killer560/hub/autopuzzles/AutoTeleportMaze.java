@@ -22,9 +22,9 @@ import com.killer560.hub.compat.McCompat;
 /**
  * Auto Teleport Maze - port of QUOI {@code TeleportMazeSolver.kt}'s {@code auto}, which IS movement automation: once
  * the first maze teleport has happened (you step on the start pad yourself), one tick after every maze teleport it
- * picks the pad to use in the current cell (QUOI {@code getPad}: the solver's best pad if unvisited, else the single
- * remaining candidate if it's in this cell, else an unvisited pad diagonal to the current one, else the farthest
- * unvisited), turns the camera to face that pad's centre and holds the forward key until the next teleport. Nothing
+ * picks the pad to use in the current cell ({@link MazeRoute} since 2026-10-06: the exit pad, or a way to it over links
+ * already taken, else QUOI's exploring order - best, unvisited diagonal, farthest - else a known way to a chamber with
+ * a pad still untried), turns the camera to face that pad's centre and holds the forward key until the next teleport. Nothing
  * beyond QUOI: no pathing, jumping or strafing. Stops when a screen opens, when there is no pad to go to (the end),
  * when you leave the room, and (safety addition) after 3 seconds of walking without a teleport.
  * <p>
@@ -201,7 +201,8 @@ final class AutoTeleportMaze {
             pendingTicks = -1;
             BlockPos target = getPad(player.position());
             if (target != null) {
-                startWalk(client, player, target, "pad " + AutoPuzzleUtil.fmt(target));
+                startWalk(client, player, target, "pad " + AutoPuzzleUtil.fmt(target) + " (" + padReason + ", hop "
+                        + hops + ")");
             } else {
                 stop(client);
                 if (isAtEndPad(player.position())) {
@@ -592,60 +593,70 @@ final class AutoTeleportMaze {
         return false;
     }
 
+    /** Why the last {@link #getPad} chose its pad, for the walking line. */
+    private static String padReason = "";
+
+    /**
+     * The next pad, from {@link MazeRoute} over what this visit has learnt (the solver's visited pads, exit candidates,
+     * best pad and the links its teleports showed). QUOI's own pick - best, unvisited diagonal, farthest, and once a
+     * chamber was used up "the diagonal again" - walked him BACK through the maze from any pad he had come back
+     * through, and on two generated floors of three never reached the middle (2026-10-06); see MazeRoute.
+     */
     private static BlockPos getPad(Vec3 pos) {
+        List<BlockPos> pads = new ArrayList<>(TeleportMazeSolverFeature.getTpPads());
         BlockPos currentPad = TeleportMazeSolverFeature.nearestPad(pos);
-        Set<BlockPos> currentCell = TeleportMazeSolverFeature.cellOf(currentPad);
-        if (currentCell == null) {
+        int current = pads.indexOf(currentPad);
+        if (current < 0) {
             return null;
         }
-        Set<BlockPos> visited = TeleportMazeSolverFeature.getVisited();
-        BlockPos best = TeleportMazeSolverFeature.getBest();
-        if (best != null && currentCell.contains(best) && !visited.contains(best)) {
-            return best;
+        int[][] xz = new int[pads.size()][];
+        int[] cellOf = new int[pads.size()];
+        java.util.Map<BlockPos, Integer> index = new java.util.HashMap<>();
+        for (int i = 0; i < pads.size(); i++) {
+            xz[i] = new int[]{pads.get(i).getX(), pads.get(i).getZ()};
+            index.put(pads.get(i), i);
+            cellOf[i] = -1;
         }
-        Set<BlockPos> correct = TeleportMazeSolverFeature.getCorrectPortals();
-        if (correct.size() == 1) {
-            BlockPos only = correct.iterator().next();
-            if (currentCell.contains(only)) {
-                return only;
+        List<Set<BlockPos>> cells = TeleportMazeSolverFeature.getRealCells();
+        for (int c = 0; c < cells.size(); c++) {
+            for (BlockPos p : cells.get(c)) {
+                Integer i = index.get(p);
+                if (i != null) {
+                    cellOf[i] = c;
+                }
             }
         }
-        List<BlockPos> unvisited = new ArrayList<>();
-        for (BlockPos p : currentCell) {
-            if (!visited.contains(p)) {
-                unvisited.add(p);
+        java.util.Map<Integer, Integer> links = new java.util.HashMap<>();
+        TeleportMazeSolverFeature.getLinks().forEach((from, to) -> {
+            Integer a = index.get(from);
+            Integer b = index.get(to);
+            if (a != null && b != null) {
+                links.put(a, b);
+            }
+        });
+        Set<Integer> visited = new java.util.HashSet<>();
+        for (BlockPos p : TeleportMazeSolverFeature.getVisited()) {
+            Integer i = index.get(p);
+            if (i != null) {
+                visited.add(i);
             }
         }
-        for (BlockPos p : unvisited) {
-            if (p.getX() != currentPad.getX() && p.getZ() != currentPad.getZ()) {
-                return p;
+        Set<Integer> candidates = new java.util.LinkedHashSet<>();
+        for (BlockPos p : TeleportMazeSolverFeature.getCorrectPortals()) {
+            Integer i = index.get(p);
+            if (i != null) {
+                candidates.add(i);
             }
         }
-        BlockPos farthest = null;
-        double bestDist = -1;
-        for (BlockPos p : unvisited) {
-            double d = pos.distanceToSqr(Vec3.atCenterOf(p));
-            if (d > bestDist) {
-                bestDist = d;
-                farthest = p;
-            }
+        BlockPos bestPos = TeleportMazeSolverFeature.getBest();
+        Integer best = bestPos == null ? null : index.get(bestPos);
+        MazeRoute.Choice choice = MazeRoute.choose(current, xz, cellOf, links, visited, candidates,
+                best == null ? -1 : best);
+        if (choice == null) {
+            return null;
         }
-        if (farthest != null) {
-            return farthest;
-        }
-        // EVERY PAD HERE IS VISITED - take the diagonal again rather than stop. 93-solve, 2026-10-04: the solver's
-        // "best" pad (nearest the line he faces after a teleport) twice sent him to a pad BESIDE the one he landed
-        // on, and seven teleports later he stood in a chamber whose four pads had all been used, "no pad to walk to",
-        // in the middle of the maze. The wiki's way through - the pad diagonal to the one you arrived on - always
-        // gets there (one closed loop through every chamber; docs/SIM.md "one closed loop"), visited or not.
-        for (BlockPos p : currentCell) {
-            if (p.getX() != currentPad.getX() && p.getZ() != currentPad.getZ()) {
-                LOGGER.info("[AutoPuzzles] TeleportMaze: every pad in this chamber is visited - taking the diagonal {}"
-                        + " again", AutoPuzzleUtil.fmt(p));
-                return p;
-            }
-        }
-        return null;
+        padReason = choice.reason();
+        return pads.get(choice.pad());
     }
 
     private static void stop(Minecraft client) {
