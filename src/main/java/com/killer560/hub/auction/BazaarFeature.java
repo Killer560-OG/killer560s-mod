@@ -4,6 +4,7 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.auction.screen.BazaarScreen;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -42,6 +43,9 @@ public final class BazaarFeature {
             // killer560 turned the override on; otherwise this sends the exact same "/bz" straight to
             // Hypixel, so a disabled/undecided player sees no behavior change at all. Same pattern as
             // AuctionHouseFeature's own "/ah" registration.
+            // With anything after it ("/bz rec", "/bz Recombobulator 3000") it is always Hypixel's own search,
+            // forwarded whole. Without this argument node, the client dispatcher rejected every such line with
+            // "Incorrect argument for command at position 3" and Hypixel never saw it (killer560, 2026-10-06).
             dispatcher.register(ClientCommands.literal("bz").executes(ctx -> {
                 if (shouldOverrideBz()) {
                     openDeferred();
@@ -49,12 +53,18 @@ public final class BazaarFeature {
                     forwardToServer("bz");
                 }
                 return 1;
-            }));
+            }).then(ClientCommands.argument("args", StringArgumentType.greedyString()).executes(ctx -> {
+                forwardToServer("bz " + StringArgumentType.getString(ctx, "args"));
+                return 1;
+            })));
             // Explicit bypass - real Hypixel /bz is always still reachable regardless of the override.
             dispatcher.register(ClientCommands.literal("hypixelbz").executes(ctx -> {
                 forwardToServer("bz");
                 return 1;
-            }));
+            }).then(ClientCommands.argument("args", StringArgumentType.greedyString()).executes(ctx -> {
+                forwardToServer("bz " + StringArgumentType.getString(ctx, "args"));
+                return 1;
+            })));
         });
     }
 

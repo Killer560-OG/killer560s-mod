@@ -6,6 +6,7 @@ import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -42,6 +43,9 @@ public final class AuctionHouseFeature {
             // Real Hypixel /ah - intercepted client-side only while both the browser is enabled AND
             // killer560 turned the override on; otherwise this sends the exact same "/ah" straight to
             // Hypixel, so a disabled/undecided player sees no behavior change at all.
+            // With anything after it ("/ah rec", "/ah Recombobulator 3000") it is always Hypixel's own search,
+            // forwarded whole. Without this argument node, the client dispatcher rejected every such line with
+            // "Incorrect argument for command at position 3" and Hypixel never saw it (killer560, 2026-10-06).
             dispatcher.register(ClientCommands.literal("ah").executes(ctx -> {
                 if (shouldOverrideAh()) {
                     openDeferred();
@@ -49,13 +53,19 @@ public final class AuctionHouseFeature {
                     forwardToServer("ah");
                 }
                 return 1;
-            }));
+            }).then(ClientCommands.argument("args", StringArgumentType.greedyString()).executes(ctx -> {
+                forwardToServer("ah " + StringArgumentType.getString(ctx, "args"));
+                return 1;
+            })));
             // Explicit bypass - "Hypixel's still reachable by an explicit command" - always the real menu
             // regardless of the override toggle.
             dispatcher.register(ClientCommands.literal("hypixelah").executes(ctx -> {
                 forwardToServer("ah");
                 return 1;
-            }));
+            }).then(ClientCommands.argument("args", StringArgumentType.greedyString()).executes(ctx -> {
+                forwardToServer("ah " + StringArgumentType.getString(ctx, "args"));
+                return 1;
+            })));
             // Self-registered alias, same pattern as ProfileViewerFeature's "/pv" + "/killer560pv" (no
             // edit to the big inline "/killer560 ..." tree needed for this one). The brief's literal
             // "/killer560 ah" (with the space) is a tiny patch to that existing tree instead - see this
