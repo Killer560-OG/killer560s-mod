@@ -209,6 +209,16 @@ public final class EtherwarpPathfinder {
         }
         WarpGraph graph = graphs.used;
         boolean warm = graph.warmDone() || graph.warmedOnce();
+        if (path == null) {
+            // The floor graph keeps one landing per 2x2 bucket, and its "no way" is a proof about THAT graph only: from
+            // a nook on Atlas's ledge (testkit 404-sim-planner-gaps) every chain of real warps to the room's centre passes
+            // a landing no bucket kept, so the graph proved no way and nothing else was asked. Ask every landing of the
+            // rooms he and the goal are in before giving up.
+            List<EtherSearch.Hop> fine = finePlan(level, grid, layout, from, to, start, goal, t0);
+            if (fine != null) {
+                return toNodes(fine);
+            }
+        }
         long end = System.nanoTime();
         if (exactWanted && tile6 < 0 && path != null && graph.endedNear) {
             // The graph only lands NEAR the block (its 2x2 buckets can miss a ledge's own landings), or calls him
@@ -228,8 +238,9 @@ public final class EtherwarpPathfinder {
         // Not for an exact request: the graph's 2x2 buckets miss ledge landings, and "no way" from a ledge chest down
         // to the spot Auto Blaze shot from was wrong - the room-by-room planner had just walked him up it.
         if (path == null && graphs.provedNoWay && !exactWanted) {
-            // The warm graph proves nothing reaches it from here (a closed door, a sealed room); the room-by-room
-            // planner's landings are a subset of the graph's, so it would only spend its 670 ms failing too.
+            // The warm graph proves nothing reaches it from here (a closed door, a sealed room) - on ITS landings and
+            // aims; the fine room search above has already asked every landing of his and the goal's rooms. The
+            // room-by-room planner would only spend its 670 ms failing too.
             LOGGER.info("[Path] no way to {} {} from here on the floor graph ({} ms) - not trying room by room", kind,
                     to, ms(end - t0));
             return null;
@@ -276,6 +287,78 @@ public final class EtherwarpPathfinder {
         return toNodes(path);
     }
 
+    /** The fine room search's budget: it runs only when the floor graph found nothing. */
+    private static final long FINE_NANOS = 200_000_000L;
+    /** The fine room search never plans more warps than this (it is for a nook in a room, not a floor). */
+    private static final int FINE_MAX_WARPS = 8;
+
+    /**
+     * Planner thread. When the floor graph finds nothing: the same search over EVERY landing (bucket 1, every aim
+     * point for a partly hidden line, his own position included) of only the room he stands in and the goal's room, in
+     * a graph made for this one call - so it reads the world as it is now and holds nothing past it. Null when that
+     * finds nothing either (a sealed pocket, a crack between two rooms' walls) or runs out of its budget.
+     */
+    private static List<EtherSearch.Hop> finePlan(Level level, LevelEtherGrid grid, DungeonLayout layout, Vec3 from,
+                                                  BlockPos to, EtherSearch.Hop start, WarpGraph.Goal goal, long t0) {
+        WarpGraph.LandingRule base = graphRule;
+        if (base == null || layout == null) {
+            return null;
+        }
+        long f0 = System.nanoTime();
+        int startRoom = layout.roomAtWorld(from.x, from.z);
+        int goalRoom = layout.roomAtWorld(to.getX() + 0.5, to.getZ() + 0.5);
+        if (startRoom < 0 || goalRoom < 0 || (startRoom != goalRoom && !openNeighbours(layout, startRoom, goalRoom))) {
+            // Two rooms with no open door between them: every landing of the pair cannot join them, and the search
+            // would only spend its whole budget saying so (testkit 95: a click into a room behind a locked door).
+            return null;
+        }
+        WarpGraph.LandingRule rule = (g, x, y, z) -> {
+            int r = layout.roomAtWorld(x + 0.5, z + 0.5);
+            return (r == startRoom || r == goalRoom) && base.ok(g, x, y, z);
+        };
+        WarpGraph fine = new WarpGraph(graphRange, STAND_OFFSET, 1, rule, graphFloor - 20, graphFloor + 45);
+        fine.partialFrom = 0.0;
+        fine.startPartialFrom = 0.0;
+        fine.setExtraAimPoints(true);
+        fine.setTiles(graphTiles);
+        List<EtherSearch.Hop> path = fine.plan(grid, start, goal, f0 + FINE_NANOS, FINE_MAX_WARPS);
+        long end = System.nanoTime();
+        if (path == null || path.isEmpty()) {
+            LOGGER.info("[Path] the fine room search found nothing either ({} ms, {} landing(s) worked out, {} ray(s){})",
+                    ms(end - f0), fine.nodeCount(), fine.rays, fine.timedOut ? ", out of time" : "");
+            return null;
+        }
+        LOGGER.info("[Path] the floor graph found no way to {}; the fine room search (rooms {} and {}) found {} warp(s){} in"
+                        + " {} ms ({} landing(s) worked out, {} ray(s)), total {} ms{}", to, startRoom, goalRoom,
+                path.size(), fine.endedNear ? " (near)" : "", ms(end - f0), fine.nodeCount(), fine.rays, ms(end - t0),
+                fine.fragileLeft ? "; ONE STILL FRAGILE" : "");
+        return path;
+    }
+
+    /** Whether a tile of room {@code a} and a tile of room {@code b} meet across a door cell that is not locked. */
+    private static boolean openNeighbours(DungeonLayout layout, int a, int b) {
+        int g = DungeonLayout.GRID;
+        for (int t : layout.tiles(a)) {
+            int tx = t % g;
+            int tz = t / g;
+            int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+            for (int[] d : dirs) {
+                int dx = tx + d[0];
+                int dz = tz + d[1];
+                int fx = tx + 2 * d[0];
+                int fz = tz + 2 * d[1];
+                if (fx < 0 || fz < 0 || fx >= g || fz >= g) {
+                    continue;
+                }
+                int door = dz * g + dx;
+                if (layout.roomOfCell(fz * g + fx) == b && layout.isDoor(door) && !layout.isLocked(door)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /**
      * Rooms an etherwarp cannot be used FROM: the rooms {@link AutoClearUtils#canPath} refuses to start in (QUOI's
      * rule: a maze, Boulder, a trap), which the sim enforces too (SimAbilities: traps, Teleport Maze, Boulder). A
@@ -309,6 +392,9 @@ public final class EtherwarpPathfinder {
     private static volatile double graphRange;
     private static boolean graphSim;
     private static int graphYOffset;
+    /** The floor graph's landing rule and floor height, for the fine room search (finePlan). Planner thread. */
+    private static WarpGraph.LandingRule graphRule;
+    private static int graphFloor;
 
     /** The 6x6 room tiles, each one's click region being etherwarpableInTile's first band. */
     private static final class FloorTiles implements WarpGraph.Tiles {
@@ -384,6 +470,8 @@ public final class EtherwarpPathfinder {
             int topY = level.getMaxY();
             WarpGraph.LandingRule rule = (g, x, y, z) -> x >= minX && x <= maxX && z >= minZ && z <= maxZ
                     && covered(g, x, y, z, floor, topY);
+            graphRule = rule;
+            graphFloor = floor;
             WarpGraph made = new WarpGraph(range, STAND_OFFSET, BUCKET, rule, floor - 20, floor + 45);
             FloorTiles tiles = new FloorTiles(first.getX(), first.getZ(), floor);
             made.setTiles(tiles);

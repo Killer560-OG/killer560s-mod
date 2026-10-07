@@ -293,7 +293,7 @@ public final class EtherSearch {
         if (cx * cx + cy * cy + cz * cz > (range + 1) * (range + 1)) {
             return false;
         }
-        for (double[] o : AIM_POINTS) {
+        for (double[] o : extraPoints ? AIM_ALL : AIM_POINTS) {
             double tx = bx + o[0];
             double ty = by + o[1];
             double tz = bz + o[2];
@@ -386,10 +386,33 @@ public final class EtherSearch {
             {0.23, 0.97, 0.62}, {0.77, 0.97, 0.38}, {0.62, 0.97, 0.23}, {0.38, 0.97, 0.77}
     };
 
+    /**
+     * With this, {@link #aim} and {@link #aimPast} try {@link #AIM_ALL} rather than only the face points. Set for the
+     * planner's fine room search (EtherwarpPathfinder.finePlan) and nothing else: on the floor graph the extra points
+     * changed none of 7,354 plans of the 404-sim-planner-sweep, so the warm-up does not pay for them.
+     */
+    public boolean extraPoints;
+
+    /**
+     * What {@link #aim} and {@link #aimPast} try with {@link #extraPoints}, in order: the face points, then the
+     * off-lattice top points. A landing
+     * past a lip, steeply below him, can be seen only between the face points: from a ledge on Atlas (testkit
+     * 404-sim-planner-gaps) the hop to a stair 5 blocks down had no face point clear of the ledge's corner while two of
+     * these were, so the graph had no such edge and the planner proved "no way" to a block three warps off. The real
+     * hop is still cast for every one, so nothing is planned that does not land.
+     */
+    private static final double[][] AIM_ALL = concat(AIM_POINTS, FIRM_POINTS);
+
+    private static double[][] concat(double[][] a, double[][] b) {
+        double[][] out = Arrays.copyOf(a, a.length + b.length);
+        System.arraycopy(b, 0, out, a.length, b.length);
+        return out;
+    }
+
     // Blocks already seen to stop a line toward the block {@link #aimPast} is aiming at.
-    private final int[] blockX = new int[18];
-    private final int[] blockY = new int[18];
-    private final int[] blockZ = new int[18];
+    private final int[] blockX = new int[26];
+    private final int[] blockY = new int[26];
+    private final int[] blockZ = new int[26];
 
     /**
      * {@link #aim}, same aim points in the same order and the same answer, but an aim point whose straight line
@@ -414,7 +437,7 @@ public final class EtherSearch {
             blockZ[0] = knownZ;
             nb = 1;
         }
-        for (double[] o : AIM_POINTS) {
+        for (double[] o : extraPoints ? AIM_ALL : AIM_POINTS) {
             double tx = bx + o[0];
             double ty = by + o[1];
             double tz = bz + o[2];

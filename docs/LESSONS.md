@@ -181,6 +181,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   the room the room-by-room planner had just walked him up (2026-10-06). When the block itself matters, use
   `ClearExecutor.etherPathExact` (room by room before a near landing or a graph "no way"), and filter goals with
   `EtherwarpPathfinder.isEtherwarpable`: a carpet-topped spot he stood on is not one, and the planner searches nothing.
+  The graph's "proof of no way" is only about its own landings and aims: from Atlas's ledge it proved no way to a block
+  three warps off, because the hop down past the ledge's lip clears it only between the 18 face aim points (testkit
+  404-sim-planner-gaps, 2026-10-07). On any graph "no way" `EtherwarpPathfinder.finePlan` now searches every landing of
+  his and the goal's rooms with the off-lattice points too (~30 ms, at most 200). Judge a "no way" against real casts
+  (404's ground truth) before calling it a planner bug: 131's two "no way by a wall" spots were a one-block floor in the
+  open seam between two rooms' walls, sealed except to the roof - correct answers (404-sim-planner-cracks).
 - `ClearExecutor.isActive()` goes false two ticks after the last hop is SENT (`compDelay`), before its landing comes back,
   so anything asking "is the Interactive Map moving him?" at the landing must use `isBusy()` (true through the arrival
   sync), and read it when the position packet arrives. The insta-clear recorder used `isActive` on the next tick and
