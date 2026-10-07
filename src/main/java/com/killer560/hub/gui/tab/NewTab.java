@@ -78,7 +78,6 @@ public class NewTab extends FolderTab {
                 new InteropTab(),
                 new I4SensorsTab(),
                 new LiveMapTab(),
-                new AutoCloseChestTab(),
                 new BloodCampTab(),
                 new ThornTab(),
                 new F7SpotsTab(),
@@ -138,6 +137,11 @@ public class NewTab extends FolderTab {
             tabs.add(new AutoClearTab());
             // Auto Trap (killer560, 2026-10-06): his trap-room routes, next to the Auto Clear tab.
             tabs.add(new AutoTrapTab());
+            // Auto Blood Camp (killer560, 2026-10-07: "make auto blood camp its own cheat tab"): Blood Camp's Trigger
+            // Bot and Aura, out of the legit Blood Camp tab; Auto Close Chest beside it ("auto close chest should be
+            // in a cheat only version"), which used to sit in the legit list above.
+            tabs.add(new AutoBloodCampTab());
+            tabs.add(new AutoCloseChestTab());
             tabs.add(new Ap3Tab());
             tabs.add(new FreezeStateTab());
             // Split out of the old "Dungeon Extras" tab 2026-09-20 (killer560: "remove that tab. Make a

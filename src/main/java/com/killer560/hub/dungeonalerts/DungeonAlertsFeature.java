@@ -127,7 +127,7 @@ public final class DungeonAlertsFeature {
     }
 
     /** Local UI sound, same call Odin's {@code playSoundAtPlayer} / Essential's {@code USound.playSoundStatic} make. */
-    static void playSound(SoundEvent sound, float volume, float pitch) {
+    public static void playSound(SoundEvent sound, float volume, float pitch) {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> client.getSoundManager().play(SimpleSoundInstance.forUI(sound, pitch, volume)));
     }

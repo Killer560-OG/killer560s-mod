@@ -261,6 +261,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   three now also reset when `LiveMapFeature.resetGeneration()` changes (world change, dungeon entered, sim floor published).
   99-sim-aura-rebuild rebuilds Museum three times in one world and fails on 5008e4d6.
 
+- Blood Camp's prediction is NoammAddons' (killer560 asked for it, 2026-10-07), including a Kotlin quirk: Noamm sums
+  `packet.xa / 4096` with a Short and an Int, which is INTEGER division, so a blood mob's sub-block step adds nothing and the
+  trip starts at the skull's spot in the wall. Ours divided by 4096.0, started one packet out of the wall, and landed the
+  predicted spot one step (0.215 blocks in test 392) too far along. Keep the integer division; it is the model, not a typo.
+
 ## Compiling (moved from CLAUDE.md 2026-10-05 to keep it under 300 lines)
 
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** A cloud session

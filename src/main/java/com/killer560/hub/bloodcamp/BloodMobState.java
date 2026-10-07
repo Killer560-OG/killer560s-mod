@@ -22,6 +22,11 @@ final class BloodMobState {
      *  being looked at after the click - killer560's own explicit request ("make sure it only clicks once
      *  not twice or any more than once"). */
     boolean triggerBotClicked = false;
+    /** Countdown sounds: each fires once per trip (see {@code BloodCampFeature#tickSounds}). */
+    boolean startSoundDone = false;
+    boolean killSoundDone = false;
+    /** The exact position the trip's first move packet gave the stand (testkit comparison only). */
+    Vec3 firstPacketExact;
 
     BloodMobState(Vec3 startVec, long startedAtTick, boolean firstSpawn) {
         restart(startVec, startedAtTick, firstSpawn);
@@ -38,5 +43,7 @@ final class BloodMobState {
         this.deltaHistory.clear();
         this.endVector = null;
         this.triggerBotClicked = false;
+        this.startSoundDone = false;
+        this.killSoundDone = false;
     }
 }

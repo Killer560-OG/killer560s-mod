@@ -131,18 +131,25 @@ public final class BloodCampFeature {
     /** Entity scan for the Watcher runs at 1 Hz, and only while one has not been found yet. */
     private static final int WATCHER_SCAN_INTERVAL_TICKS = 20;
 
+    /** One sound of a kind per this many ticks: a wave settling over two or three ticks is one sound. */
+    private static final long SOUND_MIN_GAP_TICKS = 4L;
+    /** A kill moment more than this far in the past when first seen is not announced. */
+    private static final double SOUND_STALE_TICKS = 10.0;
+    private static long lastStartSoundTick = Long.MIN_VALUE / 2;
+    private static long lastKillSoundTick = Long.MIN_VALUE / 2;
+    private static int countdownStartSoundsPlayed;
+    private static int killSoundsPlayed;
+
     private static Integer watcherEntityId;
     private static final Map<ArmorStand, BloodMobState> bloodMobs = new HashMap<>();
     private static Object lastLevel = null;
     private static int watcherScanCounter = 0;
-    /** Reused every frame by the Spawn Line render (see {@link #onWorldRender}) so drawing it never
-     *  allocates a new List - only its two elements are overwritten, never the List itself. */
-    private static final List<Vec3> SPAWN_LINE_POINTS = new ArrayList<>(List.of(Vec3.ZERO, Vec3.ZERO));
 
     private BloodCampFeature() {
     }
 
     public static void register() {
+        WorldRenderUtils.initThroughWalls();
         BloodCampMoveTimer.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("BloodCampFeature", client -> tick()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BloodCampFeature::onWorldRender);
@@ -240,10 +247,15 @@ public final class BloodCampFeature {
             return;
         }
 
+        // NoammAddons' model, exactly (killer560, 2026-10-07: "nearly identical to noamm's in look and function").
+        // Its sum is Short / 4096 in Kotlin - INTEGER division - so a blood mob's sub-block step adds nothing and the
+        // sample is the stand's position BEFORE this packet moves it (this hook runs ahead of the vanilla handler).
+        // The trip therefore starts at the skull's spot in the wall, not one step out of it; this used to add the
+        // exact step (/ 4096.0), which put the start, and so the predicted landing spot, one step too far along.
         Vec3 packetVec = new Vec3(
-                entity.getX() + packet.getXa() / 4096.0,
-                entity.getY() + packet.getYa() / 4096.0,
-                entity.getZ() + packet.getZa() / 4096.0
+                entity.getX() + packet.getXa() / 4096,
+                entity.getY() + packet.getYa() / 4096,
+                entity.getZ() + packet.getZa() / 4096
         );
 
         long nowTick = client.level != null ? client.level.getGameTime() : 0L;
@@ -261,6 +273,13 @@ public final class BloodCampFeature {
             // the countdown origin and the accumulated delta history all stayed on trip #1 forever, which left
             // every later wave with a stale box and a countdown permanently in the past.
             data.restart(packetVec, nowTick, firstSpawn);
+            data.firstPacketExact = null;
+        }
+        if (data.firstPacketExact == null) {
+            // Where the trip's first packet actually put the stand - only for the testkit, which measures the old
+            // start (this point) against the new one (startVec, the wall spot) on the same movement.
+            data.firstPacketExact = new Vec3(entity.getX() + packet.getXa() / 4096.0,
+                    entity.getY() + packet.getYa() / 4096.0, entity.getZ() + packet.getZa() / 4096.0);
         }
         data.lastMoveTick = nowTick;
 
@@ -321,6 +340,9 @@ public final class BloodCampFeature {
             bloodMobs.clear();
             watcherEntityId = null;
             BloodCampMoveTimer.reset();
+            // a new level's game time can be behind the old one's; never let that hold a sound off
+            lastStartSoundTick = Long.MIN_VALUE / 2;
+            lastKillSoundTick = Long.MIN_VALUE / 2;
         }
         if (!isActive()) {
             if (!bloodMobs.isEmpty() || watcherEntityId != null) {
@@ -341,6 +363,8 @@ public final class BloodCampFeature {
         if (watcherEntityId == null) {
             scanForWatcher(client);
         }
+
+        tickSounds(cfg, client.level.getGameTime(), pingMs(client));
 
         Vec3 auraTarget = null;
         // killer560 (2026-09-20): "if I have two levers in my range at once ... have it only pick one and then the
@@ -422,6 +446,59 @@ public final class BloodCampFeature {
         if (cfg.isAuraEnabled() && auraTarget != null) {
             lookTowardsSafely(client, auraTarget);
         }
+    }
+
+    /**
+     * Countdown sounds (killer560, 2026-10-07: "make the kill timer for blood mobs also make a sound once it starts
+     * counting down and as you need to kill"). Legit, both builds. A mob's countdown STARTS the first tick its landing
+     * box exists ({@code endVector} set by its first move packet), and it is KILLABLE the tick {@link #killable} says
+     * so - your ping exceeds the time left, the same instant the box turns green. Each mob sounds each event once per trip; every mob that
+     * reaches an event on the same tick shares ONE sound, and a sound of the same kind is held off for
+     * {@link #SOUND_MIN_GAP_TICKS} after the last one, so a wave settling over a couple of ticks is one sound, not a
+     * burst. A kill moment that is already stale (Blood Camp switched on mid-countdown) is marked without a sound.
+     */
+    private static void tickSounds(BloodCampConfig cfg, long nowTick, int pingMs) {
+        boolean start = false;
+        boolean kill = false;
+        for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
+            BloodMobState data = entry.getValue();
+            if (data.endVector == null || entry.getKey().isRemoved()) {
+                continue;
+            }
+            double remaining = remainingTicks(data, nowTick);
+            if (!data.startSoundDone) {
+                data.startSoundDone = true;
+                start |= remaining > 0;
+            }
+            if (!data.killSoundDone && killable(remaining, pingMs)) {
+                data.killSoundDone = true;
+                kill |= remaining > -SOUND_STALE_TICKS;
+            }
+        }
+        float volume = cfg.getSoundVolume();
+        if (kill && cfg.isKillSound() && volume > 0f && nowTick - lastKillSoundTick >= SOUND_MIN_GAP_TICKS) {
+            lastKillSoundTick = nowTick;
+            killSoundsPlayed++;
+            com.killer560.hub.dungeonalerts.DungeonAlertsFeature.playSound(
+                    com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(cfg.getKillSoundId()).sound(), volume, 1.0f);
+        }
+        if (start && cfg.isCountdownStartSound() && volume > 0f
+                && nowTick - lastStartSoundTick >= SOUND_MIN_GAP_TICKS) {
+            lastStartSoundTick = nowTick;
+            countdownStartSoundsPlayed++;
+            com.killer560.hub.dungeonalerts.DungeonAlertsFeature.playSound(
+                    com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(cfg.getCountdownStartSoundId()).sound(),
+                    volume, 1.0f);
+        }
+    }
+
+    /** How many Countdown Start / Kill sounds actually played (the testkit reads these; its client is muted). */
+    public static int countdownStartSoundsPlayed() {
+        return countdownStartSoundsPlayed;
+    }
+
+    public static int killSoundsPlayed() {
+        return killSoundsPlayed;
     }
 
     /** Fallback Watcher detection - see the call site for why the equipment packet alone is not enough. */
@@ -563,72 +640,125 @@ public final class BloodCampFeature {
     private static void onWorldRender(LevelRenderContext context) {
         BloodCampConfig cfg = BloodCampConfig.getInstance();
         if (!cfg.isEnabled() || !cfg.isShowOverlay() || !isActive()) {
+            if (!LAST_FRAME.isEmpty()) {
+                LAST_FRAME.clear();
+            }
             return;
         }
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || client.level == null) {
             return;
         }
-        for (BloodMobState data : bloodMobs.values()) {
+        // The look of NoammAddons' Blood Camp helper (killer560, 2026-10-07: "nearly identical to noamm's in look and
+        // function - I don't quite like how ours looks"), reimplemented: per mob, a 1x1x1 OUTLINE box (2.5 px, no
+        // fill) from 1.5 to 2.5 above the predicted landing spot, magenta, turning green once your ping exceeds the
+        // time left; a cyan 2 px line from the stand's INTERPOLATED position + 2 (the skull in the wall, every frame,
+        // not the last tick's spot) to the landing spot + 2; and the time left, white with a shadow, 0.05 per pixel
+        // (Timer Text Scale 2 x 0.025), centred on the landing spot + 2 and hanging down from it. All of it draws
+        // through walls, from the first move packet until the stand is removed. Spawn Line and its width, Timer Text
+        // Scale and Show Overlay still switch their part.
+        float partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        int pingMs = pingMs(client);
+        long now = client.level.getGameTime();
+        List<double[]> frame = new ArrayList<>();
+        for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
+            BloodMobState data = entry.getValue();
             if (data.endVector == null) {
                 continue;
             }
             Vec3 end = data.endVector;
-            AABB box = new AABB(end.x - 0.5, end.y + 1.0, end.z - 0.5, end.x + 0.5, end.y + 2.0, end.z + 0.5);
-            double remainingTicks = remainingTicks(data, client.level.getGameTime());
-            int color = remainingTicks <= 0 ? 0xFF55FF55 : 0xFFFF55FF;
+            AABB box = new AABB(end.x - 0.5, end.y + 1.5, end.z - 0.5, end.x + 0.5, end.y + 2.5, end.z + 0.5);
+            double remainingTicks = remainingTicks(data, now);
+            boolean killable = killable(remainingTicks, pingMs);
+            int color = killable ? BOX_COLOR_KILLABLE : BOX_COLOR;
             float[] rgba = WorldRenderUtils.argbToFloats(color);
-            WorldRenderUtils.renderOutlineBox(context, box, rgba[0], rgba[1], rgba[2], 1f, 2f);
-            // killer560: "it is from the wall spot to where it is going to spawn." Only while still in
-            // flight - the same "gap since the last move packet" signal onMoveEntity uses to know a trip
-            // ended (RESETTLE_GAP_TICKS); once settled, or once the entity is removed (bloodMobs simply
-            // drops it - see onRemoveEntities), the line stops being drawn on the very next frame. Same
-            // colour as the box, through the same depth-tested line type it already uses, so it reads
-            // through walls exactly when the box does - no separate "through walls" setting needed.
-            if (cfg.isSpawnLine() && client.level.getGameTime() - data.lastMoveTick < RESETTLE_GAP_TICKS) {
-                // killer560, 2026-09-27: "the overlay line is not to the box like it should be." The line used
-                // to end at raw `end`, which is ground level (y+0) - the box drawn above sits a full block
-                // higher, from y+1.0 to y+2.0, so the line always stopped short of it. Ending on the box's
-                // own vertical middle (same y+1.5 renderTimerText already anchors on, "the box's own vertical
-                // middle") makes it actually meet the box instead of the ground underneath it. startVec is a
-                // real world position (the wall spot), not the player - WorldRenderUtils.tracerOrigin() is for
-                // a player-anchored tracer's START and doesn't apply here.
-                SPAWN_LINE_POINTS.set(0, data.startVec);
-                SPAWN_LINE_POINTS.set(1, new Vec3(end.x, end.y + 1.5, end.z));
-                WorldRenderUtils.renderLineStrip(context, SPAWN_LINE_POINTS, rgba[0], rgba[1], rgba[2], 1f,
-                        cfg.getSpawnLineWidth());
+            WorldRenderUtils.renderOutlineBoxes(context, new AABB[]{box}, rgba, 1, BOX_LINE_WIDTH, true);
+            Vec3 lineStart = null;
+            Vec3 lineEnd = new Vec3(end.x, end.y + 2.0, end.z);
+            if (cfg.isSpawnLine()) {
+                lineStart = entry.getKey().getPosition(partial).add(0.0, 2.0, 0.0);
+                float[] line = WorldRenderUtils.argbToFloats(LINE_COLOR);
+                WorldRenderUtils.renderLine(context, lineStart, lineEnd, line[0], line[1], line[2], 1f,
+                        cfg.getSpawnLineWidth(), true);
             }
-            // Box's own vertical middle ((minY + maxY) / 2 = end.y + 1.5), not a fixed offset above it -
-            // killer560: "the timer on each box should be bigger and in the middle of the drawn box."
-            renderTimerText(context, end.x, end.y + 1.5, end.z, remainingTicks / 20.0);
+            String text = timerText(remainingTicks);
+            renderTimerText(context, end.x, end.y + 2.0, end.z, text);
+            frame.add(new double[]{
+                    lineStart == null ? Double.NaN : lineStart.x, lineStart == null ? Double.NaN : lineStart.y,
+                    lineStart == null ? Double.NaN : lineStart.z, lineEnd.x, lineEnd.y, lineEnd.z,
+                    box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ, color, remainingTicks,
+                    entry.getKey().getId()});
+        }
+        LAST_FRAME.clear();
+        LAST_FRAME.addAll(frame);
+        LAST_FRAME_TEXT.clear();
+        for (double[] f : frame) {
+            LAST_FRAME_TEXT.add(timerText(f[13]));
         }
     }
 
-    private static void renderTimerText(LevelRenderContext context, double worldX, double worldY, double worldZ, double seconds) {
+    /** Noamm's box colour (255, 0, 255), and its invert once the mob is due within your ping. */
+    static final int BOX_COLOR = 0xFFFF00FF;
+    static final int BOX_COLOR_KILLABLE = 0xFF00FF00;
+    /** Noamm's line colour, {@code Color.CYAN}. */
+    static final int LINE_COLOR = 0xFF00FFFF;
+    /** Noamm's {@code renderBoxBounds} default line width. */
+    static final float BOX_LINE_WIDTH = 2.5f;
+
+    /** What the last frame drew, one row per mob: line start xyz (NaN with Spawn Line off), line end xyz, box
+     *  min xyz, box max xyz, ARGB colour, ticks left, stand entity id. For the testkit; rebuilt every frame. */
+    private static final List<double[]> LAST_FRAME = new ArrayList<>();
+    private static final List<String> LAST_FRAME_TEXT = new ArrayList<>();
+
+    public static List<double[]> lastFrame() {
+        return new ArrayList<>(LAST_FRAME);
+    }
+
+    public static List<String> lastFrameText() {
+        return new ArrayList<>(LAST_FRAME_TEXT);
+    }
+
+    /** "Kill now": your ping in ms is more than the time left (Noamm's colour flip). With no ping known, at zero. */
+    static boolean killable(double remainingTicks, int pingMs) {
+        return pingMs > remainingTicks * 50.0;
+    }
+
+    /** Tab-list round trip for the local player, ms; 0 when unknown. */
+    private static int pingMs(Minecraft client) {
+        if (client.getConnection() == null || client.player == null) {
+            return 0;
+        }
+        PlayerInfo info = client.getConnection().getPlayerInfo(client.player.getUUID());
+        return info == null ? 0 : Math.max(0, info.getLatency());
+    }
+
+    /** Noamm's label: the seconds left WITHOUT the +0.8-tick fudge the countdown carries, rounded half-up to one
+     *  decimal, no unit ("1.9", "-0.3"). */
+    static String timerText(double remainingTicks) {
+        double seconds = (remainingTicks - 0.8) / 20.0;
+        double rounded = Math.round(seconds * 10.0) / 10.0;
+        return String.format(Locale.US, "%.1f", rounded);
+    }
+
+    private static void renderTimerText(LevelRenderContext context, double worldX, double worldY, double worldZ, String text) {
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
         Vec3 cam = McRender.cameraPos(context);
-        String text = String.format(Locale.US, "%.1fs", seconds);
-        // killer560: "the timer on each box should be bigger" - Timer Text Scale (default 2x) on top of
-        // the base 0.02f every other world-space label in this mod uses.
-        float scale = 0.02f * BloodCampConfig.getInstance().getTimerTextScale();
+        // Noamm draws at scale 2 x 0.025; Timer Text Scale (default 2.0) is that multiplier.
+        float scale = 0.025f * BloodCampConfig.getInstance().getTimerTextScale();
 
         PoseStack poseStack = context.poseStack();
         poseStack.pushPose();
         poseStack.translate(worldX - cam.x, worldY - cam.y, worldZ - cam.z);
         poseStack.mulPose(McRender.cameraRotation(context));
-        // Real bug found and fixed (2026-09-14): scaled by (-s, -s, s), the pre-1.21.2 nametag transform.
-        // On 26.1.2 the camera quaternion is already flipped and vanilla's nametag renderer uses
-        // (+s, -s, +s); the extra -X mirror reversed the glyph quads' winding so the (culled) text
-        // pipelines back-face culled the timer 100% of the time. Same fix as SimonSaysFeature.renderNumber.
+        // (+s, -s, +s): the 26.1.2 nametag transform - see SimonSaysFeature.renderNumber for why not (-s, -s, s).
         poseStack.scale(scale, -scale, scale);
 
         float width = font.width(text);
-        int background = (int) (0.4f * 255f) << 24;
-        // -width/2 and -lineHeight/2 centre the text on its anchor point both ways; the anchor itself is
-        // now the box's own world-space middle (see the call site), so this is centred on the box - "and
-        // in the middle of the drawn box" - regardless of scale.
-        McRender.drawText(context, font, text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);
+        // Centred across, hanging DOWN from the anchor (y 0 is the top of the glyphs), with a shadow and no
+        // background plate, through walls - as Noamm's renderString draws it.
+        McRender.drawText(context, font, text, -width / 2f, 0f, 0xFFFFFFFF, true, poseStack,
+                Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
 
         poseStack.popPose();
     }

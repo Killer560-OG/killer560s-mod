@@ -29,8 +29,8 @@ public final class BloodCampConfig {
      *  is 150 ms = 3 ticks). */
     public static final int DEFAULT_KILL_POPUP_LEAD_TICKS = 3;
     public static final int MAX_KILL_POPUP_LEAD_TICKS = 20;
-    /** killer560: "the timer on each box should be bigger". Default is 2x the base 0.02f every world-space
-     *  label in this mod uses - "noticeably bigger", not just a nudge. */
+    /** killer560: "the timer on each box should be bigger". Multiplies a 0.025 base; the default 2.0 is
+     *  NoammAddons' own label scale (2 x 0.025), which his 2026-10-07 "like noamm's" request matches. */
     public static final float DEFAULT_TIMER_TEXT_SCALE = 2.0f;
     public static final float MIN_TIMER_TEXT_SCALE = 1.0f;
     public static final float MAX_TIMER_TEXT_SCALE = 4.0f;
@@ -38,6 +38,8 @@ public final class BloodCampConfig {
     public static final float DEFAULT_SPAWN_LINE_WIDTH = 2.0f;
     public static final float MIN_SPAWN_LINE_WIDTH = 1.0f;
     public static final float MAX_SPAWN_LINE_WIDTH = 10.0f;
+    /** Countdown Start Sound and Kill Sound volume, 0-1 (Secret Sound's default). */
+    public static final float DEFAULT_SOUND_VOLUME = 0.5f;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
@@ -59,6 +61,15 @@ public final class BloodCampConfig {
      *  first, not a standalone new feature. */
     private boolean spawnLine = true;
     private float spawnLineWidth = DEFAULT_SPAWN_LINE_WIDTH;
+    /** killer560, 2026-10-07: "make the kill timer for blood mobs also make a sound once it starts counting down
+     *  and as you need to kill". Both sounds default ON: he asked for them by name, and they only ever play once
+     *  Blood Camp itself is switched on, which is the opt-in step (same reasoning as Spawn Line above). */
+    private boolean countdownStartSound = true;
+    private boolean killSound = true;
+    /** Two different sounds by default so the ear can tell "a mob is on its way" from "hit it now". */
+    private String countdownStartSoundId = com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.PLING.name();
+    private String killSoundId = com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.ARROW_HIT.name();
+    private float soundVolume = DEFAULT_SOUND_VOLUME;
 
     private BloodCampConfig() {
     }
@@ -90,6 +101,11 @@ public final class BloodCampConfig {
             cfg.setTimerTextScale(ConfigJson.getFloat(obj, "timerTextScale", DEFAULT_TIMER_TEXT_SCALE));
             cfg.spawnLine = ConfigJson.getBool(obj, "spawnLine", true);
             cfg.setSpawnLineWidth(ConfigJson.getFloat(obj, "spawnLineWidth", DEFAULT_SPAWN_LINE_WIDTH));
+            cfg.countdownStartSound = ConfigJson.getBool(obj, "countdownStartSound", true);
+            cfg.killSound = ConfigJson.getBool(obj, "killSound", true);
+            cfg.setCountdownStartSoundId(ConfigJson.getString(obj, "countdownStartSoundId", cfg.countdownStartSoundId));
+            cfg.setKillSoundId(ConfigJson.getString(obj, "killSoundId", cfg.killSoundId));
+            cfg.setSoundVolume(ConfigJson.getFloat(obj, "soundVolume", DEFAULT_SOUND_VOLUME));
             instance = cfg;
         } catch (Exception e) {
             instance = new BloodCampConfig();
@@ -111,6 +127,11 @@ public final class BloodCampConfig {
             obj.addProperty("timerTextScale", timerTextScale);
             obj.addProperty("spawnLine", spawnLine);
             obj.addProperty("spawnLineWidth", spawnLineWidth);
+            obj.addProperty("countdownStartSound", countdownStartSound);
+            obj.addProperty("killSound", killSound);
+            obj.addProperty("countdownStartSoundId", countdownStartSoundId);
+            obj.addProperty("killSoundId", killSoundId);
+            obj.addProperty("soundVolume", soundVolume);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -245,5 +266,50 @@ public final class BloodCampConfig {
 
     public void setSpawnLineWidth(float spawnLineWidth) {
         this.spawnLineWidth = Math.max(MIN_SPAWN_LINE_WIDTH, Math.min(MAX_SPAWN_LINE_WIDTH, spawnLineWidth));
+    }
+
+    // ---- Blood mob countdown sounds (legit, both builds) ----
+
+    /** A sound when a blood mob's countdown starts (its landing box first appears). */
+    public boolean isCountdownStartSound() {
+        return countdownStartSound;
+    }
+
+    public void setCountdownStartSound(boolean countdownStartSound) {
+        this.countdownStartSound = countdownStartSound;
+    }
+
+    /** A sound the moment a blood mob's countdown reaches zero - it can be killed now. */
+    public boolean isKillSound() {
+        return killSound;
+    }
+
+    public void setKillSound(boolean killSound) {
+        this.killSound = killSound;
+    }
+
+    /** A {@link com.killer560.hub.dungeonalerts.SecretSound.SoundChoice} name. */
+    public String getCountdownStartSoundId() {
+        return countdownStartSoundId;
+    }
+
+    public void setCountdownStartSoundId(String id) {
+        this.countdownStartSoundId = com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(id).name();
+    }
+
+    public String getKillSoundId() {
+        return killSoundId;
+    }
+
+    public void setKillSoundId(String id) {
+        this.killSoundId = com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(id).name();
+    }
+
+    public float getSoundVolume() {
+        return soundVolume;
+    }
+
+    public void setSoundVolume(float soundVolume) {
+        this.soundVolume = Float.isNaN(soundVolume) ? DEFAULT_SOUND_VOLUME : Math.max(0f, Math.min(1f, soundVolume));
     }
 }

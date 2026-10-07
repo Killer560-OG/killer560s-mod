@@ -18,17 +18,21 @@ public abstract class AutoCloseChestMixin {
 
     @Inject(method = "handleOpenScreen", at = @At("HEAD"), cancellable = true)
     private void killer560smod$autoCloseSecretChest(ClientboundOpenScreenPacket packet, CallbackInfo ci) {
-        try {
-            if (AutoCloseChestFeature.shouldAutoClose(packet)) {
-                AutoCloseChestFeature.autoClose(packet);
-                ci.cancel();
+        // Cheat build only: the whole body sits inside the constant, so in a legit jar javac leaves this
+        // handler empty and the screen always opens.
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            try {
+                if (AutoCloseChestFeature.shouldAutoClose(packet)) {
+                    AutoCloseChestFeature.autoClose(packet);
+                    ci.cancel();
+                }
+            } catch (RuntimeException e) {
+                // An exception out of a clientbound packet hook does not just log: ClientCommonPacketListenerImpl
+                // .onPacketError disconnects the client with disconnect.packetError ("Network Protocol Error").
+                // Fail closed to a log line and let the screen open normally.
+                ModLog.get("killer560smod-autoclosechest")
+                        .error("[AutoCloseChest] openScreen packet hook threw", e);
             }
-        } catch (RuntimeException e) {
-            // An exception out of a clientbound packet hook does not just log: ClientCommonPacketListenerImpl
-            // .onPacketError disconnects the client with disconnect.packetError ("Network Protocol Error").
-            // Fail closed to a log line and let the screen open normally.
-            ModLog.get("killer560smod-autoclosechest")
-                    .error("[AutoCloseChest] openScreen packet hook threw", e);
         }
     }
 }
