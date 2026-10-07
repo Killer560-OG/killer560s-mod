@@ -245,6 +245,7 @@ public final class WarpGraph {
 
         Expander() {
             Arrays.fill(tKeys, EMPTY);
+            search.extraPoints = extraAimPoints;
         }
 
         @Override
@@ -490,6 +491,15 @@ public final class WarpGraph {
 
     public void setFine(Fine fine) {
         this.fine = fine;
+    }
+
+    /** Aims try EtherSearch's off-lattice points too (EtherSearch.extraPoints); see {@link #setExtraAimPoints}. */
+    private boolean extraAimPoints;
+
+    /** Every aim this graph makes tries the off-lattice points as well (the planner's fine room search). */
+    public void setExtraAimPoints(boolean on) {
+        extraAimPoints = on;
+        owner.search.extraPoints = on;
     }
 
     /** Every edge test is the full eighteen-point aim (the bench's reference); slower. */
