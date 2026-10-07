@@ -192,9 +192,12 @@ public final class AutoTrap {
             inTrap = null;
             return;
         }
-        if (inTrap == null && !com.killer560.hub.secrets.DungeonState.isInDungeon()) {
-            // Nothing to leave and no trap room to be in: skip the layout snapshot, which this tick handler used to
-            // take every tick in every world - the hub included - whether or not Auto Trap was on (FPS sweep).
+        if (inTrap == null && (!com.killer560.hub.secrets.DungeonState.isInDungeon()
+                || (!isEnabled() && runChoice.isEmpty()))) {
+            // Nothing to leave, and either no trap room to be in or nothing that leaving one would end (no Auto Trap
+            // route, no run choice to forget): skip the layout snapshot, which this handler used to take every tick in
+            // every world - the hub included - whether or not Auto Trap was on (FPS sweep). Only the "left X" log line
+            // of a walk through a trap with the feature off is lost.
             return;
         }
         DungeonLayout layout = DungeonLayout.current();
