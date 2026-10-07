@@ -268,22 +268,26 @@ public final class InventoryHudFeature {
                                      int color) {
         int right = x0 + cols * cell;
         int bottom = y0 + rows * cell;
-        graphics.fill(x0, y0, right, y0 + 1, color);
+        // The same 34 fills, submitted as one render-state element (GuiRects): every separate fill was intersection-
+        // tested against the whole HUD drawn before it, every frame (95-fps-bench JFR, 2026-10-07).
+        com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
+        rects.fill(x0, y0, right, y0 + 1, color);
         for (int r = 1; r < rows; r++) {
             int ly = y0 + r * cell;
-            graphics.fill(x0, ly - 1, right, ly + 1, color);
+            rects.fill(x0, ly - 1, right, ly + 1, color);
         }
-        graphics.fill(x0, bottom - 1, right, bottom, color);
+        rects.fill(x0, bottom - 1, right, bottom, color);
         for (int r = 0; r < rows; r++) {
             int top = y0 + r * cell + 1;
             int bot = y0 + (r + 1) * cell - 1;
-            graphics.fill(x0, top, x0 + 1, bot, color);
+            rects.fill(x0, top, x0 + 1, bot, color);
             for (int c = 1; c < cols; c++) {
                 int lx = x0 + c * cell;
-                graphics.fill(lx - 1, top, lx + 1, bot, color);
+                rects.fill(lx - 1, top, lx + 1, bot, color);
             }
-            graphics.fill(right - 1, top, right, bot, color);
+            rects.fill(right - 1, top, right, bot, color);
         }
+        rects.submit();
     }
 
     private static int displayCol(InventoryHudConfig cfg, int row, int col) {
