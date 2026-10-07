@@ -299,7 +299,12 @@ public final class ScoreboardData {
     }
 
     public static String removeResets(String s) {
-        return s == null ? "" : RESETS.matcher(s).replaceAll("");
+        if (s == null) {
+            return "";
+        }
+        // RESETS can only match where a "§r" is; without one replaceAll would hand back the same text after building a
+        // Matcher for it - for every tab entry, every refresh (most of the Custom Scoreboard's allocation, 95-fps-bench).
+        return s.contains("§r") ? RESETS.matcher(s).replaceAll("") : s;
     }
 
     // ---- accessors ----
