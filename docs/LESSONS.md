@@ -120,6 +120,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   service answered, and on 2026-10-07 api.docilelm.top/v2/dungeons returned `{"result":{}}` for every name (real
   dungeon players, checked with curl), so Hypixel's menu was never styled while the preview always was. Both now go
   through `PartyFinderOverlay.styleLines` (missing stats render as `?`); testkit 236-menu-partyfinder-style asserts it.
+  The stats now come from `ProfileViewerApi` (SkyBlockPV backend, Hypixel's raw profiles) and docilelm is no longer
+  called; testkit 400-menu-partyfinder-stats serves real trimmed backend answers through a loopback fake.
+- The SkyBlockPV backend's `/authenticate` hands ANY caller a guest token (checked 2026-10-07: a made-up username and
+  an unjoined server id got a JWT with `sub` all zeros), and its source (meowdding/skyblock-pv-backend) shows that is
+  the "authentication disabled" branch. So `ProfileViewerApi.backendToken` no longer gives up when Mojang's
+  `joinServer` fails; the backend decides. Hypixel's `fastest_time_s`/`_s_plus` are MILLISECONDS (263003 = 4:23).
 - **Anything drawn from inside `AbstractContainerScreen.extractContents` is already translated by leftPos/topPos**
   (labels, `extractSlotHighlightBack/Front`, `extractSlots`/`extractSlot`; javap, 26.1.2 and 26.2), so it draws at
   plain `slot.x, slot.y`. `extractBackground` and the `extractRenderState` TAIL / `ScreenEvents.afterExtract` are

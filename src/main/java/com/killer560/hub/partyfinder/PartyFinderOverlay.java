@@ -140,7 +140,7 @@ public final class PartyFinderOverlay {
         // killer560 9.1: skip when devonianConflict - Devonian has already overwritten every member line with
         // its own overview text, so PartyFinderParser can't read a single real name out of it (see the
         // USER_ROLE comment); queuing names nobody will ever match to a rendered line just burns the stats
-        // API's 5-second poll for nothing every time this screen is open.
+        // lookups for nothing every time this screen is open.
         if (cfg.isTooltip() && !devonianConflict && (changed || --ticksUntilRequest <= 0)) {
             ticksUntilRequest = REQUEST_INTERVAL_TICKS;
             Set<String> names = new LinkedHashSet<>();
@@ -257,7 +257,8 @@ public final class PartyFinderOverlay {
      * styled only once {@link PartyFinderStatsApi} had stats for that player, and left exactly as Hypixel sent them
      * otherwise. The preview always has stats (fixed sample data), so it always showed the style. On Hypixel the
      * stats service (api.docilelm.top/v2/dungeons) answers {@code {"result":{}}} for every name - checked by hand
-     * the same day with real dungeon players - so no member line was ever styled. A member line is now always in
+     * the same day with real dungeon players - so no member line was ever styled (the stats now come from the Profile
+     * Viewer's backend instead, see {@link PartyFinderStatsApi}). A member line is now always in
      * the chosen style, with {@code ?} for whatever stats have not arrived; {@code withoutStats} collects those
      * names so the caller can say why.
      *
@@ -297,11 +298,13 @@ public final class PartyFinderOverlay {
         return out;
     }
 
-    /** Why some member lines show {@code ?}: still waiting on the stats service, or it had nothing for them. */
+    /** Why some member lines show {@code ?}: still loading, or the lookup failed - naming the source that failed
+     *  ("SkyBlockPV backend: HTTP 500 ...", "Mojang name lookup: ..."), so "?" never reads as a mod bug. */
     private static String statsStatusLine(List<String> withoutStats) {
         for (String name : withoutStats) {
             if (PartyFinderStatsApi.hasFailed(name)) {
-                return "&8? = no stats from the stats service for that player";
+                String why = PartyFinderStatsApi.failureReason(name);
+                return "&8? = no stats for " + name + (why == null ? "" : " - " + why);
             }
         }
         return "&8? = loading stats...";

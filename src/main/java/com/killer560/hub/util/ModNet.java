@@ -40,8 +40,8 @@ import java.util.concurrent.CompletableFuture;
  *   <li>{@code noamm-ws} - ws.noamm.org: the NoammAddons bridge socket</li>
  *   <li>{@code odin-ws} - ws.odtheking.com: the Odin bridge socket</li>
  *   <li>{@code devonian-ws} - wss.docilelm.top: the Devonian bridge socket</li>
- *   <li>{@code docilelm} - api.docilelm.top: Party Finder stats</li>
- *   <li>{@code pv-backend} - skyblock-pv.thatgravyboat.tech: the Profile Viewer's keyless backend</li>
+ *   <li>{@code pv-backend} - skyblock-pv.thatgravyboat.tech: the Profile Viewer's keyless backend,
+ *       also the Party Finder Overlay's member stats</li>
  *   <li>{@code mojang} - api.mojang.com and sessionserver.mojang.com: name and profile lookups</li>
  *   <li>{@code minecraftservices} - api.minecraftservices.com: name lookups, account login and profile</li>
  *   <li>{@code microsoft} - login.microsoftonline.com: the account switcher's token step</li>
