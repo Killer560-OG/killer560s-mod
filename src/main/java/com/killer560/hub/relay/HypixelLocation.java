@@ -121,10 +121,9 @@ public final class HypixelLocation {
     /**
      * An opaque key for the lobby we are on, or null while Hypixel has not answered yet.
      *
-     * <p>Public because the Crystal Hollows map has to throw its findings away when the lobby changes -
-     * Hypixel lays that world out differently on every server, so a structure learned on the last one is not
-     * stale, it is wrong. Same value {@link #lobbyRoom} keys the relay room on, so a find and the room it is
-     * shared in cannot disagree about which lobby they belong to.
+     * <p>Public because the Crystal Hollows map (shelved until after 2.0, shelved/mining/) threw its findings away
+     * when the lobby changed - Hypixel lays that world out differently on every server. Same value
+     * {@link #lobbyRoom} keys the relay room on.
      */
     public static String lobbyKey() {
         return lobbyRoom();

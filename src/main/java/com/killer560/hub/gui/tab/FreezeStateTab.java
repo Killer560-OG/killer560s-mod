@@ -20,7 +20,7 @@ import java.util.Locale;
  * Freeze State - its own cheat-only tab (killer560, 2026-09-21: "freezestate should be its own tab. Make it in
  * cheats only"). The ban warning, the Rewind Memory slider and the three keybinds ({@code /freezestate}, one tick
  * back, one tick forward). The settings still live in {@link Ap3Config}; the engine is {@code Ap3FreezeState}.
- * Only added to {@link NewTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED}.
+ * Only added to its category behind {@code BuildVariant.CHEAT_FEATURES_ENABLED}.
  */
 public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
 

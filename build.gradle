@@ -111,12 +111,22 @@ def cheatBuild = (findProperty('cheatBuild') ?: 'false').toBoolean()
 // never show dev tooling, whatever the config file says: the constant is false at compile time.
 def releaseBuild = (findProperty('release') ?: 'false').toBoolean()
 def devTools = !releaseBuild
+// A private testing variant for killer560 (2026-10-07), of either the cheat or the legit build: -PtestingBuild=true
+// adds an "Untested" menu category, Mark tested buttons and /k560tested. Everything it needs lives in
+// com.killer560.hub.testing, gated by the compile-time constant BuildVariant.TESTING, and that package (plus the
+// tested-feature lists from testing/) is left OUT of every other jar - javac folds each gated call away, so nothing
+// in a normal jar refers to it. Never a release, and the jar name says -testing so it cannot pass for a normal one.
+def testingBuild = (findProperty('testingBuild') ?: 'false').toBoolean()
+if (testingBuild && releaseBuild) {
+	throw new GradleException("-PtestingBuild=true is a private dev build and cannot be combined with -Prelease=true")
+}
 def buildVariantDir = layout.buildDirectory.dir("generated/sources/buildVariant/java/main")
 
 tasks.register("generateBuildVariant") {
 	def outputDir = buildVariantDir
 	inputs.property "cheatBuild", cheatBuild
 	inputs.property "devTools", devTools
+	inputs.property "testingBuild", testingBuild
 	outputs.dir(outputDir)
 	doLast {
 		def pkgDir = new File(outputDir.get().asFile, "com/killer560/hub")
@@ -128,7 +138,23 @@ public final class BuildVariant {
     public static final boolean CHEAT_FEATURES_ENABLED = ${cheatBuild};
     /** Dev-only tooling (timers, probes). True for local / CI dev builds, false when built with -Prelease=true. */
     public static final boolean DEV_TOOLS = ${devTools};
+    /** killer560's private testing build (-PtestingBuild=true): the Untested menu category and Mark tested buttons. */
+    public static final boolean TESTING = ${testingBuild};
     private BuildVariant() {}
+}
+"""
+		// The testing package's own copy of the flag and its variant name (only ever compiled into a testing jar).
+		def testingDir = new File(pkgDir, "testing")
+		testingDir.mkdirs()
+		new File(testingDir, "TestingBuild.java").text = """package com.killer560.hub.testing;
+
+/** Generated at build time (build.gradle's generateBuildVariant task, -PtestingBuild) - do not edit by hand. Only
+ *  testing jars contain this package; code outside it gates on BuildVariant.TESTING, never on this class. */
+public final class TestingBuild {
+    public static final boolean ENABLED = ${testingBuild};
+    /** Which tested-feature list this build reads: testing/tested-<VARIANT>.txt. */
+    public static final String VARIANT = "${cheatBuild ? 'cheat' : 'legit'}";
+    private TestingBuild() {}
 }
 """
 	}
@@ -192,7 +218,21 @@ jar {
 	// of two Minecraft versions, two files both called "-legit.jar" is how somebody installs the wrong one -
 	// and .github/workflows/dev-build.yml collects them with a `*-legit.jar` glob, which would silently pick
 	// whichever landed last.
-	archiveClassifier = "${project.minecraft_version}-" + (cheatBuild ? "cheat" : "legit")
+	archiveClassifier = "${project.minecraft_version}-" + (cheatBuild ? "cheat" : "legit") + (testingBuild ? "-testing" : "")
+	if (!testingBuild) {
+		exclude "com/killer560/hub/testing/**"
+		exclude "killer560smod-testing/**"
+	}
+}
+
+// The repo's tested-feature lists ride along in a testing jar only (see testingBuild above).
+if (testingBuild) {
+	processResources {
+		from("testing") {
+			into "killer560smod-testing"
+			include "tested-" + (cheatBuild ? "cheat" : "legit") + ".txt"
+		}
+	}
 }
 
 tasks.withType(JavaCompile).configureEach {

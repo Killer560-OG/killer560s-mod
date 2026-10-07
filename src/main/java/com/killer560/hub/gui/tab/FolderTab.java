@@ -21,7 +21,7 @@ public abstract class FolderTab extends BaseTab {
     private static final int INDENT = 10;
     private static final int SECTION_GAP = 10;
 
-    private final List<BaseTab> subTabs;
+    private List<BaseTab> subTabs;
     // Empty by default so everything starts collapsed, matching the reference screenshot.
     private final Set<Integer> expanded = new HashSet<>();
     /** When true, sub-tab 0 renders inline at the top with no accordion header and cannot be collapsed -
@@ -52,6 +52,35 @@ public abstract class FolderTab extends BaseTab {
         this.subTabs = subTabs;
     }
 
+    /** The sections of this folder, in order (read-only view). */
+    public List<BaseTab> subTabs() {
+        return java.util.Collections.unmodifiableList(subTabs);
+    }
+
+    /**
+     * Replace the sections (the testing build's menu takes untested tabs out of their categories). Pinned sections
+     * stay pinned only while they are still the leading ones; open/closed state is reset.
+     */
+    public void replaceSubTabs(List<BaseTab> sections) {
+        int stillPinned = 0;
+        while (stillPinned < pinnedCount && stillPinned < sections.size()
+                && stillPinned < subTabs.size() && sections.get(stillPinned) == subTabs.get(stillPinned)) {
+            stillPinned++;
+        }
+        this.subTabs = new ArrayList<>(sections);
+        this.pinnedCount = stillPinned;
+        this.expanded.clear();
+    }
+
+    /** Testing build only: a Mark tested / Mark untested row above a feature tab's own rows. */
+    private static int markRow(BaseTab sub, int x, int y, int width, List<AbstractWidget> widgets) {
+        if (com.killer560.hub.BuildVariant.TESTING && !(sub instanceof FolderTab)) {
+            widgets.add(com.killer560.hub.testing.TestingMenu.markButton(sub, x, y, width));
+            return y + com.killer560.hub.testing.TestingMenu.MARK_ROW_HEIGHT;
+        }
+        return y;
+    }
+
     public void setSearchQuery(String query) {
         this.activeSearchQuery = query == null ? "" : query;
     }
@@ -63,6 +92,9 @@ public abstract class FolderTab extends BaseTab {
         boolean searching = !activeSearchQuery.isBlank();
         int pinned = searching ? 0 : Math.min(pinnedCount, subTabs.size());
         for (int p = 0; p < pinned; p++) {
+            if (com.killer560.hub.BuildVariant.TESTING) {
+                y = markRow(subTabs.get(p), contentX, y, contentWidth, widgets);
+            }
             List<AbstractWidget> pinnedWidgets = subTabs.get(p).buildWidgets(contentX, y, contentWidth, requestRebuild);
             for (AbstractWidget w : pinnedWidgets) {
                 com.killer560.hub.gui.SettingTooltips.scope(w, subTabs.get(p).name);
@@ -91,6 +123,9 @@ public abstract class FolderTab extends BaseTab {
             y += HEADER_HEIGHT + HEADER_GAP;
 
             if (isExpanded) {
+                if (com.killer560.hub.BuildVariant.TESTING) {
+                    y = markRow(subTabs.get(index), contentX + INDENT, y, contentWidth - INDENT, widgets);
+                }
                 List<AbstractWidget> subWidgets = subTabs.get(index)
                         .buildWidgets(contentX + INDENT, y, contentWidth - INDENT, requestRebuild);
                 // Remember which sub-tab owns each widget so its tooltip can be scoped to the feature and

@@ -1,0 +1,313 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 71e06195..ac722bc5 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -68,7 +68,7 @@ GrimAC on a real dedicated server. See its own `CLAUDE.md`. Harness system prope
+ Source under `src/main/java/com/killer560/hub/`, one package per feature area (`ap3`, `dungeonextras`,
+ `secrets`, `livemap`, `autopuzzles`, `terminals`, `leveraura`, `gui/tab`, `util`, …). Mixins live in a
+ `mixin` subpackage of the feature that owns them. Docs: `docs/FEATURES.md` holds the full text for every
+-feature; `README.md` holds the name list.
++feature; `README.md` holds the name list. Mining is shelved until after 2.0 (never compiled): **[shelved/mining/README.md](shelved/mining/README.md)**.
+ 
+ Shared pieces worth knowing: `util/ActionGate` is the mod-wide one-automated-interaction-per-tick arbiter
+ with actor priority; `util/SkyblockGate` is the "Skyblock Only" gate; `secrets/DungeonState` owns floor and
+diff --git a/README.md b/README.md
+index 3b09babe..cb42bad1 100644
+--- a/README.md
++++ b/README.md
+@@ -30,7 +30,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
+ 
+ **Dungeon: Timers, Score & Boss** - Auto Kick, Blessings, Blood Camp, Chest Profit, Croesus Profit Logger, Custom Mage Beam, Dungeon Alerts, Dungeon Run Summary, Dungeon Score Calculator, F7 Spots (F7/M7), Goldor Frenzy Timer, M7 King Relics, M7 Wither Dragons, Mask Invincibility Timers †, Maxor's Crystals (F7/M7 P1), Mob ESP †, P3 Nav (F7/M7) †, P4 Platform Highlight, Rag Axe, RNG Meter, Run HUDs, Sharp Shooter (i4) †, Split Timers, Starred Mob Hitboxes, Terminal Timers, Thorn (F4/M4) †, Tick Timers, Wither Highlight †
+ 
+-**Mining (WIP)** - Crystal Hollows Map, Interactive Crystal Hollows Map, Nucleus Run Profit Tracker, Profit Per Hour Tracker
++**Mining** - shelved until after the 2.0 release; not in the jar (see `shelved/mining/`)
+ 
+ **Display & Menus** - Borderless Fullscreen, Custom Crosshair, Fullbright, Motion Blur, Skyblock Only, Themed Main Menu, Window Layout
+ 
+diff --git a/docs/FEATURES.md b/docs/FEATURES.md
+index 4267b8fe..c521a4d5 100644
+--- a/docs/FEATURES.md
++++ b/docs/FEATURES.md
+@@ -33,7 +33,7 @@ The detailed version of the feature list in the README. Keep this file up to dat
+ - Quiver Display — shows the real "Arrows Remaining" count from any real arrow/quiver item anywhere in your inventory or off hand
+ - Experimentation Table Solver — solves Chronomatron, Ultrasequencer, and Superpairs by highlighting the answer: you click, it just shows you where. It is its own setting rather than a mode, so you can run it on its own. The **cheat** build adds a separate Auto E-Table section that clicks for you, independent of the solver - either, both or neither can be on; its auto-swap to your best Guardian pet before a run is on by default. In Superpairs it plays in turns, counts what is left on the board to deduce hidden tiles, and takes money before XP; Skip Grand XP Bottles and Skip Guardian Pets (two switches) leave those for the very end, only if clicks remain; powerups work as on Hypixel (a powerup never takes a turn's click, +Clicks is a free space, Instant Finds stack) - see [Which jar do I download?](#installing) below.
+ - Experimentation Table Profit Tracker — logs every claimed experiment (game, clicks, rewards, XP, bits) with coin values and running totals, plus a max-clicks chat notice whether you are using the solver, the Auto E-Table, or both. On by default
+-- Profit Trackers (/profit) — one command for every profit tracker. `/profit` opens a hub with a card per tracker (Dungeon/Croesus, Experimentation Table, Mining profit per hour, Nucleus runs), each with a live one-line summary; click a card to open that tracker, and Back or Escape returns to the hub. `/profit <name>` opens one directly and tab-completes: `croesus` (or `dungeon`), `etable` (or `experiments`), `mining`, `nucleus`; an unknown name lists the valid ones in chat. `/croesus` and `/croesus profit` still open the dungeon tracker. The Experimentation Table, Mining and Nucleus trackers now have their own screens (same numbers as their settings tabs, drawn with the same panels as the dungeon one) and an Open /profit button in their tabs. Client-side only, so it works the same on Hypixel
++- Profit Trackers (/profit) — one command for every profit tracker. `/profit` opens a hub with a card per tracker (Dungeon/Croesus, Experimentation Table), each with a live one-line summary; click a card to open that tracker, and Back or Escape returns to the hub. `/profit <name>` opens one directly and tab-completes: `croesus` (or `dungeon`), `etable` (or `experiments`); an unknown name lists the valid ones in chat. `/croesus` and `/croesus profit` still open the dungeon tracker. The Experimentation Table tracker has its own screen (same numbers as its settings tab, drawn with the same panels as the dungeon one) and an Open /profit button in its tab. Client-side only, so it works the same on Hypixel
+ - Storage Overlay — see the contents of every Ender Chest page and Backpack live, right alongside your open inventory
+ - Bug Report — `/killer560 bugreport` builds one zip you can drag straight into Discord: your latest log, every one of the mod's config files, and a report of your mod/Minecraft/loader versions, which jar you are running, your OS, Java and memory, and every mod you have loaded. **Credentials are stripped before anything goes in.** Your session-login and account-proxy files are left out entirely rather than redacted, and in everything else any value whose name looks like a token, secret, password, auth, session or cookie is replaced with [redacted] - verified against a file containing six different fake credentials, all six removed, with keybinds and normal settings left untouched. Log lines are scrubbed the same way. It tells you where the zip is and opens the folder
+ - Dungeon Sim — **work in progress, not part of a release yet.** A clear-practice dungeon you join from a Dungeon Sim button on the Multiplayer screen. It connects to nothing: it opens a flat local world this mod owns, and everything in it is client side. The button opens a chooser - load a previous run, create a new map, load a single room, or All Rooms (route practice, see Dungeon Sim Room Filters). The generator takes puzzle count and rooms-to-blood; the room picker has a search box and the sim's Filters panel (see Dungeon Sim Room Filters). Inside: etherwarp, Wither Impact, Tactical Insertion, Spirit Sceptre, Superboom, Dungeon Breaker and the Terminator (three arrows, and Salvation piercing five after three hits), all reimplemented locally, all swinging at Hypixel's 100 Attack Speed baseline. The Dungeon Breaker holds 20 charges, spends one per block and regains two a second, and every secret you get (chest, item, bat, essence) gives charges back, up to the 20: how many is the **Echoes of the Lost** slider in the mod menu's **Sim Settings** tab (the Wither Essence Shop perk of that name, whose five levels restore 1 to 5 charges per secret on hypixelskyblock.minecraft.wiki; 0 is the perk off, and it defaults to 5, the maxed perk) and it is saved across restarts. Mage is the only class, with the left-click beam, which has ZERO pierce - it kills the nearest thing you are looking at and nothing else. Mobs have 1 HP and never move, so a route is timed against the route rather than against where a mob wandered; starred ones carry the same name-tag stand Hypixel gives them, so Mob ESP and everything like it works unchanged. Fels sit as motionless skulls and wake into an upside-down enderman when you approach. Wither doors take a key, become barriers, then clear. One mimic per map. The sim used to outline every chest that could have been it, and that outline is gone: because every placed secret chest is a mimic candidate, it amounted to highlighting every secret on the floor whether or not Secret Waypoints was switched on. The sim has no highlighter of its own now - Secret Waypoints is the only thing that draws secrets in there, under exactly the setting that draws them on Hypixel. Score follows Catacombs: one point per crypt to five (counted when the crypt's undead dies, as Hypixel's "Crypts" line does; a prince's death also says "A Prince falls. +1 Bonus Score"), two for the mimic (a trapped chest, as on Hypixel: opening it puts a baby zombie there, and the point comes when that dies), Paul's EZPZ, and bats counting as secrets. `/speed <n>` sets speed on the Hypixel scale. `/simpuzzle <name>` builds a puzzle to drill. A five-second countdown holds you at the start of a full run. **State, 2026-10-01:** secrets come from the room database and land inside their rooms (asserted by a scenario that builds a floor and checks every chest). A Catacombs sidebar is put up on the sim's own integrated server, so the floor, the secret count, the keys and the room you are standing in read as they do on Hypixel. Rooms are rotated now: each capture's own quarter turn is recovered from its roof marker and its secrets, so a rotated room still puts its secrets in the right corner. **The eleven puzzle rooms are bound to their real geometry rather than to invented arenas** - the room's own levers, buttons, pads, lanterns, ice and boulders, found by scoring each puzzle's coordinates against the pasted blocks at all four rotations and refusing to arm a room they are not in. That means your own puzzle solvers and auto-puzzles work in there against the same data they use on Hypixel; `docs/SIM.md` records what each one was measured against. **Not done:** mobs (the captures hold no mob positions); a handful of rooms have imperfect captures (Balcony, Catwalk, Purple Flags); and none of it is tuned against a real floor yet
+@@ -241,12 +241,8 @@ AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phas
+ - AP3 keeps running while frozen: each forward step runs one AP3 tick, and your own keys and mouse never move the character - only the nodes do.
+ - On Hypixel the step keys refuse (it would teleport you - an instant ban); only a typed /rewind works there, behind a large warning.
+ 
+-**Mining (WIP)**
+-- Crystal Hollows Map — a map of the Crystal Hollows with the Nucleus at its real fixed coordinate, your live position, and waypoints you add yourself. The five zone shapes are deliberately *not* drawn: their per-lobby boundaries couldn't be confirmed from any citable source, so the live zone name from the scoreboard is shown instead of an invented outline
+-- Interactive Crystal Hollows Map — the same map, clickable: pick a spot or a waypoint and it shows live distance and compass bearing to it. It never moves you
+-- Profit Per Hour Tracker — watches what your inventory actually gains and prices it from the mod's existing market data, against a clock that pauses rather than resets. On by default
+-- Nucleus Run Profit Tracker — the same, per nucleus run, detecting the end of a run from Hypixel's own loot-bundle chat block. Run count is exact; per-item coin value is best effort, and lines it can't price are skipped rather than guessed at. On by default
+-- Planned — one page inside the Mining tab listing everything still to come, including Auto Commissions, Auto Crystal and Auto Nucleus Run. Those three briefly had a settings tab each containing nothing but a "not wired yet" label, which put coming-soon work in two places at once; they are lines on this page now, each with the actual blocker written down — Dwarven Mines terrain pathfinding (the mod only paths the dungeon's fixed room grid) and a reliable way to tell a crystal block from terrain
++**Mining**
++- Shelved until after the 2.0 release: the Crystal Hollows Map (and Interactive map, structure sharing), Profit Per Hour and Nucleus Run Profit trackers are not in the jar. Their code and this section's old text are in `shelved/mining/` in the repo.
+ 
+ **Diagnostics**
+ 
+diff --git a/docs/LESSONS.md b/docs/LESSONS.md
+index de391e27..d2858c53 100644
+--- a/docs/LESSONS.md
++++ b/docs/LESSONS.md
+@@ -11,7 +11,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
+   maximum - so a fully tuned one of any of them goes 12, and killer560 plays fully tuned ("nearly no one plays
+   with less"). AOTV is NOT 12 by nature; assuming that got AOTE and AOTV wrongly split in the route matcher
+   once already. `EtherwarpHopper` reads the same tag for the 57-block etherwarp.
+-- `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker.
++- `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker (shelved until after 2.0).
+   Widening it to make two items equal makes "sell my Hyperion" sell an Astraea. Loose matching belongs in
+   `matches()`, which only a route's USE_ITEM node reaches.
+ - **The live map's world scan must stay inside the floor's room grid.** Floor 1's boss arena stands in slots
+@@ -98,7 +98,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
+   the codes itself: `(?<![§\d,])(?:§.)*([\d,]+)` (`PlayerStatsFeature.NUMBER_START`, 2026-10-04, found by a scratch
+   run against a sample line). The older health/mana/defence patterns only escape it because their codes are letters.
+ - `IslandDetector.graphIsland()` is null off any known island (sim, lobby, singleplayer), and `Set.of(...).contains(null)`
+-  throws. MiningProfitTracker did that every tick once trackers went on by default; null-check before any `Set.of` lookup.
++  throws. MiningProfitTracker (shelved since 2026-10-07) did that every tick once trackers went on by default; null-check before any `Set.of` lookup.
+ - Measure FPS work with the testkit's `95-fps-bench` (sim F7, ON/OFF alternated, frame and tick CPU time, JFR dumps;
+   `tools/fps-jfr.py` attributes samples to mod code). Compare the ON-OFF DELTA within one run: absolute numbers
+   drifted ~0.06 ms between identical runs, which is larger than most single fixes. 95 is a dungeon; a hub (80-entry
+diff --git a/src/main/java/com/killer560/hub/Killer560ModClient.java b/src/main/java/com/killer560/hub/Killer560ModClient.java
+index dd12c8e9..333a2cd3 100644
+--- a/src/main/java/com/killer560/hub/Killer560ModClient.java
++++ b/src/main/java/com/killer560/hub/Killer560ModClient.java
+@@ -215,12 +215,8 @@ public class Killer560ModClient implements ClientModInitializer {
+         com.killer560.hub.blessings.BlessingsFeature.register();
+         com.killer560.hub.runsummary.RunSummaryFeature.register();
+         com.killer560.hub.runsummary.RunLogCommands.register();
+-        // Mining (WIP) tab, 2026-09-27: Profit Per Hour + Nucleus Run Profit trackers. Both purely
+-        // observational (never click/move) - see each tracker's own class doc.
+-        com.killer560.hub.mining.profit.MiningProfitTracker.register();
+-        com.killer560.hub.mining.nucleus.NucleusRunProfitTracker.register();
+-        com.killer560.hub.mining.chmap.ChDiscovery.register();
+-        com.killer560.hub.mining.chmap.ChShare.register();
++        // Mining features (Profit Per Hour, Nucleus Run Profit, Crystal Hollows Map + sharing) are shelved until
++        // after the 2.0 release (killer560, 2026-10-07): code in shelved/mining/, restore steps in its README.md.
+         HudElementRegistry.register(com.killer560.hub.blessings.BlessingsFeature.HUD);
+         com.killer560.hub.maxor.MaxorCrystalsFeature.register();
+         HudElementRegistry.register(com.killer560.hub.maxor.MaxorCrystalsFeature.HUD);
+diff --git a/src/main/java/com/killer560/hub/gui/ModScreen.java b/src/main/java/com/killer560/hub/gui/ModScreen.java
+index 1badce0e..a2f52529 100644
+--- a/src/main/java/com/killer560/hub/gui/ModScreen.java
++++ b/src/main/java/com/killer560/hub/gui/ModScreen.java
+@@ -3,7 +3,6 @@ package com.killer560.hub.gui;
+ import com.killer560.hub.gui.tab.BaseTab;
+ import com.killer560.hub.gui.tab.ChatTab;
+ import com.killer560.hub.gui.tab.DisplayTab;
+-import com.killer560.hub.gui.tab.MiningWipTab;
+ import com.killer560.hub.gui.tab.DungeonTab;
+ import com.killer560.hub.gui.tab.FolderTab;
+ import com.killer560.hub.gui.tab.GeneralTab;
+@@ -103,7 +102,7 @@ public class ModScreen extends Screen {
+             tabs.add(new HomeTab());
+             tabs.add(new ProfilesTab());
+             tabs.add(new NewTab());
+-            tabs.add(new MiningWipTab());
++            // "Mining (WIP)" (MiningWipTab) is shelved until after 2.0: shelved/mining/README.md.
+             tabs.add(new GeneralTab());
+             tabs.add(new DisplayTab());
+             // Custom Crosshair has its own tab (killer560, 2026-10-06): the editor needs the room for its preview.
+diff --git a/src/main/java/com/killer560/hub/gui/SettingTooltipsData.java b/src/main/java/com/killer560/hub/gui/SettingTooltipsData.java
+index 1b9be973..5d60a6d6 100644
+--- a/src/main/java/com/killer560/hub/gui/SettingTooltipsData.java
++++ b/src/main/java/com/killer560/hub/gui/SettingTooltipsData.java
+@@ -14,7 +14,7 @@ final class SettingTooltipsData {
+         part1(d);
+         part2(d);
+         part3(d);
+-        mining(d);
++        // mining(d): shelved until after 2.0 (shelved/mining/README.md).
+         invSortAndAutoSell(d);
+         autoKick(d);
+         bazaarFlip(d);
+@@ -1256,7 +1256,6 @@ final class SettingTooltipsData {
+         d.put("display", "Chooses what the pathfinder draws: the path, route, target label and chat feedback.");
+         d.put("island", "Shows which SkyBlock island the pathfinder has data for.");
+         d.put("m7 phase 5 lines", "Adds split lines for M7 P5, one per dragon and per King relic.");
+-        d.put("mining - planned (not in 1.3)", "Mining features planned for later; nothing here does anything yet.");
+         d.put("memory", "How much of the chunk cache may stay in RAM.");
+         d.put("sessions", "How many Experimentation Table sessions you have tracked, by game.");
+         d.put("reward value", "Total Bazaar value of your tracked wins, plus XP and bits spent.");
+@@ -2118,24 +2117,6 @@ final class SettingTooltipsData {
+         d.put("ap3/freeze view (freecam)", "Keeps your screen view steady while an Align or Walk/Run node turns your real yaw.");
+     }
+ 
+-    /** Mining (WIP) tab, 2026-09-27 - scoped under "mining (wip)/" (the top-level tab name passed to
+-     *  {@link SettingTooltips#describe}) so these never override an unrelated tab's same-worded button
+-     *  (e.g. Waypoint Routes' own "Remove Last", Interactive Map's own "Map Scale"). */
+-    private static void mining(Map<String, String> d) {
+-        d.put("mining (wip)/profit per hour tracker", "Tracks the items you gain and their Bazaar/AH value, showing Coins/Hour.");
+-        d.put("mining (wip)/mining islands only", "On only counts time on mining islands; off counts it anywhere.");
+-        d.put("mining (wip)/nucleus run profit tracker", "Counts Crystal Nucleus runs from the loot message and prices the rewards.");
+-        d.put("mining (wip)/crystal hollows map", "A top-down Crystal Hollows map showing you, found structures and your waypoints.");
+-        d.put("crystal hollows map/show borders", "Draws a box round each structure you have found, covering the part you have walked.");
+-        d.put("crystal hollows map/show waypoints", "Puts a named marker at the middle of each structure you have found.");
+-        d.put("crystal hollows map/share my finds", "Shares the structures you find with other mod users in the same lobby.");
+-        d.put("crystal hollows map/receive others'", "Shows structures other mod users found in this lobby, with a dashed border.");
+-        d.put("mining (wip)/open map", "Opens the full Crystal Hollows map; left-click sets a travel target, right-click clears it.");
+-        d.put("mining (wip)/map scale", "Zoom multiplier for the Crystal Hollows map, 0.5x-4x.");
+-        d.put("mining (wip)/add waypoint here", "Saves your current position as a Crystal Hollows waypoint.");
+-        d.put("mining (wip)/remove last", "Removes the most recently added Crystal Hollows waypoint.");
+-    }
+-
+     /** Auto Inventory Sorter and Auto Sell (killer560, 2026-09-27). Bare (unscoped) keys - both labels are
+      *  distinctive mod-wide, so there's no collision to scope against by top-level tab name. */
+     private static void invSortAndAutoSell(Map<String, String> d) {
+diff --git a/src/main/java/com/killer560/hub/gui/profit/ProfitTracker.java b/src/main/java/com/killer560/hub/gui/profit/ProfitTracker.java
+index 04e79566..cb41ce3f 100644
+--- a/src/main/java/com/killer560/hub/gui/profit/ProfitTracker.java
++++ b/src/main/java/com/killer560/hub/gui/profit/ProfitTracker.java
+@@ -3,10 +3,6 @@ package com.killer560.hub.gui.profit;
+ import com.killer560.hub.croesus.CroesusProfitLog;
+ import com.killer560.hub.croesus.CroesusTrackerScreen;
+ import com.killer560.hub.experiments.ExperimentsProfitTracker;
+-import com.killer560.hub.mining.nucleus.NucleusRunProfitTracker;
+-import com.killer560.hub.mining.profit.MiningItemPricer;
+-import com.killer560.hub.mining.profit.MiningProfitConfig;
+-import com.killer560.hub.mining.profit.MiningProfitTracker;
+ import net.minecraft.client.gui.screens.Screen;
+ 
+ import java.util.ArrayList;
+@@ -29,11 +25,9 @@ public enum ProfitTracker {
+             parent -> new CroesusTrackerScreen(parent, CroesusTrackerScreen.View.OVERVIEW),
+             ProfitTracker::croesusSummary),
+     EXPERIMENTS("Experimentation Table", "Superpairs, Chronomatron, Ultrasequencer", List.of("etable", "experiments"),
+-            ExperimentsProfitScreen::new, ProfitTracker::experimentsSummary),
+-    MINING("Mining Profit", "Items gained per hour", List.of("mining"),
+-            MiningProfitScreen::new, ProfitTracker::miningSummary),
+-    NUCLEUS("Nucleus Runs", "Crystal Nucleus run loot", List.of("nucleus"),
+-            NucleusProfitScreen::new, ProfitTracker::nucleusSummary);
++            ExperimentsProfitScreen::new, ProfitTracker::experimentsSummary);
++    // MINING ("Mining Profit") and NUCLEUS ("Nucleus Runs") are shelved until after 2.0 with the rest of the mining
++    // features - shelved/mining/README.md has both constants and their summary methods to put back.
+ 
+     /** One line under a card's name: the text, and the colour it is drawn in. */
+     public record Summary(String text, int color) {
+@@ -120,23 +114,4 @@ public enum ProfitTracker {
+         return new Summary(ExperimentsProfitTracker.formatShort(ExperimentsProfitTracker.getTotalValueCoins())
+                 + " coins, " + sessions + " experiments", ProfitPanels.GOOD);
+     }
+-
+-    private static Summary miningSummary() {
+-        boolean on = MiningProfitConfig.getInstance().isEnabledRaw();
+-        if (MiningProfitTracker.getActiveMs() <= 0 && MiningProfitTracker.getTotalValueCoins() <= 0) {
+-            return new Summary(on ? "Nothing tracked yet" : "Tracker is off", ProfitPanels.DIM);
+-        }
+-        return new Summary(MiningItemPricer.shortNumber(MiningProfitTracker.getCoinsPerHour()) + " coins/hour, "
+-                + MiningItemPricer.shortNumber(MiningProfitTracker.getTotalValueCoins()) + " total",
+-                ProfitPanels.GOOD);
+-    }
+-
+-    private static Summary nucleusSummary() {
+-        long runs = NucleusRunProfitTracker.getRunsCompleted();
+-        if (runs == 0) {
+-            return new Summary("No runs yet", ProfitPanels.DIM);
+-        }
+-        return new Summary(runs + " runs, " + MiningItemPricer.shortNumber(NucleusRunProfitTracker.getCoinsPerRun())
+-                + " coins/run", ProfitPanels.GOOD);
+-    }
+ }
+diff --git a/src/main/java/com/killer560/hub/gui/profit/ProfitTrackerScreen.java b/src/main/java/com/killer560/hub/gui/profit/ProfitTrackerScreen.java
+index 371deb2b..39618619 100644
+--- a/src/main/java/com/killer560/hub/gui/profit/ProfitTrackerScreen.java
++++ b/src/main/java/com/killer560/hub/gui/profit/ProfitTrackerScreen.java
+@@ -11,7 +11,7 @@ import java.util.Locale;
+ 
+ /**
+  * A standalone profit screen for a tracker that used to live only in a settings tab (Experimentation Table,
+- * Mining Profit, Nucleus Runs): headline cards, a ranked list on the left, and on the right either a graph or a
++ * and the shelved Mining Profit / Nucleus Runs): headline cards, a ranked list on the left, and on the right either a graph or a
+  * few detail lines. Everything is drawn with {@link ProfitPanels}, the same pieces the Croesus screen uses; a
+  * subclass only supplies the numbers.
+  *
+diff --git a/src/main/java/com/killer560/hub/modchat/ModChatFeature.java b/src/main/java/com/killer560/hub/modchat/ModChatFeature.java
+index 4c7b6f88..de8ea4e8 100644
+--- a/src/main/java/com/killer560/hub/modchat/ModChatFeature.java
++++ b/src/main/java/com/killer560/hub/modchat/ModChatFeature.java
+@@ -59,27 +59,18 @@ public final class ModChatFeature {
+                 && com.killer560.hub.interop.InteropConfig.getInstance().isRelayData()
+                 && (com.killer560.hub.partydata.PartyDataConfig.getInstance().isShareEnabled()
+                     || com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress());
+-        // Crystal Hollows structure sharing needs a LOBBY room, and needs the relay up at all.
+-        //
+-        // A Crystal Hollows find only means anything to someone standing on the same server - Hypixel lays
+-        // that world out differently on every one - so it travels in the lobby room or not at all. Declared
+-        // here, the same way dungeon data declares it needs the party room, because this is the one place
+-        // that decides which room the relay is in. Without it the sharing feature would compile, run, and
+-        // silently never send anything: the room mode defaults to Party.
+-        boolean chNeedsLobby = com.killer560.hub.mining.chmap.ChShare.wantsLobbyRoom();
+-        boolean on = (chatOn || dataOn || chNeedsLobby)
++        // Crystal Hollows structure sharing (which forced a LOBBY room here) is shelved until after 2.0 - see
++        // shelved/mining/README.md. A "ch.v1.find" data packet from an older client still in our room reaches
++        // only listeners that switch on their own keys, so it is ignored.
++        boolean on = (chatOn || dataOn)
+                 && client.getConnection() != null && client.player != null;
+         // Party dungeon data only travels in a party room. In a dungeon the lobby IS the party (the instance only holds
+         // your team), so while sharing is on, a dungeon always uses the party room even if Mod Chat is set to Lobby -
+         // otherwise choosing Lobby would silently stop data sharing. Mod Chat keeps its chosen mode everywhere else.
+         boolean dataNeedsParty = dataOn && com.killer560.hub.secrets.DungeonState.isInDungeon();
+-        // Dungeon data still wins, though the two cannot actually collide - you are not in a dungeon and the
+-        // Crystal Hollows at the same time. Ordered explicitly anyway rather than left to luck.
+         RelayRoom.Mode mode;
+         if (dataNeedsParty) {
+             mode = RelayRoom.Mode.PARTY;
+-        } else if (chNeedsLobby) {
+-            mode = RelayRoom.Mode.LOBBY;
+         } else {
+             mode = chatOn ? cfg.getRoomMode() : RelayRoom.Mode.PARTY;
+         }
+diff --git a/src/main/java/com/killer560/hub/profiles/ProfileManager.java b/src/main/java/com/killer560/hub/profiles/ProfileManager.java
+index 0c6312d9..75925bae 100644
+--- a/src/main/java/com/killer560/hub/profiles/ProfileManager.java
++++ b/src/main/java/com/killer560/hub/profiles/ProfileManager.java
+@@ -344,9 +344,8 @@ public final class ProfileManager {
+                 com.killer560.hub.bazaarflip.BazaarFlipConfig::load,
+                 com.killer560.hub.bugreport.BugReportConfig::load,
+                 com.killer560.hub.invsort.InventorySorterConfig::load,
+-                com.killer560.hub.mining.chmap.CrystalHollowsMapConfig::load,
+-                com.killer560.hub.mining.nucleus.NucleusRunProfitConfig::load,
+-                com.killer560.hub.mining.profit.MiningProfitConfig::load,
++                // CrystalHollowsMapConfig, NucleusRunProfitConfig and MiningProfitConfig: shelved until after 2.0
++                // (shelved/mining/README.md); their files stay on disk unread.
+                 com.killer560.hub.updatecheck.UpdateCheckConfig::load,
+                 com.killer560.hub.autocorrect.AutoCorrectConfig::load,
+                 com.killer560.hub.trail.TrailConfig::load,
+diff --git a/src/main/java/com/killer560/hub/relay/HypixelLocation.java b/src/main/java/com/killer560/hub/relay/HypixelLocation.java
+index 9454a2cf..49f47c41 100644
+--- a/src/main/java/com/killer560/hub/relay/HypixelLocation.java
++++ b/src/main/java/com/killer560/hub/relay/HypixelLocation.java
+@@ -121,10 +121,9 @@ public final class HypixelLocation {
+     /**
+      * An opaque key for the lobby we are on, or null while Hypixel has not answered yet.
+      *
+-     * <p>Public because the Crystal Hollows map has to throw its findings away when the lobby changes -
+-     * Hypixel lays that world out differently on every server, so a structure learned on the last one is not
+-     * stale, it is wrong. Same value {@link #lobbyRoom} keys the relay room on, so a find and the room it is
+-     * shared in cannot disagree about which lobby they belong to.
++     * <p>Public because the Crystal Hollows map (shelved until after 2.0, shelved/mining/) threw its findings away
++     * when the lobby changed - Hypixel lays that world out differently on every server. Same value
++     * {@link #lobbyRoom} keys the relay room on.
+      */
+     public static String lobbyKey() {
+         return lobbyRoom();
+diff --git a/src/main/java/com/killer560/hub/util/ModPaths.java b/src/main/java/com/killer560/hub/util/ModPaths.java
+index 47d0bbfd..ef9bd4c9 100644
+--- a/src/main/java/com/killer560/hub/util/ModPaths.java
++++ b/src/main/java/com/killer560/hub/util/ModPaths.java
+@@ -125,6 +125,9 @@ public final class ModPaths {
+         t.put("experiments", "skyblock/experiments");
+         t.put("auction", "skyblock/auction");
+         t.put("bazaarflip", "skyblock/bazaarflip");
++        // The three mining rows are KEPT although mining is shelved until after 2.0 (shelved/mining/README.md):
++        // they only name folders, and dropping them would make migrateAll move an old root mining file into
++        // other/, where the restored features would not find it. Nothing reads these files while shelved.
+         t.put("mining-profit", "skyblock/mining-profit");
+         t.put("nucleus-profit", "skyblock/nucleus-profit");
+         t.put("chmap", "skyblock/chmap");

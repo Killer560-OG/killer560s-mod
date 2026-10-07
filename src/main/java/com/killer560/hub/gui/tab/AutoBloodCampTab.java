@@ -14,14 +14,14 @@ import java.util.List;
  *  out of {@link BloodCampTab}'s old "Cheat Build - Automation" section on 2026-10-07 (killer560: "make auto blood
  *  camp its own cheat tab"). Same {@link BloodCampConfig} fields and JSON keys as before, nothing renamed. Both
  *  automations act on Blood Camp's own predictions, so they still need Blood Camp itself ON (in its own tab); the
- *  note below says so when it is OFF. Only added to {@link NewTab} behind {@code CHEAT_FEATURES_ENABLED}. */
+ *  note below says so when it is OFF. Only added to its category behind {@code CHEAT_FEATURES_ENABLED}. */
 public class AutoBloodCampTab extends BaseTab {
 
     public AutoBloodCampTab() {
         super("Auto Blood Camp");
     }
 
-    /** Only added to {@link NewTab} behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
+    /** Only added to its category behind {@code BuildVariant.CHEAT_FEATURES_ENABLED} - red title. */
     @Override
     public boolean isCheatOnly() {
         return true;

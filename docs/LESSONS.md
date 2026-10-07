@@ -11,7 +11,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   maximum - so a fully tuned one of any of them goes 12, and killer560 plays fully tuned ("nearly no one plays
   with less"). AOTV is NOT 12 by nature; assuming that got AOTE and AOTV wrongly split in the route matcher
   once already. `EtherwarpHopper` reads the same tag for the 57-block etherwarp.
-- `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker.
+- `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker (shelved until after 2.0).
   Widening it to make two items equal makes "sell my Hyperion" sell an Astraea. Loose matching belongs in
   `matches()`, which only a route's USE_ITEM node reaches.
 - **The live map's world scan must stay inside the floor's room grid.** Floor 1's boss arena stands in slots
@@ -98,7 +98,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   the codes itself: `(?<![§\d,])(?:§.)*([\d,]+)` (`PlayerStatsFeature.NUMBER_START`, 2026-10-04, found by a scratch
   run against a sample line). The older health/mana/defence patterns only escape it because their codes are letters.
 - `IslandDetector.graphIsland()` is null off any known island (sim, lobby, singleplayer), and `Set.of(...).contains(null)`
-  throws. MiningProfitTracker did that every tick once trackers went on by default; null-check before any `Set.of` lookup.
+  throws. MiningProfitTracker (shelved since 2026-10-07) did that every tick once trackers went on by default; null-check before any `Set.of` lookup.
 - Measure FPS work with the testkit's `95-fps-bench` (sim F7, ON/OFF alternated, frame and tick CPU time, JFR dumps;
   `tools/fps-jfr.py` attributes samples to mod code). Compare the ON-OFF DELTA within one run: absolute numbers
   drifted ~0.06 ms between identical runs, which is larger than most single fixes. 95 is a dungeon; a hub (80-entry
@@ -250,3 +250,8 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - `api.docilelm.top` (Devonian's Party Finder stats) answers HTTP 200 `{"result":{}}` to every User-Agent except Devonian's own
   (`Mozilla/5.0 (Devonian)`, checked 2026-10-07), so an empty result is an access refusal, not "player not found". Do not
   impersonate Devonian; Party Finder uses SkyBlockPV (or his own Hypixel key) instead.
+
+- javac folds `if (SomeClass.CONSTANT)` away but still writes a `CONSTANT_Class` entry naming `SomeClass` into the using
+  class's constant pool (seen with javap -v, 2026-10-07). So gating normal code on a flag that lives in a package left out of
+  a jar (`com.killer560.hub.testing`) still puts that package's name in every gated class; the testing build gates on
+  `BuildVariant.TESTING` instead, and a byte grep of the normal jars for `hub/testing` comes back empty.

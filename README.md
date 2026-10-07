@@ -12,7 +12,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 
 **Full descriptions of every feature: [Killer560's Mod - Features](https://docs.google.com/document/d/e/2PACX-1vQsLEy_hlz-Dv518bH7AgYjyoGgdNl2jSAF4T8vzQHawmkg0f56q6Yrp67Zqncc8h9N-pdAvFLC5_D-/pub)**
 
-New or changed features sit in the mod menu's **New** tab until they're confirmed working. Open the menu in game with `/killer560`. Features marked † have extra automation or through-walls options in the cheat build.
+Open the menu in game with `/killer560`; every feature sits in its own category there. Features marked † have extra automation or through-walls options in the cheat build.
 
 **Chat** - Auto Correct, Auto Meow, Chat Commands, Chat Emotes, Chat Keybinds, Chat Tidy, Click Translate, Command Auto Correct, Command Shortcuts, Copy Chat, Cringe, Mod Chat, Party Commands, Spotify Mod, Translate, Voice To Text
 
@@ -30,7 +30,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **Dungeon: Timers, Score & Boss** - Auto Kick, Blessings, Blood Camp, Chest Profit, Croesus Profit Logger, Custom Mage Beam, Dungeon Alerts, Dungeon Run Summary, Dungeon Score Calculator, F7 Spots (F7/M7), Goldor Frenzy Timer, M7 King Relics, M7 Wither Dragons, Mask Invincibility Timers †, Maxor's Crystals (F7/M7 P1), Mob ESP †, P3 Nav (F7/M7) †, P4 Platform Highlight, Rag Axe, RNG Meter, Run HUDs, Sharp Shooter (i4) †, Split Timers, Starred Mob Hitboxes, Terminal Timers, Thorn (F4/M4) †, Tick Timers, Wither Highlight †
 
-**Mining (WIP)** - Crystal Hollows Map, Interactive Crystal Hollows Map, Nucleus Run Profit Tracker, Profit Per Hour Tracker
+**Mining** - shelved until after the 2.0 release; not in the jar (see `shelved/mining/`)
 
 **Display & Menus** - Borderless Fullscreen, Custom Crosshair, Fullbright, Motion Blur, Skyblock Only, Themed Main Menu, Window Layout
 

@@ -343,9 +343,8 @@ public final class ProfileManager {
                 com.killer560.hub.bazaarflip.BazaarFlipConfig::load,
                 com.killer560.hub.bugreport.BugReportConfig::load,
                 com.killer560.hub.invsort.InventorySorterConfig::load,
-                com.killer560.hub.mining.chmap.CrystalHollowsMapConfig::load,
-                com.killer560.hub.mining.nucleus.NucleusRunProfitConfig::load,
-                com.killer560.hub.mining.profit.MiningProfitConfig::load,
+                // CrystalHollowsMapConfig, NucleusRunProfitConfig and MiningProfitConfig: shelved until after 2.0
+                // (shelved/mining/README.md); their files stay on disk unread.
                 com.killer560.hub.updatecheck.UpdateCheckConfig::load,
                 com.killer560.hub.autocorrect.AutoCorrectConfig::load,
                 com.killer560.hub.trail.TrailConfig::load,

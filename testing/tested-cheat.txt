@@ -1,0 +1,4 @@
+# Feature tabs killer560 has approved as tested in the CHEAT testing build (-PcheatBuild=true -PtestingBuild=true).
+# One tab class simple name per line (e.g. AutoRoutesTab); '#' starts a comment. A listed tab leaves the menu's
+# "Untested" category and shows in its normal category. Bundled into the cheat testing jar only.
+# His in-game marks (/k560tested list) are copied in here when he approves them.

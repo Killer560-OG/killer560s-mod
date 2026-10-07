@@ -18,7 +18,13 @@ Rules it will not break:
     instances get the 26.2 build but not which variant, so there is nothing to read a variant from.
   * If it cannot tell which instances are running, it refuses to write anything.
 
+  * Testing jars (killer560smod-<mod>-<mc>-<cheat|legit>-testing.jar, -PtestingBuild=true) are private to
+    killer560 and never go to a normal instance. One goes only into the instance named with
+    --testing-instance-cheat NAME / --testing-instance-legit NAME, and that instance is then given nothing but
+    that testing jar. An instance that already has a testing jar is skipped unless it is named so.
+
 Usage:  python deploy-to-instances.py [--dry-run] [--jars-dir DIR]
+                                      [--testing-instance-cheat NAME] [--testing-instance-legit NAME]
 
 After `./gradlew build` for 26.2, the 26.1.2 jars are gone from build/libs; keep each version's jars in
 their own folder and run once per folder.
@@ -37,10 +43,17 @@ INSTANCES = r"C:/Users/Hunter/AppData/Roaming/PrismLauncher/instances"
 REPO = os.path.dirname(os.path.abspath(__file__))
 BUILD = os.path.join(REPO, "build", "libs")
 BUILD_VARIANT_CLASS = "com/killer560/hub/BuildVariant.class"
+TESTING_CLASS = "com/killer560/hub/testing/TestingBuild.class"
 
 # First 8 hex of md5(BuildVariant.class), per CLAUDE.md's Quirks and lessons.
-KNOWN_HASHES = {"c7d5d8f5": "cheat+dev", "1d821df5": "legit+dev", "f8fc20a1": "legit+release"}
-EXPECTED = {"cheat": "c7d5d8f5", "legit": "1d821df5"}
+# BuildVariant gained TESTING on 2026-10-07, which changed every hash; the old three are kept so an instance still on
+# a build from before then reads as such rather than as UNKNOWN.
+KNOWN_HASHES = {"8e95469d": "cheat+dev", "31a271c1": "legit+dev", "9d814aa3": "legit+release",
+                "8193ef73": "cheat+dev+testing", "84d195e7": "legit+dev+testing",
+                "c7d5d8f5": "cheat+dev (pre-TESTING)", "1d821df5": "legit+dev (pre-TESTING)",
+                "f8fc20a1": "legit+release (pre-TESTING)"}
+EXPECTED = {"cheat": "8e95469d", "legit": "31a271c1"}
+EXPECTED_TESTING = {"cheat": "8193ef73", "legit": "84d195e7"}
 
 
 def mod_version():
@@ -51,8 +64,17 @@ def mod_version():
     sys.exit("mod_version not found in gradle.properties")
 
 
-def jar_name(mod, mc, variant):
-    return "killer560smod-%s-%s-%s.jar" % (mod, mc, variant)
+def jar_name(mod, mc, variant, testing=False):
+    return "killer560smod-%s-%s-%s%s.jar" % (mod, mc, variant, "-testing" if testing else "")
+
+
+def is_testing(jar):
+    """A testing build carries the com.killer560.hub.testing package; no other jar does (build.gradle excludes it)."""
+    try:
+        with zipfile.ZipFile(jar) as z:
+            return TESTING_CLASS in z.namelist()
+    except Exception:
+        return None
 
 
 def _sha256(path):
@@ -140,7 +162,8 @@ def describe_hash(jar, variant):
     if h is None:
         return "md5 ?"
     tag = KNOWN_HASHES.get(h, "UNKNOWN")
-    flag = "" if h == EXPECTED.get(variant) else "  <-- expected %s for %s" % (EXPECTED.get(variant), variant)
+    want = (EXPECTED_TESTING if is_testing(jar) else EXPECTED).get(variant)
+    flag = "" if h == want else "  <-- expected %s for %s" % (want, variant)
     return "md5 %s (%s)%s" % (h, tag, flag)
 
 
@@ -150,7 +173,18 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="report what would change, change nothing")
     ap.add_argument("--jars-dir", default=BUILD, help="where the built jars are (default: build/libs)")
     ap.add_argument("--instances-dir", default=INSTANCES, help=argparse.SUPPRESS)  # for testing on a copy
+    ap.add_argument("--testing-instance-cheat", metavar="NAME",
+                    help="the one instance that gets the CHEAT testing jar (-PcheatBuild=true -PtestingBuild=true)")
+    ap.add_argument("--testing-instance-legit", metavar="NAME",
+                    help="the one instance that gets the LEGIT testing jar (-PtestingBuild=true)")
     args = ap.parse_args()
+    testing_for = {}
+    if args.testing_instance_cheat:
+        testing_for[args.testing_instance_cheat] = "cheat"
+    if args.testing_instance_legit:
+        if args.testing_instance_legit in testing_for:
+            sys.exit("the cheat and legit testing instances must be different instances")
+        testing_for[args.testing_instance_legit] = "legit"
     INSTANCES = args.instances_dir
     dry = args.dry_run
     jars_dir = os.path.abspath(args.jars_dir)
@@ -177,7 +211,12 @@ def main():
         tag = "%s [MC %s%s]" % (name, mc, ", RUNNING" if running else "")
         installed = sorted(glob.glob(os.path.join(mods, "killer560smod*.jar")))
 
-        if not installed:
+        testing_variant = testing_for.get(name)
+        if testing_variant is None and any(is_testing(j) is not False for j in installed):
+            lines.append((tag, "skipped", "has a testing jar - deploy there only with --testing-instance-%s %r"
+                          % ("cheat" if any(variant_of(j) == "cheat" for j in installed) else "legit", name)))
+            continue
+        if not installed and testing_variant is None:
             lines.append((tag, "skipped", "no mod jar installed - not adding one uninvited"))
             continue
         if not mc:
@@ -185,6 +224,11 @@ def main():
             continue
 
         variants = {j: variant_of(j) for j in installed}
+        if testing_variant is not None:
+            # Named on the command line: this instance gets the testing jar of that variant and nothing else.
+            variants = {j: testing_variant for j in installed}
+            if not installed:
+                variants = {}
         if None in variants.values():
             bad = [os.path.basename(j) for j, v in variants.items() if v is None]
             lines.append((tag, "skipped", "could not read the build variant of %s - left alone" % ", ".join(bad)))
@@ -193,17 +237,20 @@ def main():
             lines.append((tag, "skipped", "jars of BOTH variants installed (%s) - sort that out by hand"
                           % ", ".join(os.path.basename(j) for j in installed)))
             continue
-        variant = next(iter(variants.values()))
+        variant = testing_variant if testing_variant is not None else next(iter(variants.values()))
 
-        target_name = jar_name(mod, mc, variant)
+        target_name = jar_name(mod, mc, variant, testing_variant is not None)
         target = os.path.join(mods, target_name)
         src = os.path.join(jars_dir, target_name)
         others = [j for j in installed if os.path.normcase(j) != os.path.normcase(target)]
-        now_jar, pending_jar = installed[0], None
+        now_jar, pending_jar = (installed[0] if installed else src), None
+        if testing_variant is not None and os.path.exists(src) and not is_testing(src):
+            lines.append((tag, "skipped", "%s is not a testing build - refusing" % target_name))
+            continue
 
         if not os.path.exists(src):
             lines.append((tag, "no build", "%s not in the jars dir; left on %s"
-                          % (target_name, ", ".join(os.path.basename(j) for j in installed))))
+                          % (target_name, ", ".join(os.path.basename(j) for j in installed) or "nothing")))
         elif os.path.exists(target) and not others and _same(target, src):
             lines.append((tag, "up to date", target_name))
             now_jar = target

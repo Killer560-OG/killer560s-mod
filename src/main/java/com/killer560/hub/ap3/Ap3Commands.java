@@ -579,7 +579,7 @@ public final class Ap3Commands {
             return false;
         }
         if (!Ap3Config.getInstance().isEnabledRaw()) {
-            ModChat.send(FEATURE, ModChat.bad("AP3 is OFF - turn it on in the New tab first."));
+            ModChat.send(FEATURE, ModChat.bad("AP3 is OFF - turn it on in the Dungeon tab first."));
             return false;
         }
         return Minecraft.getInstance().player != null;
