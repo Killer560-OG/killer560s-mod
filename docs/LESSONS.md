@@ -107,6 +107,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   and `/viewpetsmenu` are all argument-less aliases that open the Pets menu (hypixelskyblock.minecraft.wiki
   Command page, checked 2026-10-04), and Autopet rules fire only on game events, never on demand. A pet summon
   must go through the menu, which is why Pet Wheel opens it (headless when Hide Pets Menu is on).
+- **A settings preview that shares only the formatter still drifts if the real path gates on data the preview
+  always has.** Party Finder's preview and tooltip both called `memberLine`, but the tooltip skipped it until the stats
+  service answered, and on 2026-10-07 api.docilelm.top/v2/dungeons returned `{"result":{}}` for every name (real
+  dungeon players, checked with curl), so Hypixel's menu was never styled while the preview always was. Both now go
+  through `PartyFinderOverlay.styleLines` (missing stats render as `?`); testkit 236-menu-partyfinder-style asserts it.
 - **Anything drawn from inside `AbstractContainerScreen.extractContents` is already translated by leftPos/topPos**
   (labels, `extractSlotHighlightBack/Front`, `extractSlots`/`extractSlot`; javap, 26.1.2 and 26.2), so it draws at
   plain `slot.x, slot.y`. `extractBackground` and the `extractRenderState` TAIL / `ScreenEvents.afterExtract` are

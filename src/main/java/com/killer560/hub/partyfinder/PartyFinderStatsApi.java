@@ -54,12 +54,19 @@ public final class PartyFinderStatsApi {
 
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private static ScheduledExecutorService executor;
+    /** The "no data" line is logged once a session, not once a poll. */
+    private static volatile boolean loggedEmpty = false;
 
     private PartyFinderStatsApi() {
     }
 
     public static PlayerStats get(String name) {
         return name == null ? null : CACHE.get(name.toLowerCase(Locale.ROOT));
+    }
+
+    /** True when the last attempt for {@code name} came back with no stats (an error, or no entry for it). */
+    public static boolean hasFailed(String name) {
+        return name != null && FAILED.containsKey(name.toLowerCase(Locale.ROOT));
     }
 
     public static void request(Collection<String> names) {
@@ -147,6 +154,20 @@ public final class PartyFinderStatsApi {
                         ConfigJson.getObject(data, "personal_best_normal"),
                         ConfigJson.getObject(data, "personal_best_master"),
                         now));
+            }
+            // A name the response does not mention at all is a miss too. On 2026-10-07 the service answered
+            // {"result":{}} for every name, which used to mark nothing - so every name was queued again on the
+            // next poll, every 5 seconds, for as long as the menu stayed open.
+            int missed = 0;
+            for (String n : names) {
+                if (!CACHE.containsKey(n) && !FAILED.containsKey(n)) {
+                    FAILED.put(n, now);
+                    missed++;
+                }
+            }
+            if (missed > 0 && !loggedEmpty) {
+                loggedEmpty = true;
+                LOGGER.info("[PartyFinder] Stats service had no data for {} of {} name(s); shown as ?", missed, names.size());
             }
         } catch (Exception e) {
             long now = System.currentTimeMillis();
