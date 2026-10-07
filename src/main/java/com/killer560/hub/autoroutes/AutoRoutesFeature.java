@@ -480,7 +480,9 @@ public final class AutoRoutesFeature {
         ClearExecutor.setExternalOwner(true);
         chat(ModChat.text("Warping to "), ModChat.value("#" + number + " " + node.type.label()),
                 ModChat.dim(" at " + goal.toShortString()));
-        ClearExecutor.etherPath(goal, () -> {
+        // EXACT: a node arms within its ring (1 block across by default), so the floor graph's "near" landing - up to
+        // five blocks off, where its 2x2 buckets miss the block's own landings - can never arm it (see warpToStartNode).
+        ClearExecutor.etherPathExact(goal, () -> {
             ClearExecutor.setExternalOwner(false);
             externalTeleport = false;
             onGotoArrived();
@@ -625,7 +627,12 @@ public final class AutoRoutesFeature {
         mapArrivalGuard = true;
         externalTeleport = true;
         ClearExecutor.setExternalOwner(true);
-        ClearExecutor.etherPath(goal, () -> {
+        // EXACT (2026-10-07, testkit 102-sim-autosecret): the start node arms only inside its ring, so a landing NEAR the
+        // block is worth nothing here. With the plain request the floor graph's near landing (its 2x2 buckets missed the
+        // block's own landing) was taken as is, he stood off the node, and Auto Secret skipped Silver Sword as "did not
+        // arm" - the one near landing in 151 start-node warps logged. Now the room-by-room planner aims at the block
+        // itself first, as for Auto Blaze's ledge chest.
+        ClearExecutor.etherPathExact(goal, () -> {
             ClearExecutor.setExternalOwner(false);
             externalTeleport = false;
             latchedNode = null; // landing ON the start node must arm it

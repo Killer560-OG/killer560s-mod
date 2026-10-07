@@ -73,3 +73,14 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   (CheatUtils registers before Auto Routes). Its click on the start node's secret came one tick before `AwaitEvents.begin`,
   so #1's await sat at 0/1 until he skipped it (Museum, three runs of four, 2026-10-07). `begin` now counts his own secret
   clicks and pickups from the last `START_LOOKBACK` (10) ticks. Testkit 96-ar-398-startawait.
+- **A server correction can land between a map path's search and its first warp** (2026-10-07, testkit 131-sim-auto-clear
+  "correction-plan"). The search takes well under a millisecond, so the teleport packet and the search result are drained
+  in the same frame; `ClearExecutor` started the queue from the old spot, called it "not on the path's first spot" and
+  replanned as an ordinary failure - no chat line, no alarm, and a second one in a click would have STOPPED the path. Same
+  for a packet during the arrival settle ("ended N blocks from the planned landing"). Both are corrections now: reported,
+  and the goal planned again from where he was put without counting against `MAX_REPLANS`. Auto Clear ignored every packet
+  during its trips and so never counted a trip's correction; it now adds `ClearExecutor.serverCorrections()` to its own.
+- **The map planner calls an exact goal within five blocks "already there"**, so a caller that insists on being closer
+  asks again for ever: Auto Clear's wither door required 2.5 blocks from the approach spot and, standing 3.6 off, logged a
+  "trip to wither door" and an "Already there" every tick without ever clicking (2026-10-07, testkit 131). Once a trip to
+  the door has finished it now clicks from where he stands, and stops saying why if the door is out of reach.

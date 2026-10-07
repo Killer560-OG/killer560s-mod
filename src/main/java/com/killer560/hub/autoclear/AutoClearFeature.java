@@ -144,6 +144,8 @@ public final class AutoClearFeature {
     private static volatile int positionPackets = 0;
     private static volatile Vec3 posBeforePacket = null;
     private static int positionPacketsSeen = 0;
+    /** {@link ClearExecutor#serverCorrections()} when last looked: a trip's corrections count toward this run's too. */
+    private static int executorCorrectionsSeen = 0;
     private static int corrections = 0;
 
     // ---- cached plans (rebuilt when he, the target or the target's block moves) ----
@@ -286,6 +288,7 @@ public final class AutoClearFeature {
         corrections = 0;
         planKey = Long.MIN_VALUE;
         positionPacketsSeen = positionPackets;
+        executorCorrectionsSeen = ClearExecutor.serverCorrections();
         slotBefore = client.player == null ? -1 : client.player.getInventory().getSelectedSlot();
         // A key already held when it starts is the walk that got him here, not a takeover (Auto Routes' rule).
         KeyMapping[] keys = watchedKeys(client);
@@ -390,6 +393,10 @@ public final class AutoClearFeature {
             // A screen (chat, a chest) or an Auto Routes route: wait, holding nothing.
             releaseUse(client);
             action = McCompat.screen(client) != null ? "waiting (a screen is open)" : "waiting (Auto Routes is running)";
+            if (com.killer560.hub.autoroutes.RouteExecutor.isRunning()) {
+                // The route's own warps are its business (it judges their landings itself), not corrections of ours.
+                positionPacketsSeen = positionPackets;
+            }
             return;
         }
         checkPositionPackets(client, player);
@@ -418,6 +425,9 @@ public final class AutoClearFeature {
                     giveUpRoom("no etherwarp path (" + pathFailures + " tries)");
                     return;
                 }
+            }
+            if (travelStarted && doorTarget >= 0 && !ClearExecutor.lastPathFailed()) {
+                doorTripDone = doorTarget;   // the map took him as close to the door as it goes
             }
             travelStarted = false;
         }
@@ -583,6 +593,8 @@ public final class AutoClearFeature {
     // ---- wither doors (killer560, 2026-10-06: only when opening one is the only thing left before it can progress) ----
 
     private static int doorTarget = -1;
+    /** The door a trip to its approach spot has finished for: from then on it is clicked from where he stands. */
+    private static int doorTripDone = -1;
     private static int doorCooldown = 0;
     private static boolean saidNoKey = false;
 
@@ -597,6 +609,7 @@ public final class AutoClearFeature {
         releaseUse(client);
         if (door != doorTarget) {
             doorTarget = door;
+            doorTripDone = -1;
             saidNoKey = false;
             doorCooldown = 0;
             say(ModChat.text("Wither door in the way of "), ModChat.value(behind), ModChat.dim(" - going to open it"));
@@ -610,7 +623,11 @@ public final class AutoClearFeature {
         }
         double dx = player.getX() - (approach.getX() + 0.5);
         double dz = player.getZ() - (approach.getZ() + 0.5);
-        if (dx * dx + dz * dz > 2.5 * 2.5 || Math.abs(player.getY() - (approach.getY() + 1)) > 2.0) {
+        // Once a trip there has finished he is as close as the map takes him: its planner calls anything within five
+        // blocks of the approach "already there", so asking again from 2.5-5 blocks off asked every tick for ever
+        // (2026-10-07, testkit 131: "trip to wither door" and "Already there" on every tick, never a click).
+        boolean arrived = doorTripDone == door;
+        if (!arrived && (dx * dx + dz * dz > 2.5 * 2.5 || Math.abs(player.getY() - (approach.getY() + 1)) > 2.0)) {
             if (!AutoClearUtils.canPath(layout)) {
                 action = "waiting to land before the trip to the wither door";
                 return;
@@ -658,6 +675,14 @@ public final class AutoClearFeature {
         }
         Vec3 eye = player.getEyePosition();
         Vec3 aimAt = Vec3.atCenterOf(target);
+        double reach = player.blockInteractionRange();
+        if (Math.sqrt(new net.minecraft.world.phys.AABB(target).distanceToSqr(eye)) > reach) {
+            // Measured to the block's box, as the server does. Out of reach from where the map leaves him: say so and
+            // stop, rather than clicking at a door the server will never let him reach.
+            stop(String.format(Locale.US, "the wither door is %.1f blocks away, out of reach from where the map put you",
+                    Math.sqrt(new net.minecraft.world.phys.AABB(target).distanceToSqr(eye))));
+            return;
+        }
         TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, aimAt);
         float yaw = player.getYRot() + Mth.wrapDegrees(r.yaw() - player.getYRot());
         float pitch = Mth.clamp(r.pitch(), -90f, 90f);
@@ -919,13 +944,24 @@ public final class AutoClearFeature {
      * every landing itself); a packet that leaves him where he was is a rotation-only answer.
      */
     private static void checkPositionPackets(Minecraft client, LocalPlayer player) {
+        // A correction during a trip is the Interactive Map runner's to judge: it reports it (chat line + alarm) and
+        // plans the trip again from where he was put. Counted here too, so the run's "corrections N" is every one -
+        // until 2026-10-07 these were missing from it (testkit 131-sim-auto-clear "correction" case).
+        int executorCorrections = ClearExecutor.serverCorrections();
+        if (executorCorrections != executorCorrectionsSeen) {
+            int n = executorCorrections - executorCorrectionsSeen;
+            executorCorrectionsSeen = executorCorrections;
+            corrections += n;
+            LOGGER.info("[AutoClear] server correction #{} during the trip ({}): the Interactive Map reported it and"
+                    + " plans again from {} - carrying on", corrections, action, fmt(player.position()));
+        }
         int packets = positionPackets;
         if (packets == positionPacketsSeen) {
             return;
         }
         positionPacketsSeen = packets;
-        if (phase == Phase.TRAVEL || ClearExecutor.isBusy()) {
-            return;
+        if (ClearExecutor.isBusy()) {
+            return;   // the trip's own landings, or a correction it judges itself (above)
         }
         Vec3 at = player.position();
         Vec3 before = posBeforePacket;

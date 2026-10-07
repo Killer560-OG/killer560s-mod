@@ -5,6 +5,7 @@ import com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker;
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.LiveMapConfig;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ServerCorrections;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
@@ -138,6 +139,19 @@ public final class ClearExecutor {
     private static Vec3 arrivalPos = null;
     private static long lastAlreadyThereMs = 0L;
     private static BlockPos lastAlreadyThereGoal = null;
+    /** Where he stood before the first server position packet since the last tick looked (null: none since). */
+    private static Vec3 moveFrom = null;
+    /** The generation of a search the server moved him during: its plan starts where he no longer is. */
+    private static int searchMovedGen = Integer.MIN_VALUE;
+    /** Position packets seen, and where he stood, when the latest search started: older packets are not its business
+     *  (an Auto Clear hop landing drained in the same frame as the trip it led to). */
+    private static int planPackets = 0;
+    private static Vec3 planFrom = null;
+    /** Warps a dropped queue sent that the server had not answered yet: their landings may still arrive. */
+    private static int strayWarps = 0;
+    private static long strayUntilMs = 0L;
+    /** A position packet moving him less than this left him where he was (Auto Clear's rule too). */
+    private static final double CORRECTION_MIN_MOVE = 0.3;
 
     /** Hops in flight the server has not answered yet before the queue waits for it. */
     private static final int MAX_LEAD = 6;
@@ -312,6 +326,9 @@ public final class ClearExecutor {
         goalTile = tileIdx;
         goalComplete = complete;
         Vec3 from = player.position();
+        int packetsAtPlan = positionPackets;
+        planPackets = packetsAtPlan;
+        planFrom = from;
         DungeonLayout layout = DungeonLayout.capture();
         EtherwarpPathfinder.PathConfig cfg = pathConfig();
         // The planner's hop range. One number in the sim and on Hypixel: the sim's server gives an etherwarp
@@ -344,6 +361,31 @@ public final class ClearExecutor {
                     pathPending = false; // only the search that set it clears it
                 }
                 if (gen != generation) {
+                    return;
+                }
+                LocalPlayer now = client.player;
+                int unjudged = positionPackets - Math.max(positionPacketsSeen, packetsAtPlan);
+                if (unjudged > 0 && now != null) {
+                    // A position packet drained in the same batch as this result, before any tick looked at it -
+                    // testkit 131-sim-auto-clear, 2026-10-07: the search took 0.17 ms, so the server's teleport and the plan
+                    // arrived together, and startQueue would have taken the packet as already seen.
+                    moveFrom = null;
+                    positionPacketsSeen = positionPackets;
+                    if (movedWhilePlanning(unjudged, now.position(), from, true)) {
+                        searchMovedGen = gen;
+                    }
+                }
+                if (searchMovedGen == gen) {
+                    // The server moved him while this was searched (movedWhilePlanning said so): the plan starts
+                    // where he no longer is. Plan the same goal again from here - not a failed try.
+                    searchMovedGen = Integer.MIN_VALUE;
+                    LOGGER.info("[Path] the plan from {} is stale (the server moved you) - planning again from {}",
+                            fmt(from), now == null ? "?" : fmt(now.position()));
+                    goalTo = to;
+                    goalTile = tileIdx;
+                    goalComplete = complete;
+                    replanPending = true;
+                    replanWaitTicks = 0;
                     return;
                 }
                 if (result != null && result.isEmpty()) {
@@ -477,6 +519,7 @@ public final class ClearExecutor {
     }
 
     public static void cancel() {
+        noteStrayWarps();
         goalTo = null;
         goalTile = -1;
         goalComplete = null;
@@ -499,8 +542,51 @@ public final class ClearExecutor {
 
     /** Called from the position-packet mixin (network and client thread). */
     public static void onServerPositionPacket() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (moveFrom == null && player != null) {
+            moveFrom = player.position();   // before vanilla applies it (the mixin sits ahead of that)
+        }
         positionPacketSeen = true;
         positionPackets++;
+    }
+
+    /** The unanswered warps of a queue being dropped: their landings are ours, not corrections, for a couple of s. */
+    private static void noteStrayWarps() {
+        int unanswered = issued.size() - confirmed;
+        if (unanswered > 0) {
+            strayWarps = unanswered;
+            strayUntilMs = System.currentTimeMillis() + 2000L;
+        }
+    }
+
+    /**
+     * Server position packets while a path is being SEARCHED or waits to be planned again, with no queue of ours
+     * running: a correction (chat line + alarm, util/ServerCorrections) unless it is a late landing of the queue just
+     * dropped. The search started from where he stood, so its plan is thrown away and the goal planned again from where
+     * the server put him - never counted against {@link #MAX_REPLANS} (mod rule 2026-10-06: a correction never stops
+     * anything). Until 2026-10-07 these packets were not looked at at all: the plan then started "not on the path's
+     * first spot", which replanned as an ordinary failure with no alarm, and a second one in a click stopped the path
+     * (testkit 131-sim-auto-clear, whose server teleport landed while Auto Clear's trip was being planned).
+     */
+    private static boolean movedWhilePlanning(int packets, Vec3 at, Vec3 before, boolean searching) {
+        double moved = before == null ? ServerCorrections.lastMoveDistance() : at.distanceTo(before);
+        if (moved < CORRECTION_MIN_MOVE) {
+            return false;
+        }
+        if (strayWarps > 0 && System.currentTimeMillis() <= strayUntilMs) {
+            int ours = Math.min(strayWarps, packets);
+            strayWarps -= ours;
+            LOGGER.info("[Path] {} landing(s) of the dropped path arrived while planning - not a correction", ours);
+            if (ours >= packets) {
+                return true;
+            }
+        }
+        serverCorrections++;
+        String when = searching ? "while the path was being planned" : "while waiting to plan again";
+        LOGGER.warn("[Path] the server moved you {} blocks {} - planning again from {}",
+                String.format(java.util.Locale.US, "%.1f", moved), when, fmt(at));
+        ServerCorrections.report("Interactive Map", "(" + when + ") - planning again from here", moved);
+        return true;
     }
 
     /** Called from the keyboard-input mixin: QUOI forces shift while an etherwarp node is current or next. */
@@ -618,13 +704,48 @@ public final class ClearExecutor {
      * @return false when the path was given up on this tick
      */
     private static boolean checkLandings(Minecraft client) {
+        // A queue in flight or awaiting its last landing: progress is judged, and a stall gives up.
         boolean running = (nodes != null && !nodes.isEmpty()) || (syncDelay == 1 && confirmed < issued.size());
-        if (!running || client.player == null) {
+        // Every landing answered, the arrival settle still to run: a packet now is not one of ours either (until
+        // 2026-10-07 it was ignored here and became "ended N blocks from the planned landing" - an ordinary replan
+        // with no alarm, which a second time in a click stopped the path).
+        boolean settling = !running && syncDelay != 0;
+        boolean planning = !running && !settling && (pathPending || replanPending);
+        Vec3 before = moveFrom;
+        moveFrom = null;
+        if ((!running && !settling && !planning) || client.player == null) {
             positionPacketsSeen = positionPackets;
             return true;
         }
         Vec3 at = client.player.position();
         int packets = positionPackets;
+        if (planning) {
+            if (packets != positionPacketsSeen) {
+                boolean olderUnseen = pathPending && positionPacketsSeen < planPackets;
+                int arrived = packets - (pathPending ? Math.max(positionPacketsSeen, planPackets) : positionPacketsSeen);
+                positionPacketsSeen = packets;
+                if (olderUnseen) {
+                    before = planFrom;   // moveFrom predates the search
+                }
+                if (arrived > 0 && movedWhilePlanning(arrived, at, before, pathPending) && pathPending) {
+                    searchMovedGen = pendingGen;
+                }
+            }
+            return true;
+        }
+        if (settling) {
+            if (packets != positionPacketsSeen) {
+                positionPacketsSeen = packets;
+                if (lastGood != null && !landedOn(at, lastGood, LAND_XZ, LAND_Y)
+                        && (before == null || at.distanceTo(before) >= CORRECTION_MIN_MOVE)) {
+                    serverCorrections++;
+                    offPath(String.format(java.util.Locale.US, "the server moved you %.1f blocks off the last landing",
+                            horizontal(at, lastGood)), null, true);
+                    return false;
+                }
+            }
+            return true;
+        }
         if (packets != positionPacketsSeen) {
             positionPacketsSeen = packets;
             int match = -1;
@@ -757,6 +878,7 @@ public final class ClearExecutor {
 
     /** Everything about the running queue except the goal (callers keep or drop that themselves). */
     private static void dropQueue() {
+        noteStrayWarps();
         nodes = null;
         position = null;
         pendingInteract = null;
