@@ -2614,3 +2614,31 @@ for it. Also the single room should have the same filter option."
 - **Blast radii were below Hypixel's**: Wither Impact 5 and the Guided Bat 3, where hypixelskyblock.minecraft.wiki gives 6 for
   both. Both 6 now. The wiki gives no bat range; the sim's ~29.6 blocks is still unmeasured on Hypixel.
 - Testkit 131-sim-auto-clear exercises all of it (only when named).
+
+## Auto Teleport Maze and Auto Boulder under the autopilot (2026-10-06, autopuzzle-fixes)
+
+142-sim-autopilot2 saw Auto Teleport Maze loop over visited pads on two generated floors of three, and Auto Boulder give up
+"no walkable spot has the reward chest in reach and in sight". Neither was the floor or its rotation.
+
+- **Teleport Maze Solver read the wrong landing pad.** QUOI's landing box ran from the landing (x.5) one block on, inflated
+  one: x-0.5 .. x+2.5 of the pad's block, which takes in the pad two blocks over in +x/+z. The room has eleven such pairs,
+  each across a wall into the next chamber ((4,12)/(4,14), (10,20)/(10,22), ...). A landing on (4,12) marked (4,14) visited
+  too and was logged as landing there; the autopilot run's loop was the auto walking a link it had learnt wrong. The box is
+  now the landing's own block, a quarter block either way. **Same pad layout on Hypixel, so the same fault there.**
+- **And it lost the exit pad.** The candidates' 32-block XZ ray was taken along his LOOK, pitch included, and he lands looking
+  down at the pad he walked onto (66-75 degrees in every logged teleport), so the ray stopped 8-13 blocks out and a far exit
+  dropped out of the candidates for good (the set is only ever narrowed). The ray is levelled (pitch 0). Every maze teleport
+  logs one `[TeleportMaze] teleport N: from -> to, yaw, pitch, candidates` line.
+- **Auto Teleport Maze's pick** is `autopuzzles/MazeRoute`: the exit pad when named and here; a way to its chamber over links
+  this visit has seen (breadth first); QUOI's exploring order; else a known way to the nearest chamber with an untried pad.
+  "The diagonal again" (which walked him back towards the start pad from any pad he had come back through) is gone.
+  `tools/mazecheck/route.sh` plays it offline on sim mazes: with a correct solver the old pick and MazeRoute both reach the
+  centre every time (mean 6.7 teleports, max 13); MazeRoute's part is not going round when the data is wrong.
+- **Auto Boulder from the map's doorway spot.** The map lands him on relative (15,68,-2), filed under the next tile, and
+  Boulder Solver only scans while the live map says Boulder, so the 4 s solver wait ran out at the doorway with the boxes
+  unmoved. It now walks to the nearest spot inside the tile first and starts the wait there. Separately, the chest click aimed
+  at a random point of the outline that a stair edge could hide ("could not get the crosshair onto the reward chest in 60
+  ticks", once in four); it now takes a point it can see from where he stands, else the middle.
+- Testkit: `93-solve-boulder-mapdoor` (map arrival faked by setting ClearExecutor's arrival fields) and
+  `93-solve-teleportmaze-budget` (30 s, and `ExitWatch`: the sim's exit pad must stay among the solver's candidates after every
+  teleport). Main 264ea8c1: mapdoor 0/4, budget 1/4 (exit lost 3 times, one not solved). Fixed: 6/6 and 6/6 (Map Logger).
