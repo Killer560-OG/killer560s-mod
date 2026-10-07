@@ -288,4 +288,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   after the clicktranslate HEAD hook has dispatched it - Chat Tidy injects at that method's `Predicate.test` call (2026-10-07;
   testkit 87 checks every hidden line still reached `ChatObserver`). Hide Chat Messages (Object Hider) still uses `ALLOW_GAME`.
 
+- **Moving the camera does not move the crosshair.** `GameRenderer.pick` -> `LocalPlayer.raycastHitResult` casts from
+  `Entity.getEyePosition`, never from `Camera.position()` (javap 26.1.2 and 26.2), so a `Camera.setPosition` at the TAIL of
+  `Camera.alignWithEntity` changes only where the frame is drawn from (chunks, culling, every renderer reading the camera).
+  Smooth Teleport (`smoothtp/`, 2026-10-07) relies on it; testkit 396-sim-smooth-tp hits a wall 2.5 blocks past the landing on
+  the first frame while the camera is still 14.5 blocks back.
+
 Compiling lessons (API names across versions, the cloud-session javac filter) are in [COMPILING.md](COMPILING.md).

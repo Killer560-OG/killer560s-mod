@@ -765,6 +765,13 @@ final class SettingTooltipsData {
         d.put("show mana", "Includes current/max mana (MP) in the Stat Bars HUD line.");
         d.put("show defense", "Includes your defense (DEF) in the Stat Bars HUD line.");
         d.put("etherwarp overlay", "Highlights the block you would land on while holding an etherwarp item.");
+        d.put("smooth teleport", "Glides your camera to where a teleport ability lands you instead of snapping. "
+                + "Visual only: you are already there, and what you aim at is where you landed.");
+        d.put("smooth teleport/duration", "How long the camera takes to glide to the landing (50-500 ms).");
+        d.put("smooth teleport/etherwarp", "Glide on etherwarps (sneak + right click with an etherwarp item).");
+        d.put("smooth teleport/instant transmission", "Glide on Aspect of the End / Void right-click teleports.");
+        d.put("smooth teleport/wither impact", "Glide on Hyperion, Astraea, Scylla and Valkyrie teleports.");
+        d.put("smooth teleport/other teleports", "Glide on Sinseeker Scythe and Aspect of the Leech teleports.");
         d.put("show when failed", "Also highlights the target when the etherwarp would fail.");
         d.put("full block box", "ON boxes the whole block; OFF follows its real shape.");
         d.put("slot binds", "Links two inventory slots so shift-clicking one swaps them.");

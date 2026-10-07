@@ -22,7 +22,7 @@ New or changed features sit in the mod menu's **New** tab until they're confirme
 
 **Items, Inventory & Trading** - Armor Recolour, Auction House Browser, Auto Inventory Sorter, Bazaar Browser, Custom Enchant Colours, Experimentation Table Profit Tracker, Experimentation Table Solver †, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Item Value Tooltip, Listing Helper, Loadout Keybinds, Pet Wheel, Profit Trackers (/profit), Revert Master Stars, Scrollable Tooltips, Slot Binds, Storage Item Search, Storage Overlay
 
-**HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Ability Timers, Advanced Position, Auto Join Skyblock, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, GIF Player, Health and Mana Bars, No Fire, Object Hider, Pathfinding †, Performance HUD, Quiver Display, Real Time, Screenshot Copy, Trail, Trajectories, Waypoint Routes, Video Browser
+**HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Ability Timers, Advanced Position, Auto Join Skyblock, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, GIF Player, Health and Mana Bars, No Fire, Object Hider, Pathfinding †, Performance HUD, Quiver Display, Real Time, Screenshot Copy, Smooth Teleport, Trail, Trajectories, Waypoint Routes, Video Browser
 
 **Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Waypoints, Simon Says †, Solver Highlights, Teleport Maze Solver, Terminal Solver †, Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver, Wither Doors
 
