@@ -1841,26 +1841,21 @@ final class SettingTooltipsData {
         d.put("lever aura/max delay", "Longest random wait between Lever Aura flicks, in ms (50-2000).");
         d.put("stat bars", "Replaces the vanilla hearts, hunger, armor and air bars and the action-bar stats with your own text and bars.");
         // Stat Bars moved into Health and Mana Bars on 2026-10-04; keys re-scoped with it (docs/LESSONS.md).
-        d.put("health and mana bars/stat bars", "Reads health, mana and defence from Hypixel's action bar; needed by the custom bars, texts and Classic Display.");
+        d.put("health and mana bars/stat bars", "Reads health, mana, defence and vitality from Hypixel's action bar; needed by every bar and text below.");
         d.put("health and mana bars/hearts", "While Stat Bars is on: hides the vanilla heart bar.");
         d.put("health and mana bars/hunger bar", "While Stat Bars is on: hides the vanilla hunger bar.");
         d.put("health and mana bars/armour bar", "While Stat Bars is on: hides the vanilla armour points bar.");
         d.put("health and mana bars/air bar", "While Stat Bars is on: hides the vanilla air/breath bubbles bar.");
         d.put("health and mana bars/unhide hearts in rift", "Shows the vanilla heart bar again while inside The Rift.");
-        d.put("health and mana bars/show text", "Classic Display: draws the HP, MP and DEF text line.");
-        d.put("health and mana bars/show bar", "Classic Display: draws a health/mana bar for each stat that is on.");
-        d.put("health and mana bars/show health", "Classic Display: includes health.");
-        d.put("health and mana bars/show mana", "Classic Display: includes mana.");
-        d.put("health and mana bars/show defense", "Classic Display: includes defence (text only).");
         // Redone 2026-10-07 (killer560: "way too complicated looking"): Armor Bar became Armour Bar, Hypixel Stat Text
         // became Hide Hypixel Stat Text in the new Text section, and the per-readout Scale slider went (the HUD editor
         // sets the same scale). The always-on Object Hider bar hides below had no description until then.
-        d.put("health and mana bars/hide hypixel stat text", "Takes Hypixel's own health, defence and mana numbers (and the other stat segments) out of the action bar, leaving anything else on that line.");
+        d.put("health and mana bars/hypixel stat text", "Takes Hypixel's own health, defence and mana numbers (and the other stat segments) out of the action bar, leaving anything else on that line.");
         d.put("health and mana bars/xp bar and level", "Hides the vanilla experience bar and the level number above it (also the locator and mount jump bars that share its slot).");
-        d.put("health and mana bars/health bar", "A health bar you can move and scale in the HUD editor. Health past your max shows in the absorption colour.");
-        d.put("health and mana bars/mana bar", "A mana bar you can move and scale in the HUD editor.");
+        d.put("health and mana bars/health bar", "A health bar you can move, scale and resize (drag its edges) in Edit HUD. Health past your max shows in the absorption colour.");
+        d.put("health and mana bars/mana bar", "A mana bar you can move, scale and resize (drag its edges) in Edit HUD.");
         d.put("health and mana bars/defence bar", "Your damage reduction from defence, defence / (defence + 100), as a bar.");
-        d.put("health and mana bars/other resource bar", "Any other current/max stat Hypixel shows on the action bar with its own icon, as a bar.");
+        d.put("health and mana bars/other resource bar", "Any other current/max stat Hypixel shows on the action bar with its own icon (not vitality, which has its own), as a bar.");
         d.put("health and mana bars/health text", "Your health as text, movable and scalable.");
         d.put("health and mana bars/mana text", "Your mana as text, movable and scalable.");
         d.put("health and mana bars/overflow mana text", "Your overflow mana as text; shows only while you have some.");
@@ -1869,8 +1864,13 @@ final class SettingTooltipsData {
         d.put("health and mana bars/effective health text", "Health times (1 + defence / 100): how much raw damage you can take.");
         d.put("health and mana bars/other resource text", "Any other current/max stat Hypixel shows on the action bar, as text.");
         d.put("health and mana bars/colour", "Colour of this bar or text.");
-        d.put("health and mana bars/bar width", "Length of every custom bar.");
-        d.put("health and mana bars/bar height", "Thickness of every custom bar.");
+        d.put("health and mana bars/bar width", "Length of every custom bar at once. To size one bar on its own, drag its edges in Edit HUD; moving this slider puts every bar back to it.");
+        d.put("health and mana bars/bar height", "Thickness of every custom bar at once. To size one bar on its own, drag its edges in Edit HUD; moving this slider puts every bar back to it.");
+        d.put("health and mana bars/vitality bar", "Your vitality (the resource healing abilities, Wither Shield and Creeper Veil use) as a bar. Hypixel only shows it on the action bar while it is in use, so the bar shows then too.");
+        d.put("health and mana bars/vitality text", "Your vitality as text, from the action bar.");
+        d.put("health and mana bars/xp bar", "Your experience bar: level and progress, as the game has them. Hypixel sometimes uses this bar for a countdown instead, and then that is what it shows.");
+        d.put("health and mana bars/xp text", "Your experience level and how far the bar is to the next one, as text.");
+        d.put("health and mana bars/hide vanilla xp bar", "Hides the vanilla experience bar and its level while you use the custom one (the same setting as XP Bar And Level under Hide).");
         d.put("health and mana bars/show value", "Draws the number on each custom bar.");
         d.put("health and mana bars/background", "Colour of the empty part of every custom bar.");
         d.put("health and mana bars/absorption colour", "Colour of the health bar's part past your max health.");
@@ -1881,7 +1881,6 @@ final class SettingTooltipsData {
         d.put("health and mana bars/regeneration bounce", "Stops the vanilla hearts bobbing up and down while you regenerate.");
         d.put("health and mana bars/armour", "Always hides the vanilla armour points bar, whether Stat Bars is on or not.");
         d.put("health and mana bars/hunger", "Always hides the vanilla hunger bar, whether Stat Bars is on or not.");
-        d.put("health and mana bars/classic display", "The original one-line HP / MP / DEF readout, its own HUD element.");
         d.put("slot binds/show binds", "Whether bound-slot borders are always drawn or only while your mouse is over one.");
         d.put("slot binds/border color", "Colour of the border and line drawn on bound slots.");
         d.put("wither doors/enabled", "Highlights the nearest locked Wither door, turning green once you have a Wither Key.");

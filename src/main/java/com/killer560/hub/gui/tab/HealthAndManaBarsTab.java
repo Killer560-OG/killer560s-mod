@@ -30,13 +30,20 @@ import java.util.function.Supplier;
  *  {@link ObjectHiderConfig} fields under the same JSON keys it always did.
  *  <p>
  *  Redone 2026-10-07, killer560: "redo the bar section. It is way too complicated looking. Also no one needs to
- *  adjust scale there, they just use the edit hud menu portion." The four nested dropdowns are gone; the page is the
- *  Stat Bars switch, then one row per stat (bar and text side by side, each with its colour once it is on), then
- *  Vanilla HUD, then Text, with Classic Display folded away at the bottom. The per-readout Scale sliders were removed:
- *  they wrote the very same {@code HudConfig} scale the HUD editor scrolls ({@code hud.setScale(r.hudId, ...)}), so
- *  there is nothing to migrate - every saved size is already the editor's and keeps drawing through
+ *  adjust scale there, they just use the edit hud menu portion." The four nested dropdowns are gone and the per-readout
+ *  Scale sliders were removed: they wrote the very same {@code HudConfig} scale the HUD editor scrolls
+ *  ({@code hud.setScale(r.hudId, ...)}), so every saved size is already the editor's and keeps drawing through
  *  {@code HudElementRegistry.resolveScale}. Bar Width and Bar Height stay: they set the bars' SHAPE (length against
- *  thickness, independently, and leave the number on the bar its normal size), which a uniform scale cannot do. */
+ *  thickness, independently, and leave the number on the bar its normal size), which a uniform scale cannot do. Since
+ *  the same day each bar can also be resized on its own in the HUD editor; the sliders set every bar at once.
+ *  <p>
+ *  Regrouped later that day, killer560: "Make the menu have text next to text and bars next to bars", and "remove the
+ *  classic display option, that is not needed". The page is the Stat Bars switch, then <b>Bars</b> - every bar in a
+ *  two-column grid, each with its colour once it is on, then the bar settings - then <b>Text</b> - every text readout
+ *  in the same grid, then Text Shadow - then <b>Hide</b>: the vanilla bars Stat Bars hides, and what is always hidden
+ *  (Hypixel's own stat text and the vanilla XP bar included). Classic Display is gone (see
+ *  {@code PlayerStatsConfig.migrateClassic}). Vitality and XP joined both grids; while an XP readout is on, the vanilla
+ *  XP bar's hide is offered right under it too, since a custom XP bar mostly makes sense instead of the vanilla one. */
 public class HealthAndManaBarsTab extends BaseTab {
 
     private static final int GAP = 6;
@@ -44,18 +51,21 @@ public class HealthAndManaBarsTab extends BaseTab {
     private static final int ROW = 22;
     /** Width of the "Colour: ■" button beside a readout's toggle. */
     private static final int SWATCH_W = 52;
-    /** Classic Display stays folded away (session-only, like FolderTab's accordion state): it is the old one-line
-     *  element most people never use. */
-    private static boolean classicOpen;
 
-    /** The rows of the bar list: a stat's bar on the left and its text on the right, then the text-only stats. */
-    private static final Readout[][] PAIRS = {
-            {Readout.HEALTH_BAR, Readout.HEALTH_TEXT},
-            {Readout.MANA_BAR, Readout.MANA_TEXT},
-            {Readout.DEFENCE_BAR, Readout.DEFENCE_TEXT},
-            {Readout.OTHER_BAR, Readout.OTHER_TEXT},
-            {Readout.OVERFLOW_TEXT, Readout.INTELLIGENCE_TEXT},
-            {Readout.EFFECTIVE_HEALTH_TEXT, null},
+    /** The Bars grid, two to a row, in reading order. */
+    static final Readout[] BARS = {
+            Readout.HEALTH_BAR, Readout.MANA_BAR,
+            Readout.DEFENCE_BAR, Readout.VITALITY_BAR,
+            Readout.OTHER_BAR, Readout.XP_BAR,
+    };
+
+    /** The Text grid, two to a row: the same stats in the same places as the bars, then the text-only ones. */
+    static final Readout[] TEXTS = {
+            Readout.HEALTH_TEXT, Readout.MANA_TEXT,
+            Readout.DEFENCE_TEXT, Readout.VITALITY_TEXT,
+            Readout.OTHER_TEXT, Readout.XP_TEXT,
+            Readout.OVERFLOW_TEXT, Readout.INTELLIGENCE_TEXT,
+            Readout.EFFECTIVE_HEALTH_TEXT,
     };
 
     public HealthAndManaBarsTab() {
@@ -79,19 +89,13 @@ public class HealthAndManaBarsTab extends BaseTab {
                 }).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += 24;
 
-        // ---------------- Bars and text: one row per stat ----------------
         if (master) {
+            // ---------------- Bars ----------------
             header(widgets, contentX, contentWidth, y, "Bars");
-            for (Readout[] pair : PAIRS) {
-                readout(widgets, contentX, half, y[0], pair[0], requestRebuild);
-                if (pair[1] != null) {
-                    readout(widgets, col2, half, y[0], pair[1], requestRebuild);
-                }
-                y[0] += ROW;
-            }
+            grid(widgets, contentX, col2, half, y, BARS, requestRebuild);
             boolean anyBar = false;
-            for (Readout r : Readout.values()) {
-                anyBar |= r.bar && ps.isReadoutOn(r);
+            for (Readout r : BARS) {
+                anyBar |= ps.isReadoutOn(r);
             }
             if (anyBar) {
                 y[0] += 4;
@@ -123,12 +127,27 @@ public class HealthAndManaBarsTab extends BaseTab {
                     y[0] += ROW;
                 }
             }
+
+            // ---------------- Text ----------------
+            header(widgets, contentX, contentWidth, y, "Text");
+            grid(widgets, contentX, col2, half, y, TEXTS, requestRebuild);
+            // The grid's odd last cell leaves the right column free: Text Shadow sits there.
+            y[0] -= ROW;
+            toggle(widgets, col2, y[0], half, "Text Shadow", ps::isTextShadow, ps::setTextShadow, ps::save, null);
+            y[0] += ROW;
+            if (ps.isReadoutOn(Readout.XP_BAR) || ps.isReadoutOn(Readout.XP_TEXT)) {
+                // A custom XP readout mostly replaces the vanilla bar: offer its hide here, beside where it was turned
+                // on. The same setting as Hide's "XP Bar And Level".
+                toggle(widgets, contentX, y[0], contentWidth, "Hide Vanilla XP Bar", ps::isHideXpBar, ps::setHideXpBar,
+                        ps::save, requestRebuild);
+                y[0] += ROW;
+            }
         }
 
-        // ---------------- Vanilla HUD ----------------
-        header(widgets, contentX, contentWidth, y, "Vanilla HUD");
+        // ---------------- Hide ----------------
+        header(widgets, contentX, contentWidth, y, "Hide");
         if (master) {
-            note(widgets, contentX, contentWidth, y, "Hidden while Stat Bars is on:");
+            note(widgets, contentX, contentWidth, y, "While Stat Bars is on:");
             toggle(widgets, contentX, y[0], half, "Hearts", ps::isHideVanillaHearts, ps::setHideVanillaHearts,
                     ps::save, requestRebuild);
             toggle(widgets, col2, y[0], half, "Hunger Bar", ps::isHideVanillaHunger, ps::setHideVanillaHunger,
@@ -145,7 +164,7 @@ public class HealthAndManaBarsTab extends BaseTab {
             }
         }
         // These never depended on Stat Bars, so they show whether it is on or not.
-        note(widgets, contentX, contentWidth, y, "Always hidden:");
+        note(widgets, contentX, contentWidth, y, "Always:");
         toggle(widgets, contentX, y[0], half, "Health", oh::getHideHealthBarRaw, oh::setHideHealthBar, oh::save, null);
         toggle(widgets, col2, y[0], half, "Absorption", oh::getHideAbsorptionHeartsRaw, oh::setHideAbsorptionHearts,
                 oh::save, null);
@@ -158,42 +177,24 @@ public class HealthAndManaBarsTab extends BaseTab {
         toggle(widgets, contentX, y[0], half, "Armour", oh::getHideArmorBarRaw, oh::setHideArmorBar, oh::save, null);
         toggle(widgets, col2, y[0], half, "Hunger", oh::getHideHungerBarRaw, oh::setHideHungerBar, oh::save, null);
         y[0] += ROW;
-        toggle(widgets, contentX, y[0], half, "XP Bar And Level", ps::isHideXpBar, ps::setHideXpBar, ps::save, null);
-        y[0] += ROW;
-
-        // ---------------- Text ----------------
-        header(widgets, contentX, contentWidth, y, "Text");
+        toggle(widgets, contentX, y[0], half, "XP Bar And Level", ps::isHideXpBar, ps::setHideXpBar, ps::save,
+                requestRebuild);
         // Hypixel's own numbers on the action bar: independent of Stat Bars, like the hides above.
-        toggle(widgets, contentX, y[0], half, "Hide Hypixel Stat Text", ps::isHideHypixelStatText,
-                ps::setHideHypixelStatText, ps::save, null);
-        if (master) {
-            toggle(widgets, col2, y[0], half, "Text Shadow", ps::isTextShadow, ps::setTextShadow, ps::save, null);
-        }
+        toggle(widgets, col2, y[0], half, "Hypixel Stat Text", ps::isHideHypixelStatText, ps::setHideHypixelStatText,
+                ps::save, null);
         y[0] += ROW;
+        return widgets;
+    }
 
-        // ---------------- Classic Display (the original one-line Stat Bars element) ----------------
-        if (master) {
-            y[0] = CollapsibleSection.header(widgets, contentX, y[0], contentWidth, "Classic Display", false,
-                    classicOpen, () -> {
-                        classicOpen = !classicOpen;
-                        requestRebuild.run();
-                    });
-            if (classicOpen) {
-                toggle(widgets, contentX, y[0], half, "Show Health", ps::isShowHealth, ps::setShowHealth, ps::save,
-                        null);
-                toggle(widgets, col2, y[0], half, "Show Mana", ps::isShowMana, ps::setShowMana, ps::save, null);
-                y[0] += ROW;
-                toggle(widgets, contentX, y[0], half, "Show Defense", ps::isShowDefense, ps::setShowDefense,
-                        ps::save, null);
-                y[0] += ROW;
-                // killer560: "I should have an option to hide or show the text and the bar when the bars are
-                // working as well" - independent of which of Health/Mana/Defense above are on.
-                toggle(widgets, contentX, y[0], half, "Show Text", ps::isShowText, ps::setShowText, ps::save, null);
-                toggle(widgets, col2, y[0], half, "Show Bar", ps::isShowBar, ps::setShowBar, ps::save, null);
+    /** Readouts two to a row, left column then right; leaves {@code y} under the last row. */
+    private static void grid(List<AbstractWidget> widgets, int left, int right, int half, int[] y, Readout[] cells,
+                             Runnable requestRebuild) {
+        for (int i = 0; i < cells.length; i++) {
+            readout(widgets, i % 2 == 0 ? left : right, half, y[0], cells[i], requestRebuild);
+            if (i % 2 == 1 || i == cells.length - 1) {
                 y[0] += ROW;
             }
         }
-        return widgets;
     }
 
     /** One readout in a half-width cell: "<Name>: ON/OFF", and its colour beside it while it is on. */

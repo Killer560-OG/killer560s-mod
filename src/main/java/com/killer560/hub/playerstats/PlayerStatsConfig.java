@@ -31,9 +31,6 @@ public final class PlayerStatsConfig {
     private static PlayerStatsConfig instance;
 
     private boolean enabled = false;
-    private boolean showHealth = true;
-    private boolean showMana = true;
-    private boolean showDefense = true;
     // --- Stat Bars: hide the vanilla HUD bars underneath ours (killer560, 2026-09-21) ---
     private boolean hideVanillaHearts = true;
     private boolean hideVanillaHunger = true;
@@ -41,13 +38,9 @@ public final class PlayerStatsConfig {
     private boolean hideVanillaAir = true;
     /** Un-hides the vanilla heart bar while in The Rift, where hearts mean something different. */
     private boolean showHeartsInRift = true;
-    // --- Real bug found and fixed (2026-09-27), killer560: "it didn't create the bars ... I should have
-    // an option to hide or show the text and the bar when the bars are working as well." The HUD element
-    // only ever drew text (see PlayerStatsFeature.StatsHudElement) - these two independently control
-    // whether that text line and the new proportional bars each draw. Both default ON so, once fixed,
-    // the feature actually looks like "Stat Bars" out of the box for anyone who already had it enabled. ---
-    private boolean showText = true;
-    private boolean showBar = true;
+    // Classic Display (the one-line "HP / MP / DEF" element, HUD id "player_stats", and its five keys showHealth,
+    // showMana, showDefense, showText, showBar) was removed on 2026-10-07 - killer560: "remove the classic display
+    // option, that is not needed." Those keys are no longer read or written, except once by migrateClassic().
     // --- 2026-10-04, killer560: "make custom health, intel, vitality, defence, true defence, and other such
     // bars ... Also add an option to hide the text Hypixel has like 3000/3000 with the heart symbol ... Also
     // add an option to hide the enchanting bar and its level. But make options for custom text, custom bars
@@ -63,6 +56,11 @@ public final class PlayerStatsConfig {
     private final java.util.Map<String, Boolean> readoutOn = new java.util.HashMap<>();
     /** Per-element ARGB colour, keyed by {@link StatElements.Readout#key}. Absent = the readout's default. */
     private final java.util.Map<String, Integer> readoutColor = new java.util.HashMap<>();
+    /** Per-bar length and thickness set by dragging the bar's edges in the HUD editor (2026-10-07, killer560: "make it
+     *  so it is draggable to resize ... the same as a normal Chrome window"), keyed by {@link StatElements.Readout#key}.
+     *  Absent = the shared Bar Width / Bar Height below, which the tab's sliders set for every bar at once. */
+    private final java.util.Map<String, Integer> readoutWidth = new java.util.HashMap<>();
+    private final java.util.Map<String, Integer> readoutHeight = new java.util.HashMap<>();
     public static final int MIN_BAR_WIDTH = 40;
     public static final int MAX_BAR_WIDTH = 300;
     public static final int MIN_BAR_HEIGHT = 2;
@@ -98,16 +96,11 @@ public final class PlayerStatsConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             PlayerStatsConfig cfg = new PlayerStatsConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.showHealth = ConfigJson.getBool(obj, "showHealth", true);
-            cfg.showMana = ConfigJson.getBool(obj, "showMana", true);
-            cfg.showDefense = ConfigJson.getBool(obj, "showDefense", true);
             cfg.hideVanillaHearts = ConfigJson.getBool(obj, "hideVanillaHearts", true);
             cfg.hideVanillaHunger = ConfigJson.getBool(obj, "hideVanillaHunger", true);
             cfg.hideVanillaArmour = ConfigJson.getBool(obj, "hideVanillaArmour", true);
             cfg.hideVanillaAir = ConfigJson.getBool(obj, "hideVanillaAir", true);
             cfg.showHeartsInRift = ConfigJson.getBool(obj, "showHeartsInRift", true);
-            cfg.showText = ConfigJson.getBool(obj, "showText", true);
-            cfg.showBar = ConfigJson.getBool(obj, "showBar", true);
             // Before 2026-10-04 the stat line was hidden whenever Stat Bars was on, so an old file keeps that.
             cfg.hideHypixelStatText = ConfigJson.getBool(obj, "hideHypixelStatText", cfg.enabled);
             cfg.hideXpBar = ConfigJson.getBool(obj, "hideXpBar", false);
@@ -123,6 +116,14 @@ public final class PlayerStatsConfig {
                     if (r.has("color")) {
                         cfg.readoutColor.put(e.getKey(), r.get("color").getAsInt());
                     }
+                    int w = ConfigJson.getInt(r, "width", -1);
+                    if (w > 0) {
+                        cfg.readoutWidth.put(e.getKey(), clamp(w, MIN_BAR_WIDTH, MAX_BAR_WIDTH));
+                    }
+                    int h = ConfigJson.getInt(r, "height", -1);
+                    if (h > 0) {
+                        cfg.readoutHeight.put(e.getKey(), clamp(h, MIN_BAR_HEIGHT, MAX_BAR_HEIGHT));
+                    }
                 }
             }
             cfg.barWidth = clamp(obj.has("barWidth") ? obj.get("barWidth").getAsInt() : cfg.barWidth,
@@ -134,6 +135,9 @@ public final class PlayerStatsConfig {
             cfg.barBackground = obj.has("barBackground") ? obj.get("barBackground").getAsInt() : cfg.barBackground;
             cfg.textShadow = ConfigJson.getBool(obj, "textShadow", cfg.textShadow);
             instance = cfg;
+            if (cfg.migrateClassic(obj)) {
+                cfg.save();
+            }
         } catch (Exception e) {
             instance = new PlayerStatsConfig();
         }
@@ -144,16 +148,11 @@ public final class PlayerStatsConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("showHealth", showHealth);
-            obj.addProperty("showMana", showMana);
-            obj.addProperty("showDefense", showDefense);
             obj.addProperty("hideVanillaHearts", hideVanillaHearts);
             obj.addProperty("hideVanillaHunger", hideVanillaHunger);
             obj.addProperty("hideVanillaArmour", hideVanillaArmour);
             obj.addProperty("hideVanillaAir", hideVanillaAir);
             obj.addProperty("showHeartsInRift", showHeartsInRift);
-            obj.addProperty("showText", showText);
-            obj.addProperty("showBar", showBar);
             obj.addProperty("hideHypixelStatText", hideHypixelStatText);
             obj.addProperty("hideXpBar", hideXpBar);
             JsonObject readouts = new JsonObject();
@@ -161,6 +160,14 @@ public final class PlayerStatsConfig {
                 JsonObject o = new JsonObject();
                 o.addProperty("on", isReadoutOn(r));
                 o.addProperty("color", getReadoutColor(r));
+                Integer w = readoutWidth.get(r.key);
+                if (w != null) {
+                    o.addProperty("width", w);
+                }
+                Integer h = readoutHeight.get(r.key);
+                if (h != null) {
+                    o.addProperty("height", h);
+                }
                 readouts.add(r.key, o);
             }
             obj.add("readouts", readouts);
@@ -181,30 +188,6 @@ public final class PlayerStatsConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-    }
-
-    public boolean isShowHealth() {
-        return showHealth;
-    }
-
-    public void setShowHealth(boolean showHealth) {
-        this.showHealth = showHealth;
-    }
-
-    public boolean isShowMana() {
-        return showMana;
-    }
-
-    public void setShowMana(boolean showMana) {
-        this.showMana = showMana;
-    }
-
-    public boolean isShowDefense() {
-        return showDefense;
-    }
-
-    public void setShowDefense(boolean showDefense) {
-        this.showDefense = showDefense;
     }
 
     public boolean isHideVanillaHearts() {
@@ -246,24 +229,6 @@ public final class PlayerStatsConfig {
 
     public void setShowHeartsInRift(boolean value) {
         this.showHeartsInRift = value;
-    }
-
-    /** Whether the "HP: x/y  MP: x/y  DEF: x" text line draws. */
-    public boolean isShowText() {
-        return showText;
-    }
-
-    public void setShowText(boolean value) {
-        this.showText = value;
-    }
-
-    /** Whether the proportional health/mana bars draw. */
-    public boolean isShowBar() {
-        return showBar;
-    }
-
-    public void setShowBar(boolean value) {
-        this.showBar = value;
     }
 
     private static int clamp(int v, int lo, int hi) {
@@ -308,21 +273,113 @@ public final class PlayerStatsConfig {
         readoutColor.put(r.key, argb);
     }
 
+    /** The shared bar length (the tab's Bar Width slider). */
     public int getBarWidth() {
         return barWidth;
     }
 
+    /** Sets every bar's length: the shared value, and any bar resized on its own in the HUD editor goes back to it,
+     *  so the slider always does what it says. */
     public void setBarWidth(int v) {
         this.barWidth = clamp(v, MIN_BAR_WIDTH, MAX_BAR_WIDTH);
+        readoutWidth.clear();
     }
 
+    /** The shared bar thickness (the tab's Bar Height slider). */
     public int getBarHeight() {
         return barHeight;
     }
 
+    /** Sets every bar's thickness; see {@link #setBarWidth}. */
     public void setBarHeight(int v) {
         this.barHeight = clamp(v, MIN_BAR_HEIGHT, MAX_BAR_HEIGHT);
+        readoutHeight.clear();
     }
+
+    /** This bar's length: its own HUD-editor size, else the shared Bar Width. */
+    public int getBarWidth(StatElements.Readout r) {
+        Integer w = readoutWidth.get(r.key);
+        return w != null ? w : barWidth;
+    }
+
+    /** Sets one bar's length (the HUD editor's edge drag), clamped to the slider's range. */
+    public void setBarWidth(StatElements.Readout r, int v) {
+        readoutWidth.put(r.key, clamp(v, MIN_BAR_WIDTH, MAX_BAR_WIDTH));
+    }
+
+    /** This bar's thickness: its own HUD-editor size, else the shared Bar Height. */
+    public int getBarHeight(StatElements.Readout r) {
+        Integer h = readoutHeight.get(r.key);
+        return h != null ? h : barHeight;
+    }
+
+    public void setBarHeight(StatElements.Readout r, int v) {
+        readoutHeight.put(r.key, clamp(v, MIN_BAR_HEIGHT, MAX_BAR_HEIGHT));
+    }
+
+    /**
+     * One-time move off Classic Display (removed 2026-10-07). It drew whenever Stat Bars was on and either of its Show
+     * Text / Show Bar was (both defaulted on), so anyone who had Stat Bars on and none of the custom readouts would
+     * otherwise update to an empty HUD. For exactly them, the readouts that draw what Classic Display drew are switched
+     * on - its bars as the Health / Mana Bar, its text as the Health / Mana / Defence Text - and placed where Classic
+     * Display was, at its scale, one under another. Anyone already using a custom readout keeps exactly what they had.
+     * The file is saved straight after (by {@link #load()}), without the classic keys, so this runs once.
+     *
+     * @return whether the file still carried Classic Display's keys (so it is re-saved without them)
+     */
+    private boolean migrateClassic(JsonObject obj) {
+        if (!obj.has("showText") && !obj.has("showBar")) {
+            return false;
+        }
+        boolean showText = ConfigJson.getBool(obj, "showText", true);
+        boolean showBar = ConfigJson.getBool(obj, "showBar", true);
+        boolean health = ConfigJson.getBool(obj, "showHealth", true);
+        boolean mana = ConfigJson.getBool(obj, "showMana", true);
+        boolean defence = ConfigJson.getBool(obj, "showDefense", true);
+        boolean anyReadout = false;
+        for (StatElements.Readout r : StatElements.Readout.values()) {
+            anyReadout |= isReadoutOn(r);
+        }
+        if (!enabled || anyReadout || !(showText || showBar)) {
+            return true;
+        }
+        java.util.List<StatElements.Readout> on = new java.util.ArrayList<>();
+        if (showBar && health) {
+            on.add(StatElements.Readout.HEALTH_BAR);
+        }
+        if (showBar && mana) {
+            on.add(StatElements.Readout.MANA_BAR);
+        }
+        if (showText && health) {
+            on.add(StatElements.Readout.HEALTH_TEXT);
+        }
+        if (showText && mana) {
+            on.add(StatElements.Readout.MANA_TEXT);
+        }
+        if (showText && defence) {
+            on.add(StatElements.Readout.DEFENCE_TEXT);
+        }
+        com.killer560.hub.hud.HudConfig hud = com.killer560.hub.hud.HudConfig.getInstance();
+        boolean placed = hud.hasPosition(CLASSIC_HUD_ID);
+        int[] at = hud.getPosition(CLASSIC_HUD_ID, 0, 0);
+        float scale = hud.getScale(CLASSIC_HUD_ID, 1.0f);
+        int y = at[1];
+        for (StatElements.Readout r : on) {
+            readoutOn.put(r.key, true);
+            if (placed && !hud.hasPosition(r.hudId)) {
+                hud.setPosition(r.hudId, at[0], y);
+                hud.setScale(r.hudId, scale);
+                y += Math.round((r.bar ? Math.max(barHeight, 9) : 9) * scale) + 2;
+            }
+        }
+        if (placed) {
+            hud.save();
+        }
+        return true;
+    }
+
+    /** The removed Classic Display's HUD id, read only by {@link #migrateClassic}. */
+    static final String CLASSIC_HUD_ID = "player_stats";
 
     public boolean isBarShowValue() {
         return barShowValue;

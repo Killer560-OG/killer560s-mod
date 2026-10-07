@@ -21,7 +21,7 @@ public final class HudInGameRenderer {
 
     // Set, not List: this is probed once per registered element per frame (2026-09-20, FPS pass).
     private static final Set<String> UNDRAWN_ELEMENT_IDS = Set.of(
-            "tick_timers", "split_timers", "player_stats", "quiver_display", "livid_invuln_timer",
+            "tick_timers", "split_timers", "quiver_display", "livid_invuln_timer",
             "mask_invincibility", "simonsays_party_progress", "live_map", "real_time", "score_calculator",
             "wither_dragon_timers", "king_relic_timer",
             "ability_cooldowns", "lag_display",

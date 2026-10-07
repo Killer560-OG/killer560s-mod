@@ -4,6 +4,7 @@ import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
+import com.killer560.hub.hud.ResizableHudElement;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -17,11 +18,21 @@ import java.util.Locale;
  * so each one moves and scales on its own in the HUD editor (the settings row's own scale slider was removed on
  * 2026-10-07; it wrote this same HudConfig scale), and is drawn in game by {@code HudInGameRenderer}.
  * <p>
- * Only what Hypixel actually puts on the action bar can be shown live: health, mana, defence, overflow mana
- * and one further "current/max" resource with its own icon (see {@link PlayerStatsFeature}). True Defence and
- * Vitality never appear there - they are only in the /stats menu - so they have no bar. Intelligence is not
- * on the action bar either, but max mana is 100 + Intelligence, so it is derived from the mana segment.
- * The Defence bar shows damage reduction, defence / (defence + 100), since defence itself has no maximum.
+ * Only what Hypixel actually puts on the action bar can be shown live: health, mana, defence, overflow mana,
+ * vitality and one further "current/max" resource with its own icon (see {@link PlayerStatsFeature}). True Defence
+ * never appears there - it is only in the /stats menu - so it has no bar. Intelligence is not on the action bar
+ * either, but max mana is 100 + Intelligence, so it is derived from the mana segment. The Defence bar shows damage
+ * reduction, defence / (defence + 100), since defence itself has no maximum.
+ * <p>
+ * Vitality and the XP readouts came on 2026-10-07 (killer560: "It needs to detect vitality ... it needs a dedicated
+ * vitality one. Also there should be a custom XP bar one as well."). The XP bar and text read the client's own
+ * experience level and progress ({@code Player.experienceLevel} / {@code experienceProgress}, the same public fields
+ * on 26.1.2 and 26.2, javap) - whatever the server put there, which on Hypixel is not always experience (some areas
+ * use it as a countdown), so nothing is assumed about its meaning. They are appended to the enum so no existing
+ * readout's ordinal - and so its default row - moves.
+ * <p>
+ * Every bar is a {@link ResizableHudElement}: its length and thickness are dragged by the box's edges in the HUD
+ * editor and stored per bar ({@link PlayerStatsConfig#getBarWidth(Readout)}).
  */
 public final class StatElements {
 
@@ -40,7 +51,11 @@ public final class StatElements {
         INTELLIGENCE_TEXT("intelligence_text", "stattext_intelligence", "Intelligence Text", false, 0xFF55FFFF),
         DEFENCE_TEXT("defence_text", "stattext_defence", "Defence Text", false, 0xFF55FF55),
         EFFECTIVE_HEALTH_TEXT("ehp_text", "stattext_ehp", "Effective Health Text", false, 0xFF00AA00),
-        OTHER_TEXT("other_text", "stattext_other", "Other Resource Text", false, 0xFFAA55FF);
+        OTHER_TEXT("other_text", "stattext_other", "Other Resource Text", false, 0xFFAA55FF),
+        VITALITY_BAR("vitality_bar", "statbar_vitality", "Vitality Bar", true, 0xFFE0405A),
+        XP_BAR("xp_bar", "statbar_xp", "XP Bar", true, 0xFF80FF20),
+        VITALITY_TEXT("vitality_text", "stattext_vitality", "Vitality Text", false, 0xFFE0405A),
+        XP_TEXT("xp_text", "stattext_xp", "XP Text", false, 0xFF80FF20);
 
         public final String key;
         public final String hudId;
@@ -60,7 +75,7 @@ public final class StatElements {
     /** Registers one HUD element per readout. Call once from the client entrypoint. */
     public static void registerAll() {
         for (Readout r : Readout.values()) {
-            HudElementRegistry.register(new Element(r));
+            HudElementRegistry.register(r.bar ? new BarElement(r) : new Element(r));
         }
     }
 
@@ -69,9 +84,39 @@ public final class StatElements {
         return id.startsWith("statbar_") || id.startsWith("stattext_");
     }
 
-    private static final class Element implements HudElement {
+    /** A bar readout: an {@link Element} whose length and thickness drag separately in the HUD editor. */
+    private static final class BarElement extends Element implements ResizableHudElement {
 
-        private final Readout r;
+        BarElement(Readout r) {
+            super(r);
+        }
+
+        @Override
+        public int resizeWidth() {
+            return PlayerStatsConfig.getInstance().getBarWidth(r);
+        }
+
+        @Override
+        public int resizeHeight() {
+            return PlayerStatsConfig.getInstance().getBarHeight(r);
+        }
+
+        @Override
+        public void resizeTo(int width, int height) {
+            PlayerStatsConfig cfg = PlayerStatsConfig.getInstance();
+            cfg.setBarWidth(r, width);
+            cfg.setBarHeight(r, height);
+        }
+
+        @Override
+        public void saveSize() {
+            PlayerStatsConfig.getInstance().save();
+        }
+    }
+
+    private static class Element implements HudElement {
+
+        final Readout r;
 
         Element(Readout r) {
             this.r = r;
@@ -101,7 +146,7 @@ public final class StatElements {
         @Override
         public int width() {
             if (r.bar) {
-                return PlayerStatsConfig.getInstance().getBarWidth();
+                return PlayerStatsConfig.getInstance().getBarWidth(r);
             }
             // The drawn readout (2026-10-07 box audit: it was a fixed 90); its label when there is no value yet.
             String text = text(true);
@@ -112,7 +157,7 @@ public final class StatElements {
         public int height() {
             if (r.bar) {
                 PlayerStatsConfig cfg = PlayerStatsConfig.getInstance();
-                return cfg.isBarShowValue() ? Math.max(cfg.getBarHeight(), 9) : cfg.getBarHeight();
+                return cfg.isBarShowValue() ? Math.max(cfg.getBarHeight(r), 9) : cfg.getBarHeight(r);
             }
             return 9;
         }
@@ -158,6 +203,17 @@ public final class StatElements {
                     max = 1000;
                     value = def < 0 ? null : fmt(def) + " (" + String.format(Locale.US, "%.1f", cur / 10.0) + "%)";
                 }
+                case VITALITY_BAR -> {
+                    cur = PlayerStatsFeature.vitalityCur;
+                    max = PlayerStatsFeature.vitalityMax;
+                    value = cur < 0 ? null : fmt(cur) + "/" + fmt(max);
+                }
+                case XP_BAR -> {
+                    float[] xp = xp();
+                    cur = xp == null ? -1 : Math.round(1000.0 * xp[1]);
+                    max = 1000;
+                    value = xp == null ? null : xpLabel(xp);
+                }
                 default -> {
                     cur = PlayerStatsFeature.otherCur;
                     max = PlayerStatsFeature.otherMax;
@@ -173,8 +229,8 @@ public final class StatElements {
                 max = 2;
                 value = r.label;
             }
-            int w = cfg.getBarWidth();
-            int h = cfg.getBarHeight();
+            int w = cfg.getBarWidth(r);
+            int h = cfg.getBarHeight(r);
             int top = y + Math.max(0, (height() - h) / 2);
             g.fill(x, top, x + w, top + h, cfg.getBarBackground());
             int color = cfg.getReadoutColor(r);
@@ -230,6 +286,12 @@ public final class StatElements {
                         ? null
                         : "EHP " + fmt(Math.round(PlayerStatsFeature.healthCur
                         * (1.0 + PlayerStatsFeature.defenceValue / 100.0)));
+                case VITALITY_TEXT -> PlayerStatsFeature.vitalityCur < 0 ? null
+                        : "Vitality " + fmt(PlayerStatsFeature.vitalityCur) + "/" + fmt(PlayerStatsFeature.vitalityMax);
+                case XP_TEXT -> {
+                    float[] xp = xp();
+                    yield xp == null ? null : xpLabel(xp);
+                }
                 default -> PlayerStatsFeature.otherCur < 0 ? null
                         : fmt(PlayerStatsFeature.otherCur) + "/" + fmt(PlayerStatsFeature.otherMax)
                         + PlayerStatsFeature.otherIcon;
@@ -239,6 +301,25 @@ public final class StatElements {
             }
             return text;
         }
+    }
+
+    /** {level, progress 0..1} from the client's own player, or null with no player. Progress is clamped: it is
+     *  whatever the server sent, and a server repurposing the bar can send anything. */
+    private static float[] xp() {
+        net.minecraft.world.entity.player.Player p = Minecraft.getInstance().player;
+        if (p == null) {
+            return null;
+        }
+        float progress = p.experienceProgress;
+        if (Float.isNaN(progress)) {
+            progress = 0f;
+        }
+        return new float[]{p.experienceLevel, Math.max(0f, Math.min(1f, progress))};
+    }
+
+    /** "Level 30 (45%)": the level number the vanilla bar shows over itself, and how far the bar is filled. */
+    private static String xpLabel(float[] xp) {
+        return "Level " + fmt((long) xp[0]) + " (" + Math.round(xp[1] * 100f) + "%)";
     }
 
     private static String fmt(long v) {
