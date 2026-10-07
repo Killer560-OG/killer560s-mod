@@ -674,6 +674,7 @@ public final class MapPainter {
 
     static void drawRoom(GuiGraphicsExtractor graphics, LiveMapFeature.RoomGroup group, int gid, int color,
                          float ox, float oy, float ppu) {
+        int n = 0;
         for (int c : group.cells) {
             int gx = c % LiveMapFeature.GRID;
             int gz = c / LiveMapFeature.GRID;
@@ -683,8 +684,59 @@ public final class MapPainter {
             if (!cellRevealed(c)) {
                 continue;
             }
-            graphics.fill(px(ox, cellPos(gx), ppu), px(oy, cellPos(gz), ppu),
-                    px(ox, cellPos(gx) + cellSize(gx), ppu), px(oy, cellPos(gz) + cellSize(gz), ppu), color);
+            if (n * 4 + 4 > ROOM_RECTS.length) {
+                fillMerged(graphics, ROOM_RECTS, n, color);
+                n = 0;
+            }
+            ROOM_RECTS[n * 4] = px(ox, cellPos(gx), ppu);
+            ROOM_RECTS[n * 4 + 1] = px(oy, cellPos(gz), ppu);
+            ROOM_RECTS[n * 4 + 2] = px(ox, cellPos(gx) + cellSize(gx), ppu);
+            ROOM_RECTS[n * 4 + 3] = px(oy, cellPos(gz) + cellSize(gz), ppu);
+            n++;
+        }
+        fillMerged(graphics, ROOM_RECTS, n, color);
+    }
+
+    /** Scratch for {@link #drawRoom}'s cell rectangles (render thread only): x0, y0, x1, y1 per cell. */
+    private static final int[] ROOM_RECTS = new int[4 * 64];
+
+    /**
+     * Fills {@code n} disjoint rectangles of one colour as few fills as cover exactly the same pixels: rectangles that
+     * share a full edge are joined, along rows first and then down columns. A room of four cells and its connectors was
+     * nine fills, and every GUI fill is a render-state element that the next one is intersection-tested against (see
+     * the GUI fill lesson in docs/LESSONS-GUI.md); the map was ~120 fills a frame on F7 (FPS sweep, 2026-10-07). Only
+     * rectangles meeting edge to edge are joined, so nothing ever overlaps and a translucent room colour blends once.
+     */
+    static void fillMerged(GuiGraphicsExtractor graphics, int[] r, int n, int color) {
+        boolean merged = true;
+        while (merged) {
+            merged = false;
+            for (int i = 0; i < n; i++) {
+                if (r[i * 4] == Integer.MIN_VALUE) {
+                    continue;
+                }
+                for (int j = 0; j < n; j++) {
+                    if (j == i || r[j * 4] == Integer.MIN_VALUE) {
+                        continue;
+                    }
+                    int a = i * 4;
+                    int b = j * 4;
+                    if (r[a + 1] == r[b + 1] && r[a + 3] == r[b + 3] && r[a + 2] == r[b]) {
+                        r[a + 2] = r[b + 2]; // b continues a's row to the right
+                        r[b] = Integer.MIN_VALUE;
+                        merged = true;
+                    } else if (r[a] == r[b] && r[a + 2] == r[b + 2] && r[a + 3] == r[b + 1]) {
+                        r[a + 3] = r[b + 3]; // b continues a's column downwards
+                        r[b] = Integer.MIN_VALUE;
+                        merged = true;
+                    }
+                }
+            }
+        }
+        for (int i = 0; i < n; i++) {
+            if (r[i * 4] != Integer.MIN_VALUE) {
+                graphics.fill(r[i * 4], r[i * 4 + 1], r[i * 4 + 2], r[i * 4 + 3], color);
+            }
         }
     }
 
