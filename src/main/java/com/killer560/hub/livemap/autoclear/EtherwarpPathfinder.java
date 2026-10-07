@@ -307,7 +307,9 @@ public final class EtherwarpPathfinder {
         long f0 = System.nanoTime();
         int startRoom = layout.roomAtWorld(from.x, from.z);
         int goalRoom = layout.roomAtWorld(to.getX() + 0.5, to.getZ() + 0.5);
-        if (startRoom < 0 && goalRoom < 0) {
+        if (startRoom < 0 || goalRoom < 0 || (startRoom != goalRoom && !openNeighbours(layout, startRoom, goalRoom))) {
+            // Two rooms with no open door between them: every landing of the pair cannot join them, and the search
+            // would only spend its whole budget saying so (testkit 95: a click into a room behind a locked door).
             return null;
         }
         WarpGraph.LandingRule rule = (g, x, y, z) -> {
@@ -331,6 +333,30 @@ public final class EtherwarpPathfinder {
                 path.size(), fine.endedNear ? " (near)" : "", ms(end - f0), fine.nodeCount(), fine.rays, ms(end - t0),
                 fine.fragileLeft ? "; ONE STILL FRAGILE" : "");
         return path;
+    }
+
+    /** Whether a tile of room {@code a} and a tile of room {@code b} meet across a door cell that is not locked. */
+    private static boolean openNeighbours(DungeonLayout layout, int a, int b) {
+        int g = DungeonLayout.GRID;
+        for (int t : layout.tiles(a)) {
+            int tx = t % g;
+            int tz = t / g;
+            int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+            for (int[] d : dirs) {
+                int dx = tx + d[0];
+                int dz = tz + d[1];
+                int fx = tx + 2 * d[0];
+                int fz = tz + 2 * d[1];
+                if (fx < 0 || fz < 0 || fx >= g || fz >= g) {
+                    continue;
+                }
+                int door = dz * g + dx;
+                if (layout.roomOfCell(fz * g + fx) == b && layout.isDoor(door) && !layout.isLocked(door)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
