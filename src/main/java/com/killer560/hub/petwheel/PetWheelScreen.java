@@ -7,6 +7,7 @@ import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.util.KeyUtil;
 
 /**
  * The radial menu itself - opened by {@link PetWheelFeature} on the wheel keybind for picking a pet to summon,
@@ -344,15 +346,28 @@ public class PetWheelScreen extends Screen {
         });
     }
 
-    /** Called by {@link PetWheelFeature} on the bind's key-up edge in hold-release mode. No-op in edit mode -
-     *  that screen is never driven by the wheel keybind at all, only opened by the "Edit Pets" button. */
+    /** Hold-release confirm at the cursor's position right now (read from the mouse handler, which goes through
+     *  Auto Scale's coordinate funnel like every mouse event this screen gets), falling back to the last drawn
+     *  position. Called from {@link #keyReleased}/{@link #mouseReleased} on the frame the bind goes up, and by
+     *  {@link PetWheelFeature}'s tick poll as a fallback. No-op in edit mode - that screen is never driven by the
+     *  wheel keybind at all, only opened by the "Edit Pets" button. */
     void confirmSelection() {
+        double mx = lastMouseX;
+        double my = lastMouseY;
+        if (minecraft != null && minecraft.getWindow() != null) {
+            mx = minecraft.mouseHandler.getScaledXPos(minecraft.getWindow());
+            my = minecraft.mouseHandler.getScaledYPos(minecraft.getWindow());
+        }
+        confirmSelectionAt(mx, my);
+    }
+
+    private void confirmSelectionAt(double mouseX, double mouseY) {
         if (editMode) {
             return;
         }
         List<PetEntry> visible = currentPagePets();
         Layout layoutData = layout(visible.size(), currentTile());
-        Integer hovered = hoveredIndex(lastMouseX, lastMouseY, layoutData);
+        Integer hovered = hoveredIndex(mouseX, mouseY, layoutData);
         PetEntry chosen = hovered != null && hovered < visible.size() ? visible.get(hovered) : null;
         select(chosen);
     }
@@ -444,8 +459,40 @@ public class PetWheelScreen extends Screen {
         return super.mouseDragged(event, dragX, dragY);
     }
 
+    /** True when this is a live hold-release wheel and {@code keyOrButton} is its bind's key (or mouse button). */
+    private boolean isHoldReleaseBind(boolean mouse, int keyOrButton) {
+        if (editMode || mode != PetWheelConfig.InteractionMode.HOLD_RELEASE) {
+            return false;
+        }
+        int bind = PetWheelConfig.getInstance().getKeyCode();
+        if (bind == KeyUtil.NONE || KeyUtil.isMouseCode(bind) != mouse) {
+            return false;
+        }
+        return mouse ? KeyUtil.mouseButton(bind) == keyOrButton : bind == keyOrButton;
+    }
+
+    /**
+     * Hold-release: the bind's key-up reaches this screen on the frame it happens (vanilla's
+     * {@code KeyboardHandler.keyPress} hands a RELEASE to the open screen's {@code keyReleased}, javap 26.1.2 and
+     * 26.2), so the pet is picked and {@code /pets} sent right here instead of at the next END_CLIENT_TICK poll
+     * (killer560, 2026-10-07: "that same in-game tick with 0 delay").
+     */
+    @Override
+    public boolean keyReleased(KeyEvent event) {
+        if (isHoldReleaseBind(false, event.key())) {
+            confirmSelection();
+            return true;
+        }
+        return super.keyReleased(event);
+    }
+
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+        // Same as keyReleased for a mouse-button bind: MouseHandler.onButton hands every release to the open screen.
+        if (isHoldReleaseBind(true, event.button())) {
+            confirmSelectionAt(event.x(), event.y());
+            return true;
+        }
         if (editMode && dragArmed) {
             dragArmed = false;
             if (dragging) {

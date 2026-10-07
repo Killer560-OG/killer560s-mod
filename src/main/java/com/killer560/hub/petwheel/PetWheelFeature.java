@@ -51,6 +51,9 @@ public final class PetWheelFeature {
             openWheel(client, cfg);
         } else if (releasedEdge && cfg.getMode() == PetWheelConfig.InteractionMode.HOLD_RELEASE
                 && McCompat.screen(client) instanceof PetWheelScreen wheel) {
+            // Fallback only. The release normally reaches PetWheelScreen.keyReleased/mouseReleased on the frame it
+            // happens, which picks the pet, sends /pets and closes the wheel before this poll runs; this catches a
+            // release the screen never saw.
             wheel.confirmSelection();
         }
     }
