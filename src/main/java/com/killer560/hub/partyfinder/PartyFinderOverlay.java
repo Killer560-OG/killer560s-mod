@@ -31,6 +31,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
@@ -231,7 +232,7 @@ public final class PartyFinderOverlay {
             return null;
         }
 
-        List<Component> out = new ArrayList<>(lines.size() + 2);
+        List<Component> out = new ArrayList<>(lines.size() + 3);
         if (devonianConflict) {
             // killer560 9.1: the join-once chat warning (ModConflictWarnings) is easy to miss or scroll past,
             // and the menu stays broken for the whole session either way - putting it on every head's own
@@ -239,12 +240,41 @@ public final class PartyFinderOverlay {
             out.add(literal("&c⚠ Devonian's Party Finder Overview is on"));
             out.add(literal("&7It overwrites this menu, so our stats can't show - turn one off."));
         }
+        List<String> withoutStats = new ArrayList<>();
+        out.addAll(styleLines(cfg, party, lines, PartyFinderStatsApi::get, currentRole, withoutStats));
+        if (!withoutStats.isEmpty()) {
+            out.add(literal(statsStatusLine(withoutStats)));
+        }
+        return out;
+    }
+
+    /**
+     * The one place a Party Finder tooltip's lines are styled - the real tooltip ({@link #rewriteTooltip}) and the
+     * settings-tab preview ({@link #renderPreviewLines}) both come through here, so the preview cannot show a style
+     * the real menu does not.
+     *
+     * <p>killer560 2026-10-07, "does not show their style like the preview says it will": member lines used to be
+     * styled only once {@link PartyFinderStatsApi} had stats for that player, and left exactly as Hypixel sent them
+     * otherwise. The preview always has stats (fixed sample data), so it always showed the style. On Hypixel the
+     * stats service (api.docilelm.top/v2/dungeons) answers {@code {"result":{}}} for every name - checked by hand
+     * the same day with real dungeon players - so no member line was ever styled. A member line is now always in
+     * the chosen style, with {@code ?} for whatever stats have not arrived; {@code withoutStats} collects those
+     * names so the caller can say why.
+     *
+     * @param statsFor      stats for a player name, or null when there are none (yet)
+     * @param withoutStats  receives every member name rendered without stats; may be null
+     */
+    static List<Component> styleLines(PartyFinderOverlayConfig cfg, Party party, List<Component> lines,
+                                      Function<String, PlayerStats> statsFor, DungeonClass role,
+                                      List<String> withoutStats) {
+        List<Component> out = new ArrayList<>(lines.size() + 1);
         boolean missingAdded = false;
         for (Component line : lines) {
             String text = line.getString();
             if (text.contains("Click to join!") || text.contains("Requires ")) {
-                if (cfg.isShowMissing() && !missingAdded) {
-                    out.add(literal(missingLine(party)));
+                // A full party has nothing to list - an empty "Missing:" line was all it got.
+                if (cfg.isShowMissing() && !missingAdded && !party.missing().isEmpty()) {
+                    out.add(literal(missingLine(party, role)));
                     missingAdded = true;
                 }
                 out.add(line);
@@ -254,17 +284,30 @@ public final class PartyFinderOverlay {
                 continue;
             }
             Matcher m = PartyFinderParser.USER_ROLE.matcher(text);
-            PlayerStats stats = m.find() ? PartyFinderStatsApi.get(m.group(1)) : null;
-            if (stats == null) {
+            if (!m.find()) {
                 out.add(line);
                 continue;
+            }
+            PlayerStats stats = statsFor.apply(m.group(1));
+            if (stats == null && withoutStats != null) {
+                withoutStats.add(m.group(1));
             }
             out.add(memberLine(cfg, party, line, m.group(1), DungeonClass.from(m.group(2)), m.group(3), stats));
         }
         return out;
     }
 
-    private static String missingLine(Party party) {
+    /** Why some member lines show {@code ?}: still waiting on the stats service, or it had nothing for them. */
+    private static String statsStatusLine(List<String> withoutStats) {
+        for (String name : withoutStats) {
+            if (PartyFinderStatsApi.hasFailed(name)) {
+                return "&8? = no stats from the stats service for that player";
+            }
+        }
+        return "&8? = loading stats...";
+    }
+
+    private static String missingLine(Party party, DungeonClass currentRole) {
         StringBuilder sb = new StringBuilder("&eMissing: ");
         for (int i = 0; i < party.missing().size(); i++) {
             DungeonClass c = party.missing().get(i);
@@ -276,11 +319,16 @@ public final class PartyFinderOverlay {
         return sb.toString();
     }
 
+    /** One member line in the chosen style. {@code stats} may be null: every stat then reads {@code ?} (never
+     *  "NO PB", which would claim something we do not know). */
     private static Component memberLine(PartyFinderOverlayConfig cfg, Party party, Component original, String name,
                                         DungeonClass role, String roleLevel, PlayerStats stats) {
-        String[] pb = personalBest(cfg, party, stats);
+        boolean known = stats != null;
+        String[] pb = known ? personalBest(cfg, party, stats) : new String[]{null, null};
         String pbTime = pb[0];
         String pbType = pb[1];
+        // The PB as each style shows it: "&a4:12", "&cNO PB", or "&7?" while unknown.
+        String pbCell = !known ? "&7?" : pbTime == null ? "&cNO PB" : "&a" + pbTime;
         String nameColor = role.colorCode;
         if (cfg.isRankNameColors()) {
             String rank = rankColorCode(original, name);
@@ -288,18 +336,20 @@ public final class PartyFinderOverlay {
                 nameColor = rank;
             }
         }
-        String avg1 = String.format(Locale.US, "%.1f", stats.averageSecrets());
-        String avg2 = String.format(Locale.US, "%.2f", stats.averageSecrets());
-        String secretsShort = shortenNumber(stats.secrets());
+        String cata = known ? String.valueOf((int) stats.level()) : "?";
+        String secrets = known ? String.valueOf(stats.secrets()) : "?";
+        String avg1 = known ? String.format(Locale.US, "%.1f", stats.averageSecrets()) : "?";
+        String avg2 = known ? String.format(Locale.US, "%.2f", stats.averageSecrets()) : "?";
+        String secretsShort = known ? shortenNumber(stats.secrets()) : "?";
 
         CompactMode mode = cfg.getCompactMode();
         return switch (mode) {
             case STYLE1 -> literal("&8[" + role.colorCode + role.letter + "&8] " + nameColor + name
-                    + " &8[&e" + roleLevel + " &7| &6" + (int) stats.level() + "&8] &8[&3" + secretsShort + " &7| &b" + avg1 + "&8]"
-                    + (pbTime == null ? " &8[&cNO PB&8]" : " &8[&a" + pbTime + "&8]"));
+                    + " &8[&e" + roleLevel + " &7| &6" + cata + "&8] &8[&3" + secretsShort + " &7| &b" + avg1 + "&8]"
+                    + " &8[" + pbCell + "&8]");
             case STYLE2 -> literal("&8[" + role.colorCode + role.letter + " &e" + roleLevel + "&8] " + nameColor + name
-                    + " &8[&6" + (int) stats.level() + " &7| &3" + secretsShort + " &7| &b" + avg1 + "&8]"
-                    + (pbTime == null ? " &cNO PB" : " &a" + pbTime));
+                    + " &8[&6" + cata + " &7| &3" + secretsShort + " &7| &b" + avg1 + "&8]"
+                    + " " + pbCell);
             case CUSTOM -> {
                 Map<String, String> keys = new HashMap<>();
                 keys.put("RoleColor", role.colorCode);
@@ -310,12 +360,12 @@ public final class PartyFinderOverlay {
                 keys.put("NameColor", nameColor);
                 keys.put("Name", name);
                 keys.put("RoleLevel", roleLevel);
-                keys.put("Cata", String.valueOf((int) stats.level()));
-                keys.put("Secrets", String.valueOf(stats.secrets()));
+                keys.put("Cata", cata);
+                keys.put("Secrets", secrets);
                 keys.put("SecretsShort", secretsShort);
                 keys.put("SecretAvg", avg2);
                 keys.put("SecretShortAvg", avg1);
-                keys.put("PB", pbTime == null ? "&cNO PB" : "&a" + pbTime);
+                keys.put("PB", pbCell);
                 Matcher pm = PLACEHOLDER.matcher(cfg.getCustomStyle());
                 StringBuilder sb = new StringBuilder();
                 while (pm.find()) {
@@ -330,14 +380,13 @@ public final class PartyFinderOverlay {
                 // it printed the raw fractional Cata level from the API ("45.87362...") instead of the whole
                 // number Style 1/2 already cast to int - looked broken on every single party head. CUSTOM's
                 // $Cata had the exact same bug (String.valueOf(stats.level()) below).
-                String suffix = " &8(&6" + (int) stats.level() + "&8) &8[&3"
-                        + NumberFormat.getNumberInstance(Locale.US).format(stats.secrets()) + " &7| &b" + avg2 + "&8]";
-                if (pbTime == null) {
-                    suffix += " &8[&cNO PB&8]";
-                } else if (cfg.getPbMode() == PartyFinderOverlayConfig.PbMode.BOTH) {
+                String suffix = " &8(&6" + cata + "&8) &8[&3"
+                        + (known ? NumberFormat.getNumberInstance(Locale.US).format(stats.secrets()) : "?")
+                        + " &7| &b" + avg2 + "&8]";
+                if (known && pbTime != null && cfg.getPbMode() == PartyFinderOverlayConfig.PbMode.BOTH) {
                     suffix += " &8[&a" + pbType + " " + pbTime + "&8]";
                 } else {
-                    suffix += " &8[&a" + pbTime + "&8]";
+                    suffix += " &8[" + pbCell + "&8]";
                 }
                 yield original.copy().append(literal(suffix));
             }
@@ -410,8 +459,9 @@ public final class PartyFinderOverlay {
     /** killer560 7.2: "live preview of the selected style using killer560, aut0balls, agreencatgirl,
      *  femboy_recruiter, latinomommy at cata/class 50/45/40/35/30". Fixed sample data, one per dungeon class,
      *  spread across a floor 7 Master Mode party (a mix of S/S+/no PB so the preview shows every PB branch).
-     *  Fed through the exact same {@link #memberLine} the real tooltip uses, so the preview can never drift
-     *  from - or paper over a bug in - what actually renders on a Party Finder head.
+     *  Their lore goes through the same {@link PartyFinderParser} and {@link #styleLines} as a real head's (see
+     *  {@link #renderPreviewLines}). Sharing only {@link #memberLine} was not enough: the real path skipped it
+     *  whenever stats were missing, which is how the preview showed a style the menu never did (2026-10-07).
      *  <p>
      *  killer560 9.1: "make it so each of them but agreencatgirl have a pb that is something funny. Do the
      *  same for secret averages. Make agreencatgirl's a negative though." aut0balls is the Healer, killer560
@@ -456,22 +506,52 @@ public final class PartyFinderOverlay {
             new PreviewPlayer("latinomommy", DungeonClass.MAGE, 30,
                     previewStats(30, 21_000, 42.0, pbEntry(null, "4:20"))));
 
-    private static final Party PREVIEW_PARTY =
-            new Party(0, 7, true, List.of(), List.of(), EnumSet.noneOf(Status.class));
+    /** Rank colours for the sample names, so Rank Name Colors visibly does something in the preview too. */
+    private static final ChatFormatting[] PREVIEW_RANKS = {
+            ChatFormatting.GOLD, ChatFormatting.AQUA, ChatFormatting.GREEN, ChatFormatting.GRAY, ChatFormatting.AQUA};
 
     /** Number of sample rows {@link #renderPreviewLines} returns - lets the settings tab size its preview box
      *  without hard-coding the sample roster size a second time. */
     public static final int PREVIEW_LINE_COUNT = PREVIEW_PLAYERS.size();
 
-    /** @return the fixed sample roster rendered with {@code cfg}'s current style/PB mode/rank colors/custom
-     *  style - call fresh every frame (it's cheap) so a settings-tab preview widget tracks live edits with no
-     *  rebuild needed. */
-    public static List<Component> renderPreviewLines(PartyFinderOverlayConfig cfg) {
+    /** The sample party's member lines as Hypixel sends them on a Party Finder head: " Name: Class (level)",
+     *  the name in its rank colour. */
+    public static List<Component> previewMemberLore() {
         List<Component> out = new ArrayList<>(PREVIEW_PLAYERS.size());
-        for (PreviewPlayer p : PREVIEW_PLAYERS) {
-            Component original = literal(" " + p.name() + ": " + p.role().displayName + " (" + p.level() + ")");
-            out.add(memberLine(cfg, PREVIEW_PARTY, original, p.name(), p.role(), String.valueOf(p.level()), p.stats()));
+        for (int i = 0; i < PREVIEW_PLAYERS.size(); i++) {
+            PreviewPlayer p = PREVIEW_PLAYERS.get(i);
+            out.add(Component.literal(" ")
+                    .append(Component.literal(p.name()).withStyle(PREVIEW_RANKS[i % PREVIEW_RANKS.length]))
+                    .append(Component.literal(": ").withStyle(ChatFormatting.WHITE))
+                    .append(Component.literal(p.role().displayName + " ").withStyle(ChatFormatting.YELLOW))
+                    .append(Component.literal("(").withStyle(ChatFormatting.AQUA))
+                    .append(Component.literal(String.valueOf(p.level())).withStyle(ChatFormatting.YELLOW))
+                    .append(Component.literal(")").withStyle(ChatFormatting.AQUA)));
         }
         return out;
+    }
+
+    /** Stats for a sample name, or null. */
+    private static PlayerStats previewStatsFor(String name) {
+        for (PreviewPlayer p : PREVIEW_PLAYERS) {
+            if (p.name().equalsIgnoreCase(name)) {
+                return p.stats();
+            }
+        }
+        return null;
+    }
+
+    /** @return the fixed sample roster rendered with {@code cfg}'s current style/PB mode/rank colors/custom
+     *  style - call fresh every frame (it's cheap) so a settings-tab preview widget tracks live edits with no
+     *  rebuild needed. It is a real Party Finder head's lore (a floor 7 Master Mode party) put through the same
+     *  {@link PartyFinderParser} and {@link #styleLines} as the real tooltip; only the stats source differs. */
+    public static List<Component> renderPreviewLines(PartyFinderOverlayConfig cfg) {
+        List<Component> members = previewMemberLore();
+        List<String> lore = new ArrayList<>(members.size() + 2);
+        lore.add("Dungeon: Master Mode The Catacombs");
+        lore.add("Floor: Floor VII");
+        members.forEach(c -> lore.add(c.getString()));
+        Party party = PartyFinderParser.parse(-1, lore, null);
+        return styleLines(cfg, party, members, PartyFinderOverlay::previewStatsFor, null, null);
     }
 }
