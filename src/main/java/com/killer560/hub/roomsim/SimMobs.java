@@ -716,15 +716,17 @@ public final class SimMobs {
      * <p>For {@code SimBuilder}, which discards every mob in the level itself and then only needs the
      * bookkeeping cleared - calling {@link #clear(Minecraft)} there would try to reach the client from the
      * server thread mid-build.
+     *
+     * <p>ALL of it, the starred set included. This used to clear SPAWNED but keep STARRED, FELS and the star tags,
+     * so a floor built in a world whose previous leave had not reset the sim (SimState already off when the
+     * world unloaded) started with the old floor's starred mobs still counted: 89-sim-starred-mobs read
+     * "1 spawned, 5 starred" after spawning one PLAIN zombie, the 5 being mimics from 96-ar (2026-10-06 and
+     * 2026-10-07). Every mob of the old floor is gone after a build, so none of them can still be starred.
      */
     public static void forget() {
-        SPAWNED.clear();
-        // A rebuilt floor's rooms must not be cleared by the last floor's dead.
-        STARRED_AT.clear();
-        STARRED_DEAD.clear();
-        // Discarded is not killed: a crypt or mimic the build threw away must not score when it goes.
-        CRYPT_MOBS.clear();
-        SimMimic.forgetMob();
+        // A rebuilt floor's rooms must not be cleared by the last floor's dead, and discarded is not killed: a
+        // crypt or mimic the build threw away must not score when it goes. forgetAll covers both.
+        forgetAll();
     }
 
     public static void clear(Minecraft client) {
@@ -764,6 +766,7 @@ public final class SimMobs {
         CRYPT_MOBS.clear();
         SimMimic.forgetMob();
         STARRED.clear();
+        STAR_TAGS.clear();
         FELS.clear();
         starredSnapshot = List.of();
         hadStarred = false;

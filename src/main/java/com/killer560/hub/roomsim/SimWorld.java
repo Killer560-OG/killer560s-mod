@@ -163,6 +163,38 @@ public final class SimWorld {
         }
     }
 
+    /**
+     * Drops the overworld's saved entities before the sim world is reopened to build a new floor.
+     *
+     * <p>Sim mobs are persistent, so the last session's starred zombies and their star stands were written to disk
+     * with their chunks and came back with them. The build's own sweep ({@code SimBuilder.clearFloorMobs}) only
+     * sees entities already loaded, and entity sections load after the blocks, so they survived it: on 2026-10-07
+     * 98-sim-insta-clear-live's pinned floor found two starred mobs in Rare Overgrown and Water Board, rooms it
+     * never spawned anything in - the previous scenario's floor had put them at those coordinates. A Hypixel
+     * floor starts with only its own mobs, and every floor build places its own, so nothing saved is wanted.
+     */
+    private static void forgetSavedEntities(Minecraft client) {
+        try (var access = client.getLevelSource().createAccess(LEVEL_ID)) {
+            java.nio.file.Path dir = access.getDimensionPath(net.minecraft.world.level.Level.OVERWORLD)
+                    .resolve("entities");
+            if (!java.nio.file.Files.isDirectory(dir)) {
+                return;
+            }
+            int deleted = 0;
+            try (var files = java.nio.file.Files.list(dir)) {
+                for (java.nio.file.Path f : files.toList()) {
+                    if (java.nio.file.Files.isRegularFile(f)) {
+                        java.nio.file.Files.delete(f);
+                        deleted++;
+                    }
+                }
+            }
+            LOGGER.info("[SimPhase] dropped {} saved entity region file(s) before building a new floor", deleted);
+        } catch (Exception e) {
+            LOGGER.warn("[SimPhase] could not drop the sim world's saved entities: {}", e.toString());
+        }
+    }
+
     /** Whether the sim world has been created at least once. */
     public static boolean exists(Minecraft client) {
         try {
@@ -265,6 +297,9 @@ public final class SimWorld {
         loadingScreen = SimLoadingScreen.show(client, loadingLabel);
         try {
             if (exists(client)) {
+                if (build != null) {
+                    forgetSavedEntities(client);
+                }
                 client.createWorldOpenFlows().openWorld(LEVEL_ID, () -> {
                     pendingCode = null;
                     pendingBuild = null;
