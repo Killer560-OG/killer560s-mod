@@ -415,7 +415,12 @@ public final class CustomScoreboardFeature {
             HudSeen.markDrawn(ELEMENT_ID);
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);
-            drawBoard(graphics, font, 0, 0, lines, cfg, true);
+            com.killer560.hub.hud.HudTextCache.begin(); // the board's lines keep their visual order between frames
+            try {
+                drawBoard(graphics, font, 0, 0, lines, cfg, true);
+            } finally {
+                com.killer560.hub.hud.HudTextCache.end();
+            }
         } catch (RuntimeException e) {
             // A broken frame must never take down the rest of the HUD.
         } finally {

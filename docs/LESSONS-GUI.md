@@ -88,6 +88,18 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   (two fills per pixel row) was 6% of the render thread and most of its allocation; merged into runs of equal rows
   it is a handful of fills with identical pixels (2026-10-05). Draw runs, not rows - and when merging, keep the
   rects non-overlapping or a translucent colour blends twice.
+  The placement walk (`navigateToAboveHighestElementWithIntersectingBounds`, javap 26.1.2 and 26.2) starts at the TOP
+  node and scans every element of each node until one intersects, so fills drawn before each item of a menu are
+  scanned against every earlier item: the Inventory Theme's per-slot fill + outline (450 elements in a chest) was 8% of
+  the render thread with a chest open (403-perf-hub, 2026-10-07). When the fills cannot be merged into fewer rects,
+  submit them as ONE element with `hud/GuiRects` (same `ColoredRectangleRenderState`s `fill`/`outline` build, emitted
+  in order, bounds = their union - pixels and overlap order unchanged).
+
+- **`GuiGraphicsExtractor.text(Font, String, ...)` runs ICU Bidi on every call.** It is
+  `text(font, Language.getInstance().getVisualOrder(FormattedText.of(s)), ...)` (javap, both versions), and
+  `FormattedBidiReorder.reorder` builds a `Bidi` and styled substrings each time; a `Component` caches its visual order,
+  a `String` never does. Inside the mod's HUD layers `hud/HudTextCache` keeps the sequence per string (same call, same
+  `Language`), via `hud/mixin/HudTextVisualOrderMixin`; outside them nothing changes (2026-10-07).
 
 - **26.2 sorts QUADS only.** `StagedVertexBuffer.appendDraw` throws "Cannot sort draw with LINES" for any non-QUADS
   topology given a sorting (javap 26.2), so a `RenderType` built with `.sortOnUpload()` on `LINES_SNIPPET` crashes the

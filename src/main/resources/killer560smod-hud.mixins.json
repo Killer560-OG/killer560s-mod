@@ -5,7 +5,8 @@
 	"package": "com.killer560.hub.hud.mixin",
 	"client": [
 		"AutoScaleScreenMixin",
-		"AutoScaleMouseMixin"
+		"AutoScaleMouseMixin",
+		"HudTextVisualOrderMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

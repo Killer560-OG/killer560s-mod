@@ -61,7 +61,14 @@ public final class GuiOverlays {
 
     private static void add(String path, java.util.function.Consumer<GuiGraphicsExtractor> draw) {
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
-                Identifier.fromNamespaceAndPath("killer560smod", path), (graphics, deltaTracker) -> draw.accept(graphics));
+                Identifier.fromNamespaceAndPath("killer560smod", path), (graphics, deltaTracker) -> {
+                    HudTextCache.begin();
+                    try {
+                        draw.accept(graphics);
+                    } finally {
+                        HudTextCache.end();
+                    }
+                });
     }
 
     /** {@link ModOverlayMessage}, centred on screen and word-wrapped to two thirds of its width (2026-09-07), in
