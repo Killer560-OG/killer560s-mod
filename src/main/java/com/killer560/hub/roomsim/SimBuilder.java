@@ -1591,6 +1591,11 @@ public final class SimBuilder {
             SimMimic.reset();
             SimDoors.clear();
             SimBuilder.clearEntranceDoor();
+            // The Dungeon Breaker's blocks waiting to grow back belong to the room being wiped, as on every other
+            // rebuild (SimWorld.resetPerMapState). This path skipped it, so a run's restores fired into the NEXT build
+            // of the room ten seconds after the old break - on top of a fresh break of the same block (2026-10-07,
+            // Museum #7: the wall the breaker had just opened was back, and the etherwarp through it was refused).
+            SimBreakerState.reset();
             SimRoomIndex.clear();
             SimRoomIndex.add(room, centre, centre, 0);
             SimAltitude.plan(level, new String[]{room.name});

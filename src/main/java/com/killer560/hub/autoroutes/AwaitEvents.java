@@ -101,12 +101,46 @@ public final class AwaitEvents {
 
     // ------------------------------------------------------------------------------------------- route lifecycle
 
-    /** A route starts: the first window opens. */
+    /** A route starts: the first window opens - reaching back {@link #START_LOOKBACK} ticks for his own secrets. */
     static void begin(Minecraft client) {
         active = true;
         Minecraft mc = client;
         lastTabCrypts = com.killer560.hub.scorecalc.ScoreCalculatorFeature.tabCrypts(mc);
         window(client);
+        for (Recent r : recent) {
+            if (ticks - r.tick() <= START_LOOKBACK) {
+                LOGGER.info("[AutoRoutes] await: {} {} tick(s) before the route started - counted for the first node",
+                        r.what(), ticks - r.tick());
+                addSecret(r.key(), r.what() + " (" + (ticks - r.tick()) + " tick(s) before the start)");
+            }
+        }
+        recent.clear();
+    }
+
+    /**
+     * How far before a route's start (ticks) a secret of his still counts for its first node's await.
+     * <p>
+     * killer560's 2026-10-07 Museum runs, Map Logger: after the Interactive Map took him to the start node, its await
+     * for the chest beside it sat at 0/1 until he skipped it, three runs of four. Secret Aura stands down while a map
+     * warp is in flight and Auto Routes stays inert for the same span, so both are let go on the same tick - and
+     * Secret Aura ticks first (CheatUtils is registered before Auto Routes), so it opened the chest one tick before the
+     * route's first window opened, and the click was never counted. The one run that worked was the one he warped onto
+     * the node himself: the route armed on the landing tick, before the aura's 100 ms first-seen wait was up. Ten ticks
+     * covers that race with room to spare, and a secret he took half a second before stepping on is the start node's.
+     */
+    static final int START_LOOKBACK = 10;
+
+    /** A secret of his seen while no route ran, for {@link #begin}: the last few only. */
+    private record Recent(int tick, String key, String what) {
+    }
+
+    private static final java.util.ArrayDeque<Recent> recent = new java.util.ArrayDeque<>();
+
+    private static void noteBeforeStart(String key, String what) {
+        recent.addLast(new Recent(ticks, key, what));
+        while (recent.size() > 8 || !recent.isEmpty() && ticks - recent.peekFirst().tick() > START_LOOKBACK) {
+            recent.pollFirst();
+        }
     }
 
     /** A node finished: what is counted from here on belongs to the next node's await. */
@@ -245,13 +279,18 @@ public final class AwaitEvents {
             MimicKiller.onTrappedChestClicked(client, pos.immutable());
             return;
         }
-        if (!active) {
-            return;
-        }
         String kind = b == Blocks.CHEST ? "chest"
                 : b == Blocks.LEVER ? "lever" : b == Blocks.PLAYER_HEAD || b == Blocks.PLAYER_WALL_HEAD ? "skull" : null;
         if (kind == null) {
             LOGGER.debug("[AutoRoutes] await ignored: click on {} at {} is not a secret block", b, pos.toShortString());
+            return;
+        }
+        if (!active) {
+            // Its window can arrive after a route that counts it has started: waited under like any other (below).
+            if (b == Blocks.CHEST) {
+                lastChestClickAt = ticks;
+            }
+            noteBeforeStart("block " + pos.asLong(), kind + " at " + pos.toShortString() + " (clicked by you)");
             return;
         }
         if (b == Blocks.CHEST) {
@@ -262,9 +301,6 @@ public final class AwaitEvents {
 
     /** From {@code AwaitEventsPacketMixin}: an item entity was picked up by {@code collectorId}. */
     public static void onTakeItem(int itemId, int collectorId) {
-        if (!active) {
-            return;
-        }
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null || collectorId != player.getId()) {
@@ -272,7 +308,12 @@ public final class AwaitEvents {
             return;
         }
         Entity item = client.level == null ? null : client.level.getEntity(itemId);
-        addSecret("item " + itemId, "item picked up by you" + (item != null ? " at " + item.blockPosition().toShortString() : ""));
+        String what = "item picked up by you" + (item != null ? " at " + item.blockPosition().toShortString() : "");
+        if (!active) {
+            noteBeforeStart("item " + itemId, what);
+            return;
+        }
+        addSecret("item " + itemId, what);
     }
 
     /** Any use / attack of ours ({@code AwaitEventsGameModeMixin}, and the route's own use packets): what a crypt
@@ -302,10 +343,10 @@ public final class AwaitEvents {
         pending.add("await secret " + secrets + ": " + what);
     }
 
-    /** The tick of our last chest click during a route - the window it opens can arrive after the route moved on. */
+    /** The tick of our last chest click (during a route, or just before one) - its window can arrive after the route moved on. */
     private static int lastChestClickAt = Integer.MIN_VALUE / 2;
 
-    /** Whether we clicked a chest during a route at most {@code window} ticks ago. */
+    /** Whether we clicked a chest at most {@code window} ticks ago. */
     static boolean chestClickedWithin(int window) {
         return ticks - lastChestClickAt <= window;
     }

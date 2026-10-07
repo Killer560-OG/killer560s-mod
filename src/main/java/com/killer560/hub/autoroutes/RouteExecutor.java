@@ -177,6 +177,16 @@ public final class RouteExecutor {
     private static float warpPitch;
     private static Vec3 warpLanding;
     private static BlockPos warpTarget;
+    /**
+     * Where {@link #warpYaw}/{@link #warpPitch} is the right look from: the node's own spot for its recorded look, a
+     * path hop's origin for its saved one, or where he stood when it was worked out again. Null when there is no
+     * landing block to aim at (nothing to re-aim to). See {@link #reaimIfMoved}.
+     */
+    private static Vec3 warpAimFrom;
+    /** Where the warp's SAVED look is right from (the node's spot, a hop's origin); null with no landing block. */
+    private static Vec3 warpSpot;
+    /** Ticks this warp has spent stepping back onto {@link #warpSpot} because no ray from where he stood lands. */
+    private static int warpCentreTicks;
     /** PATH: the saved hop being flown, or -1 before the first. */
     private static int hopIndex = -1;
     /**
@@ -1572,27 +1582,28 @@ public final class RouteExecutor {
         if (step == Step.PREP) {
             warpYaw = RouteCoords.toRealYaw(frame, node.yaw);
             warpPitch = node.pitch;
+            warpSavedYaw = warpYaw;
+            warpSavedPitch = warpPitch;
             if (node.hasLanding) {
                 warpLanding = RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ);
                 warpTarget = landingBlock(warpLanding);
-                // Fired on the landing tick of the warp before (a chain), he is still where that warp put him - a
-                // twentieth of a block above the floor the node's look was recorded from. On a long, shallow warp that
-                // is a block of landing (96-ar-rotate, 2026-10-06: 16 blocks at ~4.5 degrees landed one long). So when
-                // his feet are not at the node's height, aim from HERE at the same block, with the aim the Interactive
-                // Map uses (verified to land on it), as a path hop does; the recorded look when no such ray exists.
-                double nodeY = RouteCoords.toReal(frame, node.relativePos()).y;
-                if (Math.abs(player.getY() - nodeY) > 0.01) {
-                    Vec3 eye = new Vec3(player.getX(), player.getY() + TeleportUtils.eyeHeight(true), player.getZ());
-                    TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget,
-                            com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0);
-                    if (rot != null) {
-                        warpYaw = rot.yaw();
-                        warpPitch = rot.pitch();
-                    }
-                }
+                // The recorded look is right from the node's own spot and nowhere else. Fired on the landing tick of
+                // the warp before (a chain), he is a twentieth of a block above it - on a long, shallow warp that is a
+                // block of landing (96-ar-rotate, 2026-10-06: 16 blocks at ~4.5 degrees landed one long). Walked or
+                // jumped onto the node, he is anywhere in its ring, up to 0.8 off sideways and in the air: killer560's
+                // 2026-10-07 Museum #10 armed at 0.6 off and 0.27 up, fired the recorded look and landed a block wide
+                // of #11, and the route stood there. So off the spot, by any axis, aim from HERE at the same block
+                // ({@link #reaimIfMoved}), with the aim the Interactive Map uses (verified to land on it), as a path
+                // hop does; the recorded look when no such ray exists.
+                warpSpot = RouteCoords.toReal(frame, node.relativePos());
+                warpAimFrom = warpSpot;
+                warpCentreTicks = 0;
+                reaimIfMoved(player, "node #" + (route.indexOf(node) + 1));
             } else {
                 warpLanding = null;
                 warpTarget = null;
+                warpAimFrom = null;
+                warpSpot = null;
             }
         }
         if (tickWarp(client, player, node)) {
@@ -1687,17 +1698,115 @@ public final class RouteExecutor {
         // Not standing where the plan stood (the first hop, fired from anywhere in the node's ring): aim from HERE at
         // the same block, with the aim the Interactive Map itself uses, if that ray really lands on it.
         LocalPlayer player = Minecraft.getInstance().player;
-        Vec3 origin = RouteCoords.toReal(frame, h.ox(), h.oy(), h.oz());
-        if (player != null && player.position().distanceTo(origin) > 0.05) {
-            Vec3 eye = new Vec3(player.getX(), player.getY() + TeleportUtils.eyeHeight(true), player.getZ());
-            TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget,
-                    com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0);
-            if (rot != null) {
-                warpYaw = rot.yaw();
-                warpPitch = rot.pitch();
-            }
+        warpSpot = RouteCoords.toReal(frame, h.ox(), h.oy(), h.oz());
+        warpAimFrom = warpSpot;
+        warpSavedYaw = warpYaw;
+        warpSavedPitch = warpPitch;
+        warpCentreTicks = 0;
+        if (player != null) {
+            reaimIfMoved(player, "path hop " + (i + 1));
         }
     }
+
+    /** {@link #reaimIfMoved}: the look is right from where he stands (unchanged). */
+    private static final int AIM_OK = 0;
+    /** {@link #reaimIfMoved}: he moved and the look was worked out again from here. */
+    private static final int AIM_CHANGED = 1;
+    /** {@link #reaimIfMoved}: he is off the look's spot and no ray from here lands on the block. */
+    private static final int AIM_NO_RAY = 2;
+
+    /**
+     * The warp's look is worked out for {@link #warpAimFrom}. If he is not there - more than a hundredth of a block off
+     * by any axis - it is worked out again from where he is, at {@link #warpTarget}, with the Interactive Map's aim
+     * (verified to land on that block from this eye).
+     * <p>
+     * Called when the warp is set up AND again on the tick the use goes out: the use is sent at the start of a tick,
+     * so the server's position for it is exactly the one the client has now (the last movement packet's). Between the
+     * two he may still be moving - a node armed mid-jump or mid-walk drifts a few tenths in the tick before the
+     * sneak reaches the server - and an aim from the earlier spot misses the block from the later one.
+     *
+     * @return {@link #AIM_OK}, {@link #AIM_CHANGED}, or {@link #AIM_NO_RAY} (the look is left as it was)
+     */
+    private static int reaimIfMoved(LocalPlayer player, String what) {
+        if (warpTarget == null || warpAimFrom == null) {
+            return AIM_OK;
+        }
+        Vec3 at = player.position();
+        if (at.distanceTo(warpAimFrom) <= REAIM_EPSILON) {
+            return AIM_OK;
+        }
+        Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
+        TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget,
+                com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0);
+        if (rot == null) {
+            return AIM_NO_RAY;
+        }
+        LOGGER.info("[AutoRoutes] Etherwarp ({}): re-aimed from {} ({} off {}) at {}: yaw {} pitch {}", what, fmt(at),
+                String.format(Locale.US, "%.2f", at.distanceTo(warpAimFrom)), fmt(warpAimFrom), warpTarget.toShortString(),
+                String.format(Locale.US, "%.2f", rot.yaw()), String.format(Locale.US, "%.2f", rot.pitch()));
+        warpAimFrom = at;
+        warpYaw = rot.yaw();
+        warpPitch = rot.pitch();
+        return AIM_CHANGED;
+    }
+
+    /**
+     * No ray from where he stands lands on the warp's block. The ring reaches up to 0.8 either side of the node, and a
+     * pillar or a slab edge can hide the block from part of it (Museum #10 from 0.45/0.45 off, 96-ar-398-offnode); the
+     * saved look from there lands a block or more wide, which is what stranded killer560's 2026-10-07 run. So he steps
+     * back onto the spot the look belongs to, by discrete key presses with the sneak held (slow and precise), and the
+     * warp goes from there with that look. After {@link #CENTRE_TIMEOUT} ticks it goes with the saved look regardless.
+     *
+     * @return true while still stepping (nothing is sent this tick)
+     */
+    private static boolean stepOntoWarpSpot(LocalPlayer player, String what) {
+        Vec3 pos = player.position();
+        double dx = warpSpot.x - pos.x;
+        double dz = warpSpot.z - pos.z;
+        double h = Math.sqrt(dx * dx + dz * dz);
+        Vec3 v = player.getDeltaMovement();
+        boolean settled = h <= CENTRE_TOLERANCE && player.onGround() && v.x * v.x + v.z * v.z < 0.0004;
+        if (settled || warpCentreTicks > CENTRE_TIMEOUT) {
+            clearMovement();
+            LOGGER.info("[AutoRoutes] Etherwarp ({}): {} - firing the saved look from {}", what, settled
+                    ? String.format(Locale.US, "back on its spot (%.2f off) after %d tick(s)", h, warpCentreTicks)
+                    : String.format(Locale.US, "still %.2f off its spot after %d tick(s)", h, warpCentreTicks), fmt(pos));
+            warpYaw = warpSavedYaw;
+            warpPitch = warpSavedPitch;
+            warpAimFrom = pos;
+            return false;
+        }
+        if (warpCentreTicks == 0) {
+            LOGGER.info("[AutoRoutes] Etherwarp ({}): no ray from {} lands on {} - stepping back onto its spot {} first",
+                    what, fmt(pos), warpTarget.toShortString(), fmt(warpSpot));
+        }
+        warpCentreTicks++;
+        wantForward = wantBackward = wantLeft = wantRight = false;
+        if (h > CENTRE_TOLERANCE / 2) {
+            double yr = Math.toRadians(player.getYRot());
+            double fwd = (dx * -Math.sin(yr) + dz * Math.cos(yr)) / h;
+            double lft = (dx * Math.cos(yr) + dz * Math.sin(yr)) / h;
+            wantForward = fwd > 0.38;
+            wantBackward = fwd < -0.38;
+            wantLeft = lft > 0.38;
+            wantRight = lft < -0.38;
+        }
+        wantJump = false;
+        wantSprint = false;
+        wantSneak = true;
+        return true;
+    }
+
+    /** How close (blocks, horizontally) to a warp's spot counts as back on it when stepping there. */
+    private static final double CENTRE_TOLERANCE = 0.12;
+    /** Ticks to spend stepping back onto a warp's spot before firing the saved look regardless. */
+    private static final int CENTRE_TIMEOUT = 40;
+    /** The warp's saved look in world terms (a node's recorded one, a hop's planned one), for {@link #stepOntoWarpSpot}. */
+    private static float warpSavedYaw;
+    private static float warpSavedPitch;
+
+    /** How far (blocks) from the spot a warp's look belongs to still counts as standing on it. */
+    private static final double REAIM_EPSILON = 0.01;
 
     /**
      * One etherwarp, from {@link #warpYaw}/{@link #warpPitch} onto {@link #warpLanding}: an ew node's own, or one hop
@@ -1754,6 +1863,18 @@ public final class RouteExecutor {
             // Etherwarps Per Second: not before the pace allows. Sneak stays held while it waits.
             if (execTicks < Math.ceil(nextWarpAt - 1e-9)) {
                 warpPacedTicks++;
+                return false;
+            }
+            // The use goes out now, from where the server has him now: aim from here if he moved since the aim was
+            // worked out. Obvious mode puts the look in the use packet itself, so it simply goes; legit mode turns the
+            // camera to it first (aimReady's settle, or its timeout).
+            String what = hopIndex >= 0 ? "path hop " + (hopIndex + 1) : "node #" + (route.indexOf(node) + 1);
+            int aim = reaimIfMoved(player, what);
+            if (aim == AIM_NO_RAY && warpSpot != null && stepOntoWarpSpot(player, what)) {
+                return false;
+            }
+            if (aim != AIM_OK && AutoRoutesConfig.getInstance().isLegitMode()) {
+                aimAt(warpYaw, warpPitch, node);
                 return false;
             }
             notePacedWarp();

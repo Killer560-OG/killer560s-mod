@@ -56,3 +56,16 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `findDungeonPath` on its own thread while the warm-up ran on `killer560smod-etherplanner`; two threads in `WarpGraph.node`
   pushed the node count past its 1024-long arrays without growing them, and every later node threw AIOOBE one index higher
   until the world changed (96-ar, 2026-10-06). Submit through `ClearExecutor.onPlanner`; `graphFor` now throws if called elsewhere.
+
+- **An etherwarp node's recorded look is right from the node's own spot and nowhere else** (2026-10-07, his Museum #10 armed
+  0.6 off centre and 0.27 up mid-jump, fired the recorded look, landed a block wide of #11 and the route stood there). The
+  ring is up to 0.8 wide either side, and only a height difference used to trigger the re-aim. `RouteExecutor.reaimIfMoved`
+  now re-aims at the recorded landing block from wherever he is, by any axis, at set-up AND on the tick the use goes out
+  (sent at the start of a tick, so the server has exactly the client's current position). Where no ray from his spot
+  reaches the block (a pillar hides it from one corner of #10's ring), `stepOntoWarpSpot` walks him back toward the node
+  with sneak-held discrete keys until one does, or onto the spot, then fires. Testkit 96-ar-398-offnode (old jar lands
+  at his exact (-79.5, -105.5)).
+- **Secret Aura and Auto Routes are released on the same tick after an Interactive Map warp, and the aura ticks first**
+  (CheatUtils registers before Auto Routes). Its click on the start node's secret came one tick before `AwaitEvents.begin`,
+  so #1's await sat at 0/1 until he skipped it (Museum, three runs of four, 2026-10-07). `begin` now counts his own secret
+  clicks and pickups from the last `START_LOOKBACK` (10) ticks. Testkit 96-ar-398-startawait.
