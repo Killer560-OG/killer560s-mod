@@ -250,3 +250,8 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - `api.docilelm.top` (Devonian's Party Finder stats) answers HTTP 200 `{"result":{}}` to every User-Agent except Devonian's own
   (`Mozilla/5.0 (Devonian)`, checked 2026-10-07), so an empty result is an access refusal, not "player not found". Do not
   impersonate Devonian; Party Finder uses SkyBlockPV (or his own Hypixel key) instead.
+
+- javac folds `if (SomeClass.CONSTANT)` away but still writes a `CONSTANT_Class` entry naming `SomeClass` into the using
+  class's constant pool (seen with javap -v, 2026-10-07). So gating normal code on a flag that lives in a package left out of
+  a jar (`com.killer560.hub.testing`) still puts that package's name in every gated class; the testing build gates on
+  `BuildVariant.TESTING` instead, and a byte grep of the normal jars for `hub/testing` comes back empty.

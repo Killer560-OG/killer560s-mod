@@ -1,0 +1,4 @@
+# Feature tabs killer560 has approved as tested in the LEGIT testing build (-PtestingBuild=true, no -PcheatBuild).
+# One tab class simple name per line (e.g. LiveMapTab); '#' starts a comment. Tracked separately from the cheat
+# list: the legit testing build exists to check that nothing cheat-only ended up in the legit jar.
+# His in-game marks (/k560tested list) are copied in here when he approves them.

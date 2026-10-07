@@ -11,6 +11,7 @@ Java 25 and a JDK on `JAVA_HOME`. Gradle wrapper, Fabric Loom.
 ./gradlew build                     # legit variant  -> build/libs/killer560smod-1.1.0-26.1.2-legit.jar
 ./gradlew build -PcheatBuild=true   # cheat variant  -> build/libs/killer560smod-1.1.0-26.1.2-cheat.jar
 ./gradlew build -Prelease=true      # official release: compiles dev tooling OUT
+./gradlew build [-PcheatBuild=true] -PtestingBuild=true  # killer560's private jar, ...-26.1.2-<cheat|legit>-testing.jar: Untested category, Mark tested, /k560tested; lists in testing/; deploy ONLY with --testing-instance-cheat/--testing-instance-legit NAME
 python deploy-to-instances.py [--dry-run] [--jars-dir DIR]   # install into every Prism instance
 ```
 
@@ -143,8 +144,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   Delete `build/generated/sources/buildVariant` between variants, and check the class hash - **`md5sum` of
   `com/killer560/hub/BuildVariant.class` unzipped from the jar, first 8 hex characters**, which a 2026-09-30
   sweep wasted time on by reaching for CRC32 and finding it did not reproduce:
-  `c7d5d8f5`=cheat+dev, `1d821df5`=legit+dev, `f8fc20a1`=legit+release. `javap -constants` on that class is
-  the unambiguous check if a hash ever disagrees - it prints the two booleans directly.
+  `8e95469d`=cheat+dev, `31a271c1`=legit+dev, `9d814aa3`=legit+release, `8193ef73`/`84d195e7`=cheat/legit testing
+  (since `BuildVariant.TESTING`, 2026-10-07; before it `c7d5d8f5`/`1d821df5`/`f8fc20a1`). `javap -constants` on that class is
+  the unambiguous check if a hash ever disagrees - it prints the booleans directly.
 - Mixin config uses `defaultRequire: 0`, so a wrong target signature fails **silently** and the feature
   just never runs. Verify targets with `javap` against the mapped jar in `.gradle/loom-cache/` before
   trusting a new mixin. A probe that silently counts nothing reports zeroes that read as findings.

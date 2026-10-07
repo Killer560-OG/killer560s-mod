@@ -83,6 +83,24 @@ public class ModScreen extends Screen {
         this(parent, -1);
     }
 
+    /** A tab to select by NAME on the next init (index constants went stale whenever a category moved). */
+    private static String pendingTabName;
+
+    /** Opens the menu on the top-level tab called {@code name} (falls back to the last selected tab). */
+    public static ModScreen atTab(Screen parent, String name) {
+        pendingTabName = name;
+        return new ModScreen(parent, -1);
+    }
+
+    /** Throw the tab list away and rebuild it - and the open menu, if this is it (the testing build's marks). */
+    public static void reloadTabs() {
+        tabs = null;
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (com.killer560.hub.compat.McCompat.screen(mc) instanceof ModScreen open) {
+            open.init(open.width, open.height);
+        }
+    }
+
     /** @param initialTab tab index to jump to, or -1 to keep whichever tab was last selected (the
      *  normal "reopen where I left off" case - only commands like /language pass a real index, to
      *  force-navigate to a specific tab). */
@@ -116,6 +134,18 @@ public class ModScreen extends Screen {
             // also shouldn't be a tab it should be in dungeons"). The solvers themselves sit in New for
             // this testing round and move to Dungeon once he confirms them; Auto Puzzles, the cheat half,
             // is already in the Dungeon folder.
+            if (com.killer560.hub.BuildVariant.TESTING) {
+                tabs = com.killer560.hub.testing.TestingMenu.arrange(tabs);
+            }
+        }
+        if (pendingTabName != null) {
+            for (int i = 0; i < tabs.size(); i++) {
+                if (tabs.get(i).name.equals(pendingTabName)) {
+                    selectedTab = i;
+                    scrollOffset = 0;
+                }
+            }
+            pendingTabName = null;
         }
         if (selectedTab >= tabs.size() || selectedTab < 0) {
             selectedTab = 0;
@@ -217,7 +247,16 @@ public class ModScreen extends Screen {
         if (selected instanceof FolderTab folderTab) {
             folderTab.setSearchQuery(searchQuery);
         }
-        List<AbstractWidget> contentWidgets = selected.buildWidgets(contentX, contentY, contentW, this::rebuild);
+        List<AbstractWidget> contentWidgets;
+        if (com.killer560.hub.BuildVariant.TESTING && !(selected instanceof FolderTab)) {
+            // A top-level feature tab (Profiles, Crosshair) gets its Mark row here; FolderTab adds it per section.
+            contentWidgets = new ArrayList<>();
+            contentWidgets.add(com.killer560.hub.testing.TestingMenu.markButton(selected, contentX, contentY, contentW));
+            contentWidgets.addAll(selected.buildWidgets(contentX,
+                    contentY + com.killer560.hub.testing.TestingMenu.MARK_ROW_HEIGHT, contentW, this::rebuild));
+        } else {
+            contentWidgets = selected.buildWidgets(contentX, contentY, contentW, this::rebuild);
+        }
 
         int naturalBottom = contentY;
         for (AbstractWidget w : contentWidgets) {
@@ -362,7 +401,12 @@ public class ModScreen extends Screen {
         }
         String text;
         try {
-            text = SettingTooltips.describe(tabs.get(selectedTab).name, hovered, hovered.getMessage().getString());
+            String category = tabs.get(selectedTab).name;
+            if (com.killer560.hub.BuildVariant.TESTING) {
+                category = com.killer560.hub.testing.TestingMenu.tooltipCategory(category,
+                        SettingTooltips.scopeOf(hovered));
+            }
+            text = SettingTooltips.describe(category, hovered, hovered.getMessage().getString());
         } catch (RuntimeException e) {
             return;
         }
