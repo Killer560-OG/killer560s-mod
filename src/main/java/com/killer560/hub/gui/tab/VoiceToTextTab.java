@@ -83,10 +83,37 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
                     cfg.setChatDestination(cfg.getChatDestination().previous());
                     cfg.save();
                     btn.setMessage(sendToText(cfg));
-                }).bounds(contentX, y, col2W, 18).build());
-        y += 24;
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
+        if (!pushToTalk) {
+            // Open Mic's end-of-speech pause (killer560, 2026-10-08: "It needs to detect whenever I stop talking and
+            // send the message"). 0.3 s to 3.0 s in 0.1 s steps.
+            int min = VoiceToTextConfig.MIN_OPEN_MIC_SILENCE_MS;
+            int range = VoiceToTextConfig.MAX_OPEN_MIC_SILENCE_MS - min;
+            widgets.add(new com.killer560.hub.gui.ThemedSliderButton(contentX, y, contentWidth, 18, silenceText(cfg),
+                    (cfg.getOpenMicSilenceMs() - min) / (double) range) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(silenceText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setOpenMicSilenceMs(min + (int) Math.round(this.value * range / 100.0) * 100);
+                    cfg.save();
+                }
+            });
+            y += 22;
+        }
+        y += 2;
 
         return widgets;
+    }
+
+    private static Component silenceText(VoiceToTextConfig cfg) {
+        return Component.literal(String.format(java.util.Locale.ROOT, "Silence Before Send: §b%.1fs",
+                cfg.getOpenMicSilenceMs() / 1000.0));
     }
 
     private static Component sendToText(VoiceToTextConfig cfg) {

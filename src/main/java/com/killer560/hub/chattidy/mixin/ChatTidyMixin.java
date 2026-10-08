@@ -70,28 +70,32 @@ public abstract class ChatTidyMixin {
             if (!ChatTidy.stackingOn() || allMessages.isEmpty() || !visibleMessageFilter.test(built)) {
                 return;
             }
-            GuiMessage top = allMessages.get(0);
-            Component stackedContent = ChatTidy.stack(top, built);
-            if (stackedContent == null) {
+            ChatTidy.Match match = ChatTidy.findStack(allMessages, built, visibleMessageFilter);
+            if (match == null) {
                 return;
             }
-            GuiMessage replacement = new GuiMessage(built.addedTime(), stackedContent, null, built.source(), built.tag());
-            allMessages.remove(0);
-            int removed = 0;
-            for (Iterator<GuiMessage.Line> it = trimmedMessages.iterator(); it.hasNext(); ) {
-                if (it.next().parent() == top) {
+            GuiMessage earlier = match.earlier();
+            GuiMessage replacement = new GuiMessage(built.addedTime(), match.content(), null, built.source(), built.tag());
+            allMessages.remove(match.index());
+            // Its wrapped lines: trimmedMessages is newest first and index i is i rows above the bottom, so a removed
+            // line below the scrolled view (i < chatScrollbarPos) shifts the view by one; one inside or above it does not.
+            int belowView = 0;
+            int i = 0;
+            for (Iterator<GuiMessage.Line> it = trimmedMessages.iterator(); it.hasNext(); i++) {
+                if (it.next().parent() == earlier) {
                     it.remove();
-                    removed++;
+                    if (i < chatScrollbarPos) {
+                        belowView++;
+                    }
                 }
             }
-            if (removed > 0 && chatScrollbarPos > 0) {
-                // addMessageToDisplayQueue scrolls up one per line it adds while the chat is scrolled; these were taken away.
-                chatScrollbarPos = Math.max(0, chatScrollbarPos - removed);
+            if (belowView > 0) {
+                chatScrollbarPos = Math.max(0, chatScrollbarPos - belowView);
             }
             logChatMessage(built);
             addMessageToDisplayQueue(replacement);
             addMessageToQueue(replacement);
-            ChatTidy.stacked(replacement);
+            ChatTidy.stacked(match, replacement);
             ci.cancel();
         } catch (RuntimeException e) {
             ChatTidy.fail(e);

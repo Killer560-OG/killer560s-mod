@@ -169,9 +169,9 @@ public class ObjectHiderTab extends BaseTab {
                 "No Shortbow Swing", cfg::getNoShortbowSwingRaw, cfg::setNoShortbowSwing);
 
         // "Chat Replacements" moved out 2026-09-30, per killer560: "move the hide chat stuff into the chat
-        // section" - it is now HideChatMessagesTab, an accordion section of the Chat folder. "Hide Players"
-        // left at the same time to become its own HidePlayersTab section. Both still read and write the
-        // same ObjectHiderConfig keys, so nothing resets.
+        // section" - it became HideChatMessagesTab, and on 2026-10-08 part of Chat Hider (ChatHiderTab, its own
+        // ChatTidyConfig keys, migrated). "Hide Players" left at the same time to become its own HidePlayersTab
+        // section, still on the same ObjectHiderConfig keys.
 
         return widgets;
     }
@@ -183,7 +183,7 @@ public class ObjectHiderTab extends BaseTab {
         y[0] += 16;
     }
 
-    /** Package-private so the sections split out of this tab (Hide Chat Messages, Hide Players) keep the exact same row shape instead of each re-implementing it. */
+    /** Package-private so the sections split out of this tab (Hide Players) keep the exact same row shape instead of each re-implementing it. */
     static void toggle(List<AbstractWidget> widgets, int x, int width, int[] y, ObjectHiderConfig cfg,
                         Runnable requestRebuild, String label, BooleanSupplier get, Consumer<Boolean> set) {
         widgets.add(SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {

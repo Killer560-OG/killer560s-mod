@@ -210,20 +210,31 @@ public final class ObjectHiderFeature {
 
     /** @return false to drop a real chat-channel line (ALLOW_CHAT - party/guild/private/coop/global chat). */
     private static boolean allowsChatLine(Component message) {
-        return allowsLine(message);
+        try {
+            return allowsLine(message);
+        } catch (RuntimeException e) {
+            // ALLOW_CHAT is on the packet path: a throw here disconnects him from Hypixel. Show the line instead.
+            return true;
+        }
     }
 
     /** @return false to drop a system/action-bar line (ALLOW_GAME). */
     private static boolean allowsGameLine(Component message, boolean overlay) {
-        if (overlay) {
-            // "Hide actionbar" - QUOI ChatReplacements.kt:20, all action-bar text, no content check needed.
-            return !ObjectHiderConfig.getInstance().isHideActionbar();
+        try {
+            if (overlay) {
+                // "Hide actionbar" - QUOI ChatReplacements.kt:20, all action-bar text, no content check needed.
+                return !com.killer560.hub.chattidy.ChatTidyConfig.getInstance().isHideActionbar();
+            }
+            return allowsLine(message);
+        } catch (RuntimeException e) {
+            // ALLOW_GAME is on the packet path: a throw here disconnects him from Hypixel. Show the line instead.
+            return true;
         }
-        return allowsLine(message);
     }
 
     private static boolean allowsLine(Component message) {
-        ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
+        // Chat Hider's rules since 2026-10-08 (one master toggle over these and Chat Tidy's); the matching stays here.
+        com.killer560.hub.chattidy.ChatTidyConfig cfg = com.killer560.hub.chattidy.ChatTidyConfig.getInstance();
         if (!cfg.isHideUselessMessages() && !cfg.isHideDiscordWarnings() && !cfg.isHideMicrosoftWarnings()
                 && !cfg.isHideEmptyChatMessages() && !cfg.isHideNonRankInvites()) {
             return true;

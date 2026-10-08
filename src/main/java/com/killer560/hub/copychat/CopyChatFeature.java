@@ -1,180 +1,204 @@
 package com.killer560.hub.copychat;
 
+import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.copychat.mixin.ChatComponentAccessor;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ModLog;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.ActiveTextCollector;
+import net.minecraft.client.gui.TextAlignment;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Util;
+import net.minecraft.util.FormattedCharSequence;
+import org.joml.Matrix3x2f;
+import org.joml.Vector2f;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
-import com.killer560.hub.util.ModLog;
-import com.killer560.hub.compat.McCompat;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
-/** Shift+Click any chat message to copy its whole plain text to the clipboard, or Shift+Right-Click to
- *  copy just the one wrapped line under the cursor (see {@link #tryHandleLineClick}) - general QoL, not
- *  dungeon-specific (roadmap item, referenced from quoi's own "Copy chat" module: "Copies chat on mouse
- *  click"). The whole-message gesture shares {@link com.killer560.hub.clicktranslate.ClickTranslateFeature}'s
- *  existing click infrastructure rather than adding a second competing click handler - a chat line's
- *  {@code Style} can only carry one {@code ClickEvent} at a time, so {@code ClickTranslateFeature.tryHandleClick}
- *  checks {@link #isShiftDown()} first and delegates here before falling through to its own translate
- *  logic; {@link com.killer560.hub.clicktranslate.mixin.ChatComponentMixin}'s wrap is likewise gated on
- *  either feature being enabled, not just Translate, so Copy still works with Translate off. Used to be
- *  Ctrl+Click - changed to Shift per killer560's round-11 request (2026-09-09).
- *  <p>
- *  Uses the same PowerShell clipboard shell-out {@link com.killer560.hub.screenshotcopy.ScreenshotCopyFeature}
- *  already established (2026-09-08) - AWT's {@code Toolkit}/{@code Clipboard} throws
- *  {@code HeadlessException} inside Minecraft's process (confirmed via javap:
- *  {@code net.minecraft.client.main.Main}'s static initializer forces {@code java.awt.headless=true}) -
- *  {@code Set-Clipboard} is the plain-text equivalent of that same workaround. Windows-only for now,
- *  matching that same precedent (killer560's own setup is Windows). */
+/**
+ * Copy Chat (killer560, 2026-10-08): "if you hold shift or control while left or right clicking it does its respective
+ * action". With the chat open, Shift or Ctrl + LEFT click on a message copies the WHOLE message (every wrapped line of
+ * it); Shift or Ctrl + RIGHT click copies only the one wrapped line under the cursor. A plain click is left to vanilla.
+ * Copied text never carries formatting codes.
+ * <p>
+ * Why it did not work before: the whole-message copy rode on Click Translate's {@code ClickEvent} baked into each line,
+ * so it only fired when vanilla's {@code ClickableStyleFinder} found that event under the cursor. A Hypixel line whose
+ * text has its own click event (names, "Click here" links, party invites) overrides the parent's on that text, a click
+ * past the end of the text finds no style at all, and lines received before the feature was switched on were never
+ * wrapped - and the modifier was Shift only, read from GLFW, never Ctrl. Both gestures now go through ONE hook at the
+ * head of {@code ChatScreen.mouseClicked} ({@code copychat/mixin/ChatScreenLineClickMixin}), take the modifiers from
+ * the click event itself, and find the line under the cursor by asking vanilla's own chat layout
+ * ({@code ChatComponent.captureClickableText}, which lays out exactly the lines it draws, with the pose it draws them
+ * with), so the geometry cannot drift from what is on screen on 26.1.2 or 26.2. The whole message is the line's
+ * {@code GuiMessage.Line.parent()}.
+ * <p>
+ * The clipboard is Minecraft's own ({@code keyboardHandler.setClipboard}, GLFW), the same call the Crosshair share code
+ * and Waypoint Routes use - instant, on the render thread, no PowerShell process (the old shell-out took seconds on its
+ * first call and only worked on Windows).
+ */
 public final class CopyChatFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-copychat");
 
-    // Per killer560's "if i ctrl click a long message... it lags my game and essentially freezes it for
-    // quite a few seconds" report (2026-09-09, round 11): #copyToClipboard is called directly from the
-    // click handler, which runs on the RENDER thread - spawning + waiting on a real powershell.exe
-    // process (a genuinely slow OS operation, worst on its first invocation each session) blocked
-    // rendering for however long that took. ScreenshotCopyFeature's own identical shell-out never showed
-    // this because it's already invoked from vanilla's screenshot IO worker thread, not the render
-    // thread - this gives Copy Chat that same off-thread guarantee explicitly instead of relying on its
-    // caller already being off-thread (it wasn't).
-    private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool(r -> {
-        Thread t = new Thread(r, "killer560smod-copychat");
-        t.setDaemon(true);
-        return t;
-    });
+    // Test hooks (testkit, by reflection).
+    private static volatile String lastCopied = "";
+    private static volatile String lastKind = "";
+    private static long copies;
 
     private CopyChatFeature() {
     }
 
-    /** @return whether either Shift key is currently held, read live via GLFW (same direct-window-handle
-     *  pattern {@link com.killer560.hub.window.WindowModeFeature} already uses) rather than from a
-     *  specific input event - needed because the click hook the whole-message copy feeds
-     *  ({@code ChatScreen.handleComponentClicked}) doesn't receive the raw mouse event with its own
-     *  {@code hasShiftDown()}, only the already-resolved {@code Style} that was clicked. Per killer560's
-     *  "change both to be shift instead of control" request (2026-09-09, round 11) - both copy gestures
-     *  (whole message, single line) now use Shift as their modifier, distinguished by mouse button
-     *  instead (left = whole message, right = just the line - see {@link #tryHandleLineClick}). Used to
-     *  be Ctrl for the whole-message gesture. */
-    public static boolean isShiftDown() {
+    /** Shift or Ctrl held right now, read from the window (for callers that have no input event, like
+     *  {@code ChatScreen.handleComponentClicked}). */
+    public static boolean isCopyModifierDown() {
         long handle = Minecraft.getInstance().getWindow().handle();
         return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
     }
 
-    /** Per killer560's "if i shift click to copy then itll only do the line... shift click would only
-     *  get the line my cursor is on" request (2026-09-09) - unlike Ctrl+Click (which copies the whole
-     *  underlying message via a baked-in {@code ClickEvent}, see {@code ClickTranslateFeature}), this
-     *  works entirely off the raw click position, hooked from
-     *  {@link com.killer560.hub.copychat.mixin.ChatScreenLineClickMixin} before vanilla resolves the
-     *  click down to a Style - reversing (mouseX, mouseY) into a specific wrapped visual line the exact
-     *  same way quoi's own Copy Chat module does it ({@code ChatUtils.toChatLineMY}/
-     *  {@code getMessageLineIdx}, decompiled 2026-09-09 as reference), then reading that ONE line's own
-     *  {@link net.minecraft.util.FormattedCharSequence} instead of tracing back to its parent message -
-     *  quoi's own version always copies the full message regardless of which line was clicked; this is
-     *  intentionally narrower.
-     *  @return true if the click was on a valid chat line and handled (whether or not it was blank). */
-    public static boolean tryHandleLineClick(double mouseX, double mouseY) {
-        if (!CopyChatConfig.getInstance().isEnabled() || !isShiftDown()) {
+    /**
+     * From the chat screen's mouse press, before vanilla. True when the click was a copy and is consumed.
+     *
+     * @param button   0 left (whole message), 1 right (the line)
+     * @param modifier Shift or Ctrl was held, read from the click event
+     */
+    public static boolean onChatClick(double mouseX, double mouseY, int button, boolean modifier) {
+        if (!modifier || (button != 0 && button != 1) || !CopyChatConfig.getInstance().isEnabled()) {
             return false;
         }
+        try {
+            GuiMessage.Line line = lineAt(mouseX, mouseY);
+            if (line == null) {
+                return false;
+            }
+            boolean whole = button == 0;
+            String text = whole ? messageText(line.parent()) : plain(line.content());
+            if (text.isBlank()) {
+                return true; // a blank line: consumed, nothing to copy
+            }
+            copy(text, whole ? "message" : "line");
+            return true;
+        } catch (RuntimeException e) {
+            LOGGER.warn("Copy Chat: click handling failed; left to vanilla", e);
+            return false;
+        }
+    }
+
+    /**
+     * The wrapped chat line under (mouseX, mouseY) in GUI coordinates, or null. Lays the chat out through vanilla's own
+     * {@code captureClickableText} with a collector that records each line's position and pose instead of searching
+     * styles, then hit-tests the line's full row (vanilla's entry rectangle: {@code entryHeight} tall, ending
+     * {@code entryBottomToMessageY} below the text's y), so a click anywhere along the row counts, not only on a glyph.
+     */
+    public static GuiMessage.Line lineAt(double mouseX, double mouseY) {
         Minecraft client = Minecraft.getInstance();
         ChatComponent chat = McCompat.chat(client);
-        if (!chat.isChatFocused()) {
-            return false;
-        }
         ChatComponentAccessor accessor = (ChatComponentAccessor) chat;
         List<GuiMessage.Line> trimmed = accessor.killer560smod$getTrimmedMessages();
         if (trimmed.isEmpty()) {
-            return false;
+            return null;
         }
+        List<Placed> placed = new ArrayList<>();
+        ActiveTextCollector.ClickableStyleFinder recorder =
+                new ActiveTextCollector.ClickableStyleFinder(client.font, (int) mouseX, (int) mouseY) {
+                    @Override
+                    public void accept(TextAlignment alignment, int x, int y, ActiveTextCollector.Parameters parameters,
+                                       FormattedCharSequence text) {
+                        placed.add(new Placed(new Matrix3x2f(parameters.pose()), x, y, text));
+                    }
+                };
+        chat.captureClickableText(recorder, client.getWindow().getGuiScaledHeight(), 0,
+                ChatComponent.DisplayMode.FOREGROUND);
 
+        // Vanilla's row geometry (ChatComponent.extractRenderState, javap 26.1.2 and 26.2): entryHeight = 9 * (spacing
+        // + 1), and the text sits entryBottomToMessageY = round(8 * (spacing + 1) - 4 * spacing) above the row's bottom.
+        double spacing = client.options.chatLineSpacing().get();
+        int entryHeight = (int) (9.0 * (spacing + 1.0));
+        int bottomToText = (int) Math.round(8.0 * (spacing + 1.0) - 4.0 * spacing);
         double scale = accessor.killer560smod$invokeGetScale();
-        int lineHeight = accessor.killer560smod$invokeGetLineHeight();
-        double chatLineX = mouseX / scale - 4.0;
-        double chatLineY = (client.getWindow().getGuiScaledHeight() - mouseY - 40.0) / (scale * lineHeight);
+        double rowWidth = Math.ceil(ChatComponent.getWidth(client.options.chatWidth().get()) / scale);
 
-        double maxLineX = ChatComponent.getWidth(client.options.chatWidth().get()) / scale;
-        if (chatLineX < -4.0 || chatLineX > maxLineX) {
-            return false;
+        for (Placed p : placed) {
+            Vector2f local = new Matrix3x2f(p.pose()).invert().transformPosition(new Vector2f((float) mouseX, (float) mouseY));
+            int rowBottom = p.y() + bottomToText;
+            if (local.y < rowBottom - entryHeight || local.y >= rowBottom || local.x < p.x() - 4 || local.x > rowWidth + 8) {
+                continue;
+            }
+            for (GuiMessage.Line line : trimmed) {
+                if (line.content() == p.text()) {
+                    return line;
+                }
+            }
+            return null; // the queue / restricted prompt row: not a message
         }
-        int lineCount = Math.min(chat.getLinesPerPage(), trimmed.size());
-        if (chatLineY < 0.0 || chatLineY >= lineCount) {
-            return false;
-        }
+        return null;
+    }
 
-        int idx = (int) Math.floor(chatLineY + accessor.killer560smod$getChatScrollbarPos());
-        if (idx < 0 || idx >= trimmed.size()) {
-            return false;
-        }
+    private record Placed(Matrix3x2f pose, int x, int y, FormattedCharSequence text) {
+    }
 
+    /** The whole message, plain: every wrapped line of it, without a Chat Hider stack count. */
+    static String messageText(GuiMessage message) {
+        return strip(com.killer560.hub.chattidy.ChatTidy.unstackedContent(message).getString());
+    }
+
+    static String plain(FormattedCharSequence seq) {
         StringBuilder sb = new StringBuilder();
-        trimmed.get(idx).content().accept((position, style, codePoint) -> {
+        seq.accept((position, style, codePoint) -> {
             sb.appendCodePoint(codePoint);
             return true;
         });
-        String text = sb.toString();
-        if (!text.isBlank()) {
-            copyToClipboard(text);
-        }
-        return true;
+        return strip(sb.toString());
     }
 
+    private static String strip(String s) {
+        String out = ChatFormatting.stripFormatting(s);
+        return out == null ? s : out;
+    }
+
+    private static void copy(String text, String kind) {
+        Minecraft client = Minecraft.getInstance();
+        client.keyboardHandler.setClipboard(text);
+        lastCopied = text;
+        lastKind = kind;
+        copies++;
+        if (client.player != null) {
+            client.player.sendSystemMessage(ModChat.line("Killer560's Mod",
+                    ModChat.text("message".equals(kind) ? "Chat message copied to clipboard!" : "Chat line copied to clipboard!")));
+        }
+    }
+
+    /** Puts {@code text} on the clipboard (Cosmetics' copy button). Render thread. */
     public static void copyToClipboard(String text) {
         if (text == null || text.isBlank()) {
             return;
         }
-        if (Util.getPlatform() != Util.OS.WINDOWS) {
-            LOGGER.warn("Copy Chat: only implemented for Windows right now (detected {})", Util.getPlatform());
-            return;
-        }
-        EXECUTOR.execute(() -> copyToClipboardBlocking(text));
+        Minecraft.getInstance().execute(() -> Minecraft.getInstance().keyboardHandler.setClipboard(text));
     }
 
-    private static void copyToClipboardBlocking(String text) {
-        try {
-            ProcessBuilder builder = new ProcessBuilder(
-                    "powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command",
-                    "Set-Clipboard -Value $env:KILLER560SMOD_COPY_TEXT");
-            builder.environment().put("KILLER560SMOD_COPY_TEXT", text);
-            builder.redirectErrorStream(true);
-            Process process = builder.start();
-            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            boolean finished = process.waitFor(10, TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                LOGGER.warn("Copy Chat: PowerShell timed out");
-                return;
-            }
-            if (process.exitValue() != 0) {
-                LOGGER.warn("Copy Chat: PowerShell exited {} - {}", process.exitValue(), output);
-                return;
-            }
-            notifySuccess();
-        } catch (IOException e) {
-            LOGGER.warn("Copy Chat: clipboard copy failed", e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            LOGGER.warn("Copy Chat: clipboard copy interrupted", e);
-        }
+    // ---- test hooks ---------------------------------------------------------------------------------------------
+
+    public static String testLastCopied() {
+        return lastCopied;
     }
 
-    private static void notifySuccess() {
-        Minecraft.getInstance().execute(() -> {
-            var player = Minecraft.getInstance().player;
-            if (player != null) {
-                player.sendSystemMessage(ModChat.line("Killer560's Mod", ModChat.text("Chat message copied to clipboard!")));
-            }
-        });
+    public static String testLastKind() {
+        return lastKind;
+    }
+
+    public static long testCopies() {
+        return copies;
+    }
+
+    /** The plain text of the wrapped line under (x, y) and of its whole message, or null. Render thread. */
+    public static String[] testLineAt(double x, double y) {
+        GuiMessage.Line line = lineAt(x, y);
+        return line == null ? null : new String[]{plain(line.content()), messageText(line.parent())};
     }
 }

@@ -24,11 +24,9 @@ public class ChatTab extends FolderTab {
                 new ScreenshotCopyTab(),
                 // Confirmed working 2026-09-16 ("voice to text works perfectly"), moved out of New.
                 new VoiceToTextTab(),
-                // Moved in from Object Hider's "Chat Replacements" header 2026-09-30, per killer560:
-                // "move the hide chat stuff into the chat section". Same ObjectHiderConfig keys as before.
-                new HideChatMessagesTab(),
-                // Chat Tidy (2026-10-07, killer560): stack repeated lines, hide Hypixel's damage spam.
-                new ChatTidyTab(),
+                // Chat Hider (2026-10-08, killer560): Hide Chat Messages (Object Hider's old "Chat Replacements") and
+                // Chat Tidy (stack repeated lines, hide Hypixel's damage spam) in one tab under one master switch.
+                new ChatHiderTab(),
                 // Out of the New category, which was removed 2026-10-07 (killer560: every feature moves to the
                 // category it lives in for the release).
                 new ModChatTab(),
