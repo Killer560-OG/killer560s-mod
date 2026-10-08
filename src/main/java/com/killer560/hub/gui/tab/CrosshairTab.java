@@ -32,7 +32,8 @@ import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
- * Custom Crosshair editor - its own top-level tab (killer560, 2026-10-06). Settings on the left, a live preview on the
+ * Custom Crosshair editor - a section of the General category (its own top-level tab from 2026-10-06 until killer560,
+ * 2026-10-07: "Crosshair should not be its own tab, put it in General"). Settings on the left, a live preview on the
  * right that stays in view while the settings scroll (narrow menus put it on top instead). The preview draws through
  * {@link CrosshairRenderer} at the real in-game pixel size, over a background you can click through, and can show the
  * dynamic states (spread, recoil, target colours). Presets: built-ins, named presets saved in
@@ -52,7 +53,9 @@ public class CrosshairTab extends BaseTab {
     private static String pendingDelete = null;
 
     public CrosshairTab() {
-        super("Crosshair");
+        // "Custom Crosshair" beside General's Etherwarp Overlay and Smooth Teleport; its tooltips are keyed
+        // "custom crosshair/..." in SettingTooltipsData.
+        super("Custom Crosshair");
     }
 
     @Override
@@ -376,8 +379,9 @@ public class CrosshairTab extends BaseTab {
     /**
      * The live preview: a sample background with the crosshair drawn at its real in-game size. Click the box for the
      * next background (right click: previous); click the strip under it to preview a dynamic state. In the side layout
-     * the widget's rectangle is the whole right-hand column, and the box is drawn at the column's ORIGINAL top - the
-     * content pane's top - so it stays in view however far the settings scroll.
+     * the widget's rectangle is the whole right-hand column, and the box is drawn at the content pane's top while the
+     * column is scrolled past it (clamped inside the column), so it stays in view however far the settings scroll -
+     * also now that the editor is a section of General and its column starts lower down.
      */
     static final class Preview extends AbstractWidget {
 
@@ -388,19 +392,21 @@ public class CrosshairTab extends BaseTab {
         static int background = 0;
         static int state = 0;
 
-        private final int baseY;
         private final int boxH;
         private final boolean sticky;
 
         Preview(int x, int y, int width, int boxH, boolean sticky) {
             super(x, y, width, boxH + 4 + STATE_H, Component.literal("Crosshair Preview"));
-            this.baseY = y;
             this.boxH = boxH;
             this.sticky = sticky;
         }
 
         private int top() {
-            return sticky ? baseY : getY();
+            if (!sticky) {
+                return getY();
+            }
+            int lowest = getY() + getHeight() - (boxH + 4 + STATE_H);
+            return Math.max(getY(), Math.min(com.killer560.hub.gui.ModScreen.contentPaneTop(), lowest));
         }
 
         private boolean inBox(double mx, double my) {

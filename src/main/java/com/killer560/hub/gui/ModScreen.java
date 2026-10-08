@@ -77,10 +77,17 @@ public class ModScreen extends Screen {
     private static int scrollOffset = 0;
     private int maxScroll = 0;
     private int visibleContentHeight = 0;
+    /** The scrolling content pane's top edge, for a widget that keeps itself in view (the Custom Crosshair preview). */
+    private static int paneTop = 0;
     private ScrollingContentPane contentPane;
 
     public ModScreen(Screen parent) {
         this(parent, -1);
+    }
+
+    /** Top edge (GUI units) of the menu's scrolling content pane as last laid out. */
+    public static int contentPaneTop() {
+        return paneTop;
     }
 
     /** A tab to select by NAME on the next init (index constants went stale whenever a category moved). */
@@ -121,8 +128,6 @@ public class ModScreen extends Screen {
             // "Mining (WIP)" (MiningWipTab) is shelved until after 2.0: shelved/mining/README.md.
             tabs.add(new GeneralTab());
             tabs.add(new DisplayTab());
-            // Custom Crosshair has its own tab (killer560, 2026-10-06): the editor needs the room for its preview.
-            tabs.add(new com.killer560.hub.gui.tab.CrosshairTab());
             tabs.add(new ChatTab());
             // Social and Items (2026-10-07) took their features out of the removed New category.
             tabs.add(new com.killer560.hub.gui.tab.SocialTab());
@@ -132,9 +137,8 @@ public class ModScreen extends Screen {
             tabs.add(new HelpersTab());
             tabs.add(new DungeonTab());
             // Puzzle Solvers is no longer a top-level category (killer560, 2026-09-20: "Puzzle solvers
-            // also shouldn't be a tab it should be in dungeons"). The solvers themselves sit in New for
-            // this testing round and move to Dungeon once he confirms them; Auto Puzzles, the cheat half,
-            // is already in the Dungeon folder.
+            // also shouldn't be a tab it should be in dungeons"); it is a folder in Dungeon. Custom Crosshair
+            // was a top-level tab until 2026-10-07 and is now a section of General.
             if (com.killer560.hub.BuildVariant.TESTING) {
                 tabs = com.killer560.hub.testing.TestingMenu.arrange(tabs);
             }
@@ -169,6 +173,7 @@ public class ModScreen extends Screen {
 
         contentX = panelX + sidebarW + 10;
         contentY = panelY + 40;
+        paneTop = contentY;
         contentW = panelW - sidebarW - 20;
 
         // Per killer560's "move that search bar up just a hair so its not on that orange line but
@@ -250,7 +255,7 @@ public class ModScreen extends Screen {
         }
         List<AbstractWidget> contentWidgets;
         if (com.killer560.hub.BuildVariant.TESTING && !(selected instanceof FolderTab)) {
-            // A top-level feature tab (Profiles, Crosshair) gets its Mark row here; FolderTab adds it per section.
+            // A top-level feature tab (Profiles) gets its Mark row here; FolderTab adds it per section.
             contentWidgets = new ArrayList<>();
             contentWidgets.add(com.killer560.hub.testing.TestingMenu.markButton(selected, contentX, contentY, contentW));
             contentWidgets.addAll(selected.buildWidgets(contentX,

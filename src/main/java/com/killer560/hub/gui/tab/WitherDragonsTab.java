@@ -18,7 +18,7 @@ import java.util.function.Supplier;
 /** M7 Phase 5 settings - Wither Dragons and King Relics (see
  *  {@link com.killer560.hub.witherdragons.WitherDragonsFeature} / {@code KingRelicsFeature} for the Odin /
  *  NoammAddons sources every timing, coordinate and priority rule is ported from). Both masters ship OFF; every
- *  change saves immediately. Info/render only, so no cheat-only (red) headers here. */
+ *  change saves immediately. Info/render only, except the cheat build's Auto Debuff, the red last section. */
 public class WitherDragonsTab extends BaseTab {
 
     public WitherDragonsTab() {
@@ -92,27 +92,6 @@ public class WitherDragonsTab extends BaseTab {
             toggle(w, contentX, y[0], half, "Send Dragon Counts", cfg::isSendConfirmation, cfg::setSendConfirmation, cfg);
             y[0] += 26;
 
-            if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-                // Auto Debuff lives here rather than in its own tab because everything it needs - the split, the
-                // spawn timers, the priority dragon - is this feature's data.
-                var ad = com.killer560.hub.autodebuff.AutoDebuffConfig.getInstance();
-                header(w, contentX, y, contentWidth, "Auto Debuff (M7)");
-                toggleAd(w, contentX, y[0], half, "Auto Debuff", ad::isEnabled, ad::setEnabled, ad);
-                toggleAd(w, colB, y[0], half, "Auto Pathing", ad::isAutoPathing, ad::setAutoPathing, ad);
-                y[0] += 22;
-                // Per class, because he asked to pick which he is playing. Archer and Berserker are absent on
-                // purpose - they take no part in the debuff and there is nothing to switch on for them.
-                toggleAd(w, contentX, y[0], half, "On Mage", ad::isOnMage, ad::setOnMage, ad);
-                toggleAd(w, colB, y[0], half, "On Healer", ad::isOnHealer, ad::setOnHealer, ad);
-                y[0] += 22;
-                toggleAd(w, contentX, y[0], half, "On Tank", ad::isOnTank, ad::setOnTank, ad);
-                toggleAd(w, colB, y[0], half, "Mage Melee After", ad::isMeleeAfter, ad::setMeleeAfter, ad);
-                y[0] += 22;
-                toggleAd(w, contentX, y[0], half, "Ping Compensation",
-                        ad::isPingCompensation, ad::setPingCompensation, ad);
-                y[0] += 26;
-            }
-
             header(w, contentX, y, contentWidth, "Dragon Priority");
             toggle(w, contentX, y[0], half, "Dragon Priority", cfg::isDragonPriority, cfg::setDragonPriority, cfg);
             toggle(w, colB, y[0], half, "Paul Buff", cfg::isPaulBuff, cfg::setPaulBuff, cfg);
@@ -174,6 +153,29 @@ public class WitherDragonsTab extends BaseTab {
             y[0] += 26;
         }
 
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && cfg.isEnabled()) {
+            // Auto Debuff lives here rather than in its own tab because everything it needs - the split, the
+            // spawn timers, the priority dragon - is this feature's data. Cheat build only, so it is the LAST section,
+            // under a red header (killer560, 2026-10-07: cheat settings at the bottom, not right under their setting);
+            // it sat between Dragon Alerts and Dragon Priority with an orange one. Shown while Wither Dragons is on, as before.
+            var ad = com.killer560.hub.autodebuff.AutoDebuffConfig.getInstance();
+            cheatHeader(w, contentX, y, contentWidth, "Auto Debuff (M7)");
+            toggleAd(w, contentX, y[0], half, "Auto Debuff", ad::isEnabled, ad::setEnabled, ad);
+            toggleAd(w, colB, y[0], half, "Auto Pathing", ad::isAutoPathing, ad::setAutoPathing, ad);
+            y[0] += 22;
+            // Per class, because he asked to pick which he is playing. Archer and Berserker are absent on
+            // purpose - they take no part in the debuff and there is nothing to switch on for them.
+            toggleAd(w, contentX, y[0], half, "On Mage", ad::isOnMage, ad::setOnMage, ad);
+            toggleAd(w, colB, y[0], half, "On Healer", ad::isOnHealer, ad::setOnHealer, ad);
+            y[0] += 22;
+            toggleAd(w, contentX, y[0], half, "On Tank", ad::isOnTank, ad::setOnTank, ad);
+            toggleAd(w, colB, y[0], half, "Mage Melee After", ad::isMeleeAfter, ad::setMeleeAfter, ad);
+            y[0] += 22;
+            toggleAd(w, contentX, y[0], half, "Ping Compensation",
+                    ad::isPingCompensation, ad::setPingCompensation, ad);
+            y[0] += 26;
+        }
+
         return w;
     }
 
@@ -210,6 +212,12 @@ public class WitherDragonsTab extends BaseTab {
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
         w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        y[0] += 14;
+    }
+
+    private static void cheatHeader(List<AbstractWidget> w, int x, int[] y, int width, String title) {
+        y[0] += 4;
+        w.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header(title, true), Minecraft.getInstance().font));
         y[0] += 14;
     }
 

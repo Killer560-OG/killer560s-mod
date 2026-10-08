@@ -94,31 +94,6 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            // Correction Alarm (killer560, 2026-10-06): a server position correction never stops an automation; it
-            // posts a chat line and plays this siren (util/ServerCorrections, util/ModSounds). On/off + volume here.
-            widgets.add(SettingsButtonWidget.builder(correctionAlarmText(), btn -> {
-                        var acfg = com.killer560.hub.util.CorrectionAlarmConfig.getInstance();
-                        acfg.setEnabled(!acfg.isEnabled());
-                        acfg.save();
-                        btn.setMessage(correctionAlarmText());
-                    }).bounds(contentX, y, half, 20).build());
-            widgets.add(new ThemedSliderButton(contentX + half + gap, y, rightW, 20, correctionVolumeText(),
-                    com.killer560.hub.util.CorrectionAlarmConfig.getInstance().getVolume()) {
-                @Override
-                protected void updateMessage() {
-                    setMessage(correctionVolumeText());
-                }
-
-                @Override
-                protected void applyValue() {
-                    var acfg = com.killer560.hub.util.CorrectionAlarmConfig.getInstance();
-                    acfg.setVolume(Math.round(this.value * 100) / 100f);
-                    acfg.save();
-                }
-            });
-            y += 26;
-        }
         y += 4;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
@@ -188,16 +163,6 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
     private static Component updateNotifyText() {
         return Component.literal("Notify Me Of Updates: "
                 + (com.killer560.hub.updatecheck.UpdateCheckConfig.getInstance().isNotifyOnStart() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component correctionAlarmText() {
-        return Component.literal("Correction Alarm: "
-                + (com.killer560.hub.util.CorrectionAlarmConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component correctionVolumeText() {
-        return Component.literal("Alarm Volume: §b"
-                + Math.round(com.killer560.hub.util.CorrectionAlarmConfig.getInstance().getVolume() * 100) + "%");
     }
 
     private static Component skyblockOnlyText() {

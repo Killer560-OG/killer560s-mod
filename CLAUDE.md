@@ -84,6 +84,11 @@ A new feature gets its name in the README list and its full text in `docs/FEATUR
 Google Doc is regenerated. Sharing and receiving settings default ON. The GUI is orange-themed. Never carry
 his typos into a command, label or alias.
 
+Menu placement (killer560, 2026-10-07): every feature is its own tab in its category - no combined folders (only
+Secrets and Puzzle Solvers group tabs, at his request). Cheat-only tabs go in one block at the BOTTOM of their
+category, never directly under the legit tab they go with, and cheat-only settings go at the bottom of their tab under
+a red `SectionHeaders` header. Testkit 511-514 check it on cheat, legit and testing jars.
+
 Never track a `HANDOFF.md` in the repo; handoff notes live only in
 `C:\Users\Hunter\.claude\killer560s-mod-HANDOFF-PRIVATE.txt`. The Discord bot token lives at
 `C:\Users\Hunter\.claude\secrets\killer560smod-discord-bot-token.txt` and is never printed or committed.
