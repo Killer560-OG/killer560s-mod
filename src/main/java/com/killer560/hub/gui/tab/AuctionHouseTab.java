@@ -2,6 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.auction.AuctionConfig;
 import com.killer560.hub.auction.AuctionHouseApi;
+import com.killer560.hub.auction.AuctionHouseConfig;
 import com.killer560.hub.auction.AuctionHouseFeature;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -18,6 +19,8 @@ import java.util.List;
 public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
 
     private boolean capturingKey = false;
+    /** True while the Hypixel Menu Key button is waiting for a key (the other capture is the Open Key). */
+    private boolean capturingVanillaKey = false;
 
     public AuctionHouseTab() {
         super("Auction House");
@@ -49,6 +52,7 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
         Component keyLabel = capturingKey ? Component.literal("Press any key...") : keyText(cfg);
         widgets.add(SettingsButtonWidget.builder(keyLabel, btn -> {
                     capturingKey = true;
+                    capturingVanillaKey = false;
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(colBX, y, colW, 18).build());
         y += 22;
@@ -71,6 +75,32 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
+        // The unified Auction House (2026-10-07): Hypixel's real AH menus drawn in the browser's look.
+        AuctionHouseConfig ah = AuctionHouseConfig.getInstance();
+        widgets.add(SettingsButtonWidget.builder(onOff("Reskin Real Auction House", ah.isReskinRealAhRaw()), btn -> {
+                    ah.setReskinRealAh(!ah.isReskinRealAhRaw());
+                    ah.save();
+                    btn.setMessage(onOff("Reskin Real Auction House", ah.isReskinRealAhRaw()));
+                }).bounds(contentX, y, colW, 18).build());
+        Component vanillaLabel = capturingVanillaKey ? Component.literal("Press any key...") : vanillaKeyText(ah);
+        widgets.add(SettingsButtonWidget.builder(vanillaLabel, btn -> {
+                    capturingVanillaKey = true;
+                    capturingKey = false;
+                    btn.setMessage(Component.literal("Press any key..."));
+                }).bounds(colBX, y, colW, 18).build());
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Recent Searches & Items", ah.isTrackRecents()), btn -> {
+                    ah.setTrackRecents(!ah.isTrackRecents());
+                    ah.save();
+                    btn.setMessage(onOff("Recent Searches & Items", ah.isTrackRecents()));
+                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Clear Recents"), btn -> {
+                    ah.clearRecents();
+                    ah.save();
+                }).bounds(colBX, y, colW, 18).build());
+        y += 24;
+
         return widgets;
     }
 
@@ -84,13 +114,26 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("Open Key: §b" + name);
     }
 
+    private static Component vanillaKeyText(AuctionHouseConfig ah) {
+        String name = ah.getVanillaKeyCode() < 0 ? "Not Set"
+                : InputConstants.Type.KEYSYM.getOrCreate(ah.getVanillaKeyCode()).getDisplayName().getString();
+        return Component.literal("Hypixel Menu Key: §b" + name);
+    }
+
     @Override
     public boolean isListeningForKey() {
-        return capturingKey;
+        return capturingKey || capturingVanillaKey;
     }
 
     @Override
     public void onKeyCaptured(int keyCode) {
+        if (capturingVanillaKey) {
+            AuctionHouseConfig ah = AuctionHouseConfig.getInstance();
+            ah.setVanillaKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+            capturingVanillaKey = false;
+            ah.save();
+            return;
+        }
         AuctionConfig cfg = AuctionConfig.getInstance();
         cfg.setOpenAhKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
         capturingKey = false;

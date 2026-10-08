@@ -30,8 +30,23 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
+        applyCapture(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+    }
+
+    /** killer560 (2026-10-07): "for loadout keybinds I cannot use my special mouse buttons like side mouse buttons".
+     *  Stored the same way every other mouse-capable bind is ({@code KeyUtil.codeForMouseButton}). */
+    @Override
+    public boolean supportsMouseCapture() {
+        return true;
+    }
+
+    @Override
+    public void onMouseCaptured(int button) {
+        applyCapture(com.killer560.hub.util.KeyUtil.codeForMouseButton(button));
+    }
+
+    private void applyCapture(int key) {
         LoadoutKeybindsConfig cfg = LoadoutKeybindsConfig.getInstance();
-        int key = keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode;
         if (capturingIndex == 12) {
             cfg.setNextPageKey(key);
         } else if (capturingIndex == 13) {
@@ -105,7 +120,7 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
         if (capturingIndex == index) {
             return Component.literal("Press any key...");
         }
-        String name = key == -1 ? "Not Set" : InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString();
+        String name = key == -1 ? "Not Set" : com.killer560.hub.util.KeyUtil.bindDisplayName(key);
         return Component.literal(label + ": " + name);
     }
 }
