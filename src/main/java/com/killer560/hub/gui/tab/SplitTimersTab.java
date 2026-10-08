@@ -54,21 +54,22 @@ public class SplitTimersTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 24;
 
-        // Clear-phase splits (2026-09-16) - see SplitTimersFeature's clearPrefix()/WatcherMoveTracker.
+        // The layout itself is fixed (killer560, 2026-10-08): Blood Open, Watcher, Portal Entry, Boss Entry, a line, the
+        // boss phases and Boss, a line, Total and Lag. Only the "(lagless)" parentheses and the extra rows/blocks toggle.
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                com.killer560.hub.gui.SectionHeaders.header("Clear Phase", false), Minecraft.getInstance().font));
+                com.killer560.hub.gui.SectionHeaders.header("Split Layout", false), Minecraft.getInstance().font));
         y += 14;
-        widgets.add(SettingsButtonWidget.builder(onOff("Clear Splits", cfg.isClearSplits()), btn -> {
-                    cfg.setClearSplits(!cfg.isClearSplits());
+        widgets.add(SettingsButtonWidget.builder(onOff("Lagless Times", cfg.isLaglessTimes()), btn -> {
+                    cfg.setLaglessTimes(!cfg.isLaglessTimes());
                     cfg.save();
-                    btn.setMessage(onOff("Clear Splits", cfg.isClearSplits()));
+                    btn.setMessage(onOff("Lagless Times", cfg.isLaglessTimes()));
                 }).bounds(contentX, y, 160, 18).build());
         widgets.add(SettingsButtonWidget.builder(onOff("Watcher Move", cfg.isWatcherMoveSplit()), btn -> {
                     cfg.setWatcherMoveSplit(!cfg.isWatcherMoveSplit());
                     cfg.save();
                     btn.setMessage(onOff("Watcher Move", cfg.isWatcherMoveSplit()));
                 }).bounds(contentX + 168, y, 160, 18).build());
-        y += 22;
+        y += 26;
 
         // Core entry times (2026-09-16, killer560: "time to enter core after terms finish").
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
@@ -101,56 +102,6 @@ public class SplitTimersTab extends BaseTab {
                     }).bounds(contentX, y, 220, 18).build());
             y += 22;
         }
-
-        // 2026-09-20 killer560 change list: divider bar, Boss Entry/Boss running timers, lagless times and
-        // the bottom Total-with/without-lag + Lag Lost lines - see SplitTimersFeature's class doc and
-        // SplitLagClock for what "lagless" means. All new, all off by default.
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                com.killer560.hub.gui.SectionHeaders.header("Split Layout", false), Minecraft.getInstance().font));
-        y += 14;
-        widgets.add(SettingsButtonWidget.builder(onOff("Clear/Boss Divider", cfg.isClearBossDivider()), btn -> {
-                    cfg.setClearBossDivider(!cfg.isClearBossDivider());
-                    cfg.save();
-                    btn.setMessage(onOff("Clear/Boss Divider", cfg.isClearBossDivider()));
-                }).bounds(contentX, y, 160, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Boss Entry Timer", cfg.isBossEntryTimer()), btn -> {
-                    cfg.setBossEntryTimer(!cfg.isBossEntryTimer());
-                    cfg.save();
-                    btn.setMessage(onOff("Boss Entry Timer", cfg.isBossEntryTimer()));
-                }).bounds(contentX + 168, y, 160, 18).build());
-        y += 22;
-        widgets.add(SettingsButtonWidget.builder(onOff("Boss Timer", cfg.isBossTimer()), btn -> {
-                    cfg.setBossTimer(!cfg.isBossTimer());
-                    cfg.save();
-                    btn.setMessage(onOff("Boss Timer", cfg.isBossTimer()));
-                }).bounds(contentX, y, 160, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Lagless Times", cfg.isLaglessTimes()), btn -> {
-                    cfg.setLaglessTimes(!cfg.isLaglessTimes());
-                    cfg.save();
-                    btn.setMessage(onOff("Lagless Times", cfg.isLaglessTimes()));
-                }).bounds(contentX + 168, y, 160, 18).build());
-        y += 26;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                com.killer560.hub.gui.SectionHeaders.header("Run Totals", false), Minecraft.getInstance().font));
-        y += 14;
-        widgets.add(SettingsButtonWidget.builder(onOff("Total With Lag", cfg.isTotalWithLag()), btn -> {
-                    cfg.setTotalWithLag(!cfg.isTotalWithLag());
-                    cfg.save();
-                    btn.setMessage(onOff("Total With Lag", cfg.isTotalWithLag()));
-                }).bounds(contentX, y, 160, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Total Without Lag", cfg.isTotalWithoutLag()), btn -> {
-                    cfg.setTotalWithoutLag(!cfg.isTotalWithoutLag());
-                    cfg.save();
-                    btn.setMessage(onOff("Total Without Lag", cfg.isTotalWithoutLag()));
-                }).bounds(contentX + 168, y, 160, 18).build());
-        y += 22;
-        widgets.add(SettingsButtonWidget.builder(onOff("Lag Lost", cfg.isLagLostLine()), btn -> {
-                    cfg.setLagLostLine(!cfg.isLagLostLine());
-                    cfg.save();
-                    btn.setMessage(onOff("Lag Lost", cfg.isLagLostLine()));
-                }).bounds(contentX, y, 160, 18).build());
-        y += 26;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 com.killer560.hub.gui.SectionHeaders.header("M7 Phase 5 Lines", false), Minecraft.getInstance().font));

@@ -181,24 +181,70 @@ public final class Floor7Tracker {
             case "[BOSS] Necron: Finally, I heard so much about you. The Eye likes you very much.",
                  "[BOSS] Necron: You went further than any human before, congratulations." -> updateState(Phase.P4, Stage.UNKNOWN);
             case "The Core entrance is opening!" -> updateState(null, Stage.S5);
-            case "[BOSS] Necron: All this, for nothing..." -> updateState(Phase.P5, null);
             default -> {
+                if (phase != Phase.P5 && P5_START.matcher(unformatted).matches()) {
+                    updateState(Phase.P5, null);
+                }
             }
         }
-        // p3sim.net can skip Goldor's opening line: with no boss dialogue seen at all this world, the first
-        // terminal/lever/device line while standing in P3 starts P3 at the section you're in (not in QUOI).
-        if (phase == Phase.UNKNOWN && getPhaseAt() == Phase.P3 && Stage.TERM_COMPLETED.matcher(unformatted).matches()) {
-            Stage at = getStageAt();
-            Stage.resetAll();
-            phase = Phase.P3;
-            stage = at.number >= 1 && at.number <= 4 ? at : Stage.S1;
-            FastLeapFeature.LOGGER.info("[FastLeap] No Goldor line seen - inferred P3 {} from a completion line", stage);
+        // Goldor's opening line can be missed (p3sim skips it; on Hypixel a dialogue-skip perk, a late join, or a
+        // changed line): with the chat phase still before P3, the first terminal/lever/device line while standing in
+        // P3 starts P3 at the section you're in (not in QUOI). Terminals, levers and devices exist only in P3, so a
+        // completion line is proof. Used to require "no boss line at all", which a heard Maxor/Storm line defeated.
+        if (beforeP3(phase) && getPhaseAt() == Phase.P3 && Stage.TERM_COMPLETED.matcher(unformatted).matches()) {
+            inferP3("a completion line");
         }
         if (phase == Phase.P3 && stage.number >= 1 && stage.number <= 4) {
             Stage next = stage.process(unformatted);
             if (next != stage) {
                 updateState(null, next);
             }
+        }
+    }
+
+    /**
+     * The start of Phase 5: Necron's death line, or the Wither King's first line. Since SkyBlock 0.27.2 sped boss
+     * dialogue up (Celestial_Milk perk), the reference mods stopped trusting Necron's line for M7 P5: jcnlk's quoi
+     * 8562102f ("fix: p5 start not registering", 2026-10-06) switched to "[BOSS] The Wither King: Ohh?" / "You... again?",
+     * and Odin 1cf58050 (2026-10-03) moved its last split to "^\[BOSS] The Wither King: You\.\.\. again\?$". Either line
+     * counts, whichever arrives first. Anchored and bounded: a player's chat line cannot start with "[BOSS]".
+     */
+    public static final Pattern P5_START = Pattern.compile(
+            "^(?:\\[BOSS\\] Necron: All this, for nothing\\.\\.\\.|\\[BOSS\\] (?:The )?Wither King: .{1,160})$");
+
+    private static boolean beforeP3(Phase p) {
+        return p == Phase.UNKNOWN || p == Phase.P1 || p == Phase.P2;
+    }
+
+    private static void inferP3(String why) {
+        Stage at = getStageAt();
+        Stage.resetAll();
+        phase = Phase.P3;
+        stage = at.number >= 1 && at.number <= 4 ? at : Stage.S1;
+        FastLeapFeature.LOGGER.info("[FastLeap] No Goldor line seen - inferred P3 {} from {}", stage, why);
+    }
+
+    /** Ticks in a row the player has stood in the P3 band while the chat phase still said before P3. */
+    private static int p3BandTicks;
+    /** One second in the band: falling through it from P2 to P4 is not possible (P3's floor is in between), so a full
+     *  second there is being in P3. */
+    private static final int P3_BAND_TICKS = 20;
+
+    /**
+     * Position fallback for a missed Goldor line on Hypixel (2026-10-08, "auto terminal is broken, probably because they
+     * changed all boss dialogue"): Terminal Aura, AP3 and Fast Leap's P3 parts all wait for the chat phase to say P3.
+     * If it still says P1, P2 or nothing after the player has stood in P3's height band for {@link #P3_BAND_TICKS}
+     * ticks, P3 starts at the section he is in. Players reach that band only once Storm is dead, so this never runs
+     * early; a heard Goldor line still sets P3 the moment it arrives.
+     */
+    static void tick() {
+        if (!beforeP3(phase) || !inF7Boss() || getPhaseAt() != Phase.P3) {
+            p3BandTicks = 0;
+            return;
+        }
+        if (++p3BandTicks >= P3_BAND_TICKS) {
+            p3BandTicks = 0;
+            inferP3("standing in P3 for " + P3_BAND_TICKS + " ticks");
         }
     }
 
@@ -240,6 +286,7 @@ public final class Floor7Tracker {
     }
 
     static void onWorldChange() {
+        p3BandTicks = 0;
         Stage.resetAll();
         phase = Phase.UNKNOWN;
         stage = Stage.UNKNOWN;

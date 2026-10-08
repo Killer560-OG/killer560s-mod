@@ -34,11 +34,6 @@ public final class SplitTimersConfig {
     private boolean p5RelicLines = false;
     /** true = a column to the right of the normal split rows, false = under them. */
     private boolean p5LinesRight = true;
-    // Clear-phase splits (2026-09-16, gap analysis 2.1 "Clear-phase run splits"): breaks the existing
-    // Blood Open / Blood Clear pair into Devonian's four finer clear segments (Blood Rush, Blood Open,
-    // Watcher Dialogue, Blood Clear). New, and it changes what the two existing rows mean, so default OFF -
-    // with it off the split list is byte-for-byte the Odin one this feature shipped with.
-    private boolean clearSplits = false;
     /** Devonian {@code WatcherSplits} "Watcher Move" - entity-movement driven, not a chat line. Default OFF. */
     private boolean watcherMoveSplit = false;
     // Core entry times (2026-09-16, killer560: "add a time to enter core after terms finish timer with an
@@ -53,25 +48,11 @@ public final class SplitTimersConfig {
      *  the slowest person into core and their time." Default OFF like every new HUD line here. */
     private boolean coreEntrySlowestHud = false;
 
-    // ---------------------------------------------------------------------------------------------
-    // 2026-09-20 killer560 change list: divider bar between clear/boss splits, a Boss Entry split moved into
-    // the top (clear) section, a running Boss timer, lagless times in () per split, and a bottom "Total with
-    // lag / Total without lag / Lag Lost" block - see SplitTimersFeature's class doc and SplitLagClock for the
-    // "lagless" definition. All new, all OFF by default per the usual rule - the whole tab already lives in
-    // NewTab, but individual lines still default off so nothing changes on his HUD without him flipping it.
-    /** Draws a divider line between the clear-phase rows and the boss-phase rows. */
-    private boolean clearBossDivider = false;
-    /** The "Boss Entry" row (sum of every clear segment - how long it took to reach the boss) - previously
-     *  always shown whenever there was a boss split beyond the clear ones; now an explicit toggle so it obeys
-     *  the "changed features default off" rule instead of silently staying on for existing users. */
-    private boolean bossEntryTimer = false;
-    /** A running timer from the boss's own entry dialogue to the end of the fight (or now, if still running). */
-    private boolean bossTimer = false;
-    /** Lagless time (see SplitLagClock) in "(...)" to the right of each split, Boss Entry and Boss row. */
-    private boolean laglessTimes = false;
-    private boolean totalWithLag = false;
-    private boolean totalWithoutLag = false;
-    private boolean lagLostLine = false;
+    /** Lagless time (see SplitLagClock) in "(...)" after every time the splits show. ON by default since the
+     *  2026-10-08 layout, whose every row reads "real (lagless)". The 2026-09-20 layout toggles (divider, Boss Entry,
+     *  Boss, Total With/Without Lag, Lag Lost) and Clear Splits are gone: that layout is now fixed, and their old keys
+     *  in a saved file are ignored. */
+    private boolean laglessTimes = true;
 
     private SplitTimersConfig() {
     }
@@ -98,19 +79,12 @@ public final class SplitTimersConfig {
             cfg.p5DragonLines = ConfigJson.getBool(obj, "p5DragonLines", false);
             cfg.p5RelicLines = ConfigJson.getBool(obj, "p5RelicLines", false);
             cfg.p5LinesRight = ConfigJson.getBool(obj, "p5LinesRight", true);
-            cfg.clearSplits = ConfigJson.getBool(obj, "clearSplits", false);
             cfg.watcherMoveSplit = ConfigJson.getBool(obj, "watcherMoveSplit", false);
             cfg.coreEntryTimes = ConfigJson.getBool(obj, "coreEntryTimes", false);
             cfg.coreEntrySlowestChat = ConfigJson.getBool(obj, "coreEntrySlowestChat", false);
             cfg.coreEntrySlowestParty = ConfigJson.getBool(obj, "coreEntrySlowestParty", false);
             cfg.coreEntrySlowestHud = ConfigJson.getBool(obj, "coreEntrySlowestHud", false);
-            cfg.clearBossDivider = ConfigJson.getBool(obj, "clearBossDivider", false);
-            cfg.bossEntryTimer = ConfigJson.getBool(obj, "bossEntryTimer", false);
-            cfg.bossTimer = ConfigJson.getBool(obj, "bossTimer", false);
-            cfg.laglessTimes = ConfigJson.getBool(obj, "laglessTimes", false);
-            cfg.totalWithLag = ConfigJson.getBool(obj, "totalWithLag", false);
-            cfg.totalWithoutLag = ConfigJson.getBool(obj, "totalWithoutLag", false);
-            cfg.lagLostLine = ConfigJson.getBool(obj, "lagLostLine", false);
+            cfg.laglessTimes = ConfigJson.getBool(obj, "laglessTimes", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new SplitTimersConfig();
@@ -127,19 +101,12 @@ public final class SplitTimersConfig {
             obj.addProperty("p5DragonLines", p5DragonLines);
             obj.addProperty("p5RelicLines", p5RelicLines);
             obj.addProperty("p5LinesRight", p5LinesRight);
-            obj.addProperty("clearSplits", clearSplits);
             obj.addProperty("watcherMoveSplit", watcherMoveSplit);
             obj.addProperty("coreEntryTimes", coreEntryTimes);
             obj.addProperty("coreEntrySlowestChat", coreEntrySlowestChat);
             obj.addProperty("coreEntrySlowestParty", coreEntrySlowestParty);
             obj.addProperty("coreEntrySlowestHud", coreEntrySlowestHud);
-            obj.addProperty("clearBossDivider", clearBossDivider);
-            obj.addProperty("bossEntryTimer", bossEntryTimer);
-            obj.addProperty("bossTimer", bossTimer);
             obj.addProperty("laglessTimes", laglessTimes);
-            obj.addProperty("totalWithLag", totalWithLag);
-            obj.addProperty("totalWithoutLag", totalWithoutLag);
-            obj.addProperty("lagLostLine", lagLostLine);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -193,13 +160,6 @@ public final class SplitTimersConfig {
         this.p5LinesRight = p5LinesRight;
     }
 
-    public boolean isClearSplits() {
-        return clearSplits;
-    }
-
-    public void setClearSplits(boolean clearSplits) {
-        this.clearSplits = clearSplits;
-    }
 
     public boolean isWatcherMoveSplit() {
         return watcherMoveSplit;
@@ -241,29 +201,8 @@ public final class SplitTimersConfig {
         this.coreEntrySlowestHud = coreEntrySlowestHud;
     }
 
-    public boolean isClearBossDivider() {
-        return clearBossDivider;
-    }
 
-    public void setClearBossDivider(boolean clearBossDivider) {
-        this.clearBossDivider = clearBossDivider;
-    }
 
-    public boolean isBossEntryTimer() {
-        return bossEntryTimer;
-    }
-
-    public void setBossEntryTimer(boolean bossEntryTimer) {
-        this.bossEntryTimer = bossEntryTimer;
-    }
-
-    public boolean isBossTimer() {
-        return bossTimer;
-    }
-
-    public void setBossTimer(boolean bossTimer) {
-        this.bossTimer = bossTimer;
-    }
 
     public boolean isLaglessTimes() {
         return laglessTimes;
@@ -273,27 +212,6 @@ public final class SplitTimersConfig {
         this.laglessTimes = laglessTimes;
     }
 
-    public boolean isTotalWithLag() {
-        return totalWithLag;
-    }
 
-    public void setTotalWithLag(boolean totalWithLag) {
-        this.totalWithLag = totalWithLag;
-    }
 
-    public boolean isTotalWithoutLag() {
-        return totalWithoutLag;
-    }
-
-    public void setTotalWithoutLag(boolean totalWithoutLag) {
-        this.totalWithoutLag = totalWithoutLag;
-    }
-
-    public boolean isLagLostLine() {
-        return lagLostLine;
-    }
-
-    public void setLagLostLine(boolean lagLostLine) {
-        this.lagLostLine = lagLostLine;
-    }
 }

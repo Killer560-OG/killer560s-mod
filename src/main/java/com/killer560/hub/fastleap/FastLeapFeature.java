@@ -116,6 +116,7 @@ public final class FastLeapFeature {
             onWorldChange();
         }
         Teammates.tick(client);
+        Floor7Tracker.tick();
         try {
             LeapManager.onStartTick(client);
         } catch (RuntimeException e) {

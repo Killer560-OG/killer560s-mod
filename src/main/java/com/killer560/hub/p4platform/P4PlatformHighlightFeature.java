@@ -44,7 +44,8 @@ public final class P4PlatformHighlightFeature {
     private static final Pattern CORE_OPENING_REGEX = Pattern.compile("^The Core entrance is opening!$");
     private static final Pattern GOLDOR_START_REGEX =
             Pattern.compile("^\\[BOSS] Goldor: Who dares trespass into my domain\\?$");
-    private static final Pattern NECRON_P5_REGEX = Pattern.compile("^\\[BOSS] Necron: All this, for nothing\\.\\.\\.$");
+    /** Necron's death line or the Wither King's first line (Floor7Tracker.P5_START, 2026-10-08). */
+    private static final Pattern NECRON_P5_REGEX = com.killer560.hub.fastleap.Floor7Tracker.P5_START;
 
     private static final AABB PLATFORM_BOX = new AABB(53.0, 63.0, 113.0, 56.0, 64.0, 116.0);
 

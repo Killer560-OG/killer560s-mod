@@ -235,10 +235,20 @@ public final class EtherwarpOverlayFeature {
         return target.getY() + Math.max(1.0, Math.ceil(top));
     }
 
+    /**
+     * Where the etherwarp ray starts: the feet plus the eye height Hypixel casts from - 1.62 standing, 0.4 swimming, and
+     * sneaking the modern 1.27, except on p3sim.net, which casts from 1.8.9's 1.54
+     * ({@link com.killer560.hub.livemap.autoclear.TeleportUtils#sneakEye}).
+     */
+    public static Vec3 castStart(Vec3 position, net.minecraft.world.entity.player.Player player) {
+        double eyeHeight = player.getPose() == Pose.SWIMMING ? 0.4
+                : player.isCrouching() ? com.killer560.hub.livemap.autoclear.TeleportUtils.sneakEye() : 1.62;
+        return new Vec3(position.x, position.y + eyeHeight, position.z);
+    }
+
     private static EtherPos getEtherPos(Level level, Vec3 position, net.minecraft.world.entity.player.Player player,
                                          double distance) {
-        double eyeHeight = player.getPose() == Pose.SWIMMING ? 0.4 : player.isCrouching() ? 1.27 : 1.62;
-        Vec3 start = new Vec3(position.x, position.y + eyeHeight, position.z);
+        Vec3 start = castStart(position, player);
         Vec3 lookAngle = player.getLookAngle();
         Vec3 end = start.add(lookAngle.x * distance, lookAngle.y * distance, lookAngle.z * distance);
         return traverseVoxels(level, start, end);

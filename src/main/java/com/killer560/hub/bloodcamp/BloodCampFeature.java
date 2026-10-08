@@ -269,11 +269,21 @@ public final class BloodCampFeature {
             bloodMobs.put(entity, data);
         } else if (nowTick - data.lastMoveTick >= RESETTLE_GAP_TICKS) {
             // This class's own doc: "the SAME entity periodically repositions". Deltas arrive every tick while a
-            // mob is travelling, so a gap means the last trip ended - without restarting here the start vector,
-            // the countdown origin and the accumulated delta history all stayed on trip #1 forever, which left
-            // every later wave with a stale box and a countdown permanently in the past.
-            data.restart(packetVec, nowTick, firstSpawn);
-            data.firstPacketExact = null;
+            // mob is travelling, so a gap usually means the last trip ended - without restarting here the start
+            // vector, the countdown origin and the accumulated delta history all stayed on trip #1 forever.
+            //
+            // But a gap is ALSO what a server or network stall looks like from here (killer560, 2026-10-08: "Blood camp
+            // can break and not show the path if the server lags for a tick"): no packets for half a second, then the
+            // same trip carries on. Restarting then threw the path away (endVector null until two more packets), moved
+            // the start into mid-air and restarted the countdown. So a gap only starts a new trip when the old one is
+            // over - the stand reached its predicted spot, or the gap is longer than any stall - or when the stand
+            // now goes a different way. Otherwise the trip, its path and its countdown are kept and simply resume.
+            if (continuesTrip(data, packetVec, nowTick - data.lastMoveTick)) {
+                stallsBridged++;
+            } else {
+                data.restart(packetVec, nowTick, firstSpawn);
+                data.firstPacketExact = null;
+            }
         }
         if (data.firstPacketExact == null) {
             // Where the trip's first packet actually put the stand - only for the testkit, which measures the old
@@ -294,9 +304,39 @@ public final class BloodCampFeature {
         for (Vec3 d : data.deltaHistory) {
             total = total.add(d);
         }
-        if (total.lengthSqr() > 0) {
+        // Only a real direction replaces the path; a sum that cancels to nothing (a step back after a correction
+        // undoing the step before) keeps the last good one instead of dropping it.
+        if (total.lengthSqr() > 1e-8) {
             data.endVector = data.startVec.add(total.normalize().scale(spawnScale));
         }
+    }
+
+    /** A move-packet gap longer than this is never a stall: the stand has been somewhere else for 5 s. */
+    private static final long MAX_STALL_TICKS = 100L;
+    /** Within this of its predicted spot the stand has arrived, so the next movement is a new trip. */
+    private static final double ARRIVED_DISTANCE = 1.0;
+    /** How many move-packet gaps were bridged as a stall instead of restarting the trip (the testkit reads it). */
+    private static int stallsBridged;
+
+    public static int stallsBridged() {
+        return stallsBridged;
+    }
+
+    /**
+     * Whether movement resuming after a gap of {@code gapTicks} is the SAME trip carrying on after a stall: the trip
+     * has a path, the stand had not reached its predicted spot, the gap is shorter than {@link #MAX_STALL_TICKS},
+     * and the stand is not now heading back the way it came.
+     */
+    static boolean continuesTrip(BloodMobState data, Vec3 packetVec, long gapTicks) {
+        if (data.endVector == null || gapTicks > MAX_STALL_TICKS) {
+            return false;
+        }
+        if (data.lastPosition.distanceTo(data.endVector) <= ARRIVED_DISTANCE) {
+            return false;
+        }
+        Vec3 tripDir = data.endVector.subtract(data.startVec);
+        Vec3 step = packetVec.subtract(data.lastPosition);
+        return step.lengthSqr() < 1e-8 || tripDir.lengthSqr() < 1e-8 || step.dot(tripDir) >= 0.0;
     }
 
     public static void onRemoveEntities(ClientboundRemoveEntitiesPacket packet, Level level) {
