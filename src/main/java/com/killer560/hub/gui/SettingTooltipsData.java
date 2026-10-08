@@ -637,7 +637,7 @@ final class SettingTooltipsData {
         d.put("bonzo", "Shows the Bonzo's Mask timer on the HUD.");
         d.put("phoenix", "Shows the Phoenix pet timer on the HUD.");
         d.put("auto swap", "Cheat build: when a mask or Phoenix pops, swaps you onto the next one automatically.");
-        d.put("mod chat", "Run /killer560 chat <message> to send a tagged message other mod users see as an overlay.");
+        d.put("mod chat", "A private chat with other mod users: /kc <message> sends one line, /chat k makes your typed chat go there.");
         d.put("channel", "Which Hypixel chat Mod Chat messages go through: PARTY or GUILD.");
         d.put("voice to text", "Turns your speech into text and sends it to party or guild chat, by Push To Talk or Open Mic.");
         d.put("push-to-talk key", "Key to hold while speaking; releasing it sends the message.");
@@ -1261,13 +1261,12 @@ final class SettingTooltipsData {
 
         // Party Commands
         d.put("party commands/party commands", "Turns on the Party Commands tab; each command still needs its own toggle.");
-        d.put("party commands/allow destructive commands", "Extra switch needed for the Warp, Kick, Reinvite, Demote and Queue Floor commands to run.");
-        d.put("party commands/confirm invites", "Makes !invite print a click-to-invite line instead of inviting right away.");
+        d.put("party commands/reply delay", "How long after a command arrives its reply or action is sent; stops Hypixel saying you are sending commands too fast.");
         d.put("party commands/warp", "!warp from a teammate warps the party (you must be leader).");
         d.put("party commands/warp + transfer", "!wt warps the party, then transfers it to whoever asked.");
         d.put("party commands/all invite", "!allinvite toggles the party's all-invite setting.");
         d.put("party commands/transfer to sender", "!ptme or !pt transfers the party to whoever asked.");
-        d.put("party commands/invite", "!invite <name> in party chat invites that player.");
+        d.put("party commands/invite", "!invite <name> invites that player; a !invite sent to you in a DM invites whoever sent it.");
         d.put("party commands/kick", "!kick <name> removes that player from the party.");
         d.put("party commands/reinvite", "!reinv kicks the teammate who typed it and invites them back 5 seconds later.");
         d.put("party commands/demote", "!demote applies to the teammate who typed it.");
@@ -1276,7 +1275,6 @@ final class SettingTooltipsData {
         d.put("party commands/downtime", "!dt [reason] sets a downtime reminder announced at the end of the run.");
         d.put("party commands/un-downtime", "!undt clears the downtime reminder.");
         d.put("party commands/queue floor (!f7/!m7/!t5)", "!f1-!f7, !m1-!m7 and !t1-!t5 queue the party for that floor or tier.");
-        d.put("party commands/racism (joke)", "Replies with a random percentage joke, sent from your account.");
 
         // Item Protection
         d.put("item protection", "Turns on the guards that stop you losing your own gear.");
@@ -1556,7 +1554,7 @@ final class SettingTooltipsData {
         d.put("maxor's crystals/highlight color", "Colour of the crystal boxes.");
         d.put("maxor's crystals/filled boxes", "Also fills the crystal boxes instead of drawing only the outline.");
         d.put("p3 nav/color", "Colour of the boxes on this row.");
-        d.put("party commands/help", "!help posts the list of party commands you have turned on into party chat.");
+        d.put("party commands/help", "!help posts the list of commands you have turned on, in the chat it was asked in.");
         d.put("party commands/kick offline", "!kickoffline removes every offline member from the party.");
         d.put("fairy souls/chat feedback", "Prints a chat line when a route starts, finishes or is cancelled.");
         d.put("fairy souls/text scale", "Size of the destination label drawn above the target, 0.5x to 3x.");
@@ -1728,10 +1726,9 @@ final class SettingTooltipsData {
         d.put("door keys/esp through walls", "Draws the key box and tracer through walls (cheat build only).");
         d.put("name changer/color", "Opens the colour picker for this name.");
         d.put("ap3/class overrides", "Read-only copy of Dungeon > Class Overrides.");
-        d.put("mod chat/mod chat", "A private chat with other mod users; send with /killer560 chat <message>.");
-        d.put("mod chat/room", "Party keeps mod chat to your party; Global joins every online mod user.");
-        d.put("mod chat/log to chat", "Also prints received mod chat into your normal chat log.");
-        d.put("mod chat/presence alerts", "Shows a message when a mod user joins or leaves your mod chat room.");
+        d.put("mod chat/mod chat", "A private chat with other mod users: /kc <message> sends one line, /chat k makes your typed chat go there.");
+        d.put("mod chat/room", "Party keeps mod chat to your party; Lobby reaches every mod user on your current server.");
+        d.put("mod chat/log to chat", "Prints received mod chat into your chat (on by default); off shows each message briefly instead.");
         d.put("party interop/party interop", "Shares and receives dungeon run info with your party; turn off to stop both.");
         d.put("party interop/work it out myself", "Works out dungeon run info on its own from what Hypixel already sends you.");
         d.put("party interop/read party chat", "Reads the announcements other dungeon mods make in party chat.");
@@ -1930,10 +1927,12 @@ final class SettingTooltipsData {
         d.put("goldor triggerbot/range", "How far away Goldor can be and still get clicked, 3-50 blocks.");
         d.put("dungeon esp/tracer", "Cheat build: draws a line from you to each wither the Wither ESP highlights.");
         d.put("dungeon esp/tracer thickness", "How thick the Wither ESP tracer line is drawn, 1.0-10.0.");
-        d.put("party commands/party", "Lets Info Commands (coords, ping, tps, etc) reply when asked in party chat.");
-        d.put("party commands/guild", "Lets Info Commands reply when asked in guild chat.");
-        d.put("party commands/private", "Lets Info Commands reply when asked in a DM.");
-        d.put("party commands/co-op", "Lets Info Commands reply when asked in co-op chat.");
+        d.put("party commands/party (pc)", "Commands typed in party chat count; replies go to party chat.");
+        d.put("party commands/guild (gc)", "Commands typed in guild chat count; replies go to guild chat.");
+        d.put("party commands/all chat (ac)", "Commands typed in all chat count; replies go to all chat. Party-changing ones still need a teammate.");
+        d.put("party commands/mod chat (kc)", "Commands typed in Mod Chat count; replies go to Mod Chat.");
+        d.put("party commands/private (msg)", "Commands sent to you in a DM count; the reply is a DM back.");
+        d.put("party commands/co-op (cc)", "Commands typed in co-op chat count; replies go to co-op chat.");
         d.put("party commands/coords", "!coords / !co replies with your current x, y, z.");
         d.put("party commands/ping", "!ping replies with your current ping to Hypixel.");
         d.put("party commands/fps", "!fps replies with your current FPS.");

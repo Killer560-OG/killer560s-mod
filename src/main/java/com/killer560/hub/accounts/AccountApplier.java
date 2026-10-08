@@ -2,13 +2,15 @@ package com.killer560.hub.accounts;
 
 import com.killer560.hub.accounts.core.AuthResult;
 import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.minecraft.UserApiService;
+import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
 import com.mojang.authlib.yggdrasil.ProfileResult;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.Util;
 import net.minecraft.client.User;
 import net.minecraft.client.multiplayer.ProfileKeyPairManager;
 
 import java.lang.reflect.Field;
-import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -37,21 +39,35 @@ public final class AccountApplier {
         setFinalField(minecraft, "profileFuture",
                 CompletableFuture.completedFuture(new ProfileResult(new GameProfile(result.uuid(), result.name()))));
 
+        // The chat-signing key pair must be fetched with the NEW account's token. Until 2026-10-08 the new key manager
+        // was built on Minecraft's existing userApiService, which carries the LAUNCH account's access token, so every
+        // swapped-to account was handed the launch account's Mojang certificate: a key Mojang signed for a different
+        // UUID. The relay rejects exactly that ("that public key was not issued by Mojang for that UUID") - killer560's
+        // Mod Chat failing on every account but his main - and Hypixel's secure chat sees the same mismatch.
+        // So: a fresh UserApiService for this token (the same construction Minecraft's own constructor does), and the
+        // key manager, the user-properties future and the field itself all follow it.
         try {
-            Object userApiService = readField(minecraft, "userApiService");
-            Path keyCacheDir = minecraft.gameDirectory.toPath().resolve("cache").resolve("profilekeys");
+            YggdrasilAuthenticationService authService = new YggdrasilAuthenticationService(minecraft.getProxy());
+            UserApiService userApiService = authService.createUserApiService(result.minecraftAccessToken());
+            setFinalField(minecraft, "userApiService", userApiService);
+            setFinalField(minecraft, "userPropertiesFuture", CompletableFuture.supplyAsync(() -> {
+                try {
+                    return userApiService.fetchProperties();
+                } catch (Exception e) {
+                    return UserApiService.OFFLINE_PROPERTIES;
+                }
+            }, Util.nonCriticalIoPool()));
+            // gameDirectory, like Minecraft's constructor: the manager adds "profilekeys/<uuid>.json" itself.
             ProfileKeyPairManager newManager = ProfileKeyPairManager.create(
-                    (com.mojang.authlib.minecraft.UserApiService) userApiService, newUser, keyCacheDir);
+                    userApiService, newUser, minecraft.gameDirectory.toPath());
             setFinalField(minecraft, "profileKeyPairManager", newManager);
         } catch (Exception e) {
-            // Chat signing keeps following the previous account if this fails; not fatal to the swap.
+            // No chat key for this account then: Mod Chat says "Minecraft never issued this account a chat key",
+            // which is true, instead of signing in with the previous account's key.
+            setFinalField(minecraft, "profileKeyPairManager", ProfileKeyPairManager.EMPTY_KEY_MANAGER);
         }
-    }
-
-    private static Object readField(Object target, String name) throws ReflectiveOperationException {
-        Field field = Minecraft.class.getDeclaredField(name);
-        field.setAccessible(true);
-        return field.get(target);
+        // A relay token issued to the previous account must never be reused for this one.
+        com.killer560.hub.relay.RelayClient.forgetToken();
     }
 
     private static void setFinalField(Object target, String name, Object value) {

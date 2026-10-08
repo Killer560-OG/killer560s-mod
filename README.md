@@ -14,7 +14,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 
 Open the menu in game with `/killer560`; every feature sits in its own category there. Features marked † have extra automation or through-walls options in the cheat build.
 
-**Chat** - Auto Correct, Auto Meow, Chat Commands, Chat Emotes, Chat Hider, Chat Keybinds, Click Translate, Command Auto Correct, Command Shortcuts, Copy Chat, Cringe, Mod Chat, Party Commands, Spotify Mod, Translate, Voice To Text
+**Chat** - Auto Correct, Auto Meow, Chat Emotes, Chat Hider, Chat Keybinds, Click Translate, Command Auto Correct, Command Shortcuts, Copy Chat, Cringe, Mod Chat, Party Commands, Spotify Mod, Translate, Voice To Text
 
 **Social & Supporters** - Best Friends, Friends List, Profile Viewer
 

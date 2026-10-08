@@ -295,3 +295,11 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - A fixed RMS threshold is not a voice detector: room noise on an open mic sat above Voice To Text's 500, so no pause was
   ever seen and Open Mic never sent anything. `voicetotext/OpenMicSegmenter` compares against the quietest chunk of the last
   3 s; testkit 564 feeds noise at RMS 700 (2026-10-08).
+
+- **An in-game account swap must fetch the chat key with the NEW account's token.** `ProfileKeyPairManager.create(service,
+  user, dir)` keeps `user` only for the cache file name; the key comes from `service.getKeyPair()`, and Minecraft's
+  `userApiService` carries the LAUNCH account's token (javap 26.1.2/26.2: `AccountProfileKeyPairManager.fetchProfileKeyPair`).
+  `AccountApplier` reused it, so every swapped-to account signed with the launch account's Mojang certificate and the relay
+  refused it ("not issued by Mojang for that UUID": his alts, 2026-10-08; Mod Only Test log, launched as Killer560, playing
+  as 9878981). It now builds a fresh `YggdrasilAuthenticationService(...).createUserApiService(token)` (testkit 579 replays
+  the swap against a fake Mojang and relay). The relay's embedded Mojang keys were identical to the live set.

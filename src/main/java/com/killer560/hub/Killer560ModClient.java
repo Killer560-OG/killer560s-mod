@@ -337,7 +337,6 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.register();
         com.killer560.hub.smoothtp.SmoothTeleport.register();
         com.killer560.hub.slotbinds.SlotBindsFeature.register();
-        com.killer560.hub.chatcommands.ChatCommandsFeature.register();
         com.killer560.hub.partycommands.PartyCommandsFeature.register();
         com.killer560.hub.autokick.AutoKickFeature.register();
         // "/autokick populate [player]" - killer560's own request (2026-09-27): populate the per-floor
@@ -496,19 +495,8 @@ public class Killer560ModClient implements ClientModInitializer {
                                             ModOverlayMessage.show(EtherwarpFeature.clearCurrentRoom(), 2500);
                                             return 1;
                                         })))
-                        // "/killer560 chat <message>" - killer560's "custom chat" request. See
-                        // ModChatFeature's class doc for why this isn't literally "/chat killer560"
-                        // (that root belongs to a real Hypixel command).
-                        .then(ClientCommands.literal("chat")
-                                .then(ClientCommands.argument("message", StringArgumentType.greedyString())
-                                        .executes(context -> {
-                                            if (blockedBySkyblockOnly()) {
-                                                return 0;
-                                            }
-                                            String message = StringArgumentType.getString(context, "message");
-                                            ModOverlayMessage.show(com.killer560.hub.modchat.ModChatFeature.send(message), 3000);
-                                            return 1;
-                                        })))
+                        // "/killer560 chat" was removed 2026-10-08 (killer560: "Remove the /killer560 chat
+                        // command"); Mod Chat is sent with /kc and /chat k - see modchat/ModChatChannel.
                         // "/killer560 sim" (2026-09-14) - killer560's own request: p3sim.net's real
                         // sidebar/chat format isn't something this session can observe directly, so
                         // rather than guess at matching it, this is a manual override telling every

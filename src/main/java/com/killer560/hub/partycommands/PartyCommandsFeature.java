@@ -1,20 +1,19 @@
 package com.killer560.hub.partycommands;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.killer560.hub.chatcommands.ChatCommandsFeature.Channel;
 import com.killer560.hub.dungeonqueue.DungeonQueueFeature;
 import com.killer560.hub.leapmenu.PartyTracker;
+import com.killer560.hub.partycommands.PartyCommandsConfig.Channel;
 import com.killer560.hub.partycommands.PartyCommandsConfig.Command;
+import com.killer560.hub.partycommands.PartyCommandsConfig.Kind;
+import com.killer560.hub.relay.RelayClient;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ServerCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.PlayerInfo;
-import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -31,47 +30,33 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Odin's party commands: a real teammate types "!warp" (etc.) in party chat and your client runs the matching
- * real party command. Ported from OdinLegacy's
+ * Odin's party commands plus its informational "!" replies, in one feature: someone types "!warp" or "!coords" in a
+ * chat you allow, and your client runs the party command or answers. Ported from OdinLegacy's
  * {@code src/main/kotlin/me/odinmain/features/impl/skyblock/ChatCommands.kt} (github.com/odtheking/OdinLegacy) -
- * behaviour, trigger words and reply shapes, not its code. The informational half of that same Odin module
- * ({@code !coords}/{@code !ping}/{@code !fps}/{@code !cf}/{@code !8ball}/{@code !dice}/...) already exists here
- * as {@code chatcommands.ChatCommandsFeature}, which is also the single chat listener that feeds this class -
- * there is deliberately no second listener.
+ * behaviour, trigger words and reply shapes, not its code. {@link CommandChatListener} is the one chat intake.
  * <p>
- * <b>Why this exists even though Chat Commands refuses party management.</b> That refusal was this mod's own
- * call, not Odin's; killer560 overrode it (2026-09-16) on the condition that it "works off of teammates" - only
- * people actually in his party/dungeon team may trigger anything. Odin itself has no such check at all: its only
- * gate is a blacklist (or an opt-in whitelist), so on stock Odin any stranger who can reach your party, guild or
- * DMs can make your client kick/warp/transfer. The differences from Odin, all deliberate:
+ * <b>One list, chosen chats, 2026-10-08</b> (see {@link PartyCommandsConfig}'s class doc for his words): the old
+ * "destructive" switch, "Confirm Invites", the joke command and the separate informational list are gone. What is left:
  * <ul>
- * <li><b>Teammate-only for anything party-mutating.</b> {@link #isTeammate} - the sender must be in
- *     {@link PartyTracker}'s party list or in the current run's dungeon tab list (or be you). Everyone else is
- *     ignored in silence. This is "the one thing to keep" (killer560, 2026-09-21): a party command must never
- *     run off someone else's message unless that command is actually meant to be triggered that way.
- * <li><b>Channel scope matches what each command is "meant" to do, per Odin.</b> Warp/kick/promote/etc. are
- *     party-chat only, teammate-gated, exactly as before. {@code !boop}/{@code !racism} (Odin: "all" channels)
- *     and a DM'd {@code !invite} (Odin: invites whoever sent it) are the three exceptions Odin itself makes -
- *     see {@link #isChannelAllowed} - and none of the three ever needs the teammate gate: a DM sender can't be
- *     a teammate in the first place (that's the entire point of DM-inviting them), and boop/racism are jokes
- *     with no real party effect. Co-op chat is never passed in at all (Odin has no such channel).
- * <li><b>Real server lines only.</b> Intake is {@code ChatCommandsFeature}'s Fabric
- *     {@code ClientReceiveMessageEvents.CHAT/GAME} listener, which only fires for lines that arrived in a chat
- *     packet. {@code util.ChatObserver} is NOT used here on purpose: its second source (the {@code ChatComponent}
- *     mixin) also sees lines another mod - or this mod - renders locally, so a fake "Party > Someone: !kick x"
- *     line drawn into chat would otherwise be indistinguishable from a real one.
- * <li><b>Everything off by default</b>, per-command toggles, plus a separate switch for the destructive ones.
- * <li><b>Rate limited</b> per sender and globally ({@link #GLOBAL_MIN_GAP_MS} and friends), so a spamming
- *     teammate cannot make your client flood Hypixel and get you chat-limited or kicked.
- * <li><b>Every executed command is printed locally</b> through {@link ModChat}, so you always see what someone
- *     made your client do - Odin runs most of them silently.
+ * <li><b>Which chats</b> may trigger a command ({@link Channel}: party, guild, all chat, Mod Chat, private, co-op).
+ *     A reply goes back into the chat it was asked in.</li>
+ * <li><b>The teammate gate</b> - the one rule killer560 asked to keep (2026-09-21): a {@link Kind#PARTY} command (it
+ *     changes the party or the run) only runs for someone actually in his party or his current dungeon run, whatever
+ *     chat it came from ({@link #isTeammate}). The single exception is Odin's own: a DM'd {@code !invite} invites the
+ *     person who sent it, who by definition is not on the team yet.</li>
+ * <li><b>A reply delay</b> ({@link PartyCommandsConfig#getReplyDelayMs}, 200 ms by default): every reply and every
+ *     party command is scheduled that long after the line that asked for it and sent from the client tick - never from
+ *     inside the chat packet's handler. Hypixel answered "You are sending commands too fast" to a command sent in the
+ *     same instant (killer560: "Like .2 seconds is all it needs").</li>
+ * <li><b>Real lines only.</b> Hypixel chat comes from Fabric's receive events (server packets only, never a line a mod
+ *     drew locally); Mod Chat lines come from the relay, whose sender name is stamped from a Mojang-verified login.</li>
+ * <li><b>Rate limited</b> per sender and overall ({@link #GLOBAL_MIN_GAP_MS} and friends), so nobody can make your
+ *     account flood Hypixel and get muted or kicked.</li>
+ * <li><b>Everything a party command does is printed locally</b> through {@link ModChat}.</li>
  * </ul>
- * Argument names are re-validated against {@link #NAME_PATTERN} before they are ever concatenated into a
- * command string, so no chat text can smuggle extra arguments into {@code sendCommand}.
- * <p>
- * One command here is NOT Odin's: {@code !reinv} / {@code !reinvite} (2026-09-16, killer560's own request) -
- * kick the teammate who asked and invite them back 5s later, the usual fix for a party/instance bug. It goes
- * through the same teammate gate, its own toggle and the destructive switch; see {@link #reinvite}.
+ * Argument names are re-validated against {@link #NAME_PATTERN} before they are ever concatenated into a command, so no
+ * chat text can smuggle extra arguments into one. {@code !reinv} (kick, then invite back 5 s later) is killer560's own
+ * addition (2026-09-16), see {@link #reinvite}.
  */
 public final class PartyCommandsFeature {
 
@@ -84,11 +69,11 @@ public final class PartyCommandsFeature {
     /** "!f1".."!f7", "!m1".."!m7", "!t1".."!t5" - Odin's instance-queue triggers. */
     private static final Pattern FLOOR_PATTERN = Pattern.compile("^([fmt])([1-7])$");
     private static final Pattern END_OF_RUN = Pattern.compile("^ *> EXTRA STATS < *$");
+    /** A "!" line's body is short; anything longer is not a command and is never split or parsed. */
+    private static final int MAX_BODY_LENGTH = 256;
 
     private static final String[] FLOOR_WORDS = {"one", "two", "three", "four", "five", "six", "seven"};
     private static final String[] KUUDRA_TIERS = {"normal", "hot", "burning", "fiery", "infernal"};
-
-    private static final String RACISM_SUFFIX = "% racist. Racism is not allowed!";
 
     // Rate limits (Odin has none at all).
     private static final long GLOBAL_MIN_GAP_MS = 2_000L;
@@ -99,8 +84,7 @@ public final class PartyCommandsFeature {
     /** A dropped command only ever reports itself this often, so the rejection can't become the spam. */
     private static final long REJECT_LOG_GAP_MS = 15_000L;
 
-    /** {@code !reinv}: how long to leave the player out before inviting them back (the usual party/instance
-     *  bug fix is a kick and a re-invite a few seconds later, not an instant one). */
+    /** {@code !reinv}: how long to leave the player out before inviting them back. */
     private static final long REINVITE_DELAY_MS = 5_000L;
     private static final String REINVITE_KEY = "reinvite:";
 
@@ -110,13 +94,10 @@ public final class PartyCommandsFeature {
     private static long lastRejectLogAtMs = 0L;
 
     /**
-     * Pending delayed sends (Odin's {@code runIn(n)} ticks): warp-then-transfer, end-of-run downtime, and
-     * {@code !reinv}'s 5s gap. Run from the client tick, never a sleep.
-     * <p>
-     * {@code key} names a cancellable entry ("reinvite:&lt;name&gt;", used to cancel one and to refuse a second
-     * one for the same player); {@code guard} is re-checked the moment the entry comes due and a false answer
-     * drops it instead of running it - so a queued {@code /p invite} can never fire into a party, world or run
-     * that isn't the one it was queued for.
+     * Pending delayed sends: every reply and command (the reply delay), warp-then-transfer, end-of-run downtime, and
+     * {@code !reinv}'s 5 s gap. Run from the client tick, never a sleep. {@code key} names a cancellable entry;
+     * {@code guard} is re-checked when the entry comes due and a false answer drops it, so a queued command can never
+     * fire into a party, world or run that isn't the one it was queued for.
      */
     private record Pending(long dueAtMs, String key, BooleanSupplier guard, Runnable action) {
     }
@@ -134,66 +115,75 @@ public final class PartyCommandsFeature {
             return;
         }
         registered = true;
+        CommandChatListener.register();
+        InfoReplies.register();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PartyCommandsFeature", client -> runPending()));
     }
 
     /**
-     * Every real server chat line, before channel matching - only called while the feature is enabled.
-     * Keeps party-leader tracking and the end-of-run downtime payoff on the same real-server-only intake as
-     * the commands themselves.
+     * Every real server chat line, before channel matching - only called while the feature is enabled. Keeps
+     * party-leader tracking and the end-of-run downtime payoff on the same real-server-only intake.
      */
-    public static void onServerLine(String plain) {
+    static void onServerLine(String plain) {
         if (plain == null || plain.isEmpty()) {
             return;
         }
         PartyLeaderTracker.onServerLine(plain);
-        // Left / kicked / disbanded: any queued !reinv invite would land in a party this client is no longer
-        // part of (or re-invite someone into a brand new one), so drop them as soon as Hypixel says so.
         if (PartyLeaderTracker.clearsParty(plain)) {
             cancelReinvites("you're no longer in that party");
         }
         if (!DOWNTIME.isEmpty() && END_OF_RUN.matcher(plain).matches()) {
-            // Odin: runIn(30) after EXTRA STATS, and only YOUR OWN reason is announced in party chat - a
-            // teammate's "!dt" never makes your client speak.
+            // Odin: runIn(30) after EXTRA STATS, and only YOUR OWN reason is announced in party chat.
             schedule(1_500L, PartyCommandsFeature::announceDowntime);
         }
     }
 
     /**
-     * A "!" message from {@code sender} in real party, guild or private (DM) chat. {@code body} is the text
-     * after the "!". {@code channel} is never {@code COOP} - {@code ChatCommandsFeature} never calls this for
-     * co-op chat.
+     * A Mod Chat line from the relay ({@code ModChatFeature}'s listener, already on the client thread). {@code from}
+     * is the relay's verified sender name. Never throws: the relay's listener path must not break on a bad line.
+     */
+    public static void onModChat(String from, String message) {
+        try {
+            if (message == null || !message.startsWith("!") || !PartyCommandsConfig.getInstance().isEnabled()) {
+                return;
+            }
+            handle(from, message.substring(1).trim(), Channel.MOD_CHAT);
+        } catch (RuntimeException e) {
+            LOGGER.error("[PartyCommands] Mod Chat line from {} failed", from, e);
+        }
+    }
+
+    /**
+     * A "!" message from {@code sender} in {@code channel}. {@code body} is the text after the "!".
      *
-     * @return true when this was a party command (handled or deliberately dropped), so the informational
-     *         Chat Commands half doesn't also answer it.
+     * @return true when this was a command (handled, or deliberately dropped by a gate after matching).
      */
     public static boolean handle(String sender, String body, Channel channel) {
         PartyCommandsConfig cfg = PartyCommandsConfig.getInstance();
-        if (!cfg.isEnabled() || body == null || body.isBlank()) {
+        if (!cfg.isEnabled() || channel == null || body == null || body.isBlank() || body.length() > MAX_BODY_LENGTH) {
             return false;
         }
-        String[] words = body.trim().split("\\s+");
+        if (!validName(sender)) {
+            return false;
+        }
+        if (!cfg.isChannelOn(channel)) {
+            return false;
+        }
+        String[] words = body.trim().split("\\s+", 3);
         String word = words[0].toLowerCase(Locale.US);
         String arg = words.length > 1 ? words[1] : null;
 
-        Command command = commandFor(word, channel);
-        if (command == null) {
+        Command command = commandFor(word);
+        if (command == null || !cfg.isOn(command)) {
             return false;
         }
-        // THE gate for every party-chat command: only someone actually on your team. Silent, exactly like an
-        // unknown command. Guild/DM commands never reach here in the first place unless isChannelAllowed
-        // already decided that channel is one Odin itself answers on (boop/racism/DM-invite) - none of those
-        // need or get a teammate check, see the class doc.
-        if (channel == Channel.PARTY && !isTeammate(sender)) {
-            LOGGER.info("[PartyCommands] Ignored \"!{}\" from {} - not a party/dungeon teammate", word, sender);
+        // THE gate (killer560, 2026-09-21: "the one thing to keep"): anything that changes the party or the run only
+        // for someone actually on the team, from whichever chat. A DM'd !invite invites the sender, Odin's one
+        // exception, since inviting them is how they would become a teammate.
+        boolean dmInvite = command == Command.INVITE && channel == Channel.PRIVATE;
+        if (command.kind() == Kind.PARTY && !dmInvite && !isTeammate(sender)) {
+            LOGGER.info("[PartyCommands] Ignored \"!{}\" from {} in {} - not a party/dungeon teammate", word, sender, channel);
             return false;
-        }
-        if (!cfg.isOn(command)) {
-            return false;
-        }
-        if (command.isDestructive() && !cfg.isAllowDestructive()) {
-            LOGGER.info("[PartyCommands] Ignored \"!{}\" from {} - destructive commands are off", word, sender);
-            return true;
         }
         if (needsLeader(command) && PartyLeaderTracker.knownNotLeader()) {
             LOGGER.info("[PartyCommands] Ignored \"!{}\" from {} - you are not the party leader", word, sender);
@@ -202,76 +192,65 @@ public final class PartyCommandsFeature {
         if (!allowRate(sender)) {
             return true;
         }
-        try {
-            run(command, word, sender, arg, body, channel);
-        } catch (RuntimeException e) {
-            LOGGER.error("[PartyCommands] \"!{}\" from {} failed", word, sender, e);
-        }
+        long received = System.currentTimeMillis();
+        // Everything a command does goes out from the client tick after the reply delay (see the class doc). The
+        // world it was asked in must still be the one it answers into.
+        ClientLevel level = Minecraft.getInstance().level;
+        schedule(cfg.getReplyDelayMs(), null, () -> Minecraft.getInstance().level == level, () -> {
+            try {
+                run(command, word, sender, arg, body, channel, received);
+            } catch (RuntimeException e) {
+                LOGGER.error("[PartyCommands] \"!{}\" from {} failed", word, sender, e);
+            }
+        });
         return true;
     }
 
-    private static Command commandFor(String word, Channel channel) {
-        Command command;
+    /** The command a "!" word names, or null. Which chat it came from never changes the answer. */
+    static Command commandFor(String word) {
+        if (word == null) {
+            return null;
+        }
         if (FLOOR_PATTERN.matcher(word).matches()) {
-            command = instanceFor(word) == null ? null : Command.QUEUE_INSTANCE;
-        } else {
-            command = null;
-            outer:
-            for (Command c : Command.values()) {
-                for (String trigger : c.triggers()) {
-                    if (trigger.equals(word)) {
-                        command = c;
-                        break outer;
-                    }
+            return instanceFor(word) == null ? null : Command.QUEUE_INSTANCE;
+        }
+        for (Command c : Command.values()) {
+            if (c == Command.QUEUE_INSTANCE) {
+                continue;   // its "f1" trigger is the label only; the floor pattern above answers for it
+            }
+            for (String trigger : c.triggers()) {
+                if (trigger.equals(word)) {
+                    return c;
                 }
             }
         }
-        return command != null && isChannelAllowed(command, channel) ? command : null;
-    }
-
-    /** Which channel(s) a command is actually "meant" to be triggered from, per Odin. Party chat is every
-     *  command's home channel (unchanged from before this class understood other channels at all). Odin's own
-     *  three exceptions - {@code !boop}/{@code !racism} answer in guild and DMs too, and a DM'd {@code !invite}
-     *  invites the sender - are the only ones that also fire outside party chat. Everything else (warp, kick,
-     *  promote, downtime, the floor-queue commands, ...) stays party-chat only: Hypixel wouldn't honour most of
-     *  them from outside a party anyway, and none of them are "meant" to run off a guild message or a DM. */
-    private static boolean isChannelAllowed(Command command, Channel channel) {
-        if (channel == Channel.PARTY) {
-            return true;
-        }
-        return switch (command) {
-            case BOOP, RACISM -> channel == Channel.GUILD || channel == Channel.PRIVATE;
-            case INVITE -> channel == Channel.PRIVATE;
-            default -> false;
-        };
+        return null;
     }
 
     /** Commands Hypixel only lets the party leader run - Odin gates these on {@code PartyUtils.isLeader()}. */
-    private static boolean needsLeader(Command command) {
+    static boolean needsLeader(Command command) {
         return switch (command) {
             case WARP, WARP_TRANSFER, ALL_INVITE, TRANSFER, KICK, KICK_OFFLINE, REINVITE, DEMOTE, PROMOTE, QUEUE_INSTANCE -> true;
             default -> false;
         };
     }
 
-    private static void run(Command command, String word, String sender, String arg, String body, Channel channel) {
+    private static void run(Command command, String word, String sender, String arg, String body, Channel channel,
+                            long receivedAtMs) {
         switch (command) {
-            case HELP -> partyChat("Commands: " + enabledList());
-            case WARP -> execute(command, sender, "p warp", "warped the party");
+            case HELP -> reply("Commands: " + enabledList(), sender, channel);
+            case WARP -> execute(sender, "p warp", "warped the party");
             case WARP_TRANSFER -> {
-                execute(command, sender, "p warp", "warped the party");
-                // Odin: runIn(12) ticks, then transfer to the person who asked. Guarded so that if this client
-                // left / was kicked / the party disbanded inside that window, the delayed "/p transfer" doesn't
-                // fire into whatever party it is in by then (2026-09-16 audit; same idea as the !reinv guard).
+                execute(sender, "p warp", "warped the party");
+                // Odin: runIn(12) ticks, then transfer to the person who asked; guarded like !reinv.
                 schedule(700L, "warp-transfer", () -> isTeammate(sender), () -> {
-                    sendCommand("p transfer " + sender);
+                    toServer("p transfer " + sender);
                     log(sender, "took the party (warp + transfer)");
                 });
             }
-            case ALL_INVITE -> execute(command, sender, "p settings allinvite", "toggled all-invite");
+            case ALL_INVITE -> execute(sender, "p settings allinvite", "toggled all-invite");
             case TRANSFER -> {
-                // "!pt" alone takes the party; "!pt <name>" must name a member - an unknown name used to fall
-                // back to the sender and silently hand HIM the party.
+                // "!pt" alone takes the party; "!pt <name>" must name a member.
                 String target = arg == null ? sender : matchMember(arg);
                 if (target == null) {
                     String shown = arg.length() > 32 ? arg.substring(0, 32) + "..." : arg;
@@ -280,57 +259,60 @@ public final class PartyCommandsFeature {
                             ModChat.dim(") is not a party member."));
                     return;
                 }
-                execute(command, sender, "p transfer " + target, "transferred the party to " + target);
+                execute(sender, "p transfer " + target, "transferred the party to " + target);
             }
             case KICK -> {
                 String target = validName(arg) ? firstNonNull(matchMember(arg), arg) : null;
                 if (target == null) {
                     return;
                 }
-                execute(command, sender, "p kick " + target, "kicked " + target);
+                execute(sender, "p kick " + target, "kicked " + target);
             }
-            case KICK_OFFLINE -> execute(command, sender, "p kickoffline", "kicked the offline members");
+            case KICK_OFFLINE -> execute(sender, "p kickoffline", "kicked the offline members");
             case REINVITE -> reinvite(sender);
-            case DEMOTE -> execute(command, sender, "p demote " + sender, "demoted themself");
-            case PROMOTE -> execute(command, sender, "p promote " + sender, "promoted themself");
-            case INVITE -> invite(sender, arg, channel);
-            case BOOP -> {
-                if (!validName(arg)) {
-                    return;
+            case DEMOTE -> execute(sender, "p demote " + sender, "demoted themself");
+            case PROMOTE -> execute(sender, "p promote " + sender, "promoted themself");
+            case INVITE -> {
+                // Party/guild/all/Mod Chat: invites the named player. A DM: invites whoever sent it (Odin).
+                String target = channel == Channel.PRIVATE ? sender : arg;
+                if (validName(target)) {
+                    execute(sender, "p invite " + target, "invited " + target);
                 }
-                execute(command, sender, "boop " + arg, "booped " + arg);
+            }
+            case BOOP -> {
+                if (validName(arg)) {
+                    execute(sender, "boop " + arg, "booped " + arg);
+                }
             }
             case DOWNTIME -> {
                 downtime(sender, body);
-                // Odin: "!dt" also skips the pending Auto Requeue for this run (2026-09-21 gap review) -
-                // requesting downtime and then getting auto-requeued into the next run a few seconds later
-                // defeats the whole point of asking for downtime.
+                // Odin: "!dt" also skips the pending Auto Requeue for this run.
                 DungeonQueueFeature.skipRequeueForThisRun();
             }
             case UN_DOWNTIME -> unDowntime(sender);
             case QUEUE_INSTANCE -> {
                 String instance = instanceFor(word);
-                if (instance == null) {
-                    return;
+                if (instance != null) {
+                    execute(sender, "joininstance " + instance, "queued " + word.toUpperCase(Locale.US));
                 }
-                execute(command, sender, "joininstance " + instance, "queued " + word.toUpperCase(Locale.US));
             }
-            case RACISM -> reply(sender + " is " + (1 + (int) (Math.random() * 100)) + RACISM_SUFFIX, sender, channel);
+            default -> {
+                String text = InfoReplies.reply(command);
+                if (text != null) {
+                    reply(text, sender, channel);
+                }
+            }
         }
+        LOGGER.info("[PartyCommands] \"!{}\" from {} answered {} ms after it arrived", word, sender,
+                System.currentTimeMillis() - receivedAtMs);
     }
 
     // ------------------------------------------------------------------ teammate gate
 
     /**
-     * The whole point of this feature: is {@code name} really on your team right now?
-     * <ul>
-     * <li>yourself - your own "!warp" in your own party chat still works;
-     * <li>{@link PartyTracker#teammates()} - Hypixel's party list / join / leave / party-chat tracking;
-     * <li>the live dungeon tab list, checked directly here so a Party-Finder run whose party list was never
-     *     printed still counts, and so a stale tracker can't be the only source.
-     * </ul>
-     * Anything else - guild members, DMs, randoms in a lobby, and any name in a chat line this client never
-     * received from the server - is not a teammate.
+     * Is {@code name} really on your team right now? Yourself; {@link PartyTracker#teammates()} (Hypixel's party
+     * list, joins, leaves, party chat); or the live dungeon tab list. Anyone else - guild members, DMs, all chat,
+     * Mod Chat users outside the party - is not.
      */
     static boolean isTeammate(String name) {
         if (name == null || !validName(name)) {
@@ -410,7 +392,7 @@ public final class PartyCommandsFeature {
         if (now - lastGlobalAtMs < GLOBAL_MIN_GAP_MS) {
             reason = "too soon after the last one";
         } else if (GLOBAL_TIMES.size() >= GLOBAL_MAX_PER_WINDOW) {
-            reason = "too many party commands this minute";
+            reason = "too many commands this minute";
         } else if (!mine.isEmpty() && now - mine.peekLast() < PER_SENDER_MIN_GAP_MS) {
             reason = "they just ran one";
         } else if (mine.size() >= PER_SENDER_MAX_PER_WINDOW) {
@@ -443,9 +425,13 @@ public final class PartyCommandsFeature {
     // ------------------------------------------------------------------ downtime (Odin's !dt)
 
     private static void downtime(String sender, String body) {
-        String reason = body.trim().contains(" ") ? body.trim().substring(body.trim().indexOf(' ') + 1).trim() : "";
+        String trimmed = body.trim();
+        String reason = trimmed.contains(" ") ? trimmed.substring(trimmed.indexOf(' ') + 1).trim() : "";
         if (reason.isEmpty()) {
             reason = "No reason given";
+        }
+        if (reason.length() > 64) {
+            reason = reason.substring(0, 64);
         }
         if (DOWNTIME.putIfAbsent(sender, reason) != null) {
             ModChat.send("Party Commands", ModChat.value(sender), ModChat.text(" already has a reminder!"));
@@ -478,7 +464,7 @@ public final class PartyCommandsFeature {
         }
         // Odin announces only your OWN downtime in party chat; everyone else's is a local reminder.
         if (self != null && DOWNTIME.containsKey(self)) {
-            partyChat("Downtime needed: " + DOWNTIME.get(self));
+            toServer("pc Downtime needed: " + DOWNTIME.get(self));
         }
         ModChat.send("Party Commands", ModChat.text("DT Reasons: "), ModChat.value(all.toString()));
         DOWNTIME.clear();
@@ -487,35 +473,27 @@ public final class PartyCommandsFeature {
     // ------------------------------------------------------------------ reinvite (!reinv)
 
     /**
-     * {@code !reinv} / {@code !reinvite}: kick the teammate who asked, then invite them back
-     * {@link #REINVITE_DELAY_MS} later - the usual fix for a player stuck in a broken party/instance state.
-     * <p>
-     * The gap is a scheduled client-tick entry, never a sleep, and it is re-validated the moment it comes due
-     * ({@link #reinviteStillValid}) plus cancelled outright from {@link #onServerLine} the moment this client
-     * stops being in that party. A queued invite therefore never fires into a different party, world or run -
-     * the worst case is that it is dropped and the player is simply left to re-join normally.
+     * {@code !reinv} / {@code !reinvite}: kick the teammate who asked, then invite them back {@link #REINVITE_DELAY_MS}
+     * later. The gap is a scheduled tick entry, re-validated when due ({@link #reinviteStillValid}) and cancelled from
+     * {@link #onServerLine} the moment this client stops being in that party.
      */
     private static void reinvite(String sender) {
         String key = REINVITE_KEY + sender.toLowerCase(Locale.US);
         if (isPending(key)) {
-            // Already kicked and waiting - a second "!reinv" must not queue a second invite (the per-sender
-            // rate limit is 8s, longer than the delay, so this is the belt to that braces).
             LOGGER.info("[PartyCommands] \"!reinv\" from {} ignored - a re-invite is already pending", sender);
             return;
         }
         Minecraft client = Minecraft.getInstance();
         ClientLevel level = client.level;
         boolean wasInDungeon = DungeonState.isInDungeon();
-        execute(Command.REINVITE, sender, "p kick " + sender,
+        execute(sender, "p kick " + sender,
                 "asked to be re-invited - kicked, inviting back in " + (REINVITE_DELAY_MS / 1000) + "s");
         schedule(REINVITE_DELAY_MS, key, () -> reinviteStillValid(level, wasInDungeon), () -> {
-            sendCommand("p invite " + sender);
+            toServer("p invite " + sender);
             log(sender, "re-invited");
         });
     }
 
-    /** Re-checked when the queued invite is due: same world, still connected, still in the run it was asked in,
-     *  still the leader, and the command still turned on. Any of those changing drops the invite. */
     private static boolean reinviteStillValid(ClientLevel level, boolean wasInDungeon) {
         if (!PartyCommandsConfig.getInstance().allows(Command.REINVITE)) {
             return false;
@@ -530,37 +508,11 @@ public final class PartyCommandsFeature {
         return !PartyLeaderTracker.knownNotLeader();
     }
 
-    // ------------------------------------------------------------------ invite
-
-    /** Party chat: invites the named {@code arg} (unchanged). Private (DM): invites whoever sent the DM,
-     *  ignoring {@code arg} entirely - that's Odin's actual behaviour, and the whole reason this channel gets
-     *  no teammate check (a DM sender can't already be on your team; inviting them is how they'd become one). */
-    private static void invite(String sender, String arg, Channel channel) {
-        String target = channel == Channel.PRIVATE ? sender : arg;
-        if (!validName(target)) {
-            return;
-        }
-        PartyCommandsConfig cfg = PartyCommandsConfig.getInstance();
-        if (!cfg.isConfirmInvites()) {
-            execute(Command.INVITE, sender, "p invite " + target, "invited " + target);
-            return;
-        }
-        // Odin's "Auto Confirm" default off: no invite is sent, you get a clickable prompt instead.
-        MutableComponent line = ModChat.line("Party Commands",
-                ModChat.value(sender), ModChat.text(" asked you to invite "), ModChat.value(target),
-                ModChat.dim(" - click to invite."));
-        Minecraft client = Minecraft.getInstance();
-        if (client.player != null) {
-            client.player.sendSystemMessage(line.withStyle(style ->
-                    style.withClickEvent(new ClickEvent.RunCommand("/party invite " + target))));
-        }
-    }
-
     // ------------------------------------------------------------------ plumbing
 
     /** Odin's {@code /od <floor>}: "f7" -> catacombs_floor_seven, "m7" -> master_catacombs_floor_seven,
      *  "t5" -> kuudra_infernal. Returns null for a tier that doesn't exist (there is no T6/T7). */
-    private static String instanceFor(String word) {
+    static String instanceFor(String word) {
         Matcher m = FLOOR_PATTERN.matcher(word);
         if (!m.matches()) {
             return null;
@@ -574,39 +526,34 @@ public final class PartyCommandsFeature {
         };
     }
 
-    private static void execute(Command command, String sender, String serverCommand, String description) {
-        sendCommand(serverCommand);
+    private static void execute(String sender, String serverCommand, String description) {
+        toServer(serverCommand);
         log(sender, description);
     }
 
-    /** Local-only record of what a teammate just made this client do - never silent, by design. */
+    /** Local-only record of what someone just made this client do - never silent, by design. */
     private static void log(String sender, String description) {
         ModChat.send("Party Commands", ModChat.value(sender), ModChat.text(" " + description), ModChat.dim("."));
     }
 
-    private static void sendCommand(String command) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player != null) {
-            client.player.connection.sendCommand(command);
+    /** Hypixel's commands go below the client dispatcher (util/ServerCommands), never back into this mod's own. */
+    private static void toServer(String command) {
+        if (!ServerCommands.toServer(command)) {
+            LOGGER.info("[PartyCommands] Not sent (no connection): /{}", command);
         }
     }
 
-    private static void partyChat(String message) {
-        sendCommand("pc " + message);
-    }
-
-    /** Sends {@code message} back into whichever channel the command actually came from - "pc "/"gc "/
-     *  "msg &lt;name&gt; ", same prefixes as {@code ChatCommandsFeature#sendToChannel}. Needed since 2026-09-21:
-     *  {@code !racism} can now fire from guild chat or a DM (Odin: "all" channels), and Odin replies in the
-     *  same channel the taunt was asked from, not always party chat. */
+    /** Sends {@code message} back into the chat the command came from. */
     private static void reply(String message, String sender, Channel channel) {
-        String command = switch (channel) {
-            case PARTY -> "pc " + message;
-            case GUILD -> "gc " + message;
-            case PRIVATE -> "msg " + sender + " " + message;
-            case COOP -> "cc " + message; // unreachable - isChannelAllowed never allows COOP, kept for completeness
-        };
-        sendCommand(command);
+        switch (channel) {
+            case PRIVATE -> toServer("msg " + sender + " " + message);
+            case MOD_CHAT -> {
+                if (!RelayClient.sendChat(message)) {
+                    LOGGER.info("[PartyCommands] Mod Chat reply not sent - relay {}", RelayClient.statusText());
+                }
+            }
+            default -> toServer(channel.prefix() + " " + message);
+        }
     }
 
     private static String enabledList() {
@@ -669,7 +616,6 @@ public final class PartyCommandsFeature {
         }
     }
 
-    /** True while a {@code !reinv} for this player is still waiting - a second one is ignored, never queued. */
     private static boolean isPending(String key) {
         synchronized (PENDING) {
             for (Pending pending : PENDING) {
@@ -681,7 +627,6 @@ public final class PartyCommandsFeature {
         return false;
     }
 
-    /** Drops every queued re-invite (the party is gone / this client left it), so none can fire later. */
     private static void cancelReinvites(String reason) {
         List<String> cancelled = new ArrayList<>();
         synchronized (PENDING) {
