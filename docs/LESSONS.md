@@ -246,6 +246,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   carry-over: those already hold the new file's own values wherever an old key is missing. Score Calculator's legacy
   alert migration tested its own `mimicAlertEnabled`/... and so switched `enabled` on when nothing legacy was on
   (testkit 310 caught it once another case had left Score Calculator on, 2026-10-07).
+- **A running total that is checkpointed must be SHOWN live and STORED without truncation.** Best Friends added whole
+  seconds at each 30 s checkpoint and restarted the segment at "now", so every checkpoint dropped its fraction, and the
+  menu read only the checkpointed total, so the clock sat still for up to 30 s ("it doesn't count up every second",
+  killer560 2026-10-08). It now stores ms from `System.nanoTime` with the remainder carried in the segment start, and
+  the menu reads `BestFriendsTracker.liveTotalMs`. Testkit 593 (120.5 s of wall clock): old jar stored -2528 ms and
+  showed -3028 ms; new jar +19 ms stored, +48 ms shown.
 GUI, HUD and rendering lessons are in [LESSONS-GUI.md](LESSONS-GUI.md).
 Compiling lessons (API names across versions, the cloud-session javac filter) are in [COMPILING.md](COMPILING.md).
 
