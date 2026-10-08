@@ -358,7 +358,7 @@ final class SettingTooltipsData {
         d.put("mimic killed msg message", "Type the party chat message sent when the Mimic is killed.");
         d.put("prince killed msg", "Sends the message below to party chat when a Prince is killed.");
         d.put("prince killed msg message", "Type the party chat message sent when a Prince is killed.");
-        d.put("bat killed msg", "Sends the message below to party chat when a bonus-score bat is slain.");
+        d.put("bat killed msg", "Sends the message below to party chat when your Murkbat bonus-score bat is slain (Hypixel's \"A Bat has been slain. +1 Bonus Score\"). Each player's bat counts, so it is sent even if a teammate already called theirs.");
         d.put("bat killed msg message", "Type the party chat message sent when a bonus-score bat is killed.");
         d.put("270 msg", "Saved toggle for the 270 score message, which only Send Now sends.");
         d.put("270 message", "Type the party chat message for reaching 270 score.");
@@ -504,7 +504,7 @@ final class SettingTooltipsData {
         d.put("diagnostic logging", "Logs held-map changes to the log file, for map research only.");
         d.put("dump held map now", "Saves the raw data of the map you are holding to a dump folder.");
         d.put("funny map", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
-        d.put("extra info overlay", "Shows score, secrets for S+, crypts, deaths and bonus kills under the Dungeon Map. Works with Score Calculator off.");
+        d.put("extra info overlay", "Shows two rows under the Dungeon Map: score, secrets for S+ and crypts, then deaths and the bonus kills - M Mimic, P Prince, B Murkbat bat. Works with Score Calculator off.");
         d.put("mimic room show/hide", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
         d.put("player-head class recolor", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
         d.put("etherwarp waypoints/etherwarp waypoints", "Use /ew waypoint add [name] to mark the block you stand on with a box.");
@@ -897,7 +897,7 @@ final class SettingTooltipsData {
         d.put("show breakdown", "Adds Skill, Explore, Speed and Bonus lines under the score.");
         d.put("secrets needed", "Shows how many more secrets you need for S+.");
         d.put("crypts & deaths", "Shows crypts (out of 5) and team deaths on the score HUD.");
-        d.put("mimic & prince", "Shows whether the Mimic and a Prince have been killed.");
+        d.put("score calculator/bonus kills", "Shows whether the Mimic, a Prince and a Murkbat bonus bat have been killed (Bat counts each player's, up to 5).");
         d.put("score text shadow", "Draws the score HUD text with a shadow.");
         d.put("paul (ezpz)", "Sets whether Paul's EZPZ +10 bonus score counts: Auto, Force On or Force Off.");
         d.put("assume spirit pet", "Counts the first team death as -1 score, as if a player had a Spirit pet.");

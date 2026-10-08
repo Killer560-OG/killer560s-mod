@@ -269,3 +269,9 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   pre-pack look comes from the newest snapshot where an item was not yet a pack model: 26169fe, then 0046933 (the
   parent of the first conversion), then 60e030e (April). With those, 95 of the 1,366 pack-model items have no old
   look anywhere (`tools/items/gen_item_looks.py`); they are the ones with our own textures.
+- **The Murkbat bat bonus is one per PLAYER, not one per run like the Prince** (2026-10-07). The shard's Rekindle
+  attribute says "+1 Bonus Score", "Limit of +1 Score per run" (hypixelskyblock wiki, Murkbat_Shard), but the wiki's
+  Dungeon Score page says it works out as one per player, up to 5, and Odin counts it that way (833e0533). Hypixel's
+  line is `A Bat has been slain. +1 Bonus Score` (Odin `Mimic.kt`, Skyblocker `DungeonScore.java`; colour codes unknown).
+  `ScoreCalculatorFeature` keys each bat on a name (his own line, a mate's "Bat Killed!") and `ScoreCalculator.BAT_BONUS_CAP`
+  is the one number to set to 1 if Hypixel makes it per run. The dungeon sim does not model attributes, so it never sends it.

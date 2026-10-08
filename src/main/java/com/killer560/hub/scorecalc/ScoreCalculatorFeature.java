@@ -67,7 +67,7 @@ import com.killer560.hub.compat.McCompat;
  * {@code Team Deaths: N}, {@code Puzzles: (N)} and each puzzle's {@code [✔]/[✖]/[✦]} line.</li>
  * <li>Sidebar: {@code Cleared: X% (N)} and {@code Time Elapsed: 1m 2s}.</li>
  * <li>Chat (via {@link ChatObserver}, dungeon-gated, exact lines): {@code A Prince falls. +1 Bonus Score},
- * {@code A Bat has been slain. +1 Bonus Score} (Odin {@code Mimic.kt}), the Watcher's "You have proven
+ * {@code A Bat has been slain. +1 Bonus Score} (Murkbat; Odin {@code Mimic.kt}), the Watcher's "You have proven
  * yourself" line for blood-done (Odin), and other mods' party announcements ("Mimic Killed!" etc., Odin's list).</li>
  * <li>Mimic: a baby {@link Zombie} dying on F6/F7 outside the boss (Odin {@code Mimic.kt} / NoammAddons entity
  * event 3), polled from the tick loop the same way {@code DungeonInfoFeature} does it.</li>
@@ -101,7 +101,7 @@ public final class ScoreCalculatorFeature {
     // ---- chat ----
     /** Public for Auto Routes' crypt node, which counts a prince kill of its own by the same line. */
     public static final Pattern PRINCE_KILLED = Pattern.compile("^A Prince falls\\. \\+1 Bonus Score$");
-    private static final Pattern BAT_KILLED = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
+    public static final Pattern BAT_KILLED = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
     private static final Pattern WATCHER_DONE = Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.");
     private static final Pattern PARTY_MESSAGE = Pattern.compile("^Party > .*?: (.+)$");
     private static final Pattern TEAM_SCORE = Pattern.compile("^\\s*Team Score: (\\d+) \\(([A-DS+]+)\\)");
@@ -112,6 +112,14 @@ public final class ScoreCalculatorFeature {
             "prince dead!", "$skytils-dungeon-score-prince$");
     private static final Set<String> BAT_PARTY = Set.of("bat killed", "bat slain", "bat killed!", "bat dead", "bat dead!",
             "$skytils-dungeon-score-bat$");
+    /**
+     * A party line with its sender, for the bat: the Murkbat bonus is one per PLAYER (see
+     * {@link ScoreCalculator#BAT_BONUS_CAP}), so a party mate's "Bat Killed!" counts for that mate. Hypixel's party shape,
+     * anchored, the name {@code [A-Za-z0-9_]{1,16}} and the body bounded.
+     */
+    private static final Pattern PARTY_SENDER = Pattern.compile("^Party > (?:\\[[^\\]]{1,24}] )?([A-Za-z0-9_]{1,16}): (.{1,256})$");
+    /** Key for this client's own bat line when the player's name cannot be read. */
+    private static final String SELF_KEY = "\u0000self";
 
     private static final URI ELECTION_URI = ModNet.uri("hypixel", "https://api.hypixel.net/v2/resources/skyblock/election");
     private static final long ELECTION_CACHE_MS = 20 * 60 * 1000L;
@@ -139,7 +147,9 @@ public final class ScoreCalculatorFeature {
     private static boolean inBoss = false;
     private static boolean mimicKilled = false;
     private static boolean princeKilled = false;
-    private static boolean batKilled = false;
+    /** Lower-case names of the players whose Murkbat bonus this run is known: his own Hypixel line, a mate's party
+     *  call. Written by the chat listener and read by the tick and the HUD, all on the client thread. */
+    private static final Set<String> batKillers = new java.util.LinkedHashSet<>();
     private static boolean said270 = false;
     private static boolean said300 = false;
     private static boolean loggedTabMiss = false;
@@ -238,7 +248,7 @@ public final class ScoreCalculatorFeature {
         inBoss = false;
         mimicKilled = false;
         princeKilled = false;
-        batKilled = false;
+        batKillers.clear();
         said270 = false;
         said300 = false;
         loggedTabMiss = false;
@@ -478,13 +488,18 @@ public final class ScoreCalculatorFeature {
             return;
         }
         if (BAT_KILLED.matcher(plain).matches()) {
-            if (!batKilled) {
-                batKilled = true;
+            // The Murkbat bonus line is Hypixel's to the player who earned it, like the Prince's. Unlike the Prince it
+            // is one per player (ScoreCalculator.BAT_BONUS_CAP), so it is HIS bonus: keyed on his name, which is also
+            // the key his own "Bat Killed!" party echo lands on.
+            if (batKillers.add(selfKey())) {
                 if (!acts) {
                     return;
                 }
                 PartyInteropState.offerFlag(PartyInteropState.Flag.BAT_KILLED, InteropSource.SELF, null);
-                maybeSendKillAlert("Bat", cfg.isBatAlertEnabled(), cfg.getBatAlertMessage(), PartyInteropState.Flag.BAT_KILLED);
+                // Never held back because a mate already announced A bat: that was the mate's bonus, this is his.
+                if (cfg.isBatAlertEnabled()) {
+                    TranslateFeature.sendGenerated(cfg.getBatAlertMessage(), "pc");
+                }
             }
             return;
         }
@@ -504,9 +519,18 @@ public final class ScoreCalculatorFeature {
             } else if (PRINCE_PARTY.contains(body)) {
                 princeKilled = true;
             } else if (BAT_PARTY.contains(body)) {
-                batKilled = true;
+                // One point per player: the sender is the one whose bat it was. A line whose sender cannot be read
+                // still counts, once, under a shared key.
+                Matcher who = PARTY_SENDER.matcher(plain);
+                batKillers.add(who.matches() ? who.group(1).toLowerCase(Locale.ROOT) : "\u0000party");
             }
         }
+    }
+
+    /** This client's own key in {@link #batKillers}: the player's name, lower case. */
+    private static String selfKey() {
+        net.minecraft.client.player.LocalPlayer player = Minecraft.getInstance().player;
+        return player == null ? SELF_KEY : player.getGameProfile().name().toLowerCase(Locale.ROOT);
     }
 
     // ------------------------------------------------------------------ score + alerts
@@ -523,7 +547,7 @@ public final class ScoreCalculatorFeature {
         int seconds = secondsElapsed >= 0 ? secondsElapsed : (int) ((System.currentTimeMillis() - runStartMs) / 1000L);
         ScoreCalculator.Inputs inputs = new ScoreCalculator.Inputs(floor, secretsPercent, secretsFound, crypts,
                 completedRooms, clearedPercent, deaths, puzzleCount, puzzlesCompleted, puzzlesFailed, seconds,
-                bloodDone, inBoss, mimicKilled, princeKilled, batKilled, isPaul(cfg), cfg.isAssumeSpiritPet());
+                bloodDone, inBoss, mimicKilled, princeKilled, batKillers.size(), isPaul(cfg), cfg.isAssumeSpiritPet());
         ScoreCalculator.Result result = ScoreCalculator.calculate(inputs);
         lastInputs = inputs;
         lastResult = result;
@@ -717,7 +741,13 @@ public final class ScoreCalculatorFeature {
     }
 
     public static boolean isBatKilled() {
-        return DungeonState.isInDungeon() && batKilled;
+        return DungeonState.isInDungeon() && !batKillers.isEmpty();
+    }
+
+    /** The Murkbat bonus this run counts: one per player known to have had it, at most
+     *  {@link ScoreCalculator#BAT_BONUS_CAP}. */
+    public static int batBonus() {
+        return DungeonState.isInDungeon() ? Math.min(ScoreCalculator.BAT_BONUS_CAP, batKillers.size()) : 0;
     }
 
     public static int getCrypts() {
@@ -750,37 +780,48 @@ public final class ScoreCalculatorFeature {
      * The Dungeon Map HUD's Extra Info lines, drawn under the map (killer560, 2026-10-07). One list for both the
      * drawing and the HUD box, so the box is always exactly these lines. Before the first estimate of a run the
      * numbers read "?" rather than the section vanishing; {@code demo} is the HUD editor's sample.
+     *
+     * <p>Always exactly two rows (killer560, 2026-10-07: "Try to make it smaller and only take up 2 rows"): score,
+     * secrets for S+ and crypts, then deaths and the bonus kills as M (Mimic, Floor 6 and up), P (Prince) and B (the
+     * Murkbat bat), each a tick or a cross ("Abbreviate Mimic to M, Prince to P and Bat to B"). B carries a count when
+     * more than one player's bat bonus is known.
      */
     public static List<String> mapInfoLines(boolean demo) {
         ScoreCalculator.Result r = demo ? new ScoreCalculator.Result(302, 100, 100, 60, 40, 100, 2, 36, 60, 57, 3, "S+")
                 : currentResult();
-        List<String> out = new ArrayList<>(4);
+        String score;
+        String secrets;
         if (r == null) {
-            out.add("§6Score §7?");
-            out.add("§6Secrets §7?");
+            score = "§6Score §7?";
+            secrets = "§6Secrets §7?";
         } else {
             String sc = r.total() < 270 ? "§c" : r.total() < 300 ? "§e" : "§a";
-            out.add("§6Score " + sc + r.total() + " §7(" + sc + r.rank() + "§7)");
+            score = "§6Score " + sc + r.total() + " §7(" + sc + r.rank() + "§7)";
             int found = demo ? 54 : secretsFound;
             if (r.secretsNeeded() < 0) {
-                out.add("§6Secrets §f" + found + " §7/ ?");
+                secrets = "§6Secrets §f" + found + "§7/?";
             } else if (r.secretsNeeded() == Integer.MAX_VALUE) {
-                out.add("§6Secrets §f" + found + " §cS+ out of reach");
+                secrets = "§6Secrets §f" + found + " §cno S+";
             } else {
-                out.add("§6Secrets " + (r.secretsRemaining() <= 0 ? "§a" : "§f") + found
-                        + "§7/" + r.secretsNeeded());
+                secrets = "§6Secrets " + (r.secretsRemaining() <= 0 ? "§a" : "§f") + found + "§7/" + r.secretsNeeded();
             }
         }
         int c = demo ? 5 : getCrypts();
         int d = demo ? 0 : DungeonState.isInDungeon() ? deaths : 0;
-        out.add("§6Crypts " + (c >= 5 ? "§a" : "§f") + c + "§7/5  §6Deaths "
-                + (d > 0 ? "§c" : "§f") + d);
+        String crypt = "§6Crypts " + (c >= 5 ? "§a" : "§f") + c + "§7/5";
         boolean mimicFloor = demo || ScoreCalculator.floorNumber(DungeonState.getFloor()) >= 6;
         boolean m = demo || isMimicKilled();
         boolean p = !demo && isPrinceKilled();
-        out.add((mimicFloor ? "§6Mimic " + (m ? "§a✔" : "§c✘") + "  " : "")
-                + "§6Prince " + (p ? "§a✔" : "§c✘"));
-        return out;
+        int b = demo ? 1 : batBonus();
+        String row2 = "§6Deaths " + (d > 0 ? "§c" : "§f") + d
+                + (mimicFloor ? "  §6M " + tick(m) : "")
+                + "  §6P " + tick(p)
+                + "  §6B " + tick(b > 0) + (b > 1 ? "§7x" + b : "");
+        return List.of(score + "  " + secrets + "  " + crypt, row2);
+    }
+
+    private static String tick(boolean done) {
+        return done ? "§a✔" : "§c✘";
     }
 
     private static int parseInt(String s, int def) {
@@ -882,6 +923,13 @@ public final class ScoreCalculatorFeature {
             boolean p = !demo && princeKilled;
             line.add(new Segment("Prince: ", ModChat.ORANGE));
             line.add(new Segment(p ? "✔" : "✘", p ? ModChat.GOOD : ModChat.BAD));
+            // The Murkbat bonus, beside the Prince's (2026-10-07), with a count when more than one player had it.
+            int b = demo ? 1 : Math.min(ScoreCalculator.BAT_BONUS_CAP, batKillers.size());
+            line.add(new Segment("  Bat: ", ModChat.ORANGE));
+            line.add(new Segment(b > 0 ? "✔" : "✘", b > 0 ? ModChat.GOOD : ModChat.BAD));
+            if (b > 1) {
+                line.add(new Segment(" x" + b, ModChat.DIM));
+            }
             lines.add(line);
         }
         return lines;
