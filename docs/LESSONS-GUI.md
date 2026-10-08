@@ -158,3 +158,9 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   AFTER_INIT callbacks in phases ordered before and after `Event.DEFAULT_PHASE`: the per-screen listeners are then added
   before/after every other feature's (the reskin's presses never reach another feature's hidden-slot handler, and it
   paints over their overlays).
+
+- **A container reskin is not a mod screen, so Auto Scale skips it** (`AutoScale.scalesScreen` only takes classes under
+  `com.killer560.hub`). The unified Auction House draws its API browser (a mod screen, scaled) and Hypixel's reskinned AH
+  menus (a vanilla `ContainerScreen`) in one frame; unscaled, the reskin would draw at a different size from the browser
+  (the factor is 1.125 at 1920x1080 GUI 2). `AhReskin` lays out at `width / AutoScale.current()`, draws under that pose scale and divides the mouse
+  by the same factor (testkit 494 checks the layout at factor 1.125, 2026-10-07).

@@ -1,0 +1,13 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"package": "com.killer560.hub.auction.ah.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"AhReskinBackgroundMixin",
+		"AhReskinHideMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}
