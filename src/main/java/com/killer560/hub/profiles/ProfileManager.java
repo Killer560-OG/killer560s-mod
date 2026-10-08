@@ -65,7 +65,9 @@ public final class ProfileManager {
             // Item Browser's downloaded Hypixel item list - a network cache, not a setting (2026-09-15 audit).
             "killer560smod-itembrowser-items-cache.json",
             // Storage Search's per-page "last seen" times - tied to the storage-overlay cache above.
-            "killer560smod-storagesearch-timestamps.json"
+            "killer560smod-storagesearch-timestamps.json",
+            // The Bazaar screen's recently opened products, per SkyBlock profile - his history, not a setting.
+            "killer560smod-bazaar-recent.json"
     );
 
     /** Whether a file name is one of this mod's own setting files that profiles may copy. Applied on
@@ -355,6 +357,7 @@ public final class ProfileManager {
                 com.killer560.hub.petwheel.PetWheelConfig::load,
                 com.killer560.hub.auction.AuctionConfig::load,
                 com.killer560.hub.auction.AuctionHouseConfig::load,
+                com.killer560.hub.bazaar.BazaarConfig::load,
                 com.killer560.hub.supporters.SupportersConfig::load,
                 com.killer560.hub.commandshortcuts.CommandShortcutsConfig::load,
                 com.killer560.hub.autojoinskyblock.AutoJoinSkyblockConfig::load,

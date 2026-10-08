@@ -22,7 +22,7 @@ import java.util.Locale;
  * <h2>What is verified and what is not</h2>
  * Verified: the two data endpoints, the arithmetic, and that {@code /bz <name>} and {@code /trades} are real
  * Hypixel server commands (the mod already forwards {@code /bz} to Hypixel - see
- * {@code auction.BazaarFeature}).
+ * {@code bazaar.BazaarFeature}).
  *
  * <p><b>NOT verified, and therefore not clicked:</b> the internal flow of Hypixel's Bazaar product menu (what
  * the instant-buy button is called today, whether it leads to a fixed-quantity page or a sign-input custom

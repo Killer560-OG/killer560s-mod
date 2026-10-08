@@ -58,7 +58,8 @@ public class ScoreCalculatorTab extends BaseTab {
         widgets.add(toggle("Secrets Needed", cfg.isShowSecretsNeeded(), v -> cfg.setShowSecretsNeeded(v), cfg, col2X, y, colW));
         y += 22;
         widgets.add(toggle("Crypts & Deaths", cfg.isShowCryptsDeaths(), v -> cfg.setShowCryptsDeaths(v), cfg, contentX, y, colW));
-        widgets.add(toggle("Mimic & Prince", cfg.isShowMimicPrince(), v -> cfg.setShowMimicPrince(v), cfg, col2X, y, colW));
+        // "Mimic & Prince" until 2026-10-07, when the Murkbat bat joined them on the same row.
+        widgets.add(toggle("Bonus Kills", cfg.isShowMimicPrince(), v -> cfg.setShowMimicPrince(v), cfg, col2X, y, colW));
         y += 22;
         widgets.add(toggle("Score Text Shadow", cfg.isTextShadow(), v -> cfg.setTextShadow(v), cfg, contentX, y, colW));
         y += 28;

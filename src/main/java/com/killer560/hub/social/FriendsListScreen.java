@@ -40,6 +40,10 @@ public class FriendsListScreen extends Screen {
     private static final int THUMB_MIN_H = 16;
     private static final int INVITE_W = 40;
     private static final int INVITE_H = 14;
+    /** The status line's own strip between the list and the panel's bottom edge (or the detail page's button bar):
+     *  it used to be drawn 20 px above the panel's bottom, which is inside the list, over its last row
+     *  (killer560, 2026-10-08: "it is overlapping the bottom player"). */
+    private static final int STATUS_H = 12;
 
     private final Screen parent;
     private EditBox addBox;
@@ -70,7 +74,7 @@ public class FriendsListScreen extends Screen {
         listX = panelX + 6;
         listY = panelY + 60;
         listW = panelW - 12;
-        listH = panelH - 60 - (selected != null ? 44 : 8);
+        listH = Math.max(20, panelH - 60 - (selected != null ? 44 : 8) - STATUS_H);
 
         // One rate-limited sync per open, same as the old refreshOnlineNames() call this replaces - see
         // FriendsListSync's doc on why this can never spam Hypixel (opening the menu is an explicit click).
@@ -91,10 +95,14 @@ public class FriendsListScreen extends Screen {
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Add"), btn -> addByName())
                 .bounds(panelX + 6 + addBoxW + 4, panelY + 34, addBtnW, 18).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Refresh"), btn -> {
-                    if (!FriendsListSync.requestSync(false)) {
-                        statusMessage = FriendsListSync.isSyncing() ? "Already syncing - every page is being read."
-                                : "Already just synced - give it a moment.";
+                    if (FriendsListSync.isSyncing()) {
+                        // The live "Syncing... page X/Y" line already says it; a fixed message would hide it.
+                        statusMessage = "";
+                    } else if (!FriendsListSync.requestSync(false)) {
+                        statusMessage = "Already just synced - give it a moment.";
                         statusColor = ModChat.DIM;
+                    } else {
+                        statusMessage = "";
                     }
                 }).bounds(panelX + panelW - 6 - refreshBtnW, panelY + 34, refreshBtnW, 18).build());
 
@@ -320,22 +328,39 @@ public class FriendsListScreen extends Screen {
                     && mouseY >= thumbY && mouseY < thumbY + thumbH);
             graphics.fill(trackX + 1, thumbY, trackX + SCROLLBAR_W - 1, thumbY + thumbH, hot ? 0xFFFF9933 : ACCENT);
         }
-        if (!statusMessage.isEmpty()) {
-            graphics.text(this.font, statusMessage, panelX + 6, panelY + panelH - (selected != null ? 62 : 20),
-                    0xFF000000 | statusColor, false);
-        } else if (selected == null) {
-            graphics.text(this.font, syncStatusLine(), panelX + 6, panelY + panelH - 20, 0xFF000000 | ModChat.DIM, false);
+        String status = statusText();
+        if (!status.isEmpty()) {
+            graphics.text(this.font, this.font.plainSubstrByWidth(status, listW), statusX(), statusY(),
+                    0xFF000000 | (FriendsListSync.isSyncing() || statusMessage.isEmpty() ? ModChat.DIM : statusColor), false);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+    }
+
+    /** Left edge of the status line. */
+    private int statusX() {
+        return listX;
+    }
+
+    /** Top of the status line: in its own strip, two pixels under the list's outline. */
+    private int statusY() {
+        return listY + listH + 3;
+    }
+
+    /** A running sync's page progress first, then the last button's message, then the list's sync state. */
+    private String statusText() {
+        if (FriendsListSync.isSyncing()) {
+            return "§6" + FriendsListSync.syncProgress();
+        }
+        if (!statusMessage.isEmpty()) {
+            return statusMessage;
+        }
+        return selected == null ? syncStatusLine() : "";
     }
 
     /** Honest sync status per this wave's brief: never claim the list is complete/current when it might not
      *  be. See {@link FriendsListSync}'s class doc for exactly what "never synced" and "truncated" mean. */
     private String syncStatusLine() {
         FriendsListConfig cfg = FriendsListConfig.getInstance();
-        if (FriendsListSync.isSyncing()) {
-            return "§6Syncing with Hypixel's /fl - " + FriendsListSync.syncProgress() + "...";
-        }
         if (!cfg.isEverSynced()) {
             return "§cNever synced with your real /fl yet - press Refresh, or Hypixel's wording may differ from what this mod expects.";
         }

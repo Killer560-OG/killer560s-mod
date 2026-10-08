@@ -358,7 +358,7 @@ final class SettingTooltipsData {
         d.put("mimic killed msg message", "Type the party chat message sent when the Mimic is killed.");
         d.put("prince killed msg", "Sends the message below to party chat when a Prince is killed.");
         d.put("prince killed msg message", "Type the party chat message sent when a Prince is killed.");
-        d.put("bat killed msg", "Sends the message below to party chat when a bonus-score bat is slain.");
+        d.put("bat killed msg", "Sends the message below to party chat when your Murkbat bonus-score bat is slain (Hypixel's \"A Bat has been slain. +1 Bonus Score\"). Each player's bat counts, so it is sent even if a teammate already called theirs.");
         d.put("bat killed msg message", "Type the party chat message sent when a bonus-score bat is killed.");
         d.put("270 msg", "Saved toggle for the 270 score message, which only Send Now sends.");
         d.put("270 message", "Type the party chat message for reaching 270 score.");
@@ -504,7 +504,7 @@ final class SettingTooltipsData {
         d.put("diagnostic logging", "Logs held-map changes to the log file, for map research only.");
         d.put("dump held map now", "Saves the raw data of the map you are holding to a dump folder.");
         d.put("funny map", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
-        d.put("extra info overlay", "Shows score, secrets for S+, crypts, deaths and bonus kills under the Dungeon Map. Works with Score Calculator off.");
+        d.put("extra info overlay", "Shows two rows under the Dungeon Map: score, secrets for S+ and crypts, then deaths and the bonus kills - M Mimic, P Prince, B Murkbat bat. Works with Score Calculator off.");
         d.put("mimic room show/hide", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
         d.put("player-head class recolor", "Placeholder: saved, but does nothing yet (needs map pixel data first).");
         d.put("etherwarp waypoints/etherwarp waypoints", "Use /ew waypoint add [name] to mark the block you stand on with a box.");
@@ -897,7 +897,7 @@ final class SettingTooltipsData {
         d.put("show breakdown", "Adds Skill, Explore, Speed and Bonus lines under the score.");
         d.put("secrets needed", "Shows how many more secrets you need for S+.");
         d.put("crypts & deaths", "Shows crypts (out of 5) and team deaths on the score HUD.");
-        d.put("mimic & prince", "Shows whether the Mimic and a Prince have been killed.");
+        d.put("score calculator/bonus kills", "Shows whether the Mimic, a Prince and a Murkbat bonus bat have been killed (Bat counts each player's, up to 5).");
         d.put("score text shadow", "Draws the score HUD text with a shadow.");
         d.put("paul (ezpz)", "Sets whether Paul's EZPZ +10 bonus score counts: Auto, Force On or Force Off.");
         d.put("assume spirit pet", "Counts the first team death as -1 score, as if a player had a Spirit pet.");
@@ -1895,6 +1895,8 @@ final class SettingTooltipsData {
         d.put("wither doors/blood door color", "Color of the locked Blood door while you lack the Blood Key (cheat build only).");
         d.put("wither doors/blood door (key) color", "Color the Blood door turns once you have the Blood Key (cheat build only).");
         d.put("wither doors/through walls", "Draws the highlighted doors through walls (cheat build only).");
+        d.put("wither doors/fairy door", "Also highlights the door into the Fairy room on the path to Blood, until you or any teammate enters Fairy or that door opens (cheat build only).");
+        d.put("wither doors/fairy door color", "Color of the Fairy door highlight. Style and fill follow the settings above (cheat build only).");
         d.put("mask invincibility/spirit", "Whether you own Spirit Mask; controls its HUD timer and Auto Swap.");
         d.put("mask invincibility/bonzo", "Whether you own Bonzo's Mask; controls its HUD timer and Auto Swap.");
         d.put("mask invincibility/phoenix", "Whether you own a Phoenix Pet; controls its HUD timer and Auto Swap.");
@@ -2001,7 +2003,7 @@ final class SettingTooltipsData {
         d.put("best friends/party time tracker", "Tracks time partied and dungeon runs cleared with each player; open it with /bestfriends.");
         d.put("best friends/sort", "How the /bestfriends list is ordered: time together, runs together, or name.");
         d.put("best friends/dungeon only filter", "Hides anyone you have never cleared a dungeon with from the /bestfriends list.");
-        d.put("friends list/use our /fl", "Makes /fl open this mod's Friends List instead of Hypixel's; /flhypixel still opens Hypixel's.");
+        d.put("friends list/use our /fl", "Makes /fl open this mod's Friends List instead of Hypixel's. /flcustom always opens ours and /flhypixel always opens Hypixel's.");
         d.put("pet wheel/pet wheel", "Turns on the Pet Wheel for quickly summoning pets.");
         d.put("pet wheel/wheel key", "The key or mouse button that opens the wheel.");
         d.put("pet wheel/mode", "Hold the key and release over a slice, or press the key and then click a slice.");
@@ -2021,11 +2023,13 @@ final class SettingTooltipsData {
         d.put("auction house/recent searches & items", "Keeps your recent searches and viewed auctions on the left of the Auction House.");
         d.put("auction house/clear recents", "Forgets the recent searches and viewed auctions.");
         d.put("bazaar/bazaar browser", "Turns on the custom Bazaar browser, opened with /killer560bz or a keybind. Like Hypixel's remote Bazaar, it only opens while your Booster Cookie is active.");
-        d.put("bazaar/reskin real bazaar", "Draws Hypixel's real Bazaar menus (the Bazaar NPC, or /bz with a Booster Cookie) in this browser's look. Every click you make goes to the same slot in Hypixel's menu, so buying, selling, orders and claiming work exactly as before; screens it does not know stay Hypixel's own.");
-        d.put("bazaar/hypixel menu key", "Hold this key while a reskinned Bazaar menu is open to see and use Hypixel's own menu instead.");
-        d.put("bazaar/open key", "Optional keybind that opens the Bazaar browser, same as /killer560bz (needs an active Booster Cookie).");
-        d.put("bazaar/track my orders", "Reads your buy orders and sell offers whenever you open Hypixel's Manage Orders menu, for the browser's My Orders view. Read only: nothing is clicked.");
-        d.put("bazaar/open my orders", "Opens the Bazaar browser on My Orders: what Manage Orders showed last, and whether each order is still the top one (needs an active Booster Cookie).");
+        d.put("bazaar/reskin real bazaar", "Opens Hypixel's real Bazaar (the NPC, or /bz) as the Bazaar screen: categories as tabs, search, your recent products, and Hypixel's own product, order and Manage Orders pages. Every click on one of Hypixel's buttons is the same click on the same slot; pages it does not know stay Hypixel's own.");
+        d.put("bazaar/hypixel menu key", "Hold this key while a Bazaar menu is open to see and use Hypixel's own menu instead.");
+        d.put("bazaar/open key", "Optional keybind that opens the Bazaar screen, same as /killer560bz (needs an active Booster Cookie).");
+        d.put("bazaar/track my orders", "Reads your buy orders and sell offers whenever you open Hypixel's Manage Orders, so each order shows whether it is still the top one. Read only: nothing is clicked.");
+        d.put("bazaar/open manage orders", "Opens Hypixel's Bazaar and presses Manage Orders for you, as the follow-up to this click (needs an active Booster Cookie and Follow-up Click).");
+        d.put("bazaar/follow-up click", "When you click a product, the Bazaar sends /bz with its name; if exactly one search result is that product, it clicks it for you once, so you land on the product. The same for the bottom buttons from the remote Bazaar. Only ever right after your own click, never twice; off, you click the highlighted result yourself.");
+        d.put("bazaar/hide huds in bazaar", "Hides every HUD (bars, scoreboard, map, timers, overlays) while the Bazaar is open.");
         d.put("video browser/site", "Which site opens in the companion window.");
         d.put("video browser/set url", "The web address to open when Site is set to Custom URL.");
         d.put("video browser/placement", "Where the window sits: anchored to a screen edge, at a custom spot, or bouncing like a DVD logo.");

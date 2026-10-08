@@ -159,6 +159,23 @@ public class WitherDoorsTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Through Walls", cfg.isThroughWallsRaw()));
                 }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
+        // killer560, 2026-10-07: the door into Fairy on the blood-rush path, until anyone enters Fairy (FairyDoor).
+        // Both rows always built, so cycling the toggle never moves a row under the cursor.
+        widgets.add(SettingsButtonWidget.builder(onOff("Fairy Door", cfg.isFairyDoorRaw()), btn -> {
+                    cfg.setFairyDoor(!cfg.isFairyDoorRaw());
+                    cfg.save();
+                    btn.setMessage(onOff("Fairy Door", cfg.isFairyDoorRaw()));
+                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Fairy Door Color", cfg.getFairyDoorColor()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Fairy Door Color",
+                            cfg.getFairyDoorColor(), WitherDoorsConfig.DEFAULT_FAIRY_DOOR_COLOR, argb -> {
+                        cfg.setFairyDoorColor(argb);
+                        cfg.save();
+                    }));
+                }).bounds(col2bX, y, col2W, 18).build());
 
         return widgets;
     }

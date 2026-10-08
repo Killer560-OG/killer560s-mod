@@ -9,7 +9,7 @@ package com.killer560.hub.scorecalc;
  * {@code DungeonEnums.kt#Floor.requiredPercentage}): room/skill/secret/bonus maths, the "+1 blood, +1 boss room
  * not yet counted" completed-room fudge, total-room estimate {@code floor(completed / (cleared% / 100) + 0.4)}
  * with a 36-room fallback, puzzle penalty {@code (puzzleCount - completed) * 10}, first-death spirit-pet
- * assumption {@code max(0, deaths * 2 - 1)}, bonus = crypts(max 5) + mimic 2 + prince 1 + bat 1 + Paul 10, and
+ * assumption {@code max(0, deaths * 2 - 1)}, bonus = crypts(max 5) + mimic 2 + prince 1 + bat 1 per player (max {@link #BAT_BONUS_CAP}) + Paul 10, and
  * the "min secrets" formula {@code ceil(totalSecrets * req * (40 - bonus + deathPenalty) / 40)}.</li>
  * <li><b>NoammAddons</b> ({@code utils/dungeons/map/handlers/ScoreCalculation.kt}, local copy): the per-floor time
  * limits and the percentage-over-limit speed deduction ({@code getSpeedDeduction}), and secret score taken
@@ -44,10 +44,35 @@ public final class ScoreCalculator {
             boolean inBoss,
             boolean mimicKilled,
             boolean princeKilled,
-            boolean batKilled,
+            int batBonus,
             boolean paul,
             boolean assumeSpiritPet) {
+
+        /** The old shape, a bat as one yes/no (worth 1), kept for callers that still pass it that way. */
+        public Inputs(String floor, double secretsPercent, int secretsFound, int crypts, int completedRooms,
+                      int clearedPercent, int deaths, int puzzleCount, int puzzlesCompleted, int puzzlesFailed,
+                      int secondsElapsed, boolean bloodDone, boolean inBoss, boolean mimicKilled, boolean princeKilled,
+                      boolean batKilled, boolean paul, boolean assumeSpiritPet) {
+            this(floor, secretsPercent, secretsFound, crypts, completedRooms, clearedPercent, deaths, puzzleCount,
+                    puzzlesCompleted, puzzlesFailed, secondsElapsed, bloodDone, inBoss, mimicKilled, princeKilled,
+                    batKilled ? 1 : 0, paul, assumeSpiritPet);
+        }
+
+        public boolean batKilled() {
+            return batBonus > 0;
+        }
     }
+
+    /**
+     * The most the Murkbat bonus adds to one run. Hypixel's Murkbat shard gives the Rekindle attribute: "Killing a Bat
+     * has a +10%-100% chance to add 1 Bonus Score to your Dungeon Run", "Limit of +1 Score per run"
+     * (hypixelskyblock.minecraft.wiki/w/Murkbat_Shard), and Hypixel says "A Bat has been slain. +1 Bonus Score" when it
+     * does. The wiki's Dungeon Score page adds that in practice the limit is one per PLAYER per run, up to 5 in all
+     * ("possibly due to a bug"), and Odin counts it that way since 2026-10-05 (commit 833e0533, a set of bat killers).
+     * So each player who gets the line is worth one point, up to this many. If Hypixel ever makes it one per run like
+     * the Prince, this is the one number to set to 1.
+     */
+    public static final int BAT_BONUS_CAP = 5;
 
     /** Result of one calculation. {@code secretsNeeded}/{@code secretsRemaining} are -1 when the total secret
      *  count isn't known yet, and {@code secretsNeeded} is {@link Integer#MAX_VALUE} when S+ can't be reached
@@ -179,9 +204,8 @@ public final class ScoreCalculator {
         if (in.princeKilled()) {
             bonus += 1;
         }
-        if (in.batKilled()) {
-            bonus += 1;
-        }
+        // The Murkbat (Rekindle) bonus: one per player who got Hypixel's bat line, see BAT_BONUS_CAP.
+        bonus += Math.max(0, Math.min(BAT_BONUS_CAP, in.batBonus()));
         if (in.paul()) {
             bonus += 10;
         }
