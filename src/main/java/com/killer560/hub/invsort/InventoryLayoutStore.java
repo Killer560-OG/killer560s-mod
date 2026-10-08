@@ -68,7 +68,7 @@ public final class InventoryLayoutStore {
         return instance;
     }
 
-    /** The folder every layout file lives in (an "Open Folder" button could point here); created if missing. */
+    /** The folder every layout file lives in; created if missing. */
     public static Path directory() {
         Path dir = ModPaths.config(FOLDER_NAME);
         try {
@@ -177,6 +177,38 @@ public final class InventoryLayoutStore {
         return true;
     }
 
+    /** Renames a layout (file and memory). @return the error, or null on success. */
+    public String rename(String from, String to) {
+        InventoryLayout layout = get(from);
+        if (layout == null) {
+            return "No layout called " + from + ".";
+        }
+        String error = validateName(to);
+        if (error != null) {
+            return error;
+        }
+        InventoryLayout clash = get(to);
+        if (clash != null && clash != layout) {
+            return "A layout called " + clash.name() + " already exists.";
+        }
+        String saveError = save(layout.renamed(to));
+        if (saveError != null) {
+            return saveError;
+        }
+        if (!layout.name().equals(to)) {
+            layouts.remove(layout.name());
+            if (!layout.name().equalsIgnoreCase(to)) {
+                try {
+                    Files.deleteIfExists(directory().resolve(layout.name() + JSON));
+                } catch (Exception e) {
+                    LOGGER.warn("[InvSort] Could not delete the old file for {}", layout.name(), e);
+                }
+            }
+            layouts.put(to, get(to) == null ? layout.renamed(to) : get(to));
+        }
+        return null;
+    }
+
     /** Why {@code name} cannot be a layout name, or null when it can - same shape as {@code Ap3Store}'s. */
     public static String validateName(String name) {
         if (name == null || name.isBlank()) {
@@ -200,7 +232,9 @@ public final class InventoryLayoutStore {
             name = stem; // a hand-edited "name" field that isn't a legal file name - fall back to the file's own
         }
         JsonObject slotsObj = ConfigJson.getObject(root, "slots");
+        JsonObject iconsObj = ConfigJson.getObject(root, "icons");
         Map<Integer, String> slots = new LinkedHashMap<>();
+        Map<Integer, String> icons = new LinkedHashMap<>();
         if (slotsObj != null) {
             for (String key : slotsObj.keySet()) {
                 if (slots.size() >= MAX_SLOTS) {
@@ -221,9 +255,13 @@ public final class InventoryLayoutStore {
                     continue;
                 }
                 slots.put(slot, identity.trim().toUpperCase(Locale.ROOT));
+                String icon = iconsObj == null ? null : ConfigJson.getString(iconsObj, key, null);
+                if (icon != null && !icon.isBlank()) {
+                    icons.put(slot, icon.trim());
+                }
             }
         }
-        return new InventoryLayout(name, slots);
+        return new InventoryLayout(name, slots, icons);
     }
 
     private static JsonObject writeLayout(InventoryLayout layout) {
@@ -231,12 +269,17 @@ public final class InventoryLayoutStore {
         root.addProperty("version", FORMAT_VERSION);
         root.addProperty("name", layout.name());
         root.addProperty("note", "Auto Inventory Sorter layout - slot is the inventory index (0-8 hotbar, 9-35 "
-                + "main storage), value is the item's Skyblock id. Edit, then /invsort reload.");
+                + "main storage), value is the item's Skyblock id; icons only draw the layout in the /invsort menu.");
         JsonObject slotsObj = new JsonObject();
         for (Map.Entry<Integer, String> e : layout.entries().entrySet()) {
             slotsObj.addProperty(String.valueOf(e.getKey()), e.getValue());
         }
         root.add("slots", slotsObj);
+        JsonObject iconsObj = new JsonObject();
+        for (Map.Entry<Integer, String> e : layout.icons().entrySet()) {
+            iconsObj.addProperty(String.valueOf(e.getKey()), e.getValue());
+        }
+        root.add("icons", iconsObj);
         return root;
     }
 }

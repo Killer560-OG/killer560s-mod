@@ -187,3 +187,9 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   `AutoScale.current()` and divides the mouse by it - and places tooltips in unscaled coordinates, since they are drawn
   after its pose is popped. A test pressing at layout coordinates must multiply by the factor too: 462/464/465/467 pressed
   beside every button until it did.
+
+- **A screen opened straight from a chat command is closed again by the chat screen.** `/invsort load` opened the
+  inventory inside the command, and `ChatScreen` sets the screen to null after the command returns, so the sorter's wait
+  ended in "could not open your inventory" (traced in the code for killer560's "it says cannot open inventory", not
+  reproduced on the old jar; fixed 2026-10-08). Open from
+  `client.execute(...)` (as every other command here does) or from the next tick once no screen is up.

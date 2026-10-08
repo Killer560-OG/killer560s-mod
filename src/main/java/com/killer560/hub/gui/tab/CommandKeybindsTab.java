@@ -134,7 +134,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
     }
 
     /** Display name for a keyboard code or a stored mouse code (see {@code CommandKeybindsConfig}). */
-    static String bindName(int code) {
+    public static String bindName(int code) {
         if (code == -1) {
             return "Not Set";
         }

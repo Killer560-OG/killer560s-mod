@@ -24,12 +24,17 @@ import java.util.Set;
  * actually blocks. Everything here ships OFF, same as every other new feature in this mod.
  * <p>
  * Read with {@link ConfigJson}'s per-key readers (2026-09-15 persistence audit): one malformed value only
- * loses that one key instead of resetting every setting in the file. The two collections that matter most -
- * the locked-slot list and the protected-item list - are read element by element too, so a single bad entry
- * in a hand-edited file can't wipe someone's whole protected list.
+ * loses that one key instead of resetting every setting in the file. The protected-item list is read element by
+ * element too, so a single bad entry in a hand-edited file can't wipe someone's whole protected list.
  * <p>
- * {@link #save()} is called by every mutator's caller (the tab, and the in-inventory keybinds) so a lock or a
- * protect toggled mid-run survives a Minecraft restart - the mod's standing "every setting must persist" rule.
+ * <b>Slot Lock is gone</b> (killer560, 2026-10-08: "Slot lock and protect item are essentially doing the same thing
+ * but one is for slots and one is for UUID, so remove the slot lock because protect item does everything you need").
+ * A file written before that still carries {@code slotLockEnabled} / {@code lockedSlots}; {@link #load} reads them
+ * ONCE, from the old file's own keys (docs/LESSONS.md: a migration decides from the old keys, never from the new
+ * fields), and turns them into {@link #pendingSlotMigration} - the slot indices whose items still have to be looked
+ * at. {@link ItemProtectFeature} carries each locked slot's item over by its Skyblock UUID the first time the
+ * inventory is readable, then clears the list. Lock In Place is switched on with it, so a migrated item keeps the
+ * "cannot be moved at all" behaviour its slot had.
  */
 public final class ItemProtectConfig {
 
@@ -40,31 +45,12 @@ public final class ItemProtectConfig {
     /** Player {@code Inventory} container slots: 0-8 hotbar, 9-35 main, 36-39 armor, 40 offhand. */
     public static final int INVENTORY_SLOTS = 41;
 
-    /** How a locked slot is marked. */
-    public enum LockStyle {
-        OUTLINE("Outline"),
-        ICON("Lock Icon"),
-        BOTH("Outline + Icon");
-
-        public final String label;
-
-        LockStyle(String label) {
-            this.label = label;
-        }
-
-        public LockStyle next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-
-        public LockStyle previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
-    }
+    /** Default star colour: gold, the colour a "protected" star reads as at a glance. */
+    public static final int DEFAULT_STAR_COLOR = 0xFFFFAA00;
 
     /** Mouse buttons are stored as {@code MOUSE_CODE_BASE - button} (left -100, right -101, middle -102, ...)
      *  so one int field keeps holding a whole bind - killer560 (2026-09-20): "make all of the keybind things
-     *  compatible with mouse buttons and middle mouse buttons". Same encoding as {@code CommandKeybindsConfig};
-     *  both are local copies until {@code KeyUtil} itself learns about mouse binds (patch in the wave notes). */
+     *  compatible with mouse buttons and middle mouse buttons". Same encoding as {@code CommandKeybindsConfig}. */
     public static final int MOUSE_CODE_BASE = -100;
     public static final int MAX_MOUSE_BUTTON = 7;
 
@@ -73,22 +59,15 @@ public final class ItemProtectConfig {
     // Master
     private boolean enabled = false;
 
-    // Slot Lock
-    private boolean slotLockEnabled = false;
-    private int slotLockKey = KeyUtil.NONE;
-    private LockStyle lockStyle = LockStyle.BOTH;
-    private int lockColor = 0xFFFF5555;
-    private final boolean[] lockedSlots = new boolean[INVENTORY_SLOTS];
-
     // Protect Item
     private boolean protectItemEnabled = false;
     private int protectKey = KeyUtil.NONE;
-    private int peekKey = KeyUtil.NONE;
     private boolean useItemIdFallback = false;
-    private int protectedColor = 0xFF55FFFF;
-    /** killer560 (2026-09-20): "put a little lock next to them in a corner so I know they are safe" - a small
-     *  padlock drawn on every protected item's slot, not just while the peek key is held. Visual, ships OFF. */
-    private boolean protectedIconEnabled = false;
+    /** Colour of the small star drawn in the top-right corner of every protected item's slot. */
+    private int protectedColor = DEFAULT_STAR_COLOR;
+    /** What Slot Lock used to do, per item instead of per slot: a protected item cannot be clicked at all - not
+     *  picked up, shift-moved, number-key swapped or thrown - in any menu, your own inventory included. */
+    private boolean lockInPlace = false;
     /** Skyblock item UUIDs (or item ids, with the fallback on) added by hovering + the protect key. */
     private final Set<String> protectedKeys = new LinkedHashSet<>();
     /** Plain display-name fragments typed in the settings tab, matched case-insensitively. */
@@ -104,6 +83,9 @@ public final class ItemProtectConfig {
 
     // Feedback
     private boolean blockSound = true;
+
+    /** Old Slot Lock indices still to be carried over to protected UUIDs (empty once done). */
+    private final List<Integer> pendingSlotMigration = new ArrayList<>();
 
     private ItemProtectConfig() {
     }
@@ -143,36 +125,18 @@ public final class ItemProtectConfig {
             return;
         }
         ItemProtectConfig cfg = new ItemProtectConfig();
+        boolean migrated = false;
         try {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
 
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
 
-            cfg.slotLockEnabled = ConfigJson.getBool(obj, "slotLockEnabled", false);
-            cfg.slotLockKey = sanitizeBind(ConfigJson.getInt(obj, "slotLockKey", KeyUtil.NONE));
-            cfg.lockStyle = ConfigJson.getEnum(obj, "lockStyle", LockStyle.class, LockStyle.BOTH);
-            cfg.lockColor = ConfigJson.getInt(obj, "lockColor", 0xFFFF5555);
-            JsonArray locked = ConfigJson.getArray(obj, "lockedSlots");
-            if (locked != null) {
-                for (JsonElement el : locked) {
-                    // Per-element: one malformed index is skipped instead of dropping every lock.
-                    try {
-                        int idx = el.getAsInt();
-                        if (idx >= 0 && idx < INVENTORY_SLOTS) {
-                            cfg.lockedSlots[idx] = true;
-                        }
-                    } catch (Exception ignored) {
-                    }
-                }
-            }
-
             cfg.protectItemEnabled = ConfigJson.getBool(obj, "protectItemEnabled", false);
             cfg.protectKey = sanitizeBind(ConfigJson.getInt(obj, "protectKey", KeyUtil.NONE));
-            cfg.peekKey = sanitizeBind(ConfigJson.getInt(obj, "peekKey", KeyUtil.NONE));
             cfg.useItemIdFallback = ConfigJson.getBool(obj, "useItemIdFallback", false);
-            cfg.protectedColor = ConfigJson.getInt(obj, "protectedColor", 0xFF55FFFF);
-            cfg.protectedIconEnabled = ConfigJson.getBool(obj, "protectedIconEnabled", false);
+            cfg.protectedColor = ConfigJson.getInt(obj, "protectedColor", DEFAULT_STAR_COLOR);
+            cfg.lockInPlace = ConfigJson.getBool(obj, "lockInPlace", false);
             JsonArray keys = ConfigJson.getArray(obj, "protectedKeys");
             if (keys != null) {
                 for (JsonElement el : keys) {
@@ -205,10 +169,50 @@ public final class ItemProtectConfig {
             cfg.confirmToForce = ConfigJson.getBool(obj, "confirmToForce", true);
 
             cfg.blockSound = ConfigJson.getBool(obj, "blockSound", true);
+
+            readIndices(ConfigJson.getArray(obj, "pendingSlotMigration"), cfg.pendingSlotMigration);
+
+            // ---- Slot Lock migration: decided from the OLD file's keys only ----
+            if (obj.has("slotLockEnabled") || obj.has("lockedSlots")) {
+                migrated = true;
+                boolean wasOn = ConfigJson.getBool(obj, "slotLockEnabled", false);
+                List<Integer> locked = new ArrayList<>();
+                readIndices(ConfigJson.getArray(obj, "lockedSlots"), locked);
+                if (wasOn && !locked.isEmpty()) {
+                    for (Integer idx : locked) {
+                        if (!cfg.pendingSlotMigration.contains(idx)) {
+                            cfg.pendingSlotMigration.add(idx);
+                        }
+                    }
+                    // A slot that could not move at all becomes an item that cannot move at all.
+                    cfg.protectItemEnabled = true;
+                    cfg.lockInPlace = true;
+                }
+            }
         } catch (Exception ignored) {
             // Unreadable/not-an-object file: fall back to a fresh default config rather than throwing on startup.
         }
         instance = cfg;
+        if (migrated) {
+            // Rewrite without the old keys, so the migration above runs exactly once.
+            cfg.save();
+        }
+    }
+
+    private static void readIndices(JsonArray arr, List<Integer> out) {
+        if (arr == null) {
+            return;
+        }
+        for (JsonElement el : arr) {
+            // Per-element: one malformed index is skipped instead of dropping every entry.
+            try {
+                int idx = el.getAsInt();
+                if (idx >= 0 && idx < INVENTORY_SLOTS && !out.contains(idx)) {
+                    out.add(idx);
+                }
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     public void save() {
@@ -217,24 +221,11 @@ public final class ItemProtectConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
 
-            obj.addProperty("slotLockEnabled", slotLockEnabled);
-            obj.addProperty("slotLockKey", slotLockKey);
-            obj.addProperty("lockStyle", lockStyle.name());
-            obj.addProperty("lockColor", lockColor);
-            JsonArray locked = new JsonArray();
-            for (int i = 0; i < lockedSlots.length; i++) {
-                if (lockedSlots[i]) {
-                    locked.add(i);
-                }
-            }
-            obj.add("lockedSlots", locked);
-
             obj.addProperty("protectItemEnabled", protectItemEnabled);
             obj.addProperty("protectKey", protectKey);
-            obj.addProperty("peekKey", peekKey);
             obj.addProperty("useItemIdFallback", useItemIdFallback);
             obj.addProperty("protectedColor", protectedColor);
-            obj.addProperty("protectedIconEnabled", protectedIconEnabled);
+            obj.addProperty("lockInPlace", lockInPlace);
             JsonArray keys = new JsonArray();
             for (String key : protectedKeys) {
                 keys.add(key);
@@ -253,6 +244,14 @@ public final class ItemProtectConfig {
             obj.addProperty("confirmToForce", confirmToForce);
 
             obj.addProperty("blockSound", blockSound);
+
+            if (!pendingSlotMigration.isEmpty()) {
+                JsonArray pending = new JsonArray();
+                for (Integer idx : pendingSlotMigration) {
+                    pending.add(idx);
+                }
+                obj.add("pendingSlotMigration", pending);
+            }
 
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -273,71 +272,6 @@ public final class ItemProtectConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-    }
-
-    // --- slot lock ---
-
-    public boolean isSlotLockEnabled() {
-        return isEnabled() && slotLockEnabled;
-    }
-
-    public boolean isSlotLockEnabledRaw() {
-        return slotLockEnabled;
-    }
-
-    public void setSlotLockEnabled(boolean value) {
-        this.slotLockEnabled = value;
-    }
-
-    public int getSlotLockKey() {
-        return slotLockKey;
-    }
-
-    public void setSlotLockKey(int key) {
-        this.slotLockKey = sanitizeBind(key);
-    }
-
-    public LockStyle getLockStyle() {
-        return lockStyle;
-    }
-
-    public void setLockStyle(LockStyle style) {
-        this.lockStyle = style == null ? LockStyle.BOTH : style;
-    }
-
-    public int getLockColor() {
-        return lockColor;
-    }
-
-    public void setLockColor(int argb) {
-        this.lockColor = argb;
-    }
-
-    public boolean isSlotLocked(int containerSlot) {
-        return containerSlot >= 0 && containerSlot < lockedSlots.length && lockedSlots[containerSlot];
-    }
-
-    /** @return the new state, or {@code false} if the index isn't a real player-inventory slot. */
-    public boolean toggleSlotLock(int containerSlot) {
-        if (containerSlot < 0 || containerSlot >= lockedSlots.length) {
-            return false;
-        }
-        lockedSlots[containerSlot] = !lockedSlots[containerSlot];
-        return lockedSlots[containerSlot];
-    }
-
-    public void clearSlotLocks() {
-        java.util.Arrays.fill(lockedSlots, false);
-    }
-
-    public int countLockedSlots() {
-        int n = 0;
-        for (boolean b : lockedSlots) {
-            if (b) {
-                n++;
-            }
-        }
-        return n;
     }
 
     // --- protect item ---
@@ -362,23 +296,6 @@ public final class ItemProtectConfig {
         this.protectKey = sanitizeBind(key);
     }
 
-    public int getPeekKey() {
-        return peekKey;
-    }
-
-    public void setPeekKey(int key) {
-        this.peekKey = sanitizeBind(key);
-    }
-
-    /** Whether a small padlock is drawn on every protected item's slot (not just while peeking). */
-    public boolean isProtectedIconEnabled() {
-        return protectedIconEnabled;
-    }
-
-    public void setProtectedIconEnabled(boolean value) {
-        this.protectedIconEnabled = value;
-    }
-
     public boolean isUseItemIdFallback() {
         return useItemIdFallback;
     }
@@ -387,6 +304,7 @@ public final class ItemProtectConfig {
         this.useItemIdFallback = value;
     }
 
+    /** The star colour (the key keeps its old name, {@code protectedColor}, so a saved colour carries over). */
     public int getProtectedColor() {
         return protectedColor;
     }
@@ -395,12 +313,25 @@ public final class ItemProtectConfig {
         this.protectedColor = argb;
     }
 
+    public boolean isLockInPlace() {
+        return lockInPlace;
+    }
+
+    public void setLockInPlace(boolean value) {
+        this.lockInPlace = value;
+    }
+
     public Set<String> getProtectedKeys() {
         return protectedKeys;
     }
 
     public boolean hasProtectedKey(String key) {
         return key != null && protectedKeys.contains(key);
+    }
+
+    /** Adds a key without toggling (the Slot Lock migration). @return true if it was not there yet. */
+    public boolean addProtectedKey(String key) {
+        return key != null && !key.isBlank() && protectedKeys.add(key);
     }
 
     /** @return true if the key was added, false if it was already there and got removed. */
@@ -450,6 +381,17 @@ public final class ItemProtectConfig {
             }
         }
         return false;
+    }
+
+    // --- slot lock migration ---
+
+    /** Old locked slot indices still waiting to be carried over; a copy. */
+    public List<Integer> getPendingSlotMigration() {
+        return new ArrayList<>(pendingSlotMigration);
+    }
+
+    public void clearPendingSlotMigration() {
+        pendingSlotMigration.clear();
     }
 
     // --- starred ---

@@ -323,20 +323,6 @@ final class SettingTooltipsData {
         d.put("use type colour", "Resets this node to its type's colour.");
         d.put("delete node", "Removes this node from the chain (/ap3 delete <n>).");
         d.put("re-place last chain node key", "Keybind that moves the last node in this section's chain to where you stand and look.");
-        d.put("armor recolour", "Changes the colour, skin and trim of your armor, only on your screen.");
-        d.put("armor recolour/skin inventory icons", "Also swaps a skinned piece's inventory icon to match its skin.");
-        d.put("armor recolour/capture key", "Press this while hovering an armor piece in any inventory to add it to the list.");
-        d.put("armor recolour/add helmet", "Adds the helmet you are wearing to the list.");
-        d.put("armor recolour/add chest", "Adds the chestplate you are wearing to the list.");
-        d.put("armor recolour/add legs", "Adds the leggings you are wearing to the list.");
-        d.put("armor recolour/add boots", "Adds the boots you are wearing to the list.");
-        d.put("armor recolour/colour", "Opens the colour wheel for this piece.");
-        d.put("armor recolour/use colour", "Whether this piece's saved colour is applied.");
-        d.put("armor recolour/skin", "Which armor set this piece is painted as, like Leather, Iron or Diamond.");
-        d.put("armor recolour/trim", "Trim material shown on the armor; needs a Pattern too.");
-        d.put("armor recolour/pattern", "Trim pattern shown on the armor; needs a Trim material too.");
-        d.put("armor recolour/enabled", "Whether this whole entry is applied.");
-        d.put("armor recolour/remove", "Deletes this piece's entry.");
         d.put("scrollable tooltips", "Lets the mouse wheel scroll or nudge an item tooltip in inventories and menus.");
         d.put("invert scroll", "Flips the wheel direction for scrolling and nudging tooltips.");
         d.put("lines per scroll", "How many tooltip lines one wheel notch moves (1-10).");
@@ -1294,16 +1280,13 @@ final class SettingTooltipsData {
 
         // Item Protection
         d.put("item protection", "Turns on the guards that stop you losing your own gear.");
-        d.put("slot lock", "Press the Lock Key over an inventory slot to stop it being clicked, swapped or thrown in menus.");
-        d.put("lock key", "Keybind to lock or unlock the inventory slot you are hovering.");
-        d.put("lock color", "Opens a color picker for the outline on locked slots.");
-        d.put("clear locks", "Unlocks every locked slot at once.");
-        d.put("protect item", "Stops protected items being sold, traded, salvaged or thrown out of menus.");
+        d.put("protect item", "Stops protected items being dropped, sold, traded, salvaged, auctioned or thrown out of menus; each shows a small star.");
+        d.put("item protection/lock in place", "Protected items can't be clicked at all - not moved, swapped or thrown in any menu (what Slot Lock did).");
+        d.put("item protection/star color", "Colour of the small star drawn in the top-right corner of every protected item.");
         d.put("protect key", "Keybind to add or remove the hovered item from the protected list.");
-        d.put("show protected key", "Hold this key in an inventory to outline every protected item.");
         d.put("item id fallback", "Protects items with no Skyblock UUID by item ID, which covers every copy.");
         d.put("auto-protect starred", "Treats dungeon-starred items as protected without listing them.");
-        d.put("prevent hotbar drops", "Blocks the drop key while you hold a protected or locked item.");
+        d.put("prevent hotbar drops", "Blocks the drop key while you hold a protected item.");
         d.put("confirm to force", "Lets you press drop again within 3 seconds to drop a protected item anyway.");
         d.put("block every drop", "Makes Prevent Hotbar Drops cover every item, not just protected ones.");
         d.put("block sound", "Plays a sound when a drop, sale or move is blocked, and a chime when you lock or protect something.");
@@ -1405,7 +1388,6 @@ final class SettingTooltipsData {
         d.put("ability cooldowns/mage cooldown reduction", "Shortens every timer by a percentage you set while you play Mage.");
         d.put("ability cooldowns/abilities", "Tick the abilities you want timed; the number is each one's cooldown in seconds.");
         d.put("ability timers/name", "What this timer is called on the HUD, e.g. Bonzo Mask.");
-        d.put("armor recolour/add a piece", "Add a piece with the buttons to use what you're wearing, or press the capture key while hovering a piece in any menu.");
         d.put("arrow align", "Shows how many clicks each Arrow Align frame still needs and can block clicks that overshoot.");
         d.put("arrow align/scale", "Size of the click-count number on each Arrow Align frame.");
         d.put("arrow align/aura", "Cheat build only. Clicks Arrow Align frames in range without you looking at them.");
@@ -1451,7 +1433,8 @@ final class SettingTooltipsData {
         d.put("arrow align/prevent misclicks", "Blocks right-clicks on an Arrow Align frame that already points the right way.");
         d.put("arrow align/trigger bot", "Clicks blood mobs and Arrow Align frames for you once your crosshair is on them (cheat build only).");
         d.put("thorn (f4)", "Helpers for the F4/M4 boss Thorn: Spirit Bear kill counter, highlights and stun-spot waypoints.");
-        d.put("social", "Friends, best friends, the profile viewer, cosmetics and the nickhider.");
+        d.put("social", "Friends, best friends and the profile viewer.");
+        d.put("cosmetics", "Client-side looks: supporter names and sizes, the Name Changer, Custom Items, the Nickhider and the Trail.");
         d.put("items", "Inventory, storage, item, pet, auction house and bazaar features.");
         d.put("map, leap & party", "The dungeon map, leap helpers, Dungeon Queue, Auto Kick and party sharing.");
         d.put("timers, score & boss", "Run timers, score, run summaries, Blood Camp, chest profit and the boss helpers.");
@@ -1546,8 +1529,6 @@ final class SettingTooltipsData {
         d.put("inventory search/search lore", "Also matches an item's lore text, not just its name.");
         d.put("inventory search/ignore case", "Matches regardless of upper or lower case.");
         d.put("inventory search/search bar scale", "Resizes the floating search bar.");
-        d.put("item protection/marker", "How a locked slot is marked: outline, padlock icon, or both.");
-        d.put("item protection/highlight color", "Colour of the outline drawn on protected items while you hold the Show Protected Key.");
         d.put("item protection/remove", "Takes this name off the protected-names list.");
         d.put("item rarity backgrounds/style", "Shape drawn behind each item: Square, Circle, or Outline. Click to cycle.");
         d.put("item rarity backgrounds/outline width", "How thick the rarity outline is, 1-4 pixels.");
@@ -1745,7 +1726,6 @@ final class SettingTooltipsData {
         d.put("chat keybinds/command or message", "The line to send; start it with / to run it as a command.");
         d.put("door keys/tracer thickness", "How thick that tracer line is drawn (1-10).");
         d.put("door keys/esp through walls", "Draws the key box and tracer through walls (cheat build only).");
-        d.put("item protection/lock icon", "Draws a small padlock on the slot of every protected item.");
         d.put("name changer/color", "Opens the colour picker for this name.");
         d.put("ap3/class overrides", "Read-only copy of Dungeon > Class Overrides.");
         d.put("mod chat/mod chat", "A private chat with other mod users; send with /killer560 chat <message>.");
@@ -2048,15 +2028,15 @@ final class SettingTooltipsData {
         d.put("video browser/comments scroll guard", "YouTube Shorts only: stops Next/Previous from scrolling the feed while comments are open.");
         d.put("video browser/sign in to youtube", "Opens a normal browser window so you can sign in to your account by hand.");
         d.put("toggle global cosmetics", "Shows other supporters' custom names and scale; turn off to see everyone's real name.");
-        d.put("cosmetics/custom names", "Opens the Name Changer: your own display name, its colours, and renames for other players.");
-        d.put("cosmetics/player size", "Opens the player size settings: your own size, everyone else's, and your model's shape.");
-        d.put("cosmetics/held item", "Opens Held Item Transform: the size, position and rotation of your first-person held item.");
-        d.put("cosmetics/my size", "Your own player model's size (0.05x-2x); shared with other supporters while Share if Supporter is on.");
-        d.put("cosmetics/others' size", "Resizes every other player's model on your screen (0.05x-2x); never shared.");
-        d.put("cosmetics/reset", "Puts the size slider beside it back to 1.00x.");
-        d.put("cosmetics/width", "Stretches your own player model side to side (0.5x-2x), in your own F5 view only.");
-        d.put("cosmetics/height", "Stretches your own player model up and down (0.5x-2x), in your own F5 view only.");
-        d.put("cosmetics/thickness", "Stretches your own player model front to back (0.5x-2x), in your own F5 view only.");
+        d.put("player cosmetics/custom names", "Opens the Name Changer: your own display name, its colours, and renames for other players.");
+        d.put("player cosmetics/player size", "Opens the player size settings: your own size, everyone else's, and your model's shape.");
+        d.put("player cosmetics/held item", "Opens Held Item Transform: the size, position and rotation of your first-person held item.");
+        d.put("player cosmetics/my size", "Your own player model's size (0.05x-2x); shared with other supporters while Share if Supporter is on.");
+        d.put("player cosmetics/others' size", "Resizes every other player's model on your screen (0.05x-2x); never shared.");
+        d.put("player cosmetics/reset", "Puts the size slider beside it back to 1.00x.");
+        d.put("player cosmetics/width", "Stretches your own player model side to side (0.5x-2x), in your own F5 view only.");
+        d.put("player cosmetics/height", "Stretches your own player model up and down (0.5x-2x), in your own F5 view only.");
+        d.put("player cosmetics/thickness", "Stretches your own player model front to back (0.5x-2x), in your own F5 view only.");
         d.put("share if supporter", "Automatically shares your display name and your own player size with other players who have this mod.");
         d.put("copy settings for global cosmetics", "Copies your name and scale to your clipboard so staff can apply them for you.");
         d.put("reset cosmetics", "Puts your display name, colours, fade, both player sizes and model shape back to default.");
@@ -2145,7 +2125,14 @@ final class SettingTooltipsData {
     /** Auto Inventory Sorter and Auto Sell (killer560, 2026-09-27). Bare (unscoped) keys - both labels are
      *  distinctive mod-wide, so there's no collision to scope against by top-level tab name. */
     private static void invSortAndAutoSell(Map<String, String> d) {
-        d.put("auto inventory sorter", "Saves your inventory layout and re-applies it any time with /invsort.");
+        d.put("auto inventory sorter", "Re-arranges your inventory into a saved layout, by key or /invsort apply <name>.");
+        d.put("inventory sorter/open layouts", "Opens the layouts menu (/invsort): arrange a copy of your inventory, save it, apply, rename, delete or bind it.");
+        d.put("inventory sorter/ticks between moves", "Client ticks between each click the sorter sends (a hotbar swap is one click, any other move two or three).");
+        d.put("inventory sorter/random extra ticks", "Adds 0 up to this many extra ticks, at random, before each click.");
+        d.put("inventory sorter/layout key", "Press to capture a key (or mouse button) that applies this layout; Escape clears it.");
+        d.put("custom items", "Recolours and reskins items on your screen only; nothing is sent to the server.");
+        d.put("custom items/open custom items", "Opens the Custom Items menu (/customitems): pick an item, then set its colour, skin or look.");
+        d.put("custom items/reset all", "Removes every saved look; press twice.");
         d.put("open layouts folder", "Opens the folder holding your saved inventory layouts.");
         d.put("auto sell", "Sells items on your sell list automatically while a sell screen is open; start it with /autosell start.");
         // Auto Anvil (killer560, 2026-10-07). Scoped under its own tab name: Min/Max Delay and Close When Done are

@@ -20,10 +20,32 @@ public final class InventoryLayout {
 
     private final String name;
     private final Map<Integer, String> slotIdentities;
+    /** Slot -&gt; vanilla item id ({@code minecraft:diamond_sword}) of the item saved there, so the editor can draw
+     *  the layout when that item is not in the inventory right now. Optional; a hand-written file can leave it out. */
+    private final Map<Integer, String> slotIcons;
 
     public InventoryLayout(String name, Map<Integer, String> slotIdentities) {
+        this(name, slotIdentities, Map.of());
+    }
+
+    public InventoryLayout(String name, Map<Integer, String> slotIdentities, Map<Integer, String> slotIcons) {
         this.name = name;
         this.slotIdentities = new LinkedHashMap<>(slotIdentities);
+        this.slotIcons = new LinkedHashMap<>(slotIcons);
+    }
+
+    /** The same slots under another name. */
+    public InventoryLayout renamed(String newName) {
+        return new InventoryLayout(newName, slotIdentities, slotIcons);
+    }
+
+    /** The vanilla item id saved for {@code slot}'s icon, or null. */
+    public String iconAt(int slot) {
+        return slotIcons.get(slot);
+    }
+
+    public Map<Integer, String> icons() {
+        return java.util.Collections.unmodifiableMap(slotIcons);
     }
 
     public String name() {

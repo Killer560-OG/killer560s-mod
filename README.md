@@ -16,13 +16,15 @@ Open the menu in game with `/killer560`; every feature sits in its own category 
 
 **Chat** - Auto Correct, Auto Meow, Chat Commands, Chat Emotes, Chat Hider, Chat Keybinds, Click Translate, Command Auto Correct, Command Shortcuts, Copy Chat, Cringe, Mod Chat, Party Commands, Spotify Mod, Translate, Voice To Text
 
-**Social & Supporters** - Best Friends, Cosmetics (name changer, name colour/fade/letter colours, player size, held item transform, supporter sharing), Nickhider, Friends List, Profile Viewer
+**Social & Supporters** - Best Friends, Friends List, Profile Viewer
+
+**Cosmetics** - Custom Items, Nickhider, Player Cosmetics (name changer, name colour/fade/letter colours, player size, held item transform, supporter sharing), Trail
 
 **Party Data & Cross-Mod** - Cross-Mod Bridge, Mod conflict warnings, Party Dungeon Data, Party Interop, Team Melody HUD, Teammate Highlight †, Teammate rooms on the map
 
-**Items, Inventory & Trading** - Armor Recolour, Auction House Browser, Auto Inventory Sorter, Bazaar Browser, Custom Enchant Colours, Experimentation Table Profit Tracker, Experimentation Table Solver †, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Item Value Tooltip, Listing Helper, Loadout Keybinds, Pet Wheel, Profit Trackers (/profit), Reskin Real Auction House, Reskin Real Bazaar, Revert Master Stars, Scrollable Tooltips, Slot Binds, Storage Item Search, Storage Overlay
+**Items, Inventory & Trading** - Auction House Browser, Auto Inventory Sorter, Bazaar Browser, Custom Enchant Colours, Experimentation Table Profit Tracker, Experimentation Table Solver †, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Item Value Tooltip, Listing Helper, Loadout Keybinds, Pet Wheel, Profit Trackers (/profit), Reskin Real Auction House, Reskin Real Bazaar, Revert Master Stars, Scrollable Tooltips, Slot Binds, Storage Item Search, Storage Overlay
 
-**HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Ability Timers, Advanced Position, Auto Join Skyblock, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, GIF Player, Health and Mana Bars, No Fire, Object Hider, Pathfinding †, Performance HUD, Quiver Display, Real Time, Screenshot Copy, Smooth Teleport, Trail, Trajectories, Waypoint Routes, Video Browser
+**HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Ability Timers, Advanced Position, Auto Join Skyblock, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, GIF Player, Health and Mana Bars, No Fire, Object Hider, Pathfinding †, Performance HUD, Quiver Display, Real Time, Screenshot Copy, Smooth Teleport, Trajectories, Waypoint Routes, Video Browser
 
 **Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Waypoints, Simon Says †, Solver Highlights, Teleport Maze Solver, Terminal Solver †, Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver, Wither Doors
 
