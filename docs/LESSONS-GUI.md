@@ -158,3 +158,11 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   AFTER_INIT callbacks in phases ordered before and after `Event.DEFAULT_PHASE`: the per-screen listeners are then added
   before/after every other feature's (the reskin's presses never reach another feature's hidden-slot handler, and it
   paints over their overlays).
+
+- **An empty slot with a placeholder icon never reaches `Slot.isFake` in `AbstractContainerScreen.extractSlot`.** The
+  method blits the icon (armour outlines, the offhand shield) and returns (javap, 26.1.2 and 26.2), so the Inventory
+  Theme's backdrop, injected at `isFake`, left empty armour slots with no square or lines (testkit 475, 2026-10-07: the
+  armour column scan found no outline at all with nothing worn). A second injection at `Slot.getNoItemIcon` draws it there
+  when the icon is non-null. Theme lines are counted in screen pixels through `inventorytheme/PixelRects` (pose read,
+  then `identity().scale(1/guiScale)`), and touching slots share one line by drawing each square's right/bottom line on
+  the neighbour's left/top pixels (testkit 473/474).
