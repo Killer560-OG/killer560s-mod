@@ -37,13 +37,16 @@ public final class HudInGameRenderer {
     public static void register() {
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("killer560smod", "hud_elements_in_game"),
                 (graphics, deltaTracker) -> draw(graphics));
-        // Health and Mana Bars get their own layer, with vanilla's status bars (2026-10-07, killer560: "The custom
+        // Health and Mana Bars get their own layer, early in the Gui pass (2026-10-07, killer560: "The custom
         // health bars should show even in my inventory"). It draws behind an open screen as vanilla's hearts and
         // hotbar do: the screen's dimmed background, panel and slots all go over it. It is NOT the addLast layer above:
         // with an in-game screen open vanilla defers its SUBTITLES layer into Screen.extractBackground, AFTER the dim
         // gradient (Gui.extractSubtitleOverlay / extractDeferredSubtitles, javap 26.1.2), and Fabric's addLast layers
         // come after SUBTITLES - drawn from there, a bar showed undimmed through the dim (testkit 441's first run).
-        HudElementRegistry.attachElementAfter(VanillaHudElements.EXPERIENCE_LEVEL,
+        // Attached to MISC_OVERLAYS (the camera overlays, extracted every frame the HUD shows), not to the XP level:
+        // an element attached to a vanilla one only runs where that one does, and the XP group is skipped in creative
+        // and for any game mode without experience - the bars vanished there (testkit 443/444, hud-fixes-3).
+        HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS,
                 Identifier.fromNamespaceAndPath("killer560smod", "stat_readouts"), (graphics, deltaTracker) -> drawStats(graphics));
     }
 

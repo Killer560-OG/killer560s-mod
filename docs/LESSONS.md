@@ -96,7 +96,9 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - A Minecraft colour code can be a DIGIT (`§3` is dark aqua), so `([\d,]+)` with optional codes BEFORE it reads
   Hypixel's overflow mana `§3200ʬ` as 3200. Start the match where a number cannot continue and let the pattern take
   the codes itself: `(?<![§\d,])(?:§.)*([\d,]+)` (`PlayerStatsFeature.NUMBER_START`, 2026-10-04, found by a scratch
-  run against a sample line). The older health/mana/defence patterns only escape it because their codes are letters.
+  run against a sample line). The health/mana/defence patterns did NOT escape it: with absorption Hypixel colours health
+  GOLD, `§6`, and "§612,000/10,464" read as 612,000 - a nearly all-absorption bar (his "absorption breaks the health one",
+  2026-10-07). Every stat pattern now starts with `NUMBER_START`; testkit 442 sends the gold line through the real path.
 - `IslandDetector.graphIsland()` is null off any known island (sim, lobby, singleplayer), and `Set.of(...).contains(null)`
   throws. MiningProfitTracker (shelved since 2026-10-07) did that every tick once trackers went on by default; null-check before any `Set.of` lookup.
 - Measure FPS work with the testkit's `95-fps-bench` (sim F7, ON/OFF alternated, frame and tick CPU time, JFR dumps;

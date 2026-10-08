@@ -91,7 +91,9 @@ public final class StatElements {
     public static final int VALUE_ROWS = 9;
     public static final int VALUE_PAD_Y = 2;
     public static final int VALUE_PAD_X = 4;
-    public static final int MIN_VALUE_THICKNESS = VALUE_ROWS + 2 * VALUE_PAD_Y;
+    /** Even, so half of it is a whole GUI pixel at Auto Scale 0.5 (13 drew 6.5 units and edge drags in the HUD editor
+     *  moved by a pixel less than dragged, testkit 399): 2 units above the number, 3 below. */
+    public static final int MIN_VALUE_THICKNESS = VALUE_ROWS + 2 * VALUE_PAD_Y + 1;
 
     /** The thickness bar {@code r} is drawn at, in its own units: in Predefined every bar shares the tab's Bar Height
      *  (killer560, 2026-10-07: "They are different scales when you use the predefined snap"); in Custom its own
