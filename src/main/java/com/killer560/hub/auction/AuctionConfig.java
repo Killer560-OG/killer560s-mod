@@ -108,10 +108,13 @@ public final class AuctionConfig {
     /** killer560's item 8.1: "/ah replacement toggle" - OFF by default, real Hypixel /ah always still
      *  reachable via the explicit {@code /hypixelah} command regardless of this. */
     private boolean overrideAhCommand = false;
-    /** killer560, 2026-09-27: "have a bz override like it does for ah" - same reasoning, same default,
-     *  mirrors {@link #overrideAhCommand} exactly. Real Hypixel /bz always still reachable via
-     *  {@code /hypixelbz} regardless of this. */
-    private boolean overrideBzCommand = false;
+    /** The /bz override is gone (2026-10-07): killer560, "The custom bazaar menu should essentially fully replace the
+     *  bazaar ... So the command /killer560bz should only work with a booster cookie." /bz is always Hypixel's own
+     *  command now, and Hypixel's real Bazaar is drawn in this browser's look by {@link #reskinRealBazaar}. */
+    /** Draw Hypixel's real Bazaar menus in the browser's look ({@code auction/screen/BazaarReskin}). */
+    private boolean reskinRealBazaar = true;
+    /** Held, shows Hypixel's own Bazaar menu instead of the reskin. Left Alt by default; -1 = none. */
+    private int bazaarVanillaKeyCode = 342;
     private int openAhKeyCode = -1;
     private int openBazaarKeyCode = -1;
     // killer560, 2026-09-27: "have it default to low to high price."
@@ -155,7 +158,8 @@ public final class AuctionConfig {
                 cfg.bazaarEnabled = ConfigJson.getBool(obj, "bazaarEnabled", true);
                 cfg.listingHelperEnabled = ConfigJson.getBool(obj, "listingHelperEnabled", false);
                 cfg.overrideAhCommand = ConfigJson.getBool(obj, "overrideAhCommand", false);
-                cfg.overrideBzCommand = ConfigJson.getBool(obj, "overrideBzCommand", false);
+                cfg.reskinRealBazaar = ConfigJson.getBool(obj, "reskinRealBazaar", true);
+                cfg.bazaarVanillaKeyCode = ConfigJson.getInt(obj, "bazaarVanillaKeyCode", 342);
                 cfg.openAhKeyCode = ConfigJson.getInt(obj, "openAhKeyCode", -1);
                 cfg.openBazaarKeyCode = ConfigJson.getInt(obj, "openBazaarKeyCode", -1);
                 cfg.lastSort = ConfigJson.getEnum(obj, "lastSort", SortMode.class, SortMode.PRICE_LOW);
@@ -181,7 +185,8 @@ public final class AuctionConfig {
             obj.addProperty("bazaarEnabled", bazaarEnabled);
             obj.addProperty("listingHelperEnabled", listingHelperEnabled);
             obj.addProperty("overrideAhCommand", overrideAhCommand);
-            obj.addProperty("overrideBzCommand", overrideBzCommand);
+            obj.addProperty("reskinRealBazaar", reskinRealBazaar);
+            obj.addProperty("bazaarVanillaKeyCode", bazaarVanillaKeyCode);
             obj.addProperty("openAhKeyCode", openAhKeyCode);
             obj.addProperty("openBazaarKeyCode", openBazaarKeyCode);
             obj.addProperty("lastSort", lastSort.name());
@@ -243,12 +248,25 @@ public final class AuctionConfig {
         overrideAhCommand = v;
     }
 
-    public synchronized boolean isOverrideBzCommand() {
-        return overrideBzCommand;
+    /** Reskin Real Bazaar, honouring the Skyblock-Only gate. */
+    public synchronized boolean isReskinRealBazaar() {
+        return reskinRealBazaar && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public synchronized void setOverrideBzCommand(boolean v) {
-        overrideBzCommand = v;
+    public synchronized boolean isReskinRealBazaarRaw() {
+        return reskinRealBazaar;
+    }
+
+    public synchronized void setReskinRealBazaar(boolean v) {
+        reskinRealBazaar = v;
+    }
+
+    public synchronized int getBazaarVanillaKeyCode() {
+        return bazaarVanillaKeyCode;
+    }
+
+    public synchronized void setBazaarVanillaKeyCode(int v) {
+        bazaarVanillaKeyCode = v;
     }
 
     public synchronized int getOpenAhKeyCode() {

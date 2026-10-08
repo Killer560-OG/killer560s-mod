@@ -18,6 +18,8 @@ import java.util.List;
 public class BazaarTab extends BaseTab implements KeyCaptureTab {
 
     private boolean capturingKey = false;
+    /** Which key the capture is for: the browser's open key, or the hold-for-Hypixel's-menu key. */
+    private boolean capturingVanillaKey = false;
 
     public BazaarTab() {
         super("Bazaar");
@@ -39,29 +41,41 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
+        // The reskin works on Hypixel's real menu, so it stands apart from the browser's own switch.
+        widgets.add(SettingsButtonWidget.builder(onOff("Reskin Real Bazaar", cfg.isReskinRealBazaarRaw()), btn -> {
+                    cfg.setReskinRealBazaar(!cfg.isReskinRealBazaarRaw());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, colW, 18).build());
+        if (cfg.isReskinRealBazaarRaw()) {
+            Component vanillaLabel = capturingKey && capturingVanillaKey ? Component.literal("Press any key...")
+                    : vanillaKeyText(cfg);
+            widgets.add(SettingsButtonWidget.builder(vanillaLabel, btn -> {
+                        capturingKey = true;
+                        capturingVanillaKey = true;
+                        btn.setMessage(Component.literal("Press any key..."));
+                    }).bounds(colBX, y, colW, 18).build());
+        }
+        y += 26;
+
         if (!cfg.isBazaarEnabledRaw()) {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Bazaar"), btn -> BazaarFeature.openDeferred())
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Bazaar"), btn -> BazaarFeature.openOrExplain())
                 .bounds(contentX, y, colW, 18).build());
 
-        Component keyLabel = capturingKey ? Component.literal("Press any key...") : keyText(cfg);
+        Component keyLabel = capturingKey && !capturingVanillaKey ? Component.literal("Press any key...") : keyText(cfg);
         widgets.add(SettingsButtonWidget.builder(keyLabel, btn -> {
                     capturingKey = true;
+                    capturingVanillaKey = false;
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(colBX, y, colW, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("/bz Override", cfg.isOverrideBzCommand()), btn -> {
-                    cfg.setOverrideBzCommand(!cfg.isOverrideBzCommand());
-                    cfg.save();
-                    btn.setMessage(onOff("/bz Override", cfg.isOverrideBzCommand()));
-                }).bounds(contentX, y, colW, 18).build());
-
         widgets.add(SettingsButtonWidget.builder(Component.literal(BazaarApi.isRefreshing() ? "Refreshing..." : "Refresh Now"),
                         btn -> BazaarApi.refreshAsync())
-                .bounds(colBX, y, colW, 18).build());
+                .bounds(contentX, y, colW, 18).build());
         y += 22;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Track My Orders", cfg.isTrackBazaarOrders()), btn -> {
@@ -73,7 +87,7 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open My Orders"), btn -> {
                     cfg.setLastBazaarCategoryFilter("@orders");
                     cfg.save();
-                    BazaarFeature.openDeferred();
+                    BazaarFeature.openOrExplain();
                 }).bounds(colBX, y, colW, 18).build());
         y += 26;
 
@@ -96,6 +110,12 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("Open Key: §b" + name);
     }
 
+    private static Component vanillaKeyText(AuctionConfig cfg) {
+        String name = cfg.getBazaarVanillaKeyCode() < 0 ? "Not Set"
+                : InputConstants.Type.KEYSYM.getOrCreate(cfg.getBazaarVanillaKeyCode()).getDisplayName().getString();
+        return Component.literal("Hypixel Menu Key: §b" + name);
+    }
+
     @Override
     public boolean isListeningForKey() {
         return capturingKey;
@@ -104,8 +124,14 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
     @Override
     public void onKeyCaptured(int keyCode) {
         AuctionConfig cfg = AuctionConfig.getInstance();
-        cfg.setOpenBazaarKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
+        int code = keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode;
+        if (capturingVanillaKey) {
+            cfg.setBazaarVanillaKeyCode(code);
+        } else {
+            cfg.setOpenBazaarKeyCode(code);
+        }
         capturingKey = false;
+        capturingVanillaKey = false;
         cfg.save();
     }
 }

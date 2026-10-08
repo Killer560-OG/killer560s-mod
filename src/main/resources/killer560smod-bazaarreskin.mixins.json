@@ -1,0 +1,13 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"package": "com.killer560.hub.auction.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"BazaarReskinBackgroundMixin",
+		"BazaarReskinHideMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}
