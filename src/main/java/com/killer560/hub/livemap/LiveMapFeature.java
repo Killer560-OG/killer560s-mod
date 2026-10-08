@@ -1103,13 +1103,14 @@ public final class LiveMapFeature {
         private static final int EXTRA_GAP = 2;
         private static final int EXTRA_SIDE = 2;
         /**
-         * Extra Info's text is drawn at {@code mapPx() / EXTRA_TEXT_MAP} of the font's size, at most 1 (2026-10-07,
-         * killer560: "The text under the map should also be smaller and fit better"). At the default Room Size the map
-         * is 120 units, so the text is 0.75 of its full size; it grows and shrinks with Room Size and the HUD scale like
-         * the map itself, and a line still wider than the map is scaled down further on its own. Before this every row
-         * was full size and "Crypts 0/5  Deaths 0" filled the map's whole width.
+         * Extra Info's text is drawn at {@code mapPx() / EXTRA_TEXT_MAP} of the font's size, at most 1. At the default
+         * Room Size the map is 120 units, so the text is HALF the font's size: exactly one screen pixel per font pixel
+         * at GUI scale 2 (two at GUI 4), so it stays sharp. It grows and shrinks with Room Size and the HUD scale like
+         * the map itself. History: full size until 2026-10-07 ("Crypts 0/5  Deaths 0" filled the map's whole width),
+         * then 0.75 in four rows ("The text under the map should also be smaller and fit better"), then half size in two
+         * rows the same evening ("Try to make it smaller and only take up 2 rows").
          */
-        private static final float EXTRA_TEXT_MAP = 160f;
+        private static final float EXTRA_TEXT_MAP = 240f;
 
         /** The Extra Info text size, in map units per font unit. */
         static float extraTextScale() {
@@ -1119,6 +1120,23 @@ public final class LiveMapFeature {
         /** One Extra Info row: a text line at {@link #extraTextScale()} and one unit between rows, rounded up. */
         static int extraRow() {
             return (int) Math.ceil(9 * extraTextScale()) + 1;
+        }
+
+        /**
+         * The scale every Extra Info row is drawn at: {@link #extraTextScale()}, or smaller when the widest row would
+         * not fit the map's width - one scale for all the rows, so the two rows always read as one block of text.
+         */
+        private static float extraDrawScale(List<String> lines) {
+            net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+            float s = extraTextScale();
+            int room = mapPx() - 2 * EXTRA_SIDE;
+            for (String line : lines) {
+                int tw = font.width(line);
+                if (tw * s > room) {
+                    s = room / (float) tw;
+                }
+            }
+            return s;
         }
 
         /** Extra Info's lines, or none when the Map Extras toggle is off. One list for the drawing and the box. */
@@ -1149,14 +1167,11 @@ public final class LiveMapFeature {
             int h = extraInfoHeight(lines);
             graphics.fill(x, y, x + w, y + h, cfg.getMapBackground());
             net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
-            float base = extraTextScale();
+            float s = extraDrawScale(lines);
             int row = extraRow();
-            int room = w - 2 * EXTRA_SIDE;
             int lineY = y + EXTRA_GAP + 1;
             for (String line : lines) {
                 // Each row is its own band, row units tall: a line's text never reaches the next one's.
-                int tw = font.width(line);
-                float s = tw * base > room ? room / (float) tw : base;
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(x + EXTRA_SIDE, lineY);
                 graphics.pose().scale(s, s);

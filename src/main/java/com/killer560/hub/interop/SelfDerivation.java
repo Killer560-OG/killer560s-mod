@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
  * <li><b>Terminal / device / lever completion</b> - {@code Name activated a terminal! (3/8)} is a normal
  * server chat line everyone in the party receives, so the party-wide count needs no relay at all.</li>
  * <li><b>Blood door opened</b> and the <b>Watcher's "You may pass"</b> line - same, server chat.</li>
- * <li><b>Prince / Bat bonus lines</b> - {@code A Prince falls. +1 Bonus Score}, server chat.</li>
+ * <li><b>Prince / Bat bonus lines</b> - {@code A Prince falls. +1 Bonus Score}, server chat (the Score Calculator's patterns).</li>
  * </ul>
  * Facts derived elsewhere in the mod are pushed in by their owning feature rather than re-derived here -
  * {@code ScoreCalculatorFeature} already spots the mimic (a dying baby zombie) and reads the tab list's
@@ -39,8 +39,8 @@ public final class SelfDerivation {
     // Server lines. Anchored and exact - a line that merely contains these words must not count.
     private static final Pattern DEVICE_COMPLETE = Pattern.compile(
             "^(\\w{1,16}) (activated|completed) a (lever|device|terminal)! \\((\\d{1,3})/(\\d{1,3})\\)(?:\\s.*)?$");
-    private static final Pattern PRINCE_KILLED = Pattern.compile("^A Prince falls\\. \\+1 Bonus Score$");
-    private static final Pattern BAT_KILLED = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
+    // The Prince / Bat bonus lines are matched with the Score Calculator's own PRINCE_KILLED / BAT_KILLED, so each
+    // line has exactly one pattern to correct (2026-10-07; this class had its own copies until then).
     private static final Pattern WATCHER_DONE =
             Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.$");
     private static final String BLOOD_DOOR_OPENED = "The BLOOD DOOR has been opened!";
@@ -93,9 +93,9 @@ public final class SelfDerivation {
             PartyInteropState.offerFlag(PartyInteropState.Flag.BLOOD_OPENED, InteropSource.SELF, null);
         } else if (WATCHER_DONE.matcher(plain).matches()) {
             PartyInteropState.offerFlag(PartyInteropState.Flag.BLOOD_DONE, InteropSource.SELF, null);
-        } else if (PRINCE_KILLED.matcher(plain).matches()) {
+        } else if (com.killer560.hub.scorecalc.ScoreCalculatorFeature.PRINCE_KILLED.matcher(plain).matches()) {
             PartyInteropState.offerFlag(PartyInteropState.Flag.PRINCE_KILLED, InteropSource.SELF, null);
-        } else if (BAT_KILLED.matcher(plain).matches()) {
+        } else if (com.killer560.hub.scorecalc.ScoreCalculatorFeature.BAT_KILLED.matcher(plain).matches()) {
             PartyInteropState.offerFlag(PartyInteropState.Flag.BAT_KILLED, InteropSource.SELF, null);
         }
     }
