@@ -89,13 +89,6 @@ public class ThornTab extends BaseTab {
         }
         y += 28;
 
-        if (cheat) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Cheat Build - Thorn ESP", true), mc.font));
-            y += 16;
-            widgets.add(toggle(contentX, y, colW, "Thorn ESP Through Walls", cfg::getThroughWallsRaw, cfg::setThroughWalls));
-            y += 28;
-        }
-
         // ---- Stun spots ----
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Stun Spots", false), mc.font));
         y += 16;
@@ -130,6 +123,15 @@ public class ThornTab extends BaseTab {
                     }
                     requestRebuild.run();
                 }).bounds(col2X, y, colW, 18).build());
+        y += 28;
+
+        // Cheat build: at the bottom of the tab, below every legit section (killer560, 2026-10-07: cheat settings go at
+        // the bottom, not right under the setting they belong with). It sat between Thorn Highlights and Stun Spots.
+        if (cheat) {
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Cheat Build - Thorn ESP", true), mc.font));
+            y += 16;
+            widgets.add(toggle(contentX, y, colW, "Thorn ESP Through Walls", cfg::getThroughWallsRaw, cfg::setThroughWalls));
+        }
         return widgets;
     }
 
