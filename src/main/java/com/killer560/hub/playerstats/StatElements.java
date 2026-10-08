@@ -81,14 +81,14 @@ public final class StatElements {
 
     /**
      * Room round the number on a bar (2026-10-07, killer560: "I don't like how that text almost feels trapped by the
-     * boxes, they need to be a bit bigger"). A digit is 7 rows and its shadow one more, so the number is
-     * {@link #VALUE_ROWS} tall; a bar that shows it is at least {@link #MIN_VALUE_THICKNESS} thick, which leaves
+     * boxes, they need to be a bit bigger"). A digit is 7 rows, the comma in "10,464" one row lower and its shadow
+     * one more, so the number is {@link #VALUE_ROWS} tall (measured: 18 px at GUI scale 2, testkit 444); a bar that shows it is at least {@link #MIN_VALUE_THICKNESS} thick, which leaves
      * {@link #VALUE_PAD_Y} units above and below it, and the number is only drawn where {@link #VALUE_PAD_X} units are
      * left at each end (else just the current value, else nothing). All in the bar's own units, so the room scales with
      * the bar at every GUI scale, HUD scale and Auto Scale. Before this a Show Value bar was max(thickness, 9) tall
      * with the default thickness 8: the number filled all but one row of it.
      */
-    public static final int VALUE_ROWS = 8;
+    public static final int VALUE_ROWS = 9;
     public static final int VALUE_PAD_Y = 2;
     public static final int VALUE_PAD_X = 4;
     public static final int MIN_VALUE_THICKNESS = VALUE_ROWS + 2 * VALUE_PAD_Y;
