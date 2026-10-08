@@ -81,7 +81,8 @@ public final class ModChatConfig {
             // default then, so its value says nothing about what the player wanted: it is switched ON once, the key
             // is written, and from then on whatever the player sets is kept (same one-time rule as SharingDefaults).
             // The presenceAlerts key of older files is simply no longer read (presence notices were removed).
-            boolean receiveDefaultApplied = ConfigJson.getBool(obj, RECEIVE_DEFAULT_KEY, false);
+            // Decided by the key's PRESENCE: only a file written before the change lacks it.
+            boolean receiveDefaultApplied = obj.has(RECEIVE_DEFAULT_KEY);
             cfg.logToChat = receiveDefaultApplied ? ConfigJson.getBool(obj, "logToChat", true) : true;
             instance = cfg;
             if (!receiveDefaultApplied) {

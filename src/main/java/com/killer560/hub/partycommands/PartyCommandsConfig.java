@@ -197,7 +197,8 @@ public final class PartyCommandsConfig {
         PartyCommandsConfig cfg = new PartyCommandsConfig();
         JsonObject obj = read(CONFIG_PATH);
         JsonObject legacyChat = read(LEGACY_CHAT_PATH);
-        boolean current = obj != null && ConfigJson.getInt(obj, "version", 1) >= VERSION;
+        // Decided by the key's PRESENCE: only version 2+ writes "version", so a version-1 file is exactly one without it.
+        boolean current = obj != null && obj.has("version");
         if (current) {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.replyDelayMs = clampDelay(ConfigJson.getInt(obj, "replyDelayMs", DEFAULT_REPLY_DELAY_MS));
