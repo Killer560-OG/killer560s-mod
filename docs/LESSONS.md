@@ -229,6 +229,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `packet.xa / 4096` with a Short and an Int, which is INTEGER division, so a blood mob's sub-block step adds nothing and the
   trip starts at the skull's spot in the wall. Ours divided by 4096.0, started one packet out of the wall, and landed the
   predicted spot one step (0.215 blocks in test 392) too far along. Keep the integer division; it is the model, not a typo.
+- **A gap in an entity's move packets is not the end of its movement.** Blood Camp restarted a blood mob's trip after any
+  10-tick gap, which is also exactly what a server or network stall looks like, so a lag spike threw the path away and
+  re-fitted it from mid-air (killer560: "can break and not show the path if the server lags for a tick"). A gap now starts
+  a new trip only when the stand had reached its predicted spot, the gap passes 5 s, or it reverses (testkit 552: a
+  15-tick stall, path drawn on every tick, trip kept).
 - A chat line dropped through Fabric's `ALLOW_GAME`/`ALLOW_CHAT` never reaches `ChatObserver` either: a cancel there skips both
   the GAME event and `ChatComponent.addMessage`, its two sources. To hide a line only from the WINDOW, cancel inside `addMessage`
   after the clicktranslate HEAD hook has dispatched it - Chat Tidy injects at that method's `Predicate.test` call (2026-10-07;
