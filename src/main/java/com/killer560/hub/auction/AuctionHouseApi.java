@@ -92,7 +92,9 @@ public final class AuctionHouseApi {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-auctionhouse");
 
-    private static final String AUCTIONS_URL = ModNet.url("hypixel", "https://api.hypixel.net/skyblock/auctions");
+    /** The documented v2 path (keyless). Checked 2026-10-07 with curl: success, page, totalPages 45, totalAuctions 44,227,
+     *  lastUpdated and 1,000 auctions a page, each with highest_bid_amount, bids[], categories[] and item_bytes. */
+    private static final String AUCTIONS_URL = ModNet.url("hypixel", "https://api.hypixel.net/v2/skyblock/auctions");
     private static final Path CACHE_PATH = ModPaths.config("killer560smod-auction-cache.json");
     private static final long AUTO_RESCAN_MINUTES = 5;
     /** Pause between each page fetch during a scan - "page through it slowly and never block". */
@@ -126,6 +128,11 @@ public final class AuctionHouseApi {
     private static final AtomicBoolean scanning = new AtomicBoolean(false);
     private static volatile boolean triedDiskCache = false;
     private static volatile boolean autoScanStarted = false;
+    /** Page 0's {@code lastUpdated} of the last complete scan: an unchanged one means Hypixel has not refreshed its
+     *  snapshot yet, so the other pages are not fetched again. */
+    private static volatile long lastSnapshotUpdated = 0;
+    /** Every listing of the last scan by uuid: an auction's item never changes, so a rescan decodes only new ones. */
+    private static volatile java.util.Map<UUID, AuctionListing> byUuid = java.util.Map.of();
 
     private AuctionHouseApi() {
     }
@@ -217,23 +224,41 @@ public final class AuctionHouseApi {
         }
         int totalPages = Math.min(MAX_PAGES, first.has("totalPages") ? first.get("totalPages").getAsInt() : 1);
         lastScanTotalPages = Math.max(1, totalPages);
+        long updated = first.has("lastUpdated") ? first.get("lastUpdated").getAsLong() : 0;
+        if (updated != 0 && updated == lastSnapshotUpdated && !listings.isEmpty()) {
+            lastScanPagesDone = totalPages;
+            return; // Hypixel's snapshot has not changed since the last full scan: nothing to fetch.
+        }
+        java.util.Map<UUID, AuctionListing> previous = byUuid;
         List<AuctionListing> collected = new ArrayList<>(4096);
-        collectPage(first, collected);
+        collectPage(first, collected, previous);
         lastScanPagesDone = 1;
         for (int page = 1; page < totalPages; page++) {
             Thread.sleep(PAGE_DELAY_MS);
             JsonObject json = getJson(pageUrl(page));
             if (json != null && json.has("auctions")) {
-                collectPage(json, collected);
+                collectPage(json, collected, previous);
             }
             lastScanPagesDone = page + 1;
         }
-        listings = List.copyOf(collected);
+        publish(collected);
+        lastSnapshotUpdated = updated;
         saveToDisk(listings);
         LOGGER.info("[AuctionHouse] Scan finished: {} listings (BIN + auction) across {} pages.", collected.size(), totalPages);
     }
 
-    private static void collectPage(JsonObject page, List<AuctionListing> out) {
+    /** Installs a finished scan and hands it to the market index (lowest BIN per item, hourly history). */
+    private static void publish(List<AuctionListing> collected) {
+        java.util.Map<UUID, AuctionListing> index = new java.util.HashMap<>(collected.size() * 2);
+        for (AuctionListing l : collected) {
+            index.put(l.uuid(), l);
+        }
+        listings = List.copyOf(collected);
+        byUuid = index;
+        com.killer560.hub.auction.ah.AhMarket.onScan(listings);
+    }
+
+    private static void collectPage(JsonObject page, List<AuctionListing> out, java.util.Map<UUID, AuctionListing> previous) {
         JsonArray auctions = page.getAsJsonArray("auctions");
         if (auctions == null) {
             return;
@@ -241,7 +266,7 @@ public final class AuctionHouseApi {
         long now = System.currentTimeMillis();
         for (JsonElement el : auctions) {
             try {
-                AuctionListing listing = decode(el.getAsJsonObject(), now);
+                AuctionListing listing = decode(el.getAsJsonObject(), now, previous);
                 if (listing != null) {
                     out.add(listing);
                 }
@@ -251,7 +276,7 @@ public final class AuctionHouseApi {
         }
     }
 
-    private static AuctionListing decode(JsonObject a, long now) {
+    private static AuctionListing decode(JsonObject a, long now, java.util.Map<UUID, AuctionListing> previous) {
         // killer560, 2026-09-27: "toggle between auctions and bins" - non-BIN (pure-bid) auctions used to
         // be dropped here entirely; both kinds are kept now, with AuctionHouseScreen's mode toggle filtering
         // which half it shows (see AuctionListing's class doc).
@@ -276,7 +301,9 @@ public final class AuctionHouseApi {
         String category = a.has("category") ? a.get("category").getAsString() : null;
         long startingBid = a.has("starting_bid") ? a.get("starting_bid").getAsLong() : 0L;
         long highestBid = 0L;
+        int bidCount = 0;
         if (!bin && a.has("bids") && a.get("bids").isJsonArray()) {
+            bidCount = a.getAsJsonArray("bids").size();
             for (JsonElement bidEl : a.getAsJsonArray("bids")) {
                 if (bidEl.isJsonObject() && bidEl.getAsJsonObject().has("amount")) {
                     long amt = bidEl.getAsJsonObject().get("amount").getAsLong();
@@ -285,6 +312,13 @@ public final class AuctionHouseApi {
                     }
                 }
             }
+            if (a.has("highest_bid_amount") && a.get("highest_bid_amount").isJsonPrimitive()) {
+                highestBid = Math.max(highestBid, a.get("highest_bid_amount").getAsLong());
+            }
+        }
+        AuctionListing known = previous == null ? null : previous.get(uuid);
+        if (known != null && !known.lore().isEmpty()) {
+            return known.withBids(highestBid, bidCount, end); // the item was decoded on an earlier scan
         }
 
         ItemStack icon = ItemStack.EMPTY;
@@ -310,6 +344,20 @@ public final class AuctionHouseApi {
             // disk-cache path already uses rather than showing a broken model.
             icon = iconForCachedId(skyblockId);
         }
+        if (icon.is(Items.PAPER) && !skyblockId.isEmpty()) {
+            // A paper base is Hypixel's resource-pack model with no pack loaded: give it the item's pre-pack look from
+            // the shared table, else the catalog's icon carrying the listing's own name and lore.
+            if (!com.killer560.hub.packdisabler.ItemLooks.applyLook(icon, skyblockId)) {
+                ItemStack catalog = iconForCachedId(skyblockId);
+                if (!catalog.is(Items.PAPER)) {
+                    catalog = catalog.copy();
+                    copyComponent(icon, catalog, net.minecraft.core.component.DataComponents.CUSTOM_NAME);
+                    copyComponent(icon, catalog, net.minecraft.core.component.DataComponents.LORE);
+                    copyComponent(icon, catalog, net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+                    icon = catalog;
+                }
+            }
+        }
         if (icon.isEmpty()) {
             // Decode failure never drops the listing - it just shows without a real icon/lore/enchant
             // info until (if ever) a later scan of the same auction succeeds.
@@ -317,7 +365,14 @@ public final class AuctionHouseApi {
         }
         int petLevel = parsePetLevel(itemName);
         return new AuctionListing(uuid, auctioneer, itemName, skyblockId, tier, category, startingBid, bin,
-                highestBid, end, petLevel, ultimateName, ultimateTier, lore, icon);
+                highestBid, bidCount, end, petLevel, ultimateName, ultimateTier, lore, icon);
+    }
+
+    private static <T> void copyComponent(ItemStack from, ItemStack to, net.minecraft.core.component.DataComponentType<T> type) {
+        T value = from.get(type);
+        if (value != null) {
+            to.set(type, value);
+        }
     }
 
     /** {@code "[Lvl 100] Golden Dragon"} -&gt; 100. -1 when the name has no pet-level prefix. */
@@ -427,6 +482,7 @@ public final class AuctionHouseApi {
                         o.has("startingBid") ? o.get("startingBid").getAsLong() : 0L,
                         o.has("bin") ? o.get("bin").getAsBoolean() : true,
                         o.has("highestBid") ? o.get("highestBid").getAsLong() : 0L,
+                        o.has("bidCount") ? o.get("bidCount").getAsInt() : 0,
                         o.has("end") ? o.get("end").getAsLong() : 0L,
                         o.has("petLevel") ? o.get("petLevel").getAsInt() : -1,
                         o.has("ultimateEnchantName") ? o.get("ultimateEnchantName").getAsString() : null,
@@ -435,6 +491,7 @@ public final class AuctionHouseApi {
             }
             if (!cached.isEmpty() && listings.isEmpty()) {
                 listings = List.copyOf(cached);
+                com.killer560.hub.auction.ah.AhMarket.onScan(listings);
             }
         } catch (Exception e) {
             LOGGER.warn("[AuctionHouse] Failed to read disk cache.", e);
@@ -472,6 +529,7 @@ public final class AuctionHouseApi {
                 o.addProperty("startingBid", l.startingBid());
                 o.addProperty("bin", l.bin());
                 o.addProperty("highestBid", l.highestBid());
+                o.addProperty("bidCount", l.bidCount());
                 o.addProperty("end", l.end());
                 o.addProperty("petLevel", l.petLevel());
                 if (l.ultimateEnchantName() != null) {
@@ -488,5 +546,21 @@ public final class AuctionHouseApi {
         } catch (Exception e) {
             LOGGER.warn("[AuctionHouse] Failed to write disk cache.", e);
         }
+    }
+
+    // ---------------------------------------------------------------- testkit
+
+    /**
+     * Installs listings parsed from API page bodies exactly as a scan does (same decode, same market index), without
+     * the network: the testkit feeds trimmed real {@code /v2/skyblock/auctions} pages through here. Returns the count.
+     */
+    public static int applyPagesForTest(List<String> bodies) {
+        List<AuctionListing> collected = new ArrayList<>();
+        for (String body : bodies) {
+            collectPage(JsonParser.parseString(body).getAsJsonObject(), collected, java.util.Map.of());
+        }
+        publish(collected);
+        lastScanFinishedMs = System.currentTimeMillis();
+        return collected.size();
     }
 }

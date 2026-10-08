@@ -2,98 +2,77 @@ package com.killer560.hub.auction.screen;
 
 import com.killer560.hub.auction.AuctionConfig;
 import com.killer560.hub.auction.AuctionHouseApi;
-import com.killer560.hub.auction.AuctionHouseFeature;
+import com.killer560.hub.auction.AuctionHouseConfig;
 import com.killer560.hub.auction.AuctionListing;
-import com.killer560.hub.croesus.DungeonChestValuer;
-import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.auction.ah.AhMarket;
+import com.killer560.hub.auction.ah.AhNav;
+import com.killer560.hub.auction.ah.AhReskin;
+import com.killer560.hub.auction.ah.AhUi;
+import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.itembrowser.SkyblockItemEntry;
+import com.killer560.hub.itembrowser.SkyblockItemRepository;
 import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
 import com.killer560.hub.util.ServerCommands;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 import java.util.Optional;
-import java.util.TreeSet;
-import com.killer560.hub.compat.McCompat;
-import com.killer560.hub.util.ChatColors;
+import java.util.Set;
 
 /**
- * killer560's item 8.1: the custom Auction House browser. Black+amber chrome (same palette as
- * {@code ProfileViewerScreen}/{@code ModScreen}). Clicking a listing never buys anything itself - it runs
- * Hypixel's own real {@code /viewauction <uuid>} so Hypixel's own menu handles the transaction.
+ * The unified Auction House's browser: every live auction from Hypixel's public API ({@link AuctionHouseApi}, scanned off
+ * the render thread), drawn by the mod in the same frame as Hypixel's real AH menus are reskinned in ({@link AhReskin},
+ * shared look {@link AhUi}). Redone 2026-10-07 (killer560: "redo the auction house in a similar manner ... to make it
+ * look really nice").
  * <p>
- * <b>2026-09-27 redesign</b>, killer560: "redo the menu a bit so its not just one long list of items... I
- * would like a better menu in general as well I dont like the way the ah one works." Two changes from the
- * old single continuous scroll list:
- * <ul>
- *   <li><b>Two-pane layout</b> - a left category rail (derived live from whatever real {@code category}
- *       values are actually in the current scan, so it's never out of sync with Hypixel's own taxonomy)
- *       narrows the list before you even touch Search/Rarity/Pet Level.</li>
- *   <li><b>Paginated list</b> instead of a free-scrolling one - a fixed page of rows with Prev/Next and a
- *       "Page X / Y" readout, so scanning the AH feels like flipping through screens of results rather than
- *       an endless scrollbar. The mouse wheel now pages instead of scrolling by row.</li>
- * </ul>
- * Rendering is still virtualized (per the original brief: "no per-frame allocation in the list render...
- * draw only visible rows") - only the current page's rows are ever touched per frame. The filtered/sorted
- * list itself is rebuilt only when the query, filters, mode, sort or the underlying scan data actually
- * changed (see {@link #refilterIfNeeded}), not every frame, mirroring {@code ItemBrowserFeature}'s own
- * caching.
+ * Category tabs on top (Hypixel's own: Weapons, Armor, Accessories, Consumables, Blocks, Tools &amp; Misc), a search
+ * field and the filters (sort, rarity, BIN only, price range) beside it, recent searches and recently viewed items on
+ * the left, and a grid of listing cards (real icons, rarity, price, BIN or bids, time left, the lowest-BIN marker) that
+ * scrolls - only the visible cards are touched each frame. Clicking a card sends exactly Hypixel's own
+ * {@code /viewauction <uuid>} (his click, one command), and Hypixel's Auction View then opens in the same frame through
+ * the reskin, where Bid / Buy Item Right Now / Confirm are Hypixel's real buttons. This screen never buys or bids.
+ * <p>
+ * Every text, region and hotspot of a frame is recorded ({@link #layoutReport}) for the testkit's overlap checks.
  */
 public final class AuctionHouseScreen extends Screen {
 
-    private static final int ACCENT = 0xFFCC6600;
-    private static final int BORDER = 0xFF553311;
-    private static final int PANEL_BG = 0xFF0D0D0D;
-    private static final int RAIL_BG = 0xFF120C06;
-    private static final int ROW_HOVER = 0xFF2A1A0A;
-    private static final int ROW_BORDER = 0xFF262626;
-    private static final int DIM = 0xFF9A8C80;
-    private static final int VALUE = 0xFFFFA040;
-
-    private static final int ROW_HEIGHT = 20;
-    private static final int RAIL_ROW_HEIGHT = 16;
-    private static final int RAIL_W = 100;
-    private static final String[] RARITIES = {"", "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC", "DIVINE", "SPECIAL"};
-    private static final int[] PET_LEVEL_STEPS = {0, 1, 25, 50, 75, 100};
+    /** Price presets of the Price filter: {min, max} in coins, 0 = open. */
+    public static final long[][] PRICE_PRESETS = {{0, 0}, {0, 100_000}, {100_000, 1_000_000}, {1_000_000, 10_000_000},
+            {10_000_000, 100_000_000}, {100_000_000, 0}};
+    private static final String[] RARITIES = {"", "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC", "DIVINE",
+            "SPECIAL", "VERY_SPECIAL"};
+    private static final Set<String> MAIN_CATEGORIES = Set.of("weapon", "armor", "accessories", "consumables", "blocks");
+    private static final int CARD_H = 36;
+    private static final int MIN_CARD_W = 150;
 
     private final Screen parent;
-    private EditBox searchBox;
-    private String lastQuery = "";
-    private int page = 0;
+    private String query = "";
+    private boolean searchFocused;
+    private int scroll;
+    private long typedAtMs;
+    private boolean typedSinceCommit;
 
-    private String cachedQuery = null;
-    private List<AuctionListing> cachedSourceRef = null;
-    private AuctionConfig.SortMode cachedSort = null;
-    private String cachedRarity = null;
-    private int cachedMinPetLevel = -1;
-    private AuctionConfig.ListingMode cachedMode = null;
-    private String cachedCategory = null;
+    private List<AuctionListing> cachedSource;
+    private String cachedKey;
     private List<AuctionListing> filtered = List.of();
 
-    private int panelX, panelY, panelW, panelH;
-    private int railX, railY, railW, railH;
-    private int listX, listY, listW, listH;
-    private int footerY;
-
-    /** Every category rail button, keyed by the real category value it filters to ("" = All), so a click
-     *  on one can refresh every other button's selected/unselected look without a full screen rebuild. */
-    private final Map<String, SettingsButtonWidget> railButtons = new LinkedHashMap<>();
-
-    private record Hotspot(int x, int y, int w, int h, Runnable action) {
-        boolean contains(double mx, double my) {
-            return mx >= x && mx < x + w && my >= y && my < y + h;
-        }
-    }
-
-    private final List<Hotspot> hotspots = new ArrayList<>();
-    private List<Component> pendingTooltip;
+    private final List<AhUi.Hotspot> hotspots = new ArrayList<>();
+    private final List<String> layout = new ArrayList<>();
+    private AuctionListing opening;
+    private long openingAtMs;
 
     public AuctionHouseScreen(Screen parent) {
         super(Component.literal("Auction House"));
@@ -101,272 +80,17 @@ public final class AuctionHouseScreen extends Screen {
         AuctionHouseApi.ensureAutoScanStarted();
     }
 
-    @Override
-    protected void init() {
-        panelW = Math.min(this.width - 16, 600);
-        panelH = this.height - 16;
-        panelX = (this.width - panelW) / 2;
-        panelY = 8;
-
-        int y = panelY + 26;
-        int gap = 6;
-
-        int refreshW = 70;
-        searchBox = new EditBox(this.font, panelX + 8, y, panelW - 16 - refreshW - gap, 16, Component.literal("Search"));
-        searchBox.setMaxLength(64);
-        searchBox.setHint(Component.literal("Search items (e.g. \"hyp\")..."));
-        searchBox.setValue(lastQuery);
-        searchBox.setResponder(text -> {
-            lastQuery = text;
-            page = 0;
-        });
-        addRenderableWidget(searchBox);
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal(AuctionHouseApi.isScanning() ? "Scanning..." : "Refresh"),
-                        btn -> AuctionHouseApi.refreshAsync())
-                .bounds(panelX + panelW - 8 - refreshW, y, refreshW, 16).build());
-        y += 22;
-
-        AuctionConfig cfg = AuctionConfig.getInstance();
-        int colW = (panelW - 16 - gap * 3) / 4;
-        int col0 = panelX + 8;
-        int col1 = col0 + colW + gap;
-        int col2 = col1 + colW + gap;
-        int col3 = col2 + colW + gap;
-
-        // killer560, 2026-09-27: "toggle between auctions and bins."
-        addRenderableWidget(SettingsButtonWidget.builder(modeLabel(cfg), btn -> {
-                    cfg.setLastListingMode(cfg.getLastListingMode().next());
-                    cfg.save();
-                    btn.setMessage(modeLabel(cfg));
-                    page = 0;
-                }).secondaryPress(btn -> {
-                    cfg.setLastListingMode(cfg.getLastListingMode().previous());
-                    cfg.save();
-                    btn.setMessage(modeLabel(cfg));
-                    page = 0;
-                }).bounds(col0, y, colW, 16).build());
-        addRenderableWidget(SettingsButtonWidget.builder(sortLabel(cfg), btn -> {
-                    cfg.setLastSort(cfg.getLastSort().next());
-                    cfg.save();
-                    btn.setMessage(sortLabel(cfg));
-                }).secondaryPress(btn -> {
-                    cfg.setLastSort(cfg.getLastSort().previous());
-                    cfg.save();
-                    btn.setMessage(sortLabel(cfg));
-                }).bounds(col1, y, colW, 16).build());
-        addRenderableWidget(SettingsButtonWidget.builder(rarityLabel(cfg), btn -> {
-                    cfg.setLastRarityFilter(nextRarity(cfg.getLastRarityFilter()));
-                    cfg.save();
-                    btn.setMessage(rarityLabel(cfg));
-                    page = 0;
-                }).secondaryPress(btn -> {
-                    cfg.setLastRarityFilter(previousRarity(cfg.getLastRarityFilter()));
-                    cfg.save();
-                    btn.setMessage(rarityLabel(cfg));
-                    page = 0;
-                }).bounds(col2, y, colW, 16).build());
-        addRenderableWidget(SettingsButtonWidget.builder(petLevelLabel(cfg), btn -> {
-                    cfg.setLastMinPetLevel(nextPetLevelStep(cfg.getLastMinPetLevel()));
-                    cfg.save();
-                    btn.setMessage(petLevelLabel(cfg));
-                    page = 0;
-                }).secondaryPress(btn -> {
-                    cfg.setLastMinPetLevel(previousPetLevelStep(cfg.getLastMinPetLevel()));
-                    cfg.save();
-                    btn.setMessage(petLevelLabel(cfg));
-                    page = 0;
-                }).bounds(col3, y, colW, 16).build());
-        y += 22;
-
-        int bodyY = y + 4;
-        railX = panelX + 8;
-        railY = bodyY;
-        railW = RAIL_W;
-        int footerH = 18;
-        int bodyBottom = panelY + panelH - 8;
-        footerY = bodyBottom - footerH;
-        railH = Math.max(RAIL_ROW_HEIGHT, footerY - railY - 4);
-
-        listX = railX + railW + gap;
-        listY = bodyY;
-        listW = panelW - 16 - railW - gap;
-        listH = Math.max(ROW_HEIGHT, footerY - 4 - listY);
-
-        buildCategoryRail(cfg);
-
-        int pageBtnW = 60;
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("◀ Prev"), btn -> {
-                    if (page > 0) {
-                        page--;
-                    }
-                }).bounds(listX, footerY, pageBtnW, footerH).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Next ▶"), btn -> {
-                    int maxPage = Math.max(0, (filtered.size() - 1) / Math.max(1, visibleRowCount()));
-                    if (page < maxPage) {
-                        page++;
-                    }
-                }).bounds(listX + listW - pageBtnW, footerY, pageBtnW, footerH).build());
-    }
-
-    /** Categories are derived live from whatever's actually in the current scan rather than a hardcoded
-     *  guess at Hypixel's taxonomy - see the class doc. Rebuilt fresh every time the screen opens; it does
-     *  not update again mid-session (matching how the rest of this screen's filters already only refresh on
-     *  their own explicit interaction), which is fine since the AH's own category set barely ever changes. */
-    private void buildCategoryRail(AuctionConfig cfg) {
-        railButtons.clear();
-        TreeSet<String> categories = new TreeSet<>();
-        for (AuctionListing l : AuctionHouseApi.getListings()) {
-            if (l.category() != null && !l.category().isBlank()) {
-                categories.add(l.category());
-            }
+    /** Opens on a category (null keeps the last one), a search (null keeps none) and, if asked, the search focused. */
+    public void preset(String category, String search, boolean focusSearch) {
+        if (category != null) {
+            AuctionConfig cfg = AuctionConfig.getInstance();
+            cfg.setLastCategoryFilter(category);
+            cfg.save();
         }
-        List<String> ordered = new ArrayList<>();
-        ordered.add(""); // "All", always first
-        ordered.addAll(categories);
-
-        int maxRows = Math.max(1, railH / (RAIL_ROW_HEIGHT + 2));
-        for (int i = 0; i < ordered.size() && i < maxRows; i++) {
-            String value = ordered.get(i);
-            String label = value.isEmpty() ? "All" : SkyblockItemStackFactory.niceCategory(value);
-            SettingsButtonWidget btn = SettingsButtonWidget.builder(railLabel(label, value.equals(cfg.getLastCategoryFilter())),
-                            b -> selectCategory(value))
-                    .bounds(railX, railY + i * (RAIL_ROW_HEIGHT + 2), railW, RAIL_ROW_HEIGHT).build();
-            railButtons.put(value, btn);
-            addRenderableWidget(btn);
+        if (search != null) {
+            query = search;
         }
-    }
-
-    private void selectCategory(String value) {
-        AuctionConfig cfg = AuctionConfig.getInstance();
-        cfg.setLastCategoryFilter(value);
-        cfg.save();
-        page = 0;
-        for (Map.Entry<String, SettingsButtonWidget> entry : railButtons.entrySet()) {
-            String label = entry.getKey().isEmpty() ? "All" : SkyblockItemStackFactory.niceCategory(entry.getKey());
-            entry.getValue().setMessage(railLabel(label, entry.getKey().equals(value)));
-        }
-    }
-
-    private static Component railLabel(String label, boolean selected) {
-        return Component.literal((selected ? "§b▶ " : "§7") + label);
-    }
-
-    private static String nextRarity(String current) {
-        for (int i = 0; i < RARITIES.length; i++) {
-            if (RARITIES[i].equalsIgnoreCase(current)) {
-                return RARITIES[(i + 1) % RARITIES.length];
-            }
-        }
-        return RARITIES[0];
-    }
-
-    /** Mirror of {@link #nextRarity} for right-click (killer560, 2026-09-27: "if i right click then it
-     *  goes back one"). */
-    private static String previousRarity(String current) {
-        for (int i = 0; i < RARITIES.length; i++) {
-            if (RARITIES[i].equalsIgnoreCase(current)) {
-                return RARITIES[(i - 1 + RARITIES.length) % RARITIES.length];
-            }
-        }
-        return RARITIES[0];
-    }
-
-    private static int nextPetLevelStep(int current) {
-        for (int i = 0; i < PET_LEVEL_STEPS.length; i++) {
-            if (PET_LEVEL_STEPS[i] == current) {
-                return PET_LEVEL_STEPS[(i + 1) % PET_LEVEL_STEPS.length];
-            }
-        }
-        return PET_LEVEL_STEPS[0];
-    }
-
-    /** Mirror of {@link #nextPetLevelStep} for right-click. */
-    private static int previousPetLevelStep(int current) {
-        for (int i = 0; i < PET_LEVEL_STEPS.length; i++) {
-            if (PET_LEVEL_STEPS[i] == current) {
-                return PET_LEVEL_STEPS[(i - 1 + PET_LEVEL_STEPS.length) % PET_LEVEL_STEPS.length];
-            }
-        }
-        return PET_LEVEL_STEPS[0];
-    }
-
-    private static Component modeLabel(AuctionConfig cfg) {
-        return Component.literal("Mode: §b" + cfg.getLastListingMode().label);
-    }
-
-    private static Component sortLabel(AuctionConfig cfg) {
-        return Component.literal("Sort: §b" + cfg.getLastSort().label);
-    }
-
-    private static Component rarityLabel(AuctionConfig cfg) {
-        String r = cfg.getLastRarityFilter();
-        return Component.literal("Rarity: §b" + (r.isEmpty() ? "Any" : r));
-    }
-
-    private static Component petLevelLabel(AuctionConfig cfg) {
-        int lvl = cfg.getLastMinPetLevel();
-        return Component.literal("Min Pet Lvl: §b" + (lvl <= 0 ? "Any" : lvl));
-    }
-
-    private int visibleRowCount() {
-        return Math.max(1, listH / ROW_HEIGHT);
-    }
-
-    private int totalPages() {
-        return Math.max(1, (int) Math.ceil(filtered.size() / (double) visibleRowCount()));
-    }
-
-    /** Only re-filters/sorts the whole list when something that would change the result actually changed
-     *  since last frame - see the class doc. */
-    private void refilterIfNeeded() {
-        AuctionConfig cfg = AuctionConfig.getInstance();
-        List<AuctionListing> source = AuctionHouseApi.getListings();
-        AuctionConfig.SortMode sort = cfg.getLastSort();
-        String rarity = cfg.getLastRarityFilter();
-        int minPetLevel = cfg.getLastMinPetLevel();
-        AuctionConfig.ListingMode mode = cfg.getLastListingMode();
-        String category = cfg.getLastCategoryFilter();
-        if (source == cachedSourceRef && lastQuery.equals(cachedQuery) && sort == cachedSort
-                && rarity.equals(cachedRarity) && minPetLevel == cachedMinPetLevel
-                && mode == cachedMode && category.equals(cachedCategory)) {
-            return;
-        }
-        cachedSourceRef = source;
-        cachedQuery = lastQuery;
-        cachedSort = sort;
-        cachedRarity = rarity;
-        cachedMinPetLevel = minPetLevel;
-        cachedMode = mode;
-        cachedCategory = category;
-        filtered = AuctionHouseFeature.filterAndSort(source, lastQuery, rarity, minPetLevel, sort, mode, category);
-        page = Math.min(page, totalPages() - 1);
-    }
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        int maxPage = totalPages() - 1;
-        page = Math.max(0, Math.min(maxPage, page - (int) Math.signum(scrollY)));
-        return true;
-    }
-
-    @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() == 0) {
-            for (Hotspot h : hotspots) {
-                if (h.contains(event.x(), event.y())) {
-                    this.minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
-                            net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0f));
-                    h.action().run();
-                    return true;
-                }
-            }
-        }
-        return super.mouseClicked(event, doubleClick);
-    }
-
-    @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
+        searchFocused = focusSearch;
     }
 
     @Override
@@ -375,185 +99,530 @@ public final class AuctionHouseScreen extends Screen {
     }
 
     @Override
+    public void onClose() {
+        commitSearch();
+        McCompat.setScreen(this.minecraft, parent);
+    }
+
+    // ---- filtering ------------------------------------------------------------------------------------------------
+
+    /** The browser's whole filter: category tab, search, rarity, BIN/auction, price range, then the sort. */
+    public static List<AuctionListing> filter(List<AuctionListing> all, String category, String query, String rarity,
+            AuctionHouseConfig.TypeFilter type, long minPrice, long maxPrice, AuctionConfig.SortMode sort) {
+        String q = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        String r = rarity == null ? "" : rarity.toUpperCase(Locale.ROOT);
+        String cat = category == null ? "" : category;
+        List<AuctionListing> out = new ArrayList<>();
+        for (AuctionListing l : all) {
+            String lc = l.category() == null ? "" : l.category().toLowerCase(Locale.ROOT);
+            if (cat.equals("*misc") ? MAIN_CATEGORIES.contains(lc) : !cat.isEmpty() && !cat.equalsIgnoreCase(lc)) {
+                continue;
+            }
+            if (type == AuctionHouseConfig.TypeFilter.BIN && !l.bin() || type == AuctionHouseConfig.TypeFilter.AUCTION && l.bin()) {
+                continue;
+            }
+            if (!r.isEmpty() && !r.equals(l.tier() == null ? "" : l.tier().toUpperCase(Locale.ROOT))) {
+                continue;
+            }
+            long price = l.currentPrice();
+            if (minPrice > 0 && price < minPrice || maxPrice > 0 && price > maxPrice) {
+                continue;
+            }
+            if (!q.isEmpty() && !matches(l, q)) {
+                continue;
+            }
+            out.add(l);
+        }
+        out.sort(comparator(sort));
+        return out;
+    }
+
+    private static boolean matches(AuctionListing l, String q) {
+        if (l.itemName().toLowerCase(Locale.ROOT).contains(q)) {
+            return true;
+        }
+        if (!l.skyblockId().isEmpty()) {
+            if (l.skyblockId().toLowerCase(Locale.ROOT).replace('_', ' ').contains(q)) {
+                return true;
+            }
+            SkyblockItemEntry entry = SkyblockItemRepository.findById(l.skyblockId());
+            String name = entry == null || entry.name() == null ? null : ChatFormatting.stripFormatting(entry.name());
+            return name != null && name.toLowerCase(Locale.ROOT).contains(q);
+        }
+        return false;
+    }
+
+    private static Comparator<AuctionListing> comparator(AuctionConfig.SortMode mode) {
+        return switch (mode) {
+            case PRICE_LOW -> Comparator.comparingLong(AuctionListing::currentPrice);
+            case PRICE_HIGH -> Comparator.comparingLong(AuctionListing::currentPrice).reversed();
+            case ENDING_SOONEST -> Comparator.comparingLong(AuctionListing::end);
+            case ULTIMATE_ENCHANT -> Comparator
+                    .comparingInt((AuctionListing l) -> l.hasUltimateEnchant() ? 0 : 1)
+                    .thenComparing(Comparator.comparingInt(AuctionListing::ultimateEnchantTier).reversed())
+                    .thenComparing(Comparator.comparingLong(AuctionListing::currentPrice));
+        };
+    }
+
+    private void refilterIfNeeded() {
+        AuctionConfig cfg = AuctionConfig.getInstance();
+        AuctionHouseConfig ah = AuctionHouseConfig.getInstance();
+        List<AuctionListing> source = AuctionHouseApi.getListings();
+        String key = cfg.getLastCategoryFilter() + "|" + query + "|" + cfg.getLastRarityFilter() + "|" + ah.getTypeFilter()
+                + "|" + ah.getMinPrice() + "|" + ah.getMaxPrice() + "|" + cfg.getLastSort();
+        if (source == cachedSource && key.equals(cachedKey)) {
+            return;
+        }
+        boolean sameView = key.equals(cachedKey);
+        cachedSource = source;
+        cachedKey = key;
+        filtered = filter(source, cfg.getLastCategoryFilter(), query, cfg.getLastRarityFilter(), ah.getTypeFilter(),
+                ah.getMinPrice(), ah.getMaxPrice(), cfg.getLastSort());
+        if (!sameView) {
+            scroll = 0;
+        }
+    }
+
+    // ---- drawing --------------------------------------------------------------------------------------------------
+
+    @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        hotspots.clear();
-        pendingTooltip = null;
         refilterIfNeeded();
+        AhMarket.markInUse();
+        if (typedSinceCommit && System.currentTimeMillis() - typedAtMs > 2500) {
+            commitSearch();
+        }
+        hotspots.clear();
+        layout.clear();
+        AhUi ui = new AhUi(g, this.width, this.height, mouseX, mouseY, layout, hotspots);
+        ui.frame();
+        AuctionConfig cfg = AuctionConfig.getInstance();
+        AuctionHouseConfig ah = AuctionHouseConfig.getInstance();
 
-        g.fill(0, 0, this.width, this.height, 0xCC000000);
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, PANEL_BG);
-        g.outline(panelX, panelY, panelW, panelH, BORDER);
-        g.text(this.font, "Auction House", panelX + 8, panelY + 8, ACCENT, false);
+        List<AhUi.Tab> tabs = new ArrayList<>();
+        for (String[] t : AhUi.API_TABS) {
+            String cat = t[1];
+            tabs.add(new AhUi.Tab(t[0], tabIcon(cat), cat.equals(cfg.getLastCategoryFilter()), -1, ItemStack.EMPTY,
+                    b -> selectCategory(cat)));
+        }
+        boolean busy = opening != null && System.currentTimeMillis() - openingAtMs < AhNav.PENDING_MS
+                || AuctionHouseApi.isScanning();
+        ui.header(tabs, "Hypixel AH", b -> openHypixelAh(), "hypixel-ah", busy);
 
-        String status = statusLine();
-        g.text(this.font, status, panelX + panelW - 8 - this.font.width(status), panelY + 8, DIM, false);
+        List<AhUi.Button> buttons = new ArrayList<>();
+        buttons.add(new AhUi.Button("Sort: " + sortShort(cfg.getLastSort()), sortShort(cfg.getLastSort()), null, false, -1,
+                ItemStack.EMPTY, b -> cycleSort(b == 1), "sort"));
+        String rarity = cfg.getLastRarityFilter();
+        buttons.add(new AhUi.Button("Rarity: " + (rarity.isEmpty() ? "Any" : nice(rarity)),
+                rarity.isEmpty() ? "Rarity" : nice(rarity), null, !rarity.isEmpty(), -1, ItemStack.EMPTY,
+                b -> cycleRarity(b == 1), "rarity"));
+        buttons.add(new AhUi.Button(ah.getTypeFilter().label, ah.getTypeFilter() == AuctionHouseConfig.TypeFilter.ALL ? "All"
+                : ah.getTypeFilter() == AuctionHouseConfig.TypeFilter.BIN ? "BIN" : "Auct.", null,
+                ah.getTypeFilter() != AuctionHouseConfig.TypeFilter.ALL, -1, ItemStack.EMPTY, b -> cycleType(b == 1), "type"));
+        String price = priceLabel(ah.getMinPrice(), ah.getMaxPrice());
+        buttons.add(new AhUi.Button("Price: " + price, price.equals("Any") ? "Price" : price, null, !price.equals("Any"), -1,
+                ItemStack.EMPTY, b -> cyclePrice(b == 1), "price"));
+        ui.toolbar(query, "Search the Auction House", searchFocused, b -> searchFocused = true, "search", -1,
+                ItemStack.EMPTY, buttons, null);
 
-        super.extractRenderState(g, mouseX, mouseY, partialTick);
+        ui.recentsRail(q -> {
+            query = q;
+            searchFocused = false;
+            AuctionConfig c = AuctionConfig.getInstance();
+            c.setLastCategoryFilter("");
+            c.save();
+        }, v -> {
+            query = viewedQuery(v);
+            searchFocused = false;
+        }, () -> {
+            AuctionHouseConfig c = AuctionHouseConfig.getInstance();
+            c.clearRecents();
+            c.save();
+        });
 
-        g.fill(railX, railY, railX + railW, railY + railH, RAIL_BG);
-        g.outline(railX, railY, railW, railH, BORDER);
+        drawGrid(ui);
 
-        g.fill(listX, listY, listX + listW, listY + listH, 0xFF090909);
-        g.outline(listX, listY, listW, listH, BORDER);
+        List<AhUi.Button> bar = new ArrayList<>();
+        bar.add(new AhUi.Button("Create · Manage · Bids", "Hypixel AH", new ItemStack(Items.GOLD_BLOCK), false, -1,
+                ItemStack.EMPTY, b -> openHypixelAh(), "manage"));
+        List<AhUi.Button> right = new ArrayList<>();
+        right.add(new AhUi.Button(AuctionHouseApi.isScanning() ? "Scanning..." : "Refresh", "Refresh", null, false, -1,
+                ItemStack.EMPTY, b -> AuctionHouseApi.refreshAsync(), "refresh"));
+        ui.bottomBar(bar, statusLine(), right);
 
+        if (!ui.hoverStack.isEmpty()) {
+            List<Component> lines = new ArrayList<>(Screen.getTooltipFromItem(this.minecraft, ui.hoverStack));
+            lines.addAll(ui.hoverExtra);
+            g.setTooltipForNextFrame(this.font, lines, Optional.empty(), mouseX, mouseY);
+        } else if (ui.hoverLines != null) {
+            g.setTooltipForNextFrame(this.font, ui.hoverLines, Optional.empty(), mouseX, mouseY);
+        }
+    }
+
+    private void drawGrid(AhUi ui) {
+        int x = ui.contentX;
+        int y = ui.bodyY;
+        int cw = ui.contentW;
+        int bottom = ui.bodyBottom;
+        ui.region("content", x, y, cw, bottom - y);
         if (filtered.isEmpty()) {
             String msg = AuctionHouseApi.getListings().isEmpty()
-                    ? (AuctionHouseApi.isScanning() ? "Scanning the Auction House..." : "No data yet - click Refresh.")
-                    : "No listings match your search/filters.";
-            g.text(this.font, msg, listX + 8, listY + 8, DIM, false);
+                    ? (AuctionHouseApi.isScanning() ? "Scanning the Auction House..." : AuctionHouseApi.getLastScanError() != null
+                    ? "Could not reach Hypixel's API - Refresh to try again." : "No auction data yet - Refresh to scan.")
+                    : "No listings match. Try another tab or clear a filter.";
+            ui.text("content", ui.fit(msg, cw - 16), x + 8, y + 8, ui.t.dim());
+            return;
+        }
+        int[] grid = ui.gridColumns(cw - 6, MIN_CARD_W);
+        int cols = grid[0], cardW = grid[1], gap = grid[2];
+        int rows = (filtered.size() + cols - 1) / cols;
+        int top = y + 3;
+        int total = rows * (CARD_H + gap) - gap;
+        int maxScroll = Math.max(0, total - (bottom - top - 3));
+        scroll = Math.max(0, Math.min(scroll, maxScroll));
+        int firstRow = Math.max(0, scroll / (CARD_H + gap));
+        int lastRow = Math.min(rows - 1, (scroll + bottom - top) / (CARD_H + gap));
+        long now = System.currentTimeMillis();
+        ui.beginClip(x, top, cw, bottom);
+        try {
+            for (int r = firstRow; r <= lastRow; r++) {
+                for (int c = 0; c < cols; c++) {
+                    int i = r * cols + c;
+                    if (i >= filtered.size()) {
+                        break;
+                    }
+                    AuctionListing l = filtered.get(i);
+                    int cx = x + 3 + c * (cardW + gap);
+                    int cy = top + r * (CARD_H + gap) - scroll;
+                    drawCard(ui, l, cx, cy, cardW, now);
+                }
+            }
+        } finally {
+            ui.endClip();
+        }
+        if (maxScroll > 0) {
+            int sx = x + cw - 3;
+            int hgt = bottom - top;
+            ui.g.fill(sx, top, sx + 2, bottom, ui.t.surfaceAlt());
+            int thumb = Math.max(12, (int) ((long) hgt * hgt / Math.max(1, total)));
+            int ty = top + (int) ((long) (hgt - thumb) * scroll / Math.max(1, maxScroll));
+            ui.g.fill(sx, ty, sx + 2, ty + thumb, ui.t.accent());
+        }
+    }
+
+    private void drawCard(AhUi ui, AuctionListing l, int cx, int cy, int cardW, long now) {
+        long lowest = AhMarket.lowestBin(l.skyblockId());
+        AhMarket.Stats market = AhMarket.stats(l.skyblockId());
+        // Marked only where it means something: the cheapest of two or more BINs of the same item.
+        boolean cheapest = l.bin() && lowest > 0 && l.startingBid() <= lowest && market != null && market.binCount() > 1;
+        String price = l.bin() ? AhUi.coins(l.currentPrice()) + " coins"
+                : (l.highestBid() > 0 ? "Top bid " : "Starting bid ") + AhUi.coins(l.currentPrice());
+        String badge;
+        int badgeColor;
+        if (l.bin()) {
+            badge = "BIN";
+            badgeColor = ui.t.cardGold();
         } else {
-            int rows = visibleRowCount();
-            int base = page * rows;
-            AuctionListing hovered = null;
-            for (int i = 0; i < rows; i++) {
-                int idx = base + i;
-                if (idx >= filtered.size()) {
-                    break;
-                }
-                int rowY = listY + i * ROW_HEIGHT;
-                AuctionListing listing = filtered.get(idx);
-                boolean isHover = mouseX >= listX && mouseX < listX + listW && mouseY >= rowY && mouseY < rowY + ROW_HEIGHT;
-                if (isHover) {
-                    hovered = listing;
-                }
-                drawRow(g, listing, listX, rowY, listW, isHover);
-                hotspots.add(new Hotspot(listX, rowY, listW, ROW_HEIGHT, () -> openAuction(listing)));
-            }
-            if (hovered != null) {
-                pendingTooltip = buildTooltip(hovered);
-            }
+            badge = l.bidCount() > 0 ? l.bidCount() + (l.bidCount() == 1 ? " bid" : " bids") : "Auction";
+            badgeColor = ui.t.cardAqua();
         }
-
-        String pageText = "Page " + (page + 1) + " / " + totalPages();
-        g.text(this.font, pageText, listX + (listW - this.font.width(pageText)) / 2, footerY + 5, DIM, false);
-
-        if (pendingTooltip != null && !pendingTooltip.isEmpty()) {
-            g.setTooltipForNextFrame(this.font, pendingTooltip, Optional.empty(), mouseX, mouseY);
+        List<String> sub = new ArrayList<>();
+        if (cheapest) {
+            sub.add("Lowest BIN");
         }
+        if (l.isPet()) {
+            sub.add("Lvl " + l.petLevel());
+        }
+        sub.add(AhUi.timeLeft(l.end() - now));
+        List<Component> extra = new ArrayList<>();
+        AhMarket.Stats st = AhMarket.stats(l.skyblockId());
+        if (st != null && st.lowestBin() > 0) {
+            extra.add(Component.literal("§8Lowest BIN: §6" + AhUi.coins(st.lowestBin()) + " §8(" + st.binCount() + " listed)"));
+        }
+        List<AhMarket.Point> sales = AhMarket.sales(l.skyblockId());
+        if (!sales.isEmpty()) {
+            long sum = 0;
+            for (AhMarket.Point p : sales) {
+                sum += p.price();
+            }
+            extra.add(Component.literal("§8Recent sales: §6" + AhUi.coins(sum / sales.size()) + " §8avg of " + sales.size()));
+        }
+        extra.add(Component.literal("§eClick to open on Hypixel"));
+        Component name = l.icon().has(DataComponents.CUSTOM_NAME) ? l.icon().getHoverName()
+                : Component.literal(SkyblockItemStackFactory.tierColorCode(l.tier()) + l.itemName());
+        boolean isOpening = opening == l && System.currentTimeMillis() - openingAtMs < AhNav.PENDING_MS;
+        ui.listingCard(cx, cy, cardW, CARD_H, l.icon(), name, isOpening ? "Opening..." : price, ui.t.cardGold(), badge,
+                badgeColor, String.join(" · ", sub), AhUi.tierColor(l.tier(), ui.t.border()), cheapest, -1,
+                b -> {
+                    if (b == 0) {
+                        open(l);
+                    }
+                }, "listing:" + l.uuid().toString().replace("-", ""), true, extra);
     }
 
     private String statusLine() {
-        int count = filtered.size();
-        String base = count + " listing" + (count == 1 ? "" : "s");
+        int n = filtered.size();
+        StringBuilder sb = new StringBuilder(String.format(Locale.US, "%,d", n)).append(n == 1 ? " listing" : " listings");
         if (AuctionHouseApi.isScanning()) {
             int pct = AuctionHouseApi.getScanProgressPercent();
-            return base + " · scanning" + (pct >= 0 ? " " + pct + "%" : "...");
-        }
-        long finished = AuctionHouseApi.getLastScanFinishedMs();
-        if (finished == 0) {
-            return base;
-        }
-        long ageSec = (System.currentTimeMillis() - finished) / 1000;
-        String age = ageSec < 60 ? ageSec + "s ago" : (ageSec / 60) + "m ago";
-        return base + " · scanned " + age;
-    }
-
-    private void drawRow(GuiGraphicsExtractor g, AuctionListing l, int x, int y, int w, boolean hovered) {
-        if (hovered) {
-            g.fill(x, y, x + w, y + ROW_HEIGHT, ROW_HOVER);
-        }
-        g.outline(x, y, w, ROW_HEIGHT, ROW_BORDER);
-        g.item(l.icon(), x + 1, y + 1);
-        int tx = x + 20;
-        String price = priceLabel(l);
-        int priceW = this.font.width(price);
-        int nameColor = tierColorInt(l.tier());
-        String name = this.font.plainSubstrByWidth(l.itemName(), w - 20 - priceW - 8);
-        g.text(this.font, name, tx, y + 1, nameColor, false);
-        g.text(this.font, price, x + w - 4 - priceW, y + 1, 0xFF000000 | VALUE, false);
-
-        StringBuilder sub = new StringBuilder();
-        if (l.isPet()) {
-            sub.append("§7Lvl ").append(l.petLevel()).append("  ");
-        }
-        if (l.hasUltimateEnchant()) {
-            sub.append("§d").append(l.ultimateEnchantName()).append(' ').append(roman(l.ultimateEnchantTier())).append("  ");
-        }
-        sub.append("§8").append(endsIn(l.end()));
-        g.text(this.font, sub.toString(), tx, y + 11, 0xFF000000 | DIM, false);
-    }
-
-    /** killer560, 2026-09-27: "toggle between auctions and bins" - a BIN's price is unambiguous, but a bid
-     *  auction's isn't, so that half says whether the number is the opening bid or the current one. */
-    private static String priceLabel(AuctionListing l) {
-        String coins = DungeonChestValuer.formatCoins(l.currentPrice()) + " coins";
-        if (l.bin()) {
-            return coins;
-        }
-        return (l.highestBid() > 0 ? "Bid: " : "Start: ") + coins;
-    }
-
-    private List<Component> buildTooltip(AuctionListing l) {
-        List<Component> lines = new ArrayList<>();
-        lines.add(Component.literal(l.itemName()));
-        if (l.tier() != null || l.category() != null) {
-            lines.add(Component.literal("§7" + (l.tier() != null ? SkyblockItemStackFactory.niceCategory(l.tier()) : "")
-                    + (l.tier() != null && l.category() != null ? " - " : "")
-                    + (l.category() != null ? SkyblockItemStackFactory.niceCategory(l.category()) : "")));
-        }
-        for (String line : l.lore()) {
-            if (!line.isBlank()) {
-                lines.add(Component.literal("§7" + line));
-            }
-        }
-        lines.add(Component.literal("§6" + priceLabel(l)));
-        lines.add(Component.literal("§8" + endsIn(l.end())));
-        lines.add(Component.literal("§8Click to /viewauction"));
-        return lines;
-    }
-
-    private void openAuction(AuctionListing l) {
-        // "viewauction" isn't one of this mod's own client commands, but every command aimed at Hypixel
-        // goes through ServerCommands.toServer on principle now - see that class's doc for the real
-        // recursion crash that rule exists to prevent.
-        ServerCommands.toServer("viewauction " + l.uuid());
-    }
-
-    /** killer560, 2026-09-27: "show days and hours left not just hours." */
-    private static String endsIn(long endMs) {
-        long remain = endMs - System.currentTimeMillis();
-        if (remain <= 0) {
-            return "Ending now";
-        }
-        long s = remain / 1000;
-        long d = s / 86400;
-        long h = (s % 86400) / 3600;
-        long m = (s % 3600) / 60;
-        long sec = s % 60;
-        if (d > 0) {
-            return d + "d " + h + "h left";
-        }
-        if (h > 0) {
-            return h + "h " + m + "m left";
-        }
-        if (m > 0) {
-            return m + "m " + sec + "s left";
-        }
-        return sec + "s left";
-    }
-
-    private static String roman(int n) {
-        if (n <= 0) {
-            return "";
-        }
-        String[] vals = {"X", "IX", "V", "IV", "I"};
-        int[] nums = {10, 9, 5, 4, 1};
-        StringBuilder sb = new StringBuilder();
-        int remaining = Math.min(n, 30);
-        for (int i = 0; i < nums.length; i++) {
-            while (remaining >= nums[i]) {
-                sb.append(vals[i]);
-                remaining -= nums[i];
-            }
+            sb.append(" · scanning").append(pct >= 0 ? " " + pct + "%" : "...");
+        } else if (AuctionHouseApi.getLastScanFinishedMs() > 0) {
+            long age = (System.currentTimeMillis() - AuctionHouseApi.getLastScanFinishedMs()) / 1000;
+            sb.append(" · updated ").append(age < 60 ? age + "s" : age / 60 + "m").append(" ago");
         }
         return sb.toString();
     }
 
-    private static int tierColorInt(String tier) {
-        String code = SkyblockItemStackFactory.tierColorCode(tier);
-        char c = code.length() >= 2 ? code.charAt(1) : 'f';
-        ChatFormatting cf = ChatFormatting.getByCode(c);
-        Integer rgb = cf != null ? ChatColors.color(cf) : null;
-        return 0xFF000000 | (rgb != null ? rgb : 0xFFFFFF);
+    // ---- actions --------------------------------------------------------------------------------------------------
+
+    private void open(AuctionListing l) {
+        commitSearch();
+        opening = l;
+        openingAtMs = System.currentTimeMillis();
+        AhNav.openListing(l);
+    }
+
+    /** Hypixel's own /ah (Create Auction, Manage Auctions and View Bids live in its menu, reskinned). */
+    private void openHypixelAh() {
+        commitSearch();
+        ServerCommands.toServer("ah");
+    }
+
+    private void selectCategory(String cat) {
+        AuctionConfig cfg = AuctionConfig.getInstance();
+        cfg.setLastCategoryFilter(cat);
+        cfg.save();
+    }
+
+    private void cycleSort(boolean back) {
+        AuctionConfig cfg = AuctionConfig.getInstance();
+        cfg.setLastSort(back ? cfg.getLastSort().previous() : cfg.getLastSort().next());
+        cfg.save();
+    }
+
+    private void cycleRarity(boolean back) {
+        AuctionConfig cfg = AuctionConfig.getInstance();
+        String cur = cfg.getLastRarityFilter();
+        int idx = 0;
+        for (int i = 0; i < RARITIES.length; i++) {
+            if (RARITIES[i].equalsIgnoreCase(cur)) {
+                idx = i;
+            }
+        }
+        idx = (idx + (back ? RARITIES.length - 1 : 1)) % RARITIES.length;
+        cfg.setLastRarityFilter(RARITIES[idx]);
+        cfg.save();
+    }
+
+    private void cycleType(boolean back) {
+        AuctionHouseConfig ah = AuctionHouseConfig.getInstance();
+        ah.setTypeFilter(back ? ah.getTypeFilter().previous() : ah.getTypeFilter().next());
+        ah.save();
+    }
+
+    private void cyclePrice(boolean back) {
+        AuctionHouseConfig ah = AuctionHouseConfig.getInstance();
+        int idx = 0;
+        for (int i = 0; i < PRICE_PRESETS.length; i++) {
+            if (PRICE_PRESETS[i][0] == ah.getMinPrice() && PRICE_PRESETS[i][1] == ah.getMaxPrice()) {
+                idx = i;
+            }
+        }
+        idx = (idx + (back ? PRICE_PRESETS.length - 1 : 1)) % PRICE_PRESETS.length;
+        ah.setMinPrice(PRICE_PRESETS[idx][0]);
+        ah.setMaxPrice(PRICE_PRESETS[idx][1]);
+        ah.save();
+    }
+
+    private static String priceLabel(long min, long max) {
+        if (min <= 0 && max <= 0) {
+            return "Any";
+        }
+        if (min <= 0) {
+            return "< " + AhUi.coins(max);
+        }
+        if (max <= 0) {
+            return "> " + AhUi.coins(min);
+        }
+        return AhUi.coins(min) + "-" + AhUi.coins(max);
+    }
+
+    private static String sortShort(AuctionConfig.SortMode m) {
+        return switch (m) {
+            case PRICE_LOW -> "Lowest price";
+            case PRICE_HIGH -> "Highest price";
+            case ENDING_SOONEST -> "Ending soon";
+            case ULTIMATE_ENCHANT -> "Ultimate enchant";
+        };
+    }
+
+    private static String nice(String rarity) {
+        return SkyblockItemStackFactory.niceCategory(rarity);
+    }
+
+    private static ItemStack tabIcon(String category) {
+        return switch (category) {
+            case "weapon" -> new ItemStack(Items.GOLDEN_SWORD);
+            case "armor" -> new ItemStack(Items.DIAMOND_CHESTPLATE);
+            case "accessories" -> new ItemStack(Items.EMERALD);
+            case "consumables" -> new ItemStack(Items.APPLE);
+            case "blocks" -> new ItemStack(Items.COBBLESTONE);
+            case "*misc" -> new ItemStack(Items.STICK);
+            default -> new ItemStack(Items.NETHER_STAR);
+        };
+    }
+
+    /** What a recently viewed item searches for: its SkyBlock id as words (matches every listing of that item, whatever
+     *  its reforge or stars), else its name. */
+    public static String viewedQuery(AuctionHouseConfig.Viewed v) {
+        return v.skyblockId().isEmpty() ? v.name() : v.skyblockId().toLowerCase(Locale.ROOT).replace('_', ' ');
+    }
+
+    /** A search he ran goes into the recents once he stops typing, presses Enter or acts on it. */
+    private void commitSearch() {
+        if (!typedSinceCommit) {
+            return;
+        }
+        typedSinceCommit = false;
+        if (!query.isBlank()) {
+            AuctionHouseConfig cfg = AuctionHouseConfig.getInstance();
+            cfg.addRecentSearch(query);
+            cfg.save();
+        }
+    }
+
+    // ---- input ----------------------------------------------------------------------------------------------------
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        int button = event.button();
+        if (button != 0 && button != 1) {
+            return super.mouseClicked(event, doubleClick);
+        }
+        boolean hitSearch = false;
+        for (AhUi.Hotspot h : hotspots) {
+            if (h.contains(event.x(), event.y())) {
+                if (h.action() != null) {
+                    this.minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                            net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0f));
+                    hitSearch = "Search".equals(h.label());
+                    h.action().accept(button);
+                }
+                if (!hitSearch) {
+                    searchFocused = false;
+                }
+                return true;
+            }
+        }
+        searchFocused = false;
+        return super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        scroll = Math.max(0, scroll - (int) Math.signum(scrollY) * (CARD_H + 5));
+        return true;
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        int key = event.key();
+        if (searchFocused) {
+            if (key == InputConstants.KEY_ESCAPE) {
+                searchFocused = false;
+                return true;
+            }
+            if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) {
+                typedSinceCommit = true;
+                commitSearch();
+                searchFocused = false;
+                return true;
+            }
+            if (key == InputConstants.KEY_BACKSPACE) {
+                if (event.hasControlDown()) {
+                    query = "";
+                } else if (!query.isEmpty()) {
+                    query = query.substring(0, query.length() - 1);
+                }
+                typed();
+                return true;
+            }
+            if (key == InputConstants.KEY_V && event.hasControlDown()) {
+                String clip = this.minecraft.keyboardHandler.getClipboard();
+                if (clip != null) {
+                    query = (query + clip.replaceAll("[\\r\\n\\t]", " ")).substring(0,
+                            Math.min(64, query.length() + clip.length()));
+                    typed();
+                }
+                return true;
+            }
+            return true; // a focused field swallows every other key (no inventory-key close while typing)
+        }
+        return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean charTyped(CharacterEvent event) {
+        String s = event.codepointAsString();
+        if (s.isEmpty() || Character.isISOControl(s.charAt(0))) {
+            return false;
+        }
+        // Typing anywhere starts a search: the field takes focus with the first character.
+        searchFocused = true;
+        if (query.length() < 64) {
+            query += s;
+            typed();
+        }
+        return true;
+    }
+
+    private void typed() {
+        typedAtMs = System.currentTimeMillis();
+        typedSinceCommit = true;
+    }
+
+    // ---- testkit hooks --------------------------------------------------------------------------------------------
+
+    /** Every region, text and hotspot of the last frame ({@link AhUi}'s format). */
+    public List<String> layoutReport() {
+        return List.copyOf(layout);
+    }
+
+    public int shownCountForTest() {
+        refilterIfNeeded();
+        return filtered.size();
+    }
+
+    public void setQueryForTest(String q) {
+        query = q == null ? "" : q;
+        typed();
+    }
+
+    public void commitSearchForTest() {
+        commitSearch();
+    }
+
+    public void scrollForTest(int px) {
+        scroll = Math.max(0, px);
+    }
+
+    /** The current price of the first {@code n} listings shown, in order. */
+    public long[] shownPricesForTest(int n) {
+        refilterIfNeeded();
+        long[] out = new long[Math.min(n, filtered.size())];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = filtered.get(i).currentPrice();
+        }
+        return out;
+    }
+
+    public String queryForTest() {
+        return query;
+    }
+
+    /** The uuid (32 hex) of the n-th listing shown, or "". */
+    public String listingIdForTest(int n) {
+        refilterIfNeeded();
+        return n >= 0 && n < filtered.size() ? filtered.get(n).uuid().toString().replace("-", "") : "";
     }
 }

@@ -354,6 +354,7 @@ public final class ProfileManager {
                 com.killer560.hub.social.FriendsListConfig::load,
                 com.killer560.hub.petwheel.PetWheelConfig::load,
                 com.killer560.hub.auction.AuctionConfig::load,
+                com.killer560.hub.auction.AuctionHouseConfig::load,
                 com.killer560.hub.supporters.SupportersConfig::load,
                 com.killer560.hub.commandshortcuts.CommandShortcutsConfig::load,
                 com.killer560.hub.autojoinskyblock.AutoJoinSkyblockConfig::load,
