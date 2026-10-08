@@ -246,12 +246,13 @@ public final class BazaarView {
         drawHeader(px + pad, headerY, panelW - 2 * pad, cp, shown);
         drawTabs(px + pad, tabsY, panelW - 2 * pad, tabsH, shown);
 
-        railW = panelW >= 400 ? Math.max(100, Math.min(150, panelW / 5)) : 0;
+        // Wide enough for his inventory, nine slots across, under Recent.
+        railW = panelW >= 400 ? Math.max(150, Math.min(172, panelW / 5)) : 0;
         railX = px + pad;
         railY = bodyY;
         railH = bodyBottom - bodyY;
         if (railW > 0) {
-            drawRail();
+            drawRail(cp, frozen);
         }
         contentX = railW > 0 ? railX + railW + 5 : px + pad;
         contentY = bodyY;
@@ -490,13 +491,19 @@ public final class BazaarView {
 
     // Recents rail -------------------------------------------------------------------------------------------------
 
-    private static void drawRail() {
+    private static void drawRail(BazaarReskin.State cp, boolean frozen) {
         g.fill(railX, railY, railX + railW, railY + railH, t.railBg());
         g.outline(railX, railY, railW, railH, t.border());
         region("rail", railX, railY, railW, railH);
+        int cell = Math.max(16, Math.min(18, (railW - 6) / 9));
+        int invH = 14 + 4 * cell + 3 + 4;
+        int bottom = railY + railH - 3;
+        if (railH >= invH + 60) {
+            drawInventory(cp, frozen, railX, railY + railH - invH, railW, invH, cell);
+            bottom = railY + railH - invH - 2;
+        }
         text("rail", "Recent", railX + 6, railY + 5, t.dim());
         int top = railY + 16;
-        int bottom = railY + railH - 3;
         g.fill(railX + 4, top - 2, railX + railW - 4, top - 1, t.border());
         List<String> ids = BazaarRecents.list();
         if (ids.isEmpty()) {
@@ -553,6 +560,97 @@ public final class BazaarView {
         if (maxScroll > 0) {
             scrollbar(railX + railW - 3, top, bottom - top, railScroll, maxScroll, contentH);
         }
+    }
+
+    // His inventory ---------------------------------------------------------------------------------------------------
+
+    /** One of his 36 inventory slots: the stack, and the container slot a click goes to (-1: no menu open). */
+    private record InvSlot(int index, ItemStack stack, int containerSlot) {
+    }
+
+    /**
+     * killer560, 2026-10-07: "it needs a way for me to click on items in my inventory as well so I can list them." His
+     * inventory, main rows then the hotbar. With a Hypixel menu open these are that menu's own player slots and a press is
+     * ONE click on the same slot (Hypixel opens the item's product page); with no menu open a press opens the product as a
+     * product row would. Items that are not Bazaar products are dimmed and do nothing.
+     */
+    private static void drawInventory(BazaarReskin.State cp, boolean frozen, int x, int y, int w, int h, int cell) {
+        region("inventory", x + 1, y, w - 2, h);
+        g.fill(x + 4, y, x + w - 4, y + 1, t.border());
+        text("inventory", "Inventory", x + 6, y + 4, t.dim());
+        List<InvSlot> slots = inventorySlots(cp);
+        int gx = x + (w - 9 * cell) / 2;
+        int gy = y + 14;
+        for (InvSlot sl : slots) {
+            int row = sl.index() < 27 ? sl.index() / 9 : 3;
+            int col = sl.index() % 9;
+            int sx = gx + col * cell;
+            int sy = gy + row * cell + (row == 3 ? 3 : 0);
+            g.fill(sx, sy, sx + cell - 1, sy + cell - 1, t.rowHover()); // one fill a slot (docs/LESSONS-GUI.md)
+            ItemStack stack = sl.stack();
+            String id = stack.isEmpty() ? null : productIdOf(stack);
+            int ix = sx + (cell - 1 - 16) / 2;
+            int iy = sy + (cell - 1 - 16) / 2;
+            if (!stack.isEmpty()) {
+                g.item(stack, ix, iy);
+                g.itemDecorations(font, stack, ix, iy);
+                if (id == null) {
+                    g.fill(sx, sy, sx + cell - 1, sy + cell - 1, t.light() ? 0xB0E8E8E8 : 0xB0000000);
+                }
+            }
+            LAYOUT.add("inv " + sl.index() + " " + sx + " " + sy + " " + (cell - 1) + " " + (cell - 1) + " "
+                    + sl.containerSlot() + " " + (stack.isEmpty() ? "empty" : id == null ? "none" : id));
+            if (stack.isEmpty() || id == null) {
+                continue;
+            }
+            boolean hover = in(sx, sy, cell - 1, cell - 1);
+            if (hover) {
+                g.outline(sx, sy, cell - 1, cell - 1, t.accent());
+                hoveredStack = stack;
+            }
+            String productId = id;
+            if (sl.containerSlot() >= 0) {
+                HOTS.add(new Hot(sx, sy, cell - 1, cell - 1, "inv:" + sl.index(), sl.containerSlot(), stack.copy(), null,
+                        BazaarFormat.displayName(id)));
+                LAYOUT.add("hotspot " + sl.containerSlot() + " " + sx + " " + sy + " " + (cell - 1) + " " + (cell - 1)
+                        + " inv:" + sl.index() + " " + BazaarFormat.displayName(id));
+            } else if (!frozen) {
+                actionHot("inv:" + sl.index(), sx, sy, cell - 1, cell - 1, BazaarFormat.displayName(id),
+                        () -> openProduct(productId));
+            }
+        }
+    }
+
+    /** His 36 slots in drawing order: the open menu's player slots, else his own inventory (main rows, then hotbar). */
+    private static List<InvSlot> inventorySlots(BazaarReskin.State cp) {
+        List<InvSlot> out = new ArrayList<>();
+        if (cp != null) {
+            var menu = cp.screen.getMenu();
+            int start = Math.max(0, menu.slots.size() - 36);
+            for (int i = 0; i < 36 && start + i < menu.slots.size(); i++) {
+                out.add(new InvSlot(i, menu.slots.get(start + i).getItem(), start + i));
+            }
+            return out;
+        }
+        net.minecraft.client.player.LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) {
+            return out;
+        }
+        for (int i = 0; i < 36; i++) {
+            int invSlot = i < 27 ? i + 9 : i - 27; // main rows (9..35), then the hotbar (0..8), as a menu lists them
+            out.add(new InvSlot(i, player.getInventory().getItem(invSlot), -1));
+        }
+        return out;
+    }
+
+    /** The Bazaar product an item is: its SkyBlock id when the Bazaar sells that id, else its name; null when neither. */
+    static String productIdOf(ItemStack stack) {
+        String id = com.killer560.hub.autoroutes.ItemIdentity.skyblockId(stack);
+        if (id != null && (BazaarFormat.byId(id) != null || (BazaarCatalog.isLoaded() && BazaarCatalog.get(id) != null))) {
+            return id;
+        }
+        BazaarProduct p = BazaarFormat.byName(stack.getHoverName().getString());
+        return p == null ? null : p.productId();
     }
 
     // Bottom bar ---------------------------------------------------------------------------------------------------
