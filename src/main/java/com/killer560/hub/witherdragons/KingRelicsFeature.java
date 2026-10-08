@@ -68,8 +68,6 @@ import com.killer560.hub.compat.McCompat;
 public final class KingRelicsFeature {
 
     // Odin KingRelics.relicPickupRegex (the Necron line that starts P5)
-    /** Necron's death line or the Wither King's first line (Floor7Tracker.P5_START, 2026-10-08). */
-    private static final Pattern NECRON_END = com.killer560.hub.fastleap.Floor7Tracker.P5_START;
     // NoammAddons M7Relics.relicPickUpRegex
     private static final Pattern PICKUP = Pattern.compile("^(\\w{3,16}) picked the Corrupted (\\w{3,6}) Relic!$");
 
@@ -146,7 +144,7 @@ public final class KingRelicsFeature {
                 || P5State.isP3Sim(client);
         // Necron's line always (re)starts P5, as before; a Wither King line only when P5 has not started - he keeps
         // talking through P5, and every one of his lines also matches.
-        if (inBoss && NECRON_END.matcher(plain).matches() && (p5StartTick == 0L || plain.startsWith("[BOSS] Necron"))) {
+        if (inBoss && com.killer560.hub.fastleap.Floor7Tracker.P5_START.matcher(plain).matches() && (p5StartTick == 0L || plain.startsWith("[BOSS] Necron"))) {
             reset();
             p5StartTick = ServerTickClock.now();
             relicTicksToSpawn = WitherDragonsConfig.getInstance().getRelicSpawnTicks();
