@@ -303,3 +303,9 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   refused it ("not issued by Mojang for that UUID": his alts, 2026-10-08; Mod Only Test log, launched as Killer560, playing
   as 9878981). It now builds a fresh `YggdrasilAuthenticationService(...).createUserApiService(token)` (testkit 579 replays
   the swap against a fake Mojang and relay). The relay's embedded Mojang keys were identical to the live set.
+- Brigadier can add a root to a live dispatcher but cannot remove one, and Fabric fires `ClientCommandRegistrationCallback`
+  only on join, into a fresh dispatcher (`ClientPacketListenerMixin.onGameJoin`, fabric-command-api-v2 3.0.5 javap). A
+  node whose `requires()` fails does not parse, which Fabric reads as "unknown command" and hands the line to the server
+  (`ClientCommandInternals.isIgnoredException`). So live-editable client commands (custom Command Shortcuts, 2026-10-07)
+  are added to `getActiveDispatcher()` behind `requires(isLive(name))`: removing or renaming one is instant, adding one
+  registers it a moment after typing stops, and only its tab completion lingers until the next join.
