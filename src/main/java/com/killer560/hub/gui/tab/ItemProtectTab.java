@@ -17,11 +17,12 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /** Item Protection settings - see {@link com.killer560.hub.itemprotect.ItemProtectFeature}'s class doc for
- *  exactly what each of the four guards blocks and where it hooks in. Everything ships OFF. */
+ *  exactly what each guard blocks and where it hooks in. Everything ships OFF. Slot Lock was removed 2026-10-08
+ *  (Protect Item's Lock In Place does its job per item). */
 public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
 
     private enum Capturing {
-        NONE, SLOT_LOCK, PROTECT, PEEK
+        NONE, PROTECT
     }
 
     private Capturing capturing = Capturing.NONE;
@@ -57,9 +58,7 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
     private void applyCapture(int code) {
         ItemProtectConfig cfg = ItemProtectConfig.getInstance();
         switch (capturing) {
-            case SLOT_LOCK -> cfg.setSlotLockKey(code);
             case PROTECT -> cfg.setProtectKey(code);
-            case PEEK -> cfg.setPeekKey(code);
             default -> {
                 return;
             }
@@ -89,53 +88,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         int half = (contentWidth - 8) / 2;
         int col2 = contentX + half + 8;
 
-        // ---------------- Slot Lock ----------------
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Slot Lock", false), mc.font));
-        y += 16;
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Slot Lock", cfg.isSlotLockEnabledRaw()), btn -> {
-                    cfg.setSlotLockEnabled(!cfg.isSlotLockEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 22;
-
-        if (cfg.isSlotLockEnabledRaw()) {
-            widgets.add(SettingsButtonWidget.builder(keyLabel("Lock Key", cfg.getSlotLockKey(), capturing == Capturing.SLOT_LOCK), btn -> {
-                        capturing = Capturing.SLOT_LOCK;
-                        btn.setMessage(Component.literal("Press any key..."));
-                    }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Marker: §b" + cfg.getLockStyle().label), btn -> {
-                        cfg.setLockStyle(cfg.getLockStyle().next());
-                        cfg.save();
-                        btn.setMessage(Component.literal("Marker: §b" + cfg.getLockStyle().label));
-                    }).secondaryPress(btn -> {
-                        cfg.setLockStyle(cfg.getLockStyle().previous());
-                        cfg.save();
-                        btn.setMessage(Component.literal("Marker: §b" + cfg.getLockStyle().label));
-                    }).bounds(col2, y, half, 18).build());
-            y += 22;
-
-            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Lock Color", cfg.getLockColor()), btn -> {
-                        Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Locked Slot Color",
-                                cfg.getLockColor(), 0xFFFF5555, argb -> {
-                            cfg.setLockColor(argb);
-                            cfg.save();
-                        }));
-                    }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(
-                    // ": " before the count (not "(N)") so SettingTooltips.key() cuts at the colon and gets a
-                    // stable "clear locks" key instead of a different, dead key for every lock count.
-                    Component.literal("§cClear Locks: " + cfg.countLockedSlots()), btn -> {
-                        cfg.clearSlotLocks();
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(col2, y, half, 18).build());
-            y += 22;
-
-        }
-
         // ---------------- Protect Item ----------------
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Protect Item", false), mc.font));
         y += 16;
@@ -152,9 +104,10 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                         capturing = Capturing.PROTECT;
                         btn.setMessage(Component.literal("Press any key..."));
                     }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(keyLabel("Show Protected Key", cfg.getPeekKey(), capturing == Capturing.PEEK), btn -> {
-                        capturing = Capturing.PEEK;
-                        btn.setMessage(Component.literal("Press any key..."));
+            widgets.add(SettingsButtonWidget.builder(onOff("Lock In Place", cfg.isLockInPlace()), btn -> {
+                        cfg.setLockInPlace(!cfg.isLockInPlace());
+                        cfg.save();
+                        btn.setMessage(onOff("Lock In Place", cfg.isLockInPlace()));
                     }).bounds(col2, y, half, 18).build());
             y += 22;
 
@@ -163,21 +116,14 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                         cfg.save();
                         btn.setMessage(onOff("Item ID Fallback", cfg.isUseItemIdFallback()));
                     }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Highlight Color", cfg.getProtectedColor()), btn -> {
+            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Star Color", cfg.getProtectedColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Protected Item Color",
-                                cfg.getProtectedColor(), 0xFF55FFFF, argb -> {
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Protected Item Star Color",
+                                cfg.getProtectedColor(), ItemProtectConfig.DEFAULT_STAR_COLOR, argb -> {
                             cfg.setProtectedColor(argb);
                             cfg.save();
                         }));
                     }).bounds(col2, y, half, 18).build());
-            y += 22;
-
-            widgets.add(SettingsButtonWidget.builder(onOff("Lock Icon", cfg.isProtectedIconEnabled()), btn -> {
-                        cfg.setProtectedIconEnabled(!cfg.isProtectedIconEnabled());
-                        cfg.save();
-                        btn.setMessage(onOff("Lock Icon", cfg.isProtectedIconEnabled()));
-                    }).bounds(contentX, y, half, 18).build());
             y += 22;
 
             for (String name : new ArrayList<>(cfg.getProtectedNames())) {

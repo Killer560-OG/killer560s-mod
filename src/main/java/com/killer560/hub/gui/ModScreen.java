@@ -126,6 +126,7 @@ public class ModScreen extends Screen {
             tabs.add(new ChatTab());
             // Social and Items (2026-10-07) took their features out of the removed New category.
             tabs.add(new com.killer560.hub.gui.tab.SocialTab());
+            tabs.add(new com.killer560.hub.gui.tab.CosmeticsCategoryTab()); // 2026-10-08, inv-batch
             tabs.add(new com.killer560.hub.gui.tab.ItemsTab());
             tabs.add(new HudElementsTab());
             tabs.add(new HelpersTab());

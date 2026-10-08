@@ -2,7 +2,6 @@ package com.killer560.hub.autoanvil;
 
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.itemprotect.ItemProtect;
-import com.killer560.hub.itemprotect.ItemProtectConfig;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
@@ -409,7 +408,6 @@ public final class AutoAnvilFeature {
 
     private static List<AnvilBooks.Candidate> candidates(AbstractContainerMenu menu) {
         List<AnvilBooks.Candidate> out = new ArrayList<>();
-        ItemProtectConfig protect = ItemProtectConfig.getInstance();
         for (int i = TOP_SLOTS; i < menu.slots.size(); i++) {
             Slot slot = menu.getSlot(i);
             ItemStack stack = slot.getItem();
@@ -418,10 +416,6 @@ public final class AutoAnvilFeature {
                 continue;
             }
             if (ItemProtect.isProtectedItem(stack)) {
-                continue;
-            }
-            if (protect.isSlotLockEnabled() && ItemProtect.isPlayerInventorySlot(slot)
-                    && protect.isSlotLocked(slot.getContainerSlot())) {
                 continue;
             }
             out.add(new AnvilBooks.Candidate(i, book));
