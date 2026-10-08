@@ -4,6 +4,7 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.players.PlayerNames;
 import com.killer560.hub.secrets.DungeonState;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
@@ -27,7 +28,7 @@ import java.util.UUID;
  * Stats and Run Summary all read through it the same way). <b>UUIDs</b> come from the shared
  * {@code players.PlayerNames} resolver (persisted cache + tab list +, if neither already knows, a background
  * Mojang lookup) - never from the IGN itself; a teammate not yet resolved by the time a poll runs simply
- * doesn't accrue for that ~1s window rather than ever being keyed by name.
+ * does not accrue until a poll finds it rather than ever being keyed by name.
  * <p>
  * <b>Gating.</b> Tracking only runs while {@link BestFriendsConfig#isEnabled()} is on - the same "off by
  * default, nothing happens until killer560 turns it on" rule every other feature in this mod follows (e.g.
@@ -37,7 +38,7 @@ import java.util.UUID;
  * see "Needs his answer" in the staging notes.
  * <p>
  * <b>Crash safety.</b> Each currently-partied player's elapsed time is flushed into {@link BestFriendsStore}
- * (and the store's dirty flag written to disk) every {@link #FLUSH_INTERVAL_POLLS} polls (~30s), and
+ * (and the store's dirty flag written to disk) every {@link #FLUSH_INTERVAL_NS} (30 s), and
  * unconditionally on disconnect - so a crash loses at most that ~30s window, comfortably inside the brief's
  * "at most a minute" bound.
  * <p>
@@ -46,40 +47,88 @@ import java.util.UUID;
  * that feature's own on/off switch - Best Friends must keep counting runs even if Run Summary is off). The
  * floor credited is the last non-null {@link DungeonState#getFloor()} seen while still in the dungeon, and
  * every teammate this tracker was actively accruing time for at that instant gets +1 for that floor key.
+ * <p>
+ * <b>Clock.</b> Time is the {@link System#nanoTime()} elapsed between the poll that saw a teammate join and the
+ * poll that saw them leave, added to {@link BestFriendsStore.Record#totalPartyMs} in whole milliseconds with the
+ * sub-millisecond rest carried in the segment's start, so a checkpoint loses nothing. Until 2026-10-08 each 30 s
+ * checkpoint added whole SECONDS and restarted the segment at "now", dropping the fraction every time (about half a
+ * second a checkpoint), and the menu showed only the checkpointed total, so the clock sat still for up to 30 s at a
+ * time ("it doesn't count up every second"). The menu now reads {@link #liveTotalMs}.
  */
 public final class BestFriendsTracker {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bestfriends");
 
-    private static final int POLL_INTERVAL_TICKS = 20; // ~1s
-    private static final int FLUSH_INTERVAL_POLLS = 30; // ~30s of polls
+    /** A join or leave is seen within this many ticks (it was 20 until 2026-10-08, so each end of a segment could
+     *  be up to a second off). The poll is a few map lookups for at most four names. */
+    private static final int POLL_INTERVAL_TICKS = 5;
+    private static final long FLUSH_INTERVAL_NS = 30_000_000_000L; // checkpoint to disk every 30 s
 
-    /** Currently-partied, resolved teammates: uuid -> accrual segment start (ms). */
+    /** Currently-partied, resolved teammates: uuid -> accrual segment start ({@link System#nanoTime()}). */
     private static final Map<UUID, Long> SESSION_START = new HashMap<>();
     private static final Map<UUID, String> SESSION_NAMES = new HashMap<>();
 
     private static int pollCounter = 0;
-    private static int flushCounter = 0;
+    private static long lastCheckpointNs = System.nanoTime();
     private static boolean wasInDungeon = false;
     private static String lastFloorWhileInDungeon = null;
+    /** Set from the netty thread by DISCONNECT, drained on the client thread. */
+    private static volatile boolean pendingDisconnect = false;
+    private static volatile long pendingDisconnectNs = 0L;
 
     private BestFriendsTracker() {
     }
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BestFriendsTracker.tick", BestFriendsTracker::tick));
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> onDisconnect());
+        // DISCONNECT runs on the netty thread, beside the client thread's tick that owns these maps (CLAUDE.md), and a
+        // client.execute from it can be dropped. Note the moment; the next tick (or CLIENT_STOPPING) flushes to it.
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            pendingDisconnectNs = System.nanoTime();
+            pendingDisconnect = true;
+        });
+        // Closing the game: the daemon writer may never get to run, so flush and write here, on this thread.
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            try {
+                if (pendingDisconnect) {
+                    onDisconnect();
+                } else if (!SESSION_START.isEmpty()) {
+                    flushAll(System.nanoTime(), System.currentTimeMillis());
+                }
+                BestFriendsStore.saveNow();
+            } catch (RuntimeException e) {
+                LOGGER.warn("[BestFriends] Could not save on exit", e);
+            }
+        });
+    }
+
+    /** Stored time plus the running segment, if this player is partied right now - what the menu shows. */
+    public static long liveTotalMs(BestFriendsStore.Record record) {
+        if (record == null) {
+            return 0L;
+        }
+        Long start = SESSION_START.get(record.uuid);
+        long running = start == null ? 0L : Math.max(0L, (System.nanoTime() - start) / 1_000_000L);
+        return record.totalPartyMs + running;
+    }
+
+    /** True while time is accruing for this player. */
+    public static boolean isAccruing(UUID id) {
+        return id != null && SESSION_START.containsKey(id);
     }
 
     private static void tick(Minecraft client) {
+        if (pendingDisconnect) {
+            onDisconnect();
+        }
         if (++pollCounter < POLL_INTERVAL_TICKS) {
             return;
         }
         pollCounter = 0;
 
-        if (!BestFriendsConfig.getInstance().isEnabled()) {
+        if (client.player == null || !BestFriendsConfig.getInstance().isEnabled()) {
             if (!SESSION_START.isEmpty()) {
-                flushAll(System.currentTimeMillis());
+                flushAll(System.nanoTime(), System.currentTimeMillis());
                 SESSION_START.clear();
                 SESSION_NAMES.clear();
             }
@@ -88,11 +137,12 @@ public final class BestFriendsTracker {
             return;
         }
 
-        long now = System.currentTimeMillis();
-        pollParty(now);
-        if (++flushCounter >= FLUSH_INTERVAL_POLLS) {
-            flushCounter = 0;
-            flushAll(now);
+        long nowNs = System.nanoTime();
+        long nowMs = System.currentTimeMillis();
+        pollParty(nowNs, nowMs);
+        if (nowNs - lastCheckpointNs >= FLUSH_INTERVAL_NS) {
+            lastCheckpointNs = nowNs;
+            flushAll(nowNs, nowMs);
             BestFriendsStore.saveIfDirty();
         }
         pollDungeonCompletion();
@@ -104,48 +154,53 @@ public final class BestFriendsTracker {
      *  this thread) for anyone already known, which is the common case for an actual partymate; anyone not
      *  yet known kicks off a throttled background Mojang lookup and starts accruing automatically once a
      *  later poll sees them in the now-warm cache - see that class's own doc for the exact contract. */
-    private static void pollParty(long now) {
+    private static void pollParty(long nowNs, long nowMs) {
         Set<UUID> current = new LinkedHashSet<>();
         for (String name : PartyTracker.teammates()) {
-            PlayerNames.resolveAsync(name, id -> {
-                if (id == null) {
-                    return;
-                }
-                current.add(id);
-                SESSION_NAMES.put(id, name);
-                SESSION_START.putIfAbsent(id, now);
-            });
+            // Cache and tab list only, answered now. An unknown name starts a background lookup whose answer is
+            // not used here: it would arrive ticks later carrying this poll's timestamp. The next poll finds the
+            // name in the warm cache instead.
+            UUID id = PlayerNames.uuidFor(name);
+            if (id == null) {
+                PlayerNames.resolveAsync(name, ignored -> {
+                });
+                continue;
+            }
+            current.add(id);
+            SESSION_NAMES.put(id, name);
+            SESSION_START.putIfAbsent(id, nowNs);
         }
         SESSION_START.keySet().removeIf(id -> {
             if (current.contains(id)) {
                 return false;
             }
-            flushOne(id, now);
+            flushOne(id, nowNs, nowMs);
             SESSION_NAMES.remove(id);
             return true;
         });
     }
 
-    private static void flushOne(UUID id, long now) {
+    /** Adds the segment's whole milliseconds to the record and moves the segment's start forward by exactly that
+     *  much, so the sub-millisecond rest stays in the segment instead of being dropped. */
+    private static void flushOne(UUID id, long nowNs, long nowMs) {
         Long start = SESSION_START.get(id);
         if (start == null) {
             return;
         }
-        long elapsedSeconds = Math.max(0, (now - start) / 1000L);
-        if (elapsedSeconds <= 0) {
+        long elapsedMs = Math.max(0L, (nowNs - start) / 1_000_000L);
+        if (elapsedMs <= 0L) {
             return;
         }
         BestFriendsStore.Record record = BestFriendsStore.getOrCreate(id, SESSION_NAMES.get(id));
-        record.totalPartySeconds += elapsedSeconds;
-        record.lastPartiedAtMs = now;
+        record.totalPartyMs += elapsedMs;
+        record.lastPartiedAtMs = nowMs;
+        SESSION_START.put(id, start + elapsedMs * 1_000_000L);
     }
 
-    private static void flushAll(long now) {
+    /** The periodic checkpoint: every running segment is added and keeps running. */
+    private static void flushAll(long nowNs, long nowMs) {
         for (UUID id : new ArrayList<>(SESSION_START.keySet())) {
-            flushOne(id, now);
-            // Keep accruing (segment restarts at "now") rather than stopping - flushAll during normal play
-            // is just the periodic checkpoint, not the end of the party.
-            SESSION_START.put(id, now);
+            flushOne(id, nowNs, nowMs);
         }
     }
 
@@ -174,10 +229,12 @@ public final class BestFriendsTracker {
     /** killer560's own crash-safety requirement: a disconnect must flush immediately, not wait for the next
      *  periodic checkpoint. Stops all accrual outright (rejoining starts fresh segments). */
     private static void onDisconnect() {
+        pendingDisconnect = false;
         if (SESSION_START.isEmpty()) {
             return;
         }
-        flushAll(System.currentTimeMillis());
+        long at = pendingDisconnectNs != 0L ? Math.min(pendingDisconnectNs, System.nanoTime()) : System.nanoTime();
+        flushAll(at, System.currentTimeMillis());
         SESSION_START.clear();
         SESSION_NAMES.clear();
         wasInDungeon = false;

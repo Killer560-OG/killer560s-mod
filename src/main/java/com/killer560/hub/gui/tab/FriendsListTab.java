@@ -5,7 +5,6 @@ import com.killer560.hub.social.FriendsListConfig;
 import com.killer560.hub.social.FriendsListScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -32,24 +31,13 @@ public class FriendsListTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, 220, 20).build());
         y += 26;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal(cfg.isEnabled()
-                        ? "§7/fl opens our list. Use §f/flhypixel §7for Hypixel's own."
-                        : "§7/fl passes straight through to Hypixel. Use §f/flcustom §7for ours."),
-                Minecraft.getInstance().font));
-        y += 16;
+        // killer560 (2026-10-08) asked for the "/fl opens our list..." line and the "N friends on your list." line
+        // to go; the Use Our /fl tooltip says what /fl, /flcustom and /flhypixel do.
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Friends List (/flcustom)"), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new FriendsListScreen(McCompat.screen(client)));
                 }).bounds(contentX, y, contentWidth, 20).build());
-        y += 26;
-
-        int count = cfg.friends().size();
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7" + count + " friend" + (count == 1 ? "" : "s") + " on your list."),
-                Minecraft.getInstance().font));
         return widgets;
     }
 

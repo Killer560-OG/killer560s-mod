@@ -2003,7 +2003,7 @@ final class SettingTooltipsData {
         d.put("best friends/party time tracker", "Tracks time partied and dungeon runs cleared with each player; open it with /bestfriends.");
         d.put("best friends/sort", "How the /bestfriends list is ordered: time together, runs together, or name.");
         d.put("best friends/dungeon only filter", "Hides anyone you have never cleared a dungeon with from the /bestfriends list.");
-        d.put("friends list/use our /fl", "Makes /fl open this mod's Friends List instead of Hypixel's; /flhypixel still opens Hypixel's.");
+        d.put("friends list/use our /fl", "Makes /fl open this mod's Friends List instead of Hypixel's. /flcustom always opens ours and /flhypixel always opens Hypixel's.");
         d.put("pet wheel/pet wheel", "Turns on the Pet Wheel for quickly summoning pets.");
         d.put("pet wheel/wheel key", "The key or mouse button that opens the wheel.");
         d.put("pet wheel/mode", "Hold the key and release over a slice, or press the key and then click a slice.");
