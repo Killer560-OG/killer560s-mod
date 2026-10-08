@@ -655,7 +655,7 @@ final class SettingTooltipsData {
         d.put("cps", "Cheat build: click rate range for Auto i4.");
         d.put("auto mask", "Cheat build: puts on your next death item (Phoenix, then the mask in Order) after Storm dies.");
         d.put("show teammates", "Draws each teammate on the map where they stand: an arrow, or their head with Player Heads on.");
-        d.put("recolor by class", "Colors teammate arrows (the heading tick with Player Heads) by their class; OFF draws them white.");
+        d.put("recolor by class", "Colors teammate arrows by their class; OFF draws them white. A Player Heads face is never recolored.");
         d.put("cell size", "Size of each map grid cell in pixels (4-16).");
         d.put("room labels", "What each room shows on the map: Off, Checkmarks, Secrets, Room Name, or Room Name + Secrets. One setting for both maps - the Dungeon Map and the Interactive Map always match.");
         d.put("secret waypoints", "Draws a coloured box on every secret in rooms the mod has recognised.");
@@ -1137,7 +1137,7 @@ final class SettingTooltipsData {
         d.put("map scale", "Size of the full Interactive Map, 1-10.");
         d.put("font scale", "Size of the text drawn on the Interactive Map, 0.5x to 3x.");
         d.put("highlight colour", "Colour of the room highlight under your cursor on the map.");
-        d.put("player heads", "Draws each player's skin face as their map marker instead of a dot.");
+        d.put("player heads", "Draws each player's skin face as their map marker instead of the arrow, turned so the top of the head points where they face.");
         d.put("class colours", "Colours player markers and their names by dungeon class.");
         d.put("player names", "When to show teammates' names by their markers: never, while holding a leap item, or always.");
         d.put("icon scale", "Size of the player markers on the Interactive Map, 0.5x to 3x.");
@@ -2062,7 +2062,7 @@ final class SettingTooltipsData {
         d.put("party interop/noammaddons bridge", "Shares rooms, doors, secrets and dragon spawns with NoammAddons users in your run.");
         d.put("party interop/odin bridge", "Shows Odin users' Melody progress in F7/M7 P3, and shares yours if Share My Progress is on.");
         d.put("dungeon map/mark reported rooms", "Marks rooms and doors your party shared that you haven't seen yourself.");
-        d.put("dungeon map/player heads", "Draws you and your teammates as your skins' faces, with a small tick showing which way each is facing, on the Dungeon Map and the Interactive Map. Anyone whose skin isn't known yet keeps the arrow.");
+        d.put("dungeon map/player heads", "Draws you and your teammates as your skins' faces, each turned so the top of the head points where that player faces, on the Dungeon Map and the Interactive Map. Anyone whose skin isn't known yet keeps the arrow.");
         d.put("team melody/team melody hud", "Shows each teammate's Melody terminal progress during Phase 3.");
         d.put("team melody/share my progress", "Lets teammates see your live Melody terminal progress.");
         d.put("team melody/scale", "Resizes the Team Melody HUD.");
