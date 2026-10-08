@@ -1,6 +1,6 @@
-package com.killer560.hub.auction.mixin;
+package com.killer560.hub.bazaar.mixin;
 
-import com.killer560.hub.auction.screen.BazaarReskin;
+import com.killer560.hub.bazaar.BazaarReskin;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,6 +19,9 @@ public abstract class BazaarReskinBackgroundMixin {
             CallbackInfo ci) {
         if (BazaarReskin.isHiding(this)) {
             ci.cancel();
+        } else if (com.killer560.hub.bazaar.BazaarHud.recording()) {
+            com.killer560.hub.bazaar.BazaarHud.recordFrame("vanilla '"
+                    + ((net.minecraft.client.gui.screens.Screen) (Object) this).getTitle().getString() + "'");
         }
     }
 }

@@ -111,7 +111,7 @@ public final class AuctionConfig {
     /** The /bz override is gone (2026-10-07): killer560, "The custom bazaar menu should essentially fully replace the
      *  bazaar ... So the command /killer560bz should only work with a booster cookie." /bz is always Hypixel's own
      *  command now, and Hypixel's real Bazaar is drawn in this browser's look by {@link #reskinRealBazaar}. */
-    /** Draw Hypixel's real Bazaar menus in the browser's look ({@code auction/screen/BazaarReskin}). */
+    /** Draw Hypixel's real Bazaar menus in the browser's look ({@code bazaar/BazaarReskin}). */
     private boolean reskinRealBazaar = true;
     /** Held, shows Hypixel's own Bazaar menu instead of the reskin. Left Alt by default; -1 = none. */
     private int bazaarVanillaKeyCode = 342;

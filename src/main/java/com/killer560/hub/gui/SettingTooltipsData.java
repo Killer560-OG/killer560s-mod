@@ -2023,11 +2023,13 @@ final class SettingTooltipsData {
         d.put("auction house/recent searches & items", "Keeps your recent searches and viewed auctions on the left of the Auction House.");
         d.put("auction house/clear recents", "Forgets the recent searches and viewed auctions.");
         d.put("bazaar/bazaar browser", "Turns on the custom Bazaar browser, opened with /killer560bz or a keybind. Like Hypixel's remote Bazaar, it only opens while your Booster Cookie is active.");
-        d.put("bazaar/reskin real bazaar", "Draws Hypixel's real Bazaar menus (the Bazaar NPC, or /bz with a Booster Cookie) in this browser's look. Every click you make goes to the same slot in Hypixel's menu, so buying, selling, orders and claiming work exactly as before; screens it does not know stay Hypixel's own.");
-        d.put("bazaar/hypixel menu key", "Hold this key while a reskinned Bazaar menu is open to see and use Hypixel's own menu instead.");
-        d.put("bazaar/open key", "Optional keybind that opens the Bazaar browser, same as /killer560bz (needs an active Booster Cookie).");
-        d.put("bazaar/track my orders", "Reads your buy orders and sell offers whenever you open Hypixel's Manage Orders menu, for the browser's My Orders view. Read only: nothing is clicked.");
-        d.put("bazaar/open my orders", "Opens the Bazaar browser on My Orders: what Manage Orders showed last, and whether each order is still the top one (needs an active Booster Cookie).");
+        d.put("bazaar/reskin real bazaar", "Opens Hypixel's real Bazaar (the NPC, or /bz) as the Bazaar screen: categories as tabs, search, your recent products, and Hypixel's own product, order and Manage Orders pages. Every click on one of Hypixel's buttons is the same click on the same slot; pages it does not know stay Hypixel's own.");
+        d.put("bazaar/hypixel menu key", "Hold this key while a Bazaar menu is open to see and use Hypixel's own menu instead.");
+        d.put("bazaar/open key", "Optional keybind that opens the Bazaar screen, same as /killer560bz (needs an active Booster Cookie).");
+        d.put("bazaar/track my orders", "Reads your buy orders and sell offers whenever you open Hypixel's Manage Orders, so each order shows whether it is still the top one. Read only: nothing is clicked.");
+        d.put("bazaar/open manage orders", "Opens Hypixel's Bazaar and presses Manage Orders for you, as the follow-up to this click (needs an active Booster Cookie and Follow-up Click).");
+        d.put("bazaar/follow-up click", "When you click a product, the Bazaar sends /bz with its name; if exactly one search result is that product, it clicks it for you once, so you land on the product. The same for the bottom buttons from the remote Bazaar. Only ever right after your own click, never twice; off, you click the highlighted result yourself.");
+        d.put("bazaar/hide huds in bazaar", "Hides every HUD (bars, scoreboard, map, timers, overlays) while the Bazaar is open.");
         d.put("video browser/site", "Which site opens in the companion window.");
         d.put("video browser/set url", "The web address to open when Site is set to Custom URL.");
         d.put("video browser/placement", "Where the window sits: anchored to a screen edge, at a custom spot, or bouncing like a DVD logo.");

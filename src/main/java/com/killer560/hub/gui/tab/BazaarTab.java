@@ -2,7 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.auction.AuctionConfig;
 import com.killer560.hub.auction.BazaarApi;
-import com.killer560.hub.auction.BazaarFeature;
+import com.killer560.hub.bazaar.BazaarFeature;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Bazaar Browser settings - killer560's item 8.1 ("the same for Bazaar"). See
- *  {@link com.killer560.hub.auction.BazaarFeature}. */
+ *  {@link com.killer560.hub.bazaar.BazaarFeature}. */
 public class BazaarTab extends BaseTab implements KeyCaptureTab {
 
     private boolean capturingKey = false;
@@ -84,10 +84,21 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Track My Orders", cfg.isTrackBazaarOrders()));
                 }).bounds(contentX, y, colW, 18).build());
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Open My Orders"), btn -> {
-                    cfg.setLastBazaarCategoryFilter("@orders");
-                    cfg.save();
-                    BazaarFeature.openOrExplain();
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Manage Orders"),
+                        btn -> BazaarFeature.openManageOrders())
+                .bounds(colBX, y, colW, 18).build());
+        y += 22;
+
+        com.killer560.hub.bazaar.BazaarConfig bz = com.killer560.hub.bazaar.BazaarConfig.getInstance();
+        widgets.add(SettingsButtonWidget.builder(onOff("Follow-up Click", bz.isFollowUpClick()), btn -> {
+                    bz.setFollowUpClick(!bz.isFollowUpClick());
+                    bz.save();
+                    btn.setMessage(onOff("Follow-up Click", bz.isFollowUpClick()));
+                }).bounds(contentX, y, colW, 18).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Hide HUDs in Bazaar", bz.isHideHuds()), btn -> {
+                    bz.setHideHuds(!bz.isHideHuds());
+                    bz.save();
+                    btn.setMessage(onOff("Hide HUDs in Bazaar", bz.isHideHuds()));
                 }).bounds(colBX, y, colW, 18).build());
         y += 26;
 
