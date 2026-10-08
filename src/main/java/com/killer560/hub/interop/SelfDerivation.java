@@ -39,8 +39,8 @@ public final class SelfDerivation {
     // Server lines. Anchored and exact - a line that merely contains these words must not count.
     private static final Pattern DEVICE_COMPLETE = Pattern.compile(
             "^(\\w{1,16}) (activated|completed) a (lever|device|terminal)! \\((\\d{1,3})/(\\d{1,3})\\)(?:\\s.*)?$");
-    private static final Pattern PRINCE_KILLED = com.killer560.hub.scorecalc.ScoreCalculatorFeature.PRINCE_KILLED;
-    private static final Pattern BAT_KILLED = com.killer560.hub.scorecalc.ScoreCalculatorFeature.BAT_KILLED;
+    // The Prince / Bat bonus lines are matched with the Score Calculator's own PRINCE_KILLED / BAT_KILLED, so each
+    // line has exactly one pattern to correct (2026-10-07; this class had its own copies until then).
     private static final Pattern WATCHER_DONE =
             Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.$");
     private static final String BLOOD_DOOR_OPENED = "The BLOOD DOOR has been opened!";
@@ -93,9 +93,9 @@ public final class SelfDerivation {
             PartyInteropState.offerFlag(PartyInteropState.Flag.BLOOD_OPENED, InteropSource.SELF, null);
         } else if (WATCHER_DONE.matcher(plain).matches()) {
             PartyInteropState.offerFlag(PartyInteropState.Flag.BLOOD_DONE, InteropSource.SELF, null);
-        } else if (PRINCE_KILLED.matcher(plain).matches()) {
+        } else if (com.killer560.hub.scorecalc.ScoreCalculatorFeature.PRINCE_KILLED.matcher(plain).matches()) {
             PartyInteropState.offerFlag(PartyInteropState.Flag.PRINCE_KILLED, InteropSource.SELF, null);
-        } else if (BAT_KILLED.matcher(plain).matches()) {
+        } else if (com.killer560.hub.scorecalc.ScoreCalculatorFeature.BAT_KILLED.matcher(plain).matches()) {
             PartyInteropState.offerFlag(PartyInteropState.Flag.BAT_KILLED, InteropSource.SELF, null);
         }
     }
