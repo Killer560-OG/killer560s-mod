@@ -1,5 +1,8 @@
 package com.killer560.hub.commandkeybinds;
 
+import com.killer560.hub.commandshortcuts.CommandShortcutsConfig;
+import com.killer560.hub.commandshortcuts.CommandShortcutsFeature;
+import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -8,22 +11,42 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
+import org.slf4j.Logger;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Persisted Chat Keybinds settings - see {@link CommandKeybindsFeature}. Ships disabled by default with no
- *  binds. The class/package names stay {@code commandkeybinds} (they're referenced from the client entrypoint
- *  and {@code ProfileManager}, which this agent doesn't own) - only the user-facing name changed to
- *  "Chat Keybinds" when killer560 asked for free-text binds instead of the 8 fixed menu commands (2026-09-20). */
+/**
+ * Persisted Chat Keybinds settings - see {@link CommandKeybindsFeature}. The class/package names stay
+ * {@code commandkeybinds} (the client entrypoint, {@code ProfileManager} and the testkit name them); the user-facing
+ * name is "Chat Keybinds" since killer560 asked for free-text binds instead of the 8 fixed menu commands (2026-09-20).
+ * <p>
+ * <b>One feature since 2026-10-08</b> (killer560: "Chat keybinds and command shortcuts should be combined into just
+ * chat keybinds."). This file now also holds the Command Shortcuts settings, as its {@code "shortcuts"} object
+ * ({@link CommandShortcutsConfig}), and there is ONE master switch, {@code "enabled"}, defaulting ON (the shortcuts
+ * always defaulted on; with no binds the key half does nothing). Each bind has its own on/off, like a custom shortcut.
+ * <p>
+ * <b>Migration.</b> The file is "merged" once it has a {@code "shortcuts"} object. Before that, its {@code "enabled"}
+ * was Chat Keybinds' own switch (default off), and Command Shortcuts lived in {@code killer560smod-commandshortcuts.json}
+ * (switch default on). Both are read; the merged switch is on if either half was; a half that was off while the other
+ * was on has its rows switched off one by one (binds, or every built-in group and custom shortcut), so nothing starts
+ * or stops doing anything. Then the merged file is written and the old shortcuts file is renamed to {@code .migrated}
+ * (kept, never deleted; the profile list ignores it). An old shortcuts file found beside an already merged file (a
+ * profile from before the merge applied over it) is taken as the newer word on the shortcuts and migrated the same way.
+ */
 public final class CommandKeybindsConfig {
 
+    private static final Logger LOGGER = ModLog.get("killer560smod-commandkeybinds");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-commandkeybinds.json");
+    /** Command Shortcuts' own file before the merge: read once, then renamed to {@code .migrated}. */
+    private static final Path OLD_SHORTCUTS_PATH =
+            ModPaths.config("killer560smod-commandshortcuts.json");
 
     /** Mouse buttons are stored as {@code MOUSE_CODE_BASE - button} (left -100, right -101, middle -102, ...)
      *  so one int field keeps holding a whole bind - killer560 (2026-09-20): "make all of the keybind things
@@ -38,15 +61,23 @@ public final class CommandKeybindsConfig {
     public static final class Bind {
         public int key;
         public String text;
+        /** Its own on/off (since the merge, 2026-10-08); a bind from before it was on whenever the feature was. */
+        public boolean enabled;
 
         public Bind(int key, String text) {
+            this(key, text, true);
+        }
+
+        public Bind(int key, String text, boolean enabled) {
             this.key = key;
             this.text = text == null ? "" : text;
+            this.enabled = enabled;
         }
     }
 
-    private boolean enabled = false;
+    private boolean enabled = true;
     private final List<Bind> binds = new ArrayList<>();
+    private CommandShortcutsConfig shortcuts = CommandShortcutsConfig.defaults();
 
     private CommandKeybindsConfig() {
     }
@@ -81,12 +112,25 @@ public final class CommandKeybindsConfig {
 
     public static void load() {
         CommandKeybindsConfig cfg = new CommandKeybindsConfig();
-        if (Files.exists(CONFIG_PATH)) {
+        JsonObject kb = readJson(CONFIG_PATH);
+        JsonObject oldShortcuts = readJson(OLD_SHORTCUTS_PATH);
+        boolean merged = kb != null && kb.has("shortcuts") && kb.get("shortcuts").isJsonObject();
+
+        // Was each half doing anything? An unmerged file's "enabled" is the old Chat Keybinds switch (default off).
+        boolean keysActive = kb != null && ConfigJson.getBool(kb, "enabled", merged);
+        boolean shortcutsActive;
+        if (oldShortcuts != null) {
+            shortcutsActive = ConfigJson.getBool(oldShortcuts, "enabled", true);
+        } else if (merged) {
+            shortcutsActive = keysActive;   // one switch already
+        } else {
+            shortcutsActive = true;         // Command Shortcuts' default
+        }
+        cfg.enabled = merged && oldShortcuts == null ? keysActive : (keysActive || shortcutsActive);
+
+        if (kb != null) {
             try {
-                String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
-                JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                JsonArray arr = ConfigJson.getArray(obj, "binds");
+                JsonArray arr = ConfigJson.getArray(kb, "binds");
                 if (arr != null) {
                     for (JsonElement el : arr) {
                         if (el == null || !el.isJsonObject()) {
@@ -94,16 +138,60 @@ public final class CommandKeybindsConfig {
                         }
                         JsonObject o = el.getAsJsonObject();
                         cfg.binds.add(new Bind(sanitizeBind(ConfigJson.getInt(o, "key", -1)),
-                                ConfigJson.getString(o, "text", "")));
+                                ConfigJson.getString(o, "text", ""), ConfigJson.getBool(o, "enabled", true)));
                     }
                 } else {
-                    migrateLegacyBinds(cfg, obj);
+                    migrateLegacyBinds(cfg, kb);
                 }
             } catch (Exception e) {
-                cfg = new CommandKeybindsConfig();
+                cfg.binds.clear();
+            }
+        }
+        if (oldShortcuts != null) {
+            cfg.shortcuts = CommandShortcutsConfig.readFrom(oldShortcuts);
+        } else if (merged) {
+            cfg.shortcuts = CommandShortcutsConfig.readFrom(kb.getAsJsonObject("shortcuts"));
+        }
+
+        boolean migrating = oldShortcuts != null || (kb != null && !merged);
+        if (migrating && cfg.enabled) {
+            // One switch now covers both halves: keep the half that was off doing nothing.
+            if (!keysActive) {
+                for (Bind b : cfg.binds) {
+                    b.enabled = false;
+                }
+            }
+            if (!shortcutsActive) {
+                cfg.shortcuts.switchAllOff();
             }
         }
         instance = cfg;
+        if (migrating) {
+            if (cfg.write() && oldShortcuts != null) {
+                try {
+                    Files.move(OLD_SHORTCUTS_PATH, OLD_SHORTCUTS_PATH.resolveSibling(
+                            OLD_SHORTCUTS_PATH.getFileName() + ".migrated"), StandardCopyOption.REPLACE_EXISTING);
+                } catch (Exception e) {
+                    LOGGER.warn("[ChatKeybinds] could not rename the migrated {}", OLD_SHORTCUTS_PATH, e);
+                }
+            }
+            LOGGER.info("[ChatKeybinds] merged Command Shortcuts into Chat Keybinds: {} bind(s), {} custom shortcut(s), "
+                    + "switch {}", cfg.binds.size(), cfg.shortcuts.customs().size(), cfg.enabled ? "on" : "off");
+        }
+        // A profile load replaces the custom list: let the feature register any new ones in the live dispatcher.
+        CommandShortcutsFeature.customsChanged();
+    }
+
+    private static JsonObject readJson(Path path) {
+        if (!Files.exists(path)) {
+            return null;
+        }
+        try {
+            JsonElement el = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8));
+            return el != null && el.isJsonObject() ? el.getAsJsonObject() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** One-time migration of the original 8 fixed menu binds ("petsKey" ... "potionBagKey") into the free-text
@@ -128,6 +216,10 @@ public final class CommandKeybindsConfig {
     }
 
     public void save() {
+        write();
+    }
+
+    private boolean write() {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
@@ -137,14 +229,21 @@ public final class CommandKeybindsConfig {
                 JsonObject o = new JsonObject();
                 o.addProperty("key", bind.key);
                 o.addProperty("text", bind.text);
+                o.addProperty("enabled", bind.enabled);
                 arr.add(o);
             }
             obj.add("binds", arr);
+            JsonObject sc = new JsonObject();
+            shortcuts.writeTo(sc);
+            obj.add("shortcuts", sc);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+            return true;
+        } catch (Exception e) {
+            return false;
         }
     }
 
+    /** Master switch, gated by {@code SkyblockGate} (what the key half checks before sending). */
     public boolean isEnabled() {
         return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
@@ -155,6 +254,11 @@ public final class CommandKeybindsConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    /** The command-shortcut section (built-in toggles and custom shortcuts). */
+    public CommandShortcutsConfig shortcuts() {
+        return shortcuts;
     }
 
     /** Live list - call {@link #save()} after editing a row in place. */

@@ -1,6 +1,9 @@
 package com.killer560.hub.commandkeybinds;
 
+import com.killer560.hub.commandshortcuts.CommandShortcutsConfig;
+import com.killer560.hub.commandshortcuts.CommandShortcutsFeature;
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.util.ServerCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
@@ -16,11 +19,17 @@ import com.killer560.hub.compat.McCompat;
  * <p>
  * Each bind only ever fires on the player's own key press and sends only the one line it's set to - not
  * automation, just a shortcut for something that could already be typed by hand.
+ * <p>
+ * Since 2026-10-08 the feature also owns Command Shortcuts (killer560: "Chat keybinds and command shortcuts should be
+ * combined into just chat keybinds."): {@code commandshortcuts.CommandShortcutsFeature} still registers /f7 and the
+ * custom shortcuts, under this feature's one switch, and a custom shortcut may carry a key that this tick fires.
  */
 public final class CommandKeybindsFeature {
 
     /** Edge-detect state, index-aligned with the bind list; resized whenever the list changes. */
     private static boolean[] wasDown = new boolean[0];
+    /** The same for the custom shortcuts' keys (one per custom row, by position). */
+    private static boolean[] customWasDown = new boolean[0];
 
     private CommandKeybindsFeature() {
     }
@@ -32,21 +41,36 @@ public final class CommandKeybindsFeature {
     private static void tick(Minecraft client) {
         CommandKeybindsConfig cfg = CommandKeybindsConfig.getInstance();
         List<CommandKeybindsConfig.Bind> binds = cfg.binds();
+        List<CommandShortcutsConfig.CustomShortcut> customs = cfg.shortcuts().customs();
         if (wasDown.length != binds.size()) {
             wasDown = new boolean[binds.size()];
         }
+        if (customWasDown.length != customs.size()) {
+            customWasDown = new boolean[customs.size()];
+        }
         if (!cfg.isEnabled() || McCompat.screen(client) != null || client.player == null) {
             java.util.Arrays.fill(wasDown, false);
+            java.util.Arrays.fill(customWasDown, false);
             return;
         }
 
         for (int i = 0; i < binds.size(); i++) {
             CommandKeybindsConfig.Bind bind = binds.get(i);
-            boolean isDown = isBindDown(client, bind.key);
+            boolean isDown = bind.enabled && isBindDown(client, bind.key);
             if (isDown && !wasDown[i]) {
                 send(client, bind.text);
             }
             wasDown[i] = isDown;
+        }
+
+        // A custom shortcut with a key (since the merge, 2026-10-08): the key sends exactly what typing /name sends.
+        for (int i = 0; i < customs.size(); i++) {
+            CommandShortcutsConfig.CustomShortcut c = customs.get(i);
+            boolean isDown = c.key() != -1 && CommandShortcutsFeature.isKeyLive(c) && isBindDown(client, c.key());
+            if (isDown && !customWasDown[i]) {
+                ServerCommands.toServer(CommandShortcutsFeature.commandOf(c));
+            }
+            customWasDown[i] = isDown;
         }
     }
 

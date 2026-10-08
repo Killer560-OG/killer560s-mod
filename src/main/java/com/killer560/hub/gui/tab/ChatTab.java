@@ -31,7 +31,8 @@ public class ChatTab extends FolderTab {
                 // category it lives in for the release).
                 new ModChatTab(),
                 new PartyCommandsTab(),
-                new CommandShortcutsTab(),
+                // Chat Keybinds is also Command Shortcuts since 2026-10-08 (killer560: "Chat keybinds and command
+                // shortcuts should be combined into just chat keybinds.").
                 new CommandKeybindsTab()
         ));
     }
