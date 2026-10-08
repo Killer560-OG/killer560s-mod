@@ -26,7 +26,7 @@ import java.util.Optional;
  * Left: his armour, inventory and hotbar (the real stacks, drawn through the overrides, so a change shows at once), and
  * under them every saved look. Click an item (or a saved look) to select it. Right: a large preview and the controls -
  * Applies To (this item by UUID / every copy by Skyblock id), Colour + Use Colour (dyeable items, which is most
- * Skyblock armour), Armor Skin and Trim / Pattern (armour), the Look (any item model id, or "Copy Look From Item" then
+ * Skyblock armour), Skin and Trim / Pattern (armour), the Look (any item model id, or "Copy Look" then
  * click another item - a head's texture comes with it), and Remove. Nothing is ever sent to the server.
  */
 public class CustomItemsScreen extends Screen {
@@ -379,7 +379,7 @@ public class CustomItemsScreen extends Screen {
         addRenderableWidget(use);
         y += 22;
 
-        SettingsButtonWidget skin = SettingsButtonWidget.builder(Component.literal("Armor Skin: " + (e == null ? "None" : e.skin.label)),
+        SettingsButtonWidget skin = SettingsButtonWidget.builder(Component.literal("Skin: " + (e == null ? "None" : e.skin.label)),
                         b -> cycleSkin(true)).secondaryPress(b -> cycleSkin(false))
                 .bounds(rightX, y, half, 18).build();
         skin.active = has && armour;
@@ -414,10 +414,10 @@ public class CustomItemsScreen extends Screen {
         addRenderableWidget(set);
         y += 22;
 
-        SettingsButtonWidget copy = SettingsButtonWidget.builder(Component.literal(copyingLook ? "Click an item..." : "Copy Look From Item"),
+        SettingsButtonWidget copy = SettingsButtonWidget.builder(Component.literal(copyingLook ? "Pick item..." : "Copy Look"),
                 b -> {
                     copyingLook = !copyingLook;
-                    b.setMessage(Component.literal(copyingLook ? "Click an item..." : "Copy Look From Item"));
+                    b.setMessage(Component.literal(copyingLook ? "Pick item..." : "Copy Look"));
                 }).bounds(rightX, y, half, 18).build();
         copy.active = has;
         addRenderableWidget(copy);

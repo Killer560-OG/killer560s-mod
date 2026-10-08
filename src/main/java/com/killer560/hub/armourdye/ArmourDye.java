@@ -341,8 +341,24 @@ public final class ArmourDye {
                 return id.startsWith("STARRED_") ? id.substring("STARRED_".length()) : id;
             }
         }
-        return ItemIdentity.of(stack);
+        // The display-name path runs four regexes. Since Custom Items looks at EVERY drawn item (not only armour), an
+        // id-less item (a menu's glass pane) would pay that each frame; the answer is remembered per stack object,
+        // which a menu keeps for as long as it shows the item.
+        synchronized (NAME_IDENTITY) {
+            String cached = NAME_IDENTITY.get(stack);
+            if (cached != null) {
+                return cached.isEmpty() ? null : cached;
+            }
+        }
+        String fromName = ItemIdentity.of(stack);
+        synchronized (NAME_IDENTITY) {
+            NAME_IDENTITY.put(stack, fromName == null ? "" : fromName);
+        }
+        return fromName;
     }
+
+    /** Stack object -&gt; its display-name identity ("" = none). Weak; ItemStack keeps Object identity equality. */
+    private static final Map<ItemStack, String> NAME_IDENTITY = new java.util.WeakHashMap<>();
 
     /** True for a helmet, chestplate, leggings or boots - the pieces an armour skin and a trim apply to. */
     public static boolean isArmour(ItemStack stack) {

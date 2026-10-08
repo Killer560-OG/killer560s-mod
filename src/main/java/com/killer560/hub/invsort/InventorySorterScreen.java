@@ -33,7 +33,7 @@ import java.util.Optional;
  * that menu as well."
  * <p>
  * The grid on the left is a COPY of the inventory - moving items here never clicks anything. Click an item to pick it
- * up and click another slot to swap (or drag it there). Type a name and press Save Layout. On the right, the saved
+ * up and click another slot to swap (or drag it there). Type a name and press Save. On the right, the saved
  * layouts: click one to load it into the grid and select it, then Apply / Rename (to the typed name) / Delete / Bind
  * Key act on the selected one. Apply closes the menu and the executor sorts the real inventory.
  */
@@ -314,9 +314,9 @@ public class InventorySorterScreen extends Screen {
         addRenderableWidget(nameBox);
 
         int half = (9 * SLOT - 4) / 2;
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Save Layout"), b -> saveTyped())
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Save"), b -> saveTyped())
                 .bounds(gridX, below + 20, half, 18).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset To Inventory"), b -> {
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset Grid"), b -> {
                     resetToInventory();
                     say("Grid reset to your inventory.", false);
                 }).bounds(gridX + half + 4, below + 20, 9 * SLOT - half - 4, 18).build());
@@ -340,7 +340,7 @@ public class InventorySorterScreen extends Screen {
         addRenderableWidget(bindButton);
         refreshBindLabel();
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), b -> onClose())
-                .bounds(panelX + PANEL_W - 8 - 60, panelY + PANEL_H - 24, 60, 18).build());
+                .bounds(panelX + PANEL_W - 48, panelY + 4, 40, 14).build());
     }
 
     /** Inventory index under (x, y), or -1. */
