@@ -379,6 +379,8 @@ public final class SplitTimersFeature {
         }
         long segment = now - run.timeMs[prev];
         long total = now - run.timeMs[firstRecorded()];
+        long segmentLagless = Math.max(0L, segment - (run.lagMs[index] - run.lagMs[prev]));
+        long totalLagless = Math.max(0L, total - (run.lagMs[index] - run.lagMs[firstRecorded()]));
         boolean last = index == run.splits.size() - 1;
 
         Minecraft client = Minecraft.getInstance();
@@ -387,8 +389,10 @@ public final class SplitTimersFeature {
         }
         // Orange-themed (2026-09-14): split names and times in light orange, "took" in the neutral body color.
         // Chat uses the plain split label - Odin's per-split §-colors stay on the HUD only.
+        SplitTimersConfig announceCfg = SplitTimersConfig.getInstance();
         Component tookLine = tookLine(plainLabel(run.splits.get(prev)),
-                String.format(Locale.US, "%.2fs", segment / 1000.0), "!");
+                String.format(Locale.US, "%.2fs", segment / 1000.0)
+                        + laglessSuffix(announceCfg.isLaglessTimes(), segmentLagless, true), "!");
         if (!last) {
             client.player.sendSystemMessage(tookLine);
             return;
@@ -396,14 +400,17 @@ public final class SplitTimersFeature {
         // Odin's finishRun: rows snapshotted now, printed 10 ticks later after Hypixel's own summary.
         List<Component> lines = new ArrayList<>();
         lines.add(tookLine);
-        lines.add(tookLine("Total time", String.format(Locale.US, "%.2fs", total / 1000.0), "!"));
+        lines.add(tookLine("Total time", String.format(Locale.US, "%.2fs", total / 1000.0)
+                + laglessSuffix(announceCfg.isTotalWithoutLag(), totalLagless, true), "!"));
         List<SplitRow> rows = currentRows();
         for (int i = 0; i < rows.size(); i++) {
             SplitRow row = rows.get(i);
-            String rowName = i == rows.size() - 1 ? "Total" : ChatFormatting.stripFormatting(row.name());
-            lines.add(tookLine(rowName, formatTime(row.timeMs()), "."));
+            boolean totalRow = i == rows.size() - 1;
+            String rowName = totalRow ? "Total" : ChatFormatting.stripFormatting(row.name());
+            lines.add(tookLine(rowName, formatTime(row.timeMs()) + laglessSuffix(totalRow
+                    ? announceCfg.isTotalWithoutLag() : announceCfg.isLaglessTimes(), row.lagLessMs(), false), "."));
         }
-        SplitTimersConfig cfg = SplitTimersConfig.getInstance();
+        SplitTimersConfig cfg = announceCfg;
         long watcherMoveMs = cfg.isWatcherMoveSplit() ? WatcherMoveTracker.getMoveMs() : 0L;
         if (watcherMoveMs != 0L) {
             lines.add(tookLine("Watcher Move", formatTime(watcherMoveMs), "."));
@@ -416,6 +423,19 @@ public final class SplitTimersFeature {
         }
         pendingFinishMessages = lines;
         finishDelayTicks = 10;
+    }
+
+    /**
+     * " (lagless)" after a time, or "" (2026-10-07, killer560: "have the no lag in parentheses to the right of the total
+     * and we will know that is the lagless time"). Every split and run time the mod shows, HUD and chat, reads the same
+     * way: the real time, then the lagless one in parentheses. Only while that time's setting is on, the lagless value
+     * exists ({@code >= 0}) and {@link SplitLagClock} has seen real server ticks (else it would be a dishonest copy).
+     */
+    static String laglessSuffix(boolean on, long laglessMs, boolean seconds) {
+        if (!on || laglessMs < 0L || !SplitLagClock.isTrustworthy()) {
+            return "";
+        }
+        return " (" + (seconds ? String.format(Locale.US, "%.2fs", laglessMs / 1000.0) : formatTime(laglessMs)) + ")";
     }
 
     private static Component tookLine(String name, String time, String end) {
@@ -565,7 +585,19 @@ public final class SplitTimersFeature {
 
         @Override
         public int defaultY() {
-            return 320;
+            // Under Score Calculator's seven rows (160..230), not 320: the Dungeon Map's default sits clamped at the
+            // bottom left, and with its Extra Info lines it reached 320 at GUI scale 2 on 1080p (2026-10-07).
+            return 240;
+        }
+
+        /** In game, never on top of the Dungeon Map (and its Extra Info lines): see {@link com.killer560.hub.hud.HudAvoid}.
+         *  In the HUD editor its own saved position, which this never changes. */
+        @Override
+        public int[] layoutPosition() {
+            if (HudVisibility.editorOpen()) {
+                return null;
+            }
+            return com.killer560.hub.hud.HudAvoid.clear(this, "live_map");
         }
 
         private static final int SPLIT_COLUMN_WIDTH = 160;
@@ -774,11 +806,8 @@ public final class SplitTimersFeature {
             SplitTimersConfig cfg = SplitTimersConfig.getInstance();
             if (McCompat.screen(Minecraft.getInstance()) instanceof com.killer560.hub.hud.HudEditorScreen) {
                 List<String> sample = new ArrayList<>();
-                if (cfg.isTotalWithLag()) {
-                    sample.add("§eTotal§f: 1m 23.45s");
-                }
-                if (cfg.isTotalWithoutLag()) {
-                    sample.add("§aNo Lag§f: 1m 20.10s");
+                if (cfg.isTotalWithLag() || cfg.isTotalWithoutLag()) {
+                    sample.add(totalLine(cfg, 83450L, 80100L, true));
                 }
                 if (cfg.isLagLostLine()) {
                     sample.add("§cLag§f: 3.35s");
@@ -797,16 +826,32 @@ public final class SplitTimersFeature {
             long lag = endLag - run.lagMs[first];
             boolean trusted = SplitLagClock.isTrustworthy();
             List<String> content = new ArrayList<>();
-            if (cfg.isTotalWithLag()) {
-                content.add("§eTotal§f: " + formatTime(total));
-            }
-            if (cfg.isTotalWithoutLag() && trusted) {
-                content.add("§aNo Lag§f: " + formatTime(Math.max(0L, total - lag)));
+            if (cfg.isTotalWithLag() || (cfg.isTotalWithoutLag() && trusted)) {
+                content.add(totalLine(cfg, total, Math.max(0L, total - lag), trusted));
             }
             if (cfg.isLagLostLine() && trusted) {
                 content.add("§cLag§f: " + formatTime(lag));
             }
             return content;
+        }
+
+        /**
+         * The run's total, "Total: 1m 23.45s (1m 20.10s)": the real time, then the lagless one in parentheses, the way
+         * every split row already read (2026-10-07, killer560: "have the no lag in parentheses to the right of the total
+         * and we will know that is the lagless time"). It replaces the separate "No Lag" line. Total With Lag shows the
+         * real time, Total Without Lag the parenthesis; with only the second on the line is "Total: (1m 20.10s)". The
+         * "Lag" line stays, under its own toggle: the parenthesis says what the run took without lag, the Lag line how
+         * much lag cost, which is the number to watch between runs and would otherwise be a subtraction.
+         */
+        private static String totalLine(SplitTimersConfig cfg, long total, long lagless, boolean trusted) {
+            String text = "§eTotal§f:";
+            if (cfg.isTotalWithLag()) {
+                text += " " + formatTime(total);
+            }
+            if (cfg.isTotalWithoutLag() && trusted) {
+                text += " §7(" + formatTime(lagless) + ")";
+            }
+            return text;
         }
 
         /** "You can at the very bottom of the split timers show the slowest person into core and their

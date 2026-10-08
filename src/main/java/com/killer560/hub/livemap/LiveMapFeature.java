@@ -1097,9 +1097,27 @@ public final class LiveMapFeature {
             return mapPx() + extraInfoHeight(extraInfoLines());
         }
 
-        /** Gap between the map and the Extra Info section, and the height of one of its rows. */
+        /** Gap between the map and the Extra Info section, the room at its sides, and its text's size against the map. */
         private static final int EXTRA_GAP = 2;
-        private static final int EXTRA_ROW = 10;
+        private static final int EXTRA_SIDE = 2;
+        /**
+         * Extra Info's text is drawn at {@code mapPx() / EXTRA_TEXT_MAP} of the font's size, at most 1 (2026-10-07,
+         * killer560: "The text under the map should also be smaller and fit better"). At the default Room Size the map
+         * is 120 units, so the text is 0.75 of its full size; it grows and shrinks with Room Size and the HUD scale like
+         * the map itself, and a line still wider than the map is scaled down further on its own. Before this every row
+         * was full size and "Crypts 0/5  Deaths 0" filled the map's whole width.
+         */
+        private static final float EXTRA_TEXT_MAP = 160f;
+
+        /** The Extra Info text size, in map units per font unit. */
+        static float extraTextScale() {
+            return Math.min(1f, mapPx() / EXTRA_TEXT_MAP);
+        }
+
+        /** One Extra Info row: a text line at {@link #extraTextScale()} and one unit between rows, rounded up. */
+        static int extraRow() {
+            return (int) Math.ceil(9 * extraTextScale()) + 1;
+        }
 
         /** Extra Info's lines, or none when the Map Extras toggle is off. One list for the drawing and the box. */
         private static List<String> extraInfoLines() {
@@ -1110,7 +1128,7 @@ public final class LiveMapFeature {
         }
 
         private static int extraInfoHeight(List<String> lines) {
-            return lines.isEmpty() ? 0 : EXTRA_GAP + lines.size() * EXTRA_ROW;
+            return lines.isEmpty() ? 0 : EXTRA_GAP + lines.size() * extraRow() + 1;
         }
 
         /**
@@ -1129,16 +1147,20 @@ public final class LiveMapFeature {
             int h = extraInfoHeight(lines);
             graphics.fill(x, y, x + w, y + h, cfg.getMapBackground());
             net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+            float base = extraTextScale();
+            int row = extraRow();
+            int room = w - 2 * EXTRA_SIDE;
             int lineY = y + EXTRA_GAP + 1;
             for (String line : lines) {
+                // Each row is its own band, row units tall: a line's text never reaches the next one's.
                 int tw = font.width(line);
-                float s = tw > w - 4 ? (w - 4) / (float) tw : 1f;
+                float s = tw * base > room ? room / (float) tw : base;
                 graphics.pose().pushMatrix();
-                graphics.pose().translate(x + 2, lineY);
+                graphics.pose().translate(x + EXTRA_SIDE, lineY);
                 graphics.pose().scale(s, s);
                 graphics.text(font, line, 0, 0, 0xFFFFFFFF, cfg.isTextShadow());
                 graphics.pose().popMatrix();
-                lineY += EXTRA_ROW;
+                lineY += row;
             }
         }
 

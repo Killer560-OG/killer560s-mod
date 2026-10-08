@@ -44,21 +44,33 @@ public final class HudInGameRenderer {
         // Menu check (2026-09-16): one gate here instead of "screen != null" inside every element, so chat never
         // hides these (killer560: "dont make it hide the gui if i open chat") and the HUD editor - which draws
         // each listed element itself - doesn't get a second copy from this layer underneath its boxes.
-        if (client.player == null || McCompat.hudHidden(client) || HudVisibility.menuOpen()
+        if (client.player == null || McCompat.hudHidden(client) || HudVisibility.editorOpen()
                 || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
-        // Past every gate that can stop this mod's HUD drawing, so this is the "the HUD is live" heartbeat the
-        // editor's ten-second window is measured against - see HudSeen#markHudFrame for why it cannot be wall
-        // time. One call per frame, not per element.
-        HudSeen.markHudFrame();
+        // Health and Mana Bars draw behind an open screen, as vanilla's hearts and hotbar do (2026-10-07, killer560:
+        // "The custom health bars should show even in my inventory"). This layer is part of the Gui pass, which the
+        // game runs before the screen, so a container's dimmed background, panel and slots all draw over the bars,
+        // exactly as over the vanilla hotbar. Every other element still hides behind a
+        // menu (chat is not one, see HudVisibility). The HUD editor previews them all itself.
+        boolean menu = HudVisibility.menuOpen();
+        if (!menu) {
+            // Past every gate that can stop this mod's HUD drawing, so this is the "the HUD is live" heartbeat the
+            // editor's ten-second window is measured against - see HudSeen#markHudFrame for why it cannot be wall
+            // time. One call per frame, not per element.
+            HudSeen.markHudFrame();
+        }
         // Health and Mana Bars' Predefined layout reads values and vanilla rows that change between frames.
         com.killer560.hub.playerstats.StatLayout.newFrame();
         List<HudElement> elements = drawList();
         HudTextCache.begin(); // these elements' String lines keep their visual order between frames
         try {
             for (int i = 0; i < elements.size(); i++) {
-                com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, elements.get(i));
+                HudElement e = elements.get(i);
+                if (menu && !com.killer560.hub.playerstats.StatElements.isStatElementId(e.id())) {
+                    continue;
+                }
+                com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, e);
             }
         } finally {
             HudTextCache.end();

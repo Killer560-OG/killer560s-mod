@@ -79,6 +79,67 @@ public final class StatElements {
         }
     }
 
+    /**
+     * Room round the number on a bar (2026-10-07, killer560: "I don't like how that text almost feels trapped by the
+     * boxes, they need to be a bit bigger"). A digit is 7 rows and its shadow one more, so the number is
+     * {@link #VALUE_ROWS} tall; a bar that shows it is at least {@link #MIN_VALUE_THICKNESS} thick, which leaves
+     * {@link #VALUE_PAD_Y} units above and below it, and the number is only drawn where {@link #VALUE_PAD_X} units are
+     * left at each end (else just the current value, else nothing). All in the bar's own units, so the room scales with
+     * the bar at every GUI scale, HUD scale and Auto Scale. Before this a Show Value bar was max(thickness, 9) tall
+     * with the default thickness 8: the number filled all but one row of it.
+     */
+    public static final int VALUE_ROWS = 8;
+    public static final int VALUE_PAD_Y = 2;
+    public static final int VALUE_PAD_X = 4;
+    public static final int MIN_VALUE_THICKNESS = VALUE_ROWS + 2 * VALUE_PAD_Y;
+
+    /** The thickness bar {@code r} is drawn at, in its own units: in Predefined every bar shares the tab's Bar Height
+     *  (killer560, 2026-10-07: "They are different scales when you use the predefined snap"); in Custom its own
+     *  HUD-editor size. A bar showing its number is never thinner than {@link #MIN_VALUE_THICKNESS}. */
+    public static int thickness(Readout r) {
+        PlayerStatsConfig cfg = PlayerStatsConfig.getInstance();
+        int h = StatLayout.predefined() ? cfg.getBarHeight() : cfg.getBarHeight(r);
+        return cfg.isBarShowValue() ? Math.max(h, MIN_VALUE_THICKNESS) : h;
+    }
+
+    /** What fits on a bar {@code w} units long with {@link #VALUE_PAD_X} at each end: {@code value}, else the part
+     *  before its slash (the current value), else null. */
+    static String fitValue(Font font, String value, int w) {
+        if (value == null || font.width(value) + 2 * VALUE_PAD_X <= w) {
+            return value;
+        }
+        int slash = value.indexOf('/');
+        if (slash > 0 && font.width(value.substring(0, slash)) + 2 * VALUE_PAD_X <= w) {
+            return value.substring(0, slash);
+        }
+        return null;
+    }
+
+    /**
+     * The absorption to show on the health bar, in health points: what Hypixel's action bar says is past max health
+     * (current over max), or the player's own absorption ({@code getAbsorptionAmount}, in vanilla half-hearts) as a
+     * share of the vanilla max health applied to the SkyBlock max, whichever is larger - they describe the same thing,
+     * so they are never added. 0 when there is none.
+     */
+    static long absorption() {
+        long cur = PlayerStatsFeature.healthCur;
+        long max = PlayerStatsFeature.healthMax;
+        if (cur < 0 || max <= 0) {
+            return 0;
+        }
+        long fromBar = Math.max(0, cur - max);
+        long fromPlayer = 0;
+        net.minecraft.world.entity.player.Player p = Minecraft.getInstance().player;
+        if (p != null) {
+            float a = p.getAbsorptionAmount();
+            float vm = p.getMaxHealth();
+            if (a > 0f && vm > 0f && Float.isFinite(a)) {
+                fromPlayer = Math.round(max * (double) a / vm);
+            }
+        }
+        return Math.max(fromBar, fromPlayer);
+    }
+
     /** Whether {@code r} has something to show in game right now (a value read, or for XP a player). */
     static boolean hasValue(Readout r) {
         return r.bar ? barValue(r) != null : text(r, false) != null;
@@ -177,10 +238,17 @@ public final class StatElements {
         }
 
         @Override
+        public float layoutScale() {
+            // Predefined: one scale for every readout (the tab's Predefined Scale, which scrolling any of them in the
+            // HUD editor changes), so a row never mixes sizes. Custom: each one's own HUD-editor scale.
+            return StatLayout.predefined() ? PlayerStatsConfig.getInstance().getPredefinedScale() : 0f;
+        }
+
+        @Override
         public int height() {
             if (r.bar) {
-                PlayerStatsConfig cfg = PlayerStatsConfig.getInstance();
-                return cfg.isBarShowValue() ? Math.max(cfg.getBarHeight(r), 9) : cfg.getBarHeight(r);
+                // The box is the bar: the number sits inside it with room to spare (thickness()).
+                return thickness(r);
             }
             return 9;
         }
@@ -194,7 +262,9 @@ public final class StatElements {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             PlayerStatsConfig cfg = PlayerStatsConfig.getInstance();
-            if (!cfg.isEnabled() || !cfg.isReadoutOn(r) || HudVisibility.hidesHud()) {
+            // No "a screen is open" gate here (2026-10-07): the bars draw behind an open inventory like vanilla's hearts.
+            // HudInGameRenderer is the in-game caller and decides that; the HUD editor is the other.
+            if (!cfg.isEnabled() || !cfg.isReadoutOn(r)) {
                 return;
             }
             boolean preview = HudVisibility.editorOpen();
@@ -221,37 +291,37 @@ public final class StatElements {
                 value = r.label;
             }
             int w = barWidthNow();
-            int h = cfg.getBarHeight(r);
-            int top = y + Math.max(0, (height() - h) / 2);
+            int h = thickness(r);
+            int top = y;
             g.fill(x, top, x + w, top + h, cfg.getBarBackground());
             int color = cfg.getReadoutColor(r);
             if (max > 0) {
-                if (r == Readout.HEALTH_BAR && cur > max) {
-                    // Past max health (absorption): the whole bar is health, and the share of the total that is
-                    // over the max is drawn at the right end in the absorption colour.
-                    g.fill(x, top, x + w, top + h, color);
-                    int over = (int) Math.round(w * (double) (cur - max) / cur);
-                    if (over > 0) {
-                        g.fill(x + w - over, top, x + w, top + h, cfg.getAbsorptionColor());
-                    }
-                } else {
-                    int filled = (int) Math.round(w * Math.max(0.0, Math.min(1.0, (double) cur / max)));
-                    if (filled > 0) {
-                        g.fill(x, top, x + filled, top + h, color);
-                    }
+                // The fill is the share of max, never more (a reading past max is absorption, below).
+                int filled = (int) Math.round(w * Math.max(0.0, Math.min(1.0, (double) cur / max)));
+                if (filled > 0) {
+                    g.fill(x, top, x + filled, top + h, color);
+                }
+                long abs = r == Readout.HEALTH_BAR && v != null ? absorption() : 0;
+                if (abs > 0) {
+                    // Absorption (2026-10-07, killer560: "Whenever I get absorption it breaks the health one"): its own
+                    // segment in the absorption colour, as long as its share of max health, straight after the health
+                    // it adds to - like vanilla's golden hearts after the red ones. Where that runs past the end (full
+                    // health) it ends at the bar's end instead, over the health fill, so it always shows.
+                    int seg = (int) Math.max(1, Math.min(w, Math.round(w * (double) abs / max)));
+                    int healthPart = (int) Math.round(w * Math.max(0.0, Math.min(1.0, (double) (cur > max ? max : cur)
+                            / max)));
+                    int a0 = Math.min(healthPart, w - seg);
+                    g.fill(x + a0, top, x + a0 + seg, top + h, cfg.getAbsorptionColor());
                 }
             }
             if (cfg.isBarShowValue()) {
                 Font font = Minecraft.getInstance().font;
-                if (StatLayout.predefined() && font.width(value) > w) {
-                    // A share of a row can be narrower than "12,345/12,345": the current value alone, else nothing,
-                    // so a number never runs over the next bar in the row.
-                    int slash = value.indexOf('/');
-                    value = slash > 0 && font.width(value.substring(0, slash)) <= w ? value.substring(0, slash) : null;
-                }
+                // A number never runs into the bar's ends (or the next bar in a Predefined row): the full value, else
+                // the current value alone, else nothing, each with VALUE_PAD_X to spare at both ends.
+                value = fitValue(font, value, w);
                 if (value != null) {
                     int tx = x + (w - font.width(value)) / 2;
-                    int ty = y + (height() - 8) / 2;
+                    int ty = top + (h - VALUE_ROWS) / 2;
                     g.text(font, value, tx, ty, 0xFFFFFFFF, true);
                 }
             }

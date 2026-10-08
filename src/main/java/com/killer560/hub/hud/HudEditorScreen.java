@@ -831,6 +831,19 @@ public class HudEditorScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         // Prefer whatever's actively being dragged, otherwise resize whatever's under the cursor.
         String targetId = draggingId != null ? draggingId : (elementAt(mouseX, mouseY) != null ? elementAt(mouseX, mouseY).id() : null);
+        HudElement scrolled = targetId == null ? null : byId(targetId);
+        if (scrolled != null && scrollY != 0 && StatLayout.manages(scrolled)) {
+            // Predefined Health and Mana Bars share one scale (2026-10-07): scrolling any of them scales them all.
+            PlayerStatsConfig ps = PlayerStatsConfig.getInstance();
+            ps.setPredefinedScale(Math.max(MIN_SCALE, ps.getPredefinedScale() + (scrollY > 0 ? SCALE_STEP : -SCALE_STEP)));
+            ps.save();
+            for (HudElement e : shown) {
+                if (StatLayout.manages(e)) {
+                    liveScales.put(e.id(), HudElementRegistry.elementScale(e));
+                }
+            }
+            return true;
+        }
         if (targetId != null && scrollY != 0) {
             float newScale = liveScales.get(targetId) + (scrollY > 0 ? SCALE_STEP : -SCALE_STEP);
             newScale = Math.max(MIN_SCALE, newScale);

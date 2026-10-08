@@ -71,6 +71,9 @@ public final class CustomScoreboardFeature {
     private static long hudConfigSavedAtMs = 0L;
     private static boolean loggedError = false;
     private static final Set<String> warnedUnknown = new HashSet<>();
+    /** Shapes of unknown lines already written to the log this session (bounded; see {@link #shape}). */
+    private static final Set<String> loggedUnknown = new HashSet<>();
+    private static final int UNKNOWN_LOG_LIMIT = 100;
     private static long lastUnknownWarningMs = 0L;
 
     /** Where the board was last drawn in game, for hover/click hit-testing. */
@@ -275,9 +278,22 @@ public final class CustomScoreboardFeature {
         return trimBlankEdges(out);
     }
 
-    /** SkyHanni's "Unknown Lines warning": one chat note per new unknown line, rate limited, Hypixel only. */
+    /**
+     * SkyHanni's "Unknown Lines warning", made a debug notice (2026-10-07): every unknown line is written to the log
+     * ONCE per shape (its digits folded, so a line carrying a changing number is one line, not one per value), and the
+     * chat note - also once per shape, rate limited, Hypixel only - comes only with Unknown Line Warning on, which is
+     * off by default. Normal play never prints it.
+     */
     private static void warnUnknownLines(CustomScoreboardConfig cfg) {
-        if (!cfg.isUnknownLinesWarning() || unknown.isEmpty() || !ScoreboardData.islandKnown()) {
+        if (unknown.isEmpty() || !ScoreboardData.islandKnown()) {
+            return;
+        }
+        for (String line : unknown) {
+            if (loggedUnknown.size() < UNKNOWN_LOG_LIMIT && loggedUnknown.add(shape(line))) {
+                LOGGER.info("[CustomScoreboard] Unknown scoreboard line: \"{}\"", line);
+            }
+        }
+        if (!cfg.isUnknownLinesWarning()) {
             return;
         }
         long now = System.currentTimeMillis();
@@ -285,13 +301,36 @@ public final class CustomScoreboardFeature {
             return;
         }
         for (String line : unknown) {
-            if (warnedUnknown.add(line)) {
+            if (warnedUnknown.add(shape(line))) {
                 lastUnknownWarningMs = now;
                 ModChat.send("Custom Scoreboard", ModChat.text("Unknown scoreboard line: "),
                         Component.literal(line));
                 return;
             }
         }
+    }
+
+    /** An unknown line's identity for "seen it already": its digits folded to one '#', so "Wave 3: 0:12" and
+     *  "Wave 3: 0:13" are the same line. */
+    static String shape(String line) {
+        return line == null ? "" : line.replaceAll("\\d+", "#");
+    }
+
+    /** The sidebar line as the patterns are matched against it: no invisible format characters (zero-width joiners and
+     *  the like, which a server can put in to keep lines unique) and no surrounding blanks. */
+    static String normalise(String line) {
+        StringBuilder b = null;
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (Character.getType(ch) == Character.FORMAT) {
+                if (b == null) {
+                    b = new StringBuilder(line.length()).append(line, 0, i);
+                }
+            } else if (b != null) {
+                b.append(ch);
+            }
+        }
+        return (b == null ? line : b.toString()).strip();
     }
 
     private static List<ScoreboardLine> trimBlankEdges(List<ScoreboardLine> lines) {
@@ -331,9 +370,10 @@ public final class CustomScoreboardFeature {
             if (line.isBlank() || line.trim().length() <= 3) {
                 continue;
             }
+            String norm = normalise(line);
             boolean known = false;
             for (Pattern pattern : allPatterns()) {
-                if (pattern.matcher(line).matches()) {
+                if (pattern.matcher(line).matches() || pattern.matcher(norm).matches()) {
                     known = true;
                     break;
                 }
