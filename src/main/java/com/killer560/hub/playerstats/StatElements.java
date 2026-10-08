@@ -170,7 +170,9 @@ public final class StatElements {
 
         @Override
         public int resizeHeight() {
-            return PlayerStatsConfig.getInstance().getBarHeight(r);
+            // The thickness as drawn (never under MIN_VALUE_THICKNESS while the number shows), so an edge drag starts
+            // from the box he sees and moves it by exactly the dragged amount (testkit 399).
+            return thickness(r);
         }
 
         @Override

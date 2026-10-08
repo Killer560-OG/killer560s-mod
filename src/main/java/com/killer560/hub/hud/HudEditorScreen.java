@@ -295,7 +295,7 @@ public class HudEditorScreen extends Screen {
             }
         }
         if (anyAnchored) {
-            graphics.text(this.font, "§7Health and Mana Bars (Predefined): drag a bar onto an area; Hidden hides it.",
+            graphics.text(this.font, "§7Health and Mana Bars (Predefined): drag one onto an area (Hidden hides it); scroll to size them all.",
                     8, 44, 0xFFFFFFFF);
             drawAreas(graphics);
         }

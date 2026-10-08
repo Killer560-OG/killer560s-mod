@@ -99,20 +99,9 @@ public class HealthAndManaBarsTab extends BaseTab {
                         requestRebuild.run();
                     }).bounds(contentX, y[0], contentWidth, ROW_H).build());
             y[0] += ROW;
-            if (ps.isPredefinedLayout()) {
-                // One scale for every readout in the areas (2026-10-07, killer560: "They are different scales when you
-                // use the predefined snap"); scrolling any of them in Edit HUD moves this same value.
-                float lo = PlayerStatsConfig.MIN_PREDEFINED_SCALE;
-                float hi = PlayerStatsConfig.MAX_PREDEFINED_SCALE;
-                slider(widgets, contentX, y[0], contentWidth,
-                        () -> String.format(java.util.Locale.ROOT, "Predefined Scale: %.2fx", ps.getPredefinedScale()),
-                        (ps.getPredefinedScale() - lo) / (double) (hi - lo),
-                        v -> {
-                            ps.setPredefinedScale((float) (lo + v * (hi - lo)));
-                            ps.save();
-                        });
-                y[0] += ROW;
-            }
+            // Predefined's one shared scale (PlayerStatsConfig.predefinedScale, 2026-10-07) has no row here on purpose:
+            // killer560 had every scale control taken off this page the same day ("no one needs to adjust scale there,
+            // they just use the edit hud menu portion"; testkit 393 checks it). Scrolling any readout in Edit HUD sets it.
 
             // ---------------- Bars ----------------
             header(widgets, contentX, contentWidth, y, "Bars");

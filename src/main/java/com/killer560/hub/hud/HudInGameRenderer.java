@@ -1,6 +1,7 @@
 package com.killer560.hub.hud;
 
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
@@ -36,6 +37,38 @@ public final class HudInGameRenderer {
     public static void register() {
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("killer560smod", "hud_elements_in_game"),
                 (graphics, deltaTracker) -> draw(graphics));
+        // Health and Mana Bars get their own layer, with vanilla's status bars (2026-10-07, killer560: "The custom
+        // health bars should show even in my inventory"). It draws behind an open screen as vanilla's hearts and
+        // hotbar do: the screen's dimmed background, panel and slots all go over it. It is NOT the addLast layer above:
+        // with an in-game screen open vanilla defers its SUBTITLES layer into Screen.extractBackground, AFTER the dim
+        // gradient (Gui.extractSubtitleOverlay / extractDeferredSubtitles, javap 26.1.2), and Fabric's addLast layers
+        // come after SUBTITLES - drawn from there, a bar showed undimmed through the dim (testkit 441's first run).
+        HudElementRegistry.attachElementAfter(VanillaHudElements.EXPERIENCE_LEVEL,
+                Identifier.fromNamespaceAndPath("killer560smod", "stat_readouts"), (graphics, deltaTracker) -> drawStats(graphics));
+    }
+
+    /** Whether this mod's in-game HUD may draw at all now (the HUD editor previews every element itself). */
+    private static boolean hudAllowed(Minecraft client) {
+        return client.player != null && !McCompat.hudHidden(client) && !HudVisibility.editorOpen()
+                && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    private static void drawStats(GuiGraphicsExtractor graphics) {
+        Minecraft client = Minecraft.getInstance();
+        if (!hudAllowed(client)) {
+            return;
+        }
+        // Health and Mana Bars' Predefined layout reads values and vanilla rows that change between frames.
+        com.killer560.hub.playerstats.StatLayout.newFrame();
+        List<HudElement> elements = statList();
+        HudTextCache.begin();
+        try {
+            for (int i = 0; i < elements.size(); i++) {
+                com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, elements.get(i));
+            }
+        } finally {
+            HudTextCache.end();
+        }
     }
 
     private static void draw(GuiGraphicsExtractor graphics) {
@@ -44,33 +77,18 @@ public final class HudInGameRenderer {
         // Menu check (2026-09-16): one gate here instead of "screen != null" inside every element, so chat never
         // hides these (killer560: "dont make it hide the gui if i open chat") and the HUD editor - which draws
         // each listed element itself - doesn't get a second copy from this layer underneath its boxes.
-        if (client.player == null || McCompat.hudHidden(client) || HudVisibility.editorOpen()
-                || !com.killer560.hub.util.SkyblockGate.allows()) {
+        if (!hudAllowed(client) || HudVisibility.menuOpen()) {
             return;
         }
-        // Health and Mana Bars draw behind an open screen, as vanilla's hearts and hotbar do (2026-10-07, killer560:
-        // "The custom health bars should show even in my inventory"). This layer is part of the Gui pass, which the
-        // game runs before the screen, so a container's dimmed background, panel and slots all draw over the bars,
-        // exactly as over the vanilla hotbar. Every other element still hides behind a
-        // menu (chat is not one, see HudVisibility). The HUD editor previews them all itself.
-        boolean menu = HudVisibility.menuOpen();
-        if (!menu) {
-            // Past every gate that can stop this mod's HUD drawing, so this is the "the HUD is live" heartbeat the
-            // editor's ten-second window is measured against - see HudSeen#markHudFrame for why it cannot be wall
-            // time. One call per frame, not per element.
-            HudSeen.markHudFrame();
-        }
-        // Health and Mana Bars' Predefined layout reads values and vanilla rows that change between frames.
-        com.killer560.hub.playerstats.StatLayout.newFrame();
+        // Past every gate that can stop this mod's HUD drawing, so this is the "the HUD is live" heartbeat the
+        // editor's ten-second window is measured against - see HudSeen#markHudFrame for why it cannot be wall
+        // time. One call per frame, not per element.
+        HudSeen.markHudFrame();
         List<HudElement> elements = drawList();
         HudTextCache.begin(); // these elements' String lines keep their visual order between frames
         try {
             for (int i = 0; i < elements.size(); i++) {
-                HudElement e = elements.get(i);
-                if (menu && !com.killer560.hub.playerstats.StatElements.isStatElementId(e.id())) {
-                    continue;
-                }
-                com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, e);
+                com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, elements.get(i));
             }
         } finally {
             HudTextCache.end();
@@ -87,16 +105,26 @@ public final class HudInGameRenderer {
         int version = com.killer560.hub.hud.HudElementRegistry.version();
         if (version != drawListVersion) {
             List<HudElement> out = new java.util.ArrayList<>();
+            List<HudElement> stats = new java.util.ArrayList<>();
             for (HudElement element : com.killer560.hub.hud.HudElementRegistry.all()) {
-                // Stat Bars' custom bars and readouts (2026-10-04) are drawn here too, by prefix rather than by name.
-                if (UNDRAWN_ELEMENT_IDS.contains(element.id())
-                        || com.killer560.hub.playerstats.StatElements.isStatElementId(element.id())) {
+                if (UNDRAWN_ELEMENT_IDS.contains(element.id())) {
                     out.add(element);
+                } else if (com.killer560.hub.playerstats.StatElements.isStatElementId(element.id())) {
+                    // Stat Bars' bars and readouts (2026-10-04), by prefix: drawn by their own layer (drawStats).
+                    stats.add(element);
                 }
             }
             drawList = out;
+            statList = stats;
             drawListVersion = version;
         }
         return drawList;
+    }
+
+    private static List<HudElement> statList = List.of();
+
+    private static List<HudElement> statList() {
+        drawList(); // refreshes both lists when the registry changed
+        return statList;
     }
 }
