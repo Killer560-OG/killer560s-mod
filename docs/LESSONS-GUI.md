@@ -166,3 +166,8 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   when the icon is non-null. Theme lines are counted in screen pixels through `inventorytheme/PixelRects` (pose read,
   then `identity().scale(1/guiScale)`), and touching slots share one line by drawing each square's right/bottom line on
   the neighbour's left/top pixels (testkit 473/474).
+- **A container reskin is not a mod screen, so Auto Scale skips it** (`AutoScale.scalesScreen` only takes classes under
+  `com.killer560.hub`). The unified Auction House draws its API browser (a mod screen, scaled) and Hypixel's reskinned AH
+  menus (a vanilla `ContainerScreen`) in one frame; unscaled, the reskin would draw at a different size from the browser
+  (the factor is 1.125 at 1920x1080 GUI 2). `AhReskin` lays out at `width / AutoScale.current()`, draws under that pose scale and divides the mouse
+  by the same factor (testkit 494 checks the layout at factor 1.125, 2026-10-07).

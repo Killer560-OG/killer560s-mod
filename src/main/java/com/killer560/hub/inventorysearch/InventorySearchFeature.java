@@ -174,8 +174,9 @@ public final class InventorySearchFeature {
     }
 
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
-        if (com.killer560.hub.auction.screen.BazaarReskin.isHiding(screen)) {
-            return; // a reskinned Bazaar menu covers the chest; nothing of this belongs on top of it
+        if (com.killer560.hub.auction.screen.BazaarReskin.isHiding(screen)
+                || com.killer560.hub.auction.ah.AhReskin.isHiding(screen)) {
+            return; // a reskinned Bazaar or Auction House menu covers the chest; nothing of this belongs on top of it
         }
         boolean highlightEnabled = InventorySearchConfig.getInstance().isEnabled();
         // The NEU-style panel (when on) already has its own search bar built into its header, sharing

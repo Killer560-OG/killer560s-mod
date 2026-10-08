@@ -2,6 +2,7 @@ package com.killer560.hub.loadoutkeybinds;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -41,43 +42,54 @@ public final class LoadoutKeybindsFeature {
                 || !(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return;
         }
-        ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
-            Matcher matcher = LOADOUT_TITLE.matcher(containerScreen.getTitle().getString());
-            if (!matcher.find()) {
-                return true;
-            }
-            int current = Integer.parseInt(matcher.group(1));
-            int total = Integer.parseInt(matcher.group(2));
-            LoadoutKeybindsConfig cfg = LoadoutKeybindsConfig.getInstance();
+        ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> !press(client, containerScreen, event.key()));
+        // Mouse buttons (side buttons included) are stored as KeyUtil mouse codes, so a press that matches a bind is
+        // that bind; any other click goes through to the screen untouched.
+        ScreenMouseEvents.allowMouseClick(screen).register((s, event) ->
+                !press(client, containerScreen, com.killer560.hub.util.KeyUtil.codeForMouseButton(event.button())));
+    }
 
-            int slot;
-            if (event.key() == cfg.getNextPageKey()) {
+    /** Clicks the loadout or page arrow bound to {@code code} (a key or a KeyUtil mouse code); true if it did. */
+    private static boolean press(Minecraft client, AbstractContainerScreen<?> containerScreen, int code) {
+        if (code == -1 || client.gameMode == null || client.player == null) {
+            return false;
+        }
+        Matcher matcher = LOADOUT_TITLE.matcher(containerScreen.getTitle().getString());
+        if (!matcher.find()) {
+            return false;
+        }
+        int current = Integer.parseInt(matcher.group(1));
+        int total = Integer.parseInt(matcher.group(2));
+        LoadoutKeybindsConfig cfg = LoadoutKeybindsConfig.getInstance();
+
+        int slot;
+        {
+            if (code == cfg.getNextPageKey()) {
                 if (current >= total) {
-                    return true;
+                    return false;
                 }
                 slot = 44;
-            } else if (event.key() == cfg.getPreviousPageKey()) {
+            } else if (code == cfg.getPreviousPageKey()) {
                 if (current <= 1) {
-                    return true;
+                    return false;
                 }
                 slot = 17;
             } else {
                 int keyIndex = -1;
                 for (int i = 0; i < LOADOUT_SLOTS.length; i++) {
-                    if (cfg.getSlotKey(i) == event.key()) {
+                    if (cfg.getSlotKey(i) == code) {
                         keyIndex = i;
                         break;
                     }
                 }
                 if (keyIndex == -1) {
-                    return true;
+                    return false;
                 }
                 slot = LOADOUT_SLOTS[keyIndex];
             }
-
-            client.gameMode.handleContainerInput(containerScreen.getMenu().containerId, slot, 0,
-                    ContainerInput.PICKUP, client.player);
-            return false;
-        });
+        }
+        client.gameMode.handleContainerInput(containerScreen.getMenu().containerId, slot, 0,
+                ContainerInput.PICKUP, client.player);
+        return true;
     }
 }
