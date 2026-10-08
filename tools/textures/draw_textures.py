@@ -33,6 +33,14 @@ ITEMS = {}
 ITEMS.update(art_accessories.ITEMS)
 ITEMS.update(art_items.ITEMS)
 
+# Items that turned out to have a real pre-pack look (an old vanilla item or head skin), which always wins over ours -
+# killer560 (2026-10-07) wants the original look for those. Their grids stay in art_items.py for reference but are not
+# shipped. If gen_item_looks.py ever reports one of these as having no look again, take it out of this set.
+HAS_OLD_LOOK = {'AMALGAMATED_CRIMSONITE', 'DUNGEON_CHEST_KEY', 'SIGNAL_ENHANCER', 'SUMMONING_EYE', 'TITANOBOA_SHED',
+                'TUNGSTEN_KEY', 'UMBER_KEY'}
+for _sbid in HAS_OLD_LOOK:
+    ITEMS.pop(_sbid, None)
+
 
 def key(sbid):
     return sbid.lower().replace(':', '_').replace('-', '_')
