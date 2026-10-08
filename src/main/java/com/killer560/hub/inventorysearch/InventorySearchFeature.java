@@ -174,7 +174,7 @@ public final class InventorySearchFeature {
     }
 
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
-        if (com.killer560.hub.auction.screen.BazaarReskin.isHiding(screen)) {
+        if (com.killer560.hub.bazaar.BazaarReskin.isHiding(screen)) {
             return; // a reskinned Bazaar menu covers the chest; nothing of this belongs on top of it
         }
         boolean highlightEnabled = InventorySearchConfig.getInstance().isEnabled();

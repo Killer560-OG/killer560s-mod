@@ -158,3 +158,20 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   AFTER_INIT callbacks in phases ordered before and after `Event.DEFAULT_PHASE`: the per-screen listeners are then added
   before/after every other feature's (the reskin's presses never reach another feature's hidden-slot handler, and it
   paints over their overlays).
+
+- **One gate hides every HUD layer: wrap them as they are registered.** Fabric's `HudElementRegistryImpl.addFirst/addLast/
+  attachElementBefore/attachElementAfter` each take exactly one `HudElement` (javap, fabric-rendering-v1 23.3.1 and 25.3.3,
+  identical), so `bazaar/mixin/HudLayerGateMixin` (`@ModifyVariable` at HEAD, `remap = false`) wraps every layer, this mod's
+  and any other mod's, in a check of `BazaarHud.hidesHud()` - no draw site had to change. Testkit 485 adds two probe layers
+  at run time (one last, one after MISC_OVERLAYS): with no screen both draw ~120 times in 20 ticks, with the Bazaar open and
+  the gate on 0, with it off ~120 again - over the menu-less screen AND over a reskinned chest (2026-10-07).
+- **A menu reskin flashes on every page change unless it draws the OLD page until the new one is read.** Each Hypixel page
+  is a new container screen whose items arrive later; drawing "Reading..." (or Hypixel's chest) until a settle window passed
+  is what killer560 saw as "this reloading thing". The Bazaar reskin now classifies on every item change and, until the new
+  menu classifies, draws the previous `State` (its menu object still holds its items) frozen and inert to clicks. Testkit 486
+  logs every frame: a page whose items trickle in over 5 ticks drew 81 frozen frames of the old page and 0 chest frames.
+- **A reskin over a vanilla container is not Auto Scaled; the mod's own screens are** (`AutoScale.scalesScreen` is by
+  package). For the menu-less Bazaar screen and the reskin to draw the same frame, the reskin scales its own drawing by
+  `AutoScale.current()` and divides the mouse by it - and places tooltips in unscaled coordinates, since they are drawn
+  after its pose is popped. A test pressing at layout coordinates must multiply by the factor too: 462/464/465/467 pressed
+  beside every button until it did.

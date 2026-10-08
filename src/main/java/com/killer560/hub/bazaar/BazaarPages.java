@@ -1,4 +1,4 @@
-package com.killer560.hub.auction;
+package com.killer560.hub.bazaar;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -177,7 +177,8 @@ public final class BazaarPages {
         return new Page(kind, title, heading(kind, title), List.copyOf(sidebar), List.copyOf(content), List.copyOf(nav));
     }
 
-    private static boolean isAction(Item it) {
+    /** The four trade buttons of a product page (and Sell Inventory Now's result). */
+    public static boolean isAction(Item it) {
         return switch (it.name()) {
             case "Buy Instantly", "Sell Instantly", "Create Buy Order", "Create Sell Offer", "Inventory sold!" -> true;
             default -> false;
@@ -185,7 +186,7 @@ public final class BazaarPages {
     }
 
     /** The bar buttons Hypixel puts on Bazaar menus; drawn in our bottom bar wherever they sit. */
-    static boolean isNavName(String name) {
+    public static boolean isNavName(String name) {
         return switch (name) {
             case "Go Back", "Close", "Manage Orders", "Search", "Sell Inventory Now", "Sell Sacks Now", "View Graphs",
                     "Bazaar Settings", "Bazaar History", "Direct Mode", "Advanced Mode", "Instasell Ignore",
