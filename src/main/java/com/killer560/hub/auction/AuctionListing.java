@@ -42,6 +42,8 @@ public record AuctionListing(
          *  {@code bids[].amount} entries), or 0 if it's a BIN or has no bids yet - see
          *  {@link AuctionHouseApi#decode}. Always 0 for a BIN listing. */
         long highestBid,
+        /** Number of bids placed ({@code bids} array length); 0 for a BIN. */
+        int bidCount,
         /** Real auction end time, epoch millis. */
         long end,
         /** Real pet level parsed from the listing's own {@code [Lvl N]} name prefix, or -1 if this isn't
@@ -72,5 +74,11 @@ public record AuctionListing(
      *  not its stale opening number. */
     public long currentPrice() {
         return highestBid > 0 ? highestBid : startingBid;
+    }
+
+    /** The same listing with new bid numbers (a rescan of an auction whose item was already decoded). */
+    public AuctionListing withBids(long newHighestBid, int newBidCount, long newEnd) {
+        return new AuctionListing(uuid, auctioneer, itemName, skyblockId, tier, category, startingBid, bin,
+                newHighestBid, newBidCount, newEnd, petLevel, ultimateEnchantName, ultimateEnchantTier, lore, icon);
     }
 }

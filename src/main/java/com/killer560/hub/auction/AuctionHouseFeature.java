@@ -2,21 +2,14 @@ package com.killer560.hub.auction;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.auction.screen.AuctionHouseScreen;
-import com.killer560.hub.itembrowser.SkyblockItemEntry;
-import com.killer560.hub.itembrowser.SkyblockItemRepository;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
 import com.killer560.hub.compat.McCompat;
 
 /**
@@ -38,6 +31,9 @@ public final class AuctionHouseFeature {
 
     public static void register() {
         AuctionConfig.getInstance();
+        AuctionHouseConfig.getInstance();
+        // Hypixel's real AH menus drawn in the unified look (2026-10-07).
+        com.killer560.hub.auction.ah.AhReskin.register();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AuctionHouseFeature.tick", AuctionHouseFeature::tick));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             // Real Hypixel /ah - intercepted client-side only while both the browser is enabled AND
@@ -110,6 +106,8 @@ public final class AuctionHouseFeature {
     }
 
     private static void tick(Minecraft client) {
+        // auctions_ended, once a minute and only while the AH was on screen in the last ten minutes.
+        com.killer560.hub.auction.ah.AhMarket.tick();
         AuctionConfig cfg = AuctionConfig.getInstance();
         if (!cfg.isAhEnabled() || client.player == null) {
             keyWasDown = false;
@@ -130,73 +128,5 @@ public final class AuctionHouseFeature {
             openDeferred();
         }
         keyWasDown = down;
-    }
-
-    // ---------------------------------------------------------------- shared filter/sort (used by the screen)
-
-    public static List<AuctionListing> filterAndSort(List<AuctionListing> all, String query, String rarityFilter,
-                                                       int minPetLevel, AuctionConfig.SortMode sort,
-                                                       AuctionConfig.ListingMode mode, String categoryFilter) {
-        String q = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
-        String rarity = rarityFilter == null ? "" : rarityFilter.toUpperCase(Locale.ROOT);
-        String category = categoryFilter == null ? "" : categoryFilter;
-        List<AuctionListing> out = new ArrayList<>();
-        for (AuctionListing l : all) {
-            // killer560, 2026-09-27: "toggle between auctions and bins."
-            if (mode == AuctionConfig.ListingMode.BIN && !l.bin()) {
-                continue;
-            }
-            if (mode == AuctionConfig.ListingMode.AUCTION && l.bin()) {
-                continue;
-            }
-            if (!q.isEmpty() && !matchesSearch(l, q)) {
-                continue;
-            }
-            if (!rarity.isEmpty() && !rarity.equals(l.tier() == null ? "" : l.tier().toUpperCase(Locale.ROOT))) {
-                continue;
-            }
-            if (!category.isEmpty() && !category.equalsIgnoreCase(l.category() == null ? "" : l.category())) {
-                continue;
-            }
-            if (minPetLevel > 0 && (!l.isPet() || l.petLevel() < minPetLevel)) {
-                continue;
-            }
-            out.add(l);
-        }
-        out.sort(comparatorFor(sort));
-        return out;
-    }
-
-    /** "NEU-tied" search per the brief: matches the listing's own real display name directly (covers the
-     *  common case, e.g. "hyp" -&gt; "Hyperion"), and additionally ties into the shared real item catalog
-     *  ({@link SkyblockItemRepository}) by the listing's decoded {@code ExtraAttributes.id} so a query
-     *  that matches the catalog's own canonical name for that id also counts, even if this particular
-     *  listing's displayed name differs slightly (reforge prefix, master stars, etc). */
-    private static boolean matchesSearch(AuctionListing l, String lowerQuery) {
-        if (l.itemName().toLowerCase(Locale.ROOT).contains(lowerQuery)) {
-            return true;
-        }
-        if (!l.skyblockId().isEmpty()) {
-            SkyblockItemEntry entry = SkyblockItemRepository.findById(l.skyblockId());
-            if (entry != null && entry.name() != null
-                    && ChatFormatting.stripFormatting(entry.name()).toLowerCase(Locale.ROOT).contains(lowerQuery)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static Comparator<AuctionListing> comparatorFor(AuctionConfig.SortMode mode) {
-        return switch (mode) {
-            // currentPrice() is startingBid for a BIN or a bid auction with no bids yet, and the current
-            // highest bid for one that has bids - see AuctionListing#currentPrice.
-            case PRICE_LOW -> Comparator.comparingLong(AuctionListing::currentPrice);
-            case PRICE_HIGH -> Comparator.comparingLong(AuctionListing::currentPrice).reversed();
-            case ENDING_SOONEST -> Comparator.comparingLong(AuctionListing::end);
-            case ULTIMATE_ENCHANT -> Comparator
-                    .comparingInt((AuctionListing l) -> l.hasUltimateEnchant() ? 0 : 1)
-                    .thenComparing(Comparator.comparingInt(AuctionListing::ultimateEnchantTier).reversed())
-                    .thenComparing(Comparator.comparingLong(AuctionListing::end));
-        };
     }
 }
