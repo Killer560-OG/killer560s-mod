@@ -189,6 +189,7 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   beside every button until it did.
 
 - **A screen opened straight from a chat command is closed again by the chat screen.** `/invsort load` opened the
-  inventory inside the command and the chat screen's own close replaced it with nothing, so the sorter waited 2 s and said
-  "could not open your inventory" every time (killer560's "it says cannot open inventory", fixed 2026-10-08). Open from
+  inventory inside the command, and `ChatScreen` sets the screen to null after the command returns, so the sorter's wait
+  ended in "could not open your inventory" (traced in the code for killer560's "it says cannot open inventory", not
+  reproduced on the old jar; fixed 2026-10-08). Open from
   `client.execute(...)` (as every other command here does) or from the next tick once no screen is up.
