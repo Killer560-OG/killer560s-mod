@@ -67,8 +67,14 @@ public final class StorageOverlayConfig {
             StorageOverlayConfig cfg = new StorageOverlayConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
             // Old files only have darkMode; a file written by this version has both (darkMode kept for an older jar).
-            PanelTheme migrated = ConfigJson.getBool(obj, "darkMode", true) ? PanelTheme.AMBER : PanelTheme.LIGHT;
+            boolean dark = ConfigJson.getBool(obj, "darkMode", true);
+            PanelTheme migrated = dark ? PanelTheme.AMBER : PanelTheme.LIGHT;
             cfg.theme = PanelTheme.parse(ConfigJson.getString(obj, "theme", null), migrated);
+            // A darkMode that contradicts the theme was flipped by a jar from before the themes (it reads and writes only
+            // darkMode): that newer choice wins, mapped the same way as an old file.
+            if (dark != (cfg.theme != PanelTheme.LIGHT)) {
+                cfg.theme = migrated;
+            }
             cfg.scale = clampScale(ConfigJson.getFloat(obj, "scale", 1.0f));
             cfg.columns = clampColumns(ConfigJson.getInt(obj, "columns", 3));
             JsonObject names = ConfigJson.getObject(obj, "customNames");
