@@ -255,7 +255,11 @@ public final class CustomScoreboardConfig {
     private boolean hideWhenChat = false;
     private OutsideSkyblockMode outsideSkyblockMode = OutsideSkyblockMode.VANILLA;
     private boolean cacheOnIslandSwitch = false;
-    private boolean unknownLinesWarning = true;
+    /** Chat note for an unknown sidebar line. Off by default since 2026-10-07 (killer560's dungeon screenshot:
+     *  "[Custom Scoreboard] Unknown scoreboard line: Solo" in chat mid-run): it is a debugging aid, and every unknown
+     *  line is written to the log once regardless. Saved under a NEW key, "unknownLinesChat", so the old key's saved
+     *  true (written by every save before this, whether or not he ever touched it) does not keep it on. */
+    private boolean unknownLinesWarning = false;
     private boolean lineActions = true;
     private boolean showNumberDifference = false;
     private boolean dateInLobbyCode = true;
@@ -356,7 +360,7 @@ public final class CustomScoreboardConfig {
                 cfg.hideWhenChat = ConfigJson.getBool(obj, "hideWhenChat", cfg.hideWhenChat);
                 cfg.outsideSkyblockMode = ConfigJson.getEnum(obj, "outsideSkyblockMode", OutsideSkyblockMode.class, cfg.outsideSkyblockMode);
                 cfg.cacheOnIslandSwitch = ConfigJson.getBool(obj, "cacheOnIslandSwitch", cfg.cacheOnIslandSwitch);
-                cfg.unknownLinesWarning = ConfigJson.getBool(obj, "unknownLinesWarning", cfg.unknownLinesWarning);
+                cfg.unknownLinesWarning = ConfigJson.getBool(obj, "unknownLinesChat", cfg.unknownLinesWarning);
                 cfg.lineActions = ConfigJson.getBool(obj, "lineActions", cfg.lineActions);
                 cfg.showNumberDifference = ConfigJson.getBool(obj, "showNumberDifference", cfg.showNumberDifference);
                 cfg.dateInLobbyCode = ConfigJson.getBool(obj, "dateInLobbyCode", cfg.dateInLobbyCode);
@@ -442,7 +446,7 @@ public final class CustomScoreboardConfig {
             obj.addProperty("hideWhenChat", hideWhenChat);
             obj.addProperty("outsideSkyblockMode", outsideSkyblockMode.name());
             obj.addProperty("cacheOnIslandSwitch", cacheOnIslandSwitch);
-            obj.addProperty("unknownLinesWarning", unknownLinesWarning);
+            obj.addProperty("unknownLinesChat", unknownLinesWarning);
             obj.addProperty("lineActions", lineActions);
             obj.addProperty("showNumberDifference", showNumberDifference);
             obj.addProperty("dateInLobbyCode", dateInLobbyCode);

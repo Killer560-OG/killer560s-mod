@@ -79,6 +79,14 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   ONE widget with its scroll kept outside it (`gui/DragListWidget`, 2026-10-07), not a widget per row. `ModScreen` also
   scrolls the page on a wheel turn before any child sees it; a widget that scrolls itself implements `gui/WheelTarget`.
 
+- **Fabric's `addLast` HUD layers draw ABOVE an open in-game screen's dim.** With a screen whose `isInGameUi()` is true,
+  `Gui.extractSubtitleOverlay` defers the SUBTITLES layer, and Fabric's layers added after it, into
+  `Screen.extractBackground`, after the dim gradient (javap 26.1.2). So something meant to sit behind an inventory like the
+  hotbar must be attached to a vanilla layer before SUBTITLES - and to one that always runs: an attached element only runs
+  where its parent does, and after `EXPERIENCE_LEVEL` the bars vanished in creative. Health and Mana Bars are
+  `attachElementAfter(MISC_OVERLAYS)` since 2026-10-07 (testkit 441: no pixel of the bar's raw colour beside the open
+  inventory; 443/444 draw in creative).
+
 - A `FolderTab` section that is pinned (always open, no header) is never in `expanded`, so
   `findListeningKeyCaptureTab` did not ask it: Home's "Edit HUD Keybind" sat on "Press any key..." forever. Pinned
   sections are now checked first.

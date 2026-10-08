@@ -64,7 +64,8 @@ public final class PlayerStatsConfig {
     public static final int MIN_BAR_WIDTH = 40;
     public static final int MAX_BAR_WIDTH = 300;
     public static final int MIN_BAR_HEIGHT = 2;
-    public static final int MAX_BAR_HEIGHT = 20;
+    /** 30 since 2026-10-07 (was 20): a bar showing its number is at least 14 thick, which left 20 almost no range. */
+    public static final int MAX_BAR_HEIGHT = 30;
     public static final int DEFAULT_ABSORPTION_COLOR = 0xFFFFAA00;
     public static final int DEFAULT_BAR_BACKGROUND = 0xAA000000;
     private int barWidth = 100;
@@ -91,6 +92,12 @@ public final class PlayerStatsConfig {
      *  {@link StatLayout#defaultArea} and the readout's enum order. */
     private final java.util.Map<String, String> readoutArea = new java.util.HashMap<>();
     private final java.util.Map<String, Integer> readoutOrder = new java.util.HashMap<>();
+    /** The one own scale every readout draws at under the Predefined layout (2026-10-07, killer560: "They are different
+     *  scales when you use the predefined snap"); times the global HUD scale like any own scale. Custom keeps each
+     *  readout's own HUD-editor scale, untouched by this. */
+    private float predefinedScale = 1.0f;
+    public static final float MIN_PREDEFINED_SCALE = 0.5f;
+    public static final float MAX_PREDEFINED_SCALE = 3.0f;
     /** Bumped by every change that can move or resize a readout in the Predefined layout (and by every load), so
      *  {@link StatLayout} knows its cached layout is stale. */
     private static int layoutVersion;
@@ -182,6 +189,8 @@ public final class PlayerStatsConfig {
             cfg.absorptionColor = obj.has("absorptionColor") ? obj.get("absorptionColor").getAsInt() : cfg.absorptionColor;
             cfg.barBackground = obj.has("barBackground") ? obj.get("barBackground").getAsInt() : cfg.barBackground;
             cfg.textShadow = ConfigJson.getBool(obj, "textShadow", cfg.textShadow);
+            cfg.predefinedScale = clampScale(obj.has("predefinedScale") && obj.get("predefinedScale").isJsonPrimitive()
+                    ? obj.get("predefinedScale").getAsFloat() : cfg.predefinedScale);
             instance = cfg;
             if (cfg.migrateClassic(obj)) {
                 cfg.save();
@@ -234,6 +243,7 @@ public final class PlayerStatsConfig {
             obj.addProperty("absorptionColor", absorptionColor);
             obj.addProperty("barBackground", barBackground);
             obj.addProperty("textShadow", textShadow);
+            obj.addProperty("predefinedScale", predefinedScale);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -489,6 +499,24 @@ public final class PlayerStatsConfig {
     public void setPredefinedLayout(boolean predefined) {
         this.predefinedLayout = predefined;
         layoutChanged();
+    }
+
+    /** The own scale every readout shares under the Predefined layout. */
+    public float getPredefinedScale() {
+        return predefinedScale;
+    }
+
+    public void setPredefinedScale(float scale) {
+        this.predefinedScale = clampScale(scale);
+        layoutChanged();
+    }
+
+    private static float clampScale(float v) {
+        if (!Float.isFinite(v)) {
+            return 1.0f;
+        }
+        // Two decimals, so a slider or a scroll never leaves 1.0000001 behind.
+        return Math.round(Math.max(MIN_PREDEFINED_SCALE, Math.min(MAX_PREDEFINED_SCALE, v)) * 100f) / 100f;
     }
 
     /** The area {@code r} sits in under the Predefined layout. */

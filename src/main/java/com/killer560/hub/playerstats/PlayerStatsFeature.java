@@ -40,15 +40,22 @@ public final class PlayerStatsFeature {
     // or U+270E. Real format e.g. "(c)1234/1234<heart>     (a)567(a)<defense> Defense     (b)890/890<quill> Mana".
     // Optional section-sign color codes are allowed between the number and its icon.
     private static final String CODES = "(?:\u00A7.)*";
-    private static final Pattern HEALTH_REGEX = Pattern.compile("([\\d,]+)/([\\d,]+)" + CODES + "[\uE010\u2764]");
-    private static final Pattern MANA_REGEX = Pattern.compile("([\\d,]+)/([\\d,]+)" + CODES + "[\uE003\u270E]");
-    private static final Pattern DEFENSE_REGEX = Pattern.compile("([\\d,]+)" + CODES + "[\uE008\u2748]");
     // Overflow mana (2026-10-04): Hypixel shows it as "(3)200<U+02AC>" right after the mana segment once mana is
     // past max - the same pattern SkyHanni's ActionBarStatsData reads. It has no max, so it is text only.
     // Its colour code is (3), a DIGIT, so a bare "([\\d,]+)" read "(3)200" as 3200 (caught by a scratch run of
     // these patterns against a sample line, 2026-10-04). The match now starts where a number cannot continue
     // and takes the colour codes itself. Same guard on OTHER_REGEX below.
     private static final String NUMBER_START = "(?<![\u00A7\\d,])" + CODES;
+    // Health, mana and defence start the same way (2026-10-07, killer560: "Whenever I get absorption it breaks the
+    // health one"). With absorption Hypixel colours the health segment GOLD, (6) instead of (c) (SkyHanni's
+    // ActionBarStatsData accepts "(c|6)" there), and (6) is a digit: the old bare "([\\d,]+)" read "(6)12,345/10,464"
+    // as 612,345, so the bar went almost all absorption colour and its number became six digits wide. The same fix the
+    // overflow pattern already had; every pattern on this line now uses it.
+    private static final Pattern HEALTH_REGEX =
+            Pattern.compile(NUMBER_START + "([\\d,]+)/([\\d,]+)" + CODES + "[\uE010\u2764]");
+    private static final Pattern MANA_REGEX =
+            Pattern.compile(NUMBER_START + "([\\d,]+)/([\\d,]+)" + CODES + "[\uE003\u270E]");
+    private static final Pattern DEFENSE_REGEX = Pattern.compile(NUMBER_START + "([\\d,]+)" + CODES + "[\uE008\u2748]");
     private static final Pattern OVERFLOW_REGEX = Pattern.compile(NUMBER_START + "([\\d,]+)" + CODES + "\u02AC");
     // Any OTHER "current/max<icon>" segment on the stat line (2026-10-04): killer560's screenshot of that day
     // shows a fourth one, a red "117/117" with its own resource-pack icon, beside health/defence/mana. What it

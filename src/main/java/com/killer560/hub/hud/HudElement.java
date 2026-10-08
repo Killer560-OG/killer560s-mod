@@ -58,4 +58,14 @@ public interface HudElement {
     default int[] layoutPosition() {
         return null;
     }
+
+    /**
+     * The own scale a layout draws this element at, in place of its saved HUD-editor scale, or 0 (or less) when the
+     * saved scale applies. Like {@link #layoutPosition()}: the saved value is left untouched for when the layout is off.
+     * Health and Mana Bars' Predefined layout uses it so every readout in it shares one scale (2026-10-07). Multiplied
+     * by the global HUD scale like any own scale ({@link HudElementRegistry#resolveScale}).
+     */
+    default float layoutScale() {
+        return 0f;
+    }
 }

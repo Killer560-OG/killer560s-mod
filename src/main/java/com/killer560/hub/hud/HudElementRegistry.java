@@ -74,6 +74,12 @@ public final class HudElementRegistry {
         if (laid != null) {
             return laid;
         }
+        return ownPosition(element);
+    }
+
+    /** {@link #resolvePosition} without the element's {@link HudElement#layoutPosition()}: its saved (or default)
+     *  position, clamped as usual. For a layoutPosition() that starts from where the element would otherwise be. */
+    public static int[] ownPosition(HudElement element) {
         HudConfig cfg = HudConfig.getInstance();
         boolean saved = cfg.hasPosition(element.id());
         int[] pos = cfg.getPosition(element.id(), element.defaultX(), element.defaultY());
@@ -241,6 +247,14 @@ public final class HudElementRegistry {
 
     /** The element's own stored scale, without the global multiplier - what the HUD editor scrolls and saves. */
     public static float elementScale(HudElement element) {
+        try {
+            float laid = element.layoutScale();
+            if (laid > 0f) {
+                return laid; // a layout's shared scale (see HudElement#layoutScale)
+            }
+        } catch (RuntimeException e) {
+            // a broken layout falls back to the saved scale, as resolvePosition does for its position
+        }
         float fallback;
         try {
             fallback = element.defaultScale();
