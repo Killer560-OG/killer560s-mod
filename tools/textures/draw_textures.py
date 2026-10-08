@@ -37,7 +37,10 @@ ITEMS.update(art_items.ITEMS)
 # killer560 (2026-10-07) wants the original look for those. Their grids stay in art_items.py for reference but are not
 # shipped. If gen_item_looks.py ever reports one of these as having no look again, take it out of this set.
 HAS_OLD_LOOK = {'AMALGAMATED_CRIMSONITE', 'DUNGEON_CHEST_KEY', 'SIGNAL_ENHANCER', 'SUMMONING_EYE', 'TITANOBOA_SHED',
-                'TUNGSTEN_KEY', 'UMBER_KEY'}
+                'TUNGSTEN_KEY', 'UMBER_KEY',
+                # New tiers that take their family's old look (gen_item_looks.py FAMILY).
+                'GIGANTIC_FISHING_NET', 'ARCHER_DUNGEON_ABILITY_1', 'FIGHTING_BOOSTER_UNCOMMON',
+                'FORAGING_FORTUNE_BOOSTER_UNCOMMON', 'FORAGING_WISDOM_BOOSTER_UNCOMMON', 'SWEEP_BOOSTER_UNCOMMON'}
 for _sbid in HAS_OLD_LOOK:
     ITEMS.pop(_sbid, None)
 

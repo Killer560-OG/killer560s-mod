@@ -129,6 +129,27 @@ for sbid in sorted(ids):
         missing.append(sbid)
     rows[sbid] = row
 
+# A new tier of a family whose other tiers had a pre-pack look takes that family's look, so the set stays together -
+# killer560 (2026-10-07): "Some things like the gigantic fishing net have previous tiers, make sure it fits in with
+# them." Applied only when the item has no pre-pack look of its own; its 'o' texture then goes unused.
+FAMILY = {
+    'GIGANTIC_FISHING_NET': 'TURBO_FISHING_NET',          # Basic/Medium/Turbo nets were all a cobweb
+    'ARCHER_DUNGEON_ABILITY_1': 'ARCHER_DUNGEON_ABILITY_2',  # tiers 2 and 3 are a bow
+    'FIGHTING_BOOSTER_UNCOMMON': 'FIGHTING_BOOSTER',      # the common booster's head
+    'FORAGING_FORTUNE_BOOSTER_UNCOMMON': 'FORAGING_FORTUNE_BOOSTER',
+    'FORAGING_WISDOM_BOOSTER_UNCOMMON': 'FORAGING_WISDOM_BOOSTER',
+    'SWEEP_BOOSTER_UNCOMMON': 'SWEEP_BOOSTER',
+}
+for sbid, sibling in FAMILY.items():
+    row, sib = rows.get(sbid), rows.get(sibling)
+    if row is None or sib is None or any(k in row for k in ('s', 'i', 'l')):
+        continue
+    for k in ('s', 'i', 'l', 'e'):
+        if k in sib:
+            row[k] = sib[k]
+    if sbid in missing and L.has_look(row):
+        missing.remove(sbid)
+
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 out = {
     'source': 'tools/items/gen_item_looks.py: Hypixel /v2/resources/skyblock/items + /v2/skyblock/bazaar, '
