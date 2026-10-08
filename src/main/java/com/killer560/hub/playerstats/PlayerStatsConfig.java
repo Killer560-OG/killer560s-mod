@@ -52,6 +52,9 @@ public final class PlayerStatsConfig {
     private boolean hideHypixelStatText = false;
     /** Hides the vanilla experience bar and the level number above it. Independent of {@link #enabled}. */
     private boolean hideXpBar = false;
+    /** Vanilla's held-item name over the hotbar (killer560, 2026-10-07: "an option to hide that text that pops up saying
+     *  what item I am holding right in the bottom middle"). Independent of {@link #enabled}; see {@link HeldItemName}. */
+    private HeldItemName heldItemName = HeldItemName.OVER_BARS;
     /** Per-element on/off, keyed by {@link StatElements.Readout#key}. Absent = off. */
     private final java.util.Map<String, Boolean> readoutOn = new java.util.HashMap<>();
     /** Per-element ARGB colour, keyed by {@link StatElements.Readout#key}. Absent = the readout's default. */
@@ -139,6 +142,7 @@ public final class PlayerStatsConfig {
             // Before 2026-10-04 the stat line was hidden whenever Stat Bars was on, so an old file keeps that.
             cfg.hideHypixelStatText = ConfigJson.getBool(obj, "hideHypixelStatText", cfg.enabled);
             cfg.hideXpBar = ConfigJson.getBool(obj, "hideXpBar", false);
+            cfg.heldItemName = HeldItemName.byKey(ConfigJson.getString(obj, "heldItemName", null), cfg.heldItemName);
             if (obj.has("readouts") && obj.get("readouts").isJsonObject()) {
                 for (var e : obj.getAsJsonObject("readouts").entrySet()) {
                     if (!e.getValue().isJsonObject()) {
@@ -212,6 +216,7 @@ public final class PlayerStatsConfig {
             obj.addProperty("showHeartsInRift", showHeartsInRift);
             obj.addProperty("hideHypixelStatText", hideHypixelStatText);
             obj.addProperty("hideXpBar", hideXpBar);
+            obj.addProperty("heldItemName", heldItemName.key);
             JsonObject readouts = new JsonObject();
             for (StatElements.Readout r : StatElements.Readout.values()) {
                 JsonObject o = new JsonObject();
@@ -322,6 +327,48 @@ public final class PlayerStatsConfig {
 
     public void setHideXpBar(boolean value) {
         this.hideXpBar = value;
+    }
+
+    public HeldItemName getHeldItemName() {
+        return heldItemName;
+    }
+
+    public void setHeldItemName(HeldItemName value) {
+        this.heldItemName = value == null ? HeldItemName.OVER_BARS : value;
+    }
+
+    /**
+     * When vanilla's held-item name (the item's name shown over the hotbar for a moment after switching slot) is drawn.
+     * The default, {@link #OVER_BARS}, keeps vanilla's behaviour except where the name would land on this mod's own Health
+     * and Mana Bars readouts - his screenshot of 2026-10-07 had "Heroic Hyperion" written across both bars, which sit in
+     * that exact spot in the Predefined layout - so nobody without the bars there loses anything.
+     */
+    public enum HeldItemName {
+        SHOWN("shown", "Shown"),
+        OVER_BARS("overBars", "Hidden Over Bars"),
+        HIDDEN("hidden", "Hidden");
+
+        public final String key;
+        public final String label;
+
+        HeldItemName(String key, String label) {
+            this.key = key;
+            this.label = label;
+        }
+
+        public HeldItemName next() {
+            HeldItemName[] all = values();
+            return all[(ordinal() + 1) % all.length];
+        }
+
+        static HeldItemName byKey(String key, HeldItemName def) {
+            for (HeldItemName v : values()) {
+                if (v.key.equals(key)) {
+                    return v;
+                }
+            }
+            return def;
+        }
     }
 
     public boolean isReadoutOn(StatElements.Readout r) {

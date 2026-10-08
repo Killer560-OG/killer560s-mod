@@ -1882,6 +1882,7 @@ final class SettingTooltipsData {
         d.put("health and mana bars/regeneration bounce", "Stops the vanilla hearts bobbing up and down while you regenerate.");
         d.put("health and mana bars/armour", "Always hides the vanilla armour points bar, whether Stat Bars is on or not.");
         d.put("health and mana bars/hunger", "Always hides the vanilla hunger bar, whether Stat Bars is on or not.");
+        d.put("health and mana bars/held item name", "The item name vanilla shows over the hotbar when you switch slot. Hidden Over Bars: hidden only where it would cover one of these bars or texts. Hidden: always hidden. Shown: always shown.");
         d.put("slot binds/show binds", "Whether bound-slot borders are always drawn or only while your mouse is over one.");
         d.put("slot binds/border color", "Colour of the border and line drawn on bound slots.");
         d.put("wither doors/enabled", "Highlights the nearest locked Wither door, turning green once you have a Wither Key.");
@@ -1989,7 +1990,7 @@ final class SettingTooltipsData {
         d.put("wither dragons/easy power", "Power 0 always splits this dragon by class instead. 19 is a common value for Easy.");
         d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens, and the hotbar, in this mod's look.");
         d.put("inventory theme/theme", "Amber (the original look), Dark (neutral greys) or Light. The Storage Overlay has the same three.");
-        d.put("inventory theme/line width", "How thick the panel border and slot lines are, in GUI pixels. Off draws no lines.");
+        d.put("inventory theme/line width", "How thick the panel border and slot lines are, in real screen pixels: 1 is a single pixel at any GUI scale. Touching slots share one line. Off draws no lines.");
         d.put("inventory theme/theme hotbar", "Also draws your hotbar in the theme. Items, counts, durability and cooldowns stay vanilla's.");
         d.put("inventory theme/hotbar scale", "Resizes the themed hotbar from its bottom centre. It can cover the bars above it when raised.");
         d.put("inventory theme/slot color source", "Slot squares in the theme's colour, or one you pick.");

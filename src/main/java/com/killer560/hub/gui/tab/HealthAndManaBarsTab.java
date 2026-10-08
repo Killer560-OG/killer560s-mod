@@ -196,7 +196,18 @@ public class HealthAndManaBarsTab extends BaseTab {
         toggle(widgets, col2, y[0], half, "Hypixel Stat Text", ps::isHideHypixelStatText, ps::setHideHypixelStatText,
                 ps::save, null);
         y[0] += ROW;
+        // Vanilla's held-item name over the hotbar (2026-10-07): Shown / Hidden Over Bars (the default) / Hidden.
+        widgets.add(SettingsButtonWidget.builder(heldItemNameText(ps), btn -> {
+                    ps.setHeldItemName(ps.getHeldItemName().next());
+                    ps.save();
+                    btn.setMessage(heldItemNameText(ps));
+                }).bounds(contentX, y[0], contentWidth, ROW_H).build());
+        y[0] += ROW;
         return widgets;
+    }
+
+    private static Component heldItemNameText(PlayerStatsConfig ps) {
+        return Component.literal("Held Item Name: §6" + ps.getHeldItemName().label);
     }
 
     /** Readouts two to a row, left column then right; leaves {@code y} under the last row. */

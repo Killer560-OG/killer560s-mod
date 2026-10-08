@@ -32,10 +32,15 @@ public final class InventoryThemeConfig {
     public static final float MIN_OPACITY = 0.2f;
     public static final float MAX_OPACITY = 1.0f;
 
-    /** Border / grid line width in GUI units (killer560, 2026-10-07: "a line width slider"). 1 is the look before
-     *  the slider existed; 0 draws no lines at all. The tab's slider spans exactly this range. */
+    /** Border / grid line width in real SCREEN PIXELS (killer560, 2026-10-07: "right now 1 is far too large, I want to
+     *  be able to make it thinner"), so 1 is one physical pixel at any GUI scale; 0 draws no lines at all. It was GUI
+     *  units until then (0-4, so 1 drew 2 pixels at GUI 2): a file with only the old key is migrated by
+     *  {@link #getLineWidth()} at the GUI scale it is first drawn at, so its look does not change. The tab's slider spans
+     *  exactly this range. */
     public static final int MIN_LINE_WIDTH = 0;
-    public static final int MAX_LINE_WIDTH = 4;
+    public static final int MAX_LINE_WIDTH = 12;
+    /** New installs: two pixels, the old default (one unit) at GUI 2. */
+    public static final int DEFAULT_LINE_WIDTH = 2;
     /** Hotbar scale (killer560, 2026-10-07: "a custom scale option"), about the hotbar's bottom centre. */
     public static final float MIN_HOTBAR_SCALE = 0.5f;
     public static final float MAX_HOTBAR_SCALE = 2.0f;
@@ -60,7 +65,10 @@ public final class InventoryThemeConfig {
      *  ever acts while the Inventory Theme itself is on (which is OFF by default). */
     private boolean themeHotbar = true;
     private float hotbarScale = 1.0f;
-    private int lineWidth = 1;
+    private int lineWidth = DEFAULT_LINE_WIDTH;
+    /** A width in GUI units from a file written before pixels ({@code lineWidth} without {@code lineWidthPx}), waiting
+     *  for a GUI scale to convert it; -1 when there is none. */
+    private int legacyLineUnits = -1;
     /** Slot backdrop recolour (killer560, 2026-10-07: "an option to recolor it"): off follows the theme. */
     private boolean useCustomSlotColor = false;
     private int customSlotColor = PanelTheme.AMBER.invSlotBg;
@@ -92,7 +100,13 @@ public final class InventoryThemeConfig {
                 cfg.theme = PanelTheme.parse(ConfigJson.getString(obj, "theme", null), cfg.theme);
                 cfg.themeHotbar = ConfigJson.getBool(obj, "themeHotbar", cfg.themeHotbar);
                 cfg.hotbarScale = clampHotbarScale(ConfigJson.getFloat(obj, "hotbarScale", cfg.hotbarScale));
-                cfg.lineWidth = clampLineWidth(ConfigJson.getInt(obj, "lineWidth", cfg.lineWidth));
+                if (obj.has("lineWidthPx")) {
+                    cfg.lineWidth = clampLineWidth(ConfigJson.getInt(obj, "lineWidthPx", cfg.lineWidth));
+                } else if (obj.has("lineWidth")) {
+                    // Saved in GUI units by a jar from before pixels: converted on first use (getLineWidth), at the
+                    // GUI scale it is drawn at, so 1 unit at GUI 3 stays 3 pixels.
+                    cfg.legacyLineUnits = Math.max(0, Math.min(4, ConfigJson.getInt(obj, "lineWidth", 1)));
+                }
                 cfg.useCustomSlotColor = ConfigJson.getBool(obj, "useCustomSlotColor", cfg.useCustomSlotColor);
                 cfg.customSlotColor = ConfigJson.getInt(obj, "customSlotColor", cfg.customSlotColor);
             }
@@ -115,7 +129,16 @@ public final class InventoryThemeConfig {
             obj.addProperty("theme", theme.name());
             obj.addProperty("themeHotbar", themeHotbar);
             obj.addProperty("hotbarScale", hotbarScale);
-            obj.addProperty("lineWidth", lineWidth);
+            int gs = currentGuiScale();
+            if (legacyLineUnits >= 0 && gs <= 0) {
+                // Still unconverted and no GUI scale to convert at: keep the old units as they were.
+                obj.addProperty("lineWidth", legacyLineUnits);
+            } else {
+                int px = getLineWidth();
+                obj.addProperty("lineWidthPx", px);
+                // The old key, in GUI units at the current scale, for an older jar reading this file (it clamps to 0-4).
+                obj.addProperty("lineWidth", px == 0 ? 0 : Math.max(1, Math.round(px / (float) Math.max(1, gs))));
+            }
             obj.addProperty("useCustomSlotColor", useCustomSlotColor);
             obj.addProperty("customSlotColor", customSlotColor);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -215,12 +238,35 @@ public final class InventoryThemeConfig {
         return Math.max(MIN_HOTBAR_SCALE, Math.min(MAX_HOTBAR_SCALE, value));
     }
 
+    /** Line Width in screen pixels. A width still in old GUI units is converted here, once, at the current GUI scale
+     *  (the pixels it was drawing at), and saved. */
     public int getLineWidth() {
+        if (legacyLineUnits >= 0) {
+            int gs = currentGuiScale();
+            if (gs > 0) {
+                lineWidth = clampLineWidth(legacyLineUnits * gs);
+                legacyLineUnits = -1;
+                save();
+            } else {
+                return clampLineWidth(legacyLineUnits * 2);
+            }
+        }
         return lineWidth;
     }
 
     public void setLineWidth(int lineWidth) {
+        this.legacyLineUnits = -1;
         this.lineWidth = clampLineWidth(lineWidth);
+    }
+
+    /** The window's GUI scale, or 0 before there is a window (or before it has one). */
+    private static int currentGuiScale() {
+        try {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            return mc == null || mc.getWindow() == null ? 0 : Math.max(0, mc.getWindow().getGuiScale());
+        } catch (RuntimeException | LinkageError e) {
+            return 0;
+        }
     }
 
     private static int clampLineWidth(int value) {

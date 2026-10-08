@@ -786,10 +786,13 @@ public final class StorageOverlayFeature {
     private static void drawSideButtons(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         lastBackButton = null;
         lastSearchButton = null;
+        lastScanButton = null;
         if (lastPos == null) {
             return;
         }
-        int w = 58;
+        String scanLabel = scanButtonLabel();
+        // Wide enough for the Scan All button's progress ("Stop 12/27"), all three the same width.
+        int w = Math.max(58, Minecraft.getInstance().font.width(scanLabel) + 10);
         int h = 16;
         // Real bug found 2026-09-30, from killer560's screenshot ("the Search box is drawn on top of the
         // Ender Chest #1 title"): this used to be Math.max(2, lastPos[0] - w - 6), so whenever the grid
@@ -813,7 +816,42 @@ public final class StorageOverlayFeature {
         if (searchOpener != null) {
             drawSideButton(graphics, x, y, w, h, "Search", mouseX, mouseY);
             lastSearchButton = new int[]{x, y, w, h};
+            if (besideGrid) {
+                y += h + 4;
+            } else {
+                x += w + 4;
+            }
         }
+        // Scan All (killer560, 2026-10-07: "For storage add a Scan All button somewhere that clicks in all the
+        // chests"): opens every real Ender Chest page and backpack in turn (StorageScanAll, storage pages only - locked
+        // pages and empty backpack slots are never opened), so the grid holds all of them. While it runs the overlay is
+        // on each page it opens, and this button shows the progress and stops it; Escape closes the page and stops it.
+        drawSideButton(graphics, x, y, w, h, scanLabel, mouseX, mouseY);
+        lastScanButton = new int[]{x, y, w, h};
+    }
+
+    /** "Scan All", or while a scan runs "Stop" and its progress: pages done / pages planned ("..." until the Storage
+     *  menu has been read). */
+    public static String scanButtonLabel() {
+        if (!com.killer560.hub.storagesearch.StorageScanAll.isRunning()) {
+            return "Scan All";
+        }
+        int total = com.killer560.hub.storagesearch.StorageScanAll.pagesTotal();
+        return total < 0 ? "Stop ..." : "Stop " + com.killer560.hub.storagesearch.StorageScanAll.pagesDone() + "/" + total;
+    }
+
+    /** The Scan All button's press: starts a storage-only scan, or stops the running one. */
+    public static void pressScanAll() {
+        if (com.killer560.hub.storagesearch.StorageScanAll.isRunning()) {
+            com.killer560.hub.storagesearch.StorageScanAll.stop("stopped from the Storage Overlay");
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null
+                && com.killer560.hub.compat.McCompat.screen(client) instanceof AbstractContainerScreen<?>) {
+            client.player.closeContainer(); // tells the server too; the scan opens each page by its command
+        }
+        com.killer560.hub.storagesearch.StorageScanAll.start(true);
     }
 
     private static void drawSideButton(GuiGraphicsExtractor graphics, int x, int y, int w, int h, String label,
@@ -838,6 +876,10 @@ public final class StorageOverlayFeature {
         }
         if (lastSearchButton != null && searchOpener != null && inside(lastSearchButton, mouseX, mouseY)) {
             searchOpener.run();
+            return true;
+        }
+        if (lastScanButton != null && inside(lastScanButton, mouseX, mouseY)) {
+            pressScanAll();
             return true;
         }
         return false;
@@ -1058,6 +1100,8 @@ public final class StorageOverlayFeature {
     /** Screen rects of the left-hand Back / Search buttons from the most recent render, or null when not drawn. */
     private static int[] lastBackButton = null;
     private static int[] lastSearchButton = null;
+    /** The Scan All button's last drawn {x, y, w, h} in GUI units, or null (read by the testkit to click it). */
+    private static int[] lastScanButton = null;
     /** Just the clickable LABEL strip of each panel from the most recent render (a subset of that
      *  panel's full {@link #lastPanelBounds} rect - the whole thing for a not-yet-opened placeholder,
      *  since there's no separate item area to protect there) - what a double-click is hit-tested

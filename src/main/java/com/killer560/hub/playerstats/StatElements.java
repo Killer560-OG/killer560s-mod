@@ -95,6 +95,78 @@ public final class StatElements {
      *  moved by a pixel less than dragged, testkit 399): 2 units above the number, 3 below. */
     public static final int MIN_VALUE_THICKNESS = VALUE_ROWS + 2 * VALUE_PAD_Y + 1;
 
+    /** Rows of a digit (and of the capital letters): the body the eye centres. The comma's tail and the shadow hang
+     *  below it, so centring the full {@link #VALUE_ROWS} put the digits a row high. */
+    public static final int DIGIT_ROWS = 7;
+
+    /**
+     * Draws {@code value} centred on the bar box {@code (x, top, w, h)} (killer560, 2026-10-07: "Can you center the text
+     * for my custom health bars in their new slightly larger state"). Centred is the WHITE glyphs: the digits' 7 rows
+     * vertically (not the 9 the comma and shadow need, which sat them a row high), and their ink horizontally - a
+     * string's width ends in one unit of spacing after its last glyph, which is not ink, so it was half a unit left.
+     * The half units that leaves are drawn as such (a pose translate, not an int position), snapped to the nearest
+     * screen pixel through the current pose, so the number is centred to the pixel at GUI 2 and 4 alike.
+     */
+    static void drawCentred(GuiGraphicsExtractor g, Font font, String value, int x, int top, int w, int h) {
+        int ink = Math.max(0, font.width(value) - 1);
+        float fx = x + (w - ink) / 2f;
+        float fy = top + (h - DIGIT_ROWS) / 2f;
+        var pose = g.pose();
+        int gs = Math.max(1, Minecraft.getInstance().getWindow().getGuiScale());
+        float sx = pose.m00() * gs;
+        float sy = pose.m11() * gs;
+        if (sx > 0f && sy > 0f) {
+            fx = (Math.round((pose.m00() * fx + pose.m20()) * gs) / (float) gs - pose.m20()) / pose.m00();
+            fy = (Math.round((pose.m11() * fy + pose.m21()) * gs) / (float) gs - pose.m21()) / pose.m11();
+        }
+        pose.pushMatrix();
+        try {
+            pose.translate(fx, fy);
+            g.text(font, value, 0, 0, 0xFFFFFFFF, true);
+        } finally {
+            pose.popMatrix();
+        }
+    }
+
+    // ---- Where the readouts drew this frame, in GUI units: the held-item name hides where it would cover one. ----
+
+    private static final int MAX_DRAWN = 32;
+    private static final float[] drawnRects = new float[MAX_DRAWN * 4];
+    private static int drawnCount;
+
+    /** Forgets last frame's boxes; the readouts' own layer calls this before it draws. Render thread. */
+    public static void beginFrame() {
+        drawnCount = 0;
+    }
+
+    /** Records the box a readout just drew, {@code (x, y, w, h)} in its own pose, as GUI units on screen. */
+    static void noteDrawn(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        if (drawnCount >= MAX_DRAWN) {
+            return;
+        }
+        var pose = g.pose();
+        int i = drawnCount++ * 4;
+        drawnRects[i] = pose.m00() * x + pose.m20();
+        drawnRects[i + 1] = pose.m11() * y + pose.m21();
+        drawnRects[i + 2] = pose.m00() * (x + w) + pose.m20();
+        drawnRects[i + 3] = pose.m11() * (y + h) + pose.m21();
+    }
+
+    /** Whether any readout drawn this frame overlaps the GUI-unit box {@code [x0,x1) x [y0,y1)}. */
+    public static boolean drawnOver(float x0, float y0, float x1, float y1) {
+        for (int k = 0; k < drawnCount; k++) {
+            int i = k * 4;
+            float a0 = Math.min(drawnRects[i], drawnRects[i + 2]);
+            float a1 = Math.max(drawnRects[i], drawnRects[i + 2]);
+            float b0 = Math.min(drawnRects[i + 1], drawnRects[i + 3]);
+            float b1 = Math.max(drawnRects[i + 1], drawnRects[i + 3]);
+            if (a0 < x1 && x0 < a1 && b0 < y1 && y0 < b1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The thickness bar {@code r} is drawn at, in its own units: in Predefined every bar shares the tab's Bar Height
      *  (killer560, 2026-10-07: "They are different scales when you use the predefined snap"); in Custom its own
      *  HUD-editor size. A bar showing its number is never thinner than {@link #MIN_VALUE_THICKNESS}. */
@@ -279,6 +351,9 @@ public final class StatElements {
             boolean drew = r.bar ? drawBar(graphics, cfg, x, y, preview) : drawText(graphics, cfg, x, y, preview);
             if (drew) {
                 HudSeen.markDrawn(id());
+                if (!preview) {
+                    noteDrawn(graphics, x, y, width(), height());
+                }
             }
         }
 
@@ -324,9 +399,7 @@ public final class StatElements {
                 // the current value alone, else nothing, each with VALUE_PAD_X to spare at both ends.
                 value = fitValue(font, value, w);
                 if (value != null) {
-                    int tx = x + (w - font.width(value)) / 2;
-                    int ty = top + (h - VALUE_ROWS) / 2;
-                    g.text(font, value, tx, ty, 0xFFFFFFFF, true);
+                    drawCentred(g, font, value, x, top, w, h);
                 }
             }
             return true;

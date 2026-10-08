@@ -111,6 +111,56 @@ public final class PlayerStatsFeature {
         };
         HudElementRegistry.replaceElement(VanillaHudElements.INFO_BAR, orig -> hidingXp() ? noOp : orig);
         HudElementRegistry.replaceElement(VanillaHudElements.EXPERIENCE_LEVEL, orig -> hidingXp() ? noOp : orig);
+        // Held Item Name (2026-10-07). HELD_ITEM_TOOLTIP wraps Gui.extractSelectedItemName on 26.1.2 and
+        // Hud.extractSelectedItemName on 26.2 (fabric-rendering-v1 23.3.1 / 25.3.3, javap). The decision is made inside the
+        // wrapper, every frame it runs, so it never depends on when Fabric applies the replacement function.
+        HudElementRegistry.replaceElement(VanillaHudElements.HELD_ITEM_TOOLTIP,
+                orig -> (graphics, deltaTracker) -> {
+                    boolean hide;
+                    try {
+                        hide = hidesHeldItemName(graphics);
+                    } catch (RuntimeException e) {
+                        hide = false;
+                    }
+                    if (hide) {
+                        heldNameHiddenFrames++;
+                    } else {
+                        heldNameShownFrames++;
+                        orig.extractRenderState(graphics, deltaTracker);
+                    }
+                });
+    }
+
+    /** Frames the held-item name layer ran and was hidden / handed to vanilla - testkit evidence of which path ran. */
+    public static volatile long heldNameHiddenFrames;
+    public static volatile long heldNameShownFrames;
+
+    /**
+     * Whether vanilla's held-item name is skipped this frame: always, never, or (the default) only where it would land on
+     * a Health and Mana Bars readout drawn this frame. The name's box is vanilla's own: its text centred at
+     * {@code guiHeight - 59} ({@code + 14} where the player cannot be hurt), with the two units of backdrop vanilla's
+     * {@code textWithBackdrop} draws round it (javap, 26.1.2 and 26.2 alike). Its width is that of the held stack's name,
+     * which is what vanilla shows after a slot switch. Skyblock Only, like the rest of the mod.
+     */
+    public static boolean hidesHeldItemName(net.minecraft.client.gui.GuiGraphicsExtractor graphics) {
+        PlayerStatsConfig.HeldItemName mode = PlayerStatsConfig.getInstance().getHeldItemName();
+        if (mode == PlayerStatsConfig.HeldItemName.SHOWN || !com.killer560.hub.util.SkyblockGate.allows()) {
+            return false;
+        }
+        if (mode == PlayerStatsConfig.HeldItemName.HIDDEN) {
+            return true;
+        }
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.player == null) {
+            return false;
+        }
+        int w = mc.font.width(mc.player.getMainHandItem().getHoverName());
+        int x = (graphics.guiWidth() - w) / 2;
+        int y = graphics.guiHeight() - 59;
+        if (mc.gameMode != null && !mc.gameMode.canHurtPlayer()) {
+            y += 14;
+        }
+        return StatElements.drawnOver(x - 2, y - 2, x + w + 2, y + 9 + 2);
     }
 
     private static boolean hidingXp() {

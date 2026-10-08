@@ -58,6 +58,8 @@ public final class HudInGameRenderer {
 
     private static void drawStats(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
+        // Before the gate: a frame that draws no readout must not leave last frame's boxes for the held-item name.
+        com.killer560.hub.playerstats.StatElements.beginFrame();
         if (!hudAllowed(client)) {
             return;
         }

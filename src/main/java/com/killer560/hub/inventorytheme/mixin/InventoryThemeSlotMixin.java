@@ -35,6 +35,28 @@ public abstract class InventoryThemeSlotMixin {
         InventoryThemeFeature.drawSlotBackdrop(graphics, self, slot);
     }
 
+    /** An EMPTY slot with a placeholder icon (the armour slots' helmet/chestplate/leggings/boots outlines, the offhand's
+     *  shield) never reaches {@code isFake}: {@code extractSlot} draws the icon with {@code blitSprite} and returns
+     *  (javap, 26.1.2 and 26.2 alike), so those slots had no square or lines at all - found 2026-10-07 by testkit 475,
+     *  with nothing worn. The backdrop goes in right before the {@code getNoItemIcon} call instead, only when there IS
+     *  an icon (with none, the method carries on to {@code isFake} and the injection above draws it). The call only
+     *  happens for an empty, active slot. */
+    @Inject(
+            method = "extractSlot(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/inventory/Slot;II)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/inventory/Slot;getNoItemIcon()Lnet/minecraft/resources/Identifier;"),
+            require = 0
+    )
+    private void killer560smod$drawIconSlotBackdrop(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY,
+                                                     CallbackInfo ci) {
+        AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
+        if (slot.getNoItemIcon() == null || !InventoryThemeFeature.shouldTheme(self)
+                || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle())) {
+            return;
+        }
+        InventoryThemeFeature.drawSlotBackdrop(graphics, self, slot);
+    }
+
     /** killer560: "remove the offhand slot ... for now." A HEAD-cancel of the WHOLE method, same narrow
      *  single-slot scope {@code TerminalSolverSlotMixin}/{@code StorageOverlaySlotMixin} use for their
      *  own per-slot hides - cancelling here also skips {@link #killer560smod$drawSlotBackdrop} above

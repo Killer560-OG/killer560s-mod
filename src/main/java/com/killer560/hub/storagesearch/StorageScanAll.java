@@ -59,6 +59,12 @@ public final class StorageScanAll {
     private static int skippedLocked;
     private static int skippedEmpty;
     private static boolean planFromMenu;
+    /** Ender Chest pages and backpacks only (the Storage Overlay's button), no wardrobe or pets. */
+    private static boolean storageOnly;
+    /** Pages (Ender Chest / backpack) of the plan finished so far, for the progress on the overlay's button. */
+    private static int pagesDone;
+    /** True once the plan exists (the Storage menu was read, or its fallback taken). */
+    private static boolean planned;
 
     public static List<String> plannedPages() {
         return List.copyOf(plannedPages);
@@ -84,7 +90,32 @@ public final class StorageScanAll {
         return current != null || !queue.isEmpty();
     }
 
+    /** Pages finished in the running (or last) scan's plan. */
+    public static int pagesDone() {
+        return pagesDone;
+    }
+
+    /** Pages in the running (or last) scan's plan, or -1 while the Storage menu has not been read yet. */
+    public static int pagesTotal() {
+        return planned ? plannedPages.size() : -1;
+    }
+
+    /** True when the running (or last) scan was the Storage Overlay's: storage pages only. */
+    public static boolean isStorageOnly() {
+        return storageOnly;
+    }
+
+    /** Storage Search's Scan All: every storage page, then the wardrobe and pets pages. */
     public static void start() {
+        start(false);
+    }
+
+    /**
+     * Starts a scan. {@code storageOnlyScan} is the Storage Overlay's "Scan All" button (killer560, 2026-10-07: "For
+     * storage add a Scan All button somewhere that clicks in all the chests"): only the Ender Chest pages and backpacks
+     * the Storage menu shows as real, no wardrobe or pets.
+     */
+    public static void start(boolean storageOnlyScan) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
             return;
@@ -99,15 +130,22 @@ public final class StorageScanAll {
         skippedLocked = 0;
         skippedEmpty = 0;
         planFromMenu = false;
+        planned = false;
+        pagesDone = 0;
+        storageOnly = storageOnlyScan;
         // The Storage menu first: its icons say which pages exist (see planPages), and only those are queued.
         queue.add(new Visit(STORAGE_COMMAND, 0, "Storage menu"));
-        // Wardrobe / pets: the extra pages only get queued once page 1 shows a Next Page arrow (see finishVisit()).
-        queue.add(new Visit("wardrobe", 0, "Wardrobe page 1"));
-        queue.add(new Visit("pets", 0, "Pets page 1"));
+        if (!storageOnlyScan) {
+            // Wardrobe / pets: the extra pages only get queued once page 1 shows a Next Page arrow (see finishVisit()).
+            queue.add(new Visit("wardrobe", 0, "Wardrobe page 1"));
+            queue.add(new Visit("pets", 0, "Pets page 1"));
+        }
         current = null;
         visited = 0;
         ModChat.send(StorageSearchFeature.CHAT_PREFIX, ModChat.text("Scan All started - "),
-                ModChat.dim("opening every storage page, wardrobe page and pet page. Open anything yourself to stop."));
+                ModChat.dim(storageOnlyScan
+                        ? "opening every Ender Chest page and backpack. Press Scan All again, or Escape, to stop."
+                        : "opening every storage page, wardrobe page and pet page. Open anything yourself to stop."));
         McCompat.setScreen(client, null);
     }
 
@@ -131,7 +169,10 @@ public final class StorageScanAll {
         }
         if (current == null) {
             if (McCompat.screen(client) != null) {
-                return; // wait for the previous menu to finish closing
+                // Between two visits nothing of ours is open (finishVisit closes the menu at once), so this is a screen
+                // he opened - Escape's pause menu, chat, his inventory. It used to wait here until he closed it again.
+                stop("another screen opened");
+                return;
             }
             current = queue.remove(0);
             ticks = 0;
@@ -149,8 +190,14 @@ public final class StorageScanAll {
             } else if (ticks > OPEN_TIMEOUT_TICKS) {
                 if (STORAGE_COMMAND.equals(current.command())) {
                     planPages(null); // the Storage menu never opened: fall back to what the overlay knows
+                } else if (current.command().startsWith("enderchest ") || current.command().startsWith("backpack ")) {
+                    pagesDone++;
                 }
                 current = null; // this page doesn't exist - move on
+                if (queue.isEmpty()) {
+                    ModChat.send(StorageSearchFeature.CHAT_PREFIX, ModChat.good("Scan All done"),
+                            ModChat.dim(String.format(Locale.ROOT, " - %d pages remembered.", visited)));
+                }
             } else if (McCompat.screen(client) != null) {
                 stop("another screen opened");
             }
@@ -180,6 +227,8 @@ public final class StorageScanAll {
         Visit done = current;
         if (STORAGE_COMMAND.equals(done.command())) {
             planPages(captured ? storageMenuSlots(client) : null);
+        } else if (done.command().startsWith("enderchest ") || done.command().startsWith("backpack ")) {
+            pagesDone++;
         }
         boolean hasNext = captured && findNextPage(client) != null;
         client.player.closeContainer(); // the close is what records wardrobe / pets pages
@@ -238,6 +287,7 @@ public final class StorageScanAll {
             pages = knownPages();
         }
         planFromMenu = fromMenu;
+        planned = true;
         plannedPages.clear();
         for (Visit v : pages) {
             plannedPages.add(v.command());

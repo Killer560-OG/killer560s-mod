@@ -106,46 +106,63 @@ public final class HotbarTheme {
         }
     }
 
-    /** The themed panel, nine slot squares, the selected slot and (when the offhand holds something) its square. */
+    /**
+     * The themed panel as a grid (killer560, 2026-10-07: single shared lines between slots): the bar's outer border, one
+     * separator line between each pair of slots, centred on vanilla's own cell boundary (x0 + 1 + 20i - the middle of the
+     * four units between two items), the cells in the slot colour, the selected slot framed one GUI unit heavier than
+     * the lines, and (when the offhand holds something) its own bordered square. Lines are Line Width PIXELS thick
+     * ({@link PixelRects}), also under Hotbar Scale.
+     */
     private static void drawBackground(GuiGraphicsExtractor graphics, InventoryThemeConfig cfg, Player player, int cx,
                                        int bottom) {
         int accent = cfg.getAccentColor();
         int slotColor = cfg.getSlotColor();
         int panel = (Math.round(cfg.getBackgroundOpacity() * 255f) << 24) | (cfg.getPanelColor() & 0x00FFFFFF);
-        int line = cfg.getLineWidth();
+        int t = cfg.getLineWidth();
         int x0 = cx - 91;
         int y0 = bottom - 22;
 
-        com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
-        rects.fill(x0, y0, x0 + 182, bottom, panel);
-        InventoryThemeFeature.outline(rects, x0, y0, 182, 22, line, accent);
-        int selected = player.getInventory().getSelectedSlot();
-        for (int i = 0; i < 9; i++) {
-            // The slot square sits one unit outside the 16x16 item, like a menu slot's backdrop.
-            int sx = cx - 90 + i * 20 + 2 - 1;
-            int sy = bottom - 19 - 1;
-            rects.fill(sx, sy, sx + 18, sy + 18, slotColor);
-            if (i != selected) {
-                InventoryThemeFeature.outline(rects, sx, sy, 18, 18, line, accent);
+        PixelRects r = PixelRects.begin(graphics);
+        try {
+            int px0 = r.x(x0);
+            int py0 = r.y(y0);
+            int px1 = r.x(x0 + 182);
+            int py1 = r.y(bottom);
+            r.fill(px0, py0, px1, py1, panel);
+            r.fill(px0 + t, py0 + t, px1 - t, py1 - t, slotColor);
+            r.outline(px0, py0, px1, py1, t, accent);
+            for (int i = 1; i < 9; i++) {
+                int sx = separator(r, x0, i, t);
+                r.fill(sx, py0 + t, sx + t, py1 - t, accent);
             }
-        }
-        // Selected slot: the hover glow over the square and a frame one unit heavier than the lines (always visible,
-        // even at line width 0), in place of vanilla's white selection sprite.
-        int sx = cx - 90 + selected * 20 + 2 - 1;
-        int sy = bottom - 19 - 1;
-        rects.fill(sx, sy, sx + 18, sy + 18, (0x55 << 24) | (accent & 0x00FFFFFF));
-        InventoryThemeFeature.outline(rects, sx - 1, sy - 1, 20, 20, line + 1, accent);
+            // Selected slot: the hover glow over its cell and a frame one unit heavier than the lines (always visible,
+            // even at line width 0), in place of vanilla's white selection sprite. The cell runs from its left line to
+            // its right line (the bar's own border at either end).
+            int selected = player.getInventory().getSelectedSlot();
+            int fx0 = selected == 0 ? px0 : separator(r, x0, selected, t);
+            int fx1 = selected == 8 ? px1 : separator(r, x0, selected + 1, t) + t;
+            int frame = t + r.unit();
+            r.fill(fx0 + frame, py0 + frame, fx1 - frame, py1 - frame, (0x55 << 24) | (accent & 0x00FFFFFF));
+            r.outline(fx0, py0, fx1, py1, frame, accent);
 
-        ItemStack offhand = player.getOffhandItem();
-        if (!offhand.isEmpty()) {
-            boolean left = player.getMainArm().getOpposite() == HumanoidArm.LEFT;
-            int itemX = left ? cx - 91 - 26 : cx + 91 + 10;
-            int ox = itemX - 3;
-            rects.fill(ox, y0, ox + 22, bottom, panel);
-            InventoryThemeFeature.outline(rects, ox, y0, 22, 22, line, accent);
-            rects.fill(itemX - 1, bottom - 20, itemX + 17, bottom - 2, slotColor);
-            InventoryThemeFeature.outline(rects, itemX - 1, bottom - 20, 18, 18, line, accent);
+            ItemStack offhand = player.getOffhandItem();
+            if (!offhand.isEmpty()) {
+                boolean left = player.getMainArm().getOpposite() == HumanoidArm.LEFT;
+                int itemX = left ? cx - 91 - 26 : cx + 91 + 10;
+                int ox0 = r.x(itemX - 3);
+                int ox1 = r.x(itemX - 3 + 22);
+                r.fill(ox0, py0, ox1, py1, panel);
+                r.fill(ox0 + t, py0 + t, ox1 - t, py1 - t, slotColor);
+                r.outline(ox0, py0, ox1, py1, t, accent);
+            }
+        } finally {
+            r.submit();
         }
-        rects.submit();
+    }
+
+    /** The first pixel column of the separator before slot {@code i} (1..8): {@code t} pixels centred on vanilla's cell
+     *  boundary x0 + 1 + 20i. */
+    private static int separator(PixelRects r, int x0, int i, int t) {
+        return r.x(x0 + 1 + 20 * i) - t / 2;
     }
 }

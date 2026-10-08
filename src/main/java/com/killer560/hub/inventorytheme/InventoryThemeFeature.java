@@ -1,7 +1,6 @@
 package com.killer560.hub.inventorytheme;
 
 import com.killer560.hub.cheatutils.CheatUtils;
-import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.inventorytheme.mixin.InventoryThemeGeometryAccessor;
 import com.killer560.hub.inventorytheme.mixin.InventoryThemeImageButtonSpritesAccessor;
 import com.killer560.hub.storageoverlay.StorageOverlayConfig;
@@ -155,8 +154,8 @@ public final class InventoryThemeFeature {
 
     /** Replaces the vanilla background texture with one flat Amber-bordered panel spanning the whole
      *  image area (container rows + relocated player inventory + hotbar all live in that one rect for
-     *  every in-scope screen, same as vanilla's own single background sprite did). No per-frame
-     *  allocation - every value here is either a constant or a primitive read off the screen. */
+     *  every in-scope screen, same as vanilla's own single background sprite did). Lines are Line Width PIXELS
+     *  thick ({@link PixelRects}); everything goes out as one batched render-state element. */
     public static void drawBackground(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         int x0 = leftPos(screen);
         int y0 = topPos(screen);
@@ -164,23 +163,42 @@ public final class InventoryThemeFeature {
         int h = imageHeight(screen);
         InventoryThemeConfig cfg = InventoryThemeConfig.getInstance();
         int alpha = Math.round(cfg.getBackgroundOpacity() * 255f) << 24;
-        int line = cfg.getLineWidth();
-        GuiRects rects = GuiRects.begin(graphics);
-        rects.fill(x0, y0, x0 + w, y0 + h, alpha | (cfg.getPanelColor() & 0x00FFFFFF));
-        // killer560: "for the border it is extremely faint all around the inventory and it doesn't
-        // change except the very top bar with the custom option" - the whole outline used to be a
-        // hardcoded dim constant (0xFF553311, barely readable against PANEL_BG) while only this one top
-        // strip used the real accent color. Now the accent color IS the border, on all four sides, so
-        // it's both visible by default and actually responds to Accent Source/Accent Color.
-        outline(rects, x0, y0, w, h, line, cfg.getAccentColor());
-        if (screen instanceof InventoryScreen) {
-            // The player-model window vanilla's texture used to frame (InventoryScreen.extractBackground
-            // passes leftPos+26..75, topPos+8..78 to extractEntityInInventoryFollowsMouse).
-            rects.fill(x0 + 26, y0 + 8, x0 + 75, y0 + 78, cfg.getSlotColor());
-            outline(rects, x0 + 26, y0 + 8, 49, 70, line, cfg.getAccentColor());
+        int t = cfg.getLineWidth();
+        PixelRects r = PixelRects.begin(graphics);
+        try {
+            int px0 = r.x(x0);
+            int py0 = r.y(y0);
+            int px1 = r.x(x0 + w);
+            int py1 = r.y(y0 + h);
+            r.fill(px0, py0, px1, py1, alpha | (cfg.getPanelColor() & 0x00FFFFFF));
+            // killer560: "for the border it is extremely faint all around the inventory and it doesn't
+            // change except the very top bar with the custom option" - the whole outline used to be a
+            // hardcoded dim constant (0xFF553311, barely readable against PANEL_BG) while only this one top
+            // strip used the real accent color. Now the accent color IS the border, on all four sides, so
+            // it's both visible by default and actually responds to Accent Source/Accent Color.
+            r.outline(px0, py0, px1, py1, t, cfg.getAccentColor());
+            if (screen instanceof InventoryScreen) {
+                // The player-model window vanilla's texture used to frame (InventoryScreen.extractBackground passes
+                // leftPos+26..75, topPos+8..78 to extractEntityInInventoryFollowsMouse). Its frame now runs from the
+                // armour column's top line to its bottom line (killer560, 2026-10-07: "The outline of my armor goes a
+                // hair higher than my player's model"): the four armour slots' squares span y 7..79 (slot y 8..62 plus
+                // the unit round each) while the window spanned 8..78, so the column stuck out a unit at both ends.
+                // Drawn as a cell box, the slots' own convention, so both end on the same pixel rows.
+                cellBox(r, x0 + MODEL_X0, y0 + ARMOUR_TOP, x0 + MODEL_X1, y0 + ARMOUR_BOTTOM, t, cfg.getSlotColor(),
+                        cfg.getAccentColor());
+            }
+        } finally {
+            r.submit();
         }
-        rects.submit();
     }
+
+    /** The player-model window's left and right edge, in units from leftPos (vanilla's own model box). */
+    public static final int MODEL_X0 = 26;
+    public static final int MODEL_X1 = 75;
+    /** The armour column's slot squares' top and bottom, in units from topPos: the head slot's y 8 minus one, the boots
+     *  slot's y 62 plus 17. The model window's frame spans exactly this. */
+    public static final int ARMOUR_TOP = 7;
+    public static final int ARMOUR_BOTTOM = 79;
 
     /** Themed backdrop for one real slot, drawn immediately before vanilla draws that slot's item icon
      *  (see {@code InventoryThemeSlotMixin} for exactly why that injection point, not {@code HEAD}, was
@@ -192,18 +210,42 @@ public final class InventoryThemeFeature {
         // 26.1.2 and 26.2), exactly as vanilla's own extractSlot draws its item at plain (slot.x, slot.y).
         // Adding leftPos here applied it twice and put the whole grid of backdrops at (2*leftPos, 2*topPos):
         // the "empty orange inventory grid at the bottom right" with the real panel left slot-less.
-        int x = slot.x - 1;
-        int y = slot.y - 1;
-        // killer560: "I can no longer see the lines between slots" - same root cause as the outer
-        // border above (a hardcoded dim brown, 0xFF663D1A, that barely read against SLOT_BG). Per-slot
-        // outlines now use the same accent color as the rest of the border, so the grid lines between
-        // slots are back and consistent with the rest of the panel.
-        // One render-state element, not five: the same fill and outline, but a menu's 450 separate fills were each
-        // intersection-tested against every item already drawn - 8% of the render thread with a chest open (GuiRects).
+        // killer560: "I can no longer see the lines between slots" - the lines use the accent colour.
+        // One render-state element per slot: a menu's 450 separate fills were each intersection-tested against every
+        // item already drawn - 8% of the render thread with a chest open (GuiRects, via PixelRects).
         InventoryThemeConfig cfg = InventoryThemeConfig.getInstance();
-        GuiRects rects = GuiRects.begin(graphics).fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, cfg.getSlotColor());
-        outline(rects, x, y, SLOT_SIZE, SLOT_SIZE, cfg.getLineWidth(), cfg.getAccentColor());
-        rects.submit();
+        PixelRects r = PixelRects.begin(graphics);
+        try {
+            cellBox(r, slot.x - 1, slot.y - 1, slot.x + SLOT_SIZE - 1, slot.y + SLOT_SIZE - 1, cfg.getLineWidth(),
+                    cfg.getSlotColor(), cfg.getAccentColor());
+        } finally {
+            r.submit();
+        }
+    }
+
+    /**
+     * One slot square (or any box laid out on the slot grid) from GUI units {@code (gx0,gy0)..(gx1,gy1)}, with lines
+     * {@code t} PIXELS thick. The left and top lines start on the box's edge; the right and bottom lines sit just PAST
+     * it, on exactly the pixels where the next slot's left / top line goes. So two touching slots draw their shared edge
+     * on the same pixels - one line, not two side by side (killer560, 2026-10-07: "two touching slots have their lines
+     * touching each other so it looks really cluttered and full") - and no slot needs to know its neighbours, so a slot
+     * another feature hides leaves no gap in its neighbour's frame. The fill is the inside only, so no square paints
+     * over a line drawn before it. Line width 0 fills the whole box and draws no lines.
+     */
+    static void cellBox(PixelRects r, float gx0, float gy0, float gx1, float gy1, int t, int fill, int line) {
+        int x0 = r.x(gx0);
+        int y0 = r.y(gy0);
+        int x1 = r.x(gx1);
+        int y1 = r.y(gy1);
+        if (t <= 0) {
+            r.fill(x0, y0, x1, y1, fill);
+            return;
+        }
+        r.fill(x0 + t, y0 + t, x1, y1, fill);
+        r.fill(x0, y0, x1 + t, y0 + t, line);  // top
+        r.fill(x0, y1, x1 + t, y1 + t, line);  // bottom: the next row's top line
+        r.fill(x0, y0 + t, x0 + t, y1, line);  // left
+        r.fill(x1, y0 + t, x1 + t, y1, line);  // right: the next column's left line
     }
 
     /** Themed replacement for vanilla's white hover-highlight box, drawn once (in place of vanilla's own
@@ -215,32 +257,24 @@ public final class InventoryThemeFeature {
             return;
         }
         // Slot-local for the same reason as drawSlotBackdrop: this runs inside extractContents' translated pose.
-        int x = hoveredSlot.x - 1;
-        int y = hoveredSlot.y - 1;
         InventoryThemeConfig cfg = InventoryThemeConfig.getInstance();
         int accent = cfg.getAccentColor();
         int glow = (0x55 << 24) | (accent & 0x00FFFFFF);
-        GuiRects rects = GuiRects.begin(graphics).fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, glow);
-        // At least one unit, so the hovered slot still shows with Line Width at 0.
-        outline(rects, x, y, SLOT_SIZE, SLOT_SIZE, Math.max(1, cfg.getLineWidth()), accent);
-        rects.submit();
-    }
-
-    /**
-     * An outline {@code width} units thick drawn INSIDE the box (Line Width, killer560 2026-10-07), as four
-     * non-overlapping strips so a translucent colour never blends twice. Width 1 is exactly {@code GuiRects.outline}'s
-     * four fills, in the same order - the look before the slider existed. 0 draws nothing; a width over half the box
-     * is capped there.
-     */
-    public static void outline(GuiRects rects, int x, int y, int w, int h, int width, int color) {
-        int t = Math.min(width, Math.min(w, h) / 2);
-        if (t <= 0) {
-            return;
+        int t = cfg.getLineWidth();
+        PixelRects r = PixelRects.begin(graphics);
+        try {
+            // The square with both of its lines (the right and bottom ones sit past it, see cellBox).
+            int x0 = r.x(hoveredSlot.x - 1);
+            int y0 = r.y(hoveredSlot.y - 1);
+            int x1 = r.x(hoveredSlot.x + SLOT_SIZE - 1) + t;
+            int y1 = r.y(hoveredSlot.y + SLOT_SIZE - 1) + t;
+            // At least one GUI unit thick, so the hovered slot still shows with Line Width at 0.
+            int frame = Math.max(r.unit(), t);
+            r.fill(x0 + frame, y0 + frame, x1 - frame, y1 - frame, glow);
+            r.outline(x0, y0, x1, y1, frame, accent);
+        } finally {
+            r.submit();
         }
-        rects.fill(x, y, x + w, y + t, color);
-        rects.fill(x, y + h - t, x + w, y + h, color);
-        rects.fill(x, y + t, x + t, y + h - t, color);
-        rects.fill(x + w - t, y + t, x + w, y + h - t, color);
     }
 
     /** Replacement for vanilla's grey title label text, drawn at the exact same position vanilla

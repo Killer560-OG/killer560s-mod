@@ -85,7 +85,7 @@ public class InventoryThemeTab extends BaseTab {
         });
         y += 26;
 
-        // Line Width: whole GUI units, MIN_LINE_WIDTH..MAX_LINE_WIDTH - the slider spans exactly the setter's clamp.
+        // Line Width: whole screen pixels, MIN_LINE_WIDTH..MAX_LINE_WIDTH - the slider spans exactly the setter's clamp.
         int lineRange = InventoryThemeConfig.MAX_LINE_WIDTH - InventoryThemeConfig.MIN_LINE_WIDTH;
         double lineNorm = (cfg.getLineWidth() - InventoryThemeConfig.MIN_LINE_WIDTH) / (double) lineRange;
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, lineWidthText(cfg), lineNorm) {
@@ -198,7 +198,7 @@ public class InventoryThemeTab extends BaseTab {
     }
 
     private static Component lineWidthText(InventoryThemeConfig cfg) {
-        return Component.literal("Line Width: " + (cfg.getLineWidth() == 0 ? "Off" : cfg.getLineWidth()));
+        return Component.literal("Line Width: " + (cfg.getLineWidth() == 0 ? "Off" : cfg.getLineWidth() + " px"));
     }
 
     private static Component hotbarText(InventoryThemeConfig cfg) {
