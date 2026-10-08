@@ -29,7 +29,10 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   mouseReleased` persists a position for any press-release on a box, drag or not: one click in the editor
   while the window was briefly 854x480 froze `storage_overlay` at the clamped `x:0` and it stayed there at
   2560x1441, which is what "the storage overlay is no longer centered" turned out to be. A saved position is
-  never re-clamped, so the cure is deleting the element's entry from `killer560smod-hud.json`. And `width()`/
+  never re-clamped, so deleting the entry only lasted until the next stray click: on 2026-10-07 his HUD config
+  again held `storage_overlay {x: 0, y: 20}` (saved 20:26) and the overlay sat at the left edge. Its x is now
+  not a saved value at all - `layoutPosition()` returns the centre every frame and only the saved y is honoured
+  (testkit 453 measures it at six window/GUI sizes with that saved x 0). And `width()`/
   `height()` must measure the SAME lines `render()` draws (one `lines()`/`layout()` method both read, sizes via
   `hud/HudText`): fixed guesses left 20 of 50 boxes more than 3 units off (Split Timers +70, Autopilot -76) until
   2026-10-07; testkit 390-ui-hud-boxes checks every element. Centred elements (Room Alerts, blood camp popup) keep

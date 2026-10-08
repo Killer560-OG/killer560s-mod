@@ -5,6 +5,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.gui.PanelTheme;
 import com.killer560.hub.util.ConfigJson;
 
 import java.nio.charset.StandardCharsets;
@@ -13,7 +14,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Persisted Storage Overlay settings - the main on/off toggle, dark/light background, scale, and
+/** Persisted Storage Overlay settings - the main on/off toggle, the Amber/Dark/Light theme, scale, and
  *  column count. Screen POSITION (not scale any more) is still handled by the shared
  *  {@link com.killer560.hub.hud.HudConfig}/HUD editor like every other HUD element. */
 public final class StorageOverlayConfig {
@@ -25,7 +26,10 @@ public final class StorageOverlayConfig {
     private static StorageOverlayConfig instance;
 
     private boolean enabled = true;
-    private boolean darkMode = true;
+    /** killer560 (2026-10-07): Amber, Dark or Light. Replaces the old {@code darkMode} boolean: a saved
+     *  {@code darkMode: true} (the only dark look there was) loads as {@link PanelTheme#AMBER} and {@code false} as
+     *  {@link PanelTheme#LIGHT}, so nobody's overlay changes on update - see {@link #load()}. */
+    private PanelTheme theme = PanelTheme.AMBER;
     /** Storage key (see {@link StorageOverlayFeature#storageKey}) -> killer560's custom display name. */
     private final Map<String, String> customNames = new HashMap<>();
     /** Uniform scale for the WHOLE feature - both the grid and the relocated Inventory panel - per
@@ -62,7 +66,9 @@ public final class StorageOverlayConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             StorageOverlayConfig cfg = new StorageOverlayConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
-            cfg.darkMode = ConfigJson.getBool(obj, "darkMode", true);
+            // Old files only have darkMode; a file written by this version has both (darkMode kept for an older jar).
+            PanelTheme migrated = ConfigJson.getBool(obj, "darkMode", true) ? PanelTheme.AMBER : PanelTheme.LIGHT;
+            cfg.theme = PanelTheme.parse(ConfigJson.getString(obj, "theme", null), migrated);
             cfg.scale = clampScale(ConfigJson.getFloat(obj, "scale", 1.0f));
             cfg.columns = clampColumns(ConfigJson.getInt(obj, "columns", 3));
             JsonObject names = ConfigJson.getObject(obj, "customNames");
@@ -85,7 +91,9 @@ public final class StorageOverlayConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("darkMode", darkMode);
+            obj.addProperty("theme", theme.name());
+            // For a jar from before the themes: it reads only darkMode, and Light is the one it can show as light.
+            obj.addProperty("darkMode", theme != PanelTheme.LIGHT);
             obj.addProperty("scale", scale);
             obj.addProperty("columns", columns);
             JsonObject names = new JsonObject();
@@ -106,12 +114,12 @@ public final class StorageOverlayConfig {
         this.enabled = enabled;
     }
 
-    public boolean isDarkMode() {
-        return darkMode;
+    public PanelTheme getTheme() {
+        return theme;
     }
 
-    public void setDarkMode(boolean darkMode) {
-        this.darkMode = darkMode;
+    public void setTheme(PanelTheme theme) {
+        this.theme = theme == null ? PanelTheme.AMBER : theme;
     }
 
     public float getScale() {

@@ -1,5 +1,8 @@
 package com.killer560.hub.storagesearch;
 
+import com.killer560.hub.storageoverlay.StorageOverlayCache;
+import com.killer560.hub.storageoverlay.StorageOverlayFeature;
+import com.killer560.hub.storageoverlay.StoragePageSlots;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -21,9 +24,14 @@ import com.killer560.hub.compat.McCompat;
  * then the wardrobe and pets menus page by page. Each visit opens the menu, waits for its contents to arrive, and
  * closes it - the existing captures (Storage Overlay's page cache, this feature's wardrobe/pets capture on close)
  * record it exactly as if you had opened it yourself. A wardrobe / pets page after the first is reached by reopening
- * the menu and clicking its "Next Page" arrow that many times. A page that doesn't exist (a backpack slot you don't
- * have) simply never opens and is skipped after a short wait. Opening any other screen, or closing one of its
+ * the menu and clicking its "Next Page" arrow that many times. Opening any other screen, or closing one of its
  * menus yourself, ends it.
+ * <p>
+ * Which pages: killer560 (2026-10-07), "if I don't have a backpack in a spot or have an ender chest page unlocked it
+ * shouldn't click there." It used to try all 9 Ender Chest pages and all 18 backpacks blind. It now opens Hypixel's
+ * {@code /storage} menu first and reads its icons ({@link StoragePageSlots}): a "Locked Page" or an "Empty Backpack Slot
+ * N" is never visited, only real pages are. If the Storage menu cannot be read, it falls back to the pages the Storage
+ * Overlay already knows exist (from an earlier look at that menu or from opening them), and to none if it knows of none.
  */
 public final class StorageScanAll {
 
@@ -34,6 +42,8 @@ public final class StorageScanAll {
     private static final int SETTLE_TICKS = 12;
     private static final int CLICK_GAP_TICKS = 8;
     private static final int MAX_EXTRA_PAGES = 9;
+    private static final String STORAGE_COMMAND = "storage";
+    private static final String STORAGE_TITLE = "Storage";
 
     private static final List<Visit> queue = new ArrayList<>();
     private static Visit current;
@@ -42,6 +52,30 @@ public final class StorageScanAll {
     private static boolean opened;
     private static int visited;
     private static boolean registered;
+
+    /** What the last run decided, for the testkit and the chat summary: the page commands it queued, and how many
+     *  locked pages / empty backpack slots it left alone. */
+    private static final List<String> plannedPages = new ArrayList<>();
+    private static int skippedLocked;
+    private static int skippedEmpty;
+    private static boolean planFromMenu;
+
+    public static List<String> plannedPages() {
+        return List.copyOf(plannedPages);
+    }
+
+    public static int skippedLocked() {
+        return skippedLocked;
+    }
+
+    public static int skippedEmpty() {
+        return skippedEmpty;
+    }
+
+    /** True when the last plan came from reading the Storage menu, false when it fell back to the overlay's cache. */
+    public static boolean planFromMenu() {
+        return planFromMenu;
+    }
 
     private StorageScanAll() {
     }
@@ -61,12 +95,12 @@ public final class StorageScanAll {
             ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("StorageScanAll.tick", StorageScanAll::tick));
         }
         queue.clear();
-        for (int i = 1; i <= 9; i++) {
-            queue.add(new Visit("enderchest " + i, 0, "Ender Chest " + i));
-        }
-        for (int i = 1; i <= 18; i++) {
-            queue.add(new Visit("backpack " + i, 0, "Backpack " + i));
-        }
+        plannedPages.clear();
+        skippedLocked = 0;
+        skippedEmpty = 0;
+        planFromMenu = false;
+        // The Storage menu first: its icons say which pages exist (see planPages), and only those are queued.
+        queue.add(new Visit(STORAGE_COMMAND, 0, "Storage menu"));
         // Wardrobe / pets: the extra pages only get queued once page 1 shows a Next Page arrow (see finishVisit()).
         queue.add(new Visit("wardrobe", 0, "Wardrobe page 1"));
         queue.add(new Visit("pets", 0, "Pets page 1"));
@@ -113,6 +147,9 @@ public final class StorageScanAll {
                 opened = true;
                 ticks = 0;
             } else if (ticks > OPEN_TIMEOUT_TICKS) {
+                if (STORAGE_COMMAND.equals(current.command())) {
+                    planPages(null); // the Storage menu never opened: fall back to what the overlay knows
+                }
                 current = null; // this page doesn't exist - move on
             } else if (McCompat.screen(client) != null) {
                 stop("another screen opened");
@@ -141,6 +178,9 @@ public final class StorageScanAll {
 
     private static void finishVisit(Minecraft client, boolean captured) {
         Visit done = current;
+        if (STORAGE_COMMAND.equals(done.command())) {
+            planPages(captured ? storageMenuSlots(client) : null);
+        }
         boolean hasNext = captured && findNextPage(client) != null;
         client.player.closeContainer(); // the close is what records wardrobe / pets pages
         if (captured) {
@@ -157,6 +197,93 @@ public final class StorageScanAll {
             ModChat.send(StorageSearchFeature.CHAT_PREFIX, ModChat.good("Scan All done"),
                     ModChat.dim(String.format(Locale.US, " - %d pages remembered.", visited)));
         }
+    }
+
+    /** The open screen's slots when it is Hypixel's Storage menu, else null. */
+    private static List<Slot> storageMenuSlots(Minecraft client) {
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)
+                || !STORAGE_TITLE.equals(screen.getTitle().getString())) {
+            return null;
+        }
+        return screen.getMenu().slots;
+    }
+
+    /**
+     * Queues the Ender Chest pages and backpacks to visit, ahead of the wardrobe and pets. From the Storage menu's own
+     * icons when {@code slots} is that menu (and its icons have arrived): a real page is queued, a locked page or an
+     * empty backpack slot is counted and skipped. Otherwise from the Storage Overlay's list of pages known to exist.
+     */
+    private static void planPages(List<Slot> slots) {
+        List<Visit> pages = new ArrayList<>();
+        boolean fromMenu = false;
+        if (slots != null && slots.size() >= 45) {
+            List<Visit> found = new ArrayList<>();
+            int[] counts = new int[3]; // seen, locked, empty
+            for (int page = 1; page <= 9; page++) {
+                tally(slots.get(StoragePageSlots.enderChestSlot(page)), "enderchest " + page, "Ender Chest " + page,
+                        found, counts);
+            }
+            for (int n = 1; n <= 18; n++) {
+                tally(slots.get(StoragePageSlots.backpackSlot(n)), "backpack " + n, "Backpack " + n, found, counts);
+            }
+            // An all-blank menu means its icons had not arrived; that tells us nothing, so it is not a plan.
+            if (counts[0] > 0) {
+                pages = found;
+                skippedLocked = counts[1];
+                skippedEmpty = counts[2];
+                fromMenu = true;
+            }
+        }
+        if (!fromMenu) {
+            pages = knownPages();
+        }
+        planFromMenu = fromMenu;
+        plannedPages.clear();
+        for (Visit v : pages) {
+            plannedPages.add(v.command());
+        }
+        queue.addAll(0, pages);
+        ModChat.send(StorageSearchFeature.CHAT_PREFIX, ModChat.dim(fromMenu
+                ? String.format(Locale.US, "%d page(s) to open; skipping %d locked page(s) and %d empty backpack slot(s).",
+                        pages.size(), skippedLocked, skippedEmpty)
+                : String.format(Locale.US, "Couldn't read the Storage menu - opening the %d page(s) already known.",
+                        pages.size())));
+    }
+
+    private static void tally(Slot slot, String command, String label, List<Visit> found, int[] counts) {
+        StoragePageSlots.Kind kind = StoragePageSlots.classify(slot.getItem());
+        if (kind != StoragePageSlots.Kind.NONE) {
+            counts[0]++;
+        }
+        if (kind == StoragePageSlots.Kind.PAGE) {
+            found.add(new Visit(command, 0, label));
+        } else if (kind == StoragePageSlots.Kind.LOCKED) {
+            counts[1]++;
+        } else if (kind == StoragePageSlots.Kind.EMPTY_BACKPACK) {
+            counts[2]++;
+        }
+    }
+
+    /** Ender Chest pages and backpacks the Storage Overlay already knows exist for this account and profile. */
+    private static List<Visit> knownPages() {
+        List<Visit> out = new ArrayList<>();
+        try {
+            String prefix = StorageOverlayFeature.accountProfilePrefix();
+            List<String> keys = StorageOverlayCache.getInstance().knownKeysFor(prefix);
+            for (int page = 1; page <= 9; page++) {
+                if (keys.contains(prefix + "|enderchest_" + page)) {
+                    out.add(new Visit("enderchest " + page, 0, "Ender Chest " + page));
+                }
+            }
+            for (int n = 1; n <= 18; n++) {
+                if (keys.contains(prefix + "|backpack_" + n)) {
+                    out.add(new Visit("backpack " + n, 0, "Backpack " + n));
+                }
+            }
+        } catch (RuntimeException e) {
+            out.clear();
+        }
+        return out;
     }
 
     private static Slot findNextPage(Minecraft client) {

@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.PanelTheme;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.storageoverlay.StorageOverlayConfig;
@@ -9,7 +10,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Storage Overlay settings: the main on/off toggle, dark/light background, and a scale slider - per
+/** Storage Overlay settings: the main on/off toggle, the Amber/Dark/Light theme, and a scale slider - per
  *  killer560's "add a scale bar... this should rescale everything while still keeping my inventory at
  *  the bottom and it centered at the top" request (2026-09-08), one explicit control that resizes both
  *  the grid and the relocated Inventory panel together without moving either one's anchor point (grid
@@ -38,11 +39,12 @@ public class StorageOverlayTab extends BaseTab {
                 }).bounds(contentX, y, 220, 20).build());
         y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(darkModeText(), btn -> {
+        // Amber -> Dark -> Light (killer560, 2026-10-07); Amber is the old Dark look, unchanged.
+        widgets.add(SettingsButtonWidget.builder(themeText(), btn -> {
                     StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
-                    cfg.setDarkMode(!cfg.isDarkMode());
+                    cfg.setTheme(cfg.getTheme().next());
                     cfg.save();
-                    btn.setMessage(darkModeText());
+                    btn.setMessage(themeText());
                 }).bounds(contentX, y, 220, 20).build());
         y += 26;
 
@@ -95,9 +97,10 @@ public class StorageOverlayTab extends BaseTab {
                 + (StorageOverlayConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
     }
 
-    private static Component darkModeText() {
-        return Component.literal("Overlay Theme: "
-                + (StorageOverlayConfig.getInstance().isDarkMode() ? "§8Dark" : "§fLight"));
+    private static Component themeText() {
+        PanelTheme theme = StorageOverlayConfig.getInstance().getTheme();
+        String colour = theme == PanelTheme.AMBER ? "§6" : theme == PanelTheme.DARK ? "§8" : "§f";
+        return Component.literal("Overlay Theme: " + colour + theme.label);
     }
 
     private static Component scaleText() {

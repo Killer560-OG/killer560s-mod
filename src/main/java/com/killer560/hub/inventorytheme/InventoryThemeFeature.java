@@ -1,6 +1,7 @@
 package com.killer560.hub.inventorytheme;
 
 import com.killer560.hub.cheatutils.CheatUtils;
+import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.inventorytheme.mixin.InventoryThemeGeometryAccessor;
 import com.killer560.hub.inventorytheme.mixin.InventoryThemeImageButtonSpritesAccessor;
 import com.killer560.hub.storageoverlay.StorageOverlayConfig;
@@ -64,11 +65,8 @@ import net.minecraft.world.inventory.Slot;
  */
 public final class InventoryThemeFeature {
 
-    /** Matches {@code ModScreen}'s own panel background fill exactly. */
-    private static final int PANEL_BG = 0xFF0D0D0D;
-    /** Matches {@code SettingsButtonWidget}'s own control background, so slot backdrops read as
-     *  part of the same control language as every other box in the mod's menu. */
-    private static final int SLOT_BG = 0xFF1A1A1A;
+    // Panel and slot colours come from the theme (PanelTheme: Amber's are ModScreen's panel fill 0xFF0D0D0D and
+    // SettingsButtonWidget's control fill 0xFF1A1A1A, the constants this used before themes) or the Slot Color setting.
 
     private static final int SLOT_SIZE = 18;
 
@@ -166,19 +164,22 @@ public final class InventoryThemeFeature {
         int h = imageHeight(screen);
         InventoryThemeConfig cfg = InventoryThemeConfig.getInstance();
         int alpha = Math.round(cfg.getBackgroundOpacity() * 255f) << 24;
-        graphics.fill(x0, y0, x0 + w, y0 + h, alpha | (PANEL_BG & 0x00FFFFFF));
+        int line = cfg.getLineWidth();
+        GuiRects rects = GuiRects.begin(graphics);
+        rects.fill(x0, y0, x0 + w, y0 + h, alpha | (cfg.getPanelColor() & 0x00FFFFFF));
         // killer560: "for the border it is extremely faint all around the inventory and it doesn't
         // change except the very top bar with the custom option" - the whole outline used to be a
         // hardcoded dim constant (0xFF553311, barely readable against PANEL_BG) while only this one top
         // strip used the real accent color. Now the accent color IS the border, on all four sides, so
         // it's both visible by default and actually responds to Accent Source/Accent Color.
-        graphics.outline(x0, y0, w, h, cfg.getAccentColor());
+        outline(rects, x0, y0, w, h, line, cfg.getAccentColor());
         if (screen instanceof InventoryScreen) {
             // The player-model window vanilla's texture used to frame (InventoryScreen.extractBackground
             // passes leftPos+26..75, topPos+8..78 to extractEntityInInventoryFollowsMouse).
-            graphics.fill(x0 + 26, y0 + 8, x0 + 75, y0 + 78, SLOT_BG);
-            graphics.outline(x0 + 26, y0 + 8, 49, 70, cfg.getAccentColor());
+            rects.fill(x0 + 26, y0 + 8, x0 + 75, y0 + 78, cfg.getSlotColor());
+            outline(rects, x0 + 26, y0 + 8, 49, 70, line, cfg.getAccentColor());
         }
+        rects.submit();
     }
 
     /** Themed backdrop for one real slot, drawn immediately before vanilla draws that slot's item icon
@@ -199,10 +200,10 @@ public final class InventoryThemeFeature {
         // slots are back and consistent with the rest of the panel.
         // One render-state element, not five: the same fill and outline, but a menu's 450 separate fills were each
         // intersection-tested against every item already drawn - 8% of the render thread with a chest open (GuiRects).
-        com.killer560.hub.hud.GuiRects.begin(graphics)
-                .fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, SLOT_BG)
-                .outline(x, y, SLOT_SIZE, SLOT_SIZE, InventoryThemeConfig.getInstance().getAccentColor())
-                .submit();
+        InventoryThemeConfig cfg = InventoryThemeConfig.getInstance();
+        GuiRects rects = GuiRects.begin(graphics).fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, cfg.getSlotColor());
+        outline(rects, x, y, SLOT_SIZE, SLOT_SIZE, cfg.getLineWidth(), cfg.getAccentColor());
+        rects.submit();
     }
 
     /** Themed replacement for vanilla's white hover-highlight box, drawn once (in place of vanilla's own
@@ -216,10 +217,30 @@ public final class InventoryThemeFeature {
         // Slot-local for the same reason as drawSlotBackdrop: this runs inside extractContents' translated pose.
         int x = hoveredSlot.x - 1;
         int y = hoveredSlot.y - 1;
-        int accent = InventoryThemeConfig.getInstance().getAccentColor();
+        InventoryThemeConfig cfg = InventoryThemeConfig.getInstance();
+        int accent = cfg.getAccentColor();
         int glow = (0x55 << 24) | (accent & 0x00FFFFFF);
-        graphics.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, glow);
-        graphics.outline(x, y, SLOT_SIZE, SLOT_SIZE, accent);
+        GuiRects rects = GuiRects.begin(graphics).fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, glow);
+        // At least one unit, so the hovered slot still shows with Line Width at 0.
+        outline(rects, x, y, SLOT_SIZE, SLOT_SIZE, Math.max(1, cfg.getLineWidth()), accent);
+        rects.submit();
+    }
+
+    /**
+     * An outline {@code width} units thick drawn INSIDE the box (Line Width, killer560 2026-10-07), as four
+     * non-overlapping strips so a translucent colour never blends twice. Width 1 is exactly {@code GuiRects.outline}'s
+     * four fills, in the same order - the look before the slider existed. 0 draws nothing; a width over half the box
+     * is capped there.
+     */
+    public static void outline(GuiRects rects, int x, int y, int w, int h, int width, int color) {
+        int t = Math.min(width, Math.min(w, h) / 2);
+        if (t <= 0) {
+            return;
+        }
+        rects.fill(x, y, x + w, y + t, color);
+        rects.fill(x, y + h - t, x + w, y + h, color);
+        rects.fill(x, y + t, x + t, y + h - t, color);
+        rects.fill(x + w - t, y + t, x + w, y + h - t, color);
     }
 
     /** Replacement for vanilla's grey title label text, drawn at the exact same position vanilla

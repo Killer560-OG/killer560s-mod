@@ -13,7 +13,8 @@
 		"InventoryThemeContainerLabelsMixin",
 		"InventoryThemeInventoryLabelsMixin",
 		"InventoryThemeRecipeBookVisibilityMixin",
-		"InventoryThemeHideEffectsMixin"
+		"InventoryThemeHideEffectsMixin",
+		"InventoryThemeHotbarSpriteMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

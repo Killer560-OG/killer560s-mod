@@ -1,5 +1,6 @@
 package com.killer560.hub.storageoverlay;
 
+import com.killer560.hub.gui.PanelTheme;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.hud.HudSeen;
@@ -173,6 +174,39 @@ public final class StorageOverlayFeature {
             @Override
             public int defaultY() {
                 return 20;
+            }
+
+            // Third time (2026-10-07, "my storage overlay isn't centered again"): his HUD config held a SAVED
+            // storage_overlay position {x: 0, y: 20}, written by the HUD editor at 20:26 that day. A saved position
+            // wins over defaultX(), so every fix to the centring maths above was simply not consulted any more. The
+            // editor writes one for ANY press-release on the box, and this box is a 510x160 rectangle across the top
+            // middle of the screen, over Dungeon Info and the other top HUDs - so grabbing one of those, or a drag
+            // that snapped to the screen's left edge, parks the overlay at x 0. Deleting the entry (the 2026-09-30
+            // cure) only lasts until the next stray click. And a saved x could never stay centred anyway: the
+            // grid's width changes with the column count, the Scale slider and the window, its x does not.
+            // So the horizontal position is no longer a saved value at all: it is the centre, every frame, at
+            // every GUI scale and window size. The height is still his to drag (a saved y is honoured, in the
+            // same Auto Scale baseline units the registry uses), and an old saved x is ignored, not deleted.
+            @Override
+            public int[] layoutPosition() {
+                Minecraft client = Minecraft.getInstance();
+                var window = client == null ? null : client.getWindow();
+                if (window == null) {
+                    return null;
+                }
+                int screenWidth = window.getGuiScaledWidth();
+                int screenHeight = window.getGuiScaledHeight();
+                float drawScale = hudEditorScale();
+                int x = Math.max(0, (screenWidth - Math.round(width() * drawScale)) / 2);
+                int y = defaultY();
+                com.killer560.hub.hud.HudConfig hud = com.killer560.hub.hud.HudConfig.getInstance();
+                if (hud.hasPosition(ELEMENT_ID)) {
+                    int[] saved = hud.getPosition(ELEMENT_ID, x, y);
+                    y = Math.round(saved[1] * com.killer560.hub.hud.AutoScale.current());
+                }
+                int drawnHeight = Math.round(height() * drawScale);
+                y = Math.max(0, Math.min(y, screenHeight - Math.min(drawnHeight, screenHeight)));
+                return new int[]{x, y};
             }
 
             @Override
@@ -423,12 +457,9 @@ public final class StorageOverlayFeature {
             if (key == null) {
                 continue;
             }
-            ItemStack stack = slot.getItem();
-            String name = stack != null && !stack.isEmpty()
-                    ? stack.getHoverName().getString().toLowerCase(java.util.Locale.US) : "";
-            boolean locked = name.contains("locked");
-            boolean emptySlot = name.contains("empty");
-            boolean owned = stack != null && !stack.isEmpty() && !locked && !emptySlot;
+            // Anchored name/lore patterns shared with Scan All (StoragePageSlots) - the old contains("locked") /
+            // contains("empty") also matched a real backpack whose name merely contained either word.
+            boolean owned = StoragePageSlots.classify(slot.getItem()) == StoragePageSlots.Kind.PAGE;
             if (owned) {
                 cache.markKnown(key);
             } else {
@@ -640,7 +671,7 @@ public final class StorageOverlayFeature {
             // the box's own real screen rect (drawn as up to 4 surrounding strips instead of one big
             // rect) keeps the rest of the background solid throughout, while still never drawing
             // anything of ours directly under the box's own text.
-            int viewportBg = StorageOverlayConfig.getInstance().isDarkMode() ? 0xD0000000 : 0xD0FFFFFF;
+            int viewportBg = StorageOverlayConfig.getInstance().getTheme().viewportBg;
             int vx0 = lastPos[0] - 4;
             int vy0 = lastPos[1] - 4;
             int vx1 = lastPos[0] + lastViewportWidthPx + 4;
@@ -790,9 +821,10 @@ public final class StorageOverlayFeature {
         StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
         var font = Minecraft.getInstance().font;
         boolean hovered = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
-        int bg = cfg.isDarkMode() ? (hovered ? 0xE0262626 : 0xCC101010) : (hovered ? 0xE0FFFFFF : 0xCCE8E8E8);
-        int border = hovered ? 0xFFCC6600 : (cfg.isDarkMode() ? 0xFF553311 : 0xFFAAAAAA);
-        int textColor = cfg.isDarkMode() ? 0xFFFFFFFF : 0xFF101010;
+        PanelTheme theme = cfg.getTheme();
+        int bg = hovered ? theme.buttonHoverBg : theme.panelBg;
+        int border = hovered ? theme.hoverBorder : theme.border;
+        int textColor = theme.text;
         graphics.fill(x, y, x + w, y + h, bg);
         graphics.outline(x, y, w, h, border);
         graphics.text(font, label, x + (w - font.width(label)) / 2, y + (h - font.lineHeight) / 2 + 1, textColor);
@@ -919,9 +951,10 @@ public final class StorageOverlayFeature {
 
         StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
         var font = Minecraft.getInstance().font;
-        int textColor = cfg.isDarkMode() ? 0xFFFFFFFF : 0xFF101010;
-        int bg = cfg.isDarkMode() ? 0xCC101010 : 0xCCE8E8E8;
-        int border = cfg.isDarkMode() ? 0xFF553311 : 0xFFAAAAAA;
+        PanelTheme theme = cfg.getTheme();
+        int textColor = theme.text;
+        int bg = theme.panelBg;
+        int border = theme.border;
 
         int rows = Math.max(1, (int) Math.ceil(count / 9.0));
         int panelHeight = rows * SLOT_SIZE + font.lineHeight + 6;
@@ -946,7 +979,7 @@ public final class StorageOverlayFeature {
             graphics.text(font, "Inventory", 3, 3, textColor);
 
             int gridY = font.lineHeight + 4;
-            drawSlotCells(graphics, 2, gridY, rows, cfg.isDarkMode());
+            drawSlotCells(graphics, 2, gridY, rows, theme);
 
             lastInventoryBounds = new int[]{2, gridY, 9 * SLOT_SIZE, rows * SLOT_SIZE};
             lastInventorySlotBase = base;
@@ -1255,10 +1288,11 @@ public final class StorageOverlayFeature {
                                     double localMouseX, double localMouseY, int realMouseX, int realMouseY) {
         StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
         var font = Minecraft.getInstance().font;
-        int textColor = cfg.isDarkMode() ? 0xFFFFFFFF : 0xFF101010;
-        int bg = cfg.isDarkMode() ? 0xCC101010 : 0xCCE8E8E8;
-        int border = cfg.isDarkMode() ? 0xFF553311 : 0xFFAAAAAA;
-        int activeBorder = 0xFFCC6600;
+        PanelTheme theme = cfg.getTheme();
+        int textColor = theme.text;
+        int bg = theme.panelBg;
+        int border = theme.border;
+        int activeBorder = theme.activeBorder;
 
         lastPanelBounds.clear();
         lastLabelBounds.clear();
@@ -1313,7 +1347,12 @@ public final class StorageOverlayFeature {
             graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, active ? activeBorder : border);
             int labelHeight = font.lineHeight + 4;
             String label = displayLabel(key, prefix);
-            graphics.text(font, active ? "§6" + label : label, panelX + 3, panelY + 3, textColor);
+            // Amber keeps its gold "§6" active label exactly; Dark and Light colour it with their own (non-orange) accent.
+            if (active && theme == PanelTheme.AMBER) {
+                graphics.text(font, "§6" + label, panelX + 3, panelY + 3, textColor);
+            } else {
+                graphics.text(font, label, panelX + 3, panelY + 3, active ? theme.activeBorder : textColor);
+            }
             // Per killer560's "double click the actual text and edit it there" request (2026-09-08):
             // the label strip is the rename target ONLY, not a click-to-open target - click-to-open
             // (lastPanelBounds) covers just the item body below it instead, so double-clicking the
@@ -1326,7 +1365,7 @@ public final class StorageOverlayFeature {
             // Per killer560's report (2026-09-08): draw the actual slot cells (matching NoammAddons'
             // own drawSlotGrid) so the item area reads as a real grid even for slots with nothing in
             // them right now, instead of just blank background.
-            drawSlotCells(graphics, panelX + 2, gridY, rows, cfg.isDarkMode());
+            drawSlotCells(graphics, panelX + 2, gridY, rows, theme);
             for (int i = 0; i < contents.size(); i++) {
                 ItemStack stack = contents.get(i);
                 if (stack == null || stack.isEmpty()) {
@@ -1363,9 +1402,10 @@ public final class StorageOverlayFeature {
                 int hy = gridY + (highlightIndex / 9) * SLOT_SIZE;
                 // Same gentle pulse Storage Search draws over a real vanilla slot, so both look like one feature.
                 int alpha = 0x40 + (int) (0x40 * (0.5 + 0.5 * Math.sin(System.currentTimeMillis() / 180.0)));
-                graphics.fill(hx + 1, hy + 1, hx + 17, hy + 17, (alpha << 24) | 0xFF8C1A);
-                graphics.outline(hx, hy, SLOT_SIZE, SLOT_SIZE, 0xFFFF8C1A);
-                graphics.outline(hx - 1, hy - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, 0xFFFF8C1A);
+                int hl = theme.highlightRgb;
+                graphics.fill(hx + 1, hy + 1, hx + 17, hy + 17, (alpha << 24) | hl);
+                graphics.outline(hx, hy, SLOT_SIZE, SLOT_SIZE, 0xFF000000 | hl);
+                graphics.outline(hx - 1, hy - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, 0xFF000000 | hl);
             }
         }
 
@@ -1380,9 +1420,9 @@ public final class StorageOverlayFeature {
     /** Draws the 9-wide item-cell grid itself (dark cell background + thin dividing lines), ported
      *  from NoammAddons' own {@code drawSlotGrid} - makes an empty/still-loading page read as a real
      *  item grid instead of blank background. */
-    private static void drawSlotCells(GuiGraphicsExtractor graphics, int x, int y, int rows, boolean darkMode) {
-        int cellBg = darkMode ? 0xFF1E1E22 : 0xFFD8D8D8;
-        int cellLine = darkMode ? 0xFF37373C : 0xFF999999;
+    private static void drawSlotCells(GuiGraphicsExtractor graphics, int x, int y, int rows, PanelTheme theme) {
+        int cellBg = theme.cellBg;
+        int cellLine = theme.cellLine;
         int w = 9 * SLOT_SIZE;
         int h = rows * SLOT_SIZE;
         graphics.fill(x, y, x + w, y + h, cellBg);

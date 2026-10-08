@@ -1926,7 +1926,7 @@ final class SettingTooltipsData {
         d.put("storage search/chest scan", "How far out to look for chests, in chunks.");
         d.put("storage search/esp time", "How long a clicked chest stays boxed in the world.");
         d.put("storage overlay/storage overlay enabled", "Shows all your Ender Chest pages and backpacks in a grid beside the menu.");
-        d.put("storage overlay/overlay theme", "Dark or light panels for the grid and the relocated inventory.");
+        d.put("storage overlay/overlay theme", "Amber (the original dark look), Dark (neutral greys) or Light, for the grid and the relocated inventory.");
         d.put("storage overlay/columns", "How many storage panels sit side by side.");
         d.put("goldor triggerbot", "Cheat build: in F7/M7 P3, clicks Goldor while your crosshair is on him.");
         d.put("goldor triggerbot/cps", "Clicks per second, randomised between the two ends of the range.");
@@ -1983,10 +1983,16 @@ final class SettingTooltipsData {
         d.put("posmsg/set to my position", "Saves where you are standing as this waypoint's centre.");
         d.put("wither dragons/normal power", "Power 0 always splits this dragon by class instead. 22 is a common value for Normal.");
         d.put("wither dragons/easy power", "Power 0 always splits this dragon by class instead. 19 is a common value for Easy.");
-        d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens to match this mod's Amber theme.");
+        d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens, and the hotbar, in this mod's look.");
+        d.put("inventory theme/theme", "Amber (the original look), Dark (neutral greys) or Light. The Storage Overlay has the same three.");
+        d.put("inventory theme/line width", "How thick the panel border and slot lines are, in GUI pixels. Off draws no lines.");
+        d.put("inventory theme/theme hotbar", "Also draws your hotbar in the theme. Items, counts, durability and cooldowns stay vanilla's.");
+        d.put("inventory theme/hotbar scale", "Resizes the themed hotbar from its bottom centre. It can cover the bars above it when raised.");
+        d.put("inventory theme/slot color source", "Slot squares in the theme's colour, or one you pick.");
+        d.put("inventory theme/slot color", "Opens a color picker for the slot squares.");
         d.put("inventory theme/applies to", "Which screens get the theme: only Hypixel and p3sim menus, or every container.");
         d.put("inventory theme/background opacity", "How solid the themed panel background is; lower lets more of the game show through.");
-        d.put("inventory theme/accent source", "Use the mod's Amber accent, or pick your own color for the panel border and title text.");
+        d.put("inventory theme/accent source", "Use the theme's accent, or pick your own color for the borders, lines, selected slot and title text.");
         d.put("inventory theme/accent color", "Opens a color picker for the custom accent color.");
         d.put("inventory theme/hide potion effects", "Hides the potion effects panel beside the inventory and chest screens.");
         d.put("best friends/party time tracker", "Tracks time partied and dungeon runs cleared with each player; open it with /bestfriends.");

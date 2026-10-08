@@ -356,6 +356,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.commandkeybinds.CommandKeybindsFeature.register();
         com.killer560.hub.inventorysearch.InventorySearchFeature.register();
         com.killer560.hub.inventorytheme.InventoryThemeFeature.register();
+        com.killer560.hub.inventorytheme.HotbarTheme.register();
         com.killer560.hub.itemprotect.ItemProtectFeature.register();
         com.killer560.hub.objecthider.ObjectHiderFeature.register();
         com.killer560.hub.chattidy.ChatTidy.register();

@@ -5,6 +5,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.gui.PanelTheme;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.SkyblockGate;
 
@@ -31,6 +32,14 @@ public final class InventoryThemeConfig {
     public static final float MIN_OPACITY = 0.2f;
     public static final float MAX_OPACITY = 1.0f;
 
+    /** Border / grid line width in GUI units (killer560, 2026-10-07: "a line width slider"). 1 is the look before
+     *  the slider existed; 0 draws no lines at all. The tab's slider spans exactly this range. */
+    public static final int MIN_LINE_WIDTH = 0;
+    public static final int MAX_LINE_WIDTH = 4;
+    /** Hotbar scale (killer560, 2026-10-07: "a custom scale option"), about the hotbar's bottom centre. */
+    public static final float MIN_HOTBAR_SCALE = 0.5f;
+    public static final float MAX_HOTBAR_SCALE = 2.0f;
+
     private static volatile InventoryThemeConfig instance;
 
     private boolean enabled = false;
@@ -45,6 +54,16 @@ public final class InventoryThemeConfig {
      *  (the reskin itself), so it keeps working with the reskin off. OFF by default so nothing changes
      *  for anyone until they turn it on. */
     private boolean hidePotionEffects = false;
+    /** Amber (the look before themes existed), Dark or Light - the same three the Storage Overlay offers. */
+    private PanelTheme theme = PanelTheme.AMBER;
+    /** killer560, 2026-10-07: "Make the custom inventory also apply to my normal toolbar." ON by default, but only
+     *  ever acts while the Inventory Theme itself is on (which is OFF by default). */
+    private boolean themeHotbar = true;
+    private float hotbarScale = 1.0f;
+    private int lineWidth = 1;
+    /** Slot backdrop recolour (killer560, 2026-10-07: "an option to recolor it"): off follows the theme. */
+    private boolean useCustomSlotColor = false;
+    private int customSlotColor = PanelTheme.AMBER.invSlotBg;
 
     private InventoryThemeConfig() {
     }
@@ -70,6 +89,12 @@ public final class InventoryThemeConfig {
                 cfg.useCustomAccent = ConfigJson.getBool(obj, "useCustomAccent", cfg.useCustomAccent);
                 cfg.customAccentColor = ConfigJson.getInt(obj, "customAccentColor", cfg.customAccentColor);
                 cfg.hidePotionEffects = ConfigJson.getBool(obj, "hidePotionEffects", cfg.hidePotionEffects);
+                cfg.theme = PanelTheme.parse(ConfigJson.getString(obj, "theme", null), cfg.theme);
+                cfg.themeHotbar = ConfigJson.getBool(obj, "themeHotbar", cfg.themeHotbar);
+                cfg.hotbarScale = clampHotbarScale(ConfigJson.getFloat(obj, "hotbarScale", cfg.hotbarScale));
+                cfg.lineWidth = clampLineWidth(ConfigJson.getInt(obj, "lineWidth", cfg.lineWidth));
+                cfg.useCustomSlotColor = ConfigJson.getBool(obj, "useCustomSlotColor", cfg.useCustomSlotColor);
+                cfg.customSlotColor = ConfigJson.getInt(obj, "customSlotColor", cfg.customSlotColor);
             }
         } catch (Exception ignored) {
             // Unparseable file: keep defaults for this session (per-key reads above handle single bad keys).
@@ -87,6 +112,12 @@ public final class InventoryThemeConfig {
             obj.addProperty("useCustomAccent", useCustomAccent);
             obj.addProperty("customAccentColor", customAccentColor);
             obj.addProperty("hidePotionEffects", hidePotionEffects);
+            obj.addProperty("theme", theme.name());
+            obj.addProperty("themeHotbar", themeHotbar);
+            obj.addProperty("hotbarScale", hotbarScale);
+            obj.addProperty("lineWidth", lineWidth);
+            obj.addProperty("useCustomSlotColor", useCustomSlotColor);
+            obj.addProperty("customSlotColor", customSlotColor);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -146,10 +177,79 @@ public final class InventoryThemeConfig {
         this.hidePotionEffects = hidePotionEffects;
     }
 
-    /** The color everything this feature draws (panel outline, slot backdrops, hover highlight, title
-     *  text) actually uses - the custom override once set, otherwise {@link #THEME_ACCENT} so it follows
-     *  the mod's own Amber theme by default. */
+    /** The color everything this feature draws (panel outline, slot outlines, hover highlight, selected hotbar slot,
+     *  title text) actually uses - the custom override once set, otherwise the theme's own accent ({@link #THEME_ACCENT}
+     *  for Amber, the default). */
     public int getAccentColor() {
-        return useCustomAccent ? customAccentColor : THEME_ACCENT;
+        return useCustomAccent ? customAccentColor : theme.invAccent;
+    }
+
+    public PanelTheme getTheme() {
+        return theme;
+    }
+
+    public void setTheme(PanelTheme theme) {
+        this.theme = theme == null ? PanelTheme.AMBER : theme;
+    }
+
+    public boolean isThemeHotbar() {
+        return themeHotbar;
+    }
+
+    public void setThemeHotbar(boolean themeHotbar) {
+        this.themeHotbar = themeHotbar;
+    }
+
+    public float getHotbarScale() {
+        return hotbarScale;
+    }
+
+    public void setHotbarScale(float hotbarScale) {
+        this.hotbarScale = clampHotbarScale(hotbarScale);
+    }
+
+    private static float clampHotbarScale(float value) {
+        if (Float.isNaN(value)) {
+            return 1.0f;
+        }
+        return Math.max(MIN_HOTBAR_SCALE, Math.min(MAX_HOTBAR_SCALE, value));
+    }
+
+    public int getLineWidth() {
+        return lineWidth;
+    }
+
+    public void setLineWidth(int lineWidth) {
+        this.lineWidth = clampLineWidth(lineWidth);
+    }
+
+    private static int clampLineWidth(int value) {
+        return Math.max(MIN_LINE_WIDTH, Math.min(MAX_LINE_WIDTH, value));
+    }
+
+    public boolean isUseCustomSlotColor() {
+        return useCustomSlotColor;
+    }
+
+    public void setUseCustomSlotColor(boolean useCustomSlotColor) {
+        this.useCustomSlotColor = useCustomSlotColor;
+    }
+
+    public int getCustomSlotColor() {
+        return customSlotColor;
+    }
+
+    public void setCustomSlotColor(int customSlotColor) {
+        this.customSlotColor = customSlotColor;
+    }
+
+    /** The slot backdrop colour actually drawn: the custom one when set, else the theme's. */
+    public int getSlotColor() {
+        return useCustomSlotColor ? customSlotColor : theme.invSlotBg;
+    }
+
+    /** The panel fill colour (opaque; Background Opacity supplies the alpha). */
+    public int getPanelColor() {
+        return theme.invPanelBg;
     }
 }
