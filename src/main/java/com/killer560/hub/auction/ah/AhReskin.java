@@ -545,14 +545,14 @@ public final class AhReskin {
                 int badgeColor = ui.t.dim();
                 if (!l.status().isEmpty()) {
                     badge = l.status().replace("!", "");
-                    badgeColor = l.status().startsWith("Sold") ? ui.t.green() : l.status().startsWith("Expired")
-                            ? ui.t.red() : ui.t.aqua();
+                    badgeColor = l.status().startsWith("Sold") ? ui.t.cardGreen() : l.status().startsWith("Expired")
+                            ? ui.t.cardRed() : ui.t.cardAqua();
                 } else if (l.isBin()) {
                     badge = "BIN";
-                    badgeColor = ui.t.gold();
+                    badgeColor = ui.t.cardGold();
                 } else if (l.price() >= 0) {
                     badge = l.bids() > 0 ? l.bids() + " bids" : "Auction";
-                    badgeColor = ui.t.aqua();
+                    badgeColor = ui.t.cardAqua();
                 }
                 List<String> sub = new ArrayList<>();
                 if (!l.endsIn().isEmpty()) {
@@ -570,7 +570,7 @@ public final class AhReskin {
                 AhMarket.Stats market = AhMarket.stats(id);
                 boolean cheapest = l.isBin() && lb > 0 && l.bin() <= lb && market != null && market.binCount() > 1;
                 int edge = AhUi.tierColor(l.tier(), ui.t.border());
-                ui.listingCard(cx, cy, cardW, cardH, stack, stack.getHoverName(), price, ui.t.gold(), badge, badgeColor,
+                ui.listingCard(cx, cy, cardW, cardH, stack, stack.getHoverName(), price, ui.t.cardGold(), badge, badgeColor,
                         String.join(" · ", sub), edge, cheapest, it.slot(), null, String.valueOf(it.slot()), true, extra);
             }
         } finally {
@@ -633,7 +633,7 @@ public final class AhReskin {
                     int tone = 0;
                     if (page.kind() == AhPages.Kind.CONFIRM) {
                         String n = it.name().toLowerCase(Locale.ROOT);
-                        tone = n.startsWith("confirm") ? ui.t.green() : n.startsWith("cancel") ? ui.t.red() : 0;
+                        tone = n.startsWith("confirm") ? ui.t.cardGreen() : n.startsWith("cancel") ? ui.t.cardRed() : 0;
                     }
                     ui.actionCard(x + 4 + c * (cardW + gap), cy, cardW, rowH, stack, it.slot(), tone, "card");
                 }

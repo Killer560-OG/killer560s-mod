@@ -64,6 +64,23 @@ public record AhTheme(boolean light, int accent, int accentBright, int backdrop,
                 0xFF2A2A2F, mix(accent, 0xFF2A2A2F, 0.70f), 0xFFF0F0F2, 0xFFB4B4BC, 0xFF85858E);
     }
 
+    /** Colours for text ON a card: cards stay dark in the Light theme, so they take the dark theme's bright tones. */
+    public int cardGold() {
+        return light ? 0xFFFFC040 : gold;
+    }
+
+    public int cardAqua() {
+        return light ? 0xFF55DDEE : aqua;
+    }
+
+    public int cardGreen() {
+        return light ? 0xFF62DD62 : green;
+    }
+
+    public int cardRed() {
+        return light ? 0xFFFF6060 : red;
+    }
+
     /** {@code a} weighted {@code 1 - t}, {@code b} weighted {@code t}; opaque. */
     public static int mix(int a, int b, float t) {
         int ar = (a >> 16) & 0xFF, ag = (a >> 8) & 0xFF, ab = a & 0xFF;

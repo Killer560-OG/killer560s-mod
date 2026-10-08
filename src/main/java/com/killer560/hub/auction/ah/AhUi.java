@@ -470,7 +470,7 @@ public final class AhUi {
         boolean hover = record && in(x, y, cw, ch);
         boolean whole = record && inClip(y, ch);
         g.fill(x, y, x + cw, y + ch, hover ? t.cardHover() : t.card());
-        g.outline(x, y, cw, ch, hover ? t.accent() : marked ? t.green() : t.border());
+        g.outline(x, y, cw, ch, hover ? t.accent() : marked ? t.cardGreen() : t.border());
         g.fill(x + 1, y + 1, x + 3, y + ch - 1, edgeColor);
         g.item(icon, x + 6, y + (ch - 16) / 2);
         g.itemDecorations(font, icon, x + 6, y + (ch - 16) / 2);

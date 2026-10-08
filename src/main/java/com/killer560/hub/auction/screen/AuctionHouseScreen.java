@@ -321,10 +321,10 @@ public final class AuctionHouseScreen extends Screen {
         int badgeColor;
         if (l.bin()) {
             badge = "BIN";
-            badgeColor = ui.t.gold();
+            badgeColor = ui.t.cardGold();
         } else {
             badge = l.bidCount() > 0 ? l.bidCount() + (l.bidCount() == 1 ? " bid" : " bids") : "Auction";
-            badgeColor = ui.t.aqua();
+            badgeColor = ui.t.cardAqua();
         }
         List<String> sub = new ArrayList<>();
         if (cheapest) {
@@ -351,7 +351,7 @@ public final class AuctionHouseScreen extends Screen {
         Component name = l.icon().has(DataComponents.CUSTOM_NAME) ? l.icon().getHoverName()
                 : Component.literal(SkyblockItemStackFactory.tierColorCode(l.tier()) + l.itemName());
         boolean isOpening = opening == l && System.currentTimeMillis() - openingAtMs < AhNav.PENDING_MS;
-        ui.listingCard(cx, cy, cardW, CARD_H, l.icon(), name, isOpening ? "Opening..." : price, ui.t.gold(), badge,
+        ui.listingCard(cx, cy, cardW, CARD_H, l.icon(), name, isOpening ? "Opening..." : price, ui.t.cardGold(), badge,
                 badgeColor, String.join(" · ", sub), AhUi.tierColor(l.tier(), ui.t.border()), cheapest, -1,
                 b -> {
                     if (b == 0) {
