@@ -269,3 +269,10 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   pre-pack look comes from the newest snapshot where an item was not yet a pack model: 26169fe, then 0046933 (the
   parent of the first conversion), then 60e030e (April). With those, 95 of the 1,366 pack-model items have no old
   look anywhere (`tools/items/gen_item_looks.py`); they are the ones with our own textures.
+
+- Brigadier can add a root to a live dispatcher but cannot remove one, and Fabric fires `ClientCommandRegistrationCallback`
+  only on join, into a fresh dispatcher (`ClientPacketListenerMixin.onGameJoin`, fabric-command-api-v2 3.0.5 javap). A
+  node whose `requires()` fails does not parse, which Fabric reads as "unknown command" and hands the line to the server
+  (`ClientCommandInternals.isIgnoredException`). So live-editable client commands (custom Command Shortcuts, 2026-10-07)
+  are added to `getActiveDispatcher()` behind `requires(isLive(name))`: removing or renaming one is instant, adding one
+  registers it a moment after typing stops, and only its tab completion lingers until the next join.

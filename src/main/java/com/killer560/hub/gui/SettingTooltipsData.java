@@ -1964,11 +1964,13 @@ final class SettingTooltipsData {
         d.put("trail/square size", "How big each trail square is, in blocks.");
         d.put("trail/opacity", "How visible the trail squares are.");
         d.put("trail/fade toward tail", "Squares fade out the older they get.");
-        d.put("command shortcuts/command shortcuts", "Turns on every Catacombs, Master Mode and Kuudra command shortcut below.");
+        d.put("command shortcuts/command shortcuts", "Turns on every command shortcut below: Catacombs, Master Mode, Kuudra and your own.");
         // 2026-09-27 regroup: one toggle per Catacombs floor now covers that floor's Master Mode
         // shortcut too (killer560: "clump them into groups like catacombs/mastermode as one toggle for
         // each floor"), and Kuudra's toggles moved onto the same Group-keyed entries - see
         // CommandShortcutsFeature.Group.
+        // 2026-10-07: what each one sends lives here now - the tab no longer prints it beside the toggle
+        // (killer560: "Remove all that extra text next to f0 f1 f2 command shortcuts").
         d.put("command shortcuts/f0", "Adds /f0 to queue the Catacombs entrance.");
         d.put("command shortcuts/f1 & m1", "Adds /f1 and /m1 to queue Catacombs floor 1 and Master Mode floor 1.");
         d.put("command shortcuts/f2 & m2", "Adds /f2 and /m2 to queue Catacombs floor 2 and Master Mode floor 2.");
@@ -1982,6 +1984,23 @@ final class SettingTooltipsData {
         d.put("command shortcuts/burning", "Adds a shortcut that queues the Burning Kuudra tier.");
         d.put("command shortcuts/fiery", "Adds a shortcut that queues the Fiery Kuudra tier.");
         d.put("command shortcuts/infernal", "Adds a shortcut that queues the Infernal Kuudra tier.");
+        for (com.killer560.hub.commandshortcuts.CommandShortcutsFeature.Group g
+                : com.killer560.hub.commandshortcuts.CommandShortcutsFeature.Group.values()) {
+            String k = "command shortcuts/" + SettingTooltips.key(g.label);
+            StringBuilder sends = new StringBuilder();
+            for (com.killer560.hub.commandshortcuts.CommandShortcutsFeature.Shortcut m : g.members()) {
+                sends.append(" ").append("/").append(m.literal).append(" sends ")
+                        .append(m.expandsTo()).append(".");
+            }
+            d.put(k, d.get(k) + sends);
+        }
+        d.put("command shortcuts/custom", "Your own shortcuts: type /name in chat and the command beside it goes to the server.");
+        d.put("command shortcuts/+ add shortcut", "Adds a row for a new shortcut of your own.");
+        d.put("command shortcuts/on", "This shortcut works. Click to switch it off without deleting it.");
+        d.put("command shortcuts/off", "This shortcut is switched off: typing it does nothing here. Click to switch it on.");
+        d.put("command shortcuts/shortcut name", "What you type, without the slash: letters, digits and _, up to 32. A name another command already uses is refused.");
+        d.put("command shortcuts/sends command", "What the server receives when you type the name, with or without a leading /.");
+        d.put("command shortcuts/delete", "Removes this shortcut.");
         d.put("custom scoreboard/open visual editor", "Opens the same line, event and stat lists full screen beside a live preview of the board.");
         d.put("dungeon queue/party finder style", "How party member lines look in Party Finder tooltips.");
         d.put("dungeon queue/style preview", "Shows a live sample of the chosen Party Finder style.");

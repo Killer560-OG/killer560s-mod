@@ -1,18 +1,26 @@
 package com.killer560.hub.commandshortcuts;
 
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ServerCommands;
 import com.killer560.hub.util.SkyblockGate;
+import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.brigadier.tree.CommandNode;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.event.Event;
+import net.fabricmc.fabric.impl.command.client.ClientCommandInternals;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -217,6 +225,7 @@ public final class CommandShortcutsFeature {
      *  exist yet ({@link CommandShortcutsConfig#getInstance()} creates all-on defaults). */
     public static void register() {
         CommandShortcutsConfig.getInstance();
+        registerCustom();
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             CommandShortcutsConfig cfg = CommandShortcutsConfig.getInstance();
             if (!cfg.isEnabledRaw()) {
@@ -256,6 +265,196 @@ public final class CommandShortcutsFeature {
                                 return exec(s);
                             })));
         });
+    }
+
+    // ---- custom shortcuts (killer560, 2026-10-07: "There should be a custom section on command shortcuts.") -------
+    //
+    // How they register. Fabric fires ClientCommandRegistrationCallback once per join, into a fresh dispatcher
+    // (fabric-command-api-v2 ClientPacketListenerMixin.onGameJoin, javap 3.0.5), and executes a typed command against
+    // ClientCommandInternals.getActiveDispatcher(); a CommandSyntaxException of type "unknown command" makes it hand the
+    // line to the server instead (executeCommand / isIgnoredException). Brigadier can add a root to a live dispatcher but
+    // has no way to take one out, so every custom root is registered behind requires(isLive(name)): a removed, renamed
+    // or switched-off shortcut stops parsing at once and the line falls through to the server exactly as if it had never
+    // been registered, and a new or renamed one is added to the active dispatcher LIVE, a moment after he stops typing
+    // (SYNC_QUIET_MS, so "w", "wa", "war" are not each registered on the way to "warp"). Tab completion is re-merged
+    // the way CommandTreeRefresh does it; a removed name keeps its completion until the next join.
+
+    /** Runs after every other mod's default-phase registration, so the dispatcher already holds their roots. */
+    private static final net.minecraft.resources.Identifier CUSTOM_PHASE =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "custom_shortcuts");
+    private static final long SYNC_QUIET_MS = 750L;
+
+    /** The dispatcher {@link #REGISTERED} describes; a join replaces it. */
+    private static CommandDispatcher<FabricClientCommandSource> registeredIn;
+    /** Custom roots this feature added to {@link #registeredIn} (live or no longer live). */
+    private static final Set<String> REGISTERED = new LinkedHashSet<>();
+    private static long lastEditMs;
+    private static boolean syncPending;
+
+    private static void registerCustom() {
+        ClientCommandRegistrationCallback.EVENT.addPhaseOrdering(Event.DEFAULT_PHASE, CUSTOM_PHASE);
+        ClientCommandRegistrationCallback.EVENT.register(CUSTOM_PHASE, (dispatcher, registryAccess) -> {
+            registeredIn = dispatcher;
+            REGISTERED.clear();
+            syncInto(dispatcher);
+        });
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            try {
+                if (syncPending && System.currentTimeMillis() - lastEditMs >= SYNC_QUIET_MS) {
+                    syncPending = false;
+                    syncNow();
+                }
+            } catch (Exception e) {
+                LOGGER.warn("[CommandShortcuts] custom sync failed", e);
+            }
+        });
+    }
+
+    /** The tab (or a profile load) changed the custom list: register what is new once he has stopped typing. */
+    public static void customsChanged() {
+        lastEditMs = System.currentTimeMillis();
+        syncPending = true;
+    }
+
+    /** Adds every live custom shortcut the active dispatcher does not have yet, and re-merges tab completion. */
+    public static void syncNow() {
+        CommandDispatcher<FabricClientCommandSource> d = ClientCommandInternals.getActiveDispatcher();
+        if (d == null) {
+            return;
+        }
+        if (d != registeredIn) {
+            registeredIn = d;
+            REGISTERED.clear();
+        }
+        if (!syncInto(d)) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getConnection() != null) {
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            CommandDispatcher<FabricClientCommandSource> tree = (CommandDispatcher) mc.getConnection().getCommands();
+            ClientCommandInternals.addCommands(tree, (FabricClientCommandSource) mc.getConnection().getSuggestionsProvider());
+        }
+    }
+
+    /** @return true if a root was added. */
+    private static boolean syncInto(CommandDispatcher<FabricClientCommandSource> d) {
+        CommandShortcutsConfig cfg = CommandShortcutsConfig.getInstance();
+        boolean added = false;
+        for (CommandShortcutsConfig.CustomShortcut c : cfg.customs()) {
+            String name = c.name();
+            if (!isLive(c) || REGISTERED.contains(name)) {
+                continue;
+            }
+            String problem = nameProblem(name, c);
+            if (problem != null) {
+                LOGGER.warn("[CommandShortcuts] custom /{} not registered: {}", name, problem);
+                continue;
+            }
+            d.register(ClientCommands.literal(name)
+                    .requires(src -> isLive(CommandShortcutsConfig.getInstance().customNamed(name)))
+                    .executes(ctx -> execCustom(name)));
+            REGISTERED.add(name);
+            added = true;
+        }
+        return added;
+    }
+
+    /** Whether typing this shortcut should run it right now (master switch, its own toggle, a name and a command). */
+    public static boolean isLive(CommandShortcutsConfig.CustomShortcut c) {
+        return c != null && c.isEnabled() && !c.name().isEmpty() && !commandOf(c).isEmpty()
+                && CommandShortcutsConfig.getInstance().isEnabledRaw();
+    }
+
+    /** Custom roots in the active dispatcher - his own data, which the testkit's command sweep (306) leaves out. */
+    public static Set<String> customRoots() {
+        if (ClientCommandInternals.getActiveDispatcher() != registeredIn) {
+            return Set.of();
+        }
+        return Set.copyOf(REGISTERED);
+    }
+
+    /** Whether {@code name} is in the active dispatcher as one of his shortcuts (the tab's "is it on" answer). */
+    public static boolean isRegistered(String name) {
+        return name != null && customRoots().contains(name);
+    }
+
+    /** The command to send, slash and outer spaces removed. */
+    public static String commandOf(CommandShortcutsConfig.CustomShortcut c) {
+        String s = c == null ? "" : c.command().trim();
+        while (s.startsWith("/")) {
+            s = s.substring(1).trim();
+        }
+        return s;
+    }
+
+    /**
+     * Why {@code name} cannot be a custom shortcut, or null when it can. Refused: anything that is not a legal literal,
+     * a built-in shortcut's word (on or off), another custom row's name, and any root another mod, Fabric or this mod
+     * registered in the client dispatcher, or the server sent in its command tree (vanilla's and Hypixel's). The last
+     * two can only be checked in a world; outside one the join-time registration skips a name that turns out taken.
+     * Case-insensitive, because Hypixel's commands are.
+     */
+    public static String nameProblem(String name, CommandShortcutsConfig.CustomShortcut self) {
+        if (name == null || name.isEmpty()) {
+            return "Type a name.";
+        }
+        if (!CommandShortcutsConfig.CUSTOM_NAME.matcher(name).matches()) {
+            return "Use letters, digits and _ only, up to " + CommandShortcutsConfig.MAX_CUSTOM_NAME + ".";
+        }
+        String lower = name.toLowerCase(Locale.ROOT);
+        if (lower.equals("kuudra")) {
+            return "/" + name + " is a built-in shortcut.";
+        }
+        for (Shortcut s : Shortcut.values()) {
+            if (s.literal.equals(lower)) {
+                return "/" + name + " is a built-in shortcut.";
+            }
+        }
+        for (CommandShortcutsConfig.CustomShortcut c : CommandShortcutsConfig.getInstance().customs()) {
+            if (c != self && c.name().equalsIgnoreCase(name)) {
+                return "/" + name + " is already one of your shortcuts.";
+            }
+        }
+        Set<String> ours = customRoots();
+        Set<String> client = new java.util.HashSet<>();
+        CommandDispatcher<FabricClientCommandSource> d = ClientCommandInternals.getActiveDispatcher();
+        if (d != null) {
+            for (CommandNode<FabricClientCommandSource> root : d.getRoot().getChildren()) {
+                String n = root.getName();
+                client.add(n.toLowerCase(Locale.ROOT));
+                if (n.equalsIgnoreCase(name) && !ours.contains(n)) {
+                    return "/" + name + " is already a client command (this mod or another) - pick another name.";
+                }
+            }
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getConnection() != null) {
+            for (CommandNode<?> root : mc.getConnection().getCommands().getRoot().getChildren()) {
+                String n = root.getName();
+                if (n.equalsIgnoreCase(name) && !ours.contains(n) && !client.contains(n.toLowerCase(Locale.ROOT))) {
+                    return "/" + name + " is already a server command - pick another name.";
+                }
+            }
+        }
+        return null;
+    }
+
+    private static int execCustom(String name) {
+        try {
+            CommandShortcutsConfig.CustomShortcut c = CommandShortcutsConfig.getInstance().customNamed(name);
+            if (!isLive(c)) {
+                return 0;   // unreachable through the dispatcher: requires() already refused it
+            }
+            if (!SkyblockGate.allows()) {
+                ModChat.send(FEATURE, ModChat.bad("Command Shortcuts are paused outside Skyblock / p3sim."));
+                return 0;
+            }
+            return ServerCommands.toServer(commandOf(c)) ? 1 : 0;
+        } catch (Exception e) {
+            LOGGER.warn("[CommandShortcuts] custom /{} failed", name, e);
+            return 0;
+        }
     }
 
     /** Shared body every alias (and {@code /kuudra <tier>}) runs through - never throws. */
