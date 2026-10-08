@@ -270,3 +270,11 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   pre-pack look comes from the newest snapshot where an item was not yet a pack model: 26169fe, then 0046933 (the
   parent of the first conversion), then 60e030e (April). With those, 95 of the 1,366 pack-model items have no old
   look anywhere (`tools/items/gen_item_looks.py`); they are the ones with our own textures.
+
+- A parent `Style`'s `ClickEvent` is only inherited where the child sets none, so a whole-line click action wrapped round a
+  Hypixel line (Copy Chat's old whole-message copy, via Click Translate's wrap) is dead on every name, link or invite in it,
+  and past the end of the text vanilla finds no style at all. Find the clicked chat row from the layout instead
+  (`ChatComponent.captureClickableText` with a recording collector) and take `GuiMessage.Line.parent()` (2026-10-08, testkit 561-563).
+- A fixed RMS threshold is not a voice detector: room noise on an open mic sat above Voice To Text's 500, so no pause was
+  ever seen and Open Mic never sent anything. `voicetotext/OpenMicSegmenter` compares against the quietest chunk of the last
+  3 s; testkit 564 feeds noise at RMS 700 (2026-10-08).
