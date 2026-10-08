@@ -1897,6 +1897,8 @@ final class SettingTooltipsData {
         d.put("wither doors/blood door color", "Color of the locked Blood door while you lack the Blood Key (cheat build only).");
         d.put("wither doors/blood door (key) color", "Color the Blood door turns once you have the Blood Key (cheat build only).");
         d.put("wither doors/through walls", "Draws the highlighted doors through walls (cheat build only).");
+        d.put("wither doors/fairy door", "Also highlights the door into the Fairy room on the path to Blood, until you or any teammate enters Fairy or that door opens (cheat build only).");
+        d.put("wither doors/fairy door color", "Color of the Fairy door highlight. Style and fill follow the settings above (cheat build only).");
         d.put("mask invincibility/spirit", "Whether you own Spirit Mask; controls its HUD timer and Auto Swap.");
         d.put("mask invincibility/bonzo", "Whether you own Bonzo's Mask; controls its HUD timer and Auto Swap.");
         d.put("mask invincibility/phoenix", "Whether you own a Phoenix Pet; controls its HUD timer and Auto Swap.");

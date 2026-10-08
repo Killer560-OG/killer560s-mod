@@ -60,6 +60,8 @@ public final class WitherDoorsFeature {
     private static boolean witherKeyHeld = false;
     private static boolean bloodKeyHeld = false;
     private static Object lastLevel = null;
+    /** A sim floor rebuilt in the same world is a new floor: its door cells must be scanned again. */
+    private static int lastGeneration = Integer.MIN_VALUE;
 
     /** The per-tick snapshot the render path walks. Never rebuilt from inside a frame. */
     private static final List<DoorBox> CACHED = new ArrayList<>();
@@ -174,8 +176,10 @@ public final class WitherDoorsFeature {
     }
 
     private static void tick(Minecraft client) {
-        if (client.level != lastLevel) {
+        int generation = com.killer560.hub.livemap.LiveMapFeature.resetGeneration();
+        if (client.level != lastLevel || generation != lastGeneration) {
             lastLevel = client.level;
+            lastGeneration = generation;
             WitherDoorScanner.reset();
             witherKeyHeld = false;
             bloodKeyHeld = false;
@@ -186,9 +190,16 @@ public final class WitherDoorsFeature {
         if (gate != null) {
             CACHED.clear();
             cacheStampMs = 0L;
+            if (FairyDoor.door() >= 0) {
+                FairyDoor.off();
+            }
             return;
         }
         WitherDoorScanner.tick(client);
+        // Every tick, not on the cache's 500 ms: "till I enter Fairy" should clear on the step in.
+        if (cfg.isFairyDoor()) {
+            FairyDoor.tick(client);
+        }
         long now = System.currentTimeMillis();
         if (cacheStampMs != 0L && now - cacheStampMs < CACHE_TTL_MS) {
             return;
@@ -205,8 +216,9 @@ public final class WitherDoorsFeature {
         if (client.level == null || client.player == null) {
             return "no-player";
         }
-        if (!CheatUtils.isOnDungeonServer(client)) {
-            return "not on hypixel/p3sim";
+        // Or the dungeon sim, a singleplayer world with no server address (the same allowance Secret Aura makes).
+        if (!CheatUtils.isOnDungeonServer(client) && !com.killer560.hub.roomsim.SimState.isActive()) {
+            return "not on hypixel/p3sim/sim";
         }
         if (!DungeonState.isInDungeon()) {
             return "not in dungeon";
@@ -219,6 +231,7 @@ public final class WitherDoorsFeature {
 
     private static void rebuild(Minecraft client, WitherDoorsConfig cfg) {
         CACHED.clear();
+        addFairyDoor(client, cfg);
         List<WitherDoorScanner.Door> locked = WitherDoorScanner.lockedDoors(client);
         if (locked.isEmpty()) {
             return;
@@ -262,19 +275,52 @@ public final class WitherDoorsFeature {
     }
 
     private static Vec3 center(WitherDoorScanner.Door door) {
-        return new Vec3(door.x() + 0.5, (DOOR_Y_MIN + DOOR_Y_MAX) / 2.0, door.z() + 0.5);
+        return new Vec3(door.x() + 0.5, door.y() + (DOOR_Y_MAX - DOOR_Y_MIN) / 2.0, door.z() + 0.5);
     }
 
     private static void addBox(WitherDoorScanner.Door door, int argb) {
+        // From the door's own anchor height (69 on Hypixel, shifted in the sim), not a literal.
+        addBox(door.x(), door.z(), door.y(), door.wallAlongZ(), argb);
+    }
+
+    /** The Fairy Door ({@link FairyDoor}): the same box, style and fill settings as a wither door, in its own colour.
+     *  Its height comes from {@link com.killer560.hub.livemap.DungeonLayout#doorBlock}, which follows the sim's shift. */
+    private static void addFairyDoor(Minecraft client, WitherDoorsConfig cfg) {
+        int cell = cfg.isFairyDoor() ? FairyDoor.door() : -1;
+        if (cell < 0) {
+            return;
+        }
+        net.minecraft.core.BlockPos pos = com.killer560.hub.livemap.DungeonLayout.doorBlock(cell);
+        double maxSq = (double) cfg.getRenderDistance() * cfg.getRenderDistance();
+        Vec3 c = new Vec3(pos.getX() + 0.5, pos.getY() + (DOOR_Y_MAX - DOOR_Y_MIN) / 2.0, pos.getZ() + 0.5);
+        if (client.player.getEyePosition().distanceToSqr(c) > maxSq) {
+            return;
+        }
+        // A door cell with an odd column joins rooms side by side in x, so its wall runs along z.
+        boolean wallAlongZ = (cell % com.killer560.hub.livemap.DungeonLayout.GRID) % 2 == 1;
+        addBox(pos.getX(), pos.getZ(), pos.getY(), wallAlongZ, cfg.getFairyDoorColor());
+    }
+
+    private static void addBox(int x, int z, double yMin, boolean wallAlongZ, int argb) {
         float[] rgba = com.killer560.hub.util.WorldRenderUtils.argbToFloats(argb);
         WitherDoorsConfig cfg = WitherDoorsConfig.getInstance();
         float[] fill = cfg.isCustomFillColor() ? com.killer560.hub.util.WorldRenderUtils.argbToFloats(cfg.getFillColor()) : rgba;
-        double cx = door.x() + 0.5;
-        double cz = door.z() + 0.5;
-        AABB box = door.wallAlongZ()
-                ? new AABB(cx - HALF_THIN, DOOR_Y_MIN, cz - HALF_OPEN, cx + HALF_THIN, DOOR_Y_MAX, cz + HALF_OPEN)
-                : new AABB(cx - HALF_OPEN, DOOR_Y_MIN, cz - HALF_THIN, cx + HALF_OPEN, DOOR_Y_MAX, cz + HALF_THIN);
+        double cx = x + 0.5;
+        double cz = z + 0.5;
+        double yMax = yMin + (DOOR_Y_MAX - DOOR_Y_MIN);
+        AABB box = wallAlongZ
+                ? new AABB(cx - HALF_THIN, yMin, cz - HALF_OPEN, cx + HALF_THIN, yMax, cz + HALF_OPEN)
+                : new AABB(cx - HALF_OPEN, yMin, cz - HALF_THIN, cx + HALF_OPEN, yMax, cz + HALF_THIN);
         CACHED.add(new DoorBox(box, rgba[0], rgba[1], rgba[2], fill[0], fill[1], fill[2]));
+    }
+
+    /** The boxes the last rebuild produced, for tests: {minX, minY, minZ, maxX, maxY, maxZ} each. */
+    public static List<double[]> cachedBoxes() {
+        List<double[]> out = new ArrayList<>();
+        for (DoorBox b : CACHED) {
+            out.add(new double[]{b.box().minX, b.box().minY, b.box().minZ, b.box().maxX, b.box().maxY, b.box().maxZ});
+        }
+        return out;
     }
 
     private static void onWorldRender(LevelRenderContext context) {

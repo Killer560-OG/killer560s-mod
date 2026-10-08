@@ -37,6 +37,8 @@ public final class WitherDoorsConfig {
     public static final int MAX_FILL_OPACITY = 100;
     public static final int DEFAULT_FILL_OPACITY = 35;
     public static final int DEFAULT_FILL_COLOR = DEFAULT_LOCKED_COLOR;
+    /** Pink, the Fairy room's own colour on the map - an open door to walk through, not a locked one to key. */
+    public static final int DEFAULT_FAIRY_DOOR_COLOR = 0xFFFF55FF;
 
     /** Outline (the original look), Fill, or both - killer560, 2026-10-07: "make it so wither doors also have a fill
      *  color option". Same three choices as Breaker Aura's Box Style. */
@@ -83,6 +85,10 @@ public final class WitherDoorsConfig {
     private boolean showAllDoors = false;
     /** Cheat build only: draw the highlight(s) through walls. Ships OFF. */
     private boolean throughWalls = false;
+    /** Cheat build only: highlight the door into the Fairy room on the blood-rush path until anyone enters Fairy
+     *  ({@link FairyDoor}). Ships ON - killer560 asked for it as part of Wither Doors (2026-10-07). */
+    private boolean fairyDoor = true;
+    private int fairyDoorColor = DEFAULT_FAIRY_DOOR_COLOR;
 
     private WitherDoorsConfig() {
     }
@@ -115,6 +121,8 @@ public final class WitherDoorsConfig {
             cfg.fillColor = ConfigJson.getInt(obj, "fillColor", cfg.fillColor);
             cfg.showAllDoors = ConfigJson.getBool(obj, "showAllDoors", cfg.showAllDoors);
             cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", cfg.throughWalls);
+            cfg.fairyDoor = ConfigJson.getBool(obj, "fairyDoor", cfg.fairyDoor);
+            cfg.fairyDoorColor = ConfigJson.getInt(obj, "fairyDoorColor", cfg.fairyDoorColor);
             instance = cfg;
         } catch (Exception e) {
             instance = new WitherDoorsConfig();
@@ -138,6 +146,8 @@ public final class WitherDoorsConfig {
             obj.addProperty("fillColor", fillColor);
             obj.addProperty("showAllDoors", showAllDoors);
             obj.addProperty("throughWalls", throughWalls);
+            obj.addProperty("fairyDoor", fairyDoor);
+            obj.addProperty("fairyDoorColor", fairyDoorColor);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -252,5 +262,26 @@ public final class WitherDoorsConfig {
 
     public void setThroughWalls(boolean throughWalls) {
         this.throughWalls = throughWalls;
+    }
+
+    /** Cheat-gated, like Show All Doors: the path to Blood is not something the legit build shows. */
+    public boolean isFairyDoor() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && fairyDoor;
+    }
+
+    public boolean isFairyDoorRaw() {
+        return fairyDoor;
+    }
+
+    public void setFairyDoor(boolean fairyDoor) {
+        this.fairyDoor = fairyDoor;
+    }
+
+    public int getFairyDoorColor() {
+        return fairyDoorColor;
+    }
+
+    public void setFairyDoorColor(int fairyDoorColor) {
+        this.fairyDoorColor = fairyDoorColor;
     }
 }

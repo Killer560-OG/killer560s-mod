@@ -235,6 +235,8 @@ public final class LiveMapFeature {
     private static String scanConsumers() {
         StringBuilder sb = new StringBuilder();
         if (LiveMapConfig.getInstance().isEnabled()) sb.append("LiveMap,");
+        if (com.killer560.hub.witherdoors.WitherDoorsConfig.getInstance().isEnabled()
+                && com.killer560.hub.witherdoors.WitherDoorsConfig.getInstance().isFairyDoor()) sb.append("FairyDoor,");
         if (SecretWaypointsConfig.getInstance().isEnabled()) sb.append("SecretWaypoints,");
         if (BoulderSolverConfig.getInstance().isEnabled()) sb.append("Boulder,");
         if (QuizSolverConfig.getInstance().isEnabled()) sb.append("Quiz,");
