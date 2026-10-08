@@ -56,7 +56,7 @@ public final class LagDisplayFeature {
     public static final String HUD_ID = "lag_display";
 
     private static final long CPS_WINDOW_MS = 1000L;
-    /** Same window length as {@code ChatCommandsFeature}'s "!tps" command. */
+    /** Same window length as Party Commands' "!tps" ({@code partycommands.InfoReplies}). */
     private static final long TPS_WINDOW_MS = 5_000L;
 
     private static final Deque<Long> LEFT_CLICKS = new ArrayDeque<>();

@@ -115,6 +115,8 @@ public final class RelayClient {
     private static String connectedRoom = "";
     private static RelayAuth.Token token;
     private static String tokenUrl = "";
+    /** The account the cached token was issued to: a token is only ever reused for that same account. */
+    private static String tokenAccount = "";
     private static int attempt;
     /** Bumped on every (re)connect so a callback from a socket we already abandoned can be ignored. Volatile
      *  because the socket callbacks compare against it from the HTTP client's own threads. */
@@ -131,6 +133,21 @@ public final class RelayClient {
 
     public static void setListener(RelayListener value) {
         listener = value == null ? NO_LISTENER : value;
+    }
+
+    /** Drops the cached relay token, so the next connect signs in again (after an in-game account swap). */
+    public static void forgetToken() {
+        WORKER.execute(() -> {
+            token = null;
+            tokenUrl = "";
+            tokenAccount = "";
+        });
+    }
+
+    private static String currentAccount() {
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        net.minecraft.client.User user = client == null ? null : client.getUser();
+        return user == null || user.getProfileId() == null ? "" : user.getProfileId().toString();
     }
 
     /** Adds a listener alongside the primary one instead of replacing it - see {@link #extraListeners}. */
@@ -305,7 +322,8 @@ public final class RelayClient {
 
     private static CompletableFuture<RelayAuth.Token> tokenFor(String url) {
         RelayAuth.Token cached = token;
-        if (cached != null && url.equals(tokenUrl)
+        String account = currentAccount();
+        if (cached != null && url.equals(tokenUrl) && account.equals(tokenAccount)
                 && cached.expiresAtMs() - System.currentTimeMillis() > TOKEN_REUSE_MARGIN_MS) {
             return CompletableFuture.completedFuture(cached);
         }
@@ -313,6 +331,7 @@ public final class RelayClient {
             WORKER.execute(() -> {
                 token = issued;
                 tokenUrl = url;
+                tokenAccount = account;
             });
             return issued;
         });

@@ -269,3 +269,11 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   pre-pack look comes from the newest snapshot where an item was not yet a pack model: 26169fe, then 0046933 (the
   parent of the first conversion), then 60e030e (April). With those, 95 of the 1,366 pack-model items have no old
   look anywhere (`tools/items/gen_item_looks.py`); they are the ones with our own textures.
+
+- **An in-game account swap must fetch the chat key with the NEW account's token.** `ProfileKeyPairManager.create(service,
+  user, dir)` keeps `user` only for the cache file name; the key comes from `service.getKeyPair()`, and Minecraft's
+  `userApiService` carries the LAUNCH account's token (javap 26.1.2/26.2: `AccountProfileKeyPairManager.fetchProfileKeyPair`).
+  `AccountApplier` reused it, so every swapped-to account signed with the launch account's Mojang certificate and the relay
+  refused it ("not issued by Mojang for that UUID": his alts, 2026-10-08; Mod Only Test log, launched as Killer560, playing
+  as 9878981). It now builds a fresh `YggdrasilAuthenticationService(...).createUserApiService(token)` (testkit 579 replays
+  the swap against a fake Mojang and relay). The relay's embedded Mojang keys were identical to the live set.

@@ -12,7 +12,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * "Mod Chat" - killer560's "custom chat where only mod users in the same lobby can see it" request.
@@ -26,9 +25,14 @@ import java.util.Locale;
  * <b>There is deliberately no fallback to party chat.</b> If the relay is off, unset or unreachable, sending
  * fails and says so. Falling back would silently reintroduce the exact leak he reported.
  * <p>
- * Still registered as {@code /killer560 chat <message>} rather than the literally-requested {@code /chat
- * killer560} - {@code /chat} is Hypixel's OWN real command (switches your default chat channel), and a Fabric
- * client command with that same root would intercept every {@code /chat ...} call before Hypixel saw it.
+ * <b>Sending, 2026-10-08.</b> killer560: <i>"make stuff like /chat k or /kc to send the message in my chat or to
+ * enter my chat's channel (just like /chat p or /gc). Remove the /killer560 chat command."</i> {@code /kc <message>}
+ * sends one line and {@code /chat k} makes plain typed chat go here - both live in {@link ModChatChannel}, which
+ * intercepts only those {@code /chat} arguments and lets every other {@code /chat ...} through to Hypixel untouched
+ * ({@code /chat} itself stays Hypixel's command; it is never registered client-side).
+ * <p>
+ * Presence notices ("X joined / left mod chat", "Connected - N others here") were removed the same day, with their
+ * setting. Received lines print into chat by default ({@link ModChatConfig#isLogToChat}).
  */
 public final class ModChatFeature {
 
@@ -43,6 +47,7 @@ public final class ModChatFeature {
     public static void register() {
         RelayClient.setListener(new Listener());
         HypixelLocation.register();
+        ModChatChannel.register();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ModChatFeature.onTick", ModChatFeature::onTick));
     }
 
@@ -84,7 +89,8 @@ public final class ModChatFeature {
         RelayClient.update(on, cfg.getRelayUrl(), room);
     }
 
-    /** For {@code /killer560 chat <message>}. @return the line to show the player. */
+    /** For {@code /kc <message>} and plain chat while the channel is Mod Chat ({@link ModChatChannel}).
+     *  @return the line to show the player: a "[ModChat] ..." confirmation, or a red one when nothing was sent. */
     public static String send(String message) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
@@ -92,7 +98,7 @@ public final class ModChatFeature {
         }
         ModChatConfig cfg = ModChatConfig.getInstance();
         if (!cfg.isEnabled()) {
-            return "§c[ModChat] Mod Chat is off - turn it on in the New tab.";
+            return "§c[ModChat] Mod Chat is off - turn it on in its settings tab.";
         }
         if (!RelayEndpoint.isUsable(cfg.getRelayUrl())) {
             // Should never actually happen - the relay is live and its address is hardcoded in
@@ -136,41 +142,16 @@ public final class ModChatFeature {
                     return;
                 }
                 if (cfg.isLogToChat()) {
+                    // The relay echoes your own line back; in chat that echo IS the record of what you said, the
+                    // same way Hypixel shows your own party chat line.
                     ModChat.send("ModChat", ModChat.value(from), ModChat.text(": " + message));
-                }
-                // The relay echoes your own line back to you; showing it in the overlay would just wipe the
-                // "Sent to N" confirmation a fraction of a second after you read it.
-                if (!isSelf(from)) {
+                } else if (!isSelf(from)) {
+                    // Overlay only: showing your own echo there would wipe the "Sent to N" line you just got.
                     ModOverlayMessage.show("[ModChat] " + from + ": " + message, 4000);
                 }
-            });
-        }
-
-        @Override
-        public void onPresence(String event, String name, List<String> online) {
-            if (name == null || name.isBlank()) {
-                return;
-            }
-            Minecraft.getInstance().execute(() -> {
-                ModChatConfig cfg = ModChatConfig.getInstance();
-                if (!cfg.isEnabled() || !cfg.isPresenceAlerts() || isSelf(name)) {
-                    return;
-                }
-                boolean joined = "join".equals(event == null ? "" : event.toLowerCase(Locale.ROOT));
-                ModOverlayMessage.show("[ModChat] " + name + (joined ? " joined" : " left") + " mod chat.", 2500);
-            });
-        }
-
-        @Override
-        public void onConnected(String room, List<String> online) {
-            Minecraft.getInstance().execute(() -> {
-                ModChatConfig cfg = ModChatConfig.getInstance();
-                if (!cfg.isEnabled() || !cfg.isPresenceAlerts()) {
-                    return;
-                }
-                int others = Math.max(0, online.size() - 1);
-                ModOverlayMessage.show("[ModChat] Connected - " + others + " other mod user"
-                        + (others == 1 ? "" : "s") + " here.", 2500);
+                // Mod Chat is one of Party Commands' channels ("kc"). The sender name was stamped by the relay from
+                // a Mojang-verified login, never taken from the message text.
+                com.killer560.hub.partycommands.PartyCommandsFeature.onModChat(from, message);
             });
         }
 

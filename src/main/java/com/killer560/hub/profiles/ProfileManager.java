@@ -376,7 +376,6 @@ public final class ProfileManager {
                 com.killer560.hub.util.SkyblockGate::reload,
                 com.killer560.hub.bloodcamp.BloodCampConfig::load,
                 com.killer560.hub.boss.LividSolverConfig::load,
-                com.killer560.hub.chatcommands.ChatCommandsConfig::load,
                 com.killer560.hub.partycommands.PartyCommandsConfig::load,
                 com.killer560.hub.cheatutils.CheatUtilsConfig::load,
                 com.killer560.hub.clicktranslate.ClickTranslateConfig::load,

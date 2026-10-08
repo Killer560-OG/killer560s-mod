@@ -14,7 +14,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Persisted Mod Chat settings - see {@link ModChatFeature}. Ships disabled by default.
+ * Persisted Mod Chat settings - see {@link ModChatFeature}. On by default (SharingDefaults v2), and received
+ * messages print into chat by default (see {@link #RECEIVE_DEFAULT_KEY}).
  * <p>
  * The old {@code channel} key (Party/Guild) is gone: Mod Chat no longer sends over Hypixel chat at all, so there
  * is no channel to pick. An existing config file that still has that key simply loads without it - every other
@@ -33,6 +34,9 @@ public final class ModChatConfig {
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-modchat.json");
 
+    /** Written by every save since 2026-10-08; its absence marks a file from before Log To Chat defaulted ON. */
+    static final String RECEIVE_DEFAULT_KEY = "receiveDefaultV2";
+
     private static ModChatConfig instance;
 
     private boolean enabled = true;
@@ -44,8 +48,9 @@ public final class ModChatConfig {
     // not fail to parse - it is read, never written, and never used to pick the endpoint.
     private String legacyRelayUrlIgnored = "";
     private RelayRoom.Mode roomMode = RelayRoom.Mode.PARTY;
-    private boolean logToChat = false;
-    private boolean presenceAlerts = false;
+    /** Received messages printed into the chat window. ON by default since 2026-10-08 (killer560: "everyone by
+     *  default should receive the chat messages") - before that they were only a four-second overlay. */
+    private boolean logToChat = true;
 
     private ModChatConfig() {
     }
@@ -72,9 +77,16 @@ public final class ModChatConfig {
             RelayRoom.Mode legacyMode =
                     ConfigJson.getBool(obj, "partyRoom", true) ? RelayRoom.Mode.PARTY : RelayRoom.Mode.LOBBY;
             cfg.roomMode = ConfigJson.getEnum(obj, "roomMode", RelayRoom.Mode.class, legacyMode);
-            cfg.logToChat = ConfigJson.getBool(obj, "logToChat", false);
-            cfg.presenceAlerts = ConfigJson.getBool(obj, "presenceAlerts", false);
+            // A file written before RECEIVE_DEFAULT_KEY existed saved logToChat=false only because false was the
+            // default then, so its value says nothing about what the player wanted: it is switched ON once, the key
+            // is written, and from then on whatever the player sets is kept (same one-time rule as SharingDefaults).
+            // The presenceAlerts key of older files is simply no longer read (presence notices were removed).
+            boolean receiveDefaultApplied = ConfigJson.getBool(obj, RECEIVE_DEFAULT_KEY, false);
+            cfg.logToChat = receiveDefaultApplied ? ConfigJson.getBool(obj, "logToChat", true) : true;
             instance = cfg;
+            if (!receiveDefaultApplied) {
+                cfg.save();
+            }
         } catch (Exception e) {
             instance = new ModChatConfig();
         }
@@ -87,7 +99,7 @@ public final class ModChatConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("roomMode", roomMode.name());
             obj.addProperty("logToChat", logToChat);
-            obj.addProperty("presenceAlerts", presenceAlerts);
+            obj.addProperty(RECEIVE_DEFAULT_KEY, true);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -116,7 +128,8 @@ public final class ModChatConfig {
         this.roomMode = roomMode;
     }
 
-    /** Also print received messages into the real chat log, so they can be scrolled back to. */
+    /** Print received messages into the real chat window (default ON), so they can be read and scrolled back to;
+     *  OFF shows each one only as a short overlay. */
     public boolean isLogToChat() {
         return logToChat;
     }
@@ -125,12 +138,4 @@ public final class ModChatConfig {
         this.logToChat = logToChat;
     }
 
-    /** Announce when another mod user joins or leaves your relay room. */
-    public boolean isPresenceAlerts() {
-        return presenceAlerts;
-    }
-
-    public void setPresenceAlerts(boolean presenceAlerts) {
-        this.presenceAlerts = presenceAlerts;
-    }
 }

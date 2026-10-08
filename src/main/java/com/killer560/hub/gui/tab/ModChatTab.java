@@ -62,13 +62,6 @@ public class ModChatTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Log To Chat", cfg.isLogToChat()));
                 }).bounds(contentX, y, 220, 18).build());
-        y += 22;
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Presence Alerts", cfg.isPresenceAlerts()), btn -> {
-                    cfg.setPresenceAlerts(!cfg.isPresenceAlerts());
-                    cfg.save();
-                    btn.setMessage(onOff("Presence Alerts", cfg.isPresenceAlerts()));
-                }).bounds(contentX, y, 220, 18).build());
         y += 26;
 
         // Live, not built-once: the connection comes and goes while this screen is open.

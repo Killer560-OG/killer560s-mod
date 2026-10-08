@@ -63,7 +63,7 @@ public final class SimSidebar {
     /** Said plainly, so a screenshot of the sim is never mistaken for a Hypixel run. */
     public static final String INFO_NOT_HYPIXEL = "Local practice world - not Hypixel";
 
-    /** His Discord invite - the same one README.md, HomeMainTab and ChatCommandsFeature carry. */
+    /** His Discord invite - the same one README.md, HomeMainTab and partycommands.InfoReplies carry. */
     public static final String DISCORD = "discord.gg/hkQMF5fE84";
 
     /** What the sidebar said last tick, so the scoreboard is only touched when something changed. */
