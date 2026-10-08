@@ -39,8 +39,23 @@ public final class TeleportUtils {
         public static final RaycastResult NONE = new RaycastResult(false, null, null);
     }
 
+    /** The modern sneaking eye height (1.14+ crouching pose), which Hypixel's etherwarp casts from. */
+    public static final double SNEAK_EYE = 1.27;
+    /**
+     * Minecraft 1.8.9's sneaking eye height: {@code EntityPlayer.getEyeHeight()} is {@code 1.62F}, minus {@code 0.08F}
+     * while sneaking (MCP 9.19, Marcelektro/MCP-919 @1717f759 EntityPlayer.java:2326-2340; OdinLegacy's
+     * {@code fastEyeHeight} uses the same 1.54). p3sim.net casts its etherwarp from it (killer560, 2026-10-08: "p3sim's
+     * etherwarp is slightly off from main"), so on p3sim, and only there, every etherwarp prediction casts from 1.54.
+     */
+    public static final double SNEAK_EYE_1_8 = 1.54;
+
     public static double eyeHeight(boolean sneak) {
-        return sneak ? 1.27 : 1.62;
+        return sneak ? sneakEye() : 1.62;
+    }
+
+    /** {@link #SNEAK_EYE_1_8} while connected to p3sim.net, else {@link #SNEAK_EYE}. */
+    public static double sneakEye() {
+        return com.killer560.hub.fastleap.Floor7Tracker.isOnP3Sim() ? SNEAK_EYE_1_8 : SNEAK_EYE;
     }
 
     public static Vec3 getLook(float yaw, float pitch) {

@@ -51,6 +51,10 @@ public final class VoiceToTextConfig {
     private ChatDestination chatDestination = ChatDestination.PARTY;
     /** Java Sound mixer name of the microphone to record from; empty = the system default (2026-09-21). */
     private String microphone = "";
+    /** Open Mic: how long a pause ends what you said and sends it (killer560, 2026-10-08). */
+    public static final int MIN_OPEN_MIC_SILENCE_MS = 300;
+    public static final int MAX_OPEN_MIC_SILENCE_MS = 3000;
+    private int openMicSilenceMs = 1000;
 
     private VoiceToTextConfig() {
     }
@@ -81,6 +85,7 @@ public final class VoiceToTextConfig {
             ChatDestination legacy = ConfigJson.getBool(obj, "sendToPartyChat", true)
                     ? ChatDestination.PARTY : ChatDestination.GUILD;
             cfg.chatDestination = ConfigJson.getEnum(obj, "chatDestination", ChatDestination.class, legacy);
+            cfg.openMicSilenceMs = clampSilence(ConfigJson.getInt(obj, "openMicSilenceMs", 1000));
             cfg.microphone = obj.has("microphone") && obj.get("microphone").isJsonPrimitive() ? obj.get("microphone").getAsString() : "";
             instance = cfg;
         } catch (Exception e) {
@@ -101,6 +106,7 @@ public final class VoiceToTextConfig {
             // on such a jar - the closest "not Party" it has.
             obj.addProperty("sendToPartyChat", chatDestination == ChatDestination.PARTY);
             obj.addProperty("microphone", microphone);
+            obj.addProperty("openMicSilenceMs", openMicSilenceMs);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -136,6 +142,18 @@ public final class VoiceToTextConfig {
 
     public void setMicrophone(String microphone) {
         this.microphone = microphone == null ? "" : microphone;
+    }
+
+    public int getOpenMicSilenceMs() {
+        return openMicSilenceMs;
+    }
+
+    public void setOpenMicSilenceMs(int ms) {
+        this.openMicSilenceMs = clampSilence(ms);
+    }
+
+    private static int clampSilence(int ms) {
+        return Math.max(MIN_OPEN_MIC_SILENCE_MS, Math.min(MAX_OPEN_MIC_SILENCE_MS, ms));
     }
 
     public ChatDestination getChatDestination() {

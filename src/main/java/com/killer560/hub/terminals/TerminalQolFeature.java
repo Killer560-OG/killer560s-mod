@@ -135,13 +135,7 @@ public final class TerminalQolFeature {
         if (rawTitle == null) {
             return null;
         }
-        String title = ChatObserver.strip(rawTitle);
-        for (TerminalType type : TerminalType.values()) {
-            if (type.titlePattern().matcher(title).matches()) {
-                return type;
-            }
-        }
-        return null;
+        return TerminalType.match(rawTitle);
     }
 
     /** @return the terminal currently open, or null. Public so the settings GUI / future features can ask. */

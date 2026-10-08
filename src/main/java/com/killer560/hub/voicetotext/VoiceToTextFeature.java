@@ -71,6 +71,22 @@ public final class VoiceToTextFeature {
      *  whenever the feature/window drops out so turning it back on gets exactly one fresh attempt, same as
      *  the disclosed native-library risk above says to keep any failure a single caught error, not a loop. */
     private static boolean openMicArmed = false;
+    /** The recording in progress is Open Mic's continuous one (the mic stays open across utterances). */
+    private static volatile boolean openMicSession = false;
+    /** Transcribes Open Mic utterances one at a time, off the capture thread, so listening never pauses. */
+    private static final java.util.concurrent.ExecutorService OPEN_MIC_TRANSCRIBER =
+            java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "killer560smod-voice-openmic");
+                t.setDaemon(true);
+                return t;
+            });
+    /** Test hook: replaces Vosk for Open Mic utterances (the testkit has no model and no microphone). */
+    private static volatile java.util.function.Function<byte[], String> testTranscriber;
+    private static final java.util.concurrent.atomic.AtomicLong utterances = new java.util.concurrent.atomic.AtomicLong();
+    private static final java.util.concurrent.atomic.AtomicLong sent = new java.util.concurrent.atomic.AtomicLong();
+    private static final java.util.concurrent.atomic.AtomicLong ignored = new java.util.concurrent.atomic.AtomicLong();
+    private static volatile String lastSent = "";
+    private static volatile int lastUtteranceBytes;
 
     private VoiceToTextFeature() {
     }
@@ -92,13 +108,20 @@ public final class VoiceToTextFeature {
             // while state == RECORDING). Now stops recording the same way releasing the key normally
             // would, so the mic always gets closed regardless of why tick() stopped polling it.
             if (state == State.RECORDING) {
-                stopRecordingAndTranscribe(false);
+                if (openMicSession) {
+                    stopOpenMic();
+                } else {
+                    stopRecordingAndTranscribe(false);
+                }
             }
             keyWasDown = false;
             openMicArmed = false;
             return;
         }
         if (!pushToTalk) {
+            if (state == State.RECORDING && !openMicSession) {
+                stopRecordingAndTranscribe(false); // switched from Push To Talk mid-recording
+            }
             // Open Mic (killer560, 2026-09-27): listens continuously instead of waiting on a held key. Armed
             // once per "enabled" session (not every tick, which would spam a "no microphone" chat message
             // forever if startRecording() keeps failing) - see startRecording()'s capture thread for how one
@@ -111,6 +134,9 @@ public final class VoiceToTextFeature {
             return;
         }
         openMicArmed = false;
+        if (state == State.RECORDING && openMicSession) {
+            stopOpenMic(); // switched to Push To Talk: Open Mic's mic must not stay open
+        }
         // Real bug (2026-09-20 tooltip/config sweep): the push-to-talk key was read from the raw window
         // state even with a screen open, so typing the bound letter into chat started recording and
         // then sent whatever the mic heard straight to /pc or /gc. A push-to-talk press only counts
@@ -285,13 +311,6 @@ public final class VoiceToTextFeature {
         return (TargetDataLine) AudioSystem.getLine(info);
     }
 
-    /** Open Mic silence detection (killer560, 2026-09-27): not a real voice-activity detector, just a cheap
-     *  RMS-over-threshold check on each 4096-byte chunk - good enough to tell "someone's talking" from
-     *  "background noise" without pulling in a whole VAD library for it. */
-    private static final int VOICE_RMS_THRESHOLD = 500;
-    private static final long SILENCE_CUTOFF_MS = 1200;
-    private static final long MIN_UTTERANCE_MS = 400;
-
     private static void startRecording() {
         try {
             DataLine.Info info = new DataLine.Info(TargetDataLine.class, FORMAT);
@@ -306,45 +325,32 @@ public final class VoiceToTextFeature {
             capturedAudio = new ByteArrayOutputStream();
             state = State.RECORDING;
             boolean openMic = VoiceToTextConfig.getInstance().getMode() == VoiceToTextConfig.Mode.OPEN_MIC;
+            openMicSession = openMic;
             if (!openMic) {
                 ModOverlayMessage.show("[Voice] Listening... (release key to send)", 60_000);
             }
+            TargetDataLine recordingLine = line;
+            OpenMicSegmenter segmenter = openMic
+                    ? new OpenMicSegmenter(VoiceToTextConfig.getInstance().getOpenMicSilenceMs()) : null;
 
             captureThread = new Thread(() -> {
                 byte[] buffer = new byte[4096];
-                long segmentStart = System.currentTimeMillis();
-                long lastVoiceAt = segmentStart;
-                boolean hadVoice = false;
-                while (state == State.RECORDING && line != null && line.isOpen()) {
-                    int read = line.read(buffer, 0, buffer.length);
+                while (state == State.RECORDING && line == recordingLine && recordingLine.isOpen()) {
+                    int read = recordingLine.read(buffer, 0, buffer.length);
                     if (read <= 0) {
                         continue;
                     }
-                    synchronized (capturedAudio) {
-                        capturedAudio.write(buffer, 0, read);
-                    }
-                    if (!openMic) {
+                    if (segmenter == null) {
+                        synchronized (capturedAudio) {
+                            capturedAudio.write(buffer, 0, read);
+                        }
                         continue; // Push To Talk: the key release stops it, no auto-cut needed
                     }
-                    long now = System.currentTimeMillis();
-                    if (rms(buffer, read) > VOICE_RMS_THRESHOLD) {
-                        lastVoiceAt = now;
-                        hadVoice = true;
-                    }
-                    if (hadVoice && now - segmentStart > MIN_UTTERANCE_MS && now - lastVoiceAt > SILENCE_CUTOFF_MS) {
-                        // Said something, then paused - cut the utterance here, send it, and let the
-                        // completion callback start the next one listening again.
-                        Minecraft.getInstance().execute(() -> stopRecordingAndTranscribe(true));
-                        return;
-                    }
-                    if (!hadVoice && now - segmentStart > SILENCE_CUTOFF_MS) {
-                        // Nothing but background noise so far - drop it and keep listening instead of ever
-                        // calling Vosk on silence (that would otherwise spam "Didn't catch anything" about
-                        // once a second the whole time nobody's talking).
-                        synchronized (capturedAudio) {
-                            capturedAudio.reset();
-                        }
-                        segmentStart = now;
+                    // Open Mic: the mic stays open; each finished utterance goes off to be transcribed and sent while
+                    // the next one is already being listened to.
+                    OpenMicSegmenter.Result r = segmenter.feed(buffer, read, System.currentTimeMillis());
+                    if (r.action() == OpenMicSegmenter.Action.FINALISE) {
+                        onUtterance(r.audio());
                     }
                 }
             }, "killer560smod-voice-capture");
@@ -357,15 +363,117 @@ public final class VoiceToTextFeature {
         }
     }
 
-    /** Root-mean-square of {@code len} bytes of {@link #FORMAT} audio (16-bit signed, little-endian, mono). */
-    private static double rms(byte[] buf, int len) {
-        long sumSquares = 0;
-        int samples = len / 2;
-        for (int i = 0; i + 1 < len; i += 2) {
-            short sample = (short) ((buf[i + 1] << 8) | (buf[i] & 0xFF));
-            sumSquares += (long) sample * sample;
+    /** Ends an Open Mic session: closes the mic, drops a half-said utterance (nothing was finished), back to READY. */
+    private static void stopOpenMic() {
+        openMicSession = false;
+        state = State.READY;
+        TargetDataLine capturedLine = line;
+        line = null;
+        if (capturedLine != null) {
+            capturedLine.stop();
+            capturedLine.close();
         }
-        return samples == 0 ? 0 : Math.sqrt((double) sumSquares / samples);
+    }
+
+    /** One finished Open Mic utterance: transcribed off-thread, then sent on the render thread. */
+    private static void onUtterance(byte[] audio) {
+        utterances.incrementAndGet();
+        lastUtteranceBytes = audio.length;
+        OPEN_MIC_TRANSCRIBER.execute(() -> {
+            String text;
+            try {
+                java.util.function.Function<byte[], String> stub = testTranscriber;
+                text = stub != null ? stub.apply(audio) : transcribe(audio);
+            } catch (Throwable t) {
+                LOGGER.warn("[VoiceToText] Open Mic transcription failed", t);
+                return;
+            }
+            Minecraft.getInstance().execute(() -> deliverOpenMic(text));
+        });
+    }
+
+    /** Words Vosk's small model returns for breath, a cough or room noise. A result made only of these is not sent. */
+    private static final java.util.Set<String> NOISE_WORDS = java.util.Set.of(
+            "the", "a", "an", "huh", "uh", "um", "hm", "hmm", "mm", "mhm", "ah", "oh", "eh", "er");
+
+    static boolean isNoiseOnly(String text) {
+        if (text == null || text.isBlank()) {
+            return true;
+        }
+        for (String word : text.trim().toLowerCase(java.util.Locale.ROOT).split("\\s+")) {
+            if (!NOISE_WORDS.contains(word)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void deliverOpenMic(String text) {
+        VoiceToTextConfig cfg = VoiceToTextConfig.getInstance();
+        if (!cfg.isEnabled() || cfg.getMode() != VoiceToTextConfig.Mode.OPEN_MIC) {
+            return; // switched off or to Push To Talk while this was being transcribed
+        }
+        if (isNoiseOnly(text)) {
+            ignored.incrementAndGet();
+            return;
+        }
+        String clean = text.trim();
+        ModOverlayMessage.show("[Voice] \"" + clean + "\"", 3000);
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null) {
+            send(client, clean);
+            sent.incrementAndGet();
+            lastSent = clean;
+        }
+    }
+
+    // ---- test hooks (testkit, by reflection) ---------------------------------------------------------------------
+
+    /** Replaces Vosk for Open Mic utterances; null restores it. */
+    public static void testSetTranscriber(java.util.function.Function<byte[], String> transcriber) {
+        testTranscriber = transcriber;
+    }
+
+    /**
+     * Runs 16 kHz 16-bit mono PCM through Open Mic's real path - the segmenter with the configured silence, then
+     * {@link #onUtterance} (transcription, the noise filter, the send) for every utterance it finishes - in 4096-byte
+     * chunks stamped 128 ms apart from {@code startMs}, as the capture thread would. Returns the utterances it finished.
+     */
+    public static int testFeedOpenMic(byte[] pcm, long startMs) {
+        OpenMicSegmenter segmenter = new OpenMicSegmenter(VoiceToTextConfig.getInstance().getOpenMicSilenceMs());
+        int finished = 0;
+        long now = startMs;
+        for (int off = 0; off < pcm.length; off += 4096) {
+            int len = Math.min(4096, pcm.length - off);
+            byte[] chunk = java.util.Arrays.copyOfRange(pcm, off, off + len);
+            now += len / 32;
+            OpenMicSegmenter.Result r = segmenter.feed(chunk, len, now);
+            if (r.action() == OpenMicSegmenter.Action.FINALISE) {
+                onUtterance(r.audio());
+                finished++;
+            }
+        }
+        return finished;
+    }
+
+    public static long testUtterances() {
+        return utterances.get();
+    }
+
+    public static long testSent() {
+        return sent.get();
+    }
+
+    public static long testIgnored() {
+        return ignored.get();
+    }
+
+    public static String testLastSent() {
+        return lastSent;
+    }
+
+    public static int testLastUtteranceBytes() {
+        return lastUtteranceBytes;
     }
 
     /** @param restartIfOpenMic whether to start listening again once this utterance is transcribed and sent -

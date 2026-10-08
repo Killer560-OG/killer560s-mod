@@ -10,9 +10,8 @@ public class SocialTab extends FolderTab {
         super("Social", List.of(
                 new BestFriendsTab(),
                 new FriendsListTab(),
-                new ProfileViewerTab(),
-                new CosmeticsTab(),
-                new NickhiderTab()
+                new ProfileViewerTab()
+                // Cosmetics and Nickhider moved to the Cosmetics category (2026-10-08).
         ));
     }
 }

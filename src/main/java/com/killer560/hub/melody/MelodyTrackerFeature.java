@@ -100,7 +100,7 @@ public final class MelodyTrackerFeature {
             closeIfOpen();
             return;
         }
-        String title = screen.getTitle().getString();
+        String title = TerminalType.normalizeTitle(screen.getTitle().getString());
         if (!MELODY_TITLE.matcher(title).matches()) {
             closeIfOpen();
             return;

@@ -11,6 +11,11 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.component.ResolvableProfile;
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
+import com.mojang.authlib.properties.PropertyMap;
+import java.util.UUID;
 import net.minecraft.world.item.equipment.Equippable;
 import net.minecraft.world.item.equipment.trim.ArmorTrim;
 import org.slf4j.Logger;
@@ -23,8 +28,11 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Armour Recolour - client-side colour, skin and trim overrides for your own armour. killer560 (2026-09-16):
- * "add an option from skyblocker where you can custom recolor armor, using dyes and armor skin client side."
+ * Custom Items (Armour Recolour until 2026-10-08) - client-side colour, armour skin, trim, Look (item model) and
+ * head-texture overrides for any item you hold. killer560 (2026-09-16): "add an option from skyblocker where you can
+ * custom recolor armor, using dyes and armor skin client side"; 2026-10-08: "select an item in your inventory and you
+ * can then apply a skin to it or recolor or something". Keyed per item UUID or per Skyblock id (see
+ * {@link ArmourDyeEntry}).
  * <p>
  * Ported from Skyblocker's armour customization (github.com/SkyblockerMod/Skyblocker -
  * {@code skyblock/item/custom/CustomArmor{DyeColors,Trims}}, {@code mixins/{DyedItemColor,DataComponentHolder,
@@ -60,7 +68,6 @@ public final class ArmourDye {
     /** Volatile snapshot the render threads read; rebuilt by {@link #invalidate()} on every config change. */
     private static volatile Map<String, ArmourDyeEntry> snapshot = Map.of();
     private static volatile boolean active = false;
-    private static volatile boolean iconsFollowSkin = true;
     private static volatile boolean failed = false;
     private static int failures = 0;
 
@@ -92,7 +99,6 @@ public final class ArmourDye {
                 }
             }
             snapshot = Map.copyOf(map);
-            iconsFollowSkin = cfg.isSkinInventoryIcons();
             // isEnabledRaw, not isEnabled: the Skyblock gate is re-checked per frame in active() so leaving and
             // rejoining Skyblock puts the colours straight back without a config reload.
             active = !failed && cfg.isEnabledRaw() && !snapshot.isEmpty();
@@ -124,9 +130,10 @@ public final class ArmourDye {
         return active && ArmourDyeConfig.getInstance().isEnabled();
     }
 
-    /** True only for the three components we rewrite - a reference compare, so it costs nothing on other reads. */
+    /** True only for the four components we rewrite - a reference compare, so it costs nothing on other reads. */
     public static boolean handles(DataComponentType<?> type) {
-        return type == DataComponents.EQUIPPABLE || type == DataComponents.TRIM || type == DataComponents.ITEM_MODEL;
+        return type == DataComponents.EQUIPPABLE || type == DataComponents.TRIM || type == DataComponents.ITEM_MODEL
+                || type == DataComponents.PROFILE;
     }
 
     // --- the two override entry points, both called from mixins ---
@@ -170,9 +177,13 @@ public final class ArmourDye {
                 ArmorTrim trim = entry.hasTrim() ? ArmourTrims.resolve(entry.trimMaterial, entry.trimPattern) : null;
                 return trim == null ? original : trim;
             }
-            if (type == DataComponents.ITEM_MODEL && iconsFollowSkin) {
-                Identifier model = iconModel(entry, stack);
+            if (type == DataComponents.ITEM_MODEL) {
+                Identifier model = iconModel(entry);
                 return model == null ? original : model;
+            }
+            if (type == DataComponents.PROFILE) {
+                ResolvableProfile head = headProfile(entry.headTexture);
+                return head == null ? original : head;
             }
             return original;
         } catch (Exception e) {
@@ -206,15 +217,54 @@ public final class ArmourDye {
         return entry.skin.asset();
     }
 
-    private static Identifier iconModel(ArmourDyeEntry entry, ItemStack stack) {
+    /** The Look: the entry's own model, or the player-head model when it carries a head texture. */
+    private static Identifier iconModel(ArmourDyeEntry entry) {
         if (!entry.iconModel.isBlank()) {
             return Identifier.tryParse(entry.iconModel.trim());
         }
-        if (entry.skin == ArmourSkin.NONE || entry.skin == ArmourSkin.CUSTOM) {
+        if (!entry.headTexture.isBlank()) {
+            return PLAYER_HEAD_MODEL;
+        }
+        return null;
+    }
+
+    private static final Identifier PLAYER_HEAD_MODEL = Identifier.withDefaultNamespace("player_head");
+
+    /** One resolved head profile per texture, built once: a fresh UUID per call would make the skin cache miss
+     *  every frame (see {@code SkyblockItemStackFactory}, the same lesson). */
+    private static final Map<String, ResolvableProfile> HEADS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static ResolvableProfile headProfile(String texture) {
+        if (texture == null || texture.isBlank()) {
             return null;
         }
-        EquipmentSlot slot = slotOf(stack);
-        return slot == null ? null : entry.skin.iconModel(slot);
+        return HEADS.computeIfAbsent(texture.trim(), t -> {
+            com.google.common.collect.Multimap<String, Property> backing = com.google.common.collect.HashMultimap.create();
+            backing.put("textures", new Property("textures", t));
+            GameProfile profile = new GameProfile(
+                    UUID.nameUUIDFromBytes(t.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "CustomItem",
+                    new PropertyMap(backing));
+            return ResolvableProfile.createResolved(profile);
+        });
+    }
+
+    /** The head texture an item carries (a player head's {@code textures} value), or null. Read raw, past our own
+     *  override, so copying a look copies the real item's. */
+    public static String headTextureOf(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return null;
+        }
+        ResolvableProfile profile = raw(stack, DataComponents.PROFILE);
+        if (profile == null || profile.partialProfile() == null) {
+            return null;
+        }
+        java.util.Iterator<Property> it = profile.partialProfile().properties().get("textures").iterator();
+        return it.hasNext() ? it.next().value() : null;
+    }
+
+    /** The item model an item really has (past our own override), or null. */
+    public static Identifier itemModelOf(ItemStack stack) {
+        return stack == null || stack.isEmpty() ? null : raw(stack, DataComponents.ITEM_MODEL);
     }
 
     /** The piece's real armour slot, read straight off the component map so we never re-enter our own {@code get}. */
@@ -234,28 +284,45 @@ public final class ArmourDye {
         return map == null ? null : (T) map.get(type);
     }
 
-    /** @return the entry for this stack, or null. Armour-only, so non-armour never pays for an id read. */
+    /** @return the entry for this stack (its UUID key first, then its id), or null. */
     public static ArmourDyeEntry entryFor(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
+        if (stack == null || stack.isEmpty() || snapshot.isEmpty()) {
             return null;
         }
         Memo cached = memo;
         if (cached != null && cached.stack().get() == stack) {
             return cached.entry();
         }
-        // Not armour (or nothing configured): no entry, and nothing worth remembering - the memo is for repeated reads
-        // of one armour piece. The item model of EVERY drawn stack is read through here while the feature is on, and
-        // each non-armour item used to evict the memo and allocate a new one (FPS sweep, 2026-10-07).
-        if (snapshot.isEmpty() || raw(stack, DataComponents.EQUIPPABLE) == null) {
+        ArmourDyeEntry entry = lookup(snapshot, stack);
+        // Only a hit is remembered: the item model of EVERY drawn stack is read through here while the feature is on,
+        // and remembering misses evicted the memo and allocated for every item (FPS sweep, 2026-10-07).
+        if (entry != null) {
+            memo = new Memo(new WeakReference<>(stack), entry);
+        }
+        return entry;
+    }
+
+    private static ArmourDyeEntry lookup(Map<String, ArmourDyeEntry> map, ItemStack stack) {
+        String uuid = uuidOf(stack);
+        if (uuid != null) {
+            ArmourDyeEntry byUuid = map.get(ArmourDyeConfig.uuidKey(uuid));
+            if (byUuid != null) {
+                return byUuid;
+            }
+        }
+        String id = identityOf(stack);
+        return id == null ? null : map.get(id);
+    }
+
+    /** The Skyblock {@code uuid}, read without copying the tag, or null. */
+    public static String uuidOf(ItemStack stack) {
+        CustomData data = raw(stack, DataComponents.CUSTOM_DATA);
+        if (data == null) {
             return null;
         }
-        ArmourDyeEntry entry = null;
-        String id = identityOf(stack);
-        if (id != null) {
-            entry = snapshot.get(id);
-        }
-        memo = new Memo(new WeakReference<>(stack), entry);
-        return entry;
+        CompoundTag tag = ((CustomDataTagAccessor) (Object) data).killer560smod$getTag();
+        String uuid = tag == null ? null : tag.getStringOr("uuid", null);
+        return uuid == null || uuid.isBlank() ? null : uuid;
     }
 
     /**
@@ -274,10 +341,26 @@ public final class ArmourDye {
                 return id.startsWith("STARRED_") ? id.substring("STARRED_".length()) : id;
             }
         }
-        return ItemIdentity.of(stack);
+        // The display-name path runs four regexes. Since Custom Items looks at EVERY drawn item (not only armour), an
+        // id-less item (a menu's glass pane) would pay that each frame; the answer is remembered per stack object,
+        // which a menu keeps for as long as it shows the item.
+        synchronized (NAME_IDENTITY) {
+            String cached = NAME_IDENTITY.get(stack);
+            if (cached != null) {
+                return cached.isEmpty() ? null : cached;
+            }
+        }
+        String fromName = ItemIdentity.of(stack);
+        synchronized (NAME_IDENTITY) {
+            NAME_IDENTITY.put(stack, fromName == null ? "" : fromName);
+        }
+        return fromName;
     }
 
-    /** True when this stack is a piece the feature can actually act on - used by the capture keybind and the tab. */
+    /** Stack object -&gt; its display-name identity ("" = none). Weak; ItemStack keeps Object identity equality. */
+    private static final Map<ItemStack, String> NAME_IDENTITY = new java.util.WeakHashMap<>();
+
+    /** True for a helmet, chestplate, leggings or boots - the pieces an armour skin and a trim apply to. */
     public static boolean isArmour(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return false;

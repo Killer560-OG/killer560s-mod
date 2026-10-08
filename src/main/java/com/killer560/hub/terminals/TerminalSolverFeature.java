@@ -437,9 +437,13 @@ public final class TerminalSolverFeature {
             endTracking();
             return;
         }
-        String title = screen.getTitle().getString();
+        String rawTitle = screen.getTitle().getString();
+        // Normalized (colour codes and resource-pack glyphs out) for matching AND for Starts With / Select, which read
+        // their letter / colour out of it.
+        String title = TerminalType.normalizeTitle(rawTitle);
         TerminalType type = matchType(title, cfg);
         if (type == null) {
+            noteUnmatchedTerminalTitle(rawTitle, title);
             endTracking();
             return;
         }
@@ -502,6 +506,12 @@ public final class TerminalSolverFeature {
             // simply keeping whatever was already showing otherwise - closes that same gap for the
             // highlights themselves, not just the panel's dimensions.
             currentHighlights = solve(type, title, items);
+            if (!currentHighlights.isEmpty()) {
+                lastHighlightScreen = screen;
+            } else if (hasStabilizedOnce && lastHighlightScreen != screen) {
+                // Never anything to click on this screen (a solved board at the end of a terminal had some first).
+                noteEmptySolve(type, rawTitle, items);
+            }
             if (type == TerminalType.NUMBERS && hasStabilizedOnce && !numbersCountNoted) {
                 // 14 numbers (old) or 10 (new): every numbered pane, clicked (lime) or not (red), on the settled
                 // board. The solver itself is count-agnostic (it sorts whatever red panes there are); this only
@@ -1480,6 +1490,53 @@ public final class TerminalSolverFeature {
         GridBounds bounds = new GridBounds(minCol, minRow, maxCol - minCol + 1, maxRow - minRow + 1);
         lastGoodBounds = bounds;
         return bounds;
+    }
+
+    // ---- Diagnostics for a terminal the solver cannot read (2026-10-08, "all terminal solvers and auto terminal is
+    // broken"). The six titles and the item rules are unchanged in every reference mod's current source, so what
+    // changed on Hypixel could not be found offline. These put the evidence in his log, once each, at INFO.
+
+    /** The terminal phrases, for spotting a title that is clearly a terminal but matched no pattern. */
+    private static final String[] TERMINAL_PHRASES = {"Correct all the panes", "Change all to same color", "Click in order",
+            "What starts with", "Select all the", "Click the button on time"};
+    private static String lastUnmatchedTitle;
+    private static Object lastEmptySolveScreen;
+    private static Object lastHighlightScreen;
+
+    private static void noteUnmatchedTerminalTitle(String rawTitle, String normalized) {
+        if (rawTitle.equals(lastUnmatchedTitle)) {
+            return;
+        }
+        for (String phrase : TERMINAL_PHRASES) {
+            if (normalized.contains(phrase)) {
+                lastUnmatchedTitle = rawTitle;
+                StringBuilder cps = new StringBuilder();
+                rawTitle.codePoints().limit(80).forEach(cp -> cps.append(String.format(Locale.ROOT, "%04X ", cp)));
+                LOGGER.info("{} title looks like a terminal but matched no pattern (or its type is off): '{}' normalized '{}'"
+                        + " code points {}", DIAG_TAG, rawTitle, normalized, cps.toString().trim());
+                return;
+            }
+        }
+    }
+
+    /** A settled, non-Melody board the solver found nothing to click on: logs the board once per screen. */
+    private static void noteEmptySolve(TerminalType type, String rawTitle, List<ItemStack> items) {
+        Object screen = McCompat.screen(Minecraft.getInstance());
+        if (screen == null || screen == lastEmptySolveScreen) {
+            return;
+        }
+        lastEmptySolveScreen = screen;
+        StringBuilder board = new StringBuilder();
+        for (int i = 0; i < items.size() && i < 54; i++) {
+            ItemStack stack = items.get(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            board.append(i).append('=').append(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath())
+                    .append('x').append(stack.getCount()).append(stack.hasFoil() ? "*" : "")
+                    .append('|').append(stripColor(stack.getHoverName().getString())).append("; ");
+        }
+        LOGGER.info("{} {} '{}' settled with nothing to click - board: {}", DIAG_TAG, type, rawTitle, board);
     }
 
     private static TerminalType matchType(String title, TerminalSolverConfig cfg) {

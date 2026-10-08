@@ -28,6 +28,11 @@ public class BestFriendsScreen extends Screen {
     private static final int PANEL_BG = 0xFF0D0D0D;
     private static final int ROW_H = 20;
     private static final int HEAD_SIZE = 16;
+    /** Room either side of a button's label. */
+    private static final int LABEL_PAD = 12;
+    /** The search box is never squeezed narrower than this; below it the Sort and filter buttons take a row of
+     *  their own under the search box. */
+    private static final int MIN_SEARCH_W = 60;
 
     private final Screen parent;
     private EditBox searchBox;
@@ -49,17 +54,41 @@ public class BestFriendsScreen extends Screen {
         panelH = Math.min(this.height - 20, Math.max(220, Math.min((int) (this.height * 0.82), 440)));
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
-        listX = panelX + 6;
-        listY = panelY + 60;
-        listW = panelW - 12;
-        listH = panelH - 60 - 8;
 
         BestFriendsConfig cfg = BestFriendsConfig.getInstance();
 
+        // killer560 (2026-10-08): "the sort goes outside of its box". It was a fixed 100 wide and "Sort: Time
+        // Together" is wider than that. Both buttons are now sized from their widest label, and when the row
+        // cannot hold them beside a usable search box they drop to a row of their own.
         String current = searchBox != null ? searchBox.getValue() : "";
-        int sortW = 100;
-        int filterW = 96;
-        int boxW = Math.max(80, panelW - 12 - sortW - filterW - 8);
+        int rowW = panelW - 12;
+        int sortW = widestSortLabel() + LABEL_PAD;
+        int filterW = Math.max(this.font.width(filterText(true)), this.font.width(filterText(false))) + LABEL_PAD;
+        boolean oneRow = MIN_SEARCH_W + 4 + sortW + 4 + filterW <= rowW;
+        int boxW;
+        int buttonsX;
+        int buttonsY;
+        if (oneRow) {
+            boxW = rowW - sortW - filterW - 8;
+            buttonsX = panelX + 6 + boxW + 4;
+            buttonsY = panelY + 34;
+        } else {
+            boxW = rowW;
+            buttonsY = panelY + 34 + 22;
+            if (sortW + 4 + filterW > rowW) {
+                // Narrower than both labels: share the row; the labels are clipped by sortText/filterText below.
+                sortW = (rowW - 4) / 2;
+                filterW = rowW - 4 - sortW;
+            }
+            buttonsX = panelX + 6;
+        }
+        listX = panelX + 6;
+        listY = buttonsY + 18 + 8;
+        listW = panelW - 12;
+        listH = Math.max(20, panelY + panelH - 8 - listY);
+        int sortBoxW = sortW;
+        int filterBoxW = filterW;
+
         searchBox = new EditBox(this.font, panelX + 6, panelY + 34, boxW, 18, Component.literal("Search"));
         searchBox.setMaxLength(32);
         searchBox.setHint(Component.literal("Search name..."));
@@ -67,24 +96,24 @@ public class BestFriendsScreen extends Screen {
         searchBox.setResponder(text -> refilter());
         addRenderableWidget(searchBox);
 
-        addRenderableWidget(SettingsButtonWidget.builder(sortText(cfg), btn -> {
+        addRenderableWidget(SettingsButtonWidget.builder(fit(sortText(cfg), sortBoxW), btn -> {
             cfg.setSortMode(cfg.getSortMode().next());
             cfg.save();
-            btn.setMessage(sortText(cfg));
+            btn.setMessage(fit(sortText(cfg), sortBoxW));
             refilter();
         }).secondaryPress(btn -> {
             cfg.setSortMode(cfg.getSortMode().previous());
             cfg.save();
-            btn.setMessage(sortText(cfg));
+            btn.setMessage(fit(sortText(cfg), sortBoxW));
             refilter();
-        }).bounds(panelX + 6 + boxW + 4, panelY + 34, sortW, 18).build());
+        }).bounds(buttonsX, buttonsY, sortBoxW, 18).build());
 
-        addRenderableWidget(SettingsButtonWidget.builder(filterText(cfg), btn -> {
+        addRenderableWidget(SettingsButtonWidget.builder(fit(filterText(cfg.isDungeonOnlyFilter()), filterBoxW), btn -> {
             cfg.setDungeonOnlyFilter(!cfg.isDungeonOnlyFilter());
             cfg.save();
-            btn.setMessage(filterText(cfg));
+            btn.setMessage(fit(filterText(cfg.isDungeonOnlyFilter()), filterBoxW));
             refilter();
-        }).bounds(panelX + 6 + boxW + 8 + sortW, panelY + 34, filterW, 18).build());
+        }).bounds(buttonsX + sortBoxW + 4, buttonsY, filterBoxW, 18).build());
 
         if (selected != null) {
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("< Back"), btn -> {
@@ -97,12 +126,33 @@ public class BestFriendsScreen extends Screen {
         refilter();
     }
 
-    private static Component sortText(BestFriendsConfig cfg) {
-        return Component.literal("Sort: §b" + cfg.getSortMode().label);
+    private static String sortText(BestFriendsConfig cfg) {
+        return sortText(cfg.getSortMode());
     }
 
-    private static Component filterText(BestFriendsConfig cfg) {
-        return Component.literal(cfg.isDungeonOnlyFilter() ? "§6Dungeon Only" : "§fAny Party Time");
+    private static String sortText(BestFriendsConfig.SortMode mode) {
+        return "Sort: §b" + mode.label;
+    }
+
+    private static String filterText(boolean dungeonOnly) {
+        return dungeonOnly ? "§6Dungeon Only" : "§fAny Party Time";
+    }
+
+    private int widestSortLabel() {
+        int w = 0;
+        for (BestFriendsConfig.SortMode mode : BestFriendsConfig.SortMode.values()) {
+            w = Math.max(w, this.font.width(sortText(mode)));
+        }
+        return w;
+    }
+
+    /** The label, cut to what fits inside a button {@code boxW} wide. */
+    private Component fit(String label, int boxW) {
+        int room = Math.max(0, boxW - LABEL_PAD);
+        if (this.font.width(label) <= room) {
+            return Component.literal(label);
+        }
+        return Component.literal(this.font.plainSubstrByWidth(label, Math.max(0, room - this.font.width(".."))) + "..");
     }
 
     private void refilter() {
@@ -120,7 +170,7 @@ public class BestFriendsScreen extends Screen {
             out.add(record);
         }
         Comparator<BestFriendsStore.Record> comparator = switch (cfg.getSortMode()) {
-            case TIME -> Comparator.comparingLong((BestFriendsStore.Record r) -> r.totalPartySeconds).reversed();
+            case TIME -> Comparator.comparingLong(BestFriendsTracker::liveTotalMs).reversed();
             case RUNS -> Comparator.comparingInt((BestFriendsStore.Record r) -> r.totalDungeonRuns()).reversed();
             case NAME -> Comparator.comparing(r -> r.lastKnownName == null ? "" : r.lastKnownName.toLowerCase(Locale.US));
         };
@@ -179,8 +229,11 @@ public class BestFriendsScreen extends Screen {
         graphics.outline(panelX, panelY, panelW, 28, BORDER);
         graphics.fill(panelX, panelY + 27, panelX + panelW, panelY + 28, ACCENT);
         graphics.text(this.font, "Best Friends", panelX + 10, panelY + 10, ACCENT, false);
-        if (!BestFriendsConfig.getInstance().getEnabledRaw()) {
-            String warn = "Party Time Tracker is OFF - turn it on above to start tracking";
+        if (selected != null) {
+            // The "< Back" button sits where the count would be.
+        } else if (!BestFriendsConfig.getInstance().getEnabledRaw()) {
+            String warn = this.font.plainSubstrByWidth("Party Time Tracker is OFF - turn it on in the Best Friends tab",
+                    Math.max(0, panelW - 30 - this.font.width("Best Friends")));
             graphics.text(this.font, warn, panelX + panelW - 10 - this.font.width(warn), panelY + 10,
                     0xFF000000 | ModChat.BAD, false);
         } else {
@@ -240,7 +293,7 @@ public class BestFriendsScreen extends Screen {
                 name = "§a" + name;
             }
             int nameX = listX + 3 + HEAD_SIZE + 6;
-            String right = formatDuration(record.totalPartySeconds) + "  §8|§r  " + record.totalDungeonRuns() + " runs";
+            String right = formatCompact(BestFriendsTracker.liveTotalMs(record)) + "  §8|§r  " + record.totalDungeonRuns() + " runs";
             int rightW = this.font.width(this.font.plainSubstrByWidth(right, listW - 12));
             graphics.text(this.font, right, listX + listW - 6 - rightW, textY, 0xFF000000 | ModChat.LIGHT_ORANGE, false);
             int nameSpace = listW - (nameX - listX) - rightW - 10;
@@ -271,7 +324,9 @@ public class BestFriendsScreen extends Screen {
     private List<String> detailLines(BestFriendsStore.Record record) {
         List<String> out = new ArrayList<>();
         out.add("");
-        out.add("§6§lTime together§r  §f" + formatDuration(record.totalPartySeconds));
+        // Down to the second, read live every frame so it ticks while you are partied (killer560, 2026-10-08).
+        out.add("§6§lTime together§r  §f" + formatDetailed(BestFriendsTracker.liveTotalMs(record))
+                + (BestFriendsTracker.isAccruing(record.uuid) ? "  §a(partied now)" : ""));
         out.add("§7First partied  §f" + formatDate(record.firstPartiedAtMs));
         out.add("§7Last partied  §f" + formatDate(record.lastPartiedAtMs));
         out.add("");
@@ -289,18 +344,41 @@ public class BestFriendsScreen extends Screen {
         return out;
     }
 
-    /** "3h 12m", "45m", or "38s" for anything under a minute. */
-    private static String formatDuration(long totalSeconds) {
-        long h = totalSeconds / 3600;
-        long m = (totalSeconds % 3600) / 60;
-        long s = totalSeconds % 60;
+    /** The list's form: "10d 3h 10m", "1h 32m", "45m", or "38s" under a minute. Hours roll into days. */
+    public static String formatCompact(long totalMs) {
+        long total = Math.max(0L, totalMs) / 1000L;
+        long d = total / 86_400L;
+        long h = (total % 86_400L) / 3600L;
+        long m = (total % 3600L) / 60L;
+        if (d > 0) {
+            return d + "d " + h + "h " + m + "m";
+        }
         if (h > 0) {
             return h + "h " + m + "m";
         }
         if (m > 0) {
             return m + "m";
         }
-        return s + "s";
+        return total + "s";
+    }
+
+    /** A clicked player's form, to the second: "10d 3h 10m 5s", "1h 32m 5s", "45m 0s", "38s". */
+    public static String formatDetailed(long totalMs) {
+        long total = Math.max(0L, totalMs) / 1000L;
+        long d = total / 86_400L;
+        long h = (total % 86_400L) / 3600L;
+        long m = (total % 3600L) / 60L;
+        long sec = total % 60L;
+        if (d > 0) {
+            return d + "d " + h + "h " + m + "m " + sec + "s";
+        }
+        if (h > 0) {
+            return h + "h " + m + "m " + sec + "s";
+        }
+        if (m > 0) {
+            return m + "m " + sec + "s";
+        }
+        return sec + "s";
     }
 
     private static String formatDate(long epochMs) {

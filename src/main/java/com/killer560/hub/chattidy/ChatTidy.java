@@ -19,9 +19,12 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
- * Chat Tidy (killer560, 2026-10-07): "make a setting so getting 2x chat messages stack them and make a hider for things
- * like `Your Implosion hit 2 enemies for 14,736,463.2 damage.` or `A Crypt Wither Skull exploded, hitting you for
- * 23,760`".
+ * Chat Hider (killer560, 2026-10-08: "Combine hide chat and tidy chat into one setting called Chat Hider") - the
+ * display-time half: Stack Duplicate Messages and Hide Damage Messages, both under Chat Hider's master switch
+ * ({@link ChatTidyConfig}). The other six hides (Hide Useless Messages ... Hide Non-Rank Invites) are matched in
+ * {@code objecthider/ObjectHiderFeature} at receive time, as before. Chat Tidy first shipped 2026-10-07 ("make a setting
+ * so getting 2x chat messages stack them and make a hider for things like `Your Implosion hit 2 enemies for
+ * 14,736,463.2 damage.` or `A Crypt Wither Skull exploded, hitting you for 23,760`").
  * <p>
  * Both act at DISPLAY time, from {@code chattidy/mixin/ChatTidyMixin} inside {@code ChatComponent.addMessage}, after
  * Fabric's receive events and after {@link ChatObserver} has dispatched the line (its hook sits at that method's HEAD,
@@ -29,18 +32,22 @@ import java.util.regex.Pattern;
  * a stacked one, and vanilla still writes each original to the log as {@code [CHAT]}. Nothing here runs on a raw
  * packet listener; the mixin catches anything thrown and lets vanilla add the line as normal.
  * <p>
- * <b>Stack Duplicate Messages</b>: a line identical to the NEWEST line in chat (same text, same colours and formatting,
- * same click events; hover is ignored) replaces it with one copy ending in a grey {@code (x2)}, {@code (x3)} ...
- * Consecutive only: stacking across other lines would move an old line down to the bottom out of order, and "2x chat
- * messages" is the case asked for. Never stacked: blank lines and lines with no letter or digit (Hypixel's
- * {@code -----} / {@code ▬▬▬} separators, so two back-to-back boxes keep their spacing), signed player chat (vanilla
- * deletes those by signature), and a line from a different source or tag than the one above it.
+ * <b>Stack Duplicate Messages</b>: a line identical to one of the last {@value #STACK_WINDOW_MESSAGES} messages in chat
+ * that arrived at most {@value #STACK_WINDOW_SECONDS} s ago (same text, same colours and formatting, same click events;
+ * hover is ignored) takes that copy's place: the earlier copy is removed and one line ending in a grey {@code (x2)},
+ * {@code (x3)} ... is added at the bottom, where the newest chat is read (killer560, 2026-10-08: "if a message comes in
+ * between something that would stack then they should still stack"; until then only consecutive repeats stacked). The
+ * window is bounded both ways so an old line is never pulled down from far up the history, and the search is at most
+ * 50 identity look-ups per line. Never stacked: blank lines and lines with no letter or digit (Hypixel's {@code -----}
+ * / {@code ▬▬▬} separators, so back-to-back boxes keep their spacing), signed player chat (vanilla deletes those by
+ * signature), a line from a different source or tag, and a copy the chat's visible filter hides.
  * <p>
- * <b>Hide Damage Messages</b>: Hypixel's combat spam, two families, from his own Dungeons log (2026-09 to 2026-10-07,
- * every shape listed in docs/FEATURES.md), SkyHanni 7.48.0 {@code DungeonChatFilter} and Skyblocker 6.9.1's Implosion /
- * Spirit Sceptre / Molten Wave filters. Server lines only ({@code SYSTEM_SERVER}), and every pattern is anchored on the
- * whole line with a name class that cannot hold {@code :} or {@code [}, so a player typing the same text in any channel
- * ({@code Party > [MVP+] Eve: Your Implosion hit ...}) is never hidden.
+ * <b>Hide Damage Messages</b>: Hypixel's combat spam, two families (ability damage and incoming hits, one switch since
+ * 2026-10-08: "Hide damage messages should hide ability and incoming hit lines no matter what"), from his own Dungeons
+ * log (2026-09 to 2026-10-07, every shape listed in docs/FEATURES.md), SkyHanni 7.48.0 {@code DungeonChatFilter} and
+ * Skyblocker 6.9.1's Implosion / Spirit Sceptre / Molten Wave filters. Server lines only ({@code SYSTEM_SERVER}), and
+ * every pattern is anchored on the whole line with a name class that cannot hold {@code :} or {@code [}, so a player
+ * typing the same text in any channel ({@code Party > [MVP+] Eve: Your Implosion hit ...}) is never hidden.
  */
 public final class ChatTidy {
 
@@ -73,11 +80,34 @@ public final class ChatTidy {
             Pattern.compile("^Your bone plating reduced the damage you took by " + NUM + "!$"),
     };
 
-    // Stacking state: the GuiMessage this feature last put at the top, what it stacked, and how many times.
-    private static GuiMessage stackTop;
-    private static Component stackBase;
-    private static Key stackKey;
-    private static int stackCount;
+    /** How far back a repeat may find its earlier copy: this many chat messages, and ... */
+    public static final int STACK_WINDOW_MESSAGES = 50;
+    /** ... no older than this (60 s; {@code GuiMessage.addedTime} is in gui ticks). */
+    public static final int STACK_WINDOW_SECONDS = 60;
+    private static final int STACK_WINDOW_TICKS = STACK_WINDOW_SECONDS * 20;
+
+    /** A stacked line this feature put into chat: the first copy's component, its key, and the count shown. */
+    private static final class Stack {
+        final GuiMessage message;
+        final Component base;
+        final Key key;
+        final int count;
+
+        Stack(GuiMessage message, Component base, Key key, int count) {
+            this.message = message;
+            this.base = base;
+            this.key = key;
+            this.count = count;
+        }
+    }
+
+    /** Live stacks, newest last, by GuiMessage identity (a record's equals compares content). Bounded. */
+    private static final ArrayList<Stack> STACKS = new ArrayList<>();
+    private static final int MAX_STACKS = 64;
+    /** Keys of recent un-stacked messages, by identity, so a repeat costs one key build, not fifty. Bounded. */
+    private static final java.util.IdentityHashMap<GuiMessage, Key> KEYS = new java.util.IdentityHashMap<>();
+    private static final ArrayDeque<GuiMessage> KEY_ORDER = new ArrayDeque<>();
+    private static final int MAX_KEYS = 160;
 
     // Test hooks.
     private static long hidden;
@@ -112,14 +142,11 @@ public final class ChatTidy {
         if (source != GuiMessageSource.SYSTEM_SERVER || message == null) {
             return false;
         }
-        ChatTidyConfig cfg = ChatTidyConfig.getInstance();
-        boolean ability = cfg.isHideAbilityDamage();
-        boolean incoming = cfg.isHideIncomingHits();
-        if (!ability && !incoming) {
+        if (!ChatTidyConfig.getInstance().isHideDamageMessages()) {
             return false;
         }
-        boolean hide = (ability && isAbilityDamage(ChatObserver.strip(message)))
-                || (incoming && isIncomingHit(ChatObserver.strip(message)));
+        String plain = ChatObserver.strip(message);
+        boolean hide = isAbilityDamage(plain) || isIncomingHit(plain);
         if (hide) {
             hidden++;
         }
@@ -150,46 +177,92 @@ public final class ChatTidy {
         return ChatTidyConfig.getInstance().isStackDuplicates();
     }
 
+    /** Where a repeat stacks: the earlier copy's index in {@code allMessages} and the line to show in its place. */
+    public record Match(int index, GuiMessage earlier, Component content, Component base, Key key, int count) {
+    }
+
     /**
-     * The content to show in place of {@code top} when {@code incoming} repeats it, or null when it does not. The
-     * returned line is the FIRST copy's component (its click and hover events) plus a grey {@code (xN)}.
+     * The earlier copy {@code incoming} repeats within the window, or null. {@code all} is the chat's
+     * {@code allMessages} (newest first); {@code visible} is its visible-message filter. The returned content is the
+     * FIRST copy's component (its click and hover events) plus a grey {@code (xN)}.
      */
-    public static Component stack(GuiMessage top, GuiMessage incoming) {
-        if (top == null || incoming == null || top.signature() != null || incoming.signature() != null
-                || top.source() != incoming.source() || !Objects.equals(top.tag(), incoming.tag())) {
+    public static Match findStack(List<GuiMessage> all, GuiMessage incoming, java.util.function.Predicate<GuiMessage> visible) {
+        if (incoming == null || incoming.signature() != null || all.isEmpty()) {
             return null;
         }
         String plain = ChatObserver.strip(incoming.content());
         if (!stackable(plain)) {
             return null;
         }
-        Component base;
-        Key topKey;
-        int count;
-        if (top == stackTop && stackBase != null) {
-            base = stackBase;
-            topKey = stackKey;
-            count = stackCount;
-        } else {
-            base = top.content();
-            topKey = key(base);
-            count = 1;
+        Key incomingKey = key(incoming.content());
+        int n = Math.min(STACK_WINDOW_MESSAGES, all.size());
+        for (int i = 0; i < n; i++) {
+            GuiMessage earlier = all.get(i);
+            if (incoming.addedTime() - earlier.addedTime() > STACK_WINDOW_TICKS) {
+                break; // newest first: everything further up is older still
+            }
+            if (earlier.signature() != null || earlier.source() != incoming.source()
+                    || !Objects.equals(earlier.tag(), incoming.tag()) || !visible.test(earlier)) {
+                continue;
+            }
+            Stack stack = stackOf(earlier);
+            Key earlierKey = stack != null ? stack.key : cachedKey(earlier);
+            if (!earlierKey.equals(incomingKey)) {
+                continue;
+            }
+            Component base = stack != null ? stack.base : earlier.content();
+            int count = (stack != null ? stack.count : 1) + 1;
+            Component shown = base.copy().append(Component.literal(" (x" + count + ")").withStyle(ChatFormatting.GRAY));
+            return new Match(i, earlier, shown, base, earlierKey, count);
         }
-        if (!topKey.equals(key(incoming.content()))) {
-            return null;
-        }
-        count++;
-        stackBase = base;
-        stackKey = topKey;
-        stackCount = count;
-        stackTop = null; // set by stacked() once the replacement is really in the chat
-        return base.copy().append(Component.literal(" (x" + count + ")").withStyle(ChatFormatting.GRAY));
+        remember(incoming, incomingKey);
+        return null;
     }
 
-    /** The mixin put {@code replacement} at the top of chat. */
-    public static void stacked(GuiMessage replacement) {
-        stackTop = replacement;
+    /** The mixin replaced {@code match.earlier()} with {@code replacement} at the bottom of chat. */
+    public static void stacked(Match match, GuiMessage replacement) {
+        Stack old = stackOf(match.earlier());
+        if (old != null) {
+            STACKS.remove(old);
+        }
+        STACKS.add(new Stack(replacement, match.base(), match.key(), match.count()));
+        while (STACKS.size() > MAX_STACKS) {
+            STACKS.remove(0);
+        }
         stacked++;
+    }
+
+    /** {@code message}'s content without a stack count this feature added (Copy Chat copies the message itself). */
+    public static Component unstackedContent(GuiMessage message) {
+        Stack stack = stackOf(message);
+        return stack != null ? stack.base : message.content();
+    }
+
+    private static Stack stackOf(GuiMessage message) {
+        for (int i = STACKS.size() - 1; i >= 0; i--) {
+            if (STACKS.get(i).message == message) {
+                return STACKS.get(i);
+            }
+        }
+        return null;
+    }
+
+    private static Key cachedKey(GuiMessage message) {
+        Key k = KEYS.get(message);
+        if (k == null) {
+            k = key(message.content());
+            remember(message, k);
+        }
+        return k;
+    }
+
+    private static void remember(GuiMessage message, Key k) {
+        if (KEYS.put(message, k) == null) {
+            KEY_ORDER.addLast(message);
+            while (KEY_ORDER.size() > MAX_KEYS) {
+                KEYS.remove(KEY_ORDER.removeFirst());
+            }
+        }
     }
 
     /** Something to stack: not blank, and not a pure separator ({@code -----}, {@code ▬▬▬▬}). */
@@ -206,7 +279,7 @@ public final class ChatTidy {
     }
 
     /** What two lines must share to stack: the visible text and, per run, the style (minus hover). */
-    record Key(String text, List<Style> styles) {
+    public record Key(String text, List<Style> styles) {
     }
 
     static Key key(Component content) {
@@ -259,6 +332,23 @@ public final class ChatTidy {
             return "";
         }
         return k.styles().get(k.styles().size() - 1).getColor().toString();
+    }
+
+    /** Wrapped chat lines whose message is no longer in the chat (a stack that left a line behind), and lines in
+     *  {@code trimmedMessages} in total. Render thread. */
+    public static int[] testTrimmedOrphans() {
+        ChatComponent chat = McCompat.chat(Minecraft.getInstance());
+        List<GuiMessage> all = ((com.killer560.hub.chattidy.mixin.ChatTidyAccessor) chat).killer560smod$getAllMessages();
+        List<GuiMessage.Line> lines = ((com.killer560.hub.copychat.mixin.ChatComponentAccessor) chat).killer560smod$getTrimmedMessages();
+        java.util.Set<GuiMessage> live = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        live.addAll(all);
+        int orphans = 0;
+        for (GuiMessage.Line line : lines) {
+            if (!live.contains(line.parent())) {
+                orphans++;
+            }
+        }
+        return new int[]{orphans, lines.size()};
     }
 
     public static List<String> testObserved() {

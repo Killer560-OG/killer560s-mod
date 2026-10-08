@@ -1,6 +1,5 @@
 package com.killer560.hub.clicktranslate;
 
-import com.killer560.hub.copychat.CopyChatConfig;
 import com.killer560.hub.copychat.CopyChatFeature;
 import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.translate.TranslateFeature;
@@ -48,7 +47,9 @@ public final class ClickTranslateFeature {
     // still works with Translate off) and #tryHandleClick below decides which one a given click actually
     // means.
     public static Component wrap(Component message) {
-        if (!ClickTranslateConfig.getInstance().isEnabled() && !CopyChatConfig.getInstance().isEnabled()) {
+        // Translate only since 2026-10-08: Copy Chat no longer rides on this click event (it finds the clicked line
+        // itself, copychat/CopyChatFeature), so with Translate off a plain click on chat is vanilla's again.
+        if (!ClickTranslateConfig.getInstance().isEnabled()) {
             return message;
         }
         String plain = message.getString();
@@ -76,10 +77,9 @@ public final class ClickTranslateFeature {
         // is toggled on - means a Shift+Click can never also translate, even if Copy Chat happens to be
         // off. Used to only check this when Copy Chat was enabled, so a Shift+Click with Copy Chat off
         // fell straight through to translate below.
-        if (CopyChatFeature.isShiftDown()) {
-            if (CopyChatConfig.getInstance().isEnabled()) {
-                CopyChatFeature.copyToClipboard(ChatFormatting.stripFormatting(stringTag.value()));
-            }
+        // Shift or Ctrl (Copy Chat's modifiers since 2026-10-08) never translates. Copy Chat itself handles the click
+        // earlier, at the head of ChatScreen.mouseClicked.
+        if (CopyChatFeature.isCopyModifierDown()) {
             return true;
         }
         if (!ClickTranslateConfig.getInstance().isEnabled()) {

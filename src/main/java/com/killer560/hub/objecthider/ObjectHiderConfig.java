@@ -96,13 +96,8 @@ public final class ObjectHiderConfig {
     private boolean noEatAnimation = false;
     private boolean noShortbowSwing = false;
 
-    // --- QUOI Chat Replacements ----------------------------------------------------------------------
-    private boolean hideUselessMessages = false;
-    private boolean hideDiscordWarnings = false;
-    private boolean hideMicrosoftWarnings = false;
-    private boolean hideEmptyChatMessages = false;
-    private boolean hideActionbar = false;
-    private boolean hideNonRankInvites = false;
+    // --- QUOI Chat Replacements: moved to Chat Hider (chattidy/ChatTidyConfig) on 2026-10-08, which migrates the old
+    // keys out of this file the first time it loads. --------------------------------------------------
 
     // QUOI's Splits "Hide Not Started" is deliberately absent: our Split Timers HUD already never draws a
     // split it has not reached (SplitTimersFeature.displayRows() only emits rows with timeMs() != 0), so the
@@ -190,12 +185,6 @@ public final class ObjectHiderConfig {
                 cfg.noEatAnimation = ConfigJson.getBool(obj, "noEatAnimation", false);
                 cfg.noShortbowSwing = ConfigJson.getBool(obj, "noShortbowSwing", false);
 
-                cfg.hideUselessMessages = ConfigJson.getBool(obj, "hideUselessMessages", false);
-                cfg.hideDiscordWarnings = ConfigJson.getBool(obj, "hideDiscordWarnings", false);
-                cfg.hideMicrosoftWarnings = ConfigJson.getBool(obj, "hideMicrosoftWarnings", false);
-                cfg.hideEmptyChatMessages = ConfigJson.getBool(obj, "hideEmptyChatMessages", false);
-                cfg.hideActionbar = ConfigJson.getBool(obj, "hideActionbar", false);
-                cfg.hideNonRankInvites = ConfigJson.getBool(obj, "hideNonRankInvites", false);
 
 
                 cfg.hidePlayers = ConfigJson.getBool(obj, "hidePlayers", false);
@@ -257,12 +246,6 @@ public final class ObjectHiderConfig {
             obj.addProperty("noEatAnimation", noEatAnimation);
             obj.addProperty("noShortbowSwing", noShortbowSwing);
 
-            obj.addProperty("hideUselessMessages", hideUselessMessages);
-            obj.addProperty("hideDiscordWarnings", hideDiscordWarnings);
-            obj.addProperty("hideMicrosoftWarnings", hideMicrosoftWarnings);
-            obj.addProperty("hideEmptyChatMessages", hideEmptyChatMessages);
-            obj.addProperty("hideActionbar", hideActionbar);
-            obj.addProperty("hideNonRankInvites", hideNonRankInvites);
 
 
             obj.addProperty("hidePlayers", hidePlayers);
@@ -725,80 +708,6 @@ public final class ObjectHiderConfig {
 
     public void setNoShortbowSwing(boolean v) {
         noShortbowSwing = v;
-    }
-
-    // --- QUOI Chat Replacements ----------------------------------------------------------------------
-
-    public boolean isHideUselessMessages() {
-        return hideUselessMessages && SkyblockGate.allows();
-    }
-
-    public boolean getHideUselessMessagesRaw() {
-        return hideUselessMessages;
-    }
-
-    public void setHideUselessMessages(boolean v) {
-        hideUselessMessages = v;
-    }
-
-    public boolean isHideDiscordWarnings() {
-        return hideDiscordWarnings && SkyblockGate.allows();
-    }
-
-    public boolean getHideDiscordWarningsRaw() {
-        return hideDiscordWarnings;
-    }
-
-    public void setHideDiscordWarnings(boolean v) {
-        hideDiscordWarnings = v;
-    }
-
-    public boolean isHideMicrosoftWarnings() {
-        return hideMicrosoftWarnings && SkyblockGate.allows();
-    }
-
-    public boolean getHideMicrosoftWarningsRaw() {
-        return hideMicrosoftWarnings;
-    }
-
-    public void setHideMicrosoftWarnings(boolean v) {
-        hideMicrosoftWarnings = v;
-    }
-
-    public boolean isHideEmptyChatMessages() {
-        return hideEmptyChatMessages && SkyblockGate.allows();
-    }
-
-    public boolean getHideEmptyChatMessagesRaw() {
-        return hideEmptyChatMessages;
-    }
-
-    public void setHideEmptyChatMessages(boolean v) {
-        hideEmptyChatMessages = v;
-    }
-
-    public boolean isHideActionbar() {
-        return hideActionbar && SkyblockGate.allows();
-    }
-
-    public boolean getHideActionbarRaw() {
-        return hideActionbar;
-    }
-
-    public void setHideActionbar(boolean v) {
-        hideActionbar = v;
-    }
-
-    public boolean isHideNonRankInvites() {
-        return hideNonRankInvites && SkyblockGate.allows();
-    }
-
-    public boolean getHideNonRankInvitesRaw() {
-        return hideNonRankInvites;
-    }
-
-    public void setHideNonRankInvites(boolean v) {
-        hideNonRankInvites = v;
     }
 
     // --- QUOI 1.1.1 Hide Players -------------------------------------------------------------------------

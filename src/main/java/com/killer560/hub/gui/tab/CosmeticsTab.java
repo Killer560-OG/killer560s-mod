@@ -65,7 +65,7 @@ public class CosmeticsTab extends BaseTab {
     private boolean heldItemOpen = false;
 
     public CosmeticsTab() {
-        super("Cosmetics");
+        super("Player Cosmetics");
     }
 
     @Override

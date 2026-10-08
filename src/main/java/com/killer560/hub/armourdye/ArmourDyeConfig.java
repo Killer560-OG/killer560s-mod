@@ -8,7 +8,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.SkyblockGate;
 
 import java.nio.charset.StandardCharsets;
@@ -21,8 +20,10 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Persisted Armour Recolour settings - see {@link ArmourDye} for what the overrides actually do. Ships OFF, like
- * every other new feature in this mod.
+ * Persisted Custom Items settings (Armour Recolour until 2026-10-08; same file, so every saved look carried over) -
+ * see {@link ArmourDye} for what the overrides actually do. Ships OFF, like every other new feature in this mod.
+ * The old {@code skinInventoryIcons} and {@code captureKey} keys are no longer read: killer560 asked for both to go,
+ * and a skin no longer swaps the inventory icon by itself (the Look does that, per item).
  * <p>
  * Read with {@link ConfigJson}'s per-key readers (2026-09-15 persistence audit) and, for the entry list, element by
  * element: one hand-edited bad entry is skipped instead of wiping every colour the user has set. Every mutator's
@@ -40,12 +41,6 @@ public final class ArmourDyeConfig {
     private static ArmourDyeConfig instance;
 
     private boolean enabled = false;
-
-    /** Whether the inventory icon follows the skin as well as the worn armour. Costs one more component override. */
-    private boolean skinInventoryIcons = true;
-
-    /** Key pressed while hovering a slot (any inventory screen) to add/select that piece. */
-    private int captureKey = KeyUtil.NONE;
 
     /** Insertion-ordered so the settings list doesn't reshuffle itself between openings. */
     private final Map<String, ArmourDyeEntry> entries = new LinkedHashMap<>();
@@ -66,8 +61,6 @@ public final class ArmourDyeConfig {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.skinInventoryIcons = ConfigJson.getBool(obj, "skinInventoryIcons", true);
-                cfg.captureKey = KeyUtil.sanitize(ConfigJson.getInt(obj, "captureKey", KeyUtil.NONE));
                 JsonArray arr = ConfigJson.getArray(obj, "entries");
                 if (arr != null) {
                     for (JsonElement el : arr) {
@@ -89,6 +82,7 @@ public final class ArmourDyeConfig {
                             entry.skin = ArmourSkin.byName(ConfigJson.getString(e, "skin", ArmourSkin.NONE.name()));
                             entry.skinAsset = ConfigJson.getString(e, "skinAsset", "");
                             entry.iconModel = ConfigJson.getString(e, "iconModel", "");
+                            entry.headTexture = ConfigJson.getString(e, "headTexture", "");
                             entry.trimMaterial = ConfigJson.getString(e, "trimMaterial", "");
                             entry.trimPattern = ConfigJson.getString(e, "trimPattern", "");
                             cfg.entries.put(id, entry);
@@ -109,8 +103,6 @@ public final class ArmourDyeConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("skinInventoryIcons", skinInventoryIcons);
-            obj.addProperty("captureKey", captureKey);
             JsonArray arr = new JsonArray();
             for (ArmourDyeEntry entry : entries.values()) {
                 JsonObject e = new JsonObject();
@@ -122,6 +114,7 @@ public final class ArmourDyeConfig {
                 e.addProperty("skin", entry.skin.name());
                 e.addProperty("skinAsset", entry.skinAsset);
                 e.addProperty("iconModel", entry.iconModel);
+                e.addProperty("headTexture", entry.headTexture);
                 e.addProperty("trimMaterial", entry.trimMaterial);
                 e.addProperty("trimPattern", entry.trimPattern);
                 arr.add(e);
@@ -153,22 +146,6 @@ public final class ArmourDyeConfig {
 
     public void setEnabled(boolean value) {
         this.enabled = value;
-    }
-
-    public boolean isSkinInventoryIcons() {
-        return skinInventoryIcons;
-    }
-
-    public void setSkinInventoryIcons(boolean value) {
-        this.skinInventoryIcons = value;
-    }
-
-    public int getCaptureKey() {
-        return captureKey;
-    }
-
-    public void setCaptureKey(int key) {
-        this.captureKey = KeyUtil.sanitize(key);
     }
 
     // --- entries ---
@@ -209,5 +186,28 @@ public final class ArmourDyeConfig {
 
     public void clear() {
         entries.clear();
+    }
+
+    /** Replaces the entry under {@code from} with {@code replacement} (its own key), keeping the list order. */
+    public void rekey(String from, ArmourDyeEntry replacement) {
+        Map<String, ArmourDyeEntry> copy = new LinkedHashMap<>();
+        String fromKey = from == null ? null : normaliseId(from);
+        for (Map.Entry<String, ArmourDyeEntry> e : entries.entrySet()) {
+            if (e.getKey().equals(fromKey)) {
+                copy.put(normaliseId(replacement.itemId), replacement);
+            } else if (!e.getKey().equals(normaliseId(replacement.itemId))) {
+                copy.put(e.getKey(), e.getValue());
+            }
+        }
+        if (!copy.containsKey(normaliseId(replacement.itemId))) {
+            copy.put(normaliseId(replacement.itemId), replacement);
+        }
+        entries.clear();
+        entries.putAll(copy);
+    }
+
+    /** The per-item key for a Skyblock uuid. */
+    public static String uuidKey(String uuid) {
+        return ArmourDyeEntry.UUID_PREFIX + uuid.trim().toUpperCase(Locale.ROOT);
     }
 }

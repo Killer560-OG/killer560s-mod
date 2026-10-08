@@ -28,9 +28,9 @@ import java.util.Locale;
  * {@code BadScreen} sell/salvage/trade detection), {@code SlotLocking.kt}, {@code ProtectItem.kt} and
  * {@code ProtectStarredItems.kt}, cross-checked against NoammAddons {@code general/ProtectItem.kt},
  * Skytils {@code features/impl/handlers/{SlotLocking,ItemFeatures}.kt} (branch {@code 1.x}) and SkyHanni
- * {@code features/inventory/{ItemProtection,SlotLocking}.kt}. Devonian's own model is the one followed:
- * a locked SLOT can't move at all, while a protected ITEM only gets stopped by an action that would
- * actually lose it.
+ * {@code features/inventory/{ItemProtection,SlotLocking}.kt}. A protected ITEM is stopped by any action that would
+ * actually lose it; with Lock In Place on it can't be clicked at all, which is what the removed Slot Lock did for a
+ * slot (killer560, 2026-10-08).
  * <p>
  * <b>Only client-initiated actions are ever blocked.</b> Both call sites are vanilla client input paths -
  * {@code AbstractContainerScreen#slotClicked} (the single funnel every mouse click, shift-click, number-key
@@ -143,6 +143,32 @@ public final class ItemProtect {
         return cfg.isProtectStarredEnabled() && isStarred(stack);
     }
 
+    /**
+     * Protected by name on the list - its UUID, its item id (fallback on) or a typed name fragment - and NOT merely
+     * because it is dungeon-starred. This is what earns the star marker and what Lock In Place holds still
+     * (killer560, 2026-10-08: "Do not have a symbol for starred items being locked even though they are").
+     */
+    public static boolean isExplicitlyProtected(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        ItemProtectConfig cfg = ItemProtectConfig.getInstance();
+        if (!cfg.isProtectItemEnabled()) {
+            return false;
+        }
+        String uuid = itemUuid(stack);
+        if (uuid != null && cfg.hasProtectedKey(uuid)) {
+            return true;
+        }
+        if (cfg.isUseItemIdFallback()) {
+            String id = skyblockId(stack);
+            if (id != null && cfg.hasProtectedKey(id)) {
+                return true;
+            }
+        }
+        return cfg.nameMatchesProtected(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
+    }
+
     /** Short reason used in the chat line, or null when the stack isn't protected at all. */
     private static String protectReason(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
@@ -177,8 +203,7 @@ public final class ItemProtect {
         return player == null ? null : player.getInventory();
     }
 
-    /** True only for a slot backed by the real player {@code Inventory} - a locked slot index means nothing
-     *  in someone else's chest, and every reference mod scopes slot locking the same way. */
+    /** True only for a slot backed by the real player {@code Inventory}. */
     public static boolean isPlayerInventorySlot(Slot slot) {
         Inventory inv = playerInventory();
         return slot != null && inv != null && slot.container == inv;
@@ -284,21 +309,21 @@ public final class ItemProtect {
             return false;
         }
 
-        // A locked slot can't move at all, whatever the click is (Devonian's SlotLocking semantics).
-        if (cfg.isSlotLockEnabled() && isPlayerInventorySlot(slot) && cfg.isSlotLocked(slot.getContainerSlot())) {
-            announceBlock(action, slot.getItem(), "Slot Lock");
-            return true;
-        }
-
-        // A number-key SWAP also moves whatever is in the destination hotbar slot.
-        if (type == ContainerInput.SWAP && cfg.isSlotLockEnabled() && button >= 0 && button < 9
-                && cfg.isSlotLocked(button)) {
-            announceBlock(action, inv.getItem(button), "Slot Lock");
-            return true;
+        // Lock In Place (what Slot Lock did, per item): a protected item can't be clicked at all, whatever the click.
+        if (cfg.isProtectItemEnabled() && cfg.isLockInPlace()) {
+            if (isExplicitlyProtected(slot.getItem())) {
+                announceBlock(action, slot.getItem(), "Locked In Place");
+                return true;
+            }
+            // A number-key SWAP also moves whatever is in the destination hotbar slot.
+            if (type == ContainerInput.SWAP && button >= 0 && button < 9 && isExplicitlyProtected(inv.getItem(button))) {
+                announceBlock(action, inv.getItem(button), "Locked In Place");
+                return true;
+            }
         }
 
         if (!losesItem) {
-            // Rearranging your own inventory is never blocked by Protect Item / Starred - only Slot Lock is.
+            // Rearranging your own inventory is never blocked by Protect Item / Starred unless Lock In Place is on.
             return false;
         }
 
@@ -340,14 +365,9 @@ public final class ItemProtect {
             return false;
         }
 
-        String reason;
-        if (cfg.isSlotLockEnabled() && cfg.isSlotLocked(selected)) {
-            reason = "Slot Lock";
-        } else {
-            reason = protectReason(held);
-            if (reason == null && cfg.isBlockEveryHotbarDrop()) {
-                reason = "Hotbar Drop Block";
-            }
+        String reason = protectReason(held);
+        if (reason == null && cfg.isBlockEveryHotbarDrop()) {
+            reason = "Hotbar Drop Block";
         }
         if (reason == null) {
             return false;
@@ -426,7 +446,7 @@ public final class ItemProtect {
                 SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_BASS.value(), 0.5f, 1.0f)));
     }
 
-    /** Local UI confirmation sound for toggling a lock / protection on or off. */
+    /** Local UI confirmation sound for toggling a protection on or off. */
     public static void playToggleSound(boolean on) {
         if (!ItemProtectConfig.getInstance().isBlockSound()) {
             return;

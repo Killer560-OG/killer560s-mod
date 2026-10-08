@@ -61,7 +61,10 @@ public final class BestFriendsStore {
     public static final class Record {
         public final UUID uuid;
         public String lastKnownName;
-        public long totalPartySeconds;
+        /** Time partied, in MILLISECONDS (killer560, 2026-10-08: "it isn't fully keeping track of time properly").
+         *  Until then this was whole seconds, and every 30 s checkpoint cut the fraction off, about half a second a
+         *  checkpoint. The file still carries {@code totalPartySeconds} beside it for an older jar to read. */
+        public long totalPartyMs;
         public long firstPartiedAtMs;
         public long lastPartiedAtMs;
         /** Dungeon runs completed together, by {@code DungeonState.getFloor()}'s own key ("F1".."F7",
@@ -75,6 +78,11 @@ public final class BestFriendsStore {
 
         Record(UUID uuid) {
             this.uuid = uuid;
+        }
+
+        /** Whole seconds stored so far (without the live segment; see {@link BestFriendsTracker#liveTotalMs}). */
+        public long totalPartySeconds() {
+            return totalPartyMs / 1000L;
         }
 
         public int totalDungeonRuns() {
@@ -148,7 +156,9 @@ public final class BestFriendsStore {
         }
         Record record = new Record(uuid);
         record.lastKnownName = ConfigJson.getString(obj, "lastKnownName", "");
-        record.totalPartySeconds = ConfigJson.getLong(obj, "totalPartySeconds", 0L);
+        // totalPartyMs since 2026-10-08; a file from before it has whole seconds only.
+        long seconds = ConfigJson.getLong(obj, "totalPartySeconds", 0L);
+        record.totalPartyMs = Math.max(0L, ConfigJson.getLong(obj, "totalPartyMs", seconds * 1000L));
         record.firstPartiedAtMs = ConfigJson.getLong(obj, "firstPartiedAtMs", 0L);
         record.lastPartiedAtMs = ConfigJson.getLong(obj, "lastPartiedAtMs", 0L);
         record.kuudraRuns = ConfigJson.getInt(obj, "kuudraRuns", 0);
@@ -171,7 +181,8 @@ public final class BestFriendsStore {
         JsonObject obj = new JsonObject();
         obj.addProperty("uuid", record.uuid.toString());
         obj.addProperty("lastKnownName", record.lastKnownName == null ? "" : record.lastKnownName);
-        obj.addProperty("totalPartySeconds", record.totalPartySeconds);
+        obj.addProperty("totalPartyMs", record.totalPartyMs);
+        obj.addProperty("totalPartySeconds", record.totalPartyMs / 1000L);
         obj.addProperty("firstPartiedAtMs", record.firstPartiedAtMs);
         obj.addProperty("lastPartiedAtMs", record.lastPartiedAtMs);
         obj.addProperty("kuudraRuns", record.kuudraRuns);
@@ -223,6 +234,17 @@ public final class BestFriendsStore {
     /** Forces a write regardless of the dirty flag - used on disconnect so the very last few seconds of a
      *  session are never lost even if nothing else has changed the flag since the last periodic flush. */
     public static synchronized void saveAsync() {
+        String json = snapshotJson();
+        WRITER.submit(() -> write(json));
+    }
+
+    /** Writes on THIS thread - for the client stopping, when the daemon writer may never get to run. */
+    public static synchronized void saveNow() {
+        dirty = false;
+        write(snapshotJson());
+    }
+
+    private static String snapshotJson() {
         ensureLoaded();
         JsonObject root = new JsonObject();
         root.addProperty("version", FILE_VERSION);
@@ -231,8 +253,11 @@ public final class BestFriendsStore {
             array.add(toJson(record));
         }
         root.add("players", array);
-        String json = GSON.toJson((JsonElement) root);
-        WRITER.submit(() -> {
+        return GSON.toJson((JsonElement) root);
+    }
+
+    private static void write(String json) {
+        synchronized (FILE_LOCK) {
             try {
                 Files.createDirectories(DIR);
                 Path tmp = FILE.resolveSibling(FILE.getFileName() + ".tmp");
@@ -241,6 +266,9 @@ public final class BestFriendsStore {
             } catch (Exception e) {
                 LOGGER.warn("[BestFriends] Failed to write {}", FILE, e);
             }
-        });
+        }
     }
+
+    /** The writer thread and {@link #saveNow} share the one tmp file. */
+    private static final Object FILE_LOCK = new Object();
 }

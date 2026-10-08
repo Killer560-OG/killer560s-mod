@@ -151,11 +151,18 @@ final class SettingTooltipsData {
         d.put("chat emotes enabled", "Turns Hypixel emote codes like <3 or :shrug: into the real emote text, no MVP++ rank needed.");
         d.put("click translate enabled", "Left-click any chat message to translate it.");
         d.put("translate to", "The language clicked chat messages are translated into.");
-        d.put("stack duplicate messages", "When a chat line repeats the newest one exactly (same text and colours), the newest copy is replaced by one line ending in a grey (x2), (x3)... Blank lines and separators never stack.");
-        d.put("hide damage messages", "Hides Hypixel's combat spam from the chat window: your ability damage lines and the hits you take. Other features still read them, and the log keeps them.");
-        d.put("ability damage lines", "With Hide Damage Messages on: hides lines like 'Your Implosion hit 2 enemies for 14,736,463.2 damage.' (any ability).");
-        d.put("incoming hit lines", "With Hide Damage Messages on: hides 'A Crypt Wither Skull exploded, hitting you for 23,760 damage.', 'Maxor's Frenzy hit you for...', '... struck you for...', 'The Lost Adventurer used Dragon's Breath on you!' and bone plating lines.");
-        d.put("copy chat", "Shift+Left-Click a chat message to copy its text; Shift+Right-Click copies just that line.");
+        // ---- chat-batch (2026-10-08): Chat Hider (was Hide Chat Messages + Chat Tidy), Copy Chat ----
+        d.put("chat hider", "Stacks repeated chat lines and hides chat spam you pick: damage lines, warnings, empty lines, the action bar, invites.");
+        d.put("chat hider/chat hider", "Master switch for every rule below: stacking repeated lines and each chat hider. Off, chat is left exactly as it arrives.");
+        d.put("chat hider/stack duplicate messages", "A line that repeats one of the last 50 chat messages from the last 60 seconds replaces it: the earlier copy goes, and one line ending in a grey (x2), (x3)... is added at the bottom, even with other messages in between. Blank lines and separators never stack.");
+        d.put("chat hider/hide damage messages", "Hides Hypixel's combat spam from the chat window: your ability damage lines ('Your Implosion hit 2 enemies for ...') and the hits you take ('A Crypt Wither Skull exploded, hitting you for ...', '... hit you for ...', '... struck you for ...'). Other features still read them, and the log keeps them.");
+        d.put("chat hider/hide useless messages", "Hides 'There are blocks in the way!' and the 'Profile ID: ...' line.");
+        d.put("chat hider/hide discord warnings", "Hides Hypixel's standing warning about Discord staff impersonators.");
+        d.put("chat hider/hide microsoft warnings", "Hides Hypixel's standing warning about Microsoft account phishing.");
+        d.put("chat hider/hide empty chat messages", "Hides chat lines that are blank.");
+        d.put("chat hider/hide actionbar", "Hides all action bar text above the hotbar.");
+        d.put("chat hider/hide non-rank invites", "Hides party invites from players without a rank.");
+        d.put("copy chat", "With chat open: Shift or Ctrl + Left-Click a message copies the whole message (every wrapped line); Shift or Ctrl + Right-Click copies only the line you clicked. Copied without colour codes. A plain click does what it always did.");
         d.put("auto meow enabled", "Replies with a random cat line when a chat message says meow, purr, nya or mew.");
         d.put("play cat noises", "Plays a cat sound each time Auto Meow replies.");
         d.put("chat/volume", "Loudness of the Auto Meow cat sound, 0-200%.");
@@ -316,20 +323,6 @@ final class SettingTooltipsData {
         d.put("use type colour", "Resets this node to its type's colour.");
         d.put("delete node", "Removes this node from the chain (/ap3 delete <n>).");
         d.put("re-place last chain node key", "Keybind that moves the last node in this section's chain to where you stand and look.");
-        d.put("armor recolour", "Changes the colour, skin and trim of your armor, only on your screen.");
-        d.put("armor recolour/skin inventory icons", "Also swaps a skinned piece's inventory icon to match its skin.");
-        d.put("armor recolour/capture key", "Press this while hovering an armor piece in any inventory to add it to the list.");
-        d.put("armor recolour/add helmet", "Adds the helmet you are wearing to the list.");
-        d.put("armor recolour/add chest", "Adds the chestplate you are wearing to the list.");
-        d.put("armor recolour/add legs", "Adds the leggings you are wearing to the list.");
-        d.put("armor recolour/add boots", "Adds the boots you are wearing to the list.");
-        d.put("armor recolour/colour", "Opens the colour wheel for this piece.");
-        d.put("armor recolour/use colour", "Whether this piece's saved colour is applied.");
-        d.put("armor recolour/skin", "Which armor set this piece is painted as, like Leather, Iron or Diamond.");
-        d.put("armor recolour/trim", "Trim material shown on the armor; needs a Pattern too.");
-        d.put("armor recolour/pattern", "Trim pattern shown on the armor; needs a Trim material too.");
-        d.put("armor recolour/enabled", "Whether this whole entry is applied.");
-        d.put("armor recolour/remove", "Deletes this piece's entry.");
         d.put("scrollable tooltips", "Lets the mouse wheel scroll or nudge an item tooltip in inventories and menus.");
         d.put("invert scroll", "Flips the wheel direction for scrolling and nudging tooltips.");
         d.put("lines per scroll", "How many tooltip lines one wheel notch moves (1-10).");
@@ -655,7 +648,7 @@ final class SettingTooltipsData {
         d.put("cps", "Cheat build: click rate range for Auto i4.");
         d.put("auto mask", "Cheat build: puts on your next death item (Phoenix, then the mask in Order) after Storm dies.");
         d.put("show teammates", "Draws each teammate on the map where they stand: an arrow, or their head with Player Heads on.");
-        d.put("recolor by class", "Colors teammate arrows (the heading tick with Player Heads) by their class; OFF draws them white.");
+        d.put("recolor by class", "Colors teammate arrows by their class; OFF draws them white. A Player Heads face is never recolored.");
         d.put("cell size", "Size of each map grid cell in pixels (4-16).");
         d.put("room labels", "What each room shows on the map: Off, Checkmarks, Secrets, Room Name, or Room Name + Secrets. One setting for both maps - the Dungeon Map and the Interactive Map always match.");
         d.put("secret waypoints", "Draws a coloured box on every secret in rooms the mod has recognised.");
@@ -1137,7 +1130,7 @@ final class SettingTooltipsData {
         d.put("map scale", "Size of the full Interactive Map, 1-10.");
         d.put("font scale", "Size of the text drawn on the Interactive Map, 0.5x to 3x.");
         d.put("highlight colour", "Colour of the room highlight under your cursor on the map.");
-        d.put("player heads", "Draws each player's skin face as their map marker instead of a dot.");
+        d.put("player heads", "Draws each player's skin face as their map marker instead of the arrow, turned so the top of the head points where they face.");
         d.put("class colours", "Colours player markers and their names by dungeon class.");
         d.put("player names", "When to show teammates' names by their markers: never, while holding a leap item, or always.");
         d.put("icon scale", "Size of the player markers on the Interactive Map, 0.5x to 3x.");
@@ -1287,16 +1280,13 @@ final class SettingTooltipsData {
 
         // Item Protection
         d.put("item protection", "Turns on the guards that stop you losing your own gear.");
-        d.put("slot lock", "Press the Lock Key over an inventory slot to stop it being clicked, swapped or thrown in menus.");
-        d.put("lock key", "Keybind to lock or unlock the inventory slot you are hovering.");
-        d.put("lock color", "Opens a color picker for the outline on locked slots.");
-        d.put("clear locks", "Unlocks every locked slot at once.");
-        d.put("protect item", "Stops protected items being sold, traded, salvaged or thrown out of menus.");
+        d.put("protect item", "Stops protected items being dropped, sold, traded, salvaged, auctioned or thrown out of menus; each shows a small star.");
+        d.put("item protection/lock in place", "Protected items can't be clicked at all - not moved, swapped or thrown in any menu (what Slot Lock did).");
+        d.put("item protection/star color", "Colour of the small star drawn in the top-right corner of every protected item.");
         d.put("protect key", "Keybind to add or remove the hovered item from the protected list.");
-        d.put("show protected key", "Hold this key in an inventory to outline every protected item.");
         d.put("item id fallback", "Protects items with no Skyblock UUID by item ID, which covers every copy.");
         d.put("auto-protect starred", "Treats dungeon-starred items as protected without listing them.");
-        d.put("prevent hotbar drops", "Blocks the drop key while you hold a protected or locked item.");
+        d.put("prevent hotbar drops", "Blocks the drop key while you hold a protected item.");
         d.put("confirm to force", "Lets you press drop again within 3 seconds to drop a protected item anyway.");
         d.put("block every drop", "Makes Prevent Hotbar Drops cover every item, not just protected ones.");
         d.put("block sound", "Plays a sound when a drop, sale or move is blocked, and a chime when you lock or protect something.");
@@ -1398,7 +1388,6 @@ final class SettingTooltipsData {
         d.put("ability cooldowns/mage cooldown reduction", "Shortens every timer by a percentage you set while you play Mage.");
         d.put("ability cooldowns/abilities", "Tick the abilities you want timed; the number is each one's cooldown in seconds.");
         d.put("ability timers/name", "What this timer is called on the HUD, e.g. Bonzo Mask.");
-        d.put("armor recolour/add a piece", "Add a piece with the buttons to use what you're wearing, or press the capture key while hovering a piece in any menu.");
         d.put("arrow align", "Shows how many clicks each Arrow Align frame still needs and can block clicks that overshoot.");
         d.put("arrow align/scale", "Size of the click-count number on each Arrow Align frame.");
         d.put("arrow align/aura", "Cheat build only. Clicks Arrow Align frames in range without you looking at them.");
@@ -1444,7 +1433,8 @@ final class SettingTooltipsData {
         d.put("arrow align/prevent misclicks", "Blocks right-clicks on an Arrow Align frame that already points the right way.");
         d.put("arrow align/trigger bot", "Clicks blood mobs and Arrow Align frames for you once your crosshair is on them (cheat build only).");
         d.put("thorn (f4)", "Helpers for the F4/M4 boss Thorn: Spirit Bear kill counter, highlights and stun-spot waypoints.");
-        d.put("social", "Friends, best friends, the profile viewer, cosmetics and the nickhider.");
+        d.put("social", "Friends, best friends and the profile viewer.");
+        d.put("cosmetics", "Client-side looks: supporter names and sizes, the Name Changer, Custom Items, the Nickhider and the Trail.");
         d.put("items", "Inventory, storage, item, pet, auction house and bazaar features.");
         d.put("map, leap & party", "The dungeon map, leap helpers, Dungeon Queue, Auto Kick and party sharing.");
         d.put("timers, score & boss", "Run timers, score, run summaries, Blood Camp, chest profit and the boss helpers.");
@@ -1539,8 +1529,6 @@ final class SettingTooltipsData {
         d.put("inventory search/search lore", "Also matches an item's lore text, not just its name.");
         d.put("inventory search/ignore case", "Matches regardless of upper or lower case.");
         d.put("inventory search/search bar scale", "Resizes the floating search bar.");
-        d.put("item protection/marker", "How a locked slot is marked: outline, padlock icon, or both.");
-        d.put("item protection/highlight color", "Colour of the outline drawn on protected items while you hold the Show Protected Key.");
         d.put("item protection/remove", "Takes this name off the protected-names list.");
         d.put("item rarity backgrounds/style", "Shape drawn behind each item: Square, Circle, or Outline. Click to cycle.");
         d.put("item rarity backgrounds/outline width", "How thick the rarity outline is, 1-4 pixels.");
@@ -1664,9 +1652,10 @@ final class SettingTooltipsData {
         d.put("chat/translate", "Run /translate to change the language, or pick it below; all your messages are then sent in that language.");
         d.put("translate/language", "The language your chat is translated into; /language opens this picker.");
         d.put("translate/search", "Type part of a language name to filter the list, then click one to select it.");
-        d.put("voice to text/mode", "Open Mic sends what you say as soon as you pause; Push To Talk only listens while the key is held.");
+        d.put("voice to text/mode", "Open Mic listens all the time and sends what you said once you stop talking; Push To Talk only listens while the key is held.");
+        d.put("voice to text/silence before send", "Open Mic: how long you must stop talking before what you said is sent. Shorter sends sooner but can cut a sentence at a pause.");
         d.put("voice to text/microphone", "Which microphone Voice To Text records from.");
-        d.put("voice to text/send to", "Where transcribed speech is sent: Party (/pc) or Guild (/gc) chat.");
+        d.put("voice to text/send to", "Where transcribed speech is sent: Party, All, Guild or Co-op / plain chat. Right-click goes back.");
         d.put("water board solver/show tracer", "Outlines the next lever to flip in green and draws a line to the one after.");
         d.put("waypoint routes/area", "Shows the Skyblock area read from the tab list and the route active there.");
         d.put("waypoint routes/delete", "Deletes this route and all its points; click twice to confirm.");
@@ -1737,7 +1726,6 @@ final class SettingTooltipsData {
         d.put("chat keybinds/command or message", "The line to send; start it with / to run it as a command.");
         d.put("door keys/tracer thickness", "How thick that tracer line is drawn (1-10).");
         d.put("door keys/esp through walls", "Draws the key box and tracer through walls (cheat build only).");
-        d.put("item protection/lock icon", "Draws a small padlock on the slot of every protected item.");
         d.put("name changer/color", "Opens the colour picker for this name.");
         d.put("ap3/class overrides", "Read-only copy of Dungeon > Class Overrides.");
         d.put("mod chat/mod chat", "A private chat with other mod users; send with /killer560 chat <message>.");
@@ -2024,7 +2012,7 @@ final class SettingTooltipsData {
         d.put("best friends/party time tracker", "Tracks time partied and dungeon runs cleared with each player; open it with /bestfriends.");
         d.put("best friends/sort", "How the /bestfriends list is ordered: time together, runs together, or name.");
         d.put("best friends/dungeon only filter", "Hides anyone you have never cleared a dungeon with from the /bestfriends list.");
-        d.put("friends list/use our /fl", "Makes /fl open this mod's Friends List instead of Hypixel's; /flhypixel still opens Hypixel's.");
+        d.put("friends list/use our /fl", "Makes /fl open this mod's Friends List instead of Hypixel's. /flcustom always opens ours and /flhypixel always opens Hypixel's.");
         d.put("pet wheel/pet wheel", "Turns on the Pet Wheel for quickly summoning pets.");
         d.put("pet wheel/wheel key", "The key or mouse button that opens the wheel.");
         d.put("pet wheel/mode", "Hold the key and release over a slice, or press the key and then click a slice.");
@@ -2059,15 +2047,15 @@ final class SettingTooltipsData {
         d.put("video browser/comments scroll guard", "YouTube Shorts only: stops Next/Previous from scrolling the feed while comments are open.");
         d.put("video browser/sign in to youtube", "Opens a normal browser window so you can sign in to your account by hand.");
         d.put("toggle global cosmetics", "Shows other supporters' custom names and scale; turn off to see everyone's real name.");
-        d.put("cosmetics/custom names", "Opens the Name Changer: your own display name, its colours, and renames for other players.");
-        d.put("cosmetics/player size", "Opens the player size settings: your own size, everyone else's, and your model's shape.");
-        d.put("cosmetics/held item", "Opens Held Item Transform: the size, position and rotation of your first-person held item.");
-        d.put("cosmetics/my size", "Your own player model's size (0.05x-2x); shared with other supporters while Share if Supporter is on.");
-        d.put("cosmetics/others' size", "Resizes every other player's model on your screen (0.05x-2x); never shared.");
-        d.put("cosmetics/reset", "Puts the size slider beside it back to 1.00x.");
-        d.put("cosmetics/width", "Stretches your own player model side to side (0.5x-2x), in your own F5 view only.");
-        d.put("cosmetics/height", "Stretches your own player model up and down (0.5x-2x), in your own F5 view only.");
-        d.put("cosmetics/thickness", "Stretches your own player model front to back (0.5x-2x), in your own F5 view only.");
+        d.put("player cosmetics/custom names", "Opens the Name Changer: your own display name, its colours, and renames for other players.");
+        d.put("player cosmetics/player size", "Opens the player size settings: your own size, everyone else's, and your model's shape.");
+        d.put("player cosmetics/held item", "Opens Held Item Transform: the size, position and rotation of your first-person held item.");
+        d.put("player cosmetics/my size", "Your own player model's size (0.05x-2x); shared with other supporters while Share if Supporter is on.");
+        d.put("player cosmetics/others' size", "Resizes every other player's model on your screen (0.05x-2x); never shared.");
+        d.put("player cosmetics/reset", "Puts the size slider beside it back to 1.00x.");
+        d.put("player cosmetics/width", "Stretches your own player model side to side (0.5x-2x), in your own F5 view only.");
+        d.put("player cosmetics/height", "Stretches your own player model up and down (0.5x-2x), in your own F5 view only.");
+        d.put("player cosmetics/thickness", "Stretches your own player model front to back (0.5x-2x), in your own F5 view only.");
         d.put("share if supporter", "Automatically shares your display name and your own player size with other players who have this mod.");
         d.put("copy settings for global cosmetics", "Copies your name and scale to your clipboard so staff can apply them for you.");
         d.put("reset cosmetics", "Puts your display name, colours, fade, both player sizes and model shape back to default.");
@@ -2081,7 +2069,7 @@ final class SettingTooltipsData {
         d.put("party interop/noammaddons bridge", "Shares rooms, doors, secrets and dragon spawns with NoammAddons users in your run.");
         d.put("party interop/odin bridge", "Shows Odin users' Melody progress in F7/M7 P3, and shares yours if Share My Progress is on.");
         d.put("dungeon map/mark reported rooms", "Marks rooms and doors your party shared that you haven't seen yourself.");
-        d.put("dungeon map/player heads", "Draws you and your teammates as your skins' faces, with a small tick showing which way each is facing, on the Dungeon Map and the Interactive Map. Anyone whose skin isn't known yet keeps the arrow.");
+        d.put("dungeon map/player heads", "Draws you and your teammates as your skins' faces, each turned so the top of the head points where that player faces, on the Dungeon Map and the Interactive Map. Anyone whose skin isn't known yet keeps the arrow.");
         d.put("team melody/team melody hud", "Shows each teammate's Melody terminal progress during Phase 3.");
         d.put("team melody/share my progress", "Lets teammates see your live Melody terminal progress.");
         d.put("team melody/scale", "Resizes the Team Melody HUD.");
@@ -2156,7 +2144,14 @@ final class SettingTooltipsData {
     /** Auto Inventory Sorter and Auto Sell (killer560, 2026-09-27). Bare (unscoped) keys - both labels are
      *  distinctive mod-wide, so there's no collision to scope against by top-level tab name. */
     private static void invSortAndAutoSell(Map<String, String> d) {
-        d.put("auto inventory sorter", "Saves your inventory layout and re-applies it any time with /invsort.");
+        d.put("auto inventory sorter", "Re-arranges your inventory into a saved layout, by key or /invsort apply <name>.");
+        d.put("inventory sorter/open layouts", "Opens the layouts menu (/invsort): arrange a copy of your inventory, save it, apply, rename, delete or bind it.");
+        d.put("inventory sorter/ticks between moves", "Client ticks between each click the sorter sends (a hotbar swap is one click, any other move two or three).");
+        d.put("inventory sorter/random extra ticks", "Adds 0 up to this many extra ticks, at random, before each click.");
+        d.put("inventory sorter/layout key", "Press to capture a key (or mouse button) that applies this layout; Escape clears it.");
+        d.put("custom items", "Recolours and reskins items on your screen only; nothing is sent to the server.");
+        d.put("custom items/open custom items", "Opens the Custom Items menu (/customitems): pick an item, then set its colour, skin or look.");
+        d.put("custom items/reset all", "Removes every saved look; press twice.");
         d.put("open layouts folder", "Opens the folder holding your saved inventory layouts.");
         d.put("auto sell", "Sells items on your sell list automatically while a sell screen is open; start it with /autosell start.");
         // Auto Anvil (killer560, 2026-10-07). Scoped under its own tab name: Min/Max Delay and Close When Done are

@@ -1,25 +1,26 @@
 package com.killer560.hub.armourdye;
 
 /**
- * One armour piece's client-side look override, keyed on its Skyblock item id.
+ * One item's client-side look override in Custom Items (Armour Recolour until 2026-10-08).
  * <p>
- * Skyblocker keys the same feature on the per-item {@code ExtraAttributes.uuid}, so re-dyeing means re-doing every
- * copy. killer560 asked for the item id instead - "keyed on the Skyblock item id, so every copy of that piece you
- * own looks the same" - so one entry covers a Necron's Chestplate whether it's starred, fragged or reforged
- * ({@code ItemIdentity.of} already strips {@code STARRED_}, the reforge {@code modifier} and {@code upgrade_level}).
- * <p>
- * Every field is a pure render override. Nothing here is ever written back to an {@code ItemStack}, so nothing can
- * reach the server.
+ * Keyed one of two ways (killer560, 2026-10-08: "select an item in your inventory and you can then apply a skin to it
+ * or recolor"): the Skyblock item id, so every copy of the item looks the same (his original Armour Recolour ask, and
+ * how every migrated entry stays), or {@code UUID:<uuid>} for that one physical item. {@link ArmourDye#entryFor}
+ * tries the UUID key first. Every field is a pure render override; nothing here is ever written back to an
+ * {@code ItemStack}, so nothing can reach the server.
  */
 public final class ArmourDyeEntry {
 
-    /** {@code ItemIdentity.of(stack)} - upper-case Skyblock id, or the cleaned display name for id-less items. */
+    /** Key prefix for a per-item (UUID) entry; the rest is the Skyblock {@code uuid}, upper-cased. */
+    public static final String UUID_PREFIX = "UUID:";
+
+    /** The key: an upper-case Skyblock id (every copy), or {@link #UUID_PREFIX} + uuid (this item only). */
     public final String itemId;
 
-    /** The item's display name when it was captured, purely so the settings list is readable. */
+    /** The item's display name when it was added, purely so the saved list is readable. */
     public String label;
 
-    /** Per-entry off switch, so a look can be parked without losing its colours. */
+    /** Per-entry off switch, so a look can be parked without losing it. */
     public boolean enabled = true;
 
     public boolean colorEnabled = false;
@@ -27,13 +28,18 @@ public final class ArmourDyeEntry {
     /** ARGB. Vanilla's dye tint ignores alpha, so only the low 24 bits reach the screen. */
     public int color = 0xFFFFFFFF;
 
+    /** Armour only: which armour set the piece is painted as on the body. */
     public ArmourSkin skin = ArmourSkin.NONE;
 
     /** Raw {@code namespace:path} equipment asset, only used when {@link #skin} is {@link ArmourSkin#CUSTOM}. */
     public String skinAsset = "";
 
-    /** Raw {@code namespace:path} item model for the inventory icon. Blank = derive it from {@link #skin}. */
+    /** The "Look": a raw {@code namespace:path} item model the item is drawn as (inventory, hand, dropped).
+     *  Blank = its own model. */
     public String iconModel = "";
+
+    /** A player-head texture (the base64 {@code textures} value). Set = the item is drawn as that head. */
+    public String headTexture = "";
 
     /** Raw trim material identifier (e.g. {@code minecraft:gold}). Blank = leave the real trim alone. */
     public String trimMaterial = "";
@@ -46,9 +52,28 @@ public final class ArmourDyeEntry {
         this.label = label == null || label.isBlank() ? itemId : label;
     }
 
-    /** True when this entry would change nothing - the tab greys those out rather than hiding them. */
+    /** A copy of every look field under another key (Applies To switched between every copy and this item). */
+    public ArmourDyeEntry copyAs(String newKey) {
+        ArmourDyeEntry e = new ArmourDyeEntry(newKey, label);
+        e.enabled = enabled;
+        e.colorEnabled = colorEnabled;
+        e.color = color;
+        e.skin = skin;
+        e.skinAsset = skinAsset;
+        e.iconModel = iconModel;
+        e.headTexture = headTexture;
+        e.trimMaterial = trimMaterial;
+        e.trimPattern = trimPattern;
+        return e;
+    }
+
+    public boolean isPerItem() {
+        return itemId.startsWith(UUID_PREFIX);
+    }
+
+    /** True when this entry would change nothing. */
     public boolean isEmpty() {
-        return !colorEnabled && skin == ArmourSkin.NONE && !hasTrim();
+        return !colorEnabled && skin == ArmourSkin.NONE && !hasTrim() && iconModel.isBlank() && headTexture.isBlank();
     }
 
     public boolean hasTrim() {

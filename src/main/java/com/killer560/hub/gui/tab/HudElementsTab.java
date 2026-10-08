@@ -29,8 +29,8 @@ public class HudElementsTab extends FolderTab {
                 new SpringBootsTab(),
                 new CustomScoreboardTab(),
                 new LagDisplayTab(),
-                new PositionTab(),
-                new TrailTab()
+                new PositionTab()
+                // Trail moved to the Cosmetics category (2026-10-08).
         ));
     }
 }

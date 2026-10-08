@@ -229,10 +229,16 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `packet.xa / 4096` with a Short and an Int, which is INTEGER division, so a blood mob's sub-block step adds nothing and the
   trip starts at the skull's spot in the wall. Ours divided by 4096.0, started one packet out of the wall, and landed the
   predicted spot one step (0.215 blocks in test 392) too far along. Keep the integer division; it is the model, not a typo.
+- **A gap in an entity's move packets is not the end of its movement.** Blood Camp restarted a blood mob's trip after any
+  10-tick gap, which is also exactly what a server or network stall looks like, so a lag spike threw the path away and
+  re-fitted it from mid-air (killer560: "can break and not show the path if the server lags for a tick"). A gap now starts
+  a new trip only when the stand had reached its predicted spot, the gap passes 5 s, or it reverses (testkit 552: a
+  15-tick stall, path drawn on every tick, trip kept).
 - A chat line dropped through Fabric's `ALLOW_GAME`/`ALLOW_CHAT` never reaches `ChatObserver` either: a cancel there skips both
   the GAME event and `ChatComponent.addMessage`, its two sources. To hide a line only from the WINDOW, cancel inside `addMessage`
   after the clicktranslate HEAD hook has dispatched it - Chat Tidy injects at that method's `Predicate.test` call (2026-10-07;
-  testkit 87 checks every hidden line still reached `ChatObserver`). Hide Chat Messages (Object Hider) still uses `ALLOW_GAME`.
+  testkit 87 checks every hidden line still reached `ChatObserver`). Chat Hider's other six hides (Object Hider's old
+  Chat Replacements) still use `ALLOW_GAME`.
 
 - **Moving the camera does not move the crosshair.** `GameRenderer.pick` -> `LocalPlayer.raycastHitResult` casts from
   `Entity.getEyePosition`, never from `Camera.position()` (javap 26.1.2 and 26.2), so a `Camera.setPosition` at the TAIL of
@@ -246,6 +252,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   carry-over: those already hold the new file's own values wherever an old key is missing. Score Calculator's legacy
   alert migration tested its own `mimicAlertEnabled`/... and so switched `enabled` on when nothing legacy was on
   (testkit 310 caught it once another case had left Score Calculator on, 2026-10-07).
+- **A running total that is checkpointed must be SHOWN live and STORED without truncation.** Best Friends added whole
+  seconds at each 30 s checkpoint and restarted the segment at "now", so every checkpoint dropped its fraction, and the
+  menu read only the checkpointed total, so the clock sat still for up to 30 s ("it doesn't count up every second",
+  killer560 2026-10-08). It now stores ms from `System.nanoTime` with the remainder carried in the segment start, and
+  the menu reads `BestFriendsTracker.liveTotalMs`. Testkit 593 (120.5 s of wall clock): old jar stored -2528 ms and
+  showed -3028 ms; new jar +19 ms stored, +48 ms shown.
 GUI, HUD and rendering lessons are in [LESSONS-GUI.md](LESSONS-GUI.md).
 Compiling lessons (API names across versions, the cloud-session javac filter) are in [COMPILING.md](COMPILING.md).
 
@@ -276,6 +288,13 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   `ScoreCalculatorFeature` keys each bat on a name (his own line, a mate's "Bat Killed!") and `ScoreCalculator.BAT_BONUS_CAP`
   is the one number to set to 1 if Hypixel makes it per run. The dungeon sim does not model attributes, so it never sends it.
 
+- A parent `Style`'s `ClickEvent` is only inherited where the child sets none, so a whole-line click action wrapped round a
+  Hypixel line (Copy Chat's old whole-message copy, via Click Translate's wrap) is dead on every name, link or invite in it,
+  and past the end of the text vanilla finds no style at all. Find the clicked chat row from the layout instead
+  (`ChatComponent.captureClickableText` with a recording collector) and take `GuiMessage.Line.parent()` (2026-10-08, testkit 561-563).
+- A fixed RMS threshold is not a voice detector: room noise on an open mic sat above Voice To Text's 500, so no pause was
+  ever seen and Open Mic never sent anything. `voicetotext/OpenMicSegmenter` compares against the quietest chunk of the last
+  3 s; testkit 564 feeds noise at RMS 700 (2026-10-08).
 - Brigadier can add a root to a live dispatcher but cannot remove one, and Fabric fires `ClientCommandRegistrationCallback`
   only on join, into a fresh dispatcher (`ClientPacketListenerMixin.onGameJoin`, fabric-command-api-v2 3.0.5 javap). A
   node whose `requires()` fails does not parse, which Fabric reads as "unknown command" and hands the line to the server

@@ -1273,7 +1273,9 @@ public final class MapPainter {
      *  killer560, 2026-10-07: "make an option to have people's symbols be by player head for the default ones. It
      *  should work on your own head as well. Also don't make the green blend in so well with green room for the
      *  arrow pointer." With Player Heads on, a player whose skin is known ({@link MapHeads}) is drawn as their face
-     *  - upright, so it stays recognisable - with a small heading tick orbiting it; anyone else keeps the arrow.
+     *  turned so the TOP of the head points where they face (killer560, same day: "it shouldn't have that arrow for
+     *  where they face, it should just rotate their head ... with the top of their head being their facing
+     *  direction"; until then it was upright with a heading tick orbiting it); anyone else keeps the arrow.
      *  (The skin-head option removed on 2026-09-20, "i do not want it showing the white heads for mobs", drew mobs
      *  because the marker list took every Player entity; {@link InteractiveMapFeature#players} only takes vouched
      *  teammates since, so no mob can get a head.) Every arrow and tick has a solid outline in the colour that
@@ -1290,11 +1292,11 @@ public final class MapPainter {
 
         net.minecraft.world.entity.player.PlayerSkin skin = cfg.isPlayerHeads() ? MapHeads.skinFor(mp) : null;
         if (skin != null) {
-            drawHead(graphics, skin, x, y, size, mp.yaw(), fillColor);
+            drawHead(graphics, skin, x, y, size, mp.yaw());
         } else {
             graphics.pose().pushMatrix();
             graphics.pose().translate(x, y);
-            graphics.pose().rotate((float) Math.toRadians(180.0 + mp.yaw()));
+            graphics.pose().rotate((float) Math.toRadians(headRotationDegrees(mp.yaw())));
             drawArrow(graphics, Math.round(size * 0.9f), fillColor);
             graphics.pose().popMatrix();
         }
@@ -1312,22 +1314,15 @@ public final class MapPainter {
     }
 
     /** A {@code size}-unit face (skin face + hat layer) centred on {@code (x, y)}, framed by a one-unit black edge,
-     *  with a heading tick in the marker's colour just outside it. The tick is drawn first, so the face covers anything
-     *  of it inside the frame and only the point shows - at every angle, corners included. */
+     *  turned by exactly the arrow's rotation ({@link #headRotationDegrees}), so the top of the head is where the arrow
+     *  would point: facing north (yaw 180) the head is upright on the north-up map. No arrow or tick is drawn. */
     private static void drawHead(GuiGraphicsExtractor graphics, net.minecraft.world.entity.player.PlayerSkin skin,
-                                 float x, float y, int size, float yaw, int tickColor) {
+                                 float x, float y, int size, float yaw) {
         float half = size / 2f;
-        float tickLen = Math.max(2.5f, size * 0.45f);
         graphics.pose().pushMatrix();
         try {
             graphics.pose().translate(x, y);
-            graphics.pose().pushMatrix();
-            graphics.pose().rotate((float) Math.toRadians(180.0 + yaw));
-            // Base on the frame's edge (its outline then lies under the frame), point tickLen beyond it: on a straight
-            // heading the whole tick shows, on a diagonal the face covers its base and the point clears the corner.
-            outlinedTriangle(graphics, -(half + 1 + tickLen), -(half + 1), tickColor);
-            graphics.pose().popMatrix();
-
+            graphics.pose().rotate((float) Math.toRadians(headRotationDegrees(yaw)));
             graphics.pose().translate(-half, -half);
             graphics.fill(-1, -1, size + 1, size + 1, 0xFF000000);
             net.minecraft.resources.Identifier texture = skin.body().texturePath();
@@ -1338,6 +1333,12 @@ public final class MapPainter {
         } finally {
             graphics.pose().popMatrix();
         }
+    }
+
+    /** The turn, in degrees clockwise on screen, that points a marker's local -y (the arrow's tip, the head's top)
+     *  where a player with this Minecraft yaw faces on the north-up map: yaw 180 (north) is 0, yaw 270 (east) 90. */
+    static float headRotationDegrees(float yaw) {
+        return 180f + yaw;
     }
 
     /** Map marker pointing towards local -y (rotated to the player's heading by the caller).

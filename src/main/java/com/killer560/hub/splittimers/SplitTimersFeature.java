@@ -22,37 +22,34 @@ import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Per-floor dungeon split timers - killer560's "Implement Noamm split timers" request. Every regex
- * below is ported directly from Odin's own real, confirmed {@code SplitsManager.kt}
- * ({@code dungeonSplits}/{@code floor1SplitGroup}...{@code floor7SplitGroup}, plus the shared
- * Mort/Blood Open/Portal Entry prefix and the "☠ Defeated" Total suffix) - real dialogue lines, not
- * guessed. A run is armed on the real "Starting in 1 second." countdown message.
- * <p>
- * Odin's split model (ported exactly): each split's NAME is the phase that STARTS at its trigger line,
- * so when split N's line fires the message is "&lt;split N-1's name&gt; took X". The first split (Mort's
- * line) only starts the clock; the last split ("Total", the real "☠ Defeated" end-of-run line) ends the
- * final boss segment and prints the end-of-run summary.
- * <p>
- * Deliberately simpler than Odin's own version: no personal-best tracking/comparison (that needs a
- * persisted history this session has no design for yet), no Kuudra splits (out of scope for this
- * request), and no per-split tick time (Odin counts server ticks from ping packets, which this mod has
- * no hook for).
- * <p>
- * M7 Phase 5 (2026-09-15): optional dragon (spawn -&gt; kill) and relic (spawn / placed) lines from {@link P5Splits},
- * fed by {@code com.killer560.hub.witherdragons}, drawn in a column to the right of the split rows (or under them).
- * <p>
- * Clear phase (2026-09-16, gap analysis 2.1): three optional additions, all off by default -
- * <b>Clear Splits</b> (Devonian {@code dungeons/clear/RunSplits.kt} + {@code api/dungeon/Stages.kt}) cuts the two
- * clear rows into Blood Rush / Blood Open / Watcher Dialogue / Blood Clear; <b>Watcher Move</b>
- * ({@link WatcherMoveTracker}, Devonian {@code dungeons/clear/WatcherSplits.kt}) adds an entity-movement row; and
- * <b>Core Entry Times</b> ({@link CoreEntryTimes}, killer560's own request) times each player into the core after
- * terminals. The synthesised Boss Entry row (Devonian {@code Stages.BossEntry}) now sums however many clear
- * segments exist instead of assuming exactly three.
- * <p>
- * Re-verified 2026-09-15 against Odin main @38ddc1b (SplitsManager.kt / Splits.kt): split names, the "&lt;previous&gt;
- * took X" chat, currentRows' segment = next split - this split, and the Boss Entry row after index 2 all match -
- * the "split labels off by one" report was the pre-c571b1d behaviour (each split used to be labelled with the
- * phase that ENDED at its line) and is already fixed; nothing further changed there.
+ * Per-floor dungeon split timers. The trigger lines were first ported from Odin's {@code SplitsManager.kt}; the
+ * LAYOUT is killer560's own (2026-10-08):
+ *
+ * <pre>
+ *   Blood Open    run start (Mort's line)              -> blood door opened (Watcher's greeting)
+ *   Watcher       blood door opened                    -> last blood mob killed ("You have proven yourself.")
+ *   Portal Entry  last blood mob killed                -> the boss's first line
+ *   Boss Entry    the sum of those three
+ *   ----------
+ *   Maxor / Storm / Terminals / Goldor / Necron / Dragons (M7 only)
+ *   Boss          the boss's first line                -> the run's "☠ Defeated" line
+ *   ----------
+ *   Total         the whole run
+ *   Lag           how much of the run was server lag, in seconds
+ * </pre>
+ *
+ * Every time reads "real (lagless)", e.g. "22.39s (19.59s)" - see {@link SplitLagClock} for "lagless". Floors other
+ * than F7/M7 have one boss segment, so their boss section is a single row named after the boss (it IS the Boss row;
+ * a second identical "Boss" row would only repeat it).
+ *
+ * <p>Each split's NAME is the segment that STARTS at its trigger line (Odin's model), so when split N's line fires
+ * the chat message is "&lt;split N-1's name&gt; took X". The run is armed on "Starting in 1 second."; Mort's line
+ * starts the clock, and if Mort's line never arrives (a changed line, a late join) the clock starts one second after
+ * the arming line, the moment Mort normally speaks. A missed boundary line leaves its row out and the segment before
+ * it runs on to the next line that did fire.
+ *
+ * <p>M7 Phase 5 extras ({@link P5Splits}), Core Entry Times ({@link CoreEntryTimes}) and Watcher Move
+ * ({@link WatcherMoveTracker}) are optional blocks around this layout, each off by default.
  */
 public final class SplitTimersFeature {
 
@@ -61,142 +58,89 @@ public final class SplitTimersFeature {
     private record SplitDef(Pattern pattern, String label) {
     }
 
-    // Odin SplitsManager.MORT_REGEX / BLOOD_OPEN_REGEX / PORTAL_ENTRY_REGEX / DUNGEON_CLEARED_REGEX.
-    private static final SplitDef BLOOD_OPEN = def(
-            "\\[NPC\\] Mort: Here, I found this map when I first entered the dungeon\\.|\\[NPC\\] Mort: Right-click the Orb for spells, and Left-click \\(or Drop\\) to use your Ultimate!",
+    // ---- clear boundaries ------------------------------------------------------------------------------------------
+    // Odin SplitsManager.MORT_REGEX: the run's first line. Starts "Blood Open".
+    private static final SplitDef RUN_START = def(
+            "^\\[NPC\\] Mort: (?:Here, I found this map when I first entered the dungeon\\.|Right-click the Orb for spells, and Left-click \\(or Drop\\) to use your Ultimate!)$",
             "§2Blood Open");
-    private static final SplitDef BLOOD_CLEAR = def(
+    /** The blood door opening: the Watcher's greeting (one per floor) or Hypixel's own door line. Starts "Watcher".
+     *  Odin SplitsManager.BLOOD_OPEN_REGEX. */
+    private static final SplitDef BLOOD_OPENED = def(
             "^\\[BOSS\\] The Watcher: (Congratulations, you made it through the Entrance\\.|Ah, you've finally arrived\\.|Ah, we meet again\\.\\.\\.|Ah, we meet again\\. As I foresaw\\.\\.\\.|So you made it this far\\.\\.\\. interesting\\.|You've managed to scratch and claw your way here, eh\\?|I'm starting to get tired of seeing you around here\\.\\.\\.|Oh\\.\\. hello\\?|Things feel a little more roomy now, eh\\?)$|^The BLOOD DOOR has been opened!$",
-            "§bBlood Clear");
-    private static final SplitDef PORTAL_ENTRY = def(
-            "\\[BOSS\\] The Watcher: You have proven yourself\\. You may pass\\.", "§dPortal Entry");
+            "§cWatcher");
+    /** The last blood mob dies and the Watcher lets the party through. Starts "Portal Entry". */
+    private static final SplitDef WATCHER_DONE = def(
+            "^\\[BOSS\\] The Watcher: You have proven yourself\\. You may pass\\.$", "§dPortal Entry");
+    /** The run's end line. Ends the last boss segment, the Boss row and the Total. */
     private static final SplitDef TOTAL = def(
-            "^\\s*☠ Defeated (.+) in 0?([\\dhms ]+?)\\s*(\\(NEW RECORD!\\))?$", "§1Total");
+            "^\\s*☠ Defeated (.+) in 0?([\\dhms ]+?)\\s*(\\(NEW RECORD!\\))?$", "§eTotal");
+    /** Devonian WatcherSplits: the line the blood mobs start on - only Watcher Move's clock reads it. */
+    private static final Pattern WATCHER_FIGHT = Pattern.compile(
+            "^\\[BOSS\\] The Watcher: Let's see how you can handle this\\.$");
 
-    // ---------------------------------------------------------------------------------------------
-    // Clear-phase splits (2026-09-16) - optional, off by default (SplitTimersConfig.isClearSplits()).
-    // Ported from Devonian api/dungeon/Stages.kt's Clear tree + features/dungeons/clear/RunSplits.kt
-    // ("Displays how long your party has take to complete Blood Rush, Blood Open & Boss Enter") and
-    // features/dungeons/clear/WatcherSplits.kt ("Displays Dialog Time, Watcher Move and Blood Clear").
-    //
-    // With this off the list is exactly the three Odin rows this feature shipped with:
-    //   Blood Open  = Mort's line          -> blood door opened / Watcher greeting
-    //   Blood Clear = blood door opened    -> "You have proven yourself. You may pass."
-    //   Portal Entry= "You have proven..." -> the boss's own entry dialogue
-    // With it on, those same two spans are cut into Devonian's four:
-    //   Blood Rush      = Mort's line              -> Blood Key obtained (Devonian: Clear's start ->
-    //                     RunSplits' "Blood Rush"; the rush itself)
-    //   Blood Open      = Blood Key obtained       -> blood door opened (Devonian Stages.BloodOpen "&4Blood")
-    //   Watcher Dialogue= blood door opened        -> "Let's see how you can handle this."
-    //                     (Devonian Stages.WatcherDialog "&cWatcher Dialog")
-    //   Blood Clear     = "Let's see how you..."   -> "You have proven yourself." (Devonian Stages.WatcherClear)
-    // Boss Entry (Devonian Stages.BossEntry "&9Boss Entry", = Mort's line -> boss entry dialogue) is the row the
-    // HUD already synthesises by summing every clear segment; it now sums however many there are.
-    //
-    // Blood Key line: the three real forms this repo already matches in doorhelpers/LookAtDoorFeature.onChat
-    // ("has obtained Blood Key", "Blood Key was picked up", "RIGHT CLICK on the BLOOD DOOR ...").
-    private static final SplitDef BLOOD_RUSH = def(BLOOD_OPEN.pattern().pattern(), "§2Blood Rush");
-    /**
-     * ANCHORED for real. The leading "^" bought nothing while the first two alternatives began with ".*".
-     *
-     * <p>This is matched against every line ChatObserver sees, which explicitly includes other players'
-     * party, guild and all chat - so "Party > Bob: has obtained Blood Key" matched in full, and because the
-     * first write wins, one forged line stamped the Blood split twenty seconds into the clear and left the
-     * Blood Open and Boss Entry rows wrong for the whole run. Same class as the wither-key and boss-phase
-     * spoofs fixed earlier on 2026-09-29; this one was missed because it LOOKED anchored.
-     */
-    private static final SplitDef BLOOD_KEY = def(
-            "^(?:[A-Za-z0-9_]{1,16} has obtained Blood Key!?|(?:A )?Blood Key was picked up!?|RIGHT CLICK on the BLOOD DOOR.*)$",
-            "§2Blood Open");
-    private static final SplitDef WATCHER_DIALOGUE = def(BLOOD_CLEAR.pattern().pattern(), "§cWatcher Dialogue");
-    // Devonian WatcherSplits: WatcherDialog's stop trigger, i.e. the line the blood mobs start on.
-    private static final SplitDef WATCHER_FIGHT = def(
-            "^\\[BOSS\\] The Watcher: Let's see how you can handle this\\.$", "§bBlood Clear");
+    /** How many clear boundaries every floor's list starts with (Blood Open, Watcher, Portal Entry). */
+    static final int CLEAR_COUNT = 3;
 
-    /** Devonian's four clear segments, or the original three, depending on {@code clearSplits}. */
-    private static List<SplitDef> clearPrefix(boolean clearSplits) {
-        return clearSplits
-                ? List.of(BLOOD_RUSH, BLOOD_KEY, WATCHER_DIALOGUE, WATCHER_FIGHT, PORTAL_ENTRY)
-                : List.of(BLOOD_OPEN, BLOOD_CLEAR, PORTAL_ENTRY);
-    }
-
-    /** Index in {@link #clearPrefix} of the split that fires when the blood door opens - the moment the Watcher
-     *  Move clock starts, and so the row the Watcher Move row is inserted after. */
-    private static int doorOpenIndex(boolean clearSplits) {
-        return clearSplits ? 2 : 1;
-    }
-
-    private static final List<SplitDef> ENTRANCE_SPLITS = List.of();
-
-    private static final List<SplitDef> FLOOR1 = List.of(
-            def("^\\[BOSS\\] Bonzo: Gratz for making it this far, but I'm basically unbeatable\\.$", "§cBonzo's Sike"),
-            def("\\[BOSS\\] Bonzo: Oh I'm dead!", "§4Cleared"));
-
-    private static final List<SplitDef> FLOOR2 = List.of(
-            def("^\\[BOSS\\] Scarf: This is where the journey ends for you, Adventurers\\.$", "§cScarf's minions"),
-            def("^\\[BOSS\\] Scarf: Did you forget\\? I was taught by the best! Let's dance\\.$", "§4Cleared"));
-
-    private static final List<SplitDef> FLOOR3 = List.of(
-            def("^\\[BOSS\\] The Professor: I was burdened with terrible news recently\\.\\.\\.$", "§cThe Guardians"),
-            def("^\\[BOSS\\] The Professor: Oh\\? You found my Guardians' one weakness\\?$", "§aThe Professor"),
-            def("^\\[BOSS\\] The Professor: What\\?! My Guardian power is unbeatable!$", "§4Cleared"));
-
-    private static final List<SplitDef> FLOOR4 = List.of(
-            def("^\\[BOSS\\] Thorn: Welcome Adventurers! I am Thorn, the Spirit! And host of the Vegan Trials!$", "§4Cleared"));
-
-    private static final List<SplitDef> FLOOR5 = List.of(
-            def("^\\[BOSS\\] Livid: Welcome, you've arrived right on time\\. I am Livid, the Master of Shadows\\.$", "§4Cleared"));
-
-    private static final List<SplitDef> FLOOR6 = List.of(
-            def("^\\[BOSS\\] Sadan: So you made it all the way here\\.\\.\\. Now you wish to defy me\\? Sadan\\?!$", "§cTerracottas"),
-            def("^\\[BOSS\\] Sadan: ENOUGH!$", "§aGiants"),
-            def("^\\[BOSS\\] Sadan: You did it\\. I understand now, you have earned my respect\\.$", "§4Cleared"));
-
+    // ---- F7 / M7 boss boundaries -------------------------------------------------------------------------------------
     private static final List<SplitDef> FLOOR7 = List.of(
             def("^\\[BOSS\\] Maxor: WELL! WELL! WELL! LOOK WHO'S HERE!$", "§5Maxor"),
-            def("\\[BOSS\\] Storm: Pathetic Maxor, just like expected\\.", "§3Storm"),
-            def("\\[BOSS\\] Goldor: Who dares trespass into my domain\\?", "§6Terminals"),
-            def("The Core entrance is opening!", "§7Goldor"),
-            def("\\[BOSS\\] Necron: You went further than any human before, congratulations\\.", "§cNecron"),
-            def("\\[BOSS\\] Necron: All this, for nothing\\.\\.\\.", "§4Cleared"));
+            def("^\\[BOSS\\] Storm: Pathetic Maxor, just like expected\\.$", "§3Storm"),
+            def("^\\[BOSS\\] Goldor: Who dares trespass into my domain\\?$", "§6Terminals"),
+            def("^The Core entrance is opening!$", "§7Goldor"),
+            // Necron's first line in P4 is "Finally, I heard so much about you..." (Floor7Tracker takes either); the first
+            // of the two that arrives starts the segment, the other is then ignored (first write wins).
+            def("^\\[BOSS\\] Necron: (?:Finally, I heard so much about you\\. The Eye likes you very much\\.|You went further than any human before, congratulations\\.)$",
+                    "§cNecron"));
+    /** M7 only: Phase 5, the dragons - Necron's death line or the Wither King's first line, whichever comes first
+     *  ({@link com.killer560.hub.fastleap.Floor7Tracker#P5_START}: since 0.27.2 the reference mods stopped trusting
+     *  Necron's line alone). On F7 Necron's line is just Necron dying, so the Necron row runs on to the end there. */
+    private static final SplitDef DRAGONS = new SplitDef(com.killer560.hub.fastleap.Floor7Tracker.P5_START, "§4Dragons");
+
+    // ---- other floors: the boss's first line, one row named after the boss -------------------------------------------
+    private static final SplitDef FLOOR1 = def("^\\[BOSS\\] Bonzo: Gratz for making it this far, but I'm basically unbeatable\\.$", "§cBonzo");
+    private static final SplitDef FLOOR2 = def("^\\[BOSS\\] Scarf: This is where the journey ends for you, Adventurers\\.$", "§cScarf");
+    private static final SplitDef FLOOR3 = def("^\\[BOSS\\] The Professor: I was burdened with terrible news recently\\.\\.\\.$", "§cThe Professor");
+    private static final SplitDef FLOOR4 = def("^\\[BOSS\\] Thorn: Welcome Adventurers! I am Thorn, the Spirit! And host of the Vegan Trials!$", "§cThorn");
+    private static final SplitDef FLOOR5 = def("^\\[BOSS\\] Livid: Welcome, you've arrived right on time\\. I am Livid, the Master of Shadows\\.$", "§cLivid");
+    private static final SplitDef FLOOR6 = def("^\\[BOSS\\] Sadan: So you made it all the way here\\.\\.\\. Now you wish to defy me\\? Sadan\\?!$", "§cSadan");
 
     private static SplitDef def(String regex, String label) {
         return new SplitDef(Pattern.compile(regex), label);
     }
 
-    /** Odin's buildDungeonSplits: [Blood Open, Blood Clear, Portal Entry] + floor splits + [Total] - or, with Clear
-     *  Splits on, Devonian's finer clear prefix in place of those three ({@link #clearPrefix}).
-     *  Empty when the floor is unknown (Odin returns early in that case too). */
-    private static List<SplitDef> splitsForFloor(String floor, boolean clearSplits) {
-        if (floor == null || floor.isEmpty()) {
+    /** The boundary list for a floor ("F7", "M3", "E"): the three clear boundaries, the floor's boss boundaries, then
+     *  Total. Empty when the floor is unknown or is the Entrance (no blood room, no boss split worth a layout). */
+    static List<SplitDef> splitsForFloor(String floor) {
+        if (floor == null || floor.length() < 2) {
             return List.of();
         }
-        List<SplitDef> bossSplits;
-        if (floor.startsWith("E")) {
-            bossSplits = ENTRANCE_SPLITS;
-        } else {
-            int number;
-            try {
-                number = Integer.parseInt(floor.substring(1));
-            } catch (Exception e) {
-                return List.of();
+        int number;
+        try {
+            number = Integer.parseInt(floor.substring(1));
+        } catch (NumberFormatException e) {
+            return List.of();
+        }
+        boolean master = floor.charAt(0) == 'M';
+        List<SplitDef> boss = new ArrayList<>();
+        switch (number) {
+            case 1 -> boss.add(FLOOR1);
+            case 2 -> boss.add(FLOOR2);
+            case 3 -> boss.add(FLOOR3);
+            case 4 -> boss.add(FLOOR4);
+            case 5 -> boss.add(FLOOR5);
+            case 6 -> boss.add(FLOOR6);
+            case 7 -> {
+                boss.addAll(FLOOR7);
+                if (master) {
+                    boss.add(DRAGONS);
+                }
             }
-            bossSplits = switch (number) {
-                case 1 -> FLOOR1;
-                case 2 -> FLOOR2;
-                case 3 -> FLOOR3;
-                case 4 -> FLOOR4;
-                case 5 -> FLOOR5;
-                case 6 -> FLOOR6;
-                case 7 -> FLOOR7;
-                default -> null;
-            };
-            if (bossSplits == null) {
+            default -> {
                 return List.of();
             }
         }
-        List<SplitDef> all = new ArrayList<>(clearPrefix(clearSplits));
-        all.addAll(bossSplits);
+        List<SplitDef> all = new ArrayList<>(List.of(RUN_START, BLOOD_OPENED, WATCHER_DONE));
+        all.addAll(boss);
         all.add(TOTAL);
         return List.copyOf(all);
     }
@@ -205,29 +149,19 @@ public final class SplitTimersFeature {
         List<SplitDef> splits = List.of();
         /** Wall-clock time each split's trigger line fired (0 = not yet). Parallel to {@link #splits}. */
         long[] timeMs = new long[0];
-        /** {@link SplitLagClock#accumulatedLagMs()} snapshotted at the same instant as {@link #timeMs}[i] -
-         *  the delta between two of these entries is exactly how much of that window was real server lag. */
+        /** {@link SplitLagClock#accumulatedLagMs()} snapshotted at the same instant as {@link #timeMs}[i]. */
         long[] lagMs = new long[0];
-        /** How many of {@link #splits} are clear-phase splits (3, or 5 with Clear Splits on) - the Boss Entry row
-         *  is their sum and is inserted after them. Snapshotted per run so a mid-run toggle can't desync it. */
-        int clearCount = 3;
-        /** Index of the split that fires when the blood door opens - see {@link #doorOpenIndex}. */
-        int doorOpenIndex = 1;
+        /** When "Starting in 1 second." armed this run, and the lag clock then - the fallback run start. */
+        long armedAtMs = 0L;
+        long armedLagMs = 0L;
     }
 
-    /** @param lagLessMs the split's duration minus lag accumulated during its window (see {@link SplitLagClock}),
-     *  or -1 when not computed/available for this row (e.g. a divider, or Watcher Move). */
-    private record SplitRow(String name, long timeMs, long lagLessMs, boolean isCurrent, boolean isDivider) {
-        static SplitRow of(String name, long timeMs, boolean isCurrent) {
-            return new SplitRow(name, timeMs, -1L, isCurrent, false);
-        }
+    /** One line of the layout. {@code lagLessMs} is -1 where it does not apply. */
+    enum Kind { SEGMENT, DIVIDER, LAG }
 
-        static SplitRow withLag(String name, long timeMs, long lagLessMs, boolean isCurrent) {
-            return new SplitRow(name, timeMs, lagLessMs, isCurrent, false);
-        }
-
-        static SplitRow divider(String text) {
-            return new SplitRow(text, 0L, -1L, false, true);
+    record SplitRow(String name, long timeMs, long lagLessMs, Kind kind) {
+        static SplitRow segment(String name, long timeMs, long lagLessMs) {
+            return new SplitRow(name, timeMs, lagLessMs, Kind.SEGMENT);
         }
     }
 
@@ -242,8 +176,7 @@ public final class SplitTimersFeature {
     public static void register() {
         // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
         // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
-        // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
-        // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
+        // Every trigger is a full-line match of a server-format line, so a player's chat line can't match.
         ChatObserver.subscribe(SplitTimersFeature::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SplitTimersFeature", client -> tick()));
         SplitLagClock.register();
@@ -252,24 +185,25 @@ public final class SplitTimersFeature {
     private static boolean wasInDungeon = false;
     private static Object lastLevel = null;
 
+    private static void resetAll() {
+        run = new RunState();
+        P5Splits.reset();
+        WatcherMoveTracker.reset();
+        CoreEntryTimes.reset();
+    }
+
     private static void tick() {
         Minecraft client = Minecraft.getInstance();
         // Odin resets its splits on LevelEvent.Load - same here, on any real level change.
         if (client.level != lastLevel) {
             if (lastLevel != null) {
-                run = new RunState();
-                P5Splits.reset();
-                WatcherMoveTracker.reset();
-                CoreEntryTimes.reset();
+                resetAll();
             }
             lastLevel = client.level;
         }
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
-            run = new RunState();
-            P5Splits.reset();
-            WatcherMoveTracker.reset();
-            CoreEntryTimes.reset();
+            resetAll();
         }
         wasInDungeon = inDungeon;
 
@@ -292,23 +226,20 @@ public final class SplitTimersFeature {
         if (!SplitTimersConfig.getInstance().isEnabled()) {
             return;
         }
-        // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to match the raw
-        // un-stripped string - real Hypixel boss/sidebar lines are confirmed (DungeonState's own
-        // BOSS_START_PATTERN fix) to embed §-codes mid-word. The exact-equality "Starting in 1 second."
-        // check is the single trigger that starts an entire run - if Hypixel ever embeds a stray code in
-        // that line, Split Timers silently never starts at all, and the same risk applies to every real
-        // boss-dialogue split trigger below.
+        // Stripped: real Hypixel lines can embed §-codes mid-word.
         String plain = ChatFormatting.stripFormatting(message.getString());
-        String raw = plain != null ? plain : message.getString();
+        onLine(plain != null ? plain : message.getString(), System.currentTimeMillis());
+    }
 
+    /** One chat line at {@code now}. Package-private so the testkit can drive a run with exact times. */
+    static void onLine(String raw, long now) {
         if ("Starting in 1 second.".equals(raw)) {
-            boolean clearSplits = SplitTimersConfig.getInstance().isClearSplits();
             RunState fresh = new RunState();
-            fresh.splits = splitsForFloor(DungeonState.getFloor(), clearSplits);
+            fresh.splits = splitsForFloor(DungeonState.getFloor());
             fresh.timeMs = new long[fresh.splits.size()];
             fresh.lagMs = new long[fresh.splits.size()];
-            fresh.clearCount = clearPrefix(clearSplits).size();
-            fresh.doorOpenIndex = doorOpenIndex(clearSplits);
+            fresh.armedAtMs = now;
+            fresh.armedLagMs = SplitLagClock.accumulatedLagMs();
             run = fresh;
             P5Splits.reset();
             WatcherMoveTracker.reset();
@@ -321,11 +252,10 @@ public final class SplitTimersFeature {
             return;
         }
 
-        // Side hooks that are NOT splits: they read the same real lines but must work whether or not Clear Splits
-        // put that line in the split list, so they are matched before (and independently of) the split loop.
-        if (BLOOD_CLEAR.pattern().matcher(raw).matches()) {
+        // Side hooks that are NOT splits: they read the same lines but must work whatever the split list holds.
+        if (BLOOD_OPENED.pattern().matcher(raw).matches()) {
             WatcherMoveTracker.onBloodDoorOpened();
-        } else if (WATCHER_FIGHT.pattern().matcher(raw).matches()) {
+        } else if (WATCHER_FIGHT.matcher(raw).matches()) {
             WatcherMoveTracker.onDialogueEnd();
         } else if ("The Core entrance is opening!".equals(raw)) {
             CoreEntryTimes.onCoreOpening();
@@ -336,12 +266,6 @@ public final class SplitTimersFeature {
         if (run.splits.isEmpty()) {
             return;
         }
-        // Real bug found and fixed (2026-09-14, real-run log analysis): every split used to record its OWN
-        // label as the segment that just ENDED ("Maxor took" = Starting-in-1-second -> Maxor's entry line,
-        // i.e. the whole clear; "Storm took" = Maxor's fight...) and the pre-boss/Total splits were missing
-        // entirely. Odin's SplitsManager names each split after the phase that STARTS at its line and
-        // reports "<previous split> took X" - ported exactly now, including Odin's any-order full-line match
-        // (Kotlin Regex.matches) with first-match-only per split.
         int index = -1;
         for (int i = 0; i < run.splits.size(); i++) {
             if (run.splits.get(i).pattern().matcher(raw).matches()) {
@@ -352,13 +276,17 @@ public final class SplitTimersFeature {
         if (index < 0 || run.timeMs[index] != 0L) {
             return;
         }
-        long now = System.currentTimeMillis();
+        // Mort's line never came (changed wording, joined late): the run started when Mort normally speaks, one
+        // second after "Starting in 1 second.", so every later row and the Total still have their real start.
+        if (index > 0 && run.timeMs[0] == 0L && run.armedAtMs > 0L) {
+            run.timeMs[0] = run.armedAtMs + 1000L;
+            run.lagMs[0] = run.armedLagMs;
+            LOGGER.warn("[SplitTimers] Mort's line was not seen; run clock started 1 s after \"Starting in 1 second.\"");
+        }
         run.timeMs[index] = now;
         run.lagMs[index] = SplitLagClock.accumulatedLagMs();
         SplitDef split = run.splits.get(index);
 
-        // Diagnostic (2026-09-14): an earlier split never fired - its line was missed (dialogue skipped /
-        // regex mismatch / joined late). The segment before this one then spans the missed phase too.
         for (int i = 0; i < index; i++) {
             if (run.timeMs[i] == 0L) {
                 LOGGER.warn("[SplitTimers] OUT-OF-ORDER split line: \"{}\" (index {}) fired while \"{}\" (index {}) never did. Line: \"{}\"",
@@ -372,49 +300,40 @@ public final class SplitTimersFeature {
         }
         int prev = previousRecorded(index);
         if (prev < 0) {
-            // Odin would compute against a zero timestamp here and print garbage - skip the announce.
             LOGGER.warn("[SplitTimers] SPLIT \"{}\" hit with no earlier split recorded - nothing to time. Line: \"{}\"",
                     plainLabel(split), raw);
             return;
         }
         long segment = now - run.timeMs[prev];
-        long total = now - run.timeMs[firstRecorded()];
         long segmentLagless = Math.max(0L, segment - (run.lagMs[index] - run.lagMs[prev]));
-        long totalLagless = Math.max(0L, total - (run.lagMs[index] - run.lagMs[firstRecorded()]));
         boolean last = index == run.splits.size() - 1;
 
         Minecraft client = Minecraft.getInstance();
         if (!SplitTimersConfig.getInstance().isAnnounceInChat() || client.player == null) {
             return;
         }
-        // Orange-themed (2026-09-14): split names and times in light orange, "took" in the neutral body color.
-        // Chat uses the plain split label - Odin's per-split §-colors stay on the HUD only.
-        SplitTimersConfig announceCfg = SplitTimersConfig.getInstance();
+        boolean lagless = SplitTimersConfig.getInstance().isLaglessTimes();
         Component tookLine = tookLine(plainLabel(run.splits.get(prev)),
-                String.format(Locale.US, "%.2fs", segment / 1000.0)
-                        + laglessSuffix(announceCfg.isLaglessTimes(), segmentLagless, true), "!");
+                String.format(Locale.US, "%.2fs", segment / 1000.0) + laglessSuffix(lagless, segmentLagless, true), "!");
         if (!last) {
             client.player.sendSystemMessage(tookLine);
             return;
         }
-        // Odin's finishRun: rows snapshotted now, printed 10 ticks later after Hypixel's own summary.
+        // Odin's finishRun: the summary is snapshotted now and printed 10 ticks later, after Hypixel's own. It is the
+        // HUD's layout line for line (dividers left out), then the optional extra blocks.
         List<Component> lines = new ArrayList<>();
         lines.add(tookLine);
-        lines.add(tookLine("Total time", String.format(Locale.US, "%.2fs", total / 1000.0)
-                + laglessSuffix(announceCfg.isTotalWithoutLag(), totalLagless, true), "!"));
-        List<SplitRow> rows = currentRows();
-        for (int i = 0; i < rows.size(); i++) {
-            SplitRow row = rows.get(i);
-            boolean totalRow = i == rows.size() - 1;
-            String rowName = totalRow ? "Total" : ChatFormatting.stripFormatting(row.name());
-            lines.add(tookLine(rowName, formatTime(row.timeMs()) + laglessSuffix(totalRow
-                    ? announceCfg.isTotalWithoutLag() : announceCfg.isLaglessTimes(), row.lagLessMs(), false), "."));
+        for (SplitRow row : layoutRows(now)) {
+            switch (row.kind()) {
+                case SEGMENT -> lines.add(tookLine(plain(row.name()), formatTime(row.timeMs())
+                        + laglessSuffix(lagless, row.lagLessMs(), false), "."));
+                case LAG -> lines.add(Component.empty().append(ModChat.value("Lag")).append(ModChat.text(": "))
+                        .append(ModChat.value(lagSeconds(row.timeMs()))).append(ModChat.text(".")));
+                default -> {
+                }
+            }
         }
-        SplitTimersConfig cfg = announceCfg;
-        long watcherMoveMs = cfg.isWatcherMoveSplit() ? WatcherMoveTracker.getMoveMs() : 0L;
-        if (watcherMoveMs != 0L) {
-            lines.add(tookLine("Watcher Move", formatTime(watcherMoveMs), "."));
-        }
+        SplitTimersConfig cfg = SplitTimersConfig.getInstance();
         for (String core : CoreEntryTimes.lines()) {
             lines.add(Component.empty().append(ModChat.text("Core ")).append(Component.literal(core)));
         }
@@ -428,8 +347,8 @@ public final class SplitTimersFeature {
     /**
      * " (lagless)" after a time, or "" (2026-10-07, killer560: "have the no lag in parentheses to the right of the total
      * and we will know that is the lagless time"). Every split and run time the mod shows, HUD and chat, reads the same
-     * way: the real time, then the lagless one in parentheses. Only while that time's setting is on, the lagless value
-     * exists ({@code >= 0}) and {@link SplitLagClock} has seen real server ticks (else it would be a dishonest copy).
+     * way: the real time, then the lagless one in parentheses. Only while Lagless Times is on, the lagless value exists
+     * ({@code >= 0}) and {@link SplitLagClock} has seen real server ticks (else it would be a dishonest copy).
      */
     static String laglessSuffix(boolean on, long laglessMs, boolean seconds) {
         if (!on || laglessMs < 0L || !SplitLagClock.isTrustworthy()) {
@@ -473,48 +392,89 @@ public final class SplitTimersFeature {
         return latest == run.timeMs.length - 1 ? -1 : latest;
     }
 
-    /** Odin's SplitsManager.currentRows: one row per split (segment time = next split's time - this one's,
-     *  live for the running segment), last row = total. A missed split line (time 0) keeps a 0 row and the
-     *  segment before it runs on to the next split that did fire. Empty before the clock starts. */
-    private static List<SplitRow> currentRows() {
+    /** Time and lag at the end of segment {@code i}: the next recorded boundary, else the run's end, else now. */
+    private static long[] segmentEnd(int i, long now, long nowLag) {
+        for (int j = i + 1; j < run.timeMs.length; j++) {
+            if (run.timeMs[j] != 0L) {
+                return new long[]{run.timeMs[j], run.lagMs[j]};
+            }
+        }
+        return new long[]{now, nowLag};
+    }
+
+    /** A span from boundary {@code from}'s time to {@code end}, as a row. */
+    private static SplitRow span(String name, int from, long[] end) {
+        long t = Math.max(0L, end[0] - run.timeMs[from]);
+        long lagless = Math.max(0L, t - (end[1] - run.lagMs[from]));
+        return SplitRow.segment(name, t, lagless);
+    }
+
+    /**
+     * killer560's layout (2026-10-08), as rows: the clear segments that have started, Boss Entry (live until the boss
+     * starts), a divider; once the boss has started its segments and, on F7/M7, the overall Boss row, another divider;
+     * then Total and Lag. Empty before the run clock starts. The HUD draws exactly these; the end-of-run chat summary
+     * prints them without the dividers.
+     */
+    static List<SplitRow> layoutRows(long now) {
         int n = run.splits.size();
         int first = firstRecorded();
         if (n == 0 || first < 0) {
             return List.of();
         }
-        long now = System.currentTimeMillis();
         long nowLag = SplitLagClock.accumulatedLagMs();
-        long lastTime = run.timeMs[n - 1];
-        long latest = lastTime != 0L ? lastTime : now;
-        long latestLag = lastTime != 0L ? run.lagMs[n - 1] : nowLag;
-        int current = currentIndex();
-        List<SplitRow> rows = new ArrayList<>(n);
-        for (int i = 0; i < n - 1; i++) {
-            long t = 0L;
-            long lagless = -1L;
+        int last = n - 1;
+        boolean ended = run.timeMs[last] != 0L;
+        long[] runEnd = ended ? new long[]{run.timeMs[last], run.lagMs[last]} : new long[]{now, nowLag};
+        SplitTimersConfig cfg = SplitTimersConfig.getInstance();
+        List<SplitRow> out = new ArrayList<>();
+
+        int bossStart = CLEAR_COUNT;
+        for (int i = 0; i < Math.min(CLEAR_COUNT, last); i++) {
             if (run.timeMs[i] != 0L) {
-                long end = latest;
-                long endLag = latestLag;
-                for (int j = i + 1; j < n; j++) {
-                    if (run.timeMs[j] != 0L) {
-                        end = run.timeMs[j];
-                        endLag = run.lagMs[j];
-                        break;
-                    }
-                }
-                t = end - run.timeMs[i];
-                lagless = Math.max(0L, t - (endLag - run.lagMs[i]));
+                out.add(span(run.splits.get(i).label(), i, segmentEnd(i, now, nowLag)));
             }
-            rows.add(SplitRow.withLag(run.splits.get(i).label(), t, lagless, i == current));
+            if (i == 1 && cfg.isWatcherMoveSplit()) {
+                long watcherMoveMs = WatcherMoveTracker.getMoveMs();
+                if (watcherMoveMs != 0L) {
+                    // Not a split boundary, so it has no lag snapshot and no lagless time.
+                    out.add(new SplitRow("§cWatcher Move", watcherMoveMs, -1L, Kind.SEGMENT));
+                }
+            }
         }
-        long total = latest - run.timeMs[first];
-        long totalLagless = Math.max(0L, total - (latestLag - run.lagMs[first]));
-        rows.add(SplitRow.withLag(run.splits.get(n - 1).label(), total, totalLagless, false));
-        return rows;
+        boolean bossStarted = bossStart < last && run.timeMs[bossStart] != 0L;
+        // Boss Entry: run start -> the boss's first line (live while the clear is still running).
+        long[] bossEntryEnd = bossStarted ? new long[]{run.timeMs[bossStart], run.lagMs[bossStart]} : runEnd;
+        out.add(span("§9Boss Entry", first, bossEntryEnd));
+
+        if (bossStarted) {
+            out.add(new SplitRow(DIVIDER_TEXT, 0L, -1L, Kind.DIVIDER));
+            int bossRows = 0;
+            for (int i = bossStart; i < last; i++) {
+                if (run.timeMs[i] != 0L) {
+                    out.add(span(run.splits.get(i).label(), i, segmentEnd(i, now, nowLag)));
+                    bossRows++;
+                }
+            }
+            // One boss segment (F1-F6) IS the boss time; F7/M7 get the overall row under their phases.
+            if (last - bossStart > 1 || bossRows > 1) {
+                out.add(span("§4Boss", bossStart, runEnd));
+            }
+        }
+        out.add(new SplitRow(DIVIDER_TEXT, 0L, -1L, Kind.DIVIDER));
+        out.add(span("§eTotal", first, runEnd));
+        if (SplitLagClock.isTrustworthy()) {
+            out.add(new SplitRow("§cLag", Math.max(0L, runEnd[1] - run.lagMs[first]), -1L, Kind.LAG));
+        }
+        return out;
+    }
+
+    /** "3.35s": lag is always shown in seconds. */
+    static String lagSeconds(long ms) {
+        return String.format(Locale.US, "%.2fs", ms / 1000.0);
     }
 
     /** Odin's Utils.formatTime(time, 2): "1h 2m 3.45s". */
-    private static String formatTime(long timeMs) {
+    static String formatTime(long timeMs) {
         if (timeMs == 0L) {
             return "0s";
         }
@@ -527,25 +487,23 @@ public final class SplitTimersFeature {
                 + String.format(Locale.US, "%.2fs", remaining / 1000f);
     }
 
-    private static String plainLabel(SplitDef def) {
-        String stripped = ChatFormatting.stripFormatting(def.label());
-        return stripped != null ? stripped : def.label();
+    private static String plain(String label) {
+        String stripped = ChatFormatting.stripFormatting(label);
+        return stripped != null ? stripped : label;
     }
 
-    /** For {@code DeviceTimesFeature}'s own "next to it" completion-time messages (killer560's own
-     *  request: "use the split timer to figure out when p2 started") - the real wall-clock moment the
-     *  CURRENTLY in-progress split segment began, i.e. exactly when the line that started it fired. 0 if
-     *  no segment is running. */
+    private static String plainLabel(SplitDef def) {
+        return plain(def.label());
+    }
+
+    /** For {@code RunSummaryFeature}/{@code TerminalTimersFeature}: the wall-clock moment the CURRENTLY running split
+     *  segment began. 0 if no segment is running. */
     public static long getCurrentSegmentStartedAtMs() {
         int current = currentIndex();
         return current < 0 ? 0L : run.timeMs[current];
     }
 
-    /** For {@code autokick.AutoKickFeature}'s per-floor target-time check: the real wall-clock moment
-     *  THIS run's clock started - the first split line that actually fired (Odin: the phase the first
-     *  split's own name describes only starts once that line is seen, same clock every HUD row and
-     *  chat announcement already runs off). 0 if no run is in progress right now (splits empty, or the
-     *  first split hasn't fired yet). */
+    /** For {@code autokick.AutoKickFeature}: the wall-clock moment this run's clock started, or 0. */
     public static long getRunStartedAtMs() {
         int first = firstRecorded();
         return first < 0 ? 0L : run.timeMs[first];
@@ -557,15 +515,15 @@ public final class SplitTimersFeature {
         return startedAt <= 0L ? 0L : System.currentTimeMillis() - startedAt;
     }
 
-    /** The plain (formatting-stripped) name of the split segment currently in progress - e.g. "Terminals"
-     *  from Goldor's "Who dares trespass" line until "The Core entrance is opening!" - the one
-     *  {@link #getCurrentSegmentStartedAtMs()}'s timestamp belongs to. Null if no segment is running.
-     *  <p>Real bug found and fixed (2026-09-14, real-run log analysis): this used to return the NEXT
-     *  expected split's label, so during terminals it said "Goldor" (one phase ahead). */
+    /** The plain name of the segment currently in progress - e.g. "Terminals" from Goldor's "Who dares trespass"
+     *  line until "The Core entrance is opening!". Null if no segment is running. */
     public static String getCurrentSegmentLabel() {
         int current = currentIndex();
         return current < 0 ? null : plainLabel(run.splits.get(current));
     }
+
+    /** A strikethrough run of spaces - a plain horizontal divider without knowing the font's pixel widths. */
+    static final String DIVIDER_TEXT = "§8§m" + " ".repeat(34);
 
     public static final class SplitTimersHudElement implements HudElement {
         @Override
@@ -606,25 +564,22 @@ public final class SplitTimersFeature {
         private record Line(String text, int dx, int dy) {
         }
 
+        private static boolean inEditor() {
+            return McCompat.screen(Minecraft.getInstance()) instanceof com.killer560.hub.hud.HudEditorScreen;
+        }
+
         /**
          * Every line this element draws right now, placed. render() draws exactly this list and width()/height()
-         * measure exactly this list, so the HUD editor's box is the drawn text and nothing else.
-         *
-         * <p>killer560 (2026-10-07): "those split timers the box is way too large for how big they actually are for
-         * the editor portion". height() used to count the live split rows, which the editor never draws, and width()
-         * was a fixed 160-unit column (plus 130 for the P5 column): in his editor the three sample lines (Total, No
-         * Lag, Lag) sat in a box about twice as wide and four rows taller than they were.
+         * measure exactly this list, so the HUD editor's box is the drawn text and nothing else. In the editor the
+         * split block is a sample M7 run, so the whole layout can be positioned before a run.
          */
         private static List<Line> layout() {
             List<Line> out = new ArrayList<>();
             int lineY = 0;
-            // Real rows in game (chat included - killer560: "dont make it hide the gui if i open chat"); the
-            // editor shows only the sample P5 / core-entry blocks below.
-            if (!HudVisibility.editorOpen()) {
-                for (SplitRow row : displayRows()) {
-                    out.add(new Line(rowText(row), 0, lineY));
-                    lineY += ROW_HEIGHT;
-                }
+            List<String> rows = inEditor() ? editorRows() : rowTexts(layoutRows(System.currentTimeMillis()));
+            for (String row : rows) {
+                out.add(new Line(row, 0, lineY));
+                lineY += ROW_HEIGHT;
             }
             boolean right = SplitTimersConfig.getInstance().isP5LinesRight();
             int p5X = right ? SPLIT_COLUMN_WIDTH : 0;
@@ -633,20 +588,14 @@ public final class SplitTimersFeature {
                 out.add(new Line(line, p5X, p5Y));
                 p5Y += ROW_HEIGHT;
             }
-            // Core entry / totals / slowest-into-core rows always sit in the left column, under whatever
-            // is already there, in that order - the last two are the "very bottom" blocks killer560 asked for.
-            int coreY = right ? lineY : p5Y;
+            int extraY = right ? lineY : p5Y;
             for (String line : coreLines()) {
-                out.add(new Line(line, 0, coreY));
-                coreY += ROW_HEIGHT;
-            }
-            for (String line : totalsLines()) {
-                out.add(new Line(line, 0, coreY));
-                coreY += ROW_HEIGHT;
+                out.add(new Line(line, 0, extraY));
+                extraY += ROW_HEIGHT;
             }
             for (String line : slowestCoreLine()) {
-                out.add(new Line(line, 0, coreY));
-                coreY += ROW_HEIGHT;
+                out.add(new Line(line, 0, extraY));
+                extraY += ROW_HEIGHT;
             }
             return out;
         }
@@ -663,8 +612,6 @@ public final class SplitTimersFeature {
 
         @Override
         public int height() {
-            // Compact (killer560, 2026-09-27: "have it show the splits hud more compact") - tighter row
-            // spacing (was 12) plus dropped header/divider rows, see coreLines()/p5Lines()/totalsLines().
             int h = 0;
             for (Line line : layout()) {
                 h = Math.max(h, line.dy() + ROW_HEIGHT);
@@ -676,27 +623,55 @@ public final class SplitTimersFeature {
          *  reads cleanly at scale 1. */
         private static final int ROW_HEIGHT = 9;
 
+        /** The layout rows as HUD text. */
+        static List<String> rowTexts(List<SplitRow> rows) {
+            boolean lagless = SplitTimersConfig.getInstance().isLaglessTimes() && SplitLagClock.isTrustworthy();
+            List<String> out = new ArrayList<>(rows.size());
+            for (SplitRow row : rows) {
+                out.add(switch (row.kind()) {
+                    case DIVIDER -> row.name();
+                    case LAG -> row.name() + "§f: " + lagSeconds(row.timeMs());
+                    case SEGMENT -> row.name() + "§f: " + formatTime(row.timeMs())
+                            + (lagless && row.lagLessMs() >= 0L ? " §7(" + formatTime(row.lagLessMs()) + ")" : "");
+                });
+            }
+            return out;
+        }
+
+        /** A finished M7 run, for positioning the element in the HUD editor. */
+        private static List<String> editorRows() {
+            boolean lagless = SplitTimersConfig.getInstance().isLaglessTimes();
+            String[][] sample = {
+                    {"§2Blood Open", "22.39s", "19.59s"}, {"§cWatcher", "34.10s", "33.20s"},
+                    {"§dPortal Entry", "6.05s", "5.90s"}, {"§9Boss Entry", "1m 2.54s", "58.69s"}, null,
+                    {"§5Maxor", "28.40s", "27.95s"}, {"§3Storm", "40.12s", "39.70s"}, {"§6Terminals", "38.55s", "37.10s"},
+                    {"§7Goldor", "12.30s", "12.05s"}, {"§cNecron", "31.80s", "31.25s"}, {"§4Dragons", "1m 5.20s", "1m 4.40s"},
+                    {"§4Boss", "3m 36.37s", "3m 32.45s"}, null, {"§eTotal", "4m 38.91s", "4m 31.14s"}};
+            List<String> out = new ArrayList<>();
+            for (String[] s : sample) {
+                out.add(s == null ? DIVIDER_TEXT : s[0] + "§f: " + s[1] + (lagless ? " §7(" + s[2] + ")" : ""));
+            }
+            out.add("§cLag§f: 7.77s");
+            return out;
+        }
+
         /** F7/M7 "time to enter the core after terms" rows ({@link CoreEntryTimes}). In the HUD editor a
          *  sample is shown while the toggle is on, so the block can be positioned. */
         private static List<String> coreLines() {
             if (!SplitTimersConfig.getInstance().isCoreEntryTimes()) {
                 return List.of();
             }
-            if (McCompat.screen(Minecraft.getInstance()) instanceof com.killer560.hub.hud.HudEditorScreen) {
-                return CoreEntryTimes.editorLines();
-            }
-            return CoreEntryTimes.lines();
+            return inEditor() ? CoreEntryTimes.editorLines() : CoreEntryTimes.lines();
         }
 
         /** M7 Phase 5 dragon/relic lines ({@link P5Splits}). In the HUD editor a sample is shown while
-         *  either toggle is on, so the column can be positioned before a run. No header row (compact,
-         *  2026-09-27) - the P5 lines already have their own distinct colours. */
+         *  either toggle is on, so the column can be positioned before a run. */
         private static List<String> p5Lines() {
             SplitTimersConfig cfg = SplitTimersConfig.getInstance();
             if (!cfg.isP5DragonLines() && !cfg.isP5RelicLines()) {
                 return List.of();
             }
-            if (McCompat.screen(Minecraft.getInstance()) instanceof com.killer560.hub.hud.HudEditorScreen) {
+            if (inEditor()) {
                 List<String> out = new ArrayList<>();
                 if (cfg.isP5DragonLines()) {
                     out.add("§5Purple §8#1§f: 11.35s");
@@ -711,181 +686,21 @@ public final class SplitTimersFeature {
             return P5Splits.lines(cfg.isP5DragonLines(), cfg.isP5RelicLines(), false);
         }
 
-        /** Odin's Splits HUD: every row but the Total, with a "Boss Entry" row (Devonian {@code Stages.BossEntry} -
-         *  the sum of every clear segment, however many Clear Splits made) after the last clear split, hiding rows
-         *  still at 0. With Watcher Move on and measured, Devonian's {@code WatcherSplits} "Watcher Move" row is
-         *  inserted right after the segment that starts when the blood door opens. */
-        private static List<SplitRow> displayRows() {
-            List<SplitRow> rows = currentRows();
-            if (rows.isEmpty()) {
-                return List.of();
-            }
-            SplitTimersConfig cfg = SplitTimersConfig.getInstance();
-            List<SplitRow> segments = rows.subList(0, rows.size() - 1);
-            int clearCount = Math.min(run.clearCount, segments.size());
-            long watcherMoveMs = cfg.isWatcherMoveSplit() ? WatcherMoveTracker.getMoveMs() : 0L;
-            List<SplitRow> out = new ArrayList<>();
-            for (int i = 0; i < segments.size(); i++) {
-                SplitRow row = segments.get(i);
-                if (row.timeMs() != 0L) {
-                    out.add(row);
-                }
-                if (i == run.doorOpenIndex && watcherMoveMs != 0L) {
-                    // No per-window lag snapshot exists for Watcher Move (it isn't a split boundary), so it
-                    // never carries a lagless "(...)" - see this batch's staging notes for why.
-                    out.add(SplitRow.of("§cWatcher Move", watcherMoveMs, false));
-                }
-                // Killer560, 2026-09-20: "add a bar separating clear and boss phase timers" + "add a boss
-                // entry timer as part of the top section" - both land here, right after the last clear
-                // segment and before the first boss segment. Boss Entry (Devonian Stages.BossEntry) is the
-                // sum of every clear segment = elapsed(run start -> the boss's own entry dialogue); it is
-                // already "live" during the clear phase because segments.get(j) is itself live for the
-                // currently-running segment (see currentRows()), and freezes the moment the boss starts.
-                if (i == clearCount - 1 && segments.size() > clearCount) {
-                    long bossTime = 0L;
-                    long bossLag = 0L;
-                    boolean any = false;
-                    for (int j = 0; j < clearCount; j++) {
-                        bossTime += segments.get(j).timeMs();
-                        long segLagless = segments.get(j).lagLessMs();
-                        if (segLagless >= 0L) {
-                            bossLag += segments.get(j).timeMs() - segLagless;
-                            any = true;
-                        }
-                    }
-                    if (bossTime != 0L && cfg.isBossEntryTimer()) {
-                        long bossLagless = any ? Math.max(0L, bossTime - bossLag) : -1L;
-                        out.add(SplitRow.withLag("§9Boss Entry", bossTime, bossLagless, false));
-                    }
-                    if (bossTime != 0L && cfg.isClearBossDivider()) {
-                        out.add(SplitRow.divider(DIVIDER_TEXT));
-                    }
-                    if (cfg.isBossTimer()) {
-                        SplitRow boss = bossRow();
-                        if (boss != null) {
-                            out.add(boss);
-                        }
-                    }
-                }
-            }
-            return out;
-        }
-
-        /** "a boss timer that runs during boss as well" - elapsed time from the boss's own entry dialogue
-         *  (the first split after the clear prefix) to the end of the fight, or now while it's still running.
-         *  Null before the boss phase has actually started this run. */
-        private static SplitRow bossRow() {
-            int bossStartIndex = run.clearCount;
-            if (bossStartIndex >= run.timeMs.length - 1 || run.timeMs[bossStartIndex] == 0L) {
-                return null;
-            }
-            int last = run.timeMs.length - 1;
-            long now = System.currentTimeMillis();
-            long end = run.timeMs[last] != 0L ? run.timeMs[last] : now;
-            long endLag = run.timeMs[last] != 0L ? run.lagMs[last] : SplitLagClock.accumulatedLagMs();
-            long elapsed = end - run.timeMs[bossStartIndex];
-            long lagless = Math.max(0L, elapsed - (endLag - run.lagMs[bossStartIndex]));
-            return SplitRow.withLag("§4Boss", elapsed, lagless, run.timeMs[last] == 0L);
-        }
-
-        /** A strikethrough run of spaces - a common Minecraft-HUD trick for drawing a plain horizontal
-         *  divider line without needing to know the font's exact pixel widths. */
-        private static final String DIVIDER_TEXT = "§8§m" + " ".repeat(34);
-
-        /** "Then add another line at the bottom separating the new lines you are going to add being the
-         *  total running time with and without lag, and the lag lost timer" - killer560, 2026-09-20.
-         *  "With lag" is the plain wall-clock total - exactly what Hypixel's own end-of-run "Defeated ...
-         *  in" line measures, untouched by SplitLagClock, so it always matches that real number. The other
-         *  two are lag-derived and hidden (not shown as a dishonest 0) until SplitLagClock has actually
-         *  seen a real server tick this connection ({@link SplitLagClock#isTrustworthy()}).
-         *  <p>
-         *  No longer prefixed with its own divider row (compact, 2026-09-27 - killer560: "drop redundant
-         *  padding/headers"); {@code isClearBossDivider()}'s own divider (a real, user-facing toggle) is
-         *  untouched and still uses {@link #DIVIDER_TEXT}. Labels shortened for the same reason. */
-        private static List<String> totalsLines() {
-            SplitTimersConfig cfg = SplitTimersConfig.getInstance();
-            if (McCompat.screen(Minecraft.getInstance()) instanceof com.killer560.hub.hud.HudEditorScreen) {
-                List<String> sample = new ArrayList<>();
-                if (cfg.isTotalWithLag() || cfg.isTotalWithoutLag()) {
-                    sample.add(totalLine(cfg, 83450L, 80100L, true));
-                }
-                if (cfg.isLagLostLine()) {
-                    sample.add("§cLag§f: 3.35s");
-                }
-                return sample;
-            }
-            int first = firstRecorded();
-            if (first < 0) {
-                return List.of();
-            }
-            int last = run.timeMs.length - 1;
-            long now = System.currentTimeMillis();
-            long end = run.timeMs[last] != 0L ? run.timeMs[last] : now;
-            long endLag = run.timeMs[last] != 0L ? run.lagMs[last] : SplitLagClock.accumulatedLagMs();
-            long total = end - run.timeMs[first];
-            long lag = endLag - run.lagMs[first];
-            boolean trusted = SplitLagClock.isTrustworthy();
-            List<String> content = new ArrayList<>();
-            if (cfg.isTotalWithLag() || (cfg.isTotalWithoutLag() && trusted)) {
-                content.add(totalLine(cfg, total, Math.max(0L, total - lag), trusted));
-            }
-            if (cfg.isLagLostLine() && trusted) {
-                content.add("§cLag§f: " + formatTime(lag));
-            }
-            return content;
-        }
-
-        /**
-         * The run's total, "Total: 1m 23.45s (1m 20.10s)": the real time, then the lagless one in parentheses, the way
-         * every split row already read (2026-10-07, killer560: "have the no lag in parentheses to the right of the total
-         * and we will know that is the lagless time"). It replaces the separate "No Lag" line. Total With Lag shows the
-         * real time, Total Without Lag the parenthesis; with only the second on the line is "Total: (1m 20.10s)". The
-         * "Lag" line stays, under its own toggle: the parenthesis says what the run took without lag, the Lag line how
-         * much lag cost, which is the number to watch between runs and would otherwise be a subtraction.
-         */
-        private static String totalLine(SplitTimersConfig cfg, long total, long lagless, boolean trusted) {
-            String text = "§eTotal§f:";
-            if (cfg.isTotalWithLag()) {
-                text += " " + formatTime(total);
-            }
-            if (cfg.isTotalWithoutLag() && trusted) {
-                text += " §7(" + formatTime(lagless) + ")";
-            }
-            return text;
-        }
-
-        /** "You can at the very bottom of the split timers show the slowest person into core and their
-         *  time" - killer560, 2026-09-20. Independent of Core Entry's own chat/party announce toggles -
-         *  {@link CoreEntryTimes#slowestHudLine()} computes it live from the same data whenever any is in,
-         *  it isn't gated on the once-per-run chat announcement. */
+        /** "at the very bottom of the split timers show the slowest person into core and their time" - killer560,
+         *  2026-09-20. Independent of Core Entry's chat/party announce toggles. */
         private static List<String> slowestCoreLine() {
             if (!SplitTimersConfig.getInstance().isCoreEntrySlowestHud()) {
                 return List.of();
             }
-            if (McCompat.screen(Minecraft.getInstance()) instanceof com.killer560.hub.hud.HudEditorScreen) {
+            if (inEditor()) {
                 return List.of("§6Slowest§f: §cTeammate§f: 6.20s");
             }
             String line = CoreEntryTimes.slowestHudLine();
             return line == null ? List.of() : List.of("§6Slowest§f: " + line);
         }
 
-        /** Row text, with the lagless "(...)" appended when on and trustworthy - dividers print as-is. */
-        private static String rowText(SplitRow row) {
-            if (row.isDivider()) {
-                return row.name();
-            }
-            String text = row.name() + "§f: " + formatTime(row.timeMs());
-            if (SplitTimersConfig.getInstance().isLaglessTimes() && row.lagLessMs() >= 0L && SplitLagClock.isTrustworthy()) {
-                text += " §7(" + formatTime(row.lagLessMs()) + ")";
-            }
-            return text;
-        }
-
         @Override
         public boolean isEnabledInSettings() {
-            // Setting only. This is the pair that proved the point: the old predicate tested isInDungeon()
-            // and render() below never did, so the two disagreed about the same element. Now render()'s draw
-            // stamp is the only thing that answers "was it on screen".
             return SplitTimersConfig.getInstance().isEnabled();
         }
 
@@ -894,8 +709,6 @@ public final class SplitTimersFeature {
             if (!SplitTimersConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
                 return;
             }
-            // Every block is optional and any of them can come out empty, so "did this element put anything on
-            // screen" is counted, not assumed - see HudSeen for why the count has to be real.
             List<Line> lines = layout();
             for (Line line : lines) {
                 graphics.text(Minecraft.getInstance().font, line.text(), x + line.dx(), y + line.dy(), 0xFFFFFFFF, false);
