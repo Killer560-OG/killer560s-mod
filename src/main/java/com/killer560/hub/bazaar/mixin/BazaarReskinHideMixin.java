@@ -1,6 +1,6 @@
-package com.killer560.hub.auction.mixin;
+package com.killer560.hub.bazaar.mixin;
 
-import com.killer560.hub.auction.screen.BazaarReskin;
+import com.killer560.hub.bazaar.BazaarReskin;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;

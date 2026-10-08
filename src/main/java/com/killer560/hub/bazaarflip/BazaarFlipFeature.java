@@ -439,7 +439,7 @@ public final class BazaarFlipFeature {
                 String.format(Locale.US, "%.2f", best.marginPercent()));
         // Hypixel's own /bz takes the item's display name. ServerCommands.toServer sends BELOW this mod's own
         // client dispatcher, which matters because "bz" is itself a client command this mod registers (see
-        // auction.BazaarFeature) - sendCommand would recurse straight back into our own handler.
+        // bazaar.BazaarFeature) - sendCommand would recurse straight back into our own handler.
         if (!sendCommand("bz " + best.displayName())) {
             return;
         }

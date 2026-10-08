@@ -25,9 +25,10 @@ final class WitherDoorScanner {
 
     enum DoorType { BLOOD, NORMAL, WITHER, ENTRANCE }
 
-    record Door(int x, int z, DoorType type) {
+    /** {@code y} is the anchor block's height: Hypixel's 69, plus the sim's floor shift when the cell was scanned. */
+    record Door(int x, int y, int z, DoorType type) {
         BlockPos basePos() {
-            return new BlockPos(x, 69, z);
+            return new BlockPos(x, y, z);
         }
 
         /** True if this door's wall runs along Z (i.e. it connects rooms that are side-by-side in X) -
@@ -66,6 +67,9 @@ final class WitherDoorScanner {
             return;
         }
         ticksUntilScan = RESCAN_TICKS;
+        // Every height below is Hypixel's; the sim builds the whole floor shifted (DungeonLayout.simYOffset, zero on
+        // Hypixel), and read at the bare heights its doors were never found (roof 73+ against a floor near y -60).
+        int off = com.killer560.hub.livemap.DungeonLayout.simYOffset();
         BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
         for (int gx = 0; gx < GRID; gx++) {
             for (int gz = 0; gz < GRID; gz++) {
@@ -83,17 +87,18 @@ final class WitherDoorScanner {
                 if (!client.level.hasChunk(wx >> 4, wz >> 4)) {
                     continue;
                 }
-                int height = topLayer(client, mutable, wx, wz);
-                if (height <= 0) {
+                int height = topLayer(client, mutable, wx, wz, off);
+                if (height == Integer.MIN_VALUE) {
                     continue;
                 }
+                height -= off;
                 if (height == 73 || height == 74 || height == 81 || height == 82) {
-                    Block block = client.level.getBlockState(mutable.set(wx, 69, wz)).getBlock();
+                    Block block = client.level.getBlockState(mutable.set(wx, 69 + off, wz)).getBlock();
                     DoorType type = block == Blocks.COAL_BLOCK ? DoorType.WITHER
                             : block == McBlocks.RED_TERRACOTTA ? DoorType.BLOOD
                             : block == Blocks.INFESTED_CHISELED_STONE_BRICKS ? DoorType.ENTRANCE
                             : DoorType.NORMAL;
-                    cells[idx] = new Door(wx, wz, type);
+                    cells[idx] = new Door(wx, 69 + off, wz, type);
                 } else {
                     cells[idx] = NOT_A_DOOR;
                 }
@@ -104,7 +109,7 @@ final class WitherDoorScanner {
     /** Section-first column scan - the same one, and for the same reasons, as
      *  {@code doorhelpers.DoorScanner.topLayer}; see its note. Both scanners are registered independently, so a
      *  dungeon with both features on paid the old block-by-block sweep twice. */
-    private static int topLayer(Minecraft client, BlockPos.MutableBlockPos mutable, int x, int z) {
+    private static int topLayer(Minecraft client, BlockPos.MutableBlockPos mutable, int x, int z, int off) {
         net.minecraft.world.level.chunk.LevelChunk chunk = client.level.getChunk(x >> 4, z >> 4);
         net.minecraft.world.level.chunk.LevelChunkSection[] sections = chunk.getSections();
         int top = Math.min(chunk.getHighestFilledSectionIndex(), sections.length - 1);
@@ -114,13 +119,14 @@ final class WitherDoorScanner {
                 continue;
             }
             int base = client.level.getSectionYFromSectionIndex(i) << 4;
-            for (int y = Math.min(base + 15, 255); y >= Math.max(base, 0); y--) {
+            // Hypixel's 0..255 band, moved with the sim's floor.
+            for (int y = Math.min(base + 15, 255 + off); y >= Math.max(base, 1 + off); y--) {
                 if (!section.getBlockState(x & 15, y & 15, z & 15).isAir()) {
                     return y;
                 }
             }
         }
-        return 0;
+        return Integer.MIN_VALUE;
     }
 
     /** Same rule as {@code doorhelpers.DoorScanner.isLocked}: only WITHER/BLOOD cells can be locked, and an

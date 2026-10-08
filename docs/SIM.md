@@ -10,6 +10,9 @@ secret placement, doors, altitude and the sim's own screens. Split out of the pr
   skipped while `SimState.isActive()`. Anything else that reads Hypixel coordinates in the sim needs
   `SimAltitude.offset()` added to its y - `DungeonLayout.doorBlock`, Secret Waypoints' database y and its
   68..108 lever band all did.
+  So did Wither Doors (until 2026-10-08): its gate also refused the sim (no server address), and `WitherDoorScanner` read
+  roof heights 73/74/81/82 and the anchor at bare y 69 inside a 0..255 band, so with the floor near y -60 it found no
+  door at all. It now shifts all of them by `DungeonLayout.simYOffset()`; testkit 538 checks a sim wither door's box.
 - An L-shaped room is captured as its 2x2 bounding box, and nine of his eleven have a NEIGHBOURING room's
   geometry in the quarter they do not occupy. They are excluded from generated floors until the capture
   records which quadrant is real. Hand-drawn maps are not filtered.
