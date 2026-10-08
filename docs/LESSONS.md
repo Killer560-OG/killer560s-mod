@@ -232,7 +232,8 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - A chat line dropped through Fabric's `ALLOW_GAME`/`ALLOW_CHAT` never reaches `ChatObserver` either: a cancel there skips both
   the GAME event and `ChatComponent.addMessage`, its two sources. To hide a line only from the WINDOW, cancel inside `addMessage`
   after the clicktranslate HEAD hook has dispatched it - Chat Tidy injects at that method's `Predicate.test` call (2026-10-07;
-  testkit 87 checks every hidden line still reached `ChatObserver`). Hide Chat Messages (Object Hider) still uses `ALLOW_GAME`.
+  testkit 87 checks every hidden line still reached `ChatObserver`). Chat Hider's other six hides (Object Hider's old
+  Chat Replacements) still use `ALLOW_GAME`.
 
 - **Moving the camera does not move the crosshair.** `GameRenderer.pick` -> `LocalPlayer.raycastHitResult` casts from
   `Entity.getEyePosition`, never from `Camera.position()` (javap 26.1.2 and 26.2), so a `Camera.setPosition` at the TAIL of
@@ -281,3 +282,11 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   line is `A Bat has been slain. +1 Bonus Score` (Odin `Mimic.kt`, Skyblocker `DungeonScore.java`; colour codes unknown).
   `ScoreCalculatorFeature` keys each bat on a name (his own line, a mate's "Bat Killed!") and `ScoreCalculator.BAT_BONUS_CAP`
   is the one number to set to 1 if Hypixel makes it per run. The dungeon sim does not model attributes, so it never sends it.
+
+- A parent `Style`'s `ClickEvent` is only inherited where the child sets none, so a whole-line click action wrapped round a
+  Hypixel line (Copy Chat's old whole-message copy, via Click Translate's wrap) is dead on every name, link or invite in it,
+  and past the end of the text vanilla finds no style at all. Find the clicked chat row from the layout instead
+  (`ChatComponent.captureClickableText` with a recording collector) and take `GuiMessage.Line.parent()` (2026-10-08, testkit 561-563).
+- A fixed RMS threshold is not a voice detector: room noise on an open mic sat above Voice To Text's 500, so no pause was
+  ever seen and Open Mic never sent anything. `voicetotext/OpenMicSegmenter` compares against the quietest chunk of the last
+  3 s; testkit 564 feeds noise at RMS 700 (2026-10-08).

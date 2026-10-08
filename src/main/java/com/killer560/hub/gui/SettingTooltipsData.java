@@ -151,11 +151,18 @@ final class SettingTooltipsData {
         d.put("chat emotes enabled", "Turns Hypixel emote codes like <3 or :shrug: into the real emote text, no MVP++ rank needed.");
         d.put("click translate enabled", "Left-click any chat message to translate it.");
         d.put("translate to", "The language clicked chat messages are translated into.");
-        d.put("stack duplicate messages", "When a chat line repeats the newest one exactly (same text and colours), the newest copy is replaced by one line ending in a grey (x2), (x3)... Blank lines and separators never stack.");
-        d.put("hide damage messages", "Hides Hypixel's combat spam from the chat window: your ability damage lines and the hits you take. Other features still read them, and the log keeps them.");
-        d.put("ability damage lines", "With Hide Damage Messages on: hides lines like 'Your Implosion hit 2 enemies for 14,736,463.2 damage.' (any ability).");
-        d.put("incoming hit lines", "With Hide Damage Messages on: hides 'A Crypt Wither Skull exploded, hitting you for 23,760 damage.', 'Maxor's Frenzy hit you for...', '... struck you for...', 'The Lost Adventurer used Dragon's Breath on you!' and bone plating lines.");
-        d.put("copy chat", "Shift+Left-Click a chat message to copy its text; Shift+Right-Click copies just that line.");
+        // ---- chat-batch (2026-10-08): Chat Hider (was Hide Chat Messages + Chat Tidy), Copy Chat ----
+        d.put("chat hider", "Stacks repeated chat lines and hides chat spam you pick: damage lines, warnings, empty lines, the action bar, invites.");
+        d.put("chat hider/chat hider", "Master switch for every rule below: stacking repeated lines and each chat hider. Off, chat is left exactly as it arrives.");
+        d.put("chat hider/stack duplicate messages", "A line that repeats one of the last 50 chat messages from the last 60 seconds replaces it: the earlier copy goes, and one line ending in a grey (x2), (x3)... is added at the bottom, even with other messages in between. Blank lines and separators never stack.");
+        d.put("chat hider/hide damage messages", "Hides Hypixel's combat spam from the chat window: your ability damage lines ('Your Implosion hit 2 enemies for ...') and the hits you take ('A Crypt Wither Skull exploded, hitting you for ...', '... hit you for ...', '... struck you for ...'). Other features still read them, and the log keeps them.");
+        d.put("chat hider/hide useless messages", "Hides 'There are blocks in the way!' and the 'Profile ID: ...' line.");
+        d.put("chat hider/hide discord warnings", "Hides Hypixel's standing warning about Discord staff impersonators.");
+        d.put("chat hider/hide microsoft warnings", "Hides Hypixel's standing warning about Microsoft account phishing.");
+        d.put("chat hider/hide empty chat messages", "Hides chat lines that are blank.");
+        d.put("chat hider/hide actionbar", "Hides all action bar text above the hotbar.");
+        d.put("chat hider/hide non-rank invites", "Hides party invites from players without a rank.");
+        d.put("copy chat", "With chat open: Shift or Ctrl + Left-Click a message copies the whole message (every wrapped line); Shift or Ctrl + Right-Click copies only the line you clicked. Copied without colour codes. A plain click does what it always did.");
         d.put("auto meow enabled", "Replies with a random cat line when a chat message says meow, purr, nya or mew.");
         d.put("play cat noises", "Plays a cat sound each time Auto Meow replies.");
         d.put("chat/volume", "Loudness of the Auto Meow cat sound, 0-200%.");
@@ -1664,9 +1671,10 @@ final class SettingTooltipsData {
         d.put("chat/translate", "Run /translate to change the language, or pick it below; all your messages are then sent in that language.");
         d.put("translate/language", "The language your chat is translated into; /language opens this picker.");
         d.put("translate/search", "Type part of a language name to filter the list, then click one to select it.");
-        d.put("voice to text/mode", "Open Mic sends what you say as soon as you pause; Push To Talk only listens while the key is held.");
+        d.put("voice to text/mode", "Open Mic listens all the time and sends what you said once you stop talking; Push To Talk only listens while the key is held.");
+        d.put("voice to text/silence before send", "Open Mic: how long you must stop talking before what you said is sent. Shorter sends sooner but can cut a sentence at a pause.");
         d.put("voice to text/microphone", "Which microphone Voice To Text records from.");
-        d.put("voice to text/send to", "Where transcribed speech is sent: Party (/pc) or Guild (/gc) chat.");
+        d.put("voice to text/send to", "Where transcribed speech is sent: Party, All, Guild or Co-op / plain chat. Right-click goes back.");
         d.put("water board solver/show tracer", "Outlines the next lever to flip in green and draws a line to the one after.");
         d.put("waypoint routes/area", "Shows the Skyblock area read from the tab list and the route active there.");
         d.put("waypoint routes/delete", "Deletes this route and all its points; click twice to confirm.");
