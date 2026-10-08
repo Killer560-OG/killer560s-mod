@@ -16,14 +16,12 @@ import com.killer560.hub.compat.McCompat;
  * House browser (its own command + keybind). Clicking a product in {@code BazaarScreen} runs Hypixel's own
  * real {@code /bz <name>} so Hypixel's own menu handles the actual buy/sell order - that never changes.
  * <p>
- * killer560, 2026-09-27: "have a bz override like it does for ah" - bare {@code /bz} (no item argument) can
- * now optionally open this browser instead, mirroring {@link AuctionHouseFeature#shouldOverrideAh}
- * exactly, including the same crash-avoiding reasoning: forwarding to the real Hypixel {@code /bz} goes
- * through {@link com.killer560.hub.util.ServerCommands#toServer}, never {@code sendCommand}, since "bz" is
- * itself a client command this mod registers (see that class's doc for the real crash this caused on
- * {@code /ah}). {@code /bz <item name>} (with an argument) is untouched either way - this only registers
- * the bare literal, so Fabric's client dispatcher never matches an argued call and it goes straight to
- * Hypixel exactly like it always did.
+ * Commands (2026-10-07): {@code /killer560bz} is this mod's browser, and only with an active Booster Cookie
+ * ({@link BoosterCookie}); {@code /bz} and {@code /hypixelbz} are always Hypixel's own command, forwarded through
+ * {@link com.killer560.hub.util.ServerCommands#toServer} - never {@code sendCommand}, since "bz" is itself a client
+ * command this mod registers and would be handed back to us. The old {@code /bz} override (bare /bz opening this
+ * browser) is gone: Hypixel's real Bazaar menu is drawn in this browser's look by
+ * {@link com.killer560.hub.auction.screen.BazaarReskin} instead.
  */
 public final class BazaarFeature {
 
@@ -34,30 +32,25 @@ public final class BazaarFeature {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BazaarFeature.tick", BazaarFeature::tick));
+        com.killer560.hub.auction.screen.BazaarReskin.register();
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(ClientCommands.literal("killer560bz").executes(ctx -> {
                 openOrExplain();
                 return 1;
             }));
-            // Real Hypixel /bz - intercepted client-side only while both the browser is enabled AND
-            // killer560 turned the override on; otherwise this sends the exact same "/bz" straight to
-            // Hypixel, so a disabled/undecided player sees no behavior change at all. Same pattern as
-            // AuctionHouseFeature's own "/ah" registration.
-            // With anything after it ("/bz rec", "/bz Recombobulator 3000") it is always Hypixel's own search,
-            // forwarded whole. Without this argument node, the client dispatcher rejected every such line with
-            // "Incorrect argument for command at position 3" and Hypixel never saw it (killer560, 2026-10-06).
+            // /bz is always Hypixel's own command (2026-10-07: the /bz override is gone - Hypixel's real Bazaar is
+            // reskinned instead, see BazaarReskin). Bare or with anything after it ("/bz rec", "/bz Recombobulator
+            // 3000"), the line is forwarded whole. Without the argument node, the client dispatcher rejected every
+            // argued line with "Incorrect argument for command at position 3" and Hypixel never saw it (killer560,
+            // 2026-10-06).
             dispatcher.register(ClientCommands.literal("bz").executes(ctx -> {
-                if (shouldOverrideBz()) {
-                    openDeferred();
-                } else {
-                    forwardToServer("bz");
-                }
+                forwardToServer("bz");
                 return 1;
             }).then(ClientCommands.argument("args", StringArgumentType.greedyString()).executes(ctx -> {
                 forwardToServer("bz " + StringArgumentType.getString(ctx, "args"));
                 return 1;
             })));
-            // Explicit bypass - real Hypixel /bz is always still reachable regardless of the override.
+            // Kept as an alias of /bz for anyone used to typing it.
             dispatcher.register(ClientCommands.literal("hypixelbz").executes(ctx -> {
                 forwardToServer("bz");
                 return 1;
@@ -68,18 +61,27 @@ public final class BazaarFeature {
         });
     }
 
-    private static boolean shouldOverrideBz() {
-        AuctionConfig cfg = AuctionConfig.getInstance();
-        return cfg.isBazaarEnabled() && cfg.isOverrideBzCommand();
-    }
-
     private static void forwardToServer(String command) {
         com.killer560.hub.util.ServerCommands.toServer(command);
     }
 
+    /**
+     * /killer560bz, the keybind and the settings buttons: the API-driven browser is the "remote Bazaar" a Booster
+     * Cookie grants on Hypixel, so it opens only while the Cookie Buff is active (killer560, 2026-10-07: "the command
+     * /killer560bz should only work with a booster cookie"). Without one, chat says so and points at the Bazaar NPC,
+     * where Hypixel's real menu is reskinned.
+     */
     public static void openOrExplain() {
         if (!AuctionConfig.getInstance().isBazaarEnabled()) {
             ModChat.send("Bazaar", ModChat.bad("Turn on the Bazaar Browser in the Items tab first."));
+            return;
+        }
+        BoosterCookie.State cookie = BoosterCookie.state(Minecraft.getInstance());
+        if (cookie != BoosterCookie.State.ACTIVE) {
+            ModChat.send("Bazaar", ModChat.bad(cookie == BoosterCookie.State.INACTIVE
+                    ? "You need an active Booster Cookie to use the Bazaar remotely."
+                    : "Couldn't find an active Cookie Buff in your tab list, so the remote Bazaar stays closed."),
+                    ModChat.dim(" Walk to the Bazaar NPC instead - its menu opens in this look."));
             return;
         }
         openDeferred();
@@ -109,7 +111,7 @@ public final class BazaarFeature {
         }
         boolean down = KeyUtil.isKeyDown(client.getWindow(), code);
         if (down && !keyWasDown && McCompat.screen(client) == null) {
-            openDeferred();
+            openOrExplain();
         }
         keyWasDown = down;
     }

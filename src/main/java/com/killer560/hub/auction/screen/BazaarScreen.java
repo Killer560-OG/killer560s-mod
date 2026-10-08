@@ -34,7 +34,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The Bazaar browser (/killer560bz, or /bz with the override on). Redone 2026-10-07 after killer560: "The bazaar menu
+ * The Bazaar browser (/killer560bz, only with an active Booster Cookie - see BazaarFeature; Hypixel's real Bazaar menu is
+ * drawn in this look by {@link BazaarReskin}). Redone 2026-10-07 after killer560: "The bazaar menu
  * needs redone. There is no way to see my listings, that left bar is goofy and I dont like the way this looks at all.
  * Also it is missing a lot of item gui's."
  * <p>
@@ -52,21 +53,21 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class BazaarScreen extends Screen {
 
-    private static final int ACCENT = 0xFFCC6600;
-    private static final int ACCENT_BRIGHT = 0xFFFFA040;
-    private static final int BORDER = 0xFF553311;
-    private static final int PANEL_BG = 0xF00D0D0D;
-    private static final int SIDEBAR_BG = 0xFF130D07;
-    private static final int LIST_BG = 0xFF0A0A0A;
-    private static final int ROW_ALT = 0xFF101010;
-    private static final int ROW_HOVER = 0xFF2A1A0A;
-    private static final int SELECTED_BG = 0xFF3A2208;
-    private static final int TEXT = 0xFFE8E0D8;
-    private static final int DIM = 0xFF9A8C80;
-    private static final int FAINT = 0xFF6A6058;
-    private static final int GOLD = 0xFFFFC040;
-    private static final int GREEN = 0xFF55DD55;
-    private static final int RED = 0xFFFF5555;
+    static final int ACCENT = 0xFFCC6600;
+    static final int ACCENT_BRIGHT = 0xFFFFA040;
+    static final int BORDER = 0xFF553311;
+    static final int PANEL_BG = 0xF00D0D0D;
+    static final int SIDEBAR_BG = 0xFF130D07;
+    static final int LIST_BG = 0xFF0A0A0A;
+    static final int ROW_ALT = 0xFF101010;
+    static final int ROW_HOVER = 0xFF2A1A0A;
+    static final int SELECTED_BG = 0xFF3A2208;
+    static final int TEXT = 0xFFE8E0D8;
+    static final int DIM = 0xFF9A8C80;
+    static final int FAINT = 0xFF6A6058;
+    static final int GOLD = 0xFFFFC040;
+    static final int GREEN = 0xFF55DD55;
+    static final int RED = 0xFFFF5555;
 
     private static final int ROW_H = 20;
     private static final int SIDE_ROW_H = 13;
@@ -918,7 +919,7 @@ public final class BazaarScreen extends Screen {
         }
     }
 
-    private static String standingText(BazaarOrderParser.Order o, BazaarProduct live) {
+    static String standingText(BazaarOrderParser.Order o, BazaarProduct live) {
         if (o.expired()) {
             return "Expired";
         }
@@ -937,7 +938,7 @@ public final class BazaarScreen extends Screen {
         };
     }
 
-    private static int statusColor(BazaarOrderParser.Order o, BazaarProduct live) {
+    static int statusColor(BazaarOrderParser.Order o, BazaarProduct live) {
         if (o.expired()) {
             return RED;
         }
@@ -989,7 +990,7 @@ public final class BazaarScreen extends Screen {
         return cut.isEmpty() ? "" : cut + "...";
     }
 
-    private static int nameColor(BazaarProduct p) {
+    static int nameColor(BazaarProduct p) {
         if (p.ultimate()) {
             return 0xFFFF55FF;
         }

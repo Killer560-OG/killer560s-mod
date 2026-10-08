@@ -141,3 +141,12 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   incl. its pre-resource-pack commit 26169fe for old head textures) and uses a pack model only when
   `getResource("items/<path>.json")` finds it. Since Pack Disabler (2026-10-07) the icons come from the shared
   `skyblock/item_looks.json` (older NEU snapshots plus our own textures) and none fall back. Testkit 425/432 count them.
+
+- **Fabric recreates every per-screen event at each `init`, `remove` included** (`fabric-screen-api` 5.1.0
+  `ScreenMixin.beforeInit`, javap): a resize runs init again with fresh, empty events. Anything that keeps state for a
+  screen across a resize must re-register ALL its per-screen listeners on every AFTER_INIT, its `remove` listener too, or
+  the state outlives the screen. The Bazaar reskin (`auction/screen/BazaarReskin`, 2026-10-07) keys its state on the
+  screen object and re-registers each init. To be first for input and last for drawing over a container, register two
+  AFTER_INIT callbacks in phases ordered before and after `Event.DEFAULT_PHASE`: the per-screen listeners are then added
+  before/after every other feature's (the reskin's presses never reach another feature's hidden-slot handler, and it
+  paints over their overlays).

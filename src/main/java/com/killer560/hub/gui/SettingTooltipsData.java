@@ -2013,11 +2013,12 @@ final class SettingTooltipsData {
         d.put("auction house/open key", "Optional keybind that opens the Auction House browser, same as /killer560 ah.");
         d.put("auction house/ah override", "Makes /ah open this browser instead of Hypixel's menu; /hypixelah still opens Hypixel's.");
         d.put("auction house/listing helper", "In Hypixel's Create BIN Auction menu, shows the lowest similar BIN and an estimated value.");
-        d.put("bazaar/bazaar browser", "Turns on the custom Bazaar browser, opened with /killer560bz or a keybind.");
-        d.put("bazaar/open key", "Optional keybind that opens the Bazaar browser, same as /killer560bz.");
-        d.put("bazaar/bz override", "Makes /bz open this browser instead of Hypixel's menu; /hypixelbz still opens Hypixel's.");
+        d.put("bazaar/bazaar browser", "Turns on the custom Bazaar browser, opened with /killer560bz or a keybind. Like Hypixel's remote Bazaar, it only opens while your Booster Cookie is active.");
+        d.put("bazaar/reskin real bazaar", "Draws Hypixel's real Bazaar menus (the Bazaar NPC, or /bz with a Booster Cookie) in this browser's look. Every click you make goes to the same slot in Hypixel's menu, so buying, selling, orders and claiming work exactly as before; screens it does not know stay Hypixel's own.");
+        d.put("bazaar/hypixel menu key", "Hold this key while a reskinned Bazaar menu is open to see and use Hypixel's own menu instead.");
+        d.put("bazaar/open key", "Optional keybind that opens the Bazaar browser, same as /killer560bz (needs an active Booster Cookie).");
         d.put("bazaar/track my orders", "Reads your buy orders and sell offers whenever you open Hypixel's Manage Orders menu, for the browser's My Orders view. Read only: nothing is clicked.");
-        d.put("bazaar/open my orders", "Opens the Bazaar browser on My Orders: what Manage Orders showed last, and whether each order is still the top one.");
+        d.put("bazaar/open my orders", "Opens the Bazaar browser on My Orders: what Manage Orders showed last, and whether each order is still the top one (needs an active Booster Cookie).");
         d.put("video browser/site", "Which site opens in the companion window.");
         d.put("video browser/set url", "The web address to open when Site is set to Custom URL.");
         d.put("video browser/placement", "Where the window sits: anchored to a screen edge, at a custom spot, or bouncing like a DVD logo.");

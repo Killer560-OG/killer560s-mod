@@ -174,6 +174,9 @@ public final class InventorySearchFeature {
     }
 
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
+        if (com.killer560.hub.auction.screen.BazaarReskin.isHiding(screen)) {
+            return; // a reskinned Bazaar menu covers the chest; nothing of this belongs on top of it
+        }
         boolean highlightEnabled = InventorySearchConfig.getInstance().isEnabled();
         // The NEU-style panel (when on) already has its own search bar built into its header, sharing
         // this same query/listening state - drawing this standalone floating box too would just be a
