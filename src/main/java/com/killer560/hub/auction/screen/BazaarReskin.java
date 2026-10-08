@@ -120,7 +120,7 @@ public final class BazaarReskin {
     private static volatile long lastReskinMs;
 
     private static List<BazaarProduct> productsSource;
-    private static Map<String, BazaarProduct> productsById = Map.of();
+    private static Map<String, BazaarProduct> productsByName = Map.of();
 
     private BazaarReskin() {
     }
@@ -477,7 +477,6 @@ public final class BazaarReskin {
         int contentH = rows.size() * rowH;
         int maxScroll = Math.max(0, contentH - (bottom - top));
         st.listScroll = Math.min(st.listScroll, maxScroll);
-        Map<String, BazaarProduct> live = liveProducts();
         g.enableScissor(x + 1, top, x + w - 1, bottom);
         try {
             for (int i = 0; i < rows.size(); i++) {
@@ -502,7 +501,7 @@ public final class BazaarReskin {
                 BazaarOrderParser.Order order = orders ? BazaarOrderParser.parse(stack.getHoverName().getString(),
                         it.lore()) : null;
                 if (order != null) {
-                    drawOrderRow(st, g, order, stack, live, x + 6, ry, right, whole);
+                    drawOrderRow(st, g, order, stack, x + 6, ry, right, whole);
                 } else {
                     g.item(stack, x + 3, ry + (rowH - 16) / 2);
                     g.itemDecorations(font, stack, x + 3, ry + (rowH - 16) / 2);
@@ -525,7 +524,7 @@ public final class BazaarReskin {
                                     ry + 6, pct >= 0 ? BazaarScreen.GREEN : BazaarScreen.RED);
                         }
                         if (vol) {
-                            BazaarProduct p = live.get(idFor(it.name()));
+                            BazaarProduct p = liveProduct(it.name());
                             plainRight(st, g, whole, "list", p == null ? "-" : BazaarScreen.shortNumber(p.weeklyVolume()),
                                     volX + colW, ry + 6, BazaarScreen.DIM);
                         }
@@ -575,7 +574,7 @@ public final class BazaarReskin {
     }
 
     private static void drawOrderRow(State st, GuiGraphicsExtractor g, BazaarOrderParser.Order o, ItemStack stack,
-            Map<String, BazaarProduct> live, int x, int y, int right, boolean record) {
+            int x, int y, int right, boolean record) {
         Font font = font();
         g.item(stack, x - 3, y + 3);
         boolean buy = o.type() == BazaarOrderParser.Type.BUY;
@@ -583,7 +582,7 @@ public final class BazaarReskin {
         int tagW = font.width("SELL") + 6;
         int tx = x + 17;
         g.fill(tx, y + 2, tx + tagW, y + 11, buy ? 0xFF1F4A1F : 0xFF4A3A10);
-        BazaarProduct p = o.productId() == null ? null : live.get(o.productId());
+        BazaarProduct p = liveProduct(o.productName());
         String status = BazaarScreen.standingText(o, p);
         int statusW = font.width(status);
         int nameX = tx + tagW + 4;
@@ -682,7 +681,7 @@ public final class BazaarReskin {
         int tx = x + 44;
         int tw = x + w - 8 - tx;
         componentText(st, g, true, "product", fitComponent(stack.getHoverName(), tw), tx, y + 4);
-        BazaarProduct p = liveProducts().get(idFor(it.name()));
+        BazaarProduct p = liveProduct(it.name());
         String line = p == null ? subtitle(it)
                 : "Instant buy " + BazaarScreen.price(p.buyPrice()) + " · Instant sell " + BazaarScreen.price(p.sellPrice())
                 + " · Spread " + String.format(Locale.US, "%.1f%%", p.marginPercent());
@@ -871,21 +870,29 @@ public final class BazaarReskin {
         return "";
     }
 
-    private static String idFor(String name) {
-        return name == null ? null : BazaarCatalog.idForName(name);
-    }
-
-    private static Map<String, BazaarProduct> liveProducts() {
+    /**
+     * The live product a menu item names. By NAME over the live list rather than through {@link BazaarCatalog#idForName},
+     * because two names belong to two ids each (Enchanted Hay Bale: ENCHANTED_HAY_BALE and ENCHANTED_HAY_BLOCK; Enchanted
+     * Carrot on a Stick likewise) and the catalog's pick need not be the one the API lists; of two live ones, the busier.
+     */
+    private static BazaarProduct liveProduct(String name) {
+        if (name == null) {
+            return null;
+        }
         List<BazaarProduct> source = BazaarApi.getProducts();
         if (source != productsSource) {
             Map<String, BazaarProduct> m = new HashMap<>();
             for (BazaarProduct p : source) {
-                m.put(p.productId(), p);
+                String key = p.displayName().toLowerCase(Locale.ROOT);
+                BazaarProduct old = m.get(key);
+                if (old == null || p.weeklyVolume() > old.weeklyVolume()) {
+                    m.put(key, p);
+                }
             }
-            productsById = m;
+            productsByName = m;
             productsSource = source;
         }
-        return productsById;
+        return productsByName.get(name.trim().toLowerCase(Locale.ROOT));
     }
 
     private static FormattedCharSequence fitComponent(Component c, int width) {
