@@ -94,6 +94,11 @@ public final class MobEspConfig {
     /** Legit (false / legit jar): a target is only highlighted while there's a clear line of sight to it and boxes are
      *  depth-tested. True: no line-of-sight check, boxes drawn without depth test. Cheat build only. */
     private boolean throughWalls = false;
+    /** The one ESP switch (killer560, 2026-10-09: "Make it so there is one toggle for ESP and that is for all things
+     *  in that section"): starred mobs and bats through walls, the wither bosses through walls, and the wither tracer
+     *  (which keeps its own on/off under it). Cheat build only. An old file takes it from Through Walls or Wither
+     *  Bosses, whichever was on. */
+    private boolean esp = false;
     /** Starred mobs + bats only; both wither targets ignore it. */
     private double range = 40.0;
     /** killer560, 2026-09-20: "instead of being range based it should be every starred mob in the room I am currently
@@ -183,6 +188,7 @@ public final class MobEspConfig {
             } else {
                 migrated |= migrateWitherEsp(cfg);
             }
+            cfg.esp = obj.has("esp") ? ConfigJson.getBool(obj, "esp", false) : (cfg.throughWalls || cfg.withers);
         } catch (Exception e) {
             cfg = new MobEspConfig();
             migrated = false;
@@ -248,6 +254,7 @@ public final class MobEspConfig {
             obj.addProperty("style", style.name());
             obj.addProperty("lineWidth", lineWidth);
             obj.addProperty("throughWalls", throughWalls);
+            obj.addProperty("esp", esp);
             obj.addProperty("range", range);
             obj.addProperty("roomScoped", roomScoped);
             obj.addProperty("roomMargin", roomMargin);
@@ -270,12 +277,13 @@ public final class MobEspConfig {
     public void setBats(boolean v) { bats = v; }
 
     /** Cheat build only, same as the Cheat Utils Wither ESP it replaces - a legit jar never reports true. */
-    public boolean isWithersEnabled() { return cheat() && withers && com.killer560.hub.util.SkyblockGate.allows(); }
-    public boolean getWithersRaw() { return withers; }
-    public void setWithers(boolean v) { withers = v; }
+    public boolean isWithersEnabled() { return cheat() && esp && com.killer560.hub.util.SkyblockGate.allows(); }
+    /** The master ESP switch: Wither Bosses has no toggle of its own any more. */
+    public boolean getWithersRaw() { return esp; }
+    public void setWithers(boolean v) { esp = v; }
 
     /** Tracer to the wither the Wither ESP is drawing - cheat build only, like the ESP it hangs off. */
-    public boolean isWitherTracerEnabled() { return cheat() && witherTracer && com.killer560.hub.util.SkyblockGate.allows(); }
+    public boolean isWitherTracerEnabled() { return cheat() && esp && witherTracer && com.killer560.hub.util.SkyblockGate.allows(); }
     public boolean getWitherTracerRaw() { return witherTracer; }
     public void setWitherTracer(boolean v) { witherTracer = v; }
 
@@ -323,9 +331,14 @@ public final class MobEspConfig {
 
     /** Gated the same single-source-of-truth way as {@code ExperimentsConfig#isAutonomousMode} - the legit jar can never
      *  report true here even from a copied cheat-build config file. */
-    public boolean isThroughWalls() { return cheat() && throughWalls; }
-    public boolean getThroughWallsRaw() { return throughWalls; }
-    public void setThroughWalls(boolean v) { throughWalls = v; }
+    public boolean isThroughWalls() { return cheat() && esp; }
+    /** The master ESP switch: Through Walls has no toggle of its own any more. */
+    public boolean getThroughWallsRaw() { return esp; }
+    public void setThroughWalls(boolean v) { esp = v; }
+
+    /** The one ESP switch (see {@link #esp}). */
+    public boolean isEspRaw() { return esp; }
+    public void setEsp(boolean v) { esp = v; }
 
     public double getRange() { return range; }
     public void setRange(double v) { range = Math.max(MIN_RANGE, Math.min(MAX_RANGE, Math.round(v))); }

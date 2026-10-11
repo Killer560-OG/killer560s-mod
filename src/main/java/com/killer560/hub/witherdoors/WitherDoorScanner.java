@@ -138,6 +138,12 @@ final class WitherDoorScanner {
         return client.level != null && !(client.level.getBlockState(door.basePos()).getBlock() instanceof AirBlock);
     }
 
+    /** Whether the door cell {@code idx} (11x11 index, x + z * 11 - {@code DungeonLayout}'s numbering) was scanned as a
+     *  WITHER/BLOOD door that is still shut - i.e. the normal highlight already draws it. */
+    static boolean lockedAt(Minecraft client, int idx) {
+        return idx >= 0 && idx < cells.length && cells[idx] instanceof Door door && isLocked(client, door);
+    }
+
     static List<Door> lockedDoors(Minecraft client) {
         List<Door> out = new ArrayList<>();
         for (Object cell : cells) {

@@ -49,9 +49,8 @@ public final class AutoKickCommands {
                     ModChat.send("Auto Kick",
                             ModChat.value(result.playerName()), ModChat.text(": set "),
                             ModChat.value(String.valueOf(result.floorsSet())),
-                            ModChat.text(" floor target(s) from their fastest recorded clear time. "),
-                            ModChat.dim(result.floorsNoData() + " floor(s) had no recorded time (still 0/off), "
-                                    + result.floorsAlreadySet() + " already had a target and were left alone."));
+                            ModChat.text(" floor time(s) from their S+ personal bests. "),
+                            ModChat.dim(result.floorsNoData() + " floor(s) had no S+ time and were left as they were."));
                 }));
         return 1;
     }

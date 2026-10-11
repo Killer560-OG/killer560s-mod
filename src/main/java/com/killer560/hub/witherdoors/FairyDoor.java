@@ -23,7 +23,9 @@ import java.util.Locale;
  * map the path is taken to the Fairy room itself, because the Fairy always generates on the Entrance-to-Blood path (wiki,
  * The Catacombs). Nothing more general than that: the "next non-wither door on the path" would be the same door on
  * Hypixel, where the Fairy's are the path's only ordinary doors, but in the sim (which builds no wither doors) it would be
- * every door. A Fairy door that is itself a wither or blood door is left to the normal highlight.
+ * every door. The door's position comes from the map grid, never from a block: on Hypixel the map shows the Fairy door
+ * as a wither door while the world has no coal in it (2026-10-09). Only a blood door, or a wither door the scan really
+ * found shut (coal), is left to the normal highlight.
  *
  * <p><b>Until when.</b> The first of: he stands inside the Fairy room; any teammate the live map places (a loaded player
  * entity, else the map item's marker for him) stands inside it; the map item turns the Fairy room from unopened to opened
@@ -155,8 +157,17 @@ public final class FairyDoor {
             if (path.get(i).room() == fairy) {
                 int d = path.get(i - 1).door();
                 int type = d >= 0 ? layout.doorType(d) : DungeonLayout.DOOR_NONE;
-                if (type == DungeonLayout.DOOR_WITHER || type == DungeonLayout.DOOR_BLOOD) {
-                    setStatus("fairy door " + d + " is a wither/blood door (normal highlight)");
+                if (type == DungeonLayout.DOOR_BLOOD) {
+                    setStatus("fairy door " + d + " is the blood door (normal highlight)");
+                    return -1;
+                }
+                // killer560, 2026-10-09 (screenshot 2026-10-08_15.48.34): on Hypixel the map draws the door into Fairy
+                // as a WITHER door (black), but in the world there is no coal there - so the normal highlight, which
+                // finds wither doors by their coal, never saw it, and this used to hand it to that highlight and draw
+                // nothing. It is now taken from the map grid and drawn here, unless the scan really found a shut
+                // wither door on that cell (then the normal highlight draws it, once).
+                if (type == DungeonLayout.DOOR_WITHER && WitherDoorScanner.lockedAt(Minecraft.getInstance(), d)) {
+                    setStatus("fairy door " + d + " is a shut wither door (normal highlight)");
                     return -1;
                 }
                 return d;
