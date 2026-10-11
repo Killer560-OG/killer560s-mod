@@ -225,6 +225,29 @@ public final class LevelTables {
         return cumulative(s.totalXp(), xp, max);
     }
 
+    /** The level this XP would reach with NO cap at all (killer560, 2026-10-08: "what my theoretical skill level
+     *  would be if there is 0 cap"): walks the whole table, then keeps going past its last level, each further
+     *  level costing the table's final step again (Farming/Combat/... 60 -> 61 costs the same 7M as 59 -> 60).
+     *  Hypixel publishes no XP for levels past the table, so the last step repeated is the estimate - the same
+     *  flat-step rule Catacombs overflow uses past 50. */
+    public static int uncappedSkillLevel(String id, long xp) {
+        Skill s = skill(id);
+        if (s == null || s.totalXp().length == 0) {
+            return 0;
+        }
+        long[] t = s.totalXp();
+        Level within = cumulative(t, xp, t.length);
+        if (!within.maxed()) {
+            return within.level();
+        }
+        long last = t[t.length - 1];
+        long step = t.length >= 2 ? last - t[t.length - 2] : last;
+        if (step <= 0) {
+            return t.length;
+        }
+        return (int) Math.min(Integer.MAX_VALUE, t.length + (xp - last) / step);
+    }
+
     /** Level from a cumulative table where {@code table[i]} is the total XP needed for level i+1. */
     public static Level cumulative(long[] table, long xp, int maxLevel) {
         int level = 0;
