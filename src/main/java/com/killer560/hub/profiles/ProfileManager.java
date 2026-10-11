@@ -45,6 +45,10 @@ public final class ProfileManager {
      *  {@code imported/}, so it is never imported twice. A sibling of {@link #PROFILES_DIR}, not inside it, because
      *  every folder in there is listed as a profile. */
     private static final Path IMPORT_DIR = ModPaths.config("killer560smod-profiles-import");
+    /** Where Export puts a profile's zip, and the folder it then opens (killer560, 2026-10-08: "When it zips a profile
+     *  to share, have it open a share folder that has that zip in it"). A sibling of {@link #PROFILES_DIR} like the
+     *  import folder, so nothing in it is ever listed as a profile. */
+    private static final Path SHARE_DIR = ModPaths.config("killer560smod-profiles-share");
 
     private static final Set<String> EXCLUDED_FILES = Set.of(
             "killer560smod-session-login.json",
@@ -328,6 +332,13 @@ public final class ProfileManager {
      */
     static void reloadAllConfigs() {
         boolean borderlessBefore = com.killer560.hub.window.WindowModeConfig.getInstance().isBorderlessFullscreenEnabled();
+        int failed = reloadConfigsOnly();
+        failed += refreshDerivedState(borderlessBefore, true);
+        LOGGER.info("[Profiles] Reloaded every config after applying a profile ({} failure(s))", failed);
+    }
+
+    /** Every config's {@code load()}, nothing else. Returns the failures. */
+    private static int reloadConfigsOnly() {
         Runnable[] loaders = {
                 com.killer560.hub.abilitykeybinds.AbilityKeybindsConfig::load,
                 com.killer560.hub.abilitytimers.AbilityTimersConfig::load,
@@ -497,6 +508,9 @@ public final class ProfileManager {
                 com.killer560.hub.translate.TranslateConfig::load,
                 com.killer560.hub.voicetotext.VoiceToTextConfig::load,
                 com.killer560.hub.window.WindowModeConfig::load,
+                // Missing until the blank profile's all-configs walk (2026-10-08): its own file, its own enabled
+                // switch, and no *Config class for anyone to notice.
+                com.killer560.hub.autotrap.AutoTrap::load,
         };
         int failed = 0;
         for (Runnable loader : loaders) {
@@ -507,14 +521,24 @@ public final class ProfileManager {
                 LOGGER.warn("[Profiles] A config failed to reload after applying a profile", t);
             }
         }
-        // Derived runtime state that isn't re-read from config on its own:
+        return failed;
+    }
+
+    /** Derived runtime state that isn't re-read from config on its own. {@code window} false leaves the real window
+     *  alone (the blank profile's temporary reloads, which end with the window's own setting back). */
+    private static int refreshDerivedState(boolean borderlessBefore, boolean window) {
+        int failed = 0;
         Runnable[] refreshers = {
                 // Loaded GIF textures + their HUD elements are synced to GifPlayerConfig's enabled files.
                 com.killer560.hub.gifplayer.GifPlayerFeature::reload,
                 // DVD runtimes hold the OLD DvdEntry objects; rebuild them from the new ones.
                 com.killer560.hub.dvd.DvdFeature::reloadFromConfig,
                 // Borderless is applied to the real window once; follow a changed setting.
-                () -> com.killer560.hub.window.WindowModeFeature.applyConfigAfterReload(borderlessBefore),
+                () -> {
+                    if (window) {
+                        com.killer560.hub.window.WindowModeFeature.applyConfigAfterReload(borderlessBefore);
+                    }
+                },
         };
         for (Runnable refresher : refreshers) {
             try {
@@ -524,7 +548,101 @@ public final class ProfileManager {
                 LOGGER.warn("[Profiles] A feature failed to refresh after applying a profile", t);
             }
         }
-        LOGGER.info("[Profiles] Reloaded {} config(s) after applying a profile ({} failure(s))", loaders.length, failed);
+        return failed;
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // Blank profile
+
+    /** Files a blank profile carries over from the live ones instead of resetting: his recorded routes, waypoints and
+     *  class overrides are data, not settings, and a blank profile that wiped them on Load would cost real work. Auto
+     *  Trap's file holds its captured routes beside its switch; the switch is turned off. */
+    private static final Set<String> BLANK_KEEPS_LIVE = Set.of(
+            "killer560smod-waypointroutes-routes.json",
+            "killer560smod-autoroutes.json",
+            "killer560smod-etherwarp-waypoints.json",
+            "killer560smod-classoverrides.json",
+            "killer560smod-autotrap.json",
+            // Where his HUD elements sit and how big they are: a layout, not a switch (HudConfig is left as it is).
+            "killer560smod-hud.json");
+
+    /**
+     * "New Blank Profile": creates (but does not switch to) a profile in which every setting switch of every config is
+     * OFF - see {@link BlankProfile}. Built on the live configs and then undone: the live setting files are backed up,
+     * removed (so every config loads its defaults), every switch is turned off and saved, the result is snapshotted as
+     * the new profile exactly as Save does, and the backed-up files are put back and reloaded. The real window is never
+     * touched in between. Must run on the client thread (the menu button and the command do).
+     */
+    public static synchronized Result createBlankProfile(String rawName) {
+        String base = rawName == null ? "" : sanitize(rawName);
+        if (base.isEmpty()) {
+            base = "Blank";
+        }
+        String name = base;
+        for (int n = 2; Files.exists(PROFILES_DIR.resolve(name)); n++) {
+            name = base + " " + n;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client != null && !client.isSameThread()) {
+            return new Result(false, "§c[Profiles] A blank profile can only be made from the game thread.");
+        }
+        // Disk first catches up with memory, then changes since the last poll go to the active profile, before
+        // anything here is touched.
+        BlankProfile.saveEverything();
+        syncActiveProfile();
+        Path backup;
+        java.util.Map<Path, Path> saved = new java.util.LinkedHashMap<>();
+        try {
+            backup = Files.createTempDirectory("killer560smod-blank-");
+            for (Path live : liveConfigFiles()) {
+                Path copy = backup.resolve(live.getFileName().toString());
+                Files.copy(live, copy, StandardCopyOption.REPLACE_EXISTING);
+                saved.put(live, copy);
+            }
+        } catch (IOException e) {
+            return new Result(false, "§cFailed to make a blank profile: " + e.getMessage());
+        }
+        Result result;
+        int off = 0;
+        try {
+            for (Path live : saved.keySet()) {
+                String fileName = live.getFileName().toString();
+                if (!SECRET_FIELDS.containsKey(fileName) && !BLANK_KEEPS_LIVE.contains(fileName)) {
+                    Files.deleteIfExists(live);
+                }
+            }
+            reloadConfigsOnly();
+            off = BlankProfile.switchEverythingOff();
+            result = saveCurrentAsProfile(name);
+        } catch (Throwable t) {
+            LOGGER.warn("[Profiles] blank profile failed", t);
+            result = new Result(false, "§cFailed to make a blank profile: " + t.getMessage());
+        } finally {
+            // Put his settings back exactly: every setting file now on disk goes, the backed-up ones return.
+            try {
+                for (Path live : liveConfigFiles()) {
+                    if (!saved.containsKey(live)) {
+                        Files.deleteIfExists(live);
+                    }
+                }
+                for (java.util.Map.Entry<Path, Path> e : saved.entrySet()) {
+                    Files.createDirectories(e.getKey().getParent());
+                    Files.copy(e.getValue(), e.getKey(), StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException e) {
+                LOGGER.error("[Profiles] could not restore the live settings after a blank profile; the backup is in {}",
+                        backup, e);
+            }
+            reloadConfigsOnly();
+            refreshDerivedState(false, false);
+            deleteFolderQuietly(backup);
+        }
+        if (!result.success()) {
+            return result;
+        }
+        LOGGER.info("[Profiles] Blank profile \"{}\": {} switch(es) off", name, off);
+        return new Result(true, "§a[Profiles] Created blank profile \"" + name
+                + "\" (every setting off). Load it to use it.");
     }
 
     public static synchronized Result deleteProfile(String rawName) {
@@ -553,8 +671,9 @@ public final class ProfileManager {
         }
     }
 
-    /** Zips a profile's folder into {@code config/killer560/system/profiles/killer560smod-profiles/<name>.zip} - a single real
-     *  file the user can hand to a friend (Discord attachment, etc.) with no path guessing needed. */
+    /** Zips a profile's folder into the share folder ({@code config/killer560/system/profiles/killer560smod-profiles-share/
+     *  <name>.zip}, since 2026-10-08) - a single real file the user can hand to a friend (Discord attachment, etc.).
+     *  {@link #shareProfile} also opens that folder. */
     public static Result exportProfile(String rawName) {
         String name = sanitize(rawName);
         if (name.isEmpty()) {
@@ -564,7 +683,7 @@ public final class ProfileManager {
         if (!Files.isDirectory(dir)) {
             return new Result(false, "§cNo profile named \"" + name + "\".");
         }
-        Path zipPath = PROFILES_DIR.resolve(name + ".zip");
+        Path zipPath = shareFolder().resolve(name + ".zip");
         try (OutputStream fos = Files.newOutputStream(zipPath);
              ZipOutputStream zos = new ZipOutputStream(fos);
              DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.json")) {
@@ -582,6 +701,30 @@ public final class ProfileManager {
         }
     }
 
+    /** The share folder, created if missing. */
+    public static Path shareFolder() {
+        try {
+            Files.createDirectories(SHARE_DIR);
+        } catch (IOException e) {
+            LOGGER.warn("[Profiles] could not create {}", SHARE_DIR, e);
+        }
+        return SHARE_DIR;
+    }
+
+    /** Export, then open the share folder holding the zip in the OS file browser (through {@code ExternalOpen}, so a
+     *  test run with {@code killer560.test.noExternalOpen} logs the open instead of popping a window). */
+    public static Result shareProfile(String rawName) {
+        Result result = exportProfile(rawName);
+        if (result.success()) {
+            try {
+                com.killer560.hub.util.ExternalOpen.path(shareFolder());
+            } catch (RuntimeException e) {
+                LOGGER.warn("[Profiles] could not open {}", SHARE_DIR, e);
+            }
+        }
+        return result;
+    }
+
     /** Imports a shared zip into a new profile. {@code source} may be an absolute path, or just a
      *  filename to look for directly inside {@code config/killer560/system/profiles/killer560smod-profiles/} (the simplest case -
      *  a friend drops the .zip they were sent into that folder and only types its name). */
@@ -596,12 +739,16 @@ public final class ProfileManager {
             if (!Files.isRegularFile(zipPath)) {
                 zipPath = PROFILES_DIR.resolve(source);
             }
+            if (!Files.isRegularFile(zipPath)) {
+                // Where Export has put zips since 2026-10-08.
+                zipPath = SHARE_DIR.resolve(source);
+            }
         } catch (RuntimeException ignored) {
             // InvalidPathException for a malformed typed path - falls through to "couldn't find".
         }
         if (zipPath == null || !Files.isRegularFile(zipPath)) {
             return new Result(false, "§cCouldn't find a file at \"" + source
-                    + "\" (checked that path directly, and inside config/killer560/system/profiles/killer560smod-profiles/).");
+                    + "\" (checked that path directly, and inside the profiles and share folders).");
         }
         Path dir = PROFILES_DIR.resolve(name);
         try {

@@ -140,7 +140,8 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   (`playerstats/StatLayout`, 2026-10-07) answers `HudElement.layoutPosition()`, which `resolvePosition` returns before any
   saved position, and the HUD editor skips `setPosition` for those elements; so switching back to Custom draws every bar
   on the exact pixels it had (testkit 407 compares them). The editor's bottom button row sat on the areas beside the
-  hotbar and took their clicks; it moves under the instructions while Predefined readouts are listed.
+  hotbar and took their clicks; since 2026-10-08 the editor has no buttons at all (its options are in Home's HUD Editor
+section) and the bars have their own editor, `HudEditorScreen.forBars`.
 
 - **Hypixel's item resource is not an icon source for the Bazaar.** 1,174 of 2,201 bazaar ids are not in
   `/v2/resources/skyblock/items` (every `ENCHANTMENT_*`, `SHARD_*`, `ESSENCE_*`, `FACTION_*`), ~480 more are only a
@@ -193,3 +194,9 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   ended in "could not open your inventory" (traced in the code for killer560's "it says cannot open inventory", not
   reproduced on the old jar; fixed 2026-10-08). Open from
   `client.execute(...)` (as every other command here does) or from the next tick once no screen is up.
+
+- **A setting that resizes the menu it sits in must not relayout mid-drag.** HUD Scale sizes the mod's screens since
+  2026-10-08 (`AutoScale.menuFactor`); `AutoScaleScreenMixin` relays a screen out when its factor changes, which rebuilds
+  every widget, the slider being dragged included. The relayout waits while the screen `isDragging()` or the left button
+  is down. Also: ModScreen's sidebar does not scroll, so the menu factor is capped where the layout canvas stays 430 tall
+  (at 280 the sidebar ran out of the panel at HUD Scale 200%, testkit 615's picture).

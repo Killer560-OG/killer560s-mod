@@ -408,9 +408,9 @@ public final class BazaarReskin {
         }
     }
 
-    /** The factor the mod's own screens are drawn with right now (Auto Scale), 1 when it is off. */
+    /** The factor the mod's own screens are drawn with right now (Auto Scale x HUD Scale, {@code AutoScale.menuFactor}). */
     private static float scale() {
-        float f = com.killer560.hub.hud.AutoScale.current();
+        float f = com.killer560.hub.hud.AutoScale.menuFactor();
         return f > 0.05f ? f : 1.0f;
     }
 

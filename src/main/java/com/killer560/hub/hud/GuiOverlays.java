@@ -85,7 +85,7 @@ public final class GuiOverlays {
         Font font = Minecraft.getInstance().font;
         // Auto Scale: the popup is laid out on a canvas 1/f the size of the GUI area and drawn scaled by f, so it
         // is the same fraction of the window on every monitor and still centred and wrapped to two thirds.
-        float f = AutoScale.current();
+        float f = AutoScale.menuFactor();
         int canvasW = AutoScale.layoutSize(graphics.guiWidth(), f);
         int canvasH = AutoScale.layoutSize(graphics.guiHeight(), f);
         int wrapWidth = canvasW * 2 / 3;
