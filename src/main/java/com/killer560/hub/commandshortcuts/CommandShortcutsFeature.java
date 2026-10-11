@@ -70,12 +70,17 @@ import java.util.stream.Collectors;
  * rebuilds the client command dispatcher when it (re)connects to a server/world, not the instant a checkbox is
  * clicked, so a toggle flipped mid-session takes effect on the next join, not immediately - same as every
  * other "must rejoin" caveat already in this codebase (e.g. {@code SkyblockGate}'s sidebar-based detection).
+ * <p>
+ * <b>Part of Chat Keybinds since 2026-10-08</b> (killer560: "Chat keybinds and command shortcuts should be combined into
+ * just chat keybinds."): one tab, one master switch ({@code CommandKeybindsConfig}), one file. This class still does
+ * all of the registering and expanding; only where its settings live and are shown changed.
  */
 public final class CommandShortcutsFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-commandshortcuts");
 
-    public static final String FEATURE = "Command Shortcuts";
+    /** The chat prefix: Command Shortcuts are part of Chat Keybinds since 2026-10-08. */
+    public static final String FEATURE = "Chat Keybinds";
 
     /**
      * Every shortcut this feature ships. {@code literal} is the bare chat command word ({@code id} doubles as
@@ -242,11 +247,14 @@ public final class CommandShortcutsFeature {
                 }
                 dispatcher.register(ClientCommands.literal(s.literal).executes(ctx -> exec(s)));
             }
-            // "/kuudra <tier>" - the one multi-word form the brief also asked for. Registered whenever the
-            // master switch is on; the per-tier toggle is still honoured inside exec() so turning off e.g.
-            // "Kuudra Infernal" also blocks "/kuudra infernal", it just can't free the "kuudra" word itself
-            // for another mod the way the bare aliases above can (there is no per-tier sub-literal to omit
-            // here without losing tab completion for the tiers that ARE still on).
+            // "/kuudra <tier>" - the one multi-word form the brief also asked for. Registered while the
+            // master switch and at least one Kuudra tier are on; the per-tier toggle is still honoured inside
+            // exec() so turning off e.g. "Kuudra Infernal" also blocks "/kuudra infernal". With every tier off
+            // the word is freed like the bare aliases (since the 2026-10-08 merge into Chat Keybinds, where a
+            // migrated "Command Shortcuts: OFF" becomes every group off under the one switch).
+            if (!anyKuudraOn(cfg)) {
+                return;
+            }
             dispatcher.register(ClientCommands.literal("kuudra")
                     .executes(ctx -> {
                         ModChat.send(FEATURE, ModChat.text("Usage: "), ModChat.value("/kuudra <basic|hot|burning|fiery|infernal>"));
@@ -265,6 +273,15 @@ public final class CommandShortcutsFeature {
                                 return exec(s);
                             })));
         });
+    }
+
+    private static boolean anyKuudraOn(CommandShortcutsConfig cfg) {
+        for (Shortcut s : Shortcut.values()) {
+            if (s.isKuudra() && cfg.isOn(s)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---- custom shortcuts (killer560, 2026-10-07: "There should be a custom section on command shortcuts.") -------
@@ -366,6 +383,12 @@ public final class CommandShortcutsFeature {
                 && CommandShortcutsConfig.getInstance().isEnabledRaw();
     }
 
+    /** Whether this row's KEY should send its command (the Chat Keybinds tick checks the master switch and the Skyblock
+     *  gate itself): on, with a command. A name is not needed - a row can be a key and nothing else. */
+    public static boolean isKeyLive(CommandShortcutsConfig.CustomShortcut c) {
+        return c != null && c.isEnabled() && !commandOf(c).isEmpty();
+    }
+
     /** Custom roots in the active dispatcher - his own data, which the testkit's command sweep (306) leaves out. */
     public static Set<String> customRoots() {
         if (ClientCommandInternals.getActiveDispatcher() != registeredIn) {
@@ -447,7 +470,7 @@ public final class CommandShortcutsFeature {
                 return 0;   // unreachable through the dispatcher: requires() already refused it
             }
             if (!SkyblockGate.allows()) {
-                ModChat.send(FEATURE, ModChat.bad("Command Shortcuts are paused outside Skyblock / p3sim."));
+                ModChat.send(FEATURE, ModChat.bad("Command shortcuts are paused outside Skyblock / p3sim."));
                 return 0;
             }
             return ServerCommands.toServer(commandOf(c)) ? 1 : 0;
@@ -466,11 +489,11 @@ public final class CommandShortcutsFeature {
                 // dispatcher was built (the bare alias command literal itself is never registered in that
                 // case at all - see register()).
                 ModChat.send(FEATURE, ModChat.bad(s.label + " is turned off"),
-                        ModChat.text(" - turn it back on in the Command Shortcuts tab."));
+                        ModChat.text(" - turn it back on in the Chat Keybinds tab."));
                 return 0;
             }
             if (!SkyblockGate.allows()) {
-                ModChat.send(FEATURE, ModChat.bad("Command Shortcuts are paused outside Skyblock / p3sim."));
+                ModChat.send(FEATURE, ModChat.bad("Command shortcuts are paused outside Skyblock / p3sim."));
                 return 0;
             }
             Minecraft client = Minecraft.getInstance();

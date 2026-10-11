@@ -1724,10 +1724,14 @@ final class SettingTooltipsData {
         d.put("solver highlights/waypoint style", "Draws puzzle solver waypoints as an outline or a see-through full block.");
         d.put("solver highlights/through walls", "Draws every solver highlight through blocks so you can see answers early.");
         d.put("livid solver/draw line to livid", "Draws a line from you to whichever Livid the wool clue says is real.");
-        d.put("chat keybinds", "Keys or mouse buttons that send a command or chat message you set.");
+        // Chat Keybinds holds Command Shortcuts too since 2026-10-08 (one tab, sub-tab "Chat Keybinds"): every entry for
+        // either feature is scoped "chat keybinds/..." - the old "command shortcuts/..." keys were orphaned by the move.
+        d.put("chat keybinds", "Keys that send a command or chat message, /f7-style shortcuts that queue a floor, and your own typed shortcuts.");
+        d.put("chat keybinds/chat keybinds", "Turns on everything below: your key binds, the Catacombs, Master Mode and Kuudra shortcuts, and your own shortcuts.");
+        d.put("chat keybinds/key binds", "Keys or mouse buttons that send a command or chat message you set.");
         d.put("chat keybinds/+ add bind", "Adds a new bind row: pick a key, then type the line it sends.");
         d.put("chat keybinds/key", "Click, then press a key or mouse button to bind it. Escape clears it.");
-        d.put("chat keybinds/delete", "Removes this bind.");
+        d.put("chat keybinds/delete", "Removes this row.");
         d.put("chat keybinds/command or message", "The line to send; start it with / to run it as a command.");
         d.put("door keys/tracer thickness", "How thick that tracer line is drawn (1-10).");
         d.put("door keys/esp through walls", "Draws the key box and tracer through walls (cheat build only).");
@@ -1960,29 +1964,28 @@ final class SettingTooltipsData {
         d.put("trail/square size", "How big each trail square is, in blocks.");
         d.put("trail/opacity", "How visible the trail squares are.");
         d.put("trail/fade toward tail", "Squares fade out the older they get.");
-        d.put("command shortcuts/command shortcuts", "Turns on every command shortcut below: Catacombs, Master Mode, Kuudra and your own.");
         // 2026-09-27 regroup: one toggle per Catacombs floor now covers that floor's Master Mode
         // shortcut too (killer560: "clump them into groups like catacombs/mastermode as one toggle for
         // each floor"), and Kuudra's toggles moved onto the same Group-keyed entries - see
         // CommandShortcutsFeature.Group.
         // 2026-10-07: what each one sends lives here now - the tab no longer prints it beside the toggle
         // (killer560: "Remove all that extra text next to f0 f1 f2 command shortcuts").
-        d.put("command shortcuts/f0", "Adds /f0 to queue the Catacombs entrance.");
-        d.put("command shortcuts/f1 & m1", "Adds /f1 and /m1 to queue Catacombs floor 1 and Master Mode floor 1.");
-        d.put("command shortcuts/f2 & m2", "Adds /f2 and /m2 to queue Catacombs floor 2 and Master Mode floor 2.");
-        d.put("command shortcuts/f3 & m3", "Adds /f3 and /m3 to queue Catacombs floor 3 and Master Mode floor 3.");
-        d.put("command shortcuts/f4 & m4", "Adds /f4 and /m4 to queue Catacombs floor 4 and Master Mode floor 4.");
-        d.put("command shortcuts/f5 & m5", "Adds /f5 and /m5 to queue Catacombs floor 5 and Master Mode floor 5.");
-        d.put("command shortcuts/f6 & m6", "Adds /f6 and /m6 to queue Catacombs floor 6 and Master Mode floor 6.");
-        d.put("command shortcuts/f7 & m7", "Adds /f7 and /m7 to queue Catacombs floor 7 and Master Mode floor 7.");
-        d.put("command shortcuts/basic", "Adds a shortcut that queues the Basic Kuudra tier.");
-        d.put("command shortcuts/hot", "Adds a shortcut that queues the Hot Kuudra tier.");
-        d.put("command shortcuts/burning", "Adds a shortcut that queues the Burning Kuudra tier.");
-        d.put("command shortcuts/fiery", "Adds a shortcut that queues the Fiery Kuudra tier.");
-        d.put("command shortcuts/infernal", "Adds a shortcut that queues the Infernal Kuudra tier.");
+        d.put("chat keybinds/f0", "Adds /f0 to queue the Catacombs entrance.");
+        d.put("chat keybinds/f1 & m1", "Adds /f1 and /m1 to queue Catacombs floor 1 and Master Mode floor 1.");
+        d.put("chat keybinds/f2 & m2", "Adds /f2 and /m2 to queue Catacombs floor 2 and Master Mode floor 2.");
+        d.put("chat keybinds/f3 & m3", "Adds /f3 and /m3 to queue Catacombs floor 3 and Master Mode floor 3.");
+        d.put("chat keybinds/f4 & m4", "Adds /f4 and /m4 to queue Catacombs floor 4 and Master Mode floor 4.");
+        d.put("chat keybinds/f5 & m5", "Adds /f5 and /m5 to queue Catacombs floor 5 and Master Mode floor 5.");
+        d.put("chat keybinds/f6 & m6", "Adds /f6 and /m6 to queue Catacombs floor 6 and Master Mode floor 6.");
+        d.put("chat keybinds/f7 & m7", "Adds /f7 and /m7 to queue Catacombs floor 7 and Master Mode floor 7.");
+        d.put("chat keybinds/basic", "Adds a shortcut that queues the Basic Kuudra tier.");
+        d.put("chat keybinds/hot", "Adds a shortcut that queues the Hot Kuudra tier.");
+        d.put("chat keybinds/burning", "Adds a shortcut that queues the Burning Kuudra tier.");
+        d.put("chat keybinds/fiery", "Adds a shortcut that queues the Fiery Kuudra tier.");
+        d.put("chat keybinds/infernal", "Adds a shortcut that queues the Infernal Kuudra tier.");
         for (com.killer560.hub.commandshortcuts.CommandShortcutsFeature.Group g
                 : com.killer560.hub.commandshortcuts.CommandShortcutsFeature.Group.values()) {
-            String k = "command shortcuts/" + SettingTooltips.key(g.label);
+            String k = "chat keybinds/" + SettingTooltips.key(g.label);
             StringBuilder sends = new StringBuilder();
             for (com.killer560.hub.commandshortcuts.CommandShortcutsFeature.Shortcut m : g.members()) {
                 sends.append(" ").append("/").append(m.literal).append(" sends ")
@@ -1990,13 +1993,12 @@ final class SettingTooltipsData {
             }
             d.put(k, d.get(k) + sends);
         }
-        d.put("command shortcuts/custom", "Your own shortcuts: type /name in chat and the command beside it goes to the server.");
-        d.put("command shortcuts/+ add shortcut", "Adds a row for a new shortcut of your own.");
-        d.put("command shortcuts/on", "This shortcut works. Click to switch it off without deleting it.");
-        d.put("command shortcuts/off", "This shortcut is switched off: typing it does nothing here. Click to switch it on.");
-        d.put("command shortcuts/shortcut name", "What you type, without the slash: letters, digits and _, up to 32. A name another command already uses is refused.");
-        d.put("command shortcuts/sends command", "What the server receives when you type the name, with or without a leading /.");
-        d.put("command shortcuts/delete", "Removes this shortcut.");
+        d.put("chat keybinds/custom shortcuts", "Your own shortcuts: type /name in chat, or press its key, and the command beside it goes to the server.");
+        d.put("chat keybinds/+ add shortcut", "Adds a row for a new shortcut of your own.");
+        d.put("chat keybinds/on", "This row works. Click to switch it off without deleting it.");
+        d.put("chat keybinds/off", "This row is switched off: its key and its name do nothing here. Click to switch it on.");
+        d.put("chat keybinds/shortcut name", "What you type, without the slash: letters, digits and _, up to 32. A name another command already uses is refused.");
+        d.put("chat keybinds/sends command", "What the server receives when you type the name or press the key, with or without a leading /.");
         d.put("custom scoreboard/open visual editor", "Opens the same line, event and stat lists full screen beside a live preview of the board.");
         d.put("dungeon queue/party finder style", "How party member lines look in Party Finder tooltips.");
         d.put("dungeon queue/style preview", "Shows a live sample of the chosen Party Finder style.");
