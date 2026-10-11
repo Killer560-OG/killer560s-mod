@@ -26,7 +26,8 @@ public abstract class ProfitTrackerScreen extends Screen {
 
     private final Screen parent;
     private final String heading;
-    private long resetArmedAtMs = 0L;
+    /** When Reset Totals was first clicked (0 = not armed); an array so {@link ProfitScopeBar} can hold it. */
+    private final long[] resetArmedAt = {0L};
 
     private int panelX;
     private int panelY;
@@ -62,7 +63,17 @@ public abstract class ProfitTrackerScreen extends Screen {
     /** A warning under the header (tracker switched off), or null. */
     protected abstract String note();
 
-    protected abstract void reset();
+    /** Clears what the filter selects (an all-null filter is everything). */
+    protected abstract void reset(ProfitScope.Filter filter);
+
+    /** What the account / profile / mod profile switches currently select (the tracker keeps and saves it). */
+    protected abstract ProfitScope.Filter filter();
+
+    /** Persists {@link #filter()} after a switch changed it. */
+    protected abstract void saveFilter();
+
+    /** Every account / profile / mod profile this tracker has data for. */
+    protected abstract java.util.Collection<ProfitScope.Key> keys();
 
     @Override
     protected void init() {
@@ -75,17 +86,22 @@ public abstract class ProfitTrackerScreen extends Screen {
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("< Back"), btn -> onClose())
                     .bounds(panelX + panelW - 62, panelY + 6, 56, 18).build());
         }
-        boolean armed = System.currentTimeMillis() - resetArmedAtMs < 3000;
-        addRenderableWidget(SettingsButtonWidget.builder(
-                Component.literal(armed ? "Click again to reset" : "Reset Totals"), btn -> {
-                    if (System.currentTimeMillis() - resetArmedAtMs < 3000) {
-                        resetArmedAtMs = 0L;
-                        reset();
-                    } else {
-                        resetArmedAtMs = System.currentTimeMillis();
-                    }
+        ProfitScopeBar.add(this::addRenderableWidget, panelX + 6, panelY + 34, panelW - 12, filter(), this::keys,
+                () -> {
+                    saveFilter();
+                    resetArmedAt[0] = 0L;
                     rebuildWidgets();
-                }).bounds(panelX + 6, panelY + panelH - 26, 110, 18).build());
+                });
+        addRenderableWidget(ProfitScopeBar.resetButton(panelX + 6, panelY + panelH - 26, 150, 18, resetArmedAt,
+                filter(), () -> reset(filter()), this::rebuildWidgets));
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (ProfitScopeBar.expired(resetArmedAt)) {
+            rebuildWidgets(); // the red "Reset ...?" times out back to Reset Totals
+        }
     }
 
     @Override
@@ -98,7 +114,7 @@ public abstract class ProfitTrackerScreen extends Screen {
         g.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
         g.text(this.font, heading.toUpperCase(Locale.ROOT), panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
 
-        int y = panelY + 36;
+        int y = panelY + 36 + ProfitScopeBar.HEIGHT + 4;
         String note = note();
         if (note != null) {
             g.text(this.font, note, panelX + 8, y, ProfitPanels.BAD, false);

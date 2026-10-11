@@ -1,9 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.experiments.ExperimentsConfig;
-import com.killer560.hub.experiments.ExperimentsProfitTracker;
-import com.killer560.hub.util.ModChat;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -76,11 +73,10 @@ public class ExperimentsTab extends BaseTab {
         return widgets;
     }
 
-    /** When the Reset Totals button was first clicked - a second click within 3s actually resets. */
-    private static long resetArmedAtMs = 0L;
-
-    /** Experimentation Table profit tracker: on/off toggle, running totals, and a two-click reset -
-     *  see {@link ExperimentsProfitTracker}. Totals text uses the mod's orange chat palette. */
+    /** Experimentation Table profit tracker: the on/off toggle and, beside it, the button that opens
+     *  {@code /profit}. killer560, 2026-10-11: "remove the reset profit totals button. Remove the sessions and
+     *  reward valy and all that random text, and move the open /profit to where the reste profit totals is right
+     *  now" - the totals and the (scoped, red-confirm) reset live only on the /profit screen now. */
     private static int addProfitTrackerSection(List<AbstractWidget> widgets, int contentX, int y, int contentWidth,
             Runnable requestRebuild) {
         int half = (contentWidth - GAP) / 2;
@@ -90,46 +86,12 @@ public class ExperimentsTab extends BaseTab {
                     c.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, half, 20).build());
-        boolean armed = System.currentTimeMillis() - resetArmedAtMs < 3000;
-        widgets.add(SettingsButtonWidget.builder(Component.literal(armed ? "Click again to reset" : "Reset Profit Totals"), btn -> {
-                    if (System.currentTimeMillis() - resetArmedAtMs < 3000) {
-                        resetArmedAtMs = 0L;
-                        ExperimentsProfitTracker.reset();
-                    } else {
-                        resetArmedAtMs = System.currentTimeMillis();
-                    }
-                    requestRebuild.run();
-                }).bounds(contentX + half + GAP, y, half, 20).build());
-        y += 24;
-
-        var font = Minecraft.getInstance().font;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, ModChat.text("Sessions: ")
-                .append(ModChat.value(String.valueOf(ExperimentsProfitTracker.getTotalSessions())))
-                .append(ModChat.dim("  (Superpairs " + ExperimentsProfitTracker.getSessionsFor("Superpairs")
-                        + " / Chronomatron " + ExperimentsProfitTracker.getSessionsFor("Chronomatron")
-                        + " / Ultrasequencer " + ExperimentsProfitTracker.getSessionsFor("Ultrasequencer") + ")")),
-                font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, ModChat.text("Reward value: ")
-                .append(ModChat.value(ExperimentsProfitTracker.formatShort(ExperimentsProfitTracker.getTotalValueCoins()) + " coins"))
-                .append(ModChat.text("   Enchanting Exp: "))
-                .append(ModChat.value(ExperimentsProfitTracker.formatShort(ExperimentsProfitTracker.getTotalXp())))
-                .append(ModChat.text("   Bits spent: "))
-                .append(ModChat.value(String.valueOf(ExperimentsProfitTracker.getTotalBitsSpent()))),
-                font));
-        y += 12;
-        String last = ExperimentsProfitTracker.getLastSummary();
-        if (!last.isEmpty()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    ModChat.dim("Last: ").append(ModChat.text(last)), font));
-            y += 12;
-        }
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open /profit"), btn ->
                 com.killer560.hub.compat.McCompat.setScreen(Minecraft.getInstance(),
                         new com.killer560.hub.gui.profit.ProfitHubScreen(
                                 com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()))))
-                .bounds(contentX, y + 2, half, 18).build());
-        y += 22;
+                .bounds(contentX + half + GAP, y, half, 20).build());
+        y += 24;
         return y;
     }
 

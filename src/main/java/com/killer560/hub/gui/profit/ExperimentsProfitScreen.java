@@ -59,7 +59,22 @@ public class ExperimentsProfitScreen extends ProfitTrackerScreen {
     }
 
     @Override
-    protected void reset() {
-        ExperimentsProfitTracker.reset();
+    protected void reset(ProfitScope.Filter filter) {
+        ExperimentsProfitTracker.reset(filter);
+    }
+
+    @Override
+    protected ProfitScope.Filter filter() {
+        return ExperimentsProfitTracker.view();
+    }
+
+    @Override
+    protected void saveFilter() {
+        ExperimentsProfitTracker.saveView();
+    }
+
+    @Override
+    protected java.util.Collection<ProfitScope.Key> keys() {
+        return ExperimentsProfitTracker.keys();
     }
 }

@@ -807,6 +807,10 @@ public final class ExperimentsFeature {
                 // which returns early every tick once the threshold is hit - otherwise the message could
                 // never fire in Autonomous. Still once per round (maxClicksNotifiedThisRound).
                 maybeNotifyMaxClicksReached(mode, cfg);
+                if (superpairsBoardFinished(mode)) {
+                    escapeFinishedSuperpairs(screen, now, cfg);
+                    return;
+                }
                 if (chainLengthAtOrOverMax(mode, cfg)) {
                     tryExitFinishedRound(screen, menu, now);
                     return;
@@ -1128,6 +1132,35 @@ public final class ExperimentsFeature {
                         now + i * 220L));
             }
         }
+    }
+
+    /** Set once the finished Superpairs board has been sent its one Escape; cleared on leaving the board. */
+    private static boolean superpairsEscapeSent = false;
+
+    /** The board's clicks are used up: a positive "Remaining Clicks" was seen on it and it now reads 0. */
+    private static boolean superpairsBoardFinished(ExperimentSolver.Mode mode) {
+        return mode == ExperimentSolver.Mode.SUPERPAIRS && superpairsMaxRemainingClicksSeen > 0
+                && superpairsLastRemainingClicks == 0;
+    }
+
+    /**
+     * killer560, 2026-10-11: "For auto etable once it finishes superpairs it should press escape once to leave the
+     * menu. this puts it to the claim menu but its far more consistent then having it click somewhere." Exactly
+     * one Escape per board ({@code screen.onClose()}, what the Escape key runs), after the usual jittered delay so
+     * the last pair's reveal lands first; Hypixel then opens Superpairs Rewards and {@link #tryClaimIfAvailable}
+     * claims it as before. No clicks at all on a finished board.
+     */
+    private static void escapeFinishedSuperpairs(ContainerScreen screen, long now, ExperimentsConfig cfg) {
+        if (superpairsEscapeSent) {
+            return;
+        }
+        superpairsEscapeSent = true;
+        LOGGER.info("Superpairs: clicks used up - pressing Escape once to reach the rewards");
+        scheduleAction(() -> {
+            if (McCompat.screen(Minecraft.getInstance()) == screen) {
+                screen.onClose();
+            }
+        }, now, cfg);
     }
 
     /** Last "Remaining Clicks: N" read off the current Superpairs board, or -1 if none seen yet. */
@@ -1455,6 +1488,7 @@ public final class ExperimentsFeature {
             }
             superpairsLastRemainingClicks = -1;
             superpairsMaxRemainingClicksSeen = -1;
+            superpairsEscapeSent = false;
             lastLoggedMode = mode;
             maxClicksNotifiedThisRound = false;
             if (mode == ExperimentSolver.Mode.CHRONOMATRON || mode == ExperimentSolver.Mode.ULTRASEQUENCER) {

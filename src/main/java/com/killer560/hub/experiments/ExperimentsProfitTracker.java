@@ -1,6 +1,7 @@
 package com.killer560.hub.experiments;
 
 import com.killer560.hub.util.ModPaths;
+import com.killer560.hub.gui.profit.ProfitScope;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -69,7 +70,7 @@ public final class ExperimentsProfitTracker {
     private static final Path DATA_PATH =
             ModPaths.config("killer560smod-experiments-profit.json");
     private static final String CHAT_FEATURE = "Experiments";
-    private static final int MAX_LOGGED_SESSIONS = 200;
+    private static final int MAX_LOGGED_SESSIONS = 1000;
     /** A reward-screen snapshot older than this when the claim message arrives is treated as stale
      *  (left over from an earlier, unclaimed experiment) and ignored in favor of the chat fallback. */
     private static final long SNAPSHOT_MAX_AGE_MS = 60_000L;
@@ -119,16 +120,64 @@ public final class ExperimentsProfitTracker {
     private static long chatWindowEndsAtMs = 0L;
     private static final List<String> chatWindowLines = new ArrayList<>();
 
+    /** Running totals for one Minecraft account + Skyblock profile + mod profile ({@link ProfitScope.Key}).
+     *  killer560, 2026-10-11: each of the three is "tracked individually", and the /profit screen sums the
+     *  buckets its switches select. */
+    private static final class Bucket {
+        long sessions;
+        final Map<String, Long> sessionsPerGame = new LinkedHashMap<>();
+        long xp;
+        double valueCoins;
+        long bitsSpent;
+        final Map<String, JsonObject> items = new LinkedHashMap<>();
+
+        JsonObject toJson(ProfitScope.Key key) {
+            JsonObject o = new JsonObject();
+            key.writeTo(o);
+            o.addProperty("sessions", sessions);
+            JsonObject perGame = new JsonObject();
+            sessionsPerGame.forEach(perGame::addProperty);
+            o.add("sessionsPerGame", perGame);
+            o.addProperty("xpGained", xp);
+            o.addProperty("rewardValueCoins", valueCoins);
+            o.addProperty("bitsSpent", bitsSpent);
+            JsonObject it = new JsonObject();
+            items.forEach(it::add);
+            o.add("items", it);
+            return o;
+        }
+
+        static Bucket fromJson(JsonObject o) {
+            Bucket b = new Bucket();
+            b.sessions = o.has("sessions") ? o.get("sessions").getAsLong() : 0;
+            b.xp = o.has("xpGained") ? o.get("xpGained").getAsLong() : 0;
+            b.valueCoins = o.has("rewardValueCoins") ? o.get("rewardValueCoins").getAsDouble() : 0;
+            b.bitsSpent = o.has("bitsSpent") ? o.get("bitsSpent").getAsLong() : 0;
+            if (o.has("sessionsPerGame")) {
+                for (Map.Entry<String, JsonElement> e : o.getAsJsonObject("sessionsPerGame").entrySet()) {
+                    b.sessionsPerGame.put(e.getKey(), e.getValue().getAsLong());
+                }
+            }
+            if (o.has("items")) {
+                for (Map.Entry<String, JsonElement> e : o.getAsJsonObject("items").entrySet()) {
+                    b.items.put(e.getKey(), e.getValue().getAsJsonObject());
+                }
+            }
+            return b;
+        }
+
+        boolean isEmpty() {
+            return sessions == 0 && xp == 0 && valueCoins == 0 && bitsSpent == 0 && items.isEmpty();
+        }
+    }
+
     // Running totals (persisted).
     private static boolean loaded = false;
-    private static long totalSessions;
-    private static final Map<String, Long> sessionsPerGame = new LinkedHashMap<>();
-    private static long totalXp;
-    private static double totalValueCoins;
-    private static long totalBitsSpent;
+    private static final Map<ProfitScope.Key, Bucket> buckets = new LinkedHashMap<>();
+    /** What the /profit screen shows (persisted with the data, so it is not a profile setting). */
+    private static ProfitScope.Filter view = new ProfitScope.Filter();
     private static long trackingSinceMs;
     private static String lastSummary = "";
-    private static final Map<String, JsonObject> itemTotals = new LinkedHashMap<>();
     private static final List<JsonObject> sessionLog = new ArrayList<>();
 
     private ExperimentsProfitTracker() {
@@ -184,7 +233,7 @@ public final class ExperimentsProfitTracker {
                     default -> 0;
                 };
                 ensureLoaded();
-                totalBitsSpent += bits;
+                bucket(ProfitScope.current()).bitsSpent += bits;
                 save();
                 return;
             }
@@ -371,6 +420,8 @@ public final class ExperimentsProfitTracker {
         long xp = 0;
         double value = 0;
         int unpriced = 0;
+        ProfitScope.Key key = ProfitScope.current();
+        Bucket bucket = bucket(key);
         JsonArray rewardsJson = new JsonArray();
         for (Reward reward : rewards) {
             xp += reward.xp();
@@ -389,7 +440,7 @@ public final class ExperimentsProfitTracker {
                 } else {
                     unpriced++;
                 }
-                JsonObject item = itemTotals.computeIfAbsent(reward.name(), k -> {
+                JsonObject item = bucket.items.computeIfAbsent(reward.name(), k -> {
                     JsonObject o = new JsonObject();
                     o.addProperty("count", 0L);
                     o.addProperty("value", 0.0);
@@ -404,6 +455,7 @@ public final class ExperimentsProfitTracker {
 
         JsonObject entry = new JsonObject();
         entry.addProperty("endedAtMs", System.currentTimeMillis());
+        key.writeTo(entry);
         entry.addProperty("game", game);
         if (session.tier != null) entry.addProperty("tier", session.tier);
         if (game.equals("Superpairs")) {
@@ -421,10 +473,10 @@ public final class ExperimentsProfitTracker {
         entry.addProperty("source", source);
         entry.add("rewards", rewardsJson);
 
-        totalSessions++;
-        sessionsPerGame.merge(game, 1L, Long::sum);
-        totalXp += xp;
-        totalValueCoins += value;
+        bucket.sessions++;
+        bucket.sessionsPerGame.merge(game, 1L, Long::sum);
+        bucket.xp += xp;
+        bucket.valueCoins += value;
         sessionLog.add(entry);
         while (sessionLog.size() > MAX_LOGGED_SESSIONS) {
             sessionLog.remove(0);
@@ -651,29 +703,102 @@ public final class ExperimentsProfitTracker {
     // Totals accessors (for ExperimentsTab) + persistence
     // ------------------------------------------------------------------------------------------
 
-    public static long getTotalSessions() {
+    /** The buckets a filter selects. */
+    private static List<Bucket> selected(ProfitScope.Filter f) {
         ensureLoaded();
-        return totalSessions;
+        List<Bucket> out = new ArrayList<>();
+        for (Map.Entry<ProfitScope.Key, Bucket> e : buckets.entrySet()) {
+            if (e.getKey().matches(f)) {
+                out.add(e.getValue());
+            }
+        }
+        return out;
+    }
+
+    private static Bucket bucket(ProfitScope.Key key) {
+        return buckets.computeIfAbsent(key, k -> new Bucket());
+    }
+
+    /** What the /profit screen currently shows; change its fields and call {@link #saveView()}. */
+    public static ProfitScope.Filter view() {
+        ensureLoaded();
+        return view;
+    }
+
+    public static void saveView() {
+        ensureLoaded();
+        save();
+    }
+
+    /** Every account / profile / mod profile there is data for, for the screen's switches. */
+    public static List<ProfitScope.Key> keys() {
+        ensureLoaded();
+        java.util.LinkedHashSet<ProfitScope.Key> out = new java.util.LinkedHashSet<>(buckets.keySet());
+        for (JsonObject o : sessionLog) {
+            out.add(ProfitScope.Key.readFrom(o));
+        }
+        return List.copyOf(out);
+    }
+
+    /** The no-argument getters read what the /profit screen's switches select ({@link #view()}). */
+    public static long getTotalSessions() {
+        return getTotalSessions(view());
+    }
+
+    public static long getTotalSessions(ProfitScope.Filter f) {
+        long n = 0;
+        for (Bucket b : selected(f)) {
+            n += b.sessions;
+        }
+        return n;
     }
 
     public static long getSessionsFor(String game) {
-        ensureLoaded();
-        return sessionsPerGame.getOrDefault(game, 0L);
+        return getSessionsFor(game, view());
+    }
+
+    public static long getSessionsFor(String game, ProfitScope.Filter f) {
+        long n = 0;
+        for (Bucket b : selected(f)) {
+            n += b.sessionsPerGame.getOrDefault(game, 0L);
+        }
+        return n;
     }
 
     public static long getTotalXp() {
-        ensureLoaded();
-        return totalXp;
+        return getTotalXp(view());
+    }
+
+    public static long getTotalXp(ProfitScope.Filter f) {
+        long n = 0;
+        for (Bucket b : selected(f)) {
+            n += b.xp;
+        }
+        return n;
     }
 
     public static double getTotalValueCoins() {
-        ensureLoaded();
-        return totalValueCoins;
+        return getTotalValueCoins(view());
+    }
+
+    public static double getTotalValueCoins(ProfitScope.Filter f) {
+        double n = 0;
+        for (Bucket b : selected(f)) {
+            n += b.valueCoins;
+        }
+        return n;
     }
 
     public static long getTotalBitsSpent() {
-        ensureLoaded();
-        return totalBitsSpent;
+        return getTotalBitsSpent(view());
+    }
+
+    public static long getTotalBitsSpent(ProfitScope.Filter f) {
+        long n = 0;
+        for (Bucket b : selected(f)) {
+            n += b.bitsSpent;
+        }
+        return n;
     }
 
     public static String getLastSummary() {
@@ -685,40 +810,53 @@ public final class ExperimentsProfitTracker {
         return shortNumber(value);
     }
 
-    /** Up to {@code max} highest-value rewards claimed so far, highest first, as "name xN (value)". */
+    /** Up to {@code max} highest-value rewards claimed in the selected buckets, highest first, as "name xN (value)". */
     public static List<String> topItemLines(int max) {
-        ensureLoaded();
-        return itemTotals.entrySet().stream()
-                .sorted((a, b) -> Double.compare(b.getValue().get("value").getAsDouble(),
-                        a.getValue().get("value").getAsDouble()))
+        Map<String, double[]> sum = new LinkedHashMap<>();
+        for (Bucket b : selected(view())) {
+            for (Map.Entry<String, JsonObject> e : b.items.entrySet()) {
+                double[] cv = sum.computeIfAbsent(e.getKey(), k -> new double[2]);
+                cv[0] += e.getValue().get("count").getAsLong();
+                cv[1] += e.getValue().get("value").getAsDouble();
+            }
+        }
+        return sum.entrySet().stream()
+                .sorted((a, b) -> Double.compare(b.getValue()[1], a.getValue()[1]))
                 .limit(max)
-                .map(e -> e.getKey() + " x" + e.getValue().get("count").getAsLong()
-                        + " (" + shortNumber(e.getValue().get("value").getAsDouble()) + ")")
+                .map(e -> e.getKey() + " x" + (long) e.getValue()[0] + " (" + shortNumber(e.getValue()[1]) + ")")
                 .toList();
     }
 
-    /** Coin value of every logged session, oldest first (at most the last 200), for the /profit graph. */
+    /** Coin value of every logged session the switches select, oldest first, for the /profit graph. */
     public static long[] sessionValues() {
         ensureLoaded();
-        long[] out = new long[sessionLog.size()];
+        List<Long> vals = new ArrayList<>();
+        for (JsonObject o : sessionLog) {
+            if (ProfitScope.Key.readFrom(o).matches(view)) {
+                vals.add(o.has("valueCoins") ? Math.round(o.get("valueCoins").getAsDouble()) : 0L);
+            }
+        }
+        long[] out = new long[vals.size()];
         for (int i = 0; i < out.length; i++) {
-            JsonObject o = sessionLog.get(i);
-            out[i] = o.has("valueCoins") ? Math.round(o.get("valueCoins").getAsDouble()) : 0L;
+            out[i] = vals.get(i);
         }
         return out;
     }
 
+    /** Clears everything, every account and profile. */
     public static void reset() {
+        reset(new ProfitScope.Filter());
+    }
+
+    /** Clears the totals and logged sessions the filter selects and nothing else; an all-null filter is everything. */
+    public static void reset(ProfitScope.Filter f) {
         ensureLoaded();
-        totalSessions = 0;
-        sessionsPerGame.clear();
-        totalXp = 0;
-        totalValueCoins = 0;
-        totalBitsSpent = 0;
-        lastSummary = "";
-        itemTotals.clear();
-        sessionLog.clear();
-        trackingSinceMs = System.currentTimeMillis();
+        buckets.keySet().removeIf(k -> k.matches(f));
+        sessionLog.removeIf(o -> ProfitScope.Key.readFrom(o).matches(f));
+        if (f.isAll()) {
+            lastSummary = "";
+            trackingSinceMs = System.currentTimeMillis();
+        }
         pending = null;
         rewardSnapshot = List.of();
         chatWindowGame = null;
@@ -738,21 +876,22 @@ public final class ExperimentsProfitTracker {
         try {
             JsonObject root = JsonParser.parseString(Files.readString(DATA_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             JsonObject totals = root.has("totals") ? root.getAsJsonObject("totals") : new JsonObject();
-            totalSessions = totals.has("sessions") ? totals.get("sessions").getAsLong() : 0;
-            totalXp = totals.has("xpGained") ? totals.get("xpGained").getAsLong() : 0;
-            totalValueCoins = totals.has("rewardValueCoins") ? totals.get("rewardValueCoins").getAsDouble() : 0;
-            totalBitsSpent = totals.has("bitsSpent") ? totals.get("bitsSpent").getAsLong() : 0;
             trackingSinceMs = totals.has("trackingSinceMs") ? totals.get("trackingSinceMs").getAsLong() : trackingSinceMs;
             lastSummary = totals.has("lastSummary") ? totals.get("lastSummary").getAsString() : "";
-            if (totals.has("sessionsPerGame")) {
-                for (Map.Entry<String, JsonElement> e : totals.getAsJsonObject("sessionsPerGame").entrySet()) {
-                    sessionsPerGame.put(e.getKey(), e.getValue().getAsLong());
+            if (root.has("buckets")) {
+                for (JsonElement e : root.getAsJsonArray("buckets")) {
+                    JsonObject o = e.getAsJsonObject();
+                    buckets.put(ProfitScope.Key.readFrom(o), Bucket.fromJson(o));
+                }
+            } else {
+                // A file from before the account / profile switches: its totals become one bucket with no names.
+                Bucket legacy = Bucket.fromJson(totals);
+                if (!legacy.isEmpty()) {
+                    buckets.put(new ProfitScope.Key(null, null, null), legacy);
                 }
             }
-            if (totals.has("items")) {
-                for (Map.Entry<String, JsonElement> e : totals.getAsJsonObject("items").entrySet()) {
-                    itemTotals.put(e.getKey(), e.getValue().getAsJsonObject());
-                }
+            if (root.has("view") && root.get("view").isJsonObject()) {
+                view = ProfitScope.Filter.fromJson(root.getAsJsonObject("view"));
             }
             if (root.has("sessionLog")) {
                 for (JsonElement e : root.getAsJsonArray("sessionLog")) {
@@ -767,24 +906,20 @@ public final class ExperimentsProfitTracker {
     private static void save() {
         try {
             JsonObject totals = new JsonObject();
-            totals.addProperty("sessions", totalSessions);
-            JsonObject perGame = new JsonObject();
-            sessionsPerGame.forEach(perGame::addProperty);
-            totals.add("sessionsPerGame", perGame);
-            totals.addProperty("xpGained", totalXp);
-            totals.addProperty("rewardValueCoins", totalValueCoins);
-            totals.addProperty("bitsSpent", totalBitsSpent);
             totals.addProperty("trackingSinceMs", trackingSinceMs);
             totals.addProperty("lastSummary", lastSummary);
-            JsonObject items = new JsonObject();
-            itemTotals.forEach(items::add);
-            totals.add("items", items);
+
+            JsonArray bucketsJson = new JsonArray();
+            buckets.forEach((k, b) -> bucketsJson.add(b.toJson(k)));
 
             JsonArray log = new JsonArray();
             sessionLog.forEach(log::add);
 
             JsonObject root = new JsonObject();
+            root.addProperty("version", 2);
             root.add("totals", totals);
+            root.add("buckets", bucketsJson);
+            root.add("view", view.toJson());
             root.add("sessionLog", log);
             Files.createDirectories(DATA_PATH.getParent());
             Files.writeString(DATA_PATH, GSON.toJson(root), StandardCharsets.UTF_8);

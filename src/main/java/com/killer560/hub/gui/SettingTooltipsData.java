@@ -140,7 +140,6 @@ final class SettingTooltipsData {
         d.put("click protection", "Blocks clicks on the wrong Chronomatron or Ultrasequencer slot; hold Shift to click anyway.");
         d.put("notify max clicks reached", "Sends a chat message and sound when you hit the max Superpairs click bonus or run out of clicks.");
         d.put("profit tracker", "Tracks the rewards you claim from the Experimentation Table: coins, Enchanting XP and Bits spent.");
-        d.put("reset profit totals", "Clears the Profit Tracker totals; click twice within 3 seconds to confirm.");
         d.put("chat translate enabled", "Run /translate to change the language, or pick it below; all your messages are then sent in that language.");
         d.put("search", "Type part of a language name to filter the list, then click the language you want.");
         d.put("chat/<- back", "Returns to the feature's main settings.");
@@ -1247,8 +1246,6 @@ final class SettingTooltipsData {
         d.put("island", "Shows which SkyBlock island the pathfinder has data for.");
         d.put("m7 phase 5 lines", "Adds split lines for M7 P5, one per dragon and per King relic.");
         d.put("memory", "How much of the chunk cache may stay in RAM.");
-        d.put("sessions", "How many Experimentation Table sessions you have tracked, by game.");
-        d.put("reward value", "Total Bazaar value of your tracked wins, plus XP and bits spent.");
         d.put("last", "Summary of your latest tracked experiment session.");
         d.put("click again to reset", "Click again within 3 seconds to reset the profit totals.");
         d.put("status", "Shows whether Discord Rich Presence is connected.");
