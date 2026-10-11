@@ -12,12 +12,19 @@ Java 25 and a JDK on `JAVA_HOME`. Gradle wrapper, Fabric Loom.
 ./gradlew build -PcheatBuild=true   # cheat variant  -> build/libs/killer560smod-1.1.0-26.1.2-cheat.jar
 ./gradlew build -Prelease=true      # official release: compiles dev tooling OUT
 ./gradlew build [-PcheatBuild=true] -PtestingBuild=true  # killer560's private jar, ...-26.1.2-<cheat|legit>-testing.jar: Untested category, Mark tested, /k560tested; lists in testing/; deploy ONLY with --testing-instance-cheat/--testing-instance-legit NAME
-python deploy-to-instances.py [--dry-run] [--jars-dir DIR]   # install into every Prism instance
+python deploy-to-instances.py [--dry-run] [--jars-dir DIR]   # install into every Prism instance; writes minecraft/killer560smod-no-auto-update in each (Auto Update off there)
 ```
 
 The Minecraft version is in every jar name, and one gradle run builds one version. The deploy script keeps
 each instance on its MC version and installed variant, stages `.jar.pending` for a running one, and prints
 each instance's BuildVariant md5; point `--jars-dir` at a folder holding the other version's jars.
+
+**Releases.** Every jar carries `killer560smod-build.properties` (commit, minecraft, variant, testing, release) for Auto
+Update. The Beta channel is dev-build.yml's "Latest Dev Build" (built `-Prelease=true`, with `SHA256SUMS.txt` and
+`commit.txt`). A full release is made by hand: commit everything, build the four jars with `-Prelease=true` (clearing
+`build/generated/sources/buildVariant` and `build/classes` between them, as dev-build.yml does) into one folder, run
+`python tools/release-assets.py <folder>`, and attach the four jars plus `SHA256SUMS.txt` and `commit.txt` to the
+release. Auto Update ignores a release without both files, and every release before 2026-10-11.
 
 Both variants come from the same source. `build.gradle` generates
 `com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED` from `-PcheatBuild`, and `DEV_TOOLS` from

@@ -844,6 +844,9 @@ final class SettingTooltipsData {
         d.put("update available", "A newer release is on GitHub. Click to open its download page.");
         d.put("check failed - click to retry", "The update check couldn't reach GitHub. Click to try again.");
         d.put("notify me of updates", "Tells you when you join a world if a newer release of the mod exists.");
+        d.put("auto update", "Installs new versions of the mod for you. Full Release follows the newest numbered release, Beta the rolling dev build (newer, less tested), Off never updates. It only ever installs the same variant (cheat or legit) and Minecraft version you have, only a jar whose SHA-256 matches the release's checksum file, and only when the release was built from a different commit. The new jar is downloaded on launch and swapped in after you close the game.");
+        d.put("check now", "Checks your Auto Update channel right now and downloads the update if there is one. It installs when you close the game.");
+        d.put("this build", "The commit this jar was built from, and its Minecraft version and variant. Auto Update compares the commit with the release's.");
         d.put("join discord", "Opens the mod's Discord server invite in your browser.");
         d.put("edit hud positions", "Opens the HUD editor to drag and resize on-screen elements.");
         d.put("edit hud keybind", "Key that opens the HUD editor in game. It does nothing while any screen is open (chat, an inventory, a menu - this one or another mod's).");
