@@ -81,6 +81,35 @@ public final class RoutePathPlanner {
     }
 
     /**
+     * Throws away EVERY saved path plan in every room's route (killer560, 2026-10-09: "Later on I am going to have you
+     * regenerate every one of my path nodes"), so each pair is planned again with the exact planner: this room's at
+     * once ({@code /ar replan} calls {@link #refreshStale} next), every other room's the next time its route fires the
+     * pair or the route is edited (RouteExecutor plans a pair with no saved warps before flying it). Nothing else of a
+     * node changes. Saves the routes file.
+     *
+     * @return {pairs cleared, rooms they were in}
+     */
+    public static int[] invalidateAll() {
+        int pairs = 0;
+        int rooms = 0;
+        for (Route route : RouteStore.getInstance().routes().values()) {
+            int before = pairs;
+            for (RouteNode n : route.nodes()) {
+                if (n.type == RouteNode.Type.PATH && !n.pathHops.isEmpty()) {
+                    n.pathHops.clear();
+                    pairs++;
+                }
+            }
+            rooms += pairs > before ? 1 : 0;
+        }
+        if (pairs > 0) {
+            RouteStore.getInstance().save();
+        }
+        LOGGER.info("[AutoRoutes] replan: cleared {} saved path plan(s) in {} room(s)", pairs, rooms);
+        return new int[]{pairs, rooms};
+    }
+
+    /**
      * Plans {@code src}'s pair now (async) and saves the warps on it. {@code done} runs on the client thread with null
      * on success or the reason it failed (also said in chat).
      */
@@ -96,6 +125,8 @@ public final class RoutePathPlanner {
         Vec3 from = RouteCoords.toReal(frame, src.relativePos());
         Vec3 destReal = RouteCoords.toReal(frame, dest.relativePos());
         BlockPos below = BlockPos.containing(destReal.x, destReal.y - 0.5, destReal.z);
+        // The block he placed the node on is the goal even when it is a bottom slab (his choice, killer560 2026-10-09);
+        // anything picked for him instead (nearestEtherwarpable) is never one.
         BlockPos goal = TeleportUtils.etherwarpable(below) ? below : TeleportUtils.nearestEtherwarpable(below);
         if (goal == null) {
             String why = "no etherwarpable block at or near path #" + b;
@@ -121,20 +152,27 @@ public final class RoutePathPlanner {
             long t0 = System.currentTimeMillis();
             List<EtherwarpPathfinder.Node> path = null;
             try {
-                path = EtherwarpPathfinder.findDungeonPath(from, goal, cfg, range, layout);
+                path = EtherwarpPathfinder.findOptimalPath(from, goal, cfg, range, layout,
+                        EtherwarpPathfinder.PATH_EXACT_NANOS);
             } catch (Throwable e) {
                 LOGGER.warn("[AutoRoutes] Path search failed: {}", e.toString());
             }
             long took = System.currentTimeMillis() - t0;
             List<EtherwarpPathfinder.Node> result = path;
+            EtherwarpPathfinder.ExactInfo info = EtherwarpPathfinder.lastExact;
             client.execute(() -> {
                 planning = false;
                 String why = save(route, frame, src, result, range, fx, fy, fz, tx, ty, tz);
                 if (why == null) {
-                    LOGGER.info("[AutoRoutes] Path #{} -> #{} planned by the floor planner: {} warp(s) in {} ms - saved",
-                            a, b, src.pathHops.size(), took);
+                    boolean proven = info != null && info.proven() && info.warps() == src.pathHops.size();
+                    LOGGER.info("[AutoRoutes] Path #{} -> #{} planned by the floor planner: {} warp(s) in {} ms - saved, {}",
+                            a, b, src.pathHops.size(), took, proven ? "the fewest there are (proved)"
+                                    : "NOT proved the fewest" + (info == null ? "" : " (" + info.why()
+                                    + ", none with fewer than " + info.fewerThan() + ")"));
                     AutoRoutesFeature.chat(ModChat.text("Path "), ModChat.value("#" + a + " -> #" + b),
-                            ModChat.text(": " + src.pathHops.size() + " warp(s) saved"), ModChat.dim(" (" + took + " ms)"));
+                            ModChat.text(": " + src.pathHops.size() + " warp(s) saved"),
+                            proven ? ModChat.dim(" (fewest possible, " + took + " ms)")
+                                    : ModChat.bad(" (best found in " + took + " ms, not proved fewest)"));
                 } else {
                     LOGGER.info("[AutoRoutes] Path #{} -> #{} not planned: {}", a, b, why);
                     AutoRoutesFeature.chatBad("Path #" + a + " -> #" + b + ": " + why + ".");

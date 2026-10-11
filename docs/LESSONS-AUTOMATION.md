@@ -104,3 +104,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - **Never release a `ViewFreeze` hold you did not take.** It is one global lease; a second owner releasing it drops the
   camera onto a body another auto is still turning (93-solve-blazemiss-lower, -boulder-aura). `ViewFreeze.holdCount()` says
   whether anybody else held it since you did.
+- **The floor graph's warp count is an upper bound, not the fewest.** Its 2x2 buckets, 18 aim points and early-blocked
+  refusals missed a route with fewer warps on 21 of 180 bench path pairs (2026-10-11). Anything that must be minimal goes
+  through `ExactWarpSearch` (via `EtherwarpPathfinder.findOptimalPath`), which proves it - see docs/SIM.md "Fewest warps,
+  proved".

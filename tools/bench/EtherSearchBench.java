@@ -95,7 +95,12 @@ public final class EtherSearchBench {
         }
         boolean wallOrFence = (base.endsWith("_wall") || base.endsWith("_fence") || base.endsWith("fence_gate"));
         boolean black = wallOrFence || base.endsWith("_carpet") || base.equals("hopper") || base.contains("cauldron")
-                || base.endsWith("_banner") || (base.endsWith("_slab") && n.contains("type=bottom"));
+                || base.endsWith("_banner") || (base.endsWith("_slab") && n.contains("type=bottom"))
+                // LevelEtherGrid.lowTop: a collision top under 0.75 (the game reads the shape; here, by name).
+                || (base.endsWith("_trapdoor") && n.contains("half=bottom") && n.contains("open=false"))
+                || base.equals("daylight_detector") || base.endsWith("_bed") || base.equals("stonecutter")
+                || base.endsWith("_pressure_plate") || base.equals("cake") || base.endsWith("_sign")
+                || base.equals("lily_pad");
         if (black) {
             f |= EtherSearch.BLACKLIST;
         }
