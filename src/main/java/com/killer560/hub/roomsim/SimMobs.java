@@ -425,7 +425,7 @@ public final class SimMobs {
         bat.setPos(pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5);
         level.addFreshEntity(bat);
         SPAWNED.add(bat.getUUID());
-        BATS.add(bat.getUUID());
+        BATS.put(bat, pos.immutable());
     }
 
     /** Crypt undead alive in the world, id to whether it is the prince that scores. */
@@ -510,19 +510,57 @@ public final class SimMobs {
         if (BATS.isEmpty()) {
             return;
         }
-        java.util.Iterator<UUID> it = BATS.iterator();
+        java.util.Iterator<java.util.Map.Entry<net.minecraft.world.entity.ambient.Bat, BlockPos>> it =
+                BATS.entrySet().iterator();
         while (it.hasNext()) {
-            UUID id = it.next();
-            Entity e = level.getEntity(id);
-            if (e == null || !e.isAlive()) {
+            var entry = it.next();
+            net.minecraft.world.entity.ambient.Bat bat = entry.getKey();
+            // KILLED only. The entity object is kept rather than its UUID, because getEntity(uuid) is null for a bat
+            // in a section the server is not ticking, and that used to count as a kill; a bat discarded by a rebuild
+            // (removal reason DISCARDED) is not a secret found either.
+            if (bat.isDeadOrDying() || bat.getRemovalReason() == Entity.RemovalReason.KILLED) {
                 it.remove();
-                com.killer560.hub.roomsim.SimScore.batKilled();
+                com.killer560.hub.roomsim.SimScore.batKilled(entry.getValue());
+            } else if (bat.isRemoved()) {
+                it.remove();
             }
         }
     }
 
-    /** Bats spawned by the sim, so their death can be counted as a secret rather than as a kill. */
-    private static final java.util.Set<UUID> BATS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /**
+     * Bats spawned by the sim, against the block they were placed at, so their death counts as a secret of that room
+     * rather than as a kill. Written and read on the server thread.
+     */
+    private static final java.util.Map<net.minecraft.world.entity.ambient.Bat, BlockPos> BATS =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * A floor's secret bat, spawned when he comes near it ({@link SimSecretItems}), on the server thread.
+     *
+     * <p>Hypixel's secret bat appears when a player comes near its spot, and that APPEARANCE is the client signal
+     * Auto Routes' {@code await} counts (a bat with Skyblock health first seen within 10 blocks, QUOI's rule) - so a
+     * sim bat spawned with the floor, minutes before the route got there, was never counted (2026-10-09, "in sim
+     * the await does not detect bats"). Its death is the secret, counted for its room.
+     */
+    static void spawnSecretBat(ServerLevel level, BlockPos at) {
+        var bat = new net.minecraft.world.entity.ambient.Bat(McEntities.BAT, level);
+        bat.setPos(at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5);
+        // Still, like every other sim mob: killer560 asked that nothing wanders, so a bat cannot fly off and turn a
+        // fixed secret into a moving target.
+        bat.setNoAi(true);
+        bat.setNoGravity(true);
+        bat.setPersistenceRequired();
+        secretBatHealth(bat);
+        bat.setHealth((float) ONE_HP);
+        level.addFreshEntity(bat);
+        SPAWNED.add(bat.getUUID());
+        BATS.put(bat, at.immutable());
+    }
+
+    /** Live secret bats, for tests. */
+    public static int secretBatsAlive() {
+        return BATS.size();
+    }
 
     /**
      * Places a dormant Fel: an invisible, no-base-plate armour stand wearing a skull, so only the skull shows -
@@ -761,6 +799,7 @@ public final class SimMobs {
 
     private static void forgetAll() {
         SPAWNED.clear();
+        BATS.clear();
         STARRED_AT.clear();
         STARRED_DEAD.clear();
         CRYPT_MOBS.clear();

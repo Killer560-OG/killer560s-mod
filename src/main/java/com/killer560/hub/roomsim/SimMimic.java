@@ -88,8 +88,13 @@ public final class SimMimic {
     /** Hooks chest interaction so opening one can be the mimic. */
     public static void register() {
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
-            Minecraft client = Minecraft.getInstance();
-            if (SimState.canAct(client) && player == client.player) {
+            // ON THE SERVER, when the use-on-block packet arrives - the sim answers packets, as Hypixel's server does.
+            // This was the CLIENT's copy of the event, which queued the mimic's spawn onto the server from the render
+            // thread; a click that did not go through the client's gameMode (Secret Aura's), followed a tick later by
+            // Kill Mimic's Hyperion, could then reach the server BEFORE the mimic existed, and the one Wither Impact
+            // hit nothing (2026-10-11, testkit 96-ar-644: the mimic left alive in one aura run of five, and the log
+            // showing the Kill Mimic use before "mimic spawned").
+            if (player instanceof net.minecraft.server.level.ServerPlayer sp && SimAbilities.simServer(sp)) {
                 net.minecraft.core.BlockPos pos = hit.getBlockPos();
                 // A chest is a secret whether or not it bites. Counted here rather than in a second hook: one
                 // place that sees a chest click is easier to keep honest than two that must agree.
@@ -97,7 +102,7 @@ public final class SimMimic {
                         && !PUZZLE_REWARDS.contains(pos) && OPENED.add(pos.immutable())) {
                     SimScore.secretFound(pos.immutable());
                 }
-                onChestOpened(client, pos);
+                openOnServer((net.minecraft.server.level.ServerLevel) level, pos);
             }
             // Never consumes the interaction: the chest should still open. This only decides whether it bites.
             return net.minecraft.world.InteractionResult.PASS;
@@ -246,20 +251,27 @@ public final class SimMimic {
      * nothing for a client feature that watches the mimic die (the score calculator, Auto Routes' Kill Mimic) to see.
      */
     public static boolean onChestOpened(Minecraft client, BlockPos pos) {
+        var server = client.getSingleplayerServer();
+        if (server == null || found || mimic == null || !mimic.equals(pos)) {
+            return false;
+        }
+        BlockPos at = pos.immutable();
+        server.execute(() -> openOnServer(server.overworld(), at));
+        return true;
+    }
+
+    /** The chest at {@code pos} was opened, on the server thread: when it is the mimic, it bites, in the same tick. */
+    static boolean openOnServer(net.minecraft.server.level.ServerLevel level, BlockPos pos) {
         if (found || mimic == null || !mimic.equals(pos)) {
             return false;
         }
         found = true;
-        var server = client.getSingleplayerServer();
-        if (server != null) {
-            BlockPos at = pos.immutable();
-            server.execute(() -> {
-                var level = server.overworld();
-                level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
-                mimicMob = SimMobs.spawnMimic(level, at);
-            });
-        }
-        ModChat.send("Sim", ModChat.text("MIMIC - kill it for "), ModChat.value("+2 bonus"));
+        BlockPos at = pos.immutable();
+        level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
+        mimicMob = SimMobs.spawnMimic(level, at);
+        LOGGER.info("Sim mimic: chest at {} opened, mimic {} spawned", at.toShortString(), mimicMob);
+        Minecraft.getInstance().execute(() ->
+                ModChat.send("Sim", ModChat.text("MIMIC - kill it for "), ModChat.value("+2 bonus")));
         return true;
     }
 

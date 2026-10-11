@@ -14,7 +14,6 @@ import org.slf4j.Logger;
 
 import java.util.List;
 import com.killer560.hub.util.ModLog;
-import com.killer560.hub.compat.McEntities;
 
 /**
  * Puts a room's secrets in it.
@@ -455,17 +454,10 @@ public final class SimSecrets {
             if (!checkInside(at)) {
                 continue;
             }
-            var bat = McEntities.BAT.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
-            if (bat != null) {
-                bat.setPos(at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5);
-                // Still, like every other sim mob: killer560 asked that nothing wanders, so a bat cannot fly
-                // off and turn a fixed secret into a moving target.
-                bat.setNoAi(true);
-                bat.setPersistenceRequired();
-                SimMobs.secretBatHealth(bat);
-                level.addFreshEntity(bat);
-                n++;
-            }
+            // REGISTERED, not spawned: the bat appears when he comes near it, as Hypixel's does - see
+            // SimSecretItems.registerBat and SimMobs.spawnSecretBat.
+            SimSecretItems.registerBat(at);
+            n++;
         }
         return n;
     }
