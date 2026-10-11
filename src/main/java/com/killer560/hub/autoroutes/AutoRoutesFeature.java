@@ -191,30 +191,7 @@ public final class AutoRoutesFeature {
                 ModChat.dim(" to breaker #" + breakerIndex() + " (" + editBreakerNode.breakerBlocks.size() + ")"
                         + (farFromNode ? " - further than " + com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH
                         + " from the node's spot, so it breaks only if the route has you closer" : "")));
-        // killer560, 2026-10-09: an added block is broken once, at once - next START_CLIENT_TICK (tickInner).
-        pendingAddBreak = pos.immutable();
-        pendingAddBreakTicks = 0;
         return true;
-    }
-
-    /** A block {@link #onEditRightClick} just added, still to be broken once; null when none. */
-    private static BlockPos pendingAddBreak;
-    private static int pendingAddBreakTicks;
-    /** How long a refused gate is retried before the editor's break is dropped (a second). */
-    private static final int ADD_BREAK_RETRY_TICKS = 20;
-
-    private static void tickPendingAddBreak(Minecraft client, LocalPlayer player) {
-        if (pendingAddBreak == null) {
-            return;
-        }
-        if (!editMode || McCompat.screen(client) != null) {
-            pendingAddBreak = null;
-            return;
-        }
-        RouteExecutor.EditorBreak r = RouteExecutor.editorBreakOnce(client, player, pendingAddBreak);
-        if (r != RouteExecutor.EditorBreak.RETRY || ++pendingAddBreakTicks > ADD_BREAK_RETRY_TICKS) {
-            pendingAddBreak = null;
-        }
     }
 
     /** The nodes of the route for the room you are in (the live list), or an empty list. */
@@ -822,7 +799,6 @@ public final class AutoRoutesFeature {
             gate("no player / level");
             return;
         }
-        tickPendingAddBreak(client, player);
         // Before the route's own tick: what an await counts, and Kill Mimic, which holds the route while it works.
         AwaitEvents.tick(client);
         MimicKiller.tick(client);
@@ -928,6 +904,18 @@ public final class AutoRoutesFeature {
             RouteRecorder.tick(client);
             return;
         }
+        // killer560, 2026-10-11: "in edit mode the node should not break blocks but I should be able to." Nothing of the
+        // route acts while breaker edit mode is open - no arming, no just-added node firing, and anything that started
+        // a route meanwhile is stopped - so the only digs are his own clicks.
+        if (editMode) {
+            if (RouteExecutor.isRunning()) {
+                RouteExecutor.stop("edit mode");
+            }
+            addedToFire = null;
+            addedToFireRoute = null;
+            gate("edit mode");
+            return;
+        }
         if (RouteExecutor.isRunning()) {
             addedToFire = null;
             gate("running");
@@ -935,10 +923,6 @@ public final class AutoRoutesFeature {
             return;
         }
         if (tickAddedNode(client, player, frame, cfg)) {
-            return;
-        }
-        if (editMode) {
-            gate("edit mode");
             return;
         }
         arm(client, player, frame, cfg);
