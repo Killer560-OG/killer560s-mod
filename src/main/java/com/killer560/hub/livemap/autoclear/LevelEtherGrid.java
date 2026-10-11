@@ -358,10 +358,11 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
             f |= EtherSearch.BLACKLIST;
         }
         if ((f & EtherSearch.PASSABLE) == 0) {
-            double top = state.getCollisionShape(level, pos).max(Direction.Axis.Y);
+            var shape = state.getCollisionShape(level, pos);
+            double top = shape.max(Direction.Axis.Y);
             int ceil = (int) Math.max(1.0, Math.ceil(top));
             f |= Math.min(3, ceil) << EtherSearch.TOP_SHIFT;
-            if (lowTop(top)) {
+            if (!fullTop(shape)) {
                 f |= EtherSearch.BLACKLIST;
             }
         }
@@ -372,21 +373,20 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
     }
 
     /**
-     * A block whose collision top is below three quarters of a block (or that has no collision at all): an etherwarp
-     * onto it puts his feet a block up and he drops a half block or more - a bottom slab (0.5), a bed or stonecutter
-     * (0.5625), a daylight detector (0.375), a closed bottom trapdoor (0.1875), a carpet, a pressure plate, a sign.
-     * killer560 (2026-10-09): the map and path nodes "will never teleport onto a half slab on the bottom of a block;
-     * they can do a top slab" (a top slab, a double slab and a stair reach 1.0). Never a landing on the way; only a
-     * goal he chose himself (a path node placed on one) may be one.
+     * Whether the block's collision shape covers the WHOLE top of its cell, flat at the top: a full block, a top slab, a
+     * double slab, an upside-down stair. killer560 (2026-10-09): never "a half slab on the bottom of a block"; then
+     * (2026-10-11): "ONLY onto blocks with a completely flat, full top face" - so no bottom slab, chest, soul sand,
+     * farmland, path, the low half of a stair, bed, trapdoor, carpet, plate, sign, enchanting table, anvil, pane or bar
+     * either. Never a landing on the way; only a goal he chose himself (a path node placed on one) may be one.
      */
-    static boolean lowTop(double collisionTop) {
-        return !(collisionTop >= 0.75);
+    static boolean fullTop(net.minecraft.world.phys.shapes.VoxelShape shape) {
+        return !shape.isEmpty() && Block.isFaceFull(shape, Direction.UP);
     }
 
-    /** Whether {@code pos} may be landed on on the way: not on the blacklist and not a {@link #lowTop} block. */
+    /** Whether {@code pos} may be landed on on the way: not on the blacklist and its top is {@link #fullTop}. */
     public static boolean fullLanding(Level level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        return !blackListed(state) && !lowTop(state.getCollisionShape(level, pos).max(Direction.Axis.Y));
+        return !blackListed(state) && fullTop(state.getCollisionShape(level, pos));
     }
 
     /** QUOI's landing blacklist, formerly {@code EtherwarpPathfinder.blackListed}. */

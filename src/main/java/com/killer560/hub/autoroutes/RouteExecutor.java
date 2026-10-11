@@ -225,6 +225,8 @@ public final class RouteExecutor {
     private static boolean plannedInPlace;
     /** PATH: a plan this node asked for, and how it came out ("ok", a reason, or null while it runs). */
     private static boolean planAsked;
+    /** PATH: the "waits for its proof" line went out for the pair being held. */
+    private static boolean provingSaid;
     private static volatile String planOutcome;
     private static final int PLAN_TIMEOUT = 600;
     /** Ticks spent waiting for a missing landing block, and whether chat has been told. */
@@ -1688,6 +1690,20 @@ public final class RouteExecutor {
                 return;
             }
             wantSneak = forceSneak;
+            if (RoutePathPlanner.isProving(node)) {
+                // Path nodes only ever fly a route proved the fewest (killer560, 2026-10-11): a proof still running in
+                // the background holds the pair here - any key of his still stops the route as usual.
+                if (!provingSaid) {
+                    provingSaid = true;
+                    AutoRoutesFeature.chat(ModChat.text("Path #" + (route.indexOf(node) + 1)),
+                            ModChat.dim(" waits for its proof (fewest warps) to finish..."));
+                    LOGGER.info("[AutoRoutes] Node #{} PATH: holding until its background proof is in",
+                            route.indexOf(node) + 1);
+                }
+                stepTicks = 0;
+                return;
+            }
+            provingSaid = false;
             if (!RoutePathPlanner.valid(route, node)) {
                 if (!planAsked) {
                     planAsked = true;
