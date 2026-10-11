@@ -365,7 +365,7 @@ final class SettingTooltipsData {
         d.put("line width", "Thickness of the drawn lines and box outlines.");
         d.put("range", "Maximum distance in blocks this feature reaches.");
         d.put("auto routes", "Cheat build: records what you do in a dungeon room and replays it when you land on its start node.");
-        d.put("auto routes/mode", "Legit turns your camera like a human for each etherwarp; Obvious skips the camera turn.");
+        d.put("auto routes/mode", "Testing builds only (released jars run Obvious): Legit turns your camera like a human for each etherwarp; Obvious skips the camera turn.");
         d.put("start from start node only", "ON: a route only starts when you land on its start node.");
         d.put("auto routes/kill mimic", "After you click a trapped chest (by hand or a route node): Hyperion uses a wither blade straight down once; Spirit Sceptre uses it straight down until the mimic dies (5 s at most). An await counts the mimic's death, not the chest click.");
         // Auto Clear (cheat build; its rows are built by autoclear.AutoClearSettings inside the shared Auto Clear tab).
