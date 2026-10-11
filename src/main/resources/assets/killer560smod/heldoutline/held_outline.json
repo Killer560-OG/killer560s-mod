@@ -16,6 +16,14 @@
                     "sampler_name": "MaskDepth",
                     "target": "killer560smod:held_mask",
                     "use_depth_buffer": true
+                },
+                {
+                    "sampler_name": "Near",
+                    "target": "killer560smod:held_near"
+                },
+                {
+                    "sampler_name": "Far",
+                    "target": "killer560smod:held_far"
                 }
             ],
             "output": "dist",
