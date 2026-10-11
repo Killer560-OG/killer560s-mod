@@ -18,7 +18,6 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
@@ -30,13 +29,25 @@ import com.killer560.hub.compat.McRender;
  * door keys are real {@code ArmorStand}s with a fixed real display name ("Wither Key"/"Blood Key") -
  * this polls real rendered entities each tick (the same real technique Weirdos/Blaze/Livid Solver
  * already use tonight) rather than porting noamm's own entity-metadata-packet hook, since polling needs
- * no new mixin at all for a check this cheap. Highlights the real key with a box and an optional tracer
- * line from your eyes to it - never picks anything up.
+ * no new mixin at all for a check this cheap. Marks the real key with a circle on the ground of the radius it is picked
+ * up from, and an optional tracer line from your eyes to it - never picks anything up.
+ * <p>
+ * The circle (killer560, 2026-10-09: "instead of the hitbox have it show a circle that is where you can pick it up
+ * from; make sure it matches the new update"): Hypixel SkyBlock 0.27.2 (2026-10-06, hypixelskyblock.minecraft.wiki
+ * Changelog/2026/October 6, "Folf Shard &amp; Dungeon Improvements") "Increased the pickup range of Wither Keys and
+ * Blood Keys in the Catacombs by 5 blocks". Its radius is {@link DungeonKeys#pickupRange} of the Key Base Range setting
+ * (Auto Clear tab, 1 block by default, which nothing published states) - the same number Auto Clear walks to, so the
+ * two can never disagree. It lies on the first solid block under the key.
  */
 public final class DoorKeysFeature {
 
     private static Entity currentKey = null;
     private static float[] currentColor = null;
+    /** The circle's centre (on the ground under the key) and radius: {x, y, z, r}, or null. */
+    private static volatile double[] ring = null;
+    private static final int RING_SEGMENTS = 64;
+    /** How far below the key the ground is looked for. */
+    private static final int GROUND_SEARCH = 6;
 
     private DoorKeysFeature() {
     }
@@ -74,12 +85,15 @@ public final class DoorKeysFeature {
         if (!cfg.isEnabled() || !DungeonState.isInDungeon() || DungeonState.isBossPhaseActive()
                 || client.level == null) {
             currentKey = null;
+            ring = null;
             return;
         }
         if (currentKey != null && !currentKey.isRemoved()) {
+            ring = ringFor(client, currentKey);
             return;
         }
         currentKey = null;
+        ring = null;
         for (Entity entity : client.level.entitiesForRendering()) {
             if (!(entity instanceof ArmorStand)) {
                 continue;
@@ -99,6 +113,32 @@ public final class DoorKeysFeature {
                 break;
             }
         }
+        if (currentKey != null) {
+            ring = ringFor(client, currentKey);
+        }
+    }
+
+    /** The pickup circle for {@code key}: centred under it on the top of the first solid block below. */
+    private static double[] ringFor(Minecraft client, Entity key) {
+        Vec3 p = key.position();
+        net.minecraft.core.BlockPos.MutableBlockPos at = new net.minecraft.core.BlockPos.MutableBlockPos(
+                Math.floor(p.x), Math.floor(p.y), Math.floor(p.z));
+        double groundY = p.y;
+        for (int i = 0; i <= GROUND_SEARCH; i++) {
+            if (!client.level.getBlockState(at).isAir()) {
+                groundY = at.getY() + 1.0;
+                break;
+            }
+            at.move(0, -1, 0);
+        }
+        double radius = com.killer560.hub.autosecret.AutoSecretConfig.getInstance().keyPickupRange();
+        return new double[]{p.x, groundY + 0.02, p.z, radius};
+    }
+
+    /** For the testkit: the circle being drawn, {x, y, z, radius}, or null. */
+    public static double[] pickupRing() {
+        double[] r = ring;
+        return r == null ? null : r.clone();
     }
 
     private static void onWorldRender(LevelRenderContext context) {
@@ -110,7 +150,15 @@ public final class DoorKeysFeature {
         if (client.player == null) {
             return;
         }
-        AABB box = currentKey.getBoundingBox().inflate(0.3, 0.3, 0.3);
+        double[] circle = ring;
+        if (circle == null) {
+            return;
+        }
+        List<Vec3> points = new java.util.ArrayList<>(RING_SEGMENTS + 1);
+        for (int i = 0; i <= RING_SEGMENTS; i++) {
+            double a = Math.PI * 2.0 * i / RING_SEGMENTS;
+            points.add(new Vec3(circle[0] + Math.cos(a) * circle[3], circle[1], circle[2] + Math.sin(a) * circle[3]));
+        }
         // killer560, 2026-09-27: "Door keys tracer line is still jacked up" - it was starting from
         // client.player.getEyePosition(), which only moves once per game tick and lagged behind the
         // smoothly-interpolated camera, reading as attached to the player's head instead of the crosshair.
@@ -127,7 +175,7 @@ public final class DoorKeysFeature {
         float thickness = cfg.getTracerThickness();
 
         if (!cfg.isThroughWalls()) {
-            WorldRenderUtils.renderOutlineBox(context, box, currentColor[0], currentColor[1], currentColor[2], 1f, 2f);
+            WorldRenderUtils.renderLineStrip(context, points, currentColor[0], currentColor[1], currentColor[2], 1f, 2f);
             if (cfg.isShowTracer()) {
                 WorldRenderUtils.renderLineStrip(context, List.of(tracerStart, target),
                         currentColor[0], currentColor[1], currentColor[2], 1f, thickness);
@@ -136,33 +184,13 @@ public final class DoorKeysFeature {
         }
 
         McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
-            lineBox(pose, buffer, box, 2f);
+            for (int i = 0; i + 1 < points.size(); i++) {
+                line(pose, buffer, points.get(i), points.get(i + 1), 2f);
+            }
             if (cfg.isShowTracer()) {
                 line(pose, buffer, tracerStart, target, thickness);
             }
         });
-    }
-
-    private static final int[] EDGES = {
-            0, 1, 1, 5, 5, 4, 4, 0,
-            3, 2, 2, 6, 6, 7, 7, 3,
-            0, 3, 1, 2, 5, 6, 4, 7
-    };
-
-    /** Wireframe box in the current colour - same Odin-derived edge order {@code WorldRenderUtils} uses. */
-    private static void lineBox(PoseStack.Pose pose, VertexConsumer buffer, AABB b, float width) {
-        float x0 = (float) b.minX, y0 = (float) b.minY, z0 = (float) b.minZ;
-        float x1 = (float) b.maxX, y1 = (float) b.maxY, z1 = (float) b.maxZ;
-        float[] corners = {
-                x0, y0, z0, x1, y0, z0, x1, y1, z0, x0, y1, z0,
-                x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1
-        };
-        for (int i = 0; i < EDGES.length; i += 2) {
-            int i0 = EDGES[i] * 3;
-            int i1 = EDGES[i + 1] * 3;
-            segment(pose, buffer, corners[i0], corners[i0 + 1], corners[i0 + 2],
-                    corners[i1], corners[i1 + 1], corners[i1 + 2], width);
-        }
     }
 
     private static void line(PoseStack.Pose pose, VertexConsumer buffer, Vec3 from, Vec3 to, float width) {

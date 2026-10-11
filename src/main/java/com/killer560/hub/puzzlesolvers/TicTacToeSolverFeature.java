@@ -27,8 +27,9 @@ import java.util.List;
  * modified Skyblocker {@code TicTacToe.java}/{@code TicTacToeUtils.java}). The 3x3 board is the map item frames at
  * room-relative x=8, y 70..72, z 15..17; each map's pixel 8256 is colour 114 (X, the computer) or 33 (O, the player).
  * When an odd number of marks is on the board it is the player's turn and alpha-beta minimax (move order centre,
- * corners, edges) picks the best empty cell, outlined green. Optional "prediction" outlines (yellow) the reply to the
- * computer's most likely next move while it's the computer's turn. Never clicks - see AutoPuzzles for the auto.
+ * corners, edges) picks the best empty cell, outlined green. Optional "prediction" outlines (yellow), while it is the
+ * computer's turn, the square HE clicks next - his best move after the computer's best reply ({@link #safePrediction}).
+ * Never clicks - see AutoPuzzles for the auto. Prevent Misclicks fails his click on any other board square.
  */
 public final class TicTacToeSolverFeature {
 
@@ -77,6 +78,7 @@ public final class TicTacToeSolverFeature {
         RoomEntry current = LiveMapFeature.currentRoomEntry();
         if (current != lastRoomEntry) {
             lastRoomEntry = current;
+            boardCr = null;
             reset();
         }
         if (current == null || !ROOM.equals(current.name)) {
@@ -86,6 +88,7 @@ public final class TicTacToeSolverFeature {
         if (cr == null) {
             return;
         }
+        boardCr = cr;
         ClientLevel level = client.level;
         AABB searchBox = AABB.ofSize(Vec3.atCenterOf(PuzzleCoords.real(8, 71, 16, cr)), 12.0, 12.0, 12.0);
         List<ItemFrame> frames = level.getEntitiesOfClass(ItemFrame.class, searchBox,
@@ -150,27 +153,51 @@ public final class TicTacToeSolverFeature {
     }
 
     /**
-     * The prediction, only when it is certain (killer560, 2026-09-21: "only as the prediction if it is 100% safe to
-     * click that square no matter what the bot will play ... so I should be able to spam click it"): a cell that is
-     * one of your best replies to EVERY move the computer could make next (best = the same outcome - win, draw or
-     * loss - as your best reply there). If the computer takes that cell itself your click on it simply does
-     * nothing, so it is still safe to spam. Null when no cell is safe against every move.
+     * The square HE clicks next, worked out while it is the computer's turn (killer560, 2026-10-09: "the prediction
+     * shows where the server is going to go; it needs to show where I should be clicking ... he just went, then the
+     * server must go here, which means it is 100% safe to click this next button no matter what").
+     *
+     * <p>The computer's reply is not guessed: every reply with the computer's best outcome (minimax from its side) is
+     * taken. A square qualifies only if the computer takes none of them - so it is still empty when his click lands -
+     * and it is one of his best replies (same outcome: win, draw or loss) after EACH of them. Usually the computer has
+     * one best reply (a block, a fork), so this is simply his best move on the board after it. The old rule skipped the
+     * computer's own square when testing it, so the square it was about to take always qualified and was what got
+     * shown. Null when no square is safe whichever best reply comes.
      */
-    private static Integer safePrediction(char[] board) {
-        Integer found = null;
+    static Integer safePrediction(char[] board) {
+        List<Integer> replies = new java.util.ArrayList<>();
+        int[] values = new int[9];
+        int bestForComputer = Integer.MAX_VALUE;
+        for (int c : MOVE_ORDER) {
+            if (board[c] != EMPTY) {
+                continue;
+            }
+            board[c] = 'X';
+            int v = alphaBeta(board, 0, -1000, 1000, true);
+            board[c] = EMPTY;
+            values[c] = v;
+            bestForComputer = Math.min(bestForComputer, v);
+        }
+        // Every reply with the computer's best OUTCOME (win, draw or loss), not only the one the search ranks first:
+        // nothing says which of two equally good squares Hypixel's bot takes, so the square shown must survive all.
+        for (int c : MOVE_ORDER) {
+            if (board[c] == EMPTY && Integer.signum(values[c]) == Integer.signum(bestForComputer)) {
+                replies.add(c);
+            }
+        }
+        if (replies.isEmpty()) {
+            return null;
+        }
         for (int s : MOVE_ORDER) {
-            if (board[s] != EMPTY) {
+            if (board[s] != EMPTY || replies.contains(s)) {
                 continue;
             }
             boolean safe = true;
-            boolean anyReply = false;
-            for (int c = 0; c < 9 && safe; c++) {
-                if (board[c] != EMPTY || c == s) {
-                    continue;
-                }
+            for (int c : replies) {
                 board[c] = 'X';
-                if (getScore(board) == 0) {
-                    anyReply = true;
+                if (getScore(board) != 0) {
+                    safe = false; // the computer wins outright: nothing he clicks matters
+                } else {
                     int best = Integer.MIN_VALUE;
                     int mine = Integer.MIN_VALUE;
                     for (int r = 0; r < 9; r++) {
@@ -186,17 +213,82 @@ public final class TicTacToeSolverFeature {
                         }
                     }
                     safe = mine == best;
-                } else {
-                    safe = false; // the computer could win outright instead - nothing is safe then
                 }
                 board[c] = EMPTY;
+                if (!safe) {
+                    break;
+                }
             }
-            if (safe && anyReply) {
-                found = s;
-                break;
+            if (safe) {
+                return s;
             }
         }
-        return found;
+        return null;
+    }
+
+    /** For the testkit: the prediction on a board given as 9 chars ('X', 'O', anything else empty), row by row. */
+    public static Integer predictionFor(String cells) {
+        return safePrediction(parse(cells));
+    }
+
+    /** For the testkit: his best move (his turn) on a board given the same way, or null. */
+    public static Integer bestMoveFor(String cells) {
+        return getBestMove(parse(cells), true);
+    }
+
+    private static char[] parse(String cells) {
+        char[] board = new char[9];
+        for (int i = 0; i < 9; i++) {
+            char ch = cells.charAt(i);
+            board[i] = ch == 'X' || ch == 'O' ? ch : EMPTY;
+        }
+        return board;
+    }
+
+    // ---------------------------------------------------------------- Prevent Misclicks
+
+    /** The board's clay corner and rotation while he is in the room, for {@link #shouldBlockClick}. */
+    private static int[] boardCr = null;
+    private static int blockedClicks;
+
+    /** The square a click should land on right now: his move on his turn, else the shown prediction; null for none. */
+    public static BlockPos currentTarget() {
+        if (bestMove != null) {
+            return bestMove;
+        }
+        return TicTacToeSolverConfig.getInstance().isShowPrediction() ? predictedMove : null;
+    }
+
+    /**
+     * Prevent Misclicks (killer560, 2026-10-09: "add a prevent missclicks for tictactoe"): true for a click on one of
+     * the nine board squares other than {@link #currentTarget()} while one is shown. The mixin then fails the click on
+     * the client, so nothing is sent. Sneaking lets it through (the same override Simon Says has).
+     */
+    public static boolean shouldBlockClick(BlockPos pos, boolean sneaking) {
+        TicTacToeSolverConfig cfg = TicTacToeSolverConfig.getInstance();
+        int[] cr = boardCr;
+        BlockPos target = currentTarget();
+        if (!cfg.isEnabled() || !cfg.isPreventMisclicks() || sneaking || cr == null || target == null || pos == null
+                || pos.equals(target)) {
+            return false;
+        }
+        for (int i = 0; i < 9; i++) {
+            if (pos.equals(indexToPos(i, cr))) {
+                blockedClicks++;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** How many clicks Prevent Misclicks has stopped (the testkit reads it). */
+    public static int blockedClicks() {
+        return blockedClicks;
+    }
+
+    /** The prediction square, for the testkit. */
+    public static BlockPos getPredictedMove() {
+        return predictedMove;
     }
 
     private static BlockPos indexToPos(int i, int[] cr) {

@@ -21,23 +21,11 @@ import java.util.concurrent.CompletableFuture;
  * stored API key, then the keyless backend) - and {@link SbProfile}'s already-working dungeon parsing.
  * Nothing here talks to the network directly.
  * <p>
- * <b>Exact API field used, and how it was established.</b> {@link SbProfile.Floor#fastestS()}, which
- * {@code SbProfile.floors()} reads from the real Hypixel {@code /v2/skyblock/profiles} response at
- * {@code members.<uuid>.dungeons.dungeon_types.catacombs.fastest_time_s.<floor>} (and
- * {@code ...master_catacombs.fastest_time_s.<floor>} for Master Mode) - already fetched, parsed and
- * displayed as the "fastest clear time" column on this mod's own Profile Viewer dungeons page
- * (see {@code ProfileViewerScreen}'s dungeons table). This is a field this codebase was already fetching
- * and rendering successfully before tonight, not a new guess - see this class's own doc for the one field
- * it deliberately does NOT use: {@code fastest_time_s_plus} (fastest S+-scored run) is frequently empty for
- * a player who hasn't chased S+ on every floor, and populating from an empty field would silently skip
- * floors that field never fired on while a real, slower clear time sits right next to it unused.
- * fastest_time_s is in MILLISECONDS (checked 2026-10-07 against real profiles: AntsRNG's F7 is 263003, a 4:23
- * clear), so it is converted to whole seconds, rounded up, for {@link AutoKickConfig#getTargetSeconds}. Read as
- * seconds, every floor used to clamp to {@link AutoKickConfig#MAX_TARGET_SECONDS}.
- * <p>
- * <b>Never overwrites a floor he already set.</b> {@link #populate} only fills a floor whose target is
- * still 0 - a deliberately-tuned value is never silently clobbered by a later populate for a different
- * player. Floors with no recorded clear time on the source profile are left at 0 (still "never kick").
+ * <b>Field used (since 2026-10-09):</b> {@link SbProfile.Floor#fastestSPlus()} - Hypixel's
+ * {@code fastest_time_s_plus}, in MILLISECONDS, rounded up to whole seconds - because Auto Kick now judges Party Finder
+ * joiners by their timed (S+) completion, and the number it compares against should come from the same field. Every
+ * floor the profile has an S+ time on is set (clamped into that floor's 30 s - 4/6/7 min range); a floor without one is
+ * left as it was. It is an explicit button press or command, so it overwrites.
  */
 public final class AutoKickApi {
 
@@ -82,27 +70,17 @@ public final class AutoKickApi {
         if (profile == null) {
             noData = AutoKickConfig.Floor.values().length;
         } else {
+            // 2026-10-09: every floor now always has a time (30 s up to its own top), so there are no blanks to fill;
+            // a populate is an explicit press and sets every floor the profile has an S+ time on, clamped into that
+            // floor's range. A floor with no S+ time is left as it was.
             for (AutoKickConfig.Floor floor : AutoKickConfig.Floor.values()) {
-                if (cfg.getTargetSeconds(floor) > 0) {
-                    // He already set this one (for this player or a previous populate) - never clobber a
-                    // deliberate choice. See this class's own doc.
-                    alreadySet++;
-                    continue;
-                }
-                boolean master = floor.name().charAt(0) == 'M';
-                Map<Integer, SbProfile.Floor> floors = master ? profile.dungeons.master() : profile.dungeons.normal();
-                // Floor enum tokens are exactly "F1".."F7"/"M1".."M7" - see AutoKickConfig.Floor's own
-                // declaration - so the digit after the letter is the same 1-7 key SbProfile.floors() keys
-                // its map by.
-                int floorNum = Integer.parseInt(floor.name().substring(1));
-                SbProfile.Floor f = floors.get(floorNum);
-                long seconds = f == null ? 0L : targetSecondsFromMillis(f.fastestS());
+                Map<Integer, SbProfile.Floor> floors = floor.master() ? profile.dungeons.master() : profile.dungeons.normal();
+                SbProfile.Floor f = floors.get(floor.number());
+                long seconds = f == null ? 0L : targetSecondsFromMillis(f.fastestSPlus());
                 if (seconds > 0) {
-                    cfg.setTargetSeconds(floor, (int) Math.min(seconds, AutoKickConfig.MAX_TARGET_SECONDS));
+                    cfg.setTargetSeconds(floor, (int) Math.min(seconds, floor.maxSeconds()));
                     set++;
                 } else {
-                    // No recorded fastest_time_s for this floor (never S-cleared it, or Dungeons API off) -
-                    // stays at 0, i.e. still "never kick on this floor". Never invent a number here.
                     noData++;
                 }
             }

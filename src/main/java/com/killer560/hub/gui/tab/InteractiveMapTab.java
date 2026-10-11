@@ -121,7 +121,11 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             // threads required to reach the end room." The search now sizes its own worker count off the room
             // path itself (EtherwarpPathfinder.threadsFor), so Path Timeout takes the full row on its own.
             widgets.add(LiveMapTab.slider("Path Timeout", cfg::getTimeoutMs,
-                    v -> cfg.setTimeoutMs((int) (Math.round(v / 50.0) * 50)), 200, 1000, "ms", cfg, contentX, y, contentWidth));
+                    v -> cfg.setTimeoutMs((int) (Math.round(v / 50.0) * 50)), 200, 1000, "ms", cfg, contentX, y, colW));
+            // killer560, 2026-10-09: "add an amount of ticks to make the etherwarps as well" - 1 is a hop every tick.
+            widgets.add(LiveMapTab.slider("Ticks Between Etherwarps", cfg::getEtherwarpTickGap,
+                    v -> cfg.setEtherwarpTickGap((int) Math.round(v)), LiveMapConfig.MIN_ETHERWARP_TICK_GAP,
+                    LiveMapConfig.MAX_ETHERWARP_TICK_GAP, "", cfg, colB, y, colW));
             y += 20;
             // killer560, 2026-09-29: "If I double click a room then it should auto pathfind to the start node to
             // start secreting. If I click a different room mid path then it goes doesn't have to be a double

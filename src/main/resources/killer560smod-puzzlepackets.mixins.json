@@ -4,7 +4,8 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.puzzlesolvers.mixin",
 	"client": [
-		"PuzzlePacketMixin"
+		"PuzzlePacketMixin",
+		"TicTacToeMisclickMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

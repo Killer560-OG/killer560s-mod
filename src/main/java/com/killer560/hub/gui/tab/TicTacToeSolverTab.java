@@ -38,6 +38,12 @@ public class TicTacToeSolverTab extends BaseTab {
                     btn.setMessage(onOff("Show Prediction", cfg.isShowPrediction()));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
+        widgets.add(SettingsButtonWidget.builder(onOff("Prevent Misclicks", cfg.isPreventMisclicks()), btn -> {
+                    cfg.setPreventMisclicks(!cfg.isPreventMisclicks());
+                    cfg.save();
+                    btn.setMessage(onOff("Prevent Misclicks", cfg.isPreventMisclicks()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
         widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
                     cfg.setFill(!cfg.isFill());
                     cfg.save();
