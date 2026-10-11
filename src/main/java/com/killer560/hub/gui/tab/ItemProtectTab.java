@@ -4,6 +4,7 @@ import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.itemprotect.ItemProtectConfig;
 import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -171,7 +172,7 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
             widgets.add(SettingsButtonWidget.builder(onOff("Confirm To Force", cfg.isConfirmToForce()), btn -> {
                         cfg.setConfirmToForce(!cfg.isConfirmToForce());
                         cfg.save();
-                        btn.setMessage(onOff("Confirm To Force", cfg.isConfirmToForce()));
+                        requestRebuild.run();
                     }).bounds(contentX, y, half, 18).build());
             widgets.add(SettingsButtonWidget.builder(onOff("Block Every Drop", cfg.isBlockEveryHotbarDrop()), btn -> {
                         cfg.setBlockEveryHotbarDrop(!cfg.isBlockEveryHotbarDrop());
@@ -179,7 +180,27 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                         btn.setMessage(onOff("Block Every Drop", cfg.isBlockEveryHotbarDrop()));
                     }).bounds(col2, y, half, 18).build());
             y += 22;
+            if (cfg.isConfirmToForce()) {
+                int minD = ItemProtectConfig.MIN_FORCE_DROPS;
+                int maxD = ItemProtectConfig.MAX_FORCE_DROPS;
+                widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, forceDropsText(cfg),
+                        (cfg.getForceDrops() - minD) / (double) (maxD - minD)) {
+                    @Override
+                    protected void updateMessage() {
+                        setMessage(forceDropsText(ItemProtectConfig.getInstance()));
+                    }
 
+                    @Override
+                    protected void applyValue() {
+                        ItemProtectConfig c = ItemProtectConfig.getInstance();
+                        int snapped = minD + (int) Math.round(this.value * (maxD - minD));
+                        c.setForceDrops(snapped);
+                        c.save();
+                        this.value = (snapped - minD) / (double) (maxD - minD);
+                    }
+                });
+                y += 22;
+            }
         }
 
         // ---------------- Feedback ----------------
@@ -191,6 +212,10 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         y += 22;
 
         return widgets;
+    }
+
+    private static Component forceDropsText(ItemProtectConfig cfg) {
+        return Component.literal("Drops To Force: " + cfg.getForceDrops());
     }
 
     private static Component onOff(String label, boolean value) {

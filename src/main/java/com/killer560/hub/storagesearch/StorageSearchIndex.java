@@ -157,7 +157,7 @@ public final class StorageSearchIndex {
         return index;
     }
 
-    /** Wardrobe / equipment / pets pages - killer560 (2026-09-21): "make sure that it scans the wardrobe,
+    /** Wardrobe / equipment / Equipment Wardrobe / pets pages - killer560 (2026-09-21): "make sure that it scans the wardrobe,
      *  equipment wardrobe, and my pets for items". Hypixel pads those menus with glass panes and page arrows, so
      *  the obvious chrome is skipped here rather than at capture time (capturing the raw page keeps the slot
      *  indices honest, which is what the open-and-highlight jump needs). */
@@ -371,11 +371,13 @@ public final class StorageSearchIndex {
         return key.length() > prefix.length() + 1 ? key.substring(prefix.length() + 1) : key;
     }
 
-    /** "wardrobe_2" -> "Wardrobe p2", "pets_1" -> "Pets p1", "equipment" -> "Equipment". */
+    /** "wardrobe_2" -> "Wardrobe p2", "pets_1" -> "Pets p1", "equipment" -> "Equipment",
+     *  "eqwardrobe_1" -> "Equipment Wardrobe p1". */
     static String extraLabel(String local) {
         int underscore = local.indexOf('_');
         String base = underscore < 0 ? local : local.substring(0, underscore);
-        String pretty = base.isEmpty() ? base : Character.toUpperCase(base.charAt(0)) + base.substring(1);
+        String pretty = base.equals(StorageSearchFeature.EQUIPMENT_WARDROBE_KEY) ? "Equipment Wardrobe"
+                : base.isEmpty() ? base : Character.toUpperCase(base.charAt(0)) + base.substring(1);
         int page = pageNumber(local);
         return page > 0 ? pretty + " p" + page : pretty;
     }

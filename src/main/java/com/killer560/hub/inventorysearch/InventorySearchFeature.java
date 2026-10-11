@@ -1,6 +1,5 @@
 package com.killer560.hub.inventorysearch;
 
-import com.killer560.hub.inventorysearch.mixin.ContainerScreenPositionAccessor;
 import com.killer560.hub.itembrowser.ItemBrowserConfig;
 import com.killer560.hub.storageoverlay.StorageOverlayConfig;
 import com.killer560.hub.storageoverlay.StorageOverlayFeature;
@@ -28,10 +27,17 @@ import java.util.Locale;
  * query, and every real slot whose item name (or lore, if enabled) contains the query gets a colored
  * outline drawn over it. Purely a client-side visual aid - never touches, moves, or clicks any item.
  * <p>
- * Deliberately left out Noamm's own math-expression evaluator (typing "5+3" to compute a value in the
- * search box) - that's a separate quality-of-life feature bolted onto the same text box in his version,
- * not part of what killer560 actually asked for here, and skipping it keeps this feature's own scope
- * (and testing surface) to exactly the real search-and-highlight behavior described.
+ * The bar is also a calculator (killer560, 2026-10-11: "It should also be able to do math in that bar.
+ * reference neu for how to do it"): a query that parses as a sum shows " = result" after it, in NEU's
+ * language - see {@link SearchCalculator}. A sum highlights nothing.
+ * <p>
+ * A match is a full fill of the slot in the highlight colour, drawn behind the item (killer560, 2026-10-11:
+ * "have the item be a full red highlight so its easier to see") from {@code InventorySearchSlotMixin}, inside the
+ * slot's own draw, so it sits under the tooltip.
+ * <p>
+ * The bar always sits at the bottom middle of the screen, also when the Item Browser is on (killer560,
+ * 2026-10-11: "Do not move my search bar above the menu the search bar should stay in the bottom middle of my
+ * screen like normal") - the Item Browser filters by this same bar and has no box of its own.
  * <p>
  * killer560 (2026-09-21): "make it so I can click into that bar as well and adjust the scale of it.
  * Also make ctrl backspace work as normal ctrl backspace does. Also you need to adjust how it works in
@@ -99,6 +105,7 @@ public final class InventorySearchFeature {
             return;
         }
         listening = false;
+        lastMatchQuery = null;
         lastBoxBounds = null;
         lastOverlayQuery = null;
         lastOverlayKey = null;
@@ -173,53 +180,102 @@ public final class InventorySearchFeature {
         QUERY.delete(i, end);
     }
 
+    /** Fill alpha of a matching slot - the colour setting's RGB at this alpha, behind the item. */
+    private static final int MATCH_FILL_ALPHA = 0xC0;
+
+    /** Per-slot match cache for {@link #drawSlotHighlight}: the query it was built for and stack -> matched. Identity
+     *  keyed, so a slot whose stack object is replaced is simply asked again. Cleared when the query changes. */
+    private static String lastMatchQuery = null;
+    private static final java.util.Map<ItemStack, Boolean> MATCH_CACHE = new java.util.IdentityHashMap<>();
+
+    /** The live query when it should highlight slots (feature on, not blank, not a sum), else null. */
+    private static String highlightQuery() {
+        if (!InventorySearchConfig.getInstance().isEnabled()) {
+            return null;
+        }
+        String query = QUERY.toString();
+        if (query.isBlank() || SearchCalculator.resultFor(query) != null) {
+            return null;
+        }
+        return query;
+    }
+
+    /**
+     * Called from {@code InventorySearchSlotMixin} just before vanilla draws a slot's item, so a match gets a full
+     * fill of the highlight colour behind the item and under any tooltip. Slot-local coordinates (extractContents
+     * has already translated by leftPos/topPos). Public for the testkit.
+     */
+    public static void drawSlotHighlight(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
+        if (com.killer560.hub.bazaar.BazaarReskin.isHiding(screen) || com.killer560.hub.auction.ah.AhReskin.isHiding(screen)) {
+            return;
+        }
+        if (!slotMatches(slot.getItem())) {
+            return;
+        }
+        int color = InventorySearchConfig.getInstance().getHighlightColor();
+        graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, (MATCH_FILL_ALPHA << 24) | (color & 0xFFFFFF));
+    }
+
+    /** @return whether {@code stack} is highlighted by the live query right now. Public for the testkit. */
+    public static boolean slotMatches(ItemStack stack) {
+        String query = highlightQuery();
+        if (query == null || stack == null || stack.isEmpty()) {
+            return false;
+        }
+        if (!query.equals(lastMatchQuery)) {
+            lastMatchQuery = query;
+            MATCH_CACHE.clear();
+        }
+        if (MATCH_CACHE.size() > 4096) {
+            MATCH_CACHE.clear();
+        }
+        return MATCH_CACHE.computeIfAbsent(stack, st -> matches(st, query, InventorySearchConfig.getInstance()));
+    }
+
+    /** The text shown in the bar: the query, plus " = result" in green when it is a sum. Public for the testkit. */
+    public static String barText() {
+        String query = QUERY.toString();
+        if (query.isEmpty()) {
+            return "\u00a78Ctrl+F or click to search...";
+        }
+        String result = SearchCalculator.resultFor(query);
+        return result == null ? query : query + " \u00a77= \u00a7a" + result;
+    }
+
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
         if (com.killer560.hub.bazaar.BazaarReskin.isHiding(screen)
                 || com.killer560.hub.auction.ah.AhReskin.isHiding(screen)) {
             return; // a reskinned Bazaar or Auction House menu covers the chest; nothing of this belongs on top of it
         }
         boolean highlightEnabled = InventorySearchConfig.getInstance().isEnabled();
-        // The NEU-style panel (when on) already has its own search bar built into its header, sharing
-        // this same query/listening state - drawing this standalone floating box too would just be a
-        // second, redundant search box on screen at the same time.
-        boolean panelHasOwnBox = ItemBrowserConfig.getInstance().isEnabled();
-        if (!highlightEnabled && !panelHasOwnBox) {
+        if (!highlightEnabled && !ItemBrowserConfig.getInstance().isEnabled()) {
             lastBoxBounds = null;
             return;
         }
 
-        if (!panelHasOwnBox) {
-            InventorySearchConfig cfg = InventorySearchConfig.getInstance();
-            float scale = cfg.getBoxScale();
-            int boxWidth = 140;
-            int boxHeight = 16;
-            int screenX = (screen.width - Math.round(boxWidth * scale)) / 2;
-            int screenY = screen.height - Math.round(boxHeight * scale) - 30;
-            lastBoxBounds = new int[]{screenX, screenY, Math.round(boxWidth * scale), Math.round(boxHeight * scale)};
-
-            graphics.pose().pushMatrix();
-            try {
-                graphics.pose().translate(screenX, screenY);
-                graphics.pose().scale(scale, scale);
-
-                String boxQuery = QUERY.toString();
-                graphics.fill(0, 0, boxWidth, boxHeight, 0xCC0D0D0D);
-                graphics.outline(0, 0, boxWidth, boxHeight, listening ? 0xFFCC6600 : 0xFF553311);
-                String display = boxQuery.isEmpty() ? "§8Ctrl+F or click to search..." : boxQuery;
-                graphics.text(Minecraft.getInstance().font, display, 4, 4, 0xFFFFFFFF, false);
-            } finally {
-                graphics.pose().popMatrix();
-            }
-        } else {
-            lastBoxBounds = null;
-        }
-
-        if (!highlightEnabled) {
-            return;
-        }
+        // One bar, bottom middle, whichever of the two features is on (the Item Browser filters by it too).
         InventorySearchConfig cfg = InventorySearchConfig.getInstance();
-        String query = QUERY.toString();
-        if (query.isBlank()) {
+        float scale = cfg.getBoxScale();
+        String display = barText();
+        int boxWidth = Math.max(140, Minecraft.getInstance().font.width(display) + 8);
+        int boxHeight = 16;
+        int screenX = (screen.width - Math.round(boxWidth * scale)) / 2;
+        int screenY = screen.height - Math.round(boxHeight * scale) - 30;
+        lastBoxBounds = new int[]{screenX, screenY, Math.round(boxWidth * scale), Math.round(boxHeight * scale)};
+
+        graphics.pose().pushMatrix();
+        try {
+            graphics.pose().translate(screenX, screenY);
+            graphics.pose().scale(scale, scale);
+            graphics.fill(0, 0, boxWidth, boxHeight, 0xCC0D0D0D);
+            graphics.outline(0, 0, boxWidth, boxHeight, listening ? 0xFFCC6600 : 0xFF553311);
+            graphics.text(Minecraft.getInstance().font, display, 4, 4, 0xFFFFFFFF, false);
+        } finally {
+            graphics.pose().popMatrix();
+        }
+
+        String query = highlightQuery();
+        if (query == null) {
             lastOverlayQuery = null;
             lastOverlayKey = null;
             return;
@@ -229,9 +285,8 @@ public final class InventorySearchFeature {
         // killer560 (2026-09-21): "you need to adjust how it works in the custom storage to actually
         // adjust to the new slots things are in for that gui" - with the Storage Overlay on, every real
         // slot of a tracked Ender Chest page/Backpack is hidden and redrawn in that overlay's own grid
-        // (see StorageOverlayFeature), so an outline drawn at the real vanilla slot position (below)
-        // lands on an invisible slot. Reusing StorageOverlayFeature.highlightItem - the exact same real
-        // hook Storage Item Search already uses for this - instead of drawing a second, separate mapping.
+        // (see StorageOverlayFeature), so the per-slot fill never draws there. Reusing
+        // StorageOverlayFeature.highlightItem - the same hook Storage Item Search uses - instead.
         boolean overlayHiding = StorageOverlayConfig.getInstance().isEnabled() && StorageOverlayFeature.shouldHideVanilla(title);
         String overlayKey = overlayHiding ? StorageOverlayFeature.storageKeyForTitle(title) : null;
         if (overlayHiding && overlayKey != null) {
@@ -239,25 +294,6 @@ public final class InventorySearchFeature {
         } else {
             lastOverlayQuery = null;
             lastOverlayKey = null;
-        }
-
-        ContainerScreenPositionAccessor accessor = (ContainerScreenPositionAccessor) screen;
-        int leftPos = accessor.killer560smod$getLeftPos();
-        int topPos = accessor.killer560smod$getTopPos();
-
-        for (Slot slot : screen.getMenu().slots) {
-            if (overlayHiding) {
-                // Every real slot on a tracked overlay screen is invisible at its own vanilla position -
-                // see renderOverlayHighlight above for where the highlight actually gets drawn instead.
-                continue;
-            }
-            ItemStack stack = slot.getItem();
-            if (stack.isEmpty() || !matches(stack, query, cfg)) {
-                continue;
-            }
-            int x = leftPos + slot.x;
-            int y = topPos + slot.y;
-            graphics.outline(x - 1, y - 1, 18, 18, cfg.getHighlightColor());
         }
     }
 

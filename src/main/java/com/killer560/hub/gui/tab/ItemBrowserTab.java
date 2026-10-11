@@ -43,6 +43,16 @@ public class ItemBrowserTab extends BaseTab {
             return widgets;
         }
 
+        // killer560, 2026-10-11: "add a note in item browser that you need that search bar for them to work in tandem".
+        for (String note : new String[]{
+                "§7Note: the Item Browser filters by the Inventory Search bar",
+                "§7at the bottom middle of your screen (Ctrl+F or click it).",
+                "§7Keep Inventory Search on so the two work together."}) {
+            widgets.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal(note), Minecraft.getInstance().font));
+            y += 11;
+        }
+        y += 4;
+
         int columnRange = ItemBrowserConfig.MAX_COLUMNS - ItemBrowserConfig.MIN_COLUMNS;
         double columnsNormalized = (cfg.getColumns() - ItemBrowserConfig.MIN_COLUMNS) / (double) columnRange;
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, columnsText(cfg), columnsNormalized) {

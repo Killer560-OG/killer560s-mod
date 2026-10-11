@@ -63,7 +63,7 @@ public final class PetWheelFeature {
         if (pets.isEmpty()) {
             return;
         }
-        McCompat.setScreen(client, new PetWheelScreen(pets, cfg.getSliceCount(), cfg.getScalePercent() / 100f, cfg.getMode()));
+        McCompat.setScreen(client, new PetWheelScreen(pets, cfg.getScalePercent() / 100f, cfg.getMode()));
     }
 
     /** Called by {@link PetWheelScreen} once a slice is confirmed (click, or key release in hold mode). */

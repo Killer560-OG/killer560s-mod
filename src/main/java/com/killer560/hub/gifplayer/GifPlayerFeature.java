@@ -257,6 +257,10 @@ public final class GifPlayerFeature {
             initialLoadDone = true;
             reload();
         }
+        // killer560, 2026-10-11: "make it so gifs and dvds and whatnot dont show in the storage or any inventory".
+        if (com.killer560.hub.hud.GuiOverlays.containerOpen()) {
+            return;
+        }
         if (!GifPlayerConfig.getInstance().isEnabled()) {
             return;
         }

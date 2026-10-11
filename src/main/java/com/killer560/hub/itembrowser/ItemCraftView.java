@@ -7,54 +7,89 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The craft/obtain popup killer560 asked for (2026-09-21): "if I left click on it then itll open up the
  * menu showing how to craft/obtain it". Drawn as an overlay on top of the currently open real container
- * screen (same {@code ScreenEvents.afterExtract} render pass {@link ItemBrowserFeature}'s own panel
- * uses) rather than a real separate {@link net.minecraft.client.gui.screens.Screen} - switching to a
- * real Screen would call the underlying real container screen's {@code removed()}, which for a real
- * Hypixel menu sends a real close-container packet and kicks him out of whatever he actually has open
- * just to look up an item. This never touches the real container at all.
+ * screen (from {@code ItemBrowserRenderMixin}, inside the container's own render pass, so its hover tooltips
+ * are real tooltips) rather than a real separate {@link net.minecraft.client.gui.screens.Screen} - switching to a
+ * real Screen would call the underlying real container screen's {@code removed()}, which for a real Hypixel menu
+ * sends a real close-container packet and kicks him out of whatever he actually has open just to look up an item.
+ * This never touches the real container at all.
  * <p>
- * Built entirely from what {@link SkyblockItemRepository} actually has for the item (see its class doc
- * and {@link SkyblockItemEntry}) - recipe data is real but only exists for 1 of 5,655 real items on the
- * live catalog any more, so most items honestly show "No recipe data available" instead of an empty
- * grid. Obtain info (requirements, NPC sell price, minion/museum/salvage) is shown whenever the real
- * catalog has it.
+ * Recipes come from the NEU item repo ({@link NeuItemData}) - killer560, 2026-10-11: "Some things are missing
+ * recipe data" - with Hypixel's own single {@code recipes[0]} entry as the fallback while NEU's is loading or when
+ * it has none. Obtain info (requirements, NPC sell price, minion/museum/salvage) comes from Hypixel's catalog.
+ * <p>
+ * Also hosts the minion tier picker (killer560, 2026-10-11: "Make it so minions are a sort of stack that if you
+ * press on something like blaze minion then it has a popup for all tiers"): {@link #openTiers} shows every tier
+ * of one minion, and clicking a tier opens that tier's craft view.
  */
 public final class ItemCraftView {
 
-    private static final int PANEL_WIDTH = 210;
+    private static final int PANEL_WIDTH = 230;
     private static final int PADDING = 8;
     private static final int SLOT_SIZE = 18;
     private static final int MAX_OBTAIN_LINES = 6;
+    private static final int MAX_OTHER_RECIPE_LINES = 6;
+    private static final int TIER_COLUMNS = 6;
+    private static final int TIER_CELL_W = 30;
+    private static final int TIER_CELL_H = 30;
 
     private static SkyblockItemEntry openEntry = null;
+    private static List<SkyblockItemEntry> openTiers = null;
     private static int[] panelBounds = null; // x, y, w, h in real screen coordinates
     private static int[] closeButtonBounds = null;
+    /** Screen bounds of each tier cell in the tier picker, parallel to {@link #openTiers}. */
+    private static final List<int[]> tierCells = new ArrayList<>();
 
     private ItemCraftView() {
     }
 
     public static boolean isOpen() {
-        return openEntry != null;
+        return openEntry != null || openTiers != null;
+    }
+
+    public static boolean isTierPickerOpen() {
+        return openTiers != null;
+    }
+
+    public static SkyblockItemEntry openEntry() {
+        return openEntry;
+    }
+
+    public static List<SkyblockItemEntry> openTierList() {
+        return openTiers;
     }
 
     public static void open(SkyblockItemEntry entry) {
         openEntry = entry;
+        openTiers = null;
+        if (entry != null) {
+            NeuItemData.get(entry.id()); // start the fetch now so the recipe is usually there by the first frame
+        }
+    }
+
+    /** Opens the tier picker for one minion's tiers (sorted lowest first by the caller). */
+    public static void openTiers(List<SkyblockItemEntry> tiers) {
+        openTiers = List.copyOf(tiers);
+        openEntry = null;
+        tierCells.clear();
     }
 
     public static void close() {
         openEntry = null;
+        openTiers = null;
         panelBounds = null;
         closeButtonBounds = null;
+        tierCells.clear();
     }
 
     /** @return true if the click landed anywhere relevant to the popup (which is all of them while it's
      *  open - every click is swallowed so it can't fall through onto the real container underneath). */
     public static boolean handleClick(double mouseX, double mouseY, int button) {
-        if (openEntry == null) {
+        if (!isOpen()) {
             return false;
         }
         if (closeButtonBounds != null && inside(closeButtonBounds, mouseX, mouseY)) {
@@ -66,19 +101,107 @@ public final class ItemCraftView {
             close();
             return true;
         }
+        if (openTiers != null && button == 0) {
+            for (int i = 0; i < tierCells.size() && i < openTiers.size(); i++) {
+                if (inside(tierCells.get(i), mouseX, mouseY)) {
+                    open(openTiers.get(i));
+                    return true;
+                }
+            }
+        }
         return true;
     }
 
     public static void render(GuiGraphicsExtractor graphics, int screenWidth, int screenHeight, int mouseX, int mouseY) {
-        if (openEntry == null) {
-            return;
+        if (openTiers != null) {
+            renderTiers(graphics, screenWidth, screenHeight, mouseX, mouseY);
+        } else if (openEntry != null) {
+            renderEntry(graphics, screenWidth, screenHeight, mouseX, mouseY);
         }
+    }
+
+    // ------------------------------------------------------------------ minion tier picker
+
+    private static void renderTiers(GuiGraphicsExtractor graphics, int screenWidth, int screenHeight, int mouseX, int mouseY) {
+        Font font = Minecraft.getInstance().font;
+        List<SkyblockItemEntry> tiers = openTiers;
+        int rows = Math.max(1, (tiers.size() + TIER_COLUMNS - 1) / TIER_COLUMNS);
+        int panelW = Math.max(PANEL_WIDTH, TIER_COLUMNS * TIER_CELL_W + PADDING * 2);
+        int panelH = PADDING * 2 + font.lineHeight + 6 + rows * TIER_CELL_H + font.lineHeight + 2;
+        int panelX = (screenWidth - panelW) / 2;
+        int panelY = Math.max(10, (screenHeight - panelH) / 2);
+        panelBounds = new int[]{panelX, panelY, panelW, panelH};
+
+        graphics.fill(0, 0, screenWidth, screenHeight, 0x99000000);
+        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xF00D0D0D);
+        graphics.outline(panelX, panelY, panelW, panelH, 0xFFCC6600);
+
+        String title = ItemBrowserFeature.minionBaseName(tiers.getFirst()) + " - all tiers";
+        graphics.text(font, title, panelX + PADDING, panelY + PADDING, 0xFFFFAA00, false);
+
+        int gridX = panelX + (panelW - TIER_COLUMNS * TIER_CELL_W) / 2;
+        int gridY = panelY + PADDING + font.lineHeight + 6;
+        tierCells.clear();
+        SkyblockItemEntry hovered = null;
+        for (int i = 0; i < tiers.size(); i++) {
+            int cx = gridX + (i % TIER_COLUMNS) * TIER_CELL_W;
+            int cy = gridY + (i / TIER_COLUMNS) * TIER_CELL_H;
+            int[] cell = {cx, cy, TIER_CELL_W, TIER_CELL_H};
+            tierCells.add(cell);
+            boolean over = inside(cell, mouseX, mouseY);
+            graphics.fill(cx + 1, cy + 1, cx + TIER_CELL_W - 1, cy + TIER_CELL_H - 1, over ? 0x80CC6600 : 0xFF262626);
+            SkyblockItemEntry tier = tiers.get(i);
+            graphics.item(SkyblockItemStackFactory.build(tier), cx + (TIER_CELL_W - 16) / 2, cy + 2);
+            graphics.centeredText(font, ItemBrowserFeature.minionTierLabel(tier), cx + TIER_CELL_W / 2, cy + 19, 0xFFFFFFFF);
+            if (over) {
+                hovered = tier;
+            }
+        }
+        graphics.text(font, "§8Click a tier for its recipe", panelX + PADDING, panelY + panelH - PADDING - font.lineHeight + 2,
+                0xFF888888, false);
+        drawCloseButton(graphics, panelX, panelY, panelW, mouseX, mouseY);
+        if (hovered != null) {
+            graphics.setTooltipForNextFrame(font, ItemBrowserFeature.buildTooltipLines(hovered), Optional.empty(), mouseX, mouseY);
+        }
+    }
+
+    // ------------------------------------------------------------------ craft / obtain view
+
+    private static void renderEntry(GuiGraphicsExtractor graphics, int screenWidth, int screenHeight, int mouseX, int mouseY) {
         SkyblockItemEntry entry = openEntry;
         Font font = Minecraft.getInstance().font;
+        int contentWidth = PANEL_WIDTH - PADDING * 2;
 
-        List<String> descriptionLines = wrap(font, entry.description(), PANEL_WIDTH - PADDING * 2);
+        NeuItemData.Info neu = NeuItemData.get(entry.id());
+        boolean neuSettled = NeuItemData.isSettled(entry.id());
+        List<String> gridIds;
+        List<Integer> gridCounts;
+        int outputCount;
+        if (neu != null && neu.hasCraftingRecipe()) {
+            gridIds = neu.grid();
+            gridCounts = neu.gridCounts();
+            outputCount = neu.outputCount();
+        } else {
+            gridIds = entry.recipeIngredients();
+            gridCounts = null;
+            outputCount = entry.recipeOutputCount();
+        }
+        List<String> otherLines = new ArrayList<>();
+        if (neu != null) {
+            for (String line : neu.otherRecipes()) {
+                otherLines.addAll(wrap(font, "- " + line, contentWidth));
+            }
+        }
+        boolean otherTruncated = otherLines.size() > MAX_OTHER_RECIPE_LINES;
+        if (otherTruncated) {
+            otherLines = new ArrayList<>(otherLines.subList(0, MAX_OTHER_RECIPE_LINES));
+        }
+        String noRecipe = !neuSettled ? "Loading recipe from the NEU item repo..."
+                : "No recipe in the NEU item repo or Hypixel's API for this item.";
+        List<String> noRecipeLines = gridIds == null && otherLines.isEmpty() ? wrap(font, noRecipe, contentWidth) : List.of();
+
+        List<String> descriptionLines = wrap(font, entry.description(), contentWidth);
         List<String> obtainLines = entry.obtainLines();
-        boolean hasRecipe = entry.recipeIngredients() != null;
 
         int y = 0;
         y += font.lineHeight + 4; // title
@@ -95,8 +218,11 @@ public final class ItemCraftView {
         }
         y += 6; // divider gap before Recipe
         y += font.lineHeight; // "Recipe:" header
-        y += hasRecipe ? (SLOT_SIZE * 3 + 4) : wrap(font, "No recipe data is available from Hypixel's API for this item.",
-                PANEL_WIDTH - PADDING * 2).size() * font.lineHeight;
+        if (gridIds != null) {
+            y += SLOT_SIZE * 3 + 4;
+        }
+        y += otherLines.size() * font.lineHeight + (otherTruncated ? font.lineHeight : 0);
+        y += noRecipeLines.size() * font.lineHeight;
         int panelHeight = y + PADDING * 2;
 
         int panelX = (screenWidth - PANEL_WIDTH) / 2;
@@ -110,7 +236,6 @@ public final class ItemCraftView {
 
         int lx = panelX + PADDING;
         int ly = panelY + PADDING;
-        int contentWidth = PANEL_WIDTH - PADDING * 2;
 
         ItemStack displayStack = SkyblockItemStackFactory.build(entry);
         graphics.text(font, SkyblockItemStackFactory.tierColorCode(entry.tier()) + entry.name(), lx, ly, 0xFFFFFFFF, false);
@@ -152,36 +277,38 @@ public final class ItemCraftView {
         graphics.text(font, "§6Recipe:", lx, ly, 0xFFFFAA00, false);
         ly += font.lineHeight;
 
-        if (!hasRecipe) {
-            for (String line : wrap(font, "No recipe data is available from Hypixel's API for this item.", contentWidth)) {
-                graphics.text(font, "§8" + line, lx, ly, 0xFF888888, false);
-                ly += font.lineHeight;
-            }
-        } else {
+        Object hoveredTooltip = null; // an ItemStack, or a List of lines for an ingredient with NEU lore
+        if (gridIds != null) {
             int gridX = lx;
             int gridY = ly;
-            List<String> ingredients = entry.recipeIngredients();
-            ItemStack hoveredIngredient = null;
-            for (int i = 0; i < 9; i++) {
+            for (int i = 0; i < 9 && i < gridIds.size(); i++) {
                 int col = i % 3;
                 int row = i / 3;
                 int cellX = gridX + col * SLOT_SIZE;
                 int cellY = gridY + row * SLOT_SIZE;
                 graphics.fill(cellX, cellY, cellX + SLOT_SIZE, cellY + SLOT_SIZE, 0xFF262626);
                 graphics.outline(cellX, cellY, SLOT_SIZE, SLOT_SIZE, 0xFF553311);
-                String ingredientId = ingredients.get(i);
+                String ingredientId = gridIds.get(i);
                 if (ingredientId == null) {
                     continue;
                 }
+                boolean over = mouseX >= cellX && mouseX < cellX + SLOT_SIZE && mouseY >= cellY && mouseY < cellY + SLOT_SIZE;
                 SkyblockItemEntry ingredientEntry = SkyblockItemRepository.findById(ingredientId);
                 if (ingredientEntry != null) {
-                    ItemStack ingredientStack = SkyblockItemStackFactory.build(ingredientEntry);
-                    graphics.item(ingredientStack, cellX + 1, cellY + 1);
-                    if (mouseX >= cellX && mouseX < cellX + SLOT_SIZE && mouseY >= cellY && mouseY < cellY + SLOT_SIZE) {
-                        hoveredIngredient = ingredientStack;
+                    graphics.item(SkyblockItemStackFactory.build(ingredientEntry), cellX + 1, cellY + 1);
+                    if (over) {
+                        hoveredTooltip = ItemBrowserFeature.buildTooltipLines(ingredientEntry);
                     }
                 } else {
                     graphics.text(font, "?", cellX + 6, cellY + 5, 0xFF888888, false);
+                    if (over) {
+                        hoveredTooltip = List.of(NeuItemData.nameFor(ingredientId));
+                    }
+                }
+                int count = gridCounts == null || i >= gridCounts.size() ? 1 : gridCounts.get(i);
+                if (count > 1) {
+                    String c = String.valueOf(count);
+                    graphics.text(font, c, cellX + SLOT_SIZE - 1 - font.width(c), cellY + SLOT_SIZE - 8, 0xFFFFFFFF, true);
                 }
             }
             int arrowX = gridX + 3 * SLOT_SIZE + 6;
@@ -190,28 +317,47 @@ public final class ItemCraftView {
             int outX = arrowX + font.width("-> ") + 4;
             int outY = gridY + SLOT_SIZE;
             graphics.item(displayStack, outX, outY - 8);
-            String countText = "x" + entry.recipeOutputCount();
-            graphics.text(font, countText, outX, outY + 10, 0xFFFFFFFF, false);
+            graphics.text(font, "x" + outputCount, outX, outY + 10, 0xFFFFFFFF, false);
             ly = gridY + SLOT_SIZE * 3 + 4;
-
-            if (hoveredIngredient != null) {
-                graphics.setTooltipForNextFrame(font, hoveredIngredient, mouseX, mouseY);
-            }
+        }
+        for (String line : otherLines) {
+            graphics.text(font, "§7" + line, lx, ly, 0xFFAAAAAA, false);
+            ly += font.lineHeight;
+        }
+        if (otherTruncated) {
+            graphics.text(font, "§8+ more ways to get it", lx, ly, 0xFF888888, false);
+            ly += font.lineHeight;
+        }
+        for (String line : noRecipeLines) {
+            graphics.text(font, "§8" + line, lx, ly, 0xFF888888, false);
+            ly += font.lineHeight;
         }
 
+        drawCloseButton(graphics, panelX, panelY, PANEL_WIDTH, mouseX, mouseY);
+
+        // Hover over the title shows the item's own tooltip (NEU lore when it has arrived).
+        if (hoveredTooltip == null && mouseX >= panelX && mouseX < panelX + PANEL_WIDTH - 16
+                && mouseY >= panelY && mouseY < panelY + font.lineHeight + PADDING) {
+            hoveredTooltip = ItemBrowserFeature.buildTooltipLines(entry);
+        }
+        if (hoveredTooltip instanceof List<?> lines) {
+            List<net.minecraft.network.chat.Component> components = new ArrayList<>();
+            for (Object o : lines) {
+                components.add(o instanceof net.minecraft.network.chat.Component c ? c
+                        : net.minecraft.network.chat.Component.literal(String.valueOf(o)));
+            }
+            graphics.setTooltipForNextFrame(font, components, Optional.empty(), mouseX, mouseY);
+        }
+    }
+
+    private static void drawCloseButton(GuiGraphicsExtractor graphics, int panelX, int panelY, int panelW, int mouseX, int mouseY) {
         int closeSize = 12;
-        int closeX = panelX + PANEL_WIDTH - closeSize - 4;
+        int closeX = panelX + panelW - closeSize - 4;
         int closeY = panelY + 4;
         closeButtonBounds = new int[]{closeX, closeY, closeSize, closeSize};
         boolean closeHovered = mouseX >= closeX && mouseX < closeX + closeSize && mouseY >= closeY && mouseY < closeY + closeSize;
         graphics.fill(closeX, closeY, closeX + closeSize, closeY + closeSize, closeHovered ? 0xFFCC3333 : 0xFF553311);
-        graphics.text(font, "x", closeX + 3, closeY + 2, 0xFFFFFFFF, false);
-
-        // Hover tooltip for the item itself, only over the header area (not the recipe grid, which has
-        // its own per-ingredient tooltip above).
-        if (mouseX >= panelX && mouseX < panelX + PANEL_WIDTH && mouseY >= panelY && mouseY < panelY + font.lineHeight + PADDING) {
-            graphics.setTooltipForNextFrame(font, displayStack, mouseX, mouseY);
-        }
+        graphics.text(Minecraft.getInstance().font, "x", closeX + 3, closeY + 2, 0xFFFFFFFF, false);
     }
 
     private static List<String> wrap(Font font, String text, int maxWidth) {

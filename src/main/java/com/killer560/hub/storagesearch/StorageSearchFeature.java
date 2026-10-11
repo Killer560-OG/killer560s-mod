@@ -67,6 +67,12 @@ public final class StorageSearchFeature {
     private static final Pattern WARDROBE_TITLE = Pattern.compile("^Wardrobe(?: ✦)?(?: \\((\\d+)/(\\d+)\\))?$");
     private static final Pattern PETS_TITLE = Pattern.compile("^Pets(?: ✦)?(?: \\((\\d+)/(\\d+)\\))?$");
     private static final Pattern EQUIPMENT_TITLE = Pattern.compile("^(?:Your Equipment and Stats|Equipment)$");
+    /** The Equipment Wardrobe (/equipment, /eq; Hypixel 2026-07-08) - killer560, 2026-10-11: "Storage search needs to
+     *  search through my equipment wardrobe as well". Title from hypixelskyblock.minecraft.wiki's
+     *  Equipment_Wardrobe/UI: "Equipment Sets (1/2)". */
+    private static final Pattern EQUIPMENT_SETS_TITLE = Pattern.compile("^Equipment Sets(?: ✦)?(?: \\((\\d{1,2})/(\\d{1,2})\\))?$");
+    /** Local key prefix of an Equipment Wardrobe page in {@link StorageSearchExtraCache}. */
+    static final String EQUIPMENT_WARDROBE_KEY = "eqwardrobe";
     private static final String OVERVIEW_TITLE = "Storage";
 
     private static boolean bindWasDown = false;
@@ -250,14 +256,14 @@ public final class StorageSearchFeature {
         }
     }
 
-    /** Wardrobe and Pets both have a real Hypixel command; the equipment menu doesn't, so that one only arms the
-     *  outline and says so. */
+    /** Wardrobe, Pets and the Equipment Wardrobe have a real Hypixel command; the equipment menu doesn't, so that one
+     *  only arms the outline and says so. */
     private static void openExtraResult(Minecraft client, StorageSearchIndex.Entry entry) {
         setPending(PendingKind.EXTRA, entry.storageKey(), entry.contentIndex(), -1, null);
         String command = switch (entry.type()) {
             case WARDROBE -> "wardrobe";
             case PETS -> "pets";
-            default -> null;
+            default -> isEquipmentWardrobeKey(entry.storageKey()) ? "equipment" : null;
         };
         McCompat.setScreen(client, null);
         if (command == null || client.player.connection == null) {
@@ -533,7 +539,15 @@ public final class StorageSearchFeature {
         if (EQUIPMENT_TITLE.matcher(title).matches()) {
             return extraKey("equipment");
         }
+        Matcher sets = EQUIPMENT_SETS_TITLE.matcher(title);
+        if (sets.matches()) {
+            return extraKey(EQUIPMENT_WARDROBE_KEY + "_" + (sets.group(1) == null ? "1" : sets.group(1)));
+        }
         return null;
+    }
+
+    static boolean isEquipmentWardrobeKey(String key) {
+        return key != null && key.contains("|" + EQUIPMENT_WARDROBE_KEY + "_");
     }
 
     private static String extraKey(String localId) {
