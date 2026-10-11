@@ -2694,7 +2694,9 @@ still relies on the sweep, which cannot see mobs in chunks that are unloaded at 
   teleport). And one run in five of the aura+Hyperion variant left the mimic alive: the mimic was spawned from the
   CLIENT's chest-click callback via `server.execute`, so a click that bypassed the client's gameMode (Secret Aura's)
   followed by Kill Mimic's Hyperion could reach the server first, and the single Wither Impact hit nothing (the log put
-  the Kill Mimic use before "mimic spawned"). `SimMimic` now answers the use-on-block packet on the server. The other
+  the Kill Mimic use before "mimic spawned"). `SimMimic` now answers the use-on-block packet on the server. A side effect,
+  Hypixel's own rule: a chest counts as a secret only when the server accepts the click, i.e. in reach (96-ar-charges
+  clicked chests 7 blocks away and had to move closer). The other
   thing 644 showed is in Auto Routes, not the sim: in legit mode with Secret Aura on, Kill Mimic's Hyperion fired at
   pitch 50.9 after its 20-tick aim timeout - a Wither Impact along his look, which right after the chest click points
   at the mimic (handed to the Auto Routes agent; `MimicKiller.tick` AIM).
