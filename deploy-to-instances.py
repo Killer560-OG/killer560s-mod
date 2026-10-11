@@ -23,6 +23,10 @@ Rules it will not break:
     --testing-instance-cheat NAME / --testing-instance-legit NAME, and that instance is then given nothing but
     that testing jar. An instance that already has a testing jar is skipped unless it is named so.
 
+  * Every instance it looks at gets the marker file minecraft/killer560smod-no-auto-update, which turns the mod's
+    Auto Update off there for good (2026-10-11): these instances take killer560's own builds, and a release must
+    never replace one. Written even into a running or skipped instance (it is not a jar; nothing loads it).
+
 Usage:  python deploy-to-instances.py [--dry-run] [--jars-dir DIR]
                                       [--testing-instance-cheat NAME] [--testing-instance-legit NAME]
 
@@ -44,6 +48,8 @@ REPO = os.path.dirname(os.path.abspath(__file__))
 BUILD = os.path.join(REPO, "build", "libs")
 BUILD_VARIANT_CLASS = "com/killer560/hub/BuildVariant.class"
 TESTING_CLASS = "com/killer560/hub/testing/TestingBuild.class"
+# AutoUpdater.MARKER_FILE in the mod: its presence in the game folder means "never auto-update this instance".
+NO_AUTO_UPDATE_MARKER = "killer560smod-no-auto-update"
 
 # First 8 hex of md5(BuildVariant.class), per CLAUDE.md's Quirks and lessons.
 # BuildVariant gained TESTING on 2026-10-07, which changed every hash; the old three are kept so an instance still on
@@ -206,6 +212,14 @@ def main():
         mods = os.path.join(folder, "minecraft", "mods")
         if not os.path.isdir(mods):
             continue
+        marker = os.path.join(folder, "minecraft", NO_AUTO_UPDATE_MARKER)
+        if not os.path.exists(marker):
+            if not dry:
+                with open(marker, "w", encoding="utf-8", newline="\n") as fh:
+                    fh.write("Written by killer560s-mod's deploy-to-instances.py: Auto Update never runs in this "
+                             "instance.\n")
+            lines.append(("%s [MC %s]" % (name, mc_version(folder)), "marker", NO_AUTO_UPDATE_MARKER
+                          + " (Auto Update off here)"))
         running = name in live
         mc = mc_version(folder)
         tag = "%s [MC %s%s]" % (name, mc, ", RUNNING" if running else "")

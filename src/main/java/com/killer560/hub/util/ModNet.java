@@ -49,7 +49,8 @@ import java.util.concurrent.CompletableFuture;
  *   <li>{@code github-raw} - raw.githubusercontent.com: NEU/meowdding repo files, SkyHanni graph</li>
  *   <li>{@code jsdelivr} - cdn.jsdelivr.net: SkyHanni graph fallback</li>
  *   <li>{@code coflnet} - sky.coflnet.com: lowest-BIN prices</li>
- *   <li>{@code github-api} - api.github.com: the update check</li>
+ *   <li>{@code github-api} - api.github.com: the update check and Auto Update's release lookup</li>
+ *   <li>{@code github-download} - github.com: Auto Update's release downloads (also the only prefix it accepts)</li>
  *   <li>{@code relay} - the relay worker (and the Supporters endpoints on it); overrides the configured base</li>
  *   <li>{@code pf-relay} - the relay's {@code /pf/stats} only (Party Finder stats cache), applied on top of
  *       {@code relay}, so a harness can fake it without touching Mod Chat or Supporters</li>

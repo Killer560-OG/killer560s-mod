@@ -1,6 +1,10 @@
 # Builds the legit and cheat jars for 26.1.2 and 26.2 on every push to main and publishes them on one rolling "Latest Dev Build" pre-release,
 # replaced each time, so the newest commit is always one click away without building from source.
 # Real versioned releases (v1.0.0, v1.1.0, ...) are never touched.
+#
+# This pre-release is Auto Update's Beta channel (2026-10-11), so its jars are RELEASE builds (-Prelease=true: no dev
+# tooling, quiet logs), and it carries SHA256SUMS.txt and commit.txt beside them. The mod refuses a jar whose SHA-256
+# is not in SHA256SUMS.txt, and installs only when commit.txt differs from the commit embedded in the running jar.
 name: Dev Build
 
 on:
@@ -28,19 +32,34 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # Four jars: legit and cheat for Minecraft 26.1.2 and 26.2. The build tree is cleared between them (as the
-      # local four-jar build does) so the generated BuildVariant and compiled classes never carry over.
-      - name: Build jars (26.1.2 and 26.2, legit and cheat)
+      # Four jars: legit and cheat for Minecraft 26.1.2 and 26.2, all -Prelease=true. The build tree is cleared
+      # between them (as the local four-jar build does) so the generated BuildVariant and compiled classes never
+      # carry over.
+      - name: Build jars (26.1.2 and 26.2, legit and cheat, release builds)
         run: |
           mkdir dist
           V262="-Pminecraft_version=26.2 -Pfabric_api_version=0.160.0+26.2 -Pmodmenu_version=20.0.2"
           for args in "" "-PcheatBuild=true" "$V262" "-PcheatBuild=true $V262"; do
             rm -rf build/generated/sources/buildVariant build/classes build/libs
-            ./gradlew build $args --no-daemon
+            ./gradlew build -Prelease=true $args --no-daemon
             cp build/libs/*-legit.jar build/libs/*-cheat.jar dist/ 2>/dev/null || true
           done
           ls -la dist
           test "$(ls dist/*.jar | wc -l)" -eq 4
+
+      # Auto Update's two checks: the jar's SHA-256, and the commit it was built from (also embedded in every jar as
+      # killer560smod-build.properties, which this step confirms so the two can never disagree).
+      - name: Checksums and commit
+        run: |
+          cd dist
+          for j in *.jar; do
+            info="$(unzip -p "$j" killer560smod-build.properties)"
+            grep -qx "commit=$GITHUB_SHA" <<< "$info" || { echo "$j: wrong commit"; exit 1; }
+            grep -qx "release=true" <<< "$info" || { echo "$j: not a release build"; exit 1; }
+          done
+          sha256sum *.jar > SHA256SUMS.txt
+          echo "$GITHUB_SHA" > commit.txt
+          cat SHA256SUMS.txt commit.txt
 
       - name: Publish Latest Dev Build
         env:
@@ -60,8 +79,9 @@ jobs:
           - \`*-cheat.jar\` - adds the automation features. Against Hypixel's rules; your risk.
 
           Install steps are in the Discord's how-to-install channel. Stable versions are the numbered releases.
+          Auto Update's Beta channel installs these; \`SHA256SUMS.txt\` lists each jar's checksum.
           EOF
-          gh release create dev-latest dist/*.jar \
+          gh release create dev-latest dist/*.jar dist/SHA256SUMS.txt dist/commit.txt \
             --prerelease \
             --target "$GITHUB_SHA" \
             --title "Latest Dev Build (${SHORT})" \
