@@ -22,8 +22,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-/** Leap Order settings: per class YOU are playing, which teammate goes in each of the 4 leap menu spots, plus the
- *  class last picked in the editor. (The old sort/display/assign/customize/GUI-scale settings were removed
+/** Leap Order settings: the default order ({@link LeapOrderMode}), per class YOU are playing which teammates were
+ *  moved by hand into which of the 4 leap menu spots (everyone else follows the default order), plus the class last
+ *  picked in the editor. (The old sort/display/assign/customize/GUI-scale settings were removed
  *  2026-09-15 with the class-first Leap Order redo.)
  * <p>
  * 2026-09-21, killer560's standing rule ("anything that remembers a player keys on their UUID, never their IGN,
@@ -49,10 +50,17 @@ public final class LeapMenuConfig {
     private record SlotRef(String ign, UUID uuid) {
     }
 
-    /** Class name -&gt; the teammate in each of the 4 spots (top-left, top-right, bottom-left, bottom-right);
-     *  {@code null} = spot left for auto-fill. */
+    /** Class name -&gt; the teammate moved by hand into each of the 4 spots (top-left, top-right, bottom-left,
+     *  bottom-right); {@code null} = spot follows the default order. */
     private final Map<String, List<SlotRef>> classOrders = new LinkedHashMap<>();
     private String lastEditedClass = null;
+    /** Where every teammate NOT moved by hand goes (2026-10-09). The saved spots above are only the hand-moved ones. */
+    private LeapOrderMode defaultOrder = LeapOrderMode.ODIN;
+    /** Spots saved before 2026-10-09, when the editor saved all 4 spots on every swap (so every one read as "moved by
+     *  hand" and no default order could ever apply). Kept verbatim in the file, never read, so nothing is lost. */
+    private JsonObject legacyClassOrders = null;
+    /** 2: {@code classOrders} holds only hand-moved spots. Missing = the pre-2026-10-09 format. */
+    private static final int FORMAT = 2;
     /** The teammate order Hypixel's own Spirit Leap menu last showed (container slot order) - the order the Leap
      *  Order editor lays its spots out in, so the editor starts from the real menu's order instead of the party
      *  listing order. Persisted so it survives a restart (the first edit after an update is otherwise blind).
@@ -75,7 +83,16 @@ public final class LeapMenuConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject root = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                if (root.has("classOrders") && root.get("classOrders").isJsonObject()) {
+                boolean current = root.has("format") && root.get("format").isJsonPrimitive()
+                        && root.get("format").getAsInt() >= FORMAT;
+                if (root.has("legacyClassOrders") && root.get("legacyClassOrders").isJsonObject()) {
+                    cfg.legacyClassOrders = root.getAsJsonObject("legacyClassOrders");
+                }
+                if (!current && root.has("classOrders") && root.get("classOrders").isJsonObject()) {
+                    // Old full layouts: every spot was saved, moved or not. Read as pins they would freeze each class
+                    // exactly as it was and the new default order would never show, so they start unpinned.
+                    cfg.legacyClassOrders = root.getAsJsonObject("classOrders");
+                } else if (root.has("classOrders") && root.get("classOrders").isJsonObject()) {
                     JsonObject orders = root.getAsJsonObject("classOrders");
                     for (String key : orders.keySet()) {
                         try {
@@ -101,6 +118,9 @@ public final class LeapMenuConfig {
                             cfg.lastLeapOrder.add(el.getAsString());
                         }
                     }
+                }
+                if (root.has("defaultOrder") && root.get("defaultOrder").isJsonPrimitive()) {
+                    cfg.defaultOrder = LeapOrderMode.byName(root.get("defaultOrder").getAsString());
                 }
                 if (root.has("lastEditedClass") && root.get("lastEditedClass").isJsonPrimitive()) {
                     cfg.lastEditedClass = root.get("lastEditedClass").getAsString();
@@ -169,6 +189,8 @@ public final class LeapMenuConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject root = new JsonObject();
+            root.addProperty("format", FORMAT);
+            root.addProperty("defaultOrder", defaultOrder.name());
             JsonObject orders = new JsonObject();
             classOrders.forEach((key, slots) -> {
                 JsonArray a = new JsonArray();
@@ -187,6 +209,9 @@ public final class LeapMenuConfig {
                 orders.add(key, a);
             });
             root.add("classOrders", orders);
+            if (legacyClassOrders != null) {
+                root.add("legacyClassOrders", legacyClassOrders);
+            }
             JsonArray leapOrder = new JsonArray();
             lastLeapOrder.forEach(leapOrder::add);
             root.add("lastLeapOrder", leapOrder);
@@ -204,6 +229,62 @@ public final class LeapMenuConfig {
             out.add(i < slots.size() ? slots.get(i) : null);
         }
         return out;
+    }
+
+    public LeapOrderMode getDefaultOrder() {
+        return defaultOrder;
+    }
+
+    public void setDefaultOrder(LeapOrderMode mode) {
+        this.defaultOrder = mode == null ? LeapOrderMode.ODIN : mode;
+    }
+
+    /** True when {@code name} was moved by hand into a spot of this class's Leap Order (it stays there until Reset). */
+    public boolean isPinned(DungeonClass playing, String name) {
+        if (name == null || name.isEmpty()) {
+            return false;
+        }
+        for (String n : getClassOrder(playing)) {
+            if (n.equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Un-pins one teammate: they go back to where the default order puts them. @return true when it changed. */
+    public boolean unpin(DungeonClass playing, String name) {
+        List<String> slots = getClassOrder(playing);
+        boolean changed = false;
+        for (int i = 0; i < slots.size(); i++) {
+            if (slots.get(i).equalsIgnoreCase(name)) {
+                slots.set(i, "");
+                changed = true;
+            }
+        }
+        if (changed) {
+            setClassOrder(playing, slots);
+        }
+        return changed;
+    }
+
+    /** A hand swap of the spots {@code a} and {@code b} in the layout shown: both teammates are pinned where they now
+     *  are (what the editor shows after a swap is what stays), every other pin is kept, and an empty spot pins
+     *  nobody. */
+    public void swap(DungeonClass playing, String[] layout, int a, int b) {
+        String nameA = layout[a];
+        String nameB = layout[b];
+        List<String> slots = getClassOrder(playing);
+        for (int i = 0; i < slots.size(); i++) {
+            String n = slots.get(i);
+            if (!n.isEmpty() && (n.equalsIgnoreCase(nameA == null ? "" : nameA)
+                    || n.equalsIgnoreCase(nameB == null ? "" : nameB))) {
+                slots.set(i, "");
+            }
+        }
+        slots.set(b, nameA == null ? "" : nameA);
+        slots.set(a, nameB == null ? "" : nameB);
+        setClassOrder(playing, slots);
     }
 
     /** @return the 4 saved spots for this class, as names ("" = auto-fill; never null) - the CURRENT name for

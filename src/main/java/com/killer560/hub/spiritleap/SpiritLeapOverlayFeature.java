@@ -240,8 +240,7 @@ public final class SpiritLeapOverlayFeature {
     /** Targets placed into the 4 spots by the Leap Order for the class you are playing. */
     private static LeapTarget[] layout(List<LeapTarget> targets) {
         List<String> names = targets.stream().map(LeapTarget::name).toList();
-        String[] arranged = LeapMenuFeature.arrange(names,
-                LeapMenuConfig.getInstance().getClassOrder(LeapMenuFeature.playingClass()));
+        String[] arranged = LeapMenuFeature.layout(names, LeapMenuFeature.playingClass());
         LeapTarget[] out = new LeapTarget[4];
         for (int spot = 0; spot < 4; spot++) {
             if (arranged[spot] == null) {

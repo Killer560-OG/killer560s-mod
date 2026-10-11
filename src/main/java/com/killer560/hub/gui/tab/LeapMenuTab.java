@@ -75,6 +75,15 @@ public class LeapMenuTab extends BaseTab {
                 }).bounds(rightX, y, rightW, ROW).build());
         y += ROW + GAP;
 
+        // The Leap Order's default order (2026-10-09): also a button in the editor itself.
+        widgets.add(SettingsButtonWidget.builder(LeapOrderScreen.defaultOrderText(), btn -> {
+                    com.killer560.hub.leapmenu.LeapMenuConfig order = com.killer560.hub.leapmenu.LeapMenuConfig.getInstance();
+                    order.setDefaultOrder(order.getDefaultOrder().next());
+                    order.save();
+                    btn.setMessage(LeapOrderScreen.defaultOrderText());
+                }).bounds(x, y, Math.max(1, width), ROW).build());
+        y += ROW + GAP;
+
         if (cfg.isEnabled()) {
             widgets.add(SettingsButtonWidget.builder(onOff("Use Class Colors", cfg.isUseClassColors()), btn -> {
                         cfg.setUseClassColors(!cfg.isUseClassColors());
