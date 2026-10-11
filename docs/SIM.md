@@ -2739,6 +2739,10 @@ it still lands in that world; `BreakerAuraFeature.plannerTreatsAsAir` decides, s
   (`CryptScanner`'s rule): with every crypt in reach opening, Big Red Flag's two top-slab eaves opened as crypts beside
   its prince. Testkit 642: two lids 3 away, a crypt wall 3 away, a lid 6 away and a decorative brick.
 - **Secret bats appear when he comes near (8 blocks, unmeasured on Hypixel), and their death counts for the room.**
+  Checked 2026-10-11 for a real figure (shallow clones in killer560s-mod-logs/*-ref): Skyblocker matches a dead bat to
+  its waypoint within 16 blocks, Odin reads a secret bat's death from Hypixel's BAT_HURT/BAT_DEATH sound at volume 0.1
+  (vanilla's own bat volume, so the sim's bats already send it), SkyHanni names the mob "Dungeon Secret Bat"; none states
+  a spawn or activation distance, so 8 stays (killer560: "close enough").
   `SimSecrets` spawned them with the floor and never registered them, so their death counted nothing; `SimScore.batKilled`
   never reached the per-room count either; and Auto Routes' await counts a secret bat's APPEARANCE within 10 blocks
   (QUOI's rule), which a bat that existed since the build never makes. The kill is now read off the entity (dead or
