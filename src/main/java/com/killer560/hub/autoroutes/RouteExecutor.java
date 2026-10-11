@@ -1925,7 +1925,7 @@ public final class RouteExecutor {
             if (pickStillStanding(client, player)) {
                 return false;
             }
-            if (!aimReady()) {
+            if (!warpAimReady(player)) {
                 return false;
             }
             // Etherwarps Per Second: not before the pace allows. Sneak stays held while it waits.
@@ -2722,6 +2722,35 @@ public final class RouteExecutor {
         }
         return (RouteRotation.settled(1.0f) && stepTicks >= AutoRoutesConfig.getInstance().getInteractDelayTicks())
                 || stepTicks > AIM_TIMEOUT;
+    }
+
+    /** How close legit mode turns the camera before an etherwarp goes: the planner's own aim tolerance. */
+    private static final float WARP_AIM_EXACT = com.killer560.hub.livemap.autoclear.EtherSearch.AIM_MARGIN;
+    /** Ticks a legit warp's turn may take to settle that exactly before it goes on the old 1-degree rule. */
+    private static final int WARP_AIM_GIVE_UP = AIM_TIMEOUT * 3;
+
+    /**
+     * {@link #aimReady} for an etherwarp. Legit mode clicks at the LIVE camera, and {@link #aimReady} let it go once the
+     * camera was within 1 degree of the node's look - more than a warp's margin often is: 96-ar-644/651's warp seven
+     * blocks out along the floor has 0.7 degrees, so about one legit warp in three landed a block short (2026-10-11).
+     * Now the turn keeps easing in until it is within {@link #WARP_AIM_EXACT} of the look (the tolerance the planner
+     * itself proves its aims to) - a few more frames of the same smooth approach, never a snap - so a legit warp lands
+     * where the same node lands in obvious mode. Only a turn that has not got there after {@link #WARP_AIM_GIVE_UP}
+     * ticks still goes, as before, and says so in the log.
+     */
+    private static boolean warpAimReady(LocalPlayer player) {
+        if (!AutoRoutesConfig.getInstance().isLegitMode()) {
+            return true;
+        }
+        if (RouteRotation.settled(WARP_AIM_EXACT) && stepTicks >= AutoRoutesConfig.getInstance().getInteractDelayTicks()) {
+            return true;
+        }
+        if (stepTicks > WARP_AIM_GIVE_UP) {
+            LOGGER.info("[AutoRoutes] Etherwarp: the legit turn did not settle within {} degrees in {} ticks ({} off) -"
+                    + " warping anyway", WARP_AIM_EXACT, stepTicks, RouteRotation.error());
+            return true;
+        }
+        return false;
     }
 
     /**
