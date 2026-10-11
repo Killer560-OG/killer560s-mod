@@ -221,6 +221,18 @@ public final class RouteRotation {
         float frameSmoothing = 1f - (float) Math.pow(1.0 - smoothing, dtTicks);
         float newYaw = currentYaw + yawDelta * frameSmoothing;
         float newPitch = Mth.clamp(currentPitch + pitchDelta * frameSmoothing, -90f, 90f);
+        // The last hundredth of a degree lands EXACTLY on the target. An exponential ease never gets there by itself
+        // (it can stall a float ulp short), and Auto Routes' crypt node and Kill Mimic fire only at pitch 90.0 exactly
+        // (killer560, 2026-10-11: "always straight down"). A 0.01-degree last step is not a snap.
+        if (Math.abs(rawPitch - newPitch) < 0.01f) {
+            newPitch = Mth.clamp(rawPitch, -90f, 90f);
+        }
+        // Landed on the target pitch: the arc's tail stops here, so the camera stays EXACTLY on it. The decaying curve
+        // offset otherwise kept nudging it a few thousandths off and back (a crypt node's first use reached the sim's
+        // server at 89.98532 after the camera had read 90.0 - testkit 96-ar-653).
+        if (newPitch == Mth.clamp(targetPitch, -90f, 90f) && overshootPitch == 0f && feintPitch == 0f) {
+            curve = false;
+        }
         player.setYRot(newYaw);
         player.setYHeadRot(newYaw);
         player.setXRot(newPitch);

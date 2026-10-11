@@ -28,12 +28,13 @@ public final class MimicKiller {
     private static final int USE_TIMEOUT = 100;
     private static final int AIM_TIMEOUT = 20;
     /**
-     * Legit mode: the Hyperion is only used with the camera at least this far down. Wither Impact teleports along the
-     * look, so a use at any shallower pitch is a teleport - and right after the chest click the look points at the
-     * mimic. Measured 2026-10-11 (testkit 96-ar-644, Secret Aura on): the AIM timeout fired it at pitch 50.9, killer560's
-     * "the auto routes kill the mimic then teleport in the direction of the mimic".
+     * Every Kill Mimic use goes out at exactly this pitch, with either item, in either mode (killer560, 2026-10-11:
+     * "for mimic it should also always be straight down"). Legit mode turns the camera there smoothly and waits for it to
+     * read exactly 90.0 (RouteRotation lands its last hundredth of a degree exactly); obvious mode sends it in the packet.
+     * Before that it fired a Hyperion at whatever the camera read once its aim timed out - 46.7 to 62.3 with Secret Aura
+     * on (testkit 96-ar-651) - which is a Wither Impact along the look, at the mimic.
      */
-    static final float MIN_HYPERION_PITCH = 80f;
+    static final float STRAIGHT_DOWN = 90f;
     /** Legit Hyperion: how long it keeps aiming down before giving up WITHOUT using it. */
     private static final int AIM_GIVE_UP = 60;
 
@@ -116,7 +117,7 @@ public final class MimicKiller {
                 RouteExecutor.select(client, player, itemSlot);
                 keysAtStart = movementKeys(client);
                 if (legit) {
-                    RouteRotation.beginApproach(player.getYRot(), 90f, false, 0f, 0f);
+                    RouteRotation.beginApproach(player.getYRot(), STRAIGHT_DOWN, false, 0f, 0f);
                 }
                 state = State.AIM;
                 stateTicks = 0;
@@ -129,17 +130,18 @@ public final class MimicKiller {
                 // The route lets go of sneak while this holds it; the use goes out once the server has shift up.
                 boolean sneakDown = player.getLastSentInput().shift() && stateTicks <= AIM_TIMEOUT;
                 boolean turning = legit && !RouteRotation.settled(1.0f) && stateTicks <= AIM_TIMEOUT;
-                if (legit && mode == AutoRoutesConfig.KillMimic.HYPERION && player.getXRot() < MIN_HYPERION_PITCH) {
-                    // NEVER at a bad pitch: keep aiming (re-issued if something else let go of or moved the approach),
-                    // and past AIM_GIVE_UP give up with nothing used.
+                if (legit && player.getXRot() != STRAIGHT_DOWN) {
+                    // NEVER at any other pitch: keep aiming (re-issued if something else let go of or moved the
+                    // approach - his yaw, unclamped), and past AIM_GIVE_UP give up with nothing used.
                     if (stateTicks > AIM_GIVE_UP) {
-                        AutoRoutesFeature.chatBad("Kill Mimic: could not aim straight down - Hyperion not used.");
+                        AutoRoutesFeature.chatBad("Kill Mimic: could not aim straight down - nothing used.");
                         finish(client, player, String.format(java.util.Locale.ROOT,
-                                "gave up: pitch %.1f after %d ticks, Hyperion not used", player.getXRot(), stateTicks));
+                                "gave up: pitch %s after %d ticks, %s not used", Float.toString(player.getXRot()),
+                                stateTicks, mode.label()));
                         return;
                     }
                     if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
-                        RouteRotation.beginApproach(player.getYRot(), 90f, false, 0f, 0f);
+                        RouteRotation.beginApproach(player.getYRot(), STRAIGHT_DOWN, false, 0f, 0f);
                     }
                     return;
                 }
@@ -166,6 +168,13 @@ public final class MimicKiller {
                     return;
                 }
                 int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
+                // Each further Spirit Sceptre use too: only while the camera reads exactly 90.0 in legit mode.
+                if (legit && player.getXRot() != STRAIGHT_DOWN) {
+                    if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
+                        RouteRotation.beginApproach(player.getYRot(), STRAIGHT_DOWN, false, 0f, 0f);
+                    }
+                    return;
+                }
                 if (AwaitEvents.now() - lastUseTick >= delay) {
                     use(client, player);
                 }
@@ -176,14 +185,14 @@ public final class MimicKiller {
     }
 
     private static void use(Minecraft client, LocalPlayer player) {
-        RouteExecutor.useHeldItem(client, player, player.getYRot(), 90f, false);
+        RouteExecutor.useHeldItem(client, player, player.getYRot(), STRAIGHT_DOWN, false);
         uses++;
         lastUseTick = AwaitEvents.now();
         // The pitch the use went out at in legit mode is the camera's (obvious mode sends 90 in the packet).
         LOGGER.info("[AutoRoutes] Kill Mimic: {} used straight down (use {}, {} pitch {})", mode.label(), uses,
                 AutoRoutesConfig.getInstance().isLegitMode() ? "camera" : "packet",
                 AutoRoutesConfig.getInstance().isLegitMode()
-                        ? String.format(java.util.Locale.ROOT, "%.1f", player.getXRot()) : "90.0");
+                        ? Float.toString(player.getXRot()) : "90.0");
     }
 
     private static void finish(Minecraft client, LocalPlayer player, String why) {
