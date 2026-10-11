@@ -11,9 +11,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Draws the Item Browser panel (and its craft / tier popup) inside the container screen's own render pass, at the
  * TAIL of {@code AbstractContainerScreen#extractRenderState} - the same point {@code StorageOverlayContainerMixin}
- * uses. From {@code ScreenEvents.afterExtract} its {@code setTooltipForNextFrame} came after the frame's tooltips
- * were drawn, so hovering an item showed nothing (killer560, 2026-10-11: "make it so hovering something there shows
- * its tooltip"). Also skips the vanilla slot tooltip while the craft popup is open, so a slot behind the popup can't
+ * uses - so its {@code setTooltipForNextFrame} is set before the frame's deferred tooltip pass (killer560,
+ * 2026-10-11: "make it so hovering something there shows its tooltip"; it was drawn from
+ * {@code ScreenEvents.afterExtract} before). Recipe-book screens need {@code ItemBrowserRecipeBookRenderMixin}. Also skips the vanilla slot tooltip while the craft popup is open, so a slot behind the popup can't
  * put its tooltip over it.
  */
 @Mixin(AbstractContainerScreen.class)

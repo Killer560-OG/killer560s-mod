@@ -49,8 +49,8 @@ import java.util.stream.Collectors;
  * 2026-10-11 (killer560): the panel has no search box of its own any more - "Do not move my search bar above the
  * menu the search bar should stay in the bottom middle of my screen like normal" - it filters by Inventory Search's
  * bar at the bottom middle. Hovering an item shows its real tooltip (NEU repo lore, {@link NeuItemData}); the panel is
- * drawn inside the container's own render pass ({@code ItemBrowserRenderMixin}), because a tooltip set from
- * {@code ScreenEvents.afterExtract} arrived after the frame's tooltips had been drawn and never showed. Every minion's
+ * drawn inside the container's own render pass ({@code ItemBrowserRenderMixin}, {@code ItemBrowserRecipeBookRenderMixin})
+ * so its tooltip is set before the frame's deferred tooltip pass, the way the Storage Overlay does it. Every minion's
  * tiers collapse into one cell that opens a tier picker ({@link ItemCraftView#openTiers}). Sorting defaults to value
  * high to low; the old "Default" (catalog order) sort is gone.
  * <p>

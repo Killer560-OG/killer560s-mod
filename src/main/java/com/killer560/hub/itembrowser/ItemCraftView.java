@@ -300,7 +300,12 @@ public final class ItemCraftView {
                         hoveredTooltip = ItemBrowserFeature.buildTooltipLines(ingredientEntry);
                     }
                 } else {
-                    graphics.text(font, "?", cellX + 6, cellY + 5, 0xFF888888, false);
+                    ItemStack vanilla = vanillaIcon(ingredientId);
+                    if (vanilla.isEmpty()) {
+                        graphics.text(font, "?", cellX + 6, cellY + 5, 0xFF888888, false);
+                    } else {
+                        graphics.item(vanilla, cellX + 1, cellY + 1);
+                    }
                     if (over) {
                         hoveredTooltip = List.of(NeuItemData.nameFor(ingredientId));
                     }
@@ -347,6 +352,55 @@ public final class ItemCraftView {
                         : net.minecraft.network.chat.Component.literal(String.valueOf(o)));
             }
             graphics.setTooltipForNextFrame(font, components, Optional.empty(), mouseX, mouseY);
+        }
+    }
+
+    /** NEU names vanilla items by their Bukkit material names; the ones that differ from the 1.8 registry name. */
+    private static final java.util.Map<String, String> BUKKIT_NAMES = java.util.Map.ofEntries(
+            java.util.Map.entry("ink_sack", "dye"), java.util.Map.entry("sulphur", "gunpowder"),
+            java.util.Map.entry("wood", "planks"), java.util.Map.entry("log_2", "log2"),
+            java.util.Map.entry("leaves_2", "leaves2"), java.util.Map.entry("seeds", "wheat_seeds"),
+            java.util.Map.entry("snow_ball", "snowball"), java.util.Map.entry("raw_fish", "fish"),
+            java.util.Map.entry("exp_bottle", "experience_bottle"), java.util.Map.entry("watch", "clock"),
+            java.util.Map.entry("nether_stalk", "nether_wart"), java.util.Map.entry("sugar_cane", "reeds"),
+            java.util.Map.entry("red_rose", "red_flower"), java.util.Map.entry("book_and_quill", "writable_book"),
+            java.util.Map.entry("enchantment_table", "enchanting_table"), java.util.Map.entry("workbench", "crafting_table"),
+            java.util.Map.entry("pork", "porkchop"), java.util.Map.entry("raw_beef", "beef"),
+            java.util.Map.entry("raw_chicken", "chicken"), java.util.Map.entry("leash", "lead"),
+            java.util.Map.entry("iron_fence", "iron_bars"), java.util.Map.entry("thin_glass", "glass_pane"),
+            java.util.Map.entry("smooth_brick", "stonebrick"), java.util.Map.entry("nether_brick_item", "netherbrick"),
+            java.util.Map.entry("ender_stone", "end_stone"), java.util.Map.entry("eye_of_ender", "ender_eye"),
+            java.util.Map.entry("fireball", "fire_charge"), java.util.Map.entry("carrot_item", "carrot"),
+            java.util.Map.entry("potato_item", "potato"), java.util.Map.entry("skull_item", "skull"),
+            java.util.Map.entry("mushroom_soup", "mushroom_stew"), java.util.Map.entry("quartz_ore", "quartz_ore"));
+
+    /** A plain vanilla ingredient the Skyblock catalog doesn't list (NEU's "STICK", "INK_SACK-3" = name-damage), as its
+     *  modern item through the 1.8 flattening table; EMPTY when there is none. */
+    static ItemStack vanillaIcon(String neuId) {
+        if (neuId == null || neuId.isBlank()) {
+            return ItemStack.EMPTY;
+        }
+        String name = neuId;
+        int damage = 0;
+        int dash = neuId.lastIndexOf('-');
+        if (dash > 0 && dash < neuId.length() - 1 && neuId.substring(dash + 1).chars().allMatch(Character::isDigit)
+                && neuId.length() - dash <= 3) {
+            name = neuId.substring(0, dash);
+            damage = Integer.parseInt(neuId.substring(dash + 1));
+        }
+        String lower = name.toLowerCase(java.util.Locale.ROOT);
+        lower = BUKKIT_NAMES.getOrDefault(lower, lower);
+        if (lower.startsWith("gold_") && !lower.equals("gold_ingot") && !lower.equals("gold_nugget")
+                && !lower.equals("gold_block") && !lower.equals("gold_ore") && !lower.equals("gold_record")) {
+            lower = "golden_" + lower.substring(5);
+        } else if (lower.startsWith("wood_")) {
+            lower = "wooden_" + lower.substring(5);
+        }
+        try {
+            net.minecraft.world.item.Item item = com.killer560.hub.profileviewer.item.LegacyItems.legacyItem(lower, damage);
+            return item == null || item == net.minecraft.world.item.Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
         }
     }
 

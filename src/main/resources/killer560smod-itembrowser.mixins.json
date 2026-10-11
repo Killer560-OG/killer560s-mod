@@ -6,7 +6,8 @@
 	"client": [
 		"ItemValueTooltipMixin",
 		"ItemValueContainerTooltipMixin",
-		"ItemBrowserRenderMixin"
+		"ItemBrowserRenderMixin",
+		"ItemBrowserRecipeBookRenderMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0
