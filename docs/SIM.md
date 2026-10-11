@@ -2691,8 +2691,13 @@ still relies on the sweep, which cannot see mobs in chunks that are unloaded at 
   by hand and by Secret Aura - 14 tries, he never moved towards the chest and always landed on #1's target. What it did
   find: a straight-down Hyperion moved an off-centre player to his block's centre (0.42 blocks in 644-sim-hype-down on the
   old jar), because `dashTarget` settled on his own block and only compared distances. Fixed (his own block is not a
-  teleport). One run in five of the aura+Hyperion variant left the mimic alive (one use, no kill); not reproduced in the
-  three repeats after it, cause not found.
+  teleport). And one run in five of the aura+Hyperion variant left the mimic alive: the mimic was spawned from the
+  CLIENT's chest-click callback via `server.execute`, so a click that bypassed the client's gameMode (Secret Aura's)
+  followed by Kill Mimic's Hyperion could reach the server first, and the single Wither Impact hit nothing (the log put
+  the Kill Mimic use before "mimic spawned"). `SimMimic` now answers the use-on-block packet on the server. The other
+  thing 644 showed is in Auto Routes, not the sim: in legit mode with Secret Aura on, Kill Mimic's Hyperion fired at
+  pitch 50.9 after its 20-tick aim timeout - a Wither Impact along his look, which right after the chest click points
+  at the mimic (handed to the Auto Routes agent; `MimicKiller.tick` AIM).
 - **Big Red Flag's tomb is a prince** (his 01.59.46 shot): a 2x3 lid of full smooth stone ringed by bottom smooth stone
   slabs (`SimPrince.LID`), which picks out exactly that one structure in all 135 captures. Opening a prince now also takes
   the player head touching it and the layer directly under its footprint (`SimPrince.extrasOf`, his rule - the wiki's
