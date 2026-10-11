@@ -1,5 +1,8 @@
 package com.killer560.hub.compat;
 
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import org.joml.Matrix4fc;
+import org.joml.Matrix4fStack;
 import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
@@ -231,6 +234,51 @@ public final class McRender {
     public static void writeUniformVec4(GpuBuffer buffer, float x, float y, float z, float w) {
         try (GpuBufferSlice.MappedView view = buffer.map(false, true)) {
             Std140Builder.intoBuffer(view.data()).putVec4(x, y, z, w);
+        }
+    }
+
+    // ---- first-person hand (Held Item Outline) ------------------------------------------------------------------
+
+    private static net.minecraft.client.renderer.SubmitNodeStorage handMaskStorage;
+
+    /** The depth a cleared target holds where nothing was drawn. 26.2 is reverse-Z: {@code GameRenderer.renderLevel} clears depth to 0.0 before the hands and LevelRenderer's always-on-top pass clears its target to 0.0 (javap); a target cleared to 1.0 rejects every fragment. */
+    public static final double FAR_DEPTH = 0.0;
+
+    /** Where an extra first-person item submit goes so that {@link #drawHandMask} draws it: a storage of our own. */
+    public static SubmitNodeCollector handMaskCollector(Minecraft client) {
+        if (handMaskStorage == null) {
+            handMaskStorage = new net.minecraft.client.renderer.SubmitNodeStorage();
+        }
+        return handMaskStorage;
+    }
+
+    /**
+     * Draws what was submitted to {@link #handMaskCollector}, under the same model-view vanilla drew the hands with:
+     * 26.2's {@code renderItemInHand} draws them while {@code handView} is multiplied onto the pushed model-view stack.
+     */
+    public static void drawHandMask(Minecraft client, Matrix4fc handView) {
+        if (handMaskStorage == null) {
+            return;
+        }
+        Matrix4fStack mv = RenderSystem.getModelViewStack();
+        mv.pushMatrix();
+        try {
+            if (handView != null) {
+                mv.mul(handView);
+            }
+            client.gameRenderer.featureRenderDispatcher().renderAllFeatures(handMaskStorage);
+        } finally {
+            mv.popMatrix();
+        }
+    }
+
+    /** Writes consecutive std140 vec4s (four floats each) into a mapped uniform buffer. */
+    public static void writeUniformVec4s(GpuBuffer buffer, float[] values) {
+        try (GpuBufferSlice.MappedView view = buffer.map(false, true)) {
+            Std140Builder b = Std140Builder.intoBuffer(view.data());
+            for (int i = 0; i + 3 < values.length; i += 4) {
+                b.putVec4(values[i], values[i + 1], values[i + 2], values[i + 3]);
+            }
         }
     }
 

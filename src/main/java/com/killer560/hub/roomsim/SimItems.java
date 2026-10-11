@@ -542,34 +542,73 @@ public final class SimItems {
             boolean slabRun = aimed.is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE_SLAB);
             java.util.List<BlockPos> slabSection = slabRun
                     ? connectedSlabs(level, center) : java.util.List.of();
-            boolean slabCrypt = slabRun && slabSection.size() >= MIN_CRYPT_SLABS;
-            // CLOSE ENOUGH IS A HIT. killer560 (2026-10-01): "if i use a superboom anywhere close to a crypt then it
-            // blows it up. So i can hit the ground with 1 block gap between where i place it and the crypt and
-            // itll still blow up the crypt." Only when he did not aim at cracked brick, so a decorative cracked
-            // wall next to a crypt still behaves as it did.
+            boolean slabCrypt = slabRun && isCryptRun(level, slabSection);
             boolean aimedCracked = aimed.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
                     || aimed.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS);
-            BlockPos nearCrypt = null;
-            if (!slabCrypt && !aimedCracked) {
-                nearCrypt = nearbySlabCrypt(level, center);
-                if (nearCrypt != null) {
-                    slabSection = connectedSlabs(level, nearCrypt);
-                    slabCrypt = true;
-                }
-            }
-            boolean openedCrypt = slabCrypt
-                    || ((aimed.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
-                    || aimed.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS))
-                    && sealsAChamber(level, center));
-            BlockPos cryptAt = openedCrypt ? (nearCrypt != null ? nearCrypt : center) : null;
+            // Air cells of every crypt chamber already claimed this detonation, so two bricks of one wall (or two
+            // walls of one chamber) open ONE crypt and drop one zombie.
+            java.util.Set<BlockPos> chambers = new java.util.HashSet<>();
+            java.util.Set<BlockPos> aimedChamber = aimedCracked && !slabCrypt ? chamberBehind(level, center) : null;
+            boolean wallCrypt = aimedChamber != null;
+            java.util.LinkedHashSet<BlockPos> targets = new java.util.LinkedHashSet<>();
+            // Where each opened crypt's zombie stands: a slab crypt's chamber is under its lid; a wall crypt's is
+            // behind the wall (getDirection() points out towards him, so the opposite of it is the chamber).
+            java.util.List<BlockPos> cryptZombies = new java.util.ArrayList<>();
             // A crypt gets the SLAB; anything else keeps the fragile-only fill. See docs/SIM.md for the
             // census behind that - cracked brick is decoration almost everywhere, and a crypt wall is cracked
             // brick interleaved with plain and mossy brick that a fragile-only fill cannot cross.
-            java.util.List<BlockPos> targets = slabCrypt
-                    ? withStairsAndFloor(level, slabSection)
-                    : openedCrypt
-                            ? wallSlab(level, center, face)
-                            : connectedFragile(level, center);
+            if (slabCrypt) {
+                targets.addAll(withStairsAndFloor(level, slabSection));
+                cryptZombies.add(center.below());
+            } else if (wallCrypt) {
+                chambers.addAll(aimedChamber);
+                targets.addAll(wallSlab(level, center, face));
+                cryptZombies.add(center.relative(face.getOpposite()));
+            } else {
+                targets.addAll(connectedFragile(level, center));
+            }
+            // EVERYTHING ELSE IN REACH, not just the nearest. killer560 (2026-10-09): "one super boom cannot break 2
+            // crypts for some reason. It should break anything in its range that meets the right criteria" and "if you
+            // use super boom within 3 blocks of something that can be broken it should be broken." The criteria are the
+            // ones a single crypt already had - a slab crypt's lid, a cracked brick sealing a crypt chamber, a prince -
+            // applied to every one of them within SUPERBOOM_CRYPT_REACH, each opened with its own zombie. Decorative
+            // cracked brick (no chamber behind it) is still only broken when aimed at, as before.
+            java.util.Set<BlockPos> seenSlabs = new java.util.HashSet<>(slabSection);
+            for (int dx = -SUPERBOOM_CRYPT_REACH; dx <= SUPERBOOM_CRYPT_REACH; dx++) {
+                for (int dz = -SUPERBOOM_CRYPT_REACH; dz <= SUPERBOOM_CRYPT_REACH; dz++) {
+                    for (int dy = -2; dy <= 2; dy++) {
+                        BlockPos p = center.offset(dx, dy, dz).immutable();
+                        BlockState st = level.getBlockState(p);
+                        if (st.is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE_SLAB) && seenSlabs.add(p)) {
+                            java.util.List<BlockPos> run = connectedSlabs(level, p);
+                            seenSlabs.addAll(run);
+                            if (isCryptRun(level, run) && !targets.contains(p)) {
+                                targets.addAll(withStairsAndFloor(level, run));
+                                cryptZombies.add(p.below());
+                            }
+                        } else if ((st.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
+                                || st.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS))
+                                && !targets.contains(p)) {
+                            net.minecraft.core.Direction side = chamberSide(level, p, chambers);
+                            if (side != null) {
+                                targets.addAll(wallSlab(level, p, side));
+                                cryptZombies.add(p.relative(side));
+                            }
+                        }
+                        if (SimPrince.isPrince(p) && !targets.contains(p)) {
+                            targets.addAll(SimPrince.blocksOf(p));
+                        }
+                    }
+                }
+            }
+            // A prince takes its head and the layer under it with it (SimPrince.extrasOf) - asked now, before
+            // anything has been broken.
+            for (BlockPos here : java.util.List.copyOf(targets)) {
+                if (SimPrince.isPrince(here)) {
+                    targets.addAll(SimPrince.extrasOf(level, here));
+                }
+            }
+            boolean openedCrypt = !cryptZombies.isEmpty();
             BlockPos princeAt = null;
             int broken = 0;
             for (BlockPos here : targets) {
@@ -598,14 +637,12 @@ public final class SimItems {
             // Deliberately NOT chat. killer560 (2026-09-30): "Remove the nothing to blow up line" - a Superboom
             // aimed at ordinary stone should do nothing visible, the way it does on Hypixel. A log line is not
             // something he has to read, and it is the thing that was missing.
-            LOGGER.info("Sim superboom at {} face {}: aimed block {}, crypt={} (cracked={}, sealsAChamber={}),"
-                            + " {} block(s) broken",
+            LOGGER.info("Sim superboom at {} face {}: aimed block {}, crypts opened={} (aimed: slab={}, cracked={},"
+                            + " sealsAChamber={}), prince={}, {} block(s) broken",
                     center, face,
                     net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(aimed.getBlock()),
-                    openedCrypt + (slabCrypt ? " (slab section of " + slabSection.size() + ")" : ""),
-                    aimed.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
-                            || aimed.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS),
-                    sealsAChamber(level, center), broken);
+                    cryptZombies.size(), slabCrypt ? slabSection.size() : 0, aimedCracked, wallCrypt,
+                    princeAt != null, broken);
             if (broken == 0) {
                 return true;
             }
@@ -619,7 +656,10 @@ public final class SimItems {
                 // A slab crypt's chamber is under its lid, whichever way he was facing when he threw it.
                 // NOT starred. killer560 (2026-10-04): "Spawned crypts shouldn't be starred." A crypt's zombie is
                 // an ordinary undead with no star tag - it does not count toward a clear.
-                SimMobs.spawnCrypt(client, slabCrypt ? cryptAt.below() : cryptAt.relative(face.getOpposite()), false);
+                // One per crypt opened (2026-10-09: one Superboom opens every crypt in reach).
+                for (BlockPos spot : cryptZombies) {
+                    SimMobs.spawnCrypt(client, spot, false);
+                }
             }
             if (princeAt != null) {
                 boolean scored = SimPrince.takeScore();
@@ -660,36 +700,7 @@ public final class SimItems {
      * the room, so asking afterwards would find every chamber connected to everything and identify none.
      */
     private static boolean sealsAChamber(ServerLevel level, BlockPos wall) {
-        for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
-            BlockPos start = wall.relative(dir).immutable();
-            if (!level.getBlockState(start).isAir()) {
-                continue;
-            }
-            java.util.Set<BlockPos> seen = new java.util.HashSet<>();
-            java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
-            seen.add(start);
-            queue.add(start);
-            boolean escaped = false;
-            while (!queue.isEmpty() && !escaped) {
-                BlockPos at = queue.poll();
-                for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
-                    BlockPos next = at.relative(d).immutable();
-                    if (seen.contains(next) || !level.getBlockState(next).isAir()) {
-                        continue;
-                    }
-                    if (seen.size() >= CRYPT_CHAMBER_MAX) {
-                        escaped = true;   // too big to be a crypt - this is the room
-                        break;
-                    }
-                    seen.add(next);
-                    queue.add(next);
-                }
-            }
-            if (!escaped) {
-                return true;
-            }
-        }
-        return false;
+        return chamberBehind(level, wall) != null;
     }
 
     /**
@@ -916,32 +927,87 @@ public final class SimItems {
     /** How far from where a Superboom lands a crypt still counts as hit: a one-block gap is two blocks away. */
     private static final int SUPERBOOM_CRYPT_REACH = 3;
 
-    /**
-     * The nearest smooth stone slab within {@link #SUPERBOOM_CRYPT_REACH} of {@code at} whose connected run is a
-     * crypt (at least {@link #MIN_CRYPT_SLABS}), or null. Searched in rings of growing distance so the nearest
-     * crypt wins when two are in reach, and two layers up and down so a charge on the floor beside a raised or
-     * sunken lid still finds it.
-     */
-    private static BlockPos nearbySlabCrypt(ServerLevel level, BlockPos at) {
-        BlockPos best = null;
-        int bestDist = Integer.MAX_VALUE;
-        for (int dx = -SUPERBOOM_CRYPT_REACH; dx <= SUPERBOOM_CRYPT_REACH; dx++) {
-            for (int dz = -SUPERBOOM_CRYPT_REACH; dz <= SUPERBOOM_CRYPT_REACH; dz++) {
-                for (int dy = -2; dy <= 2; dy++) {
-                    int dist = dx * dx + dz * dz + dy * dy;
-                    if (dist >= bestDist) {
-                        continue;
-                    }
-                    BlockPos p = at.offset(dx, dy, dz);
-                    if (level.getBlockState(p).is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE_SLAB)
-                            && connectedSlabs(level, p).size() >= MIN_CRYPT_SLABS) {
-                        best = p.immutable();
-                        bestDist = dist;
-                    }
-                }
+    /** Whether a slab run is a crypt lid: at least {@link #MIN_CRYPT_SLABS}, and not part of a prince (Big Red Flag's
+     *  prince is ringed by smooth stone slabs - SimPrince's lid rule - and is a prince, not a crypt as well). */
+    private static boolean isCryptRun(ServerLevel level, java.util.List<BlockPos> run) {
+        if (run.size() < MIN_CRYPT_SLABS) {
+            return false;
+        }
+        int bottom = 0;
+        for (BlockPos p : run) {
+            if (SimPrince.isPart(p)) {
+                return false;
+            }
+            BlockState st = level.getBlockState(p);
+            if (st.getValue(net.minecraft.world.level.block.SlabBlock.TYPE)
+                    == net.minecraft.world.level.block.state.properties.SlabType.BOTTOM) {
+                bottom++;
             }
         }
-        return best;
+        // MOSTLY BOTTOM SLABS, CryptScanner's rule: a lid is bottom slabs, while a run of top slabs is a ledge or an
+        // eave. Without it, once a Superboom took every crypt in reach (2026-10-09), the two top-slab eaves on Big Red
+        // Flag's prince opened as two crypts beside it.
+        return bottom * 2 > run.size();
+    }
+
+    /**
+     * The crypt chamber behind a cracked brick, as its air cells, or null when the brick seals none - the same test as
+     * {@link #sealsAChamber}, keeping what it found.
+     */
+    private static java.util.Set<BlockPos> chamberBehind(ServerLevel level, BlockPos wall) {
+        for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
+            java.util.Set<BlockPos> air = chamberFrom(level, wall.relative(dir).immutable());
+            if (air != null) {
+                return air;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Which side of a cracked brick a crypt chamber not yet in {@code claimed} lies on, or null. A chamber found is
+     * added to {@code claimed}, so a second brick of the same crypt answers null.
+     */
+    private static net.minecraft.core.Direction chamberSide(ServerLevel level, BlockPos wall,
+                                                            java.util.Set<BlockPos> claimed) {
+        for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
+            BlockPos start = wall.relative(dir).immutable();
+            if (claimed.contains(start)) {
+                return null;
+            }
+            java.util.Set<BlockPos> air = chamberFrom(level, start);
+            if (air != null) {
+                claimed.addAll(air);
+                return dir;
+            }
+        }
+        return null;
+    }
+
+    /** The air pocket from {@code start} when it is a sealed chamber of at most {@link #CRYPT_CHAMBER_MAX}, else null. */
+    private static java.util.Set<BlockPos> chamberFrom(ServerLevel level, BlockPos start) {
+        if (!level.getBlockState(start).isAir()) {
+            return null;
+        }
+        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+        seen.add(start);
+        queue.add(start);
+        while (!queue.isEmpty()) {
+            BlockPos at = queue.poll();
+            for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                BlockPos next = at.relative(d).immutable();
+                if (seen.contains(next) || !level.getBlockState(next).isAir()) {
+                    continue;
+                }
+                if (seen.size() >= CRYPT_CHAMBER_MAX) {
+                    return null;   // too big to be a crypt - this is the room
+                }
+                seen.add(next);
+                queue.add(next);
+            }
+        }
+        return seen;
     }
 
     /**

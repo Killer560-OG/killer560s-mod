@@ -70,6 +70,10 @@ public final class NameChangerConfig {
     private final List<Mapping> mappings = new ArrayList<>();
     /** Gives every other player (tab list + loaded players) a stable random fake name for this session. */
     private boolean randomizeOthers = false;
+    /** Nickhider "Randomized Name" (killer560, 2026-10-08): every other player shows as {@link #randomBaseName}
+     *  plus a number, unique per player and stable for the session, instead of a random made-up IGN. */
+    private boolean randomizedName = false;
+    private String randomBaseName = "";
 
     private NameChangerConfig() {
     }
@@ -120,6 +124,8 @@ public final class NameChangerConfig {
                 }
                 cfg.mappingsEnabled = ConfigJson.getBool(obj, "mappingsEnabled", true);
                 cfg.randomizeOthers = ConfigJson.getBool(obj, "randomizeOthers", false);
+                cfg.randomizedName = ConfigJson.getBool(obj, "randomizedName", false);
+                cfg.randomBaseName = ConfigJson.getString(obj, "randomBaseName", "");
                 JsonArray arr = ConfigJson.getArray(obj, "mappings");
                 if (arr != null) {
                     for (JsonElement el : arr) {
@@ -167,6 +173,8 @@ public final class NameChangerConfig {
             obj.add("ownCharColors", charColors);
             obj.addProperty("mappingsEnabled", mappingsEnabled);
             obj.addProperty("randomizeOthers", randomizeOthers);
+            obj.addProperty("randomizedName", randomizedName);
+            obj.addProperty("randomBaseName", randomBaseName);
             JsonArray arr = new JsonArray();
             for (Mapping m : mappings) {
                 JsonObject o = new JsonObject();
@@ -257,6 +265,24 @@ public final class NameChangerConfig {
 
     public void setRandomizeOthers(boolean randomizeOthers) {
         this.randomizeOthers = randomizeOthers;
+        version++;
+    }
+
+    public boolean isRandomizedName() {
+        return randomizedName;
+    }
+
+    public void setRandomizedName(boolean randomizedName) {
+        this.randomizedName = randomizedName;
+        version++;
+    }
+
+    public String getRandomBaseName() {
+        return randomBaseName;
+    }
+
+    public void setRandomBaseName(String randomBaseName) {
+        this.randomBaseName = randomBaseName == null ? "" : randomBaseName;
         version++;
     }
 

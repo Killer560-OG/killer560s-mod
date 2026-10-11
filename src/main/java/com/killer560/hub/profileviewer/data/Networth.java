@@ -181,7 +181,7 @@ public final class Networth {
         return v == null ? 0 : v;
     }
 
-    private static int bazaarCount() {
+    public static int bazaarCount() {
         try {
             return com.killer560.hub.rngmeter.RngMeterEngine.PRICES.getBazaarPriceCount();
         } catch (Throwable t) {
