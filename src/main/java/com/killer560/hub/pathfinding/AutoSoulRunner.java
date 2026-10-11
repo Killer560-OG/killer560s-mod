@@ -33,8 +33,9 @@ import java.util.List;
  * instead of an etherwarp item, for an account with no etherwarp unlock. Never touches
  * {@link EtherwarpHopper}.</li>
  * </ul>
- * Stops instantly on player movement, mouse movement, a click, a screen, damage, a world change, or when nothing has
- * improved for a few seconds and no etherwarp rescue is possible.
+ * Stops instantly on player movement, mouse movement, a click, a screen, or when nothing has improved for a few
+ * seconds and no etherwarp rescue is possible; and with the alarm on a failsafe ({@link AutoWalker}: damage,
+ * knockback, death, a world change or disconnect). A server correction or a server-set rotation never stops it.
  */
 public final class AutoSoulRunner {
 
@@ -65,6 +66,10 @@ public final class AutoSoulRunner {
     private static int shortcutCooldown;
     private static boolean chainTriedForSoul;
     private static boolean warnedNoItem;
+    /** Ticks the camera has been on the soul (see {@link #tickCollect}). */
+    private static int settledTicks;
+    /** Soul clicks sent this session (the testkit reads it). */
+    private static int clicksSent;
     /** How many souls this run gave up on as unreachable (skipped, not found) - see {@link #tick} on
      *  {@code soul == null}: killer560, 2026-09-21, "it said it couldn't find fairy souls that needed to be
      *  found" - reporting a plain "Done" when some souls were actually abandoned as unreachable is its own
@@ -72,6 +77,10 @@ public final class AutoSoulRunner {
     private static int skippedThisRun;
 
     private AutoSoulRunner() {
+    }
+
+    public static int clicksSent() {
+        return clicksSent;
     }
 
     public static boolean isActive() {
@@ -108,7 +117,7 @@ public final class AutoSoulRunner {
             }
         }
         ModChat.send(CHAT, ModChat.text("Started in mode "), ModChat.value(cfg.getAutoMode().label),
-                ModChat.dim(" - any key press, click or mouse move stops it."));
+                ModChat.dim(" (" + AutoWalker.jumpSummary(client.player) + ") - any key press, click or mouse move stops it."));
     }
 
     public static void stop(String reason, boolean announce) {
@@ -350,7 +359,11 @@ public final class AutoSoulRunner {
             return;
         }
         AutoWalker.lookAt(aim);
-        if (AutoWalker.aimError() > 3f) {
+        // The click is judged against the rotation the movement packets reported, and the camera now turns every
+        // frame: click only once the look has held still across a whole tick, so the last movement packet already
+        // carried it (docs/LESSONS-AUTOMATION.md, "An aura's click is judged against the rotation...").
+        settledTicks = AutoWalker.aimError() <= 1.5f ? settledTicks + 1 : 0;
+        if (settledTicks < 2) {
             return;
         }
         // And within the reach the anticheat enforces, measured to the BOX like every other check.
@@ -359,6 +372,7 @@ public final class AutoSoulRunner {
         }
         if (waitTicks % 20 == 0) {
             client.gameMode.interact(player, stand, new EntityHitResult(stand, aim), InteractionHand.MAIN_HAND);
+            clicksSent++;
         }
         if (++waitTicks > COLLECT_TIMEOUT_TICKS) {
             waitTicks = 0;

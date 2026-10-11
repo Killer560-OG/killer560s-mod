@@ -150,6 +150,7 @@ public final class ModPaths {
         t.put("autodebuff", "skyblock/autodebuff");
         t.put("autoclosechest", "skyblock/autoclosechest");
         t.put("cheatutils", "skyblock/cheatutils");
+        t.put("chocolatefactory", "skyblock/chocolatefactory");
         t.put("autokick", "skyblock/autokick");
         t.put("autojoinskyblock", "skyblock/autojoinskyblock");
 

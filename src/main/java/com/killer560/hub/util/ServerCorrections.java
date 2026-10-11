@@ -90,6 +90,21 @@ public final class ServerCorrections {
         packetCount++;
     }
 
+    private static volatile float lastRotationChange;
+
+    /**
+     * The rotation change the same position packet makes (degrees, yaw wrapped), from the same mixin right after
+     * {@link #noteServerMove}, before vanilla applies the packet - so a feature's next tick reads both together.
+     */
+    public static void noteServerRotation(float dyaw, float dpitch) {
+        lastRotationChange = Math.max(Math.abs(dyaw), Math.abs(dpitch));
+    }
+
+    /** How far the last server position packet turned the camera, in degrees (the larger of yaw and pitch). */
+    public static float lastRotationChange() {
+        return lastRotationChange;
+    }
+
     /** Distance of the last server position packet's move, in blocks (0 before the first). */
     public static double lastMoveDistance() {
         return lastMoveDistance;

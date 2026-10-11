@@ -830,6 +830,13 @@ final class SettingTooltipsData {
         d.put("claim stray rabbits", "Clicks stray rabbits in the factory menu when they appear.");
         d.put("auto time tower", "Activates the Time Tower whenever it has a charge.");
         d.put("upgrade delay", "How often Buy Best Upgrade checks and buys, 300-2000 ms.");
+        d.put("chocolate factory", "Legit helper for the Chocolate Factory menu, like SkyHanni's: highlights the best upgrade and strays, reminds you about the Time Tower. Never clicks.");
+        d.put("chocolate factory helper", "Master switch for the legit Chocolate Factory helper. It only draws and alerts; it never clicks.");
+        d.put("highlight best upgrade", "Outlines the upgrade with the best chocolate-per-second value green, and other upgrades you can afford yellow.");
+        d.put("highlight strays", "Outlines stray rabbits gold while the factory menu is open.");
+        d.put("stray alert", "Plays a ping and prints a chat line the moment a stray rabbit appears in the factory menu.");
+        d.put("time tower reminder", "Outlines the Time Tower and reminds you once per visit when it has a charge and is not running.");
+        d.put("upgrade info line", "Shows chocolate per second, the best upgrade, its cost and how long until you can afford it, above the menu.");
         d.put("fatigue only", "Makes Zero Ping only work while you have Mining Fatigue (cheat build only).");
         d.put("i hate diorite", "Turns Storm's diorite pillars into see-through glass in F7/M7 (cheat build only).");
         d.put("highlight frames", "Boxes every Arrow Align frame that still needs clicking.");
@@ -994,9 +1001,8 @@ final class SettingTooltipsData {
         d.put("auto mode", "How auto walk uses etherwarps: only when needed, when it saves time, or all the way.");
         d.put("auto click souls", "Right-clicks each soul for you when it arrives.");
         d.put("sprint", "Sprints on long straight stretches.");
-        d.put("turn speed", "How fast the camera turns while auto walking, in degrees per tick.");
-        d.put("start/stop key", "Starts or stops Auto Fairy Souls.");
-        d.put("start auto fairy souls", "Starts the automatic run now.");
+        d.put("turn speed", "Top speed the camera turns while auto walking, in degrees per tick; it eases smoothly every frame below that.");
+        d.put("start/stop key", "Starts or stops Auto Fairy Souls (it has no button; /k560path souls auto starts it too).");
 
         // Terminal overlay colours
         d.put("panes colour", "Highlight colour for the Correct all the panes terminal.");
@@ -1569,7 +1575,6 @@ final class SettingTooltipsData {
         d.put("fairy souls/chat feedback", "Prints a chat line when a route starts, finishes or is cancelled.");
         d.put("fairy souls/text scale", "Size of the destination label drawn above the target, 0.5x to 3x.");
         d.put("nothing to stop", "Nothing is navigating right now, so there is nothing to cancel.");
-        d.put("stop auto fairy souls", "Stops the automatic fairy soul run immediately (cheat build only).");
         d.put("sure? reset island", "Click once more to clear this island's found-soul log for this profile.");
         d.put("sure? reset every island", "Click once more to clear the found-soul log for every island on this profile.");
         d.put("posmsg/set", "Saves the message typed in the box to the left.");

@@ -2,7 +2,6 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
-import com.killer560.hub.pathfinding.AutoSoulRunner;
 import com.killer560.hub.pathfinding.PathfindingConfig;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
@@ -17,7 +16,7 @@ import java.util.Locale;
 /**
  * Auto Fairy Souls - walks to and collects every unfound Fairy Soul by itself. CHEAT BUILD ONLY, split out of
  * the old "Pathfinding" tab 2026-09-21 per killer560: "make auto fairy soul tab that is red with all of that
- * logic" - every setting here drives {@link AutoSoulRunner} / {@link com.killer560.hub.pathfinding.AutoWalker},
+ * logic" - every setting here drives {@link com.killer560.hub.pathfinding.AutoSoulRunner} / {@link com.killer560.hub.pathfinding.AutoWalker},
  * which is the only thing in this mod that currently auto-walks or auto-clicks anything (confirmed by reading
  * the whole call graph before splitting - nothing else calls {@code AutoWalker.startSession()}), so unlike the
  * old single tab, this whole page is legitimately cheat-only. The legit "Fairy Souls" section (waypoints, route,
@@ -103,17 +102,8 @@ public class AutoFairySoulsTab extends BaseTab implements KeyCaptureTab {
                     capturingResumeKey = true;
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(col2bX, y, col2W, 18).build());
-        y += 20;
-        widgets.add(SettingsButtonWidget.builder(Component.literal(AutoSoulRunner.isActive()
-                        ? "§cStop Auto Fairy Souls" : "Start Auto Fairy Souls"), btn -> {
-                    if (AutoSoulRunner.isActive()) {
-                        AutoSoulRunner.stop("stopped in settings", true);
-                    } else {
-                        AutoSoulRunner.start();
-                    }
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
-        // Stop-condition list moved into the Start/Stop button's hover tooltip (mod-wide in-panel-paragraph cleanup, 2026-09-21).
+        // The Start/Stop button was removed (killer560, 2026-10-11: "remove the start auto fairy souls button from
+        // the menu"): the Start/Stop key and /k560path souls auto start it.
         return widgets;
     }
 

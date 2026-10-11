@@ -38,8 +38,12 @@ public abstract class PathWalkInputMixin extends ClientInput {
         if (!AutoWalker.isDriving()) {
             return;
         }
-        this.keyPresses = new Input(true, false, false, false, AutoWalker.wantJump(), keys.shift(),
-                AutoWalker.wantSprint());
-        this.moveVector = new Vec2(0.0f, 1.0f);
+        boolean f = AutoWalker.wantForward();
+        boolean b = AutoWalker.wantBack();
+        boolean l = AutoWalker.wantLeft();
+        boolean r = AutoWalker.wantRight();
+        this.keyPresses = new Input(f, b, l, r, AutoWalker.wantJump(), keys.shift(), AutoWalker.wantSprint());
+        // Exactly what vanilla's tick derives from those keys: each axis -1/0/1, then normalized.
+        this.moveVector = new Vec2((l ? 1f : 0f) - (r ? 1f : 0f), (f ? 1f : 0f) - (b ? 1f : 0f)).normalized();
     }
 }
