@@ -21,7 +21,9 @@ public class HelpersTab extends FolderTab {
                 new WaypointRoutesTab(),
                 new PathfindingTab(),
                 new TrajectoriesTab(),
-                new AbilityKeybindsTab()
+                new AbilityKeybindsTab(),
+                // The legit, SkyHanni-style helper (killer560, 2026-10-11); Auto Chocolate Factory stays in the cheat block.
+                new ChocolateFactoryTab()
         ));
         // The autonomous Experimentation Table macro got its own section here 2026-09-30, per killer560:
         // "Move the auto etable stuff into its own red header in the same helpers tab but different area."

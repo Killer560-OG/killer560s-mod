@@ -5,68 +5,67 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
-import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import com.killer560.hub.chocolatefactory.ChocolateFactoryMenu;
+
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Auto Chocolate Factory - ported from QUOI {@code misc/ChocolateFactory.kt} (itself OdinLegacy's
- * ChocolateFactory, BSD-3-Clause). Only runs while the open container is titled exactly "Chocolate Factory".
+ * Auto Chocolate Factory - originally ported from QUOI {@code misc/ChocolateFactory.kt} (OdinLegacy's, BSD-3-Clause).
+ * Only runs while the open container is titled exactly "Chocolate Factory". What is where comes from
+ * {@link ChocolateFactoryMenu}, the reader the legit helper uses too (killer560, 2026-10-11: "It will click the cookie
+ * but does nothing else. I think the menu has changed" - it had: the Time Tower moved 39 -> 38 and the Coach 42 -> 41,
+ * and 42 is now a menu button).
  * <ul>
- * <li>Cookie: slot 13, button 1, PICKUP (QUOI). Strays: first slot whose name contains "CLICK ME!" or
- * "Golden Rabbit", button 0, PICKUP. Time Tower: slot 39, button 1, PICKUP when "Charges: N/M" N &gt; 0 and
- * "Status: INACTIVE". One action per random [min,max] delay (QUOI clicks cookie + stray in one tick; spread out
- * here for the min/max jitter).
- * <li>Best upgrade (QUOI {@code findBestUpgrade}): raw cps = cps (slot 13 "N per second") / "Total Multiplier: Xx"
- * (slot 45); base multiplier excludes an active Time Tower (level*0.1). Candidates: employee rabbits slots
- * 28-34 (+1..+7 raw cps), Time Tower 39 (+raw*0.1/8 avg), Coach Jackrabbit 42 (+0.01 multiplier). Cost = the
- * lore line after the "Cost" line. Picks min cost / extra-cps; buys only if chocolate (slot 13 name digits)
- * &gt;= cost, via middle-click (button 2, CLONE), on its own fixed "Upgrade delay" timer.
- * <li>Stop on unexpected screens: if a different screen replaces the factory while running (e.g. a
- * confirmation/submenu), automation halts with a chat message until every screen is closed.
+ * <li>One action per random [min,max] delay, in priority order: activate the Time Tower (right-click) when it has a
+ * charge and is inactive; claim a stray (top three rows, "CLICK ME!" / "Golden Rabbit"); click the chocolate.</li>
+ * <li>Best upgrade on its own "Upgrade delay" timer: the cheapest chocolate per extra chocolate-per-second among the
+ * seven employees, the Time Tower and the Coach, bought (middle-click, QUOI's) only when affordable.</li>
+ * <li>Never clicks {@link ChocolateFactoryMenu#DESTRUCTIVE_SLOTS} or anything outside the factory's own slots.</li>
+ * <li>A different screen replacing the factory halts it until every screen is closed.</li>
  * </ul>
- * Clicks go through {@code MultiPlayerGameMode#handleContainerInput}, the ExperimentsFeature precedent.
+ * Every click claims the tick through {@code ActionGate}; clicks go through {@code MultiPlayerGameMode#handleContainerInput}.
  */
 public final class ChocolateFactoryFeature {
-
-    private static final String TITLE = "Chocolate Factory";
-    private static final Map<Integer, Integer> RABBIT_SLOT_GAINS = Map.of(28, 1, 29, 2, 30, 3, 31, 4, 32, 5, 33, 6, 34, 7);
-    private static final Pattern CPS = Pattern.compile("([\\d.,]+)\\s+per second");
-    private static final Pattern TOTAL_MULT = Pattern.compile("Total Multiplier:\\s+([\\d.]+)x");
-    private static final Pattern TT_STATUS = Pattern.compile("Status:\\s+(ACTIVE|INACTIVE)");
-    private static final Pattern TT_CHARGES = Pattern.compile("Charges:\\s*(\\d+)\\s*/\\s*(\\d+)");
 
     private static boolean sessionActive = false;
     private static boolean halted = false;
     private static long nextActionMs = 0;
     private static long nextUpgradeMs = 0;
-
-    private record Candidate(int slot, long cost, double effectiveCost) {
-    }
+    /** Clicks sent, per kind (the testkit reads these). */
+    private static int cookieClicks;
+    private static int strayClicks;
+    private static int towerClicks;
+    private static int upgradeClicks;
+    /** Client ticks seen, and the one the last click went out on: two clicks never go on back-to-back ticks. */
+    private static long ticks;
+    private static long lastClickTick = -10;
 
     private ChocolateFactoryFeature() {
     }
 
+    public static int[] clickCounts() {
+        return new int[]{cookieClicks, strayClicks, towerClicks, upgradeClicks};
+    }
+
     static void tick(Minecraft client) {
+        ticks++;
         CheatUtilsConfig cfg = CheatUtilsConfig.getInstance();
         if (!cfg.isChocolateEnabled() || client.player == null || client.gameMode == null) {
-            endSession("disabled/no player");
+            endSession();
             halted = false;
             return;
         }
         if (McCompat.screen(client) == null) {
-            endSession("screen closed");
-            if (halted) {
-                halted = false;
-            }
+            endSession();
+            halted = false;
             return;
         }
-        boolean isFactory = McCompat.screen(client) instanceof AbstractContainerScreen<?> s && TITLE.equals(s.getTitle().getString());
+        boolean isFactory = McCompat.screen(client) instanceof AbstractContainerScreen<?> s
+                && ChocolateFactoryMenu.isFactoryTitle(s.getTitle().getString());
         if (!isFactory) {
             if (sessionActive) {
                 String title = McCompat.screen(client).getTitle().getString();
@@ -74,7 +73,7 @@ public final class ChocolateFactoryFeature {
                         title, McCompat.screen(client).getClass().getSimpleName());
                 ModChat.send(CheatUtils.CHAT_TAG, ModChat.text("Chocolate Factory stopped: "),
                         ModChat.bad("unexpected screen"), ModChat.dim(" '" + title + "' - close it to re-arm"));
-                endSession("unexpected screen");
+                endSession();
                 halted = true;
             }
             return;
@@ -84,9 +83,17 @@ public final class ChocolateFactoryFeature {
         }
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) McCompat.screen(client);
         AbstractContainerMenu menu = screen.getMenu();
-        if (menu.slots.size() <= 45) {
+        if (menu.slots.size() < 54 + 36) {
             return;
         }
+        List<ItemStack> top = new ArrayList<>(54);
+        for (int i = 0; i < 54; i++) {
+            top.add(menu.getSlot(i).getItem());
+        }
+        if (top.get(ChocolateFactoryMenu.INFO_SLOT).isEmpty()) {
+            return; // contents not arrived yet
+        }
+        ChocolateFactoryMenu.State state = ChocolateFactoryMenu.read(top);
         long now = System.currentTimeMillis();
         if (!sessionActive) {
             sessionActive = true;
@@ -94,22 +101,25 @@ public final class ChocolateFactoryFeature {
             nextUpgradeMs = now + cfg.getCfUpgradeDelayMs();
         }
 
-        // Real gap found (2026-09-21, gate audit): ActionGate.Actor.CHOCOLATE_FACTORY was declared for this
-        // feature the day the gate landed, but nothing here ever called tryAct - so this was the one place
-        // in the mod that could still put TWO container-click packets on the same client tick BY DESIGN: the
-        // action timer and the upgrade timer are independent, and whenever both came due in the same tick a
-        // cookie click and a purchase went out together. Both branches now claim the tick through the gate,
-        // and neither re-rolls its own timer unless the click actually left (a denied tick must not push the
-        // next cookie a full delay away for a packet that was never sent).
+        // Both timers claim the tick through the gate, so a cookie click and a purchase never share a tick, and a
+        // denied tick leaves its timer where it was (2026-09-21 gate audit).
         if (now >= nextActionMs) {
-            int straySlot = cfg.isCfClaimStrays() ? findStraySlot(client, menu) : -1;
             Boolean sent = null; // null = nothing was due to click at all
-            if (cfg.isCfAutoTimeTower() && shouldActivateTimeTower(menu.getSlot(39).getItem())) {
-                sent = click(client, screen, menu, 39, 1, ContainerInput.PICKUP);
-            } else if (straySlot >= 0) {
-                sent = click(client, screen, menu, straySlot, 0, ContainerInput.PICKUP);
+            if (cfg.isCfAutoTimeTower() && state.timeTowerReady()) {
+                sent = click(client, screen, menu, state.timeTowerSlot(), 1, ContainerInput.PICKUP);
+                if (sent) {
+                    towerClicks++;
+                }
+            } else if (cfg.isCfClaimStrays() && !state.strays().isEmpty()) {
+                sent = click(client, screen, menu, state.strays().get(0), 0, ContainerInput.PICKUP);
+                if (sent) {
+                    strayClicks++;
+                }
             } else if (cfg.isCfClickCookie()) {
-                sent = click(client, screen, menu, 13, 1, ContainerInput.PICKUP);
+                sent = click(client, screen, menu, ChocolateFactoryMenu.INFO_SLOT, 1, ContainerInput.PICKUP);
+                if (sent) {
+                    cookieClicks++;
+                }
             }
             if (sent == null || sent) {
                 nextActionMs = now + cfg.rollCfDelayMs();
@@ -117,176 +127,39 @@ public final class ChocolateFactoryFeature {
         }
 
         if (cfg.isCfAutoUpgrade() && now >= nextUpgradeMs) {
-            long chocolate = parseDigits(CheatUtils.plainName(menu.getSlot(13).getItem()));
-            Candidate best = findBestUpgrade(menu);
-            if (best == null || chocolate < best.cost()) {
+            ChocolateFactoryMenu.Upgrade best = state.best();
+            if (best == null || state.chocolate() < best.cost()) {
                 nextUpgradeMs = now + cfg.getCfUpgradeDelayMs();
             } else if (click(client, screen, menu, best.slot(), 2, ContainerInput.CLONE)) {
+                upgradeClicks++;
+                CheatUtils.LOGGER.info("[CheatUtils] ChocolateFactory bought {} (slot {}) for {}", best.name(),
+                        best.slot(), best.cost());
                 nextUpgradeMs = now + cfg.getCfUpgradeDelayMs();
             }
         }
     }
 
-    /** @return false when {@link com.killer560.hub.util.ActionGate} held this tick back - nothing was sent,
-     *  so the caller must leave its own timers and counters exactly where they were. */
+    /** @return false when {@link com.killer560.hub.util.ActionGate} held this tick back - nothing was sent. */
     private static boolean click(Minecraft client, AbstractContainerScreen<?> screen, AbstractContainerMenu menu,
                                  int slot, int button, ContainerInput input) {
+        if (slot < 0 || slot >= 54 || ChocolateFactoryMenu.DESTRUCTIVE_SLOTS.contains(slot)) {
+            return false;
+        }
+        // The action and upgrade timers are independent, so a purchase could follow a chocolate click on the very
+        // next client tick, and two client ticks can reach the server inside one of its ticks: testkit 754 saw two
+        // clicks in one server tick that way. Leave at least one empty tick between any two clicks.
+        if (ticks - lastClickTick < 2) {
+            return false;
+        }
         if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.CHOCOLATE_FACTORY, screen)) {
             return false;
         }
         client.gameMode.handleContainerInput(menu.containerId, slot, button, input, client.player);
+        lastClickTick = ticks;
         return true;
     }
 
-    /** The stray to claim, or -1. Split out from the click so the gate can be asked only once something is
-     *  actually there to click. */
-    private static int findStraySlot(Minecraft client, AbstractContainerMenu menu) {
-        for (Slot slot : menu.slots) {
-            // Review fix (2026-09-15): factory slots only - never PICKUP an item out of the player's own
-            // inventory just because its name happens to contain "Golden Rabbit".
-            if (slot.container == client.player.getInventory()) {
-                continue;
-            }
-            String name = CheatUtils.plainName(slot.getItem());
-            if (name.contains("CLICK ME!") || name.contains("Golden Rabbit")) {
-                return slot.index;
-            }
-        }
-        return -1;
-    }
-
-    private static void endSession(String why) {
-        if (sessionActive) {
-            sessionActive = false;
-        }
-    }
-
-    private static Candidate findBestUpgrade(AbstractContainerMenu menu) {
-        Double cps = firstMatchDouble(CheatUtils.lore(menu.getSlot(13).getItem()), CPS);
-        Double totalMultiplier = firstMatchDouble(CheatUtils.lore(menu.getSlot(45).getItem()), TOTAL_MULT);
-        if (cps == null || totalMultiplier == null || cps <= 0 || totalMultiplier <= 0) {
-            return null;
-        }
-        double raw = cps / totalMultiplier;
-        ItemStack timeTower = menu.getSlot(39).getItem();
-        int ttLevel = parseTier(CheatUtils.plainName(timeTower));
-        double baseMultiplier = Math.max(0.0, totalMultiplier - (isTimeTowerActive(timeTower) ? ttLevel * 0.1 : 0.0));
-        if (raw <= 0 || baseMultiplier <= 0) {
-            return null;
-        }
-        double average = raw * baseMultiplier;
-        Candidate best = null;
-        for (Map.Entry<Integer, Integer> e : RABBIT_SLOT_GAINS.entrySet()) {
-            best = better(best, e.getKey(), parseCost(menu.getSlot(e.getKey()).getItem()),
-                    average, (raw + e.getValue()) * baseMultiplier);
-        }
-        best = better(best, 39, parseCost(timeTower), average, raw * baseMultiplier + raw * 0.1 / 8.0);
-        best = better(best, 42, parseCost(menu.getSlot(42).getItem()), average, raw * (baseMultiplier + 0.01));
-        return best;
-    }
-
-    private static Candidate better(Candidate best, int slot, Long cost, double average, double newAverage) {
-        if (cost == null) {
-            return best;
-        }
-        double extra = newAverage - average;
-        if (extra <= 0) {
-            return best;
-        }
-        Candidate c = new Candidate(slot, cost, cost / extra);
-        return best == null || c.effectiveCost() < best.effectiveCost() ? c : best;
-    }
-
-    private static Long parseCost(ItemStack stack) {
-        List<String> lore = CheatUtils.lore(stack);
-        for (int i = 0; i < lore.size(); i++) {
-            if (lore.get(i).contains("Cost")) {
-                if (i + 1 >= lore.size()) {
-                    return null;
-                }
-                String digits = lore.get(i + 1).replaceAll("\\D", "");
-                return digits.isEmpty() ? null : safeParseLong(digits);
-            }
-        }
-        return null;
-    }
-
-    private static boolean isTimeTowerActive(ItemStack stack) {
-        for (String line : CheatUtils.lore(stack)) {
-            Matcher m = TT_STATUS.matcher(line);
-            if (m.find()) {
-                return "ACTIVE".equals(m.group(1));
-            }
-        }
-        return false;
-    }
-
-    private static boolean shouldActivateTimeTower(ItemStack stack) {
-        for (String line : CheatUtils.lore(stack)) {
-            Matcher m = TT_CHARGES.matcher(line);
-            if (m.find()) {
-                try {
-                    return Integer.parseInt(m.group(1)) > 0 && !isTimeTowerActive(stack);
-                } catch (NumberFormatException e) {
-                    return false;
-                }
-            }
-        }
-        return false;
-    }
-
-    private static Double firstMatchDouble(List<String> lines, Pattern p) {
-        for (String line : lines) {
-            Matcher m = p.matcher(line);
-            if (m.find()) {
-                try {
-                    return Double.parseDouble(m.group(1).replace(",", ""));
-                } catch (NumberFormatException ignored) {
-                    return null;
-                }
-            }
-        }
-        return null;
-    }
-
-    private static long parseDigits(String s) {
-        String digits = s.replaceAll("\\D", "");
-        Long v = digits.isEmpty() ? null : safeParseLong(digits);
-        return v == null ? 0L : v;
-    }
-
-    private static Long safeParseLong(String digits) {
-        try {
-            return Long.parseLong(digits);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    /** Roman numeral after the last space of the item name (QUOI parseUpgradeTier), 0 if none. */
-    private static int parseTier(String name) {
-        int idx = name.lastIndexOf(' ');
-        if (idx < 0 || idx == name.length() - 1) {
-            return 0;
-        }
-        String roman = name.substring(idx + 1);
-        int total = 0;
-        int prev = 0;
-        for (int i = roman.length() - 1; i >= 0; i--) {
-            int v = switch (roman.charAt(i)) {
-                case 'I' -> 1;
-                case 'V' -> 5;
-                case 'X' -> 10;
-                case 'L' -> 50;
-                case 'C' -> 100;
-                default -> -1;
-            };
-            if (v < 0) {
-                return 0;
-            }
-            total += v < prev ? -v : v;
-            prev = Math.max(prev, v);
-        }
-        return total;
+    private static void endSession() {
+        sessionActive = false;
     }
 }

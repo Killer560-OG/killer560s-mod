@@ -390,6 +390,7 @@ public final class ProfileManager {
                 com.killer560.hub.boss.LividSolverConfig::load,
                 com.killer560.hub.partycommands.PartyCommandsConfig::load,
                 com.killer560.hub.cheatutils.CheatUtilsConfig::load,
+                com.killer560.hub.chocolatefactory.ChocolateFactoryConfig::load,
                 com.killer560.hub.clicktranslate.ClickTranslateConfig::load,
                 com.killer560.hub.commandkeybinds.CommandKeybindsConfig::load,
                 com.killer560.hub.copychat.CopyChatConfig::load,

@@ -118,3 +118,13 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   tick sent its first use at the look he armed with (30.0, or 89.85-89.96 in legit; testkit 96-ar-653). It now holds use
   only after two ticks reading pitch 90.0. RouteRotation's ease also never reached its target exactly (a decaying arc
   tail kept it thousandths off), so its last 0.01 degree now lands exactly and the arc stops there (2026-10-11, hype-down).
+- **SkyHanni's island graph positions are the FEET block, and the path points sit half a block above them** (verified on
+  his HUB.json: Village nodes at y 70, where a player stands). `AutoWalker` jumped whenever the next path point was 0.6
+  higher than his feet, so every gentle rise was a hop ("jumping the whole time", killer560 2026-10-11). Jumps now come from
+  the block in front (`WalkTerrain.rise` against his real jump height, Jump Boost included); testkit 746 counts 1 take-off
+  for a course with one step. Straight under a path point (the foot of a ladder) atan2 of near-zero spun the camera; the
+  walker now holds its aim there (testkit 747).
+- **The Chocolate Factory menu moved** (killer560 2026-10-11, "clicks the cookie but does nothing else"): per SkyHanni-REPO
+  `constants/HoppityEggLocations.json` the Time Tower is 38 (39 is the Rabbit Shrine), the Coach 41, and 42/43/47-51/53 are
+  menu buttons. `chocolatefactory/ChocolateFactoryMenu` is the one reader for the auto and the legit helper; check that
+  file in his SkyHanni repo copy before changing a slot (testkit 754 puts traps on 39 and 42).
