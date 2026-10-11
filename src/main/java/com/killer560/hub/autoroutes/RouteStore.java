@@ -434,6 +434,10 @@ public final class RouteStore {
                 n.hasLanding = true;
             }
         }
+        double[] placeEye = parseTriple(ConfigJson.getString(o, "placeEye", ""));
+        if (placeEye != null) {
+            n.setPlaceEye(new net.minecraft.world.phys.Vec3(placeEye[0], placeEye[1], placeEye[2]));
+        }
         if (type == RouteNode.Type.PATH) {
             JsonArray hops = ConfigJson.getArray(o, "hops");
             double[] from = parseTriple(ConfigJson.getString(o, "planFrom", ""));
@@ -555,6 +559,9 @@ public final class RouteStore {
         }
         if (n.hasLanding) {
             o.addProperty("landing", String.format(Locale.US, "%.6f %.6f %.6f", n.landingX, n.landingY, n.landingZ));
+        }
+        if (n.hasPlaceEye) {
+            o.addProperty("placeEye", String.format(Locale.US, "%.6f %.6f %.6f", n.placeEyeX, n.placeEyeY, n.placeEyeZ));
         }
         return o;
     }

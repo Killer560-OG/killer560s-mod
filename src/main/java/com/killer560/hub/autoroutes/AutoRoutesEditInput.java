@@ -1,8 +1,6 @@
 package com.killer560.hub.autoroutes;
 
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -54,8 +52,8 @@ public final class AutoRoutesEditInput {
         // that answers an ability item's click (the sim's own ability hook does, for a Superboom) took the click first -
         // the pick was lost and the item fired, the one thing edit mode promises will not happen (found 2026-10-05,
         // 96-ar-add: two picks with a Superboom in hand detonated it twice and saved no blocks).
-        ClientTickEvents.START_CLIENT_TICK.register(
-                com.killer560.hub.util.FeatureGuard.start("AutoRoutesEditInput.leftClick", AutoRoutesEditInput::onStartTick));
+        // Left clicks are NOT touched (killer560, 2026-10-09: "I cannot break blocks while in the edit breaker mode"):
+        // the 2026-10-06 swallow of every left click with the breaker held was removed, so he digs as usual.
         UseBlockCallback.EVENT.addPhaseOrdering(EDIT_PHASE, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
         UseBlockCallback.EVENT.register(EDIT_PHASE, (player, level, hand, hit) -> {
             try {
@@ -93,45 +91,6 @@ public final class AutoRoutesEditInput {
                 return InteractionResult.PASS;
             }
         });
-    }
-
-    /** Left clicks edit mode has swallowed since launch - read by the testkit's 96-ar to prove the guard acted. */
-    private static int swallowedLeftClicks;
-
-    /**
-     * killer560, 2026-10-06: "when in edit mode it shouldnt be able to break blocks". While edit mode is on every left
-     * click of his is consumed and the attack key let go at START_CLIENT_TICK - the ar-await-skip approach
-     * ({@code RouteExecutor.takeSkipClick}) - so vanilla's {@code handleKeybinds} later this same tick calls neither
-     * {@code startAttack} nor {@code continueAttack(true)}: no swing, no START_DESTROY_BLOCK, and nothing for the 0 Ping
-     * Dungeon Breaker's {@code startDestroyBlock} hook to act on. A held button stays let go until he presses it again,
-     * so a button held from before edit mode began cannot keep digging either. Never under a screen (a click there is
-     * the screen's). Breaker Aura stands down in edit mode through its own "Pause In Edit Mode" (on by default).
-     */
-    private static void onStartTick(Minecraft client) {
-        if (!AutoRoutesFeature.isEditMode() || client.options == null || client.player == null
-                || com.killer560.hub.compat.McCompat.screen(client) != null) {
-            return;
-        }
-        // Only while the Dungeon Breaker is held: with an AOTV, Hyperion or anything else a left click is a normal left
-        // click (killer560, 2026-10-06).
-        if (!ItemIdentity.isDungeonBreaker(client.player.getMainHandItem())) {
-            return;
-        }
-        boolean clicked = false;
-        while (client.options.keyAttack.consumeClick()) {
-            clicked = true;
-        }
-        if (client.options.keyAttack.isDown()) {
-            client.options.keyAttack.setDown(false);
-        }
-        if (clicked) {
-            swallowedLeftClicks++;
-            LOGGER.info("[AutoRoutes] edit mode swallowed a left click (no swing, no dig; {} so far)", swallowedLeftClicks);
-        }
-    }
-
-    public static int swallowedLeftClicks() {
-        return swallowedLeftClicks;
     }
 
     /** Forget the hold-repeat state - call when edit mode is turned off so the next click is always fresh. */

@@ -181,6 +181,7 @@ public final class AutoRoutesConfig {
             case COMMAND -> 0xFFC0C0C0;
             case PATH -> 0xFF9B59FF;
             case CRYPT -> 0xFF7FFF7F;
+            case JUMP -> 0xFF4F8BFF;
         };
     }
 

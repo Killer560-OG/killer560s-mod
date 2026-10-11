@@ -92,6 +92,8 @@ public final class AutoRoutesCommands {
         ADD_PATH("add_path", "Add Path Node", "/ar add path"),
         /** killer560, 2026-10-05: a node that kills the crypt it looks at with the Crypt Weapon setting's item. */
         ADD_CRYPT("add_crypt", "Add Crypt Node", "/ar add crypt"),
+        /** killer560, 2026-10-09: "Add a jump node to auto routes where it just jumps once." */
+        ADD_JUMP("add_jump", "Add Jump Node", "/ar add jump"),
         EDIT_BREAKER("edit_db", "Edit Breaker Blocks", "/ar edit db"),
         CLEAR("clear", "Clear Room Route", "/ar clear"),
         LIST("list", "List Nodes", "/ar list"),
@@ -146,9 +148,10 @@ public final class AutoRoutesCommands {
             "use", RouteNode.Type.USE_ITEM,
             "walk", RouteNode.Type.WALK,
             "path", RouteNode.Type.PATH,
-            "crypt", RouteNode.Type.CRYPT);
+            "crypt", RouteNode.Type.CRYPT,
+            "jump", RouteNode.Type.JUMP);
     private static final List<String> TYPE_WORDS = List.of("boom", "breaker", "dungeonbreaker", "ew", "etherwarp", "use", "walk", "path",
-            "crypt");
+            "crypt", "jump");
     /** Modifiers offered after any {@code /ar add <type>}. {@code await:} completes to just that, so the number is
      *  typed straight after it (killer560, 2026-10-06: "make await fill as await: without the x"); the command
      *  refuses {@code await:} followed by anything but a number. */
@@ -342,6 +345,7 @@ public final class AutoRoutesCommands {
             case ADD_BOOM -> add(RouteNode.Type.BOOM);
             case ADD_PATH -> add(RouteNode.Type.PATH);
             case ADD_CRYPT -> add(RouteNode.Type.CRYPT);
+            case ADD_JUMP -> add(RouteNode.Type.JUMP);
             case EDIT_BREAKER -> toggleEditMode();
             case CLEAR -> clear();
             case LIST -> list();
@@ -390,7 +394,7 @@ public final class AutoRoutesCommands {
         }
         ModChat.send(FEATURE, ModChat.value("/ar edit <n>"), ModChat.dim(" - Node Editor (type, start, await, position, look, item, Go To)"));
         ModChat.send(FEATURE, ModChat.dim("/autoroutes works everywhere /ar does."));
-        ModChat.send(FEATURE, ModChat.dim("Types: boom, breaker, ew (or etherwarp), use, walk, path. After the type, any order: "),
+        ModChat.send(FEATURE, ModChat.dim("Types: boom, breaker, ew (or etherwarp), use, walk, path, crypt, jump. After the type, any order: "),
                 ModChat.value("start"), ModChat.dim(" (this room's start node), "), ModChat.value("await:<number>"),
                 ModChat.dim(" (wait for that many secrets first) - e.g. "), ModChat.value("/ar add ew start await:2"),
                 ModChat.dim("."));
@@ -451,6 +455,7 @@ public final class AutoRoutesCommands {
                     : " - matched on the item, not the slot.");
             case PATH -> ModChat.dim(" - path nodes pair up in number order; the first warps to the second.");
             case CRYPT -> ModChat.dim(" - place it at the crypt; uses the Crypt Weapon straight down until a crypt or prince dies.");
+            case JUMP -> ModChat.dim(" - presses jump once when it fires.");
             default -> ModChat.text("");
         };
         ModChat.send(FEATURE, ModChat.text(status), tail);

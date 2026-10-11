@@ -287,6 +287,9 @@ public final class RouteRecorder {
         RouteNode node = nodeAtPlayer(player, sampleIndex);
         if (ItemIdentity.isEtherwarpItem(held) && player.isShiftKeyDown()) {
             node.type = RouteNode.Type.ETHERWARP;
+            // The eye the recorded warp went from (sneaking, as it must be); its landing comes with the teleport.
+            node.setPlaceEye(RouteCoords.toRelative(frame, new Vec3(player.getX(),
+                    player.getY() + TeleportUtils.eyeHeight(true), player.getZ())));
             pendingEtherwarp = node;
             pendingEtherwarpTicks = ETHERWARP_PENDING_TICKS;
             return;
@@ -397,7 +400,7 @@ public final class RouteRecorder {
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
         NodeModifiers mods = modifiers == null ? NodeModifiers.NONE : modifiers;
         if (type == null) {
-            return bad("Unknown node type. Types: walk, ew, use, breaker, boom, path, crypt - add start / await:<n> as modifiers.");
+            return bad("Unknown node type. Types: walk, ew, use, breaker, boom, path, crypt, jump - add start / await:<n> as modifiers.");
         }
         if (!cfg.isEnabled()) {
             return bad("Auto Routes is off (cheat build + Skyblock only).");
@@ -440,6 +443,8 @@ public final class RouteRecorder {
                 if (hit.succeeded() && hit.pos() != null) {
                     node.setLanding(RouteCoords.toRelative(f, new Vec3(hit.pos().getX() + 0.5, hit.pos().getY() + 1.05,
                             hit.pos().getZ() + 0.5)));
+                    // The line this landing was seen along was clear from this eye (RouteExecutor.newBlockInLine).
+                    node.setPlaceEye(RouteCoords.toRelative(f, eye));
                 } else {
                     extra = " (no etherwarpable block in sight - playback will only check that you moved)";
                 }

@@ -104,3 +104,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - **Never release a `ViewFreeze` hold you did not take.** It is one global lease; a second owner releasing it drops the
   camera onto a body another auto is still turning (93-solve-blazemiss-lower, -boulder-aura). `ViewFreeze.holdCount()` says
   whether anybody else held it since you did.
+- **`/ar edit db` measured reach from the NODE, not from him** (killer560, 2026-10-09: "it says they are too far for my
+  breaker"): the pick was refused whenever he stood off the node, though his crosshair had just picked it. Picks are
+  measured eye-to-box at 4.5 now (a plain dig - the wiki gives the Dungeon Breaker no range), and a pick far from the node
+  is only noted in chat, since playback digs from wherever the route has him (testkit 96-ar-658-dbreach).

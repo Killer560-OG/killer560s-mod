@@ -61,10 +61,10 @@ public class AutoRoutesEditScreen extends Screen {
     /** Tooltip scope - {@code SettingTooltipsData} keys these buttons "ar edit/<label>". */
     private static final String TOOLTIP_SCOPE = "ar edit";
 
-    /** The five {@code /ar add} types, in killer560's order. */
+    /** The {@code /ar add} types, in killer560's order (the Type button cycles through them). */
     private static final RouteNode.Type[] TYPES = {RouteNode.Type.BOOM, RouteNode.Type.DUNGEON_BREAKER,
             RouteNode.Type.ETHERWARP, RouteNode.Type.USE_ITEM, RouteNode.Type.WALK, RouteNode.Type.PATH,
-            RouteNode.Type.CRYPT};
+            RouteNode.Type.CRYPT, RouteNode.Type.JUMP};
     /** The Await Secrets dropdown's choices; 0 is "no await". */
     private static final int AWAIT_MAX = 4;
 
@@ -450,6 +450,7 @@ public class AutoRoutesEditScreen extends Screen {
      */
     private static void relandIfEtherwarp(RouteNode n, RouteCoords.Frame frame) {
         n.hasLanding = false;
+        n.hasPlaceEye = false;
         if (n.type != RouteNode.Type.ETHERWARP) {
             return;
         }
@@ -460,6 +461,7 @@ public class AutoRoutesEditScreen extends Screen {
         if (hit.succeeded() && hit.pos() != null) {
             n.setLanding(RouteCoords.toRelative(frame, new Vec3(hit.pos().getX() + 0.5, hit.pos().getY() + 1.05,
                     hit.pos().getZ() + 0.5)));
+            n.setPlaceEye(RouteCoords.toRelative(frame, eye));
         }
     }
 

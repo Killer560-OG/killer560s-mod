@@ -55,8 +55,7 @@ public final class AutoRoutesFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-autoroutes");
     private static final String CHAT = "Auto Routes";
-    /** QUOI DB editor: a block further than this (squared) from the breaker node is refused. */
-    /** Measured block reach, squared - was 30.0 (5.48 blocks) to the centre. */
+    /** DB editor: a block further than this (squared) from his eye, to the box, is refused - the measured block reach. */
     private static final double EDIT_MAX_DIST_SQ = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
 
     private static boolean editMode;
@@ -151,15 +150,21 @@ public final class AutoRoutesFeature {
             }
         }
         BlockPos rel = RouteCoords.toRelativeBlock(frame, pos);
-        Vec3 nodeReal = RouteCoords.toReal(frame, editBreakerNode.relativePos());
-        // To the BOX, like RouteExecutor's own breaker gate. These two constants are meant to agree, so the
-        // measures have to as well: measuring the editor to the centre refused picks the executor would then
-        // have been perfectly happy to break.
-        if (com.killer560.hub.util.BlockHits.boxDistanceSq(
-                new Vec3(nodeReal.x, nodeReal.y + 1.6, nodeReal.z), pos) > EDIT_MAX_DIST_SQ) {
-            chatBad("Block is too far from breaker #" + breakerIndex() + ".");
+        // killer560, 2026-10-09: "I can manually click on blocks but it says they are too far for my breaker." This
+        // measured from the NODE's spot (feet + 1.6), wherever he stood, so a block in his own reach was refused
+        // whenever he was not on the node. Now from his EYE to the block's BOX, the measure the executor and a vanilla
+        // dig use, at the Dungeon Breaker's range - a plain dig, so the 4.5 block reach (the wiki gives the item no
+        // range of its own). Any block his crosshair picks is inside it.
+        LocalPlayer me = Minecraft.getInstance().player;
+        if (me != null && com.killer560.hub.util.BlockHits.boxDistanceSq(me.getEyePosition(), pos) > EDIT_MAX_DIST_SQ) {
+            chatBad("Block is out of your reach (" + com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH
+                    + " blocks).");
             return true;
         }
+        // Said, not refused: playback breaks from wherever the route has him when the node fires.
+        Vec3 nodeReal = RouteCoords.toReal(frame, editBreakerNode.relativePos());
+        boolean farFromNode = !shift && com.killer560.hub.util.BlockHits.boxDistanceSq(
+                new Vec3(nodeReal.x, nodeReal.y + 1.62, nodeReal.z), pos) > EDIT_MAX_DIST_SQ;
         Route editRoute = RouteStore.getInstance().forRoom(frame.roomName());
         if (shift) {
             if (editBreakerNode.breakerBlocks.contains(rel)) {
@@ -183,8 +188,33 @@ public final class AutoRoutesFeature {
         editBreakerNode.breakerBlocks.add(rel);
         RouteStore.getInstance().save();
         chat(ModChat.text("Added "), ModChat.value(pos.toShortString()),
-                ModChat.dim(" to breaker #" + breakerIndex() + " (" + editBreakerNode.breakerBlocks.size() + ")"));
+                ModChat.dim(" to breaker #" + breakerIndex() + " (" + editBreakerNode.breakerBlocks.size() + ")"
+                        + (farFromNode ? " - further than " + com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH
+                        + " from the node's spot, so it breaks only if the route has you closer" : "")));
+        // killer560, 2026-10-09: an added block is broken once, at once - next START_CLIENT_TICK (tickInner).
+        pendingAddBreak = pos.immutable();
+        pendingAddBreakTicks = 0;
         return true;
+    }
+
+    /** A block {@link #onEditRightClick} just added, still to be broken once; null when none. */
+    private static BlockPos pendingAddBreak;
+    private static int pendingAddBreakTicks;
+    /** How long a refused gate is retried before the editor's break is dropped (a second). */
+    private static final int ADD_BREAK_RETRY_TICKS = 20;
+
+    private static void tickPendingAddBreak(Minecraft client, LocalPlayer player) {
+        if (pendingAddBreak == null) {
+            return;
+        }
+        if (!editMode || McCompat.screen(client) != null) {
+            pendingAddBreak = null;
+            return;
+        }
+        RouteExecutor.EditorBreak r = RouteExecutor.editorBreakOnce(client, player, pendingAddBreak);
+        if (r != RouteExecutor.EditorBreak.RETRY || ++pendingAddBreakTicks > ADD_BREAK_RETRY_TICKS) {
+            pendingAddBreak = null;
+        }
     }
 
     /** The nodes of the route for the room you are in (the live list), or an empty list. */
@@ -792,6 +822,7 @@ public final class AutoRoutesFeature {
             gate("no player / level");
             return;
         }
+        tickPendingAddBreak(client, player);
         // Before the route's own tick: what an await counts, and Kill Mimic, which holds the route while it works.
         AwaitEvents.tick(client);
         MimicKiller.tick(client);

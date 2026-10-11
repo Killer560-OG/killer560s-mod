@@ -21,6 +21,7 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -1270,6 +1271,8 @@ public final class RouteExecutor {
         warpTarget = null;
         warpSpot = null;
         warpAimFrom = null;
+        lineWaitTicks = 0;
+        lineWaitBlock = null;
         landingConfirmed = false;
         planAsked = false;
         planOutcome = null;
@@ -1506,7 +1509,41 @@ public final class RouteExecutor {
             case CRYPT -> tickCrypt(client, player, node);
             case BOOM -> tickBoom(client, player, node);
             case DUNGEON_BREAKER -> tickBreaker(client, player, node);
+            case JUMP -> tickJump(player, node);
         }
+    }
+
+    /** Ticks a jump node waits for him to be on the ground before pressing anyway (a press in the air does nothing). */
+    private static final int JUMP_GROUND_TIMEOUT = 20;
+    /** Jump presses jump nodes have made since launch - read by the testkit (96-ar-662). */
+    private static int jumpPresses;
+
+    public static int jumpPresses() {
+        return jumpPresses;
+    }
+
+    /**
+     * A JUMP node (killer560, 2026-10-09: "Add a jump node to auto routes where it just jumps once"): the jump key, down
+     * for exactly one tick through the route's own input (the input mixin installs {@link #drivenInput}, a discrete key
+     * press like every other route key), then up and done. Vanilla jumps on a tick the key is down and he is on the
+     * ground, so it waits - pressing nothing - until he is (a node fired on a warp's landing tick can be a twentieth
+     * of a block up), at most {@link #JUMP_GROUND_TIMEOUT} ticks.
+     */
+    private static void tickJump(LocalPlayer player, RouteNode node) {
+        if (step == Step.PREP) {
+            if (!player.onGround() && stepTicks <= JUMP_GROUND_TIMEOUT) {
+                return;
+            }
+            wantJump = true;
+            jumpPresses++;
+            logActed(node, player.onGround() ? "" : " (not on the ground after " + JUMP_GROUND_TIMEOUT + " ticks)");
+            step = Step.DO;
+            stepTicks = 0;
+            return;
+        }
+        // The tick after the press: clearMovement already let the key go before this ran.
+        wantJump = false;
+        finishAction();
     }
 
     private static void tickRotate(RouteNode node) {
@@ -1888,6 +1925,9 @@ public final class RouteExecutor {
                 aimAt(warpYaw, warpPitch, node);
                 return false;
             }
+            if (hopIndex < 0 && newBlockInLine(client, player, node)) {
+                return false;
+            }
             notePacedWarp();
             actionOrigin = player.position();
             teleportPacketSeen = false;
@@ -1929,6 +1969,71 @@ public final class RouteExecutor {
             }
         }
         return false;
+    }
+
+    /** Ticks an etherwarp node has waited on a block standing in its line ({@link #newBlockInLine}); 0 when not. */
+    private static int lineWaitTicks;
+    /** The block it waits on, said once in chat per block. */
+    private static BlockPos lineWaitBlock;
+    /** Ticks spent waiting on a new block in an etherwarp's line since launch - read by the testkit (96-ar-659). */
+    private static int lineWaitTicksTotal;
+
+    public static int lineWaitTicksTotal() {
+        return lineWaitTicksTotal;
+    }
+
+    /**
+     * killer560, 2026-10-09: "if it needs to etherwarp somewhere but a block is in the way, have it just wait until that
+     * block moves, if it is part of a route where the block wasn't there when the node was placed." The shot about to go
+     * - this eye, sneaking, along {@link #warpYaw}/{@link #warpPitch} - is traced as the warp traces it
+     * ({@code TeleportUtils.getEtherPos}). When the first block it meets is not the landing block, and that block stands on
+     * the line the landing was seen along when the node was PLACED ({@link RouteNode#hasPlaceEye}: that line was clear
+     * then, by construction), it is a block that was not there: nothing is sent this tick - no use, no stop, sneak held -
+     * and the same test runs again next tick, so the warp goes on the first tick the block is gone. A block in the shot
+     * that is NOT on the placed line (it was there, or the shot was re-aimed elsewhere) changes nothing: the warp goes as
+     * it always did. A node saved before {@code placeEye} existed never waits.
+     *
+     * @return true while waiting (send nothing)
+     */
+    private static boolean newBlockInLine(Minecraft client, LocalPlayer player, RouteNode node) {
+        if (node.type != RouteNode.Type.ETHERWARP || !node.hasPlaceEye || warpTarget == null || client.level == null) {
+            return false;
+        }
+        Vec3 eye = new Vec3(player.getX(), player.getY() + TeleportUtils.eyeHeight(true), player.getZ());
+        double range = Math.max(1.0, com.killer560.hub.pathfinding.EtherwarpHopper.range());
+        TeleportUtils.RaycastResult shot = TeleportUtils.getEtherPos(eye, warpYaw, warpPitch, range);
+        BlockPos in = shot.pos();
+        boolean blocked = false;
+        if (in != null && !in.equals(warpTarget)) {
+            // The placed line: the recorded eye, along the recorded look, up to where it entered the landing block.
+            Vec3 placeEye = RouteCoords.toReal(frame, node.placeEyeX, node.placeEyeY, node.placeEyeZ);
+            Vec3 far = placeEye.add(TeleportUtils.getLook(RouteCoords.toRealYaw(frame, node.yaw), node.pitch).scale(range));
+            AABB targetBox = new AABB(warpTarget.getX(), warpTarget.getY(), warpTarget.getZ(), warpTarget.getX() + 1,
+                    warpTarget.getY() + 1, warpTarget.getZ() + 1);
+            Vec3 end = targetBox.clip(placeEye, far).orElse(Vec3.atCenterOf(warpTarget));
+            AABB inBox = new AABB(in.getX(), in.getY(), in.getZ(), in.getX() + 1, in.getY() + 1, in.getZ() + 1);
+            blocked = inBox.clip(placeEye, end).isPresent() || inBox.contains(placeEye);
+        }
+        if (!blocked) {
+            if (lineWaitTicks > 0) {
+                LOGGER.info("[AutoRoutes] Etherwarp: the line to {} is clear again after {} tick(s) - warping",
+                        warpTarget.toShortString(), lineWaitTicks);
+            }
+            lineWaitTicks = 0;
+            lineWaitBlock = null;
+            return false;
+        }
+        lineWaitTicks++;
+        lineWaitTicksTotal++;
+        if (!in.equals(lineWaitBlock)) {
+            lineWaitBlock = in.immutable();
+            LOGGER.info("[AutoRoutes] Etherwarp node #{}: {} ({}) stands in the line to {} and was not there when the node "
+                    + "was placed - waiting for it to move", route.indexOf(node) + 1, in.toShortString(),
+                    client.level.getBlockState(in), warpTarget.toShortString());
+            AutoRoutesFeature.chat(ModChat.text("Waiting for the block at "), ModChat.value(in.toShortString()),
+                    ModChat.text(" to move - it is in etherwarp #" + (route.indexOf(node) + 1) + "'s way."));
+        }
+        return true;
     }
 
     /**
@@ -2571,6 +2676,54 @@ public final class RouteExecutor {
             player.connection.send(new ServerboundPlayerActionPacket(
                     ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face));
         }
+    }
+
+    /** What {@link #editorBreakOnce} did: sent the dig, try again next tick (the gate said no), or nothing to do. */
+    enum EditorBreak { SENT, RETRY, SKIPPED }
+
+    /** Blocks {@link #editorBreakOnce} has sent a dig for since launch - read by the testkit (96-ar-656). */
+    private static int editorBreaks;
+
+    public static int editorBreaks() {
+        return editorBreaks;
+    }
+
+    /**
+     * killer560, 2026-10-09: "Whenever I add a block to breaker block to a breaker node it should break it instantly
+     * once." One START_DESTROY_BLOCK for a block {@code /ar edit db} just added, through the breaker node's own path:
+     * the Dungeon Breaker from the hotbar (swapped like a node does), a charge on its lore, the block standing, in reach
+     * of his EYE to the box, the body turned to it in obvious mode, the dig with the face the eye sees, one swing - and
+     * {@link com.killer560.hub.util.ActionGate} as the route's actor, so it never shares a tick with another automated
+     * interaction. Called at START_CLIENT_TICK. Never while a route runs (edit mode stops routes).
+     */
+    static EditorBreak editorBreakOnce(Minecraft client, LocalPlayer player, BlockPos pos) {
+        if (running || client.level == null || client.gameMode == null
+                || !client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()) {
+            return EditorBreak.SKIPPED;
+        }
+        if (com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), pos) > BREAKER_RANGE_SQ) {
+            LOGGER.info("[AutoRoutes] Editor break: {} out of reach - not broken", pos);
+            return EditorBreak.SKIPPED;
+        }
+        int slot = ItemIdentity.findHotbarSlotById(player, BREAKER_ID);
+        int[] charges = slot < 0 ? null : breakerCharges(player.getInventory().getItem(slot));
+        if (charges == null || charges[0] <= 0) {
+            LOGGER.info("[AutoRoutes] Editor break: no Dungeon Breaker charge - {} not broken", pos);
+            return EditorBreak.SKIPPED;
+        }
+        if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.ROUTE)) {
+            return EditorBreak.RETRY;
+        }
+        select(client, player, slot);
+        nodeSwapped = false;
+        if (!AutoRoutesConfig.getInstance().isLegitMode()) {
+            turnBodyToward(player, Vec3.atCenterOf(pos));
+        }
+        sendBreak(client, player, pos);
+        player.swing(InteractionHand.MAIN_HAND);
+        editorBreaks++;
+        LOGGER.info("[AutoRoutes] Editor break: dig sent for {} ({} charge(s) before)", pos, charges[0]);
+        return EditorBreak.SENT;
     }
 
     /** The per-node timing line: how many ticks the node's action took from firing (after any await), 0 = the

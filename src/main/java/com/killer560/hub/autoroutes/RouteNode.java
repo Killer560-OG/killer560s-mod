@@ -40,7 +40,10 @@ public final class RouteNode {
         /** killer560, 2026-10-05: "add a crypt node ... it will do the same attacking thing till either a prince or
          *  crypt are killed". Aimed where he looked when placing it (the crypt), it uses the Crypt Weapon setting's
          *  Hyperion or Spirit Sceptre until one crypt undead or prince of HIS is killed - or {@code await:N} of them. */
-        CRYPT;
+        CRYPT,
+        /** killer560, 2026-10-09: "Add a jump node to auto routes where it just jumps once." One tick of the jump
+         *  key through the route's input, then done. */
+        JUMP;
 
         public static Type parse(String s) {
             if (s == null) {
@@ -60,6 +63,7 @@ public final class RouteNode {
                 case "command", "cmd" -> COMMAND;
                 case "path" -> PATH;
                 case "crypt" -> CRYPT;
+                case "jump" -> JUMP;
                 default -> null;
             };
         }
@@ -79,6 +83,7 @@ public final class RouteNode {
                 case COMMAND -> "Command";
                 case PATH -> "Path";
                 case CRYPT -> "Crypt";
+                case JUMP -> "Jump";
             };
         }
     }
@@ -135,6 +140,14 @@ public final class RouteNode {
     public double landingY;
     public double landingZ;
     public boolean hasLanding;
+    /** {@link Type#ETHERWARP}: the eye (room-relative) the landing was seen from when the node was placed - the line
+     *  from here along {@link #yaw}/{@link #pitch} to the landing block was CLEAR then. A block standing on that line
+     *  at playback was not there when the node was placed, and the warp waits for it to move (killer560, 2026-10-09).
+     *  {@link #hasPlaceEye} false (a node saved before this) waits for nothing, as before. */
+    public double placeEyeX;
+    public double placeEyeY;
+    public double placeEyeZ;
+    public boolean hasPlaceEye;
 
     /**
      * {@link Type#PATH}, on the FIRST node of a pair: the etherwarps that take him from this node to the next path
@@ -192,6 +205,13 @@ public final class RouteNode {
 
     public Vec3 relativePos() {
         return new Vec3(x, y, z);
+    }
+
+    public void setPlaceEye(Vec3 relative) {
+        placeEyeX = relative.x;
+        placeEyeY = relative.y;
+        placeEyeZ = relative.z;
+        hasPlaceEye = true;
     }
 
     public void setLanding(Vec3 relative) {
@@ -258,7 +278,9 @@ public final class RouteNode {
             // A path is etherwarps, and fires in the etherwarp slot (killer560, 2026-10-05: "have the same priority
             // of an etherwarp in the ranking").
             case ETHERWARP, PATH -> 8;
-            case WALK -> 9;
+            // A jump moves you, like a walk; ahead of the walk so a jump-and-sprint stack leaves the ground first.
+            case JUMP -> 9;
+            case WALK -> 10;
         };
     }
 
@@ -335,6 +357,11 @@ public final class RouteNode {
             landingY = roundSaved(landingY);
             landingZ = roundSaved(landingZ);
         }
+        if (hasPlaceEye) {
+            placeEyeX = roundSaved(placeEyeX);
+            placeEyeY = roundSaved(placeEyeY);
+            placeEyeZ = roundSaved(placeEyeZ);
+        }
         planFromX = roundSaved(planFromX);
         planFromY = roundSaved(planFromY);
         planFromZ = roundSaved(planFromZ);
@@ -381,6 +408,10 @@ public final class RouteNode {
         landingY = o.landingY;
         landingZ = o.landingZ;
         hasLanding = o.hasLanding;
+        placeEyeX = o.placeEyeX;
+        placeEyeY = o.placeEyeY;
+        placeEyeZ = o.placeEyeZ;
+        hasPlaceEye = o.hasPlaceEye;
         if (o != this) {
             pathHops.clear();
             pathHops.addAll(o.pathHops);
@@ -402,6 +433,8 @@ public final class RouteNode {
                 && awaitAmount == o.awaitAmount && java.util.Objects.equals(command, o.command)
                 && landingX == o.landingX && landingY == o.landingY && landingZ == o.landingZ
                 && hasLanding == o.hasLanding && pathHops.equals(o.pathHops)
+                && hasPlaceEye == o.hasPlaceEye && placeEyeX == o.placeEyeX && placeEyeY == o.placeEyeY
+                && placeEyeZ == o.placeEyeZ
                 && planFromX == o.planFromX && planFromY == o.planFromY && planFromZ == o.planFromZ
                 && planToX == o.planToX && planToY == o.planToY && planToZ == o.planToZ;
     }
