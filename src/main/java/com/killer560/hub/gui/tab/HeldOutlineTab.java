@@ -54,6 +54,12 @@ public class HeldOutlineTab extends BaseTab {
 
         HeldOutlineConfig.Style style = cfg.getStyle();
         if (style.outline) {
+            w.add(SettingsButtonWidget.builder(Component.literal("Outline Side: " + cfg.getSide().label), btn -> {
+                        cfg.setSide(cfg.getSide().next());
+                        cfg.save();
+                        btn.setMessage(Component.literal("Outline Side: " + cfg.getSide().label));
+                    }).bounds(contentX, y[0], contentWidth, 18).build());
+            y[0] += 22;
             color(w, contentX, y[0], contentWidth, "Outline Color", cfg::getOutlineColor, cfg::setOutlineColor,
                     HeldOutlineConfig.DEFAULT_OUTLINE_COLOR, cfg);
             y[0] += 22;

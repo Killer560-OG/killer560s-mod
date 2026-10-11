@@ -6,7 +6,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
-import com.killer560.hub.util.SkyblockGate;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -40,6 +39,27 @@ public final class HeldOutlineConfig {
         }
     }
 
+    /**
+     * Which face of the held item the outline follows (killer560, 2026-10-11: "the outline is kind of on the far side of
+     * the item. Can I have an option for close side far side or both with lines between the two at points"). A flat
+     * item is an extruded sprite: a near face, a far face, and the thin walls between them.
+     */
+    public enum Side {
+        NEAR("Near"),
+        FAR("Far"),
+        BOTH("Both");
+
+        public final String label;
+
+        Side(String label) {
+            this.label = label;
+        }
+
+        public Side next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+    }
+
     public static final int DEFAULT_OUTLINE_COLOR = 0xFFFF8C1A;
     public static final int DEFAULT_FILL_COLOR = 0x55FF8C1A;
     /** Outline width in screen (framebuffer) pixels. */
@@ -54,6 +74,7 @@ public final class HeldOutlineConfig {
 
     private boolean enabled = false;
     private Style style = Style.OUTLINE;
+    private Side side = Side.NEAR;
     private int outlineColor = DEFAULT_OUTLINE_COLOR;
     private int fillColor = DEFAULT_FILL_COLOR;
     private float width = DEFAULT_WIDTH;
@@ -70,9 +91,10 @@ public final class HeldOutlineConfig {
         return instance;
     }
 
-    /** The saved toggle AND the mod-wide "Skyblock Only" gate, as every other feature's master toggle. */
+    /** The saved toggle alone. NOT gated by "Skyblock Only" (killer560, 2026-10-11: "It should ALWAYS show when it's
+     *  on"): it is a cosmetic on your own screen, so it draws on any server or in singleplayer. */
     public boolean isActive() {
-        return enabled && SkyblockGate.allows();
+        return enabled;
     }
 
     public boolean isEnabledRaw() {
@@ -89,6 +111,14 @@ public final class HeldOutlineConfig {
 
     public void setStyle(Style v) {
         style = v == null ? Style.OUTLINE : v;
+    }
+
+    public Side getSide() {
+        return side;
+    }
+
+    public void setSide(Side v) {
+        side = v == null ? Side.NEAR : v;
     }
 
     public int getOutlineColor() {
@@ -151,6 +181,12 @@ public final class HeldOutlineConfig {
                         cfg.style = st;
                     }
                 }
+                String sd = ConfigJson.getString(o, "side", cfg.side.name());
+                for (Side v : Side.values()) {
+                    if (v.name().equalsIgnoreCase(sd)) {
+                        cfg.side = v;
+                    }
+                }
                 cfg.outlineColor = ConfigJson.getInt(o, "outlineColor", cfg.outlineColor);
                 cfg.fillColor = ConfigJson.getInt(o, "fillColor", cfg.fillColor);
                 cfg.width = clampWidth(ConfigJson.getFloat(o, "width", cfg.width));
@@ -169,6 +205,7 @@ public final class HeldOutlineConfig {
             JsonObject o = new JsonObject();
             o.addProperty("enabled", enabled);
             o.addProperty("style", style.name());
+            o.addProperty("side", side.name());
             o.addProperty("outlineColor", outlineColor);
             o.addProperty("fillColor", fillColor);
             o.addProperty("width", width);

@@ -1962,6 +1962,7 @@ final class SettingTooltipsData {
         d.put("score calculator/send 300 now", "Sends the 300 party message immediately, whatever your score is.");
         d.put("held item outline/held item outline", "Outlines or fills the item you are holding, on the first-person item itself (never the hotbar or third person).");
         d.put("held item outline/style", "Outline draws a line around the item, Fill tints the item itself, Filled Outline does both.");
+        d.put("held item outline/outline side", "Near follows the item's front face, Far its whole shape (the old look), Both draws front and back with lines joining their corners.");
         d.put("held item outline/outline color", "Colour and transparency of the line around the held item.");
         d.put("held item outline/outline width", "How thick the line around the held item is, in screen pixels.");
         d.put("held item outline/fill color", "Colour and transparency laid over the held item.");
