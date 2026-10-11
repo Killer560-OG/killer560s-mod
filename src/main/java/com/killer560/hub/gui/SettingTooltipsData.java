@@ -843,10 +843,18 @@ final class SettingTooltipsData {
         d.put("notify me of updates", "Tells you when you join a world if a newer release of the mod exists.");
         d.put("join discord", "Opens the mod's Discord server invite in your browser.");
         d.put("edit hud positions", "Opens the HUD editor to drag and resize on-screen elements.");
-        d.put("edit hud keybind", "Key that opens the HUD editor in game.");
+        d.put("edit hud keybind", "Key that opens the HUD editor in game. It does nothing while any screen is open (chat, an inventory, a menu - this one or another mod's).");
         d.put("correction alarm", "Plays a siren when the server corrects your position while an automation (AP3, Auto Routes, the Interactive Map, the auto puzzles...) is moving you. A correction never stops anything: the feature posts a chat line and carries on from where the server put you. At most once every 3 s.");
         d.put("alarm volume", "How loud the Correction Alarm plays, 0-100%.");
-        d.put("hud scale","Scales every HUD element of this mod at once, 5% to 300%. Multiplies each element's own size, so per-element sizes are kept. Saved with profiles.");
+        d.put("hud scale","Scales everything this mod draws at once, 5% to 300%: every HUD element (multiplying its own size, so per-element sizes are kept), this menu and the mod's other screens, its reskinned menus and its popups. Menus follow it between 50% and 300% and never grow past what fits the window. Saved with profiles.");
+        d.put("edit bars", "Opens the bar editor: drag, resize and scale Health and Mana Bars' bars and texts (and in the Predefined layout, drop them on the areas round the hotbar). Edit HUD Positions does not show them.");
+        d.put("mod & hud/snapping", "While dragging in Edit HUD or Edit Bars, boxes snap to line up with the things switched on below. Hold Alt while dragging to place freely.");
+        d.put("mod & hud/show unseen", "Edit HUD also lists elements that are on but have not been on screen in the last 10 seconds (to arrange the P5 dragon timers from the hub, say). A switched-off element is never listed.");
+        d.put("mod & hud/element edges", "Snap a box's edges to other boxes' edges.");
+        d.put("mod & hud/element centres", "Snap a box's centre to other boxes' centres.");
+        d.put("mod & hud/screen edges", "Snap a box to the edges of the screen.");
+        d.put("mod & hud/screen centre", "Snap a box's centre to the middle of the screen.");
+        d.put("mod & hud/equal spacing", "Snap a box so the gap to its neighbour matches a gap already between two others.");
         d.put("auto scale (monitor)", "Keeps every HUD element and menu of this mod the same size relative to your window on any monitor and at any GUI Scale, using a 2560x1440 screen at GUI Scale 3 as the reference (unchanged there). HUD Scale multiplies on top. ON by default; saved with profiles.");
         d.put("borderless fullscreen", "Stretches the window over the whole monitor without borders.");
         d.put("fullbright", "Renders the world at full brightness in any light.");
@@ -855,7 +863,8 @@ final class SettingTooltipsData {
         d.put("profile name", "Name for a new settings profile.");
         d.put("save current as new", "Saves your current mod settings as a new profile.");
         d.put("load", "Applies this profile's settings right away.");
-        d.put("export", "Zips this profile so you can send it to someone.");
+        d.put("export", "Zips this profile into the share folder and opens that folder, so you can send the zip to someone.");
+        d.put("new blank profile", "Creates a profile with every setting off (named from the box above, or Blank). Your routes, waypoints, class overrides and HUD layout come along; nothing changes until you Load it.");
         d.put("import profile (open folder)", "Opens the import folder. Drop a profile .zip in and it is imported within a couple of seconds, named after the file.");
 
         // Lever Aura (in Dungeon > Secrets since 2026-09-21)

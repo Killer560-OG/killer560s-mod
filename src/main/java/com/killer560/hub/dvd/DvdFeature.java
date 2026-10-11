@@ -205,7 +205,8 @@ public final class DvdFeature {
         long now = System.currentTimeMillis();
         // Auto Scale: bounce on a canvas 1/f the GUI area and draw it scaled by f, so the box, its speed and the
         // walls it bounces off are all the same fraction of the window on every monitor.
-        float f = com.killer560.hub.hud.AutoScale.current();
+        // Auto Scale x HUD Scale, like every other part of the mod (2026-10-08).
+        float f = com.killer560.hub.hud.AutoScale.menuFactor();
         int screenW = com.killer560.hub.hud.AutoScale.layoutSize(graphics.guiWidth(), f);
         int screenH = com.killer560.hub.hud.AutoScale.layoutSize(graphics.guiHeight(), f);
         graphics.pose().pushMatrix();

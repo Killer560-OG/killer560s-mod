@@ -99,6 +99,12 @@ public class HealthAndManaBarsTab extends BaseTab {
                         requestRebuild.run();
                     }).bounds(contentX, y[0], contentWidth, ROW_H).build());
             y[0] += ROW;
+            // The bars' own editor (2026-10-08): Edit HUD no longer lists them; this and Home's "Edit Bars" open it.
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Bars"), btn -> {
+                        Minecraft client = Minecraft.getInstance();
+                        McCompat.setScreen(client, com.killer560.hub.hud.HudEditorScreen.forBars(McCompat.screen(client)));
+                    }).bounds(contentX, y[0], contentWidth, ROW_H).build());
+            y[0] += ROW;
             // Predefined's one shared scale (PlayerStatsConfig.predefinedScale, 2026-10-07) has no row here on purpose:
             // killer560 had every scale control taken off this page the same day ("no one needs to adjust scale there,
             // they just use the edit hud menu portion"; testkit 393 checks it). Scrolling any readout in Edit HUD sets it.

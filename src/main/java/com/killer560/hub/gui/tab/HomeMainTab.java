@@ -104,6 +104,13 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new HudEditorScreen(McCompat.screen(client)));
                 }).bounds(contentX, y, half, 20).build());
+        // Health and Mana Bars have their own editor since 2026-10-08 (killer560: "they should be their own button both
+        // under the custom health bars and on that main page but different"); Edit HUD no longer lists them.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Bars"), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    McCompat.setScreen(client, HudEditorScreen.forBars(McCompat.screen(client)));
+                }).bounds(contentX + half + gap, y, rightW, 20).build());
+        y += 26;
 
         Component keybindLabel = listening
                 ? Component.literal("Press any key...")
@@ -111,7 +118,7 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SettingsButtonWidget.builder(keybindLabel, btn -> {
                     listening = true;
                     btn.setMessage(Component.literal("Press any key..."));
-                }).bounds(contentX + half + gap, y, rightW, 20).build());
+                }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
         // Global HUD scale (killer560, 2026-10-04, "just like SkyHanni"): 5%..300% in 5% steps, multiplied onto every
@@ -145,7 +152,50 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
+        // The HUD editor's own options (2026-10-08, killer560: "the snapping stuff and all that isn't there but instead
+        // in the actual mod"). They used to be buttons on the editor screen; the same HudConfig fields, so nothing
+        // saved before is lost and the editor reads them on every drag.
+        y += 4;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                SectionHeaders.header("HUD Editor", false), font));
+        y += 16;
+        HudConfig hc = HudConfig.getInstance();
+        widgets.add(toggle("Snapping", hc::isEditorSnap, hc::setEditorSnap, contentX, y, half, false, requestRebuild));
+        widgets.add(toggle("Show Unseen", hc::isEditorShowAll, hc::setEditorShowAll, contentX + half + gap, y,
+                rightW, false, null));
+        y += 24;
+        widgets.add(toggle("Element Edges", hc::isSnapElementEdges, hc::setSnapElementEdges, contentX, y, half, true, null));
+        widgets.add(toggle("Element Centres", hc::isSnapElementCentres, hc::setSnapElementCentres,
+                contentX + half + gap, y, rightW, true, null));
+        y += 24;
+        widgets.add(toggle("Screen Edges", hc::isSnapScreenEdges, hc::setSnapScreenEdges, contentX, y, half, true, null));
+        widgets.add(toggle("Screen Centre", hc::isSnapScreenCentre, hc::setSnapScreenCentre, contentX + half + gap, y,
+                rightW, true, null));
+        y += 24;
+        widgets.add(toggle("Equal Spacing", hc::isSnapEqualSpacing, hc::setSnapEqualSpacing, contentX, y, half, true, null));
+        y += 24;
+
         return widgets;
+    }
+
+    /** An ON/OFF HudConfig switch. A snap target reads grey while Snapping is off: kept, but nothing snaps. */
+    private static SettingsButtonWidget toggle(String label, java.util.function.BooleanSupplier get,
+                                               java.util.function.Consumer<Boolean> set, int x, int y, int w,
+                                               boolean snapTarget, Runnable rebuildOrNull) {
+        return SettingsButtonWidget.builder(toggleText(label, get.getAsBoolean(), snapTarget), btn -> {
+                    set.accept(!get.getAsBoolean());
+                    HudConfig.getInstance().save();
+                    if (rebuildOrNull != null) {
+                        rebuildOrNull.run(); // the snap targets' grey follows the master switch
+                        return;
+                    }
+                    btn.setMessage(toggleText(label, get.getAsBoolean(), snapTarget));
+                }).bounds(x, y, Math.max(1, w), 20).build();
+    }
+
+    private static Component toggleText(String label, boolean on, boolean snapTarget) {
+        String name = snapTarget && !HudConfig.getInstance().isEditorSnap() ? "§7" + label : label;
+        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
     }
 
     private static Component autoScaleText() {

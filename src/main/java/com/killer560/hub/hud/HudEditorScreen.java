@@ -1,7 +1,7 @@
 package com.killer560.hub.hud;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.playerstats.PlayerStatsConfig;
+import com.killer560.hub.playerstats.StatElements;
 import com.killer560.hub.playerstats.StatLayout;
 import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.cursor.CursorType;
@@ -54,8 +54,10 @@ import com.killer560.hub.compat.McCompat;
  * {@code requestCursor}, plus GLFW's diagonal standard cursors, which vanilla does not define). Scroll still scales.
  * <p>
  * Snapping (same day: "Those should kind of do a snapping style where they snap to align with things. You can choose
- * what all they will align with."): see {@link HudSnap}. The Snapping button opens the list of what to snap to; Alt
- * held while dragging places freely.
+ * what all they will align with."): see {@link HudSnap}. The Snapping settings pick what to snap to; Alt
+ * held while dragging places freely. Since 2026-10-08 those settings are in the mod menu (Home, HUD Editor section), not on
+ * this screen: killer560, "the snapping stuff and all that ... blocks a lot of my screen". The screen keeps one hint
+ * line, hidden while dragging, and Escape closes it.
  * <p>
  * Health and Mana Bars' Predefined layout (same day: "predefined spots or fully custom ... look at how Skyblocker has
  * their snap-to-area kind of set up"): its readouts are placed by {@link StatLayout}, not by position. Dragging one shows
@@ -99,9 +101,10 @@ public class HudEditorScreen extends Screen {
     private StatLayout.Layout dragZones;
     private StatLayout.Target dragTarget;
 
-    private SettingsButtonWidget showAllButton;
-    /** Whether the snapping options list is open above its button (session-only). */
-    private static boolean snapPanelOpen;
+    /** Edit Bars (2026-10-08, killer560: "the custom health bars and stuff are not editable through that either;
+     *  they should be their own button"): true lists ONLY Health and Mana Bars' readouts, false lists every other
+     *  element and never those. Same screen class, so every "is the HUD editor open" check covers both. */
+    private final boolean barsMode;
 
     static final int LEFT = 1;
     static final int RIGHT = 2;
@@ -143,103 +146,38 @@ public class HudEditorScreen extends Screen {
     private static CursorType resizeNwse;
     private static CursorType resizeNesw;
 
+    /** Edit HUD: every element except Health and Mana Bars' readouts. */
     public HudEditorScreen(Screen parent) {
-        super(Component.literal("Edit HUD Positions"));
+        this(parent, false);
+    }
+
+    private HudEditorScreen(Screen parent, boolean barsMode) {
+        super(Component.literal(barsMode ? "Edit Bars" : "Edit HUD Positions"));
         this.parent = parent;
+        this.barsMode = barsMode;
+    }
+
+    /** Edit Bars: only Health and Mana Bars' readouts (Predefined areas included). */
+    public static HudEditorScreen forBars(Screen parent) {
+        return new HudEditorScreen(parent, true);
+    }
+
+    public boolean isBarsMode() {
+        return barsMode;
     }
 
     @Override
     protected void init() {
         rebuildList();
-        addButtons();
     }
 
-    /**
-     * Where the button row goes: the bottom edge, except while Health and Mana Bars use the Predefined layout, whose
-     * areas ARE the bottom of the screen round the hotbar - there the buttons sat on the side columns and took their
-     * clicks (2026-10-07, seen in testkit 407's picture), so the row moves up under the instructions.
-     */
-    private int buttonY() {
-        return StatLayout.predefined() && anyStatListed() ? 58 : this.height - 28;
-    }
-
-    private boolean anyStatListed() {
-        for (HudElement e : shown) {
-            if (StatLayout.manages(e)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void addButtons() {
-        int by = buttonY();
-        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
-                .bounds(this.width / 2 - 40, by, 80, 20).build());
-        showAllButton = SettingsButtonWidget.builder(showAllLabel(), btn -> {
-            HudConfig cfg = HudConfig.getInstance();
-            cfg.setEditorShowAll(!cfg.isEditorShowAll());
-            cfg.save();
-            btn.setMessage(showAllLabel());
-            rebuildList();
-        }).bounds(this.width / 2 + 48, by, 110, 20).build();
-        this.addRenderableWidget(showAllButton);
-
-        int snapX = this.width / 2 - 48 - 110;
-        HudConfig cfg = HudConfig.getInstance();
-        this.addRenderableWidget(SettingsButtonWidget.builder(snapLabel(), btn -> {
-            snapPanelOpen = !snapPanelOpen;
-            clearWidgets();
-            addButtons();
-        }).bounds(snapX, by, 110, 20).build());
-        if (snapPanelOpen) {
-            String[] labels = {"Snapping", "Element Edges", "Element Centres", "Screen Edges", "Screen Centre",
-                    "Equal Spacing"};
-            Runnable[] flips = {
-                    () -> cfg.setEditorSnap(!cfg.isEditorSnap()),
-                    () -> cfg.setSnapElementEdges(!cfg.isSnapElementEdges()),
-                    () -> cfg.setSnapElementCentres(!cfg.isSnapElementCentres()),
-                    () -> cfg.setSnapScreenEdges(!cfg.isSnapScreenEdges()),
-                    () -> cfg.setSnapScreenCentre(!cfg.isSnapScreenCentre()),
-                    () -> cfg.setSnapEqualSpacing(!cfg.isSnapEqualSpacing())};
-            // Opens upward from a bottom row, downward from a top one.
-            int y = by > this.height / 2 ? by - 4 - labels.length * 18 : by + 24;
-            for (int i = 0; i < labels.length; i++) {
-                int k = i;
-                this.addRenderableWidget(SettingsButtonWidget.builder(snapOption(k, labels[k]), btn -> {
-                    flips[k].run();
-                    cfg.save();
-                    clearWidgets();
-                    addButtons();
-                }).bounds(snapX, y + i * 18, 110, 16).build());
-            }
-        }
-    }
-
-    private static Component snapOption(int i, String label) {
-        HudConfig c = HudConfig.getInstance();
-        boolean on = switch (i) {
-            case 0 -> c.isEditorSnap();
-            case 1 -> c.isSnapElementEdges();
-            case 2 -> c.isSnapElementCentres();
-            case 3 -> c.isSnapScreenEdges();
-            case 4 -> c.isSnapScreenCentre();
-            default -> c.isSnapEqualSpacing();
-        };
-        // The five targets read grey while the master switch is off: they are kept, but nothing snaps.
-        String name = i > 0 && !c.isEditorSnap() ? "§7" + label : label;
-        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
-    }
-
-    private static Component snapLabel() {
-        return Component.literal("Snapping: " + (HudConfig.getInstance().isEditorSnap() ? "§aON" : "§cOFF")
-                + (snapPanelOpen ? " §7▼" : " §7▲"));
-    }
-
-    /** Reads "Show Unseen" rather than the older "Show All": a switched-off element is never listed either
-     *  way now, so calling it "all" would be a lie. The persisted key stays {@code editorShowAll}. */
-    private static Component showAllLabel() {
-        return Component.literal("Show Unseen: " + (HudConfig.getInstance().isEditorShowAll() ? "§aON" : "§cOFF"));
+    /** The one hint line at the top left: what the mouse does, and how to leave. Drawn only while nothing is being
+     *  dragged, so it never covers an element being placed there. Every option that used to sit on this screen as
+     *  buttons (Snapping and its targets, Show Unseen, Done) lives in the mod menu's Home tab since 2026-10-08. */
+    private String hintLine() {
+        return barsMode
+                ? "§7Drag: move. Edge/corner: resize. Scroll: scale. Esc: done."
+                : "§7Drag: move. Corner: resize. Scroll: scale. Alt: no snap. Esc: done.";
     }
 
     /** Recomputes the draggable list and (re)snapshots the draggable ones' positions/scales. Positions come through
@@ -255,6 +193,10 @@ public class HudEditorScreen extends Screen {
         boolean showUnseen = HudConfig.getInstance().isEditorShowAll();
         int disabled = 0;
         for (HudElement element : HudElementRegistry.all()) {
+            if (StatElements.isStatElementId(element.id()) != barsMode) {
+                // Edit HUD never lists a bar; Edit Bars lists nothing else.
+                continue;
+            }
             if (!HudElementRegistry.isEnabledInSettings(element)) {
                 // killer560: "if a setting is disabled i shouldn't be able to edit its gui." Not even with
                 // Show Unseen on - that button is about where you are, not about what is switched on.
@@ -264,7 +206,8 @@ public class HudEditorScreen extends Screen {
             // A Predefined readout in Hidden never draws, so it can never be "seen"; it is listed in the tray regardless,
             // or it could never be dragged back out.
             boolean hiddenReadout = isHiddenReadout(element);
-            if (!showUnseen && !hiddenReadout && !HudSeen.drawnWithinGrace(element.id(), asOfMs)) {
+            // Edit Bars lists every bar that is switched on: it is opened from the menu, often where no bar has drawn.
+            if (!barsMode && !showUnseen && !hiddenReadout && !HudSeen.drawnWithinGrace(element.id(), asOfMs)) {
                 continue;
             }
             shown.add(element);
@@ -279,10 +222,11 @@ public class HudEditorScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         StatLayout.newFrame();
         graphics.fill(0, 0, this.width, this.height, 0x33000000);
-        graphics.text(this.font, "§eDrag a box to move it, drag a corner or edge to resize it, scroll to scale it.",
-                8, 8, 0xFFFFFFFF);
-        graphics.text(this.font, listingLine(), 8, 20, 0xFFFFFFFF);
-        graphics.text(this.font, "§7Hold Alt while dragging to place it without snapping.", 8, 32, 0xFFFFFFFF);
+        // One dim line, gone while something is dragged (2026-10-08, killer560: the editor's panels "block a lot of my
+        // screen"). With nothing listed, the line says why instead.
+        if (draggingId == null) {
+            graphics.text(this.font, fit(shown.isEmpty() ? emptyLine() : hintLine()), 4, 4, 0xFFFFFFFF);
+        }
 
         // Predefined stat readouts go where their layout puts them, every frame (it moves as others are dragged).
         boolean anyAnchored = false;
@@ -295,8 +239,10 @@ public class HudEditorScreen extends Screen {
             }
         }
         if (anyAnchored) {
-            graphics.text(this.font, "§7Health and Mana Bars (Predefined): drag one onto an area (Hidden hides it); scroll to size them all.",
-                    8, 44, 0xFFFFFFFF);
+            if (draggingId == null) {
+                graphics.text(this.font, fit("§7Predefined: drop one on an area (Hidden hides it); scroll sizes them all."),
+                        4, 15, 0xFFFFFFFF);
+            }
             drawAreas(graphics);
         }
 
@@ -502,13 +448,22 @@ public class HudEditorScreen extends Screen {
         }
     }
 
-    /** One line saying what is editable and, separately, what is switched off in settings. */
-    private String listingLine() {
-        StringBuilder line = new StringBuilder("§7" + shown.size() + " editable");
-        if (disabledCount > 0) {
-            line.append("§7, ").append(disabledCount).append(" turned off in settings (not listed)");
+    /** A hint cut to the window's width, so a small window never shows half a word at its edge. */
+    private String fit(String line) {
+        int room = this.width - 8;
+        if (this.font.width(line) <= room) {
+            return line;
         }
-        return line.append("§7.").toString();
+        return this.font.plainSubstrByWidth(line, Math.max(0, room - this.font.width("..."))) + "...";
+    }
+
+    /** Shown instead of the hint when nothing is listed, so an empty editor says why. */
+    private String emptyLine() {
+        if (barsMode) {
+            return "§7No bars to edit: turn on Stat Bars and a bar or text in Health and Mana Bars. Esc to close.";
+        }
+        return "§7Nothing to edit here" + (disabledCount > 0 ? " (" + disabledCount + " turned off in settings)" : "")
+                + ". Show Unseen is in Home > HUD Editor. Esc to close.";
     }
 
     /** width()/height() run feature code; a throw here would otherwise kill the editor's render/click path. */
