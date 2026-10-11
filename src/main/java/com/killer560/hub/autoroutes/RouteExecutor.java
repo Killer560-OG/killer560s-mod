@@ -2678,54 +2678,6 @@ public final class RouteExecutor {
         }
     }
 
-    /** What {@link #editorBreakOnce} did: sent the dig, try again next tick (the gate said no), or nothing to do. */
-    enum EditorBreak { SENT, RETRY, SKIPPED }
-
-    /** Blocks {@link #editorBreakOnce} has sent a dig for since launch - read by the testkit (96-ar-656). */
-    private static int editorBreaks;
-
-    public static int editorBreaks() {
-        return editorBreaks;
-    }
-
-    /**
-     * killer560, 2026-10-09: "Whenever I add a block to breaker block to a breaker node it should break it instantly
-     * once." One START_DESTROY_BLOCK for a block {@code /ar edit db} just added, through the breaker node's own path:
-     * the Dungeon Breaker from the hotbar (swapped like a node does), a charge on its lore, the block standing, in reach
-     * of his EYE to the box, the body turned to it in obvious mode, the dig with the face the eye sees, one swing - and
-     * {@link com.killer560.hub.util.ActionGate} as the route's actor, so it never shares a tick with another automated
-     * interaction. Called at START_CLIENT_TICK. Never while a route runs (edit mode stops routes).
-     */
-    static EditorBreak editorBreakOnce(Minecraft client, LocalPlayer player, BlockPos pos) {
-        if (running || client.level == null || client.gameMode == null
-                || !client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()) {
-            return EditorBreak.SKIPPED;
-        }
-        if (com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), pos) > BREAKER_RANGE_SQ) {
-            LOGGER.info("[AutoRoutes] Editor break: {} out of reach - not broken", pos);
-            return EditorBreak.SKIPPED;
-        }
-        int slot = ItemIdentity.findHotbarSlotById(player, BREAKER_ID);
-        int[] charges = slot < 0 ? null : breakerCharges(player.getInventory().getItem(slot));
-        if (charges == null || charges[0] <= 0) {
-            LOGGER.info("[AutoRoutes] Editor break: no Dungeon Breaker charge - {} not broken", pos);
-            return EditorBreak.SKIPPED;
-        }
-        if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.ROUTE)) {
-            return EditorBreak.RETRY;
-        }
-        select(client, player, slot);
-        nodeSwapped = false;
-        if (!AutoRoutesConfig.getInstance().isLegitMode()) {
-            turnBodyToward(player, Vec3.atCenterOf(pos));
-        }
-        sendBreak(client, player, pos);
-        player.swing(InteractionHand.MAIN_HAND);
-        editorBreaks++;
-        LOGGER.info("[AutoRoutes] Editor break: dig sent for {} ({} charge(s) before)", pos, charges[0]);
-        return EditorBreak.SENT;
-    }
-
     /** The per-node timing line: how many ticks the node's action took from firing (after any await), 0 = the
      *  firing tick itself. */
     private static void logActed(RouteNode node, String detail) {
