@@ -1,5 +1,8 @@
 package com.killer560.hub.compat;
 
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import org.joml.Matrix4fc;
+import org.joml.Matrix4fStack;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
@@ -198,6 +201,49 @@ public final class McRender {
         try (GpuBuffer.MappedView view = RenderSystem.getDevice().createCommandEncoder()
                 .mapBuffer(buffer, false, true)) {
             Std140Builder.intoBuffer(view.data()).putVec4(x, y, z, w);
+        }
+    }
+
+    // ---- first-person hand (Held Item Outline) ------------------------------------------------------------------
+
+    /** The depth a cleared target holds where nothing was drawn. 26.1.2 clears depth to 1.0 (far) before the hands. */
+    public static final double FAR_DEPTH = 1.0;
+
+    /** Where an extra first-person item submit goes so that {@link #drawHandMask} draws it: 26.1.2 has one storage. */
+    public static SubmitNodeCollector handMaskCollector(Minecraft client) {
+        return client.gameRenderer.getFeatureRenderDispatcher().getSubmitNodeStorage();
+    }
+
+    /**
+     * Draws what was submitted to {@link #handMaskCollector}, under the same model-view vanilla drew the hands with.
+     * 26.1.2's {@code ItemInHandRenderer.renderHandsWithItems} flushes its own submits ({@code renderAllFeatures()} +
+     * {@code bufferSource().endBatch()} at its end, javap) while {@code GameRenderer.renderItemInHand} has
+     * {@code handView} multiplied onto the pushed model-view stack - so the hands are already drawn by the time anything
+     * after {@code renderItemInHand} runs, and a second copy needs that push again. (Measured: the storage holds 0 item
+     * submits right after {@code renderItemInHand}, and a copy drawn without the push never appeared on screen.)
+     */
+    public static void drawHandMask(Minecraft client, Matrix4fc handView) {
+        Matrix4fStack mv = RenderSystem.getModelViewStack();
+        mv.pushMatrix();
+        try {
+            if (handView != null) {
+                mv.mul(handView);
+            }
+            client.gameRenderer.getFeatureRenderDispatcher().renderAllFeatures();
+            client.renderBuffers().bufferSource().endBatch();
+        } finally {
+            mv.popMatrix();
+        }
+    }
+
+    /** Writes consecutive std140 vec4s (four floats each) into a mapped uniform buffer. */
+    public static void writeUniformVec4s(GpuBuffer buffer, float[] values) {
+        try (GpuBuffer.MappedView view = RenderSystem.getDevice().createCommandEncoder()
+                .mapBuffer(buffer, false, true)) {
+            Std140Builder b = Std140Builder.intoBuffer(view.data());
+            for (int i = 0; i + 3 < values.length; i += 4) {
+                b.putVec4(values[i], values[i + 1], values[i + 2], values[i + 3]);
+            }
         }
     }
 

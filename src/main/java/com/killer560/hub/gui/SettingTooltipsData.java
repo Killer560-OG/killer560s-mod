@@ -1959,6 +1959,13 @@ final class SettingTooltipsData {
         d.put("score calculator/bonus kill alerts", "Sends a party message when you get credit for a mimic, prince or bat kill.");
         d.put("score calculator/send 270 now", "Sends the 270 party message immediately, whatever your score is.");
         d.put("score calculator/send 300 now", "Sends the 300 party message immediately, whatever your score is.");
+        d.put("held item outline/held item outline", "Outlines or fills the item you are holding, on the first-person item itself (never the hotbar or third person).");
+        d.put("held item outline/style", "Outline draws a line around the item, Fill tints the item itself, Filled Outline does both.");
+        d.put("held item outline/outline color", "Colour and transparency of the line around the held item.");
+        d.put("held item outline/outline width", "How thick the line around the held item is, in screen pixels.");
+        d.put("held item outline/fill color", "Colour and transparency laid over the held item.");
+        d.put("held item outline/main hand", "Outline the item in your main hand.");
+        d.put("held item outline/off hand", "Outline the item in your off hand.");
         d.put("trail/trail", "Draws a cosmetic trail of squares at your feet as you move.");
         d.put("trail/length", "How many squares the trail keeps, from 1 to 100.");
         d.put("trail/square size", "How big each trail square is, in blocks.");
