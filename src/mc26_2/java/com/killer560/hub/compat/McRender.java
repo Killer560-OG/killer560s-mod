@@ -241,6 +241,9 @@ public final class McRender {
 
     private static net.minecraft.client.renderer.SubmitNodeStorage handMaskStorage;
 
+    /** The depth a cleared target holds where nothing was drawn. 26.2 is reverse-Z: {@code GameRenderer.renderLevel} clears depth to 0.0 before the hands and LevelRenderer's always-on-top pass clears its target to 0.0 (javap); a target cleared to 1.0 rejects every fragment. */
+    public static final double FAR_DEPTH = 0.0;
+
     /** Where an extra first-person item submit goes so that {@link #drawHandMask} draws it: a storage of our own. */
     public static SubmitNodeCollector handMaskCollector(Minecraft client) {
         if (handMaskStorage == null) {

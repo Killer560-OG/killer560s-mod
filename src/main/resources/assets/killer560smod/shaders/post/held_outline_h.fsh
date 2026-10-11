@@ -7,7 +7,7 @@ uniform sampler2D MaskSampler;
 uniform sampler2D MaskDepthSampler;
 
 layout(std140) uniform HeldOutlineH {
-    vec4 HParams; // x = outline radius in pixels (0 = no outline)
+    vec4 HParams; // x = outline radius in pixels (0 = no outline), y = the cleared (far) depth: 1 on 26.1.2, 0 on 26.2
 };
 
 in vec2 texCoord;
@@ -16,11 +16,11 @@ out vec4 fragColor;
 
 const float THRESHOLD = 0.02;
 
-// The item was drawn into a target cleared to transparent black and depth 1.0. Not every item pipeline writes alpha,
-// so a texel belongs to the item if it took depth or got any colour or alpha at all.
+// The item was drawn into a target cleared to transparent black and the far depth (HParams.y). Not every item pipeline
+// writes alpha, so a texel belongs to the item if it took depth or got any colour or alpha at all.
 bool item(ivec2 q) {
     vec4 c = texelFetch(MaskSampler, q, 0);
-    return texelFetch(MaskDepthSampler, q, 0).r < 1.0 || max(max(c.r, c.g), max(c.b, c.a)) > THRESHOLD;
+    return abs(texelFetch(MaskDepthSampler, q, 0).r - HParams.y) > 1.0e-6 || max(max(c.r, c.g), max(c.b, c.a)) > THRESHOLD;
 }
 
 void main() {

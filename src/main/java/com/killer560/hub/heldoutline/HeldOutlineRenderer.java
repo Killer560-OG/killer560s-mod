@@ -183,7 +183,7 @@ public final class HeldOutlineRenderer {
             }
 
             McRender.clearToZero(mask.getColorTexture());
-            RenderSystem.getDevice().createCommandEncoder().clearDepthTexture(mask.getDepthTexture(), 1.0);
+            RenderSystem.getDevice().createCommandEncoder().clearDepthTexture(mask.getDepthTexture(), McRender.FAR_DEPTH);
 
             GpuTextureView oldColor = RenderSystem.outputColorTextureOverride;
             GpuTextureView oldDepth = RenderSystem.outputDepthTextureOverride;
@@ -242,7 +242,7 @@ public final class HeldOutlineRenderer {
     private static void writeUniforms(HeldOutlineConfig cfg) {
         HeldOutlineConfig.Style style = cfg.getStyle();
         float w = cfg.getWidth();
-        McRender.writeUniformVec4s(hBuffer, new float[]{style.outline ? w : 0f, 0f, 0f, 0f});
+        McRender.writeUniformVec4s(hBuffer, new float[]{style.outline ? w : 0f, (float) McRender.FAR_DEPTH, 0f, 0f});
         int o = cfg.getOutlineColor();
         int f = cfg.getFillColor();
         McRender.writeUniformVec4s(mainBuffer, new float[]{

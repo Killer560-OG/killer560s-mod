@@ -199,3 +199,6 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   `renderAllFeatures()` + `endBatch()` (26.2 flushes in `renderItemInHand`), while the `Matrix4fc` argument is multiplied
   onto the model-view stack. Anything that draws a hand item again later must push that same matrix: Held Item Outline's
   mask copy drawn without it never reached the screen (testkit 671's test views, 2026-10-11). `McRender.drawHandMask` does it.
+- **26.2 is reverse-Z.** `GameRenderer.renderLevel` clears depth to 0.0 before the hands (26.1.2: 1.0) and LevelRenderer's
+  always-on-top pass clears its own target to 0.0 (javap). An off-screen target cleared to 1.0 on 26.2 rejects every
+  fragment, silently: Held Item Outline's mask stayed empty there until it cleared to `McRender.FAR_DEPTH` (2026-10-11).

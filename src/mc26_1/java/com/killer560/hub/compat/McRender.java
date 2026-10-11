@@ -206,6 +206,9 @@ public final class McRender {
 
     // ---- first-person hand (Held Item Outline) ------------------------------------------------------------------
 
+    /** The depth a cleared target holds where nothing was drawn. 26.1.2 clears depth to 1.0 (far) before the hands. */
+    public static final double FAR_DEPTH = 1.0;
+
     /** Where an extra first-person item submit goes so that {@link #drawHandMask} draws it: 26.1.2 has one storage. */
     public static SubmitNodeCollector handMaskCollector(Minecraft client) {
         return client.gameRenderer.getFeatureRenderDispatcher().getSubmitNodeStorage();
