@@ -184,7 +184,7 @@ final class SettingTooltipsData {
         d.put("gifs", "Shows the GIFs toggled on below as looping HUD overlays.");
         d.put("audio", "Loops the audio files toggled on below.");
         d.put("speed", "Playback or movement speed, where 1 is normal.");
-        d.put("open gif folder", "Opens the folder where you drop .gif and audio files.");
+        d.put("open gif / audio folder", "Opens the folder where you drop .gif and audio files.");
         d.put("rescan folder", "Reloads the GIF folder so new or removed files show in the lists.");
         d.put("no fire overlay", "Hides the full-screen fire effect while you are burning.");
         d.put("storage overlay enabled", "Shows every storage you have opened in a grid while a storage menu is open.");
@@ -342,7 +342,6 @@ final class SettingTooltipsData {
         d.put("border thickness", "How thick the waypoint's ring is drawn.");
         d.put("only send once per run", "When on, sends at most once per dungeon run.");
         d.put("color", "Colour used for this element.");
-        d.put("ability timers", "Bound keys start countdowns, and running timers show on the Ability Timers HUD.");
         d.put("+ add timer", "Adds a new countdown timer to the list.");
         d.put("key", "Click, then press the key this entry uses; Escape clears it.");
         d.put("duration", "How long this lasts: timer countdown length, or Mage beam lifetime in ticks.");
@@ -542,6 +541,8 @@ final class SettingTooltipsData {
         d.put("terracotta timer", "Shows a respawn countdown over each broken terracotta in the F6/M6 boss.");
         d.put("spring boots overlay", "Shows how many blocks high your Spring Boots jump is charged to.");
         d.put("height box", "Draws a box at the height your Spring Boots jump will reach.");
+        d.put("height box color", "Colour of the Spring Boots height box.");
+        d.put("height box style", "Draw the Spring Boots height box as an outline, a filled box, or both.");
         d.put("ragnarock", "Alerts and timers for the Ragnarock Axe.");
         d.put("cast alert", "Shows a 'Casted Rag' title when your Ragnarock Axe cast goes off.");
         d.put("cancel alert", "Shows a title and plays a sound when your Ragnarock cast is cancelled.");
@@ -679,6 +680,11 @@ final class SettingTooltipsData {
         d.put("livid solver", "Outlines the real Livid on F5/M5.");
         d.put("show invuln timer", "Shows a HUD countdown of Livid's opening invulnerability.");
         d.put("quiver display", "Shows how many arrows you have left in a HUD line.");
+        d.put("quiver text color", "Colour of the Quiver Display's HUD line.");
+        d.put("low arrow alert", "Shows a title on screen once your arrows drop below the threshold.");
+        d.put("low arrow sound", "Plays a sound with the low arrow alert.");
+        d.put("low arrow threshold", "The alert fires when your arrows drop below this many (20 to 200).");
+        d.put("low arrow text", "The low arrow title. & colour codes work, and {count} is the arrows left.");
         d.put("show item name", "Shows the arrow's name in front of the count.");
         d.put("inventory hud", "Shows your main inventory as a HUD panel.");
         d.put("mini mode", "Draws the panel at half size with smaller item icons.");
@@ -1074,6 +1080,12 @@ final class SettingTooltipsData {
         d.put("custom scoreboard/scoreboard lines", "Your board, top to bottom. Drag a line to move it, the trash can takes it off (Add puts it back), click a line for its own options.");
         d.put("custom scoreboard/scoreboard events", "Events that can show on the Events line, highest priority first. Drag to reorder, trash to remove, Add to put back.");
         d.put("custom scoreboard/scoreboard chunked stats", "The stats in the Chunked Stats line, in order. Drag to reorder, trash to remove, Add to put back.");
+        d.put("open visual editor", "Opens the Custom Scoreboard editor: drag the lines on the board itself, add lines back from Not Active, and set General and Background options.");
+        d.put("custom scoreboard/reset board", "Puts the board back to the default lines in the default order.");
+        d.put("custom scoreboard/remove", "Takes this line off the board (it moves to Not Active).");
+        d.put("custom scoreboard/board", "The board's lines: the selected line's settings and the lines not on the board.");
+        d.put("custom scoreboard/general", "Alignment, snapping, hiding rules, number format, title and footer.");
+        d.put("custom scoreboard/done", "Closes the editor. Every change is already saved.");
         d.put("custom scoreboard/edit events", "Opens the Events page, where you choose which events the Events line shows and in what order.");
         d.put("custom scoreboard/edit chunked stats", "Opens the Chunked Stats page, where you choose which stats the line shows and in what order.");
         // The Add dropdown's "+ <name>" buttons. Purse, Bits and the other currencies are both a line and a Chunked Stat,
@@ -1397,7 +1409,6 @@ final class SettingTooltipsData {
         d.put("ability cooldowns/detection", "How the mod notices you used an ability: its sound, the action bar message, or both.");
         d.put("ability cooldowns/mage cooldown reduction", "Shortens every timer by a percentage you set while you play Mage.");
         d.put("ability cooldowns/abilities", "Tick the abilities you want timed; the number is each one's cooldown in seconds.");
-        d.put("ability timers/name", "What this timer is called on the HUD, e.g. Bonzo Mask.");
         d.put("arrow align", "Shows how many clicks each Arrow Align frame still needs and can block clicks that overshoot.");
         d.put("arrow align/scale", "Size of the click-count number on each Arrow Align frame.");
         d.put("arrow align/aura", "Cheat build only. Clicks Arrow Align frames in range without you looking at them.");
@@ -1439,7 +1450,6 @@ final class SettingTooltipsData {
         // Re-keyed from "new/..." (scoped by the old New category, which no longer exists) to the sub-tab that shows
         // them; every other "new/..." entry was shadowed by a sub-tab or plain key and is gone. Testkit 412 compares
         // every former New row's tooltip with what it showed there.
-        d.put("ability timers/delete", "Removes this entry from the list.");
         d.put("arrow align/prevent misclicks", "Blocks right-clicks on an Arrow Align frame that already points the right way.");
         d.put("arrow align/trigger bot", "Clicks blood mobs and Arrow Align frames for you once your crosshair is on them (cheat build only).");
         d.put("thorn (f4)", "Helpers for the F4/M4 boss Thorn: Spirit Bear kill counter, highlights and stun-spot waypoints.");
@@ -1809,10 +1819,6 @@ final class SettingTooltipsData {
         d.put("tick timers/storm", "Shows Storm's P2 timers: lightning, purple pillar window and a counter.");
         d.put("ability cooldowns/mage reduction", "Cuts ability cooldown timers while you play Mage.");
         d.put("ability cooldowns/mage cut", "How much shorter ability cooldowns are while you play Mage, as a percentage.");
-        d.put("ability timers/key", "Press this key when you use the real ability to start or restart the countdown.");
-        d.put("ability timers/duration", "How long the countdown runs once started.");
-        d.put("ability timers/color", "Colour of this timer's line on the Ability Timers HUD.");
-        d.put("ability timers/enabled", "Turns just this one timer on or off.");
         d.put("arrow align/highlight color", "Colour of the box drawn on frames that still need clicking.");
         d.put("arrow align/trigger bot delay", "How long your crosshair must sit on a frame before Trigger Bot clicks it, in ms (cheat build only).");
         d.put("croesus / chest profit/highlight runs", "Outlines Croesus runs green if unclaimed and red if already claimed.");

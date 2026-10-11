@@ -164,8 +164,7 @@ public final class DvdFeature {
             return;
         }
         try {
-            Path file = GifPlayerFeature.folder().resolve(e.gifFileName);
-            GifDecoder.GifImage decoded = GifDecoder.decode(file);
+            GifDecoder.GifImage decoded = GifPlayerFeature.decodeListed(e.gifFileName);
             rt.gif = decoded;
             rt.frameIndex = 0;
             rt.lastFrameChangeAtMs = System.currentTimeMillis();

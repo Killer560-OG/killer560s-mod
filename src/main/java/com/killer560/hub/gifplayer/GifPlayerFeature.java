@@ -342,7 +342,27 @@ public final class GifPlayerFeature {
 
     /** Label for a GIF in the tab and HUD editor. */
     public static String displayName(String name) {
-        return isBuiltinLoaded(name) ? "Dancing Cat Girl (built-in)" : name;
+        return isBuiltinLoaded(name) ? "Dancing Cat Girl" : name;
+    }
+
+    /**
+     * Decodes a GIF by the name {@link #listedFileNames()} gives it: the built-in from the jar when no folder file has
+     * its name, otherwise the folder file. DVD uses this so the built-in Dancing Cat Girl can bounce too (killer560,
+     * 2026-10-11: "it doesn't show up for dvd").
+     */
+    public static GifDecoder.GifImage decodeListed(String name) throws IOException {
+        if (isBuiltinLoaded(name)) {
+            if (builtinDecoded == null) {
+                try (java.io.InputStream in = GifPlayerFeature.class.getResourceAsStream(BUILTIN_RESOURCE)) {
+                    if (in == null) {
+                        throw new IOException("missing resource " + BUILTIN_RESOURCE);
+                    }
+                    builtinDecoded = GifDecoder.decode(in, BUILTIN_RESOURCE);
+                }
+            }
+            return builtinDecoded;
+        }
+        return GifDecoder.decode(GIF_FOLDER.resolve(name));
     }
 
     public static List<String> playingFileNames() {

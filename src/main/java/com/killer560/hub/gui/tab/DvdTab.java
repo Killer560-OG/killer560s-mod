@@ -223,9 +223,9 @@ public class DvdTab extends BaseTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
 
-        List<String> gifs = GifPlayerFeature.discoverFileNames();
+        List<String> gifs = GifPlayerFeature.listedFileNames();
         widgets.add(SettingsButtonWidget.builder(Component.literal("Gif: §b" + (gifs.isEmpty() ? "(none found)"
-                        : (e.gifFileName.isBlank() ? "(click to pick)" : e.gifFileName))), btn -> {
+                        : (e.gifFileName.isBlank() ? "(click to pick)" : GifPlayerFeature.displayName(e.gifFileName)))), btn -> {
                     if (gifs.isEmpty()) {
                         return;
                     }

@@ -39,13 +39,6 @@ public final class GuiOverlays {
         add("gif_player", GifPlayerFeature::renderOverlay);
         add("dvd", DvdFeature::renderOverlay);
         add("experiments_status", ExperimentsFeature::renderOverlay);
-        add("ability_timers", graphics -> {
-            // Chat stays see-through (killer560: "dont make it hide the gui if i open chat"); the HUD editor
-            // draws the element itself.
-            if (!HudVisibility.menuOpen()) {
-                HudElementRegistry.drawAt(graphics, HudElementRegistry.byId("ability_timers"));
-            }
-        });
         add("dungeon_info", graphics -> {
             if (!HudVisibility.menuOpen()) {
                 HudElementRegistry.drawAt(graphics, HudElementRegistry.byId("dungeon_info"));

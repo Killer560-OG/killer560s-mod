@@ -616,6 +616,12 @@ public final class CustomScoreboardFeature {
         return Math.max(contentWidth(font, lines), cfg.getMinWidth() - 2 * (cfg.getPadding() + borderSize(cfg)));
     }
 
+    /** Distance from the board's top-left corner to its first line's text: border plus padding (what
+     *  {@link #drawBoard} adds). The visual editor maps its drawn rows back to entries with it. */
+    static int textInset(CustomScoreboardConfig cfg) {
+        return borderSize(cfg) + cfg.getPadding();
+    }
+
     static int boxWidth(Font font, List<ScoreboardLine> lines, CustomScoreboardConfig cfg) {
         return innerWidth(font, lines, cfg) + 2 * (cfg.getPadding() + borderSize(cfg));
     }

@@ -33,6 +33,7 @@
     "killer560smod-smoothtp.mixins.json",
     "killer560smod-storageoverlay.mixins.json",
     "killer560smod-fullbright.mixins.json",
+    "killer560smod-lagdisplay.mixins.json",
     "killer560smod-screenshotcopy.mixins.json",
     "killer560smod-terminals.mixins.json",
     "killer560smod-secrets.mixins.json",

@@ -116,7 +116,7 @@ public class GifPlayerTab extends BaseTab {
                 }).bounds(contentX + 230, y, contentWidth - 230, 20).build());
         y += 30;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Open GIF Folder"), btn -> openFolder())
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open GIF / Audio Folder"), btn -> openFolder())
                 .bounds(contentX, y, 220, 20).build());
         y += 24;
 
@@ -183,7 +183,7 @@ public class GifPlayerTab extends BaseTab {
         try {
             ExternalOpen.path(GifPlayerFeature.folder()); // AWT is headless in MC
         } catch (Exception e) {
-            ModOverlayMessage.show("§c[Killer560's Mod] Couldn't open GIF folder: " + e.getMessage(), 4000);
+            ModOverlayMessage.show("§c[Killer560's Mod] Couldn't open GIF / audio folder: " + e.getMessage(), 4000);
         }
     }
 

@@ -1,7 +1,11 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.dungeonalerts.DungeonAlertsConfig;
+import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
@@ -36,11 +40,32 @@ public class SpringBootsTab extends BaseTab {
             w.add(SettingsButtonWidget.builder(onOff("Height Box", cfg.springBootsBox), btn -> {
                         cfg.springBootsBox = !cfg.springBootsBox;
                         cfg.save();
-                        btn.setMessage(onOff("Height Box", cfg.springBootsBox));
+                        requestRebuild.run();
                     }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+            if (cfg.springBootsBox) {
+                // Colour and style of the height box (killer560, 2026-10-11).
+                Minecraft mc = Minecraft.getInstance();
+                w.add(SettingsButtonWidget.builder(ColorSwatch.label("Height Box Color", cfg.springBootsColor), btn ->
+                        McCompat.setScreen(mc, new ColorPickerScreen(McCompat.screen(mc), "Height Box Color",
+                                cfg.springBootsColor, DungeonAlertsConfig.DEFAULT_SPRING_BOOTS_COLOR, argb -> {
+                                    cfg.springBootsColor = argb;
+                                    cfg.save();
+                                }))).bounds(contentX, y, contentWidth, 18).build());
+                y += 22;
+                w.add(SettingsButtonWidget.builder(styleLabel(cfg), btn -> {
+                            cfg.springBootsBoxStyle = cfg.springBootsBoxStyle.next();
+                            cfg.save();
+                            btn.setMessage(styleLabel(cfg));
+                        }).bounds(contentX, y, contentWidth, 18).build());
+            }
         }
 
         return w;
+    }
+
+    private static Component styleLabel(DungeonAlertsConfig cfg) {
+        return Component.literal("Height Box Style: §b" + cfg.springBootsBoxStyle.label);
     }
 
     private static Component onOff(String label, boolean value) {

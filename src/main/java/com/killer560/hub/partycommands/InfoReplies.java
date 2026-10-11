@@ -59,11 +59,9 @@ final class InfoReplies {
             case COORDS -> client.player == null ? null : String.format(Locale.US, "%.0f, %.0f, %.0f",
                     client.player.getX(), client.player.getY(), client.player.getZ());
             case PING -> {
-                if (client.getConnection() == null || client.player == null) {
-                    yield null;
-                }
-                PlayerInfo info = client.getConnection().getPlayerInfo(client.player.getUUID());
-                yield info != null ? "Current Ping: " + info.getLatency() + "ms" : null;
+                // Measured round trip; the tab-list latency is always 1 on Hypixel (see util/PingTracker).
+                int ping = com.killer560.hub.util.PingTracker.bestMs();
+                yield ping >= 0 ? "Current Ping: " + ping + "ms" : null;
             }
             case FPS -> "Current FPS: " + client.getFps();
             case TIME -> "Current Time: " + ZonedDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"));
