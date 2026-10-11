@@ -225,27 +225,57 @@ public final class LevelTables {
         return cumulative(s.totalXp(), xp, max);
     }
 
-    /** The level this XP would reach with NO cap at all (killer560, 2026-10-08: "what my theoretical skill level
-     *  would be if there is 0 cap"): walks the whole table, then keeps going past its last level, each further
-     *  level costing the table's final step again (Farming/Combat/... 60 -> 61 costs the same 7M as 59 -> 60).
-     *  Hypixel publishes no XP for levels past the table, so the last step repeated is the estimate - the same
-     *  flat-step rule Catacombs overflow uses past 50. */
+    /** First level past the published table, and its cost: 7,000,000 + 600,000 (SkyHanni's constants). */
+    static final long OVERFLOW_FIRST_COST = 7_600_000L;
+    static final long OVERFLOW_SLOPE = 600_000L;
+
+    /**
+     * The level this XP would reach with NO cap at all (killer560, 2026-10-08/11: "There should be no cap. It should
+     * be based off of their level calculation passed the true cap"). Every skill on the standard 60-level curve walks
+     * that table to 60 whatever its own cap (Farming, Taming, Foraging, Alchemy and Carpentry included), then keeps
+     * levelling past 60 the way SkyHanni does: level 61 costs 7,600,000 XP, each next level 600,000 more, and the
+     * per-level increase doubles every time a multiple of ten is reached.
+     * <p>
+     * Reference (read only, our own code): SkyHanni {@code SkillUtil.calculateSkillLevel}, commit
+     * 88c8bf2f566f42150e869fe9cc7b78dff05dc086 (hannibal002/SkyHanni, branch beta). SkyCrypt (SkyCrypt
+     * 48fc9bfb {@code src/stats/skills/leveling.js}, SkyCrypt-Backend 3d877640 {@code leveling.go}) stops skills at
+     * the table's 60; its flat "repeat the last step" overflow is only for Catacombs and the SkyBlock level.
+     * Runecrafting and Social have their own short tables and no overflow in either tool, so they stop at theirs.
+     */
     public static int uncappedSkillLevel(String id, long xp) {
         Skill s = skill(id);
         if (s == null || s.totalXp().length == 0) {
             return 0;
         }
         long[] t = s.totalXp();
+        if ("RUNECRAFTING".equals(id) || "SOCIAL".equals(id)) {
+            return cumulative(t, xp, t.length).level();
+        }
+        Skill standard = skill("COMBAT");
+        if (standard != null && standard.totalXp().length > t.length) {
+            t = standard.totalXp();
+        }
         Level within = cumulative(t, xp, t.length);
         if (!within.maxed()) {
             return within.level();
         }
-        long last = t[t.length - 1];
-        long step = t.length >= 2 ? last - t[t.length - 2] : last;
-        if (step <= 0) {
-            return t.length;
+        return overflowLevel(t.length, xp - t[t.length - 1]);
+    }
+
+    /** Levels past {@code fromLevel} for {@code remaining} XP above it, on SkyHanni's growing-step curve. */
+    static int overflowLevel(int fromLevel, long remaining) {
+        int level = fromLevel;
+        long slope = OVERFLOW_SLOPE;
+        long next = OVERFLOW_FIRST_COST;
+        while (remaining >= next && level < 100_000) {
+            level++;
+            remaining -= next;
+            next += slope;
+            if (level % 10 == 0) {
+                slope *= 2;
+            }
         }
-        return (int) Math.min(Integer.MAX_VALUE, t.length + (xp - last) / step);
+        return level;
     }
 
     /** Level from a cumulative table where {@code table[i]} is the total XP needed for level i+1. */
