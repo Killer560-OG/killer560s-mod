@@ -1,279 +1,221 @@
 package com.killer560.hub.autokick;
 
-import com.killer560.hub.util.FeatureGuard;
+import com.google.gson.JsonObject;
 import com.killer560.hub.autokick.AutoKickConfig.ActionMode;
 import com.killer560.hub.autokick.AutoKickConfig.Floor;
-import com.killer560.hub.leapmenu.PartyTracker;
+import com.killer560.hub.partyfinder.PartyFinderStatsApi;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.splittimers.SplitTimersFeature;
 import com.killer560.hub.util.ActionGate;
+import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.util.ConfigJson;
+import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ServerCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
-import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Auto Kick - killer560's own request, verbatim: "Also create auto kick. I really Like Odins. The kick
- * based off of timed comp of a floor and whatnot." Odin's version removes party members once a run has
- * clearly missed its target time for the current floor, so the party can requeue instead of grinding out
- * a run that was never going to make it. This ports that behaviour on top of what this mod already has,
- * rather than building any new detection:
- * <ul>
- * <li><b>Run clock / elapsed time:</b> {@link SplitTimersFeature#getRunStartedAtMs()} /
- *     {@link SplitTimersFeature#getElapsedMs()} (added alongside this feature - the class already tracked
- *     the run clock internally for its own splits, it just had no public "when did this run start"
- *     getter yet).
- * <li><b>Floor:</b> {@link DungeonState#getFloor()} / {@link DungeonState#isInDungeon()} - the same real
- *     sidebar-scoreboard detection every other dungeon feature in this mod reads.
- * <li><b>Party roster:</b> {@link PartyTracker#teammates()} - "everyone known to be in your party except
- *     you", the same list {@code partycommands.PartyCommandsFeature} matches kick targets against.
- * <li><b>Sending the kick:</b> {@link ServerCommands#toServer(String)}, NOT
- *     {@code connection.sendCommand} - see that class's doc for the real StackOverflow crash
- *     (/fl, /ah, /bz) that using the wrong one caused elsewhere in this mod. {@code partycommands}'
- *     {@code execute()} has the same shape (send the command, then log locally via {@link ModChat}) and
- *     this mirrors it on purpose.
- * </ul>
+ * Auto Kick - Party Finder only. killer560, 2026-10-09: "Auto kick is only something to be used during the party finder
+ * stage while you are queuing for a run." (It used to kick in the middle of a run once the floor's time had passed.)
  * <p>
- * <b>Gating: NOT behind {@code BuildVariant.CHEAT_FEATURES_ENABLED}.</b> Auto Kick sends the exact same
- * "p kick &lt;name&gt;" command {@code partycommands.PartyCommandsFeature}'s own Kick command already
- * sends with no such gate (only {@code allowDestructive} - a feature-local opt-in, not the cheat-build
- * split). That is the closest comparable social automation in this repo, and killer560's own instructions
- * for this feature specifically ask to be consistent with how it is gated. The reasoning: kicking a
- * teammate is party management, not an unfair advantage over other players the way an auto-clicker or a
- * triggerbot is (which IS what {@code BuildVariant.CHEAT_FEATURES_ENABLED} exists to separate out - see
- * e.g. {@code AutoSellConfig}, {@code CroesusConfig}). It still acts on real people automatically, which is
- * exactly why every other safety rule below applies regardless of build variant.
+ * When Hypixel says "Party Finder > Name joined the dungeon group! (Class Level N)" and you are NOT in a dungeon, the
+ * joiner's S+ personal best on the floor being queued is looked up ({@link PartyFinderStatsApi}, the Party Finder
+ * overlay's own cached lookup), and if it is slower than that floor's time on the tab - or there is none - Auto Kick
+ * warns (Warn Only, the default) or sends {@code /p kick <name>} (Kick). A lookup that fails never kicks anyone; it says
+ * so. The floor being queued is the tab's Queue Floor, or (Last Run) the floor of the last run you were in.
  * <p>
- * <b>Safety rules (killer560's own instructions for this feature, followed literally):</b>
- * <ul>
- * <li>Master toggle defaults OFF, default action is {@link ActionMode#WARN_ONLY} - see
- *     {@link AutoKickConfig}.
- * <li><b>Never kick the local player.</b> {@link PartyTracker#teammates()} already excludes yourself by
- *     definition ("everyone known to be in your party except you"); {@link #buildKickTargets} re-checks
- *     it anyway before every single name, belt-and-suspenders.
- * <li><b>Never kick the party leader if that would disband.</b> This mod already has one leader tracker
- *     ({@code partycommands.PartyLeaderTracker}) - not reused here on purpose, for two reasons. First, it
- *     is only ever fed while Party Commands itself is enabled ({@code ChatCommandsFeature#onMessage} only
- *     calls its {@code onServerLine} when {@code PartyCommandsConfig.isEnabled()}), so a killer560 who
- *     runs Auto Kick without Party Commands turned on would get no leader data from it at all. Second, and
- *     more important, its own class doc is explicit that it is "a convenience gate, not the security
- *     boundary" - real enforcement is Hypixel's server, which only lets the actual party leader's account
- *     run "/p kick" at all. Auto Kick leans on that exact same real boundary rather than adding a second,
- *     independently-fed leader guess that could itself be wrong: whichever account is running this code is
- *     the only one whose kicks can ever actually go through, and that account is never a kick target in
- *     the first place (the point directly above). A run led by someone else's client simply can't be
- *     kicked into by this feature - Hypixel refuses the command before it does anything.
- * <li><b>Never act outside a dungeon.</b> Gated on {@link DungeonState#isInDungeon()} every tick.
- * <li><b>Never act more than once per run.</b> {@link #decidedForRunStartedAtMs} latches the run this
- *     feature already made its one decision for; a new run (a new {@link SplitTimersFeature#getRunStartedAtMs()}
- *     value) is the only thing that resets it.
- * <li><b>Rate-limited.</b> Each individual "p kick" - not the warn-only path, which sends no command at
- *     all - has to pass both {@link ActionGate#tryAct(ActionGate.Actor)} (one automated interaction per
- *     client tick, mod-wide) AND this feature's own {@link #KICK_MIN_GAP_MS} spacing on top, so "Kick All"
- *     on a full party never sends five kicks in five ticks.
- * </ul>
- * <p>
- * <b>No default target times are shipped</b> - see {@link AutoKickConfig}'s class doc for why. Every
- * floor starts at 0 (disabled) until killer560 sets his own numbers.
+ * Safety: never yourself (your own join line means you joined someone else's group, and nothing happens); never while
+ * in a dungeon (anything still waiting is dropped the moment a run starts); one kick at a time through
+ * {@link ActionGate} plus {@link #KICK_MIN_GAP_MS}; the name is the anchored {@code [A-Za-z0-9_]{1,16}} group of a line
+ * that must start with "Party Finder > ", which no player's chat line can. Hypixel only lets the party leader kick.
  */
 public final class AutoKickFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-autokick");
 
-    /** Same shape {@code partycommands.PartyCommandsFeature} validates typed names against before they
-     *  ever reach a command string. */
-    private static final Pattern NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
+    /** The same line {@code leapmenu.PartyTracker} reads. */
+    static final Pattern PF_JOINED = Pattern.compile(
+            "^Party Finder > ([A-Za-z0-9_]{1,16}) joined the dungeon group! \\((\\w+) Level \\d+\\)$");
 
-    /** Wall-clock floor between successive "p kick" sends, on top of whatever {@link ActionGate} adds -
-     *  killer560's own instructions ask for "one kick per N ticks minimum". 3s (60 client ticks worth of
-     *  spacing, checked against {@code System.currentTimeMillis()} rather than a tick counter - same
-     *  wall-clock approach {@code ActionGate}'s own spacing floor uses): enough that "Kick All" on a
-     *  4-stack reads as a deliberate sequence of party-management commands, not a burst. */
+    /** A Party Finder PB as the stats lookup formats it ("4:12"). */
+    private static final Pattern MM_SS = Pattern.compile("^(\\d{1,3}):(\\d{2})$");
+
     private static final long KICK_MIN_GAP_MS = 3_000L;
+    /** How long a joiner's lookup may take before Auto Kick gives up on him (and kicks nobody). */
+    private static final long LOOKUP_TIMEOUT_MS = 15_000L;
 
-    /** The {@link SplitTimersFeature#getRunStartedAtMs()} value Auto Kick already decided for (warned or
-     *  started kicking), so a floor whose target was already missed once this run can't trigger a second
-     *  time. 0 = no decision made yet for whatever run is currently running (or no run at all). Reset the
-     *  moment the run clock's own start timestamp changes, i.e. a genuinely new run. */
-    private static long decidedForRunStartedAtMs = 0L;
+    private record Pending(String name, Floor floor, long requestedAtMs) {
+    }
 
-    /** Names still queued to kick this run ({@link ActionMode#KICK_ALL}/{@link ActionMode#KICK_SPECIFIC}).
-     *  Drained one at a time, rate-limited, across however many ticks it takes. Empty under
-     *  {@link ActionMode#WARN_ONLY} - that mode never queues a command. */
+    private static final Map<String, Pending> waiting = new LinkedHashMap<>();
     private static final List<String> pendingKicks = new ArrayList<>();
-
     private static long lastKickAtMs = 0L;
+    private static Floor lastRunFloor = null;
+    /** Every decision, newest last ("name F7 S+ 4:12 limit 5:00 -> kick"), for logs and the testkit. */
+    private static final List<String> decisions = new ArrayList<>();
+    private static final List<String> kicksSent = new ArrayList<>();
 
     private AutoKickFeature() {
     }
 
     public static void register() {
+        ChatObserver.subscribe(AutoKickFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoKickFeature", client -> tick()));
     }
 
-    private static void tick() {
+    /** The floor being queued: the tab's Queue Floor, else the last run's floor, else null. */
+    public static Floor queueFloor() {
+        Floor chosen = AutoKickConfig.getInstance().getQueueFloor();
+        return chosen != null ? chosen : lastRunFloor;
+    }
+
+    public static List<String> decisions() {
+        return List.copyOf(decisions);
+    }
+
+    public static List<String> kicksSent() {
+        return List.copyOf(kicksSent);
+    }
+
+    private static void onChat(Component message) {
+        String plain = ChatObserver.strip(message);
+        if (plain != null) {
+            onLine(plain.trim());
+        }
+    }
+
+    /** One chat line (colour codes already stripped). */
+    public static void onLine(String plain) {
         AutoKickConfig cfg = AutoKickConfig.getInstance();
-        if (!cfg.isEnabled() || !DungeonState.isInDungeon()) {
-            // Master toggle off, "Skyblock Only" gate closed, or simply not in a dungeon right now -
-            // never act outside a dungeon, per killer560's own instructions for this feature.
+        if (!cfg.isEnabled() || DungeonState.isInDungeon()) {
+            return;
+        }
+        Matcher m = PF_JOINED.matcher(plain);
+        if (!m.matches()) {
+            return;
+        }
+        String name = m.group(1);
+        Minecraft client = Minecraft.getInstance();
+        String self = client.player == null ? null : client.player.getGameProfile().name();
+        if (self != null && self.equalsIgnoreCase(name)) {
+            return; // you joined someone else's group
+        }
+        Floor floor = queueFloor();
+        if (floor == null) {
+            ModChat.send("Auto Kick", ModChat.value(name), ModChat.text(" joined, but no floor is known yet - set "),
+                    ModChat.value("Queue Floor"), ModChat.text(" on the Auto Kick tab, or play a run first."));
+            decide(name + " no floor -> none");
+            return;
+        }
+        waiting.put(name.toLowerCase(Locale.ROOT), new Pending(name, floor, System.currentTimeMillis()));
+        PartyFinderStatsApi.request(List.of(name));
+    }
+
+    private static void tick() {
+        if (DungeonState.isInDungeon()) {
+            Floor f = Floor.fromRaw(DungeonState.getFloor());
+            if (f != null) {
+                lastRunFloor = f;
+            }
+            // Party Finder only: a run has started, so nothing still waiting is acted on.
+            waiting.clear();
             pendingKicks.clear();
             return;
         }
-
-        long runStartedAtMs = SplitTimersFeature.getRunStartedAtMs();
-        if (runStartedAtMs <= 0L) {
-            // In a dungeon, but the run clock hasn't started yet (still on the countdown / loading in).
+        AutoKickConfig cfg = AutoKickConfig.getInstance();
+        if (!cfg.isEnabled()) {
+            waiting.clear();
+            pendingKicks.clear();
             return;
         }
-        if (runStartedAtMs != decidedForRunStartedAtMs && !pendingKicks.isEmpty()) {
-            // Defensive only - decidedForRunStartedAtMs is only ever set alongside a non-empty
-            // pendingKicks in the same call, so these can't actually disagree. Kept so a future change to
-            // either can't silently carry a stale kick queue into a run it was never queued for.
-            pendingKicks.clear();
-        }
-
-        if (decidedForRunStartedAtMs != runStartedAtMs) {
-            maybeDecide(cfg, runStartedAtMs);
+        long now = System.currentTimeMillis();
+        for (Iterator<Map.Entry<String, Pending>> it = waiting.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<String, Pending> e = it.next();
+            Pending p = e.getValue();
+            String name = p.name();
+            PartyFinderStatsApi.PlayerStats stats = PartyFinderStatsApi.get(name);
+            if (stats != null) {
+                it.remove();
+                judge(cfg, name, p.floor(), stats);
+            } else if (PartyFinderStatsApi.hasFailed(name) || now - p.requestedAtMs() > LOOKUP_TIMEOUT_MS) {
+                it.remove();
+                ModChat.send("Auto Kick", ModChat.text("Couldn't look up "), ModChat.value(name),
+                        ModChat.text("'s times"), ModChat.dim(" - not kicked."));
+                decide(name + " " + p.floor().name() + " lookup failed -> none");
+            }
         }
         if (!pendingKicks.isEmpty()) {
             drainPendingKicks();
         }
     }
 
-    /** Checked once per tick until this run's floor target is exceeded (or the run ends) - the single
-     *  point where Auto Kick can ever decide to warn or queue kicks for the CURRENT run. */
-    private static void maybeDecide(AutoKickConfig cfg, long runStartedAtMs) {
-        Floor floor = Floor.fromRaw(DungeonState.getFloor());
-        if (floor == null) {
-            // Unrecognised/unsupported floor (Entrance, or a value DungeonState can't parse) - nothing to
-            // compare a target time against.
+    private static void judge(AutoKickConfig cfg, String name, Floor floor, PartyFinderStatsApi.PlayerStats stats) {
+        int limit = cfg.getTargetSeconds(floor);
+        int pb = sPlusSeconds(stats, floor);
+        String limitStr = mmSs(limit);
+        if (pb > 0 && pb <= limit) {
+            decide(name + " " + floor.name() + " S+ " + mmSs(pb) + " limit " + limitStr + " -> ok");
             return;
         }
-        int targetSeconds = cfg.getTargetSeconds(floor);
-        if (targetSeconds <= 0) {
-            // 0 = disabled for this floor (the shipped default for every floor - see AutoKickConfig).
-            return;
-        }
-        long elapsedMs = System.currentTimeMillis() - runStartedAtMs;
-        if (elapsedMs < targetSeconds * 1000L) {
-            return;
-        }
-
-        // Target missed - this is the ONE decision Auto Kick makes for this run (see decidedForRunStartedAtMs).
-        decidedForRunStartedAtMs = runStartedAtMs;
-        ActionMode mode = cfg.getMode();
-        List<String> targets = mode == ActionMode.WARN_ONLY ? List.of() : buildKickTargets(cfg, mode);
-
-        String elapsedStr = formatMmSs(elapsedMs);
-        String targetStr = formatMmSs(targetSeconds * 1000L);
-
-        switch (mode) {
-            case WARN_ONLY -> ModChat.send("Auto Kick",
-                    ModChat.value(floor.label()), ModChat.text(" target ("), ModChat.value(targetStr),
-                    ModChat.text(") exceeded - elapsed "), ModChat.value(elapsedStr), ModChat.dim(". Warn only, no one was kicked."));
-            case KICK_ALL, KICK_SPECIFIC -> {
-                if (targets.isEmpty()) {
-                    // Nothing valid to kick (empty party, or KICK_SPECIFIC's list matched no current
-                    // teammate) - still say so, same as Odin would rather than silently doing nothing.
-                    ModChat.send("Auto Kick",
-                            ModChat.value(floor.label()), ModChat.text(" target ("), ModChat.value(targetStr),
-                            ModChat.text(") exceeded - elapsed "), ModChat.value(elapsedStr),
-                            ModChat.dim(". No valid teammates to kick."));
-                    return;
-                }
-                ModChat.send("Auto Kick",
-                        ModChat.value(floor.label()), ModChat.text(" target ("), ModChat.value(targetStr),
-                        ModChat.text(") exceeded - elapsed "), ModChat.value(elapsedStr),
-                        ModChat.text(". Kicking "), ModChat.value(String.join(", ", targets)), ModChat.dim("."));
-                pendingKicks.addAll(targets);
-            }
+        String pbStr = pb > 0 ? mmSs(pb) : "none";
+        boolean kick = cfg.getMode() == ActionMode.KICK_ALL;
+        decide(name + " " + floor.name() + " S+ " + pbStr + " limit " + limitStr + " -> " + (kick ? "kick" : "warn"));
+        ModChat.send("Auto Kick", ModChat.value(name), ModChat.text(" - " + floor.label() + " S+ "),
+                ModChat.value(pbStr), ModChat.text(", limit "), ModChat.value(limitStr),
+                ModChat.dim(kick ? ". Kicking." : ". Warn only, not kicked."));
+        if (kick && !pendingKicks.contains(name)) {
+            pendingKicks.add(name);
         }
     }
 
-    /** @return the real, currently-valid kick targets for {@code mode} - never the local player (belt and
-     *  suspenders on top of {@link PartyTracker#teammates()} already excluding it; see this class's doc
-     *  for why that's also the party-leader safety rule). {@link ActionMode#KICK_SPECIFIC} additionally
-     *  requires each name to be both validly-shaped and an actual current teammate, so a stale or
-     *  mistyped name in the settings box never turns into a "player not found" command sent for nothing. */
-    private static List<String> buildKickTargets(AutoKickConfig cfg, ActionMode mode) {
-        List<String> teammates = PartyTracker.teammates();
-        Minecraft client = Minecraft.getInstance();
-        String self = client.player == null ? null : client.player.getGameProfile().name();
-
-        List<String> out = new ArrayList<>();
-        if (mode == ActionMode.KICK_ALL) {
-            for (String name : teammates) {
-                if (self == null || !name.equalsIgnoreCase(self)) {
-                    out.add(name);
-                }
-            }
-            return out;
+    /** The joiner's S+ personal best on {@code floor} in seconds, or 0 when he has none. */
+    static int sPlusSeconds(PartyFinderStatsApi.PlayerStats stats, Floor floor) {
+        JsonObject map = floor.master() ? stats.pbMaster() : stats.pbNormal();
+        String t = ConfigJson.getString(ConfigJson.getObject(map, "s_plus"), "floor_" + floor.number(), null);
+        if (t == null) {
+            return 0;
         }
-        // KICK_SPECIFIC
-        for (String raw : cfg.getSpecificMembers().split(",")) {
-            String typed = raw.trim();
-            if (typed.isEmpty() || !NAME_PATTERN.matcher(typed).matches()) {
-                continue;
-            }
-            if (self != null && typed.equalsIgnoreCase(self)) {
-                continue;
-            }
-            for (String teammate : teammates) {
-                if (teammate.equalsIgnoreCase(typed) && !containsIgnoreCase(out, teammate)) {
-                    out.add(teammate);
-                    break;
-                }
-            }
-        }
-        return out;
+        Matcher m = Pattern.compile("^(\\d{1,3}):(\\d{2})$").matcher(t.trim());
+        return m.matches() ? Integer.parseInt(m.group(1)) * 60 + Integer.parseInt(m.group(2)) : 0;
     }
 
-    private static boolean containsIgnoreCase(List<String> list, String value) {
-        for (String s : list) {
-            if (s.equalsIgnoreCase(value)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** Sends one queued kick at most, gated by {@link ActionGate} (one automated interaction per client
-     *  tick, mod-wide) and {@link #KICK_MIN_GAP_MS} (this feature's own floor on top). Called every tick
-     *  while {@link #pendingKicks} is non-empty, so a full party drains over several seconds rather than
-     *  all at once. */
     private static void drainPendingKicks() {
         long now = System.currentTimeMillis();
-        if (now - lastKickAtMs < KICK_MIN_GAP_MS) {
-            return;
-        }
-        if (!ActionGate.tryAct(ActionGate.Actor.AUTO_KICK)) {
+        if (now - lastKickAtMs < KICK_MIN_GAP_MS || !ActionGate.tryAct(ActionGate.Actor.AUTO_KICK)) {
             return;
         }
         String name = pendingKicks.remove(0);
         if (!ServerCommands.toServer("p kick " + name)) {
-            // No connection right now (disconnected / world unloaded mid-drain) - the rest of the queue
-            // can't go anywhere either, so drop it instead of silently retrying into whatever comes next.
-            LOGGER.warn("[AutoKick] Couldn't send \"p kick {}\" - no active connection. Dropping {} remaining queued kick(s).",
+            LOGGER.warn("[AutoKick] Couldn't send \"p kick {}\" - no connection. Dropping {} queued kick(s).",
                     name, pendingKicks.size());
             pendingKicks.clear();
             return;
         }
         lastKickAtMs = now;
-        ModChat.send("Auto Kick", ModChat.value(name), ModChat.text(" kicked "),
-                ModChat.dim("(floor target time exceeded)."));
+        kicksSent.add(name);
     }
 
-    private static String formatMmSs(long ms) {
-        long totalSeconds = Math.max(0L, ms) / 1000L;
-        long minutes = totalSeconds / 60L;
-        long seconds = totalSeconds % 60L;
-        return String.format(Locale.US, "%d:%02d", minutes, seconds);
+    private static void decide(String line) {
+        decisions.add(line);
+        if (decisions.size() > 50) {
+            decisions.remove(0);
+        }
+        LOGGER.info("[AutoKick] {}", line);
+    }
+
+    private static String mmSs(int seconds) {
+        return String.format(Locale.US, "%d:%02d", seconds / 60, seconds % 60);
     }
 }

@@ -213,6 +213,7 @@ public final class ModPaths {
         t.put("sharing-defaults", "system/sharing-defaults");
         t.put("interop", "system/interop");
         t.put("updatecheck", "system/updatecheck");
+        t.put("autoupdate", "system/autoupdate");
         t.put("correctionalarm", "system/correctionalarm");
         t.put("bugreport", "system/bugreport");
         t.put("bug-reports", "system/bugreport");

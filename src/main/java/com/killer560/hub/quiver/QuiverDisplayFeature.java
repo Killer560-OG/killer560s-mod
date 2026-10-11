@@ -4,6 +4,9 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
+import com.killer560.hub.compat.McCompat;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -32,6 +35,11 @@ public final class QuiverDisplayFeature {
 
     private static String cachedName = null;
     private static String cachedCount = null;
+    /** True once the low-arrow alert fired for this dip; re-armed when the count is back at or above the threshold. */
+    private static boolean alertLatched = false;
+    /** Alerts fired since launch, and the last title shown - read by the testkit. */
+    private static int alertsFired = 0;
+    private static String lastAlertTitle = null;
 
     private QuiverDisplayFeature() {
     }
@@ -70,6 +78,46 @@ public final class QuiverDisplayFeature {
         }
         cachedName = found.getHoverName().getString();
         cachedCount = count;
+        checkLowAlert(client, count);
+    }
+
+    /** Fires the low-arrow alert once each time the count drops below the threshold. */
+    static void checkLowAlert(Minecraft client, String countText) {
+        QuiverDisplayConfig cfg = QuiverDisplayConfig.getInstance();
+        int count;
+        try {
+            // Bounded by the lore regex's [\d,]+ only, so guard the parse: a huge number is simply "not low".
+            count = Integer.parseInt(countText.replace(",", ""));
+        } catch (NumberFormatException e) {
+            return;
+        }
+        if (count >= cfg.getAlertThreshold()) {
+            alertLatched = false;
+            return;
+        }
+        if (!cfg.isAlertEnabled() || alertLatched) {
+            return;
+        }
+        alertLatched = true;
+        alertsFired++;
+        String text = cfg.getAlertText().replace("{count}", countText).replace('&', '§');
+        lastAlertTitle = text;
+        if (client.gui != null && !text.isBlank()) {
+            McCompat.setTimes(client, 0, 40, 10);
+            McCompat.setTitle(client, Component.literal(text));
+        }
+        if (cfg.isAlertSound()) {
+            // forUI(SoundEvent, float pitch, float volume) - the call Leap Counter's alert makes.
+            client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 1.0f));
+        }
+    }
+
+    public static int alertsFired() {
+        return alertsFired;
+    }
+
+    public static String lastAlertTitle() {
+        return lastAlertTitle;
     }
 
     private static boolean isQuiverItem(ItemStack stack) {
@@ -128,8 +176,9 @@ public final class QuiverDisplayFeature {
             if (cachedCount == null) {
                 return null;
             }
+            // Plain text, drawn in the Text Color setting (formatting codes would override it).
             return (QuiverDisplayConfig.getInstance().isShowName() && cachedName != null
-                    ? cachedName + " §8x" : "§8x") + "§a" + cachedCount;
+                    ? net.minecraft.ChatFormatting.stripFormatting(cachedName) + " x" : "x") + cachedCount;
         }
 
         @Override
@@ -145,7 +194,7 @@ public final class QuiverDisplayFeature {
             }
             String text = text();
             HudSeen.markDrawn(id());
-            graphics.text(Minecraft.getInstance().font, text, x, y, 0xFFFFFFFF, false);
+            graphics.text(Minecraft.getInstance().font, text, x, y, QuiverDisplayConfig.getInstance().getTextColor(), false);
         }
     }
 }

@@ -18,9 +18,20 @@ default)` and goes out through `ModNet.send` / `sendAsync` / `open` / `webSocket
 
 Service keys: `hypixel`, `noamm`, `noamm-ws`, `odin-ws`, `devonian-ws`, `pv-backend`, `mojang`,
 `minecraftservices`, `microsoft`, `xboxlive`, `github-raw`, `jsdelivr`, `coflnet`, `github-api`, `relay`,
-`pf-relay`, `lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`. `ModNet`'s javadoc says which host and
+`pf-relay`, `lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`, `github-download`. `ModNet`'s javadoc says which host and
 feature each one is. `pf-relay` is the relay's `/pf/stats` alone (Party Finder stats) and, unlike the others, is read
 on every request, so a case may set it at run time; the testkit points it at its HTTP fake (`/pfrelay`).
+Auto Update (`autoupdate/AutoUpdater`) also reads `github-api` and `github-download` on every check, so a case can point
+both at an in-process fake at run time. `github-download` is also the only download prefix it accepts
+(`<override>/Killer560-OG/killer560s-mod/releases/download/`).
+
+## Auto Update (`autoupdate/`)
+
+No property is needed to keep it away from a harness: it never checks unless the mod is a jar directly inside the game
+folder's `mods/` (the testkit loads it through `fabric.addMods`). For cases: `AutoUpdater.checkForTest(channel, testing,
+gameDir, mc, variant, commit, stagingDir)` runs one check with explicit inputs (gates included) and returns the outcome
+as text; `AutoUpdateFeature.spawnHelper(parentPid, oldJar, newJar, stagingDir)` starts the real installer process
+against any parent PID; `AutoUpdateFeature.launchGate()` says why this game would not update.
 
 Not routed: the Shorts player's DevTools client (127.0.0.1, a browser the mod launched), Discord RPC (a local
 pipe), the Proxy Client (the game connection itself), and anything Minecraft or authlib does on its own

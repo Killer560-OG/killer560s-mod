@@ -18,7 +18,9 @@ public class HomeTab extends FolderTab {
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 new HomeMainTab(),
-                new DiscordRpcTab()
+                new DiscordRpcTab(),
+                // 2026-10-11: legit in both builds, so it sits above the cheat-only block.
+                new AutoUpdateTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new CorrectionAlarmTab());

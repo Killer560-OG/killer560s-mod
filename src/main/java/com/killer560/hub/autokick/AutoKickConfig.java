@@ -7,7 +7,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.SkyblockGate;
-
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,63 +15,60 @@ import java.util.EnumMap;
 /**
  * Persisted Auto Kick settings - see {@link AutoKickFeature} for the logic.
  * <p>
- * killer560's own request: "create auto kick. I really Like Odins. The kick based off of timed comp of a
- * floor and whatnot." Odin removes party members once a run has clearly missed its target time for the
- * current floor, so the party can requeue instead of grinding out a doomed run. This is that feature,
- * built on this mod's own run clock ({@code splittimers.SplitTimersFeature}) and floor detection
- * ({@code secrets.DungeonState}) instead of guessing at either.
+ * killer560, 2026-10-09: "Auto kick is only something to be used during the party finder stage while you are queuing
+ * for a run ... Each floor should have a bar that goes from 30s to 4m; for F7 make it go to 6 and for M7 make it go to
+ * 7." So each floor's number is the slowest timed completion (S+ personal best) a Party Finder joiner may have on
+ * that floor: 30 s to 4 min, F7 to 6 min, M7 to 7 min. There is no "disabled" value any more; a floor ships at the top
+ * of its range, the most lenient requirement, and the master switch and Warn Only stay the safe defaults.
  * <p>
- * <b>Safety-first defaults, per killer560's own instructions for this feature</b>: the master switch
- * ({@link #isEnabled()}) and every one of the 14 per-floor target times default OFF/0 (0 = disabled -
- * a floor with no target time never triggers anything), and the action mode defaults to
- * {@link ActionMode#WARN_ONLY} - the destructive modes ({@link ActionMode#KICK_ALL},
- * {@link ActionMode#KICK_SPECIFIC}) are opt-in, exactly like {@code partycommands}' own
- * "Allow Destructive Commands" switch gates its party-mutating commands.
- * <p>
- * No default target times are shipped. A "typical" Catacombs/Master Mode clear time depends heavily on
- * the party's own gear, class levels and secret-route knowledge - there is nothing in this codebase that
- * verifies a real, non-guessed number per floor, and shipping an invented one risks Auto Kick firing (or
- * warning) at exactly the wrong moment on killer560's own real runs. Every floor ships at 0 (disabled)
- * until he sets his own target times for the groups he actually runs with.
- * <p>
- * Per-floor keys are individual JSON entries ("target.F1", "target.M7", ...), same "one key per setting"
- * rule {@code PartyCommandsConfig} documents (2026-09-15 persistence audit) - a hand-edited or
- * type-changed key only resets that one floor's target instead of the whole file.
+ * Per-floor keys are individual JSON entries ("target.F1", "target.M7", ...): a hand-edited key only resets that one
+ * floor. An old file's 0 ("disabled") reads as the top of the range.
  */
 public final class AutoKickConfig {
 
-    /** F1-F7 and Master Mode M1-M7 - the exact tokens {@code DungeonState#getFloor()} returns from the
-     *  real Catacombs sidebar ("The Catacombs (F7)" / "The Catacombs (M7)"). Kuudra is deliberately not
-     *  included: nothing in this codebase tracks a Kuudra run's elapsed clock the way
-     *  {@code SplitTimersFeature} tracks a Catacombs run (its own class doc scopes Kuudra splits out
-     *  entirely), and {@code DungeonState} only ever detects Catacombs floors. Building a second,
-     *  unverified elapsed-time source just for Auto Kick would be exactly the kind of guess killer560's
-     *  instructions for this feature warn against - Kuudra tiers can be added once a real elapsed-time
-     *  source for them exists. */
+    /** Every floor's slider starts here. */
+    public static final int MIN_TARGET_SECONDS = 30;
+
+    /** F1-F7 and Master Mode M1-M7 - the tokens {@code DungeonState#getFloor()} returns ("F7" / "M7"). */
     public enum Floor {
-        F1("F1", "Floor 1"), F2("F2", "Floor 2"), F3("F3", "Floor 3"), F4("F4", "Floor 4"),
-        F5("F5", "Floor 5"), F6("F6", "Floor 6"), F7("F7", "Floor 7"),
-        M1("M1", "Master 1"), M2("M2", "Master 2"), M3("M3", "Master 3"), M4("M4", "Master 4"),
-        M5("M5", "Master 5"), M6("M6", "Master 6"), M7("M7", "Master 7");
+        F1("F1", "Floor 1", 240), F2("F2", "Floor 2", 240), F3("F3", "Floor 3", 240), F4("F4", "Floor 4", 240),
+        F5("F5", "Floor 5", 240), F6("F6", "Floor 6", 240), F7("F7", "Floor 7", 360),
+        M1("M1", "Master 1", 240), M2("M2", "Master 2", 240), M3("M3", "Master 3", 240), M4("M4", "Master 4", 240),
+        M5("M5", "Master 5", 240), M6("M6", "Master 6", 240), M7("M7", "Master 7", 420);
 
         private final String raw;
         private final String label;
+        private final int maxSeconds;
 
-        Floor(String raw, String label) {
+        Floor(String raw, String label, int maxSeconds) {
             this.raw = raw;
             this.label = label;
+            this.maxSeconds = maxSeconds;
         }
 
         public String label() {
             return label;
         }
 
+        /** The top of this floor's slider: 4 min, F7 6 min, M7 7 min. */
+        public int maxSeconds() {
+            return maxSeconds;
+        }
+
+        public boolean master() {
+            return raw.charAt(0) == 'M';
+        }
+
+        /** 1-7. */
+        public int number() {
+            return raw.charAt(1) - '0';
+        }
+
         String key() {
             return "target." + raw;
         }
 
-        /** @return the {@link Floor} matching {@code DungeonState.getFloor()}'s raw token, or null if it
-         *  isn't one Auto Kick knows about (Entrance, an unrecognised value, or not in a dungeon). */
+        /** @return the {@link Floor} for {@code DungeonState.getFloor()}'s token, or null (Entrance, unknown). */
         public static Floor fromRaw(String raw) {
             if (raw == null) {
                 return null;
@@ -86,17 +82,12 @@ public final class AutoKickConfig {
         }
     }
 
-    /** What Auto Kick does once a floor's target time is exceeded. Odin only ever kicks; this mod adds a
-     *  non-destructive option because killer560's own instructions for this feature required it: "Default
-     *  to WARN ONLY - the destructive option must be opt-in." */
+    /** What Auto Kick does to a joiner who misses the floor's time. */
     public enum ActionMode {
         /** Prints a chat warning only - no command is ever sent. The safe default. */
         WARN_ONLY("Warn Only"),
-        /** Kicks every current teammate (never yourself - see {@link AutoKickFeature}'s class doc for why
-         *  that also covers the party leader). */
-        KICK_ALL("Kick All"),
-        /** Kicks only the members named in {@link #getSpecificMembers()}. */
-        KICK_SPECIFIC("Kick Specific");
+        /** Kicks the joiner ({@code /p kick <name>}). An old "Kick Specific" file reads as Warn Only. */
+        KICK_ALL("Kick");
 
         private final String label;
 
@@ -109,10 +100,6 @@ public final class AutoKickConfig {
         }
     }
 
-    /** Slider ceiling for a per-floor target time - 60 minutes. Not a claim any real floor should take
-     *  that long; just generous enough that the slider never clips a legitimately slow Master floor. */
-    public static final int MAX_TARGET_SECONDS = 3600;
-
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-autokick.json");
@@ -121,12 +108,13 @@ public final class AutoKickConfig {
 
     private boolean enabled = false;
     private ActionMode mode = ActionMode.WARN_ONLY;
-    private String specificMembers = "";
+    /** The floor being queued: null = the floor of the last run you were in (see {@link AutoKickFeature#queueFloor}). */
+    private Floor queueFloor = null;
     private final EnumMap<Floor, Integer> targetSeconds = new EnumMap<>(Floor.class);
 
     private AutoKickConfig() {
         for (Floor f : Floor.values()) {
-            targetSeconds.put(f, 0);
+            targetSeconds.put(f, f.maxSeconds());
         }
     }
 
@@ -144,12 +132,12 @@ public final class AutoKickConfig {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.mode = ConfigJson.getEnum(obj, "mode", ActionMode.class, ActionMode.WARN_ONLY);
-                cfg.specificMembers = ConfigJson.getString(obj, "specificMembers", "");
+                cfg.queueFloor = Floor.fromRaw(ConfigJson.getString(obj, "queueFloor", ""));
                 for (Floor f : Floor.values()) {
-                    cfg.targetSeconds.put(f, clamp(ConfigJson.getInt(obj, f.key(), 0)));
+                    cfg.setTargetSeconds(f, ConfigJson.getInt(obj, f.key(), 0));
                 }
             } catch (Exception ignored) {
-                // Unreadable file: keep the per-key defaults above (everything OFF/0) rather than fail load().
+                // Unreadable file: keep the defaults above (off, Warn Only, every floor at the top of its range).
             }
         }
         instance = cfg;
@@ -161,22 +149,20 @@ public final class AutoKickConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("mode", mode.name());
-            obj.addProperty("specificMembers", specificMembers);
+            obj.addProperty("queueFloor", queueFloor == null ? "" : queueFloor.name());
             for (Floor f : Floor.values()) {
-                obj.addProperty(f.key(), targetSeconds.getOrDefault(f, 0));
+                obj.addProperty(f.key(), getTargetSeconds(f));
             }
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
     }
 
-    /** Gated like every other feature getter - off entirely outside Skyblock/p3sim while "Skyblock Only"
-     *  is on, same as {@code PartyCommandsConfig#isEnabled()}. */
+    /** Gated like every other feature getter - off outside Skyblock while "Skyblock Only" is on. */
     public boolean isEnabled() {
         return enabled && SkyblockGate.allows();
     }
 
-    /** The real saved value, for the settings screen. */
     public boolean isEnabledRaw() {
         return enabled;
     }
@@ -193,30 +179,25 @@ public final class AutoKickConfig {
         this.mode = mode == null ? ActionMode.WARN_ONLY : mode;
     }
 
-    /** Comma-separated IGNs for {@link ActionMode#KICK_SPECIFIC}, exactly as typed - parsed and validated
-     *  at kick time (see {@link AutoKickFeature}), not here, so a half-typed name in the text box doesn't
-     *  get silently dropped while the user is still editing it. */
-    public String getSpecificMembers() {
-        return specificMembers;
+    /** The floor chosen on the tab, or null for "the last run's floor". */
+    public Floor getQueueFloor() {
+        return queueFloor;
     }
 
-    public void setSpecificMembers(String specificMembers) {
-        this.specificMembers = specificMembers == null ? "" : specificMembers;
+    public void setQueueFloor(Floor floor) {
+        this.queueFloor = floor;
     }
 
-    /** Seconds after the run clock starts before Auto Kick considers this floor's target missed, or 0 if
-     *  disabled for this floor. */
+    /** The slowest S+ personal best a joiner may have on {@code floor}, in seconds. */
     public int getTargetSeconds(Floor floor) {
-        return floor == null ? 0 : targetSeconds.getOrDefault(floor, 0);
+        return floor == null ? 0 : targetSeconds.getOrDefault(floor, floor.maxSeconds());
     }
 
+    /** Clamped into the floor's range; 0 (an old file's "disabled") is the top of it. */
     public void setTargetSeconds(Floor floor, int seconds) {
         if (floor != null) {
-            targetSeconds.put(floor, clamp(seconds));
+            int v = seconds <= 0 ? floor.maxSeconds() : seconds;
+            targetSeconds.put(floor, Math.max(MIN_TARGET_SECONDS, Math.min(floor.maxSeconds(), v)));
         }
-    }
-
-    private static int clamp(int seconds) {
-        return Math.max(0, Math.min(MAX_TARGET_SECONDS, seconds));
     }
 }

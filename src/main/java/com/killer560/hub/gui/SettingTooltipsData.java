@@ -184,7 +184,7 @@ final class SettingTooltipsData {
         d.put("gifs", "Shows the GIFs toggled on below as looping HUD overlays.");
         d.put("audio", "Loops the audio files toggled on below.");
         d.put("speed", "Playback or movement speed, where 1 is normal.");
-        d.put("open gif folder", "Opens the folder where you drop .gif and audio files.");
+        d.put("open gif / audio folder", "Opens the folder where you drop .gif and audio files.");
         d.put("rescan folder", "Reloads the GIF folder so new or removed files show in the lists.");
         d.put("no fire overlay", "Hides the full-screen fire effect while you are burning.");
         d.put("storage overlay enabled", "Shows every storage you have opened in a grid while a storage menu is open.");
@@ -342,7 +342,6 @@ final class SettingTooltipsData {
         d.put("border thickness", "How thick the waypoint's ring is drawn.");
         d.put("only send once per run", "When on, sends at most once per dungeon run.");
         d.put("color", "Colour used for this element.");
-        d.put("ability timers", "Bound keys start countdowns, and running timers show on the Ability Timers HUD.");
         d.put("+ add timer", "Adds a new countdown timer to the list.");
         d.put("key", "Click, then press the key this entry uses; Escape clears it.");
         d.put("duration", "How long this lasts: timer countdown length, or Mage beam lifetime in ticks.");
@@ -542,6 +541,8 @@ final class SettingTooltipsData {
         d.put("terracotta timer", "Shows a respawn countdown over each broken terracotta in the F6/M6 boss.");
         d.put("spring boots overlay", "Shows how many blocks high your Spring Boots jump is charged to.");
         d.put("height box", "Draws a box at the height your Spring Boots jump will reach.");
+        d.put("height box color", "Colour of the Spring Boots height box.");
+        d.put("height box style", "Draw the Spring Boots height box as an outline, a filled box, or both.");
         d.put("ragnarock", "Alerts and timers for the Ragnarock Axe.");
         d.put("cast alert", "Shows a 'Casted Rag' title when your Ragnarock Axe cast goes off.");
         d.put("cancel alert", "Shows a title and plays a sound when your Ragnarock cast is cancelled.");
@@ -679,6 +680,11 @@ final class SettingTooltipsData {
         d.put("livid solver", "Outlines the real Livid on F5/M5.");
         d.put("show invuln timer", "Shows a HUD countdown of Livid's opening invulnerability.");
         d.put("quiver display", "Shows how many arrows you have left in a HUD line.");
+        d.put("quiver text color", "Colour of the Quiver Display's HUD line.");
+        d.put("low arrow alert", "Shows a title on screen once your arrows drop below the threshold.");
+        d.put("low arrow sound", "Plays a sound with the low arrow alert.");
+        d.put("low arrow threshold", "The alert fires when your arrows drop below this many (20 to 200).");
+        d.put("low arrow text", "The low arrow title. & colour codes work, and {count} is the arrows left.");
         d.put("show item name", "Shows the arrow's name in front of the count.");
         d.put("inventory hud", "Shows your main inventory as a HUD panel.");
         d.put("mini mode", "Draws the panel at half size with smaller item icons.");
@@ -763,7 +769,7 @@ final class SettingTooltipsData {
         d.put("guild", "Answers ! commands posted in guild chat, replying in guild chat.");
         d.put("private", "Answers ! commands sent to you in private messages.");
         d.put("co-op", "Answers ! commands posted in co-op chat, replying in co-op chat.");
-        d.put("door keys", "Outlines dropped Wither and Blood Keys in dungeon rooms.");
+        d.put("door keys", "Circles the ground a dropped Wither or Blood Key can be picked up from (its 0.27.2 range).");
         d.put("wither key", "Highlights dropped Wither Keys (dark outline).");
         d.put("blood key", "Highlights dropped Blood Keys (red outline).");
         d.put("trajectories", "Draws the flight path and landing spot of your bow shot or Ender Pearl.");
@@ -844,6 +850,9 @@ final class SettingTooltipsData {
         d.put("update available", "A newer release is on GitHub. Click to open its download page.");
         d.put("check failed - click to retry", "The update check couldn't reach GitHub. Click to try again.");
         d.put("notify me of updates", "Tells you when you join a world if a newer release of the mod exists.");
+        d.put("auto update", "Installs new versions of the mod for you. Full Release follows the newest numbered release, Beta the rolling dev build (newer, less tested), Off never updates. It only ever installs the same variant (cheat or legit) and Minecraft version you have, only a jar whose SHA-256 matches the release's checksum file, and only when the release was built from a different commit. The new jar is downloaded on launch and swapped in after you close the game.");
+        d.put("check now", "Checks your Auto Update channel right now and downloads the update if there is one. It installs when you close the game.");
+        d.put("this build", "The commit this jar was built from, and its Minecraft version and variant. Auto Update compares the commit with the release's.");
         d.put("join discord", "Opens the mod's Discord server invite in your browser.");
         d.put("edit hud positions", "Opens the HUD editor to drag and resize on-screen elements.");
         d.put("edit hud keybind", "Key that opens the HUD editor in game. It does nothing while any screen is open (chat, an inventory, a menu - this one or another mod's).");
@@ -1074,6 +1083,12 @@ final class SettingTooltipsData {
         d.put("custom scoreboard/scoreboard lines", "Your board, top to bottom. Drag a line to move it, the trash can takes it off (Add puts it back), click a line for its own options.");
         d.put("custom scoreboard/scoreboard events", "Events that can show on the Events line, highest priority first. Drag to reorder, trash to remove, Add to put back.");
         d.put("custom scoreboard/scoreboard chunked stats", "The stats in the Chunked Stats line, in order. Drag to reorder, trash to remove, Add to put back.");
+        d.put("open visual editor", "Opens the Custom Scoreboard editor: drag the lines on the board itself, add lines back from Not Active, and set General and Background options.");
+        d.put("custom scoreboard/reset board", "Puts the board back to the default lines in the default order.");
+        d.put("custom scoreboard/remove", "Takes this line off the board (it moves to Not Active).");
+        d.put("custom scoreboard/board", "The board's lines: the selected line's settings and the lines not on the board.");
+        d.put("custom scoreboard/general", "Alignment, snapping, hiding rules, number format, title and footer.");
+        d.put("custom scoreboard/done", "Closes the editor. Every change is already saved.");
         d.put("custom scoreboard/edit events", "Opens the Events page, where you choose which events the Events line shows and in what order.");
         d.put("custom scoreboard/edit chunked stats", "Opens the Chunked Stats page, where you choose which stats the line shows and in what order.");
         // The Add dropdown's "+ <name>" buttons. Purse, Bits and the other currencies are both a line and a Chunked Stat,
@@ -1156,6 +1171,7 @@ final class SettingTooltipsData {
         d.put("locked door key", "Cheat build: while the map is open, paths you to the nearest locked (wither) door.");
         d.put("face door on arrival", "Cheat build: turns you to look at the door once pathing gets you there.");
         d.put("keep chunks loaded", "Cheat build: holds onto unloaded chunks so pathing can still route through rooms you left.");
+        d.put("interactive map/ticks between etherwarps", "Cheat build: client ticks from one etherwarp of a map path to the next; 1 warps every tick.");
         d.put("path timeout", "Cheat build: how long the pathfinder may search before giving up, 200-1000 ms.");
         d.put("retarget mid-path", "Cheat build: pressing another room or door mid-path re-plans to the new goal.");
         d.put("double-press start node", "Cheat build: pressing the Start Key twice quickly paths to the room's Auto Routes start node.");
@@ -1204,7 +1220,8 @@ final class SettingTooltipsData {
         d.put("secret waypoints/show names", "Writes each secret's name above its waypoint in the waypoint's colour.");
         d.put("adaptive ice fill", "Cheat build: Auto Ice Fill waits for the server to count each tile before hopping, so lag cannot break it.");
         d.put("scan all", "Opens every Ender Chest, backpack, wardrobe and pet page one by one so Storage Search remembers them.");
-        d.put("show prediction", "Outlines in yellow a square that is safe to click whatever the computer plays.");
+        d.put("show prediction", "On the computer's turn, outlines in yellow the square you click next: your best move after the computer's reply.");
+        d.put("tic tac toe solver/prevent misclicks", "Blocks clicks on every other Tic Tac Toe square while one is highlighted; sneak to click anyway.");
         d.put("tic tac toe solver/highlight style", "Whether the Tic Tac Toe square to click is drawn as an outline or filled in.");
         d.put("ice path solver", "Draws the shortest path for pushing the silverfish to the exit.");
         d.put("outline next stop", "Outlines where the silverfish should stop next on the ice path.");
@@ -1398,7 +1415,6 @@ final class SettingTooltipsData {
         d.put("ability cooldowns/detection", "How the mod notices you used an ability: its sound, the action bar message, or both.");
         d.put("ability cooldowns/mage cooldown reduction", "Shortens every timer by a percentage you set while you play Mage.");
         d.put("ability cooldowns/abilities", "Tick the abilities you want timed; the number is each one's cooldown in seconds.");
-        d.put("ability timers/name", "What this timer is called on the HUD, e.g. Bonzo Mask.");
         d.put("arrow align", "Shows how many clicks each Arrow Align frame still needs and can block clicks that overshoot.");
         d.put("arrow align/scale", "Size of the click-count number on each Arrow Align frame.");
         d.put("arrow align/aura", "Cheat build only. Clicks Arrow Align frames in range without you looking at them.");
@@ -1440,7 +1456,6 @@ final class SettingTooltipsData {
         // Re-keyed from "new/..." (scoped by the old New category, which no longer exists) to the sub-tab that shows
         // them; every other "new/..." entry was shadowed by a sub-tab or plain key and is gone. Testkit 412 compares
         // every former New row's tooltip with what it showed there.
-        d.put("ability timers/delete", "Removes this entry from the list.");
         d.put("arrow align/prevent misclicks", "Blocks right-clicks on an Arrow Align frame that already points the right way.");
         d.put("arrow align/trigger bot", "Clicks blood mobs and Arrow Align frames for you once your crosshair is on them (cheat build only).");
         d.put("thorn (f4)", "Helpers for the F4/M4 boss Thorn: Spirit Bear kill counter, highlights and stun-spot waypoints.");
@@ -1721,8 +1736,10 @@ final class SettingTooltipsData {
         d.put("starred mob hitboxes/room scoped", "Boxes every starred mob and bat in the room you are in, however far away.");
         d.put("dungeon esp/room margin", "How far outside the room's walls, in blocks, still counts as in the room.");
         d.put("starred mob hitboxes/room margin", "How far outside the room's walls, in blocks, still counts as in the room.");
-        d.put("dungeon esp/wither highlight", "Highlights the F7/M7 wither bosses at any range while you can see them.");
-        d.put("starred mob hitboxes/wither highlight", "Highlights the F7/M7 wither bosses at any range while you can see them.");
+        d.put("dungeon esp/wither boss highlight", "Highlights the F7/M7 wither bosses at any range while you can see them.");
+        d.put("starred mob hitboxes/wither boss highlight", "Highlights the F7/M7 wither bosses at any range while you can see them.");
+        d.put("dungeon esp/esp", "Cheat build: one switch for every ESP here - starred mobs and bats through walls, and the F7/M7 wither bosses through walls at any range.");
+        d.put("dungeon esp/wither boss color", "Colour of the wither bosses while ESP is on.");
         d.put("dungeon esp/wither style", "How the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
         d.put("starred mob hitboxes/wither style", "Picks how the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
         d.put("solver highlights/waypoint style", "Draws puzzle solver waypoints as an outline or a see-through full block.");
@@ -1738,7 +1755,7 @@ final class SettingTooltipsData {
         d.put("chat keybinds/delete", "Removes this row.");
         d.put("chat keybinds/command or message", "The line to send; start it with / to run it as a command.");
         d.put("door keys/tracer thickness", "How thick that tracer line is drawn (1-10).");
-        d.put("door keys/esp through walls", "Draws the key box and tracer through walls (cheat build only).");
+        d.put("door keys/esp through walls", "Draws the key circle and tracer through walls (cheat build only).");
         d.put("name changer/color", "Opens the colour picker for this name.");
         d.put("ap3/class overrides", "Read-only copy of Dungeon > Class Overrides.");
         d.put("mod chat/mod chat", "A private chat with other mod users: /kc <message> sends one line, /chat k makes your typed chat go there.");
@@ -1810,10 +1827,6 @@ final class SettingTooltipsData {
         d.put("tick timers/storm", "Shows Storm's P2 timers: lightning, purple pillar window and a counter.");
         d.put("ability cooldowns/mage reduction", "Cuts ability cooldown timers while you play Mage.");
         d.put("ability cooldowns/mage cut", "How much shorter ability cooldowns are while you play Mage, as a percentage.");
-        d.put("ability timers/key", "Press this key when you use the real ability to start or restart the countdown.");
-        d.put("ability timers/duration", "How long the countdown runs once started.");
-        d.put("ability timers/color", "Colour of this timer's line on the Ability Timers HUD.");
-        d.put("ability timers/enabled", "Turns just this one timer on or off.");
         d.put("arrow align/highlight color", "Colour of the box drawn on frames that still need clicking.");
         d.put("arrow align/trigger bot delay", "How long your crosshair must sit on a frame before Trigger Bot clicks it, in ms (cheat build only).");
         d.put("croesus / chest profit/highlight runs", "Outlines Croesus runs green if unclaimed and red if already claimed.");
@@ -1940,8 +1953,8 @@ final class SettingTooltipsData {
         d.put("goldor triggerbot/click type", "Attack is a left click for melee; Use is a right click for a Terminator or Juju shot.");
         d.put("goldor triggerbot/aim delay", "How long your crosshair must stay on Goldor before it clicks, 0-500 ms.");
         d.put("goldor triggerbot/range", "How far away Goldor can be and still get clicked, 3-50 blocks.");
-        d.put("dungeon esp/tracer", "Cheat build: draws a line from you to each wither the Wither ESP highlights.");
-        d.put("dungeon esp/tracer thickness", "How thick the Wither ESP tracer line is drawn, 1.0-10.0.");
+        d.put("dungeon esp/tracer", "Cheat build: while ESP is on, draws a line from you to each wither boss.");
+        d.put("dungeon esp/tracer thickness", "How thick the wither boss tracer line is drawn, 1.0-10.0.");
         d.put("party commands/party (pc)", "Commands typed in party chat count; replies go to party chat.");
         d.put("party commands/guild (gc)", "Commands typed in guild chat count; replies go to guild chat.");
         d.put("party commands/all chat (ac)", "Commands typed in all chat count; replies go to all chat. Party-changing ones still need a teammate.");
@@ -2186,16 +2199,13 @@ final class SettingTooltipsData {
      *  (the sub-tab's own name) per the 2026-09-16 collision rule - "Action Mode" and the per-floor labels
      *  are generic enough other tabs could plausibly reuse them later. */
     private static void autoKick(Map<String, String> d) {
-        d.put("auto kick", "Warns or kicks when your run takes longer than the target time set for its floor.");
-        d.put("auto kick/action mode", "What happens when a floor's target time is missed: Warn Only, Kick All or Kick Specific.");
-        d.put("auto kick/specific members", "Comma-separated names to kick with Kick Specific; only current party members are kicked.");
-        // killer560, 2026-09-27: "it should populate them from someone else via their api" - fills a real,
-        // API-verified starting point per floor instead of you guessing one. See AutoKickApi's class doc
-        // for the exact field and why it never touches a floor you already set.
-        d.put("auto kick/populate my times from api (fills blanks only)", "Fills blank floor targets with your fastest clear times; /autokick populate <name> does it for someone else.");
+        d.put("auto kick", "While you queue in Party Finder, warns about or kicks a joiner whose S+ time on the floor is slower than its limit.");
+        d.put("auto kick/action mode", "What happens to a joiner who misses the floor's limit: Warn Only or Kick.");
+        d.put("auto kick/queue floor", "The floor you are queuing. Last Run uses the floor of the last run you were in.");
+        d.put("auto kick/populate my times from api", "Sets each floor's limit to your own S+ time on it; /autokick populate <name> uses someone else's.");
         for (com.killer560.hub.autokick.AutoKickConfig.Floor f : com.killer560.hub.autokick.AutoKickConfig.Floor.values()) {
-            d.put("auto kick/" + f.label().toLowerCase(java.util.Locale.ROOT), "Seconds into the run before Auto Kick treats " + f.label()
-                    + " as missed; 0 disables this floor.");
+            d.put("auto kick/" + f.label().toLowerCase(java.util.Locale.ROOT), "The slowest S+ time on " + f.label()
+                    + " a Party Finder joiner may have; slower, or none at all, is warned about or kicked.");
         }
     }
 

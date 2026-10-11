@@ -399,7 +399,7 @@ public final class SimAbilities {
         // One line per Wither Impact: where it went off and what it hit, so a Kill Mimic that left the mimic alive
         // says whether the blast missed or never came.
         com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] Wither Impact at {} (pitch {}): {} mob(s) hit", sp.blockPosition().toShortString(),
-                String.format(java.util.Locale.ROOT, "%.1f", sp.getXRot()), hit);
+                Float.toString(sp.getXRot()), hit);
         if (hit > 0) {
             level.playSound(null, sp.getX(), sp.getY(), sp.getZ(),
                     net.minecraft.sounds.SoundEvents.GENERIC_EXPLODE.value(),

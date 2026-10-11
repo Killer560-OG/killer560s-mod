@@ -123,6 +123,17 @@ public final class BloodCampFeature {
     /** The Trigger Bot only fires inside this many ticks past its due moment; after that the prediction is
      *  stale and a click would just be a random swing at whatever is still standing there. */
     private static final double TRIGGER_WINDOW_TICKS = 20.0;
+    /**
+     * How far the crosshair test reaches for "looking at the spawn hitbox". It used to be the attack reach (3 blocks),
+     * so standing further than 3 blocks from where a mob lands - which is where anyone camps blood from - the Trigger
+     * Bot never saw his aim and never clicked (killer560, 2026-10-09: "I tried doing it on F1 with triggerbot and it
+     * didn't work"). Aiming is a line-of-sight question; only an ATTACK is limited to melee reach (see {@link #tick}).
+     */
+    private static final double AIM_RANGE = 48.0;
+    /** Trigger Bot left clicks sent, and how many of them hit an entity (the testkit reads these). */
+    private static int triggerClicks;
+    private static int triggerAttacks;
+    private static String lastTrigger = "none";
     /** Said once per session, not every tick: his offset setting is being held back to "never early". */
     private static boolean loggedOffsetClamp;
     /** A gap this long with no move packet means the stand finished its trip and a later packet starts a new
@@ -436,7 +447,8 @@ public final class BloodCampFeature {
         }
         boolean triggerBotUsable = cfg.isTriggerBotEnabled()
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client);
-        double reach = client.player.entityInteractionRange();
+        double reach = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
+        Entity triggerHit = null;
         for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
             ArmorStand entity = entry.getKey();
             BloodMobState data = entry.getValue();
@@ -462,15 +474,16 @@ public final class BloodCampFeature {
             // bounding box is accepted too, so being aimed at the real mob once it exists counts as well; it can
             // only ever ADD a case he would want, never fire somewhere he is not looking. One click per mob is
             // enforced by triggerBotClicked above, which is only ever set after a click actually goes out.
-            if (!aimedAt(client, aimBox(data.endVector), reach)
-                    && !aimedAt(client, entity.getBoundingBox(), reach)) {
+            if (!aimedAt(client, aimBox(data.endVector), AIM_RANGE)
+                    && !aimedAt(client, entity.getBoundingBox(), AIM_RANGE)) {
                 continue;
             }
-            Entity target = resolveAttackTarget(client, entity, data.endVector, reach);
-            if (target == null) {
-                continue;
-            }
-            triggerTarget = target;
+            // A LEFT CLICK, the way his own button does it: on a mob within melee reach that the crosshair is on, an
+            // attack plus the swing; otherwise the swing alone - a click on air, which is all a real left click sends
+            // there (and what a shortbow shoots on). It used to need a mob within 3 blocks and send nothing at all
+            // otherwise, and its mob search skipped every Player entity - the Watcher's summons are player-model NPCs.
+            triggerTarget = entity;
+            triggerHit = resolveAttackTarget(client, entity, data.endVector, reach);
             triggerData = data;
             bestRemaining = remainingTicks;
         }
@@ -478,9 +491,17 @@ public final class BloodCampFeature {
         // denial leaves triggerBotClicked false so the same mob is simply hit on the next tick it allows.
         if (triggerTarget != null
                 && com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
-            client.gameMode.attack(client.player, triggerTarget);
+            if (triggerHit != null) {
+                client.gameMode.attack(client.player, triggerHit);
+                triggerAttacks++;
+            }
             client.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
             triggerData.triggerBotClicked = true;
+            triggerClicks++;
+            lastTrigger = (triggerHit == null ? "swing" : "attack " + triggerHit.getType().toShortString() + " #"
+                    + triggerHit.getId()) + String.format(Locale.US, " at %.1f ticks, %.1f blocks", bestRemaining,
+                    client.player.getEyePosition().distanceTo(triggerData.endVector));
+            LOGGER.info("[BloodCamp] Trigger Bot clicked: {}", lastTrigger);
         }
 
         if (cfg.isAuraEnabled() && auraTarget != null) {
@@ -530,6 +551,19 @@ public final class BloodCampFeature {
                     com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(cfg.getCountdownStartSoundId()).sound(),
                     volume, 1.0f);
         }
+    }
+
+    /** Trigger Bot clicks sent / of them attacks, and the last one described (the testkit reads these). */
+    public static int triggerClicks() {
+        return triggerClicks;
+    }
+
+    public static int triggerAttacks() {
+        return triggerAttacks;
+    }
+
+    public static String lastTrigger() {
+        return lastTrigger;
     }
 
     /** How many Countdown Start / Kill sounds actually played (the testkit reads these; its client is muted). */
@@ -591,7 +625,7 @@ public final class BloodCampFeature {
      * stand (zero-size box) never satisfies, so that fallback quietly costs nothing when the stand is just a
      * spawn marker but still works on the other reading, where the stand IS the mob.
      *
-     * @return the entity to attack, or null to try again next tick rather than swing at nothing
+     * @return the entity to attack within {@code range}, or null (the click is then a swing on air)
      */
     private static Entity resolveAttackTarget(Minecraft client, ArmorStand stand, Vec3 predicted, double range) {
         Vec3 eyes = client.player.getEyePosition();
@@ -616,9 +650,13 @@ public final class BloodCampFeature {
         return stand.getBoundingBox().inflate(AIM_INFLATE).clip(eyes, end).isPresent() ? stand : null;
     }
 
+    /** A mob to hit: alive, not a stand, and not a real player - but a player-model NPC (Hypixel gives those a version-2
+     *  UUID, real players version 4, the same test {@code leapcounter.LeapTracker} uses) is a mob. */
     private static boolean isAttackableMob(Entity entity) {
         return entity instanceof LivingEntity && entity.isAlive() && !entity.isRemoved()
-                && !(entity instanceof ArmorStand) && !(entity instanceof Player);
+                && !(entity instanceof ArmorStand)
+                && !(entity instanceof Player && entity.getUUID().version() == 4)
+                && entity != Minecraft.getInstance().player;
     }
 
     /** Real countdown formula, ported directly from Noamm's own real math (see this class's own doc

@@ -24,6 +24,8 @@ public final class TicTacToeSolverConfig {
     private boolean showPrediction = false;
     /** Highlight style (killer560, 2026-09-21: "make an option again for fill or outline"). */
     private boolean fill = false;
+    /** Blocks his click on any board square but the highlighted one (killer560, 2026-10-09). Sends nothing. */
+    private boolean preventMisclicks = false;
 
     private TicTacToeSolverConfig() {
     }
@@ -46,6 +48,7 @@ public final class TicTacToeSolverConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.showPrediction = ConfigJson.getBool(obj, "showPrediction", false);
             cfg.fill = ConfigJson.getBool(obj, "fill", false);
+            cfg.preventMisclicks = ConfigJson.getBool(obj, "preventMisclicks", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new TicTacToeSolverConfig();
@@ -59,6 +62,7 @@ public final class TicTacToeSolverConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("showPrediction", showPrediction);
             obj.addProperty("fill", fill);
+            obj.addProperty("preventMisclicks", preventMisclicks);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -78,6 +82,14 @@ public final class TicTacToeSolverConfig {
 
     public void setFill(boolean fill) {
         this.fill = fill;
+    }
+
+    public boolean isPreventMisclicks() {
+        return preventMisclicks;
+    }
+
+    public void setPreventMisclicks(boolean preventMisclicks) {
+        this.preventMisclicks = preventMisclicks;
     }
 
     public boolean isShowPrediction() {

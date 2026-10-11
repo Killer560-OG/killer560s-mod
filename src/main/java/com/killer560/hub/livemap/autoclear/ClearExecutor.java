@@ -732,6 +732,7 @@ public final class ClearExecutor {
     // ------------------------------------------------------------------------------------------- ticking
 
     private static void onTickStart(Minecraft client) {
+        clientTicks++;
         hasSwappedThisTick = false;
         if (client.level != lastLevel) {
             lastLevel = client.level;
@@ -1104,6 +1105,11 @@ public final class ClearExecutor {
             if (node instanceof ClearNode.HypeNode) {
                 hypeDelay = 3;
             }
+            if (node instanceof ClearNode.EtherNode) {
+                // Ticks Between Etherwarps: the next hop goes that many ticks after this one (1 = the next tick).
+                // updateDelays counts it down at the start of every tick before canNext reads it, so N here is N ticks.
+                globalDelay = LiveMapConfig.getInstance().getEtherwarpTickGap();
+            }
             if (clearNodes.isEmpty()) {
                 nodes = null;
                 position = null;
@@ -1158,12 +1164,25 @@ public final class ClearExecutor {
         // The same packet in the dungeon sim: its integrated server answers a use packet the way Hypixel's does
         // (roomsim.SimAbilities), resolving the hop from its own copy of him, so hops chain from the prediction
         // one a tick there too.
+        hopSendTicks.add(clientTicks);
+        if (hopSendTicks.size() > 200) {
+            hopSendTicks.remove(0);
+        }
         if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
             invoker.killer560smod$invokeStartPrediction(client.level,
                     sequence -> new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch));
         } else {
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         }
+    }
+
+    /** The client tick (this class's own count) each hop's use packet went out on, newest last - the testkit measures
+     *  the pace with it, beside the packets themselves. */
+    private static final List<Long> hopSendTicks = new java.util.ArrayList<>();
+    private static long clientTicks;
+
+    public static List<Long> hopSendTicks() {
+        return List.copyOf(hopSendTicks);
     }
 
     private static void updateDelays() {

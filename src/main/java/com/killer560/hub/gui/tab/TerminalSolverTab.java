@@ -51,7 +51,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
     @Override
     public void onKeyCaptured(int keyCode) {
         TerminalQolConfig cfg = TerminalQolConfig.getInstance();
-        // Escape clears the binding, same convention DoorHelpersTab/AbilityTimersTab already use. -1 here means
+        // Escape clears the binding, same convention DoorHelpersTab already uses. -1 here means
         // "unbound", which for this feature is a real, useful setting: nothing at all can drop an item while a
         // terminal is open (Devonian's own default for TerminalDropKey is GLFW_KEY_UNKNOWN too).
         cfg.setDropKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);

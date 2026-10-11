@@ -1,7 +1,6 @@
 package com.killer560.hub;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.killer560.hub.abilitytimers.AbilityTimersFeature;
 import com.killer560.hub.accounts.HypixelJoinWatcher;
 import com.killer560.hub.autojoinskyblock.AutoJoinSkyblockFeature;
 import com.killer560.hub.automeow.AutoMeowFeature;
@@ -189,6 +188,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.puzzles.SimIcePathPuzzle.register();
         com.killer560.hub.roomsim.puzzles.SimPuzzles.register();
         com.killer560.hub.updatecheck.UpdateCheckFeature.registerStartupNotice();
+        com.killer560.hub.autoupdate.AutoUpdateFeature.register();
         com.killer560.hub.packdisabler.PackDisabler.register();
         HypixelJoinWatcher.register();
         AutoJoinSkyblockFeature.register();
@@ -232,8 +232,6 @@ public class Killer560ModClient implements ClientModInitializer {
         HudElementRegistry.register(new com.killer560.hub.witherdragons.WitherDragonsFeature.DragonTimersHudElement());
         HudElementRegistry.register(new com.killer560.hub.witherdragons.KingRelicsFeature.RelicTimerHudElement());
         HudElementRegistry.register(com.killer560.hub.scorecalc.ScoreCalculatorFeature.ScoreHudElement.INSTANCE);
-        AbilityTimersFeature.register();
-        HudElementRegistry.register(new AbilityTimersFeature.TimersHudElement());
         DungeonInfoFeature.register();
         HudElementRegistry.register(new DungeonInfoFeature.SecretsHudElement());
         MobEspFeature.register();

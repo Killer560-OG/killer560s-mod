@@ -112,3 +112,9 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   refusals missed a route with fewer warps on 21 of 180 bench path pairs (2026-10-11). Anything that must be minimal goes
   through `ExactWarpSearch` (via `EtherwarpPathfinder.findOptimalPath`), which proves it - see docs/SIM.md "Fewest warps,
   proved".
+
+- **A use-on-block packet carries no rotation** - the server uses whatever the last movement packet reported, and vanilla
+  sends a tick's held use BEFORE that tick's movement packet. A crypt node turning straight down and holding use the same
+  tick sent its first use at the look he armed with (30.0, or 89.85-89.96 in legit; testkit 96-ar-653). It now holds use
+  only after two ticks reading pitch 90.0. RouteRotation's ease also never reached its target exactly (a decaying arc
+  tail kept it thousandths off), so its last 0.01 degree now lands exactly and the arc stops there (2026-10-11, hype-down).

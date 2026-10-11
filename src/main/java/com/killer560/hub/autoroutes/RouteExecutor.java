@@ -253,6 +253,10 @@ public final class RouteExecutor {
     private static boolean useHeld;
     /** A crypt node with no crypt or prince of his killed in this many ticks stops the route. */
     private static final int CRYPT_TIMEOUT = 100;
+    /** Legit crypt node: how long it aims for pitch 90.0 before moving on with nothing used. */
+    private static final int CRYPT_AIM_GIVE_UP = 60;
+    /** Crypt node: route ticks in a row that ended with the look at pitch 90.0 (the server has it once this is 2). */
+    private static int cryptDownTicks;
     private static final Map<BlockPos, BlockState> boomBefore = new HashMap<>();
 
     // ---- await ----
@@ -2260,8 +2264,11 @@ public final class RouteExecutor {
             forceSneak = false;
             wantSneak = false;
             // STRAIGHT DOWN, always (killer560, 2026-10-05: "looking straight down so that way it doesn't teleport
-            // and just explodes") - the node's own pitch is ignored; its yaw is kept so the camera turns least.
-            aimAt(RouteCoords.toRealYaw(frame, node.yaw), 90f, node);
+            // and just explodes"; 2026-10-11: "those nodes shouldn't matter my facing angle they should always be
+            // straight down"). Pitch exactly 90.0 whatever the node recorded or the camera reads; HIS yaw, so nothing
+            // turns sideways (the node's recorded yaw used to be turned to).
+            aimAt(player.getYRot(), MimicKiller.STRAIGHT_DOWN, node);
+            cryptDownTicks = 0;
             step = Step.AIM;
             stepTicks = 0;
         }
@@ -2269,7 +2276,39 @@ public final class RouteExecutor {
             if (player.getLastSentInput().shift() && stepTicks <= SNEAK_TIMEOUT) {
                 return;
             }
+            if (AutoRoutesConfig.getInstance().isLegitMode() && player.getXRot() != MimicKiller.STRAIGHT_DOWN) {
+                // Legit: the camera must read exactly 90.0 before the first use - aimReady's timeout would fire it at
+                // whatever it reads. Past CRYPT_AIM_GIVE_UP it moves on with nothing used.
+                if (stepTicks > CRYPT_AIM_GIVE_UP) {
+                    AutoRoutesFeature.chatBad("Crypt node: could not aim straight down - nothing used, moving on.");
+                    LOGGER.info("[AutoRoutes] Node #{} CRYPT: gave up aiming down (pitch {} after {} tick(s))",
+                            route.indexOf(node) + 1, Float.toString(player.getXRot()), stepTicks);
+                    restoreCryptSlot(client, player);
+                    finishAction();
+                    return;
+                }
+                if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
+                    RouteRotation.beginApproach(player.getYRot(), MimicKiller.STRAIGHT_DOWN, false, 0f, 0f);
+                }
+                return;
+            }
             if (!aimReady()) {
+                return;
+            }
+            // THE SERVER MUST ALREADY HAVE 90.0. A held use on the floor is a use-on-block packet, which carries no
+            // rotation: the server uses the one the last movement packet reported, and vanilla sends this tick's use
+            // BEFORE this tick's movement packet. So the body (obvious) or camera (legit) has to have read 90.0 at the
+            // end of a previous tick first - else the first use went out at the look he armed with (30.0 in 96-ar-653,
+            // 89.85-89.96 in legit).
+            if (!AutoRoutesConfig.getInstance().isLegitMode()) {
+                turnBody(player, player.getYRot(), MimicKiller.STRAIGHT_DOWN);
+            }
+            if (player.getXRot() == MimicKiller.STRAIGHT_DOWN) {
+                cryptDownTicks++;
+            } else {
+                cryptDownTicks = 0;
+            }
+            if (cryptDownTicks < 2) {
                 return;
             }
             // HOLD the use key, as a player holding right click does (killer560, 2026-10-06: "only have the crypt node
@@ -2329,8 +2368,17 @@ public final class RouteExecutor {
      */
     private static void holdUse(Minecraft client, LocalPlayer player, RouteNode node) {
         if (!AutoRoutesConfig.getInstance().isLegitMode()) {
-            turnBody(player, player.getYRot() + Mth.wrapDegrees(RouteCoords.toRealYaw(frame, node.yaw) - player.getYRot()),
-                    90f);
+            // The body straight down at HIS yaw (the running value, untouched): pitch 90.0 in every packet.
+            turnBody(player, player.getYRot(), MimicKiller.STRAIGHT_DOWN);
+        } else if (player.getXRot() != MimicKiller.STRAIGHT_DOWN) {
+            // Legit: the key is only down while the camera reads exactly 90.0 - vanilla's held use fires at the
+            // camera's rotation, so a drifted camera gets the key up and the aim back, never a use at another pitch.
+            client.options.keyUse.setDown(false);
+            if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
+                RouteRotation.beginApproach(player.getYRot(), MimicKiller.STRAIGHT_DOWN, false, 0f, 0f);
+            }
+            useHeld = true;
+            return;
         }
         client.options.keyUse.setDown(true);
         useHeld = true;

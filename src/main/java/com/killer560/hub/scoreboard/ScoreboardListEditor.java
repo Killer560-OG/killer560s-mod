@@ -21,8 +21,8 @@ import java.util.function.Function;
  * toggle system"): an Add button that drops down every entry not on the board, a Reset Order button, and a
  * {@link DragListWidget} of the entries that are - drag to reorder, trash can to take one off, click to select it.
  * <p>
- * Used by the settings tab ({@code CustomScoreboardTab}) and by {@link ScoreboardEditorScreen}, so both edit the same
- * {@link EntryOrder}s the same way. The open dropdown, the selected entry and the list's scroll are remembered per
+ * Used by {@link ScoreboardEditorScreen} for the Events and Chunked Stats lists (the board itself is dragged on its own
+ * preview since 2026-10-11). The open dropdown, the selected entry and the list's scroll are remembered per
  * list for the session (both screens rebuild every widget after each change).
  * <p>
  * Decisions: Add puts the entry at the BOTTOM of the board, as SkyHanni's does (MoulConfig's draggable list appends;

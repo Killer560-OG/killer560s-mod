@@ -341,7 +341,6 @@ public final class ProfileManager {
     private static int reloadConfigsOnly() {
         Runnable[] loaders = {
                 com.killer560.hub.abilitykeybinds.AbilityKeybindsConfig::load,
-                com.killer560.hub.abilitytimers.AbilityTimersConfig::load,
                 com.killer560.hub.autokick.AutoKickConfig::load,
                 com.killer560.hub.autoclosechest.AutoCloseChestConfig::load,
                 // Missing from this list until the testkit's profile round trip (2026-10-04) caught them: applying a
@@ -359,6 +358,7 @@ public final class ProfileManager {
                 // CrystalHollowsMapConfig, NucleusRunProfitConfig and MiningProfitConfig: shelved until after 2.0
                 // (shelved/mining/README.md); their files stay on disk unread.
                 com.killer560.hub.updatecheck.UpdateCheckConfig::load,
+                com.killer560.hub.autoupdate.AutoUpdateConfig::load,
                 com.killer560.hub.autocorrect.AutoCorrectConfig::load,
                 com.killer560.hub.trail.TrailConfig::load,
                 com.killer560.hub.heldoutline.HeldOutlineConfig::load,

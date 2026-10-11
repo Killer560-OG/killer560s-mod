@@ -132,6 +132,11 @@ public final class LiveMapConfig {
     private float pitchStep = 7f;
     private double hWeight = 6.7;
     private int timeoutMs = 670;
+    /** Client ticks from one etherwarp hop to the next (killer560, 2026-10-09: "add an amount of ticks to make the
+     *  etherwarps as well. I want to be sure it is actually etherwarping every tick"). 1 = a hop every tick. */
+    private int etherwarpTickGap = 1;
+    public static final int MIN_ETHERWARP_TICK_GAP = 1;
+    public static final int MAX_ETHERWARP_TICK_GAP = 10;
     /** killer560, 2026-09-27: "it shows a small circle at each etherwarp spot ... and a line from one spot to
      *  another. Make it a toggleable section." Off by default like every other new toggle. */
     private boolean showEtherwarpPath = false;
@@ -238,6 +243,7 @@ public final class LiveMapConfig {
                 cfg.pitchStep = clamp(ConfigJson.getFloat(obj, "pitchStep", 7f), 2f, 10f);
                 cfg.hWeight = Math.max(1.0, Math.min(15.0, ConfigJson.getDouble(obj, "hWeight", 6.7)));
                 cfg.setTimeoutMs(ConfigJson.getInt(obj, "timeoutMs", 670));
+                cfg.setEtherwarpTickGap(ConfigJson.getInt(obj, "etherwarpTickGap", 1));
                 cfg.showEtherwarpPath = ConfigJson.getBool(obj, "showEtherwarpPath", false);
                 cfg.mapRetargetMidPath = ConfigJson.getBool(obj, "mapRetargetMidPath", true);
                 cfg.mapDoublePressStartNode = ConfigJson.getBool(obj, "mapDoublePressStartNode", true);
@@ -317,6 +323,7 @@ public final class LiveMapConfig {
             obj.addProperty("pitchStep", pitchStep);
             obj.addProperty("hWeight", hWeight);
             obj.addProperty("timeoutMs", timeoutMs);
+            obj.addProperty("etherwarpTickGap", etherwarpTickGap);
             obj.addProperty("showEtherwarpPath", showEtherwarpPath);
             obj.addProperty("mapRetargetMidPath", mapRetargetMidPath);
             obj.addProperty("mapDoublePressStartNode", mapDoublePressStartNode);
@@ -793,6 +800,14 @@ public final class LiveMapConfig {
 
     public double getHWeight() {
         return hWeight;
+    }
+
+    public int getEtherwarpTickGap() {
+        return etherwarpTickGap;
+    }
+
+    public void setEtherwarpTickGap(int v) {
+        this.etherwarpTickGap = Math.max(MIN_ETHERWARP_TICK_GAP, Math.min(MAX_ETHERWARP_TICK_GAP, v));
     }
 
     public int getTimeoutMs() {

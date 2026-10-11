@@ -1,156 +1,816 @@
 package com.killer560.hub.scoreboard;
 
+import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.DragListWidget;
+import com.killer560.hub.gui.SectionHeaders;
+import com.killer560.hub.gui.SettingTooltips;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedSliderButton;
+import com.killer560.hub.scoreboard.CustomScoreboardConfig.Align;
 import com.killer560.hub.scoreboard.ScoreboardListEditor.Section;
+import com.killer560.hub.util.ExternalOpen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntConsumer;
+import java.util.function.IntFunction;
 import java.util.function.Supplier;
-import com.killer560.hub.compat.McCompat;
 
 /**
- * Full-screen editor for the Custom Scoreboard with a live preview - killer560: "Redesign the custom scoreboard so it
- * shows more of preview style that i drag and drop things where I want them."
+ * The Custom Scoreboard's editor, and since 2026-10-11 the only place it is edited (killer560: "make it so the main way
+ * of editing it is through that open visual editor. The other things on that page should be removed. Then inside of
+ * the custom editor thing make it so that you aren't moving things on the right side but instead moving things inside
+ * of the menu itself. The menu itself can be filled with fake stuff to show what it would look like in game. but you
+ * should drag around all of that stuff ... If you remove it have a thing on the right side showing things not active
+ * that you can add back in.").
  * <p>
- * Left column: a live preview of the board, built from {@link CustomScoreboardFeature#previewLines()} - real
- * sidebar/tab data when you're on Skyblock/p3sim, SkyHanni-style sample text otherwise - plus the settings that don't
- * make sense to drag: alignment, background, title, number format. Right column: Lines / Events / Stats, each the same
- * {@link ScoreboardListEditor} the settings tab uses (2026-10-07: Add dropdown, drag to reorder, trash can to remove -
- * SkyHanni's system, replacing this screen's old Active/Disabled panels and click-to-toggle).
+ * Left: the board itself, drawn by {@link CustomScoreboardFeature#drawBoard} with every active line on its sample text
+ * (never the live board, whose rows cannot be told apart by line). Each line is a block you press and drag: drop it on
+ * the board to move it, drop it on the right-hand panel to take it off. Clicking a block selects it and shows its own
+ * settings on the right (Events and Chunked Stats show their own ordered lists there). Separators, which draw as blank
+ * rows in game, show as a faint dashed row here so they can be grabbed.
+ * <p>
+ * Right, three pages: Board (the selected line's settings, then "Not Active": everything that is not on the board -
+ * click one to add it at the bottom, or drag it onto the board where it should go), General and Background (the
+ * settings the tab's General and Background pages held). The panel scrolls with the wheel when its page is taller
+ * than the screen.
  */
 public class ScoreboardEditorScreen extends Screen {
 
-    private static final int BORDER = 0xFF553311;
+    private enum Page {
+        BOARD("Board"), GENERAL("General"), BACKGROUND("Background");
+
+        final String label;
+
+        Page(String label) {
+            this.label = label;
+        }
+    }
+
+    /** Tooltip scope: the settings keep the keys they had on the Custom Scoreboard tab. */
+    private static final String TOOLTIP_SCOPE = "Custom Scoreboard";
     private static final int MARGIN = 10;
+    private static final int BORDER = 0xFF553311;
+    private static final int ORANGE = 0xFFFF9900;
+    private static final int ROW = 18;
+    private static final int STEP = 22;
+    private static final int COL_GAP = 6;
+    private static final int PICK_H = 12;
+    /** Mouse travel before a press on a block becomes a drag. */
+    private static final double DRAG_START = 3.0;
+
+    private static Page page = Page.BOARD;
+    private static ScoreboardEntry selected;
+    private static int panelScroll;
+    private static int inactiveScroll;
 
     private final Screen parent;
     private CustomScoreboardConfig cfg;
-    private static Section section = Section.LINES;
 
-    private int previewX, previewY, previewW, previewH;
+    private int boardX, boardY, boardW, boardH;
+    private int panelX, panelTop, panelW, panelBottom;
+    private int inactiveX, inactiveY, inactiveW, inactiveH;
+    private int inactiveCols = 2;
+    private int maxPanelScroll;
+
+    // ---- drag state ----
+    private ScoreboardEntry pressed;
+    private boolean pressedFromInactive;
+    private boolean dragging;
+    private double pressX, pressY;
+    private double grabDX, grabDY;
+    private double mouseX, mouseY;
+
+    // ---- tooltip ----
+    private AbstractWidget tooltipWidget;
+    private long tooltipSinceMs;
+
+    /** One active entry's rows on the drawn board. */
+    private record Block(ScoreboardEntry entry, int first, int count) {
+    }
+
+    /** The board as drawn this frame: its lines, which entry each row came from, and where it sits on screen. */
+    private record Board(List<ScoreboardLine> lines, List<Block> blocks, int x, int y, float scale, int boxW, int boxH,
+                         int inset, int lineStep, int lineHeight) {
+
+        double rowTop(int row) {
+            return y + (inset + row * (double) lineStep) * scale;
+        }
+
+        double blockTop(Block b) {
+            return rowTop(b.first) - (lineStep - lineHeight) * scale / 2.0;
+        }
+
+        double blockBottom(Block b) {
+            return rowTop(b.first + b.count - 1) + lineHeight * scale + (lineStep - lineHeight) * scale / 2.0;
+        }
+
+        int right() {
+            return x + Math.round(boxW * scale);
+        }
+
+        int bottom() {
+            return y + Math.round(boxH * scale);
+        }
+    }
 
     public ScoreboardEditorScreen(Screen parent) {
         super(Component.literal("Custom Scoreboard Editor"));
         this.parent = parent;
     }
 
+    // ---- layout ----
+
     @Override
     protected void init() {
         cfg = CustomScoreboardConfig.getInstance();
-        Minecraft client = Minecraft.getInstance();
-
-        int leftW = Math.max(200, Math.min(280, this.width / 3));
-        int leftX = MARGIN;
-        int rightX = leftX + leftW + 14;
-        int rightW = Math.max(240, this.width - rightX - MARGIN);
-
-        previewX = leftX;
-        previewY = 34;
-        previewH = Math.min(280, Math.max(140, this.height / 2));
-        previewW = leftW;
-
-        int cy = previewY + previewH + 10;
-        addRenderableWidget(cycleBtn(() -> "Text Align: §6" + cfg.getTextAlignment().label,
-                () -> cfg.setTextAlignment(cfg.getTextAlignment().next()), () -> cfg.setTextAlignment(cfg.getTextAlignment().previous()), leftX, cy, leftW));
-        cy += 22;
-        addRenderableWidget(cycleBtn(() -> "Title Align: §6" + cfg.getTitleAlignment().label,
-                () -> cfg.setTitleAlignment(cfg.getTitleAlignment().next()), () -> cfg.setTitleAlignment(cfg.getTitleAlignment().previous()), leftX, cy, leftW));
-        cy += 22;
-        addRenderableWidget(cycleBtn(() -> "Numbers: §6" + cfg.getNumberFormat().label,
-                () -> cfg.setNumberFormat(cfg.getNumberFormat().next()), () -> cfg.setNumberFormat(cfg.getNumberFormat().previous()), leftX, cy, leftW));
-        cy += 22;
-        addRenderableWidget(cycleBtn(() -> "Number Style: " + cfg.getNumberDisplayFormat().label,
-                () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().next()), () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().previous()), leftX, cy, leftW));
-        cy += 22;
-        addRenderableWidget(SettingsButtonWidget.builder(onOff("Background", cfg.isBackgroundEnabled()), btn -> {
-                    cfg.setBackgroundEnabled(!cfg.isBackgroundEnabled());
-                    cfg.save();
-                    btn.setMessage(onOff("Background", cfg.isBackgroundEnabled()));
-                }).bounds(leftX, cy, leftW, 18).build());
-        cy += 22;
-        addRenderableWidget(SettingsButtonWidget.builder(onOff("Custom Title", cfg.isUseCustomTitle()), btn -> {
-                    cfg.setUseCustomTitle(!cfg.isUseCustomTitle());
-                    cfg.save();
-                    this.rebuildWidgets();
-                }).bounds(leftX, cy, leftW, 18).build());
-        cy += 22;
-        if (cfg.isUseCustomTitle()) {
-            EditBox title = new EditBox(client.font, leftX, cy, leftW, 18, Component.literal("Title"));
-            title.setMaxLength(256);
-            title.setValue(cfg.getCustomTitle());
-            title.setHint(Component.literal("§8Title"));
-            title.setResponder(text -> {
-                cfg.setCustomTitle(text);
-                cfg.save();
-            });
-            addRenderableWidget(title);
+        if (selected != null && !cfg.entries().contains(selected)) {
+            selected = null;
         }
+        boardX = MARGIN;
+        boardY = 34;
+        boardW = Math.max(180, Math.min(320, this.width * 2 / 5));
+        boardH = Math.max(80, this.height - boardY - 34);
+        panelX = boardX + boardW + 14;
+        panelW = Math.max(200, this.width - panelX - MARGIN);
+        panelBottom = this.height - 34;
 
-        int sectionBtnW = (rightW - 16) / 3;
-        int sx = rightX;
-        for (Section s : Section.values()) {
-            addRenderableWidget(SettingsButtonWidget.builder(Component.literal(s == section ? "§6" + s.title : s.title),
-                    btn -> {
-                        section = s;
-                        this.rebuildWidgets();
-                    }).bounds(sx, 30, sectionBtnW, 20).build());
-            sx += sectionBtnW + 8;
+        int pageGap = 4;
+        int pageW = (panelW - pageGap * 2) / 3;
+        for (Page p : Page.values()) {
+            int px = panelX + p.ordinal() * (pageW + pageGap);
+            SettingsButtonWidget.Builder b = SettingsButtonWidget.builder(Component.literal(p.label), btn -> {
+                        page = p;
+                        panelScroll = 0;
+                        rebuildWidgets();
+                    }).bounds(px, boardY, p == Page.BACKGROUND ? panelX + panelW - px : pageW, ROW);
+            if (p == page) {
+                b.primary();
+            }
+            addRenderableWidget(b.build());
         }
+        panelTop = boardY + ROW + 8;
 
-        List<AbstractWidget> list = new ArrayList<>();
-        int listTop = ScoreboardListEditor.buildControls(list, section, rightX, 56, rightW, this::rebuildWidgets);
-        int rows = Math.max(3, (this.height - 34 - listTop - 4) / DragListWidget.ROW_H);
-        ScoreboardListEditor.buildList(list, section, rightX, listTop, rightW, rows, this::rebuildWidgets);
-        for (AbstractWidget w : list) {
-            addRenderableWidget(w);
+        List<AbstractWidget> panel = new ArrayList<>();
+        if (page == Page.BOARD) {
+            buildBoardPage(panel);
+            maxPanelScroll = 0;
+            for (AbstractWidget w : panel) {
+                addRenderableWidget(w);
+            }
+        } else {
+            int contentEnd = buildPage(panel);
+            maxPanelScroll = Math.max(0, contentEnd + panelScroll - panelBottom);
+            if (panelScroll > maxPanelScroll) {
+                // The page got shorter (a window resize, Custom Title off): lay it out again at the clamped scroll.
+                panelScroll = maxPanelScroll;
+                panel.clear();
+                buildPage(panel);
+            }
+            // Only rows wholly inside the panel: a row scrolled under the page buttons must not take their clicks.
+            for (AbstractWidget w : panel) {
+                if (w.getY() >= panelTop && w.getY() + w.getHeight() <= panelBottom) {
+                    addRenderableWidget(w);
+                }
+            }
         }
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
                 .bounds(this.width / 2 - 50, this.height - 26, 100, 20).build());
     }
 
+    private int buildPage(List<AbstractWidget> panel) {
+        return page == Page.GENERAL ? buildGeneral(panel, panelX, panelTop - panelScroll, panelW)
+                : buildBackground(panel, panelX, panelTop - panelScroll, panelW);
+    }
+
+    /** The selected line's settings on top, "Not Active" below. Returns the content's bottom. */
+    private int buildBoardPage(List<AbstractWidget> out) {
+        Font font = Minecraft.getInstance().font;
+        int panelH = panelBottom - panelTop;
+        inactiveH = Math.max(90, panelH * 2 / 5);
+        inactiveX = panelX;
+        inactiveW = panelW;
+        inactiveCols = panelW >= 330 ? 3 : 2;
+        int headerY = panelBottom - inactiveH;
+        inactiveY = headerY + STEP;
+
+        out.add(new StringWidget(panelX, headerY + 4, panelW - 90, 12, SectionHeaders.header("Not Active", false), font));
+        out.add(SettingsButtonWidget.builder(Component.literal("Reset Board"), btn -> {
+                    cfg.resetEntries();
+                    cfg.save();
+                    selected = null;
+                    rebuildWidgets();
+                }).bounds(panelX + panelW - 84, headerY, 84, ROW).build());
+
+        int y = panelTop;
+        int optionsBottom = headerY - 6;
+        if (selected == null) {
+            hint(out, panelX, y, panelW, "Click a line on the board for its settings.");
+            hint(out, panelX, y + 12, panelW, "Drag lines on the board to reorder them.");
+            hint(out, panelX, y + 24, panelW, "Drag a line over here to take it off.");
+            hint(out, panelX, y + 36, panelW, "Click or drag a Not Active line to add it.");
+            return panelBottom;
+        }
+        out.add(new StringWidget(panelX, y + 4, panelW - 90, 12, SectionHeaders.header(selected.label, false), font));
+        ScoreboardEntry sel = selected;
+        out.add(SettingsButtonWidget.builder(Component.literal("§cRemove"), btn -> {
+                    cfg.entries().remove(sel);
+                    cfg.save();
+                    selected = null;
+                    rebuildWidgets();
+                }).bounds(panelX + panelW - 84, y, 84, ROW).build());
+        y += STEP;
+        switch (sel) {
+            case EVENTS -> {
+                int half = (panelW - COL_GAP) / 2;
+                out.add(toggle("Show All Active Events", cfg::isShowAllActiveEvents, cfg::setShowAllActiveEvents,
+                        panelX, y, half));
+                out.add(toggle("Separator Between Events", cfg::isSeparatorBetweenEvents, cfg::setSeparatorBetweenEvents,
+                        panelX + half + COL_GAP, y, panelW - half - COL_GAP));
+                y += STEP;
+                listSection(out, Section.EVENTS, y, optionsBottom);
+            }
+            case CHUNKED_STATS -> {
+                out.add(slider(panelX, y, panelW, cfg.getStatsPerLine(), 1, 10, v -> "Stats Per Line: " + v,
+                        cfg::setStatsPerLine));
+                y += STEP;
+                listSection(out, Section.STATS, y, optionsBottom);
+            }
+            default -> {
+                List<AbstractWidget> rows = lineOptions(sel, panelX, panelW);
+                if (rows.isEmpty()) {
+                    hint(out, panelX, y, panelW, "This line has no settings.");
+                }
+                for (AbstractWidget r : rows) {
+                    if (y + r.getHeight() > optionsBottom) {
+                        break;
+                    }
+                    r.setY(y);
+                    out.add(r);
+                    y += STEP;
+                }
+            }
+        }
+        return panelBottom;
+    }
+
+    /** Events / Chunked Stats: their Add and Reset row and drag list, fitted between {@code y} and {@code bottom}. */
+    private void listSection(List<AbstractWidget> out, Section section, int y, int bottom) {
+        List<AbstractWidget> list = new ArrayList<>();
+        int listTop = ScoreboardListEditor.buildControls(list, section, panelX, y, panelW, this::rebuildWidgets);
+        int rows = Math.max(3, (bottom - listTop - 4) / DragListWidget.ROW_H);
+        ScoreboardListEditor.buildList(list, section, panelX, listTop, panelW, rows, this::rebuildWidgets);
+        out.addAll(list);
+    }
+
+    /** The settings only {@code entry} reads (they sat beside the tab's list before). */
+    private List<AbstractWidget> lineOptions(ScoreboardEntry entry, int x, int w) {
+        List<AbstractWidget> rows = new ArrayList<>();
+        switch (entry) {
+            case MAYOR -> {
+                rows.add(toggle("Mayor Perks", cfg::isShowMayorPerks, cfg::setShowMayorPerks, x, 0, w));
+                rows.add(toggle("Next Mayor Timer", cfg::isShowMayorTime, cfg::setShowMayorTime, x, 0, w));
+                rows.add(toggle("Show Minister", cfg::isShowMinister, cfg::setShowMinister, x, 0, w));
+                rows.add(toggle("Perkpocalypse Mayor", cfg::isShowJerryMayor, cfg::setShowJerryMayor, x, 0, w));
+            }
+            case POWER -> rows.add(toggle("Magical Power", cfg::isShowMagicalPower, cfg::setShowMagicalPower, x, 0, w));
+            case TUNING -> {
+                rows.add(toggle("Compact Tuning", cfg::isCompactTuning, cfg::setCompactTuning, x, 0, w));
+                rows.add(slider(x, 0, w, cfg.getTuningAmount(), 1, 8, v -> "Tuning Amount: " + v, cfg::setTuningAmount));
+            }
+            case QUIVER -> {
+                rows.add(cycle(() -> "Arrow Amount: §6" + cfg.getArrowDisplay().label,
+                        () -> cfg.setArrowDisplay(cfg.getArrowDisplay().next()),
+                        () -> cfg.setArrowDisplay(cfg.getArrowDisplay().previous()), x, 0, w));
+                rows.add(toggle("Color Arrow Amount", cfg::isColorArrowAmount, cfg::setColorArrowAmount, x, 0, w));
+            }
+            case PLAYER_AMOUNT -> rows.add(toggle("Max Island Players", cfg::isShowMaxIslandPlayers,
+                    cfg::setShowMaxIslandPlayers, x, 0, w));
+            case PARTY -> {
+                rows.add(toggle("Party Leader", cfg::isShowPartyLeader, cfg::setShowPartyLeader, x, 0, w));
+                rows.add(slider(x, 0, w, cfg.getMaxPartyMembers(), 1, 25, v -> "Max Party Members: " + v,
+                        cfg::setMaxPartyMembers));
+                rows.add(toggle("Party Everywhere", cfg::isShowPartyEverywhere, cfg::setShowPartyEverywhere, x, 0, w));
+            }
+            case BITS -> rows.add(toggle("Unclaimed Bits", cfg::isShowUnclaimedBits, cfg::setShowUnclaimedBits, x, 0, w));
+            case POWDER -> rows.add(cycle(() -> "Powder Display: §6" + cfg.getPowderDisplay().label,
+                    () -> cfg.setPowderDisplay(cfg.getPowderDisplay().next()),
+                    () -> cfg.setPowderDisplay(cfg.getPowderDisplay().previous()), x, 0, w));
+            case PURSE -> rows.add(toggle("Hide Purse In Dungeons", cfg::isHidePurseInDungeons,
+                    cfg::setHidePurseInDungeons, x, 0, w));
+            case PROFILE -> rows.add(toggle("Show Profile Name", cfg::isShowProfileName, cfg::setShowProfileName, x, 0, w));
+            case LOBBY_CODE -> rows.add(toggle("Date In Lobby Code", cfg::isDateInLobbyCode, cfg::setDateInLobbyCode,
+                    x, 0, w));
+            case TIME -> rows.add(toggle("Exact SkyBlock Minutes", cfg::isTimeExactMinutes, cfg::setTimeExactMinutes,
+                    x, 0, w));
+            case TITLE -> {
+                rows.add(SettingsButtonWidget.builder(onOff("Custom Title", cfg.isUseCustomTitle()), btn -> {
+                            cfg.setUseCustomTitle(!cfg.isUseCustomTitle());
+                            cfg.save();
+                            rebuildWidgets();
+                        }).bounds(x, 0, w, ROW).build());
+                if (cfg.isUseCustomTitle()) {
+                    rows.add(textBox("Title", cfg.getCustomTitle(), cfg::setCustomTitle, x, 0, w));
+                }
+                rows.add(cycle(() -> "Title Align: §6" + cfg.getTitleAlignment().label,
+                        () -> cfg.setTitleAlignment(cfg.getTitleAlignment().next()),
+                        () -> cfg.setTitleAlignment(cfg.getTitleAlignment().previous()), x, 0, w));
+            }
+            case FOOTER -> {
+                rows.add(textBox("Footer", cfg.getCustomFooter(), cfg::setCustomFooter, x, 0, w));
+                rows.add(textBox("Alpha Footer", cfg.getCustomAlphaFooter(), cfg::setCustomAlphaFooter, x, 0, w));
+                rows.add(cycle(() -> "Footer Align: §6" + cfg.getFooterAlignment().label,
+                        () -> cfg.setFooterAlignment(cfg.getFooterAlignment().next()),
+                        () -> cfg.setFooterAlignment(cfg.getFooterAlignment().previous()), x, 0, w));
+            }
+            default -> {
+            }
+        }
+        return rows;
+    }
+
+    /** The tab's old General page, two columns from {@code y}. Returns the bottom. */
+    private int buildGeneral(List<AbstractWidget> out, int x, int y, int width) {
+        int colW = (width - COL_GAP) / 2;
+        int colBX = x + colW + COL_GAP;
+
+        out.add(toggle("Hide Vanilla Scoreboard", cfg::isHideVanillaScoreboard, cfg::setHideVanillaScoreboard, x, y, colW));
+        out.add(toggle("Custom Lines", cfg::isUseCustomLines, cfg::setUseCustomLines, colBX, y, colW));
+        y += STEP;
+        out.add(cycle(() -> "Text Align: §6" + cfg.getTextAlignment().label,
+                () -> cfg.setTextAlignment(cfg.getTextAlignment().next()),
+                () -> cfg.setTextAlignment(cfg.getTextAlignment().previous()), x, y, colW));
+        out.add(toggle("Text Shadow", cfg::isTextShadow, cfg::setTextShadow, colBX, y, colW));
+        y += STEP;
+        out.add(cycle(() -> "Title Align: §6" + cfg.getTitleAlignment().label,
+                () -> cfg.setTitleAlignment(cfg.getTitleAlignment().next()),
+                () -> cfg.setTitleAlignment(cfg.getTitleAlignment().previous()), x, y, colW));
+        out.add(cycle(() -> "Footer Align: §6" + cfg.getFooterAlignment().label,
+                () -> cfg.setFooterAlignment(cfg.getFooterAlignment().next()),
+                () -> cfg.setFooterAlignment(cfg.getFooterAlignment().previous()), colBX, y, colW));
+        y += STEP;
+        out.add(cycle(() -> "Snap X: §6" + cfg.getHorizontalSnap().label,
+                () -> cfg.setHorizontalSnap(cfg.getHorizontalSnap().next()),
+                () -> cfg.setHorizontalSnap(cfg.getHorizontalSnap().previous()), x, y, colW));
+        out.add(cycle(() -> "Snap Y: §6" + cfg.getVerticalSnap().label,
+                () -> cfg.setVerticalSnap(cfg.getVerticalSnap().next()),
+                () -> cfg.setVerticalSnap(cfg.getVerticalSnap().previous()), colBX, y, colW));
+        y += STEP;
+        out.add(slider(x, y, colW, cfg.getLineSpacing(), 0, 10, v -> "Line Spacing: " + v, cfg::setLineSpacing));
+        out.add(cycle(() -> "Numbers: §6" + cfg.getNumberFormat().label,
+                () -> cfg.setNumberFormat(cfg.getNumberFormat().next()),
+                () -> cfg.setNumberFormat(cfg.getNumberFormat().previous()), colBX, y, colW));
+        y += STEP;
+        out.add(cycle(() -> "Number Style: " + cfg.getNumberDisplayFormat().label,
+                () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().next()),
+                () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().previous()), x, y, colW));
+        out.add(toggle("Hide Empty Lines", cfg::isHideEmptyLines, cfg::setHideEmptyLines, colBX, y, colW));
+        y += STEP;
+        out.add(toggle("Hide Irrelevant Lines", cfg::isHideIrrelevantLines, cfg::setHideIrrelevantLines, x, y, colW));
+        out.add(toggle("Hide Double Separators", cfg::isHideConsecutiveEmptyLines, cfg::setHideConsecutiveEmptyLines,
+                colBX, y, colW));
+        y += STEP;
+        out.add(toggle("Hide Edge Separators", cfg::isHideEmptyLinesAtTopAndBottom,
+                cfg::setHideEmptyLinesAtTopAndBottom, x, y, colW));
+        out.add(toggle("Hide With Tab List", cfg::isHideWhenTab, cfg::setHideWhenTab, colBX, y, colW));
+        y += STEP;
+        out.add(toggle("Hide With Chat Open", cfg::isHideWhenChat, cfg::setHideWhenChat, x, y, colW));
+        out.add(cycle(() -> "Outside Skyblock: §6" + cfg.getOutsideSkyblockMode().label,
+                () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().next()),
+                () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().previous()), colBX, y, colW));
+        y += STEP;
+        out.add(toggle("Cache On Island Switch", cfg::isCacheOnIslandSwitch, cfg::setCacheOnIslandSwitch, x, y, colW));
+        out.add(toggle("Clickable Lines", cfg::isLineActions, cfg::setLineActions, colBX, y, colW));
+        y += STEP;
+        out.add(toggle("Show Number Changes", cfg::isShowNumberDifference, cfg::setShowNumberDifference, x, y, colW));
+        out.add(toggle("Unknown Line Warning", cfg::isUnknownLinesWarning, cfg::setUnknownLinesWarning, colBX, y, colW));
+        y += STEP;
+        out.add(toggle("24h SkyBlock Time", cfg::isTime24h, cfg::setTime24h, x, y, colW));
+        out.add(cycle(() -> "Date Format: §6" + cfg.getDateFormat().pattern,
+                () -> cfg.setDateFormat(cfg.getDateFormat().next()),
+                () -> cfg.setDateFormat(cfg.getDateFormat().previous()), colBX, y, colW));
+        y += STEP;
+        out.add(toggle("Custom Title Off Skyblock", cfg::isUseCustomTitleOutsideSkyblock,
+                cfg::setUseCustomTitleOutsideSkyblock, x, y, colW));
+        out.add(SettingsButtonWidget.builder(onOff("Custom Title", cfg.isUseCustomTitle()), btn -> {
+                    cfg.setUseCustomTitle(!cfg.isUseCustomTitle());
+                    cfg.save();
+                    rebuildWidgets();
+                }).bounds(colBX, y, colW, ROW).build());
+        y += STEP;
+        if (cfg.isUseCustomTitle()) {
+            out.add(textBox("Title", cfg.getCustomTitle(), cfg::setCustomTitle, x, y, width));
+            y += STEP;
+        }
+        out.add(textBox("Footer", cfg.getCustomFooter(), cfg::setCustomFooter, x, y, width));
+        y += STEP;
+        out.add(textBox("Alpha Footer", cfg.getCustomAlphaFooter(), cfg::setCustomAlphaFooter, x, y, width));
+        y += STEP;
+        return y;
+    }
+
+    /** The tab's old Background page. Returns the bottom. */
+    private int buildBackground(List<AbstractWidget> out, int x, int y, int width) {
+        int colW = (width - COL_GAP) / 2;
+        int colBX = x + colW + COL_GAP;
+
+        out.add(toggle("Background", cfg::isBackgroundEnabled, cfg::setBackgroundEnabled, x, y, colW));
+        out.add(colorButton("Background Color", cfg::getBackgroundColor, CustomScoreboardConfig.DEFAULT_BACKGROUND_COLOR,
+                cfg::setBackgroundColor, colBX, y, colW));
+        y += STEP;
+        out.add(slider(x, y, colW, cfg.getPadding(), 0, 20, v -> "Padding: " + v, cfg::setPadding));
+        out.add(toggle("Rounded Corners", cfg::isRoundedCorners, cfg::setRoundedCorners, colBX, y, colW));
+        y += STEP;
+        out.add(slider(x, y, colW, cfg.getCornerRadius(), 1, 20, v -> "Corner Radius: " + v, cfg::setCornerRadius));
+        out.add(toggle("Border", cfg::isBorderEnabled, cfg::setBorderEnabled, colBX, y, colW));
+        y += STEP;
+        out.add(colorButton("Border Color", cfg::getBorderColor, CustomScoreboardConfig.DEFAULT_BORDER_COLOR,
+                cfg::setBorderColor, x, y, colW));
+        out.add(slider(colBX, y, colW, cfg.getBorderThickness(), 1, 5, v -> "Border Thickness: " + v,
+                cfg::setBorderThickness));
+        y += STEP;
+        out.add(toggle("Gradient Border", cfg::isBorderGradient, cfg::setBorderGradient, x, y, colW));
+        out.add(colorButton("Border Bottom Color", cfg::getBorderColorBottom,
+                CustomScoreboardConfig.DEFAULT_BORDER_BOTTOM_COLOR, cfg::setBorderColorBottom, colBX, y, colW));
+        y += STEP;
+        out.add(toggle("Chroma Border", cfg::isChromaBorder, cfg::setChromaBorder, x, y, colW));
+        out.add(slider(colBX, y, colW, cfg.getChromaSpeed(), 1, 20, v -> "Chroma Speed: " + v, cfg::setChromaSpeed));
+        y += STEP;
+        out.add(slider(x, y, colW, cfg.getBorderSoftness(), 0, 10, v -> "Border Softness: " + v, cfg::setBorderSoftness));
+        out.add(slider(colBX, y, colW, cfg.getMargin(), 0, 50, v -> "Screen Margin: " + v, cfg::setMargin));
+        y += STEP;
+        out.add(toggle("Background Blur (restart)", cfg::isBackgroundBlur, cfg::setBackgroundBlur, x, y, colW));
+        out.add(slider(colBX, y, colW, cfg.getBlurStrength(), 1, 20, v -> "Blur Strength: " + v, cfg::setBlurStrength));
+        y += STEP;
+        out.add(slider(x, y, colW, cfg.getMinWidth(), 0, 400, v -> "Min Width: " + v, cfg::setMinWidth));
+        out.add(slider(colBX, y, colW, cfg.getMinHeight(), 0, 400, v -> "Min Height: " + v, cfg::setMinHeight));
+        y += STEP;
+        out.add(toggle("Image Background", cfg::isImageBackground, cfg::setImageBackground, x, y, colW));
+        out.add(slider(colBX, y, colW, cfg.getImageOpacity(), 5, 100, v -> "Image Opacity: " + v + "%",
+                cfg::setImageOpacity));
+        y += STEP;
+        out.add(SettingsButtonWidget.builder(Component.literal(CustomScoreboardFeature.backgroundImageExists()
+                        ? "Reload Image" : "Reload Image §c(no background.png)"), btn -> {
+                    CustomScoreboardFeature.reloadBackgroundImage();
+                    rebuildWidgets();
+                }).bounds(x, y, colW, ROW).build());
+        out.add(SettingsButtonWidget.builder(Component.literal("Open Image Folder"), btn -> {
+                    try {
+                        java.nio.file.Files.createDirectories(CustomScoreboardConfig.DATA_DIR);
+                        ExternalOpen.path(CustomScoreboardConfig.DATA_DIR);
+                    } catch (Exception ignored) {
+                    }
+                }).bounds(colBX, y, colW, ROW).build());
+        y += STEP;
+        return y;
+    }
+
+    // ---- the board ----
+
+    /** The rows an entry draws in the editor: its sample text (never live data), a placeholder when it has none. */
+    static List<ScoreboardLine> editorLines(ScoreboardEntry e, CustomScoreboardConfig cfg) {
+        if (e.isSeparator()) {
+            return List.of(new ScoreboardLine("§8- - - - - - - -", Align.CENTER));
+        }
+        List<ScoreboardLine> out;
+        try {
+            out = (e == ScoreboardEntry.TITLE || e == ScoreboardEntry.FOOTER) ? e.lines(cfg) : ScoreboardLine.of(e.sample());
+        } catch (RuntimeException ex) {
+            out = List.of();
+        }
+        boolean blank = true;
+        for (ScoreboardLine l : out) {
+            if (!l.isBlank()) {
+                blank = false;
+                break;
+            }
+        }
+        return blank ? List.of(ScoreboardLine.of("§7" + e.label)) : out;
+    }
+
+    /** The board with {@code without} lifted out (null = every active entry). */
+    private Board board(ScoreboardEntry without) {
+        Font font = this.font;
+        List<ScoreboardLine> lines = new ArrayList<>();
+        List<Block> blocks = new ArrayList<>();
+        for (ScoreboardEntry e : cfg.entries().active()) {
+            if (e == without) {
+                continue;
+            }
+            List<ScoreboardLine> el = editorLines(e, cfg);
+            blocks.add(new Block(e, lines.size(), el.size()));
+            lines.addAll(el);
+        }
+        int boxW = Math.max(1, CustomScoreboardFeature.boxWidth(font, lines, cfg));
+        int boxH = Math.max(1, CustomScoreboardFeature.boxHeight(font, lines, cfg));
+        float scale = Math.min(1.5f, Math.min((boardW - 8f) / boxW, (boardH - 8f) / boxH));
+        scale = Math.max(0.3f, scale);
+        int x = boardX + (boardW - Math.round(boxW * scale)) / 2;
+        int y = boardY + 4;
+        return new Board(lines, blocks, x, y, scale, boxW, boxH, CustomScoreboardFeature.textInset(cfg),
+                font.lineHeight + cfg.getLineSpacing(), font.lineHeight);
+    }
+
+    private static Block blockAt(Board b, double mx, double my) {
+        if (mx < b.x() || mx > b.right()) {
+            return null;
+        }
+        for (Block bl : b.blocks()) {
+            if (my >= b.blockTop(bl) && my < b.blockBottom(bl)) {
+                return bl;
+            }
+        }
+        return null;
+    }
+
+    /** The insertion slot for a drop at {@code my}: how many blocks' middles lie above it. */
+    private static int dropSlot(Board b, double my) {
+        int slot = 0;
+        for (Block bl : b.blocks()) {
+            if ((b.blockTop(bl) + b.blockBottom(bl)) / 2.0 < my) {
+                slot++;
+            }
+        }
+        return slot;
+    }
+
+    private boolean overPanel(double mx, double my) {
+        return mx >= panelX - 7 && my >= boardY - 4 && my <= panelBottom + 4;
+    }
+
+    /** What Not Active offers, one Separator for the sixteen. */
+    private List<ScoreboardEntry> inactive() {
+        return ScoreboardListEditor.picks(cfg.entries(), e -> e.label);
+    }
+
+    private int inactiveVisibleH() {
+        return panelBottom - inactiveY;
+    }
+
+    private int maxInactiveScroll() {
+        int rows = (inactive().size() + inactiveCols - 1) / inactiveCols;
+        return Math.max(0, rows * PICK_H - inactiveVisibleH());
+    }
+
+    /** Screen rectangle of the Not Active row for {@code e}, or null when it is not listed or scrolled out. */
+    private int[] inactiveRect(int index) {
+        int colW = (inactiveW - COL_GAP * (inactiveCols - 1)) / inactiveCols;
+        int x = inactiveX + (index % inactiveCols) * (colW + COL_GAP);
+        int y = inactiveY + (index / inactiveCols) * PICK_H - inactiveScroll;
+        if (y < inactiveY || y + PICK_H > panelBottom) {
+            return null;
+        }
+        return new int[]{x, y, colW, PICK_H};
+    }
+
+    private ScoreboardEntry inactiveAt(double mx, double my) {
+        if (page != Page.BOARD) {
+            return null;
+        }
+        List<ScoreboardEntry> list = inactive();
+        for (int i = 0; i < list.size(); i++) {
+            int[] r = inactiveRect(i);
+            if (r != null && mx >= r[0] && mx < r[0] + r[2] && my >= r[1] && my < r[1] + r[3]) {
+                return list.get(i);
+            }
+        }
+        return null;
+    }
+
+    // ---- test hooks (testkit drives the real mouse at these) ----
+
+    /** Screen rectangle {x, y, w, h} of {@code entry}'s block on the board, or null when it is not on it. */
+    public int[] blockRectOf(ScoreboardEntry entry) {
+        Board b = board(null);
+        for (Block bl : b.blocks()) {
+            if (bl.entry() == entry) {
+                int top = (int) Math.ceil(b.blockTop(bl));
+                int bottom = (int) Math.floor(b.blockBottom(bl));
+                return new int[]{b.x(), top, b.right() - b.x(), Math.max(1, bottom - top)};
+            }
+        }
+        return null;
+    }
+
+    /** Screen rectangle of {@code entry}'s Not Active row (Board page), or null. */
+    public int[] inactiveRectOf(ScoreboardEntry entry) {
+        List<ScoreboardEntry> list = inactive();
+        int i = list.indexOf(entry);
+        return i < 0 ? null : inactiveRect(i);
+    }
+
+    /** {x, y, w, h} of the right-hand panel (a board line dropped here comes off). */
+    public int[] panelRect() {
+        return new int[]{panelX, boardY, panelW, panelBottom - boardY};
+    }
+
+    /** True while a board line or Not Active row is being dragged. */
+    public boolean isDraggingLine() {
+        return dragging;
+    }
+
+    public static void resetSession() {
+        page = Page.BOARD;
+        selected = null;
+        panelScroll = 0;
+        inactiveScroll = 0;
+    }
+
+    public static ScoreboardEntry selectedEntry() {
+        return selected;
+    }
+
+    // ---- input ----
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        mouseX = event.x();
+        mouseY = event.y();
+        if (event.button() == 0) {
+            Block b = blockAt(board(null), event.x(), event.y());
+            ScoreboardEntry from = b != null ? b.entry() : inactiveAt(event.x(), event.y());
+            if (from != null) {
+                pressed = from;
+                pressedFromInactive = b == null;
+                dragging = false;
+                pressX = event.x();
+                pressY = event.y();
+                if (b != null) {
+                    Board bd = board(null);
+                    grabDX = event.x() - bd.x();
+                    grabDY = event.y() - bd.blockTop(b);
+                } else {
+                    grabDX = 8;
+                    grabDY = 5;
+                }
+                return true;
+            }
+        }
+        return super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        mouseX = event.x();
+        mouseY = event.y();
+        if (pressed != null) {
+            if (!dragging && Math.hypot(event.x() - pressX, event.y() - pressY) >= DRAG_START) {
+                dragging = true;
+            }
+            return true;
+        }
+        return super.mouseDragged(event, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        mouseX = event.x();
+        mouseY = event.y();
+        if (pressed == null) {
+            return super.mouseReleased(event);
+        }
+        ScoreboardEntry e = pressed;
+        boolean fromInactive = pressedFromInactive;
+        boolean wasDrag = dragging;
+        pressed = null;
+        dragging = false;
+        EntryOrder<ScoreboardEntry> order = cfg.entries();
+        boolean changed = false;
+        if (!wasDrag) {
+            if (fromInactive) {
+                order.add(e);
+                selected = e;
+                changed = true;
+            } else {
+                selected = selected == e ? null : e;
+            }
+        } else if (fromInactive) {
+            if (!overPanel(event.x(), event.y())) {
+                order.insert(e, dropSlot(board(null), event.y()));
+                selected = e;
+                changed = true;
+            }
+        } else if (overPanel(event.x(), event.y())) {
+            order.remove(e);
+            if (selected == e) {
+                selected = null;
+            }
+            changed = true;
+        } else {
+            int from = order.indexOf(e);
+            int to = dropSlot(board(e), event.y());
+            if (from >= 0 && from != to) {
+                order.move(from, to);
+                changed = true;
+            }
+        }
+        if (changed) {
+            cfg.save();
+        }
+        rebuildWidgets();
+        return true;
+    }
+
+    @Override
+    public boolean mouseScrolled(double mx, double my, double scrollX, double scrollY) {
+        if (page == Page.BOARD && mx >= inactiveX && mx <= inactiveX + inactiveW && my >= inactiveY && my <= panelBottom) {
+            inactiveScroll = Math.max(0, Math.min(maxInactiveScroll(), inactiveScroll - (int) Math.round(scrollY * PICK_H * 2)));
+            return true;
+        }
+        if (page != Page.BOARD && mx >= panelX && my >= panelTop && my <= panelBottom) {
+            int next = Math.max(0, Math.min(maxPanelScroll, panelScroll - (int) Math.round(scrollY * STEP)));
+            if (next != panelScroll) {
+                panelScroll = next;
+                rebuildWidgets();
+            }
+            return true;
+        }
+        return super.mouseScrolled(mx, my, scrollX, scrollY);
+    }
+
     // ---- rendering ----
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float partialTick) {
+        if (pressed == null) {
+            mouseX = mx;
+            mouseY = my;
+        }
         g.fill(0, 0, this.width, this.height, 0xCC000000);
-        g.text(this.font, "§eDrag a line to move it, the trash can takes it off, Add puts one back.",
+        g.text(this.font, "§eDrag lines on the board to move them. Drag one to the right to take it off.",
                 MARGIN, 10, 0xFFFFFFFF);
-        boolean live = CustomScoreboardFeature.isActive();
-        g.text(this.font, live ? "§7Preview: live data from your current board."
-                : "§7Preview: sample data (not on Skyblock/p3sim right now).", MARGIN, 22, 0xFFFFFFFF);
+        g.text(this.font, "§7The board shows sample text; in game each line shows your real data.", MARGIN, 22, 0xFFFFFFFF);
 
-        drawPreview(g);
+        g.fill(boardX, boardY, boardX + boardW, boardY + boardH, 0xFF0D0D0D);
+        g.outline(boardX, boardY, boardW, boardH, BORDER);
+        ScoreboardEntry lifted = dragging && !pressedFromInactive ? pressed : null;
+        Board b = board(lifted);
+        drawBoard(g, b);
 
-        super.extractRenderState(g, mouseX, mouseY, partialTick);
+        if (dragging) {
+            boolean removing = !pressedFromInactive && overPanel(mouseX, mouseY);
+            boolean adding = pressedFromInactive && !overPanel(mouseX, mouseY);
+            if (removing) {
+                g.fill(panelX - 6, boardY - 4, panelX + panelW + 4, panelBottom + 4, 0x40FF3333);
+                g.outline(panelX - 6, boardY - 4, panelW + 10, panelBottom - boardY + 8, 0xFFFF5555);
+            } else if (!pressedFromInactive || adding) {
+                int slot = dropSlot(b, mouseY);
+                double lineY;
+                if (b.blocks().isEmpty()) {
+                    lineY = b.rowTop(0);
+                } else if (slot < b.blocks().size()) {
+                    lineY = b.blockTop(b.blocks().get(slot));
+                } else {
+                    lineY = b.blockBottom(b.blocks().get(b.blocks().size() - 1));
+                }
+                int ly = (int) Math.round(lineY);
+                g.fill(b.x() - 2, ly - 1, b.right() + 2, ly + 1, ORANGE);
+            }
+        } else {
+            Block hover = blockAt(b, mx, my);
+            for (Block bl : b.blocks()) {
+                int top = (int) Math.round(b.blockTop(bl));
+                int bottom = (int) Math.round(b.blockBottom(bl));
+                if (bl == hover) {
+                    g.fill(b.x(), top, b.right(), bottom, 0x30FFFFFF);
+                }
+                if (bl.entry() == selected) {
+                    g.outline(b.x() - 1, top, b.right() - b.x() + 2, Math.max(1, bottom - top), ORANGE);
+                }
+            }
+        }
+
+        if (page == Page.BOARD) {
+            drawInactive(g, mx, my);
+        }
+
+        super.extractRenderState(g, mx, my, partialTick);
+
+        if (dragging && pressed != null) {
+            drawFloating(g, pressed);
+        } else {
+            drawTooltip(g, mx, my);
+        }
     }
 
-    private void drawPreview(GuiGraphicsExtractor g) {
-        g.fill(previewX, previewY, previewX + previewW, previewY + previewH, 0xFF0D0D0D);
-        g.outline(previewX, previewY, previewW, previewH, BORDER);
-        Font font = this.font;
-        List<ScoreboardLine> lines = CustomScoreboardFeature.previewLines();
-        int boxW = Math.max(1, CustomScoreboardFeature.boxWidth(font, lines, cfg));
-        int boxH = Math.max(1, CustomScoreboardFeature.boxHeight(font, lines, cfg));
-        float scale = Math.min(1.5f, Math.min((previewW - 8f) / boxW, (previewH - 8f) / boxH));
-        scale = Math.max(0.3f, scale);
-        int drawW = Math.round(boxW * scale);
-        int drawH = Math.round(boxH * scale);
-        int px = previewX + (previewW - drawW) / 2;
-        int py = previewY + (previewH - drawH) / 2;
+    private void drawBoard(GuiGraphicsExtractor g, Board b) {
         g.pose().pushMatrix();
         try {
-            g.pose().translate(px, py);
-            g.pose().scale(scale, scale);
-            CustomScoreboardFeature.drawBoard(g, font, 0, 0, lines, cfg, false);
+            g.pose().translate(b.x(), b.y());
+            g.pose().scale(b.scale(), b.scale());
+            CustomScoreboardFeature.drawBoard(g, this.font, 0, 0, b.lines(), cfg, false);
         } catch (RuntimeException ignored) {
             // A broken preview frame must never take the editor down with it.
         } finally {
@@ -158,9 +818,117 @@ public class ScoreboardEditorScreen extends Screen {
         }
     }
 
+    private void drawInactive(GuiGraphicsExtractor g, int mx, int my) {
+        List<ScoreboardEntry> list = inactive();
+        if (list.isEmpty()) {
+            g.text(this.font, "§7Every line is on the board.", inactiveX, inactiveY + 2, 0xFFFFFFFF);
+            return;
+        }
+        for (int i = 0; i < list.size(); i++) {
+            int[] r = inactiveRect(i);
+            if (r == null) {
+                continue;
+            }
+            ScoreboardEntry e = list.get(i);
+            boolean hover = !dragging && mx >= r[0] && mx < r[0] + r[2] && my >= r[1] && my < r[1] + r[3];
+            g.fill(r[0], r[1], r[0] + r[2], r[1] + r[3] - 1, hover ? 0xFF3A2410 : 0xFF1A1A1A);
+            g.text(this.font, (hover ? "§6+ " : "§a+ ") + "§f" + e.label, r[0] + 3, r[1] + 2, 0xFFFFFFFF);
+        }
+        int max = maxInactiveScroll();
+        if (max > 0) {
+            int trackH = inactiveVisibleH();
+            int thumbH = Math.max(10, trackH * trackH / (trackH + max));
+            int thumbY = inactiveY + (trackH - thumbH) * inactiveScroll / max;
+            g.fill(inactiveX + inactiveW + 1, thumbY, inactiveX + inactiveW + 3, thumbY + thumbH, 0xFF886644);
+        }
+    }
+
+    private void drawFloating(GuiGraphicsExtractor g, ScoreboardEntry e) {
+        List<ScoreboardLine> lines = editorLines(e, cfg);
+        int w = 0;
+        for (ScoreboardLine l : lines) {
+            w = Math.max(w, this.font.width(l.text()));
+        }
+        int h = lines.size() * (this.font.lineHeight + 1);
+        int x = (int) Math.round(mouseX - Math.min(grabDX, w));
+        int y = (int) Math.round(mouseY - grabDY);
+        g.fill(x - 3, y - 2, x + w + 3, y + h + 1, 0xE0101010);
+        g.outline(x - 3, y - 2, w + 6, h + 3, ORANGE);
+        int ly = y;
+        for (ScoreboardLine l : lines) {
+            g.text(this.font, l.text(), x, ly, 0xFFFFFFFF, true);
+            ly += this.font.lineHeight + 1;
+        }
+    }
+
+    /** The settings keep their Custom Scoreboard tab tooltips (same pattern as AutoRoutesEditScreen). */
+    private void drawTooltip(GuiGraphicsExtractor g, int mx, int my) {
+        AbstractWidget hovered = null;
+        for (var child : this.children()) {
+            if (child instanceof AbstractWidget w && w.visible && !(w instanceof EditBox) && !(w instanceof StringWidget)
+                    && mx >= w.getX() && mx < w.getX() + w.getWidth() && my >= w.getY() && my < w.getY() + w.getHeight()) {
+                hovered = w;
+                break;
+            }
+        }
+        long now = System.currentTimeMillis();
+        if (hovered != tooltipWidget) {
+            tooltipWidget = hovered;
+            tooltipSinceMs = now;
+        }
+        if (hovered == null || now - tooltipSinceMs < 350L) {
+            return;
+        }
+        String text = SettingTooltips.describe(TOOLTIP_SCOPE, hovered.getMessage().getString());
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(text), 220);
+        int w = 0;
+        for (var line : lines) {
+            w = Math.max(w, this.font.width(line));
+        }
+        int h = lines.size() * 10 - 2;
+        int x = mx + 12;
+        int y = my + 12;
+        if (x + w + 8 > this.width) {
+            x = Math.max(4, mx - w - 16);
+        }
+        if (y + h + 8 > this.height) {
+            y = Math.max(4, my - h - 16);
+        }
+        g.fill(x - 4, y - 4, x + w + 4, y + h + 4, 0xF00D0D0D);
+        g.outline(x - 4, y - 4, w + 8, h + 8, 0xFFCC6600);
+        int ly = y;
+        for (var line : lines) {
+            g.text(this.font, line, x, ly, 0xFFF0E6DC, false);
+            ly += 10;
+        }
+    }
+
     // ---- widget helpers ----
 
-    private AbstractWidget cycleBtn(Supplier<String> label, Runnable advance, Runnable regress, int x, int y, int w) {
+    private interface BoolGetter {
+        boolean get();
+    }
+
+    private interface BoolSetter {
+        void set(boolean value);
+    }
+
+    private static void hint(List<AbstractWidget> out, int x, int y, int w, String text) {
+        out.add(new StringWidget(x, y, w, 10, Component.literal("§7" + text), Minecraft.getInstance().font));
+    }
+
+    private AbstractWidget toggle(String label, BoolGetter getter, BoolSetter setter, int x, int y, int w) {
+        return SettingsButtonWidget.builder(onOff(label, getter.get()), btn -> {
+                    setter.set(!getter.get());
+                    cfg.save();
+                    btn.setMessage(onOff(label, getter.get()));
+                }).bounds(x, y, w, ROW).build();
+    }
+
+    private AbstractWidget cycle(Supplier<String> label, Runnable advance, Runnable regress, int x, int y, int w) {
         return SettingsButtonWidget.builder(Component.literal(label.get()), btn -> {
                     advance.run();
                     cfg.save();
@@ -170,7 +938,53 @@ public class ScoreboardEditorScreen extends Screen {
                     regress.run();
                     cfg.save();
                     btn.setMessage(Component.literal(label.get()));
-                }).bounds(x, y, w, 18).build();
+                }).bounds(x, y, w, ROW).build();
+    }
+
+    private AbstractWidget colorButton(String label, java.util.function.IntSupplier current, int def, IntConsumer setter,
+                                       int x, int y, int w) {
+        return SettingsButtonWidget.builder(ColorSwatch.label(label, current.getAsInt()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    McCompat.setScreen(client, new ColorPickerScreen(this, label, current.getAsInt(), def, argb -> {
+                        setter.accept(argb);
+                        cfg.save();
+                    }));
+                }).bounds(x, y, w, ROW).build();
+    }
+
+    private ThemedSliderButton slider(int x, int y, int w, int current, int min, int max, IntFunction<String> label,
+                                      IntConsumer setter) {
+        int range = Math.max(1, max - min);
+        CustomScoreboardConfig c = cfg;
+        return new ThemedSliderButton(x, y, w, ROW, Component.literal(label.apply(current)),
+                (current - min) / (double) range) {
+            private int valueInt() {
+                return min + (int) Math.round(this.value * range);
+            }
+
+            @Override
+            protected void updateMessage() {
+                setMessage(Component.literal(label.apply(valueInt())));
+            }
+
+            @Override
+            protected void applyValue() {
+                setter.accept(valueInt());
+                c.save();
+            }
+        };
+    }
+
+    private EditBox textBox(String name, String value, java.util.function.Consumer<String> setter, int x, int y, int w) {
+        EditBox box = new EditBox(Minecraft.getInstance().font, x, y, w, ROW, Component.literal(name));
+        box.setMaxLength(256);
+        box.setValue(value);
+        box.setHint(Component.literal("§8" + name));
+        box.setResponder(text -> {
+            setter.accept(text);
+            cfg.save();
+        });
+        return box;
     }
 
     private static Component onOff(String label, boolean value) {

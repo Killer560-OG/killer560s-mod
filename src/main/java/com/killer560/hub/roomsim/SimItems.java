@@ -392,6 +392,12 @@ public final class SimItems {
             // exactly as it aims it on Hypixel.
             case "BAT_WAND" -> {
                 SimAim.Aim aim = SimAim.of(sp);
+                // The rotation the use arrived with, exactly (Float.toString, not rounded): Auto Routes' crypt node and
+                // Kill Mimic must fire it straight down, pitch 90.0 (killer560, 2026-10-11), and testkit 644/651/653
+                // read this line.
+                com.killer560.hub.util.ModLog.get("killer560smod-sim").info(
+                        "[Sim] Spirit Sceptre at {} (pitch {})", sp.blockPosition().toShortString(),
+                        Float.toString(sp.getXRot()));
                 SimAbilities.onClient(() -> SimAim.with(aim, () -> SimSpiritSceptre.fire(Minecraft.getInstance())));
                 yield true;
             }

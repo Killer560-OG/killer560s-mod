@@ -44,6 +44,29 @@ public final class DungeonAlertsConfig {
     // Spring Boots Overlay
     public boolean springBootsEnabled = false;
     public boolean springBootsBox = true;
+    /** Height box colour (ARGB) and style (killer560, 2026-10-11). The default is Odin's red, outline only. */
+    public int springBootsColor = DEFAULT_SPRING_BOOTS_COLOR;
+    public BoxStyle springBootsBoxStyle = BoxStyle.OUTLINE;
+
+    public static final int DEFAULT_SPRING_BOOTS_COLOR = 0xFFFF5454;
+
+    /** How the Spring Boots height box is drawn. */
+    public enum BoxStyle {
+        OUTLINE("Outline"),
+        FILLED("Filled"),
+        FILLED_OUTLINE("Filled Outline");
+
+        public final String label;
+
+        BoxStyle(String label) {
+            this.label = label;
+        }
+
+        public BoxStyle next() {
+            BoxStyle[] v = values();
+            return v[(ordinal() + 1) % v.length];
+        }
+    }
 
     // Class Colors
     public boolean classColorsEnabled = false;
@@ -81,6 +104,8 @@ public final class DungeonAlertsConfig {
                 cfg.terracottaEnabled = bool(o, "terracottaEnabled", cfg.terracottaEnabled);
                 cfg.springBootsEnabled = bool(o, "springBootsEnabled", cfg.springBootsEnabled);
                 cfg.springBootsBox = bool(o, "springBootsBox", cfg.springBootsBox);
+                cfg.springBootsColor = ConfigJson.getInt(o, "springBootsColor", cfg.springBootsColor);
+                cfg.springBootsBoxStyle = ConfigJson.getEnum(o, "springBootsBoxStyle", BoxStyle.class, cfg.springBootsBoxStyle);
                 cfg.classColorsEnabled = bool(o, "classColorsEnabled", cfg.classColorsEnabled);
                 cfg.classColorsTab = bool(o, "classColorsTab", cfg.classColorsTab);
                 cfg.classColorsNametags = bool(o, "classColorsNametags", cfg.classColorsNametags);
@@ -109,6 +134,8 @@ public final class DungeonAlertsConfig {
             o.addProperty("terracottaEnabled", terracottaEnabled);
             o.addProperty("springBootsEnabled", springBootsEnabled);
             o.addProperty("springBootsBox", springBootsBox);
+            o.addProperty("springBootsColor", springBootsColor);
+            o.addProperty("springBootsBoxStyle", springBootsBoxStyle.name());
             o.addProperty("classColorsEnabled", classColorsEnabled);
             o.addProperty("classColorsTab", classColorsTab);
             o.addProperty("classColorsNametags", classColorsNametags);

@@ -19,7 +19,7 @@ import com.killer560.hub.compat.McCompat;
 
 /** Name Changer settings - see {@link NameChangerFeature}'s class doc. Own display name (colour, fade, a colour per
  *  letter, and a reset), and an editable "real name -> display name" list (same add/edit/delete row pattern as
- *  {@link AbilityTimersTab}/{@link PosmsgTab}). Randomize Others moved to its own {@link NickhiderTab} (killer560,
+ *  {@link PosmsgTab}). Randomize Others moved to its own {@link NickhiderTab} (killer560,
  *  2026-10-04). Purely visual: nothing typed or sent to the server changes. */
 public class NameChangerTab extends BaseTab {
 
