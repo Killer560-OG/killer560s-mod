@@ -208,3 +208,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **26.2 is reverse-Z.** `GameRenderer.renderLevel` clears depth to 0.0 before the hands (26.1.2: 1.0) and LevelRenderer's
   always-on-top pass clears its own target to 0.0 (javap). An off-screen target cleared to 1.0 on 26.2 rejects every
   fragment, silently: Held Item Outline's mask stayed empty there until it cleared to `McRender.FAR_DEPTH` (2026-10-11).
+- **The player's own tab-list latency is not a ping on Hypixel.** The Performance HUD read `PlayerInfo.getLatency()` and
+  always said 1 ms (killer560, 2026-10-11). `util/PingTracker` measures a round trip with vanilla's ping request / pong
+  pair (the F3 ping chart's packets; `ClientPacketListener.handlePongResponse` runs on the Netty thread, javap both
+  versions) and only sends while something shows it; testkit 724 follows an injected 200 ms. Bloodcamp, Auto Routes,
+  AP3, Terminals and Auto Debuff still compensate with the tab value.
