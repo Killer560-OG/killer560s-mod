@@ -34,6 +34,15 @@ public final class GuiOverlays {
     private GuiOverlays() {
     }
 
+    /** True while an inventory, chest, storage page or any other container menu (or the Storage Search screen) is
+     *  open. GIFs and DVD boxes are not drawn then (killer560, 2026-10-11: "make it so gifs and dvds and whatnot dont
+     *  show in the storage or any inventory"). */
+    public static boolean containerOpen() {
+        net.minecraft.client.gui.screens.Screen screen = com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance());
+        return screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>
+                || screen instanceof com.killer560.hub.storagesearch.StorageSearchScreen;
+    }
+
     public static void register() {
         add("overlay_message", GuiOverlays::drawOverlayMessage);
         add("gif_player", GifPlayerFeature::renderOverlay);

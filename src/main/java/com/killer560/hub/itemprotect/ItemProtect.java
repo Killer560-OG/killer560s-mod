@@ -47,7 +47,7 @@ public final class ItemProtect {
 
     /** Repeat-suppression for the chat line: a quick-craft drag calls {@code slotClicked} once per slot. */
     private static final long MESSAGE_COOLDOWN_MS = 400L;
-    /** How long the "press it again to drop anyway" window stays open. */
+    /** How long the "press it again to drop anyway" window stays open, measured from the latest press. */
     public static final long FORCE_WINDOW_MS = 3000L;
 
     private static String lastMessage = "";
@@ -55,6 +55,8 @@ public final class ItemProtect {
 
     private static int forceArmedSlot = -1;
     private static long forceArmedAt = 0L;
+    /** Presses counted so far toward {@link ItemProtectConfig#getForceDrops()} for {@link #forceArmedSlot}. */
+    private static int forcePresses = 0;
 
     private ItemProtect() {
     }
@@ -346,9 +348,9 @@ public final class ItemProtect {
     /**
      * Decision for the real drop key. Returns true to swallow the key press.
      * <p>
-     * With Confirm To Force on, the first press is blocked and arms a {@link #FORCE_WINDOW_MS} window for that
-     * exact hotbar slot; pressing the key again inside the window drops the item for real, so the feature is
-     * never a hard wall on your own gear.
+     * With Confirm To Force on, presses are counted for that exact hotbar slot, each inside {@link #FORCE_WINDOW_MS}
+     * of the last; the press that reaches {@link ItemProtectConfig#getForceDrops()} (2-4) drops the item for real, so
+     * the feature is never a hard wall on your own gear.
      */
     public static boolean shouldBlockHotbarDrop() {
         ItemProtectConfig cfg = ItemProtectConfig.getInstance();
@@ -375,17 +377,22 @@ public final class ItemProtect {
 
         long now = System.currentTimeMillis();
         if (cfg.isConfirmToForce()) {
-            if (forceArmedSlot == selected && now - forceArmedAt <= FORCE_WINDOW_MS) {
+            boolean continuing = forceArmedSlot == selected && now - forceArmedAt <= FORCE_WINDOW_MS;
+            forcePresses = continuing ? forcePresses + 1 : 1;
+            forceArmedSlot = selected;
+            forceArmedAt = now;
+            int needed = cfg.getForceDrops();
+            if (forcePresses >= needed) {
                 forceArmedSlot = -1;
                 forceArmedAt = 0L;
+                forcePresses = 0;
                 ModChat.send("Item Protect", ModChat.text("Dropping "),
                         ModChat.value(displayName(held)), ModChat.text(" anyway (confirmed)."));
                 return false;
             }
-            forceArmedSlot = selected;
-            forceArmedAt = now;
-            announceBlock("dropping", held, reason,
-                    " Press drop again within " + (FORCE_WINDOW_MS / 1000) + "s to drop it anyway.");
+            int left = needed - forcePresses;
+            announceBlock("dropping", held, reason, " Press drop " + left + " more time" + (left == 1 ? "" : "s")
+                    + " within " + (FORCE_WINDOW_MS / 1000) + "s to drop it anyway.");
             return true;
         }
         announceBlock("dropping", held, reason);

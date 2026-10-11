@@ -50,6 +50,11 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   The stats now come from `ProfileViewerApi` (SkyBlockPV backend, Hypixel's raw profiles) and docilelm is no longer
   called; testkit 400-menu-partyfinder-stats serves real trimmed backend answers through a loopback fake.
 
+- **A TAIL inject on `AbstractContainerScreen.extractRenderState` never runs in the player inventory, crafting table or
+  furnaces.** `AbstractRecipeBookScreen.extractRenderState` replaces it outright (it calls `extractContents`, the carried
+  item and `extractTooltip` itself, never super; javap 26.1.2 and 26.2), so the Item Browser panel drew in chests and not
+  in the E inventory (testkit 709/710, 2026-10-11). Inject both classes, or hook `extractContents`/`extractSlot`, which
+  both paths call.
 - **Anything drawn from inside `AbstractContainerScreen.extractContents` is already translated by leftPos/topPos**
   (labels, `extractSlotHighlightBack/Front`, `extractSlots`/`extractSlot`; javap, 26.1.2 and 26.2), so it draws at
   plain `slot.x, slot.y`. `extractBackground` and the `extractRenderState` TAIL / `ScreenEvents.afterExtract` are

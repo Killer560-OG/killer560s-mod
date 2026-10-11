@@ -80,6 +80,12 @@ public final class ItemProtectConfig {
     private boolean preventHotbarDropEnabled = false;
     private boolean blockEveryHotbarDrop = false;
     private boolean confirmToForce = true;
+    /** Drop presses it takes to force a protected hotbar item out with Confirm To Force on (killer560, 2026-10-11:
+     *  "a slider between 2-4 for drops it takes to drop the item"). */
+    private int forceDrops = DEFAULT_FORCE_DROPS;
+    public static final int MIN_FORCE_DROPS = 2;
+    public static final int MAX_FORCE_DROPS = 4;
+    public static final int DEFAULT_FORCE_DROPS = 2;
 
     // Feedback
     private boolean blockSound = true;
@@ -167,6 +173,7 @@ public final class ItemProtectConfig {
             cfg.preventHotbarDropEnabled = ConfigJson.getBool(obj, "preventHotbarDropEnabled", false);
             cfg.blockEveryHotbarDrop = ConfigJson.getBool(obj, "blockEveryHotbarDrop", false);
             cfg.confirmToForce = ConfigJson.getBool(obj, "confirmToForce", true);
+            cfg.setForceDrops(ConfigJson.getInt(obj, "forceDrops", DEFAULT_FORCE_DROPS));
 
             cfg.blockSound = ConfigJson.getBool(obj, "blockSound", true);
 
@@ -242,6 +249,7 @@ public final class ItemProtectConfig {
             obj.addProperty("preventHotbarDropEnabled", preventHotbarDropEnabled);
             obj.addProperty("blockEveryHotbarDrop", blockEveryHotbarDrop);
             obj.addProperty("confirmToForce", confirmToForce);
+            obj.addProperty("forceDrops", forceDrops);
 
             obj.addProperty("blockSound", blockSound);
 
@@ -436,6 +444,14 @@ public final class ItemProtectConfig {
 
     public void setConfirmToForce(boolean value) {
         this.confirmToForce = value;
+    }
+
+    public int getForceDrops() {
+        return forceDrops;
+    }
+
+    public void setForceDrops(int value) {
+        this.forceDrops = Math.max(MIN_FORCE_DROPS, Math.min(MAX_FORCE_DROPS, value));
     }
 
     // --- feedback ---

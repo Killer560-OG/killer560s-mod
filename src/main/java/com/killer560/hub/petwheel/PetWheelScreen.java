@@ -67,7 +67,6 @@ public class PetWheelScreen extends Screen {
     private static final float TILE_SPACING_FACTOR = 1.15f;
 
     private final List<PetEntry> allPets;
-    private final int sliceCount;
     private final float scale;
     private final float iconScale;
     private final boolean hideLevel;
@@ -89,16 +88,15 @@ public class PetWheelScreen extends Screen {
     private double dragCurrentY = 0;
 
     /** Live wheel: pick a slice to summon it. */
-    public PetWheelScreen(List<PetEntry> allPets, int sliceCount, float scale, PetWheelConfig.InteractionMode mode) {
-        this(allPets, sliceCount, scale, mode, false, null);
+    public PetWheelScreen(List<PetEntry> allPets, float scale, PetWheelConfig.InteractionMode mode) {
+        this(allPets, scale, mode, false, null);
     }
 
-    private PetWheelScreen(List<PetEntry> allPets, int sliceCount, float scale, PetWheelConfig.InteractionMode mode,
+    private PetWheelScreen(List<PetEntry> allPets, float scale, PetWheelConfig.InteractionMode mode,
                            boolean editMode, Screen editParent) {
         super(Component.literal(editMode ? "Edit Pets" : "Pet Wheel"));
         PetWheelConfig cfg = PetWheelConfig.getInstance();
         this.allPets = allPets;
-        this.sliceCount = Math.max(1, sliceCount);
         this.scale = scale;
         this.iconScale = cfg.getIconScalePercent() / 100f;
         this.hideLevel = cfg.isHideLevel();
@@ -118,7 +116,7 @@ public class PetWheelScreen extends Screen {
      */
     public static PetWheelScreen forEdit(Screen parent) {
         PetWheelConfig cfg = PetWheelConfig.getInstance();
-        return new PetWheelScreen(cfg.getWheelPets(), cfg.getSliceCount(), cfg.getScalePercent() / 100f,
+        return new PetWheelScreen(cfg.getWheelPets(), cfg.getScalePercent() / 100f,
                 cfg.getMode(), true, parent);
     }
 
@@ -136,17 +134,23 @@ public class PetWheelScreen extends Screen {
         return editMode ? allPets.size() + 1 : allPets.size();
     }
 
+    /** killer560, 2026-10-11: "remove the slices portion since you just add whatever pets you want and it auto
+     *  updates where they go" - every pet on the wheel is one slice, so there is always exactly one page. */
+    private int sliceCount() {
+        return Math.max(1, totalSlots());
+    }
+
     private int pageCount() {
-        return Math.max(1, (int) Math.ceil(totalSlots() / (double) sliceCount));
+        return Math.max(1, (int) Math.ceil(totalSlots() / (double) sliceCount()));
     }
 
     private int firstGlobalIndexOnPage(int p) {
-        return Math.min(p * sliceCount, totalSlots());
+        return Math.min(p * sliceCount(), totalSlots());
     }
 
     private int slotsOnPage(int p) {
         int from = firstGlobalIndexOnPage(p);
-        int to = Math.min(from + sliceCount, totalSlots());
+        int to = Math.min(from + sliceCount(), totalSlots());
         return to - from;
     }
 
@@ -295,7 +299,7 @@ public class PetWheelScreen extends Screen {
 
         if (pet == null) {
             // The one trailing empty/"+" slot in edit mode - right-click it to fill it.
-            graphics.centeredText(font, "+", Math.round(px), Math.round(py) - 4, hovered ? TEXT_HOVER : TEXT_DIM);
+            drawScaledCentered(graphics, "+", px, py - 4 * scale, hovered ? TEXT_HOVER : TEXT_DIM);
             return;
         }
 
@@ -309,8 +313,17 @@ public class PetWheelScreen extends Screen {
 
         String label = sliceLabel(pet);
         if (!label.isEmpty()) {
-            graphics.centeredText(font, label, Math.round(px), y0 + tile + 2, hovered ? TEXT_HOVER : TEXT);
+            drawScaledCentered(graphics, label, px, y0 + tile + 2, hovered ? TEXT_HOVER : TEXT);
         }
+    }
+
+    /** killer560, 2026-10-11: "the scale should also scale the text" - slice labels draw at the wheel's Scale. */
+    private void drawScaledCentered(GuiGraphicsExtractor graphics, String text, float x, float y, int color) {
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x, y);
+        graphics.pose().scale(scale, scale);
+        graphics.centeredText(font, text, 0, 0, color);
+        graphics.pose().popMatrix();
     }
 
     /** killer560: "add an option to hide their level and an option to hide the pets name" - each toggle is
@@ -375,8 +388,8 @@ public class PetWheelScreen extends Screen {
     /** Live-wheel-only helper (edit mode uses {@link #petAt}/{@link #hitGlobalIndex} instead, since it also
      *  has to represent the one trailing empty slot {@link PetEntry} can't hold). */
     private List<PetEntry> currentPagePets() {
-        int from = Math.min(page * sliceCount, allPets.size());
-        int to = Math.min(from + sliceCount, allPets.size());
+        int from = Math.min(page * sliceCount(), allPets.size());
+        int to = Math.min(from + sliceCount(), allPets.size());
         return allPets.subList(from, to);
     }
 

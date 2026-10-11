@@ -91,26 +91,10 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 22;
 
-        int minSlices = PetWheelConfig.MIN_SLICES;
-        int maxSlices = PetWheelConfig.MAX_SLICES;
-        double sliceNorm = (cfg.getSliceCount() - minSlices) / (double) (maxSlices - minSlices);
-        widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, sliceText(cfg), sliceNorm) {
-            @Override
-            protected void updateMessage() {
-                setMessage(sliceText(cfg));
-            }
-
-            @Override
-            protected void applyValue() {
-                cfg.setSliceCount((int) Math.round(minSlices + this.value * (maxSlices - minSlices)));
-                cfg.save();
-            }
-        });
-
         int minScale = PetWheelConfig.MIN_SCALE_PCT;
         int maxScale = PetWheelConfig.MAX_SCALE_PCT;
         double scaleNorm = (cfg.getScalePercent() - minScale) / (double) (maxScale - minScale);
-        widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, scaleText(cfg), scaleNorm) {
+        widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, scaleText(cfg), scaleNorm) {
             @Override
             protected void updateMessage() {
                 setMessage(scaleText(cfg));
@@ -122,14 +106,13 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
                 cfg.save();
             }
         });
-        y += 22;
 
         // killer560, 2026-09-27: "make a way to have the pictures alot bigger as well" - a second, independent
         // multiplier that only grows the pet picture itself (see PetWheelConfig#MAX_ICON_SCALE_PCT's doc).
         int minIcon = PetWheelConfig.MIN_ICON_SCALE_PCT;
         int maxIcon = PetWheelConfig.MAX_ICON_SCALE_PCT;
         double iconNorm = (cfg.getIconScalePercent() - minIcon) / (double) (maxIcon - minIcon);
-        widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, iconSizeText(cfg), iconNorm) {
+        widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, iconSizeText(cfg), iconNorm) {
             @Override
             protected void updateMessage() {
                 setMessage(iconSizeText(cfg));
@@ -142,32 +125,32 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
             }
         });
 
+        y += 22;
+
         widgets.add(SettingsButtonWidget.builder(onOff("Hide Level", cfg.isHideLevel()), btn -> {
                     cfg.setHideLevel(!cfg.isHideLevel());
                     cfg.save();
                     btn.setMessage(onOff("Hide Level", cfg.isHideLevel()));
-                }).bounds(col2bX, y, col2W, 18).build());
-        y += 22;
+                }).bounds(contentX, y, col2W, 18).build());
 
         widgets.add(SettingsButtonWidget.builder(onOff("Hide Name", cfg.isHideName()), btn -> {
                     cfg.setHideName(!cfg.isHideName());
                     cfg.save();
                     btn.setMessage(onOff("Hide Name", cfg.isHideName()));
-                }).bounds(contentX, y, col2W, 18).build());
+                }).bounds(col2bX, y, col2W, 18).build());
+        y += 22;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Hide Pets Menu", cfg.isHideMenuWhileSummoning()), btn -> {
                     cfg.setHideMenuWhileSummoning(!cfg.isHideMenuWhileSummoning());
                     cfg.save();
                     btn.setMessage(onOff("Hide Pets Menu", cfg.isHideMenuWhileSummoning()));
-                }).bounds(col2bX, y, col2W, 18).build());
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Pets"), btn ->
                         McCompat.setScreen(Minecraft.getInstance(), PetWheelScreen.forEdit(McCompat.screen(Minecraft.getInstance()))))
                 .bounds(contentX, y, contentWidth, 20).build());
         y += 24;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(statusLine(cfg)), font));
 
         return widgets;
     }
@@ -189,21 +172,11 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
         return Component.literal("Mode: " + label);
     }
 
-    private static Component sliceText(PetWheelConfig cfg) {
-        return Component.literal("Slices: " + cfg.getSliceCount());
-    }
-
     private static Component scaleText(PetWheelConfig cfg) {
         return Component.literal("Scale: " + cfg.getScalePercent() + "%");
     }
 
     private static Component iconSizeText(PetWheelConfig cfg) {
         return Component.literal("Icon Size: " + cfg.getIconScalePercent() + "%");
-    }
-
-    /** Live counts, not an explanatory paragraph - the "in-panel paragraphs are being removed" rule (2026-09-21)
-     *  explicitly keeps dynamic status lines like this one. */
-    private static String statusLine(PetWheelConfig cfg) {
-        return "§7" + cfg.getWheelPets().size() + " pet(s) on the wheel, " + cfg.getKnownPets().size() + " known.";
     }
 }

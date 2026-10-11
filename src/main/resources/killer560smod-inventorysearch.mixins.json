@@ -4,7 +4,8 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.inventorysearch.mixin",
 	"client": [
-		"ContainerScreenPositionAccessor"
+		"ContainerScreenPositionAccessor",
+		"InventorySearchSlotMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

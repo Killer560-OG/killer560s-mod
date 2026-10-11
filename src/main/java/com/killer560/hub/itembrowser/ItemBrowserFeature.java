@@ -45,6 +45,15 @@ import java.util.stream.Collectors;
  *   <li>Slider adjusters / horizontal-vertical / centering - {@link ItemBrowserConfig}; see its own
  *   field docs for exactly what "horizontal/vertical" and "centered" were read as.</li>
  * </ul>
+ * <p>
+ * 2026-10-11 (killer560): the panel has no search box of its own any more - "Do not move my search bar above the
+ * menu the search bar should stay in the bottom middle of my screen like normal" - it filters by Inventory Search's
+ * bar at the bottom middle. Hovering an item shows its real tooltip (NEU repo lore, {@link NeuItemData}); the panel is
+ * drawn inside the container's own render pass ({@code ItemBrowserRenderMixin}, {@code ItemBrowserRecipeBookRenderMixin})
+ * so its tooltip is set before the frame's deferred tooltip pass, the way the Storage Overlay does it. Every minion's
+ * tiers collapse into one cell that opens a tier picker ({@link ItemCraftView#openTiers}). Sorting defaults to value
+ * high to low; the old "Default" (catalog order) sort is gone.
+ * <p>
  * Watches its own per-frame cost per the brief: {@link #filteredItemsCached} only re-filters the ~5,655
  * item catalog when the query (or the catalog reference itself, after a background refresh) actually
  * changes, instead of every single frame regardless of whether anything moved.
@@ -52,7 +61,8 @@ import java.util.stream.Collectors;
 public final class ItemBrowserFeature {
 
     private static final int CELL_SIZE = 18;
-    private static final int HEADER_HEIGHT = 20;
+    /** Space above the grid. The panel's own search header was removed 2026-10-11 (see the class doc). */
+    private static final int HEADER_HEIGHT = 4;
     /** killer560 (2026-09-27): "make a button at the bottom of it in my inventory to sort by things like
      *  value, a-z, ect." - the sort button's own row, reserved below the item grid the same way
      *  HEADER_HEIGHT is reserved above it. */
@@ -71,9 +81,11 @@ public final class ItemBrowserFeature {
     private static ItemBrowserConfig.SortMode cachedSortMode = null;
     private static List<SkyblockItemEntry> cachedFiltered = List.of();
 
-    /** Real screen bounds of the shared search header from the most recent render, used by the click
-     *  handler to focus it - see {@link InventorySearchFeature#setListening}. */
-    private static int[] lastHeaderBounds = null;
+    /** Minion tier id: {@code BLAZE_GENERATOR_7} -> base {@code BLAZE}, tier 7. */
+    private static final java.util.regex.Pattern MINION_ID = java.util.regex.Pattern.compile("^([A-Z0-9_]{1,40})_GENERATOR_(\\d{1,2})$");
+    /** Every catalog minion's tiers, lowest first, keyed by base id - rebuilt with the catalog reference. */
+    private static java.util.Map<String, List<SkyblockItemEntry>> minionGroups = java.util.Map.of();
+    private static List<SkyblockItemEntry> minionGroupsSource = null;
 
     private ItemBrowserFeature() {
     }
@@ -90,7 +102,6 @@ public final class ItemBrowserFeature {
             return;
         }
         scrollOffset = 0;
-        lastHeaderBounds = null;
         ItemCraftView.close();
 
         ScreenMouseEvents.allowMouseScroll(screen).register((s, mouseX, mouseY, scrollX, scrollY) -> {
@@ -139,13 +150,14 @@ public final class ItemBrowserFeature {
             if (event.button() != 0) {
                 return true; // right-click anywhere else in the panel is a no-op, same as before
             }
-            if (localY < HEADER_HEIGHT) {
-                InventorySearchFeature.setListening(true);
-                return false;
-            }
             SkyblockItemEntry clicked = entryAt(layout, cfg, event.x(), event.y());
             if (clicked != null) {
-                ItemCraftView.open(clicked);
+                List<SkyblockItemEntry> tiers = minionTiers(clicked);
+                if (tiers.size() > 1) {
+                    ItemCraftView.openTiers(tiers);
+                } else {
+                    ItemCraftView.open(clicked);
+                }
             }
             // Either way the click landed inside the panel - never let it fall through onto a real slot
             // underneath.
@@ -160,8 +172,17 @@ public final class ItemBrowserFeature {
             return true;
         });
 
-        ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) ->
-                render(containerScreen, graphics, mouseX, mouseY));
+    }
+
+    /** Called from {@code ItemBrowserRenderMixin} at the TAIL of the container's {@code extractRenderState}, so the
+     *  panel's {@code setTooltipForNextFrame} lands in this frame's tooltip pass. */
+    public static void renderFromMixin(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        render(screen, graphics, mouseX, mouseY);
+    }
+
+    /** @return true when the vanilla slot tooltip should be skipped this frame (the craft popup covers the menu). */
+    public static boolean suppressVanillaTooltip() {
+        return ItemCraftView.isOpen() && ItemBrowserConfig.getInstance().isEnabled();
     }
 
     /** Re-filters (and re-sorts) the real item catalog only when the query text, the catalog reference
@@ -180,7 +201,7 @@ public final class ItemBrowserFeature {
         cachedSourceRef = all;
         cachedSortMode = sortMode;
         List<SkyblockItemEntry> filtered;
-        if (query.isBlank()) {
+        if (query.isBlank() || com.killer560.hub.inventorysearch.SearchCalculator.resultFor(query) != null) {
             filtered = new ArrayList<>(all);
         } else {
             String needle = query.toLowerCase(Locale.ROOT);
@@ -188,16 +209,83 @@ public final class ItemBrowserFeature {
                     .filter(item -> item.name().toLowerCase(Locale.ROOT).contains(needle))
                     .collect(Collectors.toList());
         }
+        filtered = collapseMinions(filtered, all);
         sort(filtered, sortMode);
         cachedFiltered = filtered;
         return cachedFiltered;
     }
 
+    /** One cell per minion: every tier that passed the filter is replaced by the minion's lowest tier, once.
+     *  Public for the testkit. */
+    public static List<SkyblockItemEntry> collapseMinions(List<SkyblockItemEntry> filtered, List<SkyblockItemEntry> catalog) {
+        ensureMinionGroups(catalog);
+        List<SkyblockItemEntry> out = new ArrayList<>(filtered.size());
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (SkyblockItemEntry e : filtered) {
+            java.util.regex.Matcher m = MINION_ID.matcher(e.id());
+            if (!m.matches()) {
+                out.add(e);
+                continue;
+            }
+            List<SkyblockItemEntry> group = minionGroups.get(m.group(1));
+            if (group == null || group.size() < 2) {
+                out.add(e);
+            } else if (seen.add(m.group(1))) {
+                out.add(group.getFirst());
+            }
+        }
+        return out;
+    }
+
+    private static void ensureMinionGroups(List<SkyblockItemEntry> catalog) {
+        if (catalog == minionGroupsSource) {
+            return;
+        }
+        java.util.Map<String, List<SkyblockItemEntry>> groups = new java.util.HashMap<>();
+        for (SkyblockItemEntry e : catalog) {
+            java.util.regex.Matcher m = MINION_ID.matcher(e.id());
+            if (m.matches()) {
+                groups.computeIfAbsent(m.group(1), k -> new ArrayList<>()).add(e);
+            }
+        }
+        for (List<SkyblockItemEntry> g : groups.values()) {
+            g.sort(java.util.Comparator.comparingInt(ItemBrowserFeature::minionTier));
+        }
+        minionGroups = groups;
+        minionGroupsSource = catalog;
+    }
+
+    /** @return every tier of {@code entry}'s minion, lowest first, or just {@code entry} when it is not a minion. */
+    public static List<SkyblockItemEntry> minionTiers(SkyblockItemEntry entry) {
+        java.util.regex.Matcher m = MINION_ID.matcher(entry.id());
+        if (!m.matches()) {
+            return List.of(entry);
+        }
+        ensureMinionGroups(SkyblockItemRepository.getItems());
+        List<SkyblockItemEntry> group = minionGroups.get(m.group(1));
+        return group == null || group.isEmpty() ? List.of(entry) : group;
+    }
+
+    static int minionTier(SkyblockItemEntry entry) {
+        java.util.regex.Matcher m = MINION_ID.matcher(entry.id());
+        return m.matches() ? Integer.parseInt(m.group(2)) : 0;
+    }
+
+    /** "Blaze Minion VII" -> "Blaze Minion". */
+    public static String minionBaseName(SkyblockItemEntry entry) {
+        return entry.name().replaceFirst("\\s+[IVXLC]{1,8}$", "");
+    }
+
+    /** "Blaze Minion VII" -> "VII"; falls back to the id's tier number. */
+    public static String minionTierLabel(SkyblockItemEntry entry) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\s([IVXLC]{1,8})$").matcher(entry.name());
+        return m.find() ? m.group(1) : String.valueOf(minionTier(entry));
+    }
+
     /** killer560 (2026-09-27): "make a button... to sort by things like value, a-z, ect." Value comes
      *  from {@link SkyblockItemValue} (same source the tooltip setting below uses) - an item with no
      *  known price always sorts to the end of a value sort, in either direction, rather than landing at
-     *  an arbitrary spot among the priced ones. {@link ItemBrowserConfig.SortMode#CATALOG} is a no-op:
-     *  {@code filtered} is already in catalog order at this point. */
+     *  an arbitrary spot among the priced ones. */
     private static void sort(List<SkyblockItemEntry> filtered, ItemBrowserConfig.SortMode sortMode) {
         java.util.Comparator<SkyblockItemEntry> byNameAz =
                 java.util.Comparator.comparing((SkyblockItemEntry e) -> e.name().toLowerCase(Locale.ROOT));
@@ -214,9 +302,6 @@ public final class ItemBrowserFeature {
             case ZA -> filtered.sort(byNameAz.reversed());
             case VALUE_HIGH_LOW -> filtered.sort(byValueHighLow);
             case VALUE_LOW_HIGH -> filtered.sort(byValueLowHigh);
-            case CATALOG -> {
-                // No-op - already in catalog order.
-            }
         }
     }
 
@@ -306,11 +391,6 @@ public final class ItemBrowserFeature {
 
             graphics.fill(0, 0, localWidth, localHeight, 0xCC0D0D0D);
             graphics.outline(0, 0, localWidth, localHeight, 0xFF553311);
-            graphics.fill(1, 1, localWidth - 1, HEADER_HEIGHT - 1,
-                    InventorySearchFeature.isListening() ? 0x33CC6600 : 0x33000000);
-            String query = InventorySearchFeature.getQuery();
-            String display = query.isEmpty() ? "§8Ctrl+F or click to search..." : query;
-            graphics.text(Minecraft.getInstance().font, display, PADDING, 6, 0xFFFFFFFF, false);
 
             int gridX = PADDING;
             int gridY = HEADER_HEIGHT;
@@ -337,6 +417,10 @@ public final class ItemBrowserFeature {
                 SkyblockItemEntry entry = filtered.get(itemIndex);
                 ItemStack stack = SkyblockItemStackFactory.build(entry);
                 graphics.item(stack, cellX + 1, cellY + 1);
+                if (minionTiers(entry).size() > 1) {
+                    // A stack of every tier: a small orange corner mark, like a bundle.
+                    graphics.fill(cellX + CELL_SIZE - 5, cellY + 1, cellX + CELL_SIZE - 1, cellY + 5, 0xFFCC6600);
+                }
                 if (hovered) {
                     hoveredEntry = entry;
                 }
@@ -359,14 +443,11 @@ public final class ItemBrowserFeature {
             graphics.pose().popMatrix();
         }
 
-        lastHeaderBounds = new int[]{layout.screenX(), layout.screenY(), layout.screenW(),
-                Math.round(HEADER_HEIGHT * layout.scale())};
-
         // killer560 (2026-09-21): "if i hover an item it tells me its lore" - real tooltip lines are
         // drawn in real screen space (setTooltipForNextFrame ignores the pose transform above, same as
         // every other overlay panel in this mod that does this), so this runs after popMatrix using the
         // real, untransformed mouseX/mouseY.
-        if (hoveredEntry != null) {
+        if (hoveredEntry != null && !ItemCraftView.isOpen()) {
             graphics.setTooltipForNextFrame(Minecraft.getInstance().font, buildTooltipLines(hoveredEntry),
                     Optional.empty(), mouseX, mouseY);
         }
@@ -376,29 +457,46 @@ public final class ItemBrowserFeature {
         }
     }
 
-    /** Real hover lore - killer560 (2026-09-21): "if i hover an item it tells me its lore". Built only
-     *  from real fields {@link SkyblockItemRepository} actually has (name/tier/category/description/NPC
-     *  sell price) - see {@link SkyblockItemEntry}'s class doc for why this isn't full vanilla-style
-     *  stat lore (Hypixel's public resource doesn't expose that). */
-    private static List<Component> buildTooltipLines(SkyblockItemEntry entry) {
+    /** The item's tooltip: its real lore from the NEU item repo once that has arrived (killer560, 2026-10-11:
+     *  "make it so hovering something there shows its tooltip"), else what Hypixel's catalog has (name, tier,
+     *  category, description, NPC sell price). Ends with the value and a hint line. Public for the craft view. */
+    public static List<Component> buildTooltipLines(SkyblockItemEntry entry) {
         Font font = Minecraft.getInstance().font;
         List<Component> lines = new ArrayList<>();
-        lines.add(Component.literal(SkyblockItemStackFactory.tierColorCode(entry.tier()) + entry.name()));
-        if (entry.tier() != null || entry.category() != null) {
-            String line = "§7" + (entry.tier() != null ? entry.tier() : "")
-                    + (entry.tier() != null && entry.category() != null ? " - " : "")
-                    + (entry.category() != null ? SkyblockItemStackFactory.niceCategory(entry.category()) : "");
-            lines.add(Component.literal(line));
-        }
-        if (entry.description() != null) {
-            for (String wrapped : wrap(font, entry.description(), 200)) {
-                lines.add(Component.literal("§7" + wrapped));
+        List<SkyblockItemEntry> tiers = minionTiers(entry);
+        boolean stack = tiers.size() > 1 && ItemCraftView.openTierList() == null;
+        NeuItemData.Info neu = NeuItemData.get(entry.id());
+        if (stack) {
+            lines.add(Component.literal(SkyblockItemStackFactory.tierColorCode(entry.tier()) + minionBaseName(entry)));
+            lines.add(Component.literal("\u00a77Tiers " + minionTierLabel(tiers.getFirst()) + "-" + minionTierLabel(tiers.getLast())));
+        } else if (neu != null && (neu.displayName() != null || !neu.lore().isEmpty())) {
+            lines.add(Component.literal(neu.displayName() != null ? neu.displayName()
+                    : SkyblockItemStackFactory.tierColorCode(entry.tier()) + entry.name()));
+            for (String l : neu.lore()) {
+                lines.add(Component.literal(l));
+            }
+        } else {
+            lines.add(Component.literal(SkyblockItemStackFactory.tierColorCode(entry.tier()) + entry.name()));
+            if (entry.tier() != null || entry.category() != null) {
+                String line = "\u00a77" + (entry.tier() != null ? entry.tier() : "")
+                        + (entry.tier() != null && entry.category() != null ? " - " : "")
+                        + (entry.category() != null ? SkyblockItemStackFactory.niceCategory(entry.category()) : "");
+                lines.add(Component.literal(line));
+            }
+            if (entry.description() != null) {
+                for (String wrapped : wrap(font, entry.description(), 200)) {
+                    lines.add(Component.literal("\u00a77" + wrapped));
+                }
+            }
+            if (entry.npcSellPrice() != null) {
+                lines.add(Component.literal("\u00a77NPC Sell: \u00a76" + Math.round(entry.npcSellPrice()) + " coins"));
             }
         }
-        if (entry.npcSellPrice() != null) {
-            lines.add(Component.literal("§7NPC Sell: §6" + Math.round(entry.npcSellPrice()) + " coins"));
+        Long value = SkyblockItemValue.getValue(entry.id());
+        if (value != null && !stack) {
+            lines.add(Component.literal("\u00a77Value: \u00a76" + SkyblockItemValue.formatCoins(value)));
         }
-        lines.add(Component.literal("§8Left-click for crafting/obtain info"));
+        lines.add(Component.literal(stack ? "\u00a78Left-click to see every tier" : "\u00a78Left-click for crafting/obtain info"));
         return lines;
     }
 

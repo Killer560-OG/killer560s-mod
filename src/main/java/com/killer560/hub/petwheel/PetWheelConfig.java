@@ -41,9 +41,6 @@ public final class PetWheelConfig {
         PRESS_CLICK
     }
 
-    public static final int MIN_SLICES = 4;
-    public static final int MAX_SLICES = 12;
-    public static final int DEFAULT_SLICES = 8;
     public static final int MIN_SCALE_PCT = 60;
     /** Raised from 150 (killer560, 2026-09-27: "the scale should also be able to go a decent bit higher"). */
     public static final int MAX_SCALE_PCT = 400;
@@ -63,7 +60,6 @@ public final class PetWheelConfig {
     private static PetWheelConfig instance;
 
     private boolean enabled = false;
-    private int sliceCount = DEFAULT_SLICES;
     private int scalePercent = DEFAULT_SCALE_PCT;
     private int iconScalePercent = DEFAULT_ICON_SCALE_PCT;
     private InteractionMode mode = InteractionMode.HOLD_RELEASE;
@@ -121,7 +117,6 @@ public final class PetWheelConfig {
                 // - including wheelPets and knownPets, which load last - silently at defaults, and the next
                 // save wrote that loss to disk.
                 cfg.enabled = getBool(root, "enabled", false);
-                cfg.sliceCount = clampSlices(getInt(root, "sliceCount", DEFAULT_SLICES));
                 cfg.scalePercent = clampScale(getInt(root, "scalePercent", DEFAULT_SCALE_PCT));
                 cfg.iconScalePercent = clampIconScale(getInt(root, "iconScalePercent", DEFAULT_ICON_SCALE_PCT));
                 cfg.mode = parseMode(getString(root, "mode", null));
@@ -149,7 +144,6 @@ public final class PetWheelConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject root = new JsonObject();
             root.addProperty("enabled", enabled);
-            root.addProperty("sliceCount", sliceCount);
             root.addProperty("scalePercent", scalePercent);
             root.addProperty("iconScalePercent", iconScalePercent);
             root.addProperty("mode", mode.name());
@@ -174,12 +168,10 @@ public final class PetWheelConfig {
         this.enabled = enabled;
     }
 
+    /** Slices on the wheel at once: every pet on it (the Slices setting was removed 2026-10-11 - the wheel lays
+     *  out however many pets you add). */
     public int getSliceCount() {
-        return sliceCount;
-    }
-
-    public void setSliceCount(int sliceCount) {
-        this.sliceCount = clampSlices(sliceCount);
+        return Math.max(1, wheelPets.size());
     }
 
     public int getScalePercent() {
@@ -338,10 +330,6 @@ public final class PetWheelConfig {
     }
 
     // ------------------------------------------------------------------ helpers
-
-    private static int clampSlices(int v) {
-        return Math.max(MIN_SLICES, Math.min(MAX_SLICES, v));
-    }
 
     private static int clampScale(int v) {
         return Math.max(MIN_SCALE_PCT, Math.min(MAX_SCALE_PCT, v));

@@ -138,6 +138,7 @@ public final class StorageScanAll {
         if (!storageOnlyScan) {
             // Wardrobe / pets: the extra pages only get queued once page 1 shows a Next Page arrow (see finishVisit()).
             queue.add(new Visit("wardrobe", 0, "Wardrobe page 1"));
+            queue.add(new Visit("equipment", 0, "Equipment Wardrobe page 1")); // killer560, 2026-10-11
             queue.add(new Visit("pets", 0, "Pets page 1"));
         }
         current = null;
@@ -145,7 +146,7 @@ public final class StorageScanAll {
         ModChat.send(StorageSearchFeature.CHAT_PREFIX, ModChat.text("Scan All started - "),
                 ModChat.dim(storageOnlyScan
                         ? "opening every Ender Chest page and backpack. Press Scan All again, or Escape, to stop."
-                        : "opening every storage page, wardrobe page and pet page. Open anything yourself to stop."));
+                        : "opening every storage page, wardrobe and equipment wardrobe page and pet page. Open anything yourself to stop."));
         McCompat.setScreen(client, null);
     }
 
@@ -236,9 +237,10 @@ public final class StorageScanAll {
             visited++;
         }
         // Page 1 of the wardrobe / pets with a Next Page arrow: queue page 2 (and so on, one page at a time).
-        if (hasNext && (done.command().equals("wardrobe") || done.command().equals("pets"))
+        if (hasNext && (done.command().equals("wardrobe") || done.command().equals("equipment") || done.command().equals("pets"))
                 && done.nextClicks() < MAX_EXTRA_PAGES) {
-            String name = done.command().equals("wardrobe") ? "Wardrobe" : "Pets";
+            String name = done.command().equals("wardrobe") ? "Wardrobe"
+                    : done.command().equals("equipment") ? "Equipment Wardrobe" : "Pets";
             queue.add(0, new Visit(done.command(), done.nextClicks() + 1, name + " page " + (done.nextClicks() + 2)));
         }
         current = null;

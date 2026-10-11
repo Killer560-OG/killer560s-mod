@@ -756,7 +756,7 @@ final class SettingTooltipsData {
         d.put("show when failed", "Also highlights the target when the etherwarp would fail.");
         d.put("full block box", "ON boxes the whole block; OFF follows its real shape.");
         d.put("slot binds", "Links two inventory slots so shift-clicking one swaps them.");
-        d.put("bind key", "Key to create or delete a bind: hover a slot, press it, then click a second slot.");
+        d.put("bind key", "Key to create or delete a bind: hover a slot and press it, then hover a second slot and press it again.");
         d.put("remove", "Deletes this slot bind pair.");
         d.put("chat commands", "Auto-replies to ! commands like !coords and !ping in the chat channels enabled below.");
         d.put("party", "Answers ! commands posted in party chat, replying in party chat.");
@@ -799,9 +799,9 @@ final class SettingTooltipsData {
         d.put("dungeon hub", "Key that runs /warp dungeon_hub. Escape clears the bind.");
         d.put("potion bag", "Key that runs /potionbag. Escape clears the bind.");
         d.put("revert master stars", "Turns the Master Star number on item names back into that many red stars.");
-        d.put("inventory search", "Press Ctrl+F in any inventory to search; matching items get a red outline.");
+        d.put("inventory search", "Press Ctrl+F in any inventory to search; matching slots are filled red. Type a sum (5k*3, 2s+10) to use it as a calculator.");
         d.put("ignore case", "Makes the inventory search ignore upper and lower case.");
-        d.put("item browser", "Shows a panel listing every Skyblock item beside your inventory.");
+        d.put("item browser", "Shows a panel listing every Skyblock item beside your inventory. It filters by the Inventory Search bar at the bottom middle of the screen.");
         d.put("refresh item catalog", "Downloads the Skyblock item list again from Hypixel.");
         d.put("auto quiz", "Clicks the correct answer in the Quiz room (cheat build only).");
         d.put("quiz click delay", "Delay before Auto Quiz clicks the answer, 0-2000 ms.");
@@ -1297,7 +1297,8 @@ final class SettingTooltipsData {
         d.put("item id fallback", "Protects items with no Skyblock UUID by item ID, which covers every copy.");
         d.put("auto-protect starred", "Treats dungeon-starred items as protected without listing them.");
         d.put("prevent hotbar drops", "Blocks the drop key while you hold a protected item.");
-        d.put("confirm to force", "Lets you press drop again within 3 seconds to drop a protected item anyway.");
+        d.put("confirm to force", "Lets you drop a protected item anyway by pressing drop several times, each within 3 seconds of the last.");
+        d.put("drops to force", "How many presses of the drop key (2-4) it takes to drop a protected hotbar item with Confirm To Force on.");
         d.put("block every drop", "Makes Prevent Hotbar Drops cover every item, not just protected ones.");
         d.put("block sound", "Plays a sound when a drop, sale or move is blocked, and a chime when you lock or protect something.");
 
@@ -2035,8 +2036,7 @@ final class SettingTooltipsData {
         d.put("pet wheel/pet wheel", "Turns on the Pet Wheel for quickly summoning pets.");
         d.put("pet wheel/wheel key", "The key or mouse button that opens the wheel.");
         d.put("pet wheel/mode", "Hold the key and release over a slice, or press the key and then click a slice.");
-        d.put("pet wheel/slices", "How many pets show on the wheel at once, 4-12.");
-        d.put("pet wheel/scale", "How big the whole wheel draws on screen (60-400%).");
+        d.put("pet wheel/scale", "How big the whole wheel draws on screen, its text included (60-400%).");
         d.put("pet wheel/icon size", "How big each pet's picture draws inside its slice (100-400%).");
         d.put("pet wheel/hide level", "Hides the level shown under each pet on the wheel.");
         d.put("pet wheel/hide name", "Hides each pet's name under it on the wheel.");

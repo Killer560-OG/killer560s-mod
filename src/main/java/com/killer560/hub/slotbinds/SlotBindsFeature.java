@@ -50,12 +50,11 @@ import java.util.Map;
  *   border/line drawn in-screen, never a HUD popup.</li>
  *   <li>Pressing the bind key while hovering a slot that is already part of a bind now deletes that
  *   bind pair instead of starting a new one - see the key-press handler below.</li>
- *   <li>Creating a bind is now a press-then-click flow instead of press-then-press: pressing the bind
- *   key over an unbound slot arms {@code pendingSlot}, which {@link #render} highlights every frame with
- *   a line running from that slot to the live cursor position; the NEXT plain left click (anywhere, not
- *   just while holding the bind key) finalizes the pair on whatever slot was clicked, or silently cancels
- *   if that slot isn't a legal partner (same hotbar-slot requirement as before). Pressing the bind key
- *   again while a bind is pending backs out instead of leaving it armed.</li>
+ *   <li>Creating a bind: pressing the bind key over an unbound slot arms {@code pendingSlot}, which
+ *   {@link #render} highlights every frame with a line running to the live cursor; pressing the bind key
+ *   AGAIN over another slot finalizes the pair there (killer560, 2026-10-11: "press that keybind to start
+ *   and stop it not the keybind then left click"), or cancels if that slot isn't a legal partner or is the
+ *   same slot. Left clicks are never consumed by the bind flow.</li>
  * </ul>
  */
 public final class SlotBindsFeature {
@@ -80,27 +79,6 @@ public final class SlotBindsFeature {
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
             SlotBindsConfig cfg = SlotBindsConfig.getInstance();
             Slot hovered = accessor.killer560smod$getHoveredSlot();
-
-            if (pendingSlot[0] != -1) {
-                // Second click of the two-click bind flow (d): the first slot is already highlighted with
-                // a line running to the cursor via render(); this click either drops the box on the
-                // hovered slot and finalizes the pair, or silently cancels if the target isn't legal (no
-                // HUD popup for either outcome, per this rework's class doc).
-                int first = pendingSlot[0];
-                pendingSlot[0] = -1;
-                if (hovered == null || hovered.index < 5 || hovered.index >= 45 || hovered.index == first) {
-                    return false;
-                }
-                boolean firstIsHotbar = first >= 36 && first < 45;
-                boolean secondIsHotbar = hovered.index >= 36 && hovered.index < 45;
-                if (!firstIsHotbar && !secondIsHotbar) {
-                    // Neither slot is in the hotbar - not a legal real vanilla SWAP pair (see class doc).
-                    return false;
-                }
-                cfg.addBind(first, hovered.index);
-                cfg.save();
-                return false;
-            }
 
             if (hovered == null || !event.hasShiftDown() || hovered.index < 5 || hovered.index >= 45) {
                 return true;
@@ -133,16 +111,17 @@ public final class SlotBindsFeature {
                 return true;
             }
             Slot hovered = accessor.killer560smod$getHoveredSlot();
+            Integer hoveredIndex = hovered == null ? null : hovered.index;
+            if (pendingSlot[0] != -1) {
+                // killer560, 2026-10-11: "press that keybind to start and stop it not the keybind then left
+                // click" - the SECOND press of the bind key places the other end on the hovered slot.
+                finishBind(cfg, pendingSlot, hoveredIndex);
+                return false;
+            }
             if (hovered == null || hovered.index < 5 || hovered.index >= 45) {
                 return true;
             }
             int index = hovered.index;
-            if (pendingSlot[0] != -1) {
-                // Already placing a bind - pressing the key again backs out rather than leaving a stray
-                // half-made bind armed with no way to cancel it.
-                pendingSlot[0] = -1;
-                return false;
-            }
             if (cfg.getBinds().containsKey(index)) {
                 // (c) killer560, 2026-09-27: "If i press the bind key while hoving a already created
                 // bind it should delete it" - hovering a slot that's already bound deletes that bind pair
@@ -151,14 +130,33 @@ public final class SlotBindsFeature {
                 cfg.save();
                 return false;
             }
-            // (d) Arm the two-click flow: this slot gets highlighted with a line to the cursor in
-            // render() until the next plain left click places the other end.
+            // Arm the bind: this slot gets highlighted with a line to the cursor in render() until the
+            // next press of the bind key places the other end (killer560, 2026-10-11 - no left click).
             pendingSlot[0] = index;
             return false;
         });
 
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) ->
                 render((AbstractContainerScreen<?>) screen, graphics, mouseX, mouseY, pendingSlot[0]));
+    }
+
+    /** Second press of the bind key while a bind is pending: binds the pending slot to {@code target} when
+     *  the pair is legal (one end in the hotbar, a real inventory slot 5..44, not the same slot), otherwise
+     *  just cancels. Either way nothing is left pending. Public for the testkit (case 703). */
+    public static boolean finishBind(SlotBindsConfig cfg, int[] pendingSlot, Integer target) {
+        int first = pendingSlot[0];
+        pendingSlot[0] = -1;
+        if (first == -1 || target == null || target < 5 || target >= 45 || target == first) {
+            return false;
+        }
+        boolean firstIsHotbar = first >= 36 && first < 45;
+        boolean secondIsHotbar = target >= 36 && target < 45;
+        if (!firstIsHotbar && !secondIsHotbar) {
+            return false; // neither slot is in the hotbar - not a legal vanilla SWAP pair (see class doc)
+        }
+        cfg.addBind(first, target);
+        cfg.save();
+        return true;
     }
 
     /** Draws a border around each bound slot plus a line to its partner, and (while a bind is being

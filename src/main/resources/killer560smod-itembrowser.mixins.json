@@ -5,7 +5,9 @@
 	"package": "com.killer560.hub.itembrowser.mixin",
 	"client": [
 		"ItemValueTooltipMixin",
-		"ItemValueContainerTooltipMixin"
+		"ItemValueContainerTooltipMixin",
+		"ItemBrowserRenderMixin",
+		"ItemBrowserRecipeBookRenderMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

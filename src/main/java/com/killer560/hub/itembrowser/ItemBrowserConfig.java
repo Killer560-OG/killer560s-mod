@@ -45,7 +45,7 @@ public final class ItemBrowserConfig {
      *  tooltip setting uses) - an item with no known price always sorts to the end of a value-sorted
      *  list, in both directions, rather than being placed arbitrarily. */
     public enum SortMode {
-        CATALOG("Default"), AZ("A-Z"), ZA("Z-A"), VALUE_HIGH_LOW("Value: High-Low"), VALUE_LOW_HIGH("Value: Low-High");
+        AZ("A-Z"), ZA("Z-A"), VALUE_HIGH_LOW("Value: High-Low"), VALUE_LOW_HIGH("Value: Low-High");
 
         private final String label;
 
@@ -87,7 +87,10 @@ public final class ItemBrowserConfig {
      *  and always fills the full available screen height. */
     private boolean horizontal = true;
     private HorizontalAlign align = HorizontalAlign.RIGHT;
-    private SortMode sortMode = SortMode.CATALOG;
+    /** Value high to low by default; the old "Default" (catalog order) sort was removed (killer560, 2026-10-11:
+     *  "Remove the default sorting option and instead have it default to high - low"). A saved CATALOG reads back as
+     *  this default. */
+    private SortMode sortMode = SortMode.VALUE_HIGH_LOW;
     /** SkyHanni-style "Item Value" tooltip line - killer560 (2026-09-27): "make a whole new setting just
      *  like skyhanni that shows the items value on its tooltip". Off by default like every other new
      *  tooltip-altering feature in this mod (EnchantColorsTooltipMixin etc.). */
@@ -118,7 +121,7 @@ public final class ItemBrowserConfig {
             cfg.setScale(ConfigJson.getFloat(obj, "scale", 1.0f));
             cfg.horizontal = ConfigJson.getBool(obj, "horizontal", true);
             cfg.align = ConfigJson.getEnum(obj, "align", HorizontalAlign.class, HorizontalAlign.RIGHT);
-            cfg.sortMode = ConfigJson.getEnum(obj, "sortMode", SortMode.class, SortMode.CATALOG);
+            cfg.sortMode = ConfigJson.getEnum(obj, "sortMode", SortMode.class, SortMode.VALUE_HIGH_LOW);
             cfg.showItemValue = ConfigJson.getBool(obj, "showItemValue", false);
             instance = cfg;
         } catch (Exception e) {
@@ -187,7 +190,7 @@ public final class ItemBrowserConfig {
     }
 
     public void setSortMode(SortMode sortMode) {
-        this.sortMode = sortMode == null ? SortMode.CATALOG : sortMode;
+        this.sortMode = sortMode == null ? SortMode.VALUE_HIGH_LOW : sortMode;
     }
 
     public boolean isShowItemValue() {

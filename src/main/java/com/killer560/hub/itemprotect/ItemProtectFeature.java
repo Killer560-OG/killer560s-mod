@@ -1,6 +1,5 @@
 package com.killer560.hub.itemprotect;
 
-import com.killer560.hub.inventorysearch.mixin.ContainerScreenPositionAccessor;
 import com.killer560.hub.slotbinds.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.KeyUtil;
@@ -38,13 +37,13 @@ import java.util.List;
  *       ✪ / master-star pip) counts as protected without being listed - and gets NO marker ("Do not have a symbol
  *       for starred items being locked even though they are").</li>
  *   <li><b>Prevent Hotbar Drops</b> - the real drop key is swallowed while you're holding a protected item, with an
- *       optional "press it again within 3s" confirm-to-force.</li>
+ *       optional confirm-to-force: press drop 2-4 times (Drops To Force), each within 3s of the last.</li>
  * </ol>
  *
  * <p>Two mixins, both at client input funnels so nothing the SERVER does is ever blocked or silently dropped:
  * {@code AbstractContainerScreen#slotClicked} and {@code LocalPlayer#drop(boolean)}. Every block says so in chat and
- * plays a note (see {@link ItemProtect#announceBlock}). The star is drawn from {@code ScreenEvents.afterExtract},
- * the same after-everything hook Inventory Search's own highlight uses, so it lands on top of the item.
+ * plays a note (see {@link ItemProtect#announceBlock}). The star is drawn at the end of each slot's own draw
+ * ({@code ItemProtectStarSlotMixin}), on top of the item and under any tooltip.
  */
 public final class ItemProtectFeature {
 
@@ -56,15 +55,14 @@ public final class ItemProtectFeature {
     private static long lastToggleAt = 0L;
     private static int lastToggleKey = KeyUtil.NONE;
 
-    /** The star, 7x7 GUI units: one string per row, '#' = filled. */
+    /** The star, 5x5 GUI units: one string per row, '#' = filled. killer560, 2026-10-11: "make the protect item icon
+     *  small and in the top right. it should be like a tiny little 5 point star." */
     private static final String[] STAR = {
-            "...#...",
-            "..###..",
-            "#######",
-            ".#####.",
-            "..###..",
-            ".##.##.",
-            ".#...#.",
+            "..#..",
+            "#####",
+            ".###.",
+            ".#.#.",
+            "#...#",
     };
     public static final int STAR_SIZE = STAR.length;
 
@@ -145,9 +143,6 @@ public final class ItemProtectFeature {
         // allowKeyPress, so it needs its own funnel.
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) ->
                 handleKey(containerScreen, ItemProtectConfig.codeForMouseButton(event.button())));
-
-        ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) ->
-                render(containerScreen, graphics));
     }
 
     /** @return false to swallow the key (a protect toggle), true to let the screen handle it. */
@@ -186,37 +181,24 @@ public final class ItemProtectFeature {
         return false;
     }
 
-    private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
+    /** Called from {@code ItemProtectStarSlotMixin} at the end of every slot's own draw, so the star is drawn under
+     *  the tooltip and stays on a hovered slot (killer560, 2026-10-11). Slot-local coordinates. */
+    public static void drawSlotStar(GuiGraphicsExtractor graphics, Slot slot) {
         ItemProtectConfig cfg = ItemProtectConfig.getInstance();
-        if (!cfg.isProtectItemEnabled()) {
+        if (!cfg.isProtectItemEnabled() || !ItemProtect.isExplicitlyProtected(slot.getItem())) {
             return;
         }
-        ContainerScreenPositionAccessor accessor = (ContainerScreenPositionAccessor) screen;
-        int leftPos = accessor.killer560smod$getLeftPos();
-        int topPos = accessor.killer560smod$getTopPos();
-        // killer560 (2026-09-27: "dont make it show through tooltips") - this pass runs from afterExtract, i.e. after
-        // the vanilla tooltip, so the hovered slot (the only one that can have a tooltip open) gets no star.
-        Slot hoveredSlot = ((AbstractContainerScreenAccessor) screen).killer560smod$getHoveredSlot();
-        int color = cfg.getProtectedColor();
-        for (Slot slot : screen.getMenu().slots) {
-            if (slot == hoveredSlot || !ItemProtect.isExplicitlyProtected(slot.getItem())) {
-                continue;
-            }
-            drawStar(graphics, leftPos + slot.x + 16 - STAR_SIZE, topPos + slot.y, color);
-        }
+        drawStar(graphics, slot.x + 16 - STAR_SIZE, slot.y, cfg.getProtectedColor());
     }
 
     /**
      * killer560, 2026-10-08: "Make locked items just have a little star in the top right to show they are
-     * protected." A 7x7 star in the slot's top-right corner (opposite vanilla's stack count), drawn as one dark
-     * silhouette offset a unit each way first so it reads on a light item, then the star itself. Pure fills, no
-     * texture.
+     * protected"; 2026-10-11: "tiny little 5 point star". A 5x5 star in the slot's top-right corner (opposite
+     * vanilla's stack count), with a one-unit dark drop shadow below-right so it reads on a light item. The shadow
+     * stays inside the 16x16 slot. Pure fills, no texture.
      */
     public static void drawStar(GuiGraphicsExtractor graphics, int x, int y, int color) {
-        int shadow = 0xFF000000;
-        for (int[] d : new int[][]{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}) {
-            starRows(graphics, x + d[0], y + d[1], shadow);
-        }
+        starRows(graphics, x + 1, y + 1, 0xFF000000);
         starRows(graphics, x, y, color);
     }
 
