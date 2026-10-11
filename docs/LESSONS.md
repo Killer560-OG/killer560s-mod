@@ -312,7 +312,7 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - Blood Camp's Trigger Bot tested "crosshair on the landing box" with the ATTACK reach (3 blocks), so from anywhere you
   actually camp blood it never clicked, and its mob search skipped every `Player` - the Watcher's summons are player-model
   NPCs (v2 UUID). Aim is line of sight (48 blocks); only the attack is reach-limited, else the click is a plain swing
-  (2026-10-09, testkit 676: 16 blocks out it now swings once, 2.7 out it attacks and the mob loses health).
+  (2026-10-09, testkit 686: 16 blocks out it now swings once, 2.7 out it attacks and the mob loses health).
 - On Hypixel the vanilla map draws the door into Fairy as a WITHER door while the doorway has no coal (killer560's
   2026-10-08_15.48.34 F1), so anything that finds wither doors by their coal never sees it. Fairy Door takes it from the
   map grid; only a door the scan really finds shut (coal) is left to the wither highlight (testkit 678).
