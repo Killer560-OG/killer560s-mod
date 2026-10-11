@@ -17,6 +17,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+import com.killer560.hub.bazaar.BazaarPages;
 import org.slf4j.Logger;
 
 import java.util.Locale;
@@ -55,13 +57,18 @@ import com.killer560.hub.compat.McCompat;
  * On top of that {@link #START_GRACE_MS} swallows everything for a moment after a start, so the bind itself
  * (still physically held) cannot stop the session it just began.
  *
- * <h2>What actually clicks, today</h2>
- * <b>Read {@link #MENU_CLICKS_VERIFIED} before assuming this bot buys anything.</b> The scanner, the purse
- * handling, the failsafes, the pacing, the start/stop and the two command sends are real. The clicks inside
- * Hypixel's Bazaar product menu and inside the {@code /trades} NPC menu are NOT, because no layout for either
- * is documented and neither can be checked from the repository. Until that constant flips, the runner opens
- * each menu, prints and logs exactly what is in it, and stops cleanly. That dry run is what produces the real
- * button names.
+ * <h2>The cycle (2026-10-11: "make the bazaar flipper work")</h2>
+ * Until then every session stopped at the first menu and clicked nothing: the dry run killer560 ran on
+ * 2026-10-08 showed {@code /bz Lump of Magma} opens a SEARCH page ({@code Bazaar ➜ "Lump of Magma"}), not the
+ * product page the old step assumed. Now: scan, {@code /bz <name>}, then every Bazaar page is read through
+ * {@link BazaarPages} (the reskin's classifier) and driven by name - the product in the search results, Buy
+ * Instantly on the product page, then on the Instant Buy page the largest of Fill my inventory! / Buy a stack! /
+ * Buy only one! that fits the scan's profitable size, the inventory, the NPC price and the purse. Each buy is
+ * confirmed by the items arriving (or "[Bazaar] You cannot afford this!"); then the Bazaar is closed, {@code
+ * /trades} opened, and every unit shift-clicked to the NPC, each confirmed by the stack leaving. Then it scans
+ * again. The Bazaar reskin steps aside while this runs ({@code BazaarReskin.hiding}), so the clicks go to the
+ * same menu with the reskin on or off. Start refuses without a Booster Cookie: both the remote {@code /bz} and
+ * selling from {@code /trades} need one.
  *
  * <h2>Safety rules this obeys</h2>
  * Ticks on {@code START_CLIENT_TICK}, never END: END runs after the player's own movement packet and GrimAC
@@ -73,24 +80,17 @@ public final class BazaarFlipFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bazaarflip");
 
-    /**
-     * <b>False, and it is meant to be false.</b> Flip this only after the Bazaar product menu's real
-     * instant-buy flow and the {@code /trades} NPC menu's real sell flow have been observed in game and the
-     * click steps in {@link #clickVerified} have been written against what was actually seen.
-     *
-     * <p>What has to be answered first, and what one dry run answers:
-     * <ol>
-     *   <li>What the instant-buy control in a Bazaar product menu is called today, and whether it leads to a
-     *       fixed-quantity page, a "custom amount" sign input, or straight to a confirmation.</li>
-     *   <li>How a quantity that is not one of Hypixel's presets is entered, and whether that is a sign screen
-     *       (which is not a container screen and would need a different code path entirely).</li>
-     *   <li>What the {@code /trades} menu offers: a shift-click sale out of the player's own inventory like
-     *       Auto Sell assumes, a per-item button, or a single "sell inventory" control.</li>
-     * </ol>
-     * A confidently-written wrong click loop in a menu that spends hundreds of millions of coins is far worse
-     * than a stub, so this stays false and the runner says so out loud every time it reaches a click step.
-     */
-    static final boolean MENU_CLICKS_VERIFIED = false;
+    /** A page's items must sit unchanged this long before it is judged or clicked. */
+    private static final long SETTLE_MS = 150L;
+    /** How long an instant buy may take to land in the inventory before the session gives up. */
+    private static final long BUY_CONFIRM_TIMEOUT_MS = 5_000L;
+    /** How long a sold stack may take to leave the inventory. */
+    private static final long SELL_CONFIRM_TIMEOUT_MS = 4_000L;
+    /** "Buy only one!" is only for a tail smaller than a stack, and only this many times a cycle. */
+    private static final int MAX_SINGLE_BUYS = 8;
+    /** The Trades menu; the exact title is not documented, so anything naming Trades. */
+    private static final java.util.regex.Pattern TRADES_TITLE = java.util.regex.Pattern.compile("(?i)^.{0,24}\\btrades?\\b.{0,24}$");
+    private static final java.util.regex.Pattern CANNOT_AFFORD = java.util.regex.Pattern.compile("^\\[Bazaar\\] You cannot afford this!$");
 
     /** killer560: "then every minute during it". */
     private static final long RESCAN_INTERVAL_MS = 60_000L;
@@ -106,13 +106,15 @@ public final class BazaarFlipFeature {
         IDLE,
         /** Waiting for the scan that decides what to buy. */
         SCANNING,
-        /** {@code /bz <item>} sent, waiting for Hypixel's product menu. */
+        /** {@code /bz <item>} sent, waiting for Hypixel's menu. */
         WAIT_BAZAAR_MENU,
-        /** The product menu is open: buy step. */
-        BUY,
+        /** In the Bazaar: search result -> product page -> Instant Buy -> buying. */
+        BAZAAR,
+        /** Bazaar closed, {@code /trades} about to be sent. */
+        OPEN_TRADES,
         /** {@code /trades} sent, waiting for the NPC menu. */
         WAIT_TRADES_MENU,
-        /** The NPC menu is open: sell step. */
+        /** The NPC menu is open: selling. */
         SELL
     }
 
@@ -140,6 +142,19 @@ public final class BazaarFlipFeature {
     private static int cycles = 0;
     private static double startPurse = 0;
     private static BazaarFlipCandidate target = null;
+    // Per cycle: what the page reader saw, the last page-changing click, the buy and sell in flight.
+    private static int seenContainerId = Integer.MIN_VALUE;
+    private static String seenSignature = "";
+    private static long seenSinceMs = 0L;
+    private static int clickedContainerId = Integer.MIN_VALUE;
+    private static int carriedAtStart = -1;
+    private static int singleBuys = 0;
+    private static boolean pendingBuy = false;
+    private static int pendingBuyCount = 0;
+    private static long pendingBuyAtMs = 0L;
+    private static volatile boolean cannotAfford = false;
+    private static int sellPendingSlot = -1;
+    private static long sellPendingAtMs = 0L;
 
     private BazaarFlipFeature() {
     }
@@ -153,6 +168,12 @@ public final class BazaarFlipFeature {
         });
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             ScreenEvents.AFTER_INIT.register(BazaarFlipFeature::onScreenInit);
+            com.killer560.hub.util.ChatObserver.subscribe(message -> {
+                if (state == State.BAZAAR && CANNOT_AFFORD.matcher(
+                        com.killer560.hub.util.ChatObserver.strip(message).trim()).matches()) {
+                    cannotAfford = true;
+                }
+            });
         }
     }
 
@@ -192,6 +213,9 @@ public final class BazaarFlipFeature {
         if (purse == null) {
             return "couldn't read your purse off the scoreboard, and every size and failsafe here depends on"
                     + " it - stand somewhere the Purse line is shown (the Hub) and try again.";
+        }
+        if (com.killer560.hub.auction.BoosterCookie.state(client) == com.killer560.hub.auction.BoosterCookie.State.INACTIVE) {
+            return "you have no active Booster Cookie - the remote /bz and selling from /trades both need one.";
         }
         if (cfg.getTargetPurse() > 0 && purse >= cfg.getTargetPurse()) {
             return String.format(Locale.US, "your purse is already at the target (%,.0f of %,d).",
@@ -315,8 +339,9 @@ public final class BazaarFlipFeature {
         }
         switch (state) {
             case SCANNING -> tickScanning(cfg);
-            case WAIT_BAZAAR_MENU -> tickWaitMenu(client, "the Bazaar product menu", State.BUY);
-            case BUY -> tickBuy(client, cfg);
+            case WAIT_BAZAAR_MENU -> tickWaitMenu(client, "the Bazaar menu", State.BAZAAR);
+            case BAZAAR -> tickBazaar(client, cfg);
+            case OPEN_TRADES -> tickOpenTrades();
             case WAIT_TRADES_MENU -> tickWaitMenu(client, "the /trades NPC menu", State.SELL);
             case SELL -> tickSell(client, cfg);
             case IDLE -> {
@@ -433,6 +458,13 @@ public final class BazaarFlipFeature {
             return;
         }
         target = best;
+        carriedAtStart = -1;
+        singleBuys = 0;
+        pendingBuy = false;
+        cannotAfford = false;
+        sellPendingSlot = -1;
+        clickedContainerId = Integer.MIN_VALUE;
+        seenContainerId = Integer.MIN_VALUE;
         ModChat.send("Bazaar Flip", ModChat.text("Best flip: "), ModChat.value(best.summary()));
         LOGGER.info("[BazaarFlip] Target {} - {} units, spend {}, profit {} ({}%)", best.productId(),
                 best.units(), Math.round(best.spend()), Math.round(best.profit()),
@@ -446,6 +478,39 @@ public final class BazaarFlipFeature {
         setState(State.WAIT_BAZAAR_MENU);
     }
 
+    // ---- the Bazaar: search -> product -> Instant Buy -> buy ---------------------------------------------
+
+    /**
+     * True once the open menu's items have sat unchanged for {@link #SETTLE_MS}. Hypixel sends a page's items a
+     * moment after the window, so a page is never judged (or clicked) half-loaded.
+     */
+    private static boolean settled(AbstractContainerScreen<?> screen) {
+        long now = System.currentTimeMillis();
+        int id = screen.getMenu().containerId;
+        String sig = BazaarFlipMenus.signature(screen.getMenu());
+        if (id != seenContainerId || !sig.equals(seenSignature)) {
+            seenContainerId = id;
+            seenSignature = sig;
+            seenSinceMs = now;
+            return false;
+        }
+        return !sig.isEmpty() && now - seenSinceMs >= SETTLE_MS;
+    }
+
+    /** After a click that should change the page: true while the same page is still up (nothing to judge yet). */
+    private static boolean stillOnClickedPage(AbstractContainerScreen<?> screen) {
+        if (clickedContainerId == Integer.MIN_VALUE) {
+            return false;
+        }
+        // Every Hypixel page is a new container. The items of the old one are no signal: a left click predicts the
+        // clicked item onto the cursor client-side until the server re-sends the page.
+        if (screen.getMenu().containerId != clickedContainerId) {
+            clickedContainerId = Integer.MIN_VALUE;
+            return false;
+        }
+        return true;
+    }
+
     private static void tickWaitMenu(Minecraft client, String what, State next) {
         if (McCompat.screen(client) instanceof AbstractContainerScreen<?>) {
             setState(next);
@@ -456,100 +521,258 @@ public final class BazaarFlipFeature {
         }
     }
 
-    private static void tickBuy(Minecraft client, BazaarFlipConfig cfg) {
+    private static void tickBazaar(Minecraft client, BazaarFlipConfig cfg) {
         if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             stop("the Bazaar menu closed");
             return;
         }
+        long now = System.currentTimeMillis();
+        if (pendingBuy) {
+            int have = BazaarFlipMenus.countProduct(screen.getMenu(), target.productId(), target.displayName());
+            if (have > pendingBuyCount) {
+                pendingBuy = false;
+                LOGGER.info("[BazaarFlip] Bought {} {} (now carrying {})", have - pendingBuyCount,
+                        target.productId(), have);
+            } else if (cannotAfford) {
+                pendingBuy = false;
+                LOGGER.info("[BazaarFlip] Hypixel said \"You cannot afford this!\" - selling what was bought");
+                doneBuying("Hypixel said you can't afford more");
+                return;
+            } else if (now - pendingBuyAtMs > BUY_CONFIRM_TIMEOUT_MS) {
+                stop("Hypixel never delivered the instant buy (nothing arrived in your inventory)");
+                return;
+            } else {
+                return;
+            }
+        }
+        if (now < nextActionAtMs) {
+            return;
+        }
+        if (!settled(screen) || stillOnClickedPage(screen)) {
+            if (now - stateSinceMs > MENU_TIMEOUT_MS && now - seenSinceMs > MENU_TIMEOUT_MS) {
+                stop("the Bazaar page never changed - it was " + BazaarFlipMenus.describe(screen));
+            }
+            return;
+        }
+        BazaarPages.Page page = BazaarFlipMenus.page(screen);
+        String name = target.displayName();
+        switch (page.kind()) {
+            case SEARCH, GROUP, CATEGORY -> {
+                BazaarPages.Item product = null;
+                for (BazaarPages.Item it : page.content()) {
+                    if (it.name().equalsIgnoreCase(name)) {
+                        product = it;
+                        break;
+                    }
+                }
+                if (product == null) {
+                    stop("\"" + name + "\" is not on the Bazaar page " + BazaarFlipMenus.describe(screen));
+                    return;
+                }
+                click(client, screen, product.slot(), ContainerInput.PICKUP, cfg, true);
+            }
+            case PRODUCT -> {
+                if (BazaarFlipMenus.item(page, name) == null) {
+                    stop("the product page is not " + name + ": " + BazaarFlipMenus.describe(screen));
+                    return;
+                }
+                BazaarPages.Item buy = BazaarFlipMenus.item(page, "Buy Instantly");
+                if (buy == null) {
+                    stop("no Buy Instantly on " + BazaarFlipMenus.describe(screen));
+                    return;
+                }
+                click(client, screen, buy.slot(), ContainerInput.PICKUP, cfg, true);
+            }
+            case INSTANT_BUY -> buyStep(client, screen, page, cfg);
+            default -> {
+                LOGGER.info("[BazaarFlip] Unexpected Bazaar page: {}", BazaarFlipMenus.describe(screen));
+                stop("unexpected menu " + BazaarFlipMenus.describe(screen));
+            }
+        }
+    }
+
+    /**
+     * One purchase on the "&lt;item&gt; ➜ Instant Buy" page. Hypixel's options are Buy only one!, Buy a stack!, Fill my
+     * inventory! and Custom Amount; Custom Amount opens a sign, which is not a container, so it is never used. The
+     * biggest option that still fits what the scan sized (never more than the profitable part of the book), fits his
+     * inventory, and - when its lore states a price - costs less per unit than the NPC pays and no more than his purse.
+     */
+    private static void buyStep(Minecraft client, AbstractContainerScreen<?> screen, BazaarPages.Page page,
+                                BazaarFlipConfig cfg) {
+        var menu = screen.getMenu();
+        int have = BazaarFlipMenus.countProduct(menu, target.productId(), target.displayName());
+        if (carriedAtStart < 0) {
+            carriedAtStart = have;
+        }
+        int bought = have - carriedAtStart;
+        int remaining = target.units() - bought;
+        int stack = Math.max(1, target.stackSize());
+        int room = BazaarFlipMenus.roomFor(menu, target.productId(), target.displayName(), stack);
+        if (remaining <= 0 || room <= 0) {
+            doneBuying(remaining <= 0 ? "bought the planned " + target.units() : "inventory full");
+            return;
+        }
+        Double purse = readPurse();
+        String[] names = {"Fill my inventory!", "Buy a stack!", "Buy only one!"};
+        long[] fallbackAmount = {room, stack, 1};
+        String refused = null;
+        for (int i = 0; i < names.length; i++) {
+            BazaarPages.Item option = BazaarFlipMenus.item(page, names[i]);
+            if (option == null) {
+                continue;
+            }
+            long amount = BazaarFlipMenus.loreAmount(option.lore());
+            if (amount <= 0) {
+                amount = fallbackAmount[i];
+            }
+            if (amount > remaining || amount > room) {
+                continue;
+            }
+            if (i == 2 && singleBuys >= MAX_SINGLE_BUYS) {
+                continue;
+            }
+            double price = BazaarFlipMenus.lorePrice(option.lore());
+            if (price > 0) {
+                if (price / amount >= target.npcSellPrice()) {
+                    refused = String.format(Locale.US, "the instant-buy price (%,.1f each) is no longer below the NPC's %,.1f",
+                            price / amount, target.npcSellPrice());
+                    continue;
+                }
+                if (purse != null && price > purse) {
+                    refused = "you can't afford " + names[i];
+                    continue;
+                }
+            }
+            if (!click(client, screen, option.slot(), ContainerInput.PICKUP, cfg, false)) {
+                return; // gate denied - retried next tick
+            }
+            if (i == 2) {
+                singleBuys++;
+            }
+            pendingBuy = true;
+            pendingBuyCount = have;
+            pendingBuyAtMs = System.currentTimeMillis();
+            cannotAfford = false;
+            LOGGER.info("[BazaarFlip] {} ({} units, lore price {}) - bought {} of {} so far", names[i], amount,
+                    price > 0 ? String.format(Locale.US, "%.1f", price) : "not shown", bought, target.units());
+            return;
+        }
+        doneBuying(refused != null ? refused : "nothing smaller left to buy");
+    }
+
+    /** Buying is over for this cycle: sell what was bought, or stop if that was nothing. */
+    private static void doneBuying(String why) {
+        Minecraft client = Minecraft.getInstance();
+        int bought = 0;
+        if (McCompat.screen(client) instanceof AbstractContainerScreen<?> screen && target != null && carriedAtStart >= 0) {
+            bought = BazaarFlipMenus.countProduct(screen.getMenu(), target.productId(), target.displayName()) - carriedAtStart;
+        }
+        if (bought <= 0) {
+            stop("bought nothing - " + why);
+            return;
+        }
+        ModChat.send("Bazaar Flip", ModChat.text("Bought "), ModChat.value(String.format(Locale.US, "%,d", bought)),
+                ModChat.text(" " + target.displayName()), ModChat.dim(" (" + why + ") - selling to the NPC"));
+        if (client.player != null && McCompat.screen(client) != null) {
+            client.player.closeContainer();
+        }
+        setState(State.OPEN_TRADES);
+    }
+
+    private static void tickOpenTrades() {
         if (System.currentTimeMillis() < nextActionAtMs) {
             return;
         }
-        if (!MENU_CLICKS_VERIFIED) {
-            reportUnverified("the Bazaar buy flow", screen);
-            return;
+        if (sendCommand("trades")) {
+            setState(State.WAIT_TRADES_MENU);
         }
-        // Everything below is unreachable until MENU_CLICKS_VERIFIED flips, and is left as the shape the real
-        // steps go in rather than as a guess presented as working. The needles are the plausible names, NOT
-        // observed ones - replace them with what the dry run actually printed.
-        int buySlot = BazaarFlipMenus.findMenuSlot(screen.getMenu(), "instant buy", "buy instantly");
-        if (buySlot < 0) {
-            stop("no instant-buy control in " + BazaarFlipMenus.describe(screen));
-            return;
-        }
-        // CLONE is what Auto Croesus uses for a plain left-click on a Hypixel menu button. Whether the buy
-        // control is a plain click at all is itself unverified.
-        clickVerified(client, screen, buySlot, ContainerInput.CLONE, cfg);
-        // The quantity step, the confirmation step and the wait for the items to actually arrive all belong
-        // here, and all three depend on facts the dry run has to supply first.
-        setState(State.WAIT_TRADES_MENU);
     }
+
+    // ---- /trades: sell every unit back to the NPC ---------------------------------------------------------
 
     private static void tickSell(Minecraft client, BazaarFlipConfig cfg) {
         if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             stop("the /trades menu closed");
             return;
         }
-        if (System.currentTimeMillis() < nextActionAtMs) {
+        long now = System.currentTimeMillis();
+        String title = BazaarFlipMenus.titleOf(screen);
+        if (!TRADES_TITLE.matcher(title).matches()) {
+            if (now - stateSinceMs > MENU_TIMEOUT_MS) {
+                stop("/trades opened \"" + title + "\", not the Trades menu");
+            }
             return;
         }
-        if (!MENU_CLICKS_VERIFIED) {
-            reportUnverified("the /trades sell flow", screen);
+        var menu = screen.getMenu();
+        if (sellPendingSlot >= 0) {
+            ItemStack still = sellPendingSlot < menu.slots.size() ? menu.slots.get(sellPendingSlot).getItem() : ItemStack.EMPTY;
+            if (!BazaarFlipMenus.isProduct(still, target.productId(), target.displayName())) {
+                sellPendingSlot = -1;
+            } else if (now - sellPendingAtMs > SELL_CONFIRM_TIMEOUT_MS) {
+                stop("the NPC didn't take the " + target.displayName()
+                        + " (selling from /trades needs an active Booster Cookie)");
+                return;
+            } else {
+                return;
+            }
+        }
+        if (now < nextActionAtMs || !settledTrades(screen)) {
             return;
         }
-        // Unreachable until the constant flips - see tickBuy.
-        String productName = target != null ? target.displayName() : null;
-        if (productName == null) {
-            stop("lost track of what it was selling");
-            return;
-        }
-        for (Slot slot : BazaarFlipMenus.playerSlots(screen.getMenu())) {
-            if (slot.getItem().isEmpty()) {
+        for (Slot slot : BazaarFlipMenus.playerSlots(menu)) {
+            if (!BazaarFlipMenus.isProduct(slot.getItem(), target.productId(), target.displayName())) {
                 continue;
             }
-            if (!BazaarFlipMenus.nameOf(slot.getItem()).toLowerCase(Locale.ROOT)
-                    .contains(productName.toLowerCase(Locale.ROOT))) {
-                continue;
+            // A shift-click on his own stack sells it, the way any Hypixel shop takes items.
+            if (click(client, screen, slot.index, ContainerInput.QUICK_MOVE, cfg, false)) {
+                sellPendingSlot = slot.index;
+                sellPendingAtMs = now;
             }
-            // QUICK_MOVE is a real shift-click, which is how Auto Sell believes an NPC sale works. Whether
-            // /trades sells that way, or has its own button, is one of the things the dry run has to answer.
-            clickVerified(client, screen, slot.index, ContainerInput.QUICK_MOVE, cfg);
             return;
         }
         cycles++;
+        LOGGER.info("[BazaarFlip] Cycle {} done: sold every {}", cycles, target.productId());
+        ModChat.send("Bazaar Flip", ModChat.good("Sold. "), ModChat.dim("Cycle " + cycles + " done."));
+        if (client.player != null) {
+            client.player.closeContainer();
+        }
+        target = null;
         setState(State.SCANNING);
     }
 
-    /**
-     * Opens the menu, prints and logs exactly what is in it, and stops. This is the honest end of the flow
-     * while {@link #MENU_CLICKS_VERIFIED} is false: it produces the real button names and the real layout,
-     * which is precisely what the click steps need and what cannot be read out of this repository.
-     */
-    private static void reportUnverified(String what, AbstractContainerScreen<?> screen) {
-        String contents = BazaarFlipMenus.describe(screen);
-        LOGGER.info("[BazaarFlip] UNVERIFIED STEP ({}). Menu contents: {}", what, contents);
-        ModChat.send("Bazaar Flip", ModChat.bad("Stopping before "), ModChat.text(what),
-                ModChat.dim(" - its menu layout has never been verified, so nothing is clicked."));
-        ModChat.send("Bazaar Flip", ModChat.dim("Menu was "), ModChat.text(contents));
-        ModChat.send("Bazaar Flip", ModChat.dim("That line (also in the log) is what the click step needs."));
-        state = State.IDLE;
-        target = null;
+    /** The Trades menu's own items may be anything; it is judged settled once something has been in it briefly. */
+    private static boolean settledTrades(AbstractContainerScreen<?> screen) {
+        return settled(screen) || System.currentTimeMillis() - stateSinceMs > SETTLE_MS * 3;
     }
 
     /**
-     * The one place an automated container click is sent. Goes through {@link ActionGate} as
-     * {@link ActionGate.Actor#BAZAAR_FLIP_MENU}, on {@code START_CLIENT_TICK}, using the same real
-     * {@code ContainerInput} mechanism Auto Croesus and Auto Sell use. Called only from the paths behind
-     * {@link #MENU_CLICKS_VERIFIED}.
+     * The one place an automated container click is sent: through {@link ActionGate} as
+     * {@link ActionGate.Actor#BAZAAR_FLIP_MENU}, on {@code START_CLIENT_TICK}, as the same left click (or shift-click)
+     * a player's press on that slot sends.
+     *
+     * @param changesPage the click should bring up a different page; nothing is judged until it does
+     * @return whether the click was sent (false: the gate denied this tick, nothing happened)
      */
-    private static void clickVerified(Minecraft client, AbstractContainerScreen<?> screen, int slotIndex,
-                                      ContainerInput input, BazaarFlipConfig cfg) {
-        if (!ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_MENU, screen)) {
-            return; // denied this tick - nothing marked done, retried next tick
+    private static boolean click(Minecraft client, AbstractContainerScreen<?> screen, int slotIndex,
+                                 ContainerInput input, BazaarFlipConfig cfg, boolean changesPage) {
+        if (client.gameMode == null || client.player == null) {
+            return false;
         }
-        client.gameMode.handleContainerInput(screen.getMenu().containerId, slotIndex, 0,
-                input, client.player);
+        if (!ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_MENU, screen)) {
+            return false;
+        }
+        if (changesPage) {
+            clickedContainerId = screen.getMenu().containerId;
+        }
+        String label = slotIndex < screen.getMenu().slots.size()
+                ? BazaarFlipMenus.nameOf(screen.getMenu().slots.get(slotIndex).getItem()) : "?";
+        client.gameMode.handleContainerInput(screen.getMenu().containerId, slotIndex, 0, input, client.player);
+        LOGGER.info("[BazaarFlip] Click {} slot {} ({}) on \"{}\"", input, slotIndex, label,
+                BazaarFlipMenus.titleOf(screen));
         clicks++;
+        stateSinceMs = System.currentTimeMillis();
         nextActionAtMs = System.currentTimeMillis() + randomDelay(cfg);
+        return true;
     }
 
     /** A chat command through the gate, sent below this mod's own client dispatcher. */
@@ -576,7 +799,8 @@ public final class BazaarFlipFeature {
      */
     public static Double readPurse() {
         try {
-            String raw = ScoreboardData.group(ScoreboardPattern.COINS, ScoreboardData.sidebar(), "coins");
+            String raw = ScoreboardData.group(ScoreboardPattern.COINS,
+                    ScoreboardData.sidebarNow(Minecraft.getInstance()), "coins");
             if (raw == null || raw.isBlank()) {
                 return null;
             }

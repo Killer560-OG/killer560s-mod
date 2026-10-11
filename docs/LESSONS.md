@@ -47,6 +47,12 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   matching the exact top of book on only 628 of 1833 products, so anything sizing a real purchase must walk the
   levels. Scale check for the Bazaar-to-NPC flipper: of 819 products with an `npc_sell_price` only ~46 profit at
   all and the worthwhile margins are 0.4%-1.5% - a result far outside that band means the book is backwards.
+- `/bz <name>` opens a SEARCH page (`Bazaar ➜ "Lump of Magma"`, product at slot 11), not the product page: the
+  flipper's old buy step looked for "instant buy" there and stopped every session (his dry run, 2026-10-08). It now
+  reads every page through `BazaarPages` and walks search -> product -> Instant Buy by name (testkit 761-764).
+- Auto Croesus never spent a key because Hypixel closes Croesus after a claim and the reopened head no longer reads
+  "No chests opened yet!", the only thing the menu scan opened. It now decides before the first claim whether another
+  chest is worth a key and walks back into that run (page:slot, same floor) after the reopen (testkit 766/767).
 - A hotbar swap sent as `setSelectedSlot` + a hand-made `ServerboundSetCarriedItemPacket` goes out TWICE:
   `MultiPlayerGameMode.tick()` calls `ensureHasSentCarriedItem()`, which compares against its own `carriedIndex`
   (never updated by the hand-made packet) and sends the same slot again (javap, 26.1.2 and 26.2). Swap through

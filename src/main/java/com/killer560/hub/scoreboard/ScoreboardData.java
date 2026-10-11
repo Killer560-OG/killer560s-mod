@@ -313,6 +313,19 @@ public final class ScoreboardData {
         return sidebarLines;
     }
 
+    /**
+     * The sidebar read right now, for callers that must not depend on the Custom Scoreboard: {@link #sidebar()} is
+     * only refreshed by its tick while that feature is on and the player is on Skyblock, so with it off the Bazaar
+     * flipper read no purse and refused to start (2026-10-11). Render thread only.
+     */
+    public static List<String> sidebarNow(Minecraft client) {
+        if (client == null || client.level == null || client.player == null) {
+            return Collections.emptyList();
+        }
+        readSidebar(client);
+        return sidebarLines;
+    }
+
     public static String objectiveTitle() {
         return objectiveTitle;
     }

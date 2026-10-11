@@ -75,6 +75,22 @@ public final class BazaarFlipScanner {
     }
 
     /** The most recent scan, or null if none has completed this session. */
+    /** Testkit hook: when set, every scan answers with this one candidate instead of fetching (the harness runs offline). */
+    private static volatile BazaarFlipCandidate testCandidate;
+
+    /** Testkit only: make scans return one fixed flip, {@code units} at {@code unitCost} each, sold at {@code npc}. */
+    public static void setTestCandidateForTest(String productId, String displayName, int stackSize, int units,
+                                               double unitCost, double npc) {
+        double spend = units * unitCost;
+        double revenue = units * npc;
+        testCandidate = new BazaarFlipCandidate(productId, displayName, stackSize, units, spend, npc, revenue,
+                revenue - spend, (revenue - spend) / spend * 100.0, false);
+    }
+
+    public static void clearTestCandidateForTest() {
+        testCandidate = null;
+    }
+
     public static ScanResult getLast() {
         return last;
     }
@@ -104,6 +120,12 @@ public final class BazaarFlipScanner {
      */
     public static CompletableFuture<ScanResult> scanAsync(double purse, BazaarFlipConfig.RankingMode mode,
                                                           long minProfitPerRun) {
+        BazaarFlipCandidate fixed = testCandidate;
+        if (fixed != null) {
+            ScanResult r = new ScanResult(System.currentTimeMillis(), 1, 1, List.of(fixed), null);
+            last = r;
+            return CompletableFuture.completedFuture(r);
+        }
         if (!scanning.compareAndSet(false, true)) {
             ScanResult inFlight = last;
             return CompletableFuture.completedFuture(inFlight != null ? inFlight
