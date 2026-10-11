@@ -67,11 +67,15 @@ public final class SwapHelper {
         Optional<ProcessHandle> parent = ProcessHandle.of(parentPid);
         if (parent.isPresent() && parent.get().isAlive()) {
             log("waiting for parent " + parentPid + " to exit");
-            try {
-                parent.get().onExit().get(30, TimeUnit.MINUTES);
-            } catch (Exception e) {
-                log("parent still running after 30 minutes - nothing changed");
-                return 2;
+            // Polled rather than onExit(): onExit completes through the common ForkJoinPool, and a busy or blocked
+            // pool would leave this waiting long after the game has gone.
+            long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(30);
+            while (parent.get().isAlive()) {
+                if (System.nanoTime() > deadline) {
+                    log("parent still running after 30 minutes - nothing changed");
+                    return 2;
+                }
+                Thread.sleep(250);
             }
         }
         log("parent " + parentPid + " has exited");
