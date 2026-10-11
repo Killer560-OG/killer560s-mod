@@ -32,13 +32,21 @@ public final class LeapMenuFeature {
         return result;
     }
 
-    /** Places teammates into the 4 leap menu spots: saved names keep their spot if that player is present, then
-     *  everyone else fills the empty spots in the order given. Entries are null for spots nobody fills. */
-    public static String[] arrange(List<String> available, List<String> savedSlots) {
+    /** The 4 spots for the class you are playing: teammates moved by hand (the saved spots) keep their spot, and
+     *  everyone else goes where the Default Order puts their class. The custom leap menu and the Leap Order editor
+     *  both lay out through here, so the editor shows exactly what the menu will. */
+    public static String[] layout(List<String> available, DungeonClass playing) {
+        LeapMenuConfig cfg = LeapMenuConfig.getInstance();
+        return layout(available, cfg.getClassOrder(playing), cfg.getDefaultOrder(), PartyTracker::classOf);
+    }
+
+    /** {@link #layout(List, DungeonClass)} with every input given (pure; the testkit calls it directly). */
+    public static String[] layout(List<String> available, List<String> pinnedSlots, LeapOrderMode mode,
+                                  java.util.function.Function<String, DungeonClass> classOf) {
         String[] out = new String[4];
         List<String> remaining = new ArrayList<>(available);
-        for (int i = 0; i < 4 && i < savedSlots.size(); i++) {
-            String wanted = savedSlots.get(i);
+        for (int i = 0; i < 4 && i < pinnedSlots.size(); i++) {
+            String wanted = pinnedSlots.get(i);
             if (wanted == null || wanted.isEmpty()) {
                 continue;
             }
@@ -49,11 +57,7 @@ public final class LeapMenuFeature {
                 }
             }
         }
-        for (int i = 0; i < 4 && !remaining.isEmpty(); i++) {
-            if (out[i] == null) {
-                out[i] = remaining.remove(0);
-            }
-        }
+        (mode == null ? LeapOrderMode.ODIN : mode).place(remaining, out, classOf);
         return out;
     }
 
