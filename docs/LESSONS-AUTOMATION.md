@@ -108,3 +108,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   breaker"): the pick was refused whenever he stood off the node, though his crosshair had just picked it. Picks are
   measured eye-to-box at 4.5 now (a plain dig - the wiki gives the Dungeon Breaker no range), and a pick far from the node
   is only noted in chat, since playback digs from wherever the route has him (testkit 96-ar-658-dbreach).
+- **The floor graph's warp count is an upper bound, not the fewest.** Its 2x2 buckets, 18 aim points and early-blocked
+  refusals missed a route with fewer warps on 21 of 180 bench path pairs (2026-10-11). Anything that must be minimal goes
+  through `ExactWarpSearch` (via `EtherwarpPathfinder.findOptimalPath`), which proves it - see docs/SIM.md "Fewest warps,
+  proved".

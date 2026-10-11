@@ -334,7 +334,8 @@ public final class AhReskin {
         }
         AhMarket.markInUse();
         Screen s = st.screen;
-        float f = AutoScale.current();
+        // The same factor the mod's own screens use (Auto Scale x HUD Scale), so the reskin matches the API browser.
+        float f = AutoScale.menuFactor();
         st.factor = f;
         int w = Math.max(1, (int) Math.floor(s.width / f));
         int h = Math.max(1, (int) Math.floor(s.height / f));

@@ -71,6 +71,18 @@ public class ProfilesTab extends BaseTab {
                         requestRebuild.run();
                     }
                 }).bounds(contentX + 188, y, 150, 18).build());
+        y += 22;
+
+        // killer560 (2026-10-08): "make an option to make a profile with 0 settings on". Named from the box above when
+        // something is typed there, "Blank" otherwise; made beside the others, not switched to.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("New Blank Profile"), btn -> {
+                    ProfileManager.Result result = ProfileManager.createBlankProfile(newProfileName);
+                    ModOverlayMessage.show(result.message(), 5000);
+                    if (result.success()) {
+                        newProfileName = "";
+                        requestRebuild.run();
+                    }
+                }).bounds(contentX, y, 338, 18).build());
         y += 26;
 
         List<String> profiles = ProfileManager.listProfiles();
@@ -91,7 +103,8 @@ public class ProfilesTab extends BaseTab {
                         }).bounds(contentX + 150, y, 60, 18).build());
 
                 widgets.add(SettingsButtonWidget.builder(Component.literal("Export"), btn -> {
-                            ProfileManager.Result result = ProfileManager.exportProfile(profile);
+                            // Zipped into the share folder, which then opens (2026-10-08).
+                            ProfileManager.Result result = ProfileManager.shareProfile(profile);
                             ModOverlayMessage.show(result.message(), 6000);
                         }).bounds(contentX + 214, y, 65, 18).build());
 

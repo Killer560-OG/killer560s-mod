@@ -319,3 +319,9 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - Tic Tac Toe's prediction skipped the computer's own square when testing "safe whatever it plays", so the square the
   computer was about to take always qualified and was what got shown. The prediction now takes every computer reply with
   its best outcome and shows his best move after them, never one of those squares (testkit 679, all 2,423 positions).
+
+- **A one-time migration marker is a setting's opposite.** The blank profile (2026-10-08) set every boolean false, and
+  `breakerAuraMultiBreakDefaulted` false made the next load switch Multi Break back on (testkit 617). `BlankProfile` sets
+  `*Migrated`/`*Defaulted`/`*Seeded` fields TRUE. The same walk found `AutoTrap` (own file, own switch, no `*Config`
+  class) missing from `ProfileManager.reloadAllConfigs`. And reloading configs from disk drops anything changed in memory
+  and not saved (nine network configs after testkit's Quiet profile), so the blank profile saves every config first.

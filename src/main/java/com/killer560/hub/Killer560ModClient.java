@@ -640,6 +640,19 @@ public class Killer560ModClient implements ClientModInitializer {
      *  to mis-close by hand. */
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<FabricClientCommandSource> buildProfileCommand() {
         return ClientCommands.literal("profile")
+                .then(ClientCommands.literal("blank")
+                        .executes(context -> {
+                            ModOverlayMessage.show(
+                                    com.killer560.hub.profiles.ProfileManager.createBlankProfile("").message(), 5000);
+                            return 1;
+                        })
+                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                .executes(context -> {
+                                    String name = StringArgumentType.getString(context, "name");
+                                    ModOverlayMessage.show(
+                                            com.killer560.hub.profiles.ProfileManager.createBlankProfile(name).message(), 5000);
+                                    return 1;
+                                })))
                 .then(ClientCommands.literal("save")
                         .then(ClientCommands.argument("name", StringArgumentType.greedyString())
                                 .executes(context -> {
@@ -669,7 +682,7 @@ public class Killer560ModClient implements ClientModInitializer {
                                 .executes(context -> {
                                     String name = StringArgumentType.getString(context, "name");
                                     ModOverlayMessage.show(
-                                            com.killer560.hub.profiles.ProfileManager.exportProfile(name).message(), 6000);
+                                            com.killer560.hub.profiles.ProfileManager.shareProfile(name).message(), 6000);
                                     return 1;
                                 })))
                 .then(ClientCommands.literal("import")
@@ -760,8 +773,11 @@ public class Killer560ModClient implements ClientModInitializer {
             return;
         }
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
-        if (down && !editKeyWasDown && !(McCompat.screen(client) instanceof HudEditorScreen)) {
-            McCompat.setScreen(client, new HudEditorScreen(McCompat.screen(client)));
+        // Only with NO screen open (killer560, 2026-10-08: "doesn't work if any menu is open, whether it is my mod or
+        // any other menu") - chat, pause, containers, this mod's menu and other mods' screens all count. The key is
+        // read raw every tick, so without this a letter typed in chat or a search box opened the editor.
+        if (down && !editKeyWasDown && McCompat.screen(client) == null) {
+            McCompat.setScreen(client, new HudEditorScreen(null));
         }
         editKeyWasDown = down;
     }

@@ -90,6 +90,66 @@ public final class AutoScale {
         return factor(window.getWidth(), window.getHeight(), window.getGuiScale());
     }
 
+    /** The menus follow HUD Scale only inside this range (2026-10-08): the slider goes down to 5%, where a HUD element is
+     *  still a HUD element but a menu would be unreadable and unclickable. */
+    public static final float MENU_MIN_HUD_SCALE = 0.5f;
+    public static final float MENU_MAX_HUD_SCALE = 3.0f;
+    /** HUD Scale never makes a menu's layout canvas smaller than this, so a large HUD Scale on a small window still
+     *  leaves the whole menu on screen: ModScreen's smallest panel is 480 wide plus its 10-unit margins, and its sidebar
+     *  (rows from 40 down, 24 apart, which do not scroll) needs a panel about 330 tall for the testing jar's 12
+     *  categories, which ModScreen gives once the canvas is 430 tall (panel = 78% of it). At 280 the sidebar ran out of
+     *  the panel (testkit 615's picture at HUD Scale 200%, 2026-10-08). */
+    public static final int MENU_MIN_LAYOUT_WIDTH = 500;
+    public static final int MENU_MIN_LAYOUT_HEIGHT = 430;
+    /** How near a whole number of screen pixels per GUI pixel a HUD-scaled menu factor must be to be snapped onto it,
+     *  which keeps the bitmap font's pixels all the same size (crisp) at the scales next to the usual ones. */
+    public static final float CRISP_SNAP = 0.15f;
+
+    /**
+     * The factor the mod's own screens are drawn at: Auto Scale times HUD Scale (killer560, 2026-10-08: "The HUD scale
+     * should scale every part of my mod, even the mod menu itself"). At HUD Scale 100% this is exactly
+     * {@link #current()}, so nothing that was laid out before moves. Otherwise HUD Scale is held to
+     * {@link #MENU_MIN_HUD_SCALE}..{@link #MENU_MAX_HUD_SCALE}; a growth is capped where the layout canvas would drop
+     * under {@link #MENU_MIN_LAYOUT_WIDTH}x{@link #MENU_MIN_LAYOUT_HEIGHT} (never below Auto Scale's own factor);
+     * a font pixel is never smaller than a screen pixel; and a factor within {@link #CRISP_SNAP} of a whole number of
+     * screen pixels per GUI pixel is snapped onto it.
+     */
+    public static float menuFactor() {
+        float base = current();
+        float hud = HudConfig.getInstance().getGlobalScale();
+        if (hud == 1.0f) {
+            return base;
+        }
+        Minecraft client = Minecraft.getInstance();
+        Window window = client == null ? null : client.getWindow();
+        if (window == null) {
+            return base;
+        }
+        return menuFactor(base, hud, window.getGuiScaledWidth(), window.getGuiScaledHeight(), window.getGuiScale());
+    }
+
+    /** {@link #menuFactor()}'s math with no Minecraft state, for the testkit. */
+    public static float menuFactor(float base, float hudScale, int guiWidth, int guiHeight, int guiScale) {
+        if (hudScale == 1.0f || guiWidth <= 0 || guiHeight <= 0 || guiScale <= 0) {
+            return base;
+        }
+        float hud = Math.max(MENU_MIN_HUD_SCALE, Math.min(MENU_MAX_HUD_SCALE, hudScale));
+        double f = base * hud;
+        double fit = Math.min(guiWidth / (double) MENU_MIN_LAYOUT_WIDTH, guiHeight / (double) MENU_MIN_LAYOUT_HEIGHT);
+        if (f > base && f > fit) {
+            f = Math.max(base, fit);
+        }
+        double pixels = f * guiScale;
+        double whole = Math.rint(pixels);
+        if (whole >= 1 && Math.abs(pixels - whole) <= CRISP_SNAP) {
+            // Snapping UP only where that still fits, or the snap itself could push a capped menu off screen.
+            if (whole <= pixels || whole / guiScale <= Math.max(base, fit)) {
+                f = whole / guiScale;
+            }
+        }
+        return (float) Math.max(f, 1.0 / guiScale);
+    }
+
     /**
      * Which screens are scaled: the mod's own, meaning every screen class under {@code com.killer560.hub}. Vanilla
      * screens the mod only decorates (container overlays) are not - their mod parts are HUD elements and scale through
@@ -103,7 +163,7 @@ public final class AutoScale {
 
     /** Called by the Screen mixin as it lays a screen out: decides and remembers that screen's factor. */
     public static float layoutFactor(Screen screen) {
-        float f = scalesScreen(screen) ? current() : 1.0f;
+        float f = scalesScreen(screen) ? menuFactor() : 1.0f;
         synchronized (SCREEN_FACTORS) {
             SCREEN_FACTORS.put(screen, f);
         }
@@ -125,7 +185,7 @@ public final class AutoScale {
     /** True when {@code screen}'s layout is stale - Auto Scale was toggled while it was open, typically from the
      *  very menu that holds the toggle - so it must be laid out again before it draws. */
     public static boolean needsRelayout(Screen screen) {
-        float want = scalesScreen(screen) ? current() : 1.0f;
+        float want = scalesScreen(screen) ? menuFactor() : 1.0f;
         return want != appliedFactor(screen);
     }
 

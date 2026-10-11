@@ -18,7 +18,7 @@ Open the menu in game with `/killer560`; every feature sits in its own category 
 
 **Social & Supporters** - Best Friends, Friends List, Profile Viewer
 
-**Cosmetics** - Custom Items, Nickhider, Player Cosmetics (name changer, name colour/fade/letter colours, player size, held item transform, supporter sharing), Trail
+**Cosmetics** - Custom Items, Held Item Outline, Nickhider, Player Cosmetics (name changer, name colour/fade/letter colours, player size, held item transform, supporter sharing), Trail
 
 **Party Data & Cross-Mod** - Cross-Mod Bridge, Mod conflict warnings, Party Dungeon Data, Party Interop, Team Melody HUD, Teammate Highlight †, Teammate rooms on the map
 
@@ -36,7 +36,7 @@ Open the menu in game with `/killer560`; every feature sits in its own category 
 
 **Display & Menus** - Borderless Fullscreen, Custom Crosshair, Fullbright, Motion Blur, Pack Disabler, Skyblock Only, Themed Main Menu, Window Layout
 
-**Accounts, Home & Profiles** - Account Switcher, Auto Scale (monitor), Bug Report, HUD Editor, Menu Memory, Profiles, Proxy Client, Update Notice
+**Accounts, Home & Profiles** - Account Switcher, Auto Scale (monitor), Blank Profile, Bug Report, Edit Bars, HUD Editor, HUD Scale, Menu Memory, Profiles, Proxy Client, Update Notice
 
 **Cheat Build Only** - 0 Ping Dungeon Breaker, AP3 (F7/M7 P3 automation), Auto Anvil, Auto Blood Camp, Auto Clear, Auto Close Chest, Correction Alarm, Auto Croesus, Auto Debuff (M7 dragons), Dungeon Autopilot, Dungeon Sim (WIP), Dungeon Sim Room Filters, Dungeon Sim Teleports (/goto, /tpto, /c), Map Designer, Auto Dialogue / Breaker Aura, Auto Door Opener, Auto Puzzles (QUOI port), Auto Quiz / Auto Three Weirdos, Auto Routes, Auto Secret, Auto Sell, Auto Trap, Bazaar Flipper, Cheat Utilities, Fast/Auto Leap, Freeze State, Full Block, I Hate Diorite, i4 Leap Out, Interactive Map, Lever Aura, Secret Triggerbot, Terminal Aura, Terminal Triggerbot
 

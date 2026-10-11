@@ -14,9 +14,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /**
@@ -27,6 +25,11 @@ import com.killer560.hub.compat.McCompat;
  * Page 1 picks the class you are playing. Page 2 shows your party in the same 4 spots the custom leap menu uses;
  * click one name, then another spot, to swap them. Each class keeps its own layout, and the leap menu uses the
  * layout for the class the dungeon tab list says you are playing.
+ * <p>
+ * 2026-10-09 (killer560: "once I set everyone's class then it should automatically move them where they would normally
+ * be; I should still be able to manually move them"): the Default Order button picks a {@link LeapOrderMode}, and every
+ * teammate not moved by hand sits where it puts their class - so setting a class moves that teammate at once. A swap
+ * pins both names it moved (drawn with a small grey "pinned"); shift-click unpins one, Reset to Default unpins all.
  */
 public class LeapOrderScreen extends Screen {
 
@@ -80,21 +83,28 @@ public class LeapOrderScreen extends Screen {
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), btn -> {
             editing = null;
             rebuild();
-        }).bounds(cx - 172, by, 80, 20).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset"), btn -> {
+        }).bounds(cx - 177, by, 70, 20).build());
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset to Default"), btn -> {
             LeapMenuConfig cfg = LeapMenuConfig.getInstance();
             cfg.clearClassOrder(editing);
             cfg.save();
-            selectedSpot = -1;
-        }).bounds(cx - 84, by, 80, 20).build());
+            rebuild(); // the class buttons follow the names
+        }).bounds(cx - 99, by, 100, 20).build());
+        // The default order (2026-10-09): where every teammate not moved by hand goes, by their class.
+        addRenderableWidget(SettingsButtonWidget.builder(defaultOrderText(), btn -> {
+            LeapMenuConfig cfg = LeapMenuConfig.getInstance();
+            cfg.setDefaultOrder(cfg.getDefaultOrder().next());
+            cfg.save();
+            rebuild();
+        }).bounds(cx - 80, 28, 160, 16).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Refresh Party"), btn -> {
             Minecraft client = Minecraft.getInstance();
             if (client.player != null) {
                 client.player.connection.sendCommand("pl");
             }
-        }).bounds(cx + 4, by, 80, 20).build());
+        }).bounds(cx + 9, by, 90, 20).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
-                .bounds(cx + 92, by, 80, 20).build());
+                .bounds(cx + 107, by, 70, 20).build());
         addClassButtons();
     }
 
@@ -118,6 +128,11 @@ public class LeapOrderScreen extends Screen {
                         rebuild();
                     }).bounds(b[0] + 4, b[1] + b[3] - 17, b[2] - 8, 14).build());
         }
+    }
+
+    /** "Default Order: Odin" - the label is also the tooltip key "default order". */
+    public static Component defaultOrderText() {
+        return Component.literal("Default Order: §6" + LeapMenuConfig.getInstance().getDefaultOrder().label());
     }
 
     private static Component classButtonText(String name) {
@@ -184,8 +199,9 @@ public class LeapOrderScreen extends Screen {
         // teammatesInLeapOrder(), not teammates(): spots nobody has been placed in yet must auto-fill in the order
         // the real Spirit Leap menu shows (its container slot order), not the party listing order - otherwise the
         // saved layout is off by a position until something is swapped.
-        return LeapMenuFeature.arrange(PartyTracker.teammatesInLeapOrder(),
-                LeapMenuConfig.getInstance().getClassOrder(editing));
+        // Hand-moved teammates keep their spot; everyone else goes where the default order puts their class - the
+        // same call the custom leap menu lays out with.
+        return LeapMenuFeature.layout(PartyTracker.teammatesInLeapOrder(), editing);
     }
 
     @Override
@@ -196,6 +212,7 @@ public class LeapOrderScreen extends Screen {
         } else {
             graphics.centeredText(font, "Leap Order - " + editing.displayName(), width / 2, 16, editing.color());
             String[] layout = currentLayout();
+            LeapMenuConfig cfg = LeapMenuConfig.getInstance();
             boolean any = false;
             for (int spot = 0; spot < 4; spot++) {
                 int[] b = spotBounds(spot);
@@ -213,11 +230,17 @@ public class LeapOrderScreen extends Screen {
                     // Above the class button when the box has one.
                     int textY = b[3] >= 34 ? b[1] + (b[3] - 17) / 2 - 4 : b[1] + b[3] / 2 - 4;
                     graphics.centeredText(font, name, b[0] + b[2] / 2, textY, color);
+                    if (cfg.isPinned(editing, name)) {
+                        // Subtle: moved by hand, so the default order leaves this one alone until Reset.
+                        graphics.text(font, "pinned", b[0] + b[2] - font.width("pinned") - 3, b[1] + 3, 0xFF7A7A7A, false);
+                    }
                 }
             }
             if (!any) {
                 graphics.centeredText(font, "No party members found", width / 2, height / 2 - 4, 0xFF9A8C80);
             }
+            graphics.centeredText(font, "Click a name, then a spot, to move it. Shift-click to unpin.",
+                    width / 2, height - 42, 0xFF7A7A7A);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
@@ -243,6 +266,15 @@ public class LeapOrderScreen extends Screen {
                 }
                 return true;
             }
+            if (event.hasShiftDown()) {
+                LeapMenuConfig cfg = LeapMenuConfig.getInstance();
+                if (layout[spot] != null && cfg.unpin(editing, layout[spot])) {
+                    cfg.save();
+                    rebuild();
+                }
+                selectedSpot = -1;
+                return true;
+            }
             if (selectedSpot < 0) {
                 if (layout[spot] != null) {
                     selectedSpot = spot;
@@ -250,15 +282,9 @@ public class LeapOrderScreen extends Screen {
             } else if (selectedSpot == spot) {
                 selectedSpot = -1;
             } else {
-                String tmp = layout[spot];
-                layout[spot] = layout[selectedSpot];
-                layout[selectedSpot] = tmp;
-                List<String> slots = new ArrayList<>(4);
-                for (String n : layout) {
-                    slots.add(n == null ? "" : n);
-                }
+                // Both teammates are pinned where they land (a manual move sticks until Reset).
                 LeapMenuConfig cfg = LeapMenuConfig.getInstance();
-                cfg.setClassOrder(editing, slots);
+                cfg.swap(editing, layout, selectedSpot, spot);
                 cfg.save();
                 rebuild(); // the class buttons follow the names
             }

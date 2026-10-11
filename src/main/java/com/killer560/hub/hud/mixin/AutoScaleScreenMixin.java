@@ -53,7 +53,9 @@ public abstract class AutoScaleScreenMixin {
                                              CallbackInfo ci) {
         Screen self = (Screen) (Object) this;
         killer560smod$autoScalePushed = false;
-        if (AutoScale.needsRelayout(self)) {
+        // Not while a mouse button is held: the HUD Scale slider sizes this very menu now (2026-10-08), and a relayout
+        // mid-drag would rebuild the slider out from under the cursor. It lays out on the first frame after release.
+        if (AutoScale.needsRelayout(self) && !self.isDragging() && !killer560smod$leftMouseDown()) {
             // Auto Scale was toggled (or its factor moved) while this screen was open - usually from the very menu
             // holding the toggle. Lay it out again before drawing so drawing, layout and mouse agree.
             Window window = Minecraft.getInstance().getWindow();
@@ -65,6 +67,13 @@ public abstract class AutoScaleScreenMixin {
             graphics.pose().scale(f, f);
             killer560smod$autoScalePushed = true;
         }
+    }
+
+    @Unique
+    private static boolean killer560smod$leftMouseDown() {
+        Window window = Minecraft.getInstance().getWindow();
+        return window != null && org.lwjgl.glfw.GLFW.glfwGetMouseButton(window.handle(),
+                org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
     }
 
     @Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At("RETURN"))

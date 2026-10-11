@@ -95,7 +95,21 @@ public final class EtherSearchBench {
         }
         boolean wallOrFence = (base.endsWith("_wall") || base.endsWith("_fence") || base.endsWith("fence_gate"));
         boolean black = wallOrFence || base.endsWith("_carpet") || base.equals("hopper") || base.contains("cauldron")
-                || base.endsWith("_banner") || (base.endsWith("_slab") && n.contains("type=bottom"));
+                || base.endsWith("_banner") || (base.endsWith("_slab") && n.contains("type=bottom"))
+                // LevelEtherGrid.fullTop: no completely flat, full top face (the game reads the shape; here, by name).
+                || (base.endsWith("_stairs") && n.contains("half=bottom"))
+                || base.endsWith("chest") || base.equals("soul_sand") || base.equals("farmland")
+                || base.equals("dirt_path") || base.equals("mud") || base.equals("enchanting_table")
+                || base.equals("end_portal_frame") || base.equals("lectern") || base.endsWith("anvil")
+                || base.equals("brewing_stand") || base.equals("iron_bars") || base.endsWith("_pane")
+                || base.equals("glass_pane") || base.equals("cactus") || base.equals("honey_block")
+                || base.equals("composter") || base.equals("bell") || base.equals("grindstone") || base.equals("chain")
+                || base.endsWith("campfire") || base.equals("conduit") || base.equals("scaffolding")
+                || base.equals("flower_pot") || base.equals("bamboo") || base.endsWith("_door")
+                || (base.endsWith("_trapdoor") && n.contains("half=bottom") && n.contains("open=false"))
+                || base.equals("daylight_detector") || base.endsWith("_bed") || base.equals("stonecutter")
+                || base.endsWith("_pressure_plate") || base.equals("cake") || base.endsWith("_sign")
+                || base.equals("lily_pad");
         if (black) {
             f |= EtherSearch.BLACKLIST;
         }

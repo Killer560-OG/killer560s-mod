@@ -149,11 +149,12 @@ public final class NameChangerFeature {
             }
         }
         if (cfg.isRandomizeOthers()) {
+            String base = baseName(cfg);
             synchronized (SEEN_PLAYERS) {
                 for (String name : SEEN_PLAYERS) {
                     // Case-sensitive: displayed IGNs always use their real capitalization, and this keeps a player
                     // literally named e.g. "Mage" from eating the plain word "mage" in lore.
-                    entries.add(new NameTable.Entry(name, randomNameFor(name), true));
+                    entries.add(new NameTable.Entry(name, base.isEmpty() ? randomNameFor(name) : base + numberFor(name), true));
                 }
             }
         }
@@ -275,6 +276,51 @@ public final class NameChangerFeature {
             RANDOM_NAMES.put(realName, out);
             return out;
         }
+    }
+
+    private static final Map<String, Integer> NAME_NUMBERS = new HashMap<>();
+    private static final Set<Integer> USED_NUMBERS = new java.util.HashSet<>();
+
+    /** Nickhider "Randomized Name": the number shown after the typed base name for this player. Drawn at random
+     *  the first time the player is seen, never handed to a second player, and kept for the whole session (so
+     *  editing the base name keeps everyone's number). Public for the testkit. */
+    public static int numberFor(String realName) {
+        synchronized (NAME_NUMBERS) {
+            Integer cached = NAME_NUMBERS.get(realName);
+            if (cached != null) {
+                return cached;
+            }
+            SplittableRandom rng = new SplittableRandom(SESSION_SEED ^ (realName.hashCode() * 0xC2B2AE3D27D4EB4FL));
+            int bound = 999;
+            int n;
+            int tries = 0;
+            do {
+                if (++tries > 20) {
+                    bound = bound >= 100_000_000 ? Integer.MAX_VALUE - 1 : bound * 10 + 9;
+                    tries = 0;
+                }
+                n = 1 + rng.nextInt(bound);
+            } while (USED_NUMBERS.contains(n));
+            USED_NUMBERS.add(n);
+            NAME_NUMBERS.put(realName, n);
+            return n;
+        }
+    }
+
+    /** The fake name the Nickhider currently gives {@code realName} (what the lookup table would substitute), or
+     *  null when Randomize Others is off. For the testkit and the settings tab. */
+    public static String fakeNameFor(String realName) {
+        NameChangerConfig cfg = NameChangerConfig.getInstance();
+        if (!cfg.isRandomizeOthers() || realName == null) {
+            return null;
+        }
+        String base = baseName(cfg);
+        return base.isEmpty() ? randomNameFor(realName) : base + numberFor(realName);
+    }
+
+    /** The typed base name ("&" codes converted) when Randomized Name is on, else "" (random made-up names). */
+    private static String baseName(NameChangerConfig cfg) {
+        return cfg.isRandomizedName() ? colorize(cfg.getRandomBaseName().trim()) : "";
     }
 
     /** Number of distinct other players collected this session (for the settings tab). */

@@ -107,9 +107,45 @@ public final class SimSecretItems {
         }
     }
 
+    /**
+     * How close he has to come before a secret bat appears, in blocks from his feet to the bat's spot.
+     *
+     * <p>Hypixel's secret bat appears as a player comes near, and Auto Routes' await counts that appearance only within
+     * {@code AwaitEvents.BAT_SPAWN_RANGE} (10, QUOI's number) of him. Hypixel's own trigger distance is not published;
+     * 8 keeps a bat that appears for him inside that window even after a tick's walk. NOT measured on Hypixel.
+     */
+    public static final double BAT_TRIGGER_RANGE = 8.0;
+
+    /** Secret bats waiting for him to come near. */
+    private static final java.util.Set<BlockPos> PENDING_BATS = ConcurrentHashMap.newKeySet();
+
+    /** Remembers a secret bat's position; the bat appears when he comes within {@link #BAT_TRIGGER_RANGE}. */
+    public static void registerBat(BlockPos at) {
+        if (at != null) {
+            PENDING_BATS.add(at.immutable());
+        }
+    }
+
+    /** Secret bats that have not appeared yet, for tests. */
+    public static List<BlockPos> pendingBats() {
+        return List.copyOf(PENDING_BATS);
+    }
+
+    /**
+     * Item pickup reach: Hypixel's Magnetic Talisman, which killer560 wants the sim player to always have (2026-10-09,
+     * "pickup range equal to having the gravity talisman on" - the talisman with this ability is the MAGNETIC one).
+     * hypixelskyblock.minecraft.wiki, Magnetic Talisman: "increases the player's item pickup range by 3x the normal
+     * range. Its effects do not stack." The normal range is vanilla's: {@code Player.aiStep} touches every item in its
+     * box inflated by (1.0, 0.5, 1.0) (javap, 26.1.2 and 26.2), so 3x is (3.0, 1.5, 3.0).
+     */
+    public static final double PICKUP_X = 3.0;
+    public static final double PICKUP_Y = 1.5;
+    public static final double PICKUP_Z = 3.0;
+
     /** Forgets every pending and live item - call when a floor is rebuilt or the sim session ends. */
     public static void reset() {
         PENDING.clear();
+        PENDING_BATS.clear();
         LIVE.clear();
         warnedOnce = false;
         purgeOwed = false;
@@ -149,7 +185,7 @@ public final class SimSecretItems {
 
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (!SimState.isActive() || (PENDING.isEmpty() && LIVE.isEmpty() && !purgeOwed)) {
+            if (!SimState.isActive()) {
                 return;
             }
             try {
@@ -162,7 +198,14 @@ public final class SimSecretItems {
                         .findFirst()
                         .orElse(null);
                 if (player != null) {
+                    magneticPickup(level, player);
+                }
+                if (PENDING.isEmpty() && PENDING_BATS.isEmpty() && LIVE.isEmpty() && !purgeOwed) {
+                    return;
+                }
+                if (player != null) {
                     tickPending(level, player.getX(), player.getY(), player.getZ());
+                    tickPendingBats(level, player.getX(), player.getY(), player.getZ());
                 }
                 tickCollected(level);
                 if (player != null && purgeOwed) {
@@ -210,6 +253,43 @@ public final class SimSecretItems {
         for (BlockPos at : ready) {
             PENDING.remove(at);
             spawn(level, at);
+        }
+    }
+
+    /**
+     * The Magnetic Talisman: every item in his box inflated by {@link #PICKUP_X}/{@link #PICKUP_Y}/{@link #PICKUP_Z} is
+     * touched as vanilla touches the ones in its own (1.0, 0.5, 1.0) box - {@code ItemEntity.playerTouch}, so the pickup
+     * delay, a full inventory and the take packet ({@code ClientboundTakeItemEntityPacket}, which Auto Routes' await
+     * reads) are all vanilla's. Server thread, sim world only.
+     */
+    private static void magneticPickup(ServerLevel level, net.minecraft.server.level.ServerPlayer player) {
+        if (player.isSpectator() || !player.isAlive()) {
+            return;
+        }
+        var box = player.getBoundingBox().inflate(PICKUP_X, PICKUP_Y, PICKUP_Z);
+        for (ItemEntity item : level.getEntitiesOfClass(ItemEntity.class, box, e -> e.isAlive())) {
+            item.playerTouch(player);
+        }
+    }
+
+    /** Spawns each secret bat he has come within {@link #BAT_TRIGGER_RANGE} of. */
+    private static void tickPendingBats(ServerLevel level, double px, double py, double pz) {
+        if (PENDING_BATS.isEmpty()) {
+            return;
+        }
+        List<BlockPos> ready = new ArrayList<>();
+        for (BlockPos at : PENDING_BATS) {
+            double dx = at.getX() + 0.5 - px;
+            double dy = at.getY() + 0.5 - py;
+            double dz = at.getZ() + 0.5 - pz;
+            if (dx * dx + dy * dy + dz * dz <= BAT_TRIGGER_RANGE * BAT_TRIGGER_RANGE) {
+                ready.add(at);
+            }
+        }
+        for (BlockPos at : ready) {
+            PENDING_BATS.remove(at);
+            SimMobs.spawnSecretBat(level, at);
+            SimBuildQueue.touched(at.getX(), at.getZ());
         }
     }
 

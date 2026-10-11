@@ -64,6 +64,23 @@ public final class SimPrince {
     private static final net.minecraft.world.level.block.Block LANTERN = Blocks.SEA_LANTERN;
     private static final net.minecraft.world.level.block.Block LANTERN_WALL = Blocks.POLISHED_ANDESITE;
 
+    /**
+     * The THIRD signature: a lid of full smooth stone ringed by bottom smooth stone slabs.
+     *
+     * <p>killer560, 2026-10-09, of a screenshot in Big Red Flag: "This structure in big red flag is a prince". The
+     * structure is Big Red Flag's one crypt (the room database says 1): a 4x5 tomb at capture x 12..17, y 69..72,
+     * z 22..26 whose top is a 2x3 of full {@code smooth_stone} (x 14..15, z 23..25, y 72) with a ring of bottom
+     * smooth stone slabs round it and air above. Neither older rule could see it - no gold, no sea lantern - so the
+     * sim's Superboom treated its slab ring as an ordinary crypt.
+     *
+     * <p>"A connected run of 2 to {@value #LID_MAX} full smooth stone blocks, air above every one, every horizontal
+     * neighbour either another lid block or a bottom smooth stone slab" picks out exactly one structure in all 135
+     * captures: this one (census 2026-10-11 over the shipped library). The lid and its slab ring are the prince's
+     * blocks, so a Superboom aimed at any of them finds it.
+     */
+    private static final net.minecraft.world.level.block.Block LID = Blocks.SMOOTH_STONE;
+    private static final int LID_MAX = 16;
+
     /** Which prince each block belongs to - a floor can hold more than one. */
     private static final Map<BlockPos, Integer> BLOCKS = new HashMap<>();
 
@@ -114,6 +131,77 @@ public final class SimPrince {
         return which != null && !CLAIMED.contains(which);
     }
 
+    /** Whether a block is part of any prince, blown or not - so its slabs are never also counted as a crypt. */
+    public static boolean isPart(BlockPos pos) {
+        return BLOCKS.containsKey(pos);
+    }
+
+    /** Every block of the prince containing {@code pos}, or nothing when it is not a prince block. */
+    public static List<BlockPos> blocksOf(BlockPos pos) {
+        Integer which = BLOCKS.get(pos);
+        List<BlockPos> out = new ArrayList<>();
+        if (which == null) {
+            return out;
+        }
+        for (Map.Entry<BlockPos, Integer> e : BLOCKS.entrySet()) {
+            if (e.getValue().equals(which)) {
+                out.add(e.getKey());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * What else goes when the prince containing {@code pos} is opened: the player head attached to it, and the layer
+     * directly under it.
+     *
+     * <p>killer560, 2026-10-09: "For princes make sure you get rid of the player head attached to the crypt and the
+     * stair layer below that." Leaves' prince is a 3x3 of andesite round a sea lantern with a player head on its side
+     * and a 3x3 of stone brick stairs under it; Big Red Flag's lid sits on a course of stairs and smooth stone. So: any
+     * player head touching a prince block (all 26 neighbours - a wall head sits beside the ring, a floor head on top),
+     * and every block directly under the prince's footprint at the layer below its lowest block, minus what a blast
+     * never takes (air, block entities other than a head, bedrock, barriers, levers). Asked BEFORE anything is broken.
+     * Not checked against Hypixel - his word, not the wiki's (the wiki's Prince page does not describe the tomb).
+     */
+    public static List<BlockPos> extrasOf(ServerLevel level, BlockPos pos) {
+        List<BlockPos> blocks = blocksOf(pos);
+        Set<BlockPos> out = new java.util.LinkedHashSet<>();
+        if (blocks.isEmpty()) {
+            return new ArrayList<>(out);
+        }
+        Set<BlockPos> own = new HashSet<>(blocks);
+        int minY = Integer.MAX_VALUE;
+        for (BlockPos b : blocks) {
+            minY = Math.min(minY, b.getY());
+        }
+        for (BlockPos b : blocks) {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        BlockPos n = b.offset(dx, dy, dz);
+                        if (!own.contains(n) && isHead(level.getBlockState(n))) {
+                            out.add(n.immutable());
+                        }
+                    }
+                }
+            }
+        }
+        for (BlockPos b : blocks) {
+            BlockPos under = new BlockPos(b.getX(), minY - 1, b.getZ());
+            var state = level.getBlockState(under);
+            if (own.contains(under) || state.isAir() || (state.hasBlockEntity() && !isHead(state))
+                    || state.is(Blocks.BEDROCK) || state.is(Blocks.BARRIER) || state.is(Blocks.LEVER)) {
+                continue;
+            }
+            out.add(under);
+        }
+        return new ArrayList<>(out);
+    }
+
+    private static boolean isHead(net.minecraft.world.level.block.state.BlockState state) {
+        return state.is(Blocks.PLAYER_HEAD) || state.is(Blocks.PLAYER_WALL_HEAD);
+    }
+
     /**
      * Marks the prince containing this block as blown.
      *
@@ -160,6 +248,7 @@ public final class SimPrince {
     public static int scan(ServerLevel level) {
         reset();
         List<BlockPos> crowns = new ArrayList<>();
+        Set<BlockPos> lidChecked = new HashSet<>();
         BlockPos min = DungeonLayout.cellCenter(0);
         BlockPos max = DungeonLayout.cellCenter(DungeonLayout.GRID * DungeonLayout.GRID - 1);
         int x0 = Math.min(min.getX(), max.getX()) - RoomLibrary.TILE;
@@ -176,7 +265,7 @@ public final class SimPrince {
                 for (int i = 0; i < sections.length; i++) {
                     var section = sections[i];
                     if (section == null || section.hasOnlyAir()
-                            || !section.maybeHas(st -> st.is(CROWN) || st.is(LANTERN))) {
+                            || !section.maybeHas(st -> st.is(CROWN) || st.is(LANTERN) || st.is(LID))) {
                         continue;
                     }
                     int baseY = chunk.getSectionYFromSectionIndex(i) << 4;
@@ -191,6 +280,10 @@ public final class SimPrince {
                                 if (state.is(CROWN)) {
                                     if (onAPlinth(level, at)) {
                                         crowns.add(at);
+                                    }
+                                } else if (state.is(LID)) {
+                                    if (lidChecked.add(at)) {
+                                        ringedLid(level, at, lidChecked, crowns);
                                     }
                                 } else if (state.is(LANTERN) && walledIn(level, at)) {
                                     // The lantern AND its ring, so a superboom aimed at any face of the
@@ -236,6 +329,69 @@ public final class SimPrince {
             }
         }
         return PRINCES.size();
+    }
+
+    /**
+     * The {@link #LID} rule from one smooth stone block: its horizontal run of smooth stone (members go into
+     * {@code checked}, so each run is judged once), and when the run is a lid, the lid and its slab ring go into
+     * {@code crowns}. Capped at {@value #LID_MAX} + 1 so a smooth stone floor fails fast.
+     */
+    private static void ringedLid(ServerLevel level, BlockPos start, Set<BlockPos> checked, List<BlockPos> crowns) {
+        List<BlockPos> lid = new ArrayList<>();
+        Set<BlockPos> ring = new HashSet<>();
+        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
+        Set<BlockPos> seen = new HashSet<>();
+        queue.add(start);
+        seen.add(start);
+        boolean ok = true;
+        while (!queue.isEmpty()) {
+            BlockPos here = queue.poll();
+            lid.add(here);
+            checked.add(here);
+            if (lid.size() > LID_MAX) {
+                ok = false;
+                break;
+            }
+            if (!level.getBlockState(here.above()).isAir()) {
+                ok = false;
+            }
+            for (Direction dir : Direction.Plane.HORIZONTAL) {
+                BlockPos next = here.relative(dir).immutable();
+                var state = level.getBlockState(next);
+                if (state.is(LID)) {
+                    if (seen.add(next)) {
+                        queue.add(next);
+                    }
+                } else if (state.is(Blocks.SMOOTH_STONE_SLAB)
+                        && state.getValue(net.minecraft.world.level.block.SlabBlock.TYPE)
+                        == net.minecraft.world.level.block.state.properties.SlabType.BOTTOM) {
+                    ring.add(next);
+                } else {
+                    ok = false;
+                }
+            }
+        }
+        if (ok && lid.size() >= 2) {
+            crowns.addAll(lid);
+            // The WHOLE ring: the slabs touching the lid are its sides, and the corner slabs join them on the same
+            // layer (Big Red Flag's ring is 14 slabs, 10 touching the lid and 4 corners). Bottom slabs only, capped.
+            ArrayDeque<BlockPos> walk = new ArrayDeque<>(ring);
+            Set<BlockPos> all = new HashSet<>(ring);
+            while (!walk.isEmpty() && all.size() < 4 * LID_MAX) {
+                BlockPos here = walk.poll();
+                for (Direction dir : Direction.Plane.HORIZONTAL) {
+                    BlockPos next = here.relative(dir).immutable();
+                    var state = level.getBlockState(next);
+                    if (!all.contains(next) && state.is(Blocks.SMOOTH_STONE_SLAB)
+                            && state.getValue(net.minecraft.world.level.block.SlabBlock.TYPE)
+                            == net.minecraft.world.level.block.state.properties.SlabType.BOTTOM) {
+                        all.add(next);
+                        walk.add(next);
+                    }
+                }
+            }
+            crowns.addAll(all);
+        }
     }
 
     /** Whether a sea lantern is walled in by polished andesite on all four sides - see {@link #LANTERN}.

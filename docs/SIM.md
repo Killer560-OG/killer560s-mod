@@ -2666,3 +2666,102 @@ sim mobs are persistent, their chunks wrote them to disk, and they loaded back a
 the previous floor's starred zombies stood in rooms of the new one (98-sim-insta-clear-live's U and Z). `SimWorld.open` now
 deletes the overworld's `entities/` region files before reopening the world for a build. A rebuild INSIDE an open sim world
 still relies on the sweep, which cannot see mobs in chunks that are unloaded at the time; not seen to matter yet.
+
+## Fewest warps, proved: the exact search (2026-10-11, path-optimal)
+
+killer560 (2026-10-09): "I will line up where it is only 1 etherwarp and it will take 2 for some reason. Another was a 6
+warp I figured out in 3 [...] Make sure that it is 100% perfect as to the most optimal route", and "never teleport onto
+a half slab on the bottom of a block; they can do a top slab [...] if I place a node specifically on a bottom half slab
+then it can go there".
+
+**Why the floor graph misses routes.** `WarpGraph` keeps one landing per 2x2 columns (doorways and centre lines
+excepted), tries 18 aim points a block, refuses a line blocked early (`partialFrom`; `startPartialFrom = 1` for his own
+position) without trying the rest, and a non-exact goal may end on a "near" landing. Each of those can drop the one warp
+that makes a route shorter. The 1-vs-2 case reproduces as `tools/bench/exact.sh -Dlip=true`: a goal whose top is seen
+from a pillar only along its far tenth (one block on the floor in front of it); no graph aim point is on that strip.
+
+**Now.** `ExactWarpSearch` (no Minecraft imports): nodes are EVERY landing (etherwarpable, not blacklisted, the caller's
+rule) plus his exact position and the goal block; an edge is `EtherSearch.aimExact` - the 26 fixed points, then every
+face turned to the eye split into quarters down to 1/16 of a block, a cell skipped only when its four corners are all
+behind the inside of one block already seen to stop a line (convexity makes that a proof), each point kept only if the
+real float hop lands and `holds` at +-0.01 degrees. Breadth first from both ends: a route of a + b + 1 warps exists
+exactly when some node of F_a reaches some node of B_b, rounds try 1, 2, 3... and the smaller side grows a whole layer
+between rounds, so the first round that finds a pair is the minimum (no pruning drops an optimal route). Ties: shortest
+total hop length (a tile: nearest its centre first). The graph's plan is the upper bound (`maxWarps = graph - 1`) and the
+fallback. Path nodes (`EtherwarpPathfinder.findOptimalPath`, from `RoutePathPlanner`) get 20 s; map presses 250 ms and
+only when the graph's plan is 5 warps or fewer. Every outcome logs `[Path] exact: ...` (proved / NOT proved).
+
+**Measured** (`tools/bench/exact.sh`, 6 threads, sim-style floors of the shipped captures). Path-node pairs (same or
+next room), 3 floors x 60: the graph took more warps than the minimum on 21 of 180 (19 by one, 2 by two, one of them a
+single warp it took 2 for); exact search median 9.6 ms, p90 125 ms, max 2.6 s. `-Dbrute=5`: 15 pairs solved by brute
+force (every landing in the box, every cell centre of every level on every face, no hidden-cell shortcut) - 0
+mismatches. Whole-floor presses (`-Dfar`, 25): fewer warps on 12 (up to 3 fewer, 17 -> 15), but 0.02-23 s (median
+1.9 s) to prove - hence the map's cap.
+
+**Off-limits landings.** `LevelEtherGrid.lowTop`: any block whose collision top is under 0.75 (or that has no collision)
+is blacklisted as a landing on the way - bottom slab 0.5, bed and stonecutter 0.5625, daylight detector 0.375, closed
+bottom trapdoor, carpet, pressure plate, sign, lily pad - on top of the old blacklist (walls, fences, gates, hoppers,
+cauldrons, banners). Top slabs, double slabs and stairs reach 1.0. Snow layers are passable to the ray (it lands on the
+block under them). The GOAL is never refused for it: a path node placed on a bottom slab is reached. Goals the mod picks
+itself (`TeleportUtils.landable`: `etherwarpableInTile`, `nearestEtherwarpable`, a room override spot, Auto Blaze's
+spot via `isEtherwarpable`) never are one. Blocks between 0.75 and 1 (chests 0.875, soul sand, farmland) stay allowed and
+are still planned as standing at +1.05.
+
+`/ar replan` (`RoutePathPlanner.invalidateAll`) clears every saved chain in every room and re-plans this room's at once.
+Testkit 631-636 (`SimPathOptimalTests`).
+
+### Full top faces only, proofs without a deadline, Breaker Aura picks as air (2026-10-11, path-breaker)
+
+killer560 answered: (1) etherwarp ONLY onto blocks with a completely flat, full top face - `LevelEtherGrid.fullTop` is
+`Block.isFaceFull(collision shape, UP)` (the shape's slice at the block's top boundary must cover the whole square), so
+chests, soul sand, farmland, paths, the low half of stairs, enchanting tables, panes, bars and the rest are off limits
+on the way too (the 0.75 rule is gone); a goal he chose is still exempt. (2) Path nodes are ALWAYS proved: 1.5 s on the
+planner thread, then `EtherwarpPathfinder.lastProver` carries the same search on with no deadline on the
+`killer560smod-pathproof` thread; RouteExecutor holds the pair until it is in; a world change cancels it. The map no
+longer searches before its first warp (`MAP_EXACT_NANOS = 0`): it flies the graph's plan and
+`ClearExecutor.improveInBackground` runs `remainderProver` from a warp not yet made (1.5 s slices, moving further along
+each time) and splices a shorter rest into the queue. (3) Path nodes plan with Breaker Aura's picks as air
+(`AirOverride` over the exact search and the fine room search, never the shared floor graph, whose plan is only kept if
+it still lands in that world; `BreakerAuraFeature.plannerTreatsAsAir` decides, so only while the aura is on). Testkit
+637-638.
+## The 2026-10-09 list: pickup range, one boom for every crypt, bats, the prince and four lever doors (sim-world)
+
+- **Pickup range is the Magnetic Talisman's** ("the gravity talisman" in his words - on hypixelskyblock.minecraft.wiki the
+  talisman that "increases the player's item pickup range by 3x the normal range" is the Magnetic one; the Gravity
+  Talisman gives Strength/Defense). Vanilla's reach is the player box inflated (1.0, 0.5, 1.0) (`Player.aiStep`, javap);
+  `SimSecretItems.magneticPickup` touches every item in the box inflated (3.0, 1.5, 3.0) with vanilla's own
+  `ItemEntity.playerTouch`, so delay, full inventory and the take packet stay vanilla's. Testkit 641 measures it at
+  0.1-block steps: taken up to 3.4 blocks, left from 3.5 (3.425 expected).
+- **One Superboom takes everything in reach.** It used to open the crypt it was aimed at, or the NEAREST slab crypt, and
+  nothing else. Now every slab-crypt lid, every cracked brick sealing a crypt chamber (a chamber counted once however
+  many of its bricks are in reach) and every prince within `SUPERBOOM_CRYPT_REACH` (x/z 3, y 2) opens, each with its own
+  undead; decorative cracked brick still breaks only when aimed at. A lid must now be mostly BOTTOM slabs
+  (`CryptScanner`'s rule): with every crypt in reach opening, Big Red Flag's two top-slab eaves opened as crypts beside
+  its prince. Testkit 642: two lids 3 away, a crypt wall 3 away, a lid 6 away and a decorative brick.
+- **Secret bats appear when he comes near (8 blocks, unmeasured on Hypixel), and their death counts for the room.**
+  `SimSecrets` spawned them with the floor and never registered them, so their death counted nothing; `SimScore.batKilled`
+  never reached the per-room count either; and Auto Routes' await counts a secret bat's APPEARANCE within 10 blocks
+  (QUOI's rule), which a bat that existed since the build never makes. The kill is now read off the entity (dead or
+  removed KILLED), not `getEntity(uuid) == null`, which also fired for a bat in a non-ticking section. Testkit 643.
+- **Mimic route ("kill the mimic then teleport in the direction of the mimic"): not reproduced.** 96-ar-644 plays it -
+  #1 etherwarp with await 1 aimed away from the trapped chest, Kill Mimic Spirit Sceptre and Hyperion, obvious and legit,
+  by hand and by Secret Aura - 14 tries, he never moved towards the chest and always landed on #1's target. What it did
+  find: a straight-down Hyperion moved an off-centre player to his block's centre (0.42 blocks in 644-sim-hype-down on the
+  old jar), because `dashTarget` settled on his own block and only compared distances. Fixed (his own block is not a
+  teleport). And one run in five of the aura+Hyperion variant left the mimic alive: the mimic was spawned from the
+  CLIENT's chest-click callback via `server.execute`, so a click that bypassed the client's gameMode (Secret Aura's)
+  followed by Kill Mimic's Hyperion could reach the server first, and the single Wither Impact hit nothing (the log put
+  the Kill Mimic use before "mimic spawned"). `SimMimic` now answers the use-on-block packet on the server. A side effect,
+  Hypixel's own rule: a chest counts as a secret only when the server accepts the click, i.e. in reach (96-ar-charges
+  clicked chests 7 blocks away and had to move closer). The other
+  thing 644 showed is in Auto Routes, not the sim: in legit mode with Secret Aura on, Kill Mimic's Hyperion fired at
+  pitch 50.9 after its 20-tick aim timeout - a Wither Impact along his look, which right after the chest click points
+  at the mimic (handed to the Auto Routes agent; `MimicKiller.tick` AIM).
+- **Big Red Flag's tomb is a prince** (his 01.59.46 shot): a 2x3 lid of full smooth stone ringed by bottom smooth stone
+  slabs (`SimPrince.LID`), which picks out exactly that one structure in all 135 captures. Opening a prince now also takes
+  the player head touching it and the layer directly under its footprint (`SimPrince.extrasOf`, his rule - the wiki's
+  Prince page does not describe the tomb). Testkit 645 (Big Red Flag) and 646 (Leaves: wall head and 3x3 stair layer).
+  Secret Waypoints' `CryptScanner` does not know the lid rule yet, so it shows no prince there.
+- **Four lever doors** in `SimRoomLevers` (capture coordinates and how each was matched are in its javadoc): Bridges and
+  Raccoon had their lever in the capture; Logs and Arrow Trap had none, and the sim places a floor lever on the lone wood
+  block he pointed at (only into air). Testkit 647-650 flick each as the player and require the whole door gone.

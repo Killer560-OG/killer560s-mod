@@ -94,10 +94,12 @@ public final class SimScore {
      * 300 run and the reason they are tracked separately here: a player who cannot tell a bat secret from a
      * chest secret cannot tell why their secret count is short.
      */
-    public static synchronized void batKilled() {
+    public static synchronized void batKilled(net.minecraft.core.BlockPos at) {
         batsKilled++;
-        secretsFound++;
-        SimBreakerState.secretFound();
+        // Counted for the ROOM as well, like every other secret (2026-10-09, "bats aren't counting towards the secret
+        // total in sim"): the room's "x/y Secrets" action bar line, which Auto Routes' await and the map read, is the
+        // per-room count, and a bat only ever reached the run total.
+        secretFound(at);
     }
 
     public static synchronized void secretFound() {
