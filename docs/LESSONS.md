@@ -315,3 +315,9 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   `*Migrated`/`*Defaulted`/`*Seeded` fields TRUE. The same walk found `AutoTrap` (own file, own switch, no `*Config`
   class) missing from `ProfileManager.reloadAllConfigs`. And reloading configs from disk drops anything changed in memory
   and not saved (nine network configs after testkit's Quiet profile), so the blank profile saves every config first.
+- **A container scan that commits once must keep reading while the menu is open.** The RNG Meter overlay committed after
+  three identical frames (~50 ms, under one server tick) and never read that title again, so rewards Hypixel sent after the
+  window were never logged: his item log had 32 Experimentation Table rewards, none from page 1 (2026-10-11). It now re-reads
+  every 250 ms and merges anything new (testkit 736 adds a reward to an already-scanned page).
+- **A finished Superpairs board stays open on Hypixel** until it is closed; Escape takes you to the rewards (killer560,
+  2026-10-11). Auto E-Table presses Escape once when Remaining Clicks reads 0; Hx's `holdOnOut` emulates it (testkit 735).
