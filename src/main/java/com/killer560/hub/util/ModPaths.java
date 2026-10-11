@@ -202,6 +202,7 @@ public final class ModPaths {
         t.put("lagdisplay", "interface/lagdisplay");
         t.put("trajectories", "interface/trajectories");
         t.put("helditem", "interface/helditem");
+        t.put("heldoutline", "interface/heldoutline");
         t.put("position", "interface/position");
         t.put("armourdye", "interface/armourdye");
         t.put("diorite", "interface/dioriteglass");

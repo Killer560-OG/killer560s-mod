@@ -193,3 +193,9 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   ended in "could not open your inventory" (traced in the code for killer560's "it says cannot open inventory", not
   reproduced on the old jar; fixed 2026-10-08). Open from
   `client.execute(...)` (as every other command here does) or from the next tick once no screen is up.
+
+- **The first-person hands are drawn INSIDE `GameRenderer.renderItemInHand`, under its model-view push, on both versions.**
+  26.1.2's `GameRenderer.renderItemInHand` only submits, but `ItemInHandRenderer.renderHandsWithItems` ends with its own
+  `renderAllFeatures()` + `endBatch()` (26.2 flushes in `renderItemInHand`), while the `Matrix4fc` argument is multiplied
+  onto the model-view stack. Anything that draws a hand item again later must push that same matrix: Held Item Outline's
+  mask copy drawn without it never reached the screen (testkit 671's test views, 2026-10-11). `McRender.drawHandMask` does it.
