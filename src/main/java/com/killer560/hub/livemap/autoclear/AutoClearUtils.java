@@ -259,7 +259,7 @@ public final class AutoClearUtils {
             // in that room whatever is fastest." An override that is not standable - the room's own geometry
             // differs by a block, or the sim pasted something into that cell - used to fail the whole press
             // ("Couldn't find goal position"), because findDungeonPath refuses a goal it cannot warp onto.
-            if (!TeleportUtils.etherwarpable(goal) || !TeleportUtils.underCover(goal)) {
+            if (!TeleportUtils.landable(goal) || !TeleportUtils.underCover(goal)) {
                 LOGGER.info("[Path] {}'s recorded spot {} is not standable - using the nearest"
                         + " standable block in the clicked tile instead", name, goal);
                 goal = null;

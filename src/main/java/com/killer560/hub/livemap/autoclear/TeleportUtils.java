@@ -167,6 +167,16 @@ public final class TeleportUtils {
         return !((head & PASSABLE) == 0 || (head & BLOCKS_FEET) != 0);
     }
 
+    /**
+     * {@link #etherwarpable} and also a block he may land on on the way: not a bottom slab or any other block he would
+     * drop half a block or more from, nor on the landing blacklist ({@link LevelEtherGrid#fullLanding}). What every
+     * goal the mod picks for itself must be; only a block he chose (a path node placed on a bottom slab) may be less.
+     */
+    public static boolean landable(BlockPos pos) {
+        Level level = level();
+        return level != null && etherwarpable(pos) && LevelEtherGrid.fullLanding(level, pos);
+    }
+
     public static RaycastResult getEtherPos(Vec3 from, float yaw, float pitch) {
         return getEtherPos(from, yaw, pitch, 61.0);
     }
@@ -502,7 +512,7 @@ public final class TeleportUtils {
         BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
         for (long packed : table) {
             mut.set(center.getX() + BlockPos.getX(packed), center.getY() + BlockPos.getY(packed), center.getZ() + BlockPos.getZ(packed));
-            if (etherwarpable(mut) && underCover(mut)) {
+            if (landable(mut) && underCover(mut)) {
                 return mut.immutable();
             }
         }
@@ -590,7 +600,7 @@ public final class TeleportUtils {
                 for (int dx = -TILE_HALF; dx <= TILE_HALF; dx++) {
                     for (int dz = -TILE_HALF; dz <= TILE_HALF; dz++) {
                         mut.set(tileCentre.getX() + dx, tileCentre.getY() + dy, tileCentre.getZ() + dz);
-                        if (!etherwarpable(mut) || !underCover(mut)) {
+                        if (!landable(mut) || !underCover(mut)) {
                             continue;
                         }
                         double d = from.distanceToSqr(mut.getX() + 0.5, mut.getY() + 1.0, mut.getZ() + 0.5);

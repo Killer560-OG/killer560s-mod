@@ -361,11 +361,32 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
             double top = state.getCollisionShape(level, pos).max(Direction.Axis.Y);
             int ceil = (int) Math.max(1.0, Math.ceil(top));
             f |= Math.min(3, ceil) << EtherSearch.TOP_SHIFT;
+            if (lowTop(top)) {
+                f |= EtherSearch.BLACKLIST;
+            }
         }
         if (id >= 0) {
             table[id] = f;
         }
         return f;
+    }
+
+    /**
+     * A block whose collision top is below three quarters of a block (or that has no collision at all): an etherwarp
+     * onto it puts his feet a block up and he drops a half block or more - a bottom slab (0.5), a bed or stonecutter
+     * (0.5625), a daylight detector (0.375), a closed bottom trapdoor (0.1875), a carpet, a pressure plate, a sign.
+     * killer560 (2026-10-09): the map and path nodes "will never teleport onto a half slab on the bottom of a block;
+     * they can do a top slab" (a top slab, a double slab and a stair reach 1.0). Never a landing on the way; only a
+     * goal he chose himself (a path node placed on one) may be one.
+     */
+    static boolean lowTop(double collisionTop) {
+        return !(collisionTop >= 0.75);
+    }
+
+    /** Whether {@code pos} may be landed on on the way: not on the blacklist and not a {@link #lowTop} block. */
+    public static boolean fullLanding(Level level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return !blackListed(state) && !lowTop(state.getCollisionShape(level, pos).max(Direction.Axis.Y));
     }
 
     /** QUOI's landing blacklist, formerly {@code EtherwarpPathfinder.blackListed}. */

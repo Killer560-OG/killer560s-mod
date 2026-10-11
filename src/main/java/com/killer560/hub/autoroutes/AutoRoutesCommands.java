@@ -266,6 +266,9 @@ public final class AutoRoutesCommands {
                         .then(ClientCommands.literal("clear").executes(context -> exec(Action.CLEAR)))
                         .then(ClientCommands.literal("list").executes(context -> exec(Action.LIST)))
                         .then(ClientCommands.literal("reload").executes(context -> exec(Action.RELOAD)))
+                        // Re-plans every saved path pair with the exact (fewest-warps) planner - see replan().
+                        .then(ClientCommands.literal("replan").executes(context -> guarded(AutoRoutesCommands::replan)
+                                ? 1 : 0))
                         .then(ClientCommands.literal("undo").executes(context -> exec(Action.UNDO)))
                         .then(ClientCommands.literal("redo").executes(context -> exec(Action.REDO)))
                         // "/ar delete [n]" and "/ar remove [n]" are the same command, as "/ap3 delete|remove [n]"
@@ -393,6 +396,7 @@ public final class AutoRoutesCommands {
             ModChat.send(FEATURE, ModChat.value(a.command), ModChat.dim(" - " + a.label));
         }
         ModChat.send(FEATURE, ModChat.value("/ar edit <n>"), ModChat.dim(" - Node Editor (type, start, await, position, look, item, Go To)"));
+        ModChat.send(FEATURE, ModChat.value("/ar replan"), ModChat.dim(" - Re-plan every saved path pair (fewest warps)"));
         ModChat.send(FEATURE, ModChat.dim("/autoroutes works everywhere /ar does."));
         ModChat.send(FEATURE, ModChat.dim("Types: boom, breaker, ew (or etherwarp), use, walk, path, crypt, jump. After the type, any order: "),
                 ModChat.value("start"), ModChat.dim(" (this room's start node), "), ModChat.value("await:<number>"),
@@ -416,6 +420,21 @@ public final class AutoRoutesCommands {
         RouteNode node = nodes.get(index);
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> com.killer560.hub.compat.McCompat.setScreen(client, new AutoRoutesEditScreen(route, node)));
+    }
+
+    /**
+     * {@code /ar replan}: every saved path plan in every room is thrown away and planned again with the exact planner -
+     * this room's pairs now, one after another, every other room's when its route next fires the pair or is edited.
+     */
+    private static void replan() {
+        if (RouteExecutor.isRunning()) {
+            RouteExecutor.stop("re-planning paths");
+        }
+        int[] done = RoutePathPlanner.invalidateAll();
+        ModChat.send(FEATURE, ModChat.text("Cleared "), ModChat.value(done[0] + " saved path plan" + (done[0] == 1 ? "" : "s")),
+                ModChat.text(" in "), ModChat.value(done[1] + " room" + (done[1] == 1 ? "" : "s")),
+                ModChat.dim(" - this room's re-plan now, the rest the next time their route runs or is edited."));
+        RoutePathPlanner.refreshStale(AutoRoutesFeature.editableRoute(), AutoRoutesFeature.editableFrame());
     }
 
     private static void startRecord() {

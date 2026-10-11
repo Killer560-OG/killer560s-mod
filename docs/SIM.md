@@ -2666,3 +2666,46 @@ sim mobs are persistent, their chunks wrote them to disk, and they loaded back a
 the previous floor's starred zombies stood in rooms of the new one (98-sim-insta-clear-live's U and Z). `SimWorld.open` now
 deletes the overworld's `entities/` region files before reopening the world for a build. A rebuild INSIDE an open sim world
 still relies on the sweep, which cannot see mobs in chunks that are unloaded at the time; not seen to matter yet.
+
+## Fewest warps, proved: the exact search (2026-10-11, path-optimal)
+
+killer560 (2026-10-09): "I will line up where it is only 1 etherwarp and it will take 2 for some reason. Another was a 6
+warp I figured out in 3 [...] Make sure that it is 100% perfect as to the most optimal route", and "never teleport onto
+a half slab on the bottom of a block; they can do a top slab [...] if I place a node specifically on a bottom half slab
+then it can go there".
+
+**Why the floor graph misses routes.** `WarpGraph` keeps one landing per 2x2 columns (doorways and centre lines
+excepted), tries 18 aim points a block, refuses a line blocked early (`partialFrom`; `startPartialFrom = 1` for his own
+position) without trying the rest, and a non-exact goal may end on a "near" landing. Each of those can drop the one warp
+that makes a route shorter. The 1-vs-2 case reproduces as `tools/bench/exact.sh -Dlip=true`: a goal whose top is seen
+from a pillar only along its far tenth (one block on the floor in front of it); no graph aim point is on that strip.
+
+**Now.** `ExactWarpSearch` (no Minecraft imports): nodes are EVERY landing (etherwarpable, not blacklisted, the caller's
+rule) plus his exact position and the goal block; an edge is `EtherSearch.aimExact` - the 26 fixed points, then every
+face turned to the eye split into quarters down to 1/16 of a block, a cell skipped only when its four corners are all
+behind the inside of one block already seen to stop a line (convexity makes that a proof), each point kept only if the
+real float hop lands and `holds` at +-0.01 degrees. Breadth first from both ends: a route of a + b + 1 warps exists
+exactly when some node of F_a reaches some node of B_b, rounds try 1, 2, 3... and the smaller side grows a whole layer
+between rounds, so the first round that finds a pair is the minimum (no pruning drops an optimal route). Ties: shortest
+total hop length (a tile: nearest its centre first). The graph's plan is the upper bound (`maxWarps = graph - 1`) and the
+fallback. Path nodes (`EtherwarpPathfinder.findOptimalPath`, from `RoutePathPlanner`) get 20 s; map presses 250 ms and
+only when the graph's plan is 5 warps or fewer. Every outcome logs `[Path] exact: ...` (proved / NOT proved).
+
+**Measured** (`tools/bench/exact.sh`, 6 threads, sim-style floors of the shipped captures). Path-node pairs (same or
+next room), 3 floors x 60: the graph took more warps than the minimum on 21 of 180 (19 by one, 2 by two, one of them a
+single warp it took 2 for); exact search median 9.6 ms, p90 125 ms, max 2.6 s. `-Dbrute=5`: 15 pairs solved by brute
+force (every landing in the box, every cell centre of every level on every face, no hidden-cell shortcut) - 0
+mismatches. Whole-floor presses (`-Dfar`, 25): fewer warps on 12 (up to 3 fewer, 17 -> 15), but 0.02-23 s (median
+1.9 s) to prove - hence the map's cap.
+
+**Off-limits landings.** `LevelEtherGrid.lowTop`: any block whose collision top is under 0.75 (or that has no collision)
+is blacklisted as a landing on the way - bottom slab 0.5, bed and stonecutter 0.5625, daylight detector 0.375, closed
+bottom trapdoor, carpet, pressure plate, sign, lily pad - on top of the old blacklist (walls, fences, gates, hoppers,
+cauldrons, banners). Top slabs, double slabs and stairs reach 1.0. Snow layers are passable to the ray (it lands on the
+block under them). The GOAL is never refused for it: a path node placed on a bottom slab is reached. Goals the mod picks
+itself (`TeleportUtils.landable`: `etherwarpableInTile`, `nearestEtherwarpable`, a room override spot, Auto Blaze's
+spot via `isEtherwarpable`) never are one. Blocks between 0.75 and 1 (chests 0.875, soul sand, farmland) stay allowed and
+are still planned as standing at +1.05.
+
+`/ar replan` (`RoutePathPlanner.invalidateAll`) clears every saved chain in every room and re-plans this room's at once.
+Testkit 631-636 (`SimPathOptimalTests`).

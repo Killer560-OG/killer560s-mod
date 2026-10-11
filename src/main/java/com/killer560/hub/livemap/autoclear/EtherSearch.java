@@ -516,6 +516,163 @@ public final class EtherSearch {
         return t[0] < t[1];
     }
 
+    // ------------------------------------------------------------------------------------------- the exact aim
+
+    /**
+     * How finely {@link #aimExact} looks at each face: a face is split into quarters this many times, so its smallest
+     * cells are {@code 1 / 2^depth} of a block across (4: a sixteenth, 256 cells a face). Every cell that is not
+     * proved hidden gets its centre cast.
+     */
+    public int exactDepth = 4;
+    /** Points inside the face a cell's corners and centre are moved in by, so the walk enters the target block. */
+    private static final double FACE_INSET = 0.004;
+    // Blocks already seen to stop a line toward the block aimExact is aiming at.
+    private final int[] occX = new int[64];
+    private final int[] occY = new int[64];
+    private final int[] occZ = new int[64];
+    private int occN;
+    /** Lines cast by {@link #aimExact} (the segment to a face point, not the hold check), for the planner's log. */
+    public long exactPoints;
+
+    /**
+     * Whether ANY firm aim from the eye lands on the block: {@link #AIM_ALL} first (the cheap common case), then every
+     * visible face split into cells down to {@link #exactDepth}. A cell whose four corners are all hidden behind the
+     * inside of one block already seen to stop a line is hidden as a whole (the block is convex and lies between the
+     * eye and the face, so it hides every line to a point between the corners too) and is not looked into; any other
+     * cell has its centre cast, and is split further. A point counts only when the line to it reaches the block first
+     * AND the real hop - the float yaw and pitch toward it, cast the full range - lands on the block for every aim
+     * within {@link #AIM_MARGIN} ({@link #holds}). Sets {@link #aimYaw}/{@link #aimPitch}.
+     *
+     * <p>This is the planner's definition of "one etherwarp reaches it" (ExactWarpSearch): what he can line up by
+     * hand, to a sixteenth of a block, and that still lands when the server reads the yaw a hair off.
+     */
+    public boolean aimExact(double ex, double ey, double ez, int bx, int by, int bz, double range) {
+        double nx = Math.max(bx, Math.min(ex, bx + 1.0)) - ex;
+        double ny = Math.max(by, Math.min(ey, by + 1.0)) - ey;
+        double nz = Math.max(bz, Math.min(ez, bz + 1.0)) - ez;
+        if (nx * nx + ny * ny + nz * nz > range * range || !etherwarpable(bx, by, bz)) {
+            return false;
+        }
+        occN = 0;
+        for (double[] o : AIM_ALL) {
+            if (exactPoint(ex, ey, ez, bx + o[0], by + o[1], bz + o[2], bx, by, bz, range)) {
+                return true;
+            }
+        }
+        // Visible faces only: the eye must be on the face's outer side. axis 0 = x, 1 = y, 2 = z.
+        for (int axis = 0; axis < 3; axis++) {
+            double e = axis == 0 ? ex : axis == 1 ? ey : ez;
+            int b = axis == 0 ? bx : axis == 1 ? by : bz;
+            for (int side = 0; side < 2; side++) {
+                if (side == 0 ? e >= b : e <= b + 1) {
+                    continue;
+                }
+                double plane = side == 0 ? b + FACE_INSET : b + 1 - FACE_INSET;
+                if (exactCell(ex, ey, ez, bx, by, bz, axis, plane, FACE_INSET, FACE_INSET, 1 - FACE_INSET,
+                        1 - FACE_INSET, exactDepth, range)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** One cell of a face of the target ({@code u, v} the face's other two axes, block-local 0..1). */
+    private boolean exactCell(double ex, double ey, double ez, int bx, int by, int bz, int axis, double plane,
+                              double u0, double v0, double u1, double v1, int depth, double range) {
+        if (hiddenCell(ex, ey, ez, bx, by, bz, axis, plane, u0, v0, u1, v1)) {
+            return false;
+        }
+        double um = (u0 + u1) * 0.5;
+        double vm = (v0 + v1) * 0.5;
+        if (exactPoint(ex, ey, ez, px(axis, plane, bx, um), py(axis, plane, by, um, vm), pz(axis, plane, bz, vm),
+                bx, by, bz, range)) {
+            return true;
+        }
+        if (depth == 0 || hiddenCell(ex, ey, ez, bx, by, bz, axis, plane, u0, v0, u1, v1)) {
+            return false;
+        }
+        return exactCell(ex, ey, ez, bx, by, bz, axis, plane, u0, v0, um, vm, depth - 1, range)
+                || exactCell(ex, ey, ez, bx, by, bz, axis, plane, um, v0, u1, vm, depth - 1, range)
+                || exactCell(ex, ey, ez, bx, by, bz, axis, plane, u0, vm, um, v1, depth - 1, range)
+                || exactCell(ex, ey, ez, bx, by, bz, axis, plane, um, vm, u1, v1, depth - 1, range);
+    }
+
+    // A face point from (axis, plane, u, v): u is the first other axis (x for y/z faces, y for the x face), v the second.
+    private static double px(int axis, double plane, int bx, double u) {
+        return axis == 0 ? plane : bx + u;
+    }
+
+    private static double py(int axis, double plane, int by, double u, double v) {
+        return axis == 1 ? plane : axis == 0 ? by + u : by + v;
+    }
+
+    private static double pz(int axis, double plane, int bz, double v) {
+        return axis == 2 ? plane : bz + v;
+    }
+
+    /** Whether all four corners of the cell are behind the inside of the same known blocking block. */
+    private boolean hiddenCell(double ex, double ey, double ez, int bx, int by, int bz, int axis, double plane,
+                               double u0, double v0, double u1, double v1) {
+        for (int i = 0; i < occN; i++) {
+            int x = occX[i];
+            int y = occY[i];
+            int z = occZ[i];
+            if (segmentThroughBlock(ex, ey, ez, px(axis, plane, bx, u0), py(axis, plane, by, u0, v0),
+                    pz(axis, plane, bz, v0), x, y, z)
+                    && segmentThroughBlock(ex, ey, ez, px(axis, plane, bx, u1), py(axis, plane, by, u1, v0),
+                    pz(axis, plane, bz, v0), x, y, z)
+                    && segmentThroughBlock(ex, ey, ez, px(axis, plane, bx, u0), py(axis, plane, by, u0, v1),
+                    pz(axis, plane, bz, v1), x, y, z)
+                    && segmentThroughBlock(ex, ey, ez, px(axis, plane, bx, u1), py(axis, plane, by, u1, v1),
+                    pz(axis, plane, bz, v1), x, y, z)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** One face point: hidden by a known block, blocked (remember the block), or a firm aim (true). */
+    private boolean exactPoint(double ex, double ey, double ez, double tx, double ty, double tz, int bx, int by, int bz,
+                               double range) {
+        for (int i = 0; i < occN; i++) {
+            if (segmentThroughBlock(ex, ey, ez, tx, ty, tz, occX[i], occY[i], occZ[i])) {
+                return false;
+            }
+        }
+        exactPoints++;
+        int r = cast(ex, ey, ez, tx, ty, tz);
+        if (r == MISS) {
+            return false;
+        }
+        if (hitX != bx || hitY != by || hitZ != bz) {
+            for (int i = 0; i < occN; i++) {
+                if (occX[i] == hitX && occY[i] == hitY && occZ[i] == hitZ) {
+                    return false;
+                }
+            }
+            if (occN < occX.length) {
+                occX[occN] = hitX;
+                occY[occN] = hitY;
+                occZ[occN] = hitZ;
+                occN++;
+            }
+            return false;
+        }
+        double dx = tx - ex;
+        double dy = ty - ey;
+        double dz = tz - ez;
+        double distXZ = Math.sqrt(dx * dx + dz * dz);
+        float yaw = wrapDegrees((float) -Math.toDegrees(Math.atan2(dx, dz)));
+        float pitch = wrapDegrees((float) -Math.toDegrees(Math.atan2(dy, distXZ)));
+        if (holds(ex, ey, ez, yaw, pitch, bx, by, bz, range)) {
+            aimYaw = yaw;
+            aimPitch = pitch;
+            return true;
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------------------------------------- A*
 
     /** What one leg is searching for. */
