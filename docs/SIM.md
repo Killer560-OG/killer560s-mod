@@ -2709,3 +2709,18 @@ are still planned as standing at +1.05.
 
 `/ar replan` (`RoutePathPlanner.invalidateAll`) clears every saved chain in every room and re-plans this room's at once.
 Testkit 631-636 (`SimPathOptimalTests`).
+
+### Full top faces only, proofs without a deadline, Breaker Aura picks as air (2026-10-11, path-breaker)
+
+killer560 answered: (1) etherwarp ONLY onto blocks with a completely flat, full top face - `LevelEtherGrid.fullTop` is
+`Block.isFaceFull(collision shape, UP)` (the shape's slice at the block's top boundary must cover the whole square), so
+chests, soul sand, farmland, paths, the low half of stairs, enchanting tables, panes, bars and the rest are off limits
+on the way too (the 0.75 rule is gone); a goal he chose is still exempt. (2) Path nodes are ALWAYS proved: 1.5 s on the
+planner thread, then `EtherwarpPathfinder.lastProver` carries the same search on with no deadline on the
+`killer560smod-pathproof` thread; RouteExecutor holds the pair until it is in; a world change cancels it. The map no
+longer searches before its first warp (`MAP_EXACT_NANOS = 0`): it flies the graph's plan and
+`ClearExecutor.improveInBackground` runs `remainderProver` from a warp not yet made (1.5 s slices, moving further along
+each time) and splices a shorter rest into the queue. (3) Path nodes plan with Breaker Aura's picks as air
+(`AirOverride` over the exact search and the fine room search, never the shared floor graph, whose plan is only kept if
+it still lands in that world; `BreakerAuraFeature.plannerTreatsAsAir` decides, so only while the aura is on). Testkit
+637-638.

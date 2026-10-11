@@ -67,6 +67,8 @@ public final class ExactWarpSearch {
 
     // ------------------------------------------------------------------------------------------- results
 
+    /** Set from any thread: the search stops at its next check, as if its deadline had passed. */
+    public volatile boolean cancelled;
     /** The search ended at its deadline: {@link #fewerThan} is what it proved. */
     public boolean timedOut;
     /** The returned route has the fewest warps, but the deadline cut the choice among routes of that many short. */
@@ -712,14 +714,14 @@ public final class ExactWarpSearch {
         }
     }
 
-    private static void drain(EtherSearch es, int count, AtomicInteger next, AtomicBoolean late, int chunk,
-                              long deadline, Job job) {
+    private void drain(EtherSearch es, int count, AtomicInteger next, AtomicBoolean late, int chunk,
+                       long deadline, Job job) {
         while (!late.get()) {
             int i0 = next.getAndAdd(chunk);
             if (i0 >= count) {
                 return;
             }
-            if (System.nanoTime() > deadline) {
+            if (cancelled || System.nanoTime() > deadline) {
                 late.set(true);
                 return;
             }

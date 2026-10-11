@@ -325,6 +325,7 @@ public final class ClearExecutor {
         goalTo = to;
         goalTile = tileIdx;
         goalComplete = complete;
+        pressNanos = System.nanoTime();
         Vec3 from = player.position();
         int packetsAtPlan = positionPackets;
         planPackets = packetsAtPlan;
@@ -422,9 +423,11 @@ public final class ClearExecutor {
                 }
                 ModChat.send(CHAT, ModChat.text("Found path in "), ModChat.value(took + "ms"), ModChat.dim(" ("
                         + result.size() + " warps)"));
-                LOGGER.info("[Path] running {} warp(s) from {} to {}{}", list.size(), fmt(from), to,
-                        replans > 0 ? " (planned again, " + replans + "/" + MAX_REPLANS + ")" : "");
+                LOGGER.info("[Path] running {} warp(s) from {} to {}{} - {} ms from the press to the first warp's turn",
+                        list.size(), fmt(from), to, replans > 0 ? " (planned again, " + replans + "/" + MAX_REPLANS + ")"
+                                : "", String.format(java.util.Locale.ROOT, "%.1f", (System.nanoTime() - pressNanos) / 1e6));
                 startQueue(list, complete);
+                improveInBackground(list, to, tileIdx, layout);
             });
         });
     }
@@ -494,7 +497,128 @@ public final class ClearExecutor {
         startQueue(path, complete);
     }
 
+    // ------------------------------------------------------------------------------------------- improving as he flies
+
+    /** When the plan now running was asked for (the press, or the replan), for the press-to-first-warp line. */
+    private static long pressNanos;
+    /** Bumped whenever a queue starts or stops: an improvement for an older one is thrown away. */
+    private static volatile int improveGen;
+    private static volatile EtherwarpPathfinder.Prover improving;
+    /** How long one try at the rest of the trip may run before it starts again from further along. */
+    private static final long IMPROVE_SLICE_NANOS = 1_500_000_000L;
+    private static final ExecutorService IMPROVER = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "killer560smod-mapimprove");
+        t.setDaemon(true);
+        t.setPriority(Thread.MIN_PRIORITY);
+        return t;
+    });
+
+    private static void stopImproving() {
+        improveGen++;
+        EtherwarpPathfinder.Prover p = improving;
+        if (p != null) {
+            p.cancel();
+        }
+        improving = null;
+    }
+
+    /**
+     * killer560 (2026-10-11): "The interactive map must START moving near-instantly on a click [...] get it as close as
+     * physically possible within that instant start." The press flies the floor graph's plan at once; meanwhile this
+     * looks, off every game thread, for the rest of the trip in fewer warps - from the start of a warp he has not made
+     * yet to the goal, with the exact search (EtherwarpPathfinder.remainderProver) - and swaps the rest of the queue
+     * for it on the client thread if he has not reached that warp yet. A try that is not done in
+     * {@link #IMPROVE_SLICE_NANOS} starts again from a warp further along (a smaller problem); a try that proves the rest
+     * already the fewest ends it. Client thread.
+     */
+    private static void improveInBackground(List<ClearNode> plan, BlockPos to, int tileIdx, DungeonLayout layout) {
+        if (plan.size() < 3) {
+            return;   // two warps: the first is already going, and the second is one warp - it cannot get shorter
+        }
+        int gen = improveGen;
+        List<Vec3> starts = new ArrayList<>();
+        for (ClearNode n : plan) {
+            starts.add(n.pos);
+        }
+        long t0 = System.nanoTime();
+        IMPROVER.submit(() -> {
+            int k = 1;
+            while (gen == improveGen) {
+                int left = starts.size() - k;
+                if (left < 2) {
+                    return;
+                }
+                EtherwarpPathfinder.Prover p;
+                try {
+                    p = EtherwarpPathfinder.remainderProver(starts.get(k), to, tileIdx, left, layout);
+                } catch (RuntimeException e) {
+                    LOGGER.warn("[Path] improving the trip failed: {}", e.toString());
+                    return;
+                }
+                if (p == null) {
+                    return;
+                }
+                improving = p;
+                if (gen != improveGen) {
+                    p.cancel();
+                    return;
+                }
+                List<EtherwarpPathfinder.Node> better;
+                try {
+                    better = p.run(System.nanoTime() + IMPROVE_SLICE_NANOS);
+                } catch (RuntimeException e) {
+                    LOGGER.warn("[Path] improving the trip failed: {}", e.toString());
+                    return;
+                }
+                if (better != null) {
+                    int from = k;
+                    double ms = (System.nanoTime() - t0) / 1e6;
+                    Minecraft.getInstance().execute(() -> splice(gen, starts.get(from), better, from, left, ms));
+                    return;
+                }
+                if (p.proven()) {
+                    LOGGER.info("[Path] the rest of the trip from warp {} ({} warp(s)) is already the fewest (proved"
+                            + " in {} ms)", k + 1, left, String.format(java.util.Locale.ROOT, "%.0f",
+                            (System.nanoTime() - t0) / 1e6));
+                    return;
+                }
+                // Not done in its slice: again from the next warp he has not made, at least one further on.
+                List<ClearNode> now = nodes;
+                int remaining = now == null ? 0 : now.size();
+                k = Math.max(k + 1, starts.size() - remaining + 1);
+            }
+        });
+    }
+
+    /** Client thread: the rest of the queue from the warp starting at {@code at} becomes {@code better}. */
+    private static void splice(int gen, Vec3 at, List<EtherwarpPathfinder.Node> better, int k, int left, double ms) {
+        List<ClearNode> current = nodes;
+        if (gen != improveGen || current == null) {
+            return;
+        }
+        int i = -1;
+        for (int j = 0; j < current.size(); j++) {
+            if (current.get(j).pos.distanceTo(at) < 0.01) {
+                i = j;
+                break;
+            }
+        }
+        if (i < 0 || current.get(i) == activeNode) {
+            LOGGER.info("[Path] a shorter rest of the trip ({} warp(s) for {}) came after he had passed warp {}", better
+                    .size(), left, k + 1);
+            return;
+        }
+        List<ClearNode> swapped = new ArrayList<>(current.subList(0, i));
+        for (EtherwarpPathfinder.Node n : better) {
+            swapped.add(ClearNode.toEther(n));
+        }
+        nodes = swapped;
+        LOGGER.info("[Path] improved the rest of the trip in flight: from warp {}, {} warp(s) instead of {} (found in {}"
+                + " ms)", k + 1, better.size(), left, String.format(java.util.Locale.ROOT, "%.0f", ms));
+    }
+
     private static void startQueue(List<ClearNode> path, Runnable complete) {
+        stopImproving();
         nodes = new ArrayList<>(path);
         position = null;
         pendingInteract = null;
@@ -519,6 +643,7 @@ public final class ClearExecutor {
     }
 
     public static void cancel() {
+        stopImproving();
         noteStrayWarps();
         goalTo = null;
         goalTile = -1;

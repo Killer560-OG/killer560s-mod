@@ -784,6 +784,7 @@ public final class AutoRoutesFeature {
         if (client.level != lastLevel) {
             lastLevel = client.level;
             resetForWorld("world change");
+            RoutePathPlanner.cancelProofs();
         }
         if (!cfg.isEnabled()) {
             gate("Auto Routes is off");

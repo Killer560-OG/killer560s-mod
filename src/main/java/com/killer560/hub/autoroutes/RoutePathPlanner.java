@@ -69,7 +69,8 @@ public final class RoutePathPlanner {
             return;
         }
         for (RouteNode n : route.nodes()) {
-            if (n.type == RouteNode.Type.PATH && route.pathDestination(n) != null && !valid(route, n)) {
+            if (n.type == RouteNode.Type.PATH && route.pathDestination(n) != null && !valid(route, n)
+                    && !isProving(n)) {
                 plan(route, frame, n, why -> {
                     if (why == null) {
                         refreshStale(route, RouteCoords.Frame.current());
@@ -141,10 +142,16 @@ public final class RoutePathPlanner {
         // while it ran.
         double fx = src.x, fy = src.y, fz = src.z;
         double tx = dest.x, ty = dest.y, tz = dest.z;
+        // Breaker Aura's picks are planned as gone (killer560, 2026-10-11: "treat those as not existing when it plans
+        // its route as they should be broken whenever it goes by"). Read here, on the client thread, through the aura's
+        // own rule: only while the aura is on, and only blocks it would actually break. If one is still standing when
+        // the warp goes, the warp lands short and is handled as any failed landing is.
+        java.util.Set<Long> air = breakerAir(client);
         planning = true;
         plansStarted++;
-        LOGGER.info("[AutoRoutes] Path #{} -> #{}: planning with the Interactive Map's floor planner, {} to {}", a, b,
-                fmt(from), goal.toShortString());
+        LOGGER.info("[AutoRoutes] Path #{} -> #{}: planning with the Interactive Map's floor planner, {} to {}{}", a, b,
+                fmt(from), goal.toShortString(), air.isEmpty() ? "" : " (" + air.size()
+                        + " Breaker Aura block(s) planned as broken)");
         // On the Interactive Map's planner thread, never one of our own: the floor graph is shared with the map's
         // warm-up and is not thread-safe. A search here racing the warm-up pushed the graph's node count past its
         // arrays, after which nothing planned for the rest of the floor (2026-10-06).
@@ -153,17 +160,30 @@ public final class RoutePathPlanner {
             List<EtherwarpPathfinder.Node> path = null;
             try {
                 path = EtherwarpPathfinder.findOptimalPath(from, goal, cfg, range, layout,
-                        EtherwarpPathfinder.PATH_EXACT_NANOS);
+                        EtherwarpPathfinder.PATH_EXACT_NANOS, air);
             } catch (Throwable e) {
                 LOGGER.warn("[AutoRoutes] Path search failed: {}", e.toString());
             }
             long took = System.currentTimeMillis() - t0;
             List<EtherwarpPathfinder.Node> result = path;
             EtherwarpPathfinder.ExactInfo info = EtherwarpPathfinder.lastExact;
+            EtherwarpPathfinder.Prover prover = EtherwarpPathfinder.lastProver;
             client.execute(() -> {
                 planning = false;
-                String why = save(route, frame, src, result, range, fx, fy, fz, tx, ty, tz);
-                if (why == null) {
+                String why = save(route, frame, src, result, range, fx, fy, fz, tx, ty, tz, goal, !air.isEmpty());
+                if (prover != null) {
+                    // Not proved on the planner thread in its turn: what was found is saved (if anything) and the proof
+                    // carries on, unbounded, on its own thread. The pair does not fly until it is proved.
+                    prove(route, frame, src, prover, range, fx, fy, fz, tx, ty, tz, goal, !air.isEmpty(), a, b);
+                    if (why != null && result == null) {
+                        why = null;   // nothing yet, but the proof is still looking
+                    }
+                }
+                if (prover != null) {
+                    AutoRoutesFeature.chat(ModChat.text("Path "), ModChat.value("#" + a + " -> #" + b),
+                            ModChat.text(": " + (src.pathHops.isEmpty() ? "nothing" : src.pathHops.size() + " warp(s)")
+                                    + " so far"), ModChat.dim(" - proving it the fewest in the background..."));
+                } else if (why == null) {
                     boolean proven = info != null && info.proven() && info.warps() == src.pathHops.size();
                     LOGGER.info("[AutoRoutes] Path #{} -> #{} planned by the floor planner: {} warp(s) in {} ms - saved, {}",
                             a, b, src.pathHops.size(), took, proven ? "the fewest there are (proved)"
@@ -182,9 +202,122 @@ public final class RoutePathPlanner {
         });
     }
 
-    /** Turns the planner's hops into room-relative saved warps on {@code src}. @return null, or why not */
+    // ------------------------------------------------------------------------------------------- background proofs
+
+    /** Pairs whose proof is still running (identity): RouteExecutor holds a pair until its proof is in. */
+    private static final java.util.Set<RouteNode> PROVING =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+    private static final java.util.Map<RouteNode, EtherwarpPathfinder.Prover> PROVERS = new java.util.IdentityHashMap<>();
+    private static java.util.concurrent.ExecutorService proofThread;
+
+    /** Whether {@code src}'s pair is still being proved (client thread). */
+    public static boolean isProving(RouteNode src) {
+        return PROVING.contains(src);
+    }
+
+    /**
+     * Runs the rest of a proof on the path-proof thread (one at a time, never the map's planner thread) and, when it is
+     * in, saves the shorter route if there is one - as long as both nodes still stand where they did. Client thread.
+     */
+    private static void prove(Route route, RouteCoords.Frame frame, RouteNode src, EtherwarpPathfinder.Prover prover,
+                              double range, double fx, double fy, double fz, double tx, double ty, double tz,
+                              BlockPos goal, boolean airy, int a, int b) {
+        EtherwarpPathfinder.Prover old = PROVERS.put(src, prover);
+        if (old != null) {
+            old.cancel();
+        }
+        PROVING.add(src);
+        if (proofThread == null) {
+            proofThread = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "killer560smod-pathproof");
+                t.setDaemon(true);
+                t.setPriority(Thread.MIN_PRIORITY);
+                return t;
+            });
+        }
+        Minecraft client = Minecraft.getInstance();
+        long t0 = System.currentTimeMillis();
+        proofThread.submit(() -> {
+            List<EtherwarpPathfinder.Node> shorter = null;
+            try {
+                shorter = prover.run();
+            } catch (Throwable e) {
+                LOGGER.warn("[AutoRoutes] Path proof failed: {}", e.toString());
+            }
+            List<EtherwarpPathfinder.Node> found = shorter;
+            long took = System.currentTimeMillis() - t0;
+            client.execute(() -> {
+                if (PROVERS.get(src) != prover) {
+                    return;   // a newer plan of this pair took over
+                }
+                PROVERS.remove(src);
+                PROVING.remove(src);
+                if (!prover.proven()) {
+                    return;   // cancelled: the pair moved or went
+                }
+                RouteNode dest = route.pathDestination(src);
+                boolean same = dest != null && route.indexOf(src) >= 0 && Math.abs(src.x - fx) < 0.002
+                        && Math.abs(src.y - fy) < 0.002 && Math.abs(src.z - fz) < 0.002 && Math.abs(dest.x - tx) < 0.002
+                        && Math.abs(dest.y - ty) < 0.002 && Math.abs(dest.z - tz) < 0.002;
+                if (!same) {
+                    return;
+                }
+                if (found != null) {
+                    String why = save(route, frame, src, found, range, fx, fy, fz, tx, ty, tz, goal, airy);
+                    if (why != null) {
+                        AutoRoutesFeature.chatBad("Path #" + a + " -> #" + b + ": the proved route could not be saved: "
+                                + why + ".");
+                        return;
+                    }
+                }
+                LOGGER.info("[AutoRoutes] Path #{} -> #{} proved in the background after {} ms: {} warp(s), the fewest"
+                        + " there are (proved)", a, b, took, src.pathHops.size());
+                if (src.pathHops.isEmpty()) {
+                    AutoRoutesFeature.chatBad("Path #" + a + " -> #" + b + ": no etherwarp path (proved).");
+                } else {
+                    AutoRoutesFeature.chat(ModChat.text("Path "), ModChat.value("#" + a + " -> #" + b),
+                            ModChat.text(": " + src.pathHops.size() + " warp(s) saved"),
+                            ModChat.dim(" (fewest possible, proved in " + took + " ms)"));
+                }
+            });
+        });
+    }
+
+    /** Stops every running proof (a world change); their pairs plan again when they are next needed. */
+    public static void cancelProofs() {
+        for (EtherwarpPathfinder.Prover p : PROVERS.values()) {
+            p.cancel();
+        }
+        PROVERS.clear();
+        PROVING.clear();
+    }
+
+    /**
+     * The Breaker Aura picks the planner may treat as gone, packed: every block of the active pick list that
+     * {@link com.killer560.hub.dungeonextras.BreakerAuraFeature#plannerTreatsAsAir} accepts (the aura is on and would
+     * break it). Client thread.
+     */
+    static java.util.Set<Long> breakerAir(Minecraft client) {
+        java.util.Set<Long> out = new java.util.HashSet<>();
+        if (client.level == null) {
+            return out;
+        }
+        for (BlockPos p : com.killer560.hub.dungeonextras.BreakerAuraFeature.selectedBlocks()) {
+            if (com.killer560.hub.dungeonextras.BreakerAuraFeature.plannerTreatsAsAir(client.level, p)) {
+                out.add(com.killer560.hub.livemap.autoclear.EtherSearch.pack(p.getX(), p.getY(), p.getZ()));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Turns the planner's hops into room-relative saved warps on {@code src}. Each warp's landing is the block the plan
+     * put it on (the next warp's block, the last one's {@code goal}); with no Breaker Aura blocks planned as broken
+     * ({@code airy} false) each is also cast again here and must land exactly there. @return null, or why not
+     */
     private static String save(Route route, RouteCoords.Frame frame, RouteNode src, List<EtherwarpPathfinder.Node> path,
-                               double range, double fx, double fy, double fz, double tx, double ty, double tz) {
+                               double range, double fx, double fy, double fz, double tx, double ty, double tz,
+                               BlockPos goal, boolean airy) {
         if (path == null) {
             return "the planner found no etherwarp path";
         }
@@ -195,13 +328,17 @@ public final class RoutePathPlanner {
             return "the path needs " + path.size() + " warps, more than " + RouteStore.MAX_PATH_HOPS;
         }
         List<RouteNode.PathHop> hops = new ArrayList<>();
-        for (EtherwarpPathfinder.Node n : path) {
-            Vec3 eye = new Vec3(n.x, n.y + TeleportUtils.eyeHeight(true), n.z);
-            TeleportUtils.RaycastResult hit = TeleportUtils.getEtherPos(eye, n.yaw, n.pitch, range);
-            if (hit == null || !hit.succeeded() || hit.pos() == null) {
-                return "a planned warp does not reach a block";
+        for (int i = 0; i < path.size(); i++) {
+            EtherwarpPathfinder.Node n = path.get(i);
+            BlockPos target = i + 1 < path.size() ? path.get(i + 1).pos : goal;
+            if (!airy) {
+                Vec3 eye = new Vec3(n.x, n.y + TeleportUtils.eyeHeight(true), n.z);
+                TeleportUtils.RaycastResult hit = TeleportUtils.getEtherPos(eye, n.yaw, n.pitch, range);
+                if (hit == null || !hit.succeeded() || hit.pos() == null) {
+                    return "a planned warp does not reach a block";
+                }
+                target = hit.pos();
             }
-            BlockPos target = hit.pos();
             Vec3 o = RouteCoords.toRelative(frame, n.vec());
             Vec3 l = RouteCoords.toRelative(frame, new Vec3(target.getX() + 0.5, target.getY() + 1.05, target.getZ() + 0.5));
             BlockPos t = RouteCoords.toRelativeBlock(frame, target);

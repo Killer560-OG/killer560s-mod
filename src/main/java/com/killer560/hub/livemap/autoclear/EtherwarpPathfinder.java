@@ -125,19 +125,61 @@ public final class EtherwarpPathfinder {
      */
     public static List<Node> findOptimalPath(Vec3 from, BlockPos to, PathConfig cfg, double dist, DungeonLayout layout,
                                              long exactNanos) {
-        return planFloor(from, to, -1, cfg, dist, layout, true, exactNanos, true);
+        return findOptimalPath(from, to, cfg, dist, layout, exactNanos, null);
     }
 
-    /** How long a map click may spend proving its warps are the fewest, before it flies the graph's plan unproved. */
-    public static final long MAP_EXACT_NANOS = 250_000_000L;
+    /**
+     * {@link #findOptimalPath} with {@code air}: blocks (packed with {@link EtherSearch#pack}) planned as if they were
+     * not there - Breaker Aura's picks, which it breaks as he goes by (RoutePathPlanner). Rays pass them and a landing
+     * under one has its head room. The shared floor graph never sees them: its plan is only kept if it still lands
+     * hop by hop in that world. When the exact search runs out of {@code exactNanos} without proving its answer,
+     * {@link #lastProver} is left with the rest of the proof (no deadline) for the caller to run off this thread.
+     */
+    public static List<Node> findOptimalPath(Vec3 from, BlockPos to, PathConfig cfg, double dist, DungeonLayout layout,
+                                             long exactNanos, java.util.Set<Long> air) {
+        return planFloor(from, to, -1, cfg, dist, layout, true, exactNanos, true, air);
+    }
+
+    /** The rest of an unfinished proof: run it on any thread; {@link #cancel} stops it from any other. */
+    public interface Prover {
+        /** The fewest-warp route if it has fewer warps than the plan already returned, else null. Blocks. */
+        default List<Node> run() {
+            return run(Long.MAX_VALUE);
+        }
+
+        /** {@link #run()} stopped at {@code deadlineNanos} (then not {@link #proven}). */
+        List<Node> run(long deadlineNanos);
+
+        /** After {@link #run}: whether the answer is proved (false only when cancelled). */
+        boolean proven();
+
+        /** After {@link #run}: no route has fewer warps than this. */
+        int fewerThan();
+
+        void cancel();
+    }
+
+    /** Set by {@link #findOptimalPath} when its answer is not proved yet; null when it is. */
+    public static volatile Prover lastProver;
+
+    /**
+     * How long a map click searches for fewer warps before its first warp: none (killer560, 2026-10-11: "The
+     * interactive map must START moving near-instantly on a click"). It flies the floor graph's plan at once and
+     * {@link #remainderProver} shortens what is left of it while he flies (ClearExecutor).
+     */
+    public static final long MAP_EXACT_NANOS = 0L;
     /**
      * A map click whose graph plan has more warps than this is flown unproved without trying: on tools/bench/exact.sh
      * (-Dfar) proving a whole-floor route takes 1-23 s on six threads (median 1.9 s), and a 4-warp one 20-150 ms, so
      * the map would only add a quarter second to every long click for nothing. Path nodes have no such cap.
      */
     public static final int MAP_EXACT_MAX_GRAPH_WARPS = 5;
-    /** A path node is planned once and saved: it gets this long to prove it. */
-    public static final long PATH_EXACT_NANOS = 20_000_000_000L;
+    /**
+     * How long a path node's plan searches on the planner thread before it hands the rest of the proof to
+     * {@link #lastProver} (killer560, 2026-10-11: path nodes must ALWAYS be proved - there is no give-up, only a
+     * hand-over so the Interactive Map's planner thread is not held).
+     */
+    public static final long PATH_EXACT_NANOS = 1_500_000_000L;
     /** The exact search never looks for routes longer than this when the graph has no plan to bound it. */
     private static final int EXACT_MAX_WARPS = 16;
 
@@ -195,14 +237,25 @@ public final class EtherwarpPathfinder {
 
     private static List<Node> planFloor(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
                                         DungeonLayout layout, boolean exactWanted, long exactNanos, boolean onBlock) {
+        return planFloor(from, to, tileIdx, cfg, dist, layout, exactWanted, exactNanos, onBlock, null);
+    }
+
+    private static List<Node> planFloor(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
+                                        DungeonLayout layout, boolean exactWanted, long exactNanos, boolean onBlock,
+                                        java.util.Set<Long> air) {
         lastExact = null;
+        lastProver = null;
         Level level = Minecraft.getInstance().level;
         if (level == null) {
             return null;
         }
         long t0 = System.nanoTime();
         LevelEtherGrid grid = new LevelEtherGrid(level);
-        if (tileIdx < 0 && !new EtherSearch(grid).etherwarpable(to.getX(), to.getY(), to.getZ())) {
+        // What this plan's own searches read: the world with Breaker Aura's picks gone (path nodes only). The floor
+        // graph always reads the real one (it is shared and keeps what its rays saw).
+        EtherSearch.Grid view = AirOverride.wrap(grid, air);
+        boolean airy = view != grid;
+        if (tileIdx < 0 && !new EtherSearch(view).etherwarpable(to.getX(), to.getY(), to.getZ())) {
             LOGGER.info("[Path] {} is not etherwarpable - it is not solid, or there is no standing room over"
                     + " it. Nothing searched.", to);
             return null;
@@ -253,13 +306,21 @@ public final class EtherwarpPathfinder {
         }
         WarpGraph graph = graphs.used;
         boolean warm = graph.warmDone() || graph.warmedOnce();
+        if (airy && path != null && !path.isEmpty() && !landsOn(view, path, to, dist)) {
+            // Planned in the world WITH the picked blocks: with them gone a hop can fly past its landing. Not a plan
+            // here (the exact search below plans in the right world, unbounded).
+            LOGGER.info("[Path] the floor graph's {} warp(s) do not land with Breaker Aura's {} pick(s) gone -"
+                    + " searching without them", path.size(), air.size());
+            path = null;
+        }
         // The graph's plan is an upper bound, not the answer: prove it the fewest, or find the route with fewer warps.
         // killer560 (2026-10-09): "I will line up where it is only 1 etherwarp and it will take 2".
         // A path node wants the block itself: the graph's "already there" (within five blocks of it) is not.
         boolean onIt = BlockPos.containing(from.x, from.y - 0.5, from.z).equals(to);
         boolean graphOff = path != null && (graph.endedNear || graphs.usedExact || (onBlock && path.isEmpty() && !onIt));
-        List<EtherSearch.Hop> fewer = exactRefine(level, grid, start, to, tile6, goal.deadEnd, path, graphOff,
-                exactNanos, onBlock ? Integer.MAX_VALUE : MAP_EXACT_MAX_GRAPH_WARPS, t0);
+        List<EtherSearch.Hop> fewer = exactRefine(level, view, () -> AirOverride.wrap(new LevelEtherGrid(level), air),
+                start, to, tile6, goal.deadEnd, path, graphOff, exactNanos,
+                onBlock ? Integer.MAX_VALUE : MAP_EXACT_MAX_GRAPH_WARPS, onBlock, t0);
         if (fewer != null) {
             return toNodes(fewer);
         }
@@ -268,13 +329,13 @@ public final class EtherwarpPathfinder {
             // a nook on Atlas's ledge (testkit 404-sim-planner-gaps) every chain of real warps to the room's centre passes
             // a landing no bucket kept, so the graph proved no way and nothing else was asked. Ask every landing of the
             // rooms he and the goal are in before giving up.
-            List<EtherSearch.Hop> fine = finePlan(level, grid, layout, from, to, start, goal, t0);
+            List<EtherSearch.Hop> fine = finePlan(level, view, layout, from, to, start, goal, t0);
             if (fine != null) {
                 return toNodes(fine);
             }
         }
         long end = System.nanoTime();
-        if (exactWanted && tile6 < 0 && path != null && graph.endedNear) {
+        if (exactWanted && tile6 < 0 && path != null && graph.endedNear && !airy) {
             // The graph only lands NEAR the block (its 2x2 buckets can miss a ledge's own landings), or calls him
             // "already there" for standing within five blocks of it. The room-by-room planner aims at the block itself
             // first; take its plan when it has one, the graph's otherwise.
@@ -305,6 +366,11 @@ public final class EtherwarpPathfinder {
                     graphs.timedOut ? "out of time" : "no way", graphs.usedName, graph.expandedCold, graph.nodeCount(),
                     graph.warmDone() ? "done" : "still running");
             LOGGER.info("[Path] not a proof of no way because: {}", graph.noWayWhy);
+            if (airy) {
+                // The room-by-room planner reads the world with the picks in it; the exact search above already
+                // searched the one without them.
+                return null;
+            }
             return legacyDungeonPath(from, to, cfg, dist, layout);
         }
         String landing = graph.firmFixed > 0 || graph.firmDropped > 0 || graph.fragileLeft
@@ -349,10 +415,12 @@ public final class EtherwarpPathfinder {
      * @param graphPath the floor graph's plan, or null
      * @param graphOff  the graph's plan does not end on the goal itself (a near landing, a tile's fallback block)
      */
-    private static List<EtherSearch.Hop> exactRefine(Level level, LevelEtherGrid grid, EtherSearch.Hop start,
-                                                     BlockPos to, int tile6, EtherSearch.CellTest deadEnd,
-                                                     List<EtherSearch.Hop> graphPath, boolean graphOff, long budget,
-                                                     int maxGraphWarps, long t0) {
+    private static List<EtherSearch.Hop> exactRefine(Level level, EtherSearch.Grid grid,
+                                                     java.util.function.Supplier<EtherSearch.Grid> grids,
+                                                     EtherSearch.Hop start, BlockPos to, int tile6,
+                                                     EtherSearch.CellTest deadEnd, List<EtherSearch.Hop> graphPath,
+                                                     boolean graphOff, long budget, int maxGraphWarps,
+                                                     boolean handOver, long t0) {
         int graphWarps = graphPath == null || graphOff ? -1 : graphPath.size();
         double graphMs = (System.nanoTime() - t0) / 1e6;
         if (graphOff && graphPath != null && graphPath.isEmpty()) {
@@ -378,26 +446,8 @@ public final class EtherwarpPathfinder {
             lastExact = new ExactInfo(graphWarps, graphWarps, false, 1, graphMs, 0, "no exact search");
             return null;
         }
-        FloorTiles tiles = graphTiles;
-        ExactWarpSearch ex = new ExactWarpSearch(grid, () -> new LevelEtherGrid(level), workers(), workerCount,
-                graphRange, STAND_OFFSET, EtherSearch.SNEAK_EYE, rule::ok, deadEnd, graphMinX, graphMaxX, graphMinZ,
-                graphMaxZ, graphFloor - 20, graphFloor + 45);
-        ExactWarpSearch.Goal eg = new ExactWarpSearch.Goal();
-        eg.x = to.getX();
-        eg.y = to.getY();
-        eg.z = to.getZ();
-        if (tile6 >= 0 && tiles != null) {
-            int t = tile6;
-            int cx = tiles.x0 + 32 * (t % 6);
-            int cz = tiles.z0 + 32 * (t / 6);
-            eg.region = (x, y, z) -> tiles.tileOf(x, y, z) == t;
-            eg.rx0 = cx - 14;
-            eg.rx1 = cx + 14;
-            eg.rz0 = cz - 14;
-            eg.rz1 = cz + 14;
-            eg.preferX = cx + 0.5;
-            eg.preferZ = cz + 0.5;
-        }
+        ExactWarpSearch ex = exactSearch(grid, grids, deadEnd);
+        ExactWarpSearch.Goal eg = exactGoal(to, tile6);
         int max = graphWarps > 0 ? graphWarps - 1 : EXACT_MAX_WARPS;
         List<EtherSearch.Hop> route = ex.plan(start, eg, max, System.nanoTime() + budget);
         double ms = ex.nanos / 1e6;
@@ -413,6 +463,14 @@ public final class EtherwarpPathfinder {
         }
         if (ex.timedOut) {
             lastExact = new ExactInfo(graphWarps, graphWarps, false, ex.fewerThan, graphMs, ms, "out of time");
+            if (handOver) {
+                // Not a give-up: the proof goes on, without a deadline, wherever the caller runs it.
+                lastProver = prover(grid, grids, deadEnd, start, eg, max);
+                LOGGER.info("[Path] exact: not proved in its {} ms on the planner thread - the proof carries on in the"
+                        + " background (no route of fewer than {} warp(s) so far); {}", budget / 1_000_000L,
+                        ex.fewerThan, stats);
+                return null;
+            }
             LOGGER.info("[Path] exact: out of its {} ms - {} NOT proved the fewest (no route of fewer than {} warp(s)"
                             + " exists); {}", budget / 1_000_000L,
                     graphWarps < 0 ? "nothing found yet," : "the graph's " + graphWarps + " warp(s), the best found, is",
@@ -430,6 +488,117 @@ public final class EtherwarpPathfinder {
         return null;
     }
 
+    /** An exact search over the floor graph's landing rule and bounds, reading {@code grid}. */
+    private static ExactWarpSearch exactSearch(EtherSearch.Grid grid, java.util.function.Supplier<EtherSearch.Grid> grids,
+                                               EtherSearch.CellTest deadEnd) {
+        return new ExactWarpSearch(grid, grids, workers(), workerCount, graphRange, STAND_OFFSET, EtherSearch.SNEAK_EYE,
+                graphRule::ok, deadEnd, graphMinX, graphMaxX, graphMinZ, graphMaxZ, graphFloor - 20, graphFloor + 45);
+    }
+
+    /** The exact search's goal: the block, or (tile6 >= 0) the tile's click region, nearest its centre first. */
+    private static ExactWarpSearch.Goal exactGoal(BlockPos to, int tile6) {
+        FloorTiles tiles = graphTiles;
+        ExactWarpSearch.Goal eg = new ExactWarpSearch.Goal();
+        eg.x = to.getX();
+        eg.y = to.getY();
+        eg.z = to.getZ();
+        if (tile6 >= 0 && tiles != null) {
+            int t = tile6;
+            int cx = tiles.x0 + 32 * (t % 6);
+            int cz = tiles.z0 + 32 * (t / 6);
+            eg.region = (x, y, z) -> tiles.tileOf(x, y, z) == t;
+            eg.rx0 = cx - 14;
+            eg.rx1 = cx + 14;
+            eg.rz0 = cz - 14;
+            eg.rz1 = cz + 14;
+            eg.preferX = cx + 0.5;
+            eg.preferZ = cz + 0.5;
+        }
+        return eg;
+    }
+
+    /**
+     * A proof with no deadline: the fewest warps from {@code start} to the goal with at most {@code max}. Its own grid
+     * on whatever thread runs it (never the floor graph), the workers for its rays.
+     */
+    private static Prover prover(EtherSearch.Grid ownerGridIgnored, java.util.function.Supplier<EtherSearch.Grid> grids,
+                                 EtherSearch.CellTest deadEnd, EtherSearch.Hop start, ExactWarpSearch.Goal eg, int max) {
+        ExactWarpSearch[] holder = new ExactWarpSearch[1];
+        boolean[] cancelled = {false};
+        return new Prover() {
+            private boolean proven;
+            private int fewerThan;
+
+            @Override
+            public List<Node> run(long deadlineNanos) {
+                ExactWarpSearch ex = exactSearch(grids.get(), grids, deadEnd);
+                synchronized (holder) {
+                    holder[0] = ex;
+                    ex.cancelled = cancelled[0];
+                }
+                List<EtherSearch.Hop> route = ex.plan(start, eg, max, deadlineNanos);
+                proven = !ex.timedOut;
+                fewerThan = ex.fewerThan;
+                LOGGER.info("[Path] exact (background): {} in {} ms - {} landing(s), {} aim point(s), {} ray(s)",
+                        route != null ? route.size() + " warp(s), the fewest there are (proved)"
+                                : proven ? "nothing with fewer than " + (max + 1) + " warp(s) - the plan is the fewest"
+                                + " (proved)" : "stopped unproved", String.format(java.util.Locale.ROOT, "%.1f", ex.nanos / 1e6),
+                        ex.landings, ex.aimTests, ex.rays);
+                return route == null ? null : toNodes(route);
+            }
+
+            @Override
+            public boolean proven() {
+                return proven;
+            }
+
+            @Override
+            public int fewerThan() {
+                return fewerThan;
+            }
+
+            @Override
+            public void cancel() {
+                synchronized (holder) {
+                    cancelled[0] = true;
+                    if (holder[0] != null) {
+                        holder[0].cancelled = true;
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * For the Interactive Map: the rest of a trip, from the stand {@code from} (where one of its warps starts) to its
+     * goal, in fewer than {@code warpsLeft} warps if that can be done - null when the floor graph has never been made.
+     * Any thread; reads its own grid.
+     */
+    public static Prover remainderProver(Vec3 from, BlockPos to, int tileIdx, int warpsLeft, DungeonLayout layout) {
+        Level level = Minecraft.getInstance().level;
+        if (level == null || graphRule == null || warpsLeft < 2) {
+            return null;
+        }
+        int tile6 = tileIdx < 0 ? -1 : ((tileIdx / DungeonLayout.GRID) / 2) * 6 + (tileIdx % DungeonLayout.GRID) / 2;
+        java.util.function.Supplier<EtherSearch.Grid> grids = () -> new LevelEtherGrid(level);
+        return prover(null, grids, deadEnds(layout), startHop(from), exactGoal(to, tile6), warpsLeft - 1);
+    }
+
+    /** Whether every hop of {@code path} lands, in {@code grid}, where the next starts, and the last on {@code to}. */
+    private static boolean landsOn(EtherSearch.Grid grid, List<EtherSearch.Hop> path, BlockPos to, double range) {
+        EtherSearch es = new EtherSearch(grid);
+        for (int i = 0; i < path.size(); i++) {
+            EtherSearch.Hop h = path.get(i);
+            int bx = i + 1 < path.size() ? path.get(i + 1).bx : to.getX();
+            int by = i + 1 < path.size() ? path.get(i + 1).by : to.getY();
+            int bz = i + 1 < path.size() ? path.get(i + 1).bz : to.getZ();
+            if (!es.holds(h.x, h.y + EtherSearch.SNEAK_EYE, h.z, h.yaw, h.pitch, bx, by, bz, range)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** The fine room search's budget: it runs only when the floor graph found nothing. */
     private static final long FINE_NANOS = 200_000_000L;
     /** The fine room search never plans more warps than this (it is for a nook in a room, not a floor). */
@@ -441,7 +610,7 @@ public final class EtherwarpPathfinder {
      * a graph made for this one call - so it reads the world as it is now and holds nothing past it. Null when that
      * finds nothing either (a sealed pocket, a crack between two rooms' walls) or runs out of its budget.
      */
-    private static List<EtherSearch.Hop> finePlan(Level level, LevelEtherGrid grid, DungeonLayout layout, Vec3 from,
+    private static List<EtherSearch.Hop> finePlan(Level level, EtherSearch.Grid grid, DungeonLayout layout, Vec3 from,
                                                   BlockPos to, EtherSearch.Hop start, WarpGraph.Goal goal, long t0) {
         WarpGraph.LandingRule base = graphRule;
         if (base == null || layout == null) {
