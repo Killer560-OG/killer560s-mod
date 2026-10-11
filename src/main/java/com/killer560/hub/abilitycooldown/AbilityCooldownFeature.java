@@ -20,11 +20,9 @@ import java.util.Locale;
 /**
  * Automatic item/ability cooldown HUD - gap-analysis item 1.9 ("Automatic item / ability cooldown HUD").
  *
- * <p>The mod already had {@code com.killer560.hub.abilitytimers}, but those are MANUAL: a generic named
- * countdown you bind a key to and start yourself, with a duration you type in. This feature is the
- * automatic half - it detects which ability you actually used (sound / action bar / chat, see
- * {@link AbilityCooldownState}) and counts down a real, ported cooldown from {@link ItemAbility}. The two
- * are complementary and both can be on at once; Ability Timers keeps its own separate HUD element.
+ * <p>It detects which ability you actually used (sound / action bar / chat, see {@link AbilityCooldownState}) and
+ * counts down a real, ported cooldown from {@link ItemAbility}. (The manual, keybind-started Ability Timers were
+ * removed on 2026-10-11 at killer560's request: "Remove the ability timers setting that is unneeded.")
  *
  * <p>Not duplicated here: Ragnarock Axe ({@code com.killer560.hub.ragaxe}) and the Spirit/Bonzo/Phoenix
  * death-save procs ({@code com.killer560.hub.maskinvincibility}) - see {@link ItemAbility}'s class doc.
@@ -99,7 +97,7 @@ public final class AbilityCooldownFeature {
 
         @Override
         public int defaultX() {
-            // Second column (x=200) beside Ability Timers (x=10,y=200): the old 10/320 sat exactly on Split Timers.
+            // Second column (x=200): the old 10/320 sat exactly on Split Timers.
             return 200;
         }
 

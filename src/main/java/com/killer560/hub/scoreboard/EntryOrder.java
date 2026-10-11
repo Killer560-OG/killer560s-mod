@@ -80,6 +80,14 @@ public final class EntryOrder<E extends Enum<E>> {
         }
     }
 
+    /** Puts {@code id} on the board at {@code index} (clamped); no-op if it is already on it. The visual editor's drop
+     *  of a not-active entry onto the board. */
+    public void insert(E id, int index) {
+        if (id != null && !active.contains(id)) {
+            active.add(Math.max(0, Math.min(active.size(), index)), id);
+        }
+    }
+
     /** Takes the entry at {@code index} off the board, into the pool. */
     public E removeAt(int index) {
         if (index < 0 || index >= active.size()) {

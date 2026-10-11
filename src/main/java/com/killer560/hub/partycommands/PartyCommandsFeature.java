@@ -117,6 +117,12 @@ public final class PartyCommandsFeature {
         registered = true;
         CommandChatListener.register();
         InfoReplies.register();
+        // "!ping" answers with the measured round trip, so keep one measured while that command is on.
+        com.killer560.hub.util.PingTracker.register();
+        com.killer560.hub.util.PingTracker.addDemand(() -> {
+            PartyCommandsConfig cfg = PartyCommandsConfig.getInstance();
+            return cfg.isEnabled() && cfg.isOn(PartyCommandsConfig.Command.PING);
+        });
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PartyCommandsFeature", client -> runPending()));
     }
 

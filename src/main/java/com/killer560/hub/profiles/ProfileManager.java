@@ -341,7 +341,6 @@ public final class ProfileManager {
     private static int reloadConfigsOnly() {
         Runnable[] loaders = {
                 com.killer560.hub.abilitykeybinds.AbilityKeybindsConfig::load,
-                com.killer560.hub.abilitytimers.AbilityTimersConfig::load,
                 com.killer560.hub.autokick.AutoKickConfig::load,
                 com.killer560.hub.autoclosechest.AutoCloseChestConfig::load,
                 // Missing from this list until the testkit's profile round trip (2026-10-04) caught them: applying a

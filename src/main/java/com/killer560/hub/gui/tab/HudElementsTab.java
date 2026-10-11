@@ -23,7 +23,6 @@ public class HudElementsTab extends FolderTab {
                 new HidePlayersTab(),
                 new StorageOverlayTab(),
                 // Out of the New category, removed 2026-10-07 (killer560): the README's HUD features.
-                new AbilityTimersTab(),
                 new AbilityCooldownTab(),
                 new QuiverDisplayTab(),
                 new SpringBootsTab(),

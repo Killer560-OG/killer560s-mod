@@ -215,14 +215,13 @@ public final class DragListWidget extends AbstractWidget implements WheelTarget 
 
     @Override
     public boolean wheel(double mouseX, double mouseY, double scrollY) {
-        if (!isMouseOver(mouseX, mouseY) || maxScroll() <= 0) {
+        if (!isMouseOver(mouseX, mouseY)) {
             return false;
         }
-        int next = clampScroll(state.scroll - (int) Math.round(scrollY * ROW_H * 2));
-        if (next == state.scroll) {
-            return false;
-        }
-        state.scroll = next;
+        // Over the list the wheel is the list's, even at its end: handing a turn past the top back to the page scrolled
+        // the whole mod menu (killer560, 2026-10-11: "if it is at the top and i go to scroll up itll scroll the mod menu,
+        // i want it in that instance to do nothing").
+        state.scroll = clampScroll(state.scroll - (int) Math.round(scrollY * ROW_H * 2));
         return true;
     }
 

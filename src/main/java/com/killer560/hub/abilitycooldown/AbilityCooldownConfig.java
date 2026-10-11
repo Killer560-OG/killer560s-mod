@@ -118,7 +118,7 @@ public final class AbilityCooldownConfig {
                     }
                 }
             } catch (Exception e) {
-                // Same rule as PosmsgConfig/AbilityTimersConfig: a genuine parse failure leaves the broken
+                // Same rule as PosmsgConfig: a genuine parse failure leaves the broken
                 // file on disk untouched instead of instantly overwriting it with blank defaults.
                 LOGGER.warn("[AbilityCooldown] Couldn't read {} - keeping the file, using defaults this session: {}",
                         CONFIG_PATH.getFileName(), e.toString());

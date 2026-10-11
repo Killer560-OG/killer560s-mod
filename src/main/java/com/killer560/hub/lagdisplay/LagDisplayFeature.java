@@ -10,7 +10,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
@@ -32,9 +31,9 @@ import com.killer560.hub.compat.McCompat;
  * and all) is gone - killer560 (2026-09-27): "instead of server lag make it tps" - replaced by a real TPS
  * readout, same windowed-tick-time math as {@code ChatCommandsFeature}'s own "!tps" command.
  *
- * <p><b>Ping</b> is real network latency, not a client-side measurement: the local player's own tab-list
- * entry ({@link net.minecraft.client.multiplayer.PlayerInfo#getLatency()}), the same real round-trip value
- * Hypixel reports for everyone in the tab list - not something derived locally, so it can't just read 1ms.
+ * <p><b>Ping</b> is a measured round trip ({@link com.killer560.hub.util.PingTracker}: vanilla's ping request /
+ * pong pair, once a second while the line is on). It used to read the player's own tab-list latency, which Hypixel
+ * never fills in, so it always said 1ms (killer560, 2026-10-11).
  *
  * <p><b>TPS source.</b> No new clock: this subscribes to the mod's existing {@link ServerTickClock} (Odin's
  * "one server tick per non-zero {@code ClientboundPingPacket}") and keeps a rolling window of tick
@@ -78,6 +77,11 @@ public final class LagDisplayFeature {
 
         // Idempotent - Wither Dragons and Tick Timers already call this.
         ServerTickClock.register();
+        com.killer560.hub.util.PingTracker.register();
+        com.killer560.hub.util.PingTracker.addDemand(() -> {
+            LagDisplayConfig cfg = LagDisplayConfig.getInstance();
+            return cfg.isEnabled() && cfg.isShowPing();
+        });
         ServerTickClock.subscribe(LagDisplayFeature::onServerTick);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LagDisplayFeature", client -> pruneTicks()));
 
@@ -184,15 +188,10 @@ public final class LagDisplayFeature {
         }
     }
 
-    /** @return the local player's own tab-list latency, or -1 when unknown. Same source
-     *  {@code ChatCommandsFeature}'s {@code !ping} command already uses. */
+    /** @return the measured round trip ({@link com.killer560.hub.util.PingTracker}), or -1 when unknown. The tab-list
+     *  latency this used to read is never filled in by Hypixel, which is why the HUD said 1 ms. */
     private static int ping() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.getConnection() == null || client.player == null) {
-            return -1;
-        }
-        PlayerInfo info = client.getConnection().getPlayerInfo(client.player.getUUID());
-        return info == null ? -1 : info.getLatency();
+        return com.killer560.hub.util.PingTracker.bestMs();
     }
 
     public static final class LagHudElement implements HudElement {

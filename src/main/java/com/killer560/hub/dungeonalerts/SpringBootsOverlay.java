@@ -46,6 +46,8 @@ final class SpringBootsOverlay {
     private static float blockAmount = 0f;
     private static int highCount = 0;
     private static int lowCount = 0;
+    /** Height boxes drawn since launch - read by the testkit. */
+    private static int boxesDrawn = 0;
 
     private SpringBootsOverlay() {
     }
@@ -117,7 +119,18 @@ final class SpringBootsOverlay {
             return;
         }
         Vec3 pos = player.position().add(0, blockAmount, 0);
-        WorldRenderUtils.renderOutlineBox(context, AABB.unitCubeFromLowerCorner(pos), 1f, 0.33f, 0.33f, 1f, 2f);
+        AABB box = AABB.unitCubeFromLowerCorner(pos);
+        DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
+        float[] c = WorldRenderUtils.argbToFloats(cfg.springBootsColor);
+        DungeonAlertsConfig.BoxStyle style = cfg.springBootsBoxStyle;
+        boxesDrawn++;
+        if (style != DungeonAlertsConfig.BoxStyle.OUTLINE) {
+            // A solid fill would hide the block it marks: fill at a third of the chosen alpha, outline at full.
+            WorldRenderUtils.renderFilledBox(context, box, c[0], c[1], c[2], c[3] * 0.35f);
+        }
+        if (style != DungeonAlertsConfig.BoxStyle.FILLED) {
+            WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], c[3], 2f);
+        }
     }
 
     static final HudElement HUD = new HudElement() {
