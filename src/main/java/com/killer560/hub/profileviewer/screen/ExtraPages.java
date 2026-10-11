@@ -182,6 +182,35 @@ final class ExtraPages {
         return s.subView;
     }
 
+    private static final int NAV_MIN_ROW = 12;
+    private int navBottom;
+    /** Bottom edge of the bestiary category list as last drawn; the testkit checks it stays inside the box. */
+    volatile int lastBestiaryNavBottom;
+
+    /** {@link #nav} packed into {@code h} pixels: rows shrink from 19 toward 12, in {@code cols} columns, labels
+     *  clipped to the button. Sets {@link #navBottom}. Returns the selected index. */
+    private int navFit(GuiGraphicsExtractor g, String[] views, int x, int y, int w, int h, int cols, int mx, int my) {
+        s.subView = Math.max(0, Math.min(s.subView, views.length - 1));
+        int perCol = (views.length + cols - 1) / cols;
+        int rowH = Math.max(NAV_MIN_ROW, Math.min(19, h / Math.max(1, perCol)));
+        int colW = (w - (cols - 1) * 3) / cols;
+        navBottom = y;
+        for (int i = 0; i < views.length; i++) {
+            final int idx = i;
+            int bx = x + (i / perCol) * (colW + 3);
+            int by = y + (i % perCol) * rowH;
+            s.button(g, bx, by, colW, rowH - 2, f().plainSubstrByWidth(views[i], colW - 4), mx, my, i == s.subView, () -> {
+                if (s.subView != idx) {
+                    s.subView = idx;
+                    s.pageScroll = 0;
+                    s.subPage = 0;
+                }
+            });
+            navBottom = Math.max(navBottom, by + rowH - 2);
+        }
+        return s.subView;
+    }
+
     /** "< title n/count >" pager; returns the wrapped index. */
     private int pager(GuiGraphicsExtractor g, String label, int x, int y, int w, int count, int mx, int my) {
         if (count <= 0) {
@@ -623,26 +652,34 @@ final class ExtraPages {
         // killer560: "make the bestiary tab more friendly... clicking into an area to see their bestiary
         // instead of panning through a bunch of menus" - swap the "< Category >" pager for the same
         // click-a-category nav list Collections/Mining/Crimson already use.
-        int lw = 100;
-        s.box(g, s.contentX, s.contentY, lw, s.contentH);
+        // killer560, 2026-10-08: "clean that bestiary portion up so it doesn't go off screen" - the category list
+        // (one 19-pixel button per category, then four stat lines) ran past the bottom of the panel. The list now
+        // packs its rows into the box (two columns if even 12-pixel rows will not fit), and the stats moved to a
+        // line under the category title.
         String[] catNames = cats.stream().map(ExtraTables.BestiaryCategory::name).toArray(String[]::new);
-        int idx = nav(g, catNames, s.contentX + 4, s.contentY + 4, lw - 8, mx, my);
-        int x = s.contentX + 6;
-        int y = s.contentY + 8 + catNames.length * 19;
-        y = s.stat2(g, x, y, lw - 12, "Milestone", String.valueOf(totalTiers / 10));
-        y = s.stat2(g, x, y, lw - 12, "Family Tiers", commas(totalTiers));
-        y = s.stat2(g, x, y, lw - 12, "Maxed", maxed + " / " + families);
-        s.stat2(g, x, y, lw - 12, "Total Kills", shorten(kills));
+        int navH = s.contentH - 8;
+        boolean twoCols = catNames.length * NAV_MIN_ROW > navH;
+        int lw = twoCols ? 170 : 100;
+        s.box(g, s.contentX, s.contentY, lw, s.contentH);
+        int idx = navFit(g, catNames, s.contentX + 4, s.contentY + 4, lw - 8, navH, twoCols ? 2 : 1, mx, my);
+        lastBestiaryNavBottom = navBottom;
 
         ExtraTables.BestiaryCategory cat = cats.get(idx);
         int rx = s.contentX + lw + 6;
         int rw = s.contentW - lw - 6;
         s.box(g, rx, s.contentY, rw, s.contentH);
-        title(g, cat.name(), rx + 6, s.contentY + 5);
+        title(g, f().plainSubstrByWidth(cat.name(), rw - 12), rx + 6, s.contentY + 5);
+        String summary = "Milestone " + (totalTiers / 10) + " · Tiers " + commas(totalTiers) + " · Maxed " + maxed + " / "
+                + families + " · Kills " + shorten(kills);
+        text(g, f().plainSubstrByWidth(summary, rw - 12), rx + 6, s.contentY + 16, DIM);
+        if (hover(mx, my, rx + 6, s.contentY + 15, rw - 12, 10)) {
+            tip(List.of(line("Milestone: " + (totalTiers / 10), VALUE), line("Family Tiers: " + commas(totalTiers), TEXT),
+                    line("Maxed: " + maxed + " / " + families, TEXT), line("Total Kills: " + commas(kills), TEXT)));
+        }
         int cell = 20;
         int cols = Math.max(1, (rw - 16) / cell);
-        int top = s.contentY + 20;
-        int visible = Math.max(1, (s.contentH - 24) / cell);
+        int top = s.contentY + 29;
+        int visible = Math.max(1, (s.contentH - 33) / cell);
         int rows = (cat.families().size() + cols - 1) / cols;
         int scroll = clampScroll(rows, visible);
         int startX = rx + (rw - cols * cell) / 2;
@@ -1335,10 +1372,25 @@ final class ExtraPages {
 
     // ------------------------------------------------------------------ networth
 
-    private void drawNetworth(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
-        ProfileExtras ex = extras(g, p);
+    /** A networth estimate for {@code p}: the result, or null with {@code failed} saying whether it is still coming. */
+    record NetworthState(Networth.Result result, boolean failed) {
+    }
+
+    private static final NetworthState NW_PENDING = new NetworthState(null, false);
+    private static final NetworthState NW_FAILED = new NetworthState(null, true);
+
+    /** Starts (once per profile, cached) and reads the networth calculation. Shared by the Networth page and the
+     *  Basic Info "Networth" line, so both always show the same number. Prices are the mod's own: Bazaar from
+     *  {@code RngMeterEngine.PRICES} (Hypixel's key-less bazaar endpoint), lowest BIN from {@link ExtraTables#lowestBins()}.
+     *  A result calculated before any Bazaar price had arrived is recalculated once they have. */
+    NetworthState networthState(SbProfile p) {
+        CompletableFuture<ProfileExtras> ef = p.extras();
+        if (!ef.isDone()) {
+            return NW_PENDING;
+        }
+        ProfileExtras ex = ef.isCompletedExceptionally() ? null : ef.getNow(null);
         if (ex == null) {
-            return;
+            return NW_FAILED;
         }
         CompletableFuture<Map<String, Double>> bins = ExtraTables.lowestBins();
         CompletableFuture<SbProfile.Inventories> inv = p.inventoryApi ? p.inventories() : null;
@@ -1353,13 +1405,14 @@ final class ExtraPages {
             }
         }
         if (!bins.isDone() || (inv != null && !inv.isDone()) || !museumSettled) {
-            center(g, "Calculating networth" + s.dots(), s.contentX, s.contentW, VALUE);
-            return;
+            return NW_PENDING;
         }
         MuseumView mv = museumView == null ? null : ExtraTables.now(museumView);
         boolean withMuseum = mv != null;
         CompletableFuture<Networth.Result> nf = networth.get(p);
-        if (nf == null || (withMuseum && !networthHasMuseum.getOrDefault(p, false))) {
+        Networth.Result done = nf == null ? null : ExtraTables.now(nf);
+        boolean pricesArrived = done != null && done.bazaarPrices() == 0 && Networth.bazaarCount() > 0;
+        if (nf == null || pricesArrived || (withMuseum && !networthHasMuseum.getOrDefault(p, false))) {
             SbProfile.Inventories inventories = inv == null || inv.isCompletedExceptionally() ? null : inv.getNow(null);
             Map<String, Double> lbin = ExtraTables.now(bins);
             List<ItemStack> museumItems = mv == null ? null : mv.allOwned();
@@ -1370,7 +1423,16 @@ final class ExtraPages {
         }
         Networth.Result r = ExtraTables.now(nf);
         if (r == null) {
-            center(g, nf.isDone() ? "Couldn't calculate networth." : "Calculating networth" + s.dots(), s.contentX, s.contentW, nf.isDone() ? BAD : VALUE);
+            return nf.isDone() ? NW_FAILED : NW_PENDING;
+        }
+        return new NetworthState(r, false);
+    }
+
+    private void drawNetworth(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
+        NetworthState st = networthState(p);
+        Networth.Result r = st.result();
+        if (r == null) {
+            center(g, st.failed() ? "Couldn't calculate networth." : "Calculating networth" + s.dots(), s.contentX, s.contentW, st.failed() ? BAD : VALUE);
             return;
         }
 

@@ -84,7 +84,12 @@ public class ProfileViewerScreen extends Screen {
     // killer560: a right-hand section showing the last people you've pv'd (head + name, your own head
     // pinned on top) that you can click back into, plus a box to type someone else's name.
 
+    /** The sidebar's narrowest; it widens toward {@link #SIDEBAR_W_WANTED} when the window has the room, so a
+     *  16-character name fits in the box (killer560, 2026-10-08: "make that slightly larger for longer names"). */
     private static final int SIDEBAR_W = 78;
+    private static final int SIDEBAR_W_WANTED = 112;
+    private static final int SUGGESTION_ROWS = 6;
+    private static final int SUGGESTION_ROW_H = 11;
     private static final int SIDEBAR_GAP = 6;
     private static final int SIDEBAR_ROW_H = 16;
     /** Shared across every open screen this session - a head/name only needs fetching once. */
@@ -123,6 +128,8 @@ public class ProfileViewerScreen extends Screen {
     private final ExtraPages extraPages = new ExtraPages(this);
     private final WeightPage weightPage = new WeightPage(this);
     private final List<int[]> tabRects = new ArrayList<>();
+    /** The networth the Basic Info line last showed (null while calculating); read by the testkit. */
+    volatile Long lastBasicNetworth;
 
     private boolean sidebarVisible;
     int sidebarX, sidebarY, sidebarW, sidebarH;
@@ -130,6 +137,11 @@ public class ProfileViewerScreen extends Screen {
     /** Kept outside the widget so a background rebuild (e.g. the skin fetch finishing) can't wipe out
      *  what's mid-typing when {@link #init()} recreates the widget. */
     private String switchBoxText = "";
+    /** Tab-completion for the name box: names from the tab list, the recent views and every name looked up
+     *  this session that start with what is typed. Tab cycles them, a click picks one. */
+    private List<String> suggestions = List.of();
+    private int suggestionIndex = -1;
+    private boolean applyingSuggestion = false;
 
     record Hotspot(int x, int y, int w, int h, Runnable action) {
         boolean contains(double mx, double my) {
@@ -188,6 +200,8 @@ public class ProfileViewerScreen extends Screen {
         }
         switchBoxText = "";
         switchBox.setValue("");
+        suggestions = List.of();
+        suggestionIndex = -1;
         open(ProfileViewerFeature.targetForName(name));
     }
 
@@ -273,28 +287,17 @@ public class ProfileViewerScreen extends Screen {
 
     @Override
     protected void init() {
-        panelW = Math.min(this.width - 12, 480);
-        // Page tabs wrap onto extra rows when they don't fit; the panel grows by those rows.
-        tabRects.clear();
-        int tx = 6;
-        int row = 0;
-        for (int i = 0; i < PAGES.length; i++) {
-            int w = this.font.width(PAGES[i]) + 24;
-            if (tx + w > panelW - 6 && tx > 6) {
-                row++;
-                tx = 6;
-            }
-            tabRects.add(new int[]{tx, row, w});
-            tx += w + 3;
-        }
-        int rows = row + 1;
-        panelH = Math.min(this.height - 12, 290 + (rows - 1) * 21);
+        // 2026-10-08: a hair bigger than the old 480 x 290 now the backend footer is gone.
+        panelW = Math.min(this.width - 12, 520);
+        layoutTabs();
+        int rows = TAB_ROWS;
+        panelH = Math.min(this.height - 12, 320);
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
         contentX = panelX + 8;
         contentY = panelY + 29 + rows * 21;
         contentW = panelW - 16;
-        contentH = Math.max(60, panelY + panelH - 16 - contentY);
+        contentH = Math.max(60, panelY + panelH - 8 - contentY);
 
         if (page == PAGE_BASIC && skinProfile != null && profile() != null && ProfileViewerConfig.getInstance().isShowSkin()) {
             int skinH = Math.min(120, contentH - 90);
@@ -314,14 +317,151 @@ public class ProfileViewerScreen extends Screen {
         if (sidebarVisible) {
             sidebarX = panelX + panelW + SIDEBAR_GAP;
             sidebarY = panelY;
-            sidebarW = SIDEBAR_W;
+            sidebarW = Math.min(SIDEBAR_W_WANTED, margin - SIDEBAR_GAP - 2);
             sidebarH = panelH;
             switchBox = new EditBox(this.font, sidebarX + 4, sidebarY + 16, sidebarW - 8, 14, Component.literal("Player name"));
             switchBox.setMaxLength(16);
             switchBox.setHint(Component.literal("Name..."));
             switchBox.setValue(switchBoxText);
-            switchBox.setResponder(text -> switchBoxText = text);
+            switchBox.setResponder(text -> {
+                switchBoxText = text;
+                if (!applyingSuggestion) {
+                    updateSuggestions();
+                }
+            });
             addRenderableWidget(switchBox);
+            updateSuggestions();
+        }
+    }
+
+    /** Every page tab on exactly {@link #TAB_ROWS} rows (killer560, 2026-10-08: "adjust the top sections to all
+     *  fit in 2 rows"): half the tabs per row, each row stretched to the panel's width in proportion to its
+     *  labels, or squeezed (label clipped) when the window is too narrow for them. */
+    static final int TAB_ROWS = 2;
+
+    private void layoutTabs() {
+        tabRects.clear();
+        int perRow = (PAGES.length + TAB_ROWS - 1) / TAB_ROWS;
+        int avail = panelW - 12;
+        for (int row = 0; row < TAB_ROWS; row++) {
+            int from = row * perRow;
+            int to = Math.min(PAGES.length, from + perRow);
+            if (from >= to) {
+                break;
+            }
+            int gaps = (to - from - 1) * 3;
+            int natural = 0;
+            for (int i = from; i < to; i++) {
+                natural += this.font.width(PAGES[i]) + 24;
+            }
+            double scale = (double) (avail - gaps) / Math.max(1, natural);
+            int tx = 6;
+            for (int i = from; i < to; i++) {
+                int w = i == to - 1 ? 6 + avail - tx : (int) Math.floor((this.font.width(PAGES[i]) + 24) * scale);
+                tabRects.add(new int[]{tx, row, Math.max(20, w)});
+                tx += w + 3;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ name box tab-completion
+
+    private void updateSuggestions() {
+        suggestionIndex = -1;
+        String typed = switchBoxText == null ? "" : switchBoxText.trim();
+        suggestions = typed.isEmpty() ? List.of() : completions(typed);
+        if (switchBox != null) {
+            String first = suggestions.isEmpty() ? null : suggestions.get(0);
+            switchBox.setSuggestion(first != null && first.length() > typed.length() && typed.equals(switchBoxText)
+                    ? first.substring(typed.length()) : null);
+        }
+    }
+
+    /** Known names starting with {@code typed} (case-insensitive): players in the tab list first, then recent
+     *  views, then anyone else looked up this session. Public for the testkit. */
+    public List<String> completions(String typed) {
+        String lower = typed.toLowerCase(Locale.ROOT);
+        Map<String, String> out = new java.util.LinkedHashMap<>();
+        List<String> online = new ArrayList<>();
+        net.minecraft.client.multiplayer.ClientPacketListener conn = net.minecraft.client.Minecraft.getInstance().getConnection();
+        if (conn != null) {
+            for (net.minecraft.client.multiplayer.PlayerInfo info : conn.getOnlinePlayers()) {
+                GameProfile gp = info.getProfile();
+                // Hypixel's fake tab columns ("!A-a") fail the name check; its NPCs carry version-2 uuids.
+                if (gp != null && ProfileViewerApi.isValidName(gp.name()) && (gp.id() == null || gp.id().version() != 2)) {
+                    online.add(gp.name());
+                }
+            }
+        }
+        online.sort(String.CASE_INSENSITIVE_ORDER);
+        List<String> known = new ArrayList<>();
+        for (ProfileViewerConfig.RecentView v : ProfileViewerConfig.getInstance().getRecentViews()) {
+            known.add(LIVE_NAME_CACHE.getOrDefault(v.uuid(), v.name()));
+        }
+        ProfileViewerFeature.Target self = ProfileViewerFeature.self();
+        if (self != null && self.name() != null) {
+            known.add(self.name());
+        }
+        known.addAll(LIVE_NAME_CACHE.values());
+        for (List<String> source : List.of(online, known)) {
+            for (String name : source) {
+                if (name != null && ProfileViewerApi.isValidName(name) && name.toLowerCase(Locale.ROOT).startsWith(lower)) {
+                    out.putIfAbsent(name.toLowerCase(Locale.ROOT), name);
+                }
+            }
+        }
+        List<String> list = new ArrayList<>(out.values());
+        return list.size() > 20 ? new ArrayList<>(list.subList(0, 20)) : list;
+    }
+
+    /** Tab: fill the box with the next suggestion (cycling), keeping the list from what was actually typed. */
+    private boolean cycleSuggestion(boolean backwards) {
+        if (switchBox == null || suggestions.isEmpty()) {
+            return false;
+        }
+        suggestionIndex = Math.floorMod(suggestionIndex + (backwards ? -1 : 1), suggestions.size());
+        pickSuggestion(suggestions.get(suggestionIndex));
+        return true;
+    }
+
+    private void pickSuggestion(String name) {
+        applyingSuggestion = true;
+        try {
+            switchBox.setValue(name);
+            switchBox.setSuggestion(null);
+            switchBoxText = name;
+        } finally {
+            applyingSuggestion = false;
+        }
+    }
+
+    private void drawSuggestions(GuiGraphicsExtractor g, int mx, int my) {
+        if (switchBox == null || !switchBox.isFocused() || suggestions.isEmpty()) {
+            return;
+        }
+        int x = switchBox.getX();
+        int y = switchBox.getY() + switchBox.getHeight() + 1;
+        int w = switchBox.getWidth();
+        int n = Math.min(SUGGESTION_ROWS, suggestions.size());
+        int first = suggestionIndex >= SUGGESTION_ROWS ? suggestionIndex - SUGGESTION_ROWS + 1 : 0;
+        g.fill(x, y, x + w, y + n * SUGGESTION_ROW_H + 2, 0xF0000000);
+        g.outline(x, y, w, n * SUGGESTION_ROW_H + 2, ACCENT);
+        for (int r = 0; r < n; r++) {
+            int i = first + r;
+            if (i >= suggestions.size()) {
+                break;
+            }
+            String name = suggestions.get(i);
+            int ry = y + 1 + r * SUGGESTION_ROW_H;
+            boolean hover = inside(mx, my, x, ry, w, SUGGESTION_ROW_H);
+            if (hover || i == suggestionIndex) {
+                g.fill(x + 1, ry, x + w - 1, ry + SUGGESTION_ROW_H, 0xFF2A1A0A);
+            }
+            g.text(this.font, this.font.plainSubstrByWidth(name, w - 6), x + 3, ry + 2, i == suggestionIndex ? VALUE : TEXT, false);
+            overlayHotspots.add(new Hotspot(x, ry, w, SUGGESTION_ROW_H, () -> {
+                pickSuggestion(name);
+                submitSwitch();
+            }));
         }
     }
 
@@ -404,6 +544,9 @@ public class ProfileViewerScreen extends Screen {
             // (in particular Left/Right, which would otherwise page instead of moving the cursor).
             if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
                 submitSwitch();
+                return true;
+            }
+            if (event.key() == GLFW.GLFW_KEY_TAB && cycleSuggestion(event.hasShiftDown())) {
                 return true;
             }
             return super.keyPressed(event);
@@ -492,13 +635,14 @@ public class ProfileViewerScreen extends Screen {
             }
         }
 
-        if (result != null && state == State.READY) {
-            long age = (System.currentTimeMillis() - result.fetchedAt()) / 1000;
-            String foot = result.source() + " · " + (age < 60 ? age + "s ago" : (age / 60) + "m ago");
-            g.text(this.font, foot, panelX + panelW - 8 - this.font.width(foot), panelY + panelH - 12, DIM, false);
-        }
+        // 2026-10-08: no "SkyBlockPV Backend · 3m ago" footer any more (it sat over the content); the data's
+        // age is on the Refresh button's hover instead.
 
         super.extractRenderState(g, mouseX, mouseY, partialTick);
+
+        if (sidebarVisible) {
+            drawSuggestions(g, mouseX, mouseY);
+        }
 
         if (dropdownOpen) {
             drawDropdown(g, mouseX, mouseY);
@@ -529,6 +673,11 @@ public class ProfileViewerScreen extends Screen {
         int rw = this.font.width(refresh) + 10;
         right -= rw;
         button(g, right, panelY + 4, rw, 16, refresh, mx, my, false, () -> load(true));
+        if (result != null && state == State.READY && inside(mx, my, right, panelY + 4, rw, 16) && !dropdownOpen) {
+            long age = (System.currentTimeMillis() - result.fetchedAt()) / 1000;
+            pendingTooltip = List.of(Component.literal("Updated " + (age < 60 ? age + "s ago" : (age / 60) + "m ago"))
+                    .withStyle(style(DIM)));
+        }
         // Profile picker
         SbProfile p = profile();
         if (p != null) {
@@ -551,7 +700,7 @@ public class ProfileViewerScreen extends Screen {
             g.fill(tx, ty, tx + w, ty + 18, sel ? 0xFF2A1A0A : hover ? 0xFF222222 : BOX_BG);
             g.outline(tx, ty, w, 18, sel ? ACCENT : hover ? ACCENT : BORDER);
             g.item(pageIcon(i), tx + 2, ty + 1);
-            g.text(this.font, PAGES[i], tx + 19, ty + 5, sel ? VALUE : TEXT, false);
+            g.text(this.font, this.font.plainSubstrByWidth(PAGES[i], w - 21), tx + 19, ty + 5, sel ? VALUE : TEXT, false);
             hotspots.add(new Hotspot(tx, ty, w, 18, () -> setPage(idx)));
         }
     }
@@ -733,6 +882,19 @@ public class ProfileViewerScreen extends Screen {
         } else {
             y = stat(g, lx, y, "Bank", "API off");
         }
+        // killer560, 2026-10-08: "a line below the bank that says the networth". The same estimate as the
+        // Networth page (shared cache), and a click opens that page.
+        ExtraPages.NetworthState nw = extraPages.networthState(p);
+        int ny = y;
+        lastBasicNetworth = nw.result() == null ? null : nw.result().total();
+        y = stat(g, lx, y, "Networth", nw.result() != null ? shorten(nw.result().total()) : nw.failed() ? "-" : "...");
+        if (inside(mx, my, lx, ny, leftW - 12, 10) && !dropdownOpen) {
+            pendingTooltip = List.of(
+                    Component.literal(nw.result() != null ? commas(nw.result().total()) + " coins (estimate)"
+                            : nw.failed() ? "Couldn't calculate networth." : "Calculating...").withStyle(style(VALUE)),
+                    Component.literal("Click for the Networth page").withStyle(style(DIM)));
+        }
+        hotspots.add(new Hotspot(lx, ny, leftW - 12, 10, () -> setPage(PAGE_NETWORTH)));
         if (p.motes > 0) {
             y = stat(g, lx, y, "Motes", shorten(p.motes));
         }
@@ -777,10 +939,12 @@ public class ProfileViewerScreen extends Screen {
                 // capped skill (Farming/Taming/Foraging) keeps banking XP past the cap; the uncapped level
                 // (cap=-1, the table's own max) shows what that XP is worth once the cap is raised.
                 String overflow = null;
+                // 2026-10-08: the parenthesis is the level with NO cap at all, not the table's 60 - "I have more
+                // farming overflow than just 60".
                 if (lvl.maxed()) {
-                    LevelTables.Level uncapped = LevelTables.skillLevel(id, xp, -1);
-                    if (uncapped.level() > lvl.level()) {
-                        overflow = " (" + uncapped.level() + ")";
+                    int uncapped = LevelTables.uncappedSkillLevel(id, xp);
+                    if (uncapped > lvl.level()) {
+                        overflow = " (" + uncapped + ")";
                     }
                 }
                 bar(g, cx, cy, colW, skillIcon(id), name, lvl, mx, my, xp, overflow);
@@ -1049,7 +1213,7 @@ public class ProfileViewerScreen extends Screen {
             // panels (like the storage overlay does) instead of one page with "< 1/5 >" arrows.
             case 1 -> {
                 g.text(this.font, "Ender Chest", rx + 6, contentY + 6, ACCENT, false);
-                multiPanelGrid(g, rx, rw, top, numbered("Page", inv.enderChest().size()), null, inv.enderChest(), mx, my);
+                multiPanelGrid(g, rx, rw, top, numbered("Page", inv.enderChest().size()), inv.enderChest(), mx, my);
             }
             case 2 -> {
                 List<SbProfile.Backpack> bps = inv.backpacks();
@@ -1058,15 +1222,14 @@ public class ProfileViewerScreen extends Screen {
                     centeredIn(g, "No backpacks.", rx, rw, contentY + contentH / 2 - 4, DIM);
                     return;
                 }
+                // 2026-10-08: no backpack-item icon in front of the label - just the storage overlay's panel.
                 List<String> labels = new ArrayList<>();
-                List<ItemStack> icons = new ArrayList<>();
                 List<List<ItemStack>> itemLists = new ArrayList<>();
                 for (SbProfile.Backpack bp : bps) {
                     labels.add("Backpack " + (bp.slot() + 1));
-                    icons.add(bp.icon());
                     itemLists.add(bp.items());
                 }
-                multiPanelGrid(g, rx, rw, top, labels, icons, itemLists, mx, my);
+                multiPanelGrid(g, rx, rw, top, labels, itemLists, mx, my);
             }
             case 3 -> pagedGrid(g, "Wardrobe", inv.wardrobe(), rx, rw, gridX, top, mx, my, inv.wardrobeEquipped());
             case 4 -> pagedGrid(g, "Accessory Bag", inv.accessories(), rx, rw, gridX, top, mx, my, -1);
@@ -1128,22 +1291,20 @@ public class ProfileViewerScreen extends Screen {
         return out;
     }
 
-    /** Tiles every page/backpack as its own small labelled grid, several per row (as many as fit), and
-     *  scrolls vertically through the rest - the storage overlay's "columns of panels" layout, so far
-     *  more is visible than the old one-at-a-time "< 1/5 >" pager. {@code icons} may be null (Ender Chest
-     *  pages don't have one); when given it must be the same size as {@code pages}. */
+    /** Tiles every page/backpack as its own panel, several per row (as many as fit), and scrolls vertically through
+     *  the rest. Each panel is drawn exactly like the Storage Overlay's (its theme's panel, label and slot cells -
+     *  killer560, 2026-10-08: "just have our custom backpack overlay no matter what"), and nothing is drawn below
+     *  the content box: a panel row that does not fit is clipped at the box's bottom edge, never run off it. */
     private void multiPanelGrid(GuiGraphicsExtractor g, int rx, int rw, int top, List<String> labels,
-                                List<ItemStack> icons, List<List<ItemStack>> pages, int mx, int my) {
+                                List<List<ItemStack>> pages, int mx, int my) {
         if (pages.isEmpty()) {
             centeredIn(g, "Empty.", rx, rw, contentY + contentH / 2 - 4, DIM);
             return;
         }
-        int cellW = 9 * 18;
-        int labelH = 11;
-        int gap = 8;
-        int panelW = cellW + gap;
-        int cols = Math.max(1, (rw - gap) / panelW);
-        int startX = rx + Math.max(0, (rw - (cols * panelW - gap)) / 2);
+        int panelW = OVERLAY_PANEL_W;
+        int gap = 6;
+        int cols = Math.max(1, (rw - 8 + gap) / (panelW + gap));
+        int startX = rx + Math.max(0, (rw - (cols * (panelW + gap) - gap)) / 2);
 
         int panelRows = (pages.size() + cols - 1) / cols;
         int[] rowH = new int[panelRows];
@@ -1155,16 +1316,17 @@ public class ProfileViewerScreen extends Screen {
                     maxItemRows = Math.max(maxItemRows, Math.max(1, (pages.get(idx).size() + 8) / 9));
                 }
             }
-            rowH[r] = labelH + maxItemRows * 18 + gap;
+            rowH[r] = overlayPanelHeight(maxItemRows) + gap;
         }
 
         // The max scroll always leaves at least the last row on screen, even if that one row alone is
         // taller than the viewport - never scrolls one row past the end into blank space.
-        int visibleH = Math.max(0, contentY + contentH - top - 2);
+        int bottom = contentY + contentH - 2;
+        int visibleH = Math.max(0, bottom - top);
         int maxScrollRow = panelRows - 1;
         int used = 0;
         for (int r = panelRows - 1; r >= 0; r--) {
-            if (used + rowH[r] > visibleH) {
+            if (used + rowH[r] - gap > visibleH) {
                 break;
             }
             used += rowH[r];
@@ -1172,23 +1334,20 @@ public class ProfileViewerScreen extends Screen {
         }
         invScroll = Math.max(0, Math.min(invScroll, maxScrollRow));
 
-        int y = top;
-        for (int r = invScroll; r < panelRows && y < top + visibleH; r++) {
-            for (int c = 0; c < cols; c++) {
-                int idx = r * cols + c;
-                if (idx >= pages.size()) {
-                    continue;
+        g.enableScissor(rx + 1, top, rx + rw - 1, bottom);
+        try {
+            int y = top;
+            for (int r = invScroll; r < panelRows && y < bottom; r++) {
+                for (int c = 0; c < cols; c++) {
+                    int idx = r * cols + c;
+                    if (idx < pages.size()) {
+                        overlayPanel(g, startX + c * (panelW + gap), y, labels.get(idx), pages.get(idx), mx, my, top, bottom);
+                    }
                 }
-                int px = startX + c * panelW;
-                int labelOffset = 0;
-                if (icons != null && !icons.get(idx).isEmpty()) {
-                    g.item(icons.get(idx), px, y - 1);
-                    labelOffset = 12;
-                }
-                g.text(this.font, this.font.plainSubstrByWidth(labels.get(idx), cellW - labelOffset), px + labelOffset, y, ACCENT, false);
-                grid(g, pages.get(idx), px, y + labelH, mx, my, -1);
+                y += rowH[r];
             }
-            y += rowH[r];
+        } finally {
+            g.disableScissor();
         }
 
         if (maxScrollRow > 0) {
@@ -1197,6 +1356,51 @@ public class ProfileViewerScreen extends Screen {
             int thumbH = Math.max(8, visibleH * (panelRows - maxScrollRow) / panelRows);
             int thumbY = top + (visibleH - thumbH) * invScroll / Math.max(1, maxScrollRow);
             g.fill(trackX, thumbY, trackX + 2, thumbY + thumbH, ACCENT);
+        }
+    }
+
+    /** {@code StorageOverlayFeature}'s panel: 9 slots of 18 plus a 2-pixel margin each side. */
+    static final int OVERLAY_PANEL_W = 9 * 18 + 4;
+
+    int overlayPanelHeight(int itemRows) {
+        return this.font.lineHeight + 4 + itemRows * 18 + 2;
+    }
+
+    /** One Storage Overlay panel (theme colours from the Storage Overlay's own setting): label strip, the slot-cell
+     *  grid and the items, with the rarity background and a tooltip only for a slot inside {@code clipTop..clipBottom}. */
+    void overlayPanel(GuiGraphicsExtractor g, int x, int y, String label, List<ItemStack> items, int mx, int my,
+                      int clipTop, int clipBottom) {
+        com.killer560.hub.gui.PanelTheme theme = com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().getTheme();
+        int rows = Math.max(1, (items.size() + 8) / 9);
+        int h = overlayPanelHeight(rows);
+        g.fill(x, y, x + OVERLAY_PANEL_W, y + h, theme.panelBg);
+        g.outline(x, y, OVERLAY_PANEL_W, h, theme.border);
+        g.text(this.font, this.font.plainSubstrByWidth(label, OVERLAY_PANEL_W - 6), x + 3, y + 3, theme.text, false);
+        int gridX = x + 2;
+        int gridY = y + this.font.lineHeight + 4;
+        int gw = 9 * 18;
+        int gh = rows * 18;
+        g.fill(gridX, gridY, gridX + gw, gridY + gh, theme.cellBg);
+        for (int col = 0; col <= 9; col++) {
+            g.fill(gridX + col * 18, gridY, gridX + col * 18 + 1, gridY + gh, theme.cellLine);
+        }
+        for (int row = 0; row <= rows; row++) {
+            g.fill(gridX, gridY + row * 18, gridX + gw, gridY + row * 18 + 1, theme.cellLine);
+        }
+        for (int i = 0; i < items.size(); i++) {
+            ItemStack stack = items.get(i);
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            int sx = gridX + (i % 9) * 18 + 1;
+            int sy = gridY + (i / 9) * 18 + 1;
+            rarity(g, stack, sx, sy);
+            g.item(stack, sx, sy);
+            g.itemDecorations(this.font, stack, sx, sy);
+            if (inside(mx, my, sx, sy, 16, 16) && my >= clipTop && my < clipBottom && !dropdownOpen) {
+                g.fill(sx, sy, sx + 16, sy + 16, 0x40FFFFFF);
+                pendingItemTooltip = stack;
+            }
         }
     }
 
@@ -1224,12 +1428,24 @@ public class ProfileViewerScreen extends Screen {
         g.fill(x, y, x + 18, y + 18, 0xFF1C1C1C);
         g.outline(x, y, 18, 18, highlight ? ACCENT : 0xFF2E2E2E);
         if (!stack.isEmpty()) {
+            rarity(g, stack, x + 1, y + 1);
             g.item(stack, x + 1, y + 1);
             g.itemDecorations(this.font, stack, x + 1, y + 1);
             if (inside(mx, my, x, y, 18, 18) && !dropdownOpen) {
                 g.fill(x + 1, y + 1, x + 17, y + 17, 0x40FFFFFF);
                 pendingItemTooltip = stack;
             }
+        }
+    }
+
+    /** The Item Rarity feature's background, when that feature is on (killer560, 2026-10-08: "if I have things like
+     *  item rarities on then in the pv menu it should still have item rarities"). Same call, same settings, as the
+     *  container-slot mixin - this screen is not a container, so the mixin never sees its items. */
+    static void rarity(GuiGraphicsExtractor g, ItemStack stack, int x, int y) {
+        try {
+            com.killer560.hub.itemrarity.ItemRarityFeature.drawBackground(g, stack, x, y, false);
+        } catch (Throwable ignored) {
+            // Visual only; a lore edge case must never break the screen.
         }
     }
 

@@ -555,6 +555,8 @@ final class SettingTooltipsData {
         d.put("name changer", "Changes how player names look on your screen, client-side only.");
         d.put("change my name", "Replaces your own name everywhere with the display name typed below.");
         d.put("nickhider/randomize others", "Gives every other player a fake name for this session; works without the Name Changer toggle.");
+        d.put("nickhider/randomized name", "Instead of made-up names, every other player shows as the base name you type plus a number. No two players share a number, and each keeps theirs for the session.");
+        d.put("nickhider/base name", "The name every other player is shown as, followed by their own number. Empty uses made-up names. & colour codes work.");
         d.put("my display name", "Type the name to show instead of yours, then pick its colour.");
         d.put("custom renames", "Applies the rename list below to the names on your screen.");
         d.put("+ add rename", "Adds a new row to the rename list.");
