@@ -2666,3 +2666,38 @@ sim mobs are persistent, their chunks wrote them to disk, and they loaded back a
 the previous floor's starred zombies stood in rooms of the new one (98-sim-insta-clear-live's U and Z). `SimWorld.open` now
 deletes the overworld's `entities/` region files before reopening the world for a build. A rebuild INSIDE an open sim world
 still relies on the sweep, which cannot see mobs in chunks that are unloaded at the time; not seen to matter yet.
+
+## The 2026-10-09 list: pickup range, one boom for every crypt, bats, the prince and four lever doors (sim-world)
+
+- **Pickup range is the Magnetic Talisman's** ("the gravity talisman" in his words - on hypixelskyblock.minecraft.wiki the
+  talisman that "increases the player's item pickup range by 3x the normal range" is the Magnetic one; the Gravity
+  Talisman gives Strength/Defense). Vanilla's reach is the player box inflated (1.0, 0.5, 1.0) (`Player.aiStep`, javap);
+  `SimSecretItems.magneticPickup` touches every item in the box inflated (3.0, 1.5, 3.0) with vanilla's own
+  `ItemEntity.playerTouch`, so delay, full inventory and the take packet stay vanilla's. Testkit 641 measures it at
+  0.1-block steps: taken up to 3.4 blocks, left from 3.5 (3.425 expected).
+- **One Superboom takes everything in reach.** It used to open the crypt it was aimed at, or the NEAREST slab crypt, and
+  nothing else. Now every slab-crypt lid, every cracked brick sealing a crypt chamber (a chamber counted once however
+  many of its bricks are in reach) and every prince within `SUPERBOOM_CRYPT_REACH` (x/z 3, y 2) opens, each with its own
+  undead; decorative cracked brick still breaks only when aimed at. A lid must now be mostly BOTTOM slabs
+  (`CryptScanner`'s rule): with every crypt in reach opening, Big Red Flag's two top-slab eaves opened as crypts beside
+  its prince. Testkit 642: two lids 3 away, a crypt wall 3 away, a lid 6 away and a decorative brick.
+- **Secret bats appear when he comes near (8 blocks, unmeasured on Hypixel), and their death counts for the room.**
+  `SimSecrets` spawned them with the floor and never registered them, so their death counted nothing; `SimScore.batKilled`
+  never reached the per-room count either; and Auto Routes' await counts a secret bat's APPEARANCE within 10 blocks
+  (QUOI's rule), which a bat that existed since the build never makes. The kill is now read off the entity (dead or
+  removed KILLED), not `getEntity(uuid) == null`, which also fired for a bat in a non-ticking section. Testkit 643.
+- **Mimic route ("kill the mimic then teleport in the direction of the mimic"): not reproduced.** 96-ar-644 plays it -
+  #1 etherwarp with await 1 aimed away from the trapped chest, Kill Mimic Spirit Sceptre and Hyperion, obvious and legit,
+  by hand and by Secret Aura - 14 tries, he never moved towards the chest and always landed on #1's target. What it did
+  find: a straight-down Hyperion moved an off-centre player to his block's centre (0.42 blocks in 644-sim-hype-down on the
+  old jar), because `dashTarget` settled on his own block and only compared distances. Fixed (his own block is not a
+  teleport). One run in five of the aura+Hyperion variant left the mimic alive (one use, no kill); not reproduced in the
+  three repeats after it, cause not found.
+- **Big Red Flag's tomb is a prince** (his 01.59.46 shot): a 2x3 lid of full smooth stone ringed by bottom smooth stone
+  slabs (`SimPrince.LID`), which picks out exactly that one structure in all 135 captures. Opening a prince now also takes
+  the player head touching it and the layer directly under its footprint (`SimPrince.extrasOf`, his rule - the wiki's
+  Prince page does not describe the tomb). Testkit 645 (Big Red Flag) and 646 (Leaves: wall head and 3x3 stair layer).
+  Secret Waypoints' `CryptScanner` does not know the lid rule yet, so it shows no prince there.
+- **Four lever doors** in `SimRoomLevers` (capture coordinates and how each was matched are in its javadoc): Bridges and
+  Raccoon had their lever in the capture; Logs and Arrow Trap had none, and the sim places a floor lever on the lone wood
+  block he pointed at (only into air). Testkit 647-650 flick each as the player and require the whole door gone.

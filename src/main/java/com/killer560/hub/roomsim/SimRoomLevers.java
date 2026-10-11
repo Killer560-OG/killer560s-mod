@@ -50,6 +50,26 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>Adding another is one line in {@link #RULES}: the room name, the lever he {@code /simwhere}'d, and the
  * two corners of what it takes away.
  *
+ * <h2>2026-10-09: four wooden doors, two of them with no lever in the capture</h2>
+ *
+ * <p>From his screenshots, matched to the captures by decoding (each door is a flood fill of one wood type that fills
+ * its bounding box exactly, the same check as above):
+ * <ul>
+ *   <li><b>Bridges.</b> The capture's only lever, {@code (55, 59, 29)} (floor), drops the 18-block dark oak door at
+ *       {@code x=10, y=81..86, z=15..17} in front of the chest at {@code (4, 82, 16)} - his 02.05.13 / 02.05.45 shots,
+ *       whose F3 heights put the lever and the door 22 blocks apart exactly as the capture does.</li>
+ *   <li><b>Raccoon.</b> Its lever {@code (25, 70, 29)} (floor, on an acacia log) drops the 3x4 acacia log door at
+ *       {@code x=24..26, y=69..72, z=19} (12 blocks, exactly the box).</li>
+ *   <li><b>Logs.</b> "The wood block is missing a lever": the lone dark oak wood set in a 3x3 of polished andesite at
+ *       {@code (29, 83, 6)} - the only wood block in the library ringed like that. The lever is PLACED on top of it,
+ *       {@code (29, 84, 6)}, and drops the 32-block dark oak door at {@code x=20..21, y=69..72, z=23..26}.</li>
+ *   <li><b>Arrow Trap.</b> "Missing lever": the lone oak wood block at floor level in a wall nook, {@code (16, 69, 24)}
+ *       (02.31.13). The lever is PLACED on top of it, {@code (16, 70, 24)}, and drops the 5x5 oak log wall at
+ *       {@code x=14..18, y=69..73, z=8} (02.31.27) with the room's chest behind it.</li>
+ * </ul>
+ * Where the two placed levers stand (on top, a floor lever) is an inference from Raccoon's and Bridges' own levers,
+ * which are floor levers on a block; the captures do not say.
+ *
  * <p>Opening is one-way and once only, like the real thing - flicking the lever back does not put the blocks
  * back, because on Hypixel it does not either. A fresh floor rearms everything.
  */
@@ -65,14 +85,25 @@ public final class SimRoomLevers {
      * @param from  one corner of the box to clear, inclusive
      * @param to    the opposite corner, inclusive
      */
-    private record Rule(String room, int[] lever, int[] from, int[] to) {
+    private record Rule(String room, int[] lever, int[] from, int[] to, boolean place) {
+        Rule(String room, int[] lever, int[] from, int[] to) {
+            this(room, lever, from, to, false);
+        }
     }
 
     private static final List<Rule> RULES = List.of(
             new Rule("Mines",
                     new int[]{35, 79, 60}, new int[]{50, 78, 58}, new int[]{50, 84, 60}),
             new Rule("Pressure Plates",
-                    new int[]{22, 83, 16}, new int[]{54, 93, 15}, new int[]{55, 97, 17}));
+                    new int[]{22, 83, 16}, new int[]{54, 93, 15}, new int[]{55, 97, 17}),
+            new Rule("Bridges",
+                    new int[]{55, 59, 29}, new int[]{10, 81, 15}, new int[]{10, 86, 17}),
+            new Rule("Raccoon",
+                    new int[]{25, 70, 29}, new int[]{24, 69, 19}, new int[]{26, 72, 19}),
+            new Rule("Logs",
+                    new int[]{29, 84, 6}, new int[]{20, 69, 23}, new int[]{21, 72, 26}, true),
+            new Rule("Arrow Trap",
+                    new int[]{16, 70, 24}, new int[]{14, 69, 8}, new int[]{18, 73, 8}, true));
 
     /** Lever world position to the blocks it clears, for the floor currently standing. */
     private static final Map<BlockPos, List<BlockPos>> ARMED = new ConcurrentHashMap<>();
@@ -130,6 +161,14 @@ public final class SimRoomLevers {
                         placed.gridX(), placed.gridZ(), placed.pasteRotation(), placed.rotation());
                 BlockPos lever = SimRoomPuzzles.capturedPos(p,
                         rule.lever()[0], rule.lever()[1], rule.lever()[2]);
+                // A lever the capture never had is put there, on top of its block, as a floor lever - only into
+                // air, so a wrong rule can never overwrite the room.
+                if (rule.place() && level.getBlockState(lever).isAir()) {
+                    level.setBlockAndUpdate(lever, Blocks.LEVER.defaultBlockState()
+                            .setValue(net.minecraft.world.level.block.LeverBlock.FACE,
+                                    net.minecraft.world.level.block.state.properties.AttachFace.FLOOR));
+                    SimBuildQueue.touched(lever.getX(), lever.getZ());
+                }
                 // SAID OUT LOUD when the lever is not where the capture says, because a rule that silently
                 // arms on a stone block is a lever he flicks forever with nothing happening - which is
                 // exactly how both of these looked before they existed.
@@ -185,6 +224,25 @@ public final class SimRoomLevers {
     public static void forget() {
         ARMED.clear();
         ROOM_OF.clear();
+    }
+
+    /**
+     * The world position of a capture-local block of the first placed room of this name, or null when none is
+     * placed - the same transform the rules use. For tests.
+     */
+    public static BlockPos capturedWorld(String roomName, int cx, int cy, int cz) {
+        for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
+            if (!placed.name().equalsIgnoreCase(roomName)) {
+                continue;
+            }
+            RoomLibrary.Room room = RoomLibrary.get(placed.name());
+            if (room == null) {
+                return null;
+            }
+            return SimRoomPuzzles.capturedPos(new SimRoomPuzzles.Placement(room,
+                    placed.gridX(), placed.gridZ(), placed.pasteRotation(), placed.rotation()), cx, cy, cz);
+        }
+        return null;
     }
 
     /** For tests and the build log. */

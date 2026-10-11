@@ -513,6 +513,16 @@ public final class SimAbilities {
             }
             break;
         }
+        // HIS OWN BLOCK IS NOT A TELEPORT. Aimed straight down (Kill Mimic's Hyperion), the only spot that fits is the
+        // block he stands in, and snap() centres it - so a player standing off-centre was moved up to 0.7 blocks
+        // sideways by a "teleport" that, on Hypixel, goes nowhere (witherImpact's own note). Auto Routes then took
+        // its next etherwarp from the shifted spot (2026-10-11, investigating "the auto routes kill the mimic then
+        // teleport in the direction of the mimic"). The step-backwards rule above already meant this; it only
+        // compared distances, which an off-centre start defeats.
+        if (best != null && Math.floor(best.x) == Math.floor(from.x) && Math.floor(best.z) == Math.floor(from.z)
+                && best.y == Math.floor(from.y)) {
+            return null;
+        }
         return best;
     }
 
