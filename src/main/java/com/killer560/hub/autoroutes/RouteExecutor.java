@@ -1759,6 +1759,7 @@ public final class RouteExecutor {
         stepTicks = 0;
         blockWaitTicks = 0;
         blockWaitSaid = false;
+        pickWaitBlock = null;
         // Not standing where the plan stood (the first hop, fired from anywhere in the node's ring): aim from HERE at
         // the same block, with the aim the Interactive Map itself uses, if that ray really lands on it.
         LocalPlayer player = Minecraft.getInstance().player;
@@ -1921,7 +1922,10 @@ public final class RouteExecutor {
             if (!landingBlockThere(client)) {
                 return false;
             }
-            if (!aimReady()) {
+            if (pickStillStanding(client, player)) {
+                return false;
+            }
+            if (!warpAimReady(player)) {
                 return false;
             }
             // Etherwarps Per Second: not before the pace allows. Sneak stays held while it waits.
@@ -2048,6 +2052,73 @@ public final class RouteExecutor {
                     client.level.getBlockState(in), warpTarget.toShortString());
             AutoRoutesFeature.chat(ModChat.text("Waiting for the block at "), ModChat.value(in.toShortString()),
                     ModChat.text(" to move - it is in etherwarp #" + (route.indexOf(node) + 1) + "'s way."));
+        }
+        return true;
+    }
+
+    /** The Breaker Aura pick a path hop is waiting on, said once in chat per block; null when not waiting. */
+    private static BlockPos pickWaitBlock;
+    /** Ticks path hops have waited on a standing pick since launch - read by the testkit (637). */
+    private static int pickWaitTicksTotal;
+
+    public static int pickWaitTicksTotal() {
+        return pickWaitTicksTotal;
+    }
+
+    /**
+     * killer560 (2026-10-11): "Have it wait on the path." A path pair is planned with Breaker Aura's picks as already
+     * broken (RoutePathPlanner), so a hop can go THROUGH one, or land under one. While such a pick still stands - in
+     * the shot's line before it reaches the landing block, or in the landing's two blocks of standing room - nothing is
+     * sent: no use, sneak held, the same test again next tick, so the warp goes on the first tick the block is gone. No
+     * time limit; any key of his or /ar stop ends it as it ends any route. Chat names the block once. Only path hops,
+     * and only while the shot would not land as planned: a pick that stands somewhere this hop does not need changes
+     * nothing.
+     *
+     * @return true while waiting (send nothing)
+     */
+    private static boolean pickStillStanding(Minecraft client, LocalPlayer player) {
+        BlockPos target = warpTarget;
+        if (hopIndex < 0 || target == null || client.level == null) {
+            return false;
+        }
+        Vec3 eye = new Vec3(player.getX(), player.getY() + TeleportUtils.eyeHeight(true), player.getZ());
+        double range = Math.max(1.0, com.killer560.hub.pathfinding.EtherwarpHopper.range());
+        TeleportUtils.RaycastResult shot = TeleportUtils.getEtherPos(eye, warpYaw, warpPitch, range);
+        BlockPos waitOn = null;
+        if (!(shot.succeeded() && target.equals(shot.pos()))) {
+            Vec3 far = eye.add(TeleportUtils.getLook(warpYaw, warpPitch).scale(range));
+            AABB targetBox = new AABB(target.getX(), target.getY(), target.getZ(), target.getX() + 1, target.getY() + 1,
+                    target.getZ() + 1);
+            Vec3 end = targetBox.clip(eye, far).orElse(Vec3.atCenterOf(target));
+            for (BlockPos p : com.killer560.hub.dungeonextras.BreakerAuraFeature.selectedBlocks()) {
+                if (client.level.getBlockState(p).isAir()) {
+                    continue;   // already broken
+                }
+                AABB box = new AABB(p.getX(), p.getY(), p.getZ(), p.getX() + 1, p.getY() + 1, p.getZ() + 1);
+                boolean inLine = box.clip(eye, end).isPresent() || box.contains(eye);
+                boolean overLanding = p.equals(target.above()) || p.equals(target.above(2));
+                if (inLine || overLanding) {
+                    waitOn = p;
+                    break;
+                }
+            }
+        }
+        if (waitOn == null) {
+            if (pickWaitBlock != null) {
+                LOGGER.info("[AutoRoutes] Path hop {}: the Breaker Aura pick at {} is gone - warping", hopIndex + 1,
+                        pickWaitBlock.toShortString());
+            }
+            pickWaitBlock = null;
+            return false;
+        }
+        pickWaitTicksTotal++;
+        if (!waitOn.equals(pickWaitBlock)) {
+            pickWaitBlock = waitOn.immutable();
+            LOGGER.info("[AutoRoutes] Path hop {}: waiting for the Breaker Aura pick at {} ({}) - the warp to {} goes"
+                    + " through it", hopIndex + 1, waitOn.toShortString(), client.level.getBlockState(waitOn),
+                    target.toShortString());
+            AutoRoutesFeature.chat(ModChat.text("Waiting for Breaker Aura to break "), ModChat.value(
+                    waitOn.toShortString()), ModChat.text(" - path warp " + (hopIndex + 1) + " goes through it."));
         }
         return true;
     }
@@ -2651,6 +2722,35 @@ public final class RouteExecutor {
         }
         return (RouteRotation.settled(1.0f) && stepTicks >= AutoRoutesConfig.getInstance().getInteractDelayTicks())
                 || stepTicks > AIM_TIMEOUT;
+    }
+
+    /** How close legit mode turns the camera before an etherwarp goes: the planner's own aim tolerance. */
+    private static final float WARP_AIM_EXACT = com.killer560.hub.livemap.autoclear.EtherSearch.AIM_MARGIN;
+    /** Ticks a legit warp's turn may take to settle that exactly before it goes on the old 1-degree rule. */
+    private static final int WARP_AIM_GIVE_UP = AIM_TIMEOUT * 3;
+
+    /**
+     * {@link #aimReady} for an etherwarp. Legit mode clicks at the LIVE camera, and {@link #aimReady} let it go once the
+     * camera was within 1 degree of the node's look - more than a warp's margin often is: 96-ar-644/651's warp seven
+     * blocks out along the floor has 0.7 degrees, so about one legit warp in three landed a block short (2026-10-11).
+     * Now the turn keeps easing in until it is within {@link #WARP_AIM_EXACT} of the look (the tolerance the planner
+     * itself proves its aims to) - a few more frames of the same smooth approach, never a snap - so a legit warp lands
+     * where the same node lands in obvious mode. Only a turn that has not got there after {@link #WARP_AIM_GIVE_UP}
+     * ticks still goes, as before, and says so in the log.
+     */
+    private static boolean warpAimReady(LocalPlayer player) {
+        if (!AutoRoutesConfig.getInstance().isLegitMode()) {
+            return true;
+        }
+        if (RouteRotation.settled(WARP_AIM_EXACT) && stepTicks >= AutoRoutesConfig.getInstance().getInteractDelayTicks()) {
+            return true;
+        }
+        if (stepTicks > WARP_AIM_GIVE_UP) {
+            LOGGER.info("[AutoRoutes] Etherwarp: the legit turn did not settle within {} degrees in {} ticks ({} off) -"
+                    + " warping anyway", WARP_AIM_EXACT, stepTicks, RouteRotation.error());
+            return true;
+        }
+        return false;
     }
 
     /**
