@@ -6,7 +6,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
-import com.killer560.hub.util.SkyblockGate;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -70,9 +69,10 @@ public final class HeldOutlineConfig {
         return instance;
     }
 
-    /** The saved toggle AND the mod-wide "Skyblock Only" gate, as every other feature's master toggle. */
+    /** The saved toggle alone. NOT gated by "Skyblock Only" (killer560, 2026-10-11: "It should ALWAYS show when it's
+     *  on"): it is a cosmetic on your own screen, so it draws on any server or in singleplayer. */
     public boolean isActive() {
-        return enabled && SkyblockGate.allows();
+        return enabled;
     }
 
     public boolean isEnabledRaw() {
