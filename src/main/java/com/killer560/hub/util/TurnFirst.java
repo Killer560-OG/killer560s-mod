@@ -122,6 +122,11 @@ public final class TurnFirst {
     }
 
     /** Whether a turn is still out (the body is turned away from where it was). */
+    /** Whether any aura's turn is out (turned, not yet given back) - Kill Mimic waits for the hand-back. */
+    public static boolean anyTurnOut() {
+        return current != null;
+    }
+
     public boolean isTurned() {
         return turned;
     }

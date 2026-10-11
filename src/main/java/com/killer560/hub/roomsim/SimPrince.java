@@ -331,67 +331,10 @@ public final class SimPrince {
         return PRINCES.size();
     }
 
-    /**
-     * The {@link #LID} rule from one smooth stone block: its horizontal run of smooth stone (members go into
-     * {@code checked}, so each run is judged once), and when the run is a lid, the lid and its slab ring go into
-     * {@code crowns}. Capped at {@value #LID_MAX} + 1 so a smooth stone floor fails fast.
-     */
+    /** The {@link #LID} rule, asked of {@code CryptScanner} so the sim and Secret Waypoints' prince waypoints cannot
+     *  disagree (one room, one answer). */
     private static void ringedLid(ServerLevel level, BlockPos start, Set<BlockPos> checked, List<BlockPos> crowns) {
-        List<BlockPos> lid = new ArrayList<>();
-        Set<BlockPos> ring = new HashSet<>();
-        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
-        Set<BlockPos> seen = new HashSet<>();
-        queue.add(start);
-        seen.add(start);
-        boolean ok = true;
-        while (!queue.isEmpty()) {
-            BlockPos here = queue.poll();
-            lid.add(here);
-            checked.add(here);
-            if (lid.size() > LID_MAX) {
-                ok = false;
-                break;
-            }
-            if (!level.getBlockState(here.above()).isAir()) {
-                ok = false;
-            }
-            for (Direction dir : Direction.Plane.HORIZONTAL) {
-                BlockPos next = here.relative(dir).immutable();
-                var state = level.getBlockState(next);
-                if (state.is(LID)) {
-                    if (seen.add(next)) {
-                        queue.add(next);
-                    }
-                } else if (state.is(Blocks.SMOOTH_STONE_SLAB)
-                        && state.getValue(net.minecraft.world.level.block.SlabBlock.TYPE)
-                        == net.minecraft.world.level.block.state.properties.SlabType.BOTTOM) {
-                    ring.add(next);
-                } else {
-                    ok = false;
-                }
-            }
-        }
-        if (ok && lid.size() >= 2) {
-            crowns.addAll(lid);
-            // The WHOLE ring: the slabs touching the lid are its sides, and the corner slabs join them on the same
-            // layer (Big Red Flag's ring is 14 slabs, 10 touching the lid and 4 corners). Bottom slabs only, capped.
-            ArrayDeque<BlockPos> walk = new ArrayDeque<>(ring);
-            Set<BlockPos> all = new HashSet<>(ring);
-            while (!walk.isEmpty() && all.size() < 4 * LID_MAX) {
-                BlockPos here = walk.poll();
-                for (Direction dir : Direction.Plane.HORIZONTAL) {
-                    BlockPos next = here.relative(dir).immutable();
-                    var state = level.getBlockState(next);
-                    if (!all.contains(next) && state.is(Blocks.SMOOTH_STONE_SLAB)
-                            && state.getValue(net.minecraft.world.level.block.SlabBlock.TYPE)
-                            == net.minecraft.world.level.block.state.properties.SlabType.BOTTOM) {
-                        all.add(next);
-                        walk.add(next);
-                    }
-                }
-            }
-            crowns.addAll(all);
-        }
+        crowns.addAll(com.killer560.hub.secretwaypoints.CryptScanner.lidPrince(level, start, checked));
     }
 
     /** Whether a sea lantern is walled in by polished andesite on all four sides - see {@link #LANTERN}.

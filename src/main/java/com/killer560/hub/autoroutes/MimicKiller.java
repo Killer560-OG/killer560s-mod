@@ -27,6 +27,15 @@ public final class MimicKiller {
     /** Spirit Sceptre: longest it keeps using for one mimic. */
     private static final int USE_TIMEOUT = 100;
     private static final int AIM_TIMEOUT = 20;
+    /**
+     * Legit mode: the Hyperion is only used with the camera at least this far down. Wither Impact teleports along the
+     * look, so a use at any shallower pitch is a teleport - and right after the chest click the look points at the
+     * mimic. Measured 2026-10-11 (testkit 96-ar-644, Secret Aura on): the AIM timeout fired it at pitch 50.9, killer560's
+     * "the auto routes kill the mimic then teleport in the direction of the mimic".
+     */
+    static final float MIN_HYPERION_PITCH = 80f;
+    /** Legit Hyperion: how long it keeps aiming down before giving up WITHOUT using it. */
+    private static final int AIM_GIVE_UP = 60;
 
     private enum State { IDLE, PENDING, AIM, USING }
 
@@ -45,6 +54,11 @@ public final class MimicKiller {
 
     public static boolean isBusy() {
         return state != State.IDLE;
+    }
+
+    /** Whether it holds the camera (aiming down or using) - Secret Aura turns nothing meanwhile. */
+    public static boolean holdsCamera() {
+        return state == State.AIM || state == State.USING;
     }
 
     /** From {@link AwaitEvents}: we just clicked a trapped chest. */
@@ -91,7 +105,9 @@ public final class MimicKiller {
         boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
         switch (state) {
             case PENDING -> {
-                if (!RouteExecutor.mayYieldToMimic()) {
+                // Also wait out an aura's body turn (Secret Aura clicking the chest turns him to it and gives the view
+                // back a tick later): that hand-back writes the rotation, and landing on top of the aim it undid it.
+                if (!RouteExecutor.mayYieldToMimic() || com.killer560.hub.util.TurnFirst.anyTurnOut()) {
                     if (stateTicks > PENDING_TIMEOUT) {
                         finish(client, player, "the route's node never finished");
                     }
@@ -113,6 +129,20 @@ public final class MimicKiller {
                 // The route lets go of sneak while this holds it; the use goes out once the server has shift up.
                 boolean sneakDown = player.getLastSentInput().shift() && stateTicks <= AIM_TIMEOUT;
                 boolean turning = legit && !RouteRotation.settled(1.0f) && stateTicks <= AIM_TIMEOUT;
+                if (legit && mode == AutoRoutesConfig.KillMimic.HYPERION && player.getXRot() < MIN_HYPERION_PITCH) {
+                    // NEVER at a bad pitch: keep aiming (re-issued if something else let go of or moved the approach),
+                    // and past AIM_GIVE_UP give up with nothing used.
+                    if (stateTicks > AIM_GIVE_UP) {
+                        AutoRoutesFeature.chatBad("Kill Mimic: could not aim straight down - Hyperion not used.");
+                        finish(client, player, String.format(java.util.Locale.ROOT,
+                                "gave up: pitch %.1f after %d ticks, Hyperion not used", player.getXRot(), stateTicks));
+                        return;
+                    }
+                    if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
+                        RouteRotation.beginApproach(player.getYRot(), 90f, false, 0f, 0f);
+                    }
+                    return;
+                }
                 if (sneakDown || turning) {
                     return;
                 }
@@ -149,7 +179,11 @@ public final class MimicKiller {
         RouteExecutor.useHeldItem(client, player, player.getYRot(), 90f, false);
         uses++;
         lastUseTick = AwaitEvents.now();
-        LOGGER.info("[AutoRoutes] Kill Mimic: {} used straight down (use {})", mode.label(), uses);
+        // The pitch the use went out at in legit mode is the camera's (obvious mode sends 90 in the packet).
+        LOGGER.info("[AutoRoutes] Kill Mimic: {} used straight down (use {}, {} pitch {})", mode.label(), uses,
+                AutoRoutesConfig.getInstance().isLegitMode() ? "camera" : "packet",
+                AutoRoutesConfig.getInstance().isLegitMode()
+                        ? String.format(java.util.Locale.ROOT, "%.1f", player.getXRot()) : "90.0");
     }
 
     private static void finish(Minecraft client, LocalPlayer player, String why) {

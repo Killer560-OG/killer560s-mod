@@ -35,8 +35,9 @@ import java.util.Set;
  * panels for one crypt), a few tombs of another shape, and Pirate's three gold-on-slab spots, which match the prince
  * rule without being princes as far as the count says.
  *
- * <p><b>A prince</b> is the golden crypt: a gold block with a smooth stone slab beside it, or a sea lantern walled
- * in by polished andesite on all four sides - the two shapes {@code roomsim.SimPrince} was given by him. A slab run
+ * <p><b>A prince</b> is the golden crypt: a gold block with a smooth stone slab beside it, a sea lantern walled
+ * in by polished andesite on all four sides, or a lid of full smooth stone ringed by bottom smooth stone slabs
+ * ({@link #lidPrince}, Big Red Flag, 2026-10-09) - the three shapes {@code roomsim.SimPrince} was given by him. A slab run
  * that touches a prince's gold is the prince, not an ordinary crypt as well.
  *
  * <p>One answer for the sim and for Hypixel: {@code SimPrince} asks {@link #isPrinceCrown} too, and this reads the
@@ -61,6 +62,9 @@ public final class CryptScanner {
 
     static final int MIN_LID = 6;
     static final int MAX_LID = 20;
+
+    /** Most full smooth stone blocks a prince lid may have (Big Red Flag's is 6). */
+    static final int LID_MAX = 16;
 
     private CryptScanner() {
     }
@@ -102,8 +106,72 @@ public final class CryptScanner {
         if (type == Type.CRYPT) {
             return state.is(Blocks.SMOOTH_STONE_SLAB);
         }
-        return state.is(Blocks.GOLD_BLOCK) || state.is(Blocks.SEA_LANTERN) || state.is(Blocks.POLISHED_ANDESITE);
+        return state.is(Blocks.GOLD_BLOCK) || state.is(Blocks.SEA_LANTERN) || state.is(Blocks.POLISHED_ANDESITE)
+                || state.is(Blocks.SMOOTH_STONE) || state.is(Blocks.SMOOTH_STONE_SLAB);
     }
+
+    /**
+     * The prince LID rule (see {@code roomsim.SimPrince}: Big Red Flag's tomb) from one smooth stone block: its horizontal run of smooth stone (members go into
+     * {@code checked}, so each run is judged once), and when the run is a lid, returns the lid and its whole slab ring (else empty). Capped at {@value #LID_MAX} + 1 so a smooth stone floor fails fast.
+     */
+    public static List<BlockPos> lidPrince(Level level, BlockPos start, Set<BlockPos> checked) {
+        List<BlockPos> crowns = new ArrayList<>();
+        List<BlockPos> lid = new ArrayList<>();
+        Set<BlockPos> ring = new HashSet<>();
+        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
+        Set<BlockPos> seen = new HashSet<>();
+        queue.add(start);
+        seen.add(start);
+        boolean ok = true;
+        while (!queue.isEmpty()) {
+            BlockPos here = queue.poll();
+            lid.add(here);
+            checked.add(here);
+            if (lid.size() > LID_MAX) {
+                ok = false;
+                break;
+            }
+            if (!level.getBlockState(here.above()).isAir()) {
+                ok = false;
+            }
+            for (Direction dir : Direction.Plane.HORIZONTAL) {
+                BlockPos next = here.relative(dir).immutable();
+                var state = level.getBlockState(next);
+                if (state.is(Blocks.SMOOTH_STONE)) {
+                    if (seen.add(next)) {
+                        queue.add(next);
+                    }
+                } else if (state.is(Blocks.SMOOTH_STONE_SLAB)
+                        && state.getValue(SlabBlock.TYPE) == SlabType.BOTTOM) {
+                    ring.add(next);
+                } else {
+                    ok = false;
+                }
+            }
+        }
+        if (ok && lid.size() >= 2) {
+            crowns.addAll(lid);
+            // The WHOLE ring: the slabs touching the lid are its sides, and the corner slabs join them on the same
+            // layer (Big Red Flag's ring is 14 slabs, 10 touching the lid and 4 corners). Bottom slabs only, capped.
+            ArrayDeque<BlockPos> walk = new ArrayDeque<>(ring);
+            Set<BlockPos> all = new HashSet<>(ring);
+            while (!walk.isEmpty() && all.size() < 4 * LID_MAX) {
+                BlockPos here = walk.poll();
+                for (Direction dir : Direction.Plane.HORIZONTAL) {
+                    BlockPos next = here.relative(dir).immutable();
+                    var state = level.getBlockState(next);
+                    if (!all.contains(next) && state.is(Blocks.SMOOTH_STONE_SLAB)
+                            && state.getValue(SlabBlock.TYPE) == SlabType.BOTTOM) {
+                        all.add(next);
+                        walk.add(next);
+                    }
+                }
+            }
+            crowns.addAll(all);
+        }
+        return crowns;
+    }
+
 
     /**
      * Every crypt and prince inside {@code [minX, minZ, maxX, maxZ]}, at any height.
@@ -119,6 +187,8 @@ public final class CryptScanner {
         Set<BlockPos> slabs = new HashSet<>();
         Set<BlockPos> bottoms = new HashSet<>();
         List<BlockPos> crowns = new ArrayList<>();
+        Set<BlockPos> lidChecked = new HashSet<>();
+        List<BlockPos> lidPrinces = new ArrayList<>();
         for (int cx = bounds[0] >> 4; cx <= (bounds[2] >> 4); cx++) {
             for (int cz = bounds[1] >> 4; cz <= (bounds[3] >> 4); cz++) {
                 if (!level.hasChunk(cx, cz)) {
@@ -133,7 +203,8 @@ public final class CryptScanner {
                 for (int i = 0; i < sections.length; i++) {
                     var section = sections[i];
                     if (section == null || section.hasOnlyAir() || !section.maybeHas(st ->
-                            st.is(Blocks.SMOOTH_STONE_SLAB) || st.is(Blocks.GOLD_BLOCK) || st.is(Blocks.SEA_LANTERN))) {
+                            st.is(Blocks.SMOOTH_STONE_SLAB) || st.is(Blocks.GOLD_BLOCK) || st.is(Blocks.SEA_LANTERN)
+                                    || st.is(Blocks.SMOOTH_STONE))) {
                         continue;
                     }
                     int baseY = chunk.getSectionYFromSectionIndex(i) << 4;
@@ -146,6 +217,11 @@ public final class CryptScanner {
                                     slabs.add(at);
                                     if (isLidSlab(state)) {
                                         bottoms.add(at);
+                                    }
+                                } else if (state.is(Blocks.SMOOTH_STONE)) {
+                                    BlockPos at = new BlockPos(x, baseY + ly, z);
+                                    if (lidChecked.add(at)) {
+                                        lidPrinces.addAll(lidPrince(level, at, lidChecked));
                                     }
                                 } else if (state.is(Blocks.GOLD_BLOCK) || state.is(Blocks.SEA_LANTERN)) {
                                     BlockPos at = new BlockPos(x, baseY + ly, z);
@@ -161,7 +237,7 @@ public final class CryptScanner {
         }
 
         // Princes: one per connected group of crown blocks, with a lantern's andesite ring as part of it.
-        Set<BlockPos> princeBlocks = new HashSet<>();
+        Set<BlockPos> princeBlocks = new HashSet<>(lidPrinces);
         for (BlockPos c : crowns) {
             princeBlocks.add(c);
             if (level.getBlockState(c).is(Blocks.SEA_LANTERN)) {

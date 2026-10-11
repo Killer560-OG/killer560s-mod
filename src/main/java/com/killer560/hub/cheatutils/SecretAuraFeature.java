@@ -229,6 +229,12 @@ public final class SecretAuraFeature {
                 || com.killer560.hub.livemap.autoclear.BloodRush.isRunning()) {
             return;
         }
+        // Nor while Auto Routes' Kill Mimic is at work: it aims the camera straight down, and the aura's own turn (and
+        // its hand-back) moved that aim - in legit mode the Hyperion then went off at pitch 50.9 and teleported him at
+        // the mimic (2026-10-11, testkit 96-ar-644/651).
+        if (com.killer560.hub.autoroutes.MimicKiller.isBusy()) {
+            return;
+        }
         // Shared one-interaction-per-tick gate. Must sit above the attempt/cooldown bookkeeping below so a refused
         // tick costs nothing - the same (nearest) secret is simply re-picked next tick.
         if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.SECRET_AURA)) {
