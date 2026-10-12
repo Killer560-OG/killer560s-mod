@@ -99,6 +99,10 @@ public final class ArrowAlignFeature {
     private static long lastTriggerClickTick = Long.MIN_VALUE / 4;
     /** Fractional, so the Aura's rolled 15-17 CPS stays 15-17 on average instead of rounding to 10. */
     private static double nextAuraClickDueTick = 0.0;
+    /** The tick a due Aura click first went to turning the body (TurnFirst), or -1: the click is scheduled from there. */
+    private static long auraTurnStartTick = -1L;
+    /** Set by {@link #sendClick} when it returned false because it turned the body this tick. */
+    private static boolean sendClickTurned = false;
     private static int lastAuraIndex = -1;
 
     static {
@@ -239,6 +243,7 @@ public final class ArrowAlignFeature {
         triggerAimIndex = -1;
         lastAuraIndex = -1;
         nextAuraClickDueTick = 0.0;
+        auraTurnStartTick = -1L;
     }
 
     // ------------------------------------------------------------------
@@ -328,6 +333,7 @@ public final class ArrowAlignFeature {
      *  ({@code gameMode.interact(player, entity, hitResult, hand)} - sends the interact packet with the hit location
      *  relative to the entity). Callers must already be behind a cheat-gated config getter. */
     private static boolean sendClick(Minecraft client, int index, long now) {
+        sendClickTurned = false;
         ItemFrame frame = frames[index];
         if (frame == null || frame.isRemoved() || client.player == null || client.gameMode == null) {
             return false;
@@ -359,6 +365,7 @@ public final class ArrowAlignFeature {
         // this tick and is clicked on the next, the camera held (util/TurnFirst) - an interact the look misses is
         // GrimAC Hitboxes (testkit 415/418). False is the callers' "retry".
         if (!TURN.readyBox(client.player, box, hit, eye.distanceTo(hit) + 1.0)) {
+            sendClickTurned = true;
             return false;
         }
         syntheticClickInProgress = true;
@@ -433,18 +440,28 @@ public final class ArrowAlignFeature {
         int target = pickAuraTarget(client.player, eye, rangeSq);
         if (target < 0) {
             lastAuraIndex = -1;
+            auraTurnStartTick = -1L;
             return;
         }
         if (!sendClick(client, target, now)) {
-            return; // gate held this tick back - the rolled delay must not be re-rolled for a click never sent
+            // Gate held this tick back - the rolled delay must not be re-rolled for a click never sent. A tick spent
+            // turning the body to the frame is remembered: the click is scheduled from it, below.
+            if (sendClickTurned && auraTurnStartTick < 0) {
+                auraTurnStartTick = tick;
+            }
+            return;
         }
         lastAuraIndex = target;
+        // A click that needed a turn first counts from the turn's tick, not the tick after: otherwise every turn tick was
+        // added to the gap (Lever Aura's identical schedule measured 7.89 at 10 CPS, testkit 846; the sweep here, 832).
+        long base = auraTurnStartTick >= 0 ? auraTurnStartTick : tick;
+        auraTurnStartTick = -1L;
         // Aura CPS: each gap is 1000 / CPS ms with +-10% jitter so no two gaps are alike (never a metronome), and is
         // scheduled from the due tick, not this one, so the average is the CPS set even where the gap is a fraction of a
         // tick (16 CPS = 1.25 ticks: gaps of 1 and 2). One click a tick at most, so 20 is the ceiling. A click the gate
         // held back carries at most a tick of backlog.
         double gapMs = 1000.0 / cfg.getAuraCps() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
-        nextAuraClickDueTick = Math.max(nextAuraClickDueTick, tick - 1) + gapMs / 50.0;
+        nextAuraClickDueTick = Math.max(nextAuraClickDueTick, base - 1) + gapMs / 50.0;
     }
 
     /**

@@ -146,4 +146,5 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - **A CPS schedule must count a turned click from its TURN tick.** With "schedule from the previous due tick" alone, a click
   that first needs `TurnFirst` goes out a tick after it was due and the next gap starts from there, so every turn tick was
   added to the gap: Lever Aura measured 4.48 at 5 CPS and 7.89 at 10 (testkit 846, 2026-10-12). It now schedules from the
-  tick the turn took (5.17 / 10.00). On different blocks every click needs a turn, so 20 CPS tops out at 10.
+  tick the turn took (5.17 / 10.00). On different blocks every click needs a turn, so 20 CPS tops out at 10. Arrow Align
+  Aura had the same bug (832 sweep 4.57 / 8.00 at 5 / 10 CPS, now 5.00 / 10.00, arrow-turn).
