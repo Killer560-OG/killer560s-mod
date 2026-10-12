@@ -30,9 +30,9 @@ import java.util.Locale;
  * ladder on the way is climbed facing its wall. Running into a wall anyway sidesteps to the free side, then backs off,
  * before the stuck rescue.
  * <p>
- * Failsafes stop the session with the alarm: damage with no knockback, a world change (lobby, limbo) or disconnect;
- * it also stops on a screen and the player's own keys, clicks or mouse. Knockback (a server velocity packet away from a
- * jump pad, with or without the hit) and a death are NOT stops (killer560, 2026-10-11): knockback re-plans the path
+ * Failsafes stop the session with the alarm: a world change (lobby, limbo) or disconnect;
+ * it also stops on a screen and the player's own keys, clicks or mouse. Damage, knockback (a server velocity packet
+ * away from a jump pad) and a death are NOT stops (killer560, 2026-10-11): damage is noted, knockback re-plans the path
  * from where he landed; a death waits for the respawn, treats its teleport as the respawn (no correction, no staff
  * check), and re-plans from there. A server position correction is reported and the walk carries on (mod rule,
  * 2026-10-06); a server-set rotation is reported the same way.
@@ -108,7 +108,6 @@ public final class AutoWalker {
         WalkCamera.clear();
         respawning = false;
         graceUntilMs = 0L;
-        hitWaitTicks = 0;
         repathOnGround = false;
         LocalPlayer player = Minecraft.getInstance().player;
         lastHurtTime = player == null ? 0 : player.hurtTime;
@@ -216,8 +215,10 @@ public final class AutoWalker {
 
     // ---- death and knockback: re-path, never stop (killer560, 2026-10-11) ----------------------------------
 
-    /** Ticks a hit may wait for its knockback packet before it counts as plain damage. */
-    private static final int HIT_WAIT_TICKS = 2;
+    /** At most one "took damage" chat line this often. */
+    private static final long DAMAGE_CHAT_GAP_MS = 30_000L;
+    private static long lastDamageChatMs;
+    private static int damageHits;
     /** How long after a death a server teleport is the respawn, not a correction or a staff check. */
     private static final long RESPAWN_GRACE_MS = 15_000L;
     /** A respawn that never shows a teleport still resumes after this. */
@@ -228,7 +229,6 @@ public final class AutoWalker {
     private static final java.util.regex.Pattern HYPIXEL_DEATH =
             java.util.regex.Pattern.compile("^\\s?\u2620 You [A-Za-z0-9 ',.()-]{1,80}$");
 
-    private static int hitWaitTicks;
     /** Waiting for the respawn after a death: no driving, no stuck count, server moves are the respawn. */
     private static boolean respawning;
     private static long diedAtMs;
@@ -282,7 +282,6 @@ public final class AutoWalker {
         diedAtMs = now;
         graceUntilMs = now + RESPAWN_GRACE_MS;
         playerAtDeath = Minecraft.getInstance().player;
-        hitWaitTicks = 0;
         clearKeys();
         releaseFallbackKey();
         WalkCamera.rebase();
@@ -378,7 +377,6 @@ public final class AutoWalker {
             // killer560 (2026-10-11): "have it keep working if it gets knocked back, it just needs to repathfind from
             // its new spot" - with or without the hit that caused it. Planned again now and once more on landing.
             knockbacks++;
-            hitWaitTicks = 0;
             lastHurtTime = player.hurtTime;
             clearStuck();
             repathOnGround = true;
@@ -386,12 +384,17 @@ public final class AutoWalker {
             LOGGER.info(String.format(Locale.US, "[AutoWalker] knocked back (speed %.2f) - re-pathing", motion.length()));
             ModChat.send("Auto Fairy Souls", ModChat.text("Knocked back "), ModChat.dim("- re-pathing from here."));
         } else if (player.hurtTime > lastHurtTime) {
-            // A hit: its knockback packet can trail it by a tick, so wait before calling it plain damage.
+            // Plain damage (no knockback) is not a stop either (killer560, 2026-10-11: "if you take damage with no
+            // knockback it should just continue. This can happen very often because of shellwise shard"). Counted and
+            // logged; the chat line is at most one per DAMAGE_CHAT_GAP_MS so a Shellwise run does not flood chat.
             lastHurtTime = player.hurtTime;
-            hitWaitTicks = HIT_WAIT_TICKS;
-        } else if (hitWaitTicks > 0 && --hitWaitTicks == 0) {
-            failsafe("you took damage");
-            return;
+            damageHits++;
+            LOGGER.info("[AutoWalker] took damage with no knockback - carrying on");
+            long now = System.currentTimeMillis();
+            if (now - lastDamageChatMs >= DAMAGE_CHAT_GAP_MS) {
+                lastDamageChatMs = now;
+                ModChat.send("Auto Fairy Souls", ModChat.text("Took damage "), ModChat.dim("- carrying on."));
+            }
         } else {
             lastHurtTime = player.hurtTime;
         }
@@ -691,6 +694,10 @@ public final class AutoWalker {
 
     public static int climbTicks() {
         return climbTicks;
+    }
+
+    public static int damageHits() {
+        return damageHits;
     }
 
     public static int deaths() {

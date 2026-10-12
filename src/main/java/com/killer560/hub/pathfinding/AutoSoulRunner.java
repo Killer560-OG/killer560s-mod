@@ -34,8 +34,8 @@ import java.util.List;
  * {@link EtherwarpHopper}.</li>
  * </ul>
  * Stops instantly on player movement, mouse movement, a click, a screen, or when nothing has improved for a few
- * seconds and no etherwarp rescue is possible; and with the alarm on a failsafe ({@link AutoWalker}: damage,
- * a world change or disconnect). Knockback and death re-path instead; a server correction or a server-set rotation
+ * seconds and no etherwarp rescue is possible; and with the alarm on a failsafe ({@link AutoWalker}:
+ * a world change or disconnect). Damage carries on, knockback and death re-path; a server correction or a server-set rotation
  * never stops it.
  */
 public final class AutoSoulRunner {
