@@ -539,6 +539,10 @@ public final class VoiceToTextFeature {
      *  Plain has no command form at all (its prefix is empty), so it goes out as an ordinary chat line. */
     private static void send(Minecraft client, String text) {
         com.killer560.hub.spotify.ChatDestination dest = VoiceToTextConfig.getInstance().getChatDestination();
+        if (dest == com.killer560.hub.spotify.ChatDestination.MOD_CHAT) {
+            com.killer560.hub.modchat.ModChatChannel.sendLine(text);
+            return;
+        }
         String prefix = dest.prefix;
         if (prefix.isEmpty()) {
             client.player.connection.sendChat(text);

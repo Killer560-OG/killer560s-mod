@@ -152,6 +152,8 @@ public final class ModChatFeature {
                 // Mod Chat is one of Party Commands' channels ("kc"). The sender name was stamped by the relay from
                 // a Mojang-verified login, never taken from the message text.
                 com.killer560.hub.partycommands.PartyCommandsFeature.onModChat(from, message);
+                // Auto Meow answers a Mod Chat meow in Mod Chat, from the same relay-verified sender name.
+                com.killer560.hub.automeow.AutoMeowFeature.onModChat(from, message);
             });
         }
 

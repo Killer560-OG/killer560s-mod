@@ -162,7 +162,7 @@ final class SettingTooltipsData {
         d.put("chat hider/hide actionbar", "Hides all action bar text above the hotbar.");
         d.put("chat hider/hide non-rank invites", "Hides party invites from players without a rank.");
         d.put("copy chat", "With chat open: Shift or Ctrl + Left-Click a message copies the whole message (every wrapped line); Shift or Ctrl + Right-Click copies only the line you clicked. Copied without colour codes. A plain click does what it always did.");
-        d.put("auto meow enabled", "Replies with a random cat line when a chat message says meow, purr, nya or mew.");
+        d.put("auto meow enabled", "Replies with a random cat line when another player says meow, purr, nya or mew, in the same chat it came from: party, guild, officer, co-op, a private message (back to that player), all chat or Mod Chat.");
         d.put("play cat noises", "Plays a cat sound each time Auto Meow replies.");
         d.put("chat/volume", "Loudness of the Auto Meow cat sound, 0-200%.");
         d.put("hud elements/volume", "Loudness of the GIF Player audio, 0-100%.");
@@ -170,7 +170,7 @@ final class SettingTooltipsData {
         d.put("open cringe lines folder", "Opens the folder with cringe-lines.txt, the lines /cringe picks from.");
         d.put("reload lines", "Reloads cringe-lines.txt so your edits apply to /cringe.");
         d.put("mod enabled", "Sends the song you are playing on Spotify to chat as messages other players can see.");
-        d.put("chat destination", "Which chat the lyrics are sent to: Party, All, Guild, or Co-op / Plain.");
+        d.put("chat destination", "Which chat the lyrics are sent to: Party, All, Guild, Co-op / Plain, or Mod Chat.");
         d.put("lyrics mode", "Sends every lyric line, or only announces the song when it changes.");
         d.put("profanity filter", "Stars out swear words in the lyrics you send.");
         d.put("lyric offset", "Shifts lyric timing earlier by 0-15 seconds; raise it if lyrics lag behind the music.");
@@ -1447,7 +1447,7 @@ final class SettingTooltipsData {
         d.put("click translate", "Adds a click action to chat messages that translates them into your chosen language.");
         d.put("auto correct", "Fixes common typing mistakes in the chat messages you send.");
         d.put("chat emotes", "Replaces Hypixel's emote shortcuts in your messages with the real emote text.");
-        d.put("auto meow", "Replies with a random cat line when a chat message says meow, purr, nya or mew.");
+        d.put("auto meow", "Replies with a random cat line when another player says meow, purr, nya or mew, in the same chat it came from: party, guild, officer, co-op, a private message (back to that player), all chat or Mod Chat.");
         d.put("cringe", "Run /cringe to send a random line from cringe-lines.txt, which you can edit.");
         d.put("croesus", "Shows what each dungeon reward chest is worth and logs your claims. Auto Croesus is its own tab (cheat build).");
         d.put("auto croesus/min delay", "Cheat build only. Shortest random wait between Auto Croesus's clicks, 100-2000 ms.");
@@ -1685,7 +1685,7 @@ final class SettingTooltipsData {
         d.put("voice to text/mode", "Open Mic listens all the time and sends what you said once you stop talking; Push To Talk only listens while the key is held.");
         d.put("voice to text/silence before send", "Open Mic: how long you must stop talking before what you said is sent. Shorter sends sooner but can cut a sentence at a pause.");
         d.put("voice to text/microphone", "Which microphone Voice To Text records from.");
-        d.put("voice to text/send to", "Where transcribed speech is sent: Party, All, Guild or Co-op / plain chat. Right-click goes back.");
+        d.put("voice to text/send to", "Where transcribed speech is sent: Party, All, Guild, Co-op / plain chat or Mod Chat. Right-click goes back.");
         d.put("water board solver/show tracer", "Outlines the next lever to flip in green and draws a line to the one after.");
         d.put("waypoint routes/area", "Shows the Skyblock area read from the tab list and the route active there.");
         d.put("waypoint routes/delete", "Deletes this route and all its points; click twice to confirm.");

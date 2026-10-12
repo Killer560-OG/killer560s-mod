@@ -4,7 +4,9 @@ public enum ChatDestination {
     PARTY("/pc ", "Party Chat"),
     ALL("/ac ", "All Chat"),
     GUILD("/gc ", "Guild Chat"),
-    COOP("", "Co-op / Plain");
+    COOP("", "Co-op / Plain"),
+    /** The mod's own Mod Chat (relay), never Hypixel: senders route it to {@code ModChatChannel.sendLine}. */
+    MOD_CHAT("/kc ", "Mod Chat");
 
     public final String prefix;
     public final String displayName;

@@ -129,7 +129,12 @@ public final class ModChatChannel {
                 ModChat.good(" channel"), ModChat.dim(" (/chat a, /chat p, /chat g ... to leave)"));
     }
 
-    private static void sendLine(String message) {
+    /**
+     * One line into Mod Chat, exactly as {@code /kc <message>} sends it: to the relay or, when it cannot go, a red line
+     * saying so - never to Hypixel. Also the send path for every generated line routed to Mod Chat (Auto Meow's reply,
+     * {@code /cringe kc}, Spotify and Voice To Text set to Mod Chat, a typed {@code /kc} that went through Translate).
+     */
+    public static void sendLine(String message) {
         if (message == null || message.isBlank()) {
             return;
         }

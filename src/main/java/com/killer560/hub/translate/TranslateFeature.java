@@ -62,7 +62,7 @@ public final class TranslateFeature {
      * command and must be left completely alone.
      */
     private static final Pattern CHAT_ROUTING_COMMAND =
-            Pattern.compile("^/(ac|pc|gc|oc|cc|w|msg|whisper|tell|t|r|reply)\\s+(.+)$", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("^/(ac|pc|gc|oc|cc|kc|w|msg|whisper|tell|t|r|reply)\\s+(.+)$", Pattern.CASE_INSENSITIVE);
 
     /** Routing commands whose first argument is a player, not part of the message. */
     private static final java.util.Set<String> WHISPER_COMMANDS =
@@ -212,7 +212,7 @@ public final class TranslateFeature {
             // Either Translate is off, or the whole message was just emote trigger(s) with no real
             // text left to translate - either way, nothing left for Translate to do.
             if (client.player != null) {
-                sendFinal(client, finalCommandWord, correctedWithEmotes);
+                sendFinal(client, finalCommandWord, correctedWithEmotes, addToHistory);
             }
             return;
         }
@@ -246,7 +246,7 @@ public final class TranslateFeature {
                     String bodyOut = (translatedBody != null && !translatedBody.isBlank())
                             ? translatedBody : bodyToTranslate;
                     String outgoing = ChatEmoteFeature.join(emoteSplit.prefix(), bodyOut, emoteSplit.suffix());
-                    sendFinal(client, finalCommandWord, outgoing);
+                    sendFinal(client, finalCommandWord, outgoing, addToHistory);
                 }))
                 .exceptionally(t -> {
                     LOGGER.warn("Outgoing translate send failed", t);
@@ -254,11 +254,20 @@ public final class TranslateFeature {
                 });
     }
 
-    private static void sendFinal(Minecraft client, String commandWord, String text) {
+    /** @param typed true for a line he typed (it goes out the way vanilla sends a command), false for a generated one. */
+    private static void sendFinal(Minecraft client, String commandWord, String text, boolean typed) {
         if (commandWord == null) {
+            // Plain chat: while his channel is Mod Chat (/chat k), Fabric's ALLOW_CHAT hands this to the relay.
             client.player.connection.sendChat(text);
-        } else {
+        } else if ("kc".equalsIgnoreCase(commandWord)) {
+            // Mod Chat is this mod's own channel, not a Hypixel command: straight to the relay, never to Hypixel.
+            com.killer560.hub.modchat.ModChatChannel.sendLine(text);
+        } else if (typed) {
             client.player.connection.sendCommand(commandWord + " " + text);
+        } else {
+            // A generated line is always for Hypixel's channel commands (/pc, /ac, /msg ...): send it below the client
+            // dispatcher (util/ServerCommands), where no client command of this or any mod can catch it.
+            com.killer560.hub.util.ServerCommands.toServer(commandWord + " " + text);
         }
     }
 

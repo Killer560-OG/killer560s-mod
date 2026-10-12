@@ -55,6 +55,10 @@ public final class CringeFeature {
         m.put("ac", "ac");
         m.put("all", "ac");
         m.put("a", "ac");
+        // Mod Chat (the mod's own relay channel): TranslateFeature sends "kc" to the relay, never to Hypixel.
+        m.put("kc", "kc");
+        m.put("mod", "kc");
+        m.put("modchat", "kc");
         m.put("r", "r");
         m.put("reply", "r");
         return m;

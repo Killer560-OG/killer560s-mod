@@ -202,6 +202,10 @@ public final class SpotifyLyricsFeature {
                     com.killer560.hub.util.ModChat.text(message)));
             return;
         }
+        if (chatDestination == ChatDestination.MOD_CHAT) {
+            client.execute(() -> com.killer560.hub.modchat.ModChatChannel.sendLine(message));
+            return;
+        }
         String full = chatDestination.prefix + message;
         client.execute(() -> client.player.connection.sendChat(full));
     }

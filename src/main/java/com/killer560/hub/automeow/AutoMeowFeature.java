@@ -14,29 +14,49 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Auto-replies with a random cat noise whenever anyone's chat message contains "meow", "purr",
- * "nya", "mew" (or a stretched-out version like "meowww"/"purrrrr") - per killer560's request. Replies
- * in the same channel the trigger came in on: Party/Guild/Officer/Co-op are detected from Hypixel's
- * own real chat-line prefixes ("Party &gt; ", etc. - "Party &gt; " already confirmed real elsewhere in
- * this codebase, the others are the same well-established Hypixel convention) and routed the same
- * way {@code CringeFeature}/{@code LeapMessageFeature} already route to a specific channel; a
- * whisper ("From &lt;name&gt;: ...") replies directly to that name via {@code /w}; anything else
- * (plain public chat) replies on whatever the current default outgoing channel is.
+ * Auto-replies with a random cat noise whenever another player's chat message contains "meow", "purr", "nya", "mew"
+ * (or a stretched-out version like "meowww"/"purrrrr"), and replies in the SAME channel the message came from
+ * (killer560, 2026-10-12): party -> {@code /pc}, guild -> {@code /gc}, officer -> {@code /oc}, co-op -> {@code /cc},
+ * a private message -> {@code /msg <sender>}, all chat -> {@code /ac}, and the mod's own Mod Chat -> Mod Chat (the relay,
+ * never Hypixel; see {@link #onModChat}). {@code /msg} rather than {@code /r}: {@code /r}
+ * answers whoever messaged LAST, which is a different player if a second message lands before the reply goes.
  * <p>
- * Your OWN lines never trigger it ({@link #isOwnMessage}, 2026-09-21): Hypixel's party/guild chat carries no
- * structured sender, so the sender is read from the line's text. A short cooldown after each reply also stops the
- * bot's own generated reply (which itself contains a trigger word like "purr") from re-triggering it.
+ * The channel is read from the whole line, never from a prefix search: every pattern below is anchored on Hypixel's
+ * real line shape (the same shapes as {@code partycommands.CommandChatListener}; "Officer > " as in
+ * {@code SupportersChatRewriter}) with a {@code [A-Za-z0-9_]{1,16}} name group, checked with {@code matches()}. So a
+ * "Party > Mate: meow" typed in all chat arrives as "[VIP] Bob: Party > Mate: meow", which is ALL_LINE with Bob as the
+ * sender, and is answered in {@code /ac}. A line that is none of these (an NPC, a server message, your own outgoing
+ * "To Name: ..." echo) gets no reply at all.
+ * <p>
+ * Your OWN lines never trigger it (the sender group is your name, 2026-09-21), which also means a reply that comes back
+ * to you in that channel ("Party > [MVP+] You: purr~") cannot answer itself; the 3 s cooldown after each reply stays
+ * as the second guard. Only the message body is searched for the trigger, so a player NAMED "Meow" saying "hi" does
+ * not trigger it.
  */
 public final class AutoMeowFeature {
 
     private static final Pattern TRIGGER = Pattern.compile("(?i)\\b(?:meow+|purr+|nya+|mew+)\\b");
-    private static final Pattern PARTY_PREFIX = Pattern.compile("^Party > ");
-    private static final Pattern GUILD_PREFIX = Pattern.compile("^Guild > ");
-    private static final Pattern OFFICER_PREFIX = Pattern.compile("^Officer > ");
-    private static final Pattern COOP_PREFIX = Pattern.compile("^Co-op > ");
+
+    private static final String NAME = "([A-Za-z0-9_]{1,16})";
+    private static final String RANK = "(?:\\[[^]]{1,20}] )?";
+    /** Hypixel caps a chat message at 256 characters; nothing longer is a player's line. */
+    private static final String BODY = ": ?(.{1,256})$";
+
+    static final Pattern PARTY_LINE = Pattern.compile("^Party > " + RANK + NAME + "(?: [ቾ⚒])?" + BODY);
+    static final Pattern GUILD_LINE = Pattern.compile("^Guild > " + RANK + NAME + "(?: \\[[^]]{1,20}])?" + BODY);
+    static final Pattern OFFICER_LINE = Pattern.compile("^Officer > " + RANK + NAME + "(?: \\[[^]]{1,20}])?" + BODY);
+    static final Pattern COOP_LINE = Pattern.compile("^Co-op > " + RANK + NAME + "(?: [ቾ⚒])?" + BODY);
     /** "From Bob: meow" or, for a ranked sender, "From [MVP+] Bob: meow". */
-    private static final Pattern WHISPER_PREFIX =
-            Pattern.compile("^From (?:\\[[A-Za-z0-9+]{1,12}\\] )?([A-Za-z0-9_]{1,16}): ");
+    static final Pattern WHISPER_LINE = Pattern.compile("^From " + RANK + NAME + BODY);
+    /**
+     * All chat: "[302] (emblem) [MVP+] Name: text" on SkyBlock, "[MVP+] Name: text" or "Name: text" elsewhere - the
+     * same shape as {@code CommandChatListener.ALL_REGEX}. The emblem is non-ASCII, so "To Name: ..." is not all chat,
+     * and the rank is a real Hypixel rank, so "[NPC] Elle: ..." is not a player.
+     */
+    static final Pattern ALL_LINE = Pattern.compile("^(?:\\[\\d{1,4}] )?(?:[^\\x00-\\x7F]{1,2} )?"
+            + "(?:\\[(?:VIP|VIP\\+|MVP|MVP\\+|MVP\\+\\+|YOUTUBE|ADMIN|GM|MOD|HELPER|OWNER|MOJANG|EVENTS|PIG\\+\\+\\+|INNIT)] )?"
+            + NAME + ": (.{1,256})$");
+
     private static final long COOLDOWN_MS = 3000;
     /** Real Minecraft cat sound effects (the "baby" variants are the simple pre-registered constants
      *  this MC version still exposes directly - adult cat sounds are now behind a datapack-driven
@@ -46,6 +66,10 @@ public final class AutoMeowFeature {
             SoundEvents.CAT_AMBIENT_BABY, SoundEvents.CAT_PURR_BABY, SoundEvents.CAT_PURREOW_BABY);
 
     private static volatile long lastReplyAtMs = 0;
+
+    /** Where a line came from: its channel command word (without the slash), sender and message body. */
+    record Source(String commandWord, String sender, String body) {
+    }
 
     public static void register() {
         ClientReceiveMessageEvents.CHAT.register(
@@ -58,7 +82,7 @@ public final class AutoMeowFeature {
     }
 
     /** Raw packet-path listeners: a throw here disconnects from Hypixel, so none may escape. The channel
-     *  prefixes below are matched on the formatting-stripped, trimmed line. */
+     *  patterns are matched on the formatting-stripped, trimmed line. */
     private static void safeOnMessage(String raw) {
         try {
             String text = net.minecraft.ChatFormatting.stripFormatting(raw);
@@ -71,24 +95,47 @@ public final class AutoMeowFeature {
     }
 
     private static void onMessage(String text) {
-        if (!AutoMeowConfig.getInstance().isEnabled()) {
+        if (!AutoMeowConfig.getInstance().isEnabled() || text.length() > 512) {
             return;
         }
+        reply(classify(text));
+    }
+
+    /**
+     * A Mod Chat line from the relay ({@code ModChatFeature}'s listener, on the client thread). Mod Chat lines never
+     * arrive as Hypixel chat: the relay hands over the sender, stamped from a Mojang-verified login, separately from
+     * the text, so there is no line to parse and nothing in the text can pose as another sender. The reply goes back
+     * into Mod Chat ({@code "kc"}, which {@code TranslateFeature} sends to the relay and never to Hypixel). The relay
+     * echoes your own lines, so your reply comes back here as yours and is ignored. Never throws.
+     */
+    public static void onModChat(String from, String message) {
+        try {
+            if (from == null || message == null || message.length() > 512 || !from.matches("[A-Za-z0-9_]{1,16}")
+                    || !AutoMeowConfig.getInstance().isEnabled()) {
+                return;
+            }
+            reply(new Source("kc", from, message));
+        } catch (RuntimeException e) {
+            com.killer560.hub.util.ModLog.get("killer560smod-automeow").error("[AutoMeow] Failed to handle a Mod Chat line", e);
+        }
+    }
+
+    private static void reply(Source source) {
         long now = System.currentTimeMillis();
         if (now - lastReplyAtMs < COOLDOWN_MS) {
             return;
         }
-        if (!TRIGGER.matcher(text).find()) {
+        if (source == null || !TRIGGER.matcher(source.body()).find()) {
             return;
         }
-        if (isOwnMessage(text)) {
+        if (source.sender().equalsIgnoreCase(selfName())) {
             // killer560 (2026-09-21): "Make it so auto meow does not toggle off of a message that I send."
             return;
         }
 
         lastReplyAtMs = now;
         String response = AutoMeowLines.ALL.get(ThreadLocalRandom.current().nextInt(AutoMeowLines.ALL.size()));
-        TranslateFeature.sendGenerated(response, resolveChannel(text));
+        TranslateFeature.sendGenerated(response, source.commandWord());
 
         AutoMeowConfig cfg = AutoMeowConfig.getInstance();
         if (cfg.isPlayCatNoises()) {
@@ -101,58 +148,36 @@ public final class AutoMeowFeature {
         }
     }
 
-    /**
-     * Whether a chat line is one YOU sent: an outgoing whisper ("To Name: ..."), or a line whose sender - the last
-     * word before the first ": ", once rank / level / guild-rank brackets and a channel prefix are dropped
-     * ("Party > [MVP+] Killer560: meow", "[312] [MVP+] Killer560: meow", "Guild > Killer560 [Member]: meow") - is
-     * your own name. Case-insensitive, colour codes stripped.
-     */
-    static boolean isOwnMessage(String raw) {
+    private static String selfName() {
         Minecraft client = Minecraft.getInstance();
         String self = client.player != null ? client.player.getGameProfile().name() : client.getUser().getName();
-        if (self == null || self.isEmpty()) {
-            return false;
-        }
-        String text = net.minecraft.ChatFormatting.stripFormatting(raw);
-        if (text == null) {
-            return false;
-        }
-        text = text.trim();
-        if (text.startsWith("To ")) {
-            return true;
-        }
-        int colon = text.indexOf(": ");
-        if (colon <= 0) {
-            return false;
-        }
-        String head = text.substring(0, colon).replaceAll("\\[[^\\]]*\\]", " ");
-        int arrow = head.lastIndexOf('>');
-        if (arrow >= 0) {
-            head = head.substring(arrow + 1);
-        }
-        String[] words = head.trim().split("\\s+");
-        String name = words.length == 0 ? "" : words[words.length - 1].replaceAll("[^A-Za-z0-9_]", "");
-        return name.equalsIgnoreCase(self);
+        return self == null ? "" : self;
     }
 
-    /** @return the commandWord to route the reply through (e.g. "pc", "w PlayerName"), or null for
-     *  whatever the current default outgoing channel is. */
-    private static String resolveChannel(String text) {
-        if (PARTY_PREFIX.matcher(text).find()) {
-            return "pc";
+    /**
+     * The channel a formatting-stripped chat line came from, or null when it is not a player's chat line. Party,
+     * guild, officer, co-op and private lines are tried before all chat; each is a whole-line {@code matches()}, so
+     * one channel's text quoted inside another's is read as the OUTER channel.
+     */
+    static Source classify(String text) {
+        Matcher m;
+        if ((m = PARTY_LINE.matcher(text)).matches()) {
+            return new Source("pc", m.group(1), m.group(2));
         }
-        if (GUILD_PREFIX.matcher(text).find()) {
-            return "gc";
+        if ((m = GUILD_LINE.matcher(text)).matches()) {
+            return new Source("gc", m.group(1), m.group(2));
         }
-        if (OFFICER_PREFIX.matcher(text).find()) {
-            return "oc";
+        if ((m = OFFICER_LINE.matcher(text)).matches()) {
+            return new Source("oc", m.group(1), m.group(2));
         }
-        if (COOP_PREFIX.matcher(text).find()) {
-            return "cc";
+        if ((m = COOP_LINE.matcher(text)).matches()) {
+            return new Source("cc", m.group(1), m.group(2));
         }
-        Matcher whisper = WHISPER_PREFIX.matcher(text);
-        if (whisper.find()) {
-            return "w " + whisper.group(1);
+        if ((m = WHISPER_LINE.matcher(text)).matches()) {
+            return new Source("msg " + m.group(1), m.group(1), m.group(2));
+        }
+        if ((m = ALL_LINE.matcher(text)).matches()) {
+            return new Source("ac", m.group(1), m.group(2));
         }
         return null;
     }
