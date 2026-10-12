@@ -84,8 +84,9 @@ public final class CroesusConfig {
     /** killer560, 2026-10-12: "if i need to go back and use a chest key it should also have a different highlight" -
      *  a claimed run whose second chest is worth a key (Auto Croesus's key rules); never hidden. Gold. */
     public static final int DEFAULT_RUN_KEY_COLOR = 0xFFD000;
-    /** "If no chest key then it should be different": claimed, no key used, nothing left worth a key. Slate. */
-    public static final int DEFAULT_RUN_OPENED_COLOR = 0x3A4A66;
+    /** "If no chest key then it should be different": claimed, no key used, nothing left worth a key. A clear blue, so
+     *  it reads apart from the dark key-used tint at a glance. */
+    public static final int DEFAULT_RUN_OPENED_COLOR = 0x2F6FD0;
     private int runKeyColor = DEFAULT_RUN_KEY_COLOR;
     private int runOpenedColor = DEFAULT_RUN_OPENED_COLOR;
     private int runUnclaimedColor = DEFAULT_RUN_UNCLAIMED_COLOR;
