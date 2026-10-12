@@ -67,6 +67,9 @@ public final class LeapMenuConfig {
      *  Deliberately left as plain names, not UUIDs: it's a pure ordering hint matched against
      *  {@code PartyTracker}'s live (name-only) tab-list listing, not an identity a feature is set to remember. */
     private final List<String> lastLeapOrder = new ArrayList<>();
+    /** The teammates of the last dungeon run that started, in leap-menu order ({@link LeapRunMemory}); persisted so the
+     *  next run is compared with it across a restart. Empty until a run has started. */
+    private final List<String> lastRunParty = new ArrayList<>();
 
     private LeapMenuConfig() {
     }
@@ -109,6 +112,13 @@ public final class LeapMenuConfig {
                                 }
                             }
                         } catch (RuntimeException ignored) {
+                        }
+                    }
+                }
+                if (root.has("lastRunParty") && root.get("lastRunParty").isJsonArray()) {
+                    for (var el : root.getAsJsonArray("lastRunParty")) {
+                        if (el.isJsonPrimitive() && !el.getAsString().isBlank()) {
+                            cfg.lastRunParty.add(el.getAsString());
                         }
                     }
                 }
@@ -215,6 +225,9 @@ public final class LeapMenuConfig {
             JsonArray leapOrder = new JsonArray();
             lastLeapOrder.forEach(leapOrder::add);
             root.add("lastLeapOrder", leapOrder);
+            JsonArray runParty = new JsonArray();
+            lastRunParty.forEach(runParty::add);
+            root.add("lastRunParty", runParty);
             if (lastEditedClass != null) {
                 root.addProperty("lastEditedClass", lastEditedClass);
             }
@@ -333,6 +346,68 @@ public final class LeapMenuConfig {
 
     private static SlotRef toSlotRef(String name) {
         return name == null || name.isEmpty() ? null : new SlotRef(name, PlayerNames.uuidFor(name));
+    }
+
+    /** @return the last started run's teammates, in leap-menu order (never null; empty before the first run). */
+    public List<String> getLastRunParty() {
+        return new ArrayList<>(lastRunParty);
+    }
+
+    public void setLastRunParty(List<String> party) {
+        lastRunParty.clear();
+        if (party != null) {
+            lastRunParty.addAll(party);
+        }
+    }
+
+    /** Removes {@code name}'s pin from every class's layout. @return true when one was removed. */
+    public boolean unpinEverywhere(String name) {
+        boolean changed = false;
+        for (String key : new ArrayList<>(classOrders.keySet())) {
+            DungeonClass cls = DungeonClass.byName(key);
+            if (cls != null && unpin(cls, name)) {
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    /** Every name pinned in any class's layout (as shown, lower case not applied). */
+    public List<String> allPinnedNames() {
+        List<String> out = new ArrayList<>();
+        for (String key : classOrders.keySet()) {
+            DungeonClass cls = DungeonClass.byName(key);
+            if (cls == null) {
+                continue;
+            }
+            for (String n : getClassOrder(cls)) {
+                if (!n.isEmpty() && out.stream().noneMatch(n::equalsIgnoreCase)) {
+                    out.add(n);
+                }
+            }
+        }
+        return out;
+    }
+
+    /** Pins {@code name} into {@code spot} of this class's layout (replacing whoever was pinned there, and any other pin
+     *  of the same name). */
+    public void pinAt(DungeonClass playing, String name, int spot) {
+        if (playing == null || name == null || spot < 0 || spot > 3) {
+            return;
+        }
+        List<String> slots = getClassOrder(playing);
+        for (int i = 0; i < slots.size(); i++) {
+            if (slots.get(i).equalsIgnoreCase(name)) {
+                slots.set(i, "");
+            }
+        }
+        slots.set(spot, name);
+        setClassOrder(playing, slots);
+    }
+
+    /** Drops every pin of every class's layout (the Default Order applies again everywhere). */
+    public void clearAllPins() {
+        classOrders.clear();
     }
 
     public void clearClassOrder(DungeonClass playing) {

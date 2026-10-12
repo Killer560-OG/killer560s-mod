@@ -333,6 +333,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.util.SkyblockGate.register();
         com.killer560.hub.spiritleap.SpiritLeapOverlayFeature.register();
         com.killer560.hub.leapmenu.PartyTracker.register();
+        com.killer560.hub.leapmenu.LeapRunMemory.register();
         com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.register();
         com.killer560.hub.smoothtp.SmoothTeleport.register();
         com.killer560.hub.slotbinds.SlotBindsFeature.register();
