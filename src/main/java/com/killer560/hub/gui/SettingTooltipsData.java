@@ -1422,8 +1422,7 @@ final class SettingTooltipsData {
         d.put("arrow align", "Shows how many clicks each Arrow Align frame still needs and can block clicks that overshoot.");
         d.put("arrow align/scale", "Size of the click-count number on each Arrow Align frame.");
         d.put("arrow align/aura", "Cheat build only. Clicks Arrow Align frames in range without you looking at them.");
-        d.put("arrow align/min delay", "Cheat build only. Shortest random wait between Aura's frame clicks, in milliseconds.");
-        d.put("arrow align/max delay", "Cheat build only. Longest random wait between Aura's frame clicks, in milliseconds.");
+        d.put("arrow align/aura cps", "Cheat build only. Aura clicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set.");
         d.put("auto puzzles", "Cheat build only. Solves dungeon puzzle rooms for you; each puzzle's solver must also be on.");
         d.put("blessings", "Shows your five dungeon blessing levels on a HUD and can announce each level up.");
         d.put("blessings hud", "Draws one line per blessing you have picked up while inside a dungeon.");

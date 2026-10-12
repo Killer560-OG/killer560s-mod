@@ -439,12 +439,12 @@ public final class ArrowAlignFeature {
             return; // gate held this tick back - the rolled delay must not be re-rolled for a click never sent
         }
         lastAuraIndex = target;
-        int min = cfg.getAuraMinDelayMs();
-        int max = Math.max(min, cfg.getAuraMaxDelayMs());
-        // From the due tick, not this one, so the rolled delay is kept on average (59-67 ms: gaps of 1 and 2 ticks);
-        // a click the gate held back carries at most a tick of backlog.
-        int rolledMs = max > min ? ThreadLocalRandom.current().nextInt(min, max + 1) : min;
-        nextAuraClickDueTick = Math.max(nextAuraClickDueTick, tick - 1) + rolledMs / 50.0;
+        // Aura CPS: each gap is 1000 / CPS ms with +-10% jitter so no two gaps are alike (never a metronome), and is
+        // scheduled from the due tick, not this one, so the average is the CPS set even where the gap is a fraction of a
+        // tick (16 CPS = 1.25 ticks: gaps of 1 and 2). One click a tick at most, so 20 is the ceiling. A click the gate
+        // held back carries at most a tick of backlog.
+        double gapMs = 1000.0 / cfg.getAuraCps() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
+        nextAuraClickDueTick = Math.max(nextAuraClickDueTick, tick - 1) + gapMs / 50.0;
     }
 
     /**

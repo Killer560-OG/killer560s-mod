@@ -145,47 +145,20 @@ public class ArrowAlignTab extends BaseTab {
         }
 
         if (cfg.getAuraRaw()) {
-            int maxAura = ArrowAlignConfig.MAX_AURA_DELAY_MS;
-            // Min/Max push each other (see the config setters), so a rebuild keeps both slider handles honest.
-            widgets.add(new ThemedSliderButton(col2aX, y, col2W, 18,
-                    Component.literal("Min Delay: " + cfg.getAuraMinDelayMs() + "ms"),
-                    cfg.getAuraMinDelayMs() / (double) maxAura) {
+            int minCps = ArrowAlignConfig.MIN_AURA_CPS;
+            int maxCps = ArrowAlignConfig.MAX_AURA_CPS;
+            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
+                    Component.literal("Aura CPS: " + cfg.getAuraCps()),
+                    (cfg.getAuraCps() - minCps) / (double) (maxCps - minCps)) {
                 @Override
                 protected void updateMessage() {
-                    setMessage(Component.literal("Min Delay: " + cfg.getAuraMinDelayMs() + "ms"));
+                    setMessage(Component.literal("Aura CPS: " + cfg.getAuraCps()));
                 }
 
                 @Override
                 protected void applyValue() {
-                    cfg.setAuraMinDelayMs((int) Math.round(this.value * maxAura));
+                    cfg.setAuraCps((int) Math.round(minCps + this.value * (maxCps - minCps)));
                     cfg.save();
-                }
-
-                @Override
-                public void onRelease(net.minecraft.client.input.MouseButtonEvent event) {
-                    super.onRelease(event);
-                    requestRebuild.run();
-                }
-            });
-
-            widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18,
-                    Component.literal("Max Delay: " + cfg.getAuraMaxDelayMs() + "ms"),
-                    cfg.getAuraMaxDelayMs() / (double) maxAura) {
-                @Override
-                protected void updateMessage() {
-                    setMessage(Component.literal("Max Delay: " + cfg.getAuraMaxDelayMs() + "ms"));
-                }
-
-                @Override
-                protected void applyValue() {
-                    cfg.setAuraMaxDelayMs((int) Math.round(this.value * maxAura));
-                    cfg.save();
-                }
-
-                @Override
-                public void onRelease(net.minecraft.client.input.MouseButtonEvent event) {
-                    super.onRelease(event);
-                    requestRebuild.run();
                 }
             });
             y += 22;

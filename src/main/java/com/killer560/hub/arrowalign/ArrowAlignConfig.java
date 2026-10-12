@@ -20,7 +20,9 @@ public final class ArrowAlignConfig {
     public static final float MIN_NUMBER_SCALE = 0.5f;
     public static final float MAX_NUMBER_SCALE = 3.0f;
     public static final int MAX_TRIGGER_BOT_DELAY_MS = 500;
-    public static final int MAX_AURA_DELAY_MS = 1000;
+    /** Aura CPS slider ends (killer560, 2026-10-12: "For aura I should be able to set cps instead of delay. From 1 to 20"). */
+    public static final int MIN_AURA_CPS = 1;
+    public static final int MAX_AURA_CPS = 20;
     public static final double MIN_AURA_RANGE = 2.0;
     // Capped at the measured entity limit, same reason as Terminal Aura. An item frame is an entity, so it
     // gets 3.0 rather than a block's 4.5. See CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH.
@@ -38,10 +40,8 @@ public final class ArrowAlignConfig {
     // the MAX ms. Rounded to the nearest whole millisecond (1000/15 = 66.67 -> 67, 1000/17 = 58.82 -> 59).
     /** 15 cps. */
     public static final int DEFAULT_TRIGGER_BOT_DELAY_MS = 67;
-    /** 17 cps - the fast end of the band, hence the smaller delay. */
-    public static final int DEFAULT_AURA_MIN_DELAY_MS = 59;
-    /** 15 cps - the slow end of the band, hence the larger delay. */
-    public static final int DEFAULT_AURA_MAX_DELAY_MS = 67;
+    /** 16 cps: the middle of the old 15-17 cps (59-67 ms) delay band it replaces. */
+    public static final int DEFAULT_AURA_CPS = 16;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
@@ -64,8 +64,7 @@ public final class ArrowAlignConfig {
     private boolean triggerBotEnabled = false;
     private int triggerBotDelayMs = DEFAULT_TRIGGER_BOT_DELAY_MS;
     private boolean auraEnabled = false;
-    private int auraMinDelayMs = DEFAULT_AURA_MIN_DELAY_MS;
-    private int auraMaxDelayMs = DEFAULT_AURA_MAX_DELAY_MS;
+    private int auraCps = DEFAULT_AURA_CPS;
     private double auraRange = MAX_AURA_RANGE;
 
     private ArrowAlignConfig() {
@@ -99,8 +98,14 @@ public final class ArrowAlignConfig {
             // defaults landed keeps the exact delays killer560 already had - only a MISSING key gets the new value.
             cfg.setTriggerBotDelayMs(ConfigJson.getInt(obj, "triggerBotDelayMs", DEFAULT_TRIGGER_BOT_DELAY_MS));
             cfg.auraEnabled = ConfigJson.getBool(obj, "auraEnabled", false);
-            cfg.setAuraMinDelayMs(ConfigJson.getInt(obj, "auraMinDelayMs", DEFAULT_AURA_MIN_DELAY_MS));
-            cfg.setAuraMaxDelayMs(ConfigJson.getInt(obj, "auraMaxDelayMs", DEFAULT_AURA_MAX_DELAY_MS));
+            if (obj.has("auraCps")) {
+                cfg.setAuraCps(ConfigJson.getInt(obj, "auraCps", DEFAULT_AURA_CPS));
+            } else if (obj.has("auraMinDelayMs") || obj.has("auraMaxDelayMs")) {
+                // A config from before the CPS slider: the old random delay band's middle, as clicks per second.
+                int min = ConfigJson.getInt(obj, "auraMinDelayMs", 59);
+                int max = Math.max(min, ConfigJson.getInt(obj, "auraMaxDelayMs", 67));
+                cfg.setAuraCps(cpsFromDelayMs((min + max) / 2.0));
+            }
             cfg.setAuraRange(ConfigJson.getDouble(obj, "auraRange", 5.0));
             instance = cfg;
         } catch (Exception e) {
@@ -122,8 +127,7 @@ public final class ArrowAlignConfig {
             obj.addProperty("triggerBotEnabled", triggerBotEnabled);
             obj.addProperty("triggerBotDelayMs", triggerBotDelayMs);
             obj.addProperty("auraEnabled", auraEnabled);
-            obj.addProperty("auraMinDelayMs", auraMinDelayMs);
-            obj.addProperty("auraMaxDelayMs", auraMaxDelayMs);
+            obj.addProperty("auraCps", auraCps);
             obj.addProperty("auraRange", auraRange);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -243,28 +247,21 @@ public final class ArrowAlignConfig {
         this.auraEnabled = auraEnabled;
     }
 
-    public int getAuraMinDelayMs() {
-        return auraMinDelayMs;
+    /** Aura clicks per second, 1-20 (20 is one a tick, the most the mod-wide gate allows anyway). */
+    public int getAuraCps() {
+        return auraCps;
     }
 
-    /** Pushes Max up if Min passes it, so min <= max always holds. */
-    public void setAuraMinDelayMs(int ms) {
-        this.auraMinDelayMs = Math.max(0, Math.min(MAX_AURA_DELAY_MS, ms));
-        if (auraMaxDelayMs < auraMinDelayMs) {
-            auraMaxDelayMs = auraMinDelayMs;
+    public void setAuraCps(int cps) {
+        this.auraCps = Math.max(MIN_AURA_CPS, Math.min(MAX_AURA_CPS, cps));
+    }
+
+    /** The old delay setting as CPS: round(1000 / delay), clamped to 1-20 (a 0 ms delay is 20). */
+    static int cpsFromDelayMs(double delayMs) {
+        if (delayMs <= 0) {
+            return MAX_AURA_CPS;
         }
-    }
-
-    public int getAuraMaxDelayMs() {
-        return auraMaxDelayMs;
-    }
-
-    /** Pulls Min down if Max drops below it, so min <= max always holds. */
-    public void setAuraMaxDelayMs(int ms) {
-        this.auraMaxDelayMs = Math.max(0, Math.min(MAX_AURA_DELAY_MS, ms));
-        if (auraMinDelayMs > auraMaxDelayMs) {
-            auraMinDelayMs = auraMaxDelayMs;
-        }
+        return (int) Math.max(MIN_AURA_CPS, Math.min(MAX_AURA_CPS, Math.round(1000.0 / delayMs)));
     }
 
     public double getAuraRange() {
