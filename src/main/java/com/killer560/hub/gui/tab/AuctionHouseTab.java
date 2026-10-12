@@ -75,19 +75,15 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
-        // The unified Auction House (2026-10-07): Hypixel's real AH menus drawn in the browser's look.
+        // The unified Auction House (2026-10-07): Hypixel's real AH menus drawn in the browser's look - part of the
+        // Auction House Browser switch above since 2026-10-11, so only its Hypixel Menu key is left here.
         AuctionHouseConfig ah = AuctionHouseConfig.getInstance();
-        widgets.add(SettingsButtonWidget.builder(onOff("Reskin Real Auction House", ah.isReskinRealAhRaw()), btn -> {
-                    ah.setReskinRealAh(!ah.isReskinRealAhRaw());
-                    ah.save();
-                    btn.setMessage(onOff("Reskin Real Auction House", ah.isReskinRealAhRaw()));
-                }).bounds(contentX, y, colW, 18).build());
         Component vanillaLabel = capturingVanillaKey ? Component.literal("Press any key...") : vanillaKeyText(ah);
         widgets.add(SettingsButtonWidget.builder(vanillaLabel, btn -> {
                     capturingVanillaKey = true;
                     capturingKey = false;
                     btn.setMessage(Component.literal("Press any key..."));
-                }).bounds(colBX, y, colW, 18).build());
+                }).bounds(contentX, y, colW, 18).build());
         y += 22;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Recent Searches & Items", ah.isTrackRecents()), btn -> {

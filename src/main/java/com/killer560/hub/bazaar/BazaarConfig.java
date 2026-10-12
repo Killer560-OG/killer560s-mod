@@ -12,7 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * The unified Bazaar screen's own settings (the older Bazaar settings - browser on/off, Reskin Real Bazaar, the keys,
+ * The unified Bazaar screen's own settings (the older Bazaar settings - browser and reskin on/off (one switch), the keys,
  * order tracking, sort - stay in {@code auction.AuctionConfig}, which this package reads and writes through its
  * setters).
  * <ul>

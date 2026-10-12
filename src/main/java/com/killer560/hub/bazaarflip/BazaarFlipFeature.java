@@ -66,8 +66,9 @@ import com.killer560.hub.compat.McCompat;
  * Buy only one! that fits the scan's profitable size, the inventory, the NPC price and the purse. Each buy is
  * confirmed by the items arriving (or "[Bazaar] You cannot afford this!"); then the Bazaar is closed, {@code
  * /trades} opened, and every unit shift-clicked to the NPC, each confirmed by the stack leaving. Then it scans
- * again. The Bazaar reskin steps aside while this runs ({@code BazaarReskin.hiding}), so the clicks go to the
- * same menu with the reskin on or off. Start refuses without a Booster Cookie: both the remote {@code /bz} and
+ * again. The Bazaar reskin keeps drawing while this runs (killer560, 2026-10-11) and shows each page it reaches;
+ * the reads and clicks here go to the real menu underneath, never through the reskin, so they are the same either
+ * way. A key or press on the reskin stops this ({@code BazaarReskin}). Start refuses without a Booster Cookie: both the remote {@code /bz} and
  * selling from {@code /trades} need one.
  *
  * <h2>Safety rules this obeys</h2>

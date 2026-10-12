@@ -693,10 +693,12 @@ public final class BazaarView {
             }
             bx += bw + gap;
         }
-        String hint = cp != null ? vanillaHint() : "";
+        // While the cheat build's Bazaar flipper drives the real menu under this view, say so where the hint goes.
+        boolean flipping = com.killer560.hub.bazaarflip.BazaarFlipFeature.isRunning();
+        String hint = flipping ? "Bazaar Flipper running - any key stops it" : cp != null ? vanillaHint() : "";
         int hw = font.width(hint);
         if (!hint.isEmpty() && x + w - hw > bx + 6) {
-            text("bottom", hint, x + w - hw, y + 6, t.faint());
+            text("bottom", hint, x + w - hw, y + 6, flipping ? t.accent() : t.faint());
         }
     }
 

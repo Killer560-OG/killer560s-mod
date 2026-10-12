@@ -2057,16 +2057,14 @@ final class SettingTooltipsData {
         d.put("pet wheel/hide name", "Hides each pet's name under it on the wheel.");
         d.put("pet wheel/hide pets menu", "Keeps the /pets menu invisible while the wheel summons a pet; it still opens and closes behind the scenes.");
         d.put("pet wheel/edit pets", "Opens the wheel to edit it: right-click a slot to pick a pet, or drag slices to swap them.");
-        d.put("auction house/auction house browser", "Turns on the custom Auction House browser, opened with /killer560 ah or a keybind.");
+        d.put("auction house/auction house browser", "One switch for the whole Auction House: the custom browser (/killer560 ah or a keybind) and Hypixel's real Auction House menus drawn in its look, where every click is the same single click on Hypixel's menu.");
         d.put("auction house/open key", "Optional keybind that opens the Auction House browser, same as /killer560 ah.");
         d.put("auction house/ah override", "Makes /ah open this browser instead of Hypixel's menu; /hypixelah still opens Hypixel's.");
         d.put("auction house/listing helper", "In Hypixel's Create BIN Auction menu, shows the lowest similar BIN and an estimated value.");
-        d.put("auction house/reskin real auction house", "Draws Hypixel's real Auction House menus in this browser's look; every click is the same single click on Hypixel's menu.");
         d.put("auction house/hypixel menu key", "Hold this key to see Hypixel's own Auction House menu instead of the reskin (Escape clears it).");
         d.put("auction house/recent searches & items", "Keeps your recent searches and viewed auctions on the left of the Auction House.");
         d.put("auction house/clear recents", "Forgets the recent searches and viewed auctions.");
-        d.put("bazaar/bazaar browser", "Turns on the custom Bazaar browser, opened with /killer560bz or a keybind. Like Hypixel's remote Bazaar, it only opens while your Booster Cookie is active.");
-        d.put("bazaar/reskin real bazaar", "Opens Hypixel's real Bazaar (the NPC, or /bz) as the Bazaar screen: categories as tabs, search, your recent products, and Hypixel's own product, order and Manage Orders pages. Every click on one of Hypixel's buttons is the same click on the same slot; pages it does not know stay Hypixel's own.");
+        d.put("bazaar/bazaar browser", "One switch for the whole Bazaar: the custom Bazaar browser (/killer560bz or a keybind; like Hypixel's remote Bazaar, only while your Booster Cookie is active), and Hypixel's real Bazaar (the NPC, or /bz) opened as the same screen - every click on one of Hypixel's buttons is the same click on the same slot, and pages it does not know stay Hypixel's own.");
         d.put("bazaar/hypixel menu key", "Hold this key while a Bazaar menu is open to see and use Hypixel's own menu instead.");
         d.put("bazaar/open key", "Optional keybind that opens the Bazaar screen, same as /killer560bz (needs an active Booster Cookie).");
         d.put("bazaar/track my orders", "Reads your buy orders and sell offers whenever you open Hypixel's Manage Orders, so each order shows whether it is still the top one. Read only: nothing is clicked.");

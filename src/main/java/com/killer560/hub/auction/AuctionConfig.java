@@ -102,6 +102,10 @@ public final class AuctionConfig {
     private static AuctionConfig instance;
 
     // killer560, 2026-09-27: "Turn auction house and bazaar settings on by default."
+    // killer560, 2026-10-11: "for the bazaar and ah overlay make it so the toggle to the mod is also the toggle to the
+    // reskin not a separate toggle." Each is ONE switch: the API browser AND Hypixel's real menus drawn in its look.
+    // The old reskinRealBazaar (this file) and reskinRealAh (killer560smod-auction-house.json) are read once by
+    // load() - on if either was on - and never written again.
     private boolean ahEnabled = true;
     private boolean bazaarEnabled = true;
     private boolean listingHelperEnabled = false;
@@ -110,9 +114,7 @@ public final class AuctionConfig {
     private boolean overrideAhCommand = false;
     /** The /bz override is gone (2026-10-07): killer560, "The custom bazaar menu should essentially fully replace the
      *  bazaar ... So the command /killer560bz should only work with a booster cookie." /bz is always Hypixel's own
-     *  command now, and Hypixel's real Bazaar is drawn in this browser's look by {@link #reskinRealBazaar}. */
-    /** Draw Hypixel's real Bazaar menus in the browser's look ({@code bazaar/BazaarReskin}). */
-    private boolean reskinRealBazaar = true;
+     *  command now, and Hypixel's real Bazaar is drawn in this browser's look whenever {@link #bazaarEnabled} is on. */
     /** Held, shows Hypixel's own Bazaar menu instead of the reskin. Left Alt by default; -1 = none. */
     private int bazaarVanillaKeyCode = 342;
     private int openAhKeyCode = -1;
@@ -147,6 +149,7 @@ public final class AuctionConfig {
 
     public static synchronized void load() {
         AuctionConfig cfg = new AuctionConfig();
+        boolean migrated = false;
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
@@ -158,7 +161,11 @@ public final class AuctionConfig {
                 cfg.bazaarEnabled = ConfigJson.getBool(obj, "bazaarEnabled", true);
                 cfg.listingHelperEnabled = ConfigJson.getBool(obj, "listingHelperEnabled", false);
                 cfg.overrideAhCommand = ConfigJson.getBool(obj, "overrideAhCommand", false);
-                cfg.reskinRealBazaar = ConfigJson.getBool(obj, "reskinRealBazaar", true);
+                // One switch since 2026-10-11: a reskin that was on keeps the whole feature on.
+                if (obj.has("reskinRealBazaar")) {
+                    cfg.bazaarEnabled |= ConfigJson.getBool(obj, "reskinRealBazaar", false);
+                    migrated = true;
+                }
                 cfg.bazaarVanillaKeyCode = ConfigJson.getInt(obj, "bazaarVanillaKeyCode", 342);
                 cfg.openAhKeyCode = ConfigJson.getInt(obj, "openAhKeyCode", -1);
                 cfg.openBazaarKeyCode = ConfigJson.getInt(obj, "openBazaarKeyCode", -1);
@@ -174,7 +181,37 @@ public final class AuctionConfig {
                 // Keep defaults for this session on a malformed file - never throw out of a config load.
             }
         }
+        if (migrateAhReskin(cfg)) {
+            migrated = true;
+        }
         instance = cfg;
+        if (migrated) {
+            cfg.save(); // the old key is gone from disk, so a later "off" is not undone by the next load
+        }
+    }
+
+    /**
+     * Reskin Real Auction House lived in killer560smod-auction-house.json. If that file still has the key: an "on"
+     * turns the Auction House on, and the key is removed from that file (the rest of it untouched).
+     */
+    private static boolean migrateAhReskin(AuctionConfig cfg) {
+        Path ahPath = ModPaths.config("killer560smod-auction-house.json");
+        try {
+            if (!Files.exists(ahPath)) {
+                return false;
+            }
+            JsonObject ah = JsonParser.parseString(Files.readString(ahPath, StandardCharsets.UTF_8)).getAsJsonObject();
+            if (!ah.has("reskinRealAh")) {
+                return false;
+            }
+            cfg.ahEnabled |= ConfigJson.getBool(ah, "reskinRealAh", false);
+            ah.remove("reskinRealAh");
+            Files.writeString(ahPath, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(ah),
+                    StandardCharsets.UTF_8);
+            return true;
+        } catch (Exception ignored) {
+            return false; // never throw out of a config load
+        }
     }
 
     public synchronized void save() {
@@ -185,7 +222,6 @@ public final class AuctionConfig {
             obj.addProperty("bazaarEnabled", bazaarEnabled);
             obj.addProperty("listingHelperEnabled", listingHelperEnabled);
             obj.addProperty("overrideAhCommand", overrideAhCommand);
-            obj.addProperty("reskinRealBazaar", reskinRealBazaar);
             obj.addProperty("bazaarVanillaKeyCode", bazaarVanillaKeyCode);
             obj.addProperty("openAhKeyCode", openAhKeyCode);
             obj.addProperty("openBazaarKeyCode", openBazaarKeyCode);
@@ -246,19 +282,6 @@ public final class AuctionConfig {
 
     public synchronized void setOverrideAhCommand(boolean v) {
         overrideAhCommand = v;
-    }
-
-    /** Reskin Real Bazaar, honouring the Skyblock-Only gate. */
-    public synchronized boolean isReskinRealBazaar() {
-        return reskinRealBazaar && com.killer560.hub.util.SkyblockGate.allows();
-    }
-
-    public synchronized boolean isReskinRealBazaarRaw() {
-        return reskinRealBazaar;
-    }
-
-    public synchronized void setReskinRealBazaar(boolean v) {
-        reskinRealBazaar = v;
     }
 
     public synchronized int getBazaarVanillaKeyCode() {

@@ -41,23 +41,6 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        // The reskin works on Hypixel's real menu, so it stands apart from the browser's own switch.
-        widgets.add(SettingsButtonWidget.builder(onOff("Reskin Real Bazaar", cfg.isReskinRealBazaarRaw()), btn -> {
-                    cfg.setReskinRealBazaar(!cfg.isReskinRealBazaarRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, colW, 18).build());
-        if (cfg.isReskinRealBazaarRaw()) {
-            Component vanillaLabel = capturingKey && capturingVanillaKey ? Component.literal("Press any key...")
-                    : vanillaKeyText(cfg);
-            widgets.add(SettingsButtonWidget.builder(vanillaLabel, btn -> {
-                        capturingKey = true;
-                        capturingVanillaKey = true;
-                        btn.setMessage(Component.literal("Press any key..."));
-                    }).bounds(colBX, y, colW, 18).build());
-        }
-        y += 26;
-
         if (!cfg.isBazaarEnabledRaw()) {
             return widgets;
         }
@@ -76,6 +59,14 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SettingsButtonWidget.builder(Component.literal(BazaarApi.isRefreshing() ? "Refreshing..." : "Refresh Now"),
                         btn -> BazaarApi.refreshAsync())
                 .bounds(contentX, y, colW, 18).build());
+        // One switch (2026-10-11): the Bazaar Browser toggle above also turns Hypixel's Bazaar reskin on and off.
+        Component vanillaLabel = capturingKey && capturingVanillaKey ? Component.literal("Press any key...")
+                : vanillaKeyText(cfg);
+        widgets.add(SettingsButtonWidget.builder(vanillaLabel, btn -> {
+                    capturingKey = true;
+                    capturingVanillaKey = true;
+                    btn.setMessage(Component.literal("Press any key..."));
+                }).bounds(colBX, y, colW, 18).build());
         y += 22;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Track My Orders", cfg.isTrackBazaarOrders()), btn -> {
