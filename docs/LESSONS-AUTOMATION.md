@@ -143,3 +143,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   distance, so QUOI's 4.7 skull range is 3.8-4.2 to the box and was TIGHTER than our 4.5-to-the-box skull cap, though the
   number is bigger (2026-10-12). Compare in one measure. Skull Range now uses QUOI's centre measure (testkit 842: 4.8 not
   clicked, 4.6 clicked); the 20-tick world-change pause QUOI's AuraManager adds was already ActionGate's WORLD_SETTLE_TICKS (841).
+- **A CPS schedule must count a turned click from its TURN tick.** With "schedule from the previous due tick" alone, a click
+  that first needs `TurnFirst` goes out a tick after it was due and the next gap starts from there, so every turn tick was
+  added to the gap: Lever Aura measured 4.48 at 5 CPS and 7.89 at 10 (testkit 846, 2026-10-12). It now schedules from the
+  tick the turn took (5.17 / 10.00). On different blocks every click needs a turn, so 20 CPS tops out at 10.
