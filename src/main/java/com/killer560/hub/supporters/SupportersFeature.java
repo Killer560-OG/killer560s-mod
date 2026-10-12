@@ -162,6 +162,32 @@ public final class SupportersFeature {
         return null;
     }
 
+    /**
+     * Exact current IGN -> display text for every supporter whose name is shown right now (names on, not slur-blocked,
+     * not the local player's own overridden name, and no local Name Changer rename for that IGN - a rename is left to
+     * the Font-level replacer, which then wins as everywhere else). For {@link SupportersTabText}: Hypixel's tab rows
+     * are fake entries whose text carries the real player's name, so the UUID lookup never sees them.
+     */
+    static Map<String, String> shownByIgn() {
+        if (!cosmeticsActive()) {
+            return Map.of();
+        }
+        Map<String, String> out = new java.util.HashMap<>();
+        for (Map.Entry<UUID, Resolved> entry : byUuid.entrySet()) {
+            Resolved r = entry.getValue();
+            if (r.displayText() == null || isSelfOverridden(entry.getKey())) {
+                continue;
+            }
+            String ign = PlayerNames.nameFor(entry.getKey());
+            if (ign == null || ign.isEmpty()
+                    || com.killer560.hub.namechanger.NameChangerFeature.mappingDisplayFor(ign) != null) {
+                continue;
+            }
+            out.put(ign, r.displayText());
+        }
+        return out;
+    }
+
     /** Looks for a supporter whose CURRENT resolved ign (never their stored vanity name) case-insensitively
      *  equals {@code candidateIgn} - the chat rewriter's fallback for Hypixel's unstructured chat text. */
     static ChatMatch findChatSender(String candidateIgn) {

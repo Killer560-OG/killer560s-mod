@@ -220,3 +220,10 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   AP3, Terminal Protection and Auto Debuff had compensated with that ~1 ms all along; since 2026-10-11 they read
   `PingTracker.automationMs()` (median of the last 5 pongs, tab value until the first) and keep it requesting while on
   (testkit 791-796).
+- **Vanilla does not read Bungee's `§x§R§R§G§G§B§B` hex escape.** `StringDecomposer.iterateFormatted` skips `§x` and applies
+  each `§<hex digit>` as a LEGACY colour (javap, 26.1.2 and 26.2), so the Name Changer fade drew every letter in the
+  16-colour code of its blue channel's low nibble - "random blacks, whites and pinks" (killer560, 2026-10-11). Decode such
+  strings with `NameColor.iterateFormatted` (NameReplacer, NameSplice, `toComponent`, and a redirect in
+  `Font.prepareText(String)`); testkit 811-814 read the screenshot for a clean green-to-blue run in chat, tab, F5 tag, preview.
+- A nametag's height comes from `EntityRenderState.nameTagAttachment` (the entity's dimensions), not from the render-state
+  `scale`, so a render-only model scale leaves the tag at 1x height; `SupportersScaleMixin` scales it too (testkit 816).

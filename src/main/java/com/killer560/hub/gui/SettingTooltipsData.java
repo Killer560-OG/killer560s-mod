@@ -2081,6 +2081,7 @@ final class SettingTooltipsData {
         d.put("video browser/sign in to youtube", "Opens a normal browser window so you can sign in to your account by hand.");
         d.put("toggle global cosmetics", "Shows other supporters' custom names and scale; turn off to see everyone's real name.");
         d.put("player cosmetics/custom names", "Opens the Name Changer: your own display name, its colours, and renames for other players.");
+        d.put("player cosmetics/my name in f5", "Shows your own nametag (with your custom name) above you in F5, front and back views, never in first person.");
         d.put("player cosmetics/player size", "Opens the player size settings: your own size, everyone else's, and your model's shape.");
         d.put("player cosmetics/held item", "Opens Held Item Transform: the size, position and rotation of your first-person held item.");
         d.put("player cosmetics/my size", "Your own player model's size (0.05x-2x); shared with other supporters while Share if Supporter is on.");

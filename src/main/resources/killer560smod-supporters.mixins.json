@@ -8,7 +8,8 @@
 		"SupportersTabListMixin",
 		"SupportersScaleMixin",
 		"AvatarRenderStateMarkerMixin",
-		"CosmeticsModelShapeMixin"
+		"CosmeticsModelShapeMixin",
+		"OwnNameTagF5Mixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

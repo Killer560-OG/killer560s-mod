@@ -194,6 +194,18 @@ public final class NameChangerFeature {
         return NameColor.buildPerChar(display, from, cfg.isOwnColorFadeEnabled() ? to : from, cfg::getOwnCharColor);
     }
 
+    /** The Name Changer tab's preview: your display name exactly as {@link #ownStyled} paints it (colour, fade, letter
+     *  colours), or your real IGN when no display name is typed, as a styled Component. */
+    public static net.minecraft.network.chat.Component ownPreview() {
+        NameChangerConfig cfg = NameChangerConfig.getInstance();
+        if (cfg.getOwnDisplayName().isEmpty()) {
+            Minecraft mc = Minecraft.getInstance();
+            String own = mc == null || mc.getUser() == null ? "" : mc.getUser().getName();
+            return net.minecraft.network.chat.Component.literal(own);
+        }
+        return NameColor.toComponent(ownStyled(cfg));
+    }
+
     /**
      * Reverse of the render-time lookup: the styled display text ({@link #styled}) of the first enabled
      * manual mapping ({@link NameChangerConfig.Mapping}) whose {@code real} IGN case-insensitively equals

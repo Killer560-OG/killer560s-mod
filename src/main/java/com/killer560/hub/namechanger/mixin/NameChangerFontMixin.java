@@ -3,11 +3,14 @@ package com.killer560.hub.namechanger.mixin;
 import com.killer560.hub.namechanger.NameReplacer;
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.FormattedText;
+import net.minecraft.network.chat.Style;
+import net.minecraft.util.FormattedCharSink;
 import net.minecraft.util.FormattedCharSequence;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
@@ -32,6 +35,22 @@ public abstract class NameChangerFontMixin {
             at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
     private String killer560smod$nameChangerPrepareString(String text) {
         return NameReplacer.replace(text);
+    }
+
+    /**
+     * {@code prepareText(String, ...)} decodes its string with {@code StringDecomposer.iterateFormatted(String, Style,
+     * FormattedCharSink)} (javap, 26.1.2 and 26.2), which misreads the {@code §x§R§R§G§G§B§B} escape a name fade is
+     * written in (see {@code NameColor.buildFade}): a faded name drawn through a String path came out in random legacy
+     * colours. {@code NameColor.iterateFormatted} is the same decoder plus that escape; for any other string it is
+     * glyph-for-glyph what vanilla produces.
+     */
+    @Redirect(
+            method = "prepareText(Ljava/lang/String;FFIZI)Lnet/minecraft/client/gui/Font$PreparedText;",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/util/StringDecomposer;iterateFormatted("
+                    + "Ljava/lang/String;Lnet/minecraft/network/chat/Style;Lnet/minecraft/util/FormattedCharSink;)Z"),
+            require = 0)
+    private boolean killer560smod$hexAwareDecode(String text, Style style, FormattedCharSink sink) {
+        return com.killer560.hub.namechanger.NameColor.iterateFormatted(text, style, sink);
     }
 
     @ModifyVariable(method = "width(Lnet/minecraft/util/FormattedCharSequence;)I",
