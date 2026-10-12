@@ -408,6 +408,8 @@ public final class RouteStore {
         }
         n.item = cleanString(ConfigJson.getString(o, "item", null), MAX_ITEM_ID);
         n.command = cleanString(ConfigJson.getString(o, "command", null), MAX_COMMAND);
+        // A jump node saved before the count existed (killer560, 2026-10-12) jumps once, as it always did.
+        n.jumpCount = Math.max(RouteNode.MIN_JUMPS, Math.min(RouteNode.MAX_JUMPS, ConfigJson.getInt(o, "jumps", 1)));
         n.start = ConfigJson.getBool(o, "start", false);
         n.awaitEnabled = ConfigJson.getBool(o, "awaitEnabled", false);
         n.awaitCondition = ConfigJson.getEnum(o, "await", RouteNode.AwaitCondition.class, RouteNode.AwaitCondition.SECRET);
@@ -542,6 +544,7 @@ public final class RouteStore {
                 o.add("blocks", blocks);
             }
             case COMMAND -> o.addProperty("command", n.command == null ? "" : n.command);
+            case JUMP -> o.addProperty("jumps", n.jumpCount);
             default -> {
             }
         }

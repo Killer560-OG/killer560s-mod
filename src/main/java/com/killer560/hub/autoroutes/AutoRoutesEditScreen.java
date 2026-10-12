@@ -91,6 +91,8 @@ public class AutoRoutesEditScreen extends Screen {
     /** 0..4 secrets, or -1 for "leave the node's own await alone" (a hand-edited delay or a count above 4). */
     private int awaitChoice;
     private boolean awaitOpen;
+    /** A jump node's count, edited here and applied on Save. */
+    private int jumps = 1;
     private boolean clearBlocks;
     private boolean confirmDelete;
 
@@ -143,6 +145,7 @@ public class AutoRoutesEditScreen extends Screen {
             loaded = true;
             type = node.type;
             start = node.start;
+            jumps = Math.max(RouteNode.MIN_JUMPS, Math.min(RouteNode.MAX_JUMPS, node.jumpCount));
             if (!node.awaitEnabled) {
                 awaitChoice = 0;
             } else if (node.awaitCondition == RouteNode.AwaitCondition.SECRET && node.awaitAmount >= 1
@@ -165,10 +168,11 @@ public class AutoRoutesEditScreen extends Screen {
         boolean use = type == RouteNode.Type.USE_ITEM;
         boolean breaker = type == RouteNode.Type.DUNGEON_BREAKER;
         boolean path = type == RouteNode.Type.PATH && node.type == RouteNode.Type.PATH;
+        boolean jump = type == RouteNode.Type.JUMP;
         int line = ROW + GAP;
-        int sections = 2 + (aim ? 1 : 0) + (use ? 1 : 0) + (breaker ? 1 : 0) + (path ? 1 : 0);
+        int sections = 2 + (aim ? 1 : 0) + (use ? 1 : 0) + (breaker ? 1 : 0) + (path ? 1 : 0) + (jump ? 1 : 0);
         int rows = 2 /* xyz, nudges */ + (aim ? 2 : 0) + (use ? 1 : 0) + 2 /* type+start, await */
-                + (awaitOpen ? 1 : 0) + (breaker ? 1 : 0) + (path ? 1 : 0);
+                + (awaitOpen ? 1 : 0) + (breaker ? 1 : 0) + (path ? 1 : 0) + (jump ? 1 : 0);
         panelW = PANEL_W;
         panelH = 32 + 22 + GAP * 2 + sections * HEADING_H + rows * line + GAP + 20 + 14 + PAD;
         panelX = (this.width - panelW) / 2;
@@ -257,6 +261,17 @@ public class AutoRoutesEditScreen extends Screen {
             y += line;
         }
 
+        if (jump) {
+            // killer560, 2026-10-12: the count /ar add jump <n> takes. Left click adds one, right click takes one.
+            y = heading("Jump", y);
+            this.addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(jumpsLabel()), (b, dir) -> {
+                jumps = SettingsButtonWidget.step(jumps - RouteNode.MIN_JUMPS, dir,
+                        RouteNode.MAX_JUMPS - RouteNode.MIN_JUMPS + 1) + RouteNode.MIN_JUMPS;
+                b.setMessage(Component.literal(jumpsLabel()));
+            }).bounds(x, y, w, ROW).build());
+            y += line;
+        }
+
         if (path) {
             y = heading(pathHeading(), y);
             button("Re-plan Path", b -> replan(), x, y, w, ROW);
@@ -299,6 +314,10 @@ public class AutoRoutesEditScreen extends Screen {
         }
         this.addRenderableWidget(box);
         fields.add(new Field(label, box, labelW > 0 ? x : -1));
+    }
+
+    private String jumpsLabel() {
+        return "Jumps: §6" + jumps;
     }
 
     private String typeLabel() {
@@ -376,6 +395,9 @@ public class AutoRoutesEditScreen extends Screen {
         }
         RouteNode edited = node.copy();
         edited.type = type;
+        if (type == RouteNode.Type.JUMP) {
+            edited.jumpCount = jumps;
+        }
 
         Vec3 rel = node.relativePos();
         boolean moved = false;

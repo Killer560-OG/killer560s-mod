@@ -41,8 +41,9 @@ public final class RouteNode {
          *  crypt are killed". Aimed where he looked when placing it (the crypt), it uses the Crypt Weapon setting's
          *  Hyperion or Spirit Sceptre until one crypt undead or prince of HIS is killed - or {@code await:N} of them. */
         CRYPT,
-        /** killer560, 2026-10-09: "Add a jump node to auto routes where it just jumps once." One tick of the jump
-         *  key through the route's input, then done. */
+        /** killer560, 2026-10-09: "Add a jump node to auto routes"; 2026-10-12: "you have to type in jump _. That number
+         *  is how many times it will jump". {@link #jumpCount} presses of the jump key, one tick each, each from the
+         *  ground, then done. */
         JUMP;
 
         public static Type parse(String s) {
@@ -132,6 +133,21 @@ public final class RouteNode {
     /** {@link Type#AWAIT}. */
     public AwaitCondition awaitCondition = AwaitCondition.SECRET;
     public int awaitAmount = 1;
+    /** Fewest and most jumps a {@link Type#JUMP} node takes ({@code /ar add jump <n>}). */
+    public static final int MIN_JUMPS = 1;
+    public static final int MAX_JUMPS = 20;
+    /** {@link Type#JUMP}: how many times it jumps. A node saved before the count existed loads as 1. */
+    public int jumpCount = 1;
+
+    /** {@code n} as a jump count, or -1 when it is not one ({@value #MIN_JUMPS}..{@value #MAX_JUMPS}). */
+    public static int parseJumps(String s) {
+        if (s == null || !s.trim().matches("\\d{1,2}")) {
+            return -1;
+        }
+        int n = Integer.parseInt(s.trim());
+        return n >= MIN_JUMPS && n <= MAX_JUMPS ? n : -1;
+    }
+
     /** {@link Type#COMMAND}: full command line, with or without the leading slash. */
     public String command;
     /** {@link Type#ETHERWARP} / teleporting {@link Type#USE_ITEM}: where the recording landed (room-relative),
@@ -299,6 +315,7 @@ public final class RouteNode {
             case USE_ITEM -> sb.append(" [").append(item == null ? "empty hand - clicks the block" : item).append(']');
             case DUNGEON_BREAKER -> sb.append(" [").append(breakerBlocks.size()).append(" block(s)]");
             case COMMAND -> sb.append(" [").append(command == null ? "" : command).append(']');
+            case JUMP -> sb.append(" [").append(jumpCount).append(jumpCount == 1 ? " jump]" : " jumps]");
             default -> {
             }
         }
@@ -404,6 +421,7 @@ public final class RouteNode {
         awaitCondition = o.awaitCondition;
         awaitAmount = o.awaitAmount;
         command = o.command;
+        jumpCount = o.jumpCount;
         landingX = o.landingX;
         landingY = o.landingY;
         landingZ = o.landingZ;
@@ -431,6 +449,7 @@ public final class RouteNode {
                 && start == o.start && awaitEnabled == o.awaitEnabled && breakerBlocks.equals(o.breakerBlocks)
                 && java.util.Objects.equals(item, o.item) && awaitCondition == o.awaitCondition
                 && awaitAmount == o.awaitAmount && java.util.Objects.equals(command, o.command)
+                && jumpCount == o.jumpCount
                 && landingX == o.landingX && landingY == o.landingY && landingZ == o.landingZ
                 && hasLanding == o.hasLanding && pathHops.equals(o.pathHops)
                 && hasPlaceEye == o.hasPlaceEye && placeEyeX == o.placeEyeX && placeEyeY == o.placeEyeY

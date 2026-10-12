@@ -418,6 +418,7 @@ final class SettingTooltipsData {
         d.put("redo chain change key", "Re-applies the last AP3 change you undid (same as /ap3 redo).");
         // The Auto Routes node editor (/ar edit <n>), scoped so its generic labels cannot collide with a tab's.
         d.put("ar edit/type", "The node's type: boom, breaker, etherwarp, use, walk or path. Applied on Save.");
+        d.put("ar edit/jumps", "How many times this jump node jumps, 1 to 20. Left click adds one, right click takes one away. Applied on Save.");
         d.put("ar edit/start node", "Makes this the room's start node. Only one node can be; Save moves it off the old one.");
         d.put("ar edit/await secrets", "How many secrets this node waits for before it fires, 0 to 4. None means it fires at once.");
         d.put("ar edit/x -1", "Moves the node one block west, onto that block's centre.");

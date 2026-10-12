@@ -456,6 +456,16 @@ public final class RouteRecorder {
                 extra = id == null ? " [click block (empty hand)]" : " [" + id + "]";
             }
             case DUNGEON_BREAKER -> extra = " - now /ar edit db and right-click the blocks it should break";
+            case JUMP -> {
+                // killer560, 2026-10-12: "you have to type in jump _ ... If you do /ar add jump just like that then it
+                // should send a red message".
+                int n = RouteNode.parseJumps(argument);
+                if (n < 0) {
+                    return bad("Please add a number of jumps: /ar add jump <number>");
+                }
+                node.jumpCount = n;
+                extra = " [" + n + (n == 1 ? " jump]" : " jumps]");
+            }
             case COMMAND -> {
                 String cmd = RouteStore.cleanString(argument, RouteStore.MAX_COMMAND);
                 if (cmd == null) {

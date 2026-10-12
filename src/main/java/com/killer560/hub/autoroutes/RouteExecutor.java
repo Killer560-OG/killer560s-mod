@@ -1279,6 +1279,7 @@ public final class RouteExecutor {
         warpAimFrom = null;
         lineWaitTicks = 0;
         lineWaitBlock = null;
+        jumpsDone = 0;
         landingConfirmed = false;
         planAsked = false;
         planOutcome = null;
@@ -1528,27 +1529,44 @@ public final class RouteExecutor {
         return jumpPresses;
     }
 
+    /** Jumps the active JUMP node has pressed so far; reset by {@link #beginAction}. */
+    private static int jumpsDone;
+
     /**
-     * A JUMP node (killer560, 2026-10-09: "Add a jump node to auto routes where it just jumps once"): the jump key, down
-     * for exactly one tick through the route's own input (the input mixin installs {@link #drivenInput}, a discrete key
-     * press like every other route key), then up and done. Vanilla jumps on a tick the key is down and he is on the
-     * ground, so it waits - pressing nothing - until he is (a node fired on a warp's landing tick can be a twentieth
-     * of a block up), at most {@link #JUMP_GROUND_TIMEOUT} ticks.
+     * A JUMP node (killer560, 2026-10-09; 2026-10-12: "That number is how many times it will jump"): {@link
+     * RouteNode#jumpCount} presses of the jump key, each down for exactly one tick through the route's own input (the
+     * input mixin installs {@link #drivenInput}, a discrete key press like every other route key) and let go the next.
+     * Vanilla jumps on a tick the key is down and he is on the ground, so before each press it waits - pressing nothing -
+     * until he is (after a jump, until he has landed), at most {@link #JUMP_GROUND_TIMEOUT} ticks per press. Done after
+     * the last press is let go; the route carries on.
      */
     private static void tickJump(LocalPlayer player, RouteNode node) {
+        int want = Math.max(RouteNode.MIN_JUMPS, Math.min(RouteNode.MAX_JUMPS, node.jumpCount));
         if (step == Step.PREP) {
             if (!player.onGround() && stepTicks <= JUMP_GROUND_TIMEOUT) {
                 return;
             }
             wantJump = true;
             jumpPresses++;
-            logActed(node, player.onGround() ? "" : " (not on the ground after " + JUMP_GROUND_TIMEOUT + " ticks)");
+            jumpsDone++;
+            if (jumpsDone == 1) {
+                logActed(node, " (jump 1 of " + want + ")" + (player.onGround() ? ""
+                        : " (not on the ground after " + JUMP_GROUND_TIMEOUT + " ticks)"));
+            } else {
+                LOGGER.info("[AutoRoutes] Node #{} JUMP: jump {} of {}{}", route.indexOf(node) + 1, jumpsDone, want,
+                        player.onGround() ? "" : " (not on the ground after " + JUMP_GROUND_TIMEOUT + " ticks)");
+            }
             step = Step.DO;
             stepTicks = 0;
             return;
         }
-        // The tick after the press: clearMovement already let the key go before this ran.
+        // The tick after a press: clearMovement already let the key go before this ran.
         wantJump = false;
+        if (jumpsDone < want) {
+            step = Step.PREP; // the next press waits for him to land
+            stepTicks = 0;
+            return;
+        }
         finishAction();
     }
 

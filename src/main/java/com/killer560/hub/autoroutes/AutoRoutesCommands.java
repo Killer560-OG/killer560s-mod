@@ -93,7 +93,7 @@ public final class AutoRoutesCommands {
         /** killer560, 2026-10-05: a node that kills the crypt it looks at with the Crypt Weapon setting's item. */
         ADD_CRYPT("add_crypt", "Add Crypt Node", "/ar add crypt"),
         /** killer560, 2026-10-09: "Add a jump node to auto routes where it just jumps once." */
-        ADD_JUMP("add_jump", "Add Jump Node", "/ar add jump"),
+        ADD_JUMP("add_jump", "Add Jump Node", "/ar add jump <n>"),
         EDIT_BREAKER("edit_db", "Edit Breaker Blocks", "/ar edit db"),
         CLEAR("clear", "Clear Room Route", "/ar clear"),
         LIST("list", "List Nodes", "/ar list"),
@@ -348,7 +348,8 @@ public final class AutoRoutesCommands {
             case ADD_BOOM -> add(RouteNode.Type.BOOM);
             case ADD_PATH -> add(RouteNode.Type.PATH);
             case ADD_CRYPT -> add(RouteNode.Type.CRYPT);
-            case ADD_JUMP -> add(RouteNode.Type.JUMP);
+            // A key cannot type the count, so the key says what to type (killer560, 2026-10-12).
+            case ADD_JUMP -> ModChat.send(FEATURE, ModChat.bad("Please add a number of jumps: /ar add jump <number>"));
             case EDIT_BREAKER -> toggleEditMode();
             case CLEAR -> clear();
             case LIST -> list();
@@ -398,7 +399,7 @@ public final class AutoRoutesCommands {
         ModChat.send(FEATURE, ModChat.value("/ar edit <n>"), ModChat.dim(" - Node Editor (type, start, await, position, look, item, Go To)"));
         ModChat.send(FEATURE, ModChat.value("/ar replan"), ModChat.dim(" - Re-plan every saved path pair (fewest warps)"));
         ModChat.send(FEATURE, ModChat.dim("/autoroutes works everywhere /ar does."));
-        ModChat.send(FEATURE, ModChat.dim("Types: boom, breaker, ew (or etherwarp), use, walk, path, crypt, jump. After the type, any order: "),
+        ModChat.send(FEATURE, ModChat.dim("Types: boom, breaker, ew (or etherwarp), use, walk, path, crypt, jump <number of jumps>. After the type (and a jump's number), any order: "),
                 ModChat.value("start"), ModChat.dim(" (this room's start node), "), ModChat.value("await:<number>"),
                 ModChat.dim(" (wait for that many secrets first) - e.g. "), ModChat.value("/ar add ew start await:2"),
                 ModChat.dim("."));
@@ -459,12 +460,16 @@ public final class AutoRoutesCommands {
     }
 
     private static void add(RouteNode.Type type, RouteRecorder.NodeModifiers modifiers) {
+        add(type, modifiers, null);
+    }
+
+    private static void add(RouteNode.Type type, RouteRecorder.NodeModifiers modifiers, String argument) {
         // The recorder owns where the node lands (look target for etherwarp, feet for walk, held item for use...)
         // and returns null having already said why when it refuses. This used to ignore that and print
         // "Added Use Item node" straight after "Hold the item to use first." (2026-09-16 review) - and threw
         // away the detail the recorder had earned: the matched item id, the await condition, and the
         // "no etherwarpable block in sight" warning.
-        String status = RouteRecorder.addNode(type, modifiers);
+        String status = RouteRecorder.addNode(type, modifiers, argument);
         if (status == null) {
             return;
         }
@@ -474,7 +479,7 @@ public final class AutoRoutesCommands {
                     : " - matched on the item, not the slot.");
             case PATH -> ModChat.dim(" - path nodes pair up in number order; the first warps to the second.");
             case CRYPT -> ModChat.dim(" - place it at the crypt; uses the Crypt Weapon straight down until a crypt or prince dies.");
-            case JUMP -> ModChat.dim(" - presses jump once when it fires.");
+            case JUMP -> ModChat.dim(" - presses jump that many times when it fires.");
             default -> ModChat.text("");
         };
         ModChat.send(FEATURE, ModChat.text(status), tail);
@@ -493,15 +498,28 @@ public final class AutoRoutesCommands {
             RouteNode.Type type = ADD_TYPES.get(key);
             if (type == null) {
                 ModChat.send(FEATURE, ModChat.bad("Unknown node type "), ModChat.value(typeWord),
-                        ModChat.dim(" - boom, breaker, ew (or etherwarp), use, walk, path or crypt. start and await:<number> go after it, e.g. "),
+                        ModChat.dim(" - boom, breaker, ew (or etherwarp), use, walk, path, crypt or jump <number>. start and await:<number> go after it, e.g. "),
                         ModChat.value("/ar add ew start await:2"), ModChat.dim("."));
                 return;
             }
-            RouteRecorder.NodeModifiers modifiers = parseModifiers(mods);
+            String rest = mods;
+            String argument = null;
+            if (type == RouteNode.Type.JUMP) {
+                // "/ar add jump <n> [start] [await:<n>]": the count comes first and is required (killer560, 2026-10-12).
+                String[] parts = mods == null ? new String[0] : mods.trim().split("\\s+", 2);
+                if (parts.length == 0 || RouteNode.parseJumps(parts[0]) < 0) {
+                    ModChat.send(FEATURE, ModChat.bad("Please add a number of jumps: /ar add jump <number>"),
+                            ModChat.dim(" (" + RouteNode.MIN_JUMPS + "-" + RouteNode.MAX_JUMPS + "). Nothing was added."));
+                    return;
+                }
+                argument = parts[0];
+                rest = parts.length > 1 ? parts[1] : "";
+            }
+            RouteRecorder.NodeModifiers modifiers = parseModifiers(rest);
             if (modifiers == null) {
                 return; // parseModifiers already said why
             }
-            add(type, modifiers);
+            add(type, modifiers, argument);
         });
     }
 
