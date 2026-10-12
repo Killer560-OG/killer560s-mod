@@ -506,7 +506,7 @@ public final class AutoCroesusFeature {
                         return;
                     }
                     ChestProfitFeature.rememberRunFloor(floor);
-                    ChestProfitFeature.rememberRunHead(head);
+                    ChestProfitFeature.rememberRunHead(page, slot, head);
                     currentRunFloor = floor;
                     currentRunKey = key;
                     rerolledThisRun = false;
@@ -1112,7 +1112,7 @@ public final class AutoCroesusFeature {
             return true;
         }
         ChestProfitFeature.rememberRunFloor(floor);
-        ChestProfitFeature.rememberRunHead(head);
+        ChestProfitFeature.rememberRunHead(revisitPage, revisitSlot, head);
         currentRunKey = revisitRunKey;
         claimedThisRun = true;
         rerolledThisRun = true; // a run already opened is never rerolled

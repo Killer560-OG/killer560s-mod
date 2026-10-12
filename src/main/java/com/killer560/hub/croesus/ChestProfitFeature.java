@@ -88,7 +88,24 @@ public final class ChestProfitFeature {
     private static final Map<String, Map<String, Long>> KEY_VIEW = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.regex.Pattern OPENED_CHEST = java.util.regex.Pattern.compile("^Opened [cC]hests?: (.{1,24})$");
     /** The run whose view is open (or about to be): the head last clicked, by him or by Auto Croesus. */
-    private static volatile String openRunSignature = null;
+    private static volatile String openRunKey = null;
+    /**
+     * Claims seen in a reward chest screen, by run key (killer560, 2026-10-12: "after claiming a chest sometimes the chest
+     * will reappear orange ... when it should read it while I am in the chest"). Hypixel's list head can still say
+     * "No chests opened yet!" (or not yet "No more chests to open!") for a refresh after a claim; for
+     * {@link #CLAIM_TRUST_MS} the claim seen here wins over a head that has not caught up.
+     */
+    private record SeenClaim(String chestType, boolean keyUsed, long atMs) {
+    }
+
+    private static final Map<String, SeenClaim> CLAIMS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long CLAIM_TRUST_MS = 60_000L;
+    /** Bumped whenever what a head's state depends on changes (a run view noted, a claim seen), so the menu re-reads. */
+    private static volatile int knowledgeVersion = 0;
+    /** Last state logged per run key, and the rate limit on those INFO lines (his next log shows any flip). */
+    private static final Map<String, Byte> LOGGED_STATE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static long logWindowStartMs = 0L;
+    private static int logLinesInWindow = 0;
     /** "Croesus can keep up to 60 runs, and each run has a 72 hours expiry date." - hypixelskyblock.minecraft.wiki/w/Croesus
      *  (read 2026-10-12). 28 run slots a page, so 60 runs is the "(n/3)" pages killer560's screenshot shows. */
     public static final int MAX_STORED_RUNS = 60;
@@ -268,6 +285,7 @@ public final class ChestProfitFeature {
     /** Call right BEFORE a click on slot 31 of a reward chest screen is sent. No-op unless the logger is on
      *  and the button is a real claimable chest. */
     public static void onClaimClick(AbstractContainerScreen<?> screen, String source) {
+        noteClaim(screen);
         if (!CroesusConfig.getInstance().isLoggerEnabled()) {
             return;
         }
@@ -331,7 +349,7 @@ public final class ChestProfitFeature {
                 if (DungeonChestValuer.CROESUS_MENU_TITLE.matcher(title).matches()) {
                     String floor = floorFromCroesusHead(hovered.getItem());
                     rememberRunFloor(floor);
-                    rememberRunHead(hovered.getItem());
+                    rememberRunHead(pageOf(title), hovered.index, hovered.getItem());
                 } else if (hovered.index == DungeonChestValuer.CLAIM_BUTTON_SLOT && ChestType.fromName(title) != null) {
                     onClaimClick(containerScreen, "manual");
                 }
@@ -403,7 +421,7 @@ public final class ChestProfitFeature {
             return new byte[0];
         }
         List<Slot> slots = screen.getMenu().slots;
-        int fp = 1;
+        int fp = 31 * knowledgeVersion + (int) AutoCroesusFeature.keyWorthFloor() + 7 * activeClaims();
         for (int slot : DungeonChestValuer.RUN_HEAD_SLOTS) {
             fp = 31 * fp + (slot < slots.size() ? System.identityHashCode(slots.get(slot).getItem()) : 0);
         }
@@ -417,6 +435,7 @@ public final class ChestProfitFeature {
 
     private static void readRunHeads(AbstractContainerScreen<?> screen) {
         List<ItemStack> stacks = containerStacks(screen);
+        int headPage = pageOf(titleOf(screen));
         byte[] state = new byte[stacks.size()];
         int unclaimed = 0;
         int claimed = 0;
@@ -430,8 +449,10 @@ public final class ChestProfitFeature {
             if (head.isEmpty() || floorFromCroesusHead(head) == null) {
                 continue;
             }
-            byte st = headState(head);
+            String key = runKey(headPage, slot, head);
+            byte st = headState(key, head);
             state[slot] = st;
+            logTransition(key, st);
             if (st == RUN_UNCLAIMED) {
                 unclaimed++;
             } else {
@@ -475,25 +496,33 @@ public final class ChestProfitFeature {
 
     /** A run's state from its head: the lore says unclaimed / done / which chest was opened; whether the rest is worth a
      *  key comes from the run's chests as last seen in its run view this session (by him or Auto Croesus). */
-    private static byte headState(ItemStack head) {
+    private static byte headState(String key, ItemStack head) {
         List<String> lore = DungeonChestValuer.cleanLore(head);
-        if (lore.contains(DungeonChestValuer.RUN_UNOPENED_LORE)) {
-            return RUN_UNCLAIMED;
-        }
         if (lore.contains(RUN_DONE_LORE)) {
             return RUN_DONE;
         }
-        Map<String, Long> chests = KEY_VIEW.get(runSignature(head, lore));
-        if (chests == null) {
-            return RUN_UNKNOWN;
+        SeenClaim claim = CLAIMS.get(key);
+        boolean fresh = claim != null && System.currentTimeMillis() - claim.atMs() < CLAIM_TRUST_MS;
+        if (fresh && claim.keyUsed()) {
+            return RUN_DONE; // a keyed claim just seen: the head will say "No more chests to open!" in a moment
         }
         String opened = null;
+        if (lore.contains(DungeonChestValuer.RUN_UNOPENED_LORE)) {
+            if (!fresh) {
+                return RUN_UNCLAIMED;
+            }
+            opened = claim.chestType(); // the head lags a claim seen in the chest screen
+        }
         for (String line : lore) {
             Matcher m = OPENED_CHEST.matcher(line);
             if (m.matches()) {
                 ChestType t = ChestType.fromName(m.group(1).trim());
                 opened = t == null ? null : t.name();
             }
+        }
+        Map<String, Long> chests = KEY_VIEW.get(key);
+        if (chests == null) {
+            return RUN_UNKNOWN;
         }
         long floor = AutoCroesusFeature.keyWorthFloor();
         for (Map.Entry<String, Long> e : chests.entrySet()) {
@@ -523,11 +552,85 @@ public final class ChestProfitFeature {
         return sb.toString();
     }
 
-    /** The head the run view about to open belongs to (his click, or Auto Croesus's). */
-    public static void rememberRunHead(ItemStack head) {
+    /**
+     * A run's key: its place in the Croesus list (page and slot) and its name, floor and players. The players alone are
+     * not enough - killer560 runs the same floor with the same party all day, so every such run shared one key, and
+     * looking at one run's chests re-coloured (and hid or showed) all the others (2026-10-12: "it is hiding a bunch of
+     * other runs that I already claimed. Sometimes they come back sometimes they disappear"). A run that moved (one
+     * before it expired) simply reads as not looked at, never as another run.
+     */
+    static String runKey(int page, int slot, ItemStack head) {
+        return page + ":" + slot + "|" + runSignature(head, DungeonChestValuer.cleanLore(head));
+    }
+
+    static int pageOf(String title) {
+        Matcher m = MENU_PAGE.matcher(title == null ? "" : title);
+        return m.matches() ? Integer.parseInt(m.group(1)) : 1;
+    }
+
+    /** The head the run view about to open belongs to (his click, or Auto Croesus's), by its list page and slot. */
+    public static void rememberRunHead(int page, int slot, ItemStack head) {
         if (head != null && !head.isEmpty() && floorFromCroesusHead(head) != null) {
-            openRunSignature = runSignature(head, DungeonChestValuer.cleanLore(head));
+            openRunKey = runKey(page, slot, head);
         }
+    }
+
+    /** In a reward chest screen, right before its claim is sent: this run's chest of that type is taken (with a key if
+     *  the button listed one). Recorded whatever the logger setting. */
+    private static void noteClaim(AbstractContainerScreen<?> screen) {
+        String key = openRunKey;
+        ChestType type = ChestType.fromName(titleOf(screen));
+        if (key == null || type == null) {
+            return;
+        }
+        List<ItemStack> stacks = containerStacks(screen);
+        if (stacks.size() <= DungeonChestValuer.CLAIM_BUTTON_SLOT
+                || !DungeonChestValuer.isClaimableButton(stacks.get(DungeonChestValuer.CLAIM_BUTTON_SLOT))) {
+            return;
+        }
+        boolean keyed = DungeonChestValuer.cleanLore(stacks.get(DungeonChestValuer.CLAIM_BUTTON_SLOT)).contains("Dungeon Chest Key");
+        CLAIMS.put(key, new SeenClaim(type.name(), keyed, System.currentTimeMillis()));
+        knowledgeVersion++;
+        LOGGER.info("[Croesus] Claim seen in the {} chest of run {}{}", type.display, key, keyed ? " (with a key)" : "");
+    }
+
+    private static int activeClaims() {
+        long now = System.currentTimeMillis();
+        int n = 0;
+        for (SeenClaim c : CLAIMS.values()) {
+            if (now - c.atMs() < CLAIM_TRUST_MS) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** INFO when a run's state changes (at most 20 lines a minute), so a flip in his game shows in his log. */
+    private static void logTransition(String key, byte st) {
+        Byte was = LOGGED_STATE.put(key, st);
+        if (was == null || was == st) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - logWindowStartMs > 60_000L) {
+            logWindowStartMs = now;
+            logLinesInWindow = 0;
+        }
+        if (++logLinesInWindow <= 20) {
+            LOGGER.info("[Croesus] Run {} state {} -> {} (view known: {}, claim seen: {})", key, stateName(was),
+                    stateName(st), KEY_VIEW.containsKey(key), CLAIMS.containsKey(key));
+        }
+    }
+
+    private static String stateName(byte st) {
+        return switch (st) {
+            case RUN_UNCLAIMED -> "unclaimed";
+            case RUN_NEEDS_KEY -> "needs-key";
+            case RUN_OPENED -> "opened";
+            case RUN_DONE -> "key-used";
+            case RUN_UNKNOWN -> "not-looked-at";
+            default -> "none";
+        };
     }
 
     /**
@@ -537,7 +640,7 @@ public final class ChestProfitFeature {
      * ({@code AutoCroesusFeature.keyWorthFloor()}, read when drawn, so a changed setting applies at once).
      */
     private static void noteKeyWorth(List<ChestValue> chests) {
-        String sig = openRunSignature;
+        String sig = openRunKey;
         if (sig == null || chests.isEmpty() || !DungeonChestValuer.pricesReady()) {
             return;
         }
@@ -547,7 +650,10 @@ public final class ChestProfitFeature {
                 left.merge(c.type().name(), DungeonChestValuer.profitWithKey(c), Math::max);
             }
         }
-        KEY_VIEW.put(sig, Map.copyOf(left));
+        Map<String, Long> now = Map.copyOf(left);
+        if (!now.equals(KEY_VIEW.put(sig, now))) {
+            knowledgeVersion++;
+        }
     }
 
     /** For the testkit: the RUN_* state of every slot of the Croesus menu last read. */
@@ -558,7 +664,10 @@ public final class ChestProfitFeature {
     /** For the testkit: forget every "worth a key" answer. */
     public static void clearKeyWorthForTest() {
         KEY_VIEW.clear();
-        openRunSignature = null;
+        CLAIMS.clear();
+        LOGGED_STATE.clear();
+        knowledgeVersion++;
+        openRunKey = null;
     }
 
     // ---- run heads drawn by croesus/mixin/CroesusSlotMixin ------------------------------------------------------

@@ -252,3 +252,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   the slots on screen, cached on the screen and an identity fingerprint of the run slots' stacks. Testkit 883 puts the
   content in after the mod's tick (frames outrun ticks in the real game) and checks every frame; the old jar drew 10/12
   unhidden on the content frame.
+- **A Croesus run is not identified by its party.** He runs the same floor with the same party all day, so a key of name +
+  floor + players was shared by many runs: looking at one run's chests re-coloured, hid or showed every run like it (his
+  "sometimes they come back sometimes they disappear"; testkit 884 on the old jar: all four runs flipped 2<->3 six
+  times). Runs are keyed by list page + slot + that signature. And a claim is remembered from the chest screen itself,
+  because the list head can lag it by a refresh (886: the old jar read the run as unclaimed, orange, after its claim).
