@@ -1836,6 +1836,7 @@ final class SettingTooltipsData {
         d.put("croesus / chest profit/second best with key", "Also highlights the second-best chest if it still profits after paying for a Chest Key.");
         d.put("croesus / chest profit/open profit tracker", "Opens the /croesus tracker with your profit totals and big drops.");
         d.put("croesus / chest profit/use chest keys", "Lets Auto Croesus spend a Dungeon Chest Key on a second chest (cheat build only).");
+        d.put("croesus / chest profit/price mode", "How Bazaar items in dungeon chests are priced for the chest values, the profit log and Auto Croesus: Insta-Sell (what selling instantly gets) or Sell Offer (the lowest sell offer, what a sell order of yours gets). Auction House items always use the lowest BIN. Left click cycles forward, right click back.");
         d.put("croesus / chest profit/use key based on", "What a key chest's profit must clear before a key is spent: your own number or the key's live price (cheat build only).");
         d.put("croesus / chest profit/chest key min profit", "Minimum profit, after the key's price, for a key chest to be opened (cheat build only).");
         d.put("croesus / chest profit/use kismets", "Lets Auto Croesus spend a Kismet Feather to reroll a poor Bedrock chest (cheat build only).");

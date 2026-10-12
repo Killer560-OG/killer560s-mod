@@ -51,6 +51,10 @@ public final class HypixelMarketPrices {
             .build();
 
     private final Map<String, Long> bazaarSellPrice = new ConcurrentHashMap<>();
+    /** Both sides of quick_status, whatever the RNG Meter's setting, for callers with their own price mode (Croesus):
+     *  {@code sellPrice} (an instant sell) and {@code buyPrice} (the lowest sell offer). */
+    private final Map<String, Long> bazaarInstaSell = new ConcurrentHashMap<>();
+    private final Map<String, Long> bazaarSellOffer = new ConcurrentHashMap<>();
     private final Map<String, Long> ahLowestBin = new ConcurrentHashMap<>();
 
     /**
@@ -102,6 +106,35 @@ public final class HypixelMarketPrices {
      * the AH lowest-BIN if the item isn't listed there (some items drift between the two, or
      * `RngItemData`'s source tag is simply wrong for it).
      */
+    /**
+     * An item's price in an explicit mode: the Bazaar's instant-sell ({@code sellOffer} false) or sell-offer price,
+     * falling back to the AH lowest BIN for anything the Bazaar does not sell. Null when neither knows it.
+     */
+    public Long getPrice(String id, boolean sellOffer) {
+        if (id == null || id.isEmpty()) {
+            return null;
+        }
+        Long bazaar = (sellOffer ? bazaarSellOffer : bazaarInstaSell).get(id);
+        if (bazaar == null) {
+            bazaar = bazaarSellPrice.get(id); // a feed from before both sides were kept
+        }
+        return bazaar != null ? bazaar : ahLowestBin.get(id);
+    }
+
+    /** Testkit only: one Bazaar product's two prices, as if the feed had them. */
+    public void putBazaarPriceForTest(String id, long instaSell, long sellOffer) {
+        bazaarInstaSell.put(id, instaSell);
+        bazaarSellOffer.put(id, sellOffer);
+        bazaarSellPrice.put(id, instaSell);
+    }
+
+    /** Testkit only: forget a product put there by {@link #putBazaarPriceForTest}. */
+    public void removeBazaarPriceForTest(String id) {
+        bazaarInstaSell.remove(id);
+        bazaarSellOffer.remove(id);
+        bazaarSellPrice.remove(id);
+    }
+
     public Long getPrice(RngItem item) {
         if (item.source() == RngSource.AH) {
             return ahLowestBin.get(item.id());
@@ -186,6 +219,10 @@ public final class HypixelMarketPrices {
                 JsonObject quickStatus = entry.getValue().getAsJsonObject().getAsJsonObject("quick_status");
                 if (quickStatus != null && quickStatus.has(priceField)) {
                     bazaarSellPrice.put(entry.getKey(), quickStatus.get(priceField).getAsLong());
+                }
+                if (quickStatus != null && quickStatus.has("sellPrice") && quickStatus.has("buyPrice")) {
+                    bazaarInstaSell.put(entry.getKey(), Math.round(quickStatus.get("sellPrice").getAsDouble()));
+                    bazaarSellOffer.put(entry.getKey(), Math.round(quickStatus.get("buyPrice").getAsDouble()));
                 }
             }
         } catch (Exception e) {

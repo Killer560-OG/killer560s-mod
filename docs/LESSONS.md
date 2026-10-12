@@ -50,6 +50,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - `/bz <name>` opens a SEARCH page (`Bazaar ➜ "Lump of Magma"`, product at slot 11), not the product page: the
   flipper's old buy step looked for "instant buy" there and stopped every session (his dry run, 2026-10-08). It now
   reads every page through `BazaarPages` and walks search -> product -> Instant Buy by name (testkit 761-764).
+- A Croesus chest's Spirit Stone was worth 0: `DungeonChestValuer.priceLine` asked `RngItemNames.BY_NAME` (every RNG meter's
+  names) before its own replacement table, and the Wolf slayer's entry said "Spirit Stone" -> `SPIRIT_STONE`, an id that
+  does not exist (Hypixel's items API and the Bazaar both say `SPIRIT_DECOY`). killer560's M4 chest read ~35k instead
+  of ~1M. The chest table now wins and the RNG entry is fixed (testkit 773-775). An id sweep against the items API also
+  flags `SPIRIT_BOW`, `ANCIENT_ROSE`, `VAMPIRE_FANG` and the Tungsten/Umber sets in RngItemData as ids that do not exist.
 - Auto Croesus never spent a key because Hypixel closes Croesus after a claim and the reopened head no longer reads
   "No chests opened yet!", the only thing the menu scan opened. It now decides before the first claim whether another
   chest is worth a key and walks back into that run (page:slot, same floor) after the reopen (testkit 766/767).

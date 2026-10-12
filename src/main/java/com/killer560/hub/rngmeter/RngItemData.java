@@ -227,7 +227,7 @@ public final class RngItemData {
             new RngItem("Spider T4", "Toxic Arrow Poison", "TOXIC_ARROW_POISON", BAZAAR, 120_000, false),
 
             // Wolf (Sven Packmaster)
-            new RngItem("Wolf T3", "Spirit Stone", "SPIRIT_STONE", BAZAAR, 50_000, false),
+            new RngItem("Wolf T3", "Spirit Stone", "SPIRIT_DECOY", BAZAAR, 50_000, false),
             new RngItem("Wolf T4", "Grizzly Bait", "GRIZZLY_BAIT", AH, 288_000, false),
             new RngItem("Wolf T4", "Overflux Capacitor", "OVERFLUX_CAPACITOR", AH, 404_000, false),
             new RngItem("Wolf T4", "Red Claw Egg", "RED_CLAW_EGG", AH, 200_000, false),

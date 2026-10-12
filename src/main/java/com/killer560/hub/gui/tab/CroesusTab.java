@@ -70,6 +70,15 @@ public class CroesusTab extends BaseTab {
             y += 26;
         }
 
+        // Price Mode (killer560, 2026-10-11): how every Croesus value is priced - the chest overlay, the logger and
+        // Auto Croesus's decisions. Left click steps forward, right click back.
+        widgets.add(SettingsButtonWidget.cycling(priceModeText(cfg), (btn, dir) -> {
+                    cfg.setPriceMode(SettingsButtonWidget.step(cfg.getPriceMode(), dir));
+                    cfg.save();
+                    btn.setMessage(priceModeText(cfg));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
+
         // ---- Profit Logger ----
         widgets.add(SettingsButtonWidget.builder(onOff("Croesus Profit Logger", cfg.isLoggerEnabled()), btn -> {
                     cfg.setLoggerEnabled(!cfg.isLoggerEnabled());
@@ -240,6 +249,10 @@ public class CroesusTab extends BaseTab {
             }
         }
         return widgets;
+    }
+
+    private static Component priceModeText(CroesusConfig cfg) {
+        return Component.literal("Price Mode: §6" + cfg.getPriceMode().label);
     }
 
     private static Component minProfitText() {

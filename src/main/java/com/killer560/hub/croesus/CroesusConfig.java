@@ -39,6 +39,26 @@ public final class CroesusConfig {
         }
     }
 
+    /**
+     * What a Bazaar item in a dungeon chest is worth (killer560, 2026-10-11: "croesus should have a profit option by insta
+     * sell or sell offer"). Hypixel's quick_status names them backwards (docs/LESSONS.md): {@code sellPrice} is what an
+     * instant sell gets, {@code buyPrice} is the cheapest sell offer, i.e. what a sell order of yours has to undercut.
+     * Auction-house items stay on lowest BIN in both modes.
+     */
+    public enum PriceMode {
+        INSTA_SELL("Insta-Sell"), SELL_OFFER("Sell Offer");
+
+        public final String label;
+
+        PriceMode(String label) {
+            this.label = label;
+        }
+
+        public boolean sellOffer() {
+            return this == SELL_OFFER;
+        }
+    }
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-croesus.json");
@@ -58,6 +78,9 @@ public final class CroesusConfig {
     private boolean highlightRuns = false;
     /** Also highlight the second-best chest when it still profits after paying for a Dungeon Chest Key. */
     private boolean highlightSecondWithKey = false;
+    /** See {@link PriceMode}. Before it existed Croesus followed the RNG Meter's "Use Instant-Buy Price", so a config
+     *  without the key starts where that setting left it (on = buyPrice = Sell Offer). */
+    private PriceMode priceMode = PriceMode.INSTA_SELL;
     private boolean loggerEnabled = true;
     private boolean loggerChatSummary = true;
     private boolean autoCroesusEnabled = false;
@@ -85,6 +108,7 @@ public final class CroesusConfig {
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new CroesusConfig();
+            instance.priceMode = legacyPriceMode();
             return;
         }
         try {
@@ -95,6 +119,8 @@ public final class CroesusConfig {
             cfg.highlightBest = ConfigJson.getBool(obj, "highlightBest", cfg.highlightBest);
             cfg.highlightRuns = ConfigJson.getBool(obj, "highlightRuns", cfg.highlightRuns);
             cfg.highlightSecondWithKey = ConfigJson.getBool(obj, "highlightSecondWithKey", cfg.highlightSecondWithKey);
+            cfg.priceMode = obj.has("priceMode")
+                    ? ConfigJson.getEnum(obj, "priceMode", PriceMode.class, PriceMode.INSTA_SELL) : legacyPriceMode();
             cfg.loggerEnabled = ConfigJson.getBool(obj, "loggerEnabled", cfg.loggerEnabled);
             cfg.loggerChatSummary = ConfigJson.getBool(obj, "loggerChatSummary", cfg.loggerChatSummary);
             cfg.autoCroesusEnabled = ConfigJson.getBool(obj, "autoCroesusEnabled", cfg.autoCroesusEnabled);
@@ -125,6 +151,7 @@ public final class CroesusConfig {
             obj.addProperty("highlightBest", highlightBest);
             obj.addProperty("highlightRuns", highlightRuns);
             obj.addProperty("highlightSecondWithKey", highlightSecondWithKey);
+            obj.addProperty("priceMode", priceMode.name());
             obj.addProperty("loggerEnabled", loggerEnabled);
             obj.addProperty("loggerChatSummary", loggerChatSummary);
             obj.addProperty("autoCroesusEnabled", autoCroesusEnabled);
@@ -151,6 +178,23 @@ public final class CroesusConfig {
 
     public void setChestProfitEnabled(boolean v) {
         this.chestProfitEnabled = v;
+    }
+
+    private static PriceMode legacyPriceMode() {
+        try {
+            return com.killer560.hub.rngmeter.RngMeterConfig.getInstance().isUseInstantBuyPrice()
+                    ? PriceMode.SELL_OFFER : PriceMode.INSTA_SELL;
+        } catch (Exception e) {
+            return PriceMode.INSTA_SELL;
+        }
+    }
+
+    public PriceMode getPriceMode() {
+        return priceMode;
+    }
+
+    public void setPriceMode(PriceMode mode) {
+        priceMode = mode == null ? PriceMode.INSTA_SELL : mode;
     }
 
     public boolean isIncludeEssence() {

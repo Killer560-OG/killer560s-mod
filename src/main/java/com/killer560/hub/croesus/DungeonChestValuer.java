@@ -377,7 +377,13 @@ public final class DungeonChestValuer {
             String id = resolveEnchantId(book.group(1), book.group(2));
             return id == null ? new PricedItem(line, "", 1, null, false) : priced(line, id, 1);
         }
-        String id = RngItemNames.BY_NAME.get(line);
+        // This table first: it is the dungeon-chest one. RngItemNames carries every RNG meter's names, and one of those
+        // ("Spirit Stone" -> SPIRIT_STONE, Wolf slayer) was an id that does not exist, so a Croesus chest's Spirit
+        // Stone (SPIRIT_DECOY, ~110k insta-sell / ~890k sell offer) was valued at nothing (2026-10-11, testkit 773).
+        String id = REPLACEMENTS.get(line);
+        if (id == null) {
+            id = RngItemNames.BY_NAME.get(line);
+        }
         if (id != null) {
             return priced(line, id, 1);
         }
@@ -421,8 +427,9 @@ public final class DungeonChestValuer {
         return new PricedItem(name, id, amount, price(name, id), false);
     }
 
+    /** Croesus's own {@link CroesusConfig.PriceMode} (Bazaar insta-sell or sell offer, AH lowest BIN otherwise). */
     private static Long price(String name, String id) {
-        return RngMeterEngine.PRICES.getPrice(new RngItem("", name, id, RngSource.BAZAAR, 1, false));
+        return RngMeterEngine.PRICES.getPrice(id, CroesusConfig.getInstance().getPriceMode().sellOffer());
     }
 
     /** Same bare-vs-ULTIMATE_ Bazaar existence check RngMeterOverlay.resolveEnchantId uses (Croesus shows
