@@ -2769,3 +2769,17 @@ it still lands in that world; `BreakerAuraFeature.plannerTreatsAsAir` decides, s
 - **Four lever doors** in `SimRoomLevers` (capture coordinates and how each was matched are in its javadoc): Bridges and
   Raccoon had their lever in the capture; Logs and Arrow Trap had none, and the sim places a floor lever on the lone wood
   block he pointed at (only into air). Testkit 647-650 flick each as the player and require the whole door gone.
+
+## The seam between rooms was a way out of the map (2026-10-12, sim-seal)
+
+killer560 (Bridges on an F7): "doors will generate with ground beneath you to walk on but not blocking you from going
+outside of the map." A capture's outermost column is the seam it shares with the cell beyond it, and the captures hold
+it as AIR at walking height (Bridges: every margin column open at y 69-71) - the one-wide gap between rooms where they
+were captured. Pasted side by side, two rooms leave a one-wide slot along their shared edge, open to the sky and with
+nothing under it; a carved door's floor lays three blocks across it ("ground beneath you"), and the slot runs to the
+floor's edge or drops out of the bottom of the world. The doorway seal only closes doorways the measured masks know.
+`SimBuilder.sealOuterEdges` now fills every open seam block on tile edges that face no room and between two different
+rooms (never inside one room, never a real door's three columns), between the lowest and highest block of the room
+column(s) beside it, in the wall's own material (else stone bricks): about 100,000 blocks a floor, ~1.5 s at the end of
+the build. Testkit 855 walks every standable, roofed spot of three generated floors (step, one-block jump, any drop)
+and counts reaching a column outside the rooms or a drop with no ground: 3 / 2 / 7 ways out on the old jar, 0 after.

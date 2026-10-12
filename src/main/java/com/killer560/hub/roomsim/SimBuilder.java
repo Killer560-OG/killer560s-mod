@@ -482,6 +482,8 @@ public final class SimBuilder {
                 for (int[] sc : sealCells) {
                     SimDoors.sealDoorway(level, new net.minecraft.core.BlockPos(sc[0], 70, sc[1]), sc[2] == 1);
                 }
+                int walled = sealOuterEdges(level, decoded);
+                LOGGER.info("Sim doors: {} block(s) of wall laid in open seams (the floor's edge, empty cells, between rooms)", walled);
                 LOGGER.info("Sim doors: {} carved, {} sealed, {} secret chest(s) removed by the carve, "
                                 + "{} block(s) of floor laid where a doorway had none",
                         doorCells.size(), sealCells.size(), SimDoors.CHESTS_CARVED_AWAY, SimDoors.FLOORED);
@@ -1420,6 +1422,112 @@ public final class SimBuilder {
      * exactly one of them, so "which cell of this room am I" has to be answered before the doorway's own cell
      * can be worked out.
      */
+    /**
+     * Walls up every seam a player could leave the floor through: each tile edge that faces no room (the floor's outer
+     * perimeter, the sides of empty grid cells), and each edge between two DIFFERENT rooms except the three columns of a
+     * real door.
+     *
+     * <p>killer560 (2026-10-12, Bridges on an F7): "doors will generate with ground beneath you to walk on but not
+     * blocking you from going outside of the map. Just add some blocks there to make it impossible to go outside the
+     * map." A capture's outermost column is the seam it shares with the cell beyond it ({@code HALF_ROOM} from the tile
+     * centre), and the captures hold it as AIR at walking height - the one-wide gap between rooms where they were
+     * captured. Pasted side by side, two rooms leave a one-wide slot along their whole shared edge, open to the sky and
+     * with nothing under it, and a carved door's floor lays three blocks of ground across it - "ground beneath you".
+     * Walked along or fallen down, the slot leaves the map (testkit 855: 2-7 ways out per generated floor before this).
+     * The doorway seal above only closes the doorways the measured masks know; this closes the seam itself.
+     *
+     * <p>Filled only where the seam is open (no collision, no block entity), from the lowest to the highest block of
+     * the room column(s) just inside it - the rooms' own height, never a fin above a roof - with the inside block where
+     * it is a full block (the wall's own material), else stone bricks. Edges between two tiles of ONE room are its
+     * inside and are left alone.
+     *
+     * @return how many blocks were placed
+     */
+    static int sealOuterEdges(ServerLevel level, MapCode.Decoded decoded) {
+        int grid = DungeonLayout.GRID;
+        int half = 16;
+        int minY = Math.max(level.getMinY(), SimAltitude.minWorldY());
+        int maxY = Math.min(level.getMaxY(), SimAltitude.maxWorldY());
+        int placed = 0;
+        // Each tile edge once: +X and +Z from every tile, and -X / -Z only where the tile is on the low edge of the
+        // grid or faces an empty cell (a neighbour room would own that edge as its own +X / +Z).
+        int[][] sides = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+        for (int gz = 0; gz < grid; gz += 2) {
+            for (int gx = 0; gx < grid; gx += 2) {
+                int here = decoded.cellRoom()[gz * grid + gx];
+                for (int[] side : sides) {
+                    int nx = gx + 2 * side[0];
+                    int nz = gz + 2 * side[1];
+                    boolean nIn = nx >= 0 && nz >= 0 && nx < grid && nz < grid;
+                    int there = nIn ? decoded.cellRoom()[nz * grid + nx] : -1;
+                    if (here < 0 && there < 0) {
+                        continue;                       // nothing on either side
+                    }
+                    if (here < 0) {
+                        continue;                       // the room side does it, facing this empty cell
+                    }
+                    if (there >= 0 && (side[0] < 0 || side[1] < 0)) {
+                        continue;                       // between two rooms: done once, from the lower tile
+                    }
+                    if (there == here) {
+                        continue;                       // inside one room
+                    }
+                    int connector = (gz + side[1]) * grid + (gx + side[0]);
+                    boolean door = there >= 0 && decoded.cellDoor()[connector] != DungeonLayout.DOOR_NONE;
+                    var centre = DungeonLayout.cellCenter(gx, gz);
+                    for (int t = -half; t <= half; t++) {
+                        if (door && Math.abs(t) <= 1) {
+                            continue;                   // the door's own three columns
+                        }
+                        int sx = side[0] != 0 ? centre.getX() + side[0] * half : centre.getX() + t;
+                        int sz = side[1] != 0 ? centre.getZ() + side[1] * half : centre.getZ() + t;
+                        placed += fillSeamColumn(level, sx, sz, side[0], side[1], there >= 0, minY, maxY);
+                    }
+                }
+            }
+        }
+        return placed;
+    }
+
+    /** One seam column: open blocks filled between the lowest and highest block of the column(s) beside it. */
+    private static int fillSeamColumn(ServerLevel level, int sx, int sz, int dx, int dz, boolean bothSides,
+                                      int minY, int maxY) {
+        int ix = sx - dx;
+        int iz = sz - dz;
+        int ox = sx + dx;
+        int oz = sz + dz;
+        net.minecraft.core.BlockPos.MutableBlockPos in = new net.minecraft.core.BlockPos.MutableBlockPos();
+        int lo = Integer.MAX_VALUE;
+        int hi = Integer.MIN_VALUE;
+        for (int y = minY; y <= maxY; y++) {
+            if (!level.getBlockState(in.set(ix, y, iz)).isAir()
+                    || (bothSides && !level.getBlockState(in.set(ox, y, oz)).isAir())) {
+                lo = Math.min(lo, y);
+                hi = y;
+            }
+        }
+        if (lo > hi) {
+            return 0;
+        }
+        int placed = 0;
+        for (int y = lo; y <= hi; y++) {
+            net.minecraft.core.BlockPos seam = new net.minecraft.core.BlockPos(sx, y, sz);
+            var state = level.getBlockState(seam);
+            if (!state.getCollisionShape(level, seam).isEmpty() || state.hasBlockEntity()) {
+                continue;
+            }
+            var inner = level.getBlockState(in.set(ix, y, iz));
+            var wall = inner.isCollisionShapeFullBlock(level, in) && !inner.hasBlockEntity()
+                    ? inner : net.minecraft.world.level.block.Blocks.STONE_BRICKS.defaultBlockState();
+            level.setBlock(seam, wall, 2);
+            placed++;
+        }
+        if (placed > 0) {
+            SimBuildQueue.touched(sx, sz);
+        }
+        return placed;
+    }
+
     private static int[] anchorOf(int[] cellRoom, int cell, int nameIndex) {
         int gx = cell % DungeonLayout.GRID;
         int gz = cell / DungeonLayout.GRID;
