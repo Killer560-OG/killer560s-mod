@@ -89,6 +89,8 @@ public final class PlayerStatsConfig {
     private static final int OLD_DEFAULT_OVERFLOW_MANA_COLOR = 0xFF9FE6FF;
     private BarStyle barStyle = BarStyle.BOLD;
     private TextSize barTextSize = TextSize.SMALL;
+    /** Whether the settings tab's Advanced section is open (2026-10-12, the simplified menu); closed by default. */
+    private boolean menuAdvancedOpen = false;
     private boolean barRounded = true;
     private boolean barIcons = true;
     private ValuePosition barValuePosition = ValuePosition.INSIDE;
@@ -221,6 +223,7 @@ public final class PlayerStatsConfig {
             if (cfg.overflowManaColor == OLD_DEFAULT_OVERFLOW_MANA_COLOR) {
                 cfg.overflowManaColor = DEFAULT_OVERFLOW_MANA_COLOR;
             }
+            cfg.menuAdvancedOpen = ConfigJson.getBool(obj, "menuAdvancedOpen", cfg.menuAdvancedOpen);
             cfg.barTextSize = TextSize.byKey(ConfigJson.getString(obj, "barTextSize", null), cfg.barTextSize);
             cfg.predefinedScale = clampScale(obj.has("predefinedScale") && obj.get("predefinedScale").isJsonPrimitive()
                     ? obj.get("predefinedScale").getAsFloat() : cfg.predefinedScale);
@@ -279,6 +282,7 @@ public final class PlayerStatsConfig {
             obj.addProperty("textShadow", textShadow);
             obj.addProperty("barStyle", barStyle.key);
             obj.addProperty("barTextSize", barTextSize.key);
+            obj.addProperty("menuAdvancedOpen", menuAdvancedOpen);
             obj.addProperty("barRounded", barRounded);
             obj.addProperty("barIcons", barIcons);
             obj.addProperty("barValuePosition", barValuePosition.key);
@@ -653,6 +657,14 @@ public final class PlayerStatsConfig {
 
     public void setBarStyle(BarStyle v) {
         this.barStyle = v == null ? BarStyle.BOLD : v;
+    }
+
+    public boolean isMenuAdvancedOpen() {
+        return menuAdvancedOpen;
+    }
+
+    public void setMenuAdvancedOpen(boolean v) {
+        this.menuAdvancedOpen = v;
     }
 
     public TextSize getBarTextSize() {

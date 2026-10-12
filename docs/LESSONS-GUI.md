@@ -269,3 +269,6 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **A mod-menu tab's buttons act on the config object they were built with.** Health and Mana Bars' lambdas capture
   `PlayerStatsConfig.getInstance()`, and `PlayerStatsConfig.load()` (a profile apply) replaces the instance, so until the tab
   rebuilds, a press changes the old object (testkit 893's first runs: Bar Style "did nothing" after a reload, 2026-10-12).
+- **A Unifont glyph's pixels are half a text unit.** The ♨ Vitality icon outlined like the bar number (one whole unit) was a
+  black blob with red slivers; it is outlined by one glyph pixel (half a unit) and scaled so a glyph pixel is whole screen
+  pixels (`BarPainter.drawGlyph`, v3 shots, 2026-10-12).

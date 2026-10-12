@@ -72,6 +72,29 @@ public class HealthAndManaBarsTab extends BaseTab {
         super("Health and Mana Bars");
     }
 
+    /** True while {@link #widgetsMatchSearch} builds the page to read its labels: Advanced is built open, and the bar
+     *  rows as if Stat Bars were on, so the menu search finds every setting here (Auto Routes' and AP3's pattern). */
+    private boolean scanningForSearch;
+
+    @Override
+    protected boolean widgetsMatchSearch(String query) {
+        scanningForSearch = true;
+        try {
+            return super.widgetsMatchSearch(query);
+        } finally {
+            scanningForSearch = false;
+        }
+    }
+
+    /**
+     * Simplified 2026-10-12 (killer560: "go through and simplify the health and mana bar menu, there are just way too many
+     * things going on there and it should be far simpler"). The page is what most people touch - Stat Bars, Edit Bars,
+     * which bars are on, Style and Text Size - and one {@link CollapsibleSection} "Advanced", closed by default and
+     * remembered ({@code PlayerStatsConfig.menuAdvancedOpen}), holding everything else: Layout, the bar look (corners,
+     * icons, number, smooth fill, damage ghost, background, length and thickness), the colours in one grid, the text
+     * readouts and the vanilla hides. Every setting is the same field as before; only where its row sits changed. The
+     * "Hide Vanilla XP Bar" row was a second copy of Hide's "XP Bar And Level" and is gone (the setting stays there).
+     */
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
@@ -81,6 +104,7 @@ public class HealthAndManaBarsTab extends BaseTab {
         int col2 = contentX + half + GAP;
         int[] y = {contentY};
         boolean master = ps.isEnabledRaw();
+        boolean showAll = master || scanningForSearch;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Stat Bars", master), btn -> {
                     ps.setEnabled(!ps.isEnabledRaw());
@@ -89,9 +113,50 @@ public class HealthAndManaBarsTab extends BaseTab {
                 }).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += 24;
 
-        if (master) {
-            // Layout (2026-10-07, killer560: "a setting that is predefined spots or fully custom"): Predefined puts the
-            // readouts in areas round the hotbar (StatLayout), Custom leaves each where Edit HUD put it.
+        if (showAll) {
+            // The bars' own editor (2026-10-08): Edit HUD no longer lists them; this and Home's "Edit Bars" open it.
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Bars"), btn -> {
+                        Minecraft client = Minecraft.getInstance();
+                        McCompat.setScreen(client, com.killer560.hub.hud.HudEditorScreen.forBars(McCompat.screen(client)));
+                    }).bounds(contentX, y[0], contentWidth, ROW_H).build());
+            y[0] += ROW;
+            // Which bars are shown: on/off only (their colours are in Advanced).
+            for (int i = 0; i < BARS.length; i++) {
+                Readout r = BARS[i];
+                toggle(widgets, i % 2 == 0 ? contentX : col2, y[0], half, r.label, () -> ps.isReadoutOn(r),
+                        v -> ps.setReadoutOn(r, v), ps::save, requestRebuild);
+                if (i % 2 == 1) {
+                    y[0] += ROW;
+                }
+            }
+            widgets.add(SettingsButtonWidget.cycling(barStyleText(ps), (btn, dir) -> {
+                        ps.setBarStyle(SettingsButtonWidget.step(ps.getBarStyle(), dir));
+                        ps.save();
+                        btn.setMessage(barStyleText(ps));
+                    }).bounds(contentX, y[0], half, ROW_H).build());
+            widgets.add(SettingsButtonWidget.cycling(textSizeText(ps), (btn, dir) -> {
+                        ps.setBarTextSize(SettingsButtonWidget.step(ps.getBarTextSize(), dir));
+                        ps.save();
+                        btn.setMessage(textSizeText(ps));
+                    }).bounds(col2, y[0], half, ROW_H).build());
+            y[0] += ROW;
+        }
+
+        // ---------------- Advanced ----------------
+        boolean open = scanningForSearch || ps.isMenuAdvancedOpen();
+        y[0] = CollapsibleSection.header(widgets, contentX, y[0], contentWidth, "Advanced", false, open, () -> {
+            ps.setMenuAdvancedOpen(!ps.isMenuAdvancedOpen());
+            ps.save();
+            requestRebuild.run();
+        });
+        if (!open) {
+            return widgets;
+        }
+
+        if (showAll) {
+            note(widgets, contentX, contentWidth, y, "Look");
+            // Layout (2026-10-07): Predefined puts the readouts in areas round the hotbar (StatLayout), Custom leaves
+            // each where Edit Bars put it.
             widgets.add(SettingsButtonWidget.cycling(Component.literal("Layout: "
                             + (ps.isPredefinedLayout() ? "§6Predefined" : "§6Custom")), (btn, dir) -> {
                         ps.setPredefinedLayout(!ps.isPredefinedLayout());
@@ -99,118 +164,85 @@ public class HealthAndManaBarsTab extends BaseTab {
                         requestRebuild.run();
                     }).bounds(contentX, y[0], contentWidth, ROW_H).build());
             y[0] += ROW;
-            // The bars' own editor (2026-10-08): Edit HUD no longer lists them; this and Home's "Edit Bars" open it.
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Bars"), btn -> {
-                        Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, com.killer560.hub.hud.HudEditorScreen.forBars(McCompat.screen(client)));
-                    }).bounds(contentX, y[0], contentWidth, ROW_H).build());
+            widgets.add(SettingsButtonWidget.cycling(cornersText(ps), (btn, dir) -> {
+                        ps.setBarRounded(!ps.isBarRounded());
+                        ps.save();
+                        btn.setMessage(cornersText(ps));
+                    }).bounds(contentX, y[0], half, ROW_H).build());
+            toggle(widgets, col2, y[0], half, "Icons", ps::isBarIcons, ps::setBarIcons, ps::save, null);
             y[0] += ROW;
-            // Predefined's one shared scale (PlayerStatsConfig.predefinedScale, 2026-10-07) has no row here on purpose:
-            // killer560 had every scale control taken off this page the same day ("no one needs to adjust scale there,
-            // they just use the edit hud menu portion"; testkit 393 checks it). Scrolling any readout in Edit HUD sets it.
-
-            // ---------------- Bars ----------------
-            header(widgets, contentX, contentWidth, y, "Bars");
-            grid(widgets, contentX, col2, half, y, BARS, requestRebuild);
-            boolean anyBar = false;
-            for (Readout r : BARS) {
-                anyBar |= ps.isReadoutOn(r);
-            }
-            if (anyBar) {
-                y[0] += 4;
-                slider(widgets, contentX, y[0], half, () -> "Bar Width: " + ps.getBarWidth(),
-                        (ps.getBarWidth() - PlayerStatsConfig.MIN_BAR_WIDTH)
-                                / (double) (PlayerStatsConfig.MAX_BAR_WIDTH - PlayerStatsConfig.MIN_BAR_WIDTH),
-                        v -> {
-                            ps.setBarWidth((int) Math.round(PlayerStatsConfig.MIN_BAR_WIDTH
-                                    + v * (PlayerStatsConfig.MAX_BAR_WIDTH - PlayerStatsConfig.MIN_BAR_WIDTH)));
+            toggle(widgets, contentX, y[0], half, "Show Value", ps::isBarShowValue, ps::setBarShowValue, ps::save,
+                    requestRebuild);
+            if (ps.isBarShowValue() || scanningForSearch) {
+                widgets.add(SettingsButtonWidget.cycling(valuePositionText(ps), (btn, dir) -> {
+                            ps.setBarValuePosition(SettingsButtonWidget.step(ps.getBarValuePosition(), dir));
                             ps.save();
-                        });
-                slider(widgets, col2, y[0], half, () -> "Bar Height: " + ps.getBarHeight(),
-                        (ps.getBarHeight() - PlayerStatsConfig.MIN_BAR_HEIGHT)
-                                / (double) (PlayerStatsConfig.MAX_BAR_HEIGHT - PlayerStatsConfig.MIN_BAR_HEIGHT),
-                        v -> {
-                            ps.setBarHeight((int) Math.round(PlayerStatsConfig.MIN_BAR_HEIGHT
-                                    + v * (PlayerStatsConfig.MAX_BAR_HEIGHT - PlayerStatsConfig.MIN_BAR_HEIGHT)));
-                            ps.save();
-                        });
-                y[0] += ROW;
-                toggle(widgets, contentX, y[0], half, "Show Value", ps::isBarShowValue, ps::setBarShowValue,
-                        ps::save, requestRebuild);
-                colour(widgets, col2, y[0], half, "Background", ps.getBarBackground(),
-                        PlayerStatsConfig.DEFAULT_BAR_BACKGROUND, ps::setBarBackground);
-                y[0] += ROW;
-                // The bars' look (2026-10-12): Sleek or Bold (Classic was removed the same day, killer560: "Please
-                // remove the classic option have the default of it be bold").
-                widgets.add(SettingsButtonWidget.cycling(barStyleText(ps), (btn, dir) -> {
-                            ps.setBarStyle(SettingsButtonWidget.step(ps.getBarStyle(), dir));
-                            ps.save();
-                            btn.setMessage(barStyleText(ps));
-                        }).bounds(contentX, y[0], half, ROW_H).build());
-                widgets.add(SettingsButtonWidget.cycling(cornersText(ps), (btn, dir) -> {
-                            ps.setBarRounded(!ps.isBarRounded());
-                            ps.save();
-                            btn.setMessage(cornersText(ps));
+                            btn.setMessage(valuePositionText(ps));
                         }).bounds(col2, y[0], half, ROW_H).build());
-                y[0] += ROW;
-                toggle(widgets, contentX, y[0], half, "Icons", ps::isBarIcons, ps::setBarIcons, ps::save, null);
-                if (ps.isBarShowValue()) {
-                    widgets.add(SettingsButtonWidget.cycling(valuePositionText(ps), (btn, dir) -> {
-                                ps.setBarValuePosition(SettingsButtonWidget.step(ps.getBarValuePosition(), dir));
-                                ps.save();
-                                btn.setMessage(valuePositionText(ps));
-                            }).bounds(col2, y[0], half, ROW_H).build());
-                }
-                y[0] += ROW;
-                toggle(widgets, contentX, y[0], half, "Smooth Fill", ps::isBarSmooth, ps::setBarSmooth, ps::save, null);
-                toggle(widgets, col2, y[0], half, "Damage Ghost", ps::isBarDamageGhost, ps::setBarDamageGhost,
-                        ps::save, null);
-                y[0] += ROW;
-                if (ps.isBarShowValue()) {
-                    // The number's size (2026-10-12, killer560: "Can the text stand out a hair more or maybe make it
-                    // smaller"); both sizes are outlined.
-                    widgets.add(SettingsButtonWidget.cycling(textSizeText(ps), (btn, dir) -> {
-                                ps.setBarTextSize(SettingsButtonWidget.step(ps.getBarTextSize(), dir));
-                                ps.save();
-                                btn.setMessage(textSizeText(ps));
-                            }).bounds(contentX, y[0], half, ROW_H).build());
-                    y[0] += ROW;
-                }
-                boolean absorbRow = ps.isReadoutOn(Readout.HEALTH_BAR);
-                boolean overflowRow = ps.isReadoutOn(Readout.MANA_BAR);
-                if (absorbRow) {
-                    colour(widgets, contentX, y[0], half, "Absorption Colour", ps.getAbsorptionColor(),
-                            PlayerStatsConfig.DEFAULT_ABSORPTION_COLOR, ps::setAbsorptionColor);
-                }
-                if (overflowRow) {
-                    colour(widgets, absorbRow ? col2 : contentX, y[0], half, "Overflow Mana Colour",
-                            ps.getOverflowManaColor(), PlayerStatsConfig.DEFAULT_OVERFLOW_MANA_COLOR,
-                            ps::setOverflowManaColor);
-                }
-                if (absorbRow || overflowRow) {
-                    y[0] += ROW;
+            }
+            y[0] += ROW;
+            toggle(widgets, contentX, y[0], half, "Smooth Fill", ps::isBarSmooth, ps::setBarSmooth, ps::save, null);
+            toggle(widgets, col2, y[0], half, "Damage Ghost", ps::isBarDamageGhost, ps::setBarDamageGhost, ps::save,
+                    null);
+            y[0] += ROW;
+            // Every bar at once; one bar on its own is sized by dragging its edges in Edit Bars. Predefined's shared
+            // scale has no row here on purpose (killer560, 2026-10-07: "no one needs to adjust scale there"; testkit 393).
+            slider(widgets, contentX, y[0], half, () -> "Bar Width: " + ps.getBarWidth(),
+                    (ps.getBarWidth() - PlayerStatsConfig.MIN_BAR_WIDTH)
+                            / (double) (PlayerStatsConfig.MAX_BAR_WIDTH - PlayerStatsConfig.MIN_BAR_WIDTH),
+                    v -> {
+                        ps.setBarWidth((int) Math.round(PlayerStatsConfig.MIN_BAR_WIDTH
+                                + v * (PlayerStatsConfig.MAX_BAR_WIDTH - PlayerStatsConfig.MIN_BAR_WIDTH)));
+                        ps.save();
+                    });
+            slider(widgets, col2, y[0], half, () -> "Bar Height: " + ps.getBarHeight(),
+                    (ps.getBarHeight() - PlayerStatsConfig.MIN_BAR_HEIGHT)
+                            / (double) (PlayerStatsConfig.MAX_BAR_HEIGHT - PlayerStatsConfig.MIN_BAR_HEIGHT),
+                    v -> {
+                        ps.setBarHeight((int) Math.round(PlayerStatsConfig.MIN_BAR_HEIGHT
+                                + v * (PlayerStatsConfig.MAX_BAR_HEIGHT - PlayerStatsConfig.MIN_BAR_HEIGHT)));
+                        ps.save();
+                    });
+            y[0] += ROW;
+
+            // Colours, one compact grid: each bar that is on, the overflow layers of the bars that have one, and the
+            // empty track.
+            note(widgets, contentX, contentWidth, y, "Colours");
+            int cols = contentWidth >= 420 ? 3 : 2;
+            int cellW = (contentWidth - GAP * (cols - 1)) / cols;
+            int[] cell = {0};
+            for (Readout r : BARS) {
+                if (ps.isReadoutOn(r) || scanningForSearch) {
+                    gridColour(widgets, contentX, y, cols, cellW, cell, colourLabel(r), ps.getReadoutColor(r),
+                            r.defaultColor, c -> ps.setReadoutColor(r, c));
                 }
             }
+            if (ps.isReadoutOn(Readout.HEALTH_BAR) || scanningForSearch) {
+                gridColour(widgets, contentX, y, cols, cellW, cell, "Absorption Colour", ps.getAbsorptionColor(),
+                        PlayerStatsConfig.DEFAULT_ABSORPTION_COLOR, ps::setAbsorptionColor);
+            }
+            if (ps.isReadoutOn(Readout.MANA_BAR) || scanningForSearch) {
+                gridColour(widgets, contentX, y, cols, cellW, cell, "Overflow Mana Colour", ps.getOverflowManaColor(),
+                        PlayerStatsConfig.DEFAULT_OVERFLOW_MANA_COLOR, ps::setOverflowManaColor);
+            }
+            gridColour(widgets, contentX, y, cols, cellW, cell, "Background", ps.getBarBackground(),
+                    PlayerStatsConfig.DEFAULT_BAR_BACKGROUND, ps::setBarBackground);
+            if (cell[0] % cols != 0) {
+                y[0] += ROW;
+            }
 
-            // ---------------- Text ----------------
-            header(widgets, contentX, contentWidth, y, "Text");
+            // Text readouts: the same stats as text, plus the text-only ones, each with its colour once it is on.
+            note(widgets, contentX, contentWidth, y, "Text readouts");
             grid(widgets, contentX, col2, half, y, TEXTS, requestRebuild);
             // The grid's odd last cell leaves the right column free: Text Shadow sits there.
             y[0] -= ROW;
             toggle(widgets, col2, y[0], half, "Text Shadow", ps::isTextShadow, ps::setTextShadow, ps::save, null);
             y[0] += ROW;
-            if (ps.isReadoutOn(Readout.XP_BAR) || ps.isReadoutOn(Readout.XP_TEXT)) {
-                // A custom XP readout mostly replaces the vanilla bar: offer its hide here, beside where it was turned
-                // on. The same setting as Hide's "XP Bar And Level".
-                toggle(widgets, contentX, y[0], contentWidth, "Hide Vanilla XP Bar", ps::isHideXpBar, ps::setHideXpBar,
-                        ps::save, requestRebuild);
-                y[0] += ROW;
-            }
         }
 
         // ---------------- Hide ----------------
         header(widgets, contentX, contentWidth, y, "Hide");
-        if (master) {
+        if (showAll) {
             note(widgets, contentX, contentWidth, y, "While Stat Bars is on:");
             toggle(widgets, contentX, y[0], half, "Hearts", ps::isHideVanillaHearts, ps::setHideVanillaHearts,
                     ps::save, requestRebuild);
@@ -221,7 +253,7 @@ public class HealthAndManaBarsTab extends BaseTab {
                     ps::save, null);
             toggle(widgets, col2, y[0], half, "Air Bar", ps::isHideVanillaAir, ps::setHideVanillaAir, ps::save, null);
             y[0] += ROW;
-            if (ps.isHideVanillaHearts()) {
+            if (ps.isHideVanillaHearts() || scanningForSearch) {
                 toggle(widgets, contentX, y[0], half, "Unhide Hearts In Rift", ps::isShowHeartsInRift,
                         ps::setShowHeartsInRift, ps::save, null);
                 y[0] += ROW;
@@ -257,8 +289,27 @@ public class HealthAndManaBarsTab extends BaseTab {
         return widgets;
     }
 
+    /** "Health Colour" for the Health Bar: the bar's label without "Bar", for the colour grid. */
+    private static String colourLabel(Readout r) {
+        return switch (r) {
+            case OTHER_BAR -> "Other Colour";
+            default -> r.label.replace(" Bar", "") + " Colour";
+        };
+    }
+
+    /** One colour cell of a {@code cols}-wide grid; {@code cell[0]} counts cells and moves {@code y} on a row end. */
+    private static void gridColour(List<AbstractWidget> widgets, int x0, int[] y, int cols, int cellW, int[] cell,
+                                   String label, int argb, int defaultArgb, IntConsumer apply) {
+        int col = cell[0] % cols;
+        colour(widgets, x0 + col * (cellW + GAP), y[0], cellW, label, argb, defaultArgb, apply);
+        cell[0]++;
+        if (col == cols - 1) {
+            y[0] += ROW;
+        }
+    }
+
     private static Component barStyleText(PlayerStatsConfig ps) {
-        return Component.literal("Bar Style: §6" + ps.getBarStyle().label);
+        return Component.literal("Style: §6" + ps.getBarStyle().label);
     }
 
     private static Component textSizeText(PlayerStatsConfig ps) {

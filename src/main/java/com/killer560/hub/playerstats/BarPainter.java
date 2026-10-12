@@ -183,20 +183,16 @@ public final class BarPainter {
 
         GuiRects q = RECTS.start(g);
         // ---- frame ----
+        // Rounded corners (killer560, 2026-10-12: "make the corners slightly more rounded for the bars"): a 2-unit stepped
+        // curve - the outer ring skips two units at each corner and steps in one unit diagonally - and the track's own
+        // corner unit is painted back in the frame colour after the fill, so no square fill corner shows through.
+        int outer = bold ? 0xFF000000 : 0xF0141010;
+        // The mod's orange, darkened so the fill stays the brightest thing on the bar.
+        int rim = 0xFFB85C0A;
         if (frame > 0) {
-            int outer = bold ? 0xFF000000 : 0xF0141010;
-            ring(q, tx0, y, tx1, y + h, outer, round);
+            ring(q, tx0, y, tx1, y + h, outer, round ? 2 : 0);
             if (frame == 2) {
-                // The mod's orange, darkened so the fill stays the brightest thing on the bar.
-                int rim = 0xFFB85C0A;
-                ring(q, tx0 + 1, y + 1, tx1 - 1, y + h - 1, rim, false);
-                if (round) {
-                    // The rim's corners go black, which turns the 2-unit corner into a curve.
-                    q.fill(tx0 + 1, y + 1, tx0 + 2, y + 2, outer);
-                    q.fill(tx1 - 2, y + 1, tx1 - 1, y + 2, outer);
-                    q.fill(tx0 + 1, y + h - 2, tx0 + 2, y + h - 1, outer);
-                    q.fill(tx1 - 2, y + h - 2, tx1 - 1, y + h - 1, outer);
-                }
+                ring(q, tx0 + 1, y + 1, tx1 - 1, y + h - 1, rim, round ? 1 : 0);
             }
         }
         if (iw > 0 && ih > 0) {
@@ -234,10 +230,17 @@ public final class BarPainter {
                 }
             }
         }
+        if (round && iw >= 2 && ih >= 2) {
+            int cap = frame == 2 ? rim : outer;
+            q.fill(ix0, iy0, ix0 + 1, iy0 + 1, cap);
+            q.fill(ix1 - 1, iy0, ix1, iy0 + 1, cap);
+            q.fill(ix0, iy1 - 1, ix0 + 1, iy1, cap);
+            q.fill(ix1 - 1, iy1 - 1, ix1, iy1, cap);
+        }
         q.submit();
 
         if (icon) {
-            drawIcon(g, r, x, y, h);
+            drawIcon(g, r, x, y, h, color);
         }
         if (value != null) {
             Font font = Minecraft.getInstance().font;
@@ -255,13 +258,21 @@ public final class BarPainter {
         return cfg.isBarIcons() && h >= 6 && w >= 3 * h + 20 ? h + 2 : 0;
     }
 
-    /** A one-unit ring just inside {@code [x0,x1) x [y0,y1)}; {@code round} leaves its four corner units out. */
-    private static void ring(GuiRects q, int x0, int y0, int x1, int y1, int argb, boolean round) {
-        int c = round ? 1 : 0;
+    /** A one-unit ring just inside {@code [x0,x1) x [y0,y1)} with corner {@code radius} 0 (square), 1 (the corner unit left
+     *  out) or 2 (two units left out along each edge, and one unit stepped in on the diagonal). */
+    private static void ring(GuiRects q, int x0, int y0, int x1, int y1, int argb, int radius) {
+        int c = Math.max(0, Math.min(2, radius));
+        int side = c == 0 ? 1 : c;
         q.fill(x0 + c, y0, x1 - c, y0 + 1, argb);
         q.fill(x0 + c, y1 - 1, x1 - c, y1, argb);
-        q.fill(x0, y0 + 1, x0 + 1, y1 - 1, argb);
-        q.fill(x1 - 1, y0 + 1, x1, y1 - 1, argb);
+        q.fill(x0, y0 + side, x0 + 1, y1 - side, argb);
+        q.fill(x1 - 1, y0 + side, x1, y1 - side, argb);
+        if (c == 2) {
+            q.fill(x0 + 1, y0 + 1, x0 + 2, y0 + 2, argb);
+            q.fill(x1 - 2, y0 + 1, x1 - 1, y0 + 2, argb);
+            q.fill(x0 + 1, y1 - 2, x0 + 2, y1 - 1, argb);
+            q.fill(x1 - 2, y1 - 2, x1 - 1, y1 - 1, argb);
+        }
     }
 
     /** The fill's shading: Sleek one gradient, lighter at the top; Bold a bright upper band over a deeper lower one. */
@@ -296,7 +307,11 @@ public final class BarPainter {
     }
 
     /** The stat's item, drawn into a {@code size}-unit square at {@code (x, y)} (items are 16 units; scaled to fit). */
-    private static void drawIcon(GuiGraphicsExtractor g, Readout r, int x, int y, int size) {
+    private static void drawIcon(GuiGraphicsExtractor g, Readout r, int x, int y, int size, int color) {
+        if (r == Readout.VITALITY_BAR) {
+            drawGlyph(g, VITALITY_GLYPH, x, y, size, color | 0xFF000000);
+            return;
+        }
         ItemStack stack = icon(r);
         if (stack == null) {
             return;
@@ -312,6 +327,47 @@ public final class BarPainter {
         }
     }
 
+    /** Hypixel's Vitality symbol (killer560, 2026-10-12: "and make a symbol for vitality"): its stat line and menus write
+     *  Vitality as this hot-springs sign, in its red; the font draws it from vanilla's Unifont fallback, no resource pack
+     *  needed. It replaces the glistering melon, which read as health. */
+    static final String VITALITY_GLYPH = "♨";
+    /** Rows the glyph is drawn in: Unifont's glyphs are 8 units tall at text size. */
+    private static final int GLYPH_ROWS = 8;
+
+    /** Glyph-pixel outline offsets (eight directions). */
+    private static final int[] GX = {-1, 0, 1, -1, 1, -1, 0, 1};
+    private static final int[] GY = {-1, -1, -1, 0, 0, 1, 1, 1};
+
+    /**
+     * {@code glyph} in {@code color}, outlined, filling most of a {@code size}-unit square at {@code (x, y)}. Unifont's
+     * pixels are half a text unit, so its strokes are that thin: the outline is one GLYPH pixel (half a unit), not the
+     * number's whole unit, which swallowed the strokes; and the scale is held where one glyph pixel is a whole number
+     * of screen pixels, so the strokes stay even.
+     */
+    private static void drawGlyph(GuiGraphicsExtractor g, String glyph, int x, int y, int size, int color) {
+        Font font = Minecraft.getInstance().font;
+        var pose = g.pose();
+        float p = pose.m00() * Math.max(1, Minecraft.getInstance().getWindow().getGuiScale());
+        float fit = (size - 1) / (float) GLYPH_ROWS;
+        int screenPx = (int) Math.floor(fit * 0.5f * p + 1e-3f);
+        float s = screenPx >= 1 && p > 0f ? 2f * screenPx / p : fit;
+        int ink = Math.max(1, font.width(glyph) - 1);
+        pose.pushMatrix();
+        try {
+            pose.translate(x + (size - ink * s) / 2f, y + (size - GLYPH_ROWS * s) / 2f);
+            pose.scale(s, s);
+            for (int k = 0; k < GX.length; k++) {
+                pose.pushMatrix();
+                pose.translate(GX[k] * 0.5f, GY[k] * 0.5f);
+                g.text(font, glyph, 0, 0, StatElements.OUTLINE, false);
+                pose.popMatrix();
+            }
+            g.text(font, glyph, 0, 0, color, false);
+        } finally {
+            pose.popMatrix();
+        }
+    }
+
     /** Hypixel's own stat icons where it has one (the SkyBlock menu's Health golden apple, Defense iron chestplate,
      *  Intelligence enchanted book), vanilla's obvious ones for the rest. */
     static ItemStack icon(Readout r) {
@@ -320,7 +376,6 @@ public final class BarPainter {
             a[Readout.HEALTH_BAR.ordinal()] = new ItemStack(Items.GOLDEN_APPLE);
             a[Readout.MANA_BAR.ordinal()] = new ItemStack(Items.ENCHANTED_BOOK);
             a[Readout.DEFENCE_BAR.ordinal()] = new ItemStack(Items.IRON_CHESTPLATE);
-            a[Readout.VITALITY_BAR.ordinal()] = new ItemStack(Items.GLISTERING_MELON_SLICE);
             a[Readout.XP_BAR.ordinal()] = new ItemStack(Items.EXPERIENCE_BOTTLE);
             a[Readout.OTHER_BAR.ordinal()] = new ItemStack(Items.CLOCK);
             icons = a;

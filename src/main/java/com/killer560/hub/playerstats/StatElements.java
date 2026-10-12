@@ -138,13 +138,18 @@ public final class StatElements {
             if (s != 1f) {
                 pose.scale(s, s);
             }
-            for (int k = 0; k < OUT_DX.length; k++) {
-                g.text(font, value, OUT_DX[k], OUT_DY[k], OUTLINE, false);
-            }
-            g.text(font, value, 0, 0, color, false);
+            outlined(g, font, value, color);
         } finally {
             pose.popMatrix();
         }
+    }
+
+    /** {@code text} at the current pose's origin with the one-unit outline all round it. */
+    static void outlined(GuiGraphicsExtractor g, Font font, String text, int color) {
+        for (int k = 0; k < OUT_DX.length; k++) {
+            g.text(font, text, OUT_DX[k], OUT_DY[k], OUTLINE, false);
+        }
+        g.text(font, text, 0, 0, color, false);
     }
 
     /**
