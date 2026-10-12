@@ -430,17 +430,7 @@ public final class ArrowAlignFeature {
         }
         Vec3 eye = client.player.getEyePosition();
         double rangeSq = cfg.getAuraRange() * cfg.getAuraRange();
-        int target = -1;
-        if (lastAuraIndex >= 0 && isAuraClickable(lastAuraIndex, eye, rangeSq)) {
-            target = lastAuraIndex; // finish the frame it's on before moving along
-        } else {
-            for (int i = 0; i < 25; i++) {
-                if (isAuraClickable(i, eye, rangeSq)) {
-                    target = i;
-                    break;
-                }
-            }
-        }
+        int target = pickAuraTarget(client.player, eye, rangeSq);
         if (target < 0) {
             lastAuraIndex = -1;
             return;
@@ -455,6 +445,49 @@ public final class ArrowAlignFeature {
         // a click the gate held back carries at most a tick of backlog.
         int rolledMs = max > min ? ThreadLocalRandom.current().nextInt(min, max + 1) : min;
         nextAuraClickDueTick = Math.max(nextAuraClickDueTick, tick - 1) + rolledMs / 50.0;
+    }
+
+    /**
+     * Which frame the Aura clicks next (killer560, 2026-10-11, option A: "clicks frames already on the reported look
+     * first, so it turns less often"). A frame the movement packets' look already passes through is clicked with no turn
+     * at all, and a turn costs a tick (turn, then click once a movement packet has carried it - GrimAC Hitboxes
+     * otherwise). So, in order: the frame it is on, if the look still reaches it (a frame needing several clicks); any
+     * frame on the look, nearest along the ray (the body is given back to his view the tick after a click, so whatever
+     * he is looking at is free); then the clickable frame the smallest turn away from the look, so each turn is short
+     * and the next frame is beside the last.
+     */
+    private static int pickAuraTarget(net.minecraft.client.player.LocalPlayer player, Vec3 eye, double rangeSq) {
+        Vec3 look = com.killer560.hub.util.TurnFirst.look(player);
+        Vec3 end = eye.add(look.scale(Math.sqrt(rangeSq) + 1.0));
+        if (lastAuraIndex >= 0 && isAuraClickable(lastAuraIndex, eye, rangeSq)
+                && frames[lastAuraIndex].getBoundingBox().clip(eye, end).isPresent()) {
+            return lastAuraIndex;
+        }
+        int onLook = -1;
+        double onLookDist = Double.MAX_VALUE;
+        int nearest = -1;
+        double nearestDot = -2.0;
+        for (int i = 0; i < 25; i++) {
+            if (!isAuraClickable(i, eye, rangeSq)) {
+                continue;
+            }
+            AABB box = frames[i].getBoundingBox();
+            java.util.Optional<Vec3> hit = box.clip(eye, end);
+            if (hit.isPresent()) {
+                double d = eye.distanceToSqr(hit.get());
+                if (d < onLookDist) {
+                    onLookDist = d;
+                    onLook = i;
+                }
+                continue;
+            }
+            double dot = box.getCenter().subtract(eye).normalize().dot(look);
+            if (dot > nearestDot) {
+                nearestDot = dot;
+                nearest = i;
+            }
+        }
+        return onLook >= 0 ? onLook : nearest;
     }
 
     private static boolean isAuraClickable(int index, Vec3 eye, double rangeSq) {
