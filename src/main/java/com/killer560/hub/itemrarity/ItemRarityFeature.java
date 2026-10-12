@@ -102,6 +102,11 @@ public final class ItemRarityFeature {
             case OUTLINE -> {
                 // Inset rings, one per pixel of width, so a thicker outline grows inward and never leaves the slot.
                 int w = cfg.getOutlineWidth();
+                // Under the Inventory Theme the ring sits just inside the slot's frame lines (same width in GUI units).
+                int ringPx = w * Math.max(1, Minecraft.getInstance().getWindow().getGuiScale());
+                if (themedInner(graphics, x, y, hotbar, color, ringPx)) {
+                    return;
+                }
                 com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
                 for (int i = 0; i < w; i++) {
                     rects.outline(x + i, y + i, 16 - 2 * i, 16 - 2 * i, color);
@@ -115,8 +120,19 @@ public final class ItemRarityFeature {
                 }
                 rects.submit();
             }
-            default -> graphics.fill(x, y, x + 16, y + 16, color);
+            default -> {
+                // Under the Inventory Theme the colour fills the slot's frame from line to line, with no grey ring between
+                // (killer560, 2026-10-12: "there shouldn't be that grey space around the outlines for the item rarity").
+                if (!themedInner(graphics, x, y, hotbar, color, 0)) {
+                    graphics.fill(x, y, x + 16, y + 16, color);
+                }
+            }
         }
+    }
+
+    private static boolean themedInner(GuiGraphicsExtractor graphics, int x, int y, boolean hotbar, int color, int ring) {
+        return hotbar ? com.killer560.hub.inventorytheme.HotbarTheme.fillCell(graphics, x, y, color, ring)
+                : com.killer560.hub.inventorytheme.InventoryThemeFeature.fillSlotInner(graphics, x, y, color, ring);
     }
 
     private static boolean isOnSkyblockServer() {

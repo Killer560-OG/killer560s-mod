@@ -259,6 +259,36 @@ public final class InventoryThemeFeature {
         r.fill(x1, y0 + t, x1 + t, y1, line);  // right: the next column's left line
     }
 
+    /**
+     * Fills the inside of a themed container slot's frame (slot-local GUI x, y as vanilla's extractSlot gets them) from
+     * line to line - or, with {@code ring > 0}, a ring that many pixels wide just inside the lines. For the Item Rarity
+     * Background (killer560, 2026-10-12: "there shouldn't be that grey space around the outlines for the item rarity").
+     * @return false when the open screen is not themed, so the caller draws its plain 16x16 square.
+     */
+    public static boolean fillSlotInner(GuiGraphicsExtractor graphics, int slotX, int slotY, int color, int ring) {
+        Screen screen = com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance());
+        if (!shouldTheme(screen) || isOwnedByStorageOverlay(screen.getTitle())) {
+            return false;
+        }
+        int t = InventoryThemeConfig.getInstance().getLineWidth();
+        int d = lineShift(t);
+        PixelRects r = PixelRects.begin(graphics);
+        try {
+            int x0 = r.x(slotX - 1) - d + Math.max(0, t);
+            int y0 = r.y(slotY - 1) - d + Math.max(0, t);
+            int x1 = r.x(slotX + SLOT_SIZE - 1) - d;
+            int y1 = r.y(slotY + SLOT_SIZE - 1) - d;
+            if (ring > 0) {
+                r.outline(x0, y0, x1, y1, ring, color);
+            } else {
+                r.fill(x0, y0, x1, y1, color);
+            }
+        } finally {
+            r.submit();
+        }
+        return true;
+    }
+
     /** Pixels every slot-grid line is moved up and left by, so it straddles the gap between two items - see
      *  {@link #cellBox}. Public for the testkit (897). */
     public static int lineShift(int t) {

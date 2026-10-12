@@ -124,10 +124,11 @@ public final class HotbarTheme {
 
         PixelRects r = PixelRects.begin(graphics);
         try {
-            int px0 = r.x(x0);
-            int py0 = r.y(y0);
-            int px1 = r.x(x0 + 182);
-            int py1 = r.y(bottom);
+            int[] bar = barBox(r, cx, bottom);
+            int px0 = bar[0];
+            int py0 = bar[1];
+            int px1 = bar[2];
+            int py1 = bar[3];
             r.fill(px0, py0, px1, py1, panel);
             r.fill(px0 + t, py0 + t, px1 - t, py1 - t, slotColor);
             r.outline(px0, py0, px1, py1, t, accent);
@@ -158,6 +159,77 @@ public final class HotbarTheme {
         } finally {
             r.submit();
         }
+    }
+
+    /**
+     * The bar's pixel box {x0, y0, x1, y1}. killer560, 2026-10-12: "the orange outlines are missing on the bottom". The
+     * GUI height is the window height divided by the GUI scale ROUNDED UP (Window adds one when it does not divide), so
+     * on a window whose height is not a multiple of the scale the last GUI row hangs off the screen, and the bottom line
+     * drawn on it was cut off whole. The bottom edge is pulled back onto the window and the top edge down by the same
+     * amount, so the items (which vanilla still places from the GUI height) keep equal room above and below.
+     */
+    private static int[] barBox(PixelRects r, int cx, int bottom) {
+        int x0 = cx - 91;
+        // The two end lines sit on the cell boundaries x0 + 1 and x0 + 181 exactly as the separators sit on x0 + 1 + 20i,
+        // so the end cells are as wide as the rest. On vanilla's 182-unit sprite edges, slots 0 and 8 had a unit more
+        // room on their outer side and their items sat off centre (testkit 897).
+        int t = InventoryThemeConfig.getInstance().getLineWidth();
+        int px0 = r.x(x0 + 1) - t / 2;
+        int py0 = r.y(bottom - 22);
+        int px1 = r.x(x0 + 181) - t / 2 + t;
+        int py1 = r.y(bottom);
+        int clip = Math.max(0, py1 - Minecraft.getInstance().getWindow().getHeight());
+        return new int[]{px0, py0 + clip, px1, py1 - clip};
+    }
+
+    /**
+     * Fills the inside of the themed hotbar cell that holds the item vanilla draws at GUI (itemX, itemY) - from its lines
+     * to its lines, inside the selected slot's heavier frame - or, with {@code ring > 0}, only a ring that many pixels
+     * wide just inside them. For the Item Rarity Background (killer560, 2026-10-12: "there shouldn't be that grey space
+     * around the outlines for the item rarity"). @return false when the themed hotbar is not the one being drawn, so the
+     * caller draws its plain 16x16 square.
+     */
+    public static boolean fillCell(GuiGraphicsExtractor graphics, int itemX, int itemY, int color, int ring) {
+        Minecraft mc = Minecraft.getInstance();
+        Player player = mc.player;
+        if (!suppressingSprites || player == null) {
+            return false;
+        }
+        InventoryThemeConfig cfg = InventoryThemeConfig.getInstance();
+        int t = cfg.getLineWidth();
+        int cx = graphics.guiWidth() / 2;
+        int bottom = graphics.guiHeight();
+        int x0 = cx - 91;
+        PixelRects r = PixelRects.begin(graphics);
+        try {
+            int[] bar = barBox(r, cx, bottom);
+            int i = Math.floorDiv(itemX - (x0 + 3), 20);
+            int fx0;
+            int fx1;
+            int inset = t;
+            if (i >= 0 && i <= 8 && itemX == x0 + 3 + 20 * i) {
+                fx0 = i == 0 ? bar[0] : separator(r, x0, i, t);
+                fx1 = i == 8 ? bar[2] : separator(r, x0, i + 1, t) + t;
+                if (i == player.getInventory().getSelectedSlot()) {
+                    inset = t + r.unit(); // the selected slot's frame is a unit heavier (drawBackground)
+                }
+            } else {
+                fx0 = r.x(itemX - 3); // the offhand's own square
+                fx1 = r.x(itemX - 3 + 22);
+            }
+            int ix0 = fx0 + inset;
+            int iy0 = bar[1] + inset;
+            int ix1 = fx1 - inset;
+            int iy1 = bar[3] - inset;
+            if (ring > 0) {
+                r.outline(ix0, iy0, ix1, iy1, ring, color);
+            } else {
+                r.fill(ix0, iy0, ix1, iy1, color);
+            }
+        } finally {
+            r.submit();
+        }
+        return true;
     }
 
     /** The first pixel column of the separator before slot {@code i} (1..8): {@code t} pixels centred on vanilla's cell
