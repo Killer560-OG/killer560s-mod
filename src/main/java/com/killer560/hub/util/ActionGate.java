@@ -207,11 +207,7 @@ public final class ActionGate {
          *  only caller. */
         BAZAAR_FLIP_CMD(Kind.COMMAND),
         /** The Bazaar-to-NPC Flipper clicking inside Hypixel's Bazaar product menu or the {@code /trades} NPC
-         *  menu. Declared and wired together with {@code BAZAAR_FLIP_CMD}, but note that the click steps
-         *  themselves are gated off behind {@code BazaarFlipFeature#MENU_CLICKS_VERIFIED} until those two
-         *  menu layouts have actually been observed in game - so this actor is reachable only from the one
-         *  helper that performs a verified click, and today nothing calls it. That is deliberate, and it is
-         *  the case this enum's doc warns about, stated rather than hidden. */
+         *  menu. {@code BazaarFlipFeature#click} is its only caller. */
         BAZAAR_FLIP_MENU(Kind.SCREEN),
         /** Auto Kick sending "p kick &lt;name&gt;" once a floor's target time is missed (killer560: "create
          *  auto kick... The kick based off of timed comp of a floor and whatnot", ported from Odin's own

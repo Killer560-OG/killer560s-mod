@@ -16,9 +16,7 @@ import java.util.Locale;
 
 /**
  * Bazaar-to-NPC Flipper settings. Cheat build only - see
- * {@link com.killer560.hub.bazaarflip.BazaarFlipFeature}, and in particular its
- * {@code MENU_CLICKS_VERIFIED} constant, which is why this tab says out loud that the buy and sell clicks
- * are not verified rather than letting him find out by pointing it at half a billion coins.
+ * {@link com.killer560.hub.bazaarflip.BazaarFlipFeature}.
  */
 public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
 
@@ -85,13 +83,8 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
-        // Stated on the tab, not just in a log file: the two clicking steps have never been verified against
-        // the real menus, so the bot walks the flow and stops rather than spending coins on a guess.
         widgets.add(warningLabel(contentX, y, contentWidth,
-                "§cBuy/sell clicks NOT verified - it opens each menu, prints it, then stops."));
-        y += 18;
-        widgets.add(warningLabel(contentX, y, contentWidth,
-                "§7Run it once and send the printed menu contents to have the clicks written."));
+                "§7Needs a Booster Cookie (remote /bz, selling from /trades)."));
         y += 22;
 
         if (!cfg.isEnabledRaw()) {

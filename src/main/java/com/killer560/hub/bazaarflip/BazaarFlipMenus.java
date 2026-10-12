@@ -1,5 +1,7 @@
 package com.killer560.hub.bazaarflip;
 
+import com.killer560.hub.bazaar.BazaarPages;
+import com.killer560.hub.croesus.DungeonChestValuer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -13,25 +15,13 @@ import java.util.Locale;
 /**
  * Reading Hypixel's Bazaar and {@code /trades} menus BY CONTENTS.
  *
- * <p>No slot index is hardcoded anywhere in this class, on purpose. Auto Croesus can hardcode slots because
- * its layout came from a real published source (UnclaimedBloom6's AutoCroesus, via QUOI) that had been
- * checked against the live menus. <b>No such source exists for the Bazaar product menu or for
- * {@code /trades}</b>, and a wrong hardcoded index in a menu that spends coins is the worst possible failure
- * mode, so everything here matches on an item's visible name the way the class-selection overlay does.
- *
- * <h2>What is verified and what is not</h2>
- * Verified: the two data endpoints, the arithmetic, and that {@code /bz <name>} and {@code /trades} are real
- * Hypixel server commands (the mod already forwards {@code /bz} to Hypixel - see
- * {@code bazaar.BazaarFeature}).
- *
- * <p><b>NOT verified, and therefore not clicked:</b> the internal flow of Hypixel's Bazaar product menu (what
- * the instant-buy button is called today, whether it leads to a fixed-quantity page or a sign-input custom
- * amount, and what the confirmation looks like) and the internal flow of the {@code /trades} NPC menu (whether
- * selling is a shift-click on the player's own inventory, a per-item button, or a "sell inventory" button).
- * None of that is documented anywhere this could be read from, and it cannot be observed from the repository.
- * {@link #describe} exists to close that gap: the runner opens each menu, dumps exactly what is in it, and
- * stops. One dry run in the Hub produces the real names and the real flow, and then
- * {@link BazaarFlipFeature#MENU_CLICKS_VERIFIED} can be flipped and the click steps written against facts.
+ * <p>No slot index is hardcoded here. Bazaar pages are recognised by {@link BazaarPages} (the Bazaar reskin's own
+ * classifier, built from SkyHanni, Skyblocker and the wiki) and buttons are found by their visible name. The one
+ * real dump on record (killer560's Untested Cheat client, 2026-10-08) confirmed the first hop: {@code /bz Lump of
+ * Magma} opens {@code Bazaar ➜ "Lump of Magma"} with the product at slot 11 under its own name, and Hypixel's chat
+ * confirmed an instant buy is direct ({@code [Bazaar] Executing instant buy...} then {@code [Bazaar] Bought 16x
+ * Ender Pearl for 112.0 coins!}). Selling from {@code /trades} needs an active Booster Cookie (wiki, Trades).
+ * {@link #describe} is still logged whenever a page is not the one expected, so a layout change names itself.
  */
 public final class BazaarFlipMenus {
 
@@ -119,6 +109,114 @@ public final class BazaarFlipMenus {
             }
         }
         return free;
+    }
+
+    // ---- the flip's own reads (2026-10-11) -------------------------------------------------------------
+
+    /** The open menu as {@link BazaarPages} classifies it - the same classifier the Bazaar reskin uses, so the
+     *  flipper and the reskin can never disagree about which Bazaar page is open. */
+    public static BazaarPages.Page page(AbstractContainerScreen<?> screen) {
+        AbstractContainerMenu menu = screen.getMenu();
+        List<BazaarPages.Item> items = new ArrayList<>();
+        for (Slot slot : menuSlots(menu)) {
+            ItemStack stack = slot.getItem();
+            if (stack.isEmpty()) {
+                continue;
+            }
+            String name = nameOf(stack);
+            items.add(new BazaarPages.Item(slot.index, name, DungeonChestValuer.cleanLore(stack), name.isBlank()));
+        }
+        int rows = menuSlots(menu).size() / 9;
+        return BazaarPages.classify(titleOf(screen), rows, items);
+    }
+
+    /** The first item on {@code page} (content, sidebar or bar) whose name is exactly {@code name}, ignoring case. */
+    public static BazaarPages.Item item(BazaarPages.Page page, String name) {
+        for (List<BazaarPages.Item> part : List.of(page.content(), page.nav(), page.sidebar())) {
+            for (BazaarPages.Item it : part) {
+                if (it.name().equalsIgnoreCase(name)) {
+                    return it;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Whether {@code stack} is the product: its Skyblock id when it has one, else its visible name. */
+    public static boolean isProduct(ItemStack stack, String productId, String displayName) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        String id = com.killer560.hub.autoroutes.ItemIdentity.skyblockId(stack);
+        if (id != null && !id.isBlank()) {
+            return id.equals(productId);
+        }
+        return displayName != null && nameOf(stack).equalsIgnoreCase(displayName);
+    }
+
+    /** Units of the product in the player's own 36 slots of the open container. */
+    public static int countProduct(AbstractContainerMenu menu, String productId, String displayName) {
+        int total = 0;
+        for (Slot slot : playerSlots(menu)) {
+            if (isProduct(slot.getItem(), productId, displayName)) {
+                total += slot.getItem().getCount();
+            }
+        }
+        return total;
+    }
+
+    /** How many more units of the product fit: empty slots at a full stack each, plus the gap on partial stacks. */
+    public static int roomFor(AbstractContainerMenu menu, String productId, String displayName, int stackSize) {
+        int room = 0;
+        int max = Math.max(1, stackSize);
+        for (Slot slot : playerSlots(menu)) {
+            ItemStack stack = slot.getItem();
+            if (stack.isEmpty()) {
+                room += max;
+            } else if (isProduct(stack, productId, displayName)) {
+                room += Math.max(0, max - stack.getCount());
+            }
+        }
+        return room;
+    }
+
+    private static final java.util.regex.Pattern LORE_AMOUNT =
+            java.util.regex.Pattern.compile("^Amount: ([\\d,]{1,12})x?$");
+    private static final java.util.regex.Pattern LORE_PRICE =
+            java.util.regex.Pattern.compile("^(?:Price|Total|Cost): ([\\d,]{1,15}(?:\\.\\d{1,2})?) coins?$");
+
+    /** "Amount: 2,304x" off an instant-buy option, or -1 when the lore has no such line. */
+    public static long loreAmount(List<String> lore) {
+        for (String line : lore) {
+            java.util.regex.Matcher m = LORE_AMOUNT.matcher(line);
+            if (m.matches()) {
+                return Long.parseLong(m.group(1).replace(",", ""));
+            }
+        }
+        return -1;
+    }
+
+    /** "Price: 80,627 coins" off an instant-buy option, or -1 when the lore has no such line. */
+    public static double lorePrice(List<String> lore) {
+        for (String line : lore) {
+            java.util.regex.Matcher m = LORE_PRICE.matcher(line);
+            if (m.matches()) {
+                return Double.parseDouble(m.group(1).replace(",", ""));
+            }
+        }
+        return -1;
+    }
+
+    /** A cheap fingerprint of the menu's own items, so a page is judged only once its items stop changing. */
+    public static String signature(AbstractContainerMenu menu) {
+        StringBuilder sb = new StringBuilder();
+        for (Slot slot : menuSlots(menu)) {
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) {
+                sb.append(slot.index).append('=').append(nameOf(stack)).append('x').append(stack.getCount()).append(';');
+            }
+        }
+        return sb.toString();
     }
 
     /**

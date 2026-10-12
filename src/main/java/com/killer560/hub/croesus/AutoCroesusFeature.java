@@ -148,6 +148,19 @@ public final class AutoCroesusFeature {
     private static int rerolls = 0;
     private static long claimedProfit = 0L;
     private static int skipped = 0;
+    /**
+     * The run to walk back into for a second chest with a Dungeon Chest Key (killer560, 2026-10-11: "it needs to
+     * click back into the run it just claimed and get another chest"). Hypixel closes Croesus after a claim, and the
+     * reopened menu's head no longer says "No chests opened yet!", so the menu scan alone never found that run again
+     * and no key was ever spent. Decided in the run view BEFORE the first claim, from the other chests' lore valued
+     * with the key's price taken off; cleared once it has been acted on.
+     */
+    private static String revisitRunKey = null;
+    private static int revisitPage = -1;
+    private static int revisitSlot = -1;
+    private static String revisitFloor = null;
+    /** The floor read off the head of the run currently open (null when the head did not say). */
+    private static String currentRunFloor = null;
 
     private AutoCroesusFeature() {
     }
@@ -469,6 +482,9 @@ public final class AutoCroesusFeature {
                     }
                     return;
                 }
+                if (revisitRunKey != null && revisit(client, screen, stacks, page, now)) {
+                    return;
+                }
                 for (int slot : RUN_SLOTS) {
                     if (slot >= stacks.size()) {
                         break;
@@ -489,6 +505,7 @@ public final class AutoCroesusFeature {
                         return;
                     }
                     ChestProfitFeature.rememberRunFloor(floor);
+                    currentRunFloor = floor;
                     currentRunKey = key;
                     rerolledThisRun = false;
                     claimedThisRun = false;
@@ -594,7 +611,6 @@ public final class AutoCroesusFeature {
         }
         CroesusConfig cfg = CroesusConfig.getInstance();
         long minProfit = cfg.getAutoMinProfitK() * 1000L;
-        long keyMinProfit = keyModeThreshold(cfg);
 
         ChestValue target = null;
         for (ChestValue c : chests) {
@@ -605,7 +621,7 @@ public final class AutoCroesusFeature {
                 // The lore only lists "Dungeon Chest Key" once a chest in this run has already been claimed,
                 // so this branch IS the "second chest" case - its own, higher threshold applies, and the key's
                 // Bazaar price is already inside c.profit() (DungeonChestValuer.fromLore).
-                if (!cfg.isAutoUseChestKeys() || c.profit() < Math.max(minProfit, keyMinProfit)) {
+                if (!cfg.isAutoUseChestKeys() || c.profit() < keyFloor(cfg)) {
                     continue;
                 }
             } else if (c.profit() < minProfit) {
@@ -625,6 +641,8 @@ public final class AutoCroesusFeature {
             pendingReroll = false;
             if (target.requiresKey()) {
                 keysUsed++;
+            } else {
+                planKeyRevisit(chests, target, cfg);
             }
             setState(State.WAIT_CHEST, now);
             return;
@@ -668,6 +686,9 @@ public final class AutoCroesusFeature {
         }
         if (currentRunKey != null) {
             skippedRuns.add(currentRunKey);
+            if (claimedThisRun && currentRunKey.equals(revisitRunKey)) {
+                clearRevisit(); // already looked at the keyed chests in this very view
+            }
         }
         if (claimedThisRun) {
             // Already took a chest out of this run - it is finished, not skipped.
@@ -733,14 +754,17 @@ public final class AutoCroesusFeature {
         }
         ChestValue value = DungeonChestValuer.fromChestScreen(chestTitle, stacks);
         CroesusConfig cfg = CroesusConfig.getInstance();
-        long minProfit = value.requiresKey()
-                ? Math.max(cfg.getAutoMinProfitK() * 1000L, cfg.getAutoKeyMinProfitK() * 1000L)
-                : cfg.getAutoMinProfitK() * 1000L;
+        // The same key floor the run view chose this chest by (keyModeThreshold); this used to read only the fixed
+        // "set profit" number, so with a key-price mode the two disagreed about the same chest.
+        long minProfit = value.requiresKey() ? keyFloor(cfg) : cfg.getAutoMinProfitK() * 1000L;
         if (value.profit() < minProfit) {
             // Re-check with the real reward stacks before paying. This used to stop the whole session; with
             // rerolling in the mix a chest legitimately lands here (a reroll that made things worse), so it
             // walks back to the run view and refuses this one chest instead of ending the run.
             refuseCurrentChest();
+            if (!value.requiresKey() && currentRunKey != null && currentRunKey.equals(revisitRunKey)) {
+                clearRevisit(); // the first chest was not taken, so there is no second one to come back for
+            }
             goBack(client, screen, now);
             return;
         }
@@ -755,8 +779,11 @@ public final class AutoCroesusFeature {
         claimedThisRun = true;
         claimedProfit += value.profit();
         refuseCurrentChest();
-        if (!CroesusConfig.getInstance().isAutoUseChestKeys() && currentRunKey != null) {
-            // Without chest keys one claim is all a run can give, so never walk back into it.
+        if (value.requiresKey() && currentRunKey != null && currentRunKey.equals(revisitRunKey)) {
+            clearRevisit(); // the keyed chest came straight from the run view Hypixel left open: nothing to come back for
+        }
+        if (currentRunKey != null && !currentRunKey.equals(revisitRunKey)) {
+            // Done with this run: its keyed chest was just claimed, or nothing else in it is worth a key.
             skippedRuns.add(currentRunKey);
         }
         setState(State.WAIT_AFTER_CLAIM, now);
@@ -992,6 +1019,115 @@ public final class AutoCroesusFeature {
         return true;
     }
 
+    // ---- the second chest (Dungeon Chest Key) ------------------------------------------------------
+
+    /** What a chest bought with a key must clear: the plain floor, and the key mode's own threshold. */
+    private static long keyFloor(CroesusConfig cfg) {
+        return Math.max(cfg.getAutoMinProfitK() * 1000L, keyModeThreshold(cfg));
+    }
+
+    /**
+     * Called as the FIRST chest of a run is clicked: if keys are on and another unopened chest in this run is worth a
+     * key (its profit with the key's Bazaar price taken off clears {@link #keyFloor}), remember to come back for it.
+     */
+    private static void planKeyRevisit(List<ChestValue> chests, ChestValue first, CroesusConfig cfg) {
+        if (!cfg.isAutoUseChestKeys() || currentRunKey == null || DungeonChestValuer.dungeonChestKeyPrice() == null) {
+            return;
+        }
+        ChestValue second = null;
+        long best = Long.MIN_VALUE;
+        for (ChestValue c : chests) {
+            if (c == first || c.opened() || c.slot() < 0) {
+                continue;
+            }
+            long withKey = DungeonChestValuer.profitWithKey(c);
+            if (withKey > best) {
+                best = withKey;
+                second = c;
+            }
+        }
+        if (second == null || best < keyFloor(cfg)) {
+            LOGGER.info("[Croesus] No second chest worth a key in run {} (best {} with the key, floor {})", currentRunKey,
+                    second == null ? "none" : best, keyFloor(cfg));
+            return;
+        }
+        String[] parts = currentRunKey.split(":");
+        revisitRunKey = currentRunKey;
+        revisitPage = Integer.parseInt(parts[0]);
+        revisitSlot = Integer.parseInt(parts[1]);
+        revisitFloor = currentRunFloor;
+        LOGGER.info("[Croesus] Will come back to run {} ({}) for the {} chest with a key: {} after the key", revisitRunKey,
+                revisitFloor, second.type(), best);
+        ModChat.send("Auto Croesus", ModChat.text("Coming back with a Dungeon Chest Key for the "),
+                ModChat.value(second.type().display),
+                ModChat.dim(" (" + DungeonChestValuer.formatCoins(best) + " after the key)"));
+    }
+
+    /**
+     * In the Croesus menu with a run to go back into: on its page, click its head (once, and only while it is still
+     * the same floor and no longer reads "No chests opened yet!"); on an earlier page, turn the page.
+     *
+     * @return whether this tick was spent here (a click went out, or the gate said wait)
+     */
+    private static boolean revisit(Minecraft client, AbstractContainerScreen<?> screen, List<ItemStack> stacks, int page,
+                                   long now) {
+        if (page < revisitPage) {
+            ItemStack next = stacks.size() > NEXT_PAGE_SLOT ? stacks.get(NEXT_PAGE_SLOT) : ItemStack.EMPTY;
+            if (!next.is(Items.ARROW)) {
+                clearRevisit();
+                return false;
+            }
+            if (!click(client, screen, NEXT_PAGE_SLOT)) {
+                return true;
+            }
+            lastPageClickedFrom = page;
+            lastPageClickAtMs = now;
+            nextActionAtMs = now + randomDelay();
+            return true;
+        }
+        if (page != revisitPage || revisitSlot >= stacks.size()) {
+            clearRevisit();
+            return false;
+        }
+        ItemStack head = stacks.get(revisitSlot);
+        String floor = ChestProfitFeature.floorFromCroesusHead(head);
+        if (head.isEmpty() || !head.is(Items.PLAYER_HEAD)
+                || DungeonChestValuer.cleanLore(head).contains(DungeonChestValuer.RUN_UNOPENED_LORE)
+                || !java.util.Objects.equals(floor, revisitFloor)) {
+            LOGGER.info("[Croesus] Run {} is not where it was (floor {} vs {}) - not going back", revisitRunKey, floor,
+                    revisitFloor);
+            ModChat.send("Auto Croesus", ModChat.bad("Couldn't find that run again"), ModChat.dim(" - no key spent."));
+            skippedRuns.add(revisitRunKey);
+            clearRevisit();
+            return false;
+        }
+        if (!click(client, screen, revisitSlot)) {
+            return true;
+        }
+        ChestProfitFeature.rememberRunFloor(floor);
+        currentRunKey = revisitRunKey;
+        claimedThisRun = true;
+        rerolledThisRun = true; // a run already opened is never rerolled
+        LOGGER.info("[Croesus] Back into run {} for the second chest", currentRunKey);
+        // One attempt: the run view picks the keyed chest by the usual rules, and the run is finished either way.
+        clearRevisit();
+        skippedRuns.add(currentRunKey);
+        setState(State.WAIT_RUN_VIEW, now);
+        return true;
+    }
+
+    private static void clearRevisit() {
+        revisitRunKey = null;
+        revisitPage = -1;
+        revisitSlot = -1;
+        revisitFloor = null;
+    }
+
+    /** For the testkit: the run Auto Croesus means to walk back into for a keyed chest, or null. */
+    public static String pendingKeyRevisitForTest() {
+        return revisitRunKey;
+    }
+
     // ---- lifecycle -------------------------------------------------------------------------------
 
     private static void start(long now) {
@@ -999,6 +1135,7 @@ public final class AutoCroesusFeature {
         armed = false;
         skippedRuns.clear();
         refusedChests.clear();
+        clearRevisit();
         currentRunKey = null;
         targetType = null;
         targetSlot = -1;
