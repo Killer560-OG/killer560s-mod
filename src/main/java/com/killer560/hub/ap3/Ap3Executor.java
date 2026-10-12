@@ -2998,6 +2998,16 @@ public final class Ap3Executor {
     /** Ticks left to stand still after the placed block vanished next to you, so the server has removed it too. */
     private static int placedGraceTicks;
 
+    /** Ticks to stand still after a placed block vanished against him: the measured round trip ({@link
+     *  com.killer560.hub.util.PingTracker#automationMs}) in whole ticks + 2, at most a second - 2 locally, 6 at 200 ms.
+     *  Until 2026-10-11 the tab-list latency, about 1 ms on Hypixel, so it was 2 whatever the ping. */
+    static int placedGraceTicks() {
+        Minecraft client = Minecraft.getInstance();
+        int ping = client.getConnection() == null || client.player == null ? 0
+                : com.killer560.hub.util.PingTracker.automationMs();
+        return Math.min(20, ping / 50 + 2);
+    }
+
     private static void tickBlockWatch(Minecraft client) {
         if (blockWatchPos == null || client.level == null || client.player == null) {
             return;
@@ -3012,13 +3022,8 @@ public final class Ap3Executor {
         boolean solid = !client.level.getBlockState(blockWatchPos).getCollisionShape(client.level, blockWatchPos).isEmpty();
         boolean touching = client.player.getBoundingBox().inflate(0.05).intersects(new net.minecraft.world.phys.AABB(blockWatchPos));
         if (placedWasSolid && !solid && touching) {
-            // It vanished while you were against it: wait out the server (ping in ticks + 1) before moving into it.
-            int ping = 0;
-            var info = client.getConnection() == null ? null : client.getConnection().getPlayerInfo(client.player.getUUID());
-            if (info != null) {
-                ping = info.getLatency();
-            }
-            placedGraceTicks = Math.min(20, ping / 50 + 2);
+            // It vanished while you were against it: wait out the server before moving into it.
+            placedGraceTicks = placedGraceTicks();
         }
         placedWasSolid = solid;
         // Only a block that really stops you counts: taller than a step up above your feet (a slab you run onto is

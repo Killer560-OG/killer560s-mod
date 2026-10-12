@@ -8,7 +8,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -97,6 +96,11 @@ public final class TerminalQolFeature {
             return;
         }
         registered = true;
+        com.killer560.hub.util.PingTracker.register();
+        com.killer560.hub.util.PingTracker.addDemand(() -> {
+            TerminalQolConfig cfg = TerminalQolConfig.getInstance();
+            return cfg.isProtectionEnabled() && cfg.isProtectionSubtractPing();
+        });
         restoreDropKeyAfterCrash();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TerminalQolFeature", client -> tick()));
     }
@@ -191,13 +195,14 @@ public final class TerminalQolFeature {
         return threshold > 0 && System.currentTimeMillis() - terminalOpenedAtMs <= threshold;
     }
 
+    /** The measured round trip ({@link com.killer560.hub.util.PingTracker#automationMs}); 0 when not connected. Until
+     *  2026-10-11 the tab-list latency, about 1 ms on Hypixel, so Subtract Ping subtracted nothing. */
     private static int ping() {
         Minecraft client = Minecraft.getInstance();
         if (client.getConnection() == null || client.player == null) {
             return 0;
         }
-        PlayerInfo info = client.getConnection().getPlayerInfo(client.player.getUUID());
-        return info == null ? 0 : Math.max(0, info.getLatency());
+        return com.killer560.hub.util.PingTracker.automationMs();
     }
 
     private static void playBlockedSound() {

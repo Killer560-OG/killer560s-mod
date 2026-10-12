@@ -2556,13 +2556,15 @@ public final class RouteExecutor {
         }
     }
 
-    /** Ticks a boom that changed nothing waits: the tab-list latency's round trip plus a margin, bounded. */
-    private static int boomSettleTicks() {
+    /** Ticks a boom that changed nothing waits: the measured round trip ({@link
+     *  com.killer560.hub.util.PingTracker#automationMs}) rounded up, plus a margin, bounded - 5 at a local 1-50 ms, 8 at
+     *  200 ms, 20 (a second) above 750 ms. Until 2026-10-11 the round trip was the tab-list latency, about 1 ms on
+     *  Hypixel, so a boom on a real connection waited 5 ticks whatever the ping. */
+    static int boomSettleTicks() {
         int ping = 0;
         Minecraft client = Minecraft.getInstance();
         if (client.getConnection() != null && client.player != null) {
-            net.minecraft.client.multiplayer.PlayerInfo info = client.getConnection().getPlayerInfo(client.player.getUUID());
-            ping = info == null ? 0 : Math.max(0, info.getLatency());
+            ping = com.killer560.hub.util.PingTracker.automationMs();
         }
         return Mth.clamp(BOOM_SETTLE_MIN_TICKS + (ping + 49) / 50, BOOM_SETTLE_MIN_TICKS, BOOM_SETTLE_MAX_TICKS);
     }

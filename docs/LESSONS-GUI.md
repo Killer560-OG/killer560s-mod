@@ -216,5 +216,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **The player's own tab-list latency is not a ping on Hypixel.** The Performance HUD read `PlayerInfo.getLatency()` and
   always said 1 ms (killer560, 2026-10-11). `util/PingTracker` measures a round trip with vanilla's ping request / pong
   pair (the F3 ping chart's packets; `ClientPacketListener.handlePongResponse` runs on the Netty thread, javap both
-  versions) and only sends while something shows it; testkit 724 follows an injected 200 ms. Bloodcamp, Auto Routes,
-  AP3, Terminals and Auto Debuff still compensate with the tab value.
+  versions) and only sends while something shows it; testkit 724 follows an injected 200 ms. Blood Camp, Auto Routes,
+  AP3, Terminal Protection and Auto Debuff had compensated with that ~1 ms all along; since 2026-10-11 they read
+  `PingTracker.automationMs()` (median of the last 5 pongs, tab value until the first) and keep it requesting while on
+  (testkit 791-796).
