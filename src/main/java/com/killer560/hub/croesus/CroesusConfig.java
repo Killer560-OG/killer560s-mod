@@ -99,7 +99,8 @@ public final class CroesusConfig {
     public static final int DEFAULT_RUN_KEY_COLOR = 0x9B00B2;
     /** Earlier needs-a-key defaults (gold, then 0xCC0096): a config still on one moves to the new one. */
     static final int[] LEGACY_RUN_KEY_COLORS = {0xFFD000, 0xCC0096};
-    /** A claimed run whose chests were not looked at yet: a faint 1 px outline, no fill, no mark - nothing to do until
+    /** A claimed run whose chests were not looked at yet: a solid 2 px cyan outline, no fill, no mark (a full outline
+     *  since 2026-10-13, his ask) - nothing to do until
      *  he looks, so it recedes (killer560, 2026-10-13). */
     public static final int DEFAULT_RUN_UNKNOWN_COLOR = 0x7DF9FF;
     private int runUnknownColor = DEFAULT_RUN_UNKNOWN_COLOR;

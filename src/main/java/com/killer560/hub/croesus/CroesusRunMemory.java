@@ -39,7 +39,8 @@ import java.util.regex.Pattern;
  * ambiguous reads "not looked at" (never hidden) and is logged.
  * <p>
  * <b>Persistence.</b> {@code killer560smod-croesus-runs.json} (dungeons/runs); runs past their expiry are dropped on load
- * and save. Run data, not a setting, so profiles do not carry it.
+ * and save. Run data, not a setting, so profiles do not carry it. The same file keeps each Croesus page as last read
+ * (its runs' expiry and state), so the info box's totals survive a restart (2026-10-13).
  */
 final class CroesusRunMemory {
 
@@ -82,6 +83,29 @@ final class CroesusRunMemory {
     }
 
     private static final List<Run> RUNS = new ArrayList<>();
+
+    /** One run as a page showed it: when it expires and the state it was drawn in (ChestProfitFeature.RUN_*). */
+    record PageRun(long expiresAt, long tolMs, byte state) {
+    }
+
+    /** A Croesus page as last read. {@code stale}: newer runs have pushed the list along since, so it no longer holds
+     *  exactly the runs now on that page (its counts still add up to real runs, but the total misses some). */
+    static final class Page {
+        final List<PageRun> runs;
+        final long readAtMs;
+        boolean stale;
+
+        Page(List<PageRun> runs, long readAtMs, boolean stale) {
+            this.runs = runs;
+            this.readAtMs = readAtMs;
+            this.stale = stale;
+        }
+    }
+
+    /** killer560, 2026-10-13: "make it save across reloading my instance". The pages behind the info box's totals, saved
+     *  with the runs so "Unclaimed X / 60" and "Already claimed" are right straight after a restart. */
+    private static final Map<Integer, Page> PAGES = new HashMap<>();
+    private static int pageCount = 0;
     private static boolean loaded = false;
     private static volatile int version = 0;
 
@@ -256,6 +280,75 @@ final class CroesusRunMemory {
         return n;
     }
 
+    // ---- pages (the info box's totals) ------------------------------------------------------------------------------
+
+    /**
+     * A page was read. When page 1 shows a run newer than the newest it showed before, or the number of pages changed,
+     * runs were added and the list moved along: every other page is marked stale until it is read again (its runs are
+     * real, but the runs now between pages are not counted). A run that expired drops off by itself (below), which does
+     * not move the pages before it.
+     */
+    static synchronized void notePage(int page, int pages, List<PageRun> runs, long now) {
+        ensureLoaded();
+        Page old = PAGES.get(page);
+        boolean moved = pages != pageCount && pageCount != 0;
+        if (page == 1 && old != null && !old.runs.isEmpty() && !runs.isEmpty()) {
+            PageRun was = old.runs.get(0);
+            PageRun is = runs.get(0);
+            if (was.expiresAt() > 0 && is.expiresAt() > was.expiresAt() + was.tolMs() + is.tolMs() + READ_SLACK_MS) {
+                moved = true;
+            }
+        }
+        if (moved) {
+            for (Map.Entry<Integer, Page> e : PAGES.entrySet()) {
+                if (e.getKey() != page) {
+                    e.getValue().stale = true;
+                }
+            }
+        }
+        pageCount = pages;
+        boolean same = old != null && !old.stale && old.runs.equals(runs);
+        PAGES.put(page, new Page(List.copyOf(runs), now, false));
+        if (!same || moved) {
+            version++;
+            save();
+        }
+    }
+
+    /** {unclaimed, claimed, pages read and still current, pages, worth a key, not looked at}, runs past expiry left out. */
+    static synchronized int[] pageTotals(long now, byte unclaimed, byte needsKey, byte unknown) {
+        ensureLoaded();
+        int u = 0;
+        int c = 0;
+        int k = 0;
+        int q = 0;
+        int seen = 0;
+        for (Map.Entry<Integer, Page> e : PAGES.entrySet()) {
+            if (e.getKey() > pageCount) {
+                continue;
+            }
+            if (!e.getValue().stale) {
+                seen++;
+            }
+            for (PageRun r : e.getValue().runs) {
+                if (r.expiresAt() > 0 && r.expiresAt() + r.tolMs() < now) {
+                    continue; // gone from Croesus since that page was read
+                }
+                if (r.state() == unclaimed) {
+                    u++;
+                } else {
+                    c++;
+                    if (r.state() == needsKey) {
+                        k++;
+                    } else if (r.state() == unknown) {
+                        q++;
+                    }
+                }
+            }
+        }
+        return new int[]{u, c, seen, pageCount, k, q};
+    }
+
     // ---- persistence ----------------------------------------------------------------------------------------------
 
     private static void ensureLoaded() {
@@ -267,6 +360,8 @@ final class CroesusRunMemory {
     static synchronized void load() {
         loaded = true;
         RUNS.clear();
+        PAGES.clear();
+        pageCount = 0;
         version++;
         if (!Files.exists(PATH)) {
             return;
@@ -294,6 +389,23 @@ final class CroesusRunMemory {
                     r.claimKeyed = ConfigJson.getBool(o, "claimKeyed", false);
                     r.claimAtMs = ConfigJson.getLong(o, "claimAt", 0);
                     RUNS.add(r);
+                }
+            }
+            pageCount = ConfigJson.getInt(obj, "pageCount", 0);
+            JsonArray pages = ConfigJson.getArray(obj, "pages");
+            if (pages != null) {
+                for (JsonElement el : pages) {
+                    JsonObject o = el.getAsJsonObject();
+                    List<PageRun> list = new ArrayList<>();
+                    JsonArray rs = ConfigJson.getArray(o, "runs");
+                    if (rs != null) {
+                        for (JsonElement re : rs) {
+                            JsonArray a = re.getAsJsonArray();
+                            list.add(new PageRun(a.get(0).getAsLong(), a.get(1).getAsLong(), a.get(2).getAsByte()));
+                        }
+                    }
+                    PAGES.put(ConfigJson.getInt(o, "page", 1), new Page(List.copyOf(list), ConfigJson.getLong(o, "readAt", 0),
+                            ConfigJson.getBool(o, "stale", false)));
                 }
             }
         } catch (Exception e) {
@@ -330,6 +442,28 @@ final class CroesusRunMemory {
             }
             JsonObject obj = new JsonObject();
             obj.add("runs", runs);
+            obj.addProperty("pageCount", pageCount);
+            JsonArray pages = new JsonArray();
+            for (Map.Entry<Integer, Page> e : new java.util.TreeMap<>(PAGES).entrySet()) {
+                JsonObject o = new JsonObject();
+                o.addProperty("page", e.getKey());
+                o.addProperty("readAt", e.getValue().readAtMs);
+                o.addProperty("stale", e.getValue().stale);
+                JsonArray rs = new JsonArray();
+                for (PageRun r : e.getValue().runs) {
+                    if (r.expiresAt() > 0 && r.expiresAt() + r.tolMs() < now) {
+                        continue;
+                    }
+                    JsonArray a = new JsonArray();
+                    a.add(r.expiresAt());
+                    a.add(r.tolMs());
+                    a.add(r.state());
+                    rs.add(a);
+                }
+                o.add("runs", rs);
+                pages.add(o);
+            }
+            obj.add("pages", pages);
             Files.createDirectories(PATH.getParent());
             Files.writeString(PATH, new GsonBuilder().setPrettyPrinting().create().toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception e) {
@@ -341,6 +475,8 @@ final class CroesusRunMemory {
     static synchronized void clearForTest() {
         loaded = true;
         RUNS.clear();
+        PAGES.clear();
+        pageCount = 0;
         version++;
         save();
     }

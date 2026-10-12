@@ -66,13 +66,10 @@ public final class ChestProfitFeature {
      *  border. Drawn behind the item from {@code croesus/mixin/CroesusSlotMixin}, so the item and tooltip cover it. */
     // killer560, 2026-10-13: "it is really hard still to tell what needs opened now". The two states that need him
     // (unclaimed, needs a key) are near-solid fills with a 2 px border; everything with nothing to do recedes: a light
-    // tint or a faint outline, no bright border. Testkit 898 measures the gap (salience) as well as distinctness.
+    // tint or an outline with no fill (both blue states are solid 2 px outlines since 2026-10-13). Testkit 898 measures the gap (salience) as well as distinctness.
     private static final int RUN_UNCLAIMED_FILL_ALPHA = 0xB0;
     private static final int RUN_UNCLAIMED_BORDER_ALPHA = 0xFF;
-    private static final int RUN_CLAIMED_FILL_ALPHA = 0x40;
     private static final int RUN_KEY_FILL_ALPHA = 0xB0;
-    /** Not looked at: a 1 px outline at this alpha, no fill, no mark. */
-    private static final int RUN_UNKNOWN_OUTLINE_ALPHA = 0x70;
     /** Key used: the darkest look, a heavier tint than "opened" and no border. */
     private static final int RUN_USED_FILL_ALPHA = 0x48;
     private static final int RUN_KEY_BORDER_ALPHA = 0xFF;
@@ -133,11 +130,6 @@ public final class ChestProfitFeature {
     private static int runHeadFingerprint = 0;
     /** The container the run states above were read from, so a newer screen never borrows them. */
     private static int runHeadContainerId = Integer.MIN_VALUE;
-    /** killer560, 2026-10-12: "count from all pages combined out of how many at max it can store". Each Croesus page's
-     *  {unclaimed, claimed} as last read this session, keyed by page; cleared when the page count changes. A page not
-     *  seen yet leaves the total partial ("+"). */
-    private static final Map<Integer, int[]> PAGE_COUNTS = new java.util.concurrent.ConcurrentHashMap<>();
-    private static int pageCount = 0;
     private static List<ChestValue> runViewChests = List.of();
     private static ChestValue chestScreenValue = null;
     private static String runViewFloor = null;
@@ -453,10 +445,6 @@ public final class ChestProfitFeature {
         List<ItemStack> stacks = containerStacks(screen);
         int headPage = pageOf(titleOf(screen));
         byte[] state = new byte[stacks.size()];
-        int unclaimed = 0;
-        int claimed = 0;
-        int needsKey = 0;
-        int unknown = 0;
         long now = System.currentTimeMillis();
         List<CroesusRunMemory.Entry> entries = new ArrayList<>();
         List<ItemStack> entryHeads = new ArrayList<>();
@@ -488,16 +476,6 @@ public final class ChestProfitFeature {
             byte st = headState(run, head);
             state[slot] = st;
             logTransition(run != null ? run.id : headPage + ":" + slot, st, run);
-            if (st == RUN_UNCLAIMED) {
-                unclaimed++;
-            } else {
-                claimed++;
-                if (st == RUN_NEEDS_KEY) {
-                    needsKey++;
-                } else if (st == RUN_UNKNOWN) {
-                    unknown++;
-                }
-            }
         }
         runHeadState = state;
         runHeadContainerId = screen.getMenu().containerId;
@@ -509,26 +487,19 @@ public final class ChestProfitFeature {
         Matcher m = MENU_PAGE.matcher(titleOf(screen));
         int page = m.matches() ? Integer.parseInt(m.group(1)) : 1;
         int pages = m.matches() ? Math.max(1, Integer.parseInt(m.group(2))) : 1;
-        if (pages != pageCount) {
-            PAGE_COUNTS.clear(); // runs expired or arrived across a page boundary: the old pages are not comparable
-            pageCount = pages;
+        // killer560, 2026-10-12: "count from all pages combined out of how many at max it can store". Each page as read
+        // (each run's expiry and state) is kept with the run memory, saved, so the totals survive a restart.
+        List<CroesusRunMemory.PageRun> pageRuns = new ArrayList<>();
+        for (CroesusRunMemory.Entry e : entries) {
+            pageRuns.add(new CroesusRunMemory.PageRun(e.expiresAt(), e.tolMs(), state[e.slot()]));
         }
-        PAGE_COUNTS.put(page, new int[]{unclaimed, claimed, needsKey, unknown});
+        CroesusRunMemory.notePage(page, pages, pageRuns, now);
     }
 
-    /** {unclaimed, claimed, pages seen, pages, worth a key, not looked at} across every Croesus page read this session. */
+    /** {unclaimed, claimed, pages seen and current, pages, worth a key, not looked at} across every Croesus page read,
+     *  this session or before a restart (CroesusRunMemory keeps them, past-expiry runs left out). */
     public static int[] runTotals() {
-        int u = 0;
-        int c = 0;
-        int k = 0;
-        int q = 0;
-        for (int[] v : PAGE_COUNTS.values()) {
-            u += v[0];
-            c += v[1];
-            k += v[2];
-            q += v[3];
-        }
-        return new int[]{u, c, PAGE_COUNTS.size(), pageCount, k, q};
+        return CroesusRunMemory.pageTotals(System.currentTimeMillis(), RUN_UNCLAIMED, RUN_NEEDS_KEY, RUN_UNKNOWN);
     }
 
     /** A run's state from its head: the lore says unclaimed / done / which chest was opened; whether the rest is worth a
@@ -841,10 +812,19 @@ public final class ChestProfitFeature {
                 insetBorder(graphics, x, y, (RUN_KEY_BORDER_ALPHA << 24) | cfg.getRunKeyColor());
                 insetBorder(graphics, x + 1, y + 1, 14, (RUN_KEY_BORDER_ALPHA << 24) | cfg.getRunKeyColor());
             }
-            case RUN_UNKNOWN -> insetBorder(graphics, x, y, (RUN_UNKNOWN_OUTLINE_ALPHA << 24) | cfg.getRunUnknownColor());
-            case RUN_OPENED -> graphics.fill(x, y, x + 16, y + 16, (RUN_CLAIMED_FILL_ALPHA << 24) | cfg.getRunOpenedColor());
+            // killer560, 2026-10-13: "can you change that light blue to be a full outline". Both blue states are a
+            // solid outline as thick as the action states' borders, with no fill: the fill is what keeps unclaimed and
+            // needs-a-key louder. Cyan = not looked at, blue = opened.
+            case RUN_UNKNOWN -> outline(graphics, x, y, 0xFF000000 | cfg.getRunUnknownColor());
+            case RUN_OPENED -> outline(graphics, x, y, 0xFF000000 | cfg.getRunOpenedColor());
             default -> graphics.fill(x, y, x + 16, y + 16, (RUN_USED_FILL_ALPHA << 24) | cfg.getRunClaimedColor());
         }
+    }
+
+    /** A 2 px solid outline, no fill: the not-looked-at and opened runs. */
+    private static void outline(GuiGraphicsExtractor graphics, int x, int y, int argb) {
+        insetBorder(graphics, x, y, argb);
+        insetBorder(graphics, x + 1, y + 1, 14, argb);
     }
 
     /** A 1 px border inside the 16x16 slot, so neighbouring borders never touch. */
@@ -985,7 +965,7 @@ public final class ChestProfitFeature {
         legendPart(c, "\u25A0", cfg.getRunUnclaimedColor(), "new  ");
         legendPart(c, "\u25A0", cfg.getRunKeyColor(), "key  ");
         legendPart(c, "□", cfg.getRunUnknownColor(), "unchecked  ");
-        legendPart(c, "\u25A0", cfg.getRunOpenedColor(), "done  ");
+        legendPart(c, "\u25A1", cfg.getRunOpenedColor(), "done  ");
         // The key-used tint is near black: drawn on the dark panel as a lighter grey of the same hue.
         legendPart(c, "\u25A0", lighten(cfg.getRunClaimedColor()), "used");
         return new Line(c.getString(), 0xFF000000 | ModChat.DIM, null, 0, c);
