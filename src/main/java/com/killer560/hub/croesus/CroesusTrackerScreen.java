@@ -2,6 +2,7 @@ package com.killer560.hub.croesus;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.profit.ProfitPanels;
+import com.killer560.hub.gui.profit.ProfitScopeBar;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -63,6 +64,10 @@ public class CroesusTrackerScreen extends Screen {
     private int listW;
     private int listH;
     private int scroll = 0;
+    /** When the header's Reset Totals was first clicked (0 = not armed). */
+    private final long[] resetArmedAt = {0L};
+    /** Top of the cards / list, below the tab row and the account / profile switches. */
+    private static final int BODY_TOP = 58 + ProfitScopeBar.HEIGHT + 4;
 
     public CroesusTrackerScreen(Screen parent, View view) {
         super(Component.literal("Dungeon Profit"));
@@ -82,6 +87,24 @@ public class CroesusTrackerScreen extends Screen {
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("< Back"), btn -> onClose())
                     .bounds(panelX + panelW - 62, panelY + 6, 56, 18).build());
         }
+        // killer560, 2026-10-11: the reset turns red while it asks, and resets only what the switches select.
+        addRenderableWidget(ProfitScopeBar.resetButton(resetX(), panelY + 6, RESET_W, 18, resetArmedAt,
+                CroesusProfitLog.view(), () -> CroesusProfitLog.reset(CroesusProfitLog.view()), () -> {
+                    if (!floorsSeen().contains(floorFilter)) {
+                        floorFilter = CroesusProfitLog.ALL;
+                    }
+                    rebuildWidgets();
+                }));
+        ProfitScopeBar.add(this::addRenderableWidget, panelX + 6, panelY + 56, panelW - 12, CroesusProfitLog.view(),
+                CroesusProfitLog::keys, () -> {
+                    CroesusProfitLog.saveView();
+                    resetArmedAt[0] = 0L;
+                    if (!floorsSeen().contains(floorFilter)) {
+                        floorFilter = CroesusProfitLog.ALL;
+                    }
+                    scroll = 0;
+                    rebuildWidgets();
+                });
 
         int bw = Math.min(90, (panelW - 24) / 4);
         int x = panelX + 6;
@@ -108,18 +131,13 @@ public class CroesusTrackerScreen extends Screen {
                         floorFilter = nextFloor();
                         rebuildWidgets();
                     }).bounds(panelX + panelW - bw - 6, panelY + 34, bw, 18).build());
-        } else {
-            addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset totals"), btn -> {
-                CroesusProfitLog.resetTotals();
-                rebuildWidgets();
-            }).bounds(panelX + panelW - bw - 6, panelY + 34, bw, 18).build());
         }
 
         // The Overview draws its own panels; the other two are plain scrolling lists.
         listX = panelX + 6;
-        listY = panelY + 58;
+        listY = panelY + BODY_TOP;
         listW = panelW - 12;
-        listH = panelH - 58 - 8;
+        listH = panelH - BODY_TOP - 8;
         rows = view == View.OVERVIEW ? List.of() : buildRows();
     }
 
@@ -262,9 +280,8 @@ public class CroesusTrackerScreen extends Screen {
         graphics.outline(panelX, panelY, panelW, 30, ProfitPanels.BORDER);
         graphics.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
         graphics.text(this.font, "DUNGEON PROFIT", panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
-        String claims = CroesusProfitLog.entryCount() + " claims logged";
-        graphics.text(this.font, claims, panelX + panelW - (parent != null ? 72 : 10) - this.font.width(claims),
-                panelY + 11, ProfitPanels.DIM, false);
+        String claims = CroesusProfitLog.entryCount() + " claims";
+        graphics.text(this.font, claims, resetX() - 8 - this.font.width(claims), panelY + 11, ProfitPanels.DIM, false);
 
         if (view == View.OVERVIEW) {
             renderOverview(graphics);
@@ -276,7 +293,7 @@ public class CroesusTrackerScreen extends Screen {
 
     private void renderOverview(GuiGraphicsExtractor g) {
         CroesusProfitLog.Totals t = selectedTotals();
-        int cardsY = panelY + 58;
+        int cardsY = panelY + BODY_TOP;
         int cardH = 46;
         int gap = 6;
         int cardW = (panelW - 12 - gap * 2) / 3;
@@ -397,6 +414,21 @@ public class CroesusTrackerScreen extends Screen {
             int thumbH = Math.max(10, listH * listH / contentH);
             int thumbY = listY + (listH - thumbH) * scroll / maxScroll();
             graphics.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, ProfitPanels.ACCENT);
+        }
+    }
+
+    private static final int RESET_W = 110;
+
+    /** The header's reset sits left of Back (or at the right edge without one). */
+    private int resetX() {
+        return panelX + panelW - (parent != null ? 66 : 6) - RESET_W;
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (ProfitScopeBar.expired(resetArmedAt)) {
+            rebuildWidgets();
         }
     }
 

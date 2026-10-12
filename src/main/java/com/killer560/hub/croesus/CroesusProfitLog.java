@@ -1,5 +1,6 @@
 package com.killer560.hub.croesus;
 
+import com.killer560.hub.gui.profit.ProfitScope;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -14,7 +15,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -23,9 +26,18 @@ import java.util.concurrent.Executors;
 
 /**
  * Croesus Profit Logger storage: every confirmed claim appended to
- * {@code config/killer560/dungeons/runs/killer560smod-croesus-log.json} ({@code entries}), plus running all-time totals per floor
- * ({@code totals}) and in-memory session totals. "Reset totals" clears both totals; the entry history is
- * kept (it's the "full log" - delete the file to wipe it).
+ * {@code config/killer560/dungeons/runs/killer560smod-croesus-log.json} ({@code entries}).
+ *
+ * <p>Since 2026-10-11 every figure is DERIVED from the entries: each claim carries the Minecraft account, Skyblock
+ * profile and mod profile it was made on ({@link ProfitScope.Key}), and the tracker screen's switches
+ * ({@link #view()}) pick which of them the totals, graph and loot log add up. A reset records
+ * {@code {filter, atMs}} in {@code resets} and hides every claim that filter selects from before that moment - the
+ * entry history itself is never deleted (it is the "full log"; delete the file to wipe it). "Session" is every
+ * claim since this game was started.
+ *
+ * <p>A pre-2026-10-11 file kept running {@code totals} beside its entries, and its old "Reset totals" cleared
+ * those while keeping the entries. On first load that is turned into a reset at the claim the totals start after,
+ * so the numbers it showed before are the numbers it shows now. Its claims have no names and read as "?".
  */
 public final class CroesusProfitLog {
 
@@ -39,6 +51,8 @@ public final class CroesusProfitLog {
     });
 
     public static final String ALL = "All";
+    /** Claims at or after this moment are this session's. */
+    private static final long SESSION_START_MS = System.currentTimeMillis();
 
     public static final class Totals {
         public int chests;
@@ -72,31 +86,45 @@ public final class CroesusProfitLog {
         }
     }
 
-    private static final Map<String, Totals> ALL_TIME = new TreeMap<>();
-    private static final Map<String, Totals> SESSION = new TreeMap<>();
+    /** One reset: the claims {@code filter} selects from before {@code atMs} are hidden. */
+    private record Reset(ProfitScope.Filter filter, long atMs) {
+    }
+
     private static JsonArray entries = new JsonArray();
+    private static final List<Reset> RESETS = new ArrayList<>();
+    private static ProfitScope.Filter view = new ProfitScope.Filter();
     private static boolean loaded = false;
+    /** Every entry parsed, rebuilt only when the log changes (the screen reads it every frame). */
+    private static List<Claim> parsed = null;
 
     private CroesusProfitLog() {
     }
 
     public static synchronized void load() {
         loaded = true;
-        ALL_TIME.clear();
         entries = new JsonArray();
+        RESETS.clear();
+        view = new ProfitScope.Filter();
+        parsed = null;
         if (!Files.exists(PATH)) {
             return;
         }
         try {
             JsonObject root = JsonParser.parseString(Files.readString(PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-            if (root.has("totals")) {
-                JsonObject totals = root.getAsJsonObject("totals");
-                for (String key : totals.keySet()) {
-                    ALL_TIME.put(key, Totals.fromJson(totals.getAsJsonObject(key)));
-                }
-            }
             if (root.has("entries")) {
                 entries = root.getAsJsonArray("entries");
+            }
+            if (root.has("view") && root.get("view").isJsonObject()) {
+                view = ProfitScope.Filter.fromJson(root.getAsJsonObject("view"));
+            }
+            if (root.has("resets")) {
+                for (JsonElement e : root.getAsJsonArray("resets")) {
+                    JsonObject o = e.getAsJsonObject();
+                    RESETS.add(new Reset(ProfitScope.Filter.fromJson(o.getAsJsonObject("filter")),
+                            o.get("atMs").getAsLong()));
+                }
+            } else if (!root.has("version")) {
+                migrateLegacyTotals(root);
             }
         } catch (Exception e) {
             // 2026-09-15 persistence audit: the next record() saves over PATH, which used to silently
@@ -113,7 +141,31 @@ public final class CroesusProfitLog {
         }
     }
 
-    /** Appends one confirmed claim and updates session + all-time totals (per floor and "All"). */
+    /** The old file's totals counted only the last {@code totals.All.chests} claims (an old reset cleared them and
+     *  kept the entries); hide the ones before as a reset at the last hidden claim's time. */
+    private static void migrateLegacyTotals(JsonObject root) {
+        int counted = 0;
+        if (root.has("totals") && root.getAsJsonObject("totals").has(ALL)) {
+            counted = Totals.fromJson(root.getAsJsonObject("totals").getAsJsonObject(ALL)).chests;
+        }
+        int hidden = entries.size() - counted;
+        if (hidden <= 0) {
+            return;
+        }
+        long at = timestampOf(entries.get(hidden - 1)) + 1; // hides that claim too (the test is "before")
+        RESETS.add(new Reset(new ProfitScope.Filter(), at));
+        LOGGER.info("[Croesus] Old log: the first {} claims were reset before, kept hidden", hidden);
+    }
+
+    private static long timestampOf(JsonElement e) {
+        try {
+            return Instant.parse(e.getAsJsonObject().get("timestamp").getAsString()).toEpochMilli();
+        } catch (Exception ex) {
+            return 0L;
+        }
+    }
+
+    /** Appends one confirmed claim, tagged with the account, Skyblock profile and mod profile it was made on. */
     public static synchronized void record(String floor, DungeonChestValuer.ChestValue chest, String source) {
         if (!loaded) {
             load();
@@ -121,6 +173,7 @@ public final class CroesusProfitLog {
         String floorKey = floor == null || floor.isBlank() ? "Unknown" : floor;
         JsonObject entry = new JsonObject();
         entry.addProperty("timestamp", Instant.now().toString());
+        ProfitScope.current().writeTo(entry);
         entry.addProperty("floor", floorKey);
         entry.addProperty("chest", chest.type().display);
         entry.addProperty("source", source);
@@ -150,33 +203,76 @@ public final class CroesusProfitLog {
         entry.addProperty("profit", chest.profit());
         entry.addProperty("unpricedItems", chest.unpricedCount());
         entries.add(entry);
-
-        for (Map<String, Totals> map : java.util.List.of(ALL_TIME, SESSION)) {
-            map.computeIfAbsent(ALL, k -> new Totals()).add(chest.cost(), chest.value(), chest.profit());
-            map.computeIfAbsent(floorKey, k -> new Totals()).add(chest.cost(), chest.value(), chest.profit());
-        }
+        parsed = null;
         saveAsync();
     }
 
+    /** Resets everything, every account and profile. */
     public static synchronized void resetTotals() {
+        reset(new ProfitScope.Filter());
+    }
+
+    /** Hides every claim {@code filter} selects from the totals, graph and loot log; other accounts and profiles
+     *  are untouched and the entries stay in the file. */
+    public static synchronized void reset(ProfitScope.Filter filter) {
         if (!loaded) {
             load();
         }
-        ALL_TIME.clear();
-        SESSION.clear();
-        LOGGER.info("[Croesus] Totals reset (entry history kept)");
+        // +1 so a claim logged in this same millisecond is still hidden.
+        RESETS.add(new Reset(filter.copy(), System.currentTimeMillis() + 1));
+        LOGGER.info("[Croesus] Totals reset for {} (entry history kept)", filter.describe());
         saveAsync();
     }
 
-    public static synchronized Map<String, Totals> allTime() {
+    /** What the tracker screen's switches select; change its fields and call {@link #saveView()}. */
+    public static synchronized ProfitScope.Filter view() {
         if (!loaded) {
             load();
         }
-        return copy(ALL_TIME);
+        return view;
     }
 
+    public static synchronized void saveView() {
+        saveAsync();
+    }
+
+    /** Every account / profile / mod profile the log has a claim from. */
+    public static synchronized List<ProfitScope.Key> keys() {
+        LinkedHashSet<ProfitScope.Key> out = new LinkedHashSet<>();
+        for (Claim c : parsedClaims()) {
+            out.add(c.key());
+        }
+        return List.copyOf(out);
+    }
+
+    /** Totals per floor plus {@link #ALL} for the switches' selection. */
+    public static synchronized Map<String, Totals> allTime() {
+        return allTime(view());
+    }
+
+    public static synchronized Map<String, Totals> allTime(ProfitScope.Filter filter) {
+        return totals(claims(filter), 0L);
+    }
+
+    /** Like {@link #allTime()}, counting only this game session's claims. */
     public static synchronized Map<String, Totals> session() {
-        return copy(SESSION);
+        return session(view());
+    }
+
+    public static synchronized Map<String, Totals> session(ProfitScope.Filter filter) {
+        return totals(claims(filter), SESSION_START_MS);
+    }
+
+    private static Map<String, Totals> totals(List<Claim> claims, long since) {
+        Map<String, Totals> map = new TreeMap<>();
+        for (Claim c : claims) {
+            if (c.timestampMs() < since) {
+                continue;
+            }
+            map.computeIfAbsent(ALL, k -> new Totals()).add(c.cost(), c.value(), c.profit());
+            map.computeIfAbsent(c.floor(), k -> new Totals()).add(c.cost(), c.value(), c.profit());
+        }
+        return copy(map);
     }
 
     public static synchronized int entryCount() {
@@ -198,7 +294,7 @@ public final class CroesusProfitLog {
 
     /** One claimed chest, as the log file recorded it. */
     public record Claim(int run, long timestampMs, String floor, String chest, String source, long cost, long value,
-                        long profit, List<LoggedItem> items) {
+                        long profit, List<LoggedItem> items, ProfitScope.Key key) {
         public Claim {
             items = items == null ? List.of() : List.copyOf(items);
         }
@@ -229,10 +325,38 @@ public final class CroesusProfitLog {
         return (id != null && NOTABLE_IDS.contains(id)) || total >= NOTABLE_VALUE;
     }
 
-    /** Every claim in the log, oldest first. */
+    /** The claims the tracker screen's switches select and no reset has hidden, oldest first. */
     public static synchronized List<Claim> claims() {
+        return claims(view());
+    }
+
+    /** The claims {@code filter} selects that no reset has hidden, oldest first. */
+    public static synchronized List<Claim> claims(ProfitScope.Filter filter) {
+        List<Claim> out = new ArrayList<>();
+        for (Claim c : parsedClaims()) {
+            if (c.key().matches(filter) && !hidden(c)) {
+                out.add(c);
+            }
+        }
+        return out;
+    }
+
+    private static boolean hidden(Claim c) {
+        for (Reset r : RESETS) {
+            if (c.timestampMs() < r.atMs() && c.key().matches(r.filter())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Every entry in the file, parsed once per change. */
+    private static List<Claim> parsedClaims() {
         if (!loaded) {
             load();
+        }
+        if (parsed != null) {
+            return parsed;
         }
         List<Claim> out = new java.util.ArrayList<>(entries.size());
         for (int i = 0; i < entries.size(); i++) {
@@ -261,9 +385,11 @@ public final class CroesusProfitLog {
             } catch (Exception ignored) {
             }
             out.add(new Claim((int) num(o, "run", i + 1), ts, str(o, "floor", "Unknown"), str(o, "chest", "?"),
-                    str(o, "source", "?"), num(o, "cost", 0), num(o, "value", 0), num(o, "profit", 0), items));
+                    str(o, "source", "?"), num(o, "cost", 0), num(o, "value", 0), num(o, "profit", 0), items,
+                    ProfitScope.Key.readFrom(o)));
         }
-        return out;
+        parsed = List.copyOf(out);
+        return parsed;
     }
 
     /** Every item ever claimed, most valuable first, with per-floor counts and the run numbers of big drops. */
@@ -352,8 +478,20 @@ public final class CroesusProfitLog {
 
     private static void saveAsync() {
         JsonObject root = new JsonObject();
+        root.addProperty("version", 2);
+        root.add("view", view.toJson());
+        JsonArray resets = new JsonArray();
+        for (Reset r : RESETS) {
+            JsonObject o = new JsonObject();
+            o.add("filter", r.filter().toJson());
+            o.addProperty("atMs", r.atMs());
+            resets.add(o);
+        }
+        root.add("resets", resets);
+        // Every visible claim's totals per floor, as the old format kept them - only so an older jar reading this
+        // file still shows sensible numbers. Nothing here reads it back.
         JsonObject totals = new JsonObject();
-        for (Map.Entry<String, Totals> e : ALL_TIME.entrySet()) {
+        for (Map.Entry<String, Totals> e : totals(claims(new ProfitScope.Filter()), 0L).entrySet()) {
             totals.add(e.getKey(), e.getValue().toJson());
         }
         root.add("totals", totals);

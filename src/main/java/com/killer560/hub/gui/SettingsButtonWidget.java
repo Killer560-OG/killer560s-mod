@@ -45,6 +45,12 @@ public final class SettingsButtonWidget extends AbstractWidget {
     private static final int PRIMARY_BORDER_HOVER = 0xFFFFA040;
     private static final int PRIMARY_BG = 0xFF4A2A08;
     private static final int PRIMARY_BG_HOVER = 0xFF63380B;
+    /** The {@link Builder#danger()} style: a red box for a destructive action waiting on its confirming click
+     *  (killer560, 2026-10-11: "if i press the reset button it then turns red when it asks if you want to reset it"). */
+    private static final int DANGER_BORDER = 0xFFCC2222;
+    private static final int DANGER_BORDER_HOVER = 0xFFFF4444;
+    private static final int DANGER_BG = 0xFF5A1010;
+    private static final int DANGER_BG_HOVER = 0xFF741616;
 
     public interface OnPress {
         void onPress(SettingsButtonWidget button);
@@ -53,13 +59,20 @@ public final class SettingsButtonWidget extends AbstractWidget {
     private final OnPress onPress;
     private final OnPress onSecondaryPress;
     private final boolean primary;
+    private final boolean danger;
 
     private SettingsButtonWidget(Component message, OnPress onPress, OnPress onSecondaryPress, boolean primary,
-            int x, int y, int width, int height) {
+            boolean danger, int x, int y, int width, int height) {
         super(x, y, width, height, message);
         this.onPress = onPress;
         this.onSecondaryPress = onSecondaryPress;
         this.primary = primary;
+        this.danger = danger;
+    }
+
+    /** Whether this was built with {@link Builder#danger()} (read by the testkit). */
+    public boolean isDanger() {
+        return danger;
     }
 
     public static Builder builder(Component message, OnPress onPress) {
@@ -71,6 +84,7 @@ public final class SettingsButtonWidget extends AbstractWidget {
         private final OnPress onPress;
         private OnPress onSecondaryPress;
         private boolean primary;
+        private boolean danger;
         private int x;
         private int y;
         private int width = 150;
@@ -102,8 +116,20 @@ public final class SettingsButtonWidget extends AbstractWidget {
             return this;
         }
 
+        /** Draws this red: a destructive action asking for its confirming click. Wins over {@link #primary()}. */
+        public Builder danger() {
+            this.danger = true;
+            return this;
+        }
+
+        /** {@link #danger()} when {@code on}, so a two-click button can pass its armed state straight in. */
+        public Builder danger(boolean on) {
+            this.danger = on;
+            return this;
+        }
+
         public SettingsButtonWidget build() {
-            return new SettingsButtonWidget(message, onPress, onSecondaryPress, primary, x, y, width, height);
+            return new SettingsButtonWidget(message, onPress, onSecondaryPress, primary, danger, x, y, width, height);
         }
     }
 
@@ -113,6 +139,10 @@ public final class SettingsButtonWidget extends AbstractWidget {
         int y0 = getY();
         int bg = primary ? (isHovered ? PRIMARY_BG_HOVER : PRIMARY_BG) : (isHovered ? BG_HOVER : BG);
         int border = primary ? (isHovered ? PRIMARY_BORDER_HOVER : PRIMARY_BORDER) : (isHovered ? BORDER_HOVER : BORDER);
+        if (danger) {
+            bg = isHovered ? DANGER_BG_HOVER : DANGER_BG;
+            border = isHovered ? DANGER_BORDER_HOVER : DANGER_BORDER;
+        }
         graphics.fill(x0, y0, x0 + getWidth(), y0 + getHeight(), faded(bg));
         graphics.outline(x0, y0, getWidth(), getHeight(), faded(border));
         graphics.centeredText(Minecraft.getInstance().font, getMessage(), x0 + getWidth() / 2,

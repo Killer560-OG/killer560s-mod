@@ -50,9 +50,15 @@ public final class RngMeterOverlay {
     // been tested yet). Safe against false positives like a gear tooltip's "Combat XP: 61.8M
     // §7/ 1M" line, since there "XP" trails the fraction rather than immediately preceding it with
     // a colon.
-    private static final Pattern DUNGEON_SCORE_LINE = Pattern.compile("(?:XP|Score):\\s*[\\d,]+\\s*/\\s*([\\d,]+(?:\\.\\d+)?[kKmM]?)");
+    // The CURRENT side may be abbreviated too ("Experimental XP: 1.2M/5M"): it used to accept digits and commas only.
+    private static final Pattern DUNGEON_SCORE_LINE = Pattern.compile("(?:XP|Score):\\s*[\\d,]+(?:\\.\\d+)?[kKmMbB]?\\s*/\\s*([\\d,]+(?:\\.\\d+)?[kKmM]?)");
     private static final Pattern PROGRESS_LABEL_LINE = Pattern.compile("^Progress:");
     private static final Pattern BARE_FRACTION_LINE = Pattern.compile("^([\\d,]+)\\s*/\\s*([\\d,]+(?:\\.\\d+)?[kKmM]?)$");
+    /** How often an open RNG Meter page is scanned again after its first commit (see {@link #rescanCommitted}). */
+    private static final long RESCAN_MS = 250L;
+    private static long lastRescanAtMs = 0L;
+    /** Names already reported by the "no price mapping" / "no score line" diagnostics, so a rescan never repeats them. */
+    private static final java.util.Set<String> WARNED = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private static final String ELEMENT_ID = "rng_meter_ranking";
     private static final Logger LOGGER = ModLog.get("killer560smod-rngmeter-overlay");
@@ -178,6 +184,7 @@ public final class RngMeterOverlay {
                 // after a menu opens, then the committed result takes over on its own.
                 return;
             }
+            rescanCommitted(screen, title);
             List<RngItem> scanned = committedScan;
             if (scanned.isEmpty()) {
                 // Genuinely a category-picker screen (e.g. "RNG Meter", "Catacombs RNG Meters") -
@@ -248,6 +255,48 @@ public final class RngMeterOverlay {
                         groupKey, unpriced.size(), unpriced);
             }
         }
+    }
+
+    /**
+     * killer560, 2026-10-11: "The rng meter is no longer picking up everything on the rng meter pages." The scan
+     * committed after three identical FRAMES and then never looked at that page again while its title stayed the
+     * same. Three frames is ~50 ms at 60 fps, less than one server tick, so a page whose rewards arrive in a later
+     * packet than the window (or fill in over a few ticks) was committed with only what had arrived, and every
+     * reward sent after that was never read. His own item log showed it: 32 Experimentation Table rewards, all from
+     * pages 2 and 3, and none of page 1's (Titanic Experience Bottle, Metaphysical Serum, the VI books...).
+     * Now an open page keeps being read every {@link #RESCAN_MS}; anything new is merged into the log (which only
+     * ever adds) and shown at once, and the selected drop follows what the page says now.
+     */
+    private static void rescanCommitted(AbstractContainerScreen<?> screen, String title) {
+        long now = System.currentTimeMillis();
+        if (now - lastRescanAtMs < RESCAN_MS) {
+            return;
+        }
+        lastRescanAtMs = now;
+        ScanResult scan = scanMenu(screen);
+        if (scan.selected() != null) {
+            committedSelected = scan.selected();
+        }
+        String groupKey = normalizeGroupKey(title);
+        Map<String, Long> logged = RngItemLog.get(groupKey);
+        Map<String, Long> toMerge = new LinkedHashMap<>();
+        for (RngItem item : scan.items()) {
+            Long before = logged.get(item.name());
+            if (before == null || before != item.pityXp()) {
+                toMerge.put(item.name(), item.pityXp());
+            }
+        }
+        if (!toMerge.isEmpty()) {
+            RngItemLog.merge(groupKey, toMerge);
+            committedScan = itemsFromLog(groupKey);
+            LOGGER.info("RNG Meter \"{}\": {} more reward(s) read after the page settled: {}", groupKey,
+                    toMerge.size(), toMerge.keySet());
+        }
+    }
+
+    /** Test hook: how many rewards the open page's committed scan holds (testkit 7xx). */
+    public static int committedCount() {
+        return committedScan.size();
     }
 
     private static final Pattern PAGE_PREFIX = Pattern.compile("^\\(\\d+/\\d+\\)\\s*");
@@ -346,13 +395,18 @@ public final class RngMeterOverlay {
                 if (unparsedSamples.size() < 5 && !name.isBlank()) {
                     unparsedSamples.add(name + " lore=" + lore);
                 }
+                // A named item with lore but no score line, on an RNG page: either a button, or a reward in a lore
+                // format this has never seen. Logged once per name with its lore so the next miss is diagnosable.
+                if (!name.isBlank() && lore.size() > 2 && isRealReward(name) && WARNED.add("noscore:" + name)) {
+                    LOGGER.info("RNG Meter item with no score line: \"{}\" lore={}", name, lore);
+                }
                 continue;
             }
             if (!isRealReward(name) || isExcludedReward(name)) {
                 continue;
             }
             String id = resolveId(name);
-            if (id == null) {
+            if (id == null && WARNED.add("noid:" + name)) {
                 LOGGER.warn("No price mapping for RNG Meter reward \"{}\" (required score {})", name, requiredScore);
             }
             found.add(new RngItem("", name, id != null ? id : "", RngSource.BAZAAR, requiredScore, false));
