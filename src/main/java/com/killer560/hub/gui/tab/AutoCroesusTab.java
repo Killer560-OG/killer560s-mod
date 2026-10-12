@@ -63,6 +63,14 @@ public class AutoCroesusTab extends BaseTab {
                 }
             });
             y += 24;
+            // Price Mode (killer560, 2026-10-13): the same CroesusConfig field as the Croesus tab's button, so changing
+            // either changes both.
+            widgets.add(SettingsButtonWidget.cycling(priceModeText(cfg), (btn, dir) -> {
+                        cfg.setPriceMode(SettingsButtonWidget.step(cfg.getPriceMode(), dir));
+                        cfg.save();
+                        btn.setMessage(priceModeText(cfg));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
             int range = CroesusConfig.MAX_DELAY_BOUND_MS - CroesusConfig.MIN_DELAY_BOUND_MS;
             widgets.add(new ThemedSliderButton(contentX, y, half, 20, minDelayText(),
                     (cfg.getAutoMinDelayMs() - CroesusConfig.MIN_DELAY_BOUND_MS) / (double) range) {
@@ -176,6 +184,10 @@ public class AutoCroesusTab extends BaseTab {
 
     private static Component minProfitText() {
         return Component.literal("Min Profit: " + DungeonChestValuer.formatCoins(CroesusConfig.getInstance().getAutoMinProfitK() * 1000L));
+    }
+
+    private static Component priceModeText(CroesusConfig cfg) {
+        return Component.literal("Price Mode: §6" + cfg.getPriceMode().label);
     }
 
     private static Component keyProfitText(CroesusConfig cfg) {
