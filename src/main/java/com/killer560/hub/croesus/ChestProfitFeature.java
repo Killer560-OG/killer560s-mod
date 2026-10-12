@@ -694,7 +694,7 @@ public final class ChestProfitFeature {
     /**
      * killer560, 2026-10-13: "in a chest menu if something is worth coming back and buying with a key, highlight it
      * yellow or orange. If there are multiple only highlight the best one." Nothing claimed yet: GREEN on the most
-     * profitable chest at its normal cost (the free claim), ORANGE on the best of the rest whose profit after a key clears
+     * profitable chest at its normal cost (the free claim) when that profit is positive, ORANGE on the best of the rest whose profit after a key clears
      * Auto Croesus's key floor. One chest claimed without a key: no green, the same orange rule over what is left. A key
      * used (two chests opened, or a keyed claim just seen): nothing. The orange rule is exactly {@link #headState}'s
      * "needs a key" (same profitWithKey, same floor, same claimed chest excluded), so the list and this view agree.
@@ -737,7 +737,9 @@ public final class ChestProfitFeature {
                 keyProfit = p;
             }
         }
-        if (free != null && free.slot() < size) {
+        // Green only on a free claim that makes money (killer560, 2026-10-13). The best chest stays out of the orange
+        // pick either way, so a losing best chest changes nothing about the orange.
+        if (free != null && free.profit() > 0 && free.slot() < size) {
             out[free.slot()] = CHEST_FREE;
         }
         if (key != null && key.slot() < size) {
