@@ -79,6 +79,17 @@ public final class PlayerStatsConfig {
     private int absorptionColor = DEFAULT_ABSORPTION_COLOR;
     private int barBackground = DEFAULT_BAR_BACKGROUND;
     private boolean textShadow = true;
+    // --- Bar look (2026-10-12, killer560: "work on the custom bars more. Look at how skyblocker does theirs with how they
+    // actually look custom and try to make your own type of style of it"). Drawn by BarPainter; Classic is the flat look
+    // the bars had before, untouched, and ignores every setting below except the colours it always had. ---
+    public static final int DEFAULT_OVERFLOW_MANA_COLOR = 0xFF9FE6FF;
+    private BarStyle barStyle = defaultBarStyle();
+    private boolean barRounded = true;
+    private boolean barIcons = true;
+    private ValuePosition barValuePosition = ValuePosition.INSIDE;
+    private boolean barSmooth = true;
+    private boolean barDamageGhost = true;
+    private int overflowManaColor = DEFAULT_OVERFLOW_MANA_COLOR;
     /**
      * Layout: Predefined (true) or Custom (false) - killer560, 2026-10-07: "a setting that is predefined spots or fully
      * custom ... look at how Skyblocker has their snap-to-area kind of set up and use that." Predefined puts every
@@ -193,6 +204,15 @@ public final class PlayerStatsConfig {
             cfg.absorptionColor = obj.has("absorptionColor") ? obj.get("absorptionColor").getAsInt() : cfg.absorptionColor;
             cfg.barBackground = obj.has("barBackground") ? obj.get("barBackground").getAsInt() : cfg.barBackground;
             cfg.textShadow = ConfigJson.getBool(obj, "textShadow", cfg.textShadow);
+            cfg.barStyle = BarStyle.byKey(ConfigJson.getString(obj, "barStyle", null), cfg.barStyle);
+            cfg.barRounded = ConfigJson.getBool(obj, "barRounded", cfg.barRounded);
+            cfg.barIcons = ConfigJson.getBool(obj, "barIcons", cfg.barIcons);
+            cfg.barValuePosition = ValuePosition.byKey(ConfigJson.getString(obj, "barValuePosition", null),
+                    cfg.barValuePosition);
+            cfg.barSmooth = ConfigJson.getBool(obj, "barSmooth", cfg.barSmooth);
+            cfg.barDamageGhost = ConfigJson.getBool(obj, "barDamageGhost", cfg.barDamageGhost);
+            cfg.overflowManaColor = obj.has("overflowManaColor") ? obj.get("overflowManaColor").getAsInt()
+                    : cfg.overflowManaColor;
             cfg.predefinedScale = clampScale(obj.has("predefinedScale") && obj.get("predefinedScale").isJsonPrimitive()
                     ? obj.get("predefinedScale").getAsFloat() : cfg.predefinedScale);
             instance = cfg;
@@ -248,6 +268,13 @@ public final class PlayerStatsConfig {
             obj.addProperty("absorptionColor", absorptionColor);
             obj.addProperty("barBackground", barBackground);
             obj.addProperty("textShadow", textShadow);
+            obj.addProperty("barStyle", barStyle.key);
+            obj.addProperty("barRounded", barRounded);
+            obj.addProperty("barIcons", barIcons);
+            obj.addProperty("barValuePosition", barValuePosition.key);
+            obj.addProperty("barSmooth", barSmooth);
+            obj.addProperty("barDamageGhost", barDamageGhost);
+            obj.addProperty("overflowManaColor", overflowManaColor);
             obj.addProperty("predefinedScale", predefinedScale);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -536,6 +563,118 @@ public final class PlayerStatsConfig {
 
     public void setTextShadow(boolean v) {
         this.textShadow = v;
+    }
+
+    /** The bars' look. */
+    public enum BarStyle {
+        /** The flat bar the mod drew before 2026-10-12, exactly: background, fill, absorption segment. */
+        CLASSIC("classic", "Classic"),
+        /** A thin dark frame, inner shadow, gradient fill with a light top edge, stat icon. */
+        SLEEK("sleek", "Sleek"),
+        /** A black and orange double rim, a glossier two-band fill, quarter notches, stat icon. */
+        BOLD("bold", "Bold");
+
+        public final String key;
+        public final String label;
+
+        BarStyle(String key, String label) {
+            this.key = key;
+            this.label = label;
+        }
+
+        static BarStyle byKey(String key, BarStyle def) {
+            for (BarStyle v : values()) {
+                if (v.key.equals(key)) {
+                    return v;
+                }
+            }
+            return def;
+        }
+    }
+
+    /** Where a bar's number goes: centred on the bar, or after its end (the bar is shortened to make room). */
+    public enum ValuePosition {
+        INSIDE("inside", "Inside"),
+        BESIDE("beside", "Beside");
+
+        public final String key;
+        public final String label;
+
+        ValuePosition(String key, String label) {
+            this.key = key;
+            this.label = label;
+        }
+
+        static ValuePosition byKey(String key, ValuePosition def) {
+            for (ValuePosition v : values()) {
+                if (v.key.equals(key)) {
+                    return v;
+                }
+            }
+            return def;
+        }
+    }
+
+    /** Sleek for a config with no style saved; the testkit passes {@code -Dkiller560.test.barStyle=classic} so its
+     *  older pixel-exact bar cases keep measuring the flat look they were written for (docs/TESTING-HOOKS.md). */
+    private static BarStyle defaultBarStyle() {
+        return BarStyle.byKey(System.getProperty("killer560.test.barStyle", "sleek"), BarStyle.SLEEK);
+    }
+
+    public BarStyle getBarStyle() {
+        return barStyle;
+    }
+
+    public void setBarStyle(BarStyle v) {
+        this.barStyle = v == null ? BarStyle.SLEEK : v;
+    }
+
+    public boolean isBarRounded() {
+        return barRounded;
+    }
+
+    public void setBarRounded(boolean v) {
+        this.barRounded = v;
+    }
+
+    public boolean isBarIcons() {
+        return barIcons;
+    }
+
+    public void setBarIcons(boolean v) {
+        this.barIcons = v;
+    }
+
+    public ValuePosition getBarValuePosition() {
+        return barValuePosition;
+    }
+
+    public void setBarValuePosition(ValuePosition v) {
+        this.barValuePosition = v == null ? ValuePosition.INSIDE : v;
+    }
+
+    public boolean isBarSmooth() {
+        return barSmooth;
+    }
+
+    public void setBarSmooth(boolean v) {
+        this.barSmooth = v;
+    }
+
+    public boolean isBarDamageGhost() {
+        return barDamageGhost;
+    }
+
+    public void setBarDamageGhost(boolean v) {
+        this.barDamageGhost = v;
+    }
+
+    public int getOverflowManaColor() {
+        return overflowManaColor;
+    }
+
+    public void setOverflowManaColor(int argb) {
+        this.overflowManaColor = argb;
     }
 
     /** Layout: true = Predefined (areas around the hotbar, {@link StatLayout}), false = Custom (own positions). */
