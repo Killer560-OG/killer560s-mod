@@ -45,6 +45,22 @@ public final class InventoryThemeConfig {
     public static final float MIN_HOTBAR_SCALE = 0.5f;
     public static final float MAX_HOTBAR_SCALE = 2.0f;
 
+    /**
+     * The colours the vanilla-shaped theme is drawn in (killer560, 2026-10-12: "change inventory up to essentially be a
+     * reskin of the original with its coloring"; presets "Default ... the normal vanilla inventory colours", "Dark",
+     * "Mod Theme"). Custom keeps the older colour settings (Theme, Slot Color) useful. Everyone starts on Default,
+     * including a file written before presets existed.
+     */
+    public enum Preset {
+        DEFAULT("Default"), DARK("Dark"), MOD_THEME("Mod Theme"), CUSTOM("Custom");
+
+        public final String label;
+
+        Preset(String label) {
+            this.label = label;
+        }
+    }
+
     private static volatile InventoryThemeConfig instance;
 
     private boolean enabled = false;
@@ -72,6 +88,7 @@ public final class InventoryThemeConfig {
     /** Slot backdrop recolour (killer560, 2026-10-07: "an option to recolor it"): off follows the theme. */
     private boolean useCustomSlotColor = false;
     private int customSlotColor = PanelTheme.AMBER.invSlotBg;
+    private Preset preset = Preset.DEFAULT;
 
     private InventoryThemeConfig() {
     }
@@ -109,6 +126,7 @@ public final class InventoryThemeConfig {
                 }
                 cfg.useCustomSlotColor = ConfigJson.getBool(obj, "useCustomSlotColor", cfg.useCustomSlotColor);
                 cfg.customSlotColor = ConfigJson.getInt(obj, "customSlotColor", cfg.customSlotColor);
+                cfg.preset = ConfigJson.getEnum(obj, "preset", Preset.class, Preset.DEFAULT);
             }
         } catch (Exception ignored) {
             // Unparseable file: keep defaults for this session (per-key reads above handle single bad keys).
@@ -141,6 +159,7 @@ public final class InventoryThemeConfig {
             }
             obj.addProperty("useCustomSlotColor", useCustomSlotColor);
             obj.addProperty("customSlotColor", customSlotColor);
+            obj.addProperty("preset", preset.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -292,6 +311,36 @@ public final class InventoryThemeConfig {
     /** The slot backdrop colour actually drawn: the custom one when set, else the theme's. */
     public int getSlotColor() {
         return useCustomSlotColor ? customSlotColor : theme.invSlotBg;
+    }
+
+    public Preset getPreset() {
+        return preset;
+    }
+
+    public void setPreset(Preset preset) {
+        this.preset = preset == null ? Preset.DEFAULT : preset;
+    }
+
+    /** The shades everything is drawn in: the preset's, with Accent Source / Slot Color Source: Custom applied on top
+     *  in any preset. */
+    public InventoryPalette getPalette() {
+        if (preset == Preset.CUSTOM) {
+            // Custom: built from the Theme's colours with the custom accent / slot colour taking their place, so the
+            // accent also colours the bevels.
+            return InventoryPalette.custom(theme.invPanelBg, getSlotColor(), getAccentColor());
+        }
+        InventoryPalette p = switch (preset) {
+            case DARK -> InventoryPalette.DARK;
+            case MOD_THEME -> InventoryPalette.MOD_THEME;
+            default -> InventoryPalette.DEFAULT;
+        };
+        if (useCustomAccent) {
+            p = p.withAccent(customAccentColor);
+        }
+        if (useCustomSlotColor) {
+            p = p.withSlotFill(customSlotColor);
+        }
+        return p;
     }
 
     /** The panel fill colour (opaque; Background Opacity supplies the alpha). */

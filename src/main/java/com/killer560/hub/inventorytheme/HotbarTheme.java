@@ -107,44 +107,32 @@ public final class HotbarTheme {
     }
 
     /**
-     * The themed panel as a grid (killer560, 2026-10-07: single shared lines between slots): the bar's outer border, one
-     * separator line between each pair of slots, centred on vanilla's own cell boundary (x0 + 1 + 20i - the middle of the
-     * four units between two items), the cells in the slot colour, the selected slot framed one GUI unit heavier than
-     * the lines, and (when the offhand holds something) its own bordered square. Lines are Line Width PIXELS thick
-     * ({@link PixelRects}), also under Hotbar Scale.
+     * The hotbar in vanilla's shape, recoloured (killer560, 2026-10-12: "a reskin of the original with its coloring"):
+     * the 182 x 22 bar with a one-unit outline and the panel fill, each of the nine slots a sunken square exactly round
+     * its item (item x - 1 .. x + 17, the same square the inventory draws), the selected slot ringed two units wide in the
+     * accent where vanilla puts its 24 x 24 selection frame, and the offhand's own square when it holds something.
+     * Colours from {@link InventoryPalette}; Background Opacity scales the bar's alpha. Pixel-exact through
+     * {@link PixelRects}, also under Hotbar Scale.
      */
     private static void drawBackground(GuiGraphicsExtractor graphics, InventoryThemeConfig cfg, Player player, int cx,
                                        int bottom) {
-        int accent = cfg.getAccentColor();
-        int slotColor = cfg.getSlotColor();
-        int panel = (Math.round(cfg.getBackgroundOpacity() * 255f) << 24) | (cfg.getPanelColor() & 0x00FFFFFF);
-        int t = cfg.getLineWidth();
+        InventoryPalette p = cfg.getPalette();
+        int alpha = Math.round(cfg.getBackgroundOpacity() * 255f);
         int x0 = cx - 91;
-        int y0 = bottom - 22;
-
+        int winH = Minecraft.getInstance().getWindow().getHeight();
         PixelRects r = PixelRects.begin(graphics);
         try {
+            int u = r.unit();
             int[] bar = barBox(r, cx, bottom);
-            int px0 = bar[0];
-            int py0 = bar[1];
-            int px1 = bar[2];
-            int py1 = bar[3];
-            r.fill(px0, py0, px1, py1, panel);
-            r.fill(px0 + t, py0 + t, px1 - t, py1 - t, slotColor);
-            r.outline(px0, py0, px1, py1, t, accent);
-            for (int i = 1; i < 9; i++) {
-                int sx = separator(r, x0, i, t);
-                r.fill(sx, py0 + t, sx + t, py1 - t, accent);
+            r.fill(bar[0], bar[1], bar[2], bar[3], withAlpha(p.panel(), alpha));
+            r.outline(bar[0], bar[1], bar[2], bar[3], u, withAlpha(p.border(), alpha));
+            for (int i = 0; i < 9; i++) {
+                int sx = x0 + 3 + 20 * i;
+                InventoryThemeFeature.sunken(r, sx - 1, bottom - 20, sx + 17, bottom - 2, p.slotFill(), p);
             }
-            // Selected slot: the hover glow over its cell and a frame one unit heavier than the lines (always visible,
-            // even at line width 0), in place of vanilla's white selection sprite. The cell runs from its left line to
-            // its right line (the bar's own border at either end).
             int selected = player.getInventory().getSelectedSlot();
-            int fx0 = selected == 0 ? px0 : separator(r, x0, selected, t);
-            int fx1 = selected == 8 ? px1 : separator(r, x0, selected + 1, t) + t;
-            int frame = t + r.unit();
-            r.fill(fx0 + frame, py0 + frame, fx1 - frame, py1 - frame, (0x55 << 24) | (accent & 0x00FFFFFF));
-            r.outline(fx0, py0, fx1, py1, frame, accent);
+            int fx = x0 - 1 + 20 * selected;
+            r.outline(r.x(fx), r.y(bottom - 23), r.x(fx + 24), Math.min(r.y(bottom + 1), winH), 2 * u, p.accent());
 
             ItemStack offhand = player.getOffhandItem();
             if (!offhand.isEmpty()) {
@@ -152,89 +140,40 @@ public final class HotbarTheme {
                 int itemX = left ? cx - 91 - 26 : cx + 91 + 10;
                 int ox0 = r.x(itemX - 3);
                 int ox1 = r.x(itemX - 3 + 22);
-                r.fill(ox0, py0, ox1, py1, panel);
-                r.fill(ox0 + t, py0 + t, ox1 - t, py1 - t, slotColor);
-                r.outline(ox0, py0, ox1, py1, t, accent);
+                r.fill(ox0, bar[1], ox1, bar[3], withAlpha(p.panel(), alpha));
+                r.outline(ox0, bar[1], ox1, bar[3], u, withAlpha(p.border(), alpha));
+                InventoryThemeFeature.sunken(r, itemX - 1, bottom - 20, itemX + 17, bottom - 2, p.slotFill(), p);
             }
         } finally {
             r.submit();
         }
     }
 
+    private static int withAlpha(int argb, int alpha) {
+        return (Math.max(0, Math.min(255, alpha)) << 24) | (argb & 0xFFFFFF);
+    }
+
     /**
-     * The bar's pixel box {x0, y0, x1, y1}. killer560, 2026-10-12: "the orange outlines are missing on the bottom". The
-     * GUI height is the window height divided by the GUI scale ROUNDED UP (Window adds one when it does not divide), so
-     * on a window whose height is not a multiple of the scale the last GUI row hangs off the screen, and the bottom line
-     * drawn on it was cut off whole. The bottom edge is pulled back onto the window and the top edge down by the same
-     * amount, so the items (which vanilla still places from the GUI height) keep equal room above and below.
+     * The bar's pixel box {x0, y0, x1, y1}: vanilla's 182 x 22. killer560, 2026-10-12: "the orange outlines are missing on
+     * the bottom". The GUI height is the window height divided by the GUI scale ROUNDED UP (Window adds one when it does
+     * not divide), so on a window whose height is not a multiple of the scale the last GUI row hangs off the screen and
+     * the bottom edge drawn on it was cut off whole. The bottom edge is pulled back onto the window and the top edge down
+     * by the same amount, so the bar keeps equal room above and below its slots.
      */
     private static int[] barBox(PixelRects r, int cx, int bottom) {
         int x0 = cx - 91;
-        // The two end lines sit on the cell boundaries x0 + 1 and x0 + 181 exactly as the separators sit on x0 + 1 + 20i,
-        // so the end cells are as wide as the rest. On vanilla's 182-unit sprite edges, slots 0 and 8 had a unit more
-        // room on their outer side and their items sat off centre (testkit 897).
-        int t = InventoryThemeConfig.getInstance().getLineWidth();
-        int px0 = r.x(x0 + 1) - t / 2;
         int py0 = r.y(bottom - 22);
-        int px1 = r.x(x0 + 181) - t / 2 + t;
         int py1 = r.y(bottom);
         int clip = Math.max(0, py1 - Minecraft.getInstance().getWindow().getHeight());
-        return new int[]{px0, py0 + clip, px1, py1 - clip};
+        return new int[]{r.x(x0), py0 + clip, r.x(x0 + 182), py1 - clip};
     }
 
     /**
-     * Fills the inside of the themed hotbar cell that holds the item vanilla draws at GUI (itemX, itemY) - from its lines
-     * to its lines, inside the selected slot's heavier frame - or, with {@code ring > 0}, only a ring that many pixels
-     * wide just inside them. For the Item Rarity Background (killer560, 2026-10-12: "there shouldn't be that grey space
-     * around the outlines for the item rarity"). @return false when the themed hotbar is not the one being drawn, so the
-     * caller draws its plain 16x16 square.
+     * A hotbar slot's inside is exactly its item's 16-unit box (the sunken square sits round it), the same square the
+     * Item Rarity Background fills, so there is nothing to widen. @return always false: the caller draws its 16x16 square.
      */
     public static boolean fillCell(GuiGraphicsExtractor graphics, int itemX, int itemY, int color, int ring) {
-        Minecraft mc = Minecraft.getInstance();
-        Player player = mc.player;
-        if (!suppressingSprites || player == null) {
-            return false;
-        }
-        InventoryThemeConfig cfg = InventoryThemeConfig.getInstance();
-        int t = cfg.getLineWidth();
-        int cx = graphics.guiWidth() / 2;
-        int bottom = graphics.guiHeight();
-        int x0 = cx - 91;
-        PixelRects r = PixelRects.begin(graphics);
-        try {
-            int[] bar = barBox(r, cx, bottom);
-            int i = Math.floorDiv(itemX - (x0 + 3), 20);
-            int fx0;
-            int fx1;
-            int inset = t;
-            if (i >= 0 && i <= 8 && itemX == x0 + 3 + 20 * i) {
-                fx0 = i == 0 ? bar[0] : separator(r, x0, i, t);
-                fx1 = i == 8 ? bar[2] : separator(r, x0, i + 1, t) + t;
-                if (i == player.getInventory().getSelectedSlot()) {
-                    inset = t + r.unit(); // the selected slot's frame is a unit heavier (drawBackground)
-                }
-            } else {
-                fx0 = r.x(itemX - 3); // the offhand's own square
-                fx1 = r.x(itemX - 3 + 22);
-            }
-            int ix0 = fx0 + inset;
-            int iy0 = bar[1] + inset;
-            int ix1 = fx1 - inset;
-            int iy1 = bar[3] - inset;
-            if (ring > 0) {
-                r.outline(ix0, iy0, ix1, iy1, ring, color);
-            } else {
-                r.fill(ix0, iy0, ix1, iy1, color);
-            }
-        } finally {
-            r.submit();
-        }
-        return true;
+        return false;
     }
 
-    /** The first pixel column of the separator before slot {@code i} (1..8): {@code t} pixels centred on vanilla's cell
-     *  boundary x0 + 1 + 20i. */
-    private static int separator(PixelRects r, int x0, int i, int t) {
-        return r.x(x0 + 1 + 20 * i) - t / 2;
-    }
 }

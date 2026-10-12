@@ -58,14 +58,24 @@ public class InventoryThemeTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        // Amber -> Dark -> Light, the same three as the Storage Overlay (killer560, 2026-10-07). Amber is the look this
-        // had before; Dark and Light swap the orange for neutral greys.
-        widgets.add(SettingsButtonWidget.cycling(themeText(cfg), (btn, dir) -> {
-                    cfg.setTheme(SettingsButtonWidget.step(cfg.getTheme(), dir));
+        // killer560, 2026-10-12: the vanilla-shaped reskin in Default (vanilla's colours), Dark or Mod Theme; Custom draws it
+        // in the Theme / Slot Color / Accent settings below.
+        widgets.add(SettingsButtonWidget.cycling(presetText(cfg), (btn, dir) -> {
+                    cfg.setPreset(SettingsButtonWidget.step(cfg.getPreset(), dir));
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
+
+        if (cfg.getPreset() == InventoryThemeConfig.Preset.CUSTOM) {
+            // Amber -> Dark -> Light, the same three as the Storage Overlay; only the Custom preset uses it.
+            widgets.add(SettingsButtonWidget.cycling(themeText(cfg), (btn, dir) -> {
+                        cfg.setTheme(SettingsButtonWidget.step(cfg.getTheme(), dir));
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y, contentWidth, 20).build());
+            y += 26;
+        }
 
         double opacityNorm = (cfg.getBackgroundOpacity() - InventoryThemeConfig.MIN_OPACITY)
                 / (InventoryThemeConfig.MAX_OPACITY - InventoryThemeConfig.MIN_OPACITY);
@@ -81,25 +91,6 @@ public class InventoryThemeTab extends BaseTab {
                         + this.value * (InventoryThemeConfig.MAX_OPACITY - InventoryThemeConfig.MIN_OPACITY));
                 cfg.setBackgroundOpacity(newOpacity);
                 cfg.save();
-            }
-        });
-        y += 26;
-
-        // Line Width: whole screen pixels, MIN_LINE_WIDTH..MAX_LINE_WIDTH - the slider spans exactly the setter's clamp.
-        int lineRange = InventoryThemeConfig.MAX_LINE_WIDTH - InventoryThemeConfig.MIN_LINE_WIDTH;
-        double lineNorm = (cfg.getLineWidth() - InventoryThemeConfig.MIN_LINE_WIDTH) / (double) lineRange;
-        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, lineWidthText(cfg), lineNorm) {
-            @Override
-            protected void updateMessage() {
-                setMessage(lineWidthText(cfg));
-            }
-
-            @Override
-            protected void applyValue() {
-                int snapped = InventoryThemeConfig.MIN_LINE_WIDTH + (int) Math.round(this.value * lineRange);
-                cfg.setLineWidth(snapped);
-                cfg.save();
-                this.value = (snapped - InventoryThemeConfig.MIN_LINE_WIDTH) / (double) lineRange;
             }
         });
         y += 26;
@@ -197,8 +188,8 @@ public class InventoryThemeTab extends BaseTab {
         return Component.literal("Theme: " + colour + theme.label);
     }
 
-    private static Component lineWidthText(InventoryThemeConfig cfg) {
-        return Component.literal("Line Width: " + (cfg.getLineWidth() == 0 ? "Off" : cfg.getLineWidth() + " px"));
+    private static Component presetText(InventoryThemeConfig cfg) {
+        return Component.literal("Preset: " + cfg.getPreset().label);
     }
 
     private static Component hotbarText(InventoryThemeConfig cfg) {

@@ -29,7 +29,8 @@ public abstract class InventoryThemeHighlightMixin {
         if (!InventoryThemeFeature.shouldTheme(self) || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle())) {
             return;
         }
-        InventoryThemeFeature.drawSlotHighlight(graphics, self, hoveredSlot);
+        // Vanilla's back pass (under the item) is dropped; the themed wash goes over the item in the front pass, as
+        // vanilla's own white one does - drawn here it would sit under the slot's square.
         ci.cancel();
     }
 
@@ -39,8 +40,7 @@ public abstract class InventoryThemeHighlightMixin {
         if (!InventoryThemeFeature.shouldTheme(self) || InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle())) {
             return;
         }
-        // Our own highlight was already drawn in the "Back" pass above - just suppress vanilla's
-        // second (white) pass rather than draw anything twice.
+        InventoryThemeFeature.drawSlotHighlight(graphics, self, hoveredSlot);
         ci.cancel();
     }
 }
