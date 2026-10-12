@@ -2202,7 +2202,7 @@ final class SettingTooltipsData {
         d.put("auto kick", "While you queue in Party Finder, warns about or kicks a joiner whose S+ time on the floor is slower than its limit.");
         d.put("auto kick/action mode", "What happens to a joiner who misses the floor's limit: Warn Only or Kick.");
         d.put("auto kick/judge by", "Which of a joiner's times is judged: S+, S, or S+ else S (his S+, and his S only when he has no S+).");
-        d.put("auto kick/floor source", "Where the queued floor comes from. Detect Queued reads the floor you queue in Party Finder or /joininstance (or /f7, /m7); until you have queued one it uses Last Run. Last Run is the floor of the last run you were in. Fixed uses Fixed Floor.");
+        d.put("auto kick/floor source", "Where the queued floor comes from. Detect Queued reads the floor and Master Mode you queue in Party Finder (only Party Finder); until you have queued one it uses Last Run. Last Run is the floor of the last run you were in. Fixed uses Fixed Floor.");
         d.put("auto kick/fixed floor", "The floor Auto Kick judges joiners on while Floor Source is Fixed.");
         d.put("auto kick/populate my times from api", "Sets each floor's limit to your own S+ time on it; /autokick populate <name> uses someone else's.");
         for (com.killer560.hub.autokick.AutoKickConfig.Floor f : com.killer560.hub.autokick.AutoKickConfig.Floor.values()) {
