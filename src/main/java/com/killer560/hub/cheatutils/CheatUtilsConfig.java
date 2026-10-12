@@ -62,8 +62,14 @@ public final class CheatUtilsConfig {
 
     public static final double MIN_AURA_RANGE = 2.1;
     public static final double MAX_AURA_RANGE = MEASURED_MAX_REACH;
-    /** Was 4.7 - past the 4.5 the server enforces, so the furthest skulls were refused. */
-    public static final double MAX_AURA_SKULL_RANGE = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
+    /**
+     * Skull range is measured from the eye to the block's CENTRE, QUOI's measure for skulls (2026-10-12), not to its
+     * box like every other aura range. QUOI keeps skulls (Wither Essence) at 4.7 to the centre against 6.2 for
+     * chests and levers, because Hypixel's reach for a skull looks tighter than for a chest; 4.7 to the centre is
+     * 3.8-4.2 to the box, so it is always inside the 4.5-to-the-box cap ({@link #MEASURED_MAX_REACH}) as well.
+     * Until then this was 4.5 to the box, which let a skull be clicked from up to 5.0-5.4 to its centre.
+     */
+    public static final double MAX_AURA_SKULL_RANGE = 4.7;
     public static final int MIN_AURA_COOLDOWN_MS = 100;
     public static final int MAX_AURA_COOLDOWN_MS = 2000;
 
@@ -75,7 +81,7 @@ public final class CheatUtilsConfig {
     // Was QUOI's 6.2. Capped at the measured maximum: past 4.5 the server refused the click and the
     // anticheat flagged the attempt, so the bigger number cost traffic and bought nothing.
     private double auraRange = MEASURED_MAX_REACH;
-    private double auraSkullRange = 4.7;  // QUOI default
+    private double auraSkullRange = MAX_AURA_SKULL_RANGE;  // QUOI default, eye to block centre
     private int auraCooldownMs = 150;     // QUOI "Click delay" default
     private boolean auraSwing = false;    // QUOI "Swing hand" default off
     private boolean auraPauseWhileSneaking = true;

@@ -35,7 +35,9 @@ import com.killer560.hub.compat.McCompat;
  * <ul>
  * <li>Candidates: CHEST / TRAPPED_CHEST, LEVER, and skulls that {@link SecretsFeature#isWitherEssence} confirms
  * (QUOI's redstone-key skull/block handling is intentionally NOT ported - task scope is chests/levers/essence).
- * <li>Nearest candidate within range (QUOI defaults 6.2 chest/lever, 4.7 skull; eye -> block-center distance).
+ * <li>Nearest candidate within range: chests and levers 4.5 eye to block BOX (QUOI 6.2 to the centre, which the
+ * server refused past 4.5); essence skulls QUOI's 4.7 eye to block CENTRE (3.8-4.2 to the box), and never past
+ * the 4.5 box cap either. Every click also waits out ActionGate's 20-tick world-change settle (QUOI AuraManager).
  * <li>QUOI's "click delay": a block must have been in range for the cooldown before its first click; a global
  * cooldown also spaces consecutive clicks. A retry is allowed once after 1s if the click didn't take (chest
  * never opened / lever didn't flip / skull still there), then the block is done for the run.
@@ -43,7 +45,9 @@ import com.killer560.hub.compat.McCompat;
  * skull removed. Everything resets on world change / leaving the dungeon / a live map reset (a new run, which
  * includes every sim rebuild - the same room rebuilt puts its secrets back on the same blocks).
  * <li>QUOI room skips via LiveMap's current room: Three Weirdos (wrong chest fails the puzzle) skipped
- * entirely; no levers in Water Board / Tic Tac Toe. QUOI's conditional Ice Path / Ice Fill / Teleport Maze
+ * entirely; no levers in Water Board / Tic Tac Toe; nothing in Water Board and no chest in Lower / Higher Blaze
+ * until that puzzle reads solved or failed on the tab list, or its room is cleared on the map (QUOI's
+ * mid-solve checks, 2026-10-12). QUOI's conditional Ice Path / Ice Fill / Teleport Maze
  * checks need room-relative coordinates, so those rooms are skipped entirely instead (conservative).
  * <li>Boss: nothing, unless "Boss Levers" is on - then ONLY QUOI's hardcoded F7 P3 levers (with a
  * "Not Activated" stand above) and unpowered device levers.
@@ -69,6 +73,21 @@ public final class SecretAuraFeature {
 
     private static final Set<String> SKIP_ROOMS = Set.of("Three Weirdos", "Teleport Maze", "Ice Path", "Ice Fill");
     private static final Set<String> NO_LEVER_ROOMS = Set.of("Water Board", "Tic Tac Toe");
+    /** Puzzle rooms whose chest is the puzzle's reward: no chest is clicked there until the puzzle is over. */
+    private static final Set<String> CHESTS_AFTER_SOLVE_ROOMS = Set.of("Water Board", "Lower Blaze", "Higher Blaze");
+
+    /**
+     * The current room's puzzle is over: solved or failed on the tab list (Score Calculator's reading), or the room
+     * cleared on the dungeon map. Anything else - open, not listed yet, Score Calculator off - counts as mid-solve.
+     */
+    private static boolean puzzleDone(String roomName) {
+        char tab = com.killer560.hub.scorecalc.ScoreCalculatorFeature.puzzleState(roomName);
+        if (tab == '✔' || tab == '✖') {
+            return true;
+        }
+        int idx = LiveMapFeature.currentRoomIndex();
+        return idx >= 0 && LiveMapFeature.isRoomCleared(idx);
+    }
 
     private record Attempt(int count, long lastMs, Boolean leverPoweredAtClick) {
     }
@@ -157,15 +176,23 @@ public final class SecretAuraFeature {
         if (gate == null && roomName != null && SKIP_ROOMS.contains(roomName)) {
             gate = "skipped room " + roomName;
         }
+        // QUOI: nothing in Water Board while the board is being solved (its reward chest spawns on the solve).
+        boolean puzzleOpen = roomName != null && CHESTS_AFTER_SOLVE_ROOMS.contains(roomName) && !puzzleDone(roomName);
+        if (gate == null && puzzleOpen && "Water Board".equals(roomName)) {
+            gate = "Water Board mid-solve";
+        }
         if (gate != null) {
             return;
         }
 
         boolean leversAllowed = cfg.isAuraLevers() && (roomName == null || !NO_LEVER_ROOMS.contains(roomName));
+        // QUOI: the blaze rooms' chest waits for the puzzle too.
+        boolean chestsAllowed = cfg.isAuraChests() && !puzzleOpen;
         Vec3 eye = client.player.getEyePosition();
         double range = cfg.getAuraRange();
         double rangeSq = range * range;
         double skullRangeSq = cfg.getAuraSkullRange() * cfg.getAuraSkullRange();
+        double capSq = CheatUtilsConfig.MEASURED_MAX_REACH * CheatUtilsConfig.MEASURED_MAX_REACH;
         double maxRange = Math.max(range, cfg.getAuraSkullRange());
         BlockPos min = BlockPos.containing(eye.x - maxRange, eye.y - maxRange, eye.z - maxRange);
         BlockPos max = BlockPos.containing(eye.x + maxRange, eye.y + maxRange, eye.z + maxRange);
@@ -180,7 +207,7 @@ public final class SecretAuraFeature {
                 continue;
             }
             BlockState state = client.level.getBlockState(pos);
-            String kind = classify(client, cfg, pos, state, inBoss, leversAllowed);
+            String kind = classify(client, cfg, pos, state, inBoss, leversAllowed, chestsAllowed);
             if (kind == null) {
                 continue;
             }
@@ -191,7 +218,13 @@ public final class SecretAuraFeature {
             // BlockHits.boxDistanceSq: comparing centre distance against a range capped at vanilla's 4.5
             // made the effective reach nearer 4.0 and dropped clicks the server would have taken.
             double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
-            if (distSq > ("essence".equals(kind) ? skullRangeSq : rangeSq)) {
+            if ("essence".equals(kind)) {
+                // A skull goes by its CENTRE, QUOI's 4.7 (see CheatUtilsConfig.MAX_AURA_SKULL_RANGE), and still never
+                // past the 4.5-to-the-box cap every click has.
+                if (Vec3.atCenterOf(pos).distanceToSqr(eye) > skullRangeSq || distSq > capSq) {
+                    continue;
+                }
+            } else if (distSq > rangeSq) {
                 continue;
             }
             seenNow.add(key);
@@ -278,13 +311,13 @@ public final class SecretAuraFeature {
 
     /** @return "chest"/"lever"/"essence"/"bossLever" when this block is a secret the aura may click, else null. */
     private static String classify(Minecraft client, CheatUtilsConfig cfg, BlockPos pos, BlockState state,
-                                   boolean inBoss, boolean leversAllowed) {
+                                   boolean inBoss, boolean leversAllowed, boolean chestsAllowed) {
         Block block = state.getBlock();
         if (inBoss) {
             return block == Blocks.LEVER && isBossLeverClickable(client, pos, state) ? "bossLever" : null;
         }
         if (block == Blocks.CHEST || block == Blocks.TRAPPED_CHEST) {
-            return cfg.isAuraChests() ? "chest" : null;
+            return chestsAllowed ? "chest" : null;
         }
         if (block == Blocks.LEVER) {
             return leversAllowed ? "lever" : null;
