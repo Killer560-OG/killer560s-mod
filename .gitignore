@@ -44,3 +44,4 @@ HANDOFF.md
 
 # Agent worktrees are separate checkouts of this repo; never track them.
 .claude/worktrees/
+__pycache__/
