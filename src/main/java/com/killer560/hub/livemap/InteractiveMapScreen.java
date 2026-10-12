@@ -280,52 +280,68 @@ public class InteractiveMapScreen extends Screen {
         float ux1 = ux0 + MapPainter.cellSize(tx);
         float uz1 = uz0 + MapPainter.cellSize(tz);
         int colour = MapPainter.multiply(MapPainter.roomColor(group, cfg), 1.15f);
-        fillUnits(graphics, ux0, uz0, ux1, uz1, colour, ox, oy, ppu);
+        // The lit region as unit rectangles: the tile, the half strips, the 2x2 middle's quarter.
+        List<float[]> parts = new ArrayList<>();
+        parts.add(new float[]{ux0, uz0, ux1, uz1});
         if (west) {
-            fillUnits(graphics, ux0 - half, uz0, ux0, uz1, colour, ox, oy, ppu);
+            parts.add(new float[]{ux0 - half, uz0, ux0, uz1});
         }
         if (east) {
-            fillUnits(graphics, ux1, uz0, ux1 + half, uz1, colour, ox, oy, ppu);
+            parts.add(new float[]{ux1, uz0, ux1 + half, uz1});
         }
         if (north) {
-            fillUnits(graphics, ux0, uz0 - half, ux1, uz0, colour, ox, oy, ppu);
+            parts.add(new float[]{ux0, uz0 - half, ux1, uz0});
         }
         if (south) {
-            fillUnits(graphics, ux0, uz1, ux1, uz1 + half, colour, ox, oy, ppu);
+            parts.add(new float[]{ux0, uz1, ux1, uz1 + half});
         }
         // The corners of a 2x2's middle: only when the diagonal cell is the room's too (an L has no middle there).
         int[][] corners = {{-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
         for (int[] c : corners) {
             boolean sideX = c[0] < 0 ? west : east;
             boolean sideZ = c[1] < 0 ? north : south;
-            int diag = tile + c[0] + c[1] * g;
-            if (sideX && sideZ && LiveMapFeature.groupIdAt(diag) == gid) {
+            if (sideX && sideZ && MapPainter.sameRoom(gid, tx + c[0], tz + c[1])) {
                 float cx0 = c[0] < 0 ? ux0 - half : ux1;
                 float cz0 = c[1] < 0 ? uz0 - half : uz1;
-                fillUnits(graphics, cx0, cz0, cx0 + half, cz0 + half, colour, ox, oy, ppu);
+                parts.add(new float[]{cx0, cz0, cx0 + half, cz0 + half});
             }
         }
+        for (float[] r : parts) {
+            fillUnits(graphics, r[0], r[1], r[2], r[3], colour, ox, oy, ppu);
+        }
+        // The white edge: every side of the lit region whose outside is NOT the room - its walls, and the inner corner of
+        // an L, where the notch left by the room's missing quarter is a wall too (killer560, 2026-10-12: "those inner
+        // corners of the room would be nice if those also have that white outline"). A side that meets more of the room
+        // (the far half of a strip, the next tile) gets none: nothing is drawn across the room's floor.
         int edge = 0xB4FFFFFF;
-        float ex0 = west ? ux0 - half : ux0;
-        float ex1 = east ? ux1 + half : ux1;
-        float ez0 = north ? uz0 - half : uz0;
-        float ez1 = south ? uz1 + half : uz1;
-        int x0 = Math.round(ox + ex0 * ppu);
-        int x1 = Math.round(ox + ex1 * ppu);
-        int y0 = Math.round(oy + ez0 * ppu);
-        int y1 = Math.round(oy + ez1 * ppu);
-        if (!north) {
-            graphics.fill(x0 - 1, y0 - 1, x1 + 1, y0, edge);
+        float eps = 0.01f;
+        for (float[] r : parts) {
+            int x0 = Math.round(ox + r[0] * ppu);
+            int y0 = Math.round(oy + r[1] * ppu);
+            int x1 = Math.round(ox + r[2] * ppu);
+            int y1 = Math.round(oy + r[3] * ppu);
+            float mx = (r[0] + r[2]) / 2f;
+            float mz = (r[1] + r[3]) / 2f;
+            if (!roomAtUnits(gid, mx, r[1] - eps)) {
+                graphics.fill(x0 - 1, y0 - 1, x1 + 1, y0, edge);
+            }
+            if (!roomAtUnits(gid, mx, r[3] + eps)) {
+                graphics.fill(x0 - 1, y1, x1 + 1, y1 + 1, edge);
+            }
+            if (!roomAtUnits(gid, r[0] - eps, mz)) {
+                graphics.fill(x0 - 1, y0 - 1, x0, y1 + 1, edge);
+            }
+            if (!roomAtUnits(gid, r[2] + eps, mz)) {
+                graphics.fill(x1, y0 - 1, x1 + 1, y1 + 1, edge);
+            }
         }
-        if (!south) {
-            graphics.fill(x0 - 1, y1, x1 + 1, y1 + 1, edge);
-        }
-        if (!west) {
-            graphics.fill(x0 - 1, y0, x0, y1, edge);
-        }
-        if (!east) {
-            graphics.fill(x1, y0, x1 + 1, y1, edge);
-        }
+    }
+
+    /** Whether a map point (units) is floor of room group {@code gid} (a 2x2's middle only when it is a 2x2). */
+    private static boolean roomAtUnits(int gid, float ux, float uz) {
+        int gx = MapPainter.unitToGrid(ux);
+        int gz = MapPainter.unitToGrid(uz);
+        return gx >= 0 && gz >= 0 && MapPainter.sameRoom(gid, gx, gz);
     }
 
     private static void fillUnits(GuiGraphicsExtractor graphics, float ux0, float uz0, float ux1, float uz1, int colour,
