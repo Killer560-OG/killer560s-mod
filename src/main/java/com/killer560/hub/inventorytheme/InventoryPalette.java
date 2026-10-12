@@ -25,9 +25,10 @@ public record InventoryPalette(int border, int panel, int light, int dark, int s
     public static final InventoryPalette DEFAULT = new InventoryPalette(0xFF000000, 0xFFC6C6C6, 0xFFFFFFFF, 0xFF555555,
             0xFF8B8B8B, 0xFF373737, 0xFFFFFFFF, 0xFF000000, 0xFF8B8B8B, 0xFFFFFFFF, 0xFF404040);
 
-    /** The same shades darkened: a dark-mode Minecraft inventory. */
+    /** The same shades darkened: a dark-mode Minecraft inventory, its titles pure white (killer560, 2026-10-12: "in dark
+     *  mode make text pure white"). */
     public static final InventoryPalette DARK = new InventoryPalette(0xFF000000, 0xFF2E2E30, 0xFF4E4E52, 0xFF161617,
-            0xFF1E1E20, 0xFF0C0C0D, 0xFF46464A, 0xFF000000, 0xFF505054, 0xFFFFFFFF, 0xFFD8D8DC);
+            0xFF1E1E20, 0xFF0C0C0D, 0xFF46464A, 0xFF000000, 0xFF505054, 0xFFFFFFFF, 0xFFFFFFFF);
 
     /** The mod's own look: near-black fills with the theme orange where vanilla has its light shades. */
     public static final InventoryPalette MOD_THEME = new InventoryPalette(0xFF000000, 0xFF161616, 0xFFCC6600, 0xFF4D2600,
