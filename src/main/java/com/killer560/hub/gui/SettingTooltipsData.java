@@ -1842,7 +1842,7 @@ final class SettingTooltipsData {
         d.put("croesus/opened run colour", "A run you claimed one chest from, with nothing left worth a key.");
         d.put("croesus/key used colour", "A run that is done: a key was used on its second chest.");
         d.put("croesus/hide opened runs", "Runs with nothing left to do (opened with nothing worth a key, or done with a key) are not drawn in the Croesus menu. Only the picture is gone: hovering still shows the run and clicking still opens it. Runs worth going back to with a key are never hidden.");
-        d.put("croesus/highlight free chest", "In a run's chest view, fills the most profitable chest green: the one to claim for free. Not shown once a chest of that run has been claimed.");
+        d.put("croesus/highlight free chest", "In a run's chest view, fills the most profitable chest green: the one to claim for free, when it makes a profit. Not shown once a chest of that run has been claimed.");
         d.put("croesus/highlight key chest", "In a run's chest view, fills orange the one chest worth coming back for with a Dungeon Chest Key: the best of the rest whose profit after the key clears Auto Croesus's key settings. It stays orange when you come back; nothing is highlighted once a key was used. A run shows as needing a key in the Croesus list exactly when its chest view has this orange chest.");
         d.put("croesus/free chest colour", "The fill colour of the free claim in a run's chest view.");
         d.put("croesus/key chest colour", "The fill colour of the chest worth a Dungeon Chest Key in a run's chest view.");
