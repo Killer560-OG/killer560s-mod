@@ -1,6 +1,7 @@
 package com.killer560.hub.supporters;
 
 import com.killer560.hub.namechanger.NameChangerConfig;
+import com.killer560.hub.namechanger.NameColor;
 import com.killer560.hub.players.PlayerNames;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -80,7 +81,7 @@ public final class SupportersFeature {
         for (SupporterEntry e : entries) {
             String display = e.rawName().isEmpty() || SlurFilter.isBlocked(e.rawName())
                     ? null
-                    : colorize(e.rawName());
+                    : styled(e);
             map.put(e.uuid(), new Resolved(display, e.scale()));
         }
         byUuid = Map.copyOf(map);
@@ -118,7 +119,8 @@ public final class SupportersFeature {
         if (isSelfOverridden(id)) {
             return null;
         }
-        return Component.literal(r.displayText());
+        // NameColor's decoder, not Component.literal: a shared fade is written in the §x hex escape vanilla misreads.
+        return NameColor.toComponent(r.displayText());
     }
 
     /** Player-model render scale for {@code id} - always {@code 1.0} when not a supporter or cosmetics are
@@ -151,7 +153,7 @@ public final class SupportersFeature {
             if (r.displayText() == null || isSelfOverridden(uuid)) {
                 continue;
             }
-            String plain = net.minecraft.ChatFormatting.stripFormatting(r.displayText());
+            String plain = NameColor.plain(r.displayText());
             if (plain != null && plain.equalsIgnoreCase(candidateDisplayName)) {
                 String realIgn = PlayerNames.nameFor(uuid);
                 if (realIgn != null) {
@@ -222,6 +224,18 @@ public final class SupportersFeature {
         }
         NameChangerConfig cfg = NameChangerConfig.getInstance();
         return cfg.isEnabled() && cfg.isOwnNameEnabled() && !cfg.getOwnDisplayName().isEmpty();
+    }
+
+    /** The text painted for one entry: its {@code &} codes as {@code §}, and when the supporter shared a fade or letter
+     *  colours ({@link SupporterEntry#colors}), each letter in its own true colour exactly as on their own screen. */
+    static String styled(SupporterEntry e) {
+        String text = colorize(e.rawName());
+        int[] colors = e.colors();
+        if (colors == null) {
+            return text;
+        }
+        return NameColor.buildPerChar(text, NameColor.NONE, NameColor.NONE,
+                i -> i < colors.length ? 0xFF000000 | colors[i] : NameColor.NONE);
     }
 
     /** {@code &} + a vanilla colour/format code -> {@code §} + that code (same convention Name Changer's own

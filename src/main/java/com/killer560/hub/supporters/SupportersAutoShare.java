@@ -20,11 +20,11 @@ import java.util.function.Consumer;
  * gets retried the next time the tab rebuilds (typing another character, moving a slider, or just reopening
  * the tab), so it always converges to whatever the fields currently say once the player stops changing them.
  * <p>
- * Never sends a fade or an over-length name to the relay: {@link SupporterNameValidator}'s own rules (max 32
- * visible characters, only the 16 legacy {@code &0-9a-fk-or} colour codes) are checked here BEFORE ever
- * calling {@link SupportersSelfService#save} - a name that only makes sense with a true-colour fade ({@link
- * NameColor#buildFade}) is sent with just its FROM colour instead, since the relay contract has no way to
- * carry a per-letter gradient.
+ * Never sends an over-length name to the relay: {@link SupporterNameValidator}'s own rules (max 32 visible
+ * characters, only the 16 legacy {@code &0-9a-fk-or} colour codes) are checked here BEFORE ever calling {@link
+ * SupportersSelfService#save}. The name itself carries the nearest legacy {@code &} colour (the fade's FROM colour),
+ * which is what a client older than 2026-10-11 shows; a fade or letter colours go alongside it as the relay's
+ * {@code colors} list, one true colour per visible letter, which newer clients paint exactly as you see it.
  */
 public final class SupportersAutoShare {
 
@@ -49,12 +49,25 @@ public final class SupportersAutoShare {
      */
     public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
                                    double scale, Consumer<String> onError) {
+        maybeShare(shareIfSupporter, whitelisted, plainName, argb, null, scale, onError);
+    }
+
+    /** @param colors your name's colour per visible letter ({@code NameChangerFeature.ownShareColours}), or null. Sent
+     *  only when it has exactly one entry per visible letter of the shared name; otherwise the name goes alone. */
+    public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
+                                   int[] colors, double scale, Consumer<String> onError) {
         if (!shareIfSupporter || !whitelisted) {
             return;
         }
+
         String rawName = plainName == null || plainName.isEmpty() ? ""
                 : (argb == NameColor.NONE ? "" : "&" + NameColor.codeFor(argb)) + plainName;
-        String key = rawName + "|" + scale;
+        if (colors != null && (rawName.isEmpty()
+                || colors.length != NameColor.visibleLetters(SupportersFeature.colorize(rawName)))) {
+            colors = null;
+        }
+        final int[] sendColors = colors;
+        String key = rawName + "|" + scale + "|" + java.util.Arrays.toString(colors);
         if (key.equals(lastPushedKey)) {
             return;
         }
@@ -69,7 +82,7 @@ public final class SupportersAutoShare {
         lastPushedKey = key;
         long seq = ++requestSeq;
         CompletableFuture<SupportersSelfService.SaveResult> future =
-                rawName.isEmpty() ? SupportersSelfService.clear() : SupportersSelfService.save(rawName, scale);
+                rawName.isEmpty() ? SupportersSelfService.clear() : SupportersSelfService.save(rawName, scale, sendColors);
         future.whenComplete((result, ignored) -> Minecraft.getInstance().execute(() -> {
             if (seq != requestSeq) {
                 return; // superseded by a newer change

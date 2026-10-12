@@ -113,7 +113,8 @@ public class CosmeticsTab extends BaseTab {
             startFetch(requestRebuild);
         }
         SupportersAutoShare.maybeShare(cfg.isShareIfSupporter(), status == MeStatus.LINKED,
-                plainOwnName(), NameChangerConfig.getInstance().getOwnColor(), cfg.getOwnScale(),
+                plainOwnName(), NameChangerConfig.getInstance().getOwnColor(),
+                com.killer560.hub.namechanger.NameChangerFeature.ownShareColours(), cfg.getOwnScale(),
                 err -> shareError = err);
 
         // --- Custom Names

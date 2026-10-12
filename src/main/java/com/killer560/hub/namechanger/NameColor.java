@@ -185,6 +185,31 @@ public final class NameColor {
         return rgb;
     }
 
+    /** The letters a player sees in {@code s}: every {@code §} code, hex escapes included, removed. */
+    public static String plain(String s) {
+        StringBuilder sb = new StringBuilder(s == null ? 0 : s.length());
+        iterateFormatted(s, Style.EMPTY, (pos, style, cp) -> {
+            sb.appendCodePoint(cp);
+            return true;
+        });
+        return sb.toString();
+    }
+
+    /** The colour of each letter {@code s} paints (0xRRGGBB, -1 where a letter has no colour of its own). */
+    public static int[] letterColours(String s) {
+        java.util.List<Integer> out = new java.util.ArrayList<>();
+        iterateFormatted(s, Style.EMPTY, (pos, style, cp) -> {
+            TextColor c = style.getColor();
+            out.add(c == null ? -1 : c.getValue() & 0xFFFFFF);
+            return true;
+        });
+        int[] arr = new int[out.size()];
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = out.get(i);
+        }
+        return arr;
+    }
+
     /** A legacy-coded string (hex escapes included) as a {@link Component} with real styles, one run per style. */
     public static Component toComponent(String s) {
         MutableComponent out = Component.empty();

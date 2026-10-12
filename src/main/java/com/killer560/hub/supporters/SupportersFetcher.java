@@ -113,7 +113,7 @@ final class SupportersFetcher {
                 UUID uuid = UUID.fromString(o.get("uuid").getAsString());
                 String name = o.has("name") && !o.get("name").isJsonNull() ? o.get("name").getAsString() : "";
                 float scale = o.has("scale") && !o.get("scale").isJsonNull() ? o.get("scale").getAsFloat() : 1.0f;
-                out.add(new SupporterEntry(uuid, name, scale));
+                out.add(new SupporterEntry(uuid, name, scale, SupporterEntry.colorsFrom(o.get("colors"))));
             } catch (Exception badEntry) {
                 // one malformed entry from the relay must not drop the rest of the list
             }

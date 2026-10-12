@@ -98,9 +98,17 @@ public final class SupportersSelfService {
     }
 
     public static CompletableFuture<SaveResult> save(String rawName, double scale) {
+        return save(rawName, scale, null);
+    }
+
+    /** {@code colors}: one 0xRRGGBB per visible letter of {@code rawName} (fade / letter colours), or null for none. */
+    public static CompletableFuture<SaveResult> save(String rawName, double scale, int[] colors) {
         JsonObject body = new JsonObject();
         body.addProperty("name", rawName == null ? "" : rawName);
         body.addProperty("scale", scale);
+        if (colors != null) {
+            body.add("colors", SupporterEntry.colorsJson(colors));
+        }
         return request("POST", HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8));
     }
 

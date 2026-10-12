@@ -194,6 +194,26 @@ public final class NameChangerFeature {
         return NameColor.buildPerChar(display, from, cfg.isOwnColorFadeEnabled() ? to : from, cfg::getOwnCharColor);
     }
 
+    /**
+     * What Share if Supporter sends as {@code colors} (relay, 2026-10-11): your display name's colour per letter exactly as
+     * {@link #ownStyled} paints it, or {@code null} when it is one flat colour (no fade, no letter colours) - then the
+     * single {@code &} colour in the shared name says it all, as before. Read off the painted string itself, so the
+     * shared look cannot drift from your own.
+     */
+    public static int[] ownShareColours() {
+        NameChangerConfig cfg = NameChangerConfig.getInstance();
+        if (cfg.getOwnDisplayName().isEmpty() || (!cfg.isOwnColorFadeEnabled() && !cfg.hasOwnCharColors())) {
+            return null;
+        }
+        int[] colours = NameColor.letterColours(ownStyled(cfg));
+        for (int c : colours) {
+            if (c < 0) {
+                return null;
+            }
+        }
+        return colours.length == 0 ? null : colours;
+    }
+
     /** The Name Changer tab's preview: your display name exactly as {@link #ownStyled} paints it (colour, fade, letter
      *  colours), or your real IGN when no display name is typed, as a styled Component. */
     public static net.minecraft.network.chat.Component ownPreview() {
