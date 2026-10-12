@@ -220,3 +220,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   AP3, Terminal Protection and Auto Debuff had compensated with that ~1 ms all along; since 2026-10-11 they read
   `PingTracker.automationMs()` (median of the last 5 pongs, tab value until the first) and keep it requesting while on
   (testkit 791-796).
+- A Fabric `ScreenEvents.afterExtract` overlay draws ON TOP of what the screen drew, the carried item included: the custom
+  leap menu's 80%-opaque boxes covered the head a leap click puts on the cursor, which is the "almost fully faded
+  out" head killer560 saw (2026-10-11). Hiding the real menu needs the carried/snapback/floating item renders
+  cancelled too (`SpiritLeapHideMixin`), not just the slots.
