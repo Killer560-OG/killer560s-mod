@@ -77,23 +77,6 @@ public class InventoryThemeTab extends BaseTab {
             y += 26;
         }
 
-        double opacityNorm = (cfg.getBackgroundOpacity() - InventoryThemeConfig.MIN_OPACITY)
-                / (InventoryThemeConfig.MAX_OPACITY - InventoryThemeConfig.MIN_OPACITY);
-        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, opacityText(cfg), opacityNorm) {
-            @Override
-            protected void updateMessage() {
-                setMessage(opacityText(cfg));
-            }
-
-            @Override
-            protected void applyValue() {
-                float newOpacity = (float) (InventoryThemeConfig.MIN_OPACITY
-                        + this.value * (InventoryThemeConfig.MAX_OPACITY - InventoryThemeConfig.MIN_OPACITY));
-                cfg.setBackgroundOpacity(newOpacity);
-                cfg.save();
-            }
-        });
-        y += 26;
 
         widgets.add(SettingsButtonWidget.builder(hotbarText(cfg), btn -> {
                     cfg.setThemeHotbar(!cfg.isThemeHotbar());
@@ -176,10 +159,6 @@ public class InventoryThemeTab extends BaseTab {
 
     private static Component scopeText(InventoryThemeConfig cfg) {
         return Component.literal("Applies To: " + (cfg.isHypixelOnly() ? "Hypixel/p3sim Menus Only" : "Every Container"));
-    }
-
-    private static Component opacityText(InventoryThemeConfig cfg) {
-        return Component.literal(String.format("Background Opacity: %.0f%%", cfg.getBackgroundOpacity() * 100));
     }
 
     private static Component themeText(InventoryThemeConfig cfg) {

@@ -111,7 +111,8 @@ public final class HotbarTheme {
      * the 182 x 22 bar with a one-unit outline and the panel fill, each of the nine slots a sunken square exactly round
      * its item (item x - 1 .. x + 17, the same square the inventory draws), the selected slot ringed two units wide in the
      * accent where vanilla puts its 24 x 24 selection frame, and the offhand's own square when it holds something.
-     * Colours from {@link InventoryPalette}; Background Opacity scales the bar's alpha. Pixel-exact through
+     * Colours from {@link InventoryPalette}, all opaque (killer560, 2026-10-12: "make the inventories not transparent").
+     * Pixel-exact through
      * {@link PixelRects}, also under Hotbar Scale.
      */
     private static void drawBackground(GuiGraphicsExtractor graphics, InventoryThemeConfig cfg, Player player, int cx,
@@ -121,9 +122,8 @@ public final class HotbarTheme {
             return;
         }
         InventoryPalette p = cfg.getPalette();
-        int alpha = Math.round(cfg.getBackgroundOpacity() * 255f);
+        int alpha = 0xFF; // opaque in every preset (Background Opacity no longer applies)
         int x0 = cx - 91;
-        int winH = Minecraft.getInstance().getWindow().getHeight();
         PixelRects r = PixelRects.begin(graphics);
         try {
             int u = r.unit();
@@ -134,12 +134,13 @@ public final class HotbarTheme {
                 int sx = x0 + 3 + 20 * i;
                 InventoryThemeFeature.sunken(r, sx - 1, bottom - 20, sx + 17, bottom - 2, p.slotFill(), p);
             }
-            // Vanilla's ring shape in every preset (killer560, 2026-10-12: "held items with my mods theme looks kind of off
-            // for the main bar. also dark is way too bright"): black outside, the preset's colour, a translucent black
-            // inner line. Mod Theme and Custom ring in the accent; Dark in a muted grey so it does not glare.
+            // Vanilla's ring in every preset, its light band in the preset's colour (killer560, 2026-10-12: "Mimic that for
+            // all presets"): Mod Theme and Custom in the accent, Dark in a muted grey so it does not glare.
             int ringMain = cfg.getPreset() == InventoryThemeConfig.Preset.DARK && !cfg.isUseCustomAccent()
                     ? DARK_RING : withAlpha(p.accent(), 0xFF);
-            selectionRing(r, x0, bottom, player.getInventory().getSelectedSlot(), winH, V_RING_OUTER, ringMain, DIM_RING_INNER);
+            int frameDark = withAlpha(p.panel(), 0xFF);
+            selectionRing(r, x0, bottom, player.getInventory().getSelectedSlot(), withAlpha(p.border(), 0xFF),
+                    withAlpha(p.border(), 0xFF), ringMain, mix(ringMain, frameDark, 0.55f), mix(ringMain, frameDark, 0.25f));
 
             ItemStack offhand = player.getOffhandItem();
             if (!offhand.isEmpty()) {
@@ -156,25 +157,28 @@ public final class HotbarTheme {
         }
     }
 
-    // Vanilla's hotbar shades (read off the game's own hotbar, 26.1.2): the frame is opaque, the slot insides translucent.
+    // Vanilla's hotbar shades (read off the game's own hotbar, 26.1.2). Vanilla's slot insides are translucent; here they
+    // are opaque (killer560, 2026-10-12: "make the inventories not transparent") in a dark grey close to how vanilla's read.
     private static final int V_BORDER = 0xFF000000;
     private static final int V_TOP_LIGHT = 0xFF939393;
     private static final int V_LIGHT = 0xFF7E7E7E;
     private static final int V_DARK = 0xFF5D5D5D;
     private static final int V_END_DARK = 0xFF474747;
-    private static final int V_INSIDE = 0x5A000000; // vanilla lets more of the world through than 0x80 did (hotbar-sel-compare)
-    private static final int V_INSIDE_EDGE = 0xD0000000;
-    private static final int V_RING_OUTER = 0xFF000000;
-    private static final int V_RING = 0xFFFFFFFF;
-    private static final int V_RING_INNER = 0x80FFFFFF;
+    public static final int V_INSIDE = 0xFF2E2E2E;
+    public static final int V_INSIDE_EDGE = 0xFF1E1E1E;
+    // Vanilla's selection ring, read off the game's own (26.1.2): a black top, dark sides, then light / mid / faint bands.
+    private static final int V_RING_TOP = 0xFF000000;
+    private static final int V_RING_SIDE = 0xFF2B2B2B;
+    private static final int V_RING_LIGHT = 0xFFFFFFFF;
+    private static final int V_RING_MID = 0xFFA1A1A1;
+    private static final int V_RING_FAINT = 0xFF5F5F5F;
 
     /**
      * The Default preset's hotbar: vanilla's own look, drawn by the mod (killer560, 2026-10-12: Default is "the normal"
      * vanilla look). The 182 x 22 bar has a black outline, a light top row and left column, then a dark row / column, and
      * a light-then-dark pair along the bottom and right end. Between two slots there are four columns, light, dark, light,
-     * dark, so each slot's inside is exactly its 16-unit item box. The insides are translucent black, a shade darker
-     * along their top and left. The selection ring is 24 units: black outside, then white, then a translucent white line,
-     * where vanilla draws its selection sprite. Coordinates are GUI units through {@link PixelRects}; the bottom outline is
+     * dark, so each slot's inside is exactly its 16-unit item box. The insides are an opaque dark grey, a shade darker
+     * along their top and left. The selection ring is vanilla's (see {@link #selectionRing}). Coordinates are GUI units through {@link PixelRects}; the bottom outline is
      * kept on the window when the GUI's last row hangs off it.
      */
     private static void drawVanillaBar(GuiGraphicsExtractor graphics, Player player, int cx, int bottom) {
@@ -215,7 +219,8 @@ public final class HotbarTheme {
             r.fill(px0, py1 - u, px1, py1, V_BORDER);
             r.fill(px0, py0 + u, px0 + u, py1 - u, V_BORDER);
             r.fill(px1 - u, py0 + u, px1, py1 - u, V_BORDER);
-            selectionRing(r, x0, bottom, player.getInventory().getSelectedSlot(), winH, V_RING_OUTER, V_RING, V_RING_INNER);
+            selectionRing(r, x0, bottom, player.getInventory().getSelectedSlot(), V_RING_TOP, V_RING_SIDE, V_RING_LIGHT,
+                    V_RING_MID, V_RING_FAINT);
 
             ItemStack offhand = player.getOffhandItem();
             if (!offhand.isEmpty()) {
@@ -237,25 +242,57 @@ public final class HotbarTheme {
 
     /** Dark preset's ring colour: a muted light grey, well below white. */
     private static final int DARK_RING = 0xFF8C8C92;
-    /** The translucent dark inner line of the Dark / Mod Theme / Custom rings. */
-    private static final int DIM_RING_INNER = 0x80000000;
+    /** {@code a} blended toward {@code b} by {@code 1 - t} (t = 1 gives a), opaque. */
+    static int mix(int a, int b, float t) {
+        int r = Math.round(((a >> 16) & 0xFF) * t + ((b >> 16) & 0xFF) * (1 - t));
+        int g = Math.round(((a >> 8) & 0xFF) * t + ((b >> 8) & 0xFF) * (1 - t));
+        int bl = Math.round((a & 0xFF) * t + (b & 0xFF) * (1 - t));
+        return 0xFF000000 | (r << 16) | (g << 8) | bl;
+    }
 
     /**
-     * The selected slot's ring, vanilla's shape in every preset: a 24-unit square from one unit left of / above the slot's
-     * 20-unit cell, three one-unit lines - {@code outer}, {@code main}, {@code inner} - so it frames the slot without
-     * reaching its 16-unit inside.
+     * The selected slot's ring, vanilla's own structure in every preset (killer560, 2026-10-12: "it should have an orange
+     * that kind of fades it into that outer border ... Mimic that for all presets"), read pixel by pixel off the game's
+     * selection sprite: a 24 x 24 square from one unit left of / above the slot's 20-unit cell, four one-unit frames from
+     * the outside in -
+     * <ol>
+     *   <li>the outline: {@code top} along the top (and the off-screen bottom), {@code side} down both sides - the bar's own
+     *   edge colour, so the ring reads as the bar's frame bulging round the slot;</li>
+     *   <li>light along the top and left, faint along the right and bottom (mid where they meet);</li>
+     *   <li>mid all round;</li>
+     *   <li>faint along the top and left, light along the right and bottom (mid at the top-right corner) - the band that
+     *   fades into the slot.</li>
+     * </ol>
+     * The inside (the slot's 16-unit item box) is never touched. Like vanilla's sprite the bottom outline lies one unit
+     * below the GUI's bottom, off screen.
      */
-    private static void selectionRing(PixelRects r, int x0, int bottom, int sel, int winH, int outer, int main, int inner) {
-        int u = r.unit();
-        int fx0 = r.x(x0 - 1 + 20 * sel);
-        int fx1 = r.x(x0 + 23 + 20 * sel);
-        int fy0 = r.y(bottom - 23);
-        // Like vanilla's sprite, the ring's bottom edge lies one unit below the GUI's bottom (off screen): only its sides
-        // reach the window's last row. Pulling it onto the window put a line over the bar's own bottom outline instead.
-        int fy1 = r.y(bottom + 1);
-        r.outline(fx0, fy0, fx1, fy1, u, outer);
-        r.outline(fx0 + u, fy0 + u, fx1 - u, fy1 - u, u, main);
-        r.outline(fx0 + 2 * u, fy0 + 2 * u, fx1 - 2 * u, fy1 - 2 * u, u, inner);
+    private static void selectionRing(PixelRects r, int x0, int bottom, int sel, int top, int side, int light, int mid,
+                                      int faint) {
+        int sx = x0 - 1 + 20 * sel;
+        int ty = bottom - 23;
+        // 1: outline
+        InventoryThemeFeature.box(r, sx, ty, sx + 24, ty + 1, top);
+        InventoryThemeFeature.box(r, sx, ty + 1, sx + 1, bottom + 1, side);
+        InventoryThemeFeature.box(r, sx + 23, ty + 1, sx + 24, bottom + 1, side);
+        InventoryThemeFeature.box(r, sx, bottom, sx + 24, bottom + 1, top);
+        // 2: light top / left, faint right / bottom
+        InventoryThemeFeature.box(r, sx + 1, ty + 1, sx + 22, ty + 2, light);
+        InventoryThemeFeature.box(r, sx + 22, ty + 1, sx + 23, ty + 2, mid);
+        InventoryThemeFeature.box(r, sx + 1, ty + 2, sx + 2, bottom - 1, light);
+        InventoryThemeFeature.box(r, sx + 1, bottom - 1, sx + 2, bottom, mid);
+        InventoryThemeFeature.box(r, sx + 22, ty + 2, sx + 23, bottom, faint);
+        InventoryThemeFeature.box(r, sx + 2, bottom - 1, sx + 22, bottom, faint);
+        // 3: mid all round
+        InventoryThemeFeature.box(r, sx + 2, ty + 2, sx + 22, ty + 3, mid);
+        InventoryThemeFeature.box(r, sx + 2, ty + 3, sx + 3, bottom - 1, mid);
+        InventoryThemeFeature.box(r, sx + 21, ty + 3, sx + 22, bottom - 1, mid);
+        InventoryThemeFeature.box(r, sx + 3, bottom - 2, sx + 21, bottom - 1, mid);
+        // 4: faint top / left, light right / bottom
+        InventoryThemeFeature.box(r, sx + 3, ty + 3, sx + 20, ty + 4, faint);
+        InventoryThemeFeature.box(r, sx + 20, ty + 3, sx + 21, ty + 4, mid);
+        InventoryThemeFeature.box(r, sx + 3, ty + 4, sx + 4, bottom - 3, faint);
+        InventoryThemeFeature.box(r, sx + 20, ty + 4, sx + 21, bottom - 2, light);
+        InventoryThemeFeature.box(r, sx + 3, bottom - 3, sx + 20, bottom - 2, light);
     }
 
     private static int withAlpha(int argb, int alpha) {

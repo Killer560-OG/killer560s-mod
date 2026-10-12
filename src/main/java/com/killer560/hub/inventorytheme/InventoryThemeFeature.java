@@ -157,7 +157,8 @@ public final class InventoryThemeFeature {
      * original with its coloring"): a 1-unit outline with its corners cut, a 2-unit raised bevel - light along the top and
      * left, dark along the bottom and right - and the fill, in the preset's colours ({@link InventoryPalette}), drawn
      * procedurally (vanilla's texture is neither copied nor tinted). The player inventory also gets the sunken
-     * player-model window and the crafting arrow. Background Opacity scales the panel's alpha. GUI units, pixel-exact.
+     * player-model window and the crafting arrow. Opaque in every preset (killer560, 2026-10-12: "make the inventories
+     * not transparent"). GUI units, pixel-exact.
      */
     public static void drawBackground(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         int x0 = leftPos(screen);
@@ -166,7 +167,7 @@ public final class InventoryThemeFeature {
         int h = imageHeight(screen);
         InventoryThemeConfig cfg = InventoryThemeConfig.getInstance();
         InventoryPalette p = cfg.getPalette();
-        int alpha = Math.round(cfg.getBackgroundOpacity() * 255f);
+        int alpha = 0xFF;
         PixelRects r = PixelRects.begin(graphics);
         try {
             panel(r, x0, y0, w, h, p, alpha);

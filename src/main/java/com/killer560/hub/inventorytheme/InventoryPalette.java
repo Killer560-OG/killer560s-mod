@@ -16,7 +16,7 @@ package com.killer560.hub.inventorytheme;
  *   <li>{@code accent} - the hover highlight and the selected hotbar slot (vanilla white).</li>
  *   <li>{@code text} - the menu title (vanilla #404040).</li>
  * </ul>
- * All are opaque RGB with alpha FF; Background Opacity scales the panel's alpha when drawn.
+ * All are opaque RGB with alpha FF, and drawn opaque (no Background Opacity since 2026-10-12).
  */
 public record InventoryPalette(int border, int panel, int light, int dark, int slotFill, int slotDark, int slotLight,
                                int modelFill, int arrow, int accent, int text) {

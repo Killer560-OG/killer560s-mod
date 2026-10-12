@@ -2070,7 +2070,6 @@ final class SettingTooltipsData {
         d.put("inventory theme/slot color source", "Slot squares in the theme's colour, or one you pick.");
         d.put("inventory theme/slot color", "Opens a color picker for the slot squares.");
         d.put("inventory theme/applies to", "Which screens get the theme: only Hypixel and p3sim menus, or every container.");
-        d.put("inventory theme/background opacity", "How solid the themed panel background is; lower lets more of the game show through.");
         d.put("inventory theme/accent source", "Use the preset's accent, or pick your own color for the hover highlight, selected hotbar slot and title text (and the bevels with the Custom preset).");
         d.put("inventory theme/accent color", "Opens a color picker for the custom accent color.");
         d.put("inventory theme/hide potion effects", "Hides the potion effects panel beside the inventory and chest screens.");
