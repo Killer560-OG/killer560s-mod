@@ -39,7 +39,10 @@ import com.killer560.hub.compat.McCompat;
  * the section in Edit HUDs about things that are on but not moveable currently"). The "Show Unseen" button
  * drops the second test only - so pre-arranging the
  * P5 dragon timers from the hub still works - and never brings back a switched-off element; its state
- * persists in {@link HudConfig}.
+ * persists in {@link HudConfig}. Except for container-only overlays ({@link HudElementRegistry#isContainerOnly}: the
+ * Croesus Chest Profit panel, the Chocolate Factory info line, Start Croesus, Start ETable): Show Unseen never brings
+ * one of those back, so such an element is listed only when it drew within {@link HudSeen#GRACE_MS} (over its own menu,
+ * or just after it closed) - killer560, 2026-10-12: "Only if it falls in that last 10s".
  * <p>
  * Both lists are fixed when the screen opens / the toggle flips rather than re-evaluated every frame, so a
  * timer expiring mid-drag can't yank the box out from under the cursor. The grace window is measured against
