@@ -111,6 +111,20 @@ public final class SecretsFeature {
             UUID.fromString("e0f3e929-869e-3dca-9504-54c666ee6f23")
     );
 
+    /** The Redstone Key's skin profile id - QUOI {@code Dungeon.REDSTONE_KEY}, also dungeonalerts.SecretSound's. */
+    private static final UUID REDSTONE_KEY_PROFILE_ID = UUID.fromString("fed95410-aba1-39df-9b95-1d4f361eb66e");
+
+    /** A skull wearing the Redstone Key's skin - by profile id, like {@link #isWitherEssence}, so no decorative head counts. */
+    public static boolean isRedstoneKey(BlockGetter level, BlockPos pos) {
+        BlockEntity entity = level.getBlockEntity(pos);
+        if (!(entity instanceof SkullBlockEntity skull)) {
+            return false;
+        }
+        ResolvableProfile owner = skull.getOwnerProfile();
+        GameProfile partial = owner == null ? null : owner.partialProfile();
+        return partial != null && REDSTONE_KEY_PROFILE_ID.equals(partial.id());
+    }
+
     public static boolean isWitherEssence(BlockGetter level, BlockPos pos) {
         BlockEntity entity = level.getBlockEntity(pos);
         if (!(entity instanceof SkullBlockEntity skull)) {

@@ -33,8 +33,8 @@ import com.killer560.hub.compat.McCompat;
  * Secret Aura - interacts (no rotation) with secret chests, levers and Wither Essence skulls in reach, ported
  * from QUOI {@code dungeon/secrets/impl/SecretAura.kt} (itself from NoobRoutes):
  * <ul>
- * <li>Candidates: CHEST / TRAPPED_CHEST, LEVER, and skulls that {@link SecretsFeature#isWitherEssence} confirms
- * (QUOI's redstone-key skull/block handling is intentionally NOT ported - task scope is chests/levers/essence).
+ * <li>Candidates: CHEST / TRAPPED_CHEST, LEVER, and skulls that {@link SecretsFeature#isWitherEssence} or
+ * {@link SecretsFeature#isRedstoneKey} confirms by skin profile id (QUOI's redstone-BLOCK placement is not ported).
  * <li>Nearest candidate within range: chests and levers 4.5 eye to block BOX (QUOI 6.2 to the centre, which the
  * server refused past 4.5); essence skulls QUOI's 4.7 eye to block CENTRE (3.8-4.2 to the box), and never past
  * the 4.5 box cap either. Every click also waits out ActionGate's 20-tick world-change settle (QUOI AuraManager).
@@ -218,7 +218,7 @@ public final class SecretAuraFeature {
             // BlockHits.boxDistanceSq: comparing centre distance against a range capped at vanilla's 4.5
             // made the effective reach nearer 4.0 and dropped clicks the server would have taken.
             double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
-            if ("essence".equals(kind)) {
+            if ("essence".equals(kind) || "redstoneKey".equals(kind)) {
                 // A skull goes by its CENTRE, QUOI's 4.7 (see CheatUtilsConfig.MAX_AURA_SKULL_RANGE), and still never
                 // past the 4.5-to-the-box cap every click has.
                 if (Vec3.atCenterOf(pos).distanceToSqr(eye) > skullRangeSq || distSq > capSq) {
@@ -325,7 +325,11 @@ public final class SecretAuraFeature {
         if (block instanceof AbstractSkullBlock) {
             // Hypixel's essence skull profile, in the sim too: the sim places the same skull (SimSecrets), so
             // there is one rule and no sim branch.
-            return cfg.isAuraEssence() && SecretsFeature.isWitherEssence(client.level, pos) ? "essence" : null;
+            if (cfg.isAuraEssence() && SecretsFeature.isWitherEssence(client.level, pos)) {
+                return "essence";
+            }
+            // QUOI clicks the Redstone Key's skull too, at the same skull range (killer560, 2026-10-12).
+            return cfg.isAuraRedstoneKey() && SecretsFeature.isRedstoneKey(client.level, pos) ? "redstoneKey" : null;
         }
         return null;
     }

@@ -56,6 +56,7 @@ public class SecretAuraTab extends BaseTab {
         toggle(w, contentX, y, "Chests", cfg::isAuraChests, cfg::setAuraChests, null);
         toggle(w, contentX, y, "Levers", cfg::isAuraLevers, cfg::setAuraLevers, null);
         toggle(w, contentX, y, "Wither Essence", cfg::isAuraEssence, cfg::setAuraEssence, null);
+        toggle(w, contentX, y, "Redstone Key", cfg::isAuraRedstoneKey, cfg::setAuraRedstoneKey, null);
         toggle(w, contentX, y, "F7 Boss Levers (P3/Devices)", cfg::isAuraBossLevers, cfg::setAuraBossLevers, null);
         toggle(w, contentX, y, "Swing Hand", cfg::isAuraSwing, cfg::setAuraSwing, null);
         toggle(w, contentX, y, "Pause While Sneaking", cfg::isAuraPauseWhileSneaking, cfg::setAuraPauseWhileSneaking, null);

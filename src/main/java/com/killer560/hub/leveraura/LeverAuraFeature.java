@@ -62,9 +62,9 @@ import java.util.regex.Pattern;
  * </ul>
  * Click is {@code SecretAuraFeature}'s: {@code gameMode.useItemOn} with a surface hit clipped from the eye, box range,
  * no line-of-sight check (SecretAura has none either), never with a screen open; a lever the reported look does not
- * reach gets the body (never the camera) turned to it a tick first (util/TurnFirst). Human-ish pacing: a
- * lever must be in range for a random min..max delay before its first click, and clicks are spaced by a fresh random
- * min..max delay.
+ * reach gets the body (never the camera) turned to it a tick first (util/TurnFirst). Pacing is a CPS setting (1-20):
+ * a lever must be in range for one gap before its first click, and clicks are spaced by 1000 / CPS ms with +-10%
+ * jitter, scheduled from the previous click's due tick, at most one a tick.
  */
 public final class LeverAuraFeature {
 
@@ -109,7 +109,10 @@ public final class LeverAuraFeature {
     private static boolean lightsActivationClicked = false;
     private static final Map<Long, Long> inRangeSince = new HashMap<>();
     private static final Map<Long, Long> requiredDwell = new HashMap<>();
-    private static long nextClickAllowedMs = 0L;
+    /** ActionGate tick the next flick is due on, fractional so a CPS between whole ticks keeps its average. */
+    private static double nextClickDueTick = 0.0;
+    /** The tick a due flick first went to turning the body (TurnFirst), or -1: the flick is scheduled from there. */
+    private static long turnStartTick = -1L;
     private static Object lastLevel = null;
     /** Whether Goldor's opening line was seen this run - p3sim.net can skip it (see {@link #onChat}). */
     private static boolean sawGoldorStart = false;
@@ -323,7 +326,12 @@ public final class LeverAuraFeature {
         inRangeSince.keySet().retainAll(inRangeNow);
         requiredDwell.keySet().retainAll(inRangeNow);
 
-        if (target == null || now < nextClickAllowedMs) {
+        long tick = ActionGate.currentTick();
+        if (target == null) {
+            turnStartTick = -1L;
+            return;
+        }
+        if (tick < nextClickDueTick) {
             return;
         }
         // killer560 (2026-09-20): "make sure that stuff like breaker aura, and flicking levers aren't gonna go off in
@@ -333,12 +341,23 @@ public final class LeverAuraFeature {
             return;
         }
         if (!click(client, cfg, target, reason, s2Open)) {
-            return; // the body was turned to it this tick (or no hit yet): the flick goes next tick
+            // The body was turned to it this tick (or no hit yet): the flick goes next tick.
+            if (turnStartTick < 0) {
+                turnStartTick = tick;
+            }
+            return;
         }
+        // A flick that needed a turn first counts from the tick the turn took, not the tick after: otherwise every
+        // turned flick added its turn tick to the gap and 10 CPS measured about 8.
+        long base = turnStartTick >= 0 ? turnStartTick : tick;
+        turnStartTick = -1L;
         if (ACTIVATION_REASON.equals(reason)) {
             lightsActivationClicked = true;
         }
-        nextClickAllowedMs = now + randomDelay(cfg);
+        // CPS: each gap is 1000 / CPS ms with +-10% jitter (never a metronome), scheduled from the previous click's due
+        // tick, not this one, so the average is the CPS set even when the gap is a fraction of a tick. One flick a tick
+        // at most, so 20 is the ceiling; a flick the gate held back carries at most a tick of backlog.
+        nextClickDueTick = Math.max(nextClickDueTick, base - 1) + gapMs(cfg) / 50.0;
     }
 
     /** False when nothing went out this tick (no hit yet, or the body was turned to the lever first). */
@@ -383,17 +402,16 @@ public final class LeverAuraFeature {
         return true;
     }
 
-    /** A lever must have been in range for a random min..max delay (rolled when it came into range) before a click. */
+    /** A lever must have been in range for one CPS gap (rolled when it came into range) before its first click. */
     private static boolean dwellPassed(LeverAuraConfig cfg, long key, long now) {
         long since = inRangeSince.computeIfAbsent(key, k -> now);
-        long need = requiredDwell.computeIfAbsent(key, k -> randomDelay(cfg));
+        long need = requiredDwell.computeIfAbsent(key, k -> Math.round(gapMs(cfg)));
         return now - since >= need;
     }
 
-    private static long randomDelay(LeverAuraConfig cfg) {
-        int min = cfg.getMinDelayMs();
-        int max = Math.max(min, cfg.getMaxDelayMs());
-        return min == max ? min : ThreadLocalRandom.current().nextLong(min, max + 1L);
+    /** One gap between flicks: 1000 / CPS ms, +-10%. */
+    private static double gapMs(LeverAuraConfig cfg) {
+        return 1000.0 / cfg.getCps() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
     }
 
     /** QUOI isBossBlock / SecretAuraFeature#isBossLeverClickable: a "Not Activated" armor stand just above. */
@@ -416,7 +434,8 @@ public final class LeverAuraFeature {
         clickedS2.clear();
         inRangeSince.clear();
         requiredDwell.clear();
-        nextClickAllowedMs = 0L;
+        nextClickDueTick = 0.0;
+        turnStartTick = -1L;
     }
 
     private static int parse(String s) {

@@ -69,12 +69,9 @@ public class LeverAuraTab extends BaseTab {
                 (cfg.getRange() - LeverAuraConfig.MIN_RANGE) / (LeverAuraConfig.MAX_RANGE - LeverAuraConfig.MIN_RANGE),
                 v -> cfg.setRange(LeverAuraConfig.MIN_RANGE + v * (LeverAuraConfig.MAX_RANGE - LeverAuraConfig.MIN_RANGE)));
         y[0] += 24;
-        slider(w, contentX, y[0], half, () -> "Min Delay: " + cfg.getMinDelayMs() + "ms",
-                norm(cfg.getMinDelayMs(), LeverAuraConfig.MIN_DELAY_MS, LeverAuraConfig.MAX_DELAY_MS),
-                v -> cfg.setMinDelayMs(denorm(v, LeverAuraConfig.MIN_DELAY_MS, LeverAuraConfig.MAX_DELAY_MS)));
-        slider(w, contentX + half + 8, y[0], half, () -> "Max Delay: " + cfg.getMaxDelayMs() + "ms",
-                norm(cfg.getMaxDelayMs(), LeverAuraConfig.MIN_DELAY_MS, LeverAuraConfig.MAX_DELAY_MS),
-                v -> cfg.setMaxDelayMs(denorm(v, LeverAuraConfig.MIN_DELAY_MS, LeverAuraConfig.MAX_DELAY_MS)));
+        slider(w, contentX, y[0], BTN_W, () -> "CPS: " + cfg.getCps(),
+                norm(cfg.getCps(), LeverAuraConfig.MIN_CPS, LeverAuraConfig.MAX_CPS),
+                v -> cfg.setCps(denorm(v, LeverAuraConfig.MIN_CPS, LeverAuraConfig.MAX_CPS)));
         y[0] += 24;
         toggle(w, contentX, y, "Swing Hand", cfg::isSwingHand, cfg::setSwingHand, null);
         toggle(w, contentX, y, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback, null);

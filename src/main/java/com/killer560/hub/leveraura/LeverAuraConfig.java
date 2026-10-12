@@ -23,8 +23,11 @@ public final class LeverAuraConfig {
     public static final double MIN_RANGE = 2.1;
     // Capped at the reach measured to be accepted and unflagged - see CheatUtilsConfig.MEASURED_MAX_REACH.
     public static final double MAX_RANGE = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
-    public static final int MIN_DELAY_MS = 50;
-    public static final int MAX_DELAY_MS = 2000;
+    /** CPS slider ends (killer560, 2026-10-12: the Arrow Align Aura's "Aura CPS", for Lever Aura too). 20 is one a tick. */
+    public static final int MIN_CPS = 1;
+    public static final int MAX_CPS = 20;
+    /** 4 CPS: the old default delay band, 150-300 ms, by the migration's own rule (round(1000 / 225)). */
+    public static final int DEFAULT_CPS = 4;
 
     private static LeverAuraConfig instance;
 
@@ -38,8 +41,7 @@ public final class LeverAuraConfig {
     /** ...and also before S2 is open. */
     private boolean sectionLeversEarly = false;
     private double range = MAX_RANGE;
-    private int minDelayMs = 150;
-    private int maxDelayMs = 300;
+    private int cps = DEFAULT_CPS;
     private boolean swingHand = true;
     private boolean chatFeedback = true;
 
@@ -64,8 +66,14 @@ public final class LeverAuraConfig {
                 cfg.sectionLevers = ConfigJson.getBool(o, "sectionLevers", cfg.sectionLevers);
                 cfg.sectionLeversEarly = ConfigJson.getBool(o, "sectionLeversEarly", cfg.sectionLeversEarly);
                 cfg.setRange(ConfigJson.getDouble(o, "range", cfg.range));
-                cfg.setMinDelayMs(ConfigJson.getInt(o, "minDelayMs", cfg.minDelayMs));
-                cfg.setMaxDelayMs(ConfigJson.getInt(o, "maxDelayMs", cfg.maxDelayMs));
+                if (o.has("cps")) {
+                    cfg.setCps(ConfigJson.getInt(o, "cps", DEFAULT_CPS));
+                } else if (o.has("minDelayMs") || o.has("maxDelayMs")) {
+                    // A config or profile from before the CPS slider: the old random delay band's middle, as clicks a second.
+                    int min = ConfigJson.getInt(o, "minDelayMs", 150);
+                    int max = Math.max(min, ConfigJson.getInt(o, "maxDelayMs", 300));
+                    cfg.setCps(cpsFromDelayMs((min + max) / 2.0));
+                }
                 cfg.swingHand = ConfigJson.getBool(o, "swingHand", cfg.swingHand);
                 cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
             } catch (Exception e) {
@@ -85,8 +93,7 @@ public final class LeverAuraConfig {
             o.addProperty("sectionLevers", sectionLevers);
             o.addProperty("sectionLeversEarly", sectionLeversEarly);
             o.addProperty("range", range);
-            o.addProperty("minDelayMs", minDelayMs);
-            o.addProperty("maxDelayMs", maxDelayMs);
+            o.addProperty("cps", cps);
             o.addProperty("swingHand", swingHand);
             o.addProperty("chatFeedback", chatFeedback);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
@@ -121,20 +128,16 @@ public final class LeverAuraConfig {
     public double getRange() { return range; }
     public void setRange(double v) { range = Math.max(MIN_RANGE, Math.min(MAX_RANGE, Math.round(v * 10.0) / 10.0)); }
 
-    public int getMinDelayMs() { return minDelayMs; }
-    public void setMinDelayMs(int v) {
-        minDelayMs = Math.max(MIN_DELAY_MS, Math.min(MAX_DELAY_MS, v));
-        if (maxDelayMs < minDelayMs) {
-            maxDelayMs = minDelayMs;
-        }
-    }
+    /** Flicks per second, 1-20 (20 is one a tick, the most the mod-wide gate allows anyway). */
+    public int getCps() { return cps; }
+    public void setCps(int v) { cps = Math.max(MIN_CPS, Math.min(MAX_CPS, v)); }
 
-    public int getMaxDelayMs() { return maxDelayMs; }
-    public void setMaxDelayMs(int v) {
-        maxDelayMs = Math.max(MIN_DELAY_MS, Math.min(MAX_DELAY_MS, v));
-        if (minDelayMs > maxDelayMs) {
-            minDelayMs = maxDelayMs;
+    /** The old delay setting as CPS: round(1000 / delay), clamped to 1-20 (a 0 ms delay is 20). */
+    static int cpsFromDelayMs(double delayMs) {
+        if (delayMs <= 0) {
+            return MAX_CPS;
         }
+        return (int) Math.max(MIN_CPS, Math.min(MAX_CPS, Math.round(1000.0 / delayMs)));
     }
 
     public boolean isSwingHand() { return swingHand; }

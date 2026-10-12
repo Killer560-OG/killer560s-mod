@@ -77,6 +77,8 @@ public final class CheatUtilsConfig {
     private boolean auraChests = true;
     private boolean auraLevers = true;
     private boolean auraEssence = true;
+    /** Redstone Key skulls (QUOI clicks them at the skull range too; killer560 said yes 2026-10-12). */
+    private boolean auraRedstoneKey = true;
     private boolean auraBossLevers = false;
     // Was QUOI's 6.2. Capped at the measured maximum: past 4.5 the server refused the click and the
     // anticheat flagged the attempt, so the bigger number cost traffic and bought nothing.
@@ -148,6 +150,7 @@ public final class CheatUtilsConfig {
                 cfg.auraChests = bool(o, "auraChests", true);
                 cfg.auraLevers = bool(o, "auraLevers", true);
                 cfg.auraEssence = bool(o, "auraEssence", true);
+                cfg.auraRedstoneKey = bool(o, "auraRedstoneKey", true);
                 cfg.auraBossLevers = bool(o, "auraBossLevers", false);
                 cfg.setAuraRange(ConfigJson.getDouble(o, "auraRange", 6.2));
                 cfg.setAuraSkullRange(ConfigJson.getDouble(o, "auraSkullRange", 4.7));
@@ -195,6 +198,7 @@ public final class CheatUtilsConfig {
             o.addProperty("auraChests", auraChests);
             o.addProperty("auraLevers", auraLevers);
             o.addProperty("auraEssence", auraEssence);
+            o.addProperty("auraRedstoneKey", auraRedstoneKey);
             o.addProperty("auraBossLevers", auraBossLevers);
             o.addProperty("auraRange", auraRange);
             o.addProperty("auraSkullRange", auraSkullRange);
@@ -277,6 +281,8 @@ public final class CheatUtilsConfig {
     public void setAuraLevers(boolean v) { auraLevers = v; }
     public boolean isAuraEssence() { return auraEssence; }
     public void setAuraEssence(boolean v) { auraEssence = v; }
+    public boolean isAuraRedstoneKey() { return auraRedstoneKey; }
+    public void setAuraRedstoneKey(boolean v) { auraRedstoneKey = v; }
     public boolean isAuraBossLevers() { return auraBossLevers; }
     public void setAuraBossLevers(boolean v) { auraBossLevers = v; }
     public double getAuraRange() { return auraRange; }

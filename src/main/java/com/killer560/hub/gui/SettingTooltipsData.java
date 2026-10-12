@@ -1850,13 +1850,13 @@ final class SettingTooltipsData {
         d.put("secret aura/levers", "Lets Secret Aura flip levers in dungeon rooms.");
         d.put("secret aura/chests", "Lets Secret Aura open secret chests and trapped chests in dungeon rooms.");
         d.put("secret aura/wither essence", "Lets Secret Aura click Wither Essence skulls.");
+        d.put("secret aura/redstone key", "Lets Secret Aura pick up Redstone Key skulls, at the Skull Range. Only the real key's skin is clicked, never a decorative head.");
         d.put("secret aura/swing hand", "Plays your arm swing each time Secret Aura clicks something.");
         d.put("secret aura/pause while sneaking", "Stops Secret Aura while you hold sneak.");
         d.put("secret aura/range", "Maximum distance in blocks this feature reaches.");
         d.put("secret aura/skull range", "How close a Wither Essence skull must be to be clicked, 2.1-4.7 blocks from your eyes to the skull block's centre. Default 4.7, QUOI's value: Hypixel's reach for skulls looks tighter than for chests and levers, so skulls are kept a few tenths nearer.");
         d.put("secret aura/click cooldown", "Minimum time between Secret Aura clicks, in ms (100-2000).");
-        d.put("lever aura/min delay", "Shortest random wait between Lever Aura flicks, in ms (50-2000).");
-        d.put("lever aura/max delay", "Longest random wait between Lever Aura flicks, in ms (50-2000).");
+        d.put("lever aura/cps", "Cheat build only. Lever Aura flicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set; a lever must also be in range for one gap before its first flick.");
         d.put("stat bars", "Replaces the vanilla hearts, hunger, armor and air bars and the action-bar stats with your own text and bars.");
         // Stat Bars moved into Health and Mana Bars on 2026-10-04; keys re-scoped with it (docs/LESSONS.md).
         d.put("health and mana bars/stat bars", "Reads health, mana, defence and vitality from Hypixel's action bar; needed by every bar and text below.");
