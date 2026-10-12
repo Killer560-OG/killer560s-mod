@@ -167,7 +167,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         y[0] += ROW + GAP;
 
         header(w, contentX, y, contentWidth, "Nodes");
-        w.add(SettingsButtonWidget.builder(defaultSizeText(cfg), btn -> {
+        w.add(SettingsButtonWidget.cycling(defaultSizeText(cfg), (btn, dir) -> {
                     cfg.setDefaultNodeSize(cfg.getDefaultNodeSize() >= 1.0 ? 0.5 : 1.0);
                     cfg.save();
                     btn.setMessage(defaultSizeText(cfg));

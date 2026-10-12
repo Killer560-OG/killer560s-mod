@@ -36,7 +36,7 @@ public class RngMeterTab extends BaseTab {
                 }).bounds(contentX, y, 220, 20).build());
         y += 26;
 
-        widgets.add(SettingsButtonWidget.builder(pricingModeText(), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(pricingModeText(), (btn, dir) -> {
                     RngMeterConfig.getInstance().setUseInstantBuyPrice(!RngMeterConfig.getInstance().isUseInstantBuyPrice());
                     RngMeterConfig.getInstance().save();
                     btn.setMessage(pricingModeText());

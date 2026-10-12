@@ -73,7 +73,7 @@ public class AutoExperimentsTab extends BaseTab implements KeyCaptureTab {
                     c.save();
                     btn.setMessage(superpairsText());
                 }).bounds(contentX, y, half, 20).build());
-        widgets.add(SettingsButtonWidget.builder(superpairsFilterText(), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(superpairsFilterText(), (btn, dir) -> {
                     ExperimentsConfig c = ExperimentsConfig.getInstance();
                     c.setSuperpairsValuableOnly(!c.isSuperpairsValuableOnly());
                     c.save();

@@ -91,7 +91,7 @@ public class ItemBrowserTab extends BaseTab {
         });
         y += 26;
 
-        widgets.add(SettingsButtonWidget.builder(orientationText(cfg), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(orientationText(cfg), (btn, dir) -> {
                     cfg.setHorizontal(!cfg.isHorizontal());
                     cfg.save();
                     btn.setMessage(orientationText(cfg));

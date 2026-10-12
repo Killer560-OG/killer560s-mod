@@ -44,7 +44,7 @@ public class TicTacToeSolverTab extends BaseTab {
                     btn.setMessage(onOff("Prevent Misclicks", cfg.isPreventMisclicks()));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
                     cfg.setFill(!cfg.isFill());
                     cfg.save();
                     btn.setMessage(styleText(cfg));

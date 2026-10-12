@@ -74,7 +74,7 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             widgets.add(LiveMapTab.cycle("Room Labels", LiveMapConfig.ROOM_LABEL_NAMES, cfg::getRoomLabels,
                     cfg::setRoomLabels, cfg, colB, y, colW));
             y += 20;
-            widgets.add(SettingsButtonWidget.builder(mapModeText(cfg), btn -> {
+            widgets.add(SettingsButtonWidget.cycling(mapModeText(cfg), (btn, dir) -> {
                         cfg.setCloseOnRepress(!cfg.isCloseOnRepress());
                         cfg.save();
                         btn.setMessage(mapModeText(cfg));

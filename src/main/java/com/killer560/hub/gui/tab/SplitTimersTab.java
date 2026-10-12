@@ -117,7 +117,7 @@ public class SplitTimersTab extends BaseTab {
                     btn.setMessage(onOff("P5 Relic Lines", cfg.isP5RelicLines()));
                 }).bounds(contentX + 168, y, 160, 18).build());
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(p5PosLabel(cfg), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(p5PosLabel(cfg), (btn, dir) -> {
                     cfg.setP5LinesRight(!cfg.isP5LinesRight());
                     cfg.save();
                     btn.setMessage(p5PosLabel(cfg));

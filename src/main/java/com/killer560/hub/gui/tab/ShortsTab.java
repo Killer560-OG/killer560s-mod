@@ -73,7 +73,7 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal(cfg.isHidden() ? "Overlay: §cHidden" : "Overlay: §aShown"), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(Component.literal(cfg.isHidden() ? "Overlay: §cHidden" : "Overlay: §aShown"), (btn, dir) -> {
                     cfg.setHidden(!cfg.isHidden());
                     cfg.save();
                     btn.setMessage(Component.literal(cfg.isHidden() ? "Overlay: §cHidden" : "Overlay: §aShown"));

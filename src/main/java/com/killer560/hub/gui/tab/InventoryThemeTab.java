@@ -51,7 +51,7 @@ public class InventoryThemeTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(scopeText(cfg), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(scopeText(cfg), (btn, dir) -> {
                     cfg.setHypixelOnly(!cfg.isHypixelOnly());
                     cfg.save();
                     btn.setMessage(scopeText(cfg));
@@ -152,7 +152,7 @@ public class InventoryThemeTab extends BaseTab {
             y += 24;
         }
 
-        widgets.add(SettingsButtonWidget.builder(accentModeText(cfg), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(accentModeText(cfg), (btn, dir) -> {
                     cfg.setUseCustomAccent(!cfg.isUseCustomAccent());
                     cfg.save();
                     requestRebuild.run();

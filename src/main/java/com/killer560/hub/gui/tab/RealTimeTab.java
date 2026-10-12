@@ -54,7 +54,7 @@ public class RealTimeTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(formatLabel(cfg), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(formatLabel(cfg), (btn, dir) -> {
                     cfg.setUse24Hour(!cfg.isUse24Hour());
                     cfg.save();
                     btn.setMessage(formatLabel(cfg));

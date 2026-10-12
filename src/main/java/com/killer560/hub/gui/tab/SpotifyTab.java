@@ -57,7 +57,7 @@ public class SpotifyTab extends BaseTab {
                     SpotifyLyricsFeature.saveConfig();
                     btn.setMessage(destText());
                 }).bounds(contentX, y, half, 20).build());
-        widgets.add(SettingsButtonWidget.builder(detailText(), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(detailText(), (btn, dir) -> {
                     SpotifyLyricsFeature.fullLyrics = !SpotifyLyricsFeature.fullLyrics;
                     SpotifyLyricsFeature.saveConfig();
                     btn.setMessage(detailText());
