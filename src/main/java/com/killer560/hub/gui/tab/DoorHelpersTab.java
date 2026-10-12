@@ -73,6 +73,23 @@ public class DoorHelpersTab extends BaseTab {
         }
         y += 20;
 
+        if (cfg.getAutoDoorMode() == DoorHelpersConfig.OpenerMode.TRIGGERBOT) {
+            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, triggerDelayText(cfg),
+                    cfg.getAutoDoorTriggerDelayMs() / (double) DoorHelpersConfig.TRIGGER_DELAY_MAX_MS) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(triggerDelayText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setAutoDoorTriggerDelayMs((int) Math.round(this.value * DoorHelpersConfig.TRIGGER_DELAY_MAX_MS));
+                    cfg.save();
+                }
+            });
+            y += 20;
+        }
+
         int retrySpan = DoorHelpersConfig.RETRY_MAX_MS - DoorHelpersConfig.RETRY_MIN_MS;
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, retryText(cfg),
                 (cfg.getAutoDoorRetryDelayMs() - DoorHelpersConfig.RETRY_MIN_MS) / (double) retrySpan) {
@@ -105,6 +122,10 @@ public class DoorHelpersTab extends BaseTab {
 
     private static Component rangeText(DoorHelpersConfig cfg) {
         return Component.literal(String.format(Locale.US, "Range: %.1f", cfg.getAutoDoorRange()));
+    }
+
+    private static Component triggerDelayText(DoorHelpersConfig cfg) {
+        return Component.literal("Triggerbot Delay: " + cfg.getAutoDoorTriggerDelayMs() + "ms");
     }
 
     private static Component retryText(DoorHelpersConfig cfg) {

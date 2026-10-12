@@ -95,6 +95,7 @@ public final class AutoDoorOpenerFeature {
     private static void arm(DoorScanner.DoorType type) {
         pendingType = type;
         pendingTicks = PENDING_WINDOW_TICKS;
+        triggerAimDoor = null; // Triggerbot Delay counts from the first look inside this window, not an older one
         DoorHelpersFeature.LOGGER.info("[DoorHelpers] {} Key obtained - Auto Door Opener armed for {} ticks", type,
                 PENDING_WINDOW_TICKS);
     }
@@ -114,6 +115,10 @@ public final class AutoDoorOpenerFeature {
             DoorHelpersFeature.LOGGER.info("[DoorHelpers] Auto Door Opener stood down ({})", why);
         }
     }
+
+    /** Triggerbot Delay: the door the crosshair is on and since when (System.currentTimeMillis). */
+    private static BlockPos triggerAimDoor;
+    private static long triggerAimSinceMs;
 
     /** The body turn for a door the reported look does not reach (see util/TurnFirst); the camera never moves. */
     private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
@@ -147,7 +152,18 @@ public final class AutoDoorOpenerFeature {
             case TRIGGERBOT -> findLookedAtDoor(client, matchingDoors);
         };
         if (doorPos == null) {
+            triggerAimDoor = null;
             return;
+        }
+        // Triggerbot Delay: the crosshair has to stay on the same door this long first (0 = at once).
+        if (cfg.getAutoDoorMode() == DoorHelpersConfig.OpenerMode.TRIGGERBOT) {
+            if (!doorPos.equals(triggerAimDoor)) {
+                triggerAimDoor = doorPos.immutable();
+                triggerAimSinceMs = now;
+            }
+            if (now - triggerAimSinceMs < cfg.getAutoDoorTriggerDelayMs()) {
+                return;
+            }
         }
         // Real gap found (2026-09-21, gate audit): the comment at the top of this method has said since the
         // gate landed that "screen rules live in ActionGate now", and ActionGate.Actor.DOOR_OPENER was

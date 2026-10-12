@@ -661,8 +661,8 @@ final class SettingTooltipsData {
         d.put("blood camp", "Tracks the Watcher's blood mobs and predicts where each will land.");
         d.put("show overlay", "Draws a countdown box where each blood mob will settle, green when it is ready to hit.");
         d.put("aura", "Cheat build: acts on targets around you without needing to aim at them.");
-        d.put("auto detect lag", "Makes the Trigger Bot click earlier by your measured ping, so its hit reaches the server 3 ticks before the mob lands.");
-        d.put("click offset", "Fine-tunes the Trigger Bot's fixed 3-tick lead, -3 to +3 ticks; positive clicks earlier, negative later.");
+        d.put("auto detect lag", "Makes the Trigger Bot click earlier by your measured ping, so its hit reaches the server Hit Lead ticks before the mob lands.");
+        d.put("hit lead", "Cheat build: how many ticks before a blood mob lands the Trigger Bot's hit reaches the server, 0-10 (3 by default).");
         d.put("boulder solver", "Outlines the stone button to press next in the Boulder puzzle.");
         d.put("show all remaining clicks", "Outlines every remaining Boulder tile at once instead of just the next one.");
         d.put("quiz solver", "Highlights the floor spot of the correct answer in the Quiz puzzle.");
@@ -1209,6 +1209,7 @@ final class SettingTooltipsData {
         // second the key is grabbed ... rename it to auto door opener".
         d.put("auto door opener", "Cheat build: right-clicks a locked Wither or Blood door once when you or a teammate picks up its key.");
         d.put("retry delay", "Cheat build: how often Auto Door Opener retries after a key pickup, 100-2000 ms.");
+        d.put("triggerbot delay", "Cheat build: how long your crosshair must stay on the door before Auto Door Opener's Triggerbot clicks it, 0-1000 ms (0 = at once).");
 
         // ---- Score Calculator ----
         d.put("hud", "Options for what the Score Calculator HUD shows.");
@@ -1808,8 +1809,8 @@ final class SettingTooltipsData {
             // Chest. Inside the constant, so a legit jar carries none of these strings.
             d.put("auto blood camp/trigger bot", "Left-clicks a blood mob when its countdown ends, if you are aiming at its spot (cheat build only; needs Blood Camp on).");
             d.put("auto blood camp/aura", "Turns your camera toward the spot a blood mob is about to land (cheat build only; needs Blood Camp on).");
-            d.put("auto blood camp/auto detect lag", "Clicks earlier by your measured ping, so the hit reaches the server 3 ticks before the mob lands.");
-            d.put("auto blood camp/click offset", "Fine-tunes the fixed lead: the hit reaches the server 3 ticks before the mob lands, plus this many (-3 to +3, 0 by default).");
+            d.put("auto blood camp/auto detect lag", "Clicks earlier by your measured ping, so the hit reaches the server Hit Lead ticks before the mob lands.");
+            d.put("auto blood camp/hit lead", "How many ticks before the mob lands the hit reaches the server, 0-10 (3 by default). Auto Detect Lag adds your ping on top.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
             d.put("auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
             d.put("auto close chest/auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");

@@ -52,7 +52,12 @@ public final class BloodCampConfig {
     private boolean triggerBotEnabled = false;
     private boolean auraEnabled = false;
     private boolean autoDetectLag = true;
-    private int manualTickOffset = 0;
+    /** Trigger Bot: how many ticks before the mob is due its hit should reach the server (killer560, 2026-10-11:
+     *  "The trigger bots should all have their own unique specific timer"). Default 3; the measured ping is added on
+     *  top while Auto Detect Lag is on. Replaces Click Offset ({@code manualTickOffset}, -3..+3 on top of a fixed 3). */
+    private int hitLeadTicks = DEFAULT_HIT_LEAD_TICKS;
+    public static final int DEFAULT_HIT_LEAD_TICKS = 3;
+    public static final int MAX_HIT_LEAD_TICKS = 10;
     private boolean killPopup = false;
     private int killPopupLeadTicks = DEFAULT_KILL_POPUP_LEAD_TICKS;
     private float timerTextScale = DEFAULT_TIMER_TEXT_SCALE;
@@ -95,7 +100,12 @@ public final class BloodCampConfig {
             cfg.triggerBotEnabled = ConfigJson.getBool(obj, "triggerBotEnabled", false);
             cfg.auraEnabled = ConfigJson.getBool(obj, "auraEnabled", false);
             cfg.autoDetectLag = ConfigJson.getBool(obj, "autoDetectLag", true);
-            cfg.setManualTickOffset(ConfigJson.getInt(obj, "manualTickOffset", 0));
+            if (obj.has("hitLeadTicks")) {
+                cfg.setHitLeadTicks(ConfigJson.getInt(obj, "hitLeadTicks", DEFAULT_HIT_LEAD_TICKS));
+            } else {
+                // Migration: the old Click Offset was a fine-tune on top of a fixed 3-tick lead.
+                cfg.setHitLeadTicks(DEFAULT_HIT_LEAD_TICKS + ConfigJson.getInt(obj, "manualTickOffset", 0));
+            }
             cfg.killPopup = ConfigJson.getBool(obj, "killPopup", false);
             cfg.setKillPopupLeadTicks(ConfigJson.getInt(obj, "killPopupLeadTicks", DEFAULT_KILL_POPUP_LEAD_TICKS));
             cfg.setTimerTextScale(ConfigJson.getFloat(obj, "timerTextScale", DEFAULT_TIMER_TEXT_SCALE));
@@ -121,7 +131,7 @@ public final class BloodCampConfig {
             obj.addProperty("triggerBotEnabled", triggerBotEnabled);
             obj.addProperty("auraEnabled", auraEnabled);
             obj.addProperty("autoDetectLag", autoDetectLag);
-            obj.addProperty("manualTickOffset", manualTickOffset);
+            obj.addProperty("hitLeadTicks", hitLeadTicks);
             obj.addProperty("killPopup", killPopup);
             obj.addProperty("killPopupLeadTicks", killPopupLeadTicks);
             obj.addProperty("timerTextScale", timerTextScale);
@@ -224,13 +234,12 @@ public final class BloodCampConfig {
         this.autoDetectLag = autoDetectLag;
     }
 
-    public int getManualTickOffset() {
-        return manualTickOffset;
+    public int getHitLeadTicks() {
+        return hitLeadTicks;
     }
 
-    public void setManualTickOffset(int manualTickOffset) {
-        // A fine-tune on top of the fixed 3-tick lead (2026-10-11); it was -20..+20 when it was the whole timing.
-        this.manualTickOffset = Math.max(-3, Math.min(3, manualTickOffset));
+    public void setHitLeadTicks(int ticks) {
+        this.hitLeadTicks = Math.max(0, Math.min(MAX_HIT_LEAD_TICKS, ticks));
     }
 
     /** Text scale for the world-space countdown drawn on each blood mob's box (killer560: "the timer on
