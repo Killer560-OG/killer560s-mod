@@ -140,7 +140,8 @@ public final class SimDoors {
      *
      * @param alongX true when the two rooms are side by side on the X axis
      */
-    public static void carveDoorway(ServerLevel level, BlockPos centre, boolean alongX, int doorType) {
+    /** @return the floor y the opening was carved from (its four blocks are floorY .. floorY + 3) */
+    public static int carveDoorway(ServerLevel level, BlockPos centre, boolean alongX, int doorType) {
         int floorY = findFloor(level, centre);
         // Three wide and four high, the shape of a Catacombs doorway, and deep enough to pass through both
         // walls plus the seam.
@@ -224,6 +225,7 @@ public final class SimDoors {
                 BLOCK_INDEX.put(p, door);
             }
         }
+        return floorY;
     }
 
     /**

@@ -476,13 +476,14 @@ public final class SimBuilder {
                 // BEFORE the carves, so the carve reopens the one door this room really has - see
                 // closeGreenRoomShell.
                 closeGreenRoomShell(level);
+                java.util.Map<Integer, Integer> doorFloors = new java.util.HashMap<>();
                 for (int[] d : doorCells) {
-                    SimDoors.carveDoorway(level, DungeonLayout.cellCenter(d[0]), d[1] == 1, d[2]);
+                    doorFloors.put(d[0], SimDoors.carveDoorway(level, DungeonLayout.cellCenter(d[0]), d[1] == 1, d[2]));
                 }
                 for (int[] sc : sealCells) {
                     SimDoors.sealDoorway(level, new net.minecraft.core.BlockPos(sc[0], 70, sc[1]), sc[2] == 1);
                 }
-                int walled = sealOuterEdges(level, decoded);
+                int walled = sealOuterEdges(level, decoded, doorFloors);
                 LOGGER.info("Sim doors: {} block(s) of wall laid in open seams (the floor's edge, empty cells, between rooms)", walled);
                 LOGGER.info("Sim doors: {} carved, {} sealed, {} secret chest(s) removed by the carve, "
                                 + "{} block(s) of floor laid where a doorway had none",
@@ -1443,7 +1444,7 @@ public final class SimBuilder {
      *
      * @return how many blocks were placed
      */
-    static int sealOuterEdges(ServerLevel level, MapCode.Decoded decoded) {
+    static int sealOuterEdges(ServerLevel level, MapCode.Decoded decoded, java.util.Map<Integer, Integer> doorFloors) {
         int grid = DungeonLayout.GRID;
         int half = 16;
         int minY = Math.max(level.getMinY(), SimAltitude.minWorldY());
@@ -1475,13 +1476,24 @@ public final class SimBuilder {
                     int connector = (gz + side[1]) * grid + (gx + side[0]);
                     boolean door = there >= 0 && decoded.cellDoor()[connector] != DungeonLayout.DOOR_NONE;
                     var centre = DungeonLayout.cellCenter(gx, gz);
+                    Integer doorFloor = door ? doorFloors.get(connector) : null;
                     for (int t = -half; t <= half; t++) {
-                        if (door && Math.abs(t) <= 1) {
-                            continue;                   // the door's own three columns
-                        }
                         int sx = side[0] != 0 ? centre.getX() + side[0] * half : centre.getX() + t;
                         int sz = side[1] != 0 ? centre.getZ() + side[1] * half : centre.getZ() + t;
-                        placed += fillSeamColumn(level, sx, sz, side[0], side[1], there >= 0, minY, maxY);
+                        // A door's three columns are walled too, all but the opening the carve cut - the seam above it
+                        // up to the roofs and below it down to the floors was left open (2026-10-12, "the doors are
+                        // better but still a small gap"; testkit 855 counted ~2,500-3,500 such blocks a floor).
+                        int skipFrom = Integer.MAX_VALUE;
+                        int skipTo = Integer.MIN_VALUE;
+                        if (door && Math.abs(t) <= 1) {
+                            if (doorFloor == null) {
+                                continue;               // no carve recorded: leave the door alone
+                            }
+                            skipFrom = doorFloor;
+                            skipTo = doorFloor + 3;
+                        }
+                        placed += fillSeamColumn(level, sx, sz, side[0], side[1], there >= 0, minY, maxY,
+                                skipFrom, skipTo);
                     }
                 }
             }
@@ -1491,7 +1503,7 @@ public final class SimBuilder {
 
     /** One seam column: open blocks filled between the lowest and highest block of the column(s) beside it. */
     private static int fillSeamColumn(ServerLevel level, int sx, int sz, int dx, int dz, boolean bothSides,
-                                      int minY, int maxY) {
+                                      int minY, int maxY, int skipFrom, int skipTo) {
         int ix = sx - dx;
         int iz = sz - dz;
         int ox = sx + dx;
@@ -1511,6 +1523,9 @@ public final class SimBuilder {
         }
         int placed = 0;
         for (int y = lo; y <= hi; y++) {
+            if (y >= skipFrom && y <= skipTo) {
+                continue;                               // a real door's opening
+            }
             net.minecraft.core.BlockPos seam = new net.minecraft.core.BlockPos(sx, y, sz);
             var state = level.getBlockState(seam);
             if (!state.getCollisionShape(level, seam).isEmpty() || state.hasBlockEntity()) {

@@ -2783,3 +2783,8 @@ rooms (never inside one room, never a real door's three columns), between the lo
 column(s) beside it, in the wall's own material (else stone bricks): about 100,000 blocks a floor, ~1.5 s at the end of
 the build. Testkit 855 walks every standable, roofed spot of three generated floors (step, one-block jump, any drop)
 and counts reaching a column outside the rooms or a drop with no ground: 3 / 2 / 7 ways out on the old jar, 0 after.
+- **The door columns were the "small gap" left** (2026-10-12, Redstone Warrior: "the doors are better but still a small
+  gap"). The fill skipped a real door's three seam columns at every height, so above the four-block opening the seam
+  stayed open to the sky and below it down to the floors - 2,400-3,500 open seam blocks a floor, every one in a door
+  column. `SimDoors.carveDoorway` now returns the floor it carved from and the fill walls those columns too, all but
+  the opening (floor .. floor + 3). Testkit 855 also scans every seam block by kind now and requires none open.

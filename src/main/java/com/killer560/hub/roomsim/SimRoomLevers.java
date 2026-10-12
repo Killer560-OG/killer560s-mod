@@ -70,6 +70,24 @@ import java.util.concurrent.ConcurrentHashMap;
  * Where the two placed levers stand (on top, a floor lever) is an inference from Raccoon's and Bridges' own levers,
  * which are floor levers on a block; the captures do not say.
  *
+ * <h2>2026-10-12: five more, every lever already in its capture</h2>
+ *
+ * <p>From his levers-1012 shots, matched by decoding (each door a flood fill that fills its box exactly):
+ * <ul>
+ *   <li><b>Redstone Warrior.</b> The wall lever at {@code (16, 62, 5)} (18) opens the 3x5 iron bars at
+ *       {@code x=15..17, y=58..62, z=27} in front of the chest at {@code (16, 58, 25)} (19).</li>
+ *   <li><b>Hallway.</b> The floor lever at {@code (11, 76, 93)}, hidden beside a leaf bush at a cobblestone pillar's foot
+ *       (21), breaks the 2x4x2 oak log gate at {@code x=28..29, y=69..72, z=73..74} (22) that shuts the chest at
+ *       {@code (26, 69, 55)} off from the hall.</li>
+ *   <li><b>Knight.</b> The floor lever on spruce wood at {@code (4, 70, 10)} (23) breaks the 4x4x2 spruce gate at
+ *       {@code x=24..27, y=69..72, z=21..22} (24) in front of the two chests at {@code z=30}.</li>
+ *   <li><b>Atlas.</b> The floor lever on the lone polished granite block at {@code (54, 67, 32)} (25) opens the 3x4x2 oak
+ *       log door at {@code x=7..9, y=80..83, z=25..26} (26), the one at the top of the spruce steps with a player head
+ *       over it.</li>
+ *   <li><b>Long Hall.</b> The floor lever on the oak log desk at {@code (21, 70, 28)} (27) opens the oak wood strip at
+ *       {@code x=18, y=82, z=12..19} (28), the log floor of the channel between the dark stairs.</li>
+ * </ul>
+ *
  * <p>Opening is one-way and once only, like the real thing - flicking the lever back does not put the blocks
  * back, because on Hypixel it does not either. A fresh floor rearms everything.
  */
@@ -103,7 +121,18 @@ public final class SimRoomLevers {
             new Rule("Logs",
                     new int[]{29, 84, 6}, new int[]{20, 69, 23}, new int[]{21, 72, 26}, true),
             new Rule("Arrow Trap",
-                    new int[]{16, 70, 24}, new int[]{14, 69, 8}, new int[]{18, 73, 8}, true));
+                    new int[]{16, 70, 24}, new int[]{14, 69, 8}, new int[]{18, 73, 8}, true),
+            // 2026-10-12, his levers-1012 shots (see the class comment).
+            new Rule("Redstone Warrior",
+                    new int[]{16, 62, 5}, new int[]{15, 58, 27}, new int[]{17, 62, 27}),
+            new Rule("Hallway",
+                    new int[]{11, 76, 93}, new int[]{28, 69, 73}, new int[]{29, 72, 74}),
+            new Rule("Knight",
+                    new int[]{4, 70, 10}, new int[]{24, 69, 21}, new int[]{27, 72, 22}),
+            new Rule("Atlas",
+                    new int[]{54, 67, 32}, new int[]{7, 80, 25}, new int[]{9, 83, 26}),
+            new Rule("Long Hall",
+                    new int[]{21, 70, 28}, new int[]{18, 82, 12}, new int[]{18, 82, 19}));
 
     /** Lever world position to the blocks it clears, for the floor currently standing. */
     private static final Map<BlockPos, List<BlockPos>> ARMED = new ConcurrentHashMap<>();
