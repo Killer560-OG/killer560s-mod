@@ -105,6 +105,8 @@ public class DungeonTab extends FolderTab {
             tabs.add(new AutoUltTab());
             tabs.add(new Ap3Tab());
             tabs.add(new FreezeStateTab());
+            // Out of the Croesus tab, 2026-10-12 (killer560: "just like etable and auto etable").
+            tabs.add(new AutoCroesusTab());
         }
         return tabs;
     }

@@ -87,8 +87,23 @@ public final class ChestProfitFeature {
     private ChestProfitFeature() {
     }
 
+    /** The panel's place in Edit HUD (2026-10-12): drawn here over the menu, moved and scaled like any element. */
+    public static final String PANEL_ELEMENT_ID = "croesus_profit_panel";
+    private static com.killer560.hub.hud.ContainerOverlayElement panelElement;
+    /** The lines last drawn, for Edit HUD's preview over the same menu; a sample until a panel has drawn. */
+    private static volatile List<Line> lastLines = List.of(
+            new Line("Obsidian Chest", 0xFF000000 | ModChat.ORANGE, null, 0),
+            new Line("Necron's Handle", 0xFF000000 | ModChat.TEXT, "12.3M", 0xFF000000 | ModChat.LIGHT_ORANGE),
+            new Line("Cost", 0xFF000000 | ModChat.TEXT, "-2M", 0xFF000000 | ModChat.LIGHT_ORANGE),
+            new Line("Profit", 0xFF000000 | ModChat.ORANGE, "+10.3M", 0xFF000000 | ModChat.GOOD));
+
     public static void register() {
         CroesusProfitLog.load();
+        panelElement = com.killer560.hub.hud.ContainerOverlayElement.register(PANEL_ELEMENT_ID, "Croesus Chest Profit",
+                120, panelHeight(lastLines), 10, 30, // no font yet at registration: a width guess until drawn
+                () -> CroesusConfig.getInstance().isChestProfitEnabled(),
+                (g, x, y) -> drawLines(g, x, y, lastLines))
+                .previewSize(() -> new int[]{panelWidth(lastLines), panelHeight(lastLines)});
         ScreenEvents.AFTER_INIT.register(ChestProfitFeature::onScreenInit);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ChestProfitFeature.tick", ChestProfitFeature::tick));
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
@@ -567,28 +582,51 @@ public final class ChestProfitFeature {
 
     private static void drawPanel(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics,
                                   ContainerPos pos, List<Line> lines) {
-        Font font = Minecraft.getInstance().font;
-        int gap = 10;
-        int width = 0;
-        for (Line line : lines) {
-            int w = font.width(line.text()) + (line.right() != null ? gap + font.width(line.right()) : 0);
-            width = Math.max(width, w);
-        }
-        int padding = 4;
-        int panelW = width + padding * 2;
-        int panelH = lines.size() * 10 + padding * 2 - 1;
+        int panelW = panelWidth(lines);
+        int panelH = panelHeight(lines);
+        // Its own spot beside the container, unless he has placed it in Edit HUD (ContainerOverlayElement).
         int x = pos.right() + 6;
         if (x + panelW > screen.width - 2) {
             x = Math.max(2, pos.left() - panelW - 6);
         }
         int y = Math.max(2, pos.top());
+        lastLines = List.copyOf(lines);
+        if (panelElement == null) {
+            drawLines(graphics, x, y, lines);
+            return;
+        }
+        panelElement.draw(graphics, x, y, panelW, panelH, (g, px, py) -> drawLines(g, px, py, lines));
+    }
+
+    private static final int PANEL_GAP = 10;
+    private static final int PANEL_PADDING = 4;
+
+    private static int panelWidth(List<Line> lines) {
+        Font font = Minecraft.getInstance().font;
+        int width = 0;
+        for (Line line : lines) {
+            int w = font.width(line.text()) + (line.right() != null ? PANEL_GAP + font.width(line.right()) : 0);
+            width = Math.max(width, w);
+        }
+        return width + PANEL_PADDING * 2;
+    }
+
+    private static int panelHeight(List<Line> lines) {
+        return lines.size() * 10 + PANEL_PADDING * 2 - 1;
+    }
+
+    private static void drawLines(GuiGraphicsExtractor graphics, int x, int y, List<Line> lines) {
+        Font font = Minecraft.getInstance().font;
+        int panelW = panelWidth(lines);
+        int panelH = panelHeight(lines);
         graphics.fill(x, y, x + panelW, y + panelH, PANEL_BG);
         graphics.outline(x, y, panelW, panelH, PANEL_BORDER);
-        int ty = y + padding;
+        int ty = y + PANEL_PADDING;
         for (Line line : lines) {
-            graphics.text(font, line.text(), x + padding, ty, line.color(), true);
+            graphics.text(font, line.text(), x + PANEL_PADDING, ty, line.color(), true);
             if (line.right() != null) {
-                graphics.text(font, line.right(), x + panelW - padding - font.width(line.right()), ty, line.rightColor(), true);
+                graphics.text(font, line.right(), x + panelW - PANEL_PADDING - font.width(line.right()), ty,
+                        line.rightColor(), true);
             }
             ty += 10;
         }

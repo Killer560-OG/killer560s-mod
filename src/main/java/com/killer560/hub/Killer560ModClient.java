@@ -18,6 +18,7 @@ import com.killer560.hub.gui.ModScreen;
 import com.killer560.hub.gui.tab.TranslateTab;
 import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
+import net.minecraft.client.gui.screens.Screen;
 import com.killer560.hub.leapmessage.LeapMessageFeature;
 import com.killer560.hub.i4sensors.I4SensorsFeature;
 import com.killer560.hub.livemap.LiveMapFeature;
@@ -70,6 +71,8 @@ public class Killer560ModClient implements ClientModInitializer {
 
     private static final Logger LOGGER = ModLog.get("killer560smod");
     private static boolean editKeyWasDown = false;
+    /** Whether he was typing at the previous Edit HUD key poll - see checkHudEditKeybind. */
+    private static boolean editKeyTypingLastTick = false;
     // ModScreen's tab order: Home, Chat, Dungeon, Spotify, GIF Player - see ModScreen.init().
     // Translate lives inside the Chat folder tab (as its first sub-tab), so opening Chat lands on Translate. By
     // name: the old index (1) had pointed at Profiles since categories were added in front of Chat.
@@ -773,11 +776,23 @@ public class Killer560ModClient implements ClientModInitializer {
             return;
         }
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
-        // Only with NO screen open (killer560, 2026-10-08: "doesn't work if any menu is open, whether it is my mod or
-        // any other menu") - chat, pause, containers, this mod's menu and other mods' screens all count. The key is
-        // read raw every tick, so without this a letter typed in chat or a search box opened the editor.
-        if (down && !editKeyWasDown && McCompat.screen(client) == null) {
-            McCompat.setScreen(client, new HudEditorScreen(null));
+        // Over any screen EXCEPT while he is typing (killer560, 2026-10-12, replacing 2026-10-08's "no screen at all":
+        // "it should work in menus but not if typing ... regular chat, renaming menus, using search bars"). Opened over a
+        // container, the editor draws that container behind its boxes and Esc goes back to it, so its overlays (Start
+        // Croesus, the chest profit panel) are placed in context. The key is read raw every tick, so a letter typed into
+        // a text box must not count: util/TypingDetector.
+        Screen open = McCompat.screen(client);
+        // Typing on the previous tick counts too: a key press is delivered to the screen before this end-of-tick poll,
+        // so the press that ends a "Press any key..." capture (or submits a text box) already finds it over (testkit
+        // 862, 2026-10-12: binding a key in the menu also opened the editor).
+        boolean typing = com.killer560.hub.util.TypingDetector.isTyping(client);
+        boolean typedLastTick = editKeyTypingLastTick;
+        editKeyTypingLastTick = typing;
+        if (down && !editKeyWasDown && !(open instanceof HudEditorScreen) && !typing && !typedLastTick
+                // Not with an item on the cursor: leaving a container screen drops it client-side.
+                && !(open instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> c
+                        && !c.getMenu().getCarried().isEmpty())) {
+            McCompat.setScreen(client, new HudEditorScreen(open));
         }
         editKeyWasDown = down;
     }
