@@ -29,6 +29,27 @@ public final class SpiritLeapOverlayConfig {
     private boolean enabled = false;
     private boolean useClassColors = true;
     private float scale = 1.0f;
+    /** Each box shows the teammate's face (2026-10-11, killer560: "leap menu should have an option to show their
+     *  player head"). */
+    private boolean showHeads = true;
+    /** Boxes everywhere, or the dungeon map with clickable heads during the clear (boxes again in boss). */
+    private LeapStyle style = LeapStyle.BOXES;
+
+    /** How the custom leap menu lays out its targets. */
+    public enum LeapStyle {
+        BOXES("Boxes"),
+        MAP_IN_CLEAR("Map in Clear");
+
+        private final String label;
+
+        LeapStyle(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
 
     private SpiritLeapOverlayConfig() {
     }
@@ -52,6 +73,14 @@ public final class SpiritLeapOverlayConfig {
             cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
             cfg.useClassColors = !obj.has("useClassColors") || obj.get("useClassColors").getAsBoolean();
             cfg.setScale(obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f);
+            cfg.showHeads = !obj.has("showHeads") || obj.get("showHeads").getAsBoolean();
+            if (obj.has("style")) {
+                for (LeapStyle st : LeapStyle.values()) {
+                    if (st.name().equalsIgnoreCase(obj.get("style").getAsString())) {
+                        cfg.style = st;
+                    }
+                }
+            }
             instance = cfg;
         } catch (Exception e) {
             instance = new SpiritLeapOverlayConfig();
@@ -65,6 +94,8 @@ public final class SpiritLeapOverlayConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("useClassColors", useClassColors);
             obj.addProperty("scale", scale);
+            obj.addProperty("showHeads", showHeads);
+            obj.addProperty("style", style.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -84,6 +115,22 @@ public final class SpiritLeapOverlayConfig {
 
     public void setUseClassColors(boolean useClassColors) {
         this.useClassColors = useClassColors;
+    }
+
+    public boolean isShowHeads() {
+        return showHeads;
+    }
+
+    public void setShowHeads(boolean showHeads) {
+        this.showHeads = showHeads;
+    }
+
+    public LeapStyle getStyle() {
+        return style;
+    }
+
+    public void setStyle(LeapStyle style) {
+        this.style = style == null ? LeapStyle.BOXES : style;
     }
 
     public float getScale() {

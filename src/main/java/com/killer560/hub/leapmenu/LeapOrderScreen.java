@@ -30,6 +30,16 @@ import com.killer560.hub.compat.McCompat;
  * be; I should still be able to manually move them"): the Default Order button picks a {@link LeapOrderMode}, and every
  * teammate not moved by hand sits where it puts their class - so setting a class moves that teammate at once. A swap
  * pins both names it moved (drawn with a small grey "pinned"); shift-click unpins one, Reset to Default unpins all.
+ * <p>
+ * 2026-10-11, the class wizard (killer560: "it goes though player by player asking you their class, then after you get
+ * a player on the right class you press next on a button on the bottom of your screen. Then it goes through all 4 of the
+ * other players then once it gets to the end it shows the current menu thing"). After page 1, each teammate gets a page
+ * of their own: their face and name, what the dungeon tab list already says they are (pre-filled), a Class button
+ * (left click forward, right click back) and the five classes to pick from, and Back / Skip / Next at the bottom. A pick
+ * is the same mod-wide class override the spot buttons set (picking what the tab list already says just clears the
+ * override). After the last one the editor shows, laid out by the Default Order from those classes. The wizard runs on
+ * its own only when some teammate's class is still unknown (so inside a dungeon, where the tab list knows everyone, it
+ * goes straight to the layout); "Set Classes" in the editor runs it any time.
  */
 public class LeapOrderScreen extends Screen {
 
@@ -43,6 +53,11 @@ public class LeapOrderScreen extends Screen {
     private boolean requestedPartyList = false;
     /** The names the spot buttons were built for - a party change rebuilds them (auto-detects new members). */
     private String builtFor = "";
+    /** The class wizard: the teammates it walks through (null = not running) and which one is showing. */
+    private java.util.List<String> wizard = null;
+    private int wizardIndex = 0;
+    /** The editor opened with nobody in the party yet: start the wizard once names arrive (a /pl answer). */
+    private boolean wizardWhenPartyArrives = false;
 
     public LeapOrderScreen(Screen parent) {
         super(Component.literal("Leap Order"));
@@ -70,7 +85,10 @@ public class LeapOrderScreen extends Screen {
                     cfg.setLastEditedClass(c);
                     cfg.save();
                     maybeRequestPartyList();
-                    rebuild();
+                    if (!startWizard(false)) {
+                        wizardWhenPartyArrives = PartyTracker.teammates().isEmpty();
+                        rebuild();
+                    }
                 }));
                 y += bh + 4;
             }
@@ -79,11 +97,17 @@ public class LeapOrderScreen extends Screen {
             return;
         }
 
+        if (wizard != null) {
+            buildWizard(cx);
+            return;
+        }
         int by = height - 30;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), btn -> {
             editing = null;
             rebuild();
         }).bounds(cx - 177, by, 70, 20).build());
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Set Classes"), btn -> startWizard(true))
+                .bounds(cx + 86, 28, 80, 16).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset to Default"), btn -> {
             LeapMenuConfig cfg = LeapMenuConfig.getInstance();
             cfg.clearClassOrder(editing);
@@ -153,11 +177,135 @@ public class LeapOrderScreen extends Screen {
         ClassOverrides.getInstance().save();
     }
 
+    // ---- the class wizard ----------------------------------------------------------------------------------------------
+
+    /** Starts the wizard over the current teammates (at most 4). Unless {@code always}, only when one of them has no
+     *  known class. @return true when it started. */
+    private boolean startWizard(boolean always) {
+        java.util.List<String> names = new java.util.ArrayList<>(PartyTracker.teammatesInLeapOrder());
+        if (names.size() > 4) {
+            names = new java.util.ArrayList<>(names.subList(0, 4));
+        }
+        if (names.isEmpty() || !always && names.stream().allMatch(n -> PartyTracker.classOf(n) != null)) {
+            return false;
+        }
+        wizard = names;
+        wizardIndex = 0;
+        wizardWhenPartyArrives = false;
+        rebuild();
+        return true;
+    }
+
+    private void endWizard() {
+        wizard = null;
+        rebuild();
+    }
+
+    /** Sets a teammate's class from the wizard: what the tab list already says clears the override, anything else
+     *  sets it, nothing (?) clears it. */
+    private static void pickClass(String name, DungeonClass cls) {
+        DungeonClass detected = PartyTracker.detectedClassOf(name);
+        if (cls == null || cls == detected) {
+            ClassOverrides.clear(name);
+        } else {
+            ClassOverrides.set(name, cls);
+        }
+        ClassOverrides.getInstance().save();
+    }
+
+    /** The order the wizard's Class button steps through: unknown, then every class. */
+    private static final DungeonClass[] WIZARD_CYCLE = {null, DungeonClass.MAGE, DungeonClass.TANK, DungeonClass.HEALER,
+            DungeonClass.ARCHER, DungeonClass.BERSERKER};
+
+    public static Component wizardClassText(DungeonClass cls) {
+        return Component.literal("Class: " + (cls == null ? "\u00a77?" : com.killer560.hub.gui.tab.ClassOverridesTab.colourCode(cls)
+                + cls.displayName()));
+    }
+
+    private void buildWizard(int cx) {
+        String name = wizard.get(wizardIndex);
+        DungeonClass now = PartyTracker.classOf(name);
+        addRenderableWidget(SettingsButtonWidget.cycling(wizardClassText(now), (btn, dir) -> {
+            int at = 0;
+            for (int i = 0; i < WIZARD_CYCLE.length; i++) {
+                if (WIZARD_CYCLE[i] == PartyTracker.classOf(name)) {
+                    at = i;
+                }
+            }
+            pickClass(name, WIZARD_CYCLE[SettingsButtonWidget.step(at, dir, WIZARD_CYCLE.length)]);
+            rebuild();
+        }).bounds(cx - 80, wizardY() + 64, 160, 18).build());
+        DungeonClass[] classes = DungeonClass.values();
+        int bw = Math.min(70, (width - 20 - (classes.length - 1) * 4) / classes.length);
+        int x = cx - (classes.length * (bw + 4) - 4) / 2;
+        for (DungeonClass c : classes) {
+            String label = c == now ? "> " + c.displayName() + " <" : c.displayName();
+            addRenderableWidget(new ColoredButton(x, wizardY() + 88, bw, 18, label, c.color(), () -> {
+                pickClass(name, c);
+                rebuild();
+            }));
+            x += bw + 4;
+        }
+        int by = height - 30;
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), btn -> {
+            if (wizardIndex == 0) {
+                wizard = null;
+                editing = null;
+                rebuild();
+            } else {
+                wizardIndex--;
+                rebuild();
+            }
+        }).bounds(cx - 150, by, 90, 20).build());
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Skip"), btn -> endWizard())
+                .bounds(cx - 45, by, 90, 20).build());
+        boolean last = wizardIndex >= wizard.size() - 1;
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal(last ? "Finish" : "Next"), btn -> {
+            if (wizardIndex >= wizard.size() - 1) {
+                endWizard();
+            } else {
+                wizardIndex++;
+                rebuild();
+            }
+        }).bounds(cx + 60, by, 90, 20).build());
+    }
+
+    private int wizardY() {
+        return Math.max(30, height / 2 - 70);
+    }
+
+    private void renderWizard(GuiGraphicsExtractor graphics) {
+        String name = wizard.get(wizardIndex);
+        int cx = width / 2;
+        int y = wizardY();
+        graphics.centeredText(font, "Teammate " + (wizardIndex + 1) + " of " + wizard.size() + " - what class are they?",
+                cx, 16, 0xFFCC6600);
+        int face = 32;
+        graphics.fill(cx - face / 2 - 1, y - 1, cx + face / 2 + 1, y + face + 1, 0xFF000000);
+        com.killer560.hub.livemap.LeapMapView.drawFace(graphics, name, cx - face / 2, y, face);
+        DungeonClass now = PartyTracker.classOf(name);
+        graphics.centeredText(font, name, cx, y + 38, now != null ? now.color() : 0xFFFFFFFF);
+        DungeonClass detected = PartyTracker.detectedClassOf(name);
+        String source = detected != null ? "The tab list says " + detected.displayName()
+                + (now != detected ? " (you picked " + (now == null ? "?" : now.displayName()) + ")" : "")
+                : now != null ? "Picked by you" : "Not detected yet - pick their class";
+        graphics.centeredText(font, source, cx, y + 50, 0xFF9A8C80);
+    }
+
     @Override
     public void tick() {
         super.tick();
         if (editing == null) {
             return;
+        }
+        if (wizard != null) {
+            return; // the wizard's names are fixed while it runs
+        }
+        if (wizardWhenPartyArrives && !PartyTracker.teammates().isEmpty()) {
+            wizardWhenPartyArrives = false;
+            if (startWizard(false)) {
+                return;
+            }
         }
         String now = String.join(",", Arrays.asList(currentLayout()).stream().map(n -> n == null ? "" : n).toList());
         if (!now.equals(builtFor)) {
@@ -209,6 +357,8 @@ public class LeapOrderScreen extends Screen {
         graphics.fill(0, 0, width, height, 0xCC000000);
         if (editing == null) {
             graphics.centeredText(font, "Select your class", width / 2, height / 2 - 90, 0xFFCC6600);
+        } else if (wizard != null) {
+            renderWizard(graphics);
         } else {
             graphics.centeredText(font, "Leap Order - " + editing.displayName(), width / 2, 16, editing.color());
             String[] layout = currentLayout();
@@ -250,7 +400,7 @@ public class LeapOrderScreen extends Screen {
         if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
-        if (editing == null) {
+        if (editing == null || wizard != null) {
             return false;
         }
         for (int spot = 0; spot < 4; spot++) {

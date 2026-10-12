@@ -289,6 +289,12 @@ public final class PartyTracker {
         return name == null ? null : ClassOverrides.classOf(name, CLASSES.get(name.toLowerCase(Locale.US)));
     }
 
+    /** What the dungeon tab list / Party Finder said this teammate is, ignoring any manual override (null = nothing yet).
+     *  The Leap Order's class wizard pre-fills from this. */
+    public static DungeonClass detectedClassOf(String name) {
+        return name == null ? null : CLASSES.get(name.toLowerCase(Locale.US));
+    }
+
     /** Your own class from the dungeon tab list, or null outside a dungeon / before the tab list shows it. */
     public static DungeonClass selfClass() {
         Minecraft client = Minecraft.getInstance();
