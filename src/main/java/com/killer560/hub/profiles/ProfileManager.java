@@ -64,6 +64,8 @@ public final class ProfileManager {
             "killer560smod-sharing-defaults-v2.json",
             // Croesus Profit Logger's claim history + totals - real run data, not a setting.
             "killer560smod-croesus-log.json",
+            // Croesus's per-run memory (chests seen, claims), kept with each run until it expires - run data too.
+            "killer560smod-croesus-runs.json",
             // Experimentation Table profit tracker's session log + totals - also real run data.
             "killer560smod-experiments-profit.json",
             // Item Browser's downloaded Hypixel item list - a network cache, not a setting (2026-09-15 audit).

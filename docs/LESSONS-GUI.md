@@ -255,5 +255,10 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **A Croesus run is not identified by its party.** He runs the same floor with the same party all day, so a key of name +
   floor + players was shared by many runs: looking at one run's chests re-coloured, hid or showed every run like it (his
   "sometimes they come back sometimes they disappear"; testkit 884 on the old jar: all four runs flipped 2<->3 six
-  times). Runs are keyed by list page + slot + that signature. And a claim is remembered from the chest screen itself,
+  times). Runs are now known by that signature plus the instant their chests expire (croesus/CroesusRunMemory, saved
+  in killer560smod-croesus-runs.json), matched per page by the list's shift, so a run keeps its state when one ahead
+  expires (888-890). And a claim is remembered from the chest screen itself,
   because the list head can lag it by a refresh (886: the old jar read the run as unclaimed, orange, after its claim).
+- **A clicked slot is empty until the server answers.** A left click on a container slot moves its item onto the cursor
+  client-side, so a frame later the Croesus page looked one run short and the next same-party run took the clicked run's
+  place and memory (889's first run). Croesus keeps the previous read while the cursor carries something.

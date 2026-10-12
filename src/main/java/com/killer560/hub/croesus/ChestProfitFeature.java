@@ -27,6 +27,7 @@ import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -85,23 +86,20 @@ public final class ChestProfitFeature {
     static final String RUN_DONE_LORE = "No more chests to open!";
     /** Each run's unopened chests (type -> profit after a key), by run (name, floor, players), from the run views
      *  opened this session. Session only: a run not looked at since the game started is RUN_UNKNOWN. */
-    private static final Map<String, Map<String, Long>> KEY_VIEW = new java.util.concurrent.ConcurrentHashMap<>();
+    // Each run's chests and claims live in CroesusRunMemory (kept with the run when it moves, and across restarts).
     private static final java.util.regex.Pattern OPENED_CHEST = java.util.regex.Pattern.compile("^Opened [cC]hests?: (.{1,24})$");
     /** The run whose view is open (or about to be): the head last clicked, by him or by Auto Croesus. */
-    private static volatile String openRunKey = null;
+    private static volatile CroesusRunMemory.Run openRun = null;
+    /** The remembered run of each slot of the Croesus page read last ({@link #readRunHeads}). */
+    private static Map<Integer, CroesusRunMemory.Run> runBySlot = Map.of();
+    private static Map<Integer, CroesusRunMemory.Entry> entryBySlot = Map.of();
     /**
      * Claims seen in a reward chest screen, by run key (killer560, 2026-10-12: "after claiming a chest sometimes the chest
      * will reappear orange ... when it should read it while I am in the chest"). Hypixel's list head can still say
      * "No chests opened yet!" (or not yet "No more chests to open!") for a refresh after a claim; for
      * {@link #CLAIM_TRUST_MS} the claim seen here wins over a head that has not caught up.
      */
-    private record SeenClaim(String chestType, boolean keyUsed, long atMs) {
-    }
-
-    private static final Map<String, SeenClaim> CLAIMS = new java.util.concurrent.ConcurrentHashMap<>();
     private static final long CLAIM_TRUST_MS = 60_000L;
-    /** Bumped whenever what a head's state depends on changes (a run view noted, a claim seen), so the menu re-reads. */
-    private static volatile int knowledgeVersion = 0;
     /** Last state logged per run key, and the rate limit on those INFO lines (his next log shows any flip). */
     private static final Map<String, Byte> LOGGED_STATE = new java.util.concurrent.ConcurrentHashMap<>();
     private static long logWindowStartMs = 0L;
@@ -421,9 +419,16 @@ public final class ChestProfitFeature {
             return new byte[0];
         }
         List<Slot> slots = screen.getMenu().slots;
-        int fp = 31 * knowledgeVersion + (int) AutoCroesusFeature.keyWorthFloor() + 7 * activeClaims();
+        int fp = 31 * CroesusRunMemory.version() + (int) AutoCroesusFeature.keyWorthFloor()
+                + 7 * CroesusRunMemory.activeClaims(System.currentTimeMillis(), CLAIM_TRUST_MS);
         for (int slot : DungeonChestValuer.RUN_HEAD_SLOTS) {
             fp = 31 * fp + (slot < slots.size() ? System.identityHashCode(slots.get(slot).getItem()) : 0);
+        }
+        if (screen == runHeadScreen && !screen.getMenu().getCarried().isEmpty()) {
+            // A click on a run head shows it on the cursor (its slot empty) until the server answers. That is not the
+            // list changing: re-reading it then let the next run of the same party take the clicked run's place and
+            // its memory (testkit 889). Keep what this screen showed before the click.
+            return runHeadState;
         }
         if (screen != runHeadScreen || fp != runHeadFingerprint) {
             readRunHeads(screen);
@@ -441,7 +446,11 @@ public final class ChestProfitFeature {
         int claimed = 0;
         int needsKey = 0;
         int unknown = 0;
-        for (int slot : DungeonChestValuer.RUN_HEAD_SLOTS) {
+        long now = System.currentTimeMillis();
+        List<CroesusRunMemory.Entry> entries = new ArrayList<>();
+        List<ItemStack> entryHeads = new ArrayList<>();
+        for (int i = 0; i < DungeonChestValuer.RUN_HEAD_SLOTS.length; i++) {
+            int slot = DungeonChestValuer.RUN_HEAD_SLOTS[i];
             if (slot >= stacks.size()) {
                 break;
             }
@@ -449,10 +458,25 @@ public final class ChestProfitFeature {
             if (head.isEmpty() || floorFromCroesusHead(head) == null) {
                 continue;
             }
-            String key = runKey(headPage, slot, head);
-            byte st = headState(key, head);
+            List<String> lore = DungeonChestValuer.cleanLore(head);
+            entries.add(CroesusRunMemory.entry(slot, (headPage - 1) * DungeonChestValuer.RUN_HEAD_SLOTS.length + i,
+                    runSignature(head, lore), lore, now));
+            entryHeads.add(head);
+        }
+        CroesusRunMemory.Run[] matched = CroesusRunMemory.match(entries);
+        Map<Integer, CroesusRunMemory.Run> bySlot = new HashMap<>();
+        Map<Integer, CroesusRunMemory.Entry> entries2 = new HashMap<>();
+        for (int i = 0; i < entries.size(); i++) {
+            int slot = entries.get(i).slot();
+            ItemStack head = entryHeads.get(i);
+            CroesusRunMemory.Run run = matched[i];
+            if (run != null) {
+                bySlot.put(slot, run);
+            }
+            entries2.put(slot, entries.get(i));
+            byte st = headState(run, head);
             state[slot] = st;
-            logTransition(key, st);
+            logTransition(run != null ? run.id : headPage + ":" + slot, st, run);
             if (st == RUN_UNCLAIMED) {
                 unclaimed++;
             } else {
@@ -466,6 +490,8 @@ public final class ChestProfitFeature {
         }
         runHeadState = state;
         runHeadContainerId = screen.getMenu().containerId;
+        runBySlot = bySlot;
+        entryBySlot = entries2;
         if (stacks.stream().allMatch(ItemStack::isEmpty)) {
             return; // the page's items have not arrived: keep what this page held last time
         }
@@ -496,14 +522,13 @@ public final class ChestProfitFeature {
 
     /** A run's state from its head: the lore says unclaimed / done / which chest was opened; whether the rest is worth a
      *  key comes from the run's chests as last seen in its run view this session (by him or Auto Croesus). */
-    private static byte headState(String key, ItemStack head) {
+    private static byte headState(CroesusRunMemory.Run run, ItemStack head) {
         List<String> lore = DungeonChestValuer.cleanLore(head);
         if (lore.contains(RUN_DONE_LORE)) {
             return RUN_DONE;
         }
-        SeenClaim claim = CLAIMS.get(key);
-        boolean fresh = claim != null && System.currentTimeMillis() - claim.atMs() < CLAIM_TRUST_MS;
-        if (fresh && claim.keyUsed()) {
+        boolean fresh = run != null && run.claimType != null && System.currentTimeMillis() - run.claimAtMs < CLAIM_TRUST_MS;
+        if (fresh && run.claimKeyed) {
             return RUN_DONE; // a keyed claim just seen: the head will say "No more chests to open!" in a moment
         }
         String opened = null;
@@ -511,7 +536,7 @@ public final class ChestProfitFeature {
             if (!fresh) {
                 return RUN_UNCLAIMED;
             }
-            opened = claim.chestType(); // the head lags a claim seen in the chest screen
+            opened = run.claimType; // the head lags a claim seen in the chest screen
         }
         for (String line : lore) {
             Matcher m = OPENED_CHEST.matcher(line);
@@ -520,7 +545,7 @@ public final class ChestProfitFeature {
                 opened = t == null ? null : t.name();
             }
         }
-        Map<String, Long> chests = KEY_VIEW.get(key);
+        Map<String, Long> chests = run == null ? null : run.chests;
         if (chests == null) {
             return RUN_UNKNOWN;
         }
@@ -552,35 +577,39 @@ public final class ChestProfitFeature {
         return sb.toString();
     }
 
-    /**
-     * A run's key: its place in the Croesus list (page and slot) and its name, floor and players. The players alone are
-     * not enough - killer560 runs the same floor with the same party all day, so every such run shared one key, and
-     * looking at one run's chests re-coloured (and hid or showed) all the others (2026-10-12: "it is hiding a bunch of
-     * other runs that I already claimed. Sometimes they come back sometimes they disappear"). A run that moved (one
-     * before it expired) simply reads as not looked at, never as another run.
-     */
-    static String runKey(int page, int slot, ItemStack head) {
-        return page + ":" + slot + "|" + runSignature(head, DungeonChestValuer.cleanLore(head));
-    }
-
     static int pageOf(String title) {
         Matcher m = MENU_PAGE.matcher(title == null ? "" : title);
         return m.matches() ? Integer.parseInt(m.group(1)) : 1;
     }
 
-    /** The head the run view about to open belongs to (his click, or Auto Croesus's), by its list page and slot. */
+    /**
+     * The head the run view about to open belongs to (his click, or Auto Croesus's): the remembered run the last read of
+     * that page matched to the slot, or a new one. Runs are no longer known by their slot (killer560, 2026-10-12: "if it
+     * moves it still needs to be tracked") but by party, floor and expiry instant - see {@link CroesusRunMemory}.
+     */
     public static void rememberRunHead(int page, int slot, ItemStack head) {
-        if (head != null && !head.isEmpty() && floorFromCroesusHead(head) != null) {
-            openRunKey = runKey(page, slot, head);
+        if (head == null || head.isEmpty() || floorFromCroesusHead(head) == null) {
+            return;
         }
+        CroesusRunMemory.Run run = runBySlot.get(slot);
+        CroesusRunMemory.Entry e = entryBySlot.get(slot);
+        List<String> lore = DungeonChestValuer.cleanLore(head);
+        String sig = runSignature(head, lore);
+        if (e == null || !e.sig().equals(sig)) {
+            int index = java.util.Arrays.stream(DungeonChestValuer.RUN_HEAD_SLOTS).boxed().toList().indexOf(slot);
+            e = CroesusRunMemory.entry(slot, (page - 1) * DungeonChestValuer.RUN_HEAD_SLOTS.length + Math.max(0, index),
+                    sig, lore, System.currentTimeMillis());
+            run = null;
+        }
+        openRun = run != null ? run : CroesusRunMemory.create(e);
     }
 
     /** In a reward chest screen, right before its claim is sent: this run's chest of that type is taken (with a key if
      *  the button listed one). Recorded whatever the logger setting. */
     private static void noteClaim(AbstractContainerScreen<?> screen) {
-        String key = openRunKey;
+        CroesusRunMemory.Run run = openRun;
         ChestType type = ChestType.fromName(titleOf(screen));
-        if (key == null || type == null) {
+        if (run == null || type == null) {
             return;
         }
         List<ItemStack> stacks = containerStacks(screen);
@@ -589,24 +618,13 @@ public final class ChestProfitFeature {
             return;
         }
         boolean keyed = DungeonChestValuer.cleanLore(stacks.get(DungeonChestValuer.CLAIM_BUTTON_SLOT)).contains("Dungeon Chest Key");
-        CLAIMS.put(key, new SeenClaim(type.name(), keyed, System.currentTimeMillis()));
-        knowledgeVersion++;
-        LOGGER.info("[Croesus] Claim seen in the {} chest of run {}{}", type.display, key, keyed ? " (with a key)" : "");
-    }
-
-    private static int activeClaims() {
-        long now = System.currentTimeMillis();
-        int n = 0;
-        for (SeenClaim c : CLAIMS.values()) {
-            if (now - c.atMs() < CLAIM_TRUST_MS) {
-                n++;
-            }
-        }
-        return n;
+        CroesusRunMemory.noteClaim(run, type.name(), keyed, System.currentTimeMillis());
+        LOGGER.info("[Croesus] Claim seen in the {} chest of run {}{}", type.display, CroesusRunMemory.describe(run),
+                keyed ? " (with a key)" : "");
     }
 
     /** INFO when a run's state changes (at most 20 lines a minute), so a flip in his game shows in his log. */
-    private static void logTransition(String key, byte st) {
+    private static void logTransition(String key, byte st, CroesusRunMemory.Run run) {
         Byte was = LOGGED_STATE.put(key, st);
         if (was == null || was == st) {
             return;
@@ -618,7 +636,7 @@ public final class ChestProfitFeature {
         }
         if (++logLinesInWindow <= 20) {
             LOGGER.info("[Croesus] Run {} state {} -> {} (view known: {}, claim seen: {})", key, stateName(was),
-                    stateName(st), KEY_VIEW.containsKey(key), CLAIMS.containsKey(key));
+                    stateName(st), run != null && run.chests != null, run != null && run.claimType != null);
         }
     }
 
@@ -640,8 +658,8 @@ public final class ChestProfitFeature {
      * ({@code AutoCroesusFeature.keyWorthFloor()}, read when drawn, so a changed setting applies at once).
      */
     private static void noteKeyWorth(List<ChestValue> chests) {
-        String sig = openRunKey;
-        if (sig == null || chests.isEmpty() || !DungeonChestValuer.pricesReady()) {
+        CroesusRunMemory.Run run = openRun;
+        if (run == null || chests.isEmpty() || !DungeonChestValuer.pricesReady()) {
             return;
         }
         Map<String, Long> left = new java.util.HashMap<>();
@@ -650,10 +668,7 @@ public final class ChestProfitFeature {
                 left.merge(c.type().name(), DungeonChestValuer.profitWithKey(c), Math::max);
             }
         }
-        Map<String, Long> now = Map.copyOf(left);
-        if (!now.equals(KEY_VIEW.put(sig, now))) {
-            knowledgeVersion++;
-        }
+        CroesusRunMemory.noteChests(run, left);
     }
 
     /** For the testkit: the RUN_* state of every slot of the Croesus menu last read. */
@@ -663,11 +678,21 @@ public final class ChestProfitFeature {
 
     /** For the testkit: forget every "worth a key" answer. */
     public static void clearKeyWorthForTest() {
-        KEY_VIEW.clear();
-        CLAIMS.clear();
+        CroesusRunMemory.clearForTest();
         LOGGED_STATE.clear();
-        knowledgeVersion++;
-        openRunKey = null;
+        openRun = null;
+        runBySlot = Map.of();
+        entryBySlot = Map.of();
+    }
+
+    /** For the testkit: drop what is in memory and read the run file again, as a restart does. */
+    public static void reloadRunMemoryForTest() {
+        CroesusRunMemory.load();
+        LOGGED_STATE.clear();
+        openRun = null;
+        runBySlot = Map.of();
+        entryBySlot = Map.of();
+        runHeadScreen = null;
     }
 
     // ---- run heads drawn by croesus/mixin/CroesusSlotMixin ------------------------------------------------------

@@ -1,0 +1,351 @@
+package com.killer560.hub.croesus;
+
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.killer560.hub.util.ConfigJson;
+import com.killer560.hub.util.ModLog;
+import com.killer560.hub.util.ModPaths;
+import org.slf4j.Logger;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * What the mod knows about each Croesus run, kept with the run wherever it moves in the list and across restarts
+ * (killer560, 2026-10-12: "if it moves it still needs to be tracked").
+ * <p>
+ * <b>Identity.</b> A run is its name (Master or not), floor and players, plus the instant its chests expire: the head's
+ * "Chests expire in 1d 12h!" (or, without it, "Completed: 2 hours ago" + Croesus's 72 hours) turned into an absolute time,
+ * with a tolerance as coarse as the text (an hour when it shows hours, a minute when minutes). That instant is fixed for
+ * a run, so it survives the run sliding a slot when one before it expires.
+ * <p>
+ * <b>Matching a page.</b> Runs with the same party and floor whose windows overlap cannot be told apart by time alone (he
+ * runs the same floor with the same party all day), so on each page read the in-window pairs vote on the shift of the
+ * list (a run ahead expiring moves every later run back by one; the order of the rest never changes) and the most common
+ * shift assigns them. What is left is assigned only when exactly one run fits within a few places; anything still
+ * ambiguous reads "not looked at" (never hidden) and is logged.
+ * <p>
+ * <b>Persistence.</b> {@code killer560smod-croesus-runs.json} (dungeons/runs); runs past their expiry are dropped on load
+ * and save. Run data, not a setting, so profiles do not carry it.
+ */
+final class CroesusRunMemory {
+
+    private static final Logger LOGGER = ModLog.get("killer560smod-croesus");
+    private static final Path PATH = ModPaths.config("killer560smod-croesus-runs.json");
+    /** Croesus keeps a run 72 hours (hypixelskyblock.minecraft.wiki/w/Croesus). */
+    static final long RUN_LIFETIME_MS = 72L * 3600_000L;
+    /** Slack on top of the two texts' own coarseness: the two reads are taken at different moments. */
+    private static final long READ_SLACK_MS = 120_000L;
+    /** A leftover run is matched alone only this many places from where it was. */
+    private static final int LEFTOVER_MAX_SHIFT = 3;
+    private static final Pattern EXPIRE = Pattern.compile("^Chests expire in ((?:\\d{1,4}[dhms] ?){1,4})!?$");
+    private static final Pattern EXPIRE_PART = Pattern.compile("(\\d{1,4})([dhms])");
+    private static final Pattern COMPLETED = Pattern.compile("^Completed: (\\d{1,4}) (second|minute|hour|day)s? ago$");
+
+    /** One run, as remembered. */
+    static final class Run {
+        final String id;
+        final String sig;
+        long expiresAt;
+        long tolMs;
+        int order;
+        /** Each chest not opened when its run view was last seen: type -> profit after a key. Null until seen. */
+        Map<String, Long> chests;
+        String claimType;
+        boolean claimKeyed;
+        long claimAtMs;
+
+        Run(String id, String sig, long expiresAt, long tolMs, int order) {
+            this.id = id;
+            this.sig = sig;
+            this.expiresAt = expiresAt;
+            this.tolMs = tolMs;
+            this.order = order;
+        }
+    }
+
+    /** One list entry: its place (overall index across pages), who it is and when it expires. */
+    record Entry(int slot, int order, String sig, long expiresAt, long tolMs) {
+    }
+
+    private static final List<Run> RUNS = new ArrayList<>();
+    private static boolean loaded = false;
+    private static volatile int version = 0;
+
+    private CroesusRunMemory() {
+    }
+
+    static synchronized int version() {
+        ensureLoaded();
+        return version;
+    }
+
+    static void bump() {
+        version++;
+    }
+
+    /** An entry from a list head's lore. {@code order} is the run's overall place: (page - 1) * 28 + its index. */
+    static Entry entry(int slot, int order, String sig, List<String> lore, long now) {
+        for (String line : lore) {
+            Matcher m = EXPIRE.matcher(line.trim());
+            if (m.matches()) {
+                long total = 0;
+                long unit = Long.MAX_VALUE;
+                Matcher p = EXPIRE_PART.matcher(m.group(1));
+                while (p.find()) {
+                    long u = unitMs(p.group(2).charAt(0));
+                    total += Long.parseLong(p.group(1)) * u;
+                    unit = Math.min(unit, u);
+                }
+                if (unit != Long.MAX_VALUE) {
+                    return new Entry(slot, order, sig, now + total, unit);
+                }
+            }
+        }
+        for (String line : lore) {
+            Matcher m = COMPLETED.matcher(line.trim());
+            if (m.matches()) {
+                long unit = unitMs(m.group(2).charAt(0));
+                return new Entry(slot, order, sig, now - Long.parseLong(m.group(1)) * unit + RUN_LIFETIME_MS, unit);
+            }
+        }
+        return new Entry(slot, order, sig, 0L, RUN_LIFETIME_MS); // no time on it: identity by order alone
+    }
+
+    private static long unitMs(char c) {
+        return switch (Character.toLowerCase(c)) {
+            case 'd' -> 86_400_000L;
+            case 'h' -> 3_600_000L;
+            case 'm' -> 60_000L;
+            default -> 1_000L;
+        };
+    }
+
+    private static boolean inWindow(Run r, Entry e) {
+        return r.sig.equals(e.sig()) && Math.abs(r.expiresAt - e.expiresAt()) <= r.tolMs + e.tolMs() + READ_SLACK_MS;
+    }
+
+    /** The remembered run of each entry (same order), or null for one not remembered or truly ambiguous. */
+    static synchronized Run[] match(List<Entry> entries) {
+        ensureLoaded();
+        Run[] out = new Run[entries.size()];
+        java.util.Set<Run> used = new java.util.HashSet<>();
+        // 1. Every in-window pair votes for the list's shift; the most common shift (then the smallest) assigns them.
+        Map<Integer, Integer> votes = new HashMap<>();
+        for (Entry e : entries) {
+            for (Run r : RUNS) {
+                if (inWindow(r, e)) {
+                    votes.merge(r.order - e.order(), 1, Integer::sum);
+                }
+            }
+        }
+        List<Integer> deltas = new ArrayList<>(votes.keySet());
+        deltas.sort((a, b) -> votes.get(b).equals(votes.get(a)) ? Integer.compare(Math.abs(a), Math.abs(b))
+                : Integer.compare(votes.get(b), votes.get(a)));
+        for (int d : deltas) {
+            for (int i = 0; i < entries.size(); i++) {
+                if (out[i] != null) {
+                    continue;
+                }
+                Entry e = entries.get(i);
+                for (Run r : RUNS) {
+                    if (!used.contains(r) && r.order - e.order() == d && inWindow(r, e)) {
+                        out[i] = r;
+                        used.add(r);
+                        break;
+                    }
+                }
+            }
+            if (votes.get(d) < 2) {
+                break; // single votes are not a shift of the list: the leftover pass below decides those
+            }
+        }
+        // 2. Leftovers: exactly one free run that fits, within a few places.
+        for (int i = 0; i < entries.size(); i++) {
+            if (out[i] != null) {
+                continue;
+            }
+            Entry e = entries.get(i);
+            List<Run> fit = new ArrayList<>();
+            for (Run r : RUNS) {
+                if (!used.contains(r) && inWindow(r, e) && Math.abs(r.order - e.order()) <= LEFTOVER_MAX_SHIFT) {
+                    fit.add(r);
+                }
+            }
+            if (fit.size() == 1) {
+                out[i] = fit.get(0);
+                used.add(fit.get(0));
+            } else if (fit.size() > 1) {
+                LOGGER.info("[Croesus] Run at place {} ({}) matches {} remembered runs - treated as not looked at",
+                        e.order(), e.sig(), fit.size());
+            }
+        }
+        // 3. Follow the runs: their place now, and the tighter of the two expiry estimates.
+        boolean changed = false;
+        for (int i = 0; i < entries.size(); i++) {
+            Run r = out[i];
+            if (r == null) {
+                continue;
+            }
+            Entry e = entries.get(i);
+            if (r.order != e.order()) {
+                r.order = e.order();
+                changed = true;
+            }
+            if (e.tolMs() < r.tolMs) {
+                r.expiresAt = e.expiresAt();
+                r.tolMs = e.tolMs();
+                changed = true;
+            }
+        }
+        if (changed) {
+            save();
+        }
+        return out;
+    }
+
+    /** A new remembered run for an entry nothing matched (he or Auto Croesus is opening it). */
+    static synchronized Run create(Entry e) {
+        ensureLoaded();
+        Run r = new Run(UUID.randomUUID().toString(), e.sig(), e.expiresAt(), e.tolMs(), e.order());
+        RUNS.add(r);
+        return r;
+    }
+
+    static synchronized void noteChests(Run r, Map<String, Long> chests) {
+        if (r == null || chests.equals(r.chests)) {
+            return;
+        }
+        r.chests = Map.copyOf(chests);
+        version++;
+        save();
+    }
+
+    static synchronized void noteClaim(Run r, String type, boolean keyed, long now) {
+        if (r == null) {
+            return;
+        }
+        r.claimType = type;
+        r.claimKeyed = keyed;
+        r.claimAtMs = now;
+        version++;
+        save();
+    }
+
+    static synchronized int activeClaims(long now, long trustMs) {
+        ensureLoaded();
+        int n = 0;
+        for (Run r : RUNS) {
+            if (r.claimType != null && now - r.claimAtMs < trustMs) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    // ---- persistence ----------------------------------------------------------------------------------------------
+
+    private static void ensureLoaded() {
+        if (!loaded) {
+            load();
+        }
+    }
+
+    static synchronized void load() {
+        loaded = true;
+        RUNS.clear();
+        version++;
+        if (!Files.exists(PATH)) {
+            return;
+        }
+        try {
+            JsonObject obj = JsonParser.parseString(Files.readString(PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+            JsonArray runs = ConfigJson.getArray(obj, "runs");
+            long now = System.currentTimeMillis();
+            if (runs != null) {
+                for (JsonElement el : runs) {
+                    JsonObject o = el.getAsJsonObject();
+                    Run r = new Run(ConfigJson.getString(o, "id", UUID.randomUUID().toString()), ConfigJson.getString(o, "sig", ""),
+                            ConfigJson.getLong(o, "expiresAt", 0), ConfigJson.getLong(o, "tolMs", RUN_LIFETIME_MS),
+                            ConfigJson.getInt(o, "order", 0));
+                    if (r.sig.isEmpty() || (r.expiresAt > 0 && r.expiresAt + r.tolMs < now)) {
+                        continue; // gone from Croesus
+                    }
+                    JsonObject chests = ConfigJson.getObject(o, "chests");
+                    if (chests != null) {
+                        Map<String, Long> m = new LinkedHashMap<>();
+                        chests.entrySet().forEach(en -> m.put(en.getKey(), en.getValue().getAsLong()));
+                        r.chests = Map.copyOf(m);
+                    }
+                    r.claimType = ConfigJson.getString(o, "claimType", null);
+                    r.claimKeyed = ConfigJson.getBool(o, "claimKeyed", false);
+                    r.claimAtMs = ConfigJson.getLong(o, "claimAt", 0);
+                    RUNS.add(r);
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[Croesus] Could not read {} - starting with no remembered runs", PATH.getFileName(), e);
+        }
+    }
+
+    private static void save() {
+        try {
+            long now = System.currentTimeMillis();
+            RUNS.removeIf(r -> r.expiresAt > 0 && r.expiresAt + r.tolMs < now);
+            JsonArray runs = new JsonArray();
+            for (Run r : RUNS) {
+                if (r.chests == null && r.claimType == null) {
+                    continue; // nothing learned about it yet
+                }
+                JsonObject o = new JsonObject();
+                o.addProperty("id", r.id);
+                o.addProperty("sig", r.sig);
+                o.addProperty("expiresAt", r.expiresAt);
+                o.addProperty("tolMs", r.tolMs);
+                o.addProperty("order", r.order);
+                if (r.chests != null) {
+                    JsonObject c = new JsonObject();
+                    r.chests.forEach(c::addProperty);
+                    o.add("chests", c);
+                }
+                if (r.claimType != null) {
+                    o.addProperty("claimType", r.claimType);
+                    o.addProperty("claimKeyed", r.claimKeyed);
+                    o.addProperty("claimAt", r.claimAtMs);
+                }
+                runs.add(o);
+            }
+            JsonObject obj = new JsonObject();
+            obj.add("runs", runs);
+            Files.createDirectories(PATH.getParent());
+            Files.writeString(PATH, new GsonBuilder().setPrettyPrinting().create().toJson(obj), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            LOGGER.warn("[Croesus] Could not save {}", PATH.getFileName(), e);
+        }
+    }
+
+    /** For the testkit: forget every run, on disk too. */
+    static synchronized void clearForTest() {
+        loaded = true;
+        RUNS.clear();
+        version++;
+        save();
+    }
+
+    static String describe(Run r) {
+        return r == null ? "-" : String.format(Locale.ROOT, "%s@%d", r.id.substring(0, 8), r.order);
+    }
+}
