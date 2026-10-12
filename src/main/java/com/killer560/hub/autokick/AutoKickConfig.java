@@ -17,8 +17,8 @@ import java.util.EnumMap;
  * <p>
  * killer560, 2026-10-09: "Auto kick is only something to be used during the party finder stage while you are queuing
  * for a run ... Each floor should have a bar that goes from 30s to 4m; for F7 make it go to 6 and for M7 make it go to
- * 7." So each floor's number is the slowest timed completion (S+ personal best) a Party Finder joiner may have on
- * that floor: 30 s to 4 min, F7 to 6 min, M7 to 7 min. There is no "disabled" value any more; a floor ships at the top
+ * 7." So each floor's number is the slowest timed completion (S+ personal best, or S per Time Mode) a Party Finder
+ * joiner may have on that floor: 30 s to 4 min, F7 to 6 min, M7 to 7 min. There is no "disabled" value any more; a floor ships at the top
  * of its range, the most lenient requirement, and the master switch and Warn Only stay the safe defaults.
  * <p>
  * Per-floor keys are individual JSON entries ("target.F1", "target.M7", ...): a hand-edited key only resets that one
@@ -100,6 +100,47 @@ public final class AutoKickConfig {
         }
     }
 
+    /** Which of a joiner's times is judged (killer560, 2026-10-11: "have a toggle for which ones it uses"). */
+    public enum TimeMode {
+        /** His S+ personal best only - the behaviour before this setting existed, and the default. */
+        S_PLUS("S+"),
+        /** His S personal best only. */
+        S("S"),
+        /** S+ when he has one, otherwise S - the Party Finder overlay's "Both", without its any-score fallback. */
+        S_PLUS_ELSE_S("S+ else S");
+
+        private final String label;
+
+        TimeMode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    /** Where the floor being queued comes from (killer560, 2026-10-11: "detects which floor I just queued for"). */
+    public enum FloorSource {
+        /** The floor he last queued in Party Finder or /joininstance'd ({@link QueuedFloorDetector}); Last Run until
+         *  he has queued something since the game started. The default. */
+        DETECT("Detect Queued"),
+        /** The floor of the last run he was in. */
+        LAST_RUN("Last Run"),
+        /** The Fixed Floor setting. */
+        FIXED("Fixed");
+
+        private final String label;
+
+        FloorSource(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-autokick.json");
@@ -108,8 +149,10 @@ public final class AutoKickConfig {
 
     private boolean enabled = false;
     private ActionMode mode = ActionMode.WARN_ONLY;
-    /** The floor being queued: null = the floor of the last run you were in (see {@link AutoKickFeature#queueFloor}). */
-    private Floor queueFloor = null;
+    private TimeMode timeMode = TimeMode.S_PLUS;
+    private FloorSource floorSource = FloorSource.DETECT;
+    /** The floor used when {@link #floorSource} is FIXED (the JSON key "queueFloor", kept from before 2026-10-11). */
+    private Floor queueFloor = Floor.F7;
     private final EnumMap<Floor, Integer> targetSeconds = new EnumMap<>(Floor.class);
 
     private AutoKickConfig() {
@@ -132,7 +175,14 @@ public final class AutoKickConfig {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.mode = ConfigJson.getEnum(obj, "mode", ActionMode.class, ActionMode.WARN_ONLY);
-                cfg.queueFloor = Floor.fromRaw(ConfigJson.getString(obj, "queueFloor", ""));
+                cfg.timeMode = ConfigJson.getEnum(obj, "timeMode", TimeMode.class, TimeMode.S_PLUS);
+                Floor fixed = Floor.fromRaw(ConfigJson.getString(obj, "queueFloor", ""));
+                cfg.queueFloor = fixed == null ? Floor.F7 : fixed;
+                // A file from before Floor Source: a chosen Queue Floor meant Fixed, "" (Last Run) becomes Detect,
+                // which itself falls back to the last run until something is queued.
+                cfg.floorSource = obj.has("floorSource")
+                        ? ConfigJson.getEnum(obj, "floorSource", FloorSource.class, FloorSource.DETECT)
+                        : fixed != null ? FloorSource.FIXED : FloorSource.DETECT;
                 for (Floor f : Floor.values()) {
                     cfg.setTargetSeconds(f, ConfigJson.getInt(obj, f.key(), 0));
                 }
@@ -149,7 +199,9 @@ public final class AutoKickConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("mode", mode.name());
-            obj.addProperty("queueFloor", queueFloor == null ? "" : queueFloor.name());
+            obj.addProperty("timeMode", timeMode.name());
+            obj.addProperty("floorSource", floorSource.name());
+            obj.addProperty("queueFloor", queueFloor.name());
             for (Floor f : Floor.values()) {
                 obj.addProperty(f.key(), getTargetSeconds(f));
             }
@@ -179,16 +231,39 @@ public final class AutoKickConfig {
         this.mode = mode == null ? ActionMode.WARN_ONLY : mode;
     }
 
-    /** The floor chosen on the tab, or null for "the last run's floor". */
+    public TimeMode getTimeMode() {
+        return timeMode;
+    }
+
+    public void setTimeMode(TimeMode timeMode) {
+        this.timeMode = timeMode == null ? TimeMode.S_PLUS : timeMode;
+    }
+
+    public FloorSource getFloorSource() {
+        return floorSource;
+    }
+
+    public void setFloorSource(FloorSource floorSource) {
+        this.floorSource = floorSource == null ? FloorSource.DETECT : floorSource;
+    }
+
+    /** The Fixed Floor (used when the Floor Source is Fixed). Never null. */
     public Floor getQueueFloor() {
         return queueFloor;
     }
 
+    /** Sets the Fixed Floor and the source to Fixed, as choosing a Queue Floor always meant; null (the old "Last Run"
+     *  choice) switches the source to Last Run and keeps the floor. */
     public void setQueueFloor(Floor floor) {
-        this.queueFloor = floor;
+        if (floor == null) {
+            floorSource = FloorSource.LAST_RUN;
+        } else {
+            queueFloor = floor;
+            floorSource = FloorSource.FIXED;
+        }
     }
 
-    /** The slowest S+ personal best a joiner may have on {@code floor}, in seconds. */
+    /** The slowest personal best (of the Time Mode's kind) a joiner may have on {@code floor}, in seconds. */
     public int getTargetSeconds(Floor floor) {
         return floor == null ? 0 : targetSeconds.getOrDefault(floor, floor.maxSeconds());
     }
