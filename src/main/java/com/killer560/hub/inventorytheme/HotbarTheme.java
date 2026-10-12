@@ -134,9 +134,12 @@ public final class HotbarTheme {
                 int sx = x0 + 3 + 20 * i;
                 InventoryThemeFeature.sunken(r, sx - 1, bottom - 20, sx + 17, bottom - 2, p.slotFill(), p);
             }
-            int selected = player.getInventory().getSelectedSlot();
-            int fx = x0 - 1 + 20 * selected;
-            r.outline(r.x(fx), r.y(bottom - 23), r.x(fx + 24), Math.min(r.y(bottom + 1), winH), 2 * u, p.accent());
+            // Vanilla's ring shape in every preset (killer560, 2026-10-12: "held items with my mods theme looks kind of off
+            // for the main bar. also dark is way too bright"): black outside, the preset's colour, a translucent black
+            // inner line. Mod Theme and Custom ring in the accent; Dark in a muted grey so it does not glare.
+            int ringMain = cfg.getPreset() == InventoryThemeConfig.Preset.DARK && !cfg.isUseCustomAccent()
+                    ? DARK_RING : withAlpha(p.accent(), 0xFF);
+            selectionRing(r, x0, bottom, player.getInventory().getSelectedSlot(), winH, V_RING_OUTER, ringMain, DIM_RING_INNER);
 
             ItemStack offhand = player.getOffhandItem();
             if (!offhand.isEmpty()) {
@@ -159,7 +162,7 @@ public final class HotbarTheme {
     private static final int V_LIGHT = 0xFF7E7E7E;
     private static final int V_DARK = 0xFF5D5D5D;
     private static final int V_END_DARK = 0xFF474747;
-    private static final int V_INSIDE = 0x80000000;
+    private static final int V_INSIDE = 0x5A000000; // vanilla lets more of the world through than 0x80 did (hotbar-sel-compare)
     private static final int V_INSIDE_EDGE = 0xD0000000;
     private static final int V_RING_OUTER = 0xFF000000;
     private static final int V_RING = 0xFFFFFFFF;
@@ -212,15 +215,7 @@ public final class HotbarTheme {
             r.fill(px0, py1 - u, px1, py1, V_BORDER);
             r.fill(px0, py0 + u, px0 + u, py1 - u, V_BORDER);
             r.fill(px1 - u, py0 + u, px1, py1 - u, V_BORDER);
-            // selection ring
-            int sel = player.getInventory().getSelectedSlot();
-            int fx0 = r.x(x0 - 1 + 20 * sel);
-            int fx1 = r.x(x0 + 23 + 20 * sel);
-            int fy0 = r.y(top - 1);
-            int fy1 = Math.min(r.y(bottom + 1), winH);
-            r.outline(fx0, fy0, fx1, fy1, u, V_RING_OUTER);
-            r.outline(fx0 + u, fy0 + u, fx1 - u, fy1 - u, u, V_RING);
-            r.outline(fx0 + 2 * u, fy0 + 2 * u, fx1 - 2 * u, fy1 - 2 * u, u, V_RING_INNER);
+            selectionRing(r, x0, bottom, player.getInventory().getSelectedSlot(), winH, V_RING_OUTER, V_RING, V_RING_INNER);
 
             ItemStack offhand = player.getOffhandItem();
             if (!offhand.isEmpty()) {
@@ -238,6 +233,29 @@ public final class HotbarTheme {
         } finally {
             r.submit();
         }
+    }
+
+    /** Dark preset's ring colour: a muted light grey, well below white. */
+    private static final int DARK_RING = 0xFF8C8C92;
+    /** The translucent dark inner line of the Dark / Mod Theme / Custom rings. */
+    private static final int DIM_RING_INNER = 0x80000000;
+
+    /**
+     * The selected slot's ring, vanilla's shape in every preset: a 24-unit square from one unit left of / above the slot's
+     * 20-unit cell, three one-unit lines - {@code outer}, {@code main}, {@code inner} - so it frames the slot without
+     * reaching its 16-unit inside.
+     */
+    private static void selectionRing(PixelRects r, int x0, int bottom, int sel, int winH, int outer, int main, int inner) {
+        int u = r.unit();
+        int fx0 = r.x(x0 - 1 + 20 * sel);
+        int fx1 = r.x(x0 + 23 + 20 * sel);
+        int fy0 = r.y(bottom - 23);
+        // Like vanilla's sprite, the ring's bottom edge lies one unit below the GUI's bottom (off screen): only its sides
+        // reach the window's last row. Pulling it onto the window put a line over the bar's own bottom outline instead.
+        int fy1 = r.y(bottom + 1);
+        r.outline(fx0, fy0, fx1, fy1, u, outer);
+        r.outline(fx0 + u, fy0 + u, fx1 - u, fy1 - u, u, main);
+        r.outline(fx0 + 2 * u, fy0 + 2 * u, fx1 - 2 * u, fy1 - 2 * u, u, inner);
     }
 
     private static int withAlpha(int argb, int alpha) {
