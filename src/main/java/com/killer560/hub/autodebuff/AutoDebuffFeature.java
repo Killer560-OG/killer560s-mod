@@ -107,6 +107,11 @@ public final class AutoDebuffFeature {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
             return;
         }
+        com.killer560.hub.util.PingTracker.register();
+        com.killer560.hub.util.PingTracker.addDemand(() -> {
+            AutoDebuffConfig cfg = AutoDebuffConfig.getInstance();
+            return cfg.isEnabled() && cfg.isPingCompensation();
+        });
         ClientTickEvents.START_CLIENT_TICK.register(
                 FeatureGuard.start("AutoDebuffFeature.tick", AutoDebuffFeature::tick));
     }
@@ -216,14 +221,14 @@ public final class AutoDebuffFeature {
         };
     }
 
-    /** Ping turned into ticks, so that 300ms stays 300ms on a real connection. */
-    private static int leadOffset(Minecraft client, AutoDebuffConfig cfg) {
+    /** Ping turned into ticks, so that 300ms stays 300ms on a real connection. The whole measured round trip
+     *  ({@link com.killer560.hub.util.PingTracker#automationMs}), not half: the spawn countdown is one way behind the
+     *  server and the spray takes one way to arrive. Until 2026-10-11 this read the tab-list latency, about 1 ms on
+     *  Hypixel, which rounded to no lead at all. */
+    static int leadOffset(Minecraft client, AutoDebuffConfig cfg) {
         int offset = cfg.getManualOffsetTicks();
         if (cfg.isPingCompensation() && client.getConnection() != null && client.player != null) {
-            var entry = client.getConnection().getPlayerInfo(client.player.getUUID());
-            if (entry != null && entry.getLatency() > 0) {
-                offset += Math.round(entry.getLatency() / 50.0f);
-            }
+            offset += Math.round(com.killer560.hub.util.PingTracker.automationMs() / 50.0f);
         }
         return offset;
     }

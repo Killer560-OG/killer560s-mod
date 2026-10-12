@@ -83,6 +83,9 @@ public final class AutoRoutesFeature {
     }
 
     public static void register() {
+        // A boom's settle waits out the measured round trip (RouteExecutor.boomSettleTicks).
+        com.killer560.hub.util.PingTracker.register();
+        com.killer560.hub.util.PingTracker.addDemand(() -> AutoRoutesConfig.getInstance().isEnabled());
         // START, not END (docs/AP3.md: interaction features tick on START_CLIENT_TICK). A node's held-item / use /
         // break packets then go out ahead of this tick's input and movement packets, as vanilla's handleKeybinds
         // sends a click, and the sneak or keys the executor asks for are read by the input mixin in this same tick.

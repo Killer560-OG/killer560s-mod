@@ -99,6 +99,9 @@ public final class Ap3Feature {
 
     /** Call once from {@code Killer560ModClient#onInitializeClient} (see API.md). */
     public static void register() {
+        // The placed-block grace waits out the measured round trip (Ap3Executor.placedGraceTicks).
+        com.killer560.hub.util.PingTracker.register();
+        com.killer560.hub.util.PingTracker.addDemand(() -> Ap3Config.getInstance().isEnabled());
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Ap3Feature.tick", Ap3Feature::tick));
         // A USE node's packets go out at the START of the tick after its box was entered - the first thing on the
         // wire after the movement packet that put him there (Ap3Executor.tickStart). Registered after ActionGate's

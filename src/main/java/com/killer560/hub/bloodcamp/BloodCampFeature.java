@@ -10,7 +10,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.multiplayer.PlayerInfo;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
@@ -150,6 +149,11 @@ public final class BloodCampFeature {
     private static long lastKillSoundTick = Long.MIN_VALUE / 2;
     private static int countdownStartSoundsPlayed;
     private static int killSoundsPlayed;
+    /** Ticks left on the countdown when the last mob turned killable / the last Trigger Bot click went out, and the
+     *  ping each was judged with (the testkit reads these to show both move by the measured round trip). */
+    private static double lastKillableAt = Double.NaN;
+    private static int lastKillablePingMs = -1;
+    private static double lastTriggerAt = Double.NaN;
 
     private static Integer watcherEntityId;
     private static final Map<ArmorStand, BloodMobState> bloodMobs = new HashMap<>();
@@ -160,6 +164,9 @@ public final class BloodCampFeature {
     }
 
     public static void register() {
+        // The box, the kill sound and the Trigger Bot's lead all time themselves by the measured round trip.
+        com.killer560.hub.util.PingTracker.register();
+        com.killer560.hub.util.PingTracker.addDemand(() -> BloodCampConfig.getInstance().isEnabled());
         WorldRenderUtils.initThroughWalls();
         BloodCampMoveTimer.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("BloodCampFeature", client -> tick()));
@@ -498,6 +505,7 @@ public final class BloodCampFeature {
             client.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
             triggerData.triggerBotClicked = true;
             triggerClicks++;
+            lastTriggerAt = bestRemaining;
             lastTrigger = (triggerHit == null ? "swing" : "attack " + triggerHit.getType().toShortString() + " #"
                     + triggerHit.getId()) + String.format(Locale.US, " at %.1f ticks, %.1f blocks", bestRemaining,
                     client.player.getEyePosition().distanceTo(triggerData.endVector));
@@ -533,6 +541,8 @@ public final class BloodCampFeature {
             }
             if (!data.killSoundDone && killable(remaining, pingMs)) {
                 data.killSoundDone = true;
+                lastKillableAt = remaining;
+                lastKillablePingMs = pingMs;
                 kill |= remaining > -SOUND_STALE_TICKS;
             }
         }
@@ -573,6 +583,18 @@ public final class BloodCampFeature {
 
     public static int killSoundsPlayed() {
         return killSoundsPlayed;
+    }
+
+    public static double lastKillableAt() {
+        return lastKillableAt;
+    }
+
+    public static int lastKillablePingMs() {
+        return lastKillablePingMs;
+    }
+
+    public static double lastTriggerAt() {
+        return lastTriggerAt;
     }
 
     /** Fallback Watcher detection - see the call site for why the equipment packet alone is not enough. */
@@ -674,17 +696,16 @@ public final class BloodCampFeature {
      *  applied here to the actual click timing instead of just a visual warning.
      *  <p>
      *  The caller ADDS this to the manual offset (fixed 2026-09-21 - it used to subtract it, which delayed
-     *  the click by a full round trip instead of advancing it). Latency here is the tab-list round-trip
-     *  ping; half of it would be the one-way lead, so this is deliberately generous. */
+     *  the click by a full round trip instead of advancing it). The lead is the whole measured round trip
+     *  ({@link #pingMs}), not half: the countdown started when the stand's first move REACHED us, one way after the
+     *  server sent it, and the click needs one more way to get back, so a click due at server time T must leave when
+     *  our countdown still reads one round trip. Until 2026-10-11 this read the tab-list latency, about 1 ms on
+     *  Hypixel, so it never led at all. */
     private static double autoLagOffsetTicks(BloodCampConfig cfg, Minecraft client) {
         if (!cfg.isAutoDetectLag() || client.getConnection() == null || client.player == null) {
             return 0;
         }
-        PlayerInfo info = client.getConnection().getPlayerInfo(client.player.getUUID());
-        if (info == null) {
-            return 0;
-        }
-        return info.getLatency() / 50.0;
+        return pingMs(client) / 50.0;
     }
 
     /** Turns the player to face {@code target}, a fraction of the way per tick (smooth, not a snap) -
@@ -801,13 +822,13 @@ public final class BloodCampFeature {
         return pingMs > remainingTicks * 50.0;
     }
 
-    /** Tab-list round trip for the local player, ms; 0 when unknown. */
-    private static int pingMs(Minecraft client) {
+    /** The measured round trip ({@link com.killer560.hub.util.PingTracker#automationMs}: median of the last pongs,
+     *  the tab-list value before the first), ms; 0 when not connected. */
+    static int pingMs(Minecraft client) {
         if (client.getConnection() == null || client.player == null) {
             return 0;
         }
-        PlayerInfo info = client.getConnection().getPlayerInfo(client.player.getUUID());
-        return info == null ? 0 : Math.max(0, info.getLatency());
+        return com.killer560.hub.util.PingTracker.automationMs();
     }
 
     /** Noamm's label: the seconds left WITHOUT the +0.8-tick fudge the countdown carries, rounded half-up to one

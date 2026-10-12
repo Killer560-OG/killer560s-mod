@@ -22,7 +22,8 @@ import java.util.function.BooleanSupplier;
  *
  * <p>The pong is received on the Netty thread ({@code ClientPacketListener.handlePongResponse} has no thread hop,
  * javap 26.1.2 and 26.2), hence the volatile fields. Pings are only sent while something wants them
- * ({@link #addDemand}), so a player with the HUD's ping line off sends nothing extra.
+ * ({@link #addDemand}), so a player with the HUD's ping line off sends nothing extra. However many features want it,
+ * it is still one request a second: the demand only decides whether the one request goes out.
  */
 public final class PingTracker {
 
@@ -124,6 +125,37 @@ public final class PingTracker {
                 sum += samples[i];
             }
             return (int) Math.round(sum / (double) sampleCount);
+        }
+    }
+
+    /**
+     * The round trip every automation times itself by (Blood Camp, Auto Routes, AP3, Terminal Protection, Auto Debuff;
+     * killer560 chose the measured ping for all of them, 2026-10-11): the MEDIAN of the last {@link #WINDOW} pongs. One
+     * late pong - a GC pause, a server hiccup - leaves a median where it was, where it drags a five-sample mean up by a
+     * fifth of the spike and shifts a click by a tick for five seconds. A real change of ping is followed within three
+     * pongs (three seconds).
+     *
+     * <p>Before the first pong of a connection it is the tab-list latency, which is what every one of them read before
+     * this (about 1 ms on Hypixel), never below 0 - so the first second of a session behaves exactly as they always did.
+     * The feature that wants it keeps requests going ({@link #addDemand}), so that first second is the only gap.
+     */
+    public static int automationMs() {
+        synchronized (samples) {
+            if (sampleCount > 0) {
+                long[] sorted = java.util.Arrays.copyOf(samples, sampleCount);
+                java.util.Arrays.sort(sorted);
+                int mid = sampleCount / 2;
+                long median = sampleCount % 2 == 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid] + 1) / 2;
+                return (int) median;
+            }
+        }
+        return Math.max(0, tabListMs());
+    }
+
+    /** Whether {@link #automationMs} is a measurement rather than the tab-list fallback. */
+    public static boolean hasMeasurement() {
+        synchronized (samples) {
+            return sampleCount > 0;
         }
     }
 
