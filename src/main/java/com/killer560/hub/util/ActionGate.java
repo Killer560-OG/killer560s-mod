@@ -60,10 +60,12 @@ import com.killer560.hub.compat.McCompat;
  * {@code Killer560ModClient#onInitializeClient}, ahead of every feature, rather than in the package that owns
  * its settings.
  * <p>
- * Still outstanding: the features that click from a render frame rather than a tick, for sub-tick click
- * spacing - Goldor Triggerbot, and Arrow Align's and Auto i4's frame paths. A render frame happens after the
- * tick's movement packet too, so moving their tick handler does not fix those paths; they would have to hold
- * the packet until the next tick begins, which costs them the timing precision they exist for.
+ * A render frame happens after the tick's movement packet too, so a click sent from one is the same GrimAC Post
+ * as one sent from {@code END_CLIENT_TICK}. Goldor Triggerbot, Arrow Align's Trigger Bot and Aura, Simon Says'
+ * Trigger Bot and Rotate Mode click, and Auto i4's shots all did until 2026-10-11 (testkit 786-788, 831-835);
+ * they now send at the start of the tick, delays in whole ticks ({@link #delayTicks}) and click rates kept on
+ * average by scheduling each click from the last one's due time rather than from when it went out. Turning the
+ * camera every frame is fine - only the packet has to wait for the tick.
  *
  *   <li><b>Deterministic priority</b>: {@link Actor} is declared highest-priority first. A lower-priority actor
  *       that saw a higher-priority actor asking on the previous tick waits (for at most
@@ -301,6 +303,19 @@ public final class ActionGate {
 
     public static int getMinSpacingTicks() {
         return minSpacingTicks;
+    }
+
+    /** The client tick count, advanced at the start of every client tick ({@link #onClientTick}). */
+    public static long currentTick() {
+        return tick;
+    }
+
+    /**
+     * A millisecond delay setting as whole client ticks, for a trigger bot timed on the tick: rounded UP to the next
+     * 50 ms, so 0 ms is no wait, 1-50 ms one tick, 51-100 ms two, 300 ms six. Never shorter than the setting asks.
+     */
+    public static int delayTicks(long ms) {
+        return ms <= 0L ? 0 : (int) Math.min(Integer.MAX_VALUE, (ms + 49L) / 50L);
     }
 
     /**

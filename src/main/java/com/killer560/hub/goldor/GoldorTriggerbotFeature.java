@@ -5,8 +5,8 @@ import com.killer560.hub.cheatutils.CheatUtils;
 import com.killer560.hub.cheatutils.WitherEspFeature;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.util.ActionGate;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import com.killer560.hub.util.FeatureGuard;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
@@ -43,9 +43,12 @@ import com.killer560.hub.compat.McCompat;
  * refuses a world action outright while a container screen is open. A refused tick changes nothing here: the rolled
  * interval is not consumed, so the click simply lands on the next tick the gate allows.
  * <p>
- * Driven from the world-render hook rather than {@code END_CLIENT_TICK} for the same reason {@code ArrowAlignFeature}
- * is: a tick is 50 ms, so a tick-granular timer can only ever produce 20, 10 or 6.7 CPS and a 15-17 band would come
- * out as an alternation between 20 and 10. The gate still caps the real rate at one click per tick.
+ * Clicks at the START of the client tick, like every clean trigger bot. It used to click from the world-render hook
+ * for sub-tick spacing, and a click sent from a frame follows that tick's movement packet: GrimAC Post on every
+ * attack (testkit 787, 2026-10-11). The Aim Delay is now whole ticks, rounded up ({@link ActionGate#delayTicks}).
+ * The CPS band still holds on average: each click is scheduled from the previous one's DUE tick (fractional), not
+ * from the tick it went out on, so a 16 CPS roll (1.25 ticks) comes out as gaps of 1 and 2 ticks averaging 16, not a
+ * flat 10. At most one click a tick, so nothing above 20 CPS (the gate's cap anyway).
  */
 public final class GoldorTriggerbotFeature {
 
@@ -60,10 +63,12 @@ public final class GoldorTriggerbotFeature {
      */
     private static final ActionGate.Actor GATE_ACTOR = ActionGate.Actor.GOLDOR_TRIGGER;
 
-    /** Said once per session, not once per frame - this runs on the render thread. */
+    /** Said once per session, not once per tick. */
     private static boolean warnedOutOfMeleeRange;
     private static int aimTargetId = -1;
-    private static long nextClickAtMs = 0L;
+    /** The client tick ({@link ActionGate#currentTick}) the next click is due on; fractional so a rolled CPS between
+     *  20 and 10 is kept on average rather than rounded to one of them. */
+    private static double nextClickDueTick = 0.0;
     private static Object lastLevel = null;
 
     private GoldorTriggerbotFeature() {
@@ -74,12 +79,11 @@ public final class GoldorTriggerbotFeature {
             return;
         }
         GoldorTriggerbotConfig.getInstance();
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(GoldorTriggerbotFeature::onRender);
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("GoldorTriggerbotFeature.tick", GoldorTriggerbotFeature::tick));
         LOGGER.info("[GoldorTriggerbot] Registered (default OFF)");
     }
 
-    private static void onRender(LevelRenderContext context) {
-        Minecraft client = Minecraft.getInstance();
+    private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
             lastLevel = client.level;
             clearAim();
@@ -117,20 +121,19 @@ public final class GoldorTriggerbotFeature {
             return;
         }
 
-        long now = System.currentTimeMillis();
-        float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
-        Entity target = aimedAtBoss(client, player, cfg.getRange(), partialTick);
+        long now = ActionGate.currentTick();
+        Entity target = aimedAtBoss(client, player, cfg.getRange(), 1.0f);
         if (target == null) {
             clearAim();
             return;
         }
         if (target.getId() != aimTargetId) {
-            // Crosshair just landed on him: serve the aim delay before the first click of this acquisition.
+            // Crosshair just landed on him: serve the aim delay before the first click of this acquisition
+            // (0 ms clicks on this same tick).
             aimTargetId = target.getId();
-            nextClickAtMs = now + cfg.getAimDelayMs();
-            return;
+            nextClickDueTick = now + ActionGate.delayTicks(cfg.getAimDelayMs());
         }
-        if (now < nextClickAtMs) {
+        if (now < nextClickDueTick) {
             return;
         }
         // MELEE HAS TO BE IN MELEE RANGE. The Range setting governs how far away the crosshair test will still
@@ -170,7 +173,9 @@ public final class GoldorTriggerbotFeature {
             // call AutoI4Feature fires the bow with. useItem does its own swing handling, so none is sent here.
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         }
-        nextClickAtMs = now + rollIntervalMs(cfg);
+        // From the due tick, not from now, so the band's average survives tick rounding; a click held back (gate,
+        // reach) carries at most a tick of backlog, so it never comes out as a burst.
+        nextClickDueTick = Math.max(nextClickDueTick, now - 1) + rollIntervalMs(cfg) / 50.0;
     }
 
     /**

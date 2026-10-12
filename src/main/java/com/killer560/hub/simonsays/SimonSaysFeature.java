@@ -579,10 +579,16 @@ public final class SimonSaysFeature {
 
     // --- trigger bot debounce ---
     private static BlockPos lastTriggerBotTarget = null;
-    // Trigger Bot delay: the button the crosshair settled on and when it got there. The click itself also fires
-    // from the per-frame hook (tickTriggerBotFrame) so the delay is honoured to the millisecond, not the 50ms tick.
+    // Trigger Bot delay: the button the crosshair settled on and the client tick (ActionGate.currentTick) it got there.
+    // The delay is whole ticks, rounded up (ActionGate.delayTicks): 0 ms clicks on the tick the aim is seen, 300 ms six
+    // ticks later. It was milliseconds off a per-frame hook until 2026-10-11 (GrimAC Post, testkit 786).
     private static BlockPos triggerAimTarget = null;
-    private static long triggerAimSinceMs = 0L;
+    private static long triggerAimSinceTick = 0L;
+    // Rotate Mode: the button a settled approach frame found under the crosshair, clicked at the start of the next tick
+    // (fireReadyRotateClick) and the deltas it settled with, for the fire log line.
+    private static BlockPos rotateFireReadyFor = null;
+    private static float rotateFireReadyYawDelta = 0f;
+    private static float rotateFireReadyPitchDelta = 0f;
 
     // --- party progress tracker: sender name -> progress ---
     private static final Map<String, PartyProgress> partyProgress = new HashMap<>();
@@ -615,8 +621,10 @@ public final class SimonSaysFeature {
         // Rotate Mode's own real rotation-applying step - deliberately every FRAME, not every tick, so
         // it's as smooth as real mouse look (see this class's own "Rotate Mode" field-group doc comment
         // for the full real reasoning).
+        // Only the camera turns per frame: the click a settled approach earns is sent from tick() (fireReadyRotateClick),
+        // and the Trigger Bot clicks only from the tick too. Both clicked from this hook until 2026-10-11, and a click
+        // sent from a frame follows the tick's movement packet - GrimAC Post on every one (testkit 786, 831).
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> tickRotateFrame());
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> tickTriggerBotFrame());
     }
 
     /** High-frequency Simon Says diagnostics (per click / per frame state / once-a-second idle) - only written
@@ -797,6 +805,7 @@ public final class SimonSaysFeature {
                 rememberedFirstButton = null;
             }
             rotateClickFiredFor = null;
+            rotateFireReadyFor = null;
             startClickAnchorMs = 0L;
             breakArmed = false;
             blankGridTicks = 0;
@@ -842,6 +851,7 @@ public final class SimonSaysFeature {
         tickRestartKeybind(client, cfg);
         tickAutoStart(client, cfg);
         tickAutoSolveAndTriggerBot(client, cfg);
+        fireReadyRotateClick(client);
     }
 
     private static void tickAnnounceKeybind(Minecraft client, SimonSaysConfig cfg) {
@@ -1905,9 +1915,9 @@ public final class SimonSaysFeature {
             // hitResult above; the actual click now always lands on the block's true center regardless.
             if (!nextButton.equals(triggerAimTarget)) {
                 triggerAimTarget = nextButton;
-                triggerAimSinceMs = now;
+                triggerAimSinceTick = ActionGate.currentTick();
             }
-            fireTriggerBotIfDue(client, cfg, now);
+            fireTriggerBotIfDue(client, cfg);
         } else if (!(client.hitResult instanceof BlockHitResult bh) || !bh.getBlockPos().equals(nextButton)) {
             lastTriggerBotTarget = null;
             triggerAimTarget = null;
@@ -1915,50 +1925,19 @@ public final class SimonSaysFeature {
     }
 
     /** Clicks the aimed button once it has been under the crosshair for the configured Trigger Bot delay. */
-    private static void fireTriggerBotIfDue(Minecraft client, SimonSaysConfig cfg, long now) {
+    private static void fireTriggerBotIfDue(Minecraft client, SimonSaysConfig cfg) {
         BlockPos target = triggerAimTarget;
-        if (target == null || now - triggerAimSinceMs < cfg.getTriggerBotDelayMs()) {
+        if (target == null
+                || ActionGate.currentTick() - triggerAimSinceTick < ActionGate.delayTicks(cfg.getTriggerBotDelayMs())) {
             return;
         }
         if (!sendNoRotateInteract(client, target)) {
-            // ActionGate held this frame back - leave triggerAimTarget/triggerAimSinceMs alone so the same
-            // aimed button fires on the next frame the gate allows instead of being silently dropped.
+            // ActionGate held this tick back - leave triggerAimTarget/triggerAimSinceTick alone so the same
+            // aimed button fires on the next tick the gate allows instead of being silently dropped.
             return;
         }
         lastTriggerBotTarget = target;
         triggerAimTarget = null;
-    }
-
-    /** Per-frame half of the Trigger Bot delay: starts the aim timer the frame the crosshair lands on the next
-     *  button (hitResult is re-picked every frame) and fires as soon as the delay elapses. Applies every gate the
-     *  tick path applies before its Trigger Bot branch (device active/in range, steps pending, reveal, Auto Start,
-     *  Auto Solve taking over); clickInOrder holds LANTERN positions, the button is {@code .west()}. */
-    private static void tickTriggerBotFrame() {
-        SimonSaysConfig cfg = SimonSaysConfig.getInstance();
-        if (!cfg.isTriggerBotEnabled()) {
-            return;
-        }
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.level == null || McCompat.screen(client) != null || !cfg.isEnabled() || !wasActive
-                || !isDeviceInRange(client) || cfg.isAutoSolveEnabled() || firstPhase || isStillRevealing()
-                || autoStartRunning || clickNeeded >= clickInOrder.size()) {
-            return; // tick() owns these gates and clears the aim timer when they close
-        }
-        BlockPos nextButton = clickInOrder.get(clickNeeded).west();
-        if (!(client.hitResult instanceof BlockHitResult bh) || !bh.getBlockPos().equals(nextButton)) {
-            lastTriggerBotTarget = null;
-            triggerAimTarget = null;
-            return;
-        }
-        if (nextButton.equals(lastTriggerBotTarget)) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        if (!nextButton.equals(triggerAimTarget)) {
-            triggerAimTarget = nextButton;
-            triggerAimSinceMs = now;
-        }
-        fireTriggerBotIfDue(client, cfg, now);
     }
 
     /** Books a pending Rotate Mode click - called at the very START of every tick, before tickStartButton/
@@ -2555,41 +2534,15 @@ public final class SimonSaysFeature {
         boolean fireAllowed = rotateClickFiredFor == null && System.currentTimeMillis() >= rotateFireNotBeforeMs;
         if (settledNearCenter && fireAllowed
                 && client.hitResult instanceof BlockHitResult hit && hit.getBlockPos().equals(buttonPos)) {
-            // Real aim confirmed - the actual click still always lands on the button's true center
-            // (killer560's own standing rule), same real click-sender every other mode already uses.
-            if (!sendNoRotateInteract(client, buttonPos)) {
-                // ActionGate held this frame back. Every field below (rotateClickFiredFor in particular, which
-                // the next tick consumes as a real click) must stay exactly where it is: the aim is already
-                // confirmed, so the very next allowed frame fires it.
-                return;
-            }
-            rotateClickFiredFor = buttonPos;
-            rotateClickFiredAtMs = System.currentTimeMillis();
-            // Diagnostic-only (2026-09-14) - once per real fire, covers both Auto Solve grid clicks and
-            // Auto Start's look-only start-button clicks.
-            verboseLog("[SimonSays][RotateFrame] Approach fired on {} {}ms after {} (elapsedTicks={}, "
-                            + "overshootRolled={} curveRolled={} feintRolled={}, final yawDelta={} pitchDelta={}).",
-                    buttonPos, diagApproachBeganAtMs > 0 ? rotateClickFiredAtMs - diagApproachBeganAtMs : -1,
-                    diagApproachReaim ? "re-aim begin (same target, no roll)" : "approach begin",
-                    String.format(Locale.US, "%.1f", rotateApproachElapsedTicks), diagApproachOvershootRolled,
-                    diagApproachCurveRolled, diagApproachFeintRolled, String.format(Locale.US, "%.2f", yawDelta),
-                    String.format(Locale.US, "%.2f", pitchDelta));
-            rotateLastFiredTarget = buttonPos;
-            rotateInProgressTarget = null;
-            rotateApproachElapsedTicks = 0f;
-            rotateApproachStallLogged = false;
-            rotateFireNotBeforeMs = 0L;
-            SimonSaysConfig spacingCfg = SimonSaysConfig.getInstance();
-            // autoStartClicksSent only counts CONSUMED clicks, and the fireAllowed guard above guarantees the
-            // previous one was consumed - so this fire is click autoStartClicksSent + 1 of the burst.
-            if (buttonPos.equals(START_BUTTON) && autoStartRunning
-                    && autoStartClicksSent + 1 < spacingCfg.getAutoStartClicks()) {
-                rotateInProgressTarget = START_BUTTON;
-                rotateFireNotBeforeMs = rotateClickFiredAtMs + spacingCfg.getAutoStartClickDelayTicks() * 50L;
-                diagApproachBeganAtMs = rotateClickFiredAtMs;
-                diagApproachReaim = true;
-            }
-        } else if (!rotateApproachStallLogged && rotateApproachElapsedTicks > 30f) {
+            // Real aim confirmed. The click itself waits for the start of the next tick (fireReadyRotateClick): sent
+            // from this frame it would follow the tick's movement packet, GrimAC Post (testkit 831, 2026-10-11).
+            rotateFireReadyFor = buttonPos;
+            rotateFireReadyYawDelta = yawDelta;
+            rotateFireReadyPitchDelta = pitchDelta;
+        } else {
+            rotateFireReadyFor = null;
+        }
+        if (rotateFireReadyFor == null && !rotateApproachStallLogged && rotateApproachElapsedTicks > 30f) {
             // Diagnostic-only - see rotateApproachStallLogged's own field doc comment. 30 ticks (~1.5s) is
             // already well beyond how long a real settle should ever take at the current turn speed.
             boolean raycastOnTarget = client.hitResult instanceof BlockHitResult hit2 && hit2.getBlockPos().equals(buttonPos);
@@ -2601,6 +2554,59 @@ public final class SimonSaysFeature {
                     rotateFeintPitchOffset, raycastOnTarget,
                     client.hitResult instanceof BlockHitResult hit3 ? hit3.getBlockPos() : "none");
             rotateApproachStallLogged = true;
+        }
+    }
+
+    /**
+     * Rotate Mode's click, at the start of the tick after an approach frame settled on the button (rotateFireReadyFor).
+     * Everything the frame checked is checked again, since frames ran since. The camera still turns every frame; only
+     * the packet waits for the tick, as a vanilla click does.
+     */
+    private static void fireReadyRotateClick(Minecraft client) {
+        BlockPos buttonPos = rotateFireReadyFor;
+        if (buttonPos == null) {
+            return;
+        }
+        if (!buttonPos.equals(rotateInProgressTarget) || rotateClickFiredFor != null
+                || System.currentTimeMillis() < rotateFireNotBeforeMs || client.player == null
+                || !(client.player.pick(com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH, 1f, false) instanceof BlockHitResult hit)
+                || !hit.getBlockPos().equals(buttonPos)) {
+            // A fresh pick along the rotation he has NOW, which is what this tick's movement packet reports and what
+            // GrimAC judges the use against: client.hitResult is from before the last frame's turn, and trusting it
+            // let a click go out on a look a hair off the button (RotationPlace, testkit 831, 2026-10-11).
+            rotateFireReadyFor = null;
+            return;
+        }
+        if (!sendNoRotateInteract(client, buttonPos)) {
+            // ActionGate held this tick back: stay ready, the next tick tries again.
+            return;
+        }
+        rotateFireReadyFor = null;
+        rotateClickFiredFor = buttonPos;
+        rotateClickFiredAtMs = System.currentTimeMillis();
+        // Diagnostic-only (2026-09-14) - once per real fire, covers both Auto Solve grid clicks and
+        // Auto Start's look-only start-button clicks.
+        verboseLog("[SimonSays][RotateFrame] Approach fired on {} {}ms after {} (elapsedTicks={}, "
+                        + "overshootRolled={} curveRolled={} feintRolled={}, final yawDelta={} pitchDelta={}).",
+                buttonPos, diagApproachBeganAtMs > 0 ? rotateClickFiredAtMs - diagApproachBeganAtMs : -1,
+                diagApproachReaim ? "re-aim begin (same target, no roll)" : "approach begin",
+                String.format(Locale.US, "%.1f", rotateApproachElapsedTicks), diagApproachOvershootRolled,
+                diagApproachCurveRolled, diagApproachFeintRolled, String.format(Locale.US, "%.2f", rotateFireReadyYawDelta),
+                String.format(Locale.US, "%.2f", rotateFireReadyPitchDelta));
+        rotateLastFiredTarget = buttonPos;
+        rotateInProgressTarget = null;
+        rotateApproachElapsedTicks = 0f;
+        rotateApproachStallLogged = false;
+        rotateFireNotBeforeMs = 0L;
+        SimonSaysConfig spacingCfg = SimonSaysConfig.getInstance();
+        // autoStartClicksSent only counts CONSUMED clicks, and the fireAllowed guard above guarantees the
+        // previous one was consumed - so this fire is click autoStartClicksSent + 1 of the burst.
+        if (buttonPos.equals(START_BUTTON) && autoStartRunning
+                && autoStartClicksSent + 1 < spacingCfg.getAutoStartClicks()) {
+            rotateInProgressTarget = START_BUTTON;
+            rotateFireNotBeforeMs = rotateClickFiredAtMs + spacingCfg.getAutoStartClickDelayTicks() * 50L;
+            diagApproachBeganAtMs = rotateClickFiredAtMs;
+            diagApproachReaim = true;
         }
     }
 
@@ -2842,7 +2848,7 @@ public final class SimonSaysFeature {
         // refuses and an anticheat can name. Measured limit is 4.5 blocks from the EYE to the block's BOX -
         // see CheatUtilsConfig.MEASURED_MAX_REACH and BlockHits.
         //
-        // Here rather than in the callers because there are four of them, two driven from render frames, and
+        // Here rather than in the callers because there are four of them (all on the tick since 2026-10-11), and
         // a check per caller is a check that gets missed - this one was missed on three of the four.
         if (com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), pos)
                 > com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH

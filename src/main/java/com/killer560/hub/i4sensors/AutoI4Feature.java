@@ -10,7 +10,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
@@ -50,8 +49,8 @@ import com.killer560.hub.compat.McCompat;
  * <p>
  * Rotate: eases the real camera to the aim point over Rotation Time (Noamm's easeInOutCubic) every render
  * frame, then fires - the slider is used even with Predictions on (2026-09-14, killer560: "Add a slider to
- * adjust how fast it rotates"; Noamm's forced 170ms is gone). No Rotate: sends the aim rotation to the server
- * with the shot only - the camera never moves. Per this mod's standing rotation rule, yaw is never
+ * adjust how fast it rotates"; Noamm's forced 170ms is gone). No Rotate: turns the body to the aim (util/TurnFirst)
+ * and shoots once a movement packet has carried the turn - the camera never moves. Per this mod's standing rotation rule, yaw is never
  * wrapped/clamped: every target yaw is the current running yaw plus the wrapped difference.
  * <p>
  * Weapon (2026-09-14): Terminator = the above (3-arrow spread, between-column aim points, predictions).
@@ -162,6 +161,10 @@ public final class AutoI4Feature {
         I4SolverFeature.register();
         I4AutoMask.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoI4Feature", client -> tick()));
+        // Shots go out at the start of the tick, after tick() has planned them; only Rotate's camera turn runs per frame.
+        // Both ran from this frame hook until 2026-10-11, and a use sent from a frame follows the tick's movement
+        // packet: GrimAC Post (testkit 833).
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoI4Feature.fire", client -> fire()));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> frame());
         // Real bug found and fixed (2026-09-14, real Hypixel F7 log): Fabric's CHAT/GAME events never fired for
         // the real "completed a device!" line with Odin's Terminal Splits installed (it cancels the line via
@@ -623,10 +626,35 @@ public final class AutoI4Feature {
         currentShot = new Shot(target, prediction, aim, currentYaw, currentPitch, targetYaw, targetPitch, duration);
     }
 
-    /** Rotate mode - runs every render frame so the turn is as smooth as real mouse look. */
+    /** Rotate mode's camera turn - every render frame so it is as smooth as real mouse look. Sends nothing. */
     private static void frame() {
+        Minecraft client = Minecraft.getInstance();
+        Shot shot = currentShot;
+        if (!wasRunning || completed || client.player == null || shot == null
+                || !I4SensorsConfig.getInstance().isAutoI4Rotate()) {
+            return;
+        }
+        double progress = progress(shot, System.currentTimeMillis());
+        float eased = (float) easeInOutCubic(progress);
+        client.player.setYRot(shot.startYaw + (shot.targetYaw - shot.startYaw) * eased);
+        client.player.setXRot(shot.startPitch + (shot.targetPitch - shot.startPitch) * eased);
+    }
+
+    private static double progress(Shot shot, long now) {
+        long elapsed = now - shot.startedAtMs;
+        return shot.durationMs <= 0 ? 1.0 : Math.min(1.0, elapsed / (double) shot.durationMs);
+    }
+
+    /**
+     * The shots, at the START of the client tick (registered after {@link #tick}), so the use goes out before the
+     * tick's movement packet as a vanilla click does. The cadence keeps its rate on average: each click is due one
+     * rolled interval after the previous one was DUE, not after it went out, so 7 CPS (143 ms) comes out as gaps of 3
+     * and 2 ticks rather than a flat 3 (6.7 CPS); a backlog never exceeds one tick, so there is no burst.
+     */
+    private static void fire() {
         I4SensorsConfig cfg = I4SensorsConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
+        TURN.tick(client.player); // first, always: a body turned for a No Rotate shot is given back the tick after
         if (!wasRunning || completed || client.player == null || client.gameMode == null) {
             return;
         }
@@ -637,31 +665,24 @@ public final class AutoI4Feature {
         long elapsed = 0L;
         if (shot != null) {
             elapsed = now - shot.startedAtMs;
-            if (cfg.isAutoI4Rotate()) {
-                double progress = shot.durationMs <= 0 ? 1.0 : Math.min(1.0, elapsed / (double) shot.durationMs);
-                float eased = (float) easeInOutCubic(progress);
-                player.setYRot(shot.startYaw + (shot.targetYaw - shot.startYaw) * eased);
-                player.setXRot(shot.startPitch + (shot.targetPitch - shot.startPitch) * eased);
-                settled = progress >= 1.0;
-            } else {
-                settled = true;
-            }
+            settled = !cfg.isAutoI4Rotate() || progress(shot, now) >= 1.0;
         }
         // Clicking only once the device has started, holding the bow, with no menu open.
         if (sessionBaseCps <= 0 || McCompat.screen(client) != null || !player.getMainHandItem().is(Items.BOW)
                 || now < nextClickAtMs) {
             return;
         }
+        if (shot != null && settled && !cfg.isAutoI4Rotate() && !fireNoRotate(client, player, shot)) {
+            return; // the body was turned this tick; the shot goes out once a movement packet has carried it
+        }
         double cps = Math.max(1.0, sessionBaseCps + (Math.random() * 2 - 1) * CPS_JITTER);
-        nextClickAtMs = now + Math.round(1000.0 / cps);
+        nextClickAtMs = Math.max(nextClickAtMs, now - 50L) + Math.round(1000.0 / cps);
         if (shot != null && settled) {
             if (cfg.isAutoI4Rotate()) {
                 player.setYRot(shot.targetYaw);
                 player.setXRot(shot.targetPitch);
                 InteractionResult result = client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
                 onFired(client, shot, "Rotate", result, elapsed);
-            } else {
-                fireNoRotate(client, player, shot);
             }
             currentShot = null;
             if (!shotQueue.isEmpty()) {
@@ -673,25 +694,25 @@ public final class AutoI4Feature {
         }
     }
 
-    /** No Rotate - the camera never moves: the aim rotation goes to the server with the shot, then the
-     *  local view is put straight back. */
-    private static void fireNoRotate(Minecraft client, LocalPlayer player, Shot shot) {
-        float realYaw = player.getYRot();
-        float realPitch = player.getXRot();
-        player.connection.send(new ServerboundMovePlayerPacket.Rot(shot.targetYaw, shot.targetPitch,
-                player.onGround(), player.horizontalCollision));
-        // useItem's own packet carries the player's CURRENT rotation, so it must be the aim rotation for the
-        // duration of this one call.
-        player.setYRot(shot.targetYaw);
-        player.setXRot(shot.targetPitch);
-        InteractionResult result;
-        try {
-            result = client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-        } finally {
-            player.setYRot(realYaw);
-            player.setXRot(realPitch);
+    /** No Rotate's body turn (util/TurnFirst): the camera is held, the body turns, the shot goes out once a movement packet
+     *  has reported the turn, and the body is given back the tick after. */
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
+
+    /**
+     * No Rotate - the camera never moves. The BODY is turned to the aim point (camera held), and the shot goes out on a
+     * later tick, once that tick's movement packet has carried the turn; false = turned, not shot yet. It used to send its
+     * own extra rotation packet ahead of the use and put the view straight back, which is a second flying packet in the
+     * tick: GrimAC AimDuplicateLook plus Post on the use that followed it (testkit 834, 2026-10-11).
+     */
+    private static boolean fireNoRotate(Minecraft client, LocalPlayer player, Shot shot) {
+        Vec3 eye = player.getEyePosition();
+        AABB spot = AABB.ofSize(shot.aimPoint, 0.1, 0.1, 0.1);
+        if (!TURN.readyBox(player, spot, shot.aimPoint, eye.distanceTo(shot.aimPoint) + 1.0)) {
+            return false;
         }
+        InteractionResult result = client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         onFired(client, shot, "No Rotate", result, 0L);
+        return true;
     }
 
     private static void onFired(Minecraft client, Shot shot, String mode, InteractionResult result, long aimMs) {

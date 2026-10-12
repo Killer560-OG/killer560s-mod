@@ -81,7 +81,7 @@ final class SettingTooltipsData {
         d.put("dungeon/trigger bot", "Clicks the next correct Simon Says button once your crosshair is on it (cheat build only).");
         d.put("trigger bot", "Clicks the correct target once your crosshair is on it (cheat build only).");
         d.put("auto solve", "Clicks the whole Simon Says sequence for you each round (cheat build only).");
-        d.put("dungeon/trigger bot delay", "How long (0-500 ms) your crosshair must stay on the button before clicking (cheat build only).");
+        d.put("dungeon/trigger bot delay", "How long (0-500 ms) your crosshair must stay on the button before clicking (cheat build only). Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
         d.put("trigger bot delay", "How many milliseconds Trigger Bot waits before clicking (cheat build only).");
         d.put("dungeon/mode", "Auto Solve click style: Rotate aims your camera at each button, No Rotate does not (cheat build only).");
         d.put("helpers/mode", "Solver Only highlights slots; Autonomous also clicks, opens games and claims rewards (cheat build only).");
@@ -1650,7 +1650,7 @@ final class SettingTooltipsData {
         d.put("simon says/scale", "Size of the numbers drawn on the Simon Says buttons.");
         d.put("simon says/prevent misclicks", "Blocks clicks on Simon Says buttons that aren't next; hold Shift to click anyway.");
         d.put("auto simon says/trigger bot", "Cheat build: clicks the next correct Simon Says button when your crosshair is on it.");
-        d.put("auto simon says/trigger bot delay", "Cheat build: how long (0-500 ms) your crosshair must stay on the button before it clicks.");
+        d.put("auto simon says/trigger bot delay", "Cheat build: how long (0-500 ms) your crosshair must stay on the button before it clicks. Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
         d.put("auto simon says/mode", "Cheat build: how Auto Solve clicks, turning your camera to each button (Rotate) or not (No Rotate).");
         d.put("auto simon says/click delay", "Cheat build: time (0-3000 ms) Auto Solve waits between clicks.");
         d.put("auto simon says/delay", "Cheat build: time between Auto Start clicks on the start button, 1-20 ticks.");
@@ -1831,7 +1831,7 @@ final class SettingTooltipsData {
         d.put("ability cooldowns/mage reduction", "Cuts ability cooldown timers while you play Mage.");
         d.put("ability cooldowns/mage cut", "How much shorter ability cooldowns are while you play Mage, as a percentage.");
         d.put("arrow align/highlight color", "Colour of the box drawn on frames that still need clicking.");
-        d.put("arrow align/trigger bot delay", "How long your crosshair must sit on a frame before Trigger Bot clicks it, in ms (cheat build only).");
+        d.put("arrow align/trigger bot delay", "How long your crosshair must sit on a frame before Trigger Bot clicks it, in ms (cheat build only). Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
         d.put("croesus / chest profit/highlight runs", "Outlines Croesus runs green if unclaimed and red if already claimed.");
         d.put("croesus / chest profit/second best with key", "Also highlights the second-best chest if it still profits after paying for a Chest Key.");
         d.put("croesus / chest profit/open profit tracker", "Opens the /croesus tracker with your profit totals and big drops.");
@@ -1955,7 +1955,7 @@ final class SettingTooltipsData {
         d.put("goldor triggerbot", "Cheat build: in F7/M7 P3, clicks Goldor while your crosshair is on him.");
         d.put("goldor triggerbot/cps", "Clicks per second, randomised between the two ends of the range.");
         d.put("goldor triggerbot/click type", "Attack is a left click for melee; Use is a right click for a Terminator or Juju shot.");
-        d.put("goldor triggerbot/aim delay", "How long your crosshair must stay on Goldor before it clicks, 0-500 ms.");
+        d.put("goldor triggerbot/aim delay", "How long your crosshair must stay on Goldor before it clicks, 0-500 ms. Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
         d.put("goldor triggerbot/range", "How far away Goldor can be and still get clicked, 3-50 blocks.");
         d.put("dungeon esp/tracer", "Cheat build: while ESP is on, draws a line from you to each wither boss.");
         d.put("dungeon esp/tracer thickness", "How thick the wither boss tracer line is drawn, 1.0-10.0.");
