@@ -116,6 +116,10 @@ public final class HotbarTheme {
      */
     private static void drawBackground(GuiGraphicsExtractor graphics, InventoryThemeConfig cfg, Player player, int cx,
                                        int bottom) {
+        if (cfg.getPreset() == InventoryThemeConfig.Preset.DEFAULT) {
+            drawVanillaBar(graphics, player, cx, bottom);
+            return;
+        }
         InventoryPalette p = cfg.getPalette();
         int alpha = Math.round(cfg.getBackgroundOpacity() * 255f);
         int x0 = cx - 91;
@@ -143,6 +147,93 @@ public final class HotbarTheme {
                 r.fill(ox0, bar[1], ox1, bar[3], withAlpha(p.panel(), alpha));
                 r.outline(ox0, bar[1], ox1, bar[3], u, withAlpha(p.border(), alpha));
                 InventoryThemeFeature.sunken(r, itemX - 1, bottom - 20, itemX + 17, bottom - 2, p.slotFill(), p);
+            }
+        } finally {
+            r.submit();
+        }
+    }
+
+    // Vanilla's hotbar shades (read off the game's own hotbar, 26.1.2): the frame is opaque, the slot insides translucent.
+    private static final int V_BORDER = 0xFF000000;
+    private static final int V_TOP_LIGHT = 0xFF939393;
+    private static final int V_LIGHT = 0xFF7E7E7E;
+    private static final int V_DARK = 0xFF5D5D5D;
+    private static final int V_END_DARK = 0xFF474747;
+    private static final int V_INSIDE = 0x80000000;
+    private static final int V_INSIDE_EDGE = 0xD0000000;
+    private static final int V_RING_OUTER = 0xFF000000;
+    private static final int V_RING = 0xFFFFFFFF;
+    private static final int V_RING_INNER = 0x80FFFFFF;
+
+    /**
+     * The Default preset's hotbar: vanilla's own look, drawn by the mod (killer560, 2026-10-12: Default is "the normal"
+     * vanilla look). The 182 x 22 bar has a black outline, a light top row and left column, then a dark row / column, and
+     * a light-then-dark pair along the bottom and right end. Between two slots there are four columns, light, dark, light,
+     * dark, so each slot's inside is exactly its 16-unit item box. The insides are translucent black, a shade darker
+     * along their top and left. The selection ring is 24 units: black outside, then white, then a translucent white line,
+     * where vanilla draws its selection sprite. Coordinates are GUI units through {@link PixelRects}; the bottom outline is
+     * kept on the window when the GUI's last row hangs off it.
+     */
+    private static void drawVanillaBar(GuiGraphicsExtractor graphics, Player player, int cx, int bottom) {
+        int x0 = cx - 91;
+        int top = bottom - 22;
+        int winH = Minecraft.getInstance().getWindow().getHeight();
+        PixelRects r = PixelRects.begin(graphics);
+        try {
+            int u = r.unit();
+            // frame
+            InventoryThemeFeature.box(r, x0 + 1, top + 1, x0 + 181, top + 2, V_TOP_LIGHT);
+            InventoryThemeFeature.box(r, x0 + 1, top + 2, x0 + 2, bottom - 1, V_TOP_LIGHT);
+            InventoryThemeFeature.box(r, x0 + 2, top + 2, x0 + 179, top + 3, V_DARK);
+            InventoryThemeFeature.box(r, x0 + 2, top + 3, x0 + 3, bottom - 2, V_DARK);
+            InventoryThemeFeature.box(r, x0 + 2, bottom - 3, x0 + 179, bottom - 2, V_LIGHT);
+            InventoryThemeFeature.box(r, x0 + 2, bottom - 2, x0 + 180, bottom - 1, V_DARK);
+            InventoryThemeFeature.box(r, x0 + 179, top + 2, x0 + 180, bottom - 2, V_LIGHT);
+            InventoryThemeFeature.box(r, x0 + 180, top + 2, x0 + 181, bottom - 1, V_END_DARK);
+            for (int i = 0; i < 8; i++) {
+                int gx = x0 + 19 + 20 * i; // right after slot i's 16-unit inside
+                InventoryThemeFeature.box(r, gx, top + 3, gx + 1, bottom - 3, V_LIGHT);
+                InventoryThemeFeature.box(r, gx + 1, top + 3, gx + 2, bottom - 3, V_DARK);
+                InventoryThemeFeature.box(r, gx + 2, top + 3, gx + 3, bottom - 3, V_LIGHT);
+                InventoryThemeFeature.box(r, gx + 3, top + 3, gx + 4, bottom - 3, V_DARK);
+            }
+            for (int i = 0; i < 9; i++) {
+                int sx = x0 + 3 + 20 * i;
+                InventoryThemeFeature.box(r, sx, top + 3, sx + 16, top + 4, V_INSIDE_EDGE);
+                InventoryThemeFeature.box(r, sx, top + 4, sx + 1, bottom - 3, V_INSIDE_EDGE);
+                InventoryThemeFeature.box(r, sx + 1, top + 4, sx + 16, bottom - 3, V_INSIDE);
+            }
+            // outline, the bottom row pulled onto the window if the last GUI row hangs off it
+            int px0 = r.x(x0);
+            int px1 = r.x(x0 + 182);
+            int py0 = r.y(top);
+            int py1 = Math.min(r.y(bottom), winH);
+            r.fill(px0, py0, px1, py0 + u, V_BORDER);
+            r.fill(px0, py1 - u, px1, py1, V_BORDER);
+            r.fill(px0, py0 + u, px0 + u, py1 - u, V_BORDER);
+            r.fill(px1 - u, py0 + u, px1, py1 - u, V_BORDER);
+            // selection ring
+            int sel = player.getInventory().getSelectedSlot();
+            int fx0 = r.x(x0 - 1 + 20 * sel);
+            int fx1 = r.x(x0 + 23 + 20 * sel);
+            int fy0 = r.y(top - 1);
+            int fy1 = Math.min(r.y(bottom + 1), winH);
+            r.outline(fx0, fy0, fx1, fy1, u, V_RING_OUTER);
+            r.outline(fx0 + u, fy0 + u, fx1 - u, fy1 - u, u, V_RING);
+            r.outline(fx0 + 2 * u, fy0 + 2 * u, fx1 - 2 * u, fy1 - 2 * u, u, V_RING_INNER);
+
+            ItemStack offhand = player.getOffhandItem();
+            if (!offhand.isEmpty()) {
+                boolean left = player.getMainArm().getOpposite() == HumanoidArm.LEFT;
+                int itemX = left ? cx - 91 - 26 : cx + 91 + 10;
+                int ox = itemX - 3;
+                r.fill(r.x(ox), py0, r.x(ox + 22), py1, V_BORDER);
+                InventoryThemeFeature.box(r, ox + 1, top + 1, ox + 21, top + 2, V_TOP_LIGHT);
+                InventoryThemeFeature.box(r, ox + 1, top + 2, ox + 2, bottom - 1, V_TOP_LIGHT);
+                InventoryThemeFeature.box(r, ox + 2, top + 2, ox + 21, bottom - 1, V_DARK);
+                InventoryThemeFeature.box(r, ox + 19, top + 3, ox + 20, bottom - 2, V_LIGHT);
+                InventoryThemeFeature.box(r, ox + 2, bottom - 3, ox + 20, bottom - 2, V_LIGHT);
+                InventoryThemeFeature.box(r, itemX, top + 3, itemX + 16, bottom - 3, V_INSIDE);
             }
         } finally {
             r.submit();
