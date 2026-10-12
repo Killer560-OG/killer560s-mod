@@ -4,6 +4,8 @@ import com.killer560.hub.autokick.AutoKickApi;
 import com.killer560.hub.autokick.AutoKickConfig;
 import com.killer560.hub.autokick.AutoKickConfig.ActionMode;
 import com.killer560.hub.autokick.AutoKickConfig.Floor;
+import com.killer560.hub.autokick.AutoKickConfig.FloorSource;
+import com.killer560.hub.autokick.AutoKickConfig.TimeMode;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
@@ -20,7 +22,8 @@ import java.util.Locale;
 
 /**
  * Auto Kick - Party Finder only (killer560, 2026-10-09). See {@code autokick.AutoKickFeature} for the logic: a joiner
- * whose S+ personal best on the queued floor is slower than that floor's slider is warned about or kicked.
+ * whose S+ (or S, per Time Mode) personal best on the queued floor is slower than that floor's slider is warned about
+ * or kicked. 2026-10-11: Time Mode (S+ / S / S+ else S) and Floor Source (Detect Queued / Last Run / Fixed).
  */
 public class AutoKickTab extends BaseTab {
 
@@ -61,18 +64,36 @@ public class AutoKickTab extends BaseTab {
                     cycleMode(cfg, -1);
                     btn.setMessage(modeText(cfg.getMode()));
                 }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(queueFloorText(cfg.getQueueFloor()), btn -> {
-                    cycleQueueFloor(cfg, 1);
-                    btn.setMessage(queueFloorText(cfg.getQueueFloor()));
+        widgets.add(SettingsButtonWidget.builder(timeModeText(cfg.getTimeMode()), btn -> {
+                    cycleTimeMode(cfg, 1);
+                    btn.setMessage(timeModeText(cfg.getTimeMode()));
                 }).secondaryPress(btn -> {
-                    cycleQueueFloor(cfg, -1);
-                    btn.setMessage(queueFloorText(cfg.getQueueFloor()));
+                    cycleTimeMode(cfg, -1);
+                    btn.setMessage(timeModeText(cfg.getTimeMode()));
                 }).bounds(colBX, y, colW, 18).build());
+        y += 22;
+        // The Fixed Floor row only matters (and only shows) when the Floor Source is Fixed.
+        widgets.add(SettingsButtonWidget.builder(floorSourceText(cfg.getFloorSource()), btn -> {
+                    cycleFloorSource(cfg, 1);
+                    requestRebuild.run();
+                }).secondaryPress(btn -> {
+                    cycleFloorSource(cfg, -1);
+                    requestRebuild.run();
+                }).bounds(contentX, y, colW, 18).build());
+        if (cfg.getFloorSource() == FloorSource.FIXED) {
+            widgets.add(SettingsButtonWidget.builder(fixedFloorText(cfg.getQueueFloor()), btn -> {
+                        cycleFixedFloor(cfg, 1);
+                        btn.setMessage(fixedFloorText(cfg.getQueueFloor()));
+                    }).secondaryPress(btn -> {
+                        cycleFixedFloor(cfg, -1);
+                        btn.setMessage(fixedFloorText(cfg.getQueueFloor()));
+                    }).bounds(colBX, y, colW, 18).build());
+        }
         y += 26;
 
         // ---------------------------------------------------------------- Per-floor S+ times
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Slowest S+ Allowed", false), Minecraft.getInstance().font));
+                SectionHeaders.header("Slowest Time Allowed", false), Minecraft.getInstance().font));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Populate My Times From API"), btn -> {
@@ -102,17 +123,34 @@ public class AutoKickTab extends BaseTab {
         return widgets;
     }
 
-    private static void cycleQueueFloor(AutoKickConfig cfg, int direction) {
-        Floor[] floors = Floor.values();
-        // -1 = Last Run, then F1..M7.
-        int at = cfg.getQueueFloor() == null ? -1 : cfg.getQueueFloor().ordinal();
-        int next = Math.floorMod(at + 1 + direction, floors.length + 1) - 1;
-        cfg.setQueueFloor(next < 0 ? null : floors[next]);
+    private static void cycleTimeMode(AutoKickConfig cfg, int direction) {
+        TimeMode[] modes = TimeMode.values();
+        cfg.setTimeMode(modes[Math.floorMod(cfg.getTimeMode().ordinal() + direction, modes.length)]);
         cfg.save();
     }
 
-    private static Component queueFloorText(Floor floor) {
-        return Component.literal("Queue Floor: §6" + (floor == null ? "Last Run" : floor.label()));
+    private static Component timeModeText(TimeMode mode) {
+        return Component.literal("Judge By: §6" + mode.label());
+    }
+
+    private static void cycleFloorSource(AutoKickConfig cfg, int direction) {
+        FloorSource[] sources = FloorSource.values();
+        cfg.setFloorSource(sources[Math.floorMod(cfg.getFloorSource().ordinal() + direction, sources.length)]);
+        cfg.save();
+    }
+
+    private static Component floorSourceText(FloorSource source) {
+        return Component.literal("Floor Source: §6" + source.label());
+    }
+
+    private static void cycleFixedFloor(AutoKickConfig cfg, int direction) {
+        Floor[] floors = Floor.values();
+        cfg.setQueueFloor(floors[Math.floorMod(cfg.getQueueFloor().ordinal() + direction, floors.length)]);
+        cfg.save();
+    }
+
+    private static Component fixedFloorText(Floor floor) {
+        return Component.literal("Fixed Floor: §6" + floor.label());
     }
 
     private static void cycleMode(AutoKickConfig cfg, int direction) {

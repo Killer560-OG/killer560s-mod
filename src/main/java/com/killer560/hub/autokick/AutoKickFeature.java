@@ -3,6 +3,7 @@ package com.killer560.hub.autokick;
 import com.google.gson.JsonObject;
 import com.killer560.hub.autokick.AutoKickConfig.ActionMode;
 import com.killer560.hub.autokick.AutoKickConfig.Floor;
+import com.killer560.hub.autokick.AutoKickConfig.TimeMode;
 import com.killer560.hub.partyfinder.PartyFinderStatsApi;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ActionGate;
@@ -13,6 +14,7 @@ import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ServerCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
@@ -34,7 +36,9 @@ import java.util.regex.Pattern;
  * joiner's S+ personal best on the floor being queued is looked up ({@link PartyFinderStatsApi}, the Party Finder
  * overlay's own cached lookup), and if it is slower than that floor's time on the tab - or there is none - Auto Kick
  * warns (Warn Only, the default) or sends {@code /p kick <name>} (Kick). A lookup that fails never kicks anyone; it says
- * so. The floor being queued is the tab's Queue Floor, or (Last Run) the floor of the last run you were in.
+ * so. The floor being queued comes from the Floor Source: Detect Queued (the default - {@link QueuedFloorDetector}, the
+ * floor last queued in Party Finder or /joininstance'd, else the last run's), Last Run, or the Fixed Floor. Which time is
+ * judged is the Time Mode: S+ (the default), S, or S+ else S.
  * <p>
  * Safety: never yourself (your own join line means you joined someone else's group, and nothing happens); never while
  * in a dungeon (anything still waiting is dropped the moment a run starts); one kick at a time through
@@ -72,13 +76,23 @@ public final class AutoKickFeature {
 
     public static void register() {
         ChatObserver.subscribe(AutoKickFeature::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoKickFeature", client -> tick()));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoKickFeature", client -> {
+            QueuedFloorDetector.tick(client);
+            tick();
+        }));
+        // Every outgoing command, typed or sent by the /f7-style shortcuts (connection.sendCommand). The custom
+        // shortcuts' raw packet path (ServerCommands.toServer) reports to the detector itself.
+        ClientSendMessageEvents.COMMAND.register(QueuedFloorDetector::onCommand);
     }
 
-    /** The floor being queued: the tab's Queue Floor, else the last run's floor, else null. */
+    /** The floor being queued, per the Floor Source, or null (nothing known yet, or the Entrance was queued). */
     public static Floor queueFloor() {
-        Floor chosen = AutoKickConfig.getInstance().getQueueFloor();
-        return chosen != null ? chosen : lastRunFloor;
+        AutoKickConfig cfg = AutoKickConfig.getInstance();
+        return switch (cfg.getFloorSource()) {
+            case FIXED -> cfg.getQueueFloor();
+            case LAST_RUN -> lastRunFloor;
+            case DETECT -> QueuedFloorDetector.hasDetection() ? QueuedFloorDetector.detectedFloor() : lastRunFloor;
+        };
     }
 
     public static List<String> decisions() {
@@ -92,6 +106,7 @@ public final class AutoKickFeature {
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
         if (plain != null) {
+            QueuedFloorDetector.onLine(plain.trim());
             onLine(plain.trim());
         }
     }
@@ -114,8 +129,8 @@ public final class AutoKickFeature {
         }
         Floor floor = queueFloor();
         if (floor == null) {
-            ModChat.send("Auto Kick", ModChat.value(name), ModChat.text(" joined, but no floor is known yet - set "),
-                    ModChat.value("Queue Floor"), ModChat.text(" on the Auto Kick tab, or play a run first."));
+            ModChat.send("Auto Kick", ModChat.value(name), ModChat.text(" joined, but no floor is known (nothing queued"
+                    + " yet, or the Entrance) - not judged. Floor Source is on the Auto Kick tab."));
             decide(name + " no floor -> none");
             return;
         }
@@ -163,16 +178,23 @@ public final class AutoKickFeature {
 
     private static void judge(AutoKickConfig cfg, String name, Floor floor, PartyFinderStatsApi.PlayerStats stats) {
         int limit = cfg.getTargetSeconds(floor);
-        int pb = sPlusSeconds(stats, floor);
+        int sPlus = pbSeconds(stats, floor, "s_plus");
+        int s = pbSeconds(stats, floor, "s");
+        TimeMode mode = cfg.getTimeMode();
+        // Which time is judged, and its label: S+ else S falls to S only when there is no S+ at all.
+        boolean useS = mode == TimeMode.S || (mode == TimeMode.S_PLUS_ELSE_S && sPlus <= 0);
+        int pb = useS ? s : sPlus;
+        String kind = useS ? "S" : "S+";
         String limitStr = mmSs(limit);
         if (pb > 0 && pb <= limit) {
-            decide(name + " " + floor.name() + " S+ " + mmSs(pb) + " limit " + limitStr + " -> ok");
+            decide(name + " " + floor.name() + " " + kind + " " + mmSs(pb) + " limit " + limitStr + " -> ok");
             return;
         }
         String pbStr = pb > 0 ? mmSs(pb) : "none";
         boolean kick = cfg.getMode() == ActionMode.KICK_ALL;
-        decide(name + " " + floor.name() + " S+ " + pbStr + " limit " + limitStr + " -> " + (kick ? "kick" : "warn"));
-        ModChat.send("Auto Kick", ModChat.value(name), ModChat.text(" - " + floor.label() + " S+ "),
+        decide(name + " " + floor.name() + " " + kind + " " + pbStr + " limit " + limitStr + " -> "
+                + (kick ? "kick" : "warn"));
+        ModChat.send("Auto Kick", ModChat.value(name), ModChat.text(" - " + floor.label() + " " + kind + " "),
                 ModChat.value(pbStr), ModChat.text(", limit "), ModChat.value(limitStr),
                 ModChat.dim(kick ? ". Kicking." : ". Warn only, not kicked."));
         if (kick && !pendingKicks.contains(name)) {
@@ -180,14 +202,14 @@ public final class AutoKickFeature {
         }
     }
 
-    /** The joiner's S+ personal best on {@code floor} in seconds, or 0 when he has none. */
-    static int sPlusSeconds(PartyFinderStatsApi.PlayerStats stats, Floor floor) {
+    /** The joiner's personal best of one kind ("s_plus" or "s") on {@code floor} in seconds, or 0 when he has none. */
+    static int pbSeconds(PartyFinderStatsApi.PlayerStats stats, Floor floor, String kind) {
         JsonObject map = floor.master() ? stats.pbMaster() : stats.pbNormal();
-        String t = ConfigJson.getString(ConfigJson.getObject(map, "s_plus"), "floor_" + floor.number(), null);
+        String t = ConfigJson.getString(ConfigJson.getObject(map, kind), "floor_" + floor.number(), null);
         if (t == null) {
             return 0;
         }
-        Matcher m = Pattern.compile("^(\\d{1,3}):(\\d{2})$").matcher(t.trim());
+        Matcher m = MM_SS.matcher(t.trim());
         return m.matches() ? Integer.parseInt(m.group(1)) * 60 + Integer.parseInt(m.group(2)) : 0;
     }
 
