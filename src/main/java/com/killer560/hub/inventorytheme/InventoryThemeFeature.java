@@ -241,11 +241,28 @@ public final class InventoryThemeFeature {
             r.fill(x0, y0, x1, y1, fill);
             return;
         }
+        // Every line sits half its width up and left of the box edge (killer560, 2026-10-12: "everything is shifted item
+        // texture wise to the left and maybe up a little bit"). With the left/top line inside the box and the right/bottom
+        // one past it, the inside ran from edge+t to the far edge, so a 16-unit item at slot.x had t pixels less room on
+        // its left than on its right - t/2 off centre. Moving the whole frame by t/2 straddles each shared line over the
+        // gap between two items, centring the item exactly for any even width (odd widths: half a pixel, unavoidable
+        // with one shared line). Every box on the slot grid shifts by the same amount, so lines still meet.
+        int d = lineShift(t);
+        x0 -= d;
+        y0 -= d;
+        x1 -= d;
+        y1 -= d;
         r.fill(x0 + t, y0 + t, x1, y1, fill);
         r.fill(x0, y0, x1 + t, y0 + t, line);  // top
         r.fill(x0, y1, x1 + t, y1 + t, line);  // bottom: the next row's top line
         r.fill(x0, y0 + t, x0 + t, y1, line);  // left
         r.fill(x1, y0 + t, x1 + t, y1, line);  // right: the next column's left line
+    }
+
+    /** Pixels every slot-grid line is moved up and left by, so it straddles the gap between two items - see
+     *  {@link #cellBox}. Public for the testkit (897). */
+    public static int lineShift(int t) {
+        return t <= 0 ? 0 : t / 2;
     }
 
     /** Themed replacement for vanilla's white hover-highlight box, drawn once (in place of vanilla's own
@@ -264,10 +281,11 @@ public final class InventoryThemeFeature {
         PixelRects r = PixelRects.begin(graphics);
         try {
             // The square with both of its lines (the right and bottom ones sit past it, see cellBox).
-            int x0 = r.x(hoveredSlot.x - 1);
-            int y0 = r.y(hoveredSlot.y - 1);
-            int x1 = r.x(hoveredSlot.x + SLOT_SIZE - 1) + t;
-            int y1 = r.y(hoveredSlot.y + SLOT_SIZE - 1) + t;
+            int d = lineShift(t); // on the same pixels as the slot's own lines (cellBox)
+            int x0 = r.x(hoveredSlot.x - 1) - d;
+            int y0 = r.y(hoveredSlot.y - 1) - d;
+            int x1 = r.x(hoveredSlot.x + SLOT_SIZE - 1) + t - d;
+            int y1 = r.y(hoveredSlot.y + SLOT_SIZE - 1) + t - d;
             // At least one GUI unit thick, so the hovered slot still shows with Line Width at 0.
             int frame = Math.max(r.unit(), t);
             r.fill(x0 + frame, y0 + frame, x1 - frame, y1 - frame, glow);

@@ -55,6 +55,10 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   item and `extractTooltip` itself, never super; javap 26.1.2 and 26.2), so the Item Browser panel drew in chests and not
   in the E inventory (testkit 709/710, 2026-10-11). Inject both classes, or hook `extractContents`/`extractSlot`, which
   both paths call.
+- **A shared slot line must straddle the gap between two items, not sit on one side of it.** The Inventory Theme drew
+  each slot's left/top line inside its box and the right/bottom one past it, so a 16-unit item had t px less room on its
+  left/top than its right/bottom - t/2 off centre at every GUI scale (killer560, 2026-10-12, measured 2 px at the default
+  2 px by testkit 897). `cellBox` now shifts every grid line by `lineShift(t) = t/2`; odd widths stay half a pixel off.
 - **Anything drawn from inside `AbstractContainerScreen.extractContents` is already translated by leftPos/topPos**
   (labels, `extractSlotHighlightBack/Front`, `extractSlots`/`extractSlot`; javap, 26.1.2 and 26.2), so it draws at
   plain `slot.x, slot.y`. `extractBackground` and the `extractRenderState` TAIL / `ScreenEvents.afterExtract` are
