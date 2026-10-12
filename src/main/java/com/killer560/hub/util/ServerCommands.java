@@ -52,8 +52,6 @@ public final class ServerCommands {
             return false;
         }
         player.connection.send(new ServerboundChatCommandPacket(command));
-        // This packet path skips Fabric's COMMAND event, so a custom shortcut's /joininstance reports itself here.
-        com.killer560.hub.autokick.QueuedFloorDetector.onCommand(command);
         return true;
     }
 }

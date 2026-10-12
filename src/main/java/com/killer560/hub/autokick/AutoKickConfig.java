@@ -122,8 +122,8 @@ public final class AutoKickConfig {
 
     /** Where the floor being queued comes from (killer560, 2026-10-11: "detects which floor I just queued for"). */
     public enum FloorSource {
-        /** The floor he last queued in Party Finder or /joininstance'd ({@link QueuedFloorDetector}); Last Run until
-         *  he has queued something since the game started. The default. */
+        /** The floor he last queued in Party Finder - Party Finder only, never /joininstance
+         *  ({@link QueuedFloorDetector}); Last Run until he has queued something since the game started. Default. */
         DETECT("Detect Queued"),
         /** The floor of the last run he was in. */
         LAST_RUN("Last Run"),

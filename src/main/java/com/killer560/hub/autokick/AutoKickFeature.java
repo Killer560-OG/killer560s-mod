@@ -14,7 +14,6 @@ import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ServerCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
@@ -37,7 +36,7 @@ import java.util.regex.Pattern;
  * overlay's own cached lookup), and if it is slower than that floor's time on the tab - or there is none - Auto Kick
  * warns (Warn Only, the default) or sends {@code /p kick <name>} (Kick). A lookup that fails never kicks anyone; it says
  * so. The floor being queued comes from the Floor Source: Detect Queued (the default - {@link QueuedFloorDetector}, the
- * floor last queued in Party Finder or /joininstance'd, else the last run's), Last Run, or the Fixed Floor. Which time is
+ * floor last queued in Party Finder, else the last run's), Last Run, or the Fixed Floor. Which time is
  * judged is the Time Mode: S+ (the default), S, or S+ else S.
  * <p>
  * Safety: never yourself (your own join line means you joined someone else's group, and nothing happens); never while
@@ -80,9 +79,6 @@ public final class AutoKickFeature {
             QueuedFloorDetector.tick(client);
             tick();
         }));
-        // Every outgoing command, typed or sent by the /f7-style shortcuts (connection.sendCommand). The custom
-        // shortcuts' raw packet path (ServerCommands.toServer) reports to the detector itself.
-        ClientSendMessageEvents.COMMAND.register(QueuedFloorDetector::onCommand);
     }
 
     /** The floor being queued, per the Floor Source, or null (nothing known yet, or the Entrance was queued). */
