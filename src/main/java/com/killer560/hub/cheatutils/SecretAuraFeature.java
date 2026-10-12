@@ -152,15 +152,8 @@ public final class SecretAuraFeature {
             }
             updateDone(client, now);
         }
-        if (client.level != null && !keySkullsSeen.isEmpty()) {
-            var it = keySkullsSeen.iterator();
-            while (it.hasNext()) {
-                BlockPos p = BlockPos.of(it.next());
-                if (client.level.isLoaded(p) && !SecretsFeature.isRedstoneKey(client.level, p)) {
-                    it.remove();
-                    keyFound = true; // the skull went: the key was picked up
-                }
-            }
+        if (client.level != null && client.player != null && cfg.isSecretAuraEnabled()) {
+            watchKeys(client);
         }
 
         String gate = null;
@@ -225,9 +218,6 @@ public final class SecretAuraFeature {
                 continue;
             }
             BlockState state = client.level.getBlockState(pos);
-            if (state.getBlock() instanceof AbstractSkullBlock && isLooseKey(client, pos)) {
-                keySkullsSeen.add(key);
-            }
             String kind = classify(client, cfg, pos, state, inBoss, leversAllowed, chestsAllowed);
             if (kind == null) {
                 continue;
@@ -297,8 +287,15 @@ public final class SecretAuraFeature {
         // A secret the look the server was told about does not reach - one behind him - is clicked with the BODY
         // turned to it: turned this tick, clicked next tick once the movement packet has reported it, given back the
         // tick after. Clicked as it was, a lever behind him drew GrimAC RotationPlace (testkit 419, 2026-10-07).
-        BlockHitResult aimHit = com.killer560.hub.util.BlockHits.surface(
-                client.level, bestPos, client.player.getEyePosition());
+        // The Redstone Key's node is struck only on a face open to AIR (killer560, 2026-10-12); every other secret on the
+        // face the eye-to-centre ray meets.
+        boolean node = "redstoneNode".equals(bestKind);
+        BlockHitResult aimHit = node
+                ? com.killer560.hub.util.BlockHits.exposedSurface(client.level, bestPos, client.player.getEyePosition())
+                : com.killer560.hub.util.BlockHits.surface(client.level, bestPos, client.player.getEyePosition());
+        if (node && aimHit == null) {
+            return; // no exposed face from here: never click a face against another block
+        }
         if (aimHit != null && !TURN.readyBlock(client.player, client.level, bestPos, aimHit.getLocation(),
                 Math.sqrt(bestDist) + 2.0)) {
             return;
@@ -319,8 +316,9 @@ public final class SecretAuraFeature {
         // was a point INSIDE the block on a face the player was not looking at. No raycast can produce that.
         // Breaker Aura, which has always clipped its hit from the eye through the shape, measured clean over
         // hundreds of interactions in the same harness. See BlockHits.
-        BlockHitResult hit = com.killer560.hub.util.BlockHits.surface(
-                client.level, bestPos, client.player.getEyePosition());
+        BlockHitResult hit = node
+                ? com.killer560.hub.util.BlockHits.exposedSurface(client.level, bestPos, client.player.getEyePosition())
+                : com.killer560.hub.util.BlockHits.surface(client.level, bestPos, client.player.getEyePosition());
         if (hit == null) {
             return; // no outline to strike; skipping beats sending an impossible hit
         }
@@ -358,10 +356,54 @@ public final class SecretAuraFeature {
         // The key's target: the room's redstone block, QUOI's rule (it clicks a REDSTONE_BLOCK once the key skull is
         // gone). Only with a key found and not yet placed, and never with a block in hand - that click would place it.
         if (block == Blocks.REDSTONE_BLOCK && keyFound && cfg.isAuraPlaceRedstoneKey()
-                && !(client.player.getMainHandItem().getItem() instanceof net.minecraft.world.item.BlockItem)) {
+                && !(client.player.getMainHandItem().getItem() instanceof net.minecraft.world.item.BlockItem)
+                && com.killer560.hub.util.BlockHits.exposedSurface(client.level, pos, client.player.getEyePosition()) != null) {
             return "redstoneNode";
         }
         return null;
+    }
+
+    /** How far a Redstone Key skull is watched for being picked up, eye to skull centre (killer560, 2026-10-12). */
+    static final double KEY_WATCH_RANGE = 10.0;
+
+    /**
+     * The key counts as found when a key skull within {@link #KEY_WATCH_RANGE} of the eye goes - picked up by him or by
+     * anyone (RSA watches the same, a skull turning to air, within ~6.3). Skulls are block entities, so the chunks around
+     * him are asked for theirs rather than every block in a 21-block cube. One that leaves the range while still there
+     * is forgotten: its later pickup is not counted (848: 9 blocks counts, 11 does not).
+     */
+    private static void watchKeys(Minecraft client) {
+        Vec3 eye = client.player.getEyePosition();
+        double r2 = KEY_WATCH_RANGE * KEY_WATCH_RANGE;
+        var it = keySkullsSeen.iterator();
+        while (it.hasNext()) {
+            BlockPos p = BlockPos.of(it.next());
+            if (Vec3.atCenterOf(p).distanceToSqr(eye) > r2) {
+                it.remove();
+            } else if (client.level.isLoaded(p) && !SecretsFeature.isRedstoneKey(client.level, p)) {
+                it.remove();
+                keyFound = true; // the skull went: the key was picked up
+            }
+        }
+        int r = (int) Math.ceil(KEY_WATCH_RANGE);
+        for (int cx = ((int) Math.floor(eye.x) - r) >> 4; cx <= ((int) Math.floor(eye.x) + r) >> 4; cx++) {
+            for (int cz = ((int) Math.floor(eye.z) - r) >> 4; cz <= ((int) Math.floor(eye.z) + r) >> 4; cz++) {
+                net.minecraft.world.level.chunk.ChunkAccess chunk;
+                try {
+                    chunk = client.level.getChunk(cx, cz, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false);
+                } catch (RuntimeException e) {
+                    continue;
+                }
+                if (!(chunk instanceof net.minecraft.world.level.chunk.LevelChunk lc)) {
+                    continue;
+                }
+                for (BlockPos p : lc.getBlockEntities().keySet()) {
+                    if (Vec3.atCenterOf(p).distanceToSqr(eye) <= r2 && isLooseKey(client, p)) {
+                        keySkullsSeen.add(p.asLong());
+                    }
+                }
+            }
+        }
     }
 
     /**

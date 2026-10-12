@@ -53,6 +53,56 @@ public final class BlockHits {
     }
 
     /**
+     * A surface hit on a face of the block that is EXPOSED - its neighbour on that side is air - and faces the eye, or
+     * null when there is none (killer560, 2026-10-12, Redstone Key placement: "it has to be on a side hitting air").
+     * The eye-to-centre ray's own face first (the face {@link #surface} returns, which is what QUOI, RSA and a vanilla
+     * look at the block produce); if that face is against another block, the nearest other exposed face the eye is in
+     * front of, hit at a point on that face. A face against a block is never returned.
+     */
+    public static BlockHitResult exposedSurface(BlockGetter level, BlockPos pos, Vec3 eye) {
+        BlockHitResult first = surface(level, pos, eye);
+        if (first != null && level.getBlockState(pos.relative(first.getDirection())).isAir()) {
+            return first;
+        }
+        VoxelShape shape = level.getBlockState(pos).getShape(level, pos);
+        if (shape.isEmpty()) {
+            return null;
+        }
+        net.minecraft.world.phys.AABB box = shape.bounds().move(pos);
+        BlockHitResult best = null;
+        double bestSq = Double.MAX_VALUE;
+        for (Direction d : Direction.values()) {
+            if (!level.getBlockState(pos.relative(d)).isAir()) {
+                continue;
+            }
+            // The eye must be in front of that face's plane, or no ray from it can strike the face.
+            double plane = switch (d) {
+                case UP -> box.maxY; case DOWN -> box.minY; case EAST -> box.maxX;
+                case WEST -> box.minX; case SOUTH -> box.maxZ; case NORTH -> box.minZ;
+            };
+            double eyeAxis = d.getAxis().choose(eye.x, eye.y, eye.z);
+            if (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? eyeAxis <= plane : eyeAxis >= plane) {
+                continue;
+            }
+            // Aim a little inside the face's centre, so the ray enters through that face and no other.
+            Vec3 faceCentre = box.getCenter().add(d.getStepX() * (box.getXsize() / 2.0 - 0.01),
+                    d.getStepY() * (box.getYsize() / 2.0 - 0.01), d.getStepZ() * (box.getZsize() / 2.0 - 0.01));
+            Vec3 dir = faceCentre.subtract(eye);
+            Vec3 end = eye.add(dir.normalize().scale(dir.length() + 1.5));
+            BlockHitResult hit = shape.clip(eye, end, pos);
+            if (hit == null || hit.getDirection() != d) {
+                continue;
+            }
+            double sq = hit.getLocation().distanceToSqr(eye);
+            if (sq < bestSq) {
+                bestSq = sq;
+                best = hit;
+            }
+        }
+        return best;
+    }
+
+    /**
      * Squared distance from {@code eye} to the NEAREST POINT of a block's cell - the measure a server uses when
      * it decides whether an interaction is in range.
      *
