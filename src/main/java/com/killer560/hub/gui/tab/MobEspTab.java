@@ -64,8 +64,8 @@ public class MobEspTab extends BaseTab {
                 "Bat", cfg::getBatColor, cfg::setBatColor, MobEspConfig.DEFAULT_BAT_COLOR);
         y += 26;
 
-        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
-                    cfg.cycleStyle();
+        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
+                    cfg.cycleStyle(dir);
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());
@@ -134,8 +134,8 @@ public class MobEspTab extends BaseTab {
                 cfg::setWitherHighlight, "Wither Boss Highlight", cfg::getWitherHighlightColor,
                 cfg::setWitherHighlightColor, MobEspConfig.DEFAULT_WITHER_COLOR);
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(witherStyleText(cfg), btn -> {
-                    cfg.cycleWitherHighlightStyle();
+        widgets.add(SettingsButtonWidget.cycling(witherStyleText(cfg), (btn, dir) -> {
+                    cfg.cycleWitherHighlightStyle(dir);
                     cfg.save();
                     btn.setMessage(witherStyleText(cfg));
                 }).bounds(contentX, y, colW, 18).build());

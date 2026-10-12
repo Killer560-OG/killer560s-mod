@@ -146,7 +146,7 @@ public class AutoTerminalTab extends BaseTab {
             y += 26;
 
             if (TerminalSolverConfig.getInstance().isAutoMelodyEnabled()) {
-                widgets.add(SettingsButtonWidget.builder(melodySkipModeText(), btn -> {
+                widgets.add(SettingsButtonWidget.cycling(melodySkipModeText(), (btn, dir) -> {
                             TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
                             cfg.setMelodySkipMode(cfg.getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.EDGES
                                     ? TerminalSolverConfig.MelodySkipMode.ALL

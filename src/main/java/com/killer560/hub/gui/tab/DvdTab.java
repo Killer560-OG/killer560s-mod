@@ -224,13 +224,14 @@ public class DvdTab extends BaseTab {
         int y = contentY;
 
         List<String> gifs = GifPlayerFeature.listedFileNames();
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Gif: §b" + (gifs.isEmpty() ? "(none found)"
-                        : (e.gifFileName.isBlank() ? "(click to pick)" : GifPlayerFeature.displayName(e.gifFileName)))), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(Component.literal("Gif: §b" + (gifs.isEmpty() ? "(none found)"
+                        : (e.gifFileName.isBlank() ? "(click to pick)" : GifPlayerFeature.displayName(e.gifFileName)))), (btn, dir) -> {
                     if (gifs.isEmpty()) {
                         return;
                     }
                     int idx = gifs.indexOf(e.gifFileName);
-                    e.gifFileName = gifs.get((idx + 1) % gifs.size());
+                    e.gifFileName = gifs.get(idx < 0 ? (dir > 0 ? 0 : gifs.size() - 1)
+                            : SettingsButtonWidget.step(idx, dir, gifs.size()));
                     DvdConfig.getInstance().save();
                     DvdFeature.reload();
                     requestRebuild.run();
@@ -319,10 +320,10 @@ public class DvdTab extends BaseTab {
         List<String> soundOptions = new ArrayList<>();
         soundOptions.add("");
         soundOptions.addAll(GifAudioFeature.discoverFileNames());
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Corner Sound: §b"
-                        + (e.cornerHitSoundFile.isBlank() ? "None" : e.cornerHitSoundFile)), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(Component.literal("Corner Sound: §b"
+                        + (e.cornerHitSoundFile.isBlank() ? "None" : e.cornerHitSoundFile)), (btn, dir) -> {
                     int idx = soundOptions.indexOf(e.cornerHitSoundFile);
-                    e.cornerHitSoundFile = soundOptions.get((Math.max(idx, 0) + 1) % soundOptions.size());
+                    e.cornerHitSoundFile = soundOptions.get(SettingsButtonWidget.step(Math.max(idx, 0), dir, soundOptions.size()));
                     DvdConfig.getInstance().save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, ROW_H).build());

@@ -57,8 +57,8 @@ public class P3NavTab extends BaseTab {
         }, P3NavConfig.DEFAULT_GATE_COLOR);
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(styleText("Gate Style", cfg.getGateStyle()), btn -> {
-                    cfg.cycleGateStyle();
+        widgets.add(SettingsButtonWidget.cycling(styleText("Gate Style", cfg.getGateStyle()), (btn, dir) -> {
+                    cfg.cycleGateStyle(dir);
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());
@@ -104,8 +104,8 @@ public class P3NavTab extends BaseTab {
         }, P3NavConfig.DEFAULT_DEVICE_COLOR);
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(styleText("Highlight Style", cfg.getTerminalStyle()), btn -> {
-                    cfg.cycleTerminalStyle();
+        widgets.add(SettingsButtonWidget.cycling(styleText("Highlight Style", cfg.getTerminalStyle()), (btn, dir) -> {
+                    cfg.cycleTerminalStyle(dir);
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());

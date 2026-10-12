@@ -46,8 +46,8 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
         // row layout the other tabs use, grouped by what each setting is about; the explanatory text this used
         // to need lives in the hover tooltips now (SettingTooltipsData) instead of repeating it on the buttons.
         boolean pushToTalk = cfg.getMode() == VoiceToTextConfig.Mode.PUSH_TO_TALK;
-        widgets.add(SettingsButtonWidget.builder(modeText(cfg), btn -> {
-                    cfg.setMode(cfg.getMode().next());
+        widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
+                    cfg.setMode(SettingsButtonWidget.step(cfg.getMode(), dir));
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(col2aX, y, pushToTalk ? col2W : contentWidth, 18).build());
@@ -60,12 +60,12 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
         }
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(micText(cfg), btn -> {
-                    // Cycles Default -> each device that can record -> Default. Re-listed on every click, so a
-                    // headset plugged in with the menu open shows up.
+        widgets.add(SettingsButtonWidget.cycling(micText(cfg), (btn, dir) -> {
+                    // Cycles Default -> each device that can record -> Default (right click the other way). Re-listed
+                    // on every click, so a headset plugged in with the menu open shows up.
                     java.util.List<String> mics = com.killer560.hub.voicetotext.VoiceToTextFeature.microphones();
-                    int i = mics.indexOf(cfg.getMicrophone());
-                    cfg.setMicrophone(i + 1 < mics.size() ? mics.get(i + 1) : "");
+                    int at = SettingsButtonWidget.step(mics.indexOf(cfg.getMicrophone()) + 1, dir, mics.size() + 1);
+                    cfg.setMicrophone(at == 0 ? "" : mics.get(at - 1));
                     cfg.save();
                     btn.setMessage(micText(cfg));
                 }).bounds(contentX, y, contentWidth, 18).build());

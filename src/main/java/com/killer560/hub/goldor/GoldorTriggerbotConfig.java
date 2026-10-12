@@ -143,8 +143,12 @@ public final class GoldorTriggerbotConfig {
     }
 
     public void cycleClickType() {
+        cycleClickType(1);
+    }
+
+    public void cycleClickType(int dir) {
         ClickType[] all = ClickType.values();
-        clickType = all[(clickType.ordinal() + 1) % all.length];
+        clickType = all[Math.floorMod(clickType.ordinal() + dir, all.length)];
     }
 
     /** How far down the crosshair the boss's hitbox may be and still count as "aimed at", in blocks. */

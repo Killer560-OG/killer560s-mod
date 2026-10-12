@@ -113,9 +113,9 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
         widgets.add(inertLabel(contentX, y, contentWidth, "Any key stops it while it runs."));
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(
-                Component.literal("Rank By: §6" + cfg.getRankingMode().display), btn -> {
-                    cfg.cycleRankingMode();
+        widgets.add(SettingsButtonWidget.cycling(
+                Component.literal("Rank By: §6" + cfg.getRankingMode().display), (btn, dir) -> {
+                    cfg.cycleRankingMode(dir);
                     cfg.save();
                     btn.setMessage(Component.literal("Rank By: §6" + cfg.getRankingMode().display));
                 }).bounds(contentX, y, contentWidth, 18).build());

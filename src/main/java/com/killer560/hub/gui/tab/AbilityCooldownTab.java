@@ -104,10 +104,9 @@ public class AbilityCooldownTab extends BaseTab {
         // SIZE of the cut stays a setting, same shape as RagAxeTab's "Mage Cut" button.
         toggle(w, contentX, y[0], half, "Mage Reduction", cfg::isMageReduction, cfg::setMageReduction, cfg);
         if (cfg.isMageReduction()) {
-            w.add(SettingsButtonWidget.builder(mageCutLabel(cfg), btn -> {
-                        float next = cfg.getMageCooldownReductionPercent() + 5f;
-                        cfg.setMageCooldownReductionPercent(
-                                next > AbilityCooldownConfig.MAX_MAGE_REDUCTION_PERCENT ? 0f : next);
+            w.add(SettingsButtonWidget.cycling(mageCutLabel(cfg), (btn, dir) -> {
+                        cfg.setMageCooldownReductionPercent((float) SettingsButtonWidget.step(
+                                cfg.getMageCooldownReductionPercent(), 5, 0, AbilityCooldownConfig.MAX_MAGE_REDUCTION_PERCENT, dir));
                         cfg.save();
                         btn.setMessage(mageCutLabel(cfg));
                     }).bounds(colB, y[0], half, 18).build());

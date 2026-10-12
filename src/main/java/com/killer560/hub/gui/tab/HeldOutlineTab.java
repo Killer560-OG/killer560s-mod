@@ -45,8 +45,8 @@ public class HeldOutlineTab extends BaseTab {
         }
 
         header(w, contentX, y, contentWidth, "Appearance");
-        w.add(SettingsButtonWidget.builder(styleLabel(cfg), btn -> {
-                    cfg.setStyle(cfg.getStyle().next());
+        w.add(SettingsButtonWidget.cycling(styleLabel(cfg), (btn, dir) -> {
+                    cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y[0], contentWidth, 18).build());
@@ -54,8 +54,8 @@ public class HeldOutlineTab extends BaseTab {
 
         HeldOutlineConfig.Style style = cfg.getStyle();
         if (style.outline) {
-            w.add(SettingsButtonWidget.builder(Component.literal("Outline Side: " + cfg.getSide().label), btn -> {
-                        cfg.setSide(cfg.getSide().next());
+            w.add(SettingsButtonWidget.cycling(Component.literal("Outline Side: " + cfg.getSide().label), (btn, dir) -> {
+                        cfg.setSide(SettingsButtonWidget.step(cfg.getSide(), dir));
                         cfg.save();
                         btn.setMessage(Component.literal("Outline Side: " + cfg.getSide().label));
                     }).bounds(contentX, y[0], contentWidth, 18).build());

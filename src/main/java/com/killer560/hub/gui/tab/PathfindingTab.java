@@ -167,9 +167,8 @@ public class PathfindingTab extends BaseTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(modeText(cfg), btn -> {
-                    PathfindingConfig.SoulMode[] values = PathfindingConfig.SoulMode.values();
-                    cfg.setSoulMode(values[(cfg.getSoulMode().ordinal() + 1) % values.length]);
+        widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
+                    cfg.setSoulMode(SettingsButtonWidget.step(cfg.getSoulMode(), dir));
                     cfg.save();
                     btn.setMessage(modeText(cfg));
                 }).bounds(col2bX, y, col2W, 18).build());

@@ -126,9 +126,9 @@ public class CroesusTrackerScreen extends Screen {
                         sessionOnly = !sessionOnly;
                         rebuildWidgets();
                     }).bounds(panelX + panelW - bw * 2 - 10, panelY + 34, bw, 18).build());
-            addRenderableWidget(SettingsButtonWidget.builder(
-                    Component.literal("§f" + floorFilter), btn -> {
-                        floorFilter = nextFloor();
+            addRenderableWidget(SettingsButtonWidget.cycling(
+                    Component.literal("§f" + floorFilter), (btn, dir) -> {
+                        floorFilter = nextFloor(dir);
                         rebuildWidgets();
                     }).bounds(panelX + panelW - bw - 6, panelY + 34, bw, 18).build());
         }
@@ -142,10 +142,10 @@ public class CroesusTrackerScreen extends Screen {
     }
 
     /** Floors seen in the log, so the filter only ever offers something there is data for. */
-    private String nextFloor() {
+    private String nextFloor(int dir) {
         List<String> floors = new ArrayList<>(floorsSeen());
         int i = floors.indexOf(floorFilter);
-        return floors.get((i + 1) % floors.size());
+        return floors.get(i < 0 ? 0 : SettingsButtonWidget.step(i, dir, floors.size()));
     }
 
     private Set<String> floorsSeen() {

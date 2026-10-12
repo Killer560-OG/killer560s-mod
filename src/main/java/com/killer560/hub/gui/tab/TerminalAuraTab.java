@@ -59,9 +59,8 @@ public class TerminalAuraTab extends BaseTab {
         // ARMOUR STAND and an entity gets a tighter limit than a block's 4.5. The warning lives on the control
         // so it is in front of him while he sets it.
         widgets.add(rangeSlider(contentX, y, halfW, cfg));
-        widgets.add(SettingsButtonWidget.builder(delayText(cfg), btn -> {
-                    int next = cfg.getDelayMs() + 50;
-                    cfg.setDelayMs(next > TerminalAuraConfig.MAX_DELAY_MS ? 0 : next);
+        widgets.add(SettingsButtonWidget.cycling(delayText(cfg), (btn, dir) -> {
+                    cfg.setDelayMs((int) SettingsButtonWidget.step(cfg.getDelayMs(), 50, 0, TerminalAuraConfig.MAX_DELAY_MS, dir));
                     cfg.save();
                     btn.setMessage(delayText(cfg));
                 }).bounds(contentX + halfW + GAP, y, Math.max(1, contentWidth - halfW - GAP), ROW).build());
@@ -97,9 +96,8 @@ public class TerminalAuraTab extends BaseTab {
         y += ROW + GAP;
 
         if (cfg.isLeapDelayEnabled()) {
-            widgets.add(SettingsButtonWidget.builder(leapDelayText(cfg), btn -> {
-                        double next = cfg.getLeapDelaySeconds() + 0.1;
-                        cfg.setLeapDelaySeconds(next > 5.0 ? 0.1 : next);
+            widgets.add(SettingsButtonWidget.cycling(leapDelayText(cfg), (btn, dir) -> {
+                        cfg.setLeapDelaySeconds(SettingsButtonWidget.step(cfg.getLeapDelaySeconds(), 0.1, 0.1, 5.0, dir));
                         cfg.save();
                         btn.setMessage(leapDelayText(cfg));
                     }).bounds(contentX, y, halfW, ROW).build());

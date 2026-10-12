@@ -85,7 +85,7 @@ final class SettingTooltipsData {
         d.put("trigger bot delay", "How many milliseconds Trigger Bot waits before clicking (cheat build only).");
         d.put("dungeon/mode", "Auto Solve click style: Rotate aims your camera at each button, No Rotate does not (cheat build only).");
         d.put("helpers/mode", "Solver Only highlights slots; Autonomous also clicks, opens games and claims rewards (cheat build only).");
-        d.put("mode", "Click to cycle how this feature behaves.");
+        d.put("mode", "Left click cycles how this feature behaves, right click goes back.");
         d.put("pacing", "How Auto Solve times its clicks: fixed delay or a target total time (cheat build only).");
         d.put("dungeon/click delay", "Milliseconds (0-3000) Auto Solve waits between clicks (cheat build only).");
         d.put("click delay", "Minimum time in milliseconds between clicks for this feature.");
@@ -236,7 +236,7 @@ final class SettingTooltipsData {
         d.put("after blood off", "Stops Door Opener leaps once the Blood door is open.");
         d.put("gate blown only", "P3 Auto leaps wait until the section is finished and its gate is blown.");
         d.put("name", "Type the player or display name this row uses.");
-        d.put("class", "Picks a dungeon class for this setting. Click to cycle.");
+        d.put("class", "Picks a dungeon class for this setting. Left click cycles forward, right click back.");
         d.put("keywords", "Posmsg mode: comma-separated words; when a party member says one in chat, they become this target.");
         d.put("backup name", "Posmsg mode: IGN to leap to when nobody has announced this spot yet.");
         d.put("backup", "Posmsg mode: leaps to the first alive teammate of this class if nobody called the spot.");
@@ -477,12 +477,12 @@ final class SettingTooltipsData {
         d.put("class overrides", "Sets a player's class by hand for every feature in the mod.");
         d.put("class overrides/class selection overlay", "Pick a player in the bar, then a class box, to assign their class on the class-selection screen.");
         d.put("current party", "Lists your party and their classes; click Override to set a different class.");
-        d.put("override", "Click to cycle this player's class override.");
+        d.put("override", "Left click cycles this player's class override, right click goes back.");
         d.put("remove override", "Removes this player's override.");
         d.put("other overrides", "Overrides for players who aren't in your current party.");
         d.put("add by name", "Type an IGN and pick a class to override someone not in the party.");
         d.put("ign", "The player's exact in-game name; case doesn't matter.");
-        d.put("override class", "Click to cycle the class given to the typed IGN.");
+        d.put("override class", "Left click cycles the class given to the typed IGN, right click goes back.");
         d.put("add override", "Saves the typed IGN with the chosen class.");
         d.put("terminal triggerbot", "Cheat build: opens the terminal your crosshair is on during F7/M7 P3.");
         d.put("terminal aura", "Cheat build: opens any terminal in range during F7/M7 P3.");
@@ -535,7 +535,7 @@ final class SettingTooltipsData {
         d.put("play/pause", "Keybind that plays or pauses the current Short.");
         d.put("shadow assassin alert", "Shows a title and plays a sound when a Shadow Assassin teleports behind you.");
         d.put("secret sound", "Plays a sound when you collect a dungeon secret.");
-        d.put("sound", "Which sound Secret Sound plays; click to cycle.");
+        d.put("sound", "Which sound Secret Sound plays; left click cycles forward, right click back.");
         d.put("play sound", "Previews the selected secret sound.");
         d.put("terracotta timer", "Shows a respawn countdown over each broken terracotta in the F6/M6 boss.");
         d.put("spring boots overlay", "Shows how many blocks high your Spring Boots jump is charged to.");
@@ -904,7 +904,7 @@ final class SettingTooltipsData {
         d.put("spirit bear color", "Opens a color picker for the Spirit Bear highlight.");
         d.put("spirit mob color", "Opens a color picker for the spirit mob highlight.");
         d.put("spirit bow color", "Opens a color picker for the Spirit Bow highlight.");
-        d.put("thorn esp style", "How Thorn highlights are drawn: Outline Box, Filled Box or Glow; click to cycle.");
+        d.put("thorn esp style", "How Thorn highlights are drawn: Outline Box, Filled Box or Glow; left click cycles forward, right click back.");
         d.put("thorn esp line width", "Outline thickness for the Thorn highlight boxes, 1-10.");
         d.put("thorn esp through walls", "Thorn highlights also show targets behind walls (cheat build only).");
         d.put("stun spot waypoints", "Draws your saved stun spot waypoints during the F4/M4 boss.");
@@ -1514,7 +1514,7 @@ final class SettingTooltipsData {
         d.put("fast/auto leap/s3", "Who you leap to when section 3 is done.");
         d.put("fast/auto leap/s4", "Who you leap to when section 4 is done.");
         d.put("fast/auto leap/name", "Type the exact name of the teammate this leap goes to.");
-        d.put("fast/auto leap/class", "Leaps to the first alive teammate of this class. Click to cycle.");
+        d.put("fast/auto leap/class", "Leaps to the first alive teammate of this class. Left click cycles forward, right click back.");
         d.put("fast/auto leap/test leap", "Sends every fast leap to the chosen class, wherever you stand. For testing only (cheat build only).");
         d.put("gif player/speed", "GIF playback speed, 0.25x-4x (1 = normal).");
         d.put("gif player/set", "Applies the number typed in the box to its left.");
@@ -1539,9 +1539,9 @@ final class SettingTooltipsData {
         d.put("sharp shooter (i4)/auto", "Leaps to the i4 target as soon as the device is completed (cheat build only).");
         d.put("sharp shooter (i4)/fast leap", "At the i4 spot, left-clicking a leap item leaps straight to the i4 target (cheat build only).");
         d.put("sharp shooter (i4)/target", "Who the i4 leap goes to: a class, a typed player, or Melody.");
-        d.put("sharp shooter (i4)/class", "Class the i4 leap goes to. Click to cycle.");
+        d.put("sharp shooter (i4)/class", "Class the i4 leap goes to. Left click cycles forward, right click back.");
         d.put("sharp shooter (i4)/player", "Type the name of the player the i4 leap goes to.");
-        d.put("sharp shooter (i4)/backup", "Who to leap to if no Melody player is known yet. Click to switch.");
+        d.put("sharp shooter (i4)/backup", "Who to leap to if no Melody player is known yet. Left click cycles forward, right click back.");
         d.put("inventory hud/background", "What is drawn behind the panel: None, Panel, or Slots.");
         d.put("inventory hud/opacity", "How solid the panel background is, 0-100%.");
         d.put("inventory hud/key", "Key used by Show. Click, then press a key; Esc clears it.");
@@ -1557,7 +1557,7 @@ final class SettingTooltipsData {
         d.put("inventory search/ignore case", "Matches regardless of upper or lower case.");
         d.put("inventory search/search bar scale", "Resizes the floating search bar.");
         d.put("item protection/remove", "Takes this name off the protected-names list.");
-        d.put("item rarity backgrounds/style", "Shape drawn behind each item: Square, Circle, or Outline. Click to cycle.");
+        d.put("item rarity backgrounds/style", "Shape drawn behind each item: Square, Circle, or Outline. Left click cycles forward, right click back.");
         d.put("item rarity backgrounds/outline width", "How thick the rarity outline is, 1-4 pixels.");
         d.put("item rarity backgrounds/opacity", "How solid the rarity colour is, 10-100%.");
         d.put("item rarity backgrounds/skyblock only", "Only colours items while you are on Hypixel or p3sim; OFF also colours them on other servers.");
@@ -1569,7 +1569,7 @@ final class SettingTooltipsData {
         d.put("player stats", "HUD line with your health, mana and defense, read off the action bar.");
         d.put("profile viewer", "Run /pv <name> to open any player's Skyblock profile in game.");
         d.put("rng meter overlay", "Ranks RNG Meter rewards by coins per meter point.");
-        d.put("leap order class", "Cycles this player's class override (None, Mage, Tank, Healer, Archer, Berserker). Right-click does the same.");
+        d.put("leap order class", "Cycles this player's class override (None, Mage, Tank, Healer, Archer, Berserker). Right click goes back.");
         d.put("leap menu/set", "Saves the leap message typed in the box to the left.");
         d.put("leap menu/scale", "Size of the custom leap menu's four teammate boxes, 50% to 400%.");
         d.put("lever aura/range", "Maximum distance in blocks this feature reaches.");
@@ -1839,7 +1839,7 @@ final class SettingTooltipsData {
         d.put("croesus / chest profit/chest key min profit", "Minimum profit, after the key's price, for a key chest to be opened (cheat build only).");
         d.put("croesus / chest profit/use kismets", "Lets Auto Croesus spend a Kismet Feather to reroll a poor Bedrock chest (cheat build only).");
         d.put("croesus / chest profit/reroll below", "Bedrock chests worth less than this get rerolled with a Kismet Feather (cheat build only).");
-        d.put("secret sound/sound", "Picks which sound Secret Sound plays; click to cycle.");
+        d.put("secret sound/sound", "Picks which sound Secret Sound plays; left click cycles forward, right click back.");
         d.put("secret sound/volume", "Loudness of the secret sound, 0.0-1.0.");
         d.put("secret sound/pitch", "Pitch of the secret sound, 0.0-2.0; 1.0 is normal.");
         d.put("class colors/tab list", "Colours each teammate's name in the tab list by dungeon class.");
@@ -2119,8 +2119,8 @@ final class SettingTooltipsData {
         d.put("blood camp/spawn line width", "Line thickness for Spawn Line, 1-10.");
         d.put("blood camp/countdown start sound", "Plays a sound when a blood mob's countdown starts (its landing box appears). Mobs starting together make one sound.");
         d.put("blood camp/kill sound", "Plays a sound the moment a blood mob's countdown reaches zero and it can be killed. Mobs due together make one sound.");
-        d.put("blood camp/start sound type", "Which sound Countdown Start Sound plays. Click to cycle.");
-        d.put("blood camp/kill sound type", "Which sound Kill Sound plays. Click to cycle.");
+        d.put("blood camp/start sound type", "Which sound Countdown Start Sound plays. Left click cycles forward, right click back.");
+        d.put("blood camp/kill sound type", "Which sound Kill Sound plays. Left click cycles forward, right click back.");
         d.put("blood camp/sound volume", "Volume of both countdown sounds, 0-1.");
         d.put("ap3/align timer (dev)", "Dev builds only: prints how long each Align took.");
         d.put("advanced position/advanced position", "Shows your exact X, Y and Z as a small movable HUD.");
@@ -2157,7 +2157,7 @@ final class SettingTooltipsData {
         d.put("ap3/stop ap3", "Stops whatever AP3 is doing and releases every key (same as /ap3 stop).");
         d.put("ap3/test mode", "Dry run: nodes run without waiting on terminals or teammates, and any key press stops everything.");
         d.put("ap3/force dungeon", "Testing only: makes AP3 act as if you are in the F7/M7 boss so you can place and test nodes anywhere.");
-        d.put("ap3/forced area", "The area AP3 pretends you are in while Force Dungeon is on; click to cycle.");
+        d.put("ap3/forced area", "The area AP3 pretends you are in while Force Dungeon is on; left click cycles forward, right click back.");
         d.put("ap3/send stopwatch to party", "Posts a stopwatch's time to party chat when it stops.");
         d.put("ap3/show nodes", "Draws your AP3 nodes in the world; off hides them but they still work.");
         d.put("ap3/show node lines", "Draws a faint line from each node to the next in the chain.");

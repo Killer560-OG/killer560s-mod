@@ -119,9 +119,8 @@ public final class FastLeapSection {
         // target fields, Click Delay is just an anti-double-click timer). ---
         widgets.add(sectionHeader(x, y, width, "Targeting"));
         y += SECTION_HEADER_H;
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Target Mode: §6" + cfg.getTargetMode().label), btn -> {
-            TargetMode[] all = TargetMode.values();
-            cfg.setTargetMode(all[(cfg.getTargetMode().ordinal() + 1) % all.length]);
+        widgets.add(SettingsButtonWidget.cycling(Component.literal("Target Mode: §6" + cfg.getTargetMode().label), (btn, dir) -> {
+            cfg.setTargetMode(SettingsButtonWidget.step(cfg.getTargetMode(), dir));
             cfg.save();
             requestRebuild.run();
         }).bounds(x, y, Math.max(1, width), ROW).build());
@@ -421,19 +420,11 @@ public final class FastLeapSection {
 
     static SettingsButtonWidget classButton(int x, int y, int w, String label, DungeonClass current, Consumer<DungeonClass> onChange) {
         DungeonClass[] holder = {current};
-        return SettingsButtonWidget.builder(classLabel(label, current), btn -> {
-            holder[0] = nextClass(holder[0]);
+        return SettingsButtonWidget.cycling(classLabel(label, current), (btn, dir) -> {
+            holder[0] = com.killer560.hub.gui.tab.ClassOverridesTab.step(holder[0], dir);
             onChange.accept(holder[0]);
             btn.setMessage(classLabel(label, holder[0]));
         }).bounds(x, y, Math.max(1, w), ROW).build();
-    }
-
-    static DungeonClass nextClass(DungeonClass c) {
-        DungeonClass[] all = DungeonClass.values();
-        if (c == null) {
-            return all[0];
-        }
-        return c.ordinal() + 1 < all.length ? all[c.ordinal() + 1] : null;
     }
 
     static Component classLabel(String label, DungeonClass c) {

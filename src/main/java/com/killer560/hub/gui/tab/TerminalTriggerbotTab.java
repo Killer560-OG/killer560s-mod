@@ -52,23 +52,22 @@ public class TerminalTriggerbotTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(delayText(cfg), btn -> {
-                    int next = cfg.getDelayMs() + 25;
-                    cfg.setDelayMs(next > TerminalTriggerbotConfig.MAX_DELAY_MS ? 0 : next);
+        widgets.add(SettingsButtonWidget.cycling(delayText(cfg), (btn, dir) -> {
+                    cfg.setDelayMs((int) SettingsButtonWidget.step(cfg.getDelayMs(), 25, 0,
+                            TerminalTriggerbotConfig.MAX_DELAY_MS, dir));
                     cfg.save();
                     btn.setMessage(delayText(cfg));
                 }).bounds(contentX, y, halfW, ROW).build());
-        widgets.add(SettingsButtonWidget.builder(cooldownText(cfg), btn -> {
-                    int next = cfg.getCooldownMs() + 50;
-                    cfg.setCooldownMs(next > TerminalTriggerbotConfig.MAX_COOLDOWN_MS ? 0 : next);
+        widgets.add(SettingsButtonWidget.cycling(cooldownText(cfg), (btn, dir) -> {
+                    cfg.setCooldownMs((int) SettingsButtonWidget.step(cfg.getCooldownMs(), 50, 0,
+                            TerminalTriggerbotConfig.MAX_COOLDOWN_MS, dir));
                     cfg.save();
                     btn.setMessage(cooldownText(cfg));
                 }).bounds(contentX + halfW + GAP, y, rightW, ROW).build());
         y += ROW + GAP;
 
-        widgets.add(SettingsButtonWidget.builder(rangeText(cfg), btn -> {
-                    double next = cfg.getRange() + 0.5;
-                    cfg.setRange(next > TerminalTriggerbotConfig.MAX_RANGE ? 1.0 : next);
+        widgets.add(SettingsButtonWidget.cycling(rangeText(cfg), (btn, dir) -> {
+                    cfg.setRange(SettingsButtonWidget.step(cfg.getRange(), 0.5, 1.0, TerminalTriggerbotConfig.MAX_RANGE, dir));
                     cfg.save();
                     btn.setMessage(rangeText(cfg));
                 }).bounds(contentX, y, halfW, ROW).build());

@@ -79,6 +79,49 @@ public final class SettingsButtonWidget extends AbstractWidget {
         return new Builder(message, onPress);
     }
 
+    /** One step of a {@link #cycling} button: {@code dir} is +1 for a left click and -1 for a right click. */
+    public interface OnStep {
+        void onStep(SettingsButtonWidget button, int dir);
+    }
+
+    /**
+     * A button that steps through a setting's values: left click forward, right click back, both wrapping (killer560,
+     * 2026-10-11: "for any setting that you click a few times to toggle through different things make it so if i left
+     * click it goes forward and right click it goes backward"). Every cycling setting is built through this, so
+     * {@link #isCycling()} names them all (the testkit's 806 walks the menu by it).
+     */
+    public static Builder cycling(Component message, OnStep onStep) {
+        return new Builder(message, b -> onStep.onStep(b, 1)).secondaryPress(b -> onStep.onStep(b, -1));
+    }
+
+    /** The constant {@code dir} steps away from {@code current} in declaration order, wrapping at both ends. */
+    public static <E extends Enum<E>> E step(E current, int dir) {
+        E[] all = current.getDeclaringClass().getEnumConstants();
+        return all[Math.floorMod(current.ordinal() + dir, all.length)];
+    }
+
+    /** {@code index} moved by {@code dir} in a list of {@code size}, wrapping at both ends. */
+    public static int step(int index, int dir, int size) {
+        return Math.floorMod(index + dir, size);
+    }
+
+    /**
+     * A value on the grid {@code min, min + step, ...} up to {@code max}, moved one grid step by {@code dir} and wrapped
+     * at both ends (past the top goes to {@code min}, below {@code min} to the top grid value). An off-grid value snaps
+     * to the nearest grid point first.
+     */
+    public static double step(double value, double step, double min, double max, int dir) {
+        int count = (int) Math.floor((max - min) / step + 1e-6) + 1;
+        int idx = (int) Math.round((value - min) / step);
+        idx = Math.floorMod(Math.max(0, Math.min(count - 1, idx)) + dir, count);
+        return Math.round((min + idx * step) * 1e6) / 1e6;
+    }
+
+    /** True for a button that steps through values (built with a right-click handler). Read by the testkit. */
+    public boolean isCycling() {
+        return onSecondaryPress != null;
+    }
+
     public static final class Builder {
         private final Component message;
         private final OnPress onPress;
@@ -195,11 +238,13 @@ public final class SettingsButtonWidget extends AbstractWidget {
     /** Vanilla's own {@code mouseClicked} only ever calls {@code onClick} above for the left button
      *  (button 0), so left-click behavior here is completely untouched - this only adds a right-click
      *  (button 1) path, and only when a {@code secondaryPress} was actually set, so a plain button with
-     *  no cycling behavior can never have right-click do anything. */
+     *  no cycling behavior can never have right-click do anything. The right click plays the same click sound
+     *  vanilla's left click does ({@code AbstractWidget.mouseClicked} -> {@code playDownSound}, javap 26.1.2 and 26.2). */
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (onSecondaryPress != null && active && visible && event.button() == 1
                 && isMouseOver(event.x(), event.y())) {
+            playDownSound(Minecraft.getInstance().getSoundManager());
             onSecondaryPress.onPress(this);
             return true;
         }

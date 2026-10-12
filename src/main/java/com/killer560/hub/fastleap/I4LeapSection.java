@@ -50,9 +50,8 @@ public final class I4LeapSection {
         int half = (width - GAP) / 2;
         int rightX = x + half + GAP;
         int rightW = width - half - GAP;
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Target: §6" + cfg.getTargetType().label), btn -> {
-            TargetType[] all = TargetType.values();
-            cfg.setTargetType(all[(cfg.getTargetType().ordinal() + 1) % all.length]);
+        widgets.add(SettingsButtonWidget.cycling(Component.literal("Target: §6" + cfg.getTargetType().label), (btn, dir) -> {
+            cfg.setTargetType(SettingsButtonWidget.step(cfg.getTargetType(), dir));
             cfg.save();
             requestRebuild.run();
         }).bounds(x, y, half, ROW).build());
@@ -67,9 +66,8 @@ public final class I4LeapSection {
             }));
             default -> {
                 y += ROW + GAP;
-                widgets.add(SettingsButtonWidget.builder(Component.literal("Backup: §6" + cfg.getBackupType().label), btn -> {
-                    BackupType[] all = BackupType.values();
-                    cfg.setBackupType(all[(cfg.getBackupType().ordinal() + 1) % all.length]);
+                widgets.add(SettingsButtonWidget.cycling(Component.literal("Backup: §6" + cfg.getBackupType().label), (btn, dir) -> {
+                    cfg.setBackupType(SettingsButtonWidget.step(cfg.getBackupType(), dir));
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(x, y, half, ROW).build());

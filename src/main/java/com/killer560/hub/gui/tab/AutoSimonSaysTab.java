@@ -159,7 +159,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         y += 22;
 
         if (cfg.isAutoSolveEnabled()) {
-            widgets.add(SettingsButtonWidget.builder(rotateText(cfg), btn -> {
+            widgets.add(SettingsButtonWidget.cycling(rotateText(cfg), (btn, dir) -> {
                         cfg.setAutoSolveRotate(!cfg.isAutoSolveRotate());
                         cfg.save();
                         btn.setMessage(rotateText(cfg));
@@ -168,7 +168,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
             // Alternative pacing mode (2026-09-14, killer560's own request after seeing real log data
             // show the Target/Variance model below landing at a consistent ~850ms/click that still felt
             // too slow) - a flat, directly controllable delay instead of an overall-duration target.
-            widgets.add(SettingsButtonWidget.builder(pacingModeText(cfg), btn -> {
+            widgets.add(SettingsButtonWidget.cycling(pacingModeText(cfg), (btn, dir) -> {
                         cfg.setAutoSolveFixedDelayMode(!cfg.isAutoSolveFixedDelayMode());
                         cfg.save();
                         requestRebuild.run();

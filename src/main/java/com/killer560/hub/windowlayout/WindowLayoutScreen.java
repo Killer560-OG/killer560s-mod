@@ -50,11 +50,12 @@ public class WindowLayoutScreen extends Screen {
         int x = width / 2 - total / 2;
         int y = height - BOTTOM + 7;
 
-        addRenderableWidget(SettingsButtonWidget.builder(monitorText(), btn -> {
+        addRenderableWidget(SettingsButtonWidget.cycling(monitorText(), (btn, dir) -> {
             if (monitors.isEmpty()) {
                 return;
             }
-            int next = monitor == null ? 0 : (monitor.index() + 1) % monitors.size();
+            int next = monitor == null ? (dir > 0 ? 0 : monitors.size() - 1)
+                    : SettingsButtonWidget.step(monitor.index(), dir, monitors.size());
             monitor = monitors.get(next);
             cfg.setMonitor(monitor);
             cfg.save();
@@ -62,8 +63,8 @@ public class WindowLayoutScreen extends Screen {
         }).bounds(x, y, bw, 20).build());
         x += bw + gap;
 
-        addRenderableWidget(SettingsButtonWidget.builder(countText(), btn -> {
-            int next = cfg.getWindowsPerMonitor() % WindowLayoutConfig.MAX_WINDOWS + 1;
+        addRenderableWidget(SettingsButtonWidget.cycling(countText(), (btn, dir) -> {
+            int next = SettingsButtonWidget.step(cfg.getWindowsPerMonitor() - 1, dir, WindowLayoutConfig.MAX_WINDOWS) + 1;
             cfg.setWindowsPerMonitor(next);
             cfg.save();
             btn.setMessage(countText());

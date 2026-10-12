@@ -215,10 +215,9 @@ public class SimMapEditorScreen extends Screen {
         int wSlider = aAvail * 27 / 100;
         int wGen = aAvail - wFloor - wSlider * 2;
         int ax = panelX + 14;
-        addRenderableWidget(SettingsButtonWidget.builder(
-                Component.literal("§6" + floor.label), b -> {
-                    var all = SimFloorGen.Floor.values();
-                    floor = all[(floor.ordinal() + 1) % all.length];
+        addRenderableWidget(SettingsButtonWidget.cycling(
+                Component.literal("§6" + floor.label), (b, dir) -> {
+                    floor = SettingsButtonWidget.step(floor, dir);
                     rebuildWidgets();
                 }).bounds(ax, ay, wFloor, 20).build());
         ax += wFloor + 6;

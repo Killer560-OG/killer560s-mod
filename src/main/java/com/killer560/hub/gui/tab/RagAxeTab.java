@@ -80,12 +80,12 @@ public class RagAxeTab extends BaseTab {
         toggle(w, contentX, y[0], half, "Mage Reduction", cfg::isMageCooldownReduction,
                 cfg::setMageCooldownReduction, cfg);
         if (cfg.isMageCooldownReduction()) {
-            w.add(SettingsButtonWidget.builder(
+            w.add(SettingsButtonWidget.cycling(
                     Component.literal(String.format(Locale.US, "Mage Cut: §6%.0f%%",
                             cfg.getMageCooldownReductionPercent())),
-                    btn -> {
-                        float next = cfg.getMageCooldownReductionPercent() + 5f;
-                        cfg.setMageCooldownReductionPercent(next > 50f ? 0f : next);
+                    (btn, dir) -> {
+                        cfg.setMageCooldownReductionPercent((float) SettingsButtonWidget.step(
+                                cfg.getMageCooldownReductionPercent(), 5, 0, 50, dir));
                         cfg.save();
                         btn.setMessage(Component.literal(String.format(Locale.US, "Mage Cut: §6%.0f%%",
                                 cfg.getMageCooldownReductionPercent())));

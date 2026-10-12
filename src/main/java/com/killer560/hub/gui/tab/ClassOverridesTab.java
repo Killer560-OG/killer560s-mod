@@ -129,8 +129,8 @@ public class ClassOverridesTab extends BaseTab {
         String text = "§f" + name + " §7(detected: " + (detected == null ? "unknown" : colourCode(detected) + detected.displayName() + "§7") + ")";
         int labelW = Math.max(1, width - OVERRIDE_W - REMOVE_W - GAP * 2);
         w.add(new StringWidget(x, y[0] + 3, labelW, 12, Component.literal(text), Minecraft.getInstance().font));
-        w.add(SettingsButtonWidget.builder(overrideText(override), btn -> {
-                    DungeonClass next = next(override);
+        w.add(SettingsButtonWidget.cycling(overrideText(override), (btn, dir) -> {
+                    DungeonClass next = step(override, dir);
                     if (next == null) {
                         forget(name);
                     } else {
@@ -159,9 +159,8 @@ public class ClassOverridesTab extends BaseTab {
         ign.setValue(pendingIgn);
         ign.setResponder(text -> pendingIgn = text);
         w.add(ign);
-        w.add(SettingsButtonWidget.builder(Component.literal("Override Class: " + colourCode(pendingClass) + pendingClass.displayName()), btn -> {
-                    DungeonClass n = next(pendingClass);
-                    pendingClass = n == null ? DungeonClass.values()[0] : n;
+        w.add(SettingsButtonWidget.cycling(Component.literal("Override Class: " + colourCode(pendingClass) + pendingClass.displayName()), (btn, dir) -> {
+                    pendingClass = SettingsButtonWidget.step(pendingClass, dir);
                     btn.setMessage(Component.literal("Override Class: " + colourCode(pendingClass) + pendingClass.displayName()));
                 }).bounds(x + boxW + GAP, y[0], classW, ROW).build());
         w.add(SettingsButtonWidget.builder(Component.literal("Add Override"), btn -> {
@@ -257,12 +256,14 @@ public class ClassOverridesTab extends BaseTab {
 
     /** None -> Mage -> Tank -> Healer -> Archer -> Berserker -> None (enum order), null meaning "no override". */
     public static DungeonClass next(DungeonClass current) {
+        return step(current, 1);
+    }
+
+    /** {@link #next} either way round the same ring: {@code dir} +1 forward, -1 back (None sits between Berserker and Mage). */
+    public static DungeonClass step(DungeonClass current, int dir) {
         DungeonClass[] all = DungeonClass.values();
-        if (current == null) {
-            return all[0];
-        }
-        int i = current.ordinal() + 1;
-        return i >= all.length ? null : all[i];
+        int i = Math.floorMod((current == null ? 0 : current.ordinal() + 1) + dir, all.length + 1);
+        return i == 0 ? null : all[i - 1];
     }
 
     private static Component overrideText(DungeonClass override) {

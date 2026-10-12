@@ -112,7 +112,11 @@ public final class IceFillSolverConfig {
 
     /** Cycles to the next color in {@link LineColor#values()}, wrapping around. */
     public void cycleLineColor() {
+        cycleLineColor(1);
+    }
+
+    public void cycleLineColor(int dir) {
         LineColor[] values = LineColor.values();
-        lineColor = values[(lineColor.ordinal() + 1) % values.length];
+        lineColor = values[Math.floorMod(lineColor.ordinal() + dir, values.length)];
     }
 }

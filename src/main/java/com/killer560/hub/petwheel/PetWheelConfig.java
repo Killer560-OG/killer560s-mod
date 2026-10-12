@@ -223,6 +223,10 @@ public final class PetWheelConfig {
     }
 
     public void cycleMode() {
+        cycleMode(1);
+    }
+
+    public void cycleMode(int dir) {
         mode = mode == InteractionMode.HOLD_RELEASE ? InteractionMode.PRESS_CLICK : InteractionMode.HOLD_RELEASE;
     }
 

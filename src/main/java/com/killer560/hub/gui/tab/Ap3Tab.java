@@ -254,7 +254,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         y[0] += ROW + GAP;
         toggleCell(w, x, y[0], half, "Show Node Details", cfg::isShowNodeDetails, cfg::setShowNodeDetails);
         // "toggleable for color": the node's own colour (so the number matches its box) or one fixed colour.
-        w.add(SettingsButtonWidget.builder(labelColorModeText(cfg), btn -> {
+        w.add(SettingsButtonWidget.cycling(labelColorModeText(cfg), (btn, dir) -> {
                     cfg.setLabelUseNodeColor(!cfg.isLabelUseNodeColor());
                     cfg.save();
                     rebuild.run();

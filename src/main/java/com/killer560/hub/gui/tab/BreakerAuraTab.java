@@ -195,13 +195,13 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
 
         // How the picks are drawn (2026-10-06): Highlight (the original, depth-tested) or Waypoint (through walls,
         // out to the render distance), each as Outline / Fill / Filled Outline.
-        widgets.add(SettingsButtonWidget.builder(displayText(cfg), btn -> {
-                    cfg.setBreakerAuraDisplay(cfg.getBreakerAuraDisplay().next());
+        widgets.add(SettingsButtonWidget.cycling(displayText(cfg), (btn, dir) -> {
+                    cfg.setBreakerAuraDisplay(SettingsButtonWidget.step(cfg.getBreakerAuraDisplay(), dir));
                     cfg.save();
                     btn.setMessage(displayText(cfg));
                 }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
-                    cfg.setBreakerAuraStyle(cfg.getBreakerAuraStyle().next());
+        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
+                    cfg.setBreakerAuraStyle(SettingsButtonWidget.step(cfg.getBreakerAuraStyle(), dir));
                     cfg.save();
                     btn.setMessage(styleText(cfg));
                 }).bounds(col2bX, y, col2W, 18).build());

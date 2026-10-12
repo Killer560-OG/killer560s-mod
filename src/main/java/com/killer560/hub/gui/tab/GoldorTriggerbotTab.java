@@ -71,14 +71,14 @@ public class GoldorTriggerbotTab extends BaseTab {
         });
         y += ROW + GAP;
 
-        widgets.add(SettingsButtonWidget.builder(clickTypeText(cfg), btn -> {
-                    cfg.cycleClickType();
+        widgets.add(SettingsButtonWidget.cycling(clickTypeText(cfg), (btn, dir) -> {
+                    cfg.cycleClickType(dir);
                     cfg.save();
                     btn.setMessage(clickTypeText(cfg));
                 }).bounds(contentX, y, halfW, ROW).build());
-        widgets.add(SettingsButtonWidget.builder(aimDelayText(cfg), btn -> {
-                    int next = cfg.getAimDelayMs() + 25;
-                    cfg.setAimDelayMs(next > GoldorTriggerbotConfig.MAX_AIM_DELAY_MS ? 0 : next);
+        widgets.add(SettingsButtonWidget.cycling(aimDelayText(cfg), (btn, dir) -> {
+                    cfg.setAimDelayMs((int) SettingsButtonWidget.step(cfg.getAimDelayMs(), 25, 0,
+                            GoldorTriggerbotConfig.MAX_AIM_DELAY_MS, dir));
                     cfg.save();
                     btn.setMessage(aimDelayText(cfg));
                 }).bounds(contentX + halfW + GAP, y, rightW, ROW).build());

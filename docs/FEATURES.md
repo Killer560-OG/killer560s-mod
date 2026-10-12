@@ -2,7 +2,7 @@
 
 The detailed version of the feature list in the README. Keep this file up to date whenever a feature is added or changed - the public features Doc is generated from it.
 
-> **Menu:** every feature sits in its own category in the mod menu (`/killer560`): Home, Profiles, General (which holds the Custom Crosshair), Display, Chat, Social, Items, Hud Elements, Helpers and Dungeon. Each feature is its own tab in its category (only Secrets and Puzzle Solvers group several), and in the cheat build every cheat-only tab sits at the bottom of its category, with cheat-only settings at the bottom of their tab under a red header. The old New staging tab was removed on 2026-10-07.
+> **Menu:** every feature sits in its own category in the mod menu (`/killer560`): Home, Profiles, General (which holds the Custom Crosshair), Display, Chat, Social, Items, Hud Elements, Helpers and Dungeon. Each feature is its own tab in its category (only Secrets and Puzzle Solvers group several), and in the cheat build every cheat-only tab sits at the bottom of its category, with cheat-only settings at the bottom of their tab under a red header. The old New staging tab was removed on 2026-10-07. A setting that steps through several values (a mode, style, order, colour preset) goes forward on a left click and back on a right click, wrapping round at both ends.
 
 **Chat**
 - Translate — auto-translates your chat messages into another language before sending

@@ -203,8 +203,8 @@ public class HealthAndManaBarsTab extends BaseTab {
                 ps::save, null);
         y[0] += ROW;
         // Vanilla's held-item name over the hotbar (2026-10-07): Shown / Hidden Over Bars (the default) / Hidden.
-        widgets.add(SettingsButtonWidget.builder(heldItemNameText(ps), btn -> {
-                    ps.setHeldItemName(ps.getHeldItemName().next());
+        widgets.add(SettingsButtonWidget.cycling(heldItemNameText(ps), (btn, dir) -> {
+                    ps.setHeldItemName(SettingsButtonWidget.step(ps.getHeldItemName(), dir));
                     ps.save();
                     btn.setMessage(heldItemNameText(ps));
                 }).bounds(contentX, y[0], contentWidth, ROW_H).build());

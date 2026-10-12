@@ -218,10 +218,10 @@ public class AutoRoutesEditScreen extends Screen {
 
         y = heading("Node", y);
         int half = (w - GAP) / 2;
-        button(typeLabel(), b -> {
-            type = cycleType(type);
+        this.addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(typeLabel()), (b, dir) -> {
+            type = cycleType(type, dir);
             rebuildWidgets();
-        }, x, y, half, ROW);
+        }).bounds(x, y, half, ROW).build());
         button(onOff("Start Node", start), b -> {
             start = !start;
             b.setMessage(onOff("Start Node", start));
@@ -317,10 +317,10 @@ public class AutoRoutesEditScreen extends Screen {
         return (type == RouteNode.Type.CRYPT ? "Await Crypts: " : "Await Secrets: ") + v + (awaitOpen ? " §7▲" : " §7▼");
     }
 
-    private static RouteNode.Type cycleType(RouteNode.Type current) {
+    private static RouteNode.Type cycleType(RouteNode.Type current, int dir) {
         for (int i = 0; i < TYPES.length; i++) {
             if (TYPES[i] == current) {
-                return TYPES[(i + 1) % TYPES.length];
+                return TYPES[SettingsButtonWidget.step(i, dir, TYPES.length)];
             }
         }
         return TYPES[0]; // a legacy type (start / await / ...) steps onto the first real one

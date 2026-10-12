@@ -42,9 +42,8 @@ public class SecretSoundTab extends BaseTab {
             return w;
         }
 
-        w.add(SettingsButtonWidget.builder(soundLabel(cfg), btn -> {
-                    SecretSound.SoundChoice[] all = SecretSound.SoundChoice.values();
-                    SecretSound.SoundChoice next = all[(SecretSound.SoundChoice.byName(cfg.secretSoundId).ordinal() + 1) % all.length];
+        w.add(SettingsButtonWidget.cycling(soundLabel(cfg), (btn, dir) -> {
+                    SecretSound.SoundChoice next = SettingsButtonWidget.step(SecretSound.SoundChoice.byName(cfg.secretSoundId), dir);
                     cfg.secretSoundId = next.name();
                     cfg.save();
                     btn.setMessage(soundLabel(cfg));

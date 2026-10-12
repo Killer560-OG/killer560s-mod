@@ -52,7 +52,7 @@ public class AutoExperimentsTab extends BaseTab implements KeyCaptureTab {
         }
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(autoText(), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(autoText(), (btn, dir) -> {
                     ExperimentsConfig c = ExperimentsConfig.getInstance();
                     c.setAutonomousMode(!c.isAutonomousMode());
                     c.save();

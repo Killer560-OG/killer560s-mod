@@ -66,8 +66,8 @@ public class ThornTab extends BaseTab {
         targetRow(widgets, contentX, col2X, y, colW, "Spirit Bow Highlight", cfg::getBowEspRaw, cfg::setBowEsp,
                 "Spirit Bow", cfg::getBowColor, cfg::setBowColor, ThornConfig.DEFAULT_BOW_COLOR);
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Thorn ESP Style: §b" + cfg.getStyle().label), btn -> {
-                    cfg.cycleStyle();
+        widgets.add(SettingsButtonWidget.cycling(Component.literal("Thorn ESP Style: §b" + cfg.getStyle().label), (btn, dir) -> {
+                    cfg.cycleStyle(dir);
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());

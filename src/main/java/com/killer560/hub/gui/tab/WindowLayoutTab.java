@@ -48,16 +48,16 @@ public class WindowLayoutTab extends BaseTab {
             }
         });
 
-        widgets.add(SettingsButtonWidget.builder(monitorText(cfg), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(monitorText(cfg), (btn, dir) -> {
                     List<WindowMonitors.MonitorInfo> monitors = WindowMonitors.list();
-                    // Cycle Auto -> 1 -> 2 -> ... -> Auto.
+                    // Cycle Auto -> 1 -> 2 -> ... -> Auto (right click the other way).
                     WindowMonitors.MonitorInfo current = cfg.isMonitorAuto() ? null
                             : WindowMonitors.find(monitors, cfg.getMonitorIndex(), cfg.getMonitorDevice(), cfg.getMonitorName());
-                    int next = current == null ? 0 : current.index() + 1;
-                    if (next >= monitors.size()) {
+                    int at = SettingsButtonWidget.step(current == null ? 0 : current.index() + 1, dir, monitors.size() + 1);
+                    if (at == 0) {
                         cfg.setMonitorAuto();
                     } else {
-                        cfg.setMonitor(monitors.get(next));
+                        cfg.setMonitor(monitors.get(at - 1));
                     }
                     cfg.save();
                     btn.setMessage(monitorText(cfg));

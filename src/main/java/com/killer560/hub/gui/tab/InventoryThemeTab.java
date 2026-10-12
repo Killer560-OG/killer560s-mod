@@ -60,8 +60,8 @@ public class InventoryThemeTab extends BaseTab {
 
         // Amber -> Dark -> Light, the same three as the Storage Overlay (killer560, 2026-10-07). Amber is the look this
         // had before; Dark and Light swap the orange for neutral greys.
-        widgets.add(SettingsButtonWidget.builder(themeText(cfg), btn -> {
-                    cfg.setTheme(cfg.getTheme().next());
+        widgets.add(SettingsButtonWidget.cycling(themeText(cfg), (btn, dir) -> {
+                    cfg.setTheme(SettingsButtonWidget.step(cfg.getTheme(), dir));
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
@@ -132,7 +132,7 @@ public class InventoryThemeTab extends BaseTab {
             y += 26;
         }
 
-        widgets.add(SettingsButtonWidget.builder(slotModeText(cfg), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(slotModeText(cfg), (btn, dir) -> {
                     cfg.setUseCustomSlotColor(!cfg.isUseCustomSlotColor());
                     cfg.save();
                     requestRebuild.run();

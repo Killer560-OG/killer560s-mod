@@ -123,8 +123,8 @@ public class FullBlockTab extends BaseTab {
         if (!enabled.getAsBoolean()) {
             return y + 2;
         }
-        widgets.add(SettingsButtonWidget.builder(shapeText(name, shape.get()), btn -> {
-                    setShape.accept(nextShape(shape.get(), hasFlat));
+        widgets.add(SettingsButtonWidget.cycling(shapeText(name, shape.get()), (btn, dir) -> {
+                    setShape.accept(nextShape(dir, shape.get(), hasFlat));
                     SecretsConfig.getInstance().save();
                     requestRebuild.run();
                 }).bounds(x + 10, y, 210, 20).build());
@@ -137,7 +137,15 @@ public class FullBlockTab extends BaseTab {
         return y + 2;
     }
 
-    private static SecretsConfig.Shape nextShape(SecretsConfig.Shape current, boolean hasFlat) {
+    private static SecretsConfig.Shape nextShape(int dir, SecretsConfig.Shape current, boolean hasFlat) {
+        if (dir < 0) {
+            // The same ring backwards: FULL -> FLAT (or CUSTOM without Flat) -> CUSTOM -> FULL.
+            return switch (current) {
+                case FULL -> hasFlat ? SecretsConfig.Shape.FLAT : SecretsConfig.Shape.CUSTOM;
+                case FLAT -> SecretsConfig.Shape.CUSTOM;
+                case CUSTOM -> SecretsConfig.Shape.FULL;
+            };
+        }
         return switch (current) {
             case FLAT -> SecretsConfig.Shape.FULL;
             case FULL -> SecretsConfig.Shape.CUSTOM;

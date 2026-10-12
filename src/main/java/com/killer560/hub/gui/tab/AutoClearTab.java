@@ -134,9 +134,8 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
             btn.setMessage(Component.literal("Autopilot Key: §ePress any key..."));
         }).bounds(contentX + half + GAP, y[0], right, 20).build());
         y[0] += ROW;
-        w.add(SettingsButtonWidget.builder(runModeText(cfg), btn -> {
-            AutoSecretConfig.RunMode[] all = AutoSecretConfig.RunMode.values();
-            cfg.setRunMode(all[(cfg.getRunMode().ordinal() + 1) % all.length]);
+        w.add(SettingsButtonWidget.cycling(runModeText(cfg), (btn, dir) -> {
+            cfg.setRunMode(SettingsButtonWidget.step(cfg.getRunMode(), dir));
             cfg.save();
             btn.setMessage(runModeText(cfg));
         }).bounds(contentX, y[0], half, 20).build());

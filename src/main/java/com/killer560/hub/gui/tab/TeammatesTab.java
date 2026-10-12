@@ -44,8 +44,8 @@ public class TeammatesTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
-                    cfg.cycleStyle();
+        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
+                    cfg.cycleStyle(dir);
                     cfg.save();
                     btn.setMessage(styleText(cfg));
                 }).bounds(contentX, y, colW, 18).build());

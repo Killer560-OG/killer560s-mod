@@ -315,6 +315,10 @@ public final class CheatUtilsConfig {
     public void setUltGoldorFactory(boolean v) { ultGoldorFactory = v; }
     public String getUltClassOverride() { return ultClassOverride; }
     public void cycleUltClassOverride() {
+        cycleUltClassOverride(1);
+    }
+
+    public void cycleUltClassOverride(int dir) {
         String[] order = ULT_CLASS_ORDER;
         int idx = 0;
         for (int i = 0; i < order.length; i++) {
@@ -322,7 +326,7 @@ public final class CheatUtilsConfig {
                 idx = i;
             }
         }
-        ultClassOverride = order[(idx + 1) % order.length];
+        ultClassOverride = order[Math.floorMod(idx + dir, order.length)];
     }
 
     // ---- Auto Chocolate Factory ----

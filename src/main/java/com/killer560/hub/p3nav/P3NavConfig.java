@@ -145,8 +145,12 @@ public final class P3NavConfig {
 
     public Style getGateStyle() { return gateStyle; }
     public void cycleGateStyle() {
+        cycleGateStyle(1);
+    }
+
+    public void cycleGateStyle(int dir) {
         Style[] all = Style.values();
-        gateStyle = all[(gateStyle.ordinal() + 1) % all.length];
+        gateStyle = all[Math.floorMod(gateStyle.ordinal() + dir, all.length)];
     }
 
     public float getGateLineWidth() { return gateLineWidth; }
@@ -168,8 +172,12 @@ public final class P3NavConfig {
 
     public Style getTerminalStyle() { return terminalStyle; }
     public void cycleTerminalStyle() {
+        cycleTerminalStyle(1);
+    }
+
+    public void cycleTerminalStyle(int dir) {
         Style[] all = Style.values();
-        terminalStyle = all[(terminalStyle.ordinal() + 1) % all.length];
+        terminalStyle = all[Math.floorMod(terminalStyle.ordinal() + dir, all.length)];
     }
 
     public float getTerminalLineWidth() { return terminalLineWidth; }

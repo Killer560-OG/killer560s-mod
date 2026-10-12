@@ -48,7 +48,7 @@ public class DoorHelpersTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(modeText(cfg), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
                     cfg.setAutoDoorMode(cfg.getAutoDoorMode() == DoorHelpersConfig.OpenerMode.AURA
                             ? DoorHelpersConfig.OpenerMode.TRIGGERBOT : DoorHelpersConfig.OpenerMode.AURA);
                     cfg.save();

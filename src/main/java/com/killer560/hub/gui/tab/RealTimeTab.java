@@ -94,7 +94,7 @@ public class RealTimeTab extends BaseTab {
         y += 28;
 
         boolean custom = cfg.getZoneMode() == RealTimeConfig.ZoneMode.CUSTOM;
-        widgets.add(SettingsButtonWidget.builder(zoneModeLabel(cfg), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(zoneModeLabel(cfg), (btn, dir) -> {
                     if (cfg.getZoneMode() == RealTimeConfig.ZoneMode.CUSTOM) {
                         cfg.setZoneMode(RealTimeConfig.ZoneMode.SYSTEM);
                     } else {
@@ -122,8 +122,8 @@ public class RealTimeTab extends BaseTab {
                     cycleRegion(cfg, -1);
                     requestRebuild.run();
                 }).bounds(contentX, y, arrowW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Region: " + cfg.getRegionFilter()), btn -> {
-                    cycleRegion(cfg, 1);
+        widgets.add(SettingsButtonWidget.cycling(Component.literal("Region: " + cfg.getRegionFilter()), (btn, dir) -> {
+                    cycleRegion(cfg, dir);
                     requestRebuild.run();
                 }).bounds(midX, y, midW, 18).build());
         widgets.add(SettingsButtonWidget.builder(Component.literal(">"), btn -> {
@@ -175,8 +175,8 @@ public class RealTimeTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("<"), btn ->
                 stepZone(cfg, -1, zoneButton[0], searchBox)).bounds(contentX, y, arrowW, 18).build());
-        zoneButton[0] = SettingsButtonWidget.builder(zoneLabel(cfg), btn ->
-                stepZone(cfg, 1, btn, searchBox)).bounds(midX, y, midW, 18).build();
+        zoneButton[0] = SettingsButtonWidget.cycling(zoneLabel(cfg), (btn, dir) ->
+                stepZone(cfg, dir, btn, searchBox)).bounds(midX, y, midW, 18).build();
         widgets.add(zoneButton[0]);
         widgets.add(SettingsButtonWidget.builder(Component.literal(">"), btn ->
                 stepZone(cfg, 1, zoneButton[0], searchBox)).bounds(rightX, y, arrowW, 18).build());

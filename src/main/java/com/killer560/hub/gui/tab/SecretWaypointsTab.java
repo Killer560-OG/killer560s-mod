@@ -42,17 +42,15 @@ public class SecretWaypointsTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
-                    SecretWaypointsConfig.Style[] values = SecretWaypointsConfig.Style.values();
-                    cfg.setStyle(values[(cfg.getStyle().ordinal() + 1) % values.length]);
+        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
+                    cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
                     cfg.save();
                     btn.setMessage(styleText(cfg));
                 }).bounds(contentX, y, 220, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(boxSizeText(cfg), btn -> {
-                    SecretWaypointsConfig.BoxSize[] values = SecretWaypointsConfig.BoxSize.values();
-                    cfg.setBoxSize(values[(cfg.getBoxSize().ordinal() + 1) % values.length]);
+        widgets.add(SettingsButtonWidget.cycling(boxSizeText(cfg), (btn, dir) -> {
+                    cfg.setBoxSize(SettingsButtonWidget.step(cfg.getBoxSize(), dir));
                     cfg.save();
                     btn.setMessage(boxSizeText(cfg));
                 }).bounds(contentX, y, 220, 18).build());

@@ -66,9 +66,8 @@ public class AutoFairySoulsTab extends BaseTab implements KeyCaptureTab {
                     requestRebuild.run();
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(autoModeText(cfg), btn -> {
-                    PathfindingConfig.AutoMode[] values = PathfindingConfig.AutoMode.values();
-                    cfg.setAutoMode(values[(cfg.getAutoMode().ordinal() + 1) % values.length]);
+        widgets.add(SettingsButtonWidget.cycling(autoModeText(cfg), (btn, dir) -> {
+                    cfg.setAutoMode(SettingsButtonWidget.step(cfg.getAutoMode(), dir));
                     cfg.save();
                     btn.setMessage(autoModeText(cfg));
                 }).bounds(contentX, y, contentWidth, 18).build());

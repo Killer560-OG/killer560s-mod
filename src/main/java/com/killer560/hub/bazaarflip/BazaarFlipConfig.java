@@ -156,8 +156,12 @@ public final class BazaarFlipConfig {
 
     /** Cycles to the next mode, for a one-button GUI row. */
     public void cycleRankingMode() {
+        cycleRankingMode(1);
+    }
+
+    public void cycleRankingMode(int dir) {
         RankingMode[] all = RankingMode.values();
-        rankingMode = all[(rankingMode.ordinal() + 1) % all.length];
+        rankingMode = all[Math.floorMod(rankingMode.ordinal() + dir, all.length)];
     }
 
     // ---- floors and targets ----

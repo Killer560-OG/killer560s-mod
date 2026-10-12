@@ -119,18 +119,16 @@ public class DungeonQueueTab extends BaseTab {
             return widgets;
         }
         widgets.add(toggle("Show Missing", pf::isShowMissing, pf::setShowMissing, pf::save, contentX, y, colW));
-        widgets.add(SettingsButtonWidget.builder(valueText("PB Mode", pf.getPbMode().label), btn -> {
-                    PbMode[] modes = PbMode.values();
-                    pf.setPbMode(modes[(pf.getPbMode().ordinal() + 1) % modes.length]);
+        widgets.add(SettingsButtonWidget.cycling(valueText("PB Mode", pf.getPbMode().label), (btn, dir) -> {
+                    pf.setPbMode(SettingsButtonWidget.step(pf.getPbMode(), dir));
                     pf.save();
                     btn.setMessage(valueText("PB Mode", pf.getPbMode().label));
                 }).bounds(colBX, y, colW, 18).build());
         y += 20;
         // Label renamed from "Compact" to "Party Finder style" (killer560 7.2) - the persisted CompactMode
         // enum values (NONE/STYLE1/STYLE2/CUSTOM) are untouched, so an existing selection still loads.
-        widgets.add(SettingsButtonWidget.builder(valueText("Party Finder style", pf.getCompactMode().label), btn -> {
-                    CompactMode[] modes = CompactMode.values();
-                    pf.setCompactMode(modes[(pf.getCompactMode().ordinal() + 1) % modes.length]);
+        widgets.add(SettingsButtonWidget.cycling(valueText("Party Finder style", pf.getCompactMode().label), (btn, dir) -> {
+                    pf.setCompactMode(SettingsButtonWidget.step(pf.getCompactMode(), dir));
                     pf.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());

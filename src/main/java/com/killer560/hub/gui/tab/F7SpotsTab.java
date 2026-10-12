@@ -94,12 +94,12 @@ public class F7SpotsTab extends BaseTab {
             }
         });
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(Component.literal("New Waypoint Phase: §b" + PHASES[newPhaseIndex]), btn -> {
-                    newPhaseIndex = (newPhaseIndex + 1) % PHASES.length;
+        widgets.add(SettingsButtonWidget.cycling(Component.literal("New Waypoint Phase: §b" + PHASES[newPhaseIndex]), (btn, dir) -> {
+                    newPhaseIndex = SettingsButtonWidget.step(newPhaseIndex, dir, PHASES.length);
                     requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(Component.literal("New Waypoint Floor: §b" + FLOORS[newFloorIndex]), btn -> {
-                    newFloorIndex = (newFloorIndex + 1) % FLOORS.length;
+        widgets.add(SettingsButtonWidget.cycling(Component.literal("New Waypoint Floor: §b" + FLOORS[newFloorIndex]), (btn, dir) -> {
+                    newFloorIndex = SettingsButtonWidget.step(newFloorIndex, dir, FLOORS.length);
                     requestRebuild.run();
                 }).bounds(col2X, y, colW, 18).build());
         y += 22;

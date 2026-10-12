@@ -58,15 +58,13 @@ public final class AutoClearSettings {
             return;
         }
 
-        widgets.add(SettingsButtonWidget.builder(modeText(cfg), btn -> {
-            AutoClearConfig.Mode[] all = AutoClearConfig.Mode.values();
-            cfg.setMode(all[(cfg.getMode().ordinal() + 1) % all.length]);
+        widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
+            cfg.setMode(SettingsButtonWidget.step(cfg.getMode(), dir));
             cfg.save();
             btn.setMessage(modeText(cfg));
         }).bounds(x, y[0], half, 20).build());
-        widgets.add(SettingsButtonWidget.builder(weaponText(cfg), btn -> {
-            AutoClearConfig.Weapon[] all = AutoClearConfig.Weapon.values();
-            cfg.setWeapon(all[(cfg.getWeapon().ordinal() + 1) % all.length]);
+        widgets.add(SettingsButtonWidget.cycling(weaponText(cfg), (btn, dir) -> {
+            cfg.setWeapon(SettingsButtonWidget.step(cfg.getWeapon(), dir));
             cfg.save();
             btn.setMessage(weaponText(cfg));
         }).bounds(x + half + GAP, y[0], right, 20).build());

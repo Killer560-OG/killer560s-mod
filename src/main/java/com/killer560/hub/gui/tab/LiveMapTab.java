@@ -111,8 +111,8 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                 SectionHeaders.header("Recolouring", false), Minecraft.getInstance().font));
         y += 16;
         Supplier<Component> themeText = () -> Component.literal("Map Theme: " + LiveMapConfig.THEME_NAMES[cfg.getMapTheme()]);
-        widgets.add(SettingsButtonWidget.builder(themeText.get(), btn -> {
-                    cfg.applyTheme((cfg.getMapTheme() + 1) % LiveMapConfig.THEME_NAMES.length);
+        widgets.add(SettingsButtonWidget.cycling(themeText.get(), (btn, dir) -> {
+                    cfg.applyTheme(SettingsButtonWidget.step(cfg.getMapTheme(), dir, LiveMapConfig.THEME_NAMES.length));
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());

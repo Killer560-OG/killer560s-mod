@@ -91,9 +91,9 @@ public class LeapOrderScreen extends Screen {
             rebuild(); // the class buttons follow the names
         }).bounds(cx - 99, by, 100, 20).build());
         // The default order (2026-10-09): where every teammate not moved by hand goes, by their class.
-        addRenderableWidget(SettingsButtonWidget.builder(defaultOrderText(), btn -> {
+        addRenderableWidget(SettingsButtonWidget.cycling(defaultOrderText(), (btn, dir) -> {
             LeapMenuConfig cfg = LeapMenuConfig.getInstance();
-            cfg.setDefaultOrder(cfg.getDefaultOrder().next());
+            cfg.setDefaultOrder(SettingsButtonWidget.step(cfg.getDefaultOrder(), dir));
             cfg.save();
             rebuild();
         }).bounds(cx - 80, 28, 160, 16).build());
@@ -123,8 +123,8 @@ public class LeapOrderScreen extends Screen {
             if (name == null || b[3] < 34) {
                 continue;
             }
-            addRenderableWidget(SettingsButtonWidget.builder(classButtonText(name), btn -> {
-                        cycleOverride(name);
+            addRenderableWidget(SettingsButtonWidget.cycling(classButtonText(name), (btn, dir) -> {
+                        cycleOverride(name, dir);
                         rebuild();
                     }).bounds(b[0] + 4, b[1] + b[3] - 17, b[2] - 8, 14).build());
         }
@@ -142,9 +142,9 @@ public class LeapOrderScreen extends Screen {
         return Component.literal("Class: " + cls + (override != null ? " \u00a78(override)" : ""));
     }
 
-    private static void cycleOverride(String name) {
+    private static void cycleOverride(String name, int dir) {
         DungeonClass override = ClassOverrides.has(name) ? ClassOverrides.classOf(name, null) : null;
-        DungeonClass next = com.killer560.hub.gui.tab.ClassOverridesTab.next(override);
+        DungeonClass next = com.killer560.hub.gui.tab.ClassOverridesTab.step(override, dir);
         if (next == null) {
             ClassOverrides.clear(name);
         } else {
@@ -261,7 +261,7 @@ public class LeapOrderScreen extends Screen {
             String[] layout = currentLayout();
             if (event.button() == 1) {
                 if (layout[spot] != null) {
-                    cycleOverride(layout[spot]);
+                    cycleOverride(layout[spot], 1);
                     rebuild();
                 }
                 return true;

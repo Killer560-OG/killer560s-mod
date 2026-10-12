@@ -146,7 +146,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         // -PtestingBuild jar; elsewhere Start From Start Node Only takes the full width.
         boolean modeRow = AutoRoutesConfig.legitModeSelectable();
         if (modeRow) {
-            w.add(SettingsButtonWidget.builder(modeText(cfg), btn -> {
+            w.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
                         cfg.setLegitMode(!cfg.isLegitMode());
                         cfg.save();
                         requestRebuild.run();
@@ -168,17 +168,15 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         // killer560, 2026-10-05: work while the Interactive Map is open (not while it is warping you).
         toggleCell(w, contentX, y[0], half, "Run While Map Open", cfg::isRunWhileMapOpen, cfg::setRunWhileMapOpen, null);
         // killer560, 2026-10-05: after he clicks a trapped chest, kill the mimic - Off / Hyperion / Spirit Sceptre.
-        w.add(SettingsButtonWidget.builder(killMimicText(cfg), btn -> {
-                    AutoRoutesConfig.KillMimic[] all = AutoRoutesConfig.KillMimic.values();
-                    cfg.setKillMimic(all[(cfg.getKillMimic().ordinal() + 1) % all.length]);
+        w.add(SettingsButtonWidget.cycling(killMimicText(cfg), (btn, dir) -> {
+                    cfg.setKillMimic(SettingsButtonWidget.step(cfg.getKillMimic(), dir));
                     cfg.save();
                     btn.setMessage(killMimicText(cfg));
                 }).bounds(contentX + half + GAP, y[0], right, 20).build());
         y[0] += 24;
         // killer560, 2026-10-05: what a crypt node attacks with.
-        w.add(SettingsButtonWidget.builder(cryptWeaponText(cfg), btn -> {
-                    AutoRoutesConfig.CryptWeapon[] all = AutoRoutesConfig.CryptWeapon.values();
-                    cfg.setCryptWeapon(all[(cfg.getCryptWeapon().ordinal() + 1) % all.length]);
+        w.add(SettingsButtonWidget.cycling(cryptWeaponText(cfg), (btn, dir) -> {
+                    cfg.setCryptWeapon(SettingsButtonWidget.step(cfg.getCryptWeapon(), dir));
                     cfg.save();
                     btn.setMessage(cryptWeaponText(cfg));
                 }).bounds(contentX, y[0], half, 20).build());
@@ -287,9 +285,8 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         header(w, x, y, width, "Render Style");
         int right = Math.max(1, width - half - GAP);
         // Cycles Box / Filled Box / Cylinder (QUOI's three) - whatever the config enum declares, in its order.
-        w.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
-                    AutoRoutesConfig.RenderStyle[] all = AutoRoutesConfig.RenderStyle.values();
-                    cfg.setRenderStyle(all[(cfg.getRenderStyle().ordinal() + 1) % all.length]);
+        w.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
+                    cfg.setRenderStyle(SettingsButtonWidget.step(cfg.getRenderStyle(), dir));
                     cfg.save();
                     btn.setMessage(styleText(cfg));
                 }).bounds(x, y[0], half, 20).build());
@@ -305,13 +302,13 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         y[0] += 24;
         // killer560, 2026-10-06: "have an option under auto routes for it to be waypoints or highlights" - how a
         // breaker node's picked blocks are drawn in edit mode, Breaker Aura's Display and Box Style for these blocks.
-        w.add(SettingsButtonWidget.builder(breakerDisplayText(cfg), btn -> {
-                    cfg.setBreakerDisplay(cfg.getBreakerDisplay().next());
+        w.add(SettingsButtonWidget.cycling(breakerDisplayText(cfg), (btn, dir) -> {
+                    cfg.setBreakerDisplay(SettingsButtonWidget.step(cfg.getBreakerDisplay(), dir));
                     cfg.save();
                     btn.setMessage(breakerDisplayText(cfg));
                 }).bounds(x, y[0], half, 20).build());
-        w.add(SettingsButtonWidget.builder(breakerStyleText(cfg), btn -> {
-                    cfg.setBreakerStyle(cfg.getBreakerStyle().next());
+        w.add(SettingsButtonWidget.cycling(breakerStyleText(cfg), (btn, dir) -> {
+                    cfg.setBreakerStyle(SettingsButtonWidget.step(cfg.getBreakerStyle(), dir));
                     cfg.save();
                     btn.setMessage(breakerStyleText(cfg));
                 }).bounds(x + half + GAP, y[0], right, 20).build());

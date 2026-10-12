@@ -90,6 +90,8 @@ class's `load` also goes in `ProfileManager.reloadAllConfigs`, or applying a pro
 A new feature gets its name in the README list and its full text in `docs/FEATURES.md`, then the features
 Google Doc is regenerated. Sharing and receiving settings default ON. The GUI is orange-themed. Never carry
 his typos into a command, label or alias.
+A setting that steps through values is built with `SettingsButtonWidget.cycling(label, (btn, dir) -> ...)` and its
+`step` helpers: left click forward, right click back, wrapping (killer560, 2026-10-11); testkit 806 finds them by `isCycling()`.
 
 Menu placement (killer560, 2026-10-07): every feature is its own tab in its category - no combined folders (only
 Secrets and Puzzle Solvers group tabs, at his request). Cheat-only tabs go in one block at the BOTTOM of their

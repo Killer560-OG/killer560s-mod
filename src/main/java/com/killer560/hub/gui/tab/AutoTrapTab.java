@@ -69,7 +69,7 @@ public class AutoTrapTab extends BaseTab {
             }
             y += 2;
             AutoTrap.Mode mode = AutoTrap.selectedMode(trap);
-            w.add(SettingsButtonWidget.builder(Component.literal("Mode: §e" + mode.label()), btn -> {
+            w.add(SettingsButtonWidget.cycling(Component.literal("Mode: §e" + mode.label()), (btn, dir) -> {
                 AutoTrap.setSelectedMode(trap, mode == AutoTrap.Mode.FULL ? AutoTrap.Mode.CLEARED : AutoTrap.Mode.FULL);
                 requestRebuild.run();
             }).bounds(contentX, y, third, 20).build());

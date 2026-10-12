@@ -84,8 +84,8 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(Component.literal("Press any key/button..."));
                 }).bounds(contentX, y, col2W, 18).build());
 
-        widgets.add(SettingsButtonWidget.builder(modeText(cfg), btn -> {
-                    cfg.cycleMode();
+        widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
+                    cfg.cycleMode(dir);
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(col2bX, y, col2W, 18).build());

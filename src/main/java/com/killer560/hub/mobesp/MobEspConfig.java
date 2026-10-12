@@ -314,14 +314,22 @@ public final class MobEspConfig {
     // ---- Render ----
     public Style getStyle() { return style; }
     public void cycleStyle() {
+        cycleStyle(1);
+    }
+
+    public void cycleStyle(int dir) {
         Style[] all = Style.values();
-        style = all[(style.ordinal() + 1) % all.length];
+        style = all[Math.floorMod(style.ordinal() + dir, all.length)];
     }
 
     public WitherStyle getWitherHighlightStyle() { return witherHighlightStyle; }
     public void cycleWitherHighlightStyle() {
+        cycleWitherHighlightStyle(1);
+    }
+
+    public void cycleWitherHighlightStyle(int dir) {
         WitherStyle[] all = WitherStyle.values();
-        witherHighlightStyle = all[(witherHighlightStyle.ordinal() + 1) % all.length];
+        witherHighlightStyle = all[Math.floorMod(witherHighlightStyle.ordinal() + dir, all.length)];
     }
 
     public float getLineWidth() { return lineWidth; }

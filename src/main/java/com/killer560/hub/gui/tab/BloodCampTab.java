@@ -132,15 +132,15 @@ public class BloodCampTab extends BaseTab {
 
         if (cfg.isCountdownStartSound() || cfg.isKillSound()) {
             if (cfg.isCountdownStartSound()) {
-                widgets.add(SettingsButtonWidget.builder(startSoundText(cfg), btn -> {
-                            cfg.setCountdownStartSoundId(nextSound(cfg.getCountdownStartSoundId()));
+                widgets.add(SettingsButtonWidget.cycling(startSoundText(cfg), (btn, dir) -> {
+                            cfg.setCountdownStartSoundId(nextSound(dir, cfg.getCountdownStartSoundId()));
                             cfg.save();
                             btn.setMessage(startSoundText(cfg));
                         }).bounds(col2aX, y, col2W, 18).build());
             }
             if (cfg.isKillSound()) {
-                widgets.add(SettingsButtonWidget.builder(killSoundText(cfg), btn -> {
-                            cfg.setKillSoundId(nextSound(cfg.getKillSoundId()));
+                widgets.add(SettingsButtonWidget.cycling(killSoundText(cfg), (btn, dir) -> {
+                            cfg.setKillSoundId(nextSound(dir, cfg.getKillSoundId()));
                             cfg.save();
                             btn.setMessage(killSoundText(cfg));
                         }).bounds(col2bX, y, col2W, 18).build());
@@ -164,10 +164,8 @@ public class BloodCampTab extends BaseTab {
         return widgets;
     }
 
-    private static String nextSound(String id) {
-        com.killer560.hub.dungeonalerts.SecretSound.SoundChoice[] all =
-                com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.values();
-        return all[(com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(id).ordinal() + 1) % all.length].name();
+    private static String nextSound(int dir, String id) {
+        return SettingsButtonWidget.step(com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(id), dir).name();
     }
 
     private static Component startSoundText(BloodCampConfig cfg) {

@@ -53,8 +53,8 @@ public class SpringBootsTab extends BaseTab {
                                     cfg.save();
                                 }))).bounds(contentX, y, contentWidth, 18).build());
                 y += 22;
-                w.add(SettingsButtonWidget.builder(styleLabel(cfg), btn -> {
-                            cfg.springBootsBoxStyle = cfg.springBootsBoxStyle.next();
+                w.add(SettingsButtonWidget.cycling(styleLabel(cfg), (btn, dir) -> {
+                            cfg.springBootsBoxStyle = SettingsButtonWidget.step(cfg.springBootsBoxStyle, dir);
                             cfg.save();
                             btn.setMessage(styleLabel(cfg));
                         }).bounds(contentX, y, contentWidth, 18).build());

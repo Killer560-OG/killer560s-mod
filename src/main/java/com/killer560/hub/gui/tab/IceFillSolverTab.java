@@ -41,8 +41,8 @@ public class IceFillSolverTab extends BaseTab {
         y += 22;
 
         // killer560, 2026-09-20: "ice fill's line shouldn't be blue, hard to see - make it configurable".
-        widgets.add(SettingsButtonWidget.builder(colorLabel(cfg.getLineColor()), btn -> {
-                    cfg.cycleLineColor();
+        widgets.add(SettingsButtonWidget.cycling(colorLabel(cfg.getLineColor()), (btn, dir) -> {
+                    cfg.cycleLineColor(dir);
                     cfg.save();
                     btn.setMessage(colorLabel(cfg.getLineColor()));
                 }).bounds(contentX, y, contentWidth, 18).build());

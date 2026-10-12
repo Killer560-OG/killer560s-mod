@@ -44,8 +44,8 @@ public class AutoUltTab extends BaseTab {
 
         toggle(w, contentX, y, "On Maxor Enraged", cfg::isUltMaxorEnraged, cfg::setUltMaxorEnraged, null);
         toggle(w, contentX, y, "On Goldor Factory Destroyed", cfg::isUltGoldorFactory, cfg::setUltGoldorFactory, null);
-        w.add(SettingsButtonWidget.builder(classText(cfg), btn -> {
-            cfg.cycleUltClassOverride();
+        w.add(SettingsButtonWidget.cycling(classText(cfg), (btn, dir) -> {
+            cfg.cycleUltClassOverride(dir);
             cfg.save();
             btn.setMessage(classText(cfg));
         }).bounds(contentX, y[0], BTN_W, 20).build());

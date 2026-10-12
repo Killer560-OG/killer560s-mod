@@ -34,9 +34,9 @@ public class AutoUpdateTab extends BaseTab {
                 SectionHeaders.header("Auto Update", false), Minecraft.getInstance().font));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(channelText(), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(channelText(), (btn, dir) -> {
                     AutoUpdateConfig cfg = AutoUpdateConfig.getInstance();
-                    cfg.setChannel(cfg.getChannel().next());
+                    cfg.setChannel(SettingsButtonWidget.step(cfg.getChannel(), dir));
                     cfg.save();
                     btn.setMessage(channelText());
                 }).bounds(contentX, y, half, 20).build());

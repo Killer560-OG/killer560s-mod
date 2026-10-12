@@ -64,8 +64,8 @@ public class WitherDoorsTab extends BaseTab {
 
         // Style and fill (killer560, 2026-10-07: "make it so wither doors also have a fill color option"). Always shown,
         // whatever the style, so the rows never move under the cursor when the style is cycled.
-        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
-                    cfg.setStyle(cfg.getStyle().next());
+        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
+                    cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
                     cfg.save();
                     btn.setMessage(styleText(cfg));
                 }).bounds(col2aX, y, col2W, 18).build());
@@ -86,7 +86,7 @@ public class WitherDoorsTab extends BaseTab {
         });
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(fillModeText(cfg), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(fillModeText(cfg), (btn, dir) -> {
                     cfg.setCustomFillColor(!cfg.isCustomFillColor());
                     cfg.save();
                     btn.setMessage(fillModeText(cfg));

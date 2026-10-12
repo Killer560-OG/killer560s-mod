@@ -75,8 +75,8 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
-                    cfg.setStyle(nextStyle(cfg.getStyle()));
+        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
+                    cfg.setStyle(nextStyle(dir, cfg.getStyle()));
                     cfg.save();
                     btn.setMessage(styleText(cfg));
                 }).bounds(col2aX, y, col2W, 18).build());
@@ -178,9 +178,8 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         return widgets;
     }
 
-    private static SimonSaysConfig.Style nextStyle(SimonSaysConfig.Style style) {
-        SimonSaysConfig.Style[] values = SimonSaysConfig.Style.values();
-        return values[(style.ordinal() + 1) % values.length];
+    private static SimonSaysConfig.Style nextStyle(int dir, SimonSaysConfig.Style style) {
+        return SettingsButtonWidget.step(style, dir);
     }
 
     private static Component styleText(SimonSaysConfig cfg) {

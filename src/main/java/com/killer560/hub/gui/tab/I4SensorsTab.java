@@ -66,15 +66,14 @@ public class I4SensorsTab extends BaseTab {
         y += 22;
 
         if (cfg.isAutoI4Enabled()) {
-            widgets.add(SettingsButtonWidget.builder(rotateText(cfg), btn -> {
+            widgets.add(SettingsButtonWidget.cycling(rotateText(cfg), (btn, dir) -> {
                         cfg.setAutoI4Rotate(!cfg.isAutoI4Rotate());
                         cfg.save();
                         requestRebuild.run();
                     }).bounds(col2aX, y, col2W, 18).build());
 
-            widgets.add(SettingsButtonWidget.builder(weaponText(cfg), btn -> {
-                        I4SensorsConfig.Weapon[] all = I4SensorsConfig.Weapon.values();
-                        cfg.setAutoI4Weapon(all[(cfg.getAutoI4Weapon().ordinal() + 1) % all.length]);
+            widgets.add(SettingsButtonWidget.cycling(weaponText(cfg), (btn, dir) -> {
+                        cfg.setAutoI4Weapon(SettingsButtonWidget.step(cfg.getAutoI4Weapon(), dir));
                         cfg.save();
                         requestRebuild.run();
                     }).bounds(col2bX, y, col2W, 18).build());
@@ -172,8 +171,8 @@ public class I4SensorsTab extends BaseTab {
                         requestRebuild.run();
                     }).bounds(cfg.isAutoMask() ? col2aX : contentX, y, cfg.isAutoMask() ? col2W : contentWidth, 18).build());
             if (cfg.isAutoMask()) {
-                widgets.add(SettingsButtonWidget.builder(orderText(cfg), btn -> {
-                            cfg.setMaskOrderIndex(cfg.getMaskOrderIndex() + 1);
+                widgets.add(SettingsButtonWidget.cycling(orderText(cfg), (btn, dir) -> {
+                            cfg.setMaskOrderIndex(cfg.getMaskOrderIndex() + dir);
                             cfg.save();
                             btn.setMessage(orderText(cfg));
                         }).bounds(col2bX, y, col2W, 18).build());

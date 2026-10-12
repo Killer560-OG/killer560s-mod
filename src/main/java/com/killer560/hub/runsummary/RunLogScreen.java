@@ -106,9 +106,9 @@ public class RunLogScreen extends Screen {
 
         if (mode == Mode.DUNGEONS) {
             if (selected == null) {
-                addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Floor: " + floorFilter), btn -> {
+                addRenderableWidget(SettingsButtonWidget.cycling(Component.literal("Floor: " + floorFilter), (btn, dir) -> {
                     int i = floors.indexOf(floorFilter);
-                    floorFilter = floors.get((i + 1 + floors.size()) % floors.size());
+                    floorFilter = floors.get(SettingsButtonWidget.step(i, dir, floors.size()));
                     scroll = 0;
                     rebuildWidgets();
                 }).bounds(panelX + panelW - bw - 6, panelY + 34, bw, 18).build());

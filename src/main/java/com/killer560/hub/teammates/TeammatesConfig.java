@@ -132,8 +132,12 @@ public final class TeammatesConfig {
     }
 
     public void cycleStyle() {
+        cycleStyle(1);
+    }
+
+    public void cycleStyle(int dir) {
         Style[] all = Style.values();
-        style = all[(style.ordinal() + 1) % all.length];
+        style = all[Math.floorMod(style.ordinal() + dir, all.length)];
     }
 
     public float getLineWidth() {

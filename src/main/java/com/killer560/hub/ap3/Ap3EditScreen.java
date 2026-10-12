@@ -246,8 +246,8 @@ public class Ap3EditScreen extends Screen {
         }
 
         if (type.usesPrecise()) {
-            button("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT), b -> {
-                jumpMod = cycle(Ap3Node.JumpMod.values(), jumpMod);
+            cycleButton("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT), (b, dir) -> {
+                jumpMod = SettingsButtonWidget.step(jumpMod, dir);
                 b.setMessage(Component.literal("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT)));
             }, x, y, half, ROW);
             button(onOff("Precise", precise).getString(), b -> {
@@ -255,8 +255,8 @@ public class Ap3EditScreen extends Screen {
                 b.setMessage(onOff("Precise", precise));
             }, x + half + GAP, y, w - half - GAP, ROW);
         } else {
-            button("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT), b -> {
-                jumpMod = cycle(Ap3Node.JumpMod.values(), jumpMod);
+            cycleButton("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT), (b, dir) -> {
+                jumpMod = SettingsButtonWidget.step(jumpMod, dir);
                 b.setMessage(Component.literal("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT)));
             }, x, y, w, ROW);
         }
@@ -384,6 +384,12 @@ public class Ap3EditScreen extends Screen {
     /** Leading room for an icon drawn at a button's left edge (the label is centred). */
     private static String pad(ItemStack icon) {
         return icon == null ? "" : "    ";
+    }
+
+    /** A setting that steps through values: left click forward, right click back. */
+    private SettingsButtonWidget cycleButton(String label, SettingsButtonWidget.OnStep onStep, int x, int y, int w, int h) {
+        return this.addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(label), onStep)
+                .bounds(x, y, w, h).build());
     }
 
     private SettingsButtonWidget button(String label, SettingsButtonWidget.OnPress onPress, int x, int y, int w, int h) {
@@ -523,15 +529,6 @@ public class Ap3EditScreen extends Screen {
         } catch (NumberFormatException e) {
             return null;
         }
-    }
-
-    private static <T> T cycle(T[] values, T current) {
-        for (int i = 0; i < values.length; i++) {
-            if (values[i] == current) {
-                return values[(i + 1) % values.length];
-            }
-        }
-        return values[0];
     }
 
     private static Component onOff(String label, boolean on) {
