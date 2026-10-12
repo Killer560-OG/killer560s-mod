@@ -1850,7 +1850,7 @@ final class SettingTooltipsData {
         d.put("secret aura/levers", "Lets Secret Aura flip levers in dungeon rooms.");
         d.put("secret aura/chests", "Lets Secret Aura open secret chests and trapped chests in dungeon rooms.");
         d.put("secret aura/wither essence", "Lets Secret Aura click Wither Essence skulls.");
-        d.put("secret aura/place redstone key", "Once a Redstone Key in reach has been picked up, Secret Aura right-clicks the room's redstone block to put the key on it, at the Skull Range. Never while you hold a block, and once per key.");
+        d.put("secret aura/place redstone key", "Once a Redstone Key within 10 blocks has been picked up (by anyone), Secret Aura right-clicks the room's redstone block to put the key on top of it, at the Skull Range, always on a side of the block that faces air. Never while you hold a block, and once per key.");
         d.put("secret aura/redstone key", "Lets Secret Aura pick up Redstone Key skulls, at the Skull Range. Only the real key's skin is clicked, never a decorative head.");
         d.put("secret aura/swing hand", "Plays your arm swing each time Secret Aura clicks something.");
         d.put("secret aura/pause while sneaking", "Stops Secret Aura while you hold sneak.");
