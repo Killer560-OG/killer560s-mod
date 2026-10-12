@@ -1835,10 +1835,12 @@ final class SettingTooltipsData {
         d.put("ability cooldowns/mage cut", "How much shorter ability cooldowns are while you play Mage, as a percentage.");
         d.put("arrow align/highlight color", "Colour of the box drawn on frames that still need clicking.");
         d.put("arrow align/trigger bot delay", "How long your crosshair must sit on a frame before Trigger Bot clicks it, in ms (cheat build only). Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
-        d.put("croesus/highlight runs", "In the Croesus menu, tints each run you have not claimed from yet with a thin border, and darkens the ones you already claimed. Drawn behind the items, under their tooltips.");
+        d.put("croesus/highlight runs", "In the Croesus menu, marks each run by what is left in it: unclaimed (orange), worth going back to with a Dungeon Chest Key (gold; a gold border alone means its chests have not been looked at yet this session), opened with nothing worth a key (slate), or done with a key (dark). Drawn behind the items, under their tooltips.");
         d.put("croesus/unclaimed run colour", "The tint and border colour of a run you have not claimed anything from yet.");
-        d.put("croesus/claimed run colour", "The tint colour of a run you already claimed a chest from.");
-        d.put("croesus/hide opened runs", "Runs you already claimed a chest from show as empty slots in the Croesus menu: no item, no tooltip, and clicking them does nothing. Auto Croesus still sees them and can go back in for a key chest.");
+        d.put("croesus/needs key colour", "A run you claimed one chest from whose next chest is worth a Dungeon Chest Key under Auto Croesus's key settings. Never hidden.");
+        d.put("croesus/opened run colour", "A run you claimed one chest from, with nothing left worth a key.");
+        d.put("croesus/key used colour", "A run that is done: a key was used on its second chest.");
+        d.put("croesus/hide opened runs", "Runs with nothing left to do (opened with nothing worth a key, or done with a key) are not drawn in the Croesus menu. Only the picture is gone: hovering still shows the run and clicking still opens it. Runs worth going back to with a key are never hidden.");
         d.put("croesus/second best with key", "Also highlights the second-best chest if it still profits after paying for a Chest Key.");
         d.put("croesus/open profit tracker", "Opens the /croesus tracker with your profit totals and big drops.");
         d.put("auto croesus/use chest keys", "Lets Auto Croesus spend a Dungeon Chest Key on a second chest (cheat build only).");

@@ -71,7 +71,13 @@ public class CroesusTab extends BaseTab {
             if (cfg.isHighlightRuns()) {
                 widgets.add(colourButton("Unclaimed Run Colour", cfg.getRunUnclaimedColor(),
                         CroesusConfig.DEFAULT_RUN_UNCLAIMED_COLOR, rgb -> cfg.setRunUnclaimedColor(rgb), contentX, y, half));
-                widgets.add(colourButton("Claimed Run Colour", cfg.getRunClaimedColor(),
+                widgets.add(colourButton("Needs Key Colour", cfg.getRunKeyColor(),
+                        CroesusConfig.DEFAULT_RUN_KEY_COLOR, rgb -> cfg.setRunKeyColor(rgb),
+                        contentX + half + GAP, y, half));
+                y += 20;
+                widgets.add(colourButton("Opened Run Colour", cfg.getRunOpenedColor(),
+                        CroesusConfig.DEFAULT_RUN_OPENED_COLOR, rgb -> cfg.setRunOpenedColor(rgb), contentX, y, half));
+                widgets.add(colourButton("Key Used Colour", cfg.getRunClaimedColor(),
                         CroesusConfig.DEFAULT_RUN_CLAIMED_COLOR, rgb -> cfg.setRunClaimedColor(rgb),
                         contentX + half + GAP, y, half));
                 y += 20;

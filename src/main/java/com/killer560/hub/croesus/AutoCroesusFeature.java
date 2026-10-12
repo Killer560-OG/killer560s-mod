@@ -506,6 +506,7 @@ public final class AutoCroesusFeature {
                         return;
                     }
                     ChestProfitFeature.rememberRunFloor(floor);
+                    ChestProfitFeature.rememberRunHead(head);
                     currentRunFloor = floor;
                     currentRunKey = key;
                     rerolledThisRun = false;
@@ -1022,6 +1023,11 @@ public final class AutoCroesusFeature {
 
     // ---- the second chest (Dungeon Chest Key) ------------------------------------------------------
 
+    /** The key floor under the current settings, for the Croesus menu's "worth a key" highlight (ChestProfitFeature). */
+    public static long keyWorthFloor() {
+        return keyFloor(CroesusConfig.getInstance());
+    }
+
     /** What a chest bought with a key must clear: the plain floor, and the key mode's own threshold. */
     private static long keyFloor(CroesusConfig cfg) {
         return Math.max(cfg.getAutoMinProfitK() * 1000L, keyModeThreshold(cfg));
@@ -1106,6 +1112,7 @@ public final class AutoCroesusFeature {
             return true;
         }
         ChestProfitFeature.rememberRunFloor(floor);
+        ChestProfitFeature.rememberRunHead(head);
         currentRunKey = revisitRunKey;
         claimedThisRun = true;
         rerolledThisRun = true; // a run already opened is never rerolled

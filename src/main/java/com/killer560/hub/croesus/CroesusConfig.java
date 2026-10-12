@@ -81,6 +81,13 @@ public final class CroesusConfig {
      *  claimed. RGB; the alphas are fixed in ChestProfitFeature. */
     public static final int DEFAULT_RUN_UNCLAIMED_COLOR = 0xFF8C1A;
     public static final int DEFAULT_RUN_CLAIMED_COLOR = 0x202020;
+    /** killer560, 2026-10-12: "if i need to go back and use a chest key it should also have a different highlight" -
+     *  a claimed run whose second chest is worth a key (Auto Croesus's key rules); never hidden. Gold. */
+    public static final int DEFAULT_RUN_KEY_COLOR = 0xFFD000;
+    /** "If no chest key then it should be different": claimed, no key used, nothing left worth a key. Slate. */
+    public static final int DEFAULT_RUN_OPENED_COLOR = 0x3A4A66;
+    private int runKeyColor = DEFAULT_RUN_KEY_COLOR;
+    private int runOpenedColor = DEFAULT_RUN_OPENED_COLOR;
     private int runUnclaimedColor = DEFAULT_RUN_UNCLAIMED_COLOR;
     private int runClaimedColor = DEFAULT_RUN_CLAIMED_COLOR;
     /** killer560, 2026-10-12: "make an option to hide opened chests" - runs already claimed from draw as empty
@@ -130,6 +137,8 @@ public final class CroesusConfig {
             cfg.highlightRuns = ConfigJson.getBool(obj, "highlightRuns", cfg.highlightRuns);
             cfg.runUnclaimedColor = ConfigJson.getInt(obj, "runUnclaimedColor", cfg.runUnclaimedColor) & 0xFFFFFF;
             cfg.runClaimedColor = ConfigJson.getInt(obj, "runClaimedColor", cfg.runClaimedColor) & 0xFFFFFF;
+            cfg.runKeyColor = ConfigJson.getInt(obj, "runKeyColor", cfg.runKeyColor) & 0xFFFFFF;
+            cfg.runOpenedColor = ConfigJson.getInt(obj, "runOpenedColor", cfg.runOpenedColor) & 0xFFFFFF;
             cfg.hideOpenedRuns = ConfigJson.getBool(obj, "hideOpenedRuns", cfg.hideOpenedRuns);
             cfg.highlightSecondWithKey = ConfigJson.getBool(obj, "highlightSecondWithKey", cfg.highlightSecondWithKey);
             cfg.priceMode = obj.has("priceMode")
@@ -165,6 +174,8 @@ public final class CroesusConfig {
             obj.addProperty("highlightRuns", highlightRuns);
             obj.addProperty("runUnclaimedColor", runUnclaimedColor);
             obj.addProperty("runClaimedColor", runClaimedColor);
+            obj.addProperty("runKeyColor", runKeyColor);
+            obj.addProperty("runOpenedColor", runOpenedColor);
             obj.addProperty("hideOpenedRuns", hideOpenedRuns);
             obj.addProperty("highlightSecondWithKey", highlightSecondWithKey);
             obj.addProperty("priceMode", priceMode.name());
@@ -251,6 +262,22 @@ public final class CroesusConfig {
 
     public void setRunClaimedColor(int rgb) {
         this.runClaimedColor = rgb & 0xFFFFFF;
+    }
+
+    public int getRunKeyColor() {
+        return runKeyColor;
+    }
+
+    public void setRunKeyColor(int rgb) {
+        this.runKeyColor = rgb & 0xFFFFFF;
+    }
+
+    public int getRunOpenedColor() {
+        return runOpenedColor;
+    }
+
+    public void setRunOpenedColor(int rgb) {
+        this.runOpenedColor = rgb & 0xFFFFFF;
     }
 
     public boolean isHideOpenedRuns() {
