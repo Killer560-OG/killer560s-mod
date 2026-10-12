@@ -62,6 +62,8 @@ public final class BarPainter {
     public static final long[] lastDrawNanos = new long[N];
     /** Units from each edge of the element's box to the fill area (icon, frame and Beside number on their sides). */
     public static final int[] lastInsetLeft = new int[N];
+    /** Size in units of the icon the last draw put at the bar's left; 0 for none. */
+    public static final int[] lastIcon = new int[N];
     public static final int[] lastInsetTop = new int[N];
     public static final int[] lastInsetRight = new int[N];
     public static final int[] lastInsetBottom = new int[N];
@@ -172,6 +174,7 @@ public final class BarPainter {
         lastOverflow[i] = seg;
         lastGhost[i] = Math.max(0, ghostEnd - filled);
         lastInsetLeft[i] = ix0 - x;
+        lastIcon[i] = icon ? iconRoom - ICON_GAP : 0;
         lastInsetTop[i] = iy0 - y;
         lastInsetRight[i] = x + w - ix1;
         lastInsetBottom[i] = y + h - iy1;
@@ -240,7 +243,8 @@ public final class BarPainter {
         q.submit();
 
         if (icon) {
-            drawIcon(g, r, x, y, h, color);
+            int size = iconRoom - ICON_GAP;
+            drawIcon(g, r, x, y + (h - size) / 2, size, color);
         }
         if (value != null) {
             Font font = Minecraft.getInstance().font;
@@ -252,10 +256,29 @@ public final class BarPainter {
         }
     }
 
-    /** Units the icon takes at the box's left (its square plus a 2-unit gap), 0 when icons are off or the bar is too
-     *  thin (under 6) or too short (the track keeps at least 2h + 20) for one. */
+    /** Units between the icon and the track. */
+    static final int ICON_GAP = 2;
+    /** The small icon: 8 units, a native 16-pixel item at GUI scale 2. */
+    static final int SMALL_ICON = 8;
+    /** Track a bar keeps beside its icon. */
+    private static final int MIN_TRACK = 24;
+
+    /**
+     * Units the icon takes at the box's left (its square plus {@link #ICON_GAP}), 0 when icons are off or there is no
+     * room. A bar long enough (the track keeps at least 2h + 18) gets an icon as tall as the bar; a shorter one gets the
+     * {@link #SMALL_ICON}, centred on the bar, as long as {@link #MIN_TRACK} units of track are left - his 50-unit
+     * Vitality Bar beside the hotbar had no icon at all under the old one rule (killer560, 2026-10-13: "the vitality
+     * symbol still doesn't show"). A bar under 6 thick has none.
+     */
     static int iconRoom(PlayerStatsConfig cfg, int w, int h) {
-        return cfg.isBarIcons() && h >= 6 && w >= 3 * h + 20 ? h + 2 : 0;
+        if (!cfg.isBarIcons() || h < 6) {
+            return 0;
+        }
+        if (w >= 3 * h + 20) {
+            return h + ICON_GAP;
+        }
+        int small = Math.min(h, SMALL_ICON);
+        return w - small - ICON_GAP >= MIN_TRACK ? small + ICON_GAP : 0;
     }
 
     /** A one-unit ring just inside {@code [x0,x1) x [y0,y1)} with corner {@code radius} 0 (square), 1 (the corner unit left
@@ -331,8 +354,11 @@ public final class BarPainter {
      *  Vitality as this hot-springs sign, in its red; the font draws it from vanilla's Unifont fallback, no resource pack
      *  needed. It replaces the glistering melon, which read as health. */
     static final String VITALITY_GLYPH = "♨";
-    /** Rows the glyph is drawn in: Unifont's glyphs are 8 units tall at text size. */
-    private static final int GLYPH_ROWS = 8;
+    /** The ♨'s ink at text size, measured on a screenshot (testkit 899, 2026-10-13): about 4 units wide and 6 tall inside
+     *  Unifont's 8-unit cell, its centre about 1.2 units left of the cell's. Sized and centred by its ink, not the cell -
+     *  by the cell it filled half the icon square. */
+    private static final float GLYPH_ROWS = 6f;
+    private static final float GLYPH_NUDGE_X = 1.2f;
 
     /** Glyph-pixel outline offsets (eight directions). */
     private static final int[] GX = {-1, 0, 1, -1, 1, -1, 0, 1};
@@ -349,12 +375,22 @@ public final class BarPainter {
         var pose = g.pose();
         float p = pose.m00() * Math.max(1, Minecraft.getInstance().getWindow().getGuiScale());
         float fit = (size - 1) / (float) GLYPH_ROWS;
+        // Whole screen pixels per glyph pixel; at least one when the glyph then still fits the square (the small
+        // 8-unit icon at 2 screen pixels a unit), else the plain fit.
         int screenPx = (int) Math.floor(fit * 0.5f * p + 1e-3f);
+        if (screenPx < 1 && p > 0f && GLYPH_ROWS * 2f / p <= size) {
+            screenPx = 1;
+        }
         float s = screenPx >= 1 && p > 0f ? 2f * screenPx / p : fit;
+        // Whole pixels only while that keeps 80% of the size: on the small icon at 3 pixels a unit they made the symbol
+        // 5 of 8 units (his Vitality Bar, 2026-10-13), too small to read; there it takes the full fit instead.
+        if (s < 0.8f * fit) {
+            s = fit;
+        }
         int ink = Math.max(1, font.width(glyph) - 1);
         pose.pushMatrix();
         try {
-            pose.translate(x + (size - ink * s) / 2f, y + (size - GLYPH_ROWS * s) / 2f);
+            pose.translate(x + (size - ink * s) / 2f + GLYPH_NUDGE_X * s, y + (size - 8f * s) / 2f);
             pose.scale(s, s);
             for (int k = 0; k < GX.length; k++) {
                 pose.pushMatrix();
