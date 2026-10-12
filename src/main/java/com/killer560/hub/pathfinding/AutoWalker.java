@@ -30,10 +30,12 @@ import java.util.Locale;
  * ladder on the way is climbed facing its wall. Running into a wall anyway sidesteps to the free side, then backs off,
  * before the stuck rescue.
  * <p>
- * Failsafes stop the session with the alarm: damage, knockback (a server velocity packet away from a jump pad),
- * death, a screen, a world change or disconnect, and the player's own keys, clicks or mouse. A server position
- * correction is NOT one of them (mod rule, 2026-10-06): it is reported and the walk carries on from where the server
- * put him; a server-set rotation is reported the same way.
+ * Failsafes stop the session with the alarm: damage with no knockback, a world change (lobby, limbo) or disconnect;
+ * it also stops on a screen and the player's own keys, clicks or mouse. Knockback (a server velocity packet away from a
+ * jump pad, with or without the hit) and a death are NOT stops (killer560, 2026-10-11): knockback re-plans the path
+ * from where he landed; a death waits for the respawn, treats its teleport as the respawn (no correction, no staff
+ * check), and re-plans from there. A server position correction is reported and the walk carries on (mod rule,
+ * 2026-10-06); a server-set rotation is reported the same way.
  */
 public final class AutoWalker {
 
@@ -104,6 +106,10 @@ public final class AutoWalker {
         bestRemaining = Double.MAX_VALUE;
         bestRemainingAtMs = System.currentTimeMillis();
         WalkCamera.clear();
+        respawning = false;
+        graceUntilMs = 0L;
+        hitWaitTicks = 0;
+        repathOnGround = false;
         LocalPlayer player = Minecraft.getInstance().player;
         lastHurtTime = player == null ? 0 : player.hurtTime;
     }
@@ -208,31 +214,96 @@ public final class AutoWalker {
         }
     }
 
-    private static int deathWatchTicks;
+    // ---- death and knockback: re-path, never stop (killer560, 2026-10-11) ----------------------------------
+
+    /** Ticks a hit may wait for its knockback packet before it counts as plain damage. */
+    private static final int HIT_WAIT_TICKS = 2;
+    /** How long after a death a server teleport is the respawn, not a correction or a staff check. */
+    private static final long RESPAWN_GRACE_MS = 15_000L;
+    /** A respawn that never shows a teleport still resumes after this. */
+    private static final long RESPAWN_FALLBACK_MS = 3_000L;
+    /** Hypixel's own death line ("☠ You died." / "☠ You were killed by Zombie."): a Skyblock death has no death
+     *  screen and no 0 health, just this line and a teleport. Anchored on the line start, which no player's chat can
+     *  produce (theirs starts with a rank or a name). */
+    private static final java.util.regex.Pattern HYPIXEL_DEATH =
+            java.util.regex.Pattern.compile("^\\s?\u2620 You [A-Za-z0-9 ',.()-]{1,80}$");
+
+    private static int hitWaitTicks;
+    /** Waiting for the respawn after a death: no driving, no stuck count, server moves are the respawn. */
+    private static boolean respawning;
+    private static long diedAtMs;
+    private static boolean respawnTeleportSeen;
+    private static LocalPlayer playerAtDeath;
+    /** Until then a server teleport is still the death's respawn, never a correction or a staff check. */
+    private static long graceUntilMs;
+    private static boolean repathOnGround;
+    private static int deaths;
+    private static int knockbacks;
+    private static boolean chatSubscribed;
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-pathfinding");
 
     /** From {@code PathMotionPacketMixin}, main thread: the server says he died. */
     public static void onServerDeath() {
-        if (sessionActive) {
-            failsafe("you died");
-        } else if (deathWatchTicks > 0 && !"you died".equals(lastFailsafe)) {
-            // The killing blow's damage already stopped it a tick ago: name the real reason.
-            deathWatchTicks = 0;
-            lastFailsafe = "you died";
-            ModChat.send("Auto Fairy Souls", ModChat.bad("Failsafe: you died"), ModChat.dim(" - the run stays stopped."));
+        onDeath("death packet");
+    }
+
+    /** Hypixel's death chat line (see {@link #HYPIXEL_DEATH}). */
+    private static void onChat(net.minecraft.network.chat.Component message) {
+        String plain = com.killer560.hub.util.ChatObserver.strip(message).trim();
+        if (HYPIXEL_DEATH.matcher(plain).matches()) {
+            Minecraft.getInstance().execute(() -> onDeath("death message"));
         }
     }
 
-    /** After a damage failsafe: if the same hit killed him, say so (the chat line and {@link #lastFailsafe}). */
-    private static void watchForDeath(LocalPlayer player) {
-        if (deathWatchTicks <= 0) {
+    /** Subscribes the Hypixel death-line listener once (from {@code PathfindingFeature.register}). */
+    static void register() {
+        if (!chatSubscribed) {
+            chatSubscribed = true;
+            com.killer560.hub.util.ChatObserver.subscribe(AutoWalker::onChat);
+        }
+    }
+
+    /**
+     * killer560 (2026-10-11): "Make sure that if I die while auto fairy souls is on then it will still work and not
+     * think it is a staff check." Nothing is driven until the respawn; the respawn teleport (and its rotation) is
+     * neither a correction nor a staff check; then the path is planned again from the respawn point.
+     */
+    private static void onDeath(String how) {
+        if (!sessionActive) {
             return;
         }
-        deathWatchTicks--;
-        if (player != null && player.isDeadOrDying() && !"you died".equals(lastFailsafe)) {
-            deathWatchTicks = 0;
-            lastFailsafe = "you died";
-            ModChat.send("Auto Fairy Souls", ModChat.bad("Failsafe: you died"), ModChat.dim(" - the run stays stopped."));
+        long now = System.currentTimeMillis();
+        if (respawning && now - diedAtMs < 2_000L) {
+            return; // the packet and the chat line of one death
         }
+        deaths++;
+        respawning = true;
+        respawnTeleportSeen = false;
+        diedAtMs = now;
+        graceUntilMs = now + RESPAWN_GRACE_MS;
+        playerAtDeath = Minecraft.getInstance().player;
+        hitWaitTicks = 0;
+        clearKeys();
+        releaseFallbackKey();
+        WalkCamera.rebase();
+        LOGGER.info("[AutoWalker] died ({}) - waiting for the respawn, then re-pathing", how);
+        ModChat.send("Auto Fairy Souls", ModChat.text("You died "), ModChat.dim("- carrying on from the respawn."));
+    }
+
+    /** Dead and waiting, or inside the grace after the respawn (the world-change hook and the testkit ask). */
+    public static boolean inDeathGrace() {
+        return sessionActive && (respawning || System.currentTimeMillis() < graceUntilMs);
+    }
+
+    /** The respawn is done: a fresh start for the path, the camera and the stuck clock. */
+    private static void resumeAfterRespawn(LocalPlayer player, String why) {
+        respawning = false;
+        graceUntilMs = Math.max(graceUntilMs, System.currentTimeMillis() + 2_000L);
+        lastHurtTime = player.hurtTime;
+        WalkCamera.rebase();
+        clearStuck();
+        NavigationManager.recalculate(true);
+        LOGGER.info("[AutoWalker] respawned ({}) - re-pathing from {}", why, player.blockPosition());
     }
 
     private static void stop(String reason) {
@@ -253,7 +324,7 @@ public final class AutoWalker {
     /** Per render frame: the camera step (see {@link WalkCamera}). */
     public static void frame() {
         if (sessionActive) {
-            WalkCamera.frame(EtherwarpHopper.isBusy());
+            WalkCamera.frame(EtherwarpHopper.isBusy() || respawning);
         }
     }
 
@@ -261,7 +332,6 @@ public final class AutoWalker {
     public static void tick(Minecraft client) {
         if (!sessionActive) {
             releaseFallbackKey();
-            watchForDeath(client.player);
             return;
         }
         LocalPlayer player = client.player;
@@ -275,36 +345,70 @@ public final class AutoWalker {
             return;
         }
         if (player.isDeadOrDying()) {
-            failsafe("you died");
+            onDeath("0 health");
+        }
+        int packets = ServerCorrections.packetCount();
+        boolean serverMoved = packets != positionPacketsSeen;
+        if (respawning) {
+            // Dead: nothing is driven. A vanilla death shows the death screen until he respawns (a new player
+            // object); Hypixel's never does - its respawn is a teleport. Either one, or a few seconds, ends the wait.
+            positionPacketsSeen = packets;
+            clearKeys();
+            WalkCamera.rebase();
+            if (serverMoved) {
+                respawnTeleportSeen = true;
+            }
+            boolean newPlayer = player != playerAtDeath;
+            if (!player.isDeadOrDying() && player.getHealth() > 0f && McCompat.screen(client) == null
+                    && (newPlayer || respawnTeleportSeen || System.currentTimeMillis() - diedAtMs > RESPAWN_FALLBACK_MS)) {
+                resumeAfterRespawn(player, newPlayer ? "new player" : respawnTeleportSeen ? "respawn teleport" : "timeout");
+            }
             return;
         }
         if (McCompat.screen(client) != null) {
             stop("a screen opened");
             return;
         }
-        if (player.hurtTime > lastHurtTime) {
-            lastHurtTime = player.hurtTime;
-            failsafe(player.getHealth() <= 0f ? "you died" : "you took damage");
-            // The killing blow's damage event can land a tick before the health that says so: watch a few ticks.
-            deathWatchTicks = 10;
-            return;
-        }
-        lastHurtTime = player.hurtTime;
         Vec3 motion = pendingMotion;
         pendingMotion = null;
-        if (motion != null && !EtherwarpHopper.isBusy() && !EnderPearlHopper.isBusy()
+        boolean knocked = motion != null && !EtherwarpHopper.isBusy() && !EnderPearlHopper.isBusy()
                 && motion.horizontalDistance() + Math.max(0.0, motion.y - 0.42) > KNOCKBACK_MIN
-                && !nearJumpPad(player.position())) {
-            failsafe(String.format(Locale.US, "knockback (server set your speed to %.2f)", motion.length()));
+                && !nearJumpPad(player.position());
+        if (knocked) {
+            // killer560 (2026-10-11): "have it keep working if it gets knocked back, it just needs to repathfind from
+            // its new spot" - with or without the hit that caused it. Planned again now and once more on landing.
+            knockbacks++;
+            hitWaitTicks = 0;
+            lastHurtTime = player.hurtTime;
+            clearStuck();
+            repathOnGround = true;
+            NavigationManager.recalculate(true);
+            LOGGER.info(String.format(Locale.US, "[AutoWalker] knocked back (speed %.2f) - re-pathing", motion.length()));
+            ModChat.send("Auto Fairy Souls", ModChat.text("Knocked back "), ModChat.dim("- re-pathing from here."));
+        } else if (player.hurtTime > lastHurtTime) {
+            // A hit: its knockback packet can trail it by a tick, so wait before calling it plain damage.
+            lastHurtTime = player.hurtTime;
+            hitWaitTicks = HIT_WAIT_TICKS;
+        } else if (hitWaitTicks > 0 && --hitWaitTicks == 0) {
+            failsafe("you took damage");
             return;
+        } else {
+            lastHurtTime = player.hurtTime;
         }
-        int packets = ServerCorrections.packetCount();
-        if (packets != positionPacketsSeen) {
+        if (repathOnGround && player.onGround()) {
+            repathOnGround = false;
+            NavigationManager.recalculate(true);
+        }
+        if (serverMoved) {
             positionPacketsSeen = packets;
             double moved = ServerCorrections.lastMoveDistance();
             float turned = ServerCorrections.lastRotationChange();
             WalkCamera.rebase();
-            if (!EtherwarpHopper.isBusy() && !EnderPearlHopper.isBusy()) {
+            if (System.currentTimeMillis() < graceUntilMs) {
+                // A late respawn teleport (or its rotation): the death's, not a correction or a staff check.
+                NavigationManager.recalculate(true);
+                LOGGER.info("[AutoWalker] server move of {} blocks inside the respawn grace - not a correction", moved);
+            } else if (!EtherwarpHopper.isBusy() && !EnderPearlHopper.isBusy()) {
                 if (moved <= CORRECTION_MAX_BLOCKS && moved >= ServerCorrections.MIN_MOVE_BLOCKS) {
                     // Mod rule (2026-10-06): a correction never stops anything - chat line + alarm, the path is
                     // planned again from where the server put him.
@@ -587,6 +691,18 @@ public final class AutoWalker {
 
     public static int climbTicks() {
         return climbTicks;
+    }
+
+    public static int deaths() {
+        return deaths;
+    }
+
+    public static int knockbacks() {
+        return knockbacks;
+    }
+
+    public static boolean isRespawning() {
+        return respawning;
     }
 
     public static int failsafes() {

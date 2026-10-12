@@ -48,6 +48,9 @@ public final class PathfindingFeature {
         FairySoulStore.load();
         ProfileTracker.register();
         FairySoulsFeature.register();
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            AutoWalker.register(); // Hypixel's death line
+        }
         // START: this drives AutoSoulRunner and EnderPearlHopper, which both send interactions. See
         // ActionGate's class doc.
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("PathfindingFeature.tick", PathfindingFeature::tick));
@@ -71,7 +74,10 @@ public final class PathfindingFeature {
         if (client.level != lastLevel) {
             lastLevel = client.level;
             ProfileTracker.onWorldChange();
-            if (AutoSoulRunner.isActive()) {
+            if (AutoSoulRunner.isActive() && client.level != null && AutoWalker.inDeathGrace()) {
+                // A respawn that rebuilt the level is the death's, not a trip to another world: keep going.
+                NavigationManager.recalculate(true);
+            } else if (AutoSoulRunner.isActive()) {
                 // Failsafe (killer560, 2026-10-11): sent to the lobby or limbo, warped, or disconnected - the alarm
                 // plays and the chat line says so (it lands once the new world has a player).
                 com.killer560.hub.util.ModSounds.playCorrectionAlarm();

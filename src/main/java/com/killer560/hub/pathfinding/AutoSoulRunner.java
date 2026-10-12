@@ -35,7 +35,8 @@ import java.util.List;
  * </ul>
  * Stops instantly on player movement, mouse movement, a click, a screen, or when nothing has improved for a few
  * seconds and no etherwarp rescue is possible; and with the alarm on a failsafe ({@link AutoWalker}: damage,
- * knockback, death, a world change or disconnect). A server correction or a server-set rotation never stops it.
+ * a world change or disconnect). Knockback and death re-path instead; a server correction or a server-set rotation
+ * never stops it.
  */
 public final class AutoSoulRunner {
 
@@ -161,6 +162,9 @@ public final class AutoSoulRunner {
         if (!AutoWalker.isSessionActive()) {
             stop(AutoWalker.stopReason(), true);
             return;
+        }
+        if (AutoWalker.isRespawning()) {
+            return; // dead: nothing to walk to or click until the respawn (AutoWalker re-plans then)
         }
         if (IslandDetector.graphIsland() == null) {
             // Without a graph island NavigationManager stops its target every tick while tickTravel starts a new one:
