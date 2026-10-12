@@ -93,10 +93,12 @@ public final class ArrowAlignFeature {
 
     // --- automation ---
     private static boolean syntheticClickInProgress = false;
+    // Client ticks (ActionGate.currentTick), not ms: the clicks go out at the start of a tick.
     private static int triggerAimIndex = -1;
-    private static long triggerAimSinceMs = 0L;
-    private static long lastTriggerClickMs = 0L;
-    private static long nextAuraClickAtMs = 0L;
+    private static long triggerAimSinceTick = 0L;
+    private static long lastTriggerClickTick = Long.MIN_VALUE / 4;
+    /** Fractional, so the Aura's rolled 15-17 CPS stays 15-17 on average instead of rounding to 10. */
+    private static double nextAuraClickDueTick = 0.0;
     private static int lastAuraIndex = -1;
 
     static {
@@ -109,9 +111,9 @@ public final class ArrowAlignFeature {
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ArrowAlignFeature.tick", ArrowAlignFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ArrowAlignFeature::onWorldRender);
-        // Per-frame automation so Trigger Bot / Aura delays are honoured to the millisecond, not the 50ms tick
-        // (same reason SimonSaysFeature fires its Trigger Bot from this hook).
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> tickAutomation(Minecraft.getInstance()));
+        // Trigger Bot and Aura click only from tick() (START_CLIENT_TICK). They also ran from the world-render hook for
+        // millisecond delays until 2026-10-11, and a click sent from a frame follows the tick's movement packet: GrimAC
+        // Post on every one (testkit 788). Delays are whole ticks now - see tickTriggerBot / tickAura.
     }
 
     // ------------------------------------------------------------------
@@ -236,7 +238,7 @@ public final class ArrowAlignFeature {
         solvedAnnounced = false;
         triggerAimIndex = -1;
         lastAuraIndex = -1;
-        nextAuraClickAtMs = 0L;
+        nextAuraClickDueTick = 0.0;
     }
 
     // ------------------------------------------------------------------
@@ -404,22 +406,26 @@ public final class ArrowAlignFeature {
             triggerAimIndex = -1;
             return;
         }
+        long tick = com.killer560.hub.util.ActionGate.currentTick();
         if (index != triggerAimIndex) {
             triggerAimIndex = index;
-            triggerAimSinceMs = now;
+            triggerAimSinceTick = tick;
         }
-        long delay = cfg.getTriggerBotDelayMs();
-        if (now - triggerAimSinceMs < delay || now - lastTriggerClickMs < delay) {
+        // Trigger Bot Delay in whole ticks, rounded up (ActionGate.delayTicks): 0 ms clicks on the tick the crosshair
+        // lands, 300 ms six ticks later; the same gap again between clicks on one frame.
+        int delay = com.killer560.hub.util.ActionGate.delayTicks(cfg.getTriggerBotDelayMs());
+        if (tick - triggerAimSinceTick < delay || tick - lastTriggerClickTick < delay) {
             return;
         }
         if (!sendClick(client, index, now)) {
             return; // gate held this tick back - nothing sent, so the aim timer and delay stay where they are
         }
-        lastTriggerClickMs = now;
+        lastTriggerClickTick = tick;
     }
 
     private static void tickAura(Minecraft client, ArrowAlignConfig cfg, long now) {
-        if (now < nextAuraClickAtMs) {
+        long tick = com.killer560.hub.util.ActionGate.currentTick();
+        if (tick < nextAuraClickDueTick) {
             return;
         }
         Vec3 eye = client.player.getEyePosition();
@@ -445,7 +451,10 @@ public final class ArrowAlignFeature {
         lastAuraIndex = target;
         int min = cfg.getAuraMinDelayMs();
         int max = Math.max(min, cfg.getAuraMaxDelayMs());
-        nextAuraClickAtMs = now + (max > min ? ThreadLocalRandom.current().nextInt(min, max + 1) : min);
+        // From the due tick, not this one, so the rolled delay is kept on average (59-67 ms: gaps of 1 and 2 ticks);
+        // a click the gate held back carries at most a tick of backlog.
+        int rolledMs = max > min ? ThreadLocalRandom.current().nextInt(min, max + 1) : min;
+        nextAuraClickDueTick = Math.max(nextAuraClickDueTick, tick - 1) + rolledMs / 50.0;
     }
 
     private static boolean isAuraClickable(int index, Vec3 eye, double rangeSq) {
