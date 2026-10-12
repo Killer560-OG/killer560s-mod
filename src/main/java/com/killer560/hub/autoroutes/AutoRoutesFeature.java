@@ -942,6 +942,55 @@ public final class AutoRoutesFeature {
                 && !(screen instanceof InteractiveMapScreen && AutoRoutesConfig.getInstance().isRunWhileMapOpen());
     }
 
+    /** Breaker nodes re-fired during the current stand on their tile (cleared when he steps off every node). */
+    private static final java.util.Set<RouteNode> refired =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+    /**
+     * killer560 (2026-10-12), on blocks a breaker node broke growing back: "Only if I am on the node and there are blocks
+     * to be broke then it should break them." Where the normal arming would NOT fire (the tile is latched: the last run
+     * ended or was stopped here, or he just placed it), a DUNGEON_BREAKER node on the tile he stands on fires again - on
+     * its own, not the rest of the route - when at least one of its blocks is standing. Once per stand: it fires again
+     * only after all its blocks have been seen gone (they grew back after it broke them) or he stepped off. One dig per
+     * standing block per fire (the node's own queue), and the fire takes the tick through ActionGate. Nothing fires
+     * when every block is already gone. @return true when it fired
+     */
+    private static boolean breakerRefire(Minecraft client, Route route, RouteCoords.Frame frame, RouteNode inside) {
+        boolean latched = inside == latchedNode || inside.sameTile(latchedNode) || RouteExecutor.justFinished()
+                || RouteExecutor.wasStoppedByUser();
+        for (RouteNode n : route.stackOf(inside)) {
+            if (n.type != RouteNode.Type.DUNGEON_BREAKER || n.breakerBlocks.isEmpty()) {
+                continue;
+            }
+            int standing = 0;
+            for (BlockPos rel : n.breakerBlocks) {
+                BlockPos p = RouteCoords.toRealBlock(frame, rel);
+                if (client.level != null && client.level.isLoaded(p) && !client.level.getBlockState(p).isAir()) {
+                    standing++;
+                }
+            }
+            if (standing == 0) {
+                refired.remove(n);   // all gone: the next regrow may fire it again
+                continue;
+            }
+            if (!latched || refired.contains(n)) {
+                continue;   // the normal arming fires it, or it already fired for these blocks
+            }
+            if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.ROUTE)) {
+                return true;   // someone else has this tick; try again next one
+            }
+            refired.add(n);
+            Route single = new Route(route.roomName());
+            single.nodes().add(n);
+            gate("re-firing breaker node #" + (route.indexOf(n) + 1) + " - " + standing + " of its block(s) standing");
+            LOGGER.info("[AutoRoutes] Breaker node #{}: {} of its {} block(s) standing while he is on it - breaking them"
+                    + " again", route.indexOf(n) + 1, standing, n.breakerBlocks.size());
+            RouteExecutor.start(single, frame, n);
+            return true;
+        }
+        return false;
+    }
+
     /** Starts the room's route when the player stands in its START node (or, when allowed, any node). */
     private static void arm(Minecraft client, LocalPlayer player, RouteCoords.Frame frame, AutoRoutesConfig cfg) {
         Route route = RouteStore.getInstance().forRoom(frame.roomName());
@@ -983,10 +1032,14 @@ public final class AutoRoutesFeature {
         if (inside == null) {
             gate(idleGate(route, frame, startOnly));
             latchedNode = null;
+            refired.clear();
             // Clear of every node: a route the player stopped by hand - or that just finished on top of one -
             // may arm again from here.
             RouteExecutor.clearStoppedByUser();
             RouteExecutor.clearJustFinished();
+            return;
+        }
+        if (breakerRefire(client, route, frame, inside)) {
             return;
         }
         // Latched per TILE: every node on it fires as one stack (Route#stackOf), and the node found first above
