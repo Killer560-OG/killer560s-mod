@@ -785,8 +785,10 @@ public final class LiveMapFeature {
     /** @return the player's current grid cell, clamped to the real 11x11 bounds - same transform as
      *  NoammAddons' own {@code ScanUtils.getRoomGraf}. */
     static int[] gridCellFor(Vec3 pos) {
-        int roomIndexX = (int) Math.round((pos.x - START_X) / 32.0);
-        int roomIndexZ = (int) Math.round((pos.z - START_Z) / 32.0);
+        // From the tile's centre BLOCK's middle (START + 0.5): a position in the one-block gap between two tiles goes
+        // to the tile it is nearer, not always the +x / +z one (DungeonLayout.roomAtWorld, 2026-10-12).
+        int roomIndexX = (int) Math.round((pos.x - 0.5 - START_X) / 32.0);
+        int roomIndexZ = (int) Math.round((pos.z - 0.5 - START_Z) / 32.0);
         int gx = Math.max(0, Math.min(10, roomIndexX * 2));
         int gz = Math.max(0, Math.min(10, roomIndexZ * 2));
         return new int[]{gx, gz};
@@ -997,6 +999,46 @@ public final class LiveMapFeature {
     static List<RoomGroup> groupsView() {
         ensureGroups();
         return groups;
+    }
+
+    /**
+     * The grid cell a point of the drawn map (in map units, see {@link MapPainter#cellPos}) acts on. killer560
+     * (2026-10-12): "There are these gaps in rooms between where interactive map thinks tiles are" - the strip
+     * between two tiles of one room (a connector cell) used to resolve to the room's MAIN tile, so hovering or
+     * pressing the join inside Waterfall lit up and went to its far-left tile. Now a connector cell of a room is the
+     * room's tile nearest the point (centre to point, in map units), so the strip splits down its middle between the
+     * tiles either side. Door cells between rooms and empty cells are returned as they are (a door is a target of its
+     * own). -1 off the grid.
+     */
+    public static int mapCellAt(double ux, double uz) {
+        int gx = MapPainter.unitToGrid(ux);
+        int gz = MapPainter.unitToGrid(uz);
+        if (gx < 0 || gz < 0) {
+            return -1;
+        }
+        int cell = gx + gz * GRID;
+        if (gx % 2 == 0 && gz % 2 == 0) {
+            return cell;
+        }
+        int gid = groupIdAt(cell);
+        if (gid < 0) {
+            return cell;
+        }
+        RoomGroup group = groupsView().get(gid);
+        int best = group.mainIdx;
+        double bestD = Double.MAX_VALUE;
+        for (int t : group.tiles) {
+            int tx = t % GRID;
+            int tz = t / GRID;
+            double cx = MapPainter.cellPos(tx) + MapPainter.cellSize(tx) / 2.0;
+            double cz = MapPainter.cellPos(tz) + MapPainter.cellSize(tz) / 2.0;
+            double d = (cx - ux) * (cx - ux) + (cz - uz) * (cz - uz);
+            if (d < bestD) {
+                bestD = d;
+                best = t;
+            }
+        }
+        return best;
     }
 
     /** @return the room group id owning this cell, or -1. */
