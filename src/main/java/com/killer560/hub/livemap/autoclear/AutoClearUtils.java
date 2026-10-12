@@ -220,6 +220,52 @@ public final class AutoClearUtils {
         return true;
     }
 
+    /**
+     * A press on the strip joining two tiles of {@code room}: the landing at that spot (the column under the cursor,
+     * the block nearest the floor), or the nearest one in the room within a few blocks - never a tile's centre.
+     * killer560 (2026-10-12): "since there is a room there that is actual tangible space".
+     */
+    public static boolean pathToSpot(DungeonLayout layout, int room, int tileIdx, double x, double z) {
+        if (!canPath(layout) || room < 0) {
+            return false;
+        }
+        int floor = DungeonLayout.cellCenter(tileIdx).getY() - 1;
+        int bx = (int) Math.floor(x);
+        int bz = (int) Math.floor(z);
+        BlockPos goal = null;
+        double best = Double.MAX_VALUE;
+        BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
+        for (int r = 0; r <= 4 && goal == null; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r || layout.roomAtWorld(bx + dx + 0.5, bz + dz + 0.5) != room) {
+                        continue;
+                    }
+                    for (int dy = -8; dy <= 8; dy++) {
+                        mut.set(bx + dx, floor + dy, bz + dz);
+                        if (!TeleportUtils.landable(mut) || !TeleportUtils.underCover(mut)) {
+                            continue;
+                        }
+                        double d = (bx + dx + 0.5 - x) * (bx + dx + 0.5 - x) + (bz + dz + 0.5 - z) * (bz + dz + 0.5 - z)
+                                + dy * dy * 0.01;
+                        if (d < best) {
+                            best = d;
+                            goal = mut.immutable();
+                        }
+                    }
+                }
+            }
+        }
+        if (goal == null) {
+            ModChat.send(ClearExecutor.CHAT, ModChat.bad("Nothing to land on there in "), ModChat.value(layout.name(room)));
+            return false;
+        }
+        LOGGER.info("[Path] map press on {}'s strip at ({}, {}): landing on {}", layout.name(room),
+                String.format(java.util.Locale.ROOT, "%.1f", x), String.format(java.util.Locale.ROOT, "%.1f", z), goal);
+        ClearExecutor.etherPathExact(goal, null);
+        return true;
+    }
+
     public static void faceDoor(int door) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {

@@ -325,6 +325,11 @@ public final class MapPainter {
         return (world - LiveMapFeature.START_X) * 0.625 + 8;
     }
 
+    /** World x (or z) of a point given in map units: {@link #worldToUnits} backwards. */
+    static double unitsToWorld(double units) {
+        return (units - 8) / 0.625 + LiveMapFeature.START_X;
+    }
+
     /** @return the grid index under a point given in map units, or -1. */
     static int unitToGrid(double u) {
         if (u < 0) {

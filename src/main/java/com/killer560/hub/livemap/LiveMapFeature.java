@@ -1010,6 +1010,20 @@ public final class LiveMapFeature {
      * tiles either side. Door cells between rooms and empty cells are returned as they are (a door is a target of its
      * own). -1 off the grid.
      */
+    /**
+     * Whether a point of the drawn map is on the strip joining two tiles of one room (a connector cell of a room):
+     * real floor of that room, which a press goes to as it is (killer560, 2026-10-12: "since there is a room there that
+     * is actual tangible space"), not to a tile.
+     */
+    public static boolean onRoomStrip(double ux, double uz) {
+        int gx = MapPainter.unitToGrid(ux);
+        int gz = MapPainter.unitToGrid(uz);
+        if (gx < 0 || gz < 0 || (gx % 2 == 0 && gz % 2 == 0)) {
+            return false;
+        }
+        return groupIdAt(gx + gz * GRID) >= 0;
+    }
+
     public static int mapCellAt(double ux, double uz) {
         int gx = MapPainter.unitToGrid(ux);
         int gz = MapPainter.unitToGrid(uz);
