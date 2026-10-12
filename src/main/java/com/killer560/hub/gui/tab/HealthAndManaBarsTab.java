@@ -136,13 +136,55 @@ public class HealthAndManaBarsTab extends BaseTab {
                         });
                 y[0] += ROW;
                 toggle(widgets, contentX, y[0], half, "Show Value", ps::isBarShowValue, ps::setBarShowValue,
-                        ps::save, null);
+                        ps::save, requestRebuild);
                 colour(widgets, col2, y[0], half, "Background", ps.getBarBackground(),
                         PlayerStatsConfig.DEFAULT_BAR_BACKGROUND, ps::setBarBackground);
                 y[0] += ROW;
-                if (ps.isReadoutOn(Readout.HEALTH_BAR)) {
+                // The bars' look (2026-10-12): Classic is the flat bar as it was; Sleek and Bold are BarPainter's, and
+                // only they read the rows under the style.
+                boolean classic = ps.getBarStyle() == PlayerStatsConfig.BarStyle.CLASSIC;
+                widgets.add(SettingsButtonWidget.cycling(Component.literal("Bar Style: §6" + ps.getBarStyle().label),
+                        (btn, dir) -> {
+                            ps.setBarStyle(SettingsButtonWidget.step(ps.getBarStyle(), dir));
+                            ps.save();
+                            requestRebuild.run();
+                        }).bounds(contentX, y[0], half, ROW_H).build());
+                if (!classic) {
+                    widgets.add(SettingsButtonWidget.cycling(cornersText(ps), (btn, dir) -> {
+                                ps.setBarRounded(!ps.isBarRounded());
+                                ps.save();
+                                btn.setMessage(cornersText(ps));
+                            }).bounds(col2, y[0], half, ROW_H).build());
+                }
+                y[0] += ROW;
+                if (!classic) {
+                    toggle(widgets, contentX, y[0], half, "Icons", ps::isBarIcons, ps::setBarIcons, ps::save, null);
+                    if (ps.isBarShowValue()) {
+                        widgets.add(SettingsButtonWidget.cycling(valuePositionText(ps), (btn, dir) -> {
+                                    ps.setBarValuePosition(SettingsButtonWidget.step(ps.getBarValuePosition(), dir));
+                                    ps.save();
+                                    btn.setMessage(valuePositionText(ps));
+                                }).bounds(col2, y[0], half, ROW_H).build());
+                    }
+                    y[0] += ROW;
+                    toggle(widgets, contentX, y[0], half, "Smooth Fill", ps::isBarSmooth, ps::setBarSmooth, ps::save,
+                            null);
+                    toggle(widgets, col2, y[0], half, "Damage Ghost", ps::isBarDamageGhost, ps::setBarDamageGhost,
+                            ps::save, null);
+                    y[0] += ROW;
+                }
+                boolean absorbRow = ps.isReadoutOn(Readout.HEALTH_BAR);
+                boolean overflowRow = !classic && ps.isReadoutOn(Readout.MANA_BAR);
+                if (absorbRow) {
                     colour(widgets, contentX, y[0], half, "Absorption Colour", ps.getAbsorptionColor(),
                             PlayerStatsConfig.DEFAULT_ABSORPTION_COLOR, ps::setAbsorptionColor);
+                }
+                if (overflowRow) {
+                    colour(widgets, absorbRow ? col2 : contentX, y[0], half, "Overflow Mana Colour",
+                            ps.getOverflowManaColor(), PlayerStatsConfig.DEFAULT_OVERFLOW_MANA_COLOR,
+                            ps::setOverflowManaColor);
+                }
+                if (absorbRow || overflowRow) {
                     y[0] += ROW;
                 }
             }
@@ -210,6 +252,14 @@ public class HealthAndManaBarsTab extends BaseTab {
                 }).bounds(contentX, y[0], contentWidth, ROW_H).build());
         y[0] += ROW;
         return widgets;
+    }
+
+    private static Component cornersText(PlayerStatsConfig ps) {
+        return Component.literal("Corners: §6" + (ps.isBarRounded() ? "Rounded" : "Square"));
+    }
+
+    private static Component valuePositionText(PlayerStatsConfig ps) {
+        return Component.literal("Value Position: §6" + ps.getBarValuePosition().label);
     }
 
     private static Component heldItemNameText(PlayerStatsConfig ps) {

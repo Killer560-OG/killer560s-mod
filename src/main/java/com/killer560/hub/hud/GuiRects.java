@@ -32,12 +32,26 @@ import java.util.Objects;
  */
 public final class GuiRects {
 
-    private final GuiGraphicsExtractor graphics;
+    private GuiGraphicsExtractor graphics;
     private ColoredRectangleRenderState[] parts = new ColoredRectangleRenderState[8];
     private int count;
 
     private GuiRects(GuiGraphicsExtractor graphics) {
         this.graphics = graphics;
+    }
+
+    /** A batcher kept by a caller that draws every frame (Health and Mana Bars): {@link #start} it each time instead
+     *  of {@link #begin}, so the batcher itself is not allocated per frame. Render thread only. */
+    public static GuiRects reusable() {
+        return new GuiRects(null);
+    }
+
+    /** Starts a new batch on {@code graphics} with this batcher; forgets the previous batch's parts. */
+    public GuiRects start(GuiGraphicsExtractor graphics) {
+        Arrays.fill(parts, 0, count, null);
+        this.graphics = graphics;
+        this.count = 0;
+        return this;
     }
 
     /** Starts a batch on {@code graphics}; add fills, then {@link #submit()}. Use the current pose and scissor. */
@@ -62,6 +76,31 @@ public final class GuiRects {
         }
         parts[count++] = new ColoredRectangleRenderState(RenderPipelines.GUI, TextureSetup.noTexture(),
                 new Matrix3x2f(graphics.pose()), x0, y0, x1, y1, color, color, graphics.scissorStack.peek());
+        return this;
+    }
+
+    /** As {@code GuiGraphicsExtractor.fillGradient(x0, y0, x1, y1, top, bottom)}: a vertical gradient, {@code top} at the
+     *  upper edge ({@code col1} is the y0 vertex colour and {@code fillGradient} does not swap corners, javap 26.1.2 and
+     *  26.2). Here the corners are put in order first, so {@code top} is always the upper colour. */
+    public GuiRects gradient(int x0, int y0, int x1, int y1, int top, int bottom) {
+        if (x0 > x1) {
+            int t = x0;
+            x0 = x1;
+            x1 = t;
+        }
+        if (y0 > y1) {
+            int t = y0;
+            y0 = y1;
+            y1 = t;
+        }
+        if (x0 == x1 || y0 == y1) {
+            return this;
+        }
+        if (count == parts.length) {
+            parts = Arrays.copyOf(parts, count * 2);
+        }
+        parts[count++] = new ColoredRectangleRenderState(RenderPipelines.GUI, TextureSetup.noTexture(),
+                new Matrix3x2f(graphics.pose()), x0, y0, x1, y1, top, bottom, graphics.scissorStack.peek());
         return this;
     }
 

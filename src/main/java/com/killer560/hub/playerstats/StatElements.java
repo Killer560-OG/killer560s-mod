@@ -216,7 +216,7 @@ public final class StatElements {
 
     /** Whether {@code r} has something to show in game right now (a value read, or for XP a player). */
     static boolean hasValue(Readout r) {
-        return r.bar ? barValue(r) != null : text(r, false) != null;
+        return r.bar ? readBar(r) != null : text(r, false) != null;
     }
 
     /** Width in its own units of what text readout {@code r} draws (its label in the editor while it has no value). */
@@ -358,10 +358,10 @@ public final class StatElements {
         }
 
         private boolean drawBar(GuiGraphicsExtractor g, PlayerStatsConfig cfg, int x, int y, boolean preview) {
-            Object[] v = barValue(r);
-            long cur = v == null ? 1 : (Long) v[0];
-            long max = v == null ? 2 : (Long) v[1];
-            String value = v == null ? null : (String) v[2];
+            String value = readBar(r);
+            long cur = value == null ? 1 : outCur;
+            long max = value == null ? 2 : outMax;
+            boolean read = value != null;
             if (value == null) {
                 if (!preview) {
                     return false;
@@ -371,16 +371,28 @@ public final class StatElements {
             }
             int w = barWidthNow();
             int h = thickness(r);
+            PlayerStatsConfig.BarStyle style = cfg.getBarStyle();
+            if (style != PlayerStatsConfig.BarStyle.CLASSIC) {
+                drawStyled(g, cfg, style, x, y, w, h, cur, max, value, read, preview);
+                return true;
+            }
             int top = y;
+            int i = r.ordinal();
             g.fill(x, top, x + w, top + h, cfg.getBarBackground());
             int color = cfg.getReadoutColor(r);
+            BarPainter.lastTrack[i] = w;
+            BarPainter.lastFill[i] = 0;
+            BarPainter.lastOverflow[i] = 0;
+            BarPainter.lastGhost[i] = 0;
+            BarPainter.lastDrawNanos[i] = System.nanoTime();
             if (max > 0) {
                 // The fill is the share of max, never more (a reading past max is absorption, below).
                 int filled = (int) Math.round(w * Math.max(0.0, Math.min(1.0, (double) cur / max)));
+                BarPainter.lastFill[i] = filled;
                 if (filled > 0) {
                     g.fill(x, top, x + filled, top + h, color);
                 }
-                long abs = r == Readout.HEALTH_BAR && v != null ? absorption() : 0;
+                long abs = r == Readout.HEALTH_BAR && read ? absorption() : 0;
                 if (abs > 0) {
                     // Absorption (2026-10-07, killer560: "Whenever I get absorption it breaks the health one"): its own
                     // segment in the absorption colour, as long as its share of max health, straight after the health
@@ -391,18 +403,58 @@ public final class StatElements {
                             / max)));
                     int a0 = Math.min(healthPart, w - seg);
                     g.fill(x + a0, top, x + a0 + seg, top + h, cfg.getAbsorptionColor());
+                    BarPainter.lastOverflow[i] = seg;
                 }
             }
             if (cfg.isBarShowValue()) {
                 Font font = Minecraft.getInstance().font;
                 // A number never runs into the bar's ends (or the next bar in a Predefined row): the full value, else
                 // the current value alone, else nothing, each with VALUE_PAD_X to spare at both ends.
-                value = fitValue(font, value, w);
+                value = fitValueCached(r, font, value, w);
                 if (value != null) {
                     drawCentred(g, font, value, x, top, w, h);
                 }
             }
             return true;
+        }
+
+        /** Sleek / Bold ({@link BarPainter}): the overflow layer is absorption on the health bar and overflow mana on
+         *  the mana bar, each as a share of max; the number goes inside the track or beside it. */
+        private void drawStyled(GuiGraphicsExtractor g, PlayerStatsConfig cfg, PlayerStatsConfig.BarStyle style, int x,
+                                int y, int w, int h, long cur, long max, String value, boolean read, boolean preview) {
+            float fill = max > 0 ? (float) Math.max(0.0, Math.min(1.0, (double) cur / max)) : 0f;
+            float over = 0f;
+            int overColor = 0;
+            if (max > 0 && read) {
+                if (r == Readout.HEALTH_BAR) {
+                    long abs = absorption();
+                    if (abs > 0) {
+                        over = (float) Math.min(1.0, (double) abs / max);
+                        overColor = cfg.getAbsorptionColor();
+                    }
+                } else if (r == Readout.MANA_BAR && PlayerStatsFeature.overflowMana > 0) {
+                    over = (float) Math.min(1.0, (double) PlayerStatsFeature.overflowMana / max);
+                    overColor = cfg.getOverflowManaColor();
+                }
+            }
+            String shown = null;
+            int reserve = 0;
+            if (cfg.isBarShowValue()) {
+                Font font = Minecraft.getInstance().font;
+                if (cfg.getBarValuePosition() == PlayerStatsConfig.ValuePosition.BESIDE) {
+                    int need = besideReserve(r, font, value);
+                    // Beside only while the track keeps 24 units; else the number goes inside as usual.
+                    if (w - need - BarPainter.iconRoom(cfg, w, h) >= 24) {
+                        reserve = need;
+                        shown = value;
+                    }
+                }
+                if (reserve == 0) {
+                    shown = fitValueCached(r, font, value, w - BarPainter.iconRoom(cfg, w, h));
+                }
+            }
+            BarPainter.draw(g, cfg, r, style, x, y, w, h, fill, over, overColor, shown, reserve, preview,
+                    System.nanoTime());
         }
 
         private boolean drawText(GuiGraphicsExtractor g, PlayerStatsConfig cfg, int x, int y, boolean preview) {
@@ -415,47 +467,127 @@ public final class StatElements {
         }
     }
 
-    /** {cur, max, the number drawn on the bar} for bar {@code r}, or null when nothing has been read for it. */
-    private static Object[] barValue(Readout r) {
+    // ---- Bar numbers, built only when what they show changes (bars draw every frame). Render thread. ----
+
+    private static final int N = Readout.values().length;
+    private static final long[] keyA = new long[N];
+    private static final long[] keyB = new long[N];
+    private static final long[] keyC = new long[N];
+    private static final Object[] keyD = new Object[N];
+    private static final String[] valueText = new String[N];
+    private static final String[] fitSource = new String[N];
+    private static final int[] fitWidth = new int[N];
+    private static final String[] fitOut = new String[N];
+    private static final String[] reserveSource = new String[N];
+    private static final int[] reserveWidth = new int[N];
+    private static final long[] reserveMaxKey = new long[N];
+    /** Units between a bar's end and its number when the number goes Beside. */
+    public static final int BESIDE_GAP = 3;
+    /** cur and max of the bar {@link #readBar} read last. */
+    private static long outCur;
+    private static long outMax;
+
+    /**
+     * Reads bar {@code r} into {@link #outCur}/{@link #outMax} and returns the number drawn on it, or null when nothing
+     * has been read for it. The string is rebuilt only when what it shows changed, so a steady bar allocates nothing.
+     */
+    static String readBar(Readout r) {
         long cur;
         long max;
-        String value;
+        long a;
+        Object d = null;
         switch (r) {
             case HEALTH_BAR -> {
                 cur = PlayerStatsFeature.healthCur;
                 max = PlayerStatsFeature.healthMax;
-                value = cur < 0 ? null : fmt(cur) + "/" + fmt(max);
+                a = cur;
             }
             case MANA_BAR -> {
                 cur = PlayerStatsFeature.manaCur;
                 max = PlayerStatsFeature.manaMax;
-                value = cur < 0 ? null : fmt(cur) + "/" + fmt(max);
+                a = cur;
             }
             case DEFENCE_BAR -> {
                 long def = PlayerStatsFeature.defenceValue;
                 // Damage reduction as a fraction of 1000 so the shared fill code can use it.
                 cur = def < 0 ? -1 : Math.round(1000.0 * def / (def + 100.0));
                 max = 1000;
-                value = def < 0 ? null : fmt(def) + " (" + String.format(Locale.US, "%.1f", cur / 10.0) + "%)";
+                a = def;
             }
             case VITALITY_BAR -> {
                 cur = PlayerStatsFeature.vitalityCur;
                 max = PlayerStatsFeature.vitalityMax;
-                value = cur < 0 ? null : fmt(cur) + "/" + fmt(max);
+                a = cur;
             }
             case XP_BAR -> {
-                float[] xp = xp();
-                cur = xp == null ? -1 : Math.round(1000.0 * xp[1]);
+                net.minecraft.world.entity.player.Player p = Minecraft.getInstance().player;
+                if (p == null) {
+                    return null;
+                }
+                float progress = p.experienceProgress;
+                if (Float.isNaN(progress)) {
+                    progress = 0f;
+                }
+                progress = Math.max(0f, Math.min(1f, progress));
+                cur = Math.round(1000.0 * progress);
                 max = 1000;
-                value = xp == null ? null : xpLabel(xp);
+                a = p.experienceLevel;
+                d = null;
             }
             default -> {
                 cur = PlayerStatsFeature.otherCur;
                 max = PlayerStatsFeature.otherMax;
-                value = cur < 0 ? null : fmt(cur) + "/" + fmt(max) + PlayerStatsFeature.otherIcon;
+                a = cur;
+                d = PlayerStatsFeature.otherIcon;
             }
         }
-        return value == null ? null : new Object[]{cur, max, value};
+        if (cur < 0) {
+            return null;
+        }
+        int i = r.ordinal();
+        if (valueText[i] == null || keyA[i] != a || keyB[i] != max || keyC[i] != cur || keyD[i] != d) {
+            valueText[i] = switch (r) {
+                case DEFENCE_BAR -> fmt(a) + " (" + String.format(Locale.US, "%.1f", cur / 10.0) + "%)";
+                case XP_BAR -> xpLabel(new float[]{a, cur / 1000f});
+                case OTHER_BAR -> fmt(cur) + "/" + fmt(max) + PlayerStatsFeature.otherIcon;
+                default -> fmt(cur) + "/" + fmt(max);
+            };
+            keyA[i] = a;
+            keyB[i] = max;
+            keyC[i] = cur;
+            keyD[i] = d;
+        }
+        outCur = cur;
+        outMax = max;
+        return valueText[i];
+    }
+
+    /** {@link #fitValue}, remembered for the last string and width, so a steady bar cuts no string per frame. */
+    static String fitValueCached(Readout r, Font font, String value, int w) {
+        int i = r.ordinal();
+        if (fitSource[i] != value || fitWidth[i] != w) {
+            fitSource[i] = value;
+            fitWidth[i] = w;
+            fitOut[i] = fitValue(font, value, w);
+        }
+        return fitOut[i];
+    }
+
+    /** Room a Beside number needs after the bar: the widest number the bar has shown since its max last changed, so the
+     *  bar does not change length as the digits do. */
+    static int besideReserve(Readout r, Font font, String value) {
+        int i = r.ordinal();
+        if (reserveSource[i] != value) {
+            reserveSource[i] = value;
+            int now = font.width(value) + BESIDE_GAP;
+            if (reserveMaxKey[i] != outMax) {
+                reserveMaxKey[i] = outMax;
+                reserveWidth[i] = now;
+            } else {
+                reserveWidth[i] = Math.max(reserveWidth[i], now);
+            }
+        }
+        return reserveWidth[i];
     }
 
     /** The readout a text element draws: the live value, or (in the HUD editor) its label until there is one; null
