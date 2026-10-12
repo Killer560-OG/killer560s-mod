@@ -99,18 +99,23 @@ public final class CroesusConfig {
     public static final int DEFAULT_RUN_KEY_COLOR = 0x9B00B2;
     /** Earlier needs-a-key defaults (gold, then 0xCC0096): a config still on one moves to the new one. */
     static final int[] LEGACY_RUN_KEY_COLORS = {0xFFD000, 0xCC0096};
-    /** A claimed run whose chests were not looked at yet: a faint 1 px outline, no fill, no mark - nothing to do until
-     *  he looks, so it recedes (killer560, 2026-10-13). */
-    public static final int DEFAULT_RUN_UNKNOWN_COLOR = 0x7DF9FF;
+    /** A claimed run whose chests were not looked at yet: a solid 2 px outline in a muted teal, no fill, no mark (a
+     *  full outline since 2026-10-13, his ask; muted so the filled action states still stand out) - nothing to do until
+     *  he looks. */
+    public static final int DEFAULT_RUN_UNKNOWN_COLOR = 0x728F8D;
+    /** Earlier not-looked-at default (bright cyan, which as a full outline outshone the action states - 2026-10-13):
+     *  a config still on it moves to the muted one. */
+    static final int[] LEGACY_RUN_UNKNOWN_COLORS = {0x7DF9FF};
     private int runUnknownColor = DEFAULT_RUN_UNKNOWN_COLOR;
     /** A one-line key to the run colours in the Croesus info box. */
     private boolean showRunLegend = true;
-    /** "If no chest key then it should be different": claimed, no key used, nothing left worth a key. A muted mid blue
-     *  with a solid border, so it reads apart from the dark key-used tint and, for a protanope, from the deep magenta
+    /** "If no chest key then it should be different": claimed, no key used, nothing left worth a key. A muted grey-blue
+     *  2 px outline (2026-10-13), so it reads apart from the dark key-used tint and, for a protanope, from the deep magenta
      *  needs-a-key (2026-10-12; 0x2F6FD0 was too close to it). */
-    public static final int DEFAULT_RUN_OPENED_COLOR = 0x578DD9;
-    /** Earlier opened defaults (0x3A4A66, then 0x2F6FD0): a config still on one moves to the new one. */
-    static final int[] LEGACY_RUN_OPENED_COLORS = {0x3A4A66, 0x2F6FD0};
+    public static final int DEFAULT_RUN_OPENED_COLOR = 0x798FAD;
+    /** Earlier opened defaults (0x3A4A66, 0x2F6FD0, then 0x578DD9 until the full outlines of 2026-10-13 needed a muted
+     *  blue): a config still on one moves to the new one. */
+    static final int[] LEGACY_RUN_OPENED_COLORS = {0x3A4A66, 0x2F6FD0, 0x578DD9};
     private int runKeyColor = DEFAULT_RUN_KEY_COLOR;
     private int runOpenedColor = DEFAULT_RUN_OPENED_COLOR;
     private int runUnclaimedColor = DEFAULT_RUN_UNCLAIMED_COLOR;
@@ -169,6 +174,11 @@ public final class CroesusConfig {
                 cfg.runKeyColor = DEFAULT_RUN_KEY_COLOR; // still on the old default: the new palette; a picked colour stays
             }
             cfg.runUnknownColor = ConfigJson.getInt(obj, "runUnknownColor", cfg.runUnknownColor) & 0xFFFFFF;
+            for (int legacy : LEGACY_RUN_UNKNOWN_COLORS) {
+                if (cfg.runUnknownColor == legacy) {
+                    cfg.runUnknownColor = DEFAULT_RUN_UNKNOWN_COLOR;
+                }
+            }
             cfg.showRunLegend = ConfigJson.getBool(obj, "showRunLegend", cfg.showRunLegend);
             cfg.runOpenedColor = ConfigJson.getInt(obj, "runOpenedColor", cfg.runOpenedColor) & 0xFFFFFF;
             for (int legacy : LEGACY_RUN_OPENED_COLORS) {

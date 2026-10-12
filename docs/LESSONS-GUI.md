@@ -283,3 +283,6 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **Distinct is not enough when most of a page is one state.** Five well-separated Croesus colours still hid the runs
   needing action under 17 bright "not looked at" outlines (2026-10-13). 898 now also scores salience (frame contrast and
   chroma against the page with highlights off): the action states must beat the quiet ones 2x; the old palette scored 0.77.
+- **A testkit "restart" that reloads one store is not a restart.** 890 reloaded the run memory from disk and passed, while the
+  Croesus totals lived in a second static map the reload never touched - on a real restart they came back "18+ / 60, Pages
+  seen 1 of 3". The page counts are now saved with the run memory, and 890 also clears any leftover static when it restarts.
