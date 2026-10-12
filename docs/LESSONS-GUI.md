@@ -266,3 +266,6 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **A clicked slot is empty until the server answers.** A left click on a container slot moves its item onto the cursor
   client-side, so a frame later the Croesus page looked one run short and the next same-party run took the clicked run's
   place and memory (889's first run). Croesus keeps the previous read while the cursor carries something.
+- **A mod-menu tab's buttons act on the config object they were built with.** Health and Mana Bars' lambdas capture
+  `PlayerStatsConfig.getInstance()`, and `PlayerStatsConfig.load()` (a profile apply) replaces the instance, so until the tab
+  rebuilds, a press changes the old object (testkit 893's first runs: Bar Style "did nothing" after a reload, 2026-10-12).

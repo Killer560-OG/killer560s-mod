@@ -99,34 +99,73 @@ public final class StatElements {
      *  below it, so centring the full {@link #VALUE_ROWS} put the digits a row high. */
     public static final int DIGIT_ROWS = 7;
 
+    /** The number's outline (2026-10-12, killer560: "Can the text stand out a hair more ... I feel like it is a hair hard
+     *  to read"): a 1-unit ring in all eight directions round every glyph, so white digits read on the brightest fill,
+     *  the gloss band and the sky alike. Vanilla's drop shadow was one quarter-bright copy down-right only. */
+    public static final int OUTLINE = 0xFF000000;
+    private static final int[] OUT_DX = {-1, 0, 1, -1, 1, -1, 0, 1};
+    private static final int[] OUT_DY = {-1, -1, -1, 0, 0, 1, 1, 1};
+
     /**
-     * Draws {@code value} centred on the bar box {@code (x, top, w, h)} (killer560, 2026-10-07: "Can you center the text
-     * for my custom health bars in their new slightly larger state"). Centred is the WHITE glyphs: the digits' 7 rows
-     * vertically (not the 9 the comma and shadow need, which sat them a row high), and their ink horizontally - a
-     * string's width ends in one unit of spacing after its last glyph, which is not ink, so it was half a unit left.
-     * The half units that leaves are drawn as such (a pose translate, not an int position), snapped to the nearest
-     * screen pixel through the current pose, so the number is centred to the pixel at GUI 2 and 4 alike.
+     * Draws {@code value} centred on the bar box {@code (x, top, w, h)} at text scale {@code s} (killer560, 2026-10-07:
+     * "Can you center the text for my custom health bars in their new slightly larger state"). Centred is the glyphs: the
+     * digits' 7 rows vertically (not the 9 the comma and shadow need, which sat them a row high), and their ink
+     * horizontally - a string's width ends in one unit of spacing after its last glyph, which is not ink. The outline
+     * is the same on every side, so it does not move the centre.
      */
-    static void drawCentred(GuiGraphicsExtractor g, Font font, String value, int x, int top, int w, int h) {
+    static void drawCentred(GuiGraphicsExtractor g, Font font, String value, int x, int top, int w, int h, float s,
+                            int color) {
         int ink = Math.max(0, font.width(value) - 1);
-        float fx = x + (w - ink) / 2f;
-        float fy = top + (h - DIGIT_ROWS) / 2f;
+        drawAt(g, font, value, x + (w - ink * s) / 2f, top, h, s, color);
+    }
+
+    /**
+     * Draws {@code value} with its left ink at {@code fx}, its digits centred on the rows {@code top..top+h}, at scale
+     * {@code s}, outlined. The position is snapped to the nearest screen pixel through the current pose, so the glyphs
+     * sit on whole pixels at every GUI scale.
+     */
+    static void drawAt(GuiGraphicsExtractor g, Font font, String value, float fx, int top, int h, float s, int color) {
+        float fy = top + (h - DIGIT_ROWS * s) / 2f;
         var pose = g.pose();
         int gs = Math.max(1, Minecraft.getInstance().getWindow().getGuiScale());
-        float sx = pose.m00() * gs;
-        float sy = pose.m11() * gs;
-        if (sx > 0f && sy > 0f) {
+        if (pose.m00() > 0f && pose.m11() > 0f) {
             fx = (Math.round((pose.m00() * fx + pose.m20()) * gs) / (float) gs - pose.m20()) / pose.m00();
             fy = (Math.round((pose.m11() * fy + pose.m21()) * gs) / (float) gs - pose.m21()) / pose.m11();
         }
         pose.pushMatrix();
         try {
             pose.translate(fx, fy);
-            g.text(font, value, 0, 0, 0xFFFFFFFF, true);
+            if (s != 1f) {
+                pose.scale(s, s);
+            }
+            for (int k = 0; k < OUT_DX.length; k++) {
+                g.text(font, value, OUT_DX[k], OUT_DY[k], OUTLINE, false);
+            }
+            g.text(font, value, 0, 0, color, false);
         } finally {
             pose.popMatrix();
         }
     }
+
+    /**
+     * The number's scale: 1 for Normal; for Small about 0.85, rounded down so a font pixel is a whole number of screen
+     * pixels where that still leaves at least 0.6 (3 of 4 at 4 screen pixels a unit, 2 of 3 at 3). At 2 pixels a unit
+     * the only whole step is a half, too small, so Small is 0.85 there.
+     */
+    static float textScale(GuiGraphicsExtractor g, PlayerStatsConfig cfg) {
+        if (cfg.getBarTextSize() != PlayerStatsConfig.TextSize.SMALL) {
+            return 1f;
+        }
+        float p = g.pose().m00() * Math.max(1, Minecraft.getInstance().getWindow().getGuiScale());
+        if (p <= 0f) {
+            return SMALL_SCALE;
+        }
+        float whole = (float) Math.floor(p * SMALL_SCALE + 1e-3f);
+        float s = whole / p;
+        return s >= 0.6f && s <= SMALL_SCALE + 1e-3f ? s : SMALL_SCALE;
+    }
+
+    static final float SMALL_SCALE = 0.85f;
 
     // ---- Where the readouts drew this frame, in GUI units: the held-item name hides where it would cover one. ----
 
@@ -178,12 +217,12 @@ public final class StatElements {
 
     /** What fits on a bar {@code w} units long with {@link #VALUE_PAD_X} at each end: {@code value}, else the part
      *  before its slash (the current value), else null. */
-    static String fitValue(Font font, String value, int w) {
-        if (value == null || font.width(value) + 2 * VALUE_PAD_X <= w) {
+    static String fitValue(Font font, String value, int w, float s) {
+        if (value == null || font.width(value) * s + 2 * VALUE_PAD_X <= w) {
             return value;
         }
         int slash = value.indexOf('/');
-        if (slash > 0 && font.width(value.substring(0, slash)) + 2 * VALUE_PAD_X <= w) {
+        if (slash > 0 && font.width(value.substring(0, slash)) * s + 2 * VALUE_PAD_X <= w) {
             return value.substring(0, slash);
         }
         return null;
@@ -371,50 +410,7 @@ public final class StatElements {
             }
             int w = barWidthNow();
             int h = thickness(r);
-            PlayerStatsConfig.BarStyle style = cfg.getBarStyle();
-            if (style != PlayerStatsConfig.BarStyle.CLASSIC) {
-                drawStyled(g, cfg, style, x, y, w, h, cur, max, value, read, preview);
-                return true;
-            }
-            int top = y;
-            int i = r.ordinal();
-            g.fill(x, top, x + w, top + h, cfg.getBarBackground());
-            int color = cfg.getReadoutColor(r);
-            BarPainter.lastTrack[i] = w;
-            BarPainter.lastFill[i] = 0;
-            BarPainter.lastOverflow[i] = 0;
-            BarPainter.lastGhost[i] = 0;
-            BarPainter.lastDrawNanos[i] = System.nanoTime();
-            if (max > 0) {
-                // The fill is the share of max, never more (a reading past max is absorption, below).
-                int filled = (int) Math.round(w * Math.max(0.0, Math.min(1.0, (double) cur / max)));
-                BarPainter.lastFill[i] = filled;
-                if (filled > 0) {
-                    g.fill(x, top, x + filled, top + h, color);
-                }
-                long abs = r == Readout.HEALTH_BAR && read ? absorption() : 0;
-                if (abs > 0) {
-                    // Absorption (2026-10-07, killer560: "Whenever I get absorption it breaks the health one"): its own
-                    // segment in the absorption colour, as long as its share of max health, straight after the health
-                    // it adds to - like vanilla's golden hearts after the red ones. Where that runs past the end (full
-                    // health) it ends at the bar's end instead, over the health fill, so it always shows.
-                    int seg = (int) Math.max(1, Math.min(w, Math.round(w * (double) abs / max)));
-                    int healthPart = (int) Math.round(w * Math.max(0.0, Math.min(1.0, (double) (cur > max ? max : cur)
-                            / max)));
-                    int a0 = Math.min(healthPart, w - seg);
-                    g.fill(x + a0, top, x + a0 + seg, top + h, cfg.getAbsorptionColor());
-                    BarPainter.lastOverflow[i] = seg;
-                }
-            }
-            if (cfg.isBarShowValue()) {
-                Font font = Minecraft.getInstance().font;
-                // A number never runs into the bar's ends (or the next bar in a Predefined row): the full value, else
-                // the current value alone, else nothing, each with VALUE_PAD_X to spare at both ends.
-                value = fitValueCached(r, font, value, w);
-                if (value != null) {
-                    drawCentred(g, font, value, x, top, w, h);
-                }
-            }
+            drawStyled(g, cfg, cfg.getBarStyle(), x, y, w, h, cur, max, value, read, preview);
             return true;
         }
 
@@ -439,10 +435,12 @@ public final class StatElements {
             }
             String shown = null;
             int reserve = 0;
+            long now = System.nanoTime();
+            float ts = textScale(g, cfg);
             if (cfg.isBarShowValue()) {
                 Font font = Minecraft.getInstance().font;
                 if (cfg.getBarValuePosition() == PlayerStatsConfig.ValuePosition.BESIDE) {
-                    int need = besideReserve(r, font, value);
+                    int need = columnReserve(g, r, x, besideReserve(r, font, value, ts), now);
                     // Beside only while the track keeps 24 units; else the number goes inside as usual.
                     if (w - need - BarPainter.iconRoom(cfg, w, h) >= 24) {
                         reserve = need;
@@ -450,11 +448,10 @@ public final class StatElements {
                     }
                 }
                 if (reserve == 0) {
-                    shown = fitValueCached(r, font, value, w - BarPainter.iconRoom(cfg, w, h));
+                    shown = fitValueCached(r, font, value, w - BarPainter.iconRoom(cfg, w, h), ts);
                 }
             }
-            BarPainter.draw(g, cfg, r, style, x, y, w, h, fill, over, overColor, shown, reserve, preview,
-                    System.nanoTime());
+            BarPainter.draw(g, cfg, r, style, x, y, w, h, fill, over, overColor, shown, reserve, ts, preview, now);
         }
 
         private boolean drawText(GuiGraphicsExtractor g, PlayerStatsConfig cfg, int x, int y, boolean preview) {
@@ -478,6 +475,16 @@ public final class StatElements {
     private static final String[] fitSource = new String[N];
     private static final int[] fitWidth = new int[N];
     private static final String[] fitOut = new String[N];
+    private static final float[] fitScale = new float[N];
+    private static final float[] reserveScale = new float[N];
+    // Beside numbers in one column (2026-10-12, left to us by killer560: bars stacked with the number beside them end at
+    // one length). Each bar records its left edge in GUI units and the room its own number needs; a bar takes the widest
+    // need among the bars drawn in the last quarter second whose left edges are within COLUMN_SLACK of its own.
+    private static final float[] colLeft = new float[N];
+    private static final float[] colNeed = new float[N];
+    private static final long[] colAt = new long[N];
+    static final float COLUMN_SLACK = 3f;
+    private static final long COLUMN_FRESH_NANOS = 250_000_000L;
     private static final String[] reserveSource = new String[N];
     private static final int[] reserveWidth = new int[N];
     private static final long[] reserveMaxKey = new long[N];
@@ -563,23 +570,26 @@ public final class StatElements {
     }
 
     /** {@link #fitValue}, remembered for the last string and width, so a steady bar cuts no string per frame. */
-    static String fitValueCached(Readout r, Font font, String value, int w) {
+    static String fitValueCached(Readout r, Font font, String value, int w, float s) {
         int i = r.ordinal();
-        if (fitSource[i] != value || fitWidth[i] != w) {
+        if (fitSource[i] != value || fitWidth[i] != w || fitScale[i] != s) {
             fitSource[i] = value;
             fitWidth[i] = w;
-            fitOut[i] = fitValue(font, value, w);
+            fitScale[i] = s;
+            fitOut[i] = fitValue(font, value, w, s);
         }
         return fitOut[i];
     }
 
     /** Room a Beside number needs after the bar: the widest number the bar has shown since its max last changed, so the
      *  bar does not change length as the digits do. */
-    static int besideReserve(Readout r, Font font, String value) {
+    static int besideReserve(Readout r, Font font, String value, float s) {
         int i = r.ordinal();
-        if (reserveSource[i] != value) {
+        if (reserveSource[i] != value || reserveScale[i] != s) {
             reserveSource[i] = value;
-            int now = font.width(value) + BESIDE_GAP;
+            reserveScale[i] = s;
+            // The glyphs plus the outline's unit after them, at the number's scale.
+            int now = (int) Math.ceil(font.width(value) * s) + BESIDE_GAP;
             if (reserveMaxKey[i] != outMax) {
                 reserveMaxKey[i] = outMax;
                 reserveWidth[i] = now;
@@ -588,6 +598,29 @@ public final class StatElements {
             }
         }
         return reserveWidth[i];
+    }
+
+    /** The Beside room bar {@code r} (left edge {@code x} in its own units) uses: the widest {@code need} among the bars
+     *  of its column, in its own units. Records its own need for the others. */
+    static int columnReserve(GuiGraphicsExtractor g, Readout r, int x, int need, long now) {
+        var pose = g.pose();
+        float sx = pose.m00();
+        if (sx <= 0f) {
+            return need;
+        }
+        int i = r.ordinal();
+        float left = sx * x + pose.m20();
+        colLeft[i] = left;
+        colNeed[i] = need * sx;
+        colAt[i] = now;
+        float best = colNeed[i];
+        for (int j = 0; j < N; j++) {
+            if (j != i && colAt[j] != 0L && now - colAt[j] < COLUMN_FRESH_NANOS
+                    && Math.abs(colLeft[j] - left) <= COLUMN_SLACK) {
+                best = Math.max(best, colNeed[j]);
+            }
+        }
+        return Math.max(need, (int) Math.ceil(best / sx - 1e-3f));
     }
 
     /** The readout a text element draws: the live value, or (in the HUD editor) its label until there is one; null

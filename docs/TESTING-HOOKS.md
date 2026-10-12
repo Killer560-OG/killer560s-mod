@@ -52,12 +52,6 @@ pipe), the Proxy Client (the game connection itself), and anything Minecraft or 
   to its `[Path] ... warp(s) (tile)` line, so a harness can check that landing nearer the centre never costs a warp
   (testkit 95-sim-map-warp). Costs one more search per click; never set outside the testkit.
 
-## Health and Mana Bars default style (`playerstats/PlayerStatsConfig`)
-
-- `-Dkiller560.test.barStyle=classic|sleek|bold` is the Bar Style a config with no `barStyle` key gets (normally
-  Sleek). The testkit passes `classic`, so its older bar cases, which measure the flat bar's exact pixels, keep
-  measuring that look; its style cases (891-896) set the style they test. Read when a config is created or loaded.
-
 ## Chat listener failures (`util/ChatObserver`)
 
 No property. `ChatObserver.failures()` counts every listener or rewriter throw it has caught since start-up,
