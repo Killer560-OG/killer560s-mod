@@ -68,7 +68,7 @@ public class AutoBloodCampTab extends BaseTab {
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 20;
 
-            double offsetNorm = (cfg.getManualTickOffset() + 20) / 40.0;
+            double offsetNorm = (cfg.getManualTickOffset() + 3) / 6.0;
             widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
                     Component.literal("Click Offset: " + cfg.getManualTickOffset() + "t"), offsetNorm) {
                 @Override
@@ -78,7 +78,7 @@ public class AutoBloodCampTab extends BaseTab {
 
                 @Override
                 protected void applyValue() {
-                    cfg.setManualTickOffset((int) Math.round(this.value * 40) - 20);
+                    cfg.setManualTickOffset((int) Math.round(this.value * 6) - 3);
                     cfg.save();
                 }
             });

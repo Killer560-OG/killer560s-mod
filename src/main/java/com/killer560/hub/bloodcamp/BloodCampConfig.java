@@ -229,7 +229,8 @@ public final class BloodCampConfig {
     }
 
     public void setManualTickOffset(int manualTickOffset) {
-        this.manualTickOffset = Math.max(-20, Math.min(20, manualTickOffset));
+        // A fine-tune on top of the fixed 3-tick lead (2026-10-11); it was -20..+20 when it was the whole timing.
+        this.manualTickOffset = Math.max(-3, Math.min(3, manualTickOffset));
     }
 
     /** Text scale for the world-space countdown drawn on each blood mob's box (killer560: "the timer on
