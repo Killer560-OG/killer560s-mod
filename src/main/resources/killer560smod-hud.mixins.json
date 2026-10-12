@@ -6,7 +6,9 @@
 	"client": [
 		"AutoScaleScreenMixin",
 		"AutoScaleMouseMixin",
-		"HudTextVisualOrderMixin"
+		"HudTextVisualOrderMixin",
+		"RecipeBookSearchAccessor",
+		"CreativeSearchAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

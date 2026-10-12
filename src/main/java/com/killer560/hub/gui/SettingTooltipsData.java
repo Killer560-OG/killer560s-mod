@@ -863,7 +863,7 @@ final class SettingTooltipsData {
         d.put("this build", "The commit this jar was built from, and its Minecraft version and variant. Auto Update compares the commit with the release's.");
         d.put("join discord", "Opens the mod's Discord server invite in your browser.");
         d.put("edit hud positions", "Opens the HUD editor to drag and resize on-screen elements.");
-        d.put("edit hud keybind", "Key that opens the HUD editor in game. It does nothing while any screen is open (chat, an inventory, a menu - this one or another mod's).");
+        d.put("edit hud keybind", "Key that opens the HUD editor, over any screen (a chest, Croesus, this menu) so its overlays can be placed where they sit. It does nothing while you are typing: chat, a rename, a sign or book, any search box.");
         d.put("correction alarm", "Plays a siren when the server corrects your position while an automation (AP3, Auto Routes, the Interactive Map, the auto puzzles...) is moving you. A correction never stops anything: the feature posts a chat line and carries on from where the server put you. At most once every 3 s.");
         d.put("alarm volume", "How loud the Correction Alarm plays, 0-100%.");
         d.put("hud scale","Scales everything this mod draws at once, 5% to 300%: every HUD element (multiplying its own size, so per-element sizes are kept), this menu and the mod's other screens, its reskinned menus and its popups. Menus follow it between 50% and 300% and never grow past what fits the window. Saved with profiles.");
@@ -1448,9 +1448,9 @@ final class SettingTooltipsData {
         d.put("chat emotes", "Replaces Hypixel's emote shortcuts in your messages with the real emote text.");
         d.put("auto meow", "Replies with a random cat line when a chat message says meow, purr, nya or mew.");
         d.put("cringe", "Run /cringe to send a random line from cringe-lines.txt, which you can edit.");
-        d.put("croesus / chest profit", "Shows what each dungeon reward chest is worth, logs your claims, and (cheat build) claims the best chest.");
-        d.put("croesus / chest profit/min delay", "Cheat build only. Shortest random wait between Auto Croesus's clicks, 100-2000 ms.");
-        d.put("croesus / chest profit/max delay", "Cheat build only. Longest random wait between Auto Croesus's clicks, 100-2000 ms.");
+        d.put("croesus", "Shows what each dungeon reward chest is worth and logs your claims. Auto Croesus is its own tab (cheat build).");
+        d.put("auto croesus/min delay", "Cheat build only. Shortest random wait between Auto Croesus's clicks, 100-2000 ms.");
+        d.put("auto croesus/max delay", "Cheat build only. Longest random wait between Auto Croesus's clicks, 100-2000 ms.");
         d.put("display options", "Borderless fullscreen, fullbright, Pack Disabler and the Amber main menu theme.");
         d.put("display options/pack disabler", "Draws every SkyBlock item the way it looked before Hypixel's resource "
                 + "pack: its old item or head, through your own resource packs. Items that never had an old look get "
@@ -1780,7 +1780,7 @@ final class SettingTooltipsData {
         d.put("auto routes/recording", "Records a route: stand on the start block, press Start, run the room, press Stop (cheat build only).");
         d.put("auto routes/show node numbers", "Shows each node's number over it, as used by /ar delete <n> and /ar remove <n>.");
         d.put("test mode", "Dry run for this session: AP3 nodes run without waiting on the arena. Same as /ap3 testmode.");
-        d.put("croesus/auto croesus", "Press Start Croesus to automatically claim profitable chests on every unclaimed run (cheat build only).");
+        d.put("auto croesus/auto croesus", "Press Start Croesus to automatically claim profitable chests on every unclaimed run (cheat build only).");
         d.put("rag axe/mage reduction", "Shortens the ability cooldown countdown while you play Mage.");
         d.put("rag axe/mage cut", "How much shorter the cooldown is on Mage, as a percentage.");
         d.put("custom mage beam/fade", "Fades the custom Mage beam out instead of vanishing all at once.");
@@ -1834,15 +1834,15 @@ final class SettingTooltipsData {
         d.put("ability cooldowns/mage cut", "How much shorter ability cooldowns are while you play Mage, as a percentage.");
         d.put("arrow align/highlight color", "Colour of the box drawn on frames that still need clicking.");
         d.put("arrow align/trigger bot delay", "How long your crosshair must sit on a frame before Trigger Bot clicks it, in ms (cheat build only). Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
-        d.put("croesus / chest profit/highlight runs", "Outlines Croesus runs green if unclaimed and red if already claimed.");
-        d.put("croesus / chest profit/second best with key", "Also highlights the second-best chest if it still profits after paying for a Chest Key.");
-        d.put("croesus / chest profit/open profit tracker", "Opens the /croesus tracker with your profit totals and big drops.");
-        d.put("croesus / chest profit/use chest keys", "Lets Auto Croesus spend a Dungeon Chest Key on a second chest (cheat build only).");
-        d.put("croesus / chest profit/price mode", "How Bazaar items in dungeon chests are priced for the chest values, the profit log and Auto Croesus: Insta-Sell (what selling instantly gets) or Sell Offer (the lowest sell offer, what a sell order of yours gets). Auction House items always use the lowest BIN. Left click cycles forward, right click back.");
-        d.put("croesus / chest profit/use key based on", "What a key chest's profit must clear before a key is spent: your own number or the key's live price (cheat build only).");
-        d.put("croesus / chest profit/chest key min profit", "Minimum profit, after the key's price, for a key chest to be opened (cheat build only).");
-        d.put("croesus / chest profit/use kismets", "Lets Auto Croesus spend a Kismet Feather to reroll a poor Bedrock chest (cheat build only).");
-        d.put("croesus / chest profit/reroll below", "Bedrock chests worth less than this get rerolled with a Kismet Feather (cheat build only).");
+        d.put("croesus/highlight runs", "Outlines Croesus runs green if unclaimed and red if already claimed.");
+        d.put("croesus/second best with key", "Also highlights the second-best chest if it still profits after paying for a Chest Key.");
+        d.put("croesus/open profit tracker", "Opens the /croesus tracker with your profit totals and big drops.");
+        d.put("auto croesus/use chest keys", "Lets Auto Croesus spend a Dungeon Chest Key on a second chest (cheat build only).");
+        d.put("croesus/price mode", "How Bazaar items in dungeon chests are priced for the chest values, the profit log and Auto Croesus: Insta-Sell (what selling instantly gets) or Sell Offer (the lowest sell offer, what a sell order of yours gets). Auction House items always use the lowest BIN. Left click cycles forward, right click back.");
+        d.put("auto croesus/use key based on", "What a key chest's profit must clear before a key is spent: your own number or the key's live price (cheat build only).");
+        d.put("auto croesus/chest key min profit", "Minimum profit, after the key's price, for a key chest to be opened (cheat build only).");
+        d.put("auto croesus/use kismets", "Lets Auto Croesus spend a Kismet Feather to reroll a poor Bedrock chest (cheat build only).");
+        d.put("auto croesus/reroll below", "Bedrock chests worth less than this get rerolled with a Kismet Feather (cheat build only).");
         d.put("secret sound/sound", "Picks which sound Secret Sound plays; left click cycles forward, right click back.");
         d.put("secret sound/volume", "Loudness of the secret sound, 0.0-1.0.");
         d.put("secret sound/pitch", "Pitch of the secret sound, 0.0-2.0; 1.0 is normal.");

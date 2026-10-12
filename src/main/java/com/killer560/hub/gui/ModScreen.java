@@ -338,6 +338,11 @@ public class ModScreen extends Screen {
      *  a top-level tab can now be a {@link FolderTab} whose actual {@link KeyCaptureTab} lives inside
      *  one of its expanded accordion sections (e.g. {@code ExperimentsTab} inside {@code HelpersTab}) -
      *  falls back to asking the folder directly, rather than only ever checking the top level. */
+    /** True while a tab waits for a key ("Press any key..."): that key is his, not a shortcut (util/TypingDetector). */
+    public boolean isCapturingKey() {
+        return findListeningKeyCaptureTab() != null;
+    }
+
     private KeyCaptureTab findListeningKeyCaptureTab() {
         BaseTab active = tabs.get(selectedTab);
         if (active instanceof KeyCaptureTab captureTab && captureTab.isListeningForKey()) {

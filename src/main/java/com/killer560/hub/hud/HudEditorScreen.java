@@ -8,6 +8,7 @@ import com.mojang.blaze3d.platform.cursor.CursorType;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
@@ -168,7 +169,38 @@ public class HudEditorScreen extends Screen {
 
     @Override
     protected void init() {
+        // Opened over a container (2026-10-12): keep it laid out for this size, since it is drawn behind the boxes.
+        if (parent instanceof AbstractContainerScreen<?> container
+                && (container.width != this.width || container.height != this.height)) {
+            try {
+                container.resize(this.width, this.height);
+            } catch (RuntimeException e) {
+                // drawn at its old layout then; nothing else depends on it
+            }
+        }
         rebuildList();
+    }
+
+    /** The container this editor was opened over, drawn under the boxes so its overlays are placed in context: its
+     *  background (the texture) and contents (slots, items, labels), never its tooltip, with the mouse off it. Its own
+     *  overlays are not drawn by it here (Fabric's after-extract events are not part of these calls); their boxes are. */
+    private void drawParentContainer(GuiGraphicsExtractor graphics, float partialTick) {
+        if (!(parent instanceof AbstractContainerScreen<?> container)) {
+            return;
+        }
+        try {
+            if (container.isInGameUi()) {
+                container.extractBackground(graphics, -1, -1, partialTick);
+            }
+            container.extractRenderState(graphics, -1, -1, partialTick);
+        } catch (RuntimeException e) {
+            // A container that cannot draw while not the open screen just is not shown.
+        }
+    }
+
+    /** The screen this editor returns to (null: none). */
+    public Screen parentScreen() {
+        return parent;
     }
 
     /** The one hint line at the top left: what the mouse does, and how to leave. Drawn only while nothing is being
@@ -221,6 +253,7 @@ public class HudEditorScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         StatLayout.newFrame();
+        drawParentContainer(graphics, partialTick);
         graphics.fill(0, 0, this.width, this.height, 0x33000000);
         // One dim line, gone while something is dragged (2026-10-08, killer560: the editor's panels "block a lot of my
         // screen"). With nothing listed, the line says why instead.

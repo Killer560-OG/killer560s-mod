@@ -55,8 +55,18 @@ public final class ChocolateFactoryHelper {
     private ChocolateFactoryHelper() {
     }
 
+    /** The info line's place in Edit HUD (2026-10-12): drawn over the factory menu, moved and scaled like any element. */
+    public static final String INFO_LINE_ELEMENT_ID = "chocolate_info_line";
+    private static com.killer560.hub.hud.ContainerOverlayElement infoLineElement;
+    private static volatile String lastInfoLine = "§6123.4/s §7| Best: §aRabbit Sis §7- §61.25M §7(affordable now)";
+
     public static void register() {
         ChocolateFactoryConfig.getInstance();
+        infoLineElement = com.killer560.hub.hud.ContainerOverlayElement.register(INFO_LINE_ELEMENT_ID,
+                "Chocolate Factory Info Line", 230, 9, 10, 20, // no font yet at registration: a guess until drawn
+                () -> ChocolateFactoryConfig.getInstance().isEnabled() && ChocolateFactoryConfig.getInstance().isInfoLine(),
+                (g, x, y) -> g.text(Minecraft.getInstance().font, lastInfoLine, x, y, 0xFFFFFFFF, true))
+                .previewSize(() -> new int[]{Minecraft.getInstance().font.width(lastInfoLine), 9});
         ClientTickEvents.END_CLIENT_TICK.register(ChocolateFactoryHelper::tick);
         ScreenEvents.AFTER_INIT.register(ChocolateFactoryHelper::onScreenInit);
     }
@@ -165,9 +175,10 @@ public final class ChocolateFactoryHelper {
         }
         if (cfg.isInfoLine()) {
             String line = infoLine(st);
-            int x = left;
-            int y = top - 11;
-            graphics.text(client.font, line, x, y, 0xFFFFFFFF, true);
+            lastInfoLine = line;
+            // Just above the menu, unless he has placed it in Edit HUD (ContainerOverlayElement).
+            infoLineElement.draw(graphics, left, top - 11, client.font.width(line), 9,
+                    (g, x, y) -> g.text(client.font, line, x, y, 0xFFFFFFFF, true));
         }
     }
 

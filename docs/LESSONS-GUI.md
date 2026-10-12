@@ -231,3 +231,12 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   leap menu's 80%-opaque boxes covered the head a leap click puts on the cursor, which is the "almost fully faded
   out" head killer560 saw (2026-10-11). Hiding the real menu needs the carried/snapback/floating item renders
   cancelled too (`SpiritLeapHideMixin`), not just the slots.
+
+- **A raw-polled key must also ask "was he typing a tick ago?".** Key presses reach the open screen before
+  END_CLIENT_TICK, so the press that ends a "Press any key..." capture finds the capture already over at the poll and the
+  Edit HUD key opened the editor while being bound (testkit 862, 2026-10-12). `util/TypingDetector` decides typing (a
+  focused EditBox/text area anywhere in the screen's widgets, chat/sign/book screens, the recipe-book and creative searches
+  through accessors, the mod's own hand-drawn search boxes); the key poll skips on typing now OR at its previous run.
+- Opening a screen over a container is safe to come back from: `AbstractContainerScreen.removed()` only runs
+  `menu.removed(player)`, which drops a cursor item client-side and sends nothing (javap 26.1.2), so the server's menu stays
+  open and `setScreen(container)` restores it. Edit HUD does this and refuses with an item on the cursor.

@@ -61,6 +61,11 @@ public final class AuctionHouseScreen extends Screen {
     private final Screen parent;
     private String query = "";
     private boolean searchFocused;
+
+    /** True while the search box takes typing (util/TypingDetector). */
+    public boolean isSearchFocused() {
+        return searchFocused;
+    }
     private int scroll;
     private long typedAtMs;
     private boolean typedSinceCommit;

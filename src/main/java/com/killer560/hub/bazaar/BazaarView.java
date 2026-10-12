@@ -86,6 +86,11 @@ public final class BazaarView {
     static String tab = "Farming";
     static String query = "";
     static boolean searchFocused;
+
+    /** True while the Bazaar search box takes typing (util/TypingDetector). */
+    public static boolean isSearchFocused() {
+        return searchFocused;
+    }
     static int listScroll;
     static int railScroll;
     /** The product PREVIEW shows (and the product page, once it arrives). */
