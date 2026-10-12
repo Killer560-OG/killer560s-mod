@@ -139,3 +139,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   testkit server (792, server-side `attack_entity` tick) the attack was acted on 0-2 ticks later than ping alone predicts,
   over five trips, at 1 ms and 200 ms alike - each end only acts on a packet at a tick. The countdown only takes x.8 values,
   so the click lands on 3.8 + ping and the hit arrives 2.8 ticks early on average, 1.8-3.8 by tick phase.
+- **QUOI's aura ranges are eye to block CENTRE; ours are eye to block BOX.** A centre distance is 0.5-0.87 longer than the box
+  distance, so QUOI's 4.7 skull range is 3.8-4.2 to the box and was TIGHTER than our 4.5-to-the-box skull cap, though the
+  number is bigger (2026-10-12). Compare in one measure. Skull Range now uses QUOI's centre measure (testkit 842: 4.8 not
+  clicked, 4.6 clicked); the 20-tick world-change pause QUOI's AuraManager adds was already ActionGate's WORLD_SETTLE_TICKS (841).

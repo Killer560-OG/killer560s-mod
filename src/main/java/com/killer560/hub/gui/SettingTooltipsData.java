@@ -817,7 +817,7 @@ final class SettingTooltipsData {
         d.put("f7 boss levers (p3/devices)", "Lets Secret Aura click the F7 P3 and device levers in the boss fight.");
         d.put("swing hand", "Swings your arm each time Secret Aura clicks something.");
         d.put("pause while sneaking", "Stops Secret Aura while you hold sneak.");
-        d.put("skull range", "How close a Wither Essence skull must be to click, 2.1-4.7 blocks.");
+        d.put("skull range", "How close a Wither Essence skull must be to be clicked, 2.1-4.7 blocks from your eyes to the skull block's centre. Default 4.7, QUOI's value: Hypixel's reach for skulls looks tighter than for chests and levers, so skulls are kept a few tenths nearer.");
         d.put("click cooldown", "Minimum time between Secret Aura clicks, 100-2000 ms.");
         d.put("auto gfs", "Runs /gfs to refill dungeon items from your sacks when you run low (cheat build only).");
         d.put("spirit leaps", "Lets Auto GFS refill Spirit Leaps (up to 16).");
@@ -1851,7 +1851,7 @@ final class SettingTooltipsData {
         d.put("secret aura/swing hand", "Plays your arm swing each time Secret Aura clicks something.");
         d.put("secret aura/pause while sneaking", "Stops Secret Aura while you hold sneak.");
         d.put("secret aura/range", "Maximum distance in blocks this feature reaches.");
-        d.put("secret aura/skull range", "How close a Wither Essence skull must be to be clicked, in blocks (2.1-4.7).");
+        d.put("secret aura/skull range", "How close a Wither Essence skull must be to be clicked, 2.1-4.7 blocks from your eyes to the skull block's centre. Default 4.7, QUOI's value: Hypixel's reach for skulls looks tighter than for chests and levers, so skulls are kept a few tenths nearer.");
         d.put("secret aura/click cooldown", "Minimum time between Secret Aura clicks, in ms (100-2000).");
         d.put("lever aura/min delay", "Shortest random wait between Lever Aura flicks, in ms (50-2000).");
         d.put("lever aura/max delay", "Longest random wait between Lever Aura flicks, in ms (50-2000).");
