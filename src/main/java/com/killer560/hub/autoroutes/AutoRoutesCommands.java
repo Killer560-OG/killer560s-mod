@@ -337,6 +337,17 @@ public final class AutoRoutesCommands {
         }
     }
 
+    /** The text the Add Jump Node key leaves in chat, cursor at the end, for him to finish with the count. */
+    public static final String JUMP_PROMPT = "/ar add jump ";
+
+    /** Opens chat prefilled with {@link #JUMP_PROMPT}, as the client's own command key does with "/". Queued like
+     *  {@link #openEditor}: set from inside a key handler or command, a screen can be closed again the same tick. */
+    private static void openJumpPrompt() {
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> com.killer560.hub.compat.McCompat.setScreen(client,
+                new net.minecraft.client.gui.screens.ChatScreen(JUMP_PROMPT, false)));
+    }
+
     private static void dispatch(Action action) {
         switch (action) {
             case START_RECORD -> startRecord();
@@ -348,8 +359,9 @@ public final class AutoRoutesCommands {
             case ADD_BOOM -> add(RouteNode.Type.BOOM);
             case ADD_PATH -> add(RouteNode.Type.PATH);
             case ADD_CRYPT -> add(RouteNode.Type.CRYPT);
-            // A key cannot type the count, so the key says what to type (killer560, 2026-10-12).
-            case ADD_JUMP -> ModChat.send(FEATURE, ModChat.bad("Please add a number of jumps: /ar add jump <number>"));
+            // A key cannot type the count (killer560, 2026-10-12: "Type the command out with the player ready to type in the
+            // number of jumps"): it opens chat holding "/ar add jump " and sends nothing - Enter does, after the number.
+            case ADD_JUMP -> openJumpPrompt();
             case EDIT_BREAKER -> toggleEditMode();
             case CLEAR -> clear();
             case LIST -> list();
