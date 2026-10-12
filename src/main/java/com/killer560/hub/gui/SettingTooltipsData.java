@@ -1176,7 +1176,8 @@ final class SettingTooltipsData {
         d.put("interactive map/map mode", "Whether the map stays open until you press the key again (Toggle) or only while you hold it (Hold).");
         d.put("start key", "Cheat build: while the map is open, goes to the room under your cursor or runs its secrets.");
         d.put("locked door key", "Cheat build: while the map is open, paths you to the nearest locked (wither) door.");
-        d.put("face door on arrival", "Cheat build: turns you to look at the door once pathing gets you there.");
+        d.put("face door on arrival", "Cheat build: turns you to look at a wither or blood door once pathing gets you there."
+                + " An ordinary doorway leaves your camera as it was.");
         d.put("keep chunks loaded", "Cheat build: holds onto unloaded chunks so pathing can still route through rooms you left.");
         d.put("interactive map/ticks between etherwarps", "Cheat build: client ticks from one etherwarp of a map path to the next; 1 warps every tick.");
         d.put("path timeout", "Cheat build: how long the pathfinder may search before giving up, 200-1000 ms.");

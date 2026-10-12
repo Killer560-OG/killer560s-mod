@@ -215,7 +215,12 @@ public final class AutoClearUtils {
             ModChat.send(ClearExecutor.CHAT, ModChat.bad("Could not find door coordinates"));
             return false;
         }
-        Runnable arrival = faceOnArrival ? () -> faceDoor(door) : null;
+        // Face Door on Arrival turns the camera only for a door that needs aiming at to open - wither and blood. An
+        // ordinary doorway leaves his camera exactly as it was (killer560, 2026-10-12: "if i teleport to a door that
+        // isnt a wither or blood door then it shouldnt snap my camera").
+        int type = layout.doorType(door);
+        boolean needsAim = type == DungeonLayout.DOOR_WITHER || type == DungeonLayout.DOOR_BLOOD;
+        Runnable arrival = faceOnArrival && needsAim ? () -> faceDoor(door) : null;
         ClearExecutor.etherPath(goal, arrival);
         return true;
     }

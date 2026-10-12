@@ -781,7 +781,7 @@ public final class MapPainter {
         }
     }
 
-    private static boolean sameRoom(int gid, int gx, int gz) {
+    static boolean sameRoom(int gid, int gx, int gz) {
         int g = LiveMapFeature.GRID;
         if (gx < 0 || gz < 0 || gx >= g || gz >= g || LiveMapFeature.groupIdAt(gx + gz * g) != gid) {
             return false;
