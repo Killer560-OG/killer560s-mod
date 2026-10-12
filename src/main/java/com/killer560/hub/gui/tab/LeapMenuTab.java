@@ -108,6 +108,19 @@ public class LeapMenuTab extends BaseTab {
                 }
             });
             y += ROW + GAP;
+
+            // 2026-10-11: each box shows the teammate's face; and the map style for the clear (boxes again in boss).
+            widgets.add(SettingsButtonWidget.cycling(onOff("Show Player Heads", cfg.isShowHeads()), (btn, dir) -> {
+                        cfg.setShowHeads(!cfg.isShowHeads());
+                        cfg.save();
+                        btn.setMessage(onOff("Show Player Heads", cfg.isShowHeads()));
+                    }).bounds(x, y, half, ROW).build());
+            widgets.add(SettingsButtonWidget.cycling(leapStyleText(cfg), (btn, dir) -> {
+                        cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
+                        cfg.save();
+                        btn.setMessage(leapStyleText(cfg));
+                    }).bounds(rightX, y, rightW, ROW).build());
+            y += ROW + GAP;
         }
 
         return y + SECTION_GAP;
@@ -176,6 +189,10 @@ public class LeapMenuTab extends BaseTab {
 
     private static Component scaleText(SpiritLeapOverlayConfig cfg) {
         return Component.literal(String.format(Locale.US, "Scale: %.0f%%", cfg.getScale() * 100));
+    }
+
+    private static Component leapStyleText(SpiritLeapOverlayConfig cfg) {
+        return Component.literal("Leap Style: §6" + cfg.getStyle().label());
     }
 
     private static Component onOff(String label, boolean value) {

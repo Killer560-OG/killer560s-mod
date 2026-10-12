@@ -213,6 +213,8 @@ final class SettingTooltipsData {
         d.put("done", "Finishes setting up this DVD box and returns to the list.");
         d.put("custom leap menu", "Replaces Hypixel's Spirit Leap menu with 4 big teammate boxes; click one or press 1-4 to leap.");
         d.put("use class colors", "Colours each leap menu box by that teammate's class; off draws every box in orange.");
+        d.put("show player heads", "Draws each teammate's face (their real skin) at the left of their leap menu box.");
+        d.put("leap style", "Boxes: the 4 teammate boxes everywhere. Map in Clear: during the clear the leap menu shows the dungeon map with each teammate's face where they stand - click a face to leap to them; in boss it goes back to the boxes. Keys 1-4 work in both.");
         d.put("default order", "Where the Leap Order puts each teammate by class until you move them by hand: Odin (Archer top-left, Berserk top-right, Healer bottom-left, Mage/Tank bottom-right), A-Z Class, Z-A Class, or Hypixel's own order.");
         d.put("open leap order", "Opens the Leap Order editor to set which teammate goes in each of the 4 spots.");
         d.put("fast leap", "Left-clicking a Spirit Leap or Infinileap leaps straight to your target (cheat build only).");

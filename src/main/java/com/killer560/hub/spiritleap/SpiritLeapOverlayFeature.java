@@ -34,6 +34,11 @@ import java.util.regex.Pattern;
  * you are playing; anyone not placed there fills the remaining spots in Hypixel's own order. Targets are
  * re-read from the live slots every frame because Hypixel's items arrive after the screen opens (NoammAddons
  * 26.1.2 LeapMenu does the same) - but only once those slots have settled, see {@code MenuState}.
+ * <p>
+ * 2026-10-11 batch (killer560): a face in each box (Show Player Heads); the Map in Clear style (the dungeon map with a
+ * clickable face per teammate during the clear, the boxes in boss); targets taken on the first frame when the whole menu
+ * has arrived (the old settle window was the "really long delay" he felt); the layout frozen while a leap click is in
+ * flight; and no carried head drawn on the cursor ({@code SpiritLeapHideMixin}).
  */
 public final class SpiritLeapOverlayFeature {
 
@@ -60,6 +65,80 @@ public final class SpiritLeapOverlayFeature {
         private boolean pendingRead;
         private boolean settled;
         private List<LeapTarget> targets = List.of();
+        /** The full-contents packet this screen last took its targets from (see {@link #onFullContents}). */
+        private long seenFullSeq;
+        /** Until when a leap click holds the layout still (see {@link #FREEZE_MS}). */
+        private long frozenUntilMs;
+        /** Map style: the faces drawn this frame and the fallback boxes for targets the map has no position for. */
+        private List<com.killer560.hub.livemap.LeapMapView.Head> heads = List.of();
+    }
+
+    /**
+     * How long a leap click holds the layout still (killer560, 2026-10-11: "when I click on a name it shifts the names
+     * around for a split second on my screen because it thinks the player is gone since I am holding their head").
+     * The click picks the head up client-side until Hypixel answers, so for a moment that slot is empty and a re-read
+     * would drop the teammate and slide everyone after them along. Hypixel closes the menu on a leap well inside this;
+     * if it does not (a refused leap), reading resumes afterwards.
+     */
+    private static final long FREEZE_MS = 1500L;
+
+    /** Bumped by every full container-contents packet ({@code SpiritLeapContentMixin}), with its container id. */
+    private static volatile long fullContentSeq;
+    private static volatile int fullContentContainerId = -1;
+
+    /** When the current leap screen opened, and how long until its targets were ready / first drawn (ms; testkit). */
+    private static volatile long openedAtNanos;
+    private static volatile double lastOpenToReadyMs = -1;
+    private static volatile double lastOpenToDrawMs = -1;
+    /** What the last frame drew: "BOXES" or "MAP" (testkit). */
+    private static volatile String lastView = "";
+    /** The faces the map style drew last frame (testkit). */
+    private static volatile List<com.killer560.hub.livemap.LeapMapView.Head> lastHeads = List.of();
+
+    /** A full contents packet for {@code containerId} has just been applied (render thread). */
+    public static void onFullContents(int containerId) {
+        fullContentContainerId = containerId;
+        lastContainerPacketFull = true;
+        fullContentSeq++;
+    }
+
+    /** A single-slot packet has just been applied (render thread): the slots are no longer one packet's. */
+    public static void onSetSlot(int containerId) {
+        if (containerId == fullContentContainerId) {
+            lastContainerPacketFull = false;
+        }
+    }
+
+    private static volatile boolean lastContainerPacketFull;
+
+    public static double lastOpenToReadyMs() {
+        return lastOpenToReadyMs;
+    }
+
+    public static double lastOpenToDrawMs() {
+        return lastOpenToDrawMs;
+    }
+
+    /** The names the last box frame drew in spots 0-3 ("" = empty) (testkit). */
+    private static volatile List<String> lastDrawnSpots = List.of();
+
+    public static List<String> lastDrawnSpots() {
+        return lastDrawnSpots;
+    }
+
+    public static String lastView() {
+        return lastView;
+    }
+
+    public static List<com.killer560.hub.livemap.LeapMapView.Head> lastHeads() {
+        return lastHeads;
+    }
+
+    /** True when the leap menu draws the dungeon map: the Map in Clear style, in a dungeon, before the boss. */
+    public static boolean mapStyleNow() {
+        return SpiritLeapOverlayConfig.getInstance().getStyle() == SpiritLeapOverlayConfig.LeapStyle.MAP_IN_CLEAR
+                && com.killer560.hub.secrets.DungeonState.isInDungeon()
+                && !com.killer560.hub.secrets.DungeonState.isBossPhaseActive();
     }
 
     /**
@@ -105,6 +184,9 @@ public final class SpiritLeapOverlayFeature {
             return;
         }
         activeScreen = screen;
+        openedAtNanos = System.nanoTime();
+        lastOpenToReadyMs = -1;
+        lastOpenToDrawMs = -1;
         ScreenEvents.remove(screen).register(s -> {
             if (activeScreen == s) {
                 activeScreen = null;
@@ -117,8 +199,25 @@ public final class SpiritLeapOverlayFeature {
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, tickDelta) -> {
             poll(containerScreen, state);
             if (isHiding(s)) {
-                // nothing is drawn until the slots settle - a couple of frames, never a fixed delay
-                render(graphics, s.width, s.height, layout(state.targets), mouseX, mouseY);
+                // nothing is drawn until the slots settle - see poll(): at once when the whole menu is in
+                if (state.settled && lastOpenToDrawMs < 0) {
+                    lastOpenToDrawMs = (System.nanoTime() - openedAtNanos) / 1e6;
+                }
+                if (mapStyleNow()) {
+                    lastView = "MAP";
+                    state.heads = renderMap(graphics, s.width, s.height, state.targets, mouseX, mouseY);
+                    lastHeads = state.heads;
+                } else {
+                    lastView = "BOXES";
+                    state.heads = List.of();
+                    LeapTarget[] spots = layout(state.targets);
+                    String[] names = new String[4];
+                    for (int i = 0; i < 4; i++) {
+                        names[i] = spots[i] == null ? "" : spots[i].name();
+                    }
+                    lastDrawnSpots = List.of(names);
+                    render(graphics, s.width, s.height, spots, mouseX, mouseY);
+                }
             }
         });
 
@@ -127,10 +226,24 @@ public final class SpiritLeapOverlayFeature {
                 return true;
             }
             poll(containerScreen, state);
+            if (mapStyleNow()) {
+                // Map style: only a click on a teammate's face (or a fallback box) leaps; the rooms are context.
+                List<com.killer560.hub.livemap.LeapMapView.Head> heads = state.heads;
+                for (int i = heads.size() - 1; i >= 0; i--) {
+                    if (state.settled && heads.get(i).contains(event.x(), event.y())) {
+                        LeapTarget t = byName(state.targets, heads.get(i).name());
+                        if (t != null) {
+                            leap(client, containerScreen, t, state, "map head " + t.name(), lastLeapAtMs);
+                        }
+                        break;
+                    }
+                }
+                return false;
+            }
             LeapTarget[] spots = layout(state.targets);
             int spot = spotFor(event.x(), event.y(), s.width, s.height);
             if (state.settled && spot >= 0 && spots[spot] != null) {
-                leap(client, containerScreen, spots[spot], "click spot " + spot, lastLeapAtMs);
+                leap(client, containerScreen, spots[spot], state, "click spot " + spot, lastLeapAtMs);
             }
             return false; // never let a click reach the hidden chest/inventory
         });
@@ -147,7 +260,7 @@ public final class SpiritLeapOverlayFeature {
                 LeapTarget[] spots = layout(state.targets);
                 LeapTarget t = spots[key - InputConstants.KEY_1];
                 if (state.settled && t != null) {
-                    leap(client, containerScreen, t, "key " + (key - InputConstants.KEY_1 + 1), lastLeapAtMs);
+                    leap(client, containerScreen, t, state, "key " + (key - InputConstants.KEY_1 + 1), lastLeapAtMs);
                 }
                 return false;
             }
@@ -157,7 +270,17 @@ public final class SpiritLeapOverlayFeature {
         });
     }
 
-    private static void leap(Minecraft client, AbstractContainerScreen<?> screen, LeapTarget target, String how, AtomicLong lastLeapAtMs) {
+    private static LeapTarget byName(List<LeapTarget> targets, String name) {
+        for (LeapTarget t : targets) {
+            if (t.name().equalsIgnoreCase(name)) {
+                return t;
+            }
+        }
+        return null;
+    }
+
+    private static void leap(Minecraft client, AbstractContainerScreen<?> screen, LeapTarget target, MenuState state,
+                             String how, AtomicLong lastLeapAtMs) {
         if (client.gameMode == null || client.player == null) {
             return;
         }
@@ -166,6 +289,7 @@ public final class SpiritLeapOverlayFeature {
             return;
         }
         lastLeapAtMs.set(now);
+        state.frozenUntilMs = now + FREEZE_MS; // the head goes onto the cursor: keep everyone where they are
         client.gameMode.handleContainerInput(screen.getMenu().containerId, target.slotIndex(), 0,
                 ContainerInput.PICKUP, client.player);
     }
@@ -177,9 +301,36 @@ public final class SpiritLeapOverlayFeature {
      * ignored: that is the menu being torn down, not a new set of targets.
      */
     private static void poll(AbstractContainerScreen<?> containerScreen, MenuState state) {
+        long now = System.currentTimeMillis();
+        if (now < state.frozenUntilMs) {
+            return; // a leap click is in flight: the layout holds still (FREEZE_MS)
+        }
         List<ItemStack> items = containerItems(containerScreen);
         boolean anyHead = items.stream().anyMatch(item -> !item.isEmpty() && item.is(Items.PLAYER_HEAD));
-        long now = System.currentTimeMillis();
+        // Fast path (2026-10-11, killer560: "it feels like there is a really long delay between when i use my leap
+        // then when the menu actually opens"). The settle window below is the delay he felt: SETTLE_MS of nothing
+        // drawn after the heads arrive. It exists so a menu still arriving slot by slot is never clicked half-filled,
+        // and in two cases there is nothing still arriving: a full contents packet replaces every slot at once, and a
+        // menu already holding a head for every teammate the party tracker knows is complete. Either is taken on the
+        // first frame; anything else still goes through the window.
+        long seq = fullContentSeq;
+        boolean fullPacket = false;
+        if (seq != state.seenFullSeq && fullContentContainerId == containerScreen.getMenu().containerId) {
+            state.seenFullSeq = seq;
+            // Only while no single-slot packet has landed since: then the slots are exactly that packet's.
+            fullPacket = lastContainerPacketFull;
+        }
+        int known = PartyTracker.teammates().size();
+        boolean complete = !state.settled && known > 0 && headCount(items) >= known;
+        if (anyHead && (fullPacket || complete)) {
+            List<LeapTarget> fresh = readTargets(containerScreen);
+            if (!fresh.isEmpty()) {
+                state.snapshot = List.copyOf(items);
+                state.pendingRead = false;
+                accept(state, fresh);
+                return;
+            }
+        }
         if (!anyHead || !ItemStack.listMatches(items, state.snapshot)) {
             // Still arriving (or the menu is being torn down): remember this frame's contents and restart the window.
             // Whatever was already settled stays in use - a read that has gone empty is a teardown, not new targets.
@@ -196,14 +347,69 @@ public final class SpiritLeapOverlayFeature {
         if (fresh.isEmpty()) {
             return;
         }
+        accept(state, fresh);
+    }
+
+    private static int headCount(List<ItemStack> items) {
+        int n = 0;
+        for (ItemStack item : items) {
+            if (!item.isEmpty() && item.is(Items.PLAYER_HEAD)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private static void accept(MenuState state, List<LeapTarget> fresh) {
         boolean first = !state.settled;
         state.settled = true;
+        if (first) {
+            lastOpenToReadyMs = (System.nanoTime() - openedAtNanos) / 1e6;
+        }
         if (first || !fresh.equals(state.targets)) {
             // Hypixel re-sends the contents of an open leap menu (a teammate dying/leaving); a change goes through
             // the same window before it is trusted.
             state.targets = fresh;
             PartyTracker.noteTeammates(fresh.stream().map(LeapTarget::name).toList());
         }
+    }
+
+    /**
+     * The Map in Clear style: the dungeon map in a square filling most of the screen, a face per leapable teammate at
+     * their position; any target the map has no position for gets a small name box in a row under it (still a target).
+     */
+    private static List<com.killer560.hub.livemap.LeapMapView.Head> renderMap(GuiGraphicsExtractor graphics, int width,
+            int height, List<LeapTarget> targets, int mouseX, int mouseY) {
+        var font = Minecraft.getInstance().font;
+        int size = Math.max(60, Math.min(width - 20, height - 50));
+        int x0 = (width - size) / 2;
+        int y0 = Math.max(6, (height - size - 24) / 2);
+        int[] panel = {x0, y0, x0 + size, y0 + size};
+        List<String> names = targets.stream().map(LeapTarget::name).toList();
+        List<com.killer560.hub.livemap.LeapMapView.Head> heads = new ArrayList<>(
+                com.killer560.hub.livemap.LeapMapView.draw(graphics, font, panel, names, mouseX, mouseY));
+        List<String> missing = new ArrayList<>();
+        for (String n : names) {
+            if (heads.stream().noneMatch(h -> h.name().equalsIgnoreCase(n))) {
+                missing.add(n);
+            }
+        }
+        int bw = 80;
+        int bh = 16;
+        int rowX = width / 2 - (missing.size() * (bw + 4) - 4) / 2;
+        int rowY = panel[3] + 6;
+        for (String n : missing) {
+            var box = new com.killer560.hub.livemap.LeapMapView.Head(n, rowX, rowY, rowX + bw, rowY + bh);
+            boolean hover = box.contains(mouseX, mouseY);
+            DungeonClass cls = LeapMenuConfig.getInstance().getAssignedClass(n);
+            int color = cls != null ? cls.color() : 0xFFCC6600;
+            graphics.fill(box.x0(), box.y0(), box.x1(), box.y1(), hover ? 0xE0262626 : 0xCC0D0D0D);
+            graphics.outline(box.x0(), box.y0(), bw, bh, hover ? 0xFFFFFFFF : color);
+            graphics.centeredText(font, n, rowX + bw / 2, rowY + 4, color);
+            heads.add(box);
+            rowX += bw + 4;
+        }
+        return heads;
     }
 
     /** The container's own slot contents (never the 36 appended player-inventory slots). */
@@ -292,12 +498,23 @@ public final class SpiritLeapOverlayFeature {
             int fill = dead ? (spot == hovered ? 0xE0501414 : 0xCC350A0A) : (spot == hovered ? 0xE0262626 : 0xCC0D0D0D);
             graphics.fill(x0, y0, x0 + boxW, y0 + boxH, fill);
             graphics.outline(x0, y0, boxW, boxH, color);
+            // Their face on the left of the box (Show Player Heads); the name centres in what is left.
+            int face = SpiritLeapOverlayConfig.getInstance().isShowHeads() ? Math.max(8, (int) (boxH * 0.6f)) : 0;
+            int textLeft = x0;
+            if (face > 0) {
+                int fx = x0 + (boxH - face) / 2;
+                int fy = y0 + (boxH - face) / 2;
+                graphics.fill(fx - 1, fy - 1, fx + face + 1, fy + face + 1, 0xFF000000);
+                com.killer560.hub.livemap.LeapMapView.drawFace(graphics, target.name(), fx, fy, face);
+                textLeft = fx + face;
+            }
+            int textW = x0 + boxW - textLeft;
             // name grows with the box but never spills out of it (long IGNs at high scale / shrunk boxes)
-            float maxText = Math.min((boxW - 8) / (float) Math.max(1, font.width(target.name())), (boxH - 4) / 9.0f);
+            float maxText = Math.min((textW - 8) / (float) Math.max(1, font.width(target.name())), (boxH - 4) / 9.0f);
             float textScale = Math.max(0.5f, Math.min(Math.max(1.0f, scale * 1.5f), maxText));
             graphics.pose().pushMatrix();
             try {
-                graphics.pose().translate(x0 + boxW / 2.0f, y0 + boxH / 2.0f);
+                graphics.pose().translate(textLeft + textW / 2.0f, y0 + boxH / 2.0f);
                 graphics.pose().scale(textScale, textScale);
                 graphics.centeredText(font, target.name(), 0, -4, color);
             } finally {

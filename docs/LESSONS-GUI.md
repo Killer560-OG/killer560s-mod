@@ -227,3 +227,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   `Font.prepareText(String)`); testkit 811-814 read the screenshot for a clean green-to-blue run in chat, tab, F5 tag, preview.
 - A nametag's height comes from `EntityRenderState.nameTagAttachment` (the entity's dimensions), not from the render-state
   `scale`, so a render-only model scale leaves the tag at 1x height; `SupportersScaleMixin` scales it too (testkit 816).
+- A Fabric `ScreenEvents.afterExtract` overlay draws ON TOP of what the screen drew, the carried item included: the custom
+  leap menu's 80%-opaque boxes covered the head a leap click puts on the cursor, which is the "almost fully faded
+  out" head killer560 saw (2026-10-11). Hiding the real menu needs the carried/snapback/floating item renders
+  cancelled too (`SpiritLeapHideMixin`), not just the slots.
