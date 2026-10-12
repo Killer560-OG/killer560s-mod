@@ -29,6 +29,14 @@ public abstract class CroesusSlotMixin {
         }
     }
 
+    /** The corner mark (key, "?") over the item, under the tooltip: after the slot's item is drawn. */
+    @Inject(method = "extractSlot(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/inventory/Slot;II)V",
+            at = @At("TAIL"), require = 0)
+    private void killer560smod$drawRunGlyph(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY,
+                                            CallbackInfo ci) {
+        ChestProfitFeature.drawRunGlyph(graphics, (AbstractContainerScreen<?>) (Object) this, slot);
+    }
+
     @Inject(method = "extractSlot(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/inventory/Slot;II)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/Slot;isFake()Z"), require = 0)
     private void killer560smod$drawRunHighlight(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY,

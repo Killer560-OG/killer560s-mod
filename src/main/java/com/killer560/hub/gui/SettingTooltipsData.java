@@ -1835,8 +1835,10 @@ final class SettingTooltipsData {
         d.put("ability cooldowns/mage cut", "How much shorter ability cooldowns are while you play Mage, as a percentage.");
         d.put("arrow align/highlight color", "Colour of the box drawn on frames that still need clicking.");
         d.put("arrow align/trigger bot delay", "How long your crosshair must sit on a frame before Trigger Bot clicks it, in ms (cheat build only). Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
-        d.put("croesus/highlight runs", "In the Croesus menu, marks each run by what is left in it: unclaimed (orange), worth going back to with a Dungeon Chest Key (gold; a gold border alone means its chests have not been looked at yet this session), opened with nothing worth a key (blue), or done with a key (dark). Drawn behind the items, under their tooltips.");
+        d.put("croesus/highlight runs", "In the Croesus menu, marks each run by what is left in it: unclaimed (orange border and tint), worth going back to with a Dungeon Chest Key (magenta, thick border and a key mark), not looked at yet this session (cyan corners and a ? mark), opened with nothing worth a key (blue border), or done with a key (dark). Drawn behind the items, under their tooltips; the marks sit over the item.");
         d.put("croesus/unclaimed run colour", "The tint and border colour of a run you have not claimed anything from yet.");
+        d.put("croesus/not looked at colour", "A run you claimed one chest from whose chests have not been looked at since; drawn as corner marks with a ? mark, no fill. Never hidden.");
+        d.put("croesus/colour legend", "Adds a line to the Croesus info box showing what each run colour means.");
         d.put("croesus/needs key colour", "A run you claimed one chest from whose next chest is worth a Dungeon Chest Key under Auto Croesus's key settings. Never hidden.");
         d.put("croesus/opened run colour", "A run you claimed one chest from, with nothing left worth a key.");
         d.put("croesus/key used colour", "A run that is done: a key was used on its second chest.");

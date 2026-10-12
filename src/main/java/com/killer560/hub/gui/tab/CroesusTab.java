@@ -81,6 +81,14 @@ public class CroesusTab extends BaseTab {
                         CroesusConfig.DEFAULT_RUN_CLAIMED_COLOR, rgb -> cfg.setRunClaimedColor(rgb),
                         contentX + half + GAP, y, half));
                 y += 20;
+                widgets.add(colourButton("Not Looked At Colour", cfg.getRunUnknownColor(),
+                        CroesusConfig.DEFAULT_RUN_UNKNOWN_COLOR, rgb -> cfg.setRunUnknownColor(rgb), contentX, y, half));
+                widgets.add(SettingsButtonWidget.builder(onOff("Colour Legend", cfg.isShowRunLegend()), btn -> {
+                            cfg.setShowRunLegend(!cfg.isShowRunLegend());
+                            cfg.save();
+                            btn.setMessage(onOff("Colour Legend", cfg.isShowRunLegend()));
+                        }).bounds(contentX + half + GAP, y, half, 18).build());
+                y += 20;
             }
             y += 6;
         }

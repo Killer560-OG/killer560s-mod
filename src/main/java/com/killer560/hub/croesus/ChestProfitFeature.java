@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -68,6 +69,8 @@ public final class ChestProfitFeature {
     private static final int RUN_UNCLAIMED_BORDER_ALPHA = 0xC0;
     private static final int RUN_CLAIMED_FILL_ALPHA = 0x70;
     private static final int RUN_KEY_FILL_ALPHA = 0x48;
+    /** Key used: the darkest look, a heavier tint than "opened" and no border. */
+    private static final int RUN_USED_FILL_ALPHA = 0xC0;
     private static final int RUN_KEY_BORDER_ALPHA = 0xE0;
     /** A run head's state (killer560, 2026-10-12): what is left to do in it. */
     static final byte RUN_NONE = 0;
@@ -727,21 +730,74 @@ public final class ChestProfitFeature {
                 insetBorder(graphics, x, y, (RUN_UNCLAIMED_BORDER_ALPHA << 24) | cfg.getRunUnclaimedColor());
             }
             case RUN_NEEDS_KEY -> {
+                // Hue AND treatment (2026-10-12, "these colors are hard to actually tell if they are different"):
+                // a stronger fill and a 2 px border, plus the key mark drawn over the item (drawRunGlyph).
                 graphics.fill(x, y, x + 16, y + 16, (RUN_KEY_FILL_ALPHA << 24) | cfg.getRunKeyColor());
                 insetBorder(graphics, x, y, (RUN_KEY_BORDER_ALPHA << 24) | cfg.getRunKeyColor());
+                insetBorder(graphics, x + 1, y + 1, 14, (RUN_KEY_BORDER_ALPHA << 24) | cfg.getRunKeyColor());
             }
-            case RUN_UNKNOWN -> insetBorder(graphics, x, y, (RUN_KEY_BORDER_ALPHA << 24) | cfg.getRunKeyColor());
-            case RUN_OPENED -> graphics.fill(x, y, x + 16, y + 16, (RUN_CLAIMED_FILL_ALPHA << 24) | cfg.getRunOpenedColor());
-            default -> graphics.fill(x, y, x + 16, y + 16, (RUN_CLAIMED_FILL_ALPHA << 24) | cfg.getRunClaimedColor());
+            case RUN_UNKNOWN -> cornerMarks(graphics, x, y, 0xFF000000 | cfg.getRunUnknownColor());
+            case RUN_OPENED -> {
+                // A tint AND a solid 1 px border: the key-used look is a darker tint with no border.
+                graphics.fill(x, y, x + 16, y + 16, (RUN_CLAIMED_FILL_ALPHA << 24) | cfg.getRunOpenedColor());
+                insetBorder(graphics, x, y, 0xFF000000 | cfg.getRunOpenedColor());
+            }
+            default -> graphics.fill(x, y, x + 16, y + 16, (RUN_USED_FILL_ALPHA << 24) | cfg.getRunClaimedColor());
         }
     }
 
     /** A 1 px border inside the 16x16 slot, so neighbouring borders never touch. */
     private static void insetBorder(GuiGraphicsExtractor graphics, int x, int y, int argb) {
-        graphics.fill(x, y, x + 16, y + 1, argb);
-        graphics.fill(x, y + 15, x + 16, y + 16, argb);
-        graphics.fill(x, y + 1, x + 1, y + 15, argb);
-        graphics.fill(x + 15, y + 1, x + 16, y + 15, argb);
+        insetBorder(graphics, x, y, 16, argb);
+    }
+
+    private static void insetBorder(GuiGraphicsExtractor graphics, int x, int y, int size, int argb) {
+        graphics.fill(x, y, x + size, y + 1, argb);
+        graphics.fill(x, y + size - 1, x + size, y + size, argb);
+        graphics.fill(x, y + 1, x + 1, y + size - 1, argb);
+        graphics.fill(x + size - 1, y + 1, x + size, y + size - 1, argb);
+    }
+
+    /** "Not looked at": four 4 px corner brackets, nothing in between - an outline that is plainly not the others'. */
+    private static void cornerMarks(GuiGraphicsExtractor graphics, int x, int y, int argb) {
+        int[][] corners = {{x, y, 1, 1}, {x + 15, y, -1, 1}, {x, y + 15, 1, -1}, {x + 15, y + 15, -1, -1}};
+        for (int[] c : corners) {
+            int cx = c[0];
+            int cy = c[1];
+            graphics.fill(Math.min(cx, cx + 3 * c[2]), cy, Math.max(cx, cx + 3 * c[2]) + 1, cy + 1, argb);
+            graphics.fill(cx, Math.min(cy, cy + 3 * c[3]), cx + 1, Math.max(cy, cy + 3 * c[3]) + 1, argb);
+        }
+    }
+
+    /** 5x5 marks, drawn on a dark plate in the slot's top-right corner, so a state reads without its colour too. */
+    private static final String[] KEY_MARK = {".....", "XX...", "XXXXX", "...XX", "....."};
+    private static final String[] LOOK_MARK = {".XXX.", "...X.", "..XX.", ".....", "..X.."};
+
+    /**
+     * The corner mark over the item (called at the end of {@code extractSlot}, after the item, still under the tooltip):
+     * a key on a run worth a key, a "?" on a run not looked at.
+     */
+    public static void drawRunGlyph(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
+        CroesusConfig cfg = CroesusConfig.getInstance();
+        if (!cfg.isChestProfitEnabled() || !cfg.isHighlightRuns()) {
+            return;
+        }
+        int state = runState(screen, slot);
+        String[] mark = state == RUN_NEEDS_KEY ? KEY_MARK : state == RUN_UNKNOWN ? LOOK_MARK : null;
+        if (mark == null) {
+            return;
+        }
+        int argb = 0xFF000000 | (state == RUN_NEEDS_KEY ? cfg.getRunKeyColor() : cfg.getRunUnknownColor());
+        int x0 = slot.x + 11;
+        int y0 = slot.y;
+        graphics.fill(x0 - 1, y0, x0 + 5, y0 + 6, 0xFF101010);
+        for (int r = 0; r < 5; r++) {
+            for (int col = 0; col < 5; col++) {
+                if (mark[r].charAt(col) == 'X') {
+                    graphics.fill(x0 + col, y0 + r, x0 + col + 1, y0 + r + 1, argb);
+                }
+            }
+        }
     }
 
     /**
@@ -827,7 +883,39 @@ public final class ChestProfitFeature {
 
     // ---- rendering -------------------------------------------------------------------------------
 
-    private record Line(String text, int color, String right, int rightColor) {
+    private record Line(String text, int color, String right, int rightColor, Component rich) {
+        Line(String text, int color, String right, int rightColor) {
+            this(text, color, right, rightColor, null);
+        }
+    }
+
+    /** The colour legend: one line, each state's colour swatch (or mark) and a word. */
+    private static Line legendLine(CroesusConfig cfg) {
+        net.minecraft.network.chat.MutableComponent c = Component.empty();
+        legendPart(c, "\u25A0", cfg.getRunUnclaimedColor(), "new  ");
+        legendPart(c, "\u25A0", cfg.getRunKeyColor(), "key  ");
+        legendPart(c, "?", cfg.getRunUnknownColor(), "look  ");
+        legendPart(c, "\u25A0", cfg.getRunOpenedColor(), "done  ");
+        // The key-used tint is near black: drawn on the dark panel as a lighter grey of the same hue.
+        legendPart(c, "\u25A0", lighten(cfg.getRunClaimedColor()), "used");
+        return new Line(c.getString(), 0xFF000000 | ModChat.DIM, null, 0, c);
+    }
+
+    private static void legendPart(net.minecraft.network.chat.MutableComponent c, String mark, int rgb, String word) {
+        c.append(Component.literal(mark).withStyle(net.minecraft.network.chat.Style.EMPTY
+                .withColor(net.minecraft.network.chat.TextColor.fromRgb(rgb & 0xFFFFFF))));
+        c.append(Component.literal(word).withStyle(net.minecraft.network.chat.Style.EMPTY
+                .withColor(net.minecraft.network.chat.TextColor.fromRgb(ModChat.DIM))));
+    }
+
+    private static int lighten(int rgb) {
+        int r = (rgb >> 16) & 255;
+        int g = (rgb >> 8) & 255;
+        int b = rgb & 255;
+        if (r + g + b > 3 * 90) {
+            return rgb;
+        }
+        return ((r + 96) << 16) | ((g + 96) << 8) | (b + 96);
     }
 
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
@@ -866,6 +954,9 @@ public final class ChestProfitFeature {
             }
             if (partial) {
                 lines.add(new Line("Pages seen " + t[2] + " of " + t[3], 0xFF000000 | ModChat.DIM, null, 0));
+            }
+            if (CroesusConfig.getInstance().isShowRunLegend()) {
+                lines.add(legendLine(CroesusConfig.getInstance()));
             }
             drawPanel(screen, graphics, pos, lines);
             return;
@@ -990,7 +1081,8 @@ public final class ChestProfitFeature {
         Font font = Minecraft.getInstance().font;
         int width = 0;
         for (Line line : lines) {
-            int w = font.width(line.text()) + (line.right() != null ? PANEL_GAP + font.width(line.right()) : 0);
+            int w = line.rich() != null ? font.width(line.rich())
+                    : font.width(line.text()) + (line.right() != null ? PANEL_GAP + font.width(line.right()) : 0);
             width = Math.max(width, w);
         }
         return width + PANEL_PADDING * 2;
@@ -1008,6 +1100,11 @@ public final class ChestProfitFeature {
         graphics.outline(x, y, panelW, panelH, PANEL_BORDER);
         int ty = y + PANEL_PADDING;
         for (Line line : lines) {
+            if (line.rich() != null) {
+                graphics.text(font, line.rich(), x + PANEL_PADDING, ty, line.color(), true);
+                ty += 10;
+                continue;
+            }
             graphics.text(font, line.text(), x + PANEL_PADDING, ty, line.color(), true);
             if (line.right() != null) {
                 graphics.text(font, line.right(), x + panelW - PANEL_PADDING - font.width(line.right()), ty,
