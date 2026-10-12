@@ -29,7 +29,7 @@ import com.killer560.hub.compat.McCompat;
  * 2026-10-09 (killer560: "once I set everyone's class then it should automatically move them where they would normally
  * be; I should still be able to manually move them"): the Default Order button picks a {@link LeapOrderMode}, and every
  * teammate not moved by hand sits where it puts their class - so setting a class moves that teammate at once. A swap
- * pins both names it moved (drawn with a small grey "pinned"); shift-click unpins one, Reset to Default unpins all.
+ * pins both names it moved (drawn with a small grey "pinned"); shift-click unpins one, Reset Positions unpins all.
  * <p>
  * 2026-10-11, the class wizard (killer560: "it goes though player by player asking you their class, then after you get
  * a player on the right class you press next on a button on the bottom of your screen. Then it goes through all 4 of the
@@ -39,7 +39,10 @@ import com.killer560.hub.compat.McCompat;
  * is the same mod-wide class override the spot buttons set (picking what the tab list already says just clears the
  * override). After the last one the editor shows, laid out by the Default Order from those classes. The wizard runs on
  * its own only when some teammate's class is still unknown (so inside a dungeon, where the tab list knows everyone, it
- * goes straight to the layout); "Set Classes" in the editor runs it any time.
+ * goes straight to the layout). 2026-10-12 (killer560: "remove the set classes button up top I should never
+ * need that"): that automatic start is the only way in. The bottom row is Back, Reset Classes (the party's class picks),
+ * Reset Positions (this class's pins) and Done; opening the editor asks for the party list itself (/pl, at most every
+ * 10 s, not in a dungeon), so there is no Refresh Party button and no hint line.
  */
 public class LeapOrderScreen extends Screen {
 
@@ -50,7 +53,6 @@ public class LeapOrderScreen extends Screen {
     private final Screen parent;
     private DungeonClass editing = null;
     private int selectedSpot = -1;
-    private boolean requestedPartyList = false;
     /** The names the spot buttons were built for - a party change rebuilds them (auto-detects new members). */
     private String builtFor = "";
     /** The class wizard: the teammates it walks through (null = not running) and which one is showing. */
@@ -64,9 +66,40 @@ public class LeapOrderScreen extends Screen {
         this.parent = parent;
     }
 
+    /** When the editor last asked Hypixel for the party list (any instance): opening it again within
+     *  {@link #REFRESH_EVERY_MS} sends nothing. */
+    private static long lastPartyRefreshMs = 0L;
+    private static final long REFRESH_EVERY_MS = 10_000L;
+    /** /pl requests this editor has sent (testkit). */
+    private static int partyRefreshes = 0;
+    private boolean refreshedOnOpen = false;
+
+    public static int partyRefreshes() {
+        return partyRefreshes;
+    }
+
     @Override
     protected void init() {
+        if (!refreshedOnOpen) {
+            // killer560 (2026-10-12): "have it auto refresh party every time i open this menu". init() also runs on a
+            // resize, so once per opening; and at most once per REFRESH_EVERY_MS however often it is reopened.
+            refreshedOnOpen = true;
+            refreshParty();
+        }
         rebuild();
+    }
+
+    /** Asks Hypixel for the party list (/pl), as the old Refresh Party button did - not inside a dungeon, where the tab
+     *  list already names the party, and not twice within {@link #REFRESH_EVERY_MS}. */
+    private static void refreshParty() {
+        Minecraft client = Minecraft.getInstance();
+        long now = System.currentTimeMillis();
+        if (client.player == null || DungeonState.isInDungeon() || now - lastPartyRefreshMs < REFRESH_EVERY_MS) {
+            return;
+        }
+        lastPartyRefreshMs = now;
+        partyRefreshes++;
+        client.player.connection.sendCommand("pl");
     }
 
     private void rebuild() {
@@ -84,7 +117,6 @@ public class LeapOrderScreen extends Screen {
                     LeapMenuConfig cfg = LeapMenuConfig.getInstance();
                     cfg.setLastEditedClass(c);
                     cfg.save();
-                    maybeRequestPartyList();
                     if (!startWizard(false)) {
                         wizardWhenPartyArrives = PartyTracker.teammates().isEmpty();
                         rebuild();
@@ -101,19 +133,30 @@ public class LeapOrderScreen extends Screen {
             buildWizard(cx);
             return;
         }
+        // Bottom row, evenly spaced (killer560, 2026-10-12): Back, Reset Classes, Reset Positions, Done. Refresh Party
+        // went: opening the editor refreshes the party, and joins/leaves after that arrive by themselves.
         int by = height - 30;
+        int bw = Math.min(90, (width - 20 - 3 * 6) / 4);
+        int bx = cx - (4 * bw + 3 * 6) / 2;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), btn -> {
             editing = null;
             rebuild();
-        }).bounds(cx - 177, by, 70, 20).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Set Classes"), btn -> startWizard(true))
-                .bounds(cx + 86, 28, 80, 16).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset to Default"), btn -> {
+        }).bounds(bx, by, bw, 20).build());
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset Classes"), btn -> {
+            // Every class pick (the wizard's or a Class button's) on the current party: classes come from the tab list.
+            for (String name : PartyTracker.teammatesInLeapOrder()) {
+                ClassOverrides.clear(name);
+            }
+            ClassOverrides.getInstance().save();
+            rebuild();
+        }).bounds(bx + (bw + 6), by, bw, 20).build());
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset Positions"), btn -> {
+            // Every pin of this class's layout: the Default Order places everyone again.
             LeapMenuConfig cfg = LeapMenuConfig.getInstance();
             cfg.clearClassOrder(editing);
             cfg.save();
             rebuild(); // the class buttons follow the names
-        }).bounds(cx - 99, by, 100, 20).build());
+        }).bounds(bx + 2 * (bw + 6), by, bw, 20).build());
         // The default order (2026-10-09): where every teammate not moved by hand goes, by their class.
         addRenderableWidget(SettingsButtonWidget.cycling(defaultOrderText(), (btn, dir) -> {
             LeapMenuConfig cfg = LeapMenuConfig.getInstance();
@@ -121,14 +164,8 @@ public class LeapOrderScreen extends Screen {
             cfg.save();
             rebuild();
         }).bounds(cx - 80, 28, 160, 16).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Refresh Party"), btn -> {
-            Minecraft client = Minecraft.getInstance();
-            if (client.player != null) {
-                client.player.connection.sendCommand("pl");
-            }
-        }).bounds(cx + 9, by, 90, 20).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
-                .bounds(cx + 107, by, 70, 20).build());
+                .bounds(bx + 3 * (bw + 6), by, bw, 20).build());
         addClassButtons();
     }
 
@@ -313,16 +350,6 @@ public class LeapOrderScreen extends Screen {
         }
     }
 
-    /** Outside a dungeon with no party known yet, ask Hypixel for the party list once so names show up. */
-    private void maybeRequestPartyList() {
-        Minecraft client = Minecraft.getInstance();
-        if (requestedPartyList || client.player == null || DungeonState.isInDungeon()
-                || !PartyTracker.teammates().isEmpty()) {
-            return;
-        }
-        requestedPartyList = true;
-        client.player.connection.sendCommand("pl");
-    }
 
     private float boxScale() {
         float scale = SpiritLeapOverlayConfig.getInstance().getScale();
@@ -389,8 +416,6 @@ public class LeapOrderScreen extends Screen {
             if (!any) {
                 graphics.centeredText(font, "No party members found", width / 2, height / 2 - 4, 0xFF9A8C80);
             }
-            graphics.centeredText(font, "Click a name, then a spot, to move it. Shift-click to unpin.",
-                    width / 2, height - 42, 0xFF7A7A7A);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
