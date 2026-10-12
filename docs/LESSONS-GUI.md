@@ -55,6 +55,10 @@ Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size li
   item and `extractTooltip` itself, never super; javap 26.1.2 and 26.2), so the Item Browser panel drew in chests and not
   in the E inventory (testkit 709/710, 2026-10-11). Inject both classes, or hook `extractContents`/`extractSlot`, which
   both paths call.
+- **The last GUI row can hang off the window.** `Window` makes the GUI height the window height over the GUI scale
+  ROUNDED UP, so on a window whose height is not a multiple of the scale (a windowed 1440p screen) anything drawn on the
+  bottom GUI row is partly or wholly off screen - the themed hotbar lost its whole bottom line (2026-10-12, testkit 897
+  at 2560x1369 GUI 3). Clamp bottom-anchored pixel boxes to `getWindow().getHeight()`.
 - **A shared slot line must straddle the gap between two items, not sit on one side of it.** The Inventory Theme drew
   each slot's left/top line inside its box and the right/bottom one past it, so a 16-unit item had t px less room on its
   left/top than its right/bottom - t/2 off centre at every GUI scale (killer560, 2026-10-12, measured 2 px at the default
