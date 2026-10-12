@@ -142,19 +142,23 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
 
         // "second legit or obvious - in legit mode it rotates for every etherwarp" (killer560). Legit also forces
         // start-node-only on, so flipping it rebuilds to show that row locked. Legit/Obvious is explained by the
-        // "Mode" tooltip.
-        w.add(SettingsButtonWidget.builder(modeText(cfg), btn -> {
-                    cfg.setLegitMode(!cfg.isLegitMode());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], half, 20).build());
+        // "Mode" tooltip. killer560, 2026-10-11: obvious only until legit is finished, so the row exists only in a
+        // -PtestingBuild jar; elsewhere Start From Start Node Only takes the full width.
+        boolean modeRow = AutoRoutesConfig.legitModeSelectable();
+        if (modeRow) {
+            w.add(SettingsButtonWidget.builder(modeText(cfg), btn -> {
+                        cfg.setLegitMode(!cfg.isLegitMode());
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y[0], half, 20).build());
+        }
         SettingsButtonWidget startOnly = SettingsButtonWidget.builder(
                 onOff("Start From Start Node Only", cfg.isLegitMode() || cfg.isStartFromStartNodeOnly()),
                 btn -> {
                     cfg.setStartFromStartNodeOnly(!cfg.isStartFromStartNodeOnly());
                     cfg.save();
                     requestRebuild.run();
-                }).bounds(contentX + half + GAP, y[0], right, 20).build();
+                }).bounds(modeRow ? contentX + half + GAP : contentX, y[0], modeRow ? right : contentWidth, 20).build();
         // Interlock #6 in the spec: forced on in legit mode. Greyed rather than hidden so the user can see WHY
         // the route won't pick up halfway through (the "(forced in Legit)" suffix no longer fits a half-width cell;
         // the greyed ON says the same).

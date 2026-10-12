@@ -294,11 +294,18 @@ public final class AutoRoutesConfig {
     public boolean isEnabledRaw() { return enabled; }
     public void setEnabled(boolean v) { enabled = v; }
 
-    public boolean isLegitMode() { return legitMode; }
+    /**
+     * killer560, 2026-10-11: "remove the mode as an option and only have obvious" until legit is finished. Only a
+     * {@code -PtestingBuild} jar can report legit; every other jar runs obvious whatever the config file says (an old
+     * {@code legitMode: true} is kept on disk, untouched, for when legit returns). The legit code itself stays.
+     */
+    public boolean isLegitMode() { return com.killer560.hub.BuildVariant.TESTING && legitMode; }
+    /** True when the mode can be chosen at all (the Mode row exists): testing jars only. */
+    public static boolean legitModeSelectable() { return com.killer560.hub.BuildVariant.TESTING; }
     public void setLegitMode(boolean v) { legitMode = v; }
 
     /** Forced on in legit mode - "in legit mode it can only start from the start node". */
-    public boolean isStartFromStartNodeOnly() { return legitMode || startFromStartNodeOnly; }
+    public boolean isStartFromStartNodeOnly() { return isLegitMode() || startFromStartNodeOnly; }
     public boolean isStartFromStartNodeOnlyRaw() { return startFromStartNodeOnly; }
     public void setStartFromStartNodeOnly(boolean v) { startFromStartNodeOnly = v; }
     public boolean isRunWhileMapOpen() { return runWhileMapOpen; }
