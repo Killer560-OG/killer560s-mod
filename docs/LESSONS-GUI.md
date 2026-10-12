@@ -280,3 +280,6 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   Croesus's old gold needs-a-key border 39 from the unclaimed orange, which he could not tell apart; CIEDE2000 puts the
   gold-vs-gold "not looked at" pair at 19.8 and orange-vs-gold for a deuteranope at 11.6. Magenta and blue collapse for a
   protanope whatever the shades, so the key mark and its plate carry that pair, and testkit 898 samples those pixels too.
+- **Distinct is not enough when most of a page is one state.** Five well-separated Croesus colours still hid the runs
+  needing action under 17 bright "not looked at" outlines (2026-10-13). 898 now also scores salience (frame contrast and
+  chroma against the page with highlights off): the action states must beat the quiet ones 2x; the old palette scored 0.77.
