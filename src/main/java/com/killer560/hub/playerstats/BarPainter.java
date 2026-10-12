@@ -60,6 +60,13 @@ public final class BarPainter {
     public static final int[] lastGhost = new int[N];
     /** System.nanoTime of the last draw. */
     public static final long[] lastDrawNanos = new long[N];
+    /** Units from each edge of the element's box to the fill area (icon, frame and Beside number on their sides). */
+    public static final int[] lastInsetLeft = new int[N];
+    public static final int[] lastInsetTop = new int[N];
+    public static final int[] lastInsetRight = new int[N];
+    public static final int[] lastInsetBottom = new int[N];
+    /** The element's box as drawn, in GUI units through the current pose: {x0, y0, x1, y1} per readout, 4 apart. */
+    public static final float[] lastScreenBox = new float[N * 4];
 
     private static final GuiRects RECTS = GuiRects.reusable();
 
@@ -74,7 +81,7 @@ public final class BarPainter {
     /**
      * Advances bar {@code r}'s animation to {@code target} / {@code over} (fractions of the bar, 0..1) and leaves the
      * fractions to draw in {@link #outFill}, {@link #outOver}, {@link #outGhost}. {@code snap} draws the value as it is
-     * (the HUD editor, Classic, smoothing off).
+     * (the HUD editor, smoothing off).
      */
     static void animate(Readout r, float target, float over, boolean smooth, boolean ghostOn, boolean snap, long now) {
         int i = r.ordinal();
@@ -124,8 +131,8 @@ public final class BarPainter {
      * for it after the bar when it goes Beside (0 = Inside).
      */
     static void draw(GuiGraphicsExtractor g, PlayerStatsConfig cfg, Readout r, BarStyle style, int x, int y, int w,
-                     int h, float fill, float over, int overColor, String value, int besideReserve, boolean preview,
-                     long now) {
+                     int h, float fill, float over, int overColor, String value, int besideReserve, float textScale,
+                     boolean preview, long now) {
         animate(r, fill, over, cfg.isBarSmooth(), cfg.isBarDamageGhost(), preview, now);
         int i = r.ordinal();
         lastDrawNanos[i] = now;
@@ -164,6 +171,15 @@ public final class BarPainter {
         lastFill[i] = filled;
         lastOverflow[i] = seg;
         lastGhost[i] = Math.max(0, ghostEnd - filled);
+        lastInsetLeft[i] = ix0 - x;
+        lastInsetTop[i] = iy0 - y;
+        lastInsetRight[i] = x + w - ix1;
+        lastInsetBottom[i] = y + h - iy1;
+        var pm = g.pose();
+        lastScreenBox[i * 4] = pm.m00() * x + pm.m20();
+        lastScreenBox[i * 4 + 1] = pm.m11() * y + pm.m21();
+        lastScreenBox[i * 4 + 2] = pm.m00() * (x + w) + pm.m20();
+        lastScreenBox[i * 4 + 3] = pm.m11() * (y + h) + pm.m21();
 
         GuiRects q = RECTS.start(g);
         // ---- frame ----
@@ -226,10 +242,9 @@ public final class BarPainter {
         if (value != null) {
             Font font = Minecraft.getInstance().font;
             if (besideReserve > 0) {
-                int tyTop = y + Math.round((h - StatElements.DIGIT_ROWS) / 2f);
-                g.text(font, value, tx1 + StatElements.BESIDE_GAP, tyTop, color | 0xFF000000, true);
+                StatElements.drawAt(g, font, value, tx1 + StatElements.BESIDE_GAP, y, h, textScale, color | 0xFF000000);
             } else {
-                StatElements.drawCentred(g, font, value, tx0, y, tw, h);
+                StatElements.drawCentred(g, font, value, tx0, y, tw, h, textScale, 0xFFFFFFFF);
             }
         }
     }

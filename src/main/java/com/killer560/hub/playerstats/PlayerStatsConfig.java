@@ -80,10 +80,15 @@ public final class PlayerStatsConfig {
     private int barBackground = DEFAULT_BAR_BACKGROUND;
     private boolean textShadow = true;
     // --- Bar look (2026-10-12, killer560: "work on the custom bars more. Look at how skyblocker does theirs with how they
-    // actually look custom and try to make your own type of style of it"). Drawn by BarPainter; Classic is the flat look
-    // the bars had before, untouched, and ignores every setting below except the colours it always had. ---
-    public static final int DEFAULT_OVERFLOW_MANA_COLOR = 0xFF9FE6FF;
-    private BarStyle barStyle = defaultBarStyle();
+    // actually look custom and try to make your own type of style of it"). Drawn by BarPainter. Classic (the old flat bar)
+    // was removed on 2026-10-12, killer560: "Please remove the classic option have the default of it be bold." ---
+    /** A deep royal blue (2026-10-12): the first default, a pale 0xFF9FE6FF, left the white number on the overflow layer
+     *  hard to read; this one keeps it legible beside the lighter mana fill. */
+    public static final int DEFAULT_OVERFLOW_MANA_COLOR = 0xFF2050C8;
+    /** The first default, read back as "never chosen" and replaced by the new one on load. */
+    private static final int OLD_DEFAULT_OVERFLOW_MANA_COLOR = 0xFF9FE6FF;
+    private BarStyle barStyle = BarStyle.BOLD;
+    private TextSize barTextSize = TextSize.SMALL;
     private boolean barRounded = true;
     private boolean barIcons = true;
     private ValuePosition barValuePosition = ValuePosition.INSIDE;
@@ -213,6 +218,10 @@ public final class PlayerStatsConfig {
             cfg.barDamageGhost = ConfigJson.getBool(obj, "barDamageGhost", cfg.barDamageGhost);
             cfg.overflowManaColor = obj.has("overflowManaColor") ? obj.get("overflowManaColor").getAsInt()
                     : cfg.overflowManaColor;
+            if (cfg.overflowManaColor == OLD_DEFAULT_OVERFLOW_MANA_COLOR) {
+                cfg.overflowManaColor = DEFAULT_OVERFLOW_MANA_COLOR;
+            }
+            cfg.barTextSize = TextSize.byKey(ConfigJson.getString(obj, "barTextSize", null), cfg.barTextSize);
             cfg.predefinedScale = clampScale(obj.has("predefinedScale") && obj.get("predefinedScale").isJsonPrimitive()
                     ? obj.get("predefinedScale").getAsFloat() : cfg.predefinedScale);
             instance = cfg;
@@ -269,6 +278,7 @@ public final class PlayerStatsConfig {
             obj.addProperty("barBackground", barBackground);
             obj.addProperty("textShadow", textShadow);
             obj.addProperty("barStyle", barStyle.key);
+            obj.addProperty("barTextSize", barTextSize.key);
             obj.addProperty("barRounded", barRounded);
             obj.addProperty("barIcons", barIcons);
             obj.addProperty("barValuePosition", barValuePosition.key);
@@ -565,10 +575,8 @@ public final class PlayerStatsConfig {
         this.textShadow = v;
     }
 
-    /** The bars' look. */
+    /** The bars' look. A saved "classic" (removed 2026-10-12) loads as Bold, like any key this jar does not know. */
     public enum BarStyle {
-        /** The flat bar the mod drew before 2026-10-12, exactly: background, fill, absorption segment. */
-        CLASSIC("classic", "Classic"),
         /** A thin dark frame, inner shadow, gradient fill with a light top edge, stat icon. */
         SLEEK("sleek", "Sleek"),
         /** A black and orange double rim, a glossier two-band fill, quarter notches, stat icon. */
@@ -615,10 +623,28 @@ public final class PlayerStatsConfig {
         }
     }
 
-    /** Sleek for a config with no style saved; the testkit passes {@code -Dkiller560.test.barStyle=classic} so its
-     *  older pixel-exact bar cases keep measuring the flat look they were written for (docs/TESTING-HOOKS.md). */
-    private static BarStyle defaultBarStyle() {
-        return BarStyle.byKey(System.getProperty("killer560.test.barStyle", "sleek"), BarStyle.SLEEK);
+    /** The size of the number on a bar (2026-10-12, killer560: "Can the text stand out a hair more or maybe make it
+     *  smaller"). Both are drawn with a 1-unit dark outline; Small is about 0.85 of Normal ({@link StatElements}). */
+    public enum TextSize {
+        SMALL("small", "Small"),
+        NORMAL("normal", "Normal");
+
+        public final String key;
+        public final String label;
+
+        TextSize(String key, String label) {
+            this.key = key;
+            this.label = label;
+        }
+
+        static TextSize byKey(String key, TextSize def) {
+            for (TextSize v : values()) {
+                if (v.key.equals(key)) {
+                    return v;
+                }
+            }
+            return def;
+        }
     }
 
     public BarStyle getBarStyle() {
@@ -626,7 +652,16 @@ public final class PlayerStatsConfig {
     }
 
     public void setBarStyle(BarStyle v) {
-        this.barStyle = v == null ? BarStyle.SLEEK : v;
+        this.barStyle = v == null ? BarStyle.BOLD : v;
+    }
+
+    public TextSize getBarTextSize() {
+        return barTextSize;
+    }
+
+    public void setBarTextSize(TextSize v) {
+        this.barTextSize = v == null ? TextSize.SMALL : v;
+        layoutChanged();
     }
 
     public boolean isBarRounded() {

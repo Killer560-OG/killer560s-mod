@@ -140,41 +140,44 @@ public class HealthAndManaBarsTab extends BaseTab {
                 colour(widgets, col2, y[0], half, "Background", ps.getBarBackground(),
                         PlayerStatsConfig.DEFAULT_BAR_BACKGROUND, ps::setBarBackground);
                 y[0] += ROW;
-                // The bars' look (2026-10-12): Classic is the flat bar as it was; Sleek and Bold are BarPainter's, and
-                // only they read the rows under the style.
-                boolean classic = ps.getBarStyle() == PlayerStatsConfig.BarStyle.CLASSIC;
-                widgets.add(SettingsButtonWidget.cycling(Component.literal("Bar Style: §6" + ps.getBarStyle().label),
-                        (btn, dir) -> {
+                // The bars' look (2026-10-12): Sleek or Bold (Classic was removed the same day, killer560: "Please
+                // remove the classic option have the default of it be bold").
+                widgets.add(SettingsButtonWidget.cycling(barStyleText(ps), (btn, dir) -> {
                             ps.setBarStyle(SettingsButtonWidget.step(ps.getBarStyle(), dir));
                             ps.save();
-                            requestRebuild.run();
+                            btn.setMessage(barStyleText(ps));
                         }).bounds(contentX, y[0], half, ROW_H).build());
-                if (!classic) {
-                    widgets.add(SettingsButtonWidget.cycling(cornersText(ps), (btn, dir) -> {
-                                ps.setBarRounded(!ps.isBarRounded());
+                widgets.add(SettingsButtonWidget.cycling(cornersText(ps), (btn, dir) -> {
+                            ps.setBarRounded(!ps.isBarRounded());
+                            ps.save();
+                            btn.setMessage(cornersText(ps));
+                        }).bounds(col2, y[0], half, ROW_H).build());
+                y[0] += ROW;
+                toggle(widgets, contentX, y[0], half, "Icons", ps::isBarIcons, ps::setBarIcons, ps::save, null);
+                if (ps.isBarShowValue()) {
+                    widgets.add(SettingsButtonWidget.cycling(valuePositionText(ps), (btn, dir) -> {
+                                ps.setBarValuePosition(SettingsButtonWidget.step(ps.getBarValuePosition(), dir));
                                 ps.save();
-                                btn.setMessage(cornersText(ps));
+                                btn.setMessage(valuePositionText(ps));
                             }).bounds(col2, y[0], half, ROW_H).build());
                 }
                 y[0] += ROW;
-                if (!classic) {
-                    toggle(widgets, contentX, y[0], half, "Icons", ps::isBarIcons, ps::setBarIcons, ps::save, null);
-                    if (ps.isBarShowValue()) {
-                        widgets.add(SettingsButtonWidget.cycling(valuePositionText(ps), (btn, dir) -> {
-                                    ps.setBarValuePosition(SettingsButtonWidget.step(ps.getBarValuePosition(), dir));
-                                    ps.save();
-                                    btn.setMessage(valuePositionText(ps));
-                                }).bounds(col2, y[0], half, ROW_H).build());
-                    }
-                    y[0] += ROW;
-                    toggle(widgets, contentX, y[0], half, "Smooth Fill", ps::isBarSmooth, ps::setBarSmooth, ps::save,
-                            null);
-                    toggle(widgets, col2, y[0], half, "Damage Ghost", ps::isBarDamageGhost, ps::setBarDamageGhost,
-                            ps::save, null);
+                toggle(widgets, contentX, y[0], half, "Smooth Fill", ps::isBarSmooth, ps::setBarSmooth, ps::save, null);
+                toggle(widgets, col2, y[0], half, "Damage Ghost", ps::isBarDamageGhost, ps::setBarDamageGhost,
+                        ps::save, null);
+                y[0] += ROW;
+                if (ps.isBarShowValue()) {
+                    // The number's size (2026-10-12, killer560: "Can the text stand out a hair more or maybe make it
+                    // smaller"); both sizes are outlined.
+                    widgets.add(SettingsButtonWidget.cycling(textSizeText(ps), (btn, dir) -> {
+                                ps.setBarTextSize(SettingsButtonWidget.step(ps.getBarTextSize(), dir));
+                                ps.save();
+                                btn.setMessage(textSizeText(ps));
+                            }).bounds(contentX, y[0], half, ROW_H).build());
                     y[0] += ROW;
                 }
                 boolean absorbRow = ps.isReadoutOn(Readout.HEALTH_BAR);
-                boolean overflowRow = !classic && ps.isReadoutOn(Readout.MANA_BAR);
+                boolean overflowRow = ps.isReadoutOn(Readout.MANA_BAR);
                 if (absorbRow) {
                     colour(widgets, contentX, y[0], half, "Absorption Colour", ps.getAbsorptionColor(),
                             PlayerStatsConfig.DEFAULT_ABSORPTION_COLOR, ps::setAbsorptionColor);
@@ -252,6 +255,14 @@ public class HealthAndManaBarsTab extends BaseTab {
                 }).bounds(contentX, y[0], contentWidth, ROW_H).build());
         y[0] += ROW;
         return widgets;
+    }
+
+    private static Component barStyleText(PlayerStatsConfig ps) {
+        return Component.literal("Bar Style: §6" + ps.getBarStyle().label);
+    }
+
+    private static Component textSizeText(PlayerStatsConfig ps) {
+        return Component.literal("Text Size: §6" + ps.getBarTextSize().label);
     }
 
     private static Component cornersText(PlayerStatsConfig ps) {
