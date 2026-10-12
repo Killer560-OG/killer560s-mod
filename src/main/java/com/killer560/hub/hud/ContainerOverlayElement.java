@@ -52,6 +52,7 @@ public final class ContainerOverlayElement implements HudElement {
                                                    int autoY, BooleanSupplier enabled, Drawer preview) {
         ContainerOverlayElement e = new ContainerOverlayElement(id, name, defaultW, defaultH, autoX, autoY, enabled, preview);
         HudElementRegistry.register(e);
+        HudElementRegistry.markContainerOnly(id);
         return e;
     }
 

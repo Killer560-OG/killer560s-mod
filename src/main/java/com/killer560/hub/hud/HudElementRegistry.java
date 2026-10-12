@@ -18,6 +18,19 @@ public final class HudElementRegistry {
     private HudElementRegistry() {
     }
 
+    /** Elements drawn only over a container (a menu overlay, a Start button). Edit HUD lists one only when it drew in the
+     *  last {@link HudSeen#GRACE_MS} - over its own menu that is always - whatever Show Unseen says (killer560,
+     *  2026-10-12: "Only if it falls in that last 10s"). */
+    private static final java.util.Set<String> CONTAINER_ONLY = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    public static void markContainerOnly(String id) {
+        CONTAINER_ONLY.add(id);
+    }
+
+    public static boolean isContainerOnly(String id) {
+        return CONTAINER_ONLY.contains(id);
+    }
+
     public static void register(HudElement element) {
         ELEMENTS.add(element);
         BY_ID.putIfAbsent(element.id(), element);

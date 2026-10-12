@@ -282,6 +282,7 @@ public final class AutoCroesusFeature {
     }
 
     private static void registerStartButtonElement() {
+        HudElementRegistry.markContainerOnly(START_BUTTON_ELEMENT_ID);
         HudElementRegistry.register(new HudElement() {
             @Override
             public String id() {

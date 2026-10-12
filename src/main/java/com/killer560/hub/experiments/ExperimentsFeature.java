@@ -217,6 +217,7 @@ public final class ExperimentsFeature {
         // below the container. Registered here but drawn from renderStartButtonOverContainer (called
         // from the container screen's OWN render pass, not this HUD-level one) - see that method's
         // doc for why the render pass matters.
+        HudElementRegistry.markContainerOnly(START_BUTTON_ELEMENT_ID);
         HudElementRegistry.register(new HudElement() {
             @Override
             public String id() {

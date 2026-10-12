@@ -239,7 +239,13 @@ public class HudEditorScreen extends Screen {
             // or it could never be dragged back out.
             boolean hiddenReadout = isHiddenReadout(element);
             // Edit Bars lists every bar that is switched on: it is opened from the menu, often where no bar has drawn.
-            if (!barsMode && !showUnseen && !hiddenReadout && !HudSeen.drawnWithinGrace(element.id(), asOfMs)) {
+            boolean seen = HudSeen.drawnWithinGrace(element.id(), asOfMs);
+            // A container-only overlay is listed only when it drew in the last 10 s (over its menu, or just after it
+            // closed), Show Unseen or not: anywhere else its default spot means nothing (killer560, 2026-10-12).
+            if (HudElementRegistry.isContainerOnly(element.id()) && !seen) {
+                continue;
+            }
+            if (!barsMode && !showUnseen && !hiddenReadout && !seen) {
                 continue;
             }
             shown.add(element);
