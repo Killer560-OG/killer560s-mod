@@ -61,8 +61,6 @@ public final class AuctionHouseConfig {
 
     private static AuctionHouseConfig instance;
 
-    /** Draw Hypixel's real AH menus in the unified look. */
-    private boolean reskinRealAh = true;
     /** Held, shows Hypixel's own AH menu instead of the reskin. Left Alt by default; -1 = none. */
     private int vanillaKeyCode = 342;
     private TypeFilter typeFilter = TypeFilter.BIN;
@@ -89,7 +87,6 @@ public final class AuctionHouseConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.reskinRealAh = ConfigJson.getBool(obj, "reskinRealAh", true);
                 cfg.vanillaKeyCode = ConfigJson.getInt(obj, "vanillaKeyCode", 342);
                 cfg.typeFilter = ConfigJson.getEnum(obj, "typeFilter", TypeFilter.class, TypeFilter.BIN);
                 cfg.minPrice = Math.max(0, ConfigJson.getLong(obj, "minPrice", 0));
@@ -131,7 +128,6 @@ public final class AuctionHouseConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("reskinRealAh", reskinRealAh);
             obj.addProperty("vanillaKeyCode", vanillaKeyCode);
             obj.addProperty("typeFilter", typeFilter.name());
             obj.addProperty("minPrice", minPrice);
@@ -154,20 +150,6 @@ public final class AuctionHouseConfig {
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
-    }
-
-    /** Reskin Real Auction House, honouring the feature toggle and the Skyblock-Only gate. */
-    public synchronized boolean isReskinRealAh() {
-        // Part of the Auction House feature: its master toggle (Auction House Browser) turns the reskin off too.
-        return reskinRealAh && AuctionConfig.getInstance().isAhEnabledRaw() && com.killer560.hub.util.SkyblockGate.allows();
-    }
-
-    public synchronized boolean isReskinRealAhRaw() {
-        return reskinRealAh;
-    }
-
-    public synchronized void setReskinRealAh(boolean v) {
-        reskinRealAh = v;
     }
 
     public synchronized int getVanillaKeyCode() {

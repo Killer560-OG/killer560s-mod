@@ -33,7 +33,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * Reskin Real Auction House: Hypixel's real AH menus drawn as pages of the unified Auction House (killer560,
+ * The Auction House reskin (part of the Auction House Browser switch): Hypixel's real AH menus drawn as pages of the unified Auction House (killer560,
  * 2026-10-07: "redo the auction house in a similar manner" to the Bazaar).
  * <p>
  * Same contract as the Bazaar's reskin. {@link AhPages} decides which menu is open; the chest is hidden (the
@@ -49,7 +49,7 @@ import java.util.Optional;
  * is drawn from its API data until its Auction View arrives. So the chest never shows and the panel never blanks.
  * <p>
  * Falls back to Hypixel's own GUI for any menu {@link AhPages} cannot map, while the Hypixel Menu key (Left Alt by
- * default) is held, after the header's "Hypixel menu" button, and with Reskin Real Auction House off.
+ * default) is held, after the header's "Hypixel menu" button, and with the Auction House off.
  */
 public final class AhReskin {
 
@@ -188,7 +188,7 @@ public final class AhReskin {
     }
 
     private static boolean hiding(State st) {
-        if (!AuctionHouseConfig.getInstance().isReskinRealAh() || st.vanilla || vanillaKeyHeld()) {
+        if (!AuctionConfig.getInstance().isAhEnabled() || st.vanilla || vanillaKeyHeld()) {
             return false;
         }
         if (st.page != null) {
@@ -326,7 +326,7 @@ public final class AhReskin {
         st.hotspots.clear();
         st.layout.clear();
         if (!hiding(st)) {
-            if (AuctionHouseConfig.getInstance().isReskinRealAh() && !st.vanilla && !vanillaKeyHeld()
+            if (AuctionConfig.getInstance().isAhEnabled() && !st.vanilla && !vanillaKeyHeld()
                     && (st.page == null || st.page.kind() != AhPages.Kind.UNKNOWN)) {
                 vanillaFrames++;
             }

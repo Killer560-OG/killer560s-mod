@@ -42,9 +42,14 @@ import java.util.List;
  * after a short grace.
  * <p>
  * Falls back to Hypixel's own GUI, untouched, for any menu {@link BazaarPages} cannot map, while the Hypixel Menu key
- * (Left Alt by default) is held, after the "Hypixel menu" button in the header, with Reskin Real Bazaar off, and while
- * the cheat build's Bazaar flipper runs. Input listeners register in a phase BEFORE Fabric's default and drawing AFTER
- * it (see docs/LESSONS-GUI.md).
+ * (Left Alt by default) is held, after the "Hypixel menu" button in the header, and with the Bazaar off (one switch for
+ * the browser and this reskin since 2026-10-11). Input listeners register in a phase BEFORE Fabric's default and drawing
+ * AFTER it (see docs/LESSONS-GUI.md).
+ * <p>
+ * <b>The cheat build's Bazaar flipper</b> (killer560, 2026-10-11: "have reskin work at the same time"): the reskin keeps
+ * drawing while it runs. The flipper reads and clicks the real menu underneath ({@code handleContainerInput}, never
+ * through this view), so nothing here is in its way; the view only shows each page it reaches. A press or key on the
+ * view while it runs does not act on the page - it stops the flipper (its "any key stops it"), Escape still closes.
  */
 public final class BazaarReskin {
 
@@ -161,6 +166,12 @@ public final class BazaarReskin {
             if (!hiding(state)) {
                 return true;
             }
+            if (com.killer560.hub.bazaarflip.BazaarFlipFeature.isRunning()) {
+                // The flipper's own key watcher sits after this one and would never see the key: stop it here.
+                // Escape still closes the menu (which the flipper reports as "the Bazaar menu closed").
+                com.killer560.hub.bazaarflip.BazaarFlipFeature.stopOnKeyPress(event.key());
+                return event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE;
+            }
             if (BazaarView.key(event)) {
                 return false;
             }
@@ -199,8 +210,7 @@ public final class BazaarReskin {
     }
 
     private static boolean hiding(State st) {
-        if (!AuctionConfig.getInstance().isReskinRealBazaar() || st.vanilla || vanillaKeyHeld()
-                || com.killer560.hub.bazaarflip.BazaarFlipFeature.isRunning()) {
+        if (!AuctionConfig.getInstance().isBazaarEnabled() || st.vanilla || vanillaKeyHeld()) {
             return false;
         }
         if (st.page != null && st.page.kind() != BazaarPages.Kind.UNKNOWN) {
@@ -326,6 +336,11 @@ public final class BazaarReskin {
         poll(st);
         if (!hiding(st)) {
             return true;
+        }
+        if (com.killer560.hub.bazaarflip.BazaarFlipFeature.isRunning()) {
+            // A press while the flipper drives this menu is him intervening, never a click on its page.
+            com.killer560.hub.bazaarflip.BazaarFlipFeature.stopOnKeyPress(KeyUtil.codeForMouseButton(button));
+            return false;
         }
         if (st.frozen) {
             return false; // the page on screen is not the menu that is open: nothing on it may be clicked
