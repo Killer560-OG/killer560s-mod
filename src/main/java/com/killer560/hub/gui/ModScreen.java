@@ -208,8 +208,9 @@ public class ModScreen extends Screen {
             return tabs;
         }
         List<BaseTab> result = new ArrayList<>();
+        String query = SearchAliases.apply(searchQuery);
         for (BaseTab tab : tabs) {
-            if (tab.matchesSearch(searchQuery)) {
+            if (tab.matchesSearch(query)) {
                 result.add(tab);
             }
         }
@@ -251,7 +252,7 @@ public class ModScreen extends Screen {
 
         BaseTab selected = tabs.get(selectedTab);
         if (selected instanceof FolderTab folderTab) {
-            folderTab.setSearchQuery(searchQuery);
+            folderTab.setSearchQuery(searchQuery.isBlank() ? searchQuery : SearchAliases.apply(searchQuery));
         }
         List<AbstractWidget> contentWidgets;
         if (com.killer560.hub.BuildVariant.TESTING && !(selected instanceof FolderTab)) {
