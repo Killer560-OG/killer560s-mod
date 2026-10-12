@@ -58,20 +58,24 @@ public final class ChestProfitFeature {
 
     private static final int PANEL_BG = 0xD0141008;
     private static final int PANEL_BORDER = 0xFF663D1A;
-    private static final int HIGHLIGHT_BEST_FILL = 0x7000FF00;
-    private static final int HIGHLIGHT_BEST_BORDER = 0xFF00FF00;
-    private static final int HIGHLIGHT_SECOND_FILL = 0x40FFA040;
-    private static final int HIGHLIGHT_SECOND_BORDER = 0xFFFFA040;
+    /** Chest view: the free claim / the key chest are filled at this alpha with a 2 px solid border, like the run list's
+     *  action states. */
+    private static final int CHEST_MARK_FILL_ALPHA = 0xA0;
     /** Run heads in the Croesus menu (2026-10-12 redesign): an unclaimed run gets a light tint of its colour and a 1 px
      *  border INSIDE its 16x16 slot (slots are 18 apart, so no two borders touch); a claimed run a darker tint, no
      *  border. Drawn behind the item from {@code croesus/mixin/CroesusSlotMixin}, so the item and tooltip cover it. */
-    private static final int RUN_UNCLAIMED_FILL_ALPHA = 0x30;
-    private static final int RUN_UNCLAIMED_BORDER_ALPHA = 0xC0;
-    private static final int RUN_CLAIMED_FILL_ALPHA = 0x70;
-    private static final int RUN_KEY_FILL_ALPHA = 0x48;
+    // killer560, 2026-10-13: "it is really hard still to tell what needs opened now". The two states that need him
+    // (unclaimed, needs a key) are near-solid fills with a 2 px border; everything with nothing to do recedes: a light
+    // tint or a faint outline, no bright border. Testkit 898 measures the gap (salience) as well as distinctness.
+    private static final int RUN_UNCLAIMED_FILL_ALPHA = 0xB0;
+    private static final int RUN_UNCLAIMED_BORDER_ALPHA = 0xFF;
+    private static final int RUN_CLAIMED_FILL_ALPHA = 0x40;
+    private static final int RUN_KEY_FILL_ALPHA = 0xB0;
+    /** Not looked at: a 1 px outline at this alpha, no fill, no mark. */
+    private static final int RUN_UNKNOWN_OUTLINE_ALPHA = 0x70;
     /** Key used: the darkest look, a heavier tint than "opened" and no border. */
-    private static final int RUN_USED_FILL_ALPHA = 0xC0;
-    private static final int RUN_KEY_BORDER_ALPHA = 0xE0;
+    private static final int RUN_USED_FILL_ALPHA = 0x48;
+    private static final int RUN_KEY_BORDER_ALPHA = 0xFF;
     /** A run head's state (killer560, 2026-10-12): what is left to do in it. */
     static final byte RUN_NONE = 0;
     static final byte RUN_UNCLAIMED = 1;
@@ -373,6 +377,7 @@ public final class ChestProfitFeature {
         }
         String title = titleOf(screen);
         if (DungeonChestValuer.CROESUS_MENU_TITLE.matcher(title).matches()) {
+            runViewScreen = null;
             statesFor(screen);
             runViewChests = List.of();
             chestScreenValue = null;
@@ -382,12 +387,15 @@ public final class ChestProfitFeature {
         if (DungeonChestValuer.RUN_VIEW_TITLE.matcher(title).matches()) {
             runViewChests = valueRunView(screen);
             noteKeyWorth(runViewChests);
+            chestMarks = chestMarks(runViewChests, openRun, screen.getMenu().slots.size());
+            runViewScreen = screen;
             runViewFloor = floorFromRunViewTitle(title);
             rememberRunFloor(runViewFloor);
             chestScreenValue = null;
             setKind(Kind.RUN_VIEW, title);
             return;
         }
+        runViewScreen = null;
         ChestType type = ChestType.fromName(title);
         if (type != null) {
             List<ItemStack> stacks = containerStacks(screen);
@@ -674,6 +682,93 @@ public final class ChestProfitFeature {
         CroesusRunMemory.noteChests(run, left);
     }
 
+    // ---- a run's chest view: the free claim green, the key chest orange -------------------------------------------
+
+    static final byte CHEST_FREE = 1;
+    static final byte CHEST_KEY = 2;
+    /** The run view the marks below were worked out for (null when no run view is open). */
+    private static volatile AbstractContainerScreen<?> runViewScreen = null;
+    /** Per menu slot of {@link #runViewScreen}: 0, {@link #CHEST_FREE} or {@link #CHEST_KEY}. */
+    private static volatile byte[] chestMarks = new byte[0];
+
+    /**
+     * killer560, 2026-10-13: "in a chest menu if something is worth coming back and buying with a key, highlight it
+     * yellow or orange. If there are multiple only highlight the best one." Nothing claimed yet: GREEN on the most
+     * profitable chest at its normal cost (the free claim), ORANGE on the best of the rest whose profit after a key clears
+     * Auto Croesus's key floor. One chest claimed without a key: no green, the same orange rule over what is left. A key
+     * used (two chests opened, or a keyed claim just seen): nothing. The orange rule is exactly {@link #headState}'s
+     * "needs a key" (same profitWithKey, same floor, same claimed chest excluded), so the list and this view agree.
+     */
+    static byte[] chestMarks(List<ChestValue> chests, CroesusRunMemory.Run run, int size) {
+        byte[] out = new byte[size];
+        String claimed = null;
+        int opened = 0;
+        for (ChestValue c : chests) {
+            if (c.opened()) {
+                opened++;
+                claimed = c.type().name();
+            }
+        }
+        boolean fresh = run != null && run.claimType != null && System.currentTimeMillis() - run.claimAtMs < CLAIM_TRUST_MS;
+        if (opened >= 2 || (fresh && run.claimKeyed) || !DungeonChestValuer.pricesReady()) {
+            return out;
+        }
+        if (claimed == null && fresh) {
+            claimed = run.claimType; // the view lags a claim seen in the chest screen
+        }
+        ChestValue free = null;
+        if (claimed == null) {
+            for (ChestValue c : chests) {
+                if (!c.opened() && c.slot() >= 0 && (free == null || c.profit() > free.profit())) {
+                    free = c;
+                }
+            }
+        }
+        long floor = AutoCroesusFeature.keyWorthFloor();
+        ChestValue key = null;
+        long keyProfit = Long.MIN_VALUE;
+        for (ChestValue c : chests) {
+            if (c.opened() || c.slot() < 0 || c == free || c.type().name().equals(claimed)) {
+                continue;
+            }
+            long p = DungeonChestValuer.profitWithKey(c);
+            if (p >= floor && p > keyProfit) {
+                key = c;
+                keyProfit = p;
+            }
+        }
+        if (free != null && free.slot() < size) {
+            out[free.slot()] = CHEST_FREE;
+        }
+        if (key != null && key.slot() < size) {
+            out[key.slot()] = CHEST_KEY;
+        }
+        return out;
+    }
+
+    /** For the testkit: the chest-view mark of every slot of the run view last read (0 none, 1 free, 2 key). */
+    public static byte[] chestMarksForTest() {
+        return runViewScreen == null ? new byte[0] : chestMarks.clone();
+    }
+
+    private static void drawChestSlot(GuiGraphicsExtractor graphics, Slot slot) {
+        byte[] marks = chestMarks;
+        if (slot.index < 0 || slot.index >= marks.length || marks[slot.index] == 0) {
+            return;
+        }
+        CroesusConfig cfg = CroesusConfig.getInstance();
+        boolean free = marks[slot.index] == CHEST_FREE;
+        if (free ? !cfg.isHighlightFreeChest() : !cfg.isHighlightKeyChest()) {
+            return;
+        }
+        int rgb = free ? cfg.getChestFreeColor() : cfg.getChestKeyColor();
+        int x = slot.x;
+        int y = slot.y;
+        graphics.fill(x, y, x + 16, y + 16, (CHEST_MARK_FILL_ALPHA << 24) | rgb);
+        insetBorder(graphics, x, y, 0xFF000000 | rgb);
+        insetBorder(graphics, x + 1, y + 1, 14, 0xFF000000 | rgb);
+    }
+
     /** For the testkit: the RUN_* state of every slot of the Croesus menu last read. */
     public static byte[] runStatesForTest() {
         return runHeadState.clone();
@@ -715,7 +810,14 @@ public final class ChestProfitFeature {
      *  pose is the container's (slot-local coordinates), so the item, the hover highlight and the tooltip all cover it. */
     public static void drawRunSlot(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
         CroesusConfig cfg = CroesusConfig.getInstance();
-        if (!cfg.isChestProfitEnabled() || !cfg.isHighlightRuns()) {
+        if (!cfg.isChestProfitEnabled()) {
+            return;
+        }
+        if (screen == runViewScreen) {
+            drawChestSlot(graphics, slot); // a run's chest view: behind the item, under the tooltip, as in the list
+            return;
+        }
+        if (!cfg.isHighlightRuns()) {
             return;
         }
         int state = runState(screen, slot);
@@ -728,6 +830,7 @@ public final class ChestProfitFeature {
             case RUN_UNCLAIMED -> {
                 graphics.fill(x, y, x + 16, y + 16, (RUN_UNCLAIMED_FILL_ALPHA << 24) | cfg.getRunUnclaimedColor());
                 insetBorder(graphics, x, y, (RUN_UNCLAIMED_BORDER_ALPHA << 24) | cfg.getRunUnclaimedColor());
+                insetBorder(graphics, x + 1, y + 1, 14, (RUN_UNCLAIMED_BORDER_ALPHA << 24) | cfg.getRunUnclaimedColor());
             }
             case RUN_NEEDS_KEY -> {
                 // Hue AND treatment (2026-10-12, "these colors are hard to actually tell if they are different"):
@@ -736,12 +839,8 @@ public final class ChestProfitFeature {
                 insetBorder(graphics, x, y, (RUN_KEY_BORDER_ALPHA << 24) | cfg.getRunKeyColor());
                 insetBorder(graphics, x + 1, y + 1, 14, (RUN_KEY_BORDER_ALPHA << 24) | cfg.getRunKeyColor());
             }
-            case RUN_UNKNOWN -> cornerMarks(graphics, x, y, 0xFF000000 | cfg.getRunUnknownColor());
-            case RUN_OPENED -> {
-                // A tint AND a solid 1 px border: the key-used look is a darker tint with no border.
-                graphics.fill(x, y, x + 16, y + 16, (RUN_CLAIMED_FILL_ALPHA << 24) | cfg.getRunOpenedColor());
-                insetBorder(graphics, x, y, 0xFF000000 | cfg.getRunOpenedColor());
-            }
+            case RUN_UNKNOWN -> insetBorder(graphics, x, y, (RUN_UNKNOWN_OUTLINE_ALPHA << 24) | cfg.getRunUnknownColor());
+            case RUN_OPENED -> graphics.fill(x, y, x + 16, y + 16, (RUN_CLAIMED_FILL_ALPHA << 24) | cfg.getRunOpenedColor());
             default -> graphics.fill(x, y, x + 16, y + 16, (RUN_USED_FILL_ALPHA << 24) | cfg.getRunClaimedColor());
         }
     }
@@ -758,24 +857,13 @@ public final class ChestProfitFeature {
         graphics.fill(x + size - 1, y + 1, x + size, y + size - 1, argb);
     }
 
-    /** "Not looked at": four 4 px corner brackets, nothing in between - an outline that is plainly not the others'. */
-    private static void cornerMarks(GuiGraphicsExtractor graphics, int x, int y, int argb) {
-        int[][] corners = {{x, y, 1, 1}, {x + 15, y, -1, 1}, {x, y + 15, 1, -1}, {x + 15, y + 15, -1, -1}};
-        for (int[] c : corners) {
-            int cx = c[0];
-            int cy = c[1];
-            graphics.fill(Math.min(cx, cx + 3 * c[2]), cy, Math.max(cx, cx + 3 * c[2]) + 1, cy + 1, argb);
-            graphics.fill(cx, Math.min(cy, cy + 3 * c[3]), cx + 1, Math.max(cy, cy + 3 * c[3]) + 1, argb);
-        }
-    }
-
     /** 5x5 marks, drawn on a dark plate in the slot's top-right corner, so a state reads without its colour too. */
     private static final String[] KEY_MARK = {".....", "XX...", "XXXXX", "...XX", "....."};
-    private static final String[] LOOK_MARK = {".XXX.", "...X.", "..XX.", ".....", "..X.."};
 
     /**
      * The corner mark over the item (called at the end of {@code extractSlot}, after the item, still under the tooltip):
-     * a key on a run worth a key, a "?" on a run not looked at.
+     * a key on a run worth a key. (The "?" on a run not looked at was removed, killer560 2026-10-13: "please remove that
+     * question mark symbol I don't like it".)
      */
     public static void drawRunGlyph(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
         CroesusConfig cfg = CroesusConfig.getInstance();
@@ -783,11 +871,11 @@ public final class ChestProfitFeature {
             return;
         }
         int state = runState(screen, slot);
-        String[] mark = state == RUN_NEEDS_KEY ? KEY_MARK : state == RUN_UNKNOWN ? LOOK_MARK : null;
-        if (mark == null) {
+        if (state != RUN_NEEDS_KEY) {
             return;
         }
-        int argb = 0xFF000000 | (state == RUN_NEEDS_KEY ? cfg.getRunKeyColor() : cfg.getRunUnknownColor());
+        String[] mark = KEY_MARK;
+        int argb = 0xFF000000 | cfg.getRunKeyColor();
         int x0 = slot.x + 11;
         int y0 = slot.y;
         graphics.fill(x0 - 1, y0, x0 + 5, y0 + 6, 0xFF101010);
@@ -894,7 +982,7 @@ public final class ChestProfitFeature {
         net.minecraft.network.chat.MutableComponent c = Component.empty();
         legendPart(c, "\u25A0", cfg.getRunUnclaimedColor(), "new  ");
         legendPart(c, "\u25A0", cfg.getRunKeyColor(), "key  ");
-        legendPart(c, "?", cfg.getRunUnknownColor(), "look  ");
+        legendPart(c, "□", cfg.getRunUnknownColor(), "unchecked  ");
         legendPart(c, "\u25A0", cfg.getRunOpenedColor(), "done  ");
         // The key-used tint is near black: drawn on the dark panel as a lighter grey of the same hue.
         legendPart(c, "\u25A0", lighten(cfg.getRunClaimedColor()), "used");
@@ -967,50 +1055,19 @@ public final class ChestProfitFeature {
                 lines.add(new Line("Fetching prices...", 0xFF000000 | ModChat.DIM, null, 0));
             }
             List<ChestValue> chests = runViewChests;
-            ChestValue best = null;
-            ChestValue second = null;
-            for (ChestValue c : chests) {
-                if (c.opened()) {
-                    continue;
-                }
-                if (best == null) {
-                    best = c;
-                } else if (second == null) {
-                    second = c;
-                }
-            }
-            // killer560, 2026-09-20: "highlight ... the second best if it makes profit assuming i use a
-            // dungeon chest key on it". A chest whose lore already lists "Dungeon Chest Key" has that key
-            // priced into its own profit; one that doesn't has the key subtracted here.
-            boolean keyHighlight = CroesusConfig.getInstance().isHighlightSecondWithKey();
-            long secondWithKey = second == null ? 0L : DungeonChestValuer.profitWithKey(second);
-            boolean secondPaysForKey = second != null && secondWithKey > 0;
+            byte[] marks = screen == runViewScreen ? chestMarks : new byte[0];
+            ChestValue keyChest = null;
             for (ChestValue c : chests) {
                 String label = c.type().display + (c.opened() ? " (opened)" : "") + (c.unpricedCount() > 0 ? " *" : "");
                 int labelColor = c.opened() ? 0xFF000000 | ModChat.DIM : c.type().color;
                 lines.add(new Line(label, labelColor, signed(c.profit()), c.opened() ? 0xFF000000 | ModChat.DIM : profitColor(c.profit())));
-            }
-            if (keyHighlight && second != null && !second.requiresKey()) {
-                lines.add(new Line("2nd w/ key", 0xFF000000 | ModChat.TEXT, signed(secondWithKey), profitColor(secondWithKey)));
-            }
-            if (CroesusConfig.getInstance().isHighlightBest()) {
-                for (ChestValue c : chests) {
-                    if (c.slot() < 0 || c.opened()) {
-                        continue;
-                    }
-                    Slot slot = screen.getMenu().slots.get(c.slot());
-                    int x = pos.left() + slot.x;
-                    int y = pos.top() + slot.y;
-                    if (c == best) {
-                        graphics.fill(x, y, x + 16, y + 16, HIGHLIGHT_BEST_FILL);
-                        graphics.outline(x - 1, y - 1, 18, 18, HIGHLIGHT_BEST_BORDER);
-                    } else if (c == second && keyHighlight && secondPaysForKey) {
-                        graphics.fill(x, y, x + 16, y + 16, HIGHLIGHT_SECOND_FILL);
-                        graphics.outline(x - 1, y - 1, 18, 18, HIGHLIGHT_SECOND_BORDER);
-                    } else if (c == second && !keyHighlight && c.profit() > 0) {
-                        graphics.fill(x, y, x + 16, y + 16, HIGHLIGHT_SECOND_FILL);
-                    }
+                if (c.slot() >= 0 && c.slot() < marks.length && marks[c.slot()] == CHEST_KEY) {
+                    keyChest = c;
                 }
+            }
+            if (keyChest != null && CroesusConfig.getInstance().isHighlightKeyChest()) {
+                long withKey = DungeonChestValuer.profitWithKey(keyChest);
+                lines.add(new Line("Key: " + keyChest.type().display, 0xFF000000 | ModChat.TEXT, signed(withKey), profitColor(withKey)));
             }
             if (chests.stream().anyMatch(c -> c.unpricedCount() > 0)) {
                 lines.add(new Line("* has unpriced items", 0xFF000000 | ModChat.DIM, null, 0));

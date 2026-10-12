@@ -51,10 +51,10 @@ public class CroesusTab extends BaseTab {
                         cfg.save();
                         btn.setMessage(onOff("Include Essence", cfg.isIncludeEssence()));
                     }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("Highlight Best", cfg.isHighlightBest()), btn -> {
-                        cfg.setHighlightBest(!cfg.isHighlightBest());
+            widgets.add(SettingsButtonWidget.builder(onOff("Highlight Free Chest", cfg.isHighlightFreeChest()), btn -> {
+                        cfg.setHighlightFreeChest(!cfg.isHighlightFreeChest());
                         cfg.save();
-                        btn.setMessage(onOff("Highlight Best", cfg.isHighlightBest()));
+                        requestRebuild.run();
                     }).bounds(contentX + half + GAP, y, half, 18).build());
             y += 20;
             widgets.add(SettingsButtonWidget.builder(onOff("Highlight Runs", cfg.isHighlightRuns()), btn -> {
@@ -62,12 +62,20 @@ public class CroesusTab extends BaseTab {
                         cfg.save();
                         btn.setMessage(onOff("Highlight Runs", cfg.isHighlightRuns()));
                     }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("Second Best With Key", cfg.isHighlightSecondWithKey()), btn -> {
-                        cfg.setHighlightSecondWithKey(!cfg.isHighlightSecondWithKey());
+            widgets.add(SettingsButtonWidget.builder(onOff("Highlight Key Chest", cfg.isHighlightKeyChest()), btn -> {
+                        cfg.setHighlightKeyChest(!cfg.isHighlightKeyChest());
                         cfg.save();
-                        btn.setMessage(onOff("Second Best With Key", cfg.isHighlightSecondWithKey()));
+                        requestRebuild.run();
                     }).bounds(contentX + half + GAP, y, half, 18).build());
             y += 20;
+            if (cfg.isHighlightFreeChest() || cfg.isHighlightKeyChest()) {
+                widgets.add(colourButton("Free Chest Colour", cfg.getChestFreeColor(),
+                        CroesusConfig.DEFAULT_CHEST_FREE_COLOR, rgb -> cfg.setChestFreeColor(rgb), contentX, y, half));
+                widgets.add(colourButton("Key Chest Colour", cfg.getChestKeyColor(),
+                        CroesusConfig.DEFAULT_CHEST_KEY_COLOR, rgb -> cfg.setChestKeyColor(rgb),
+                        contentX + half + GAP, y, half));
+                y += 20;
+            }
             if (cfg.isHighlightRuns()) {
                 widgets.add(colourButton("Unclaimed Run Colour", cfg.getRunUnclaimedColor(),
                         CroesusConfig.DEFAULT_RUN_UNCLAIMED_COLOR, rgb -> cfg.setRunUnclaimedColor(rgb), contentX, y, half));

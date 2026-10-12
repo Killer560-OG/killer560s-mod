@@ -73,7 +73,17 @@ public final class CroesusConfig {
     // Both profit trackers ON by default since 2026-10-04 (killer560: "Make all profit trackers on by default").
     private boolean chestProfitEnabled = true;
     private boolean includeEssence = true;
-    private boolean highlightBest = true;
+    /** In a run's chest view: the most profitable chest at its normal cost, green - the free claim (killer560,
+     *  2026-10-13). Was "Highlight Best" (key highlightBest), carried over on load. */
+    private boolean highlightFreeChest = true;
+    /** In a run's chest view: the one chest worth coming back for with a Dungeon Chest Key, orange - the same rule that
+     *  makes a run "needs a key" in the run list. Replaces "Second Best With Key" (highlightSecondWithKey, default off),
+     *  which is not carried over: he asked for this one on (2026-10-13). */
+    private boolean highlightKeyChest = true;
+    public static final int DEFAULT_CHEST_FREE_COLOR = 0x3FD94A;
+    public static final int DEFAULT_CHEST_KEY_COLOR = 0xFF9A1F;
+    private int chestFreeColor = DEFAULT_CHEST_FREE_COLOR;
+    private int chestKeyColor = DEFAULT_CHEST_KEY_COLOR;
     /** Colour the run heads in the Croesus menu by whether anything has been claimed from them yet. */
     private boolean highlightRuns = false;
     /** Highlight Runs' colours (killer560, 2026-10-12: "the highlight runs portion of croesus just kind of looks like
@@ -84,11 +94,13 @@ public final class CroesusConfig {
     /** killer560, 2026-10-12: "if i need to go back and use a chest key it should also have a different highlight" -
      *  a claimed run whose second chest is worth a key (Auto Croesus's key rules); never hidden. Magenta since
      *  2026-10-12 ("these colors are hard to actually tell if they are different": the old gold read as the unclaimed
-     *  orange over Hypixel's green and red heads), with a thicker border and a key mark. */
-    public static final int DEFAULT_RUN_KEY_COLOR = 0xCC0096;
-    /** The needs-a-key default before the redesign: a config still on it moves to the new one. */
-    static final int LEGACY_RUN_KEY_COLOR = 0xFFD000;
-    /** A claimed run whose chests were not looked at yet: cyan corner marks and a "?" mark, no fill. */
+     *  orange over Hypixel's green and red heads), with a thicker border and a key mark; a solid
+     *  purple-magenta fill since 2026-10-13 (0xCC0096 sat 28.6 deltaE from the key-used grey). */
+    public static final int DEFAULT_RUN_KEY_COLOR = 0x9B00B2;
+    /** Earlier needs-a-key defaults (gold, then 0xCC0096): a config still on one moves to the new one. */
+    static final int[] LEGACY_RUN_KEY_COLORS = {0xFFD000, 0xCC0096};
+    /** A claimed run whose chests were not looked at yet: a faint 1 px outline, no fill, no mark - nothing to do until
+     *  he looks, so it recedes (killer560, 2026-10-13). */
     public static final int DEFAULT_RUN_UNKNOWN_COLOR = 0x7DF9FF;
     private int runUnknownColor = DEFAULT_RUN_UNKNOWN_COLOR;
     /** A one-line key to the run colours in the Croesus info box. */
@@ -106,8 +118,6 @@ public final class CroesusConfig {
     /** killer560, 2026-10-12: "make an option to hide opened chests" - runs already claimed from draw as empty
      *  slots, show no tooltip and take no click (Auto Croesus still reads and clicks the real slots). */
     private boolean hideOpenedRuns = false;
-    /** Also highlight the second-best chest when it still profits after paying for a Dungeon Chest Key. */
-    private boolean highlightSecondWithKey = false;
     /** See {@link PriceMode}. Before it existed Croesus followed the RNG Meter's "Use Instant-Buy Price", so a config
      *  without the key starts where that setting left it (on = buyPrice = Sell Offer). */
     private PriceMode priceMode = PriceMode.INSTA_SELL;
@@ -146,12 +156,16 @@ public final class CroesusConfig {
             CroesusConfig cfg = new CroesusConfig();
             cfg.chestProfitEnabled = ConfigJson.getBool(obj, "chestProfitEnabled", cfg.chestProfitEnabled);
             cfg.includeEssence = ConfigJson.getBool(obj, "includeEssence", cfg.includeEssence);
-            cfg.highlightBest = ConfigJson.getBool(obj, "highlightBest", cfg.highlightBest);
+            cfg.highlightFreeChest = ConfigJson.getBool(obj, "highlightFreeChest",
+                    ConfigJson.getBool(obj, "highlightBest", cfg.highlightFreeChest));
+            cfg.highlightKeyChest = ConfigJson.getBool(obj, "highlightKeyChest", cfg.highlightKeyChest);
+            cfg.chestFreeColor = ConfigJson.getInt(obj, "chestFreeColor", cfg.chestFreeColor) & 0xFFFFFF;
+            cfg.chestKeyColor = ConfigJson.getInt(obj, "chestKeyColor", cfg.chestKeyColor) & 0xFFFFFF;
             cfg.highlightRuns = ConfigJson.getBool(obj, "highlightRuns", cfg.highlightRuns);
             cfg.runUnclaimedColor = ConfigJson.getInt(obj, "runUnclaimedColor", cfg.runUnclaimedColor) & 0xFFFFFF;
             cfg.runClaimedColor = ConfigJson.getInt(obj, "runClaimedColor", cfg.runClaimedColor) & 0xFFFFFF;
             cfg.runKeyColor = ConfigJson.getInt(obj, "runKeyColor", cfg.runKeyColor) & 0xFFFFFF;
-            if (cfg.runKeyColor == LEGACY_RUN_KEY_COLOR) {
+            if (java.util.Arrays.stream(LEGACY_RUN_KEY_COLORS).anyMatch(c -> c == cfg.runKeyColor)) {
                 cfg.runKeyColor = DEFAULT_RUN_KEY_COLOR; // still on the old default: the new palette; a picked colour stays
             }
             cfg.runUnknownColor = ConfigJson.getInt(obj, "runUnknownColor", cfg.runUnknownColor) & 0xFFFFFF;
@@ -163,7 +177,6 @@ public final class CroesusConfig {
                 }
             }
             cfg.hideOpenedRuns = ConfigJson.getBool(obj, "hideOpenedRuns", cfg.hideOpenedRuns);
-            cfg.highlightSecondWithKey = ConfigJson.getBool(obj, "highlightSecondWithKey", cfg.highlightSecondWithKey);
             cfg.priceMode = obj.has("priceMode")
                     ? ConfigJson.getEnum(obj, "priceMode", PriceMode.class, PriceMode.INSTA_SELL) : legacyPriceMode();
             cfg.loggerEnabled = ConfigJson.getBool(obj, "loggerEnabled", cfg.loggerEnabled);
@@ -193,7 +206,10 @@ public final class CroesusConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("chestProfitEnabled", chestProfitEnabled);
             obj.addProperty("includeEssence", includeEssence);
-            obj.addProperty("highlightBest", highlightBest);
+            obj.addProperty("highlightFreeChest", highlightFreeChest);
+            obj.addProperty("highlightKeyChest", highlightKeyChest);
+            obj.addProperty("chestFreeColor", chestFreeColor);
+            obj.addProperty("chestKeyColor", chestKeyColor);
             obj.addProperty("highlightRuns", highlightRuns);
             obj.addProperty("runUnclaimedColor", runUnclaimedColor);
             obj.addProperty("runClaimedColor", runClaimedColor);
@@ -202,7 +218,6 @@ public final class CroesusConfig {
             obj.addProperty("showRunLegend", showRunLegend);
             obj.addProperty("runOpenedColor", runOpenedColor);
             obj.addProperty("hideOpenedRuns", hideOpenedRuns);
-            obj.addProperty("highlightSecondWithKey", highlightSecondWithKey);
             obj.addProperty("priceMode", priceMode.name());
             obj.addProperty("loggerEnabled", loggerEnabled);
             obj.addProperty("loggerChatSummary", loggerChatSummary);
@@ -257,12 +272,36 @@ public final class CroesusConfig {
         this.includeEssence = v;
     }
 
-    public boolean isHighlightBest() {
-        return highlightBest;
+    public boolean isHighlightFreeChest() {
+        return highlightFreeChest;
     }
 
-    public void setHighlightBest(boolean v) {
-        this.highlightBest = v;
+    public void setHighlightFreeChest(boolean v) {
+        this.highlightFreeChest = v;
+    }
+
+    public boolean isHighlightKeyChest() {
+        return highlightKeyChest;
+    }
+
+    public void setHighlightKeyChest(boolean v) {
+        this.highlightKeyChest = v;
+    }
+
+    public int getChestFreeColor() {
+        return chestFreeColor;
+    }
+
+    public void setChestFreeColor(int rgb) {
+        this.chestFreeColor = rgb & 0xFFFFFF;
+    }
+
+    public int getChestKeyColor() {
+        return chestKeyColor;
+    }
+
+    public void setChestKeyColor(int rgb) {
+        this.chestKeyColor = rgb & 0xFFFFFF;
     }
 
     public boolean isHighlightRuns() {
@@ -329,13 +368,6 @@ public final class CroesusConfig {
         this.hideOpenedRuns = v;
     }
 
-    public boolean isHighlightSecondWithKey() {
-        return highlightSecondWithKey;
-    }
-
-    public void setHighlightSecondWithKey(boolean v) {
-        this.highlightSecondWithKey = v;
-    }
 
     public boolean isLoggerEnabled() {
         return loggerEnabled && com.killer560.hub.util.SkyblockGate.allows();
