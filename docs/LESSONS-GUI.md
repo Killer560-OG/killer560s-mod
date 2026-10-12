@@ -246,3 +246,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   tooltip (killer560's screenshot, 2026-10-12). Per-slot drawing goes at `extractSlot`'s `Slot.isFake()` call in slot-local
   coordinates (`croesus/mixin/CroesusSlotMixin`, like Inventory Search), and borders stay inside the 16x16 square;
   testkit 875 diffs the shots and counts changed pixels inside the tooltip box (0) and in the gaps (0).
+- **State read in a tick and drawn in frames is stale for every frame between a packet and the next tick.** Croesus read
+  its run states at END_CLIENT_TICK, so after the menu's content landed the frames before the next tick drew the
+  opened runs unhidden (killer560: "a quick flash showing the old run stuff"). It now works them out in the frame from
+  the slots on screen, cached on the screen and an identity fingerprint of the run slots' stacks. Testkit 883 puts the
+  content in after the mod's tick (frames outrun ticks in the real game) and checks every frame; the old jar drew 10/12
+  unhidden on the content frame.

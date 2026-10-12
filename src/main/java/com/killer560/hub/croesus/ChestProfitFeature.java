@@ -103,6 +103,12 @@ public final class ChestProfitFeature {
     /** Per run-head slot in the Croesus menu: 0 = not a run, 1 = nothing claimed yet, 2 = already claimed.
      *  Built once per tick (not per frame) - the fps pass found lore scans in render paths. */
     private static byte[] runHeadState = new byte[0];
+    /** The screen and the exact stacks {@link #runHeadState} was read from (killer560, 2026-10-12: "whenever I open the
+     *  menu it does this quick flash showing the old run stuff"). The states are worked out in the frame, from the
+     *  slots on screen, whenever either changes - a tick-only read left every frame between the content packet and the
+     *  next tick drawing the runs unhidden and unhighlighted, which is the flash. */
+    private static AbstractContainerScreen<?> runHeadScreen = null;
+    private static int runHeadFingerprint = 0;
     /** The container the run states above were read from, so a newer screen never borrows them. */
     private static int runHeadContainerId = Integer.MIN_VALUE;
     /** killer560, 2026-10-12: "count from all pages combined out of how many at max it can store". Each Croesus page's
@@ -146,6 +152,7 @@ public final class ChestProfitFeature {
             chestScreenValue = null;
             runHeadState = new byte[0];
             runHeadContainerId = Integer.MIN_VALUE;
+            runHeadScreen = null;
         });
         ChatObserver.subscribe(message -> {
             if (pending == null) {
@@ -347,7 +354,7 @@ public final class ChestProfitFeature {
         }
         String title = titleOf(screen);
         if (DungeonChestValuer.CROESUS_MENU_TITLE.matcher(title).matches()) {
-            readRunHeads(screen);
+            statesFor(screen);
             runViewChests = List.of();
             chestScreenValue = null;
             setKind(Kind.CROESUS_MENU, title);
@@ -386,6 +393,28 @@ public final class ChestProfitFeature {
      * same line). So this is a two-state answer - untouched vs. something claimed - and cannot tell a run with
      * one chest left from a fully emptied one.
      */
+    /**
+     * The run states of {@code screen}'s slots as they are right now: re-read whenever the screen or any run slot's stack
+     * changed (a cheap identity fingerprint, so a frame costs 28 comparisons, not 28 lore scans). Empty for anything but
+     * the Croesus menu and for a Croesus menu whose items have not arrived - never another screen's or page's states.
+     */
+    private static byte[] statesFor(AbstractContainerScreen<?> screen) {
+        if (screen == null || !DungeonChestValuer.CROESUS_MENU_TITLE.matcher(titleOf(screen)).matches()) {
+            return new byte[0];
+        }
+        List<Slot> slots = screen.getMenu().slots;
+        int fp = 1;
+        for (int slot : DungeonChestValuer.RUN_HEAD_SLOTS) {
+            fp = 31 * fp + (slot < slots.size() ? System.identityHashCode(slots.get(slot).getItem()) : 0);
+        }
+        if (screen != runHeadScreen || fp != runHeadFingerprint) {
+            readRunHeads(screen);
+            runHeadScreen = screen;
+            runHeadFingerprint = fp;
+        }
+        return runHeadState;
+    }
+
     private static void readRunHeads(AbstractContainerScreen<?> screen) {
         List<ItemStack> stacks = containerStacks(screen);
         byte[] state = new byte[stacks.size()];
@@ -536,11 +565,13 @@ public final class ChestProfitFeature {
 
     /** The RUN_* state of a slot of {@code screen} (only the Croesus menu it was read from; RUN_NONE otherwise). */
     private static int runState(AbstractContainerScreen<?> screen, Slot slot) {
-        if (kind != Kind.CROESUS_MENU || screen.getMenu().containerId != runHeadContainerId) {
-            return 0;
-        }
-        byte[] state = runHeadState;
+        byte[] state = statesFor(screen);
         return slot.index >= 0 && slot.index < state.length ? state[slot.index] : 0;
+    }
+
+    /** For the testkit: the RUN_* state the menu would draw for {@code slot} of {@code screen} in this frame. */
+    public static int runStateForTest(AbstractContainerScreen<?> screen, int slot) {
+        return slot >= 0 && slot < screen.getMenu().slots.size() ? runState(screen, screen.getMenu().slots.get(slot)) : 0;
     }
 
     /** Highlight Runs, behind the item: called at the one {@code Slot.isFake()} call in {@code extractSlot}, where the
@@ -678,9 +709,14 @@ public final class ChestProfitFeature {
         String title = titleOf(screen);
         ContainerPos pos = positions(screen);
         List<Line> lines = new ArrayList<>();
-        if (kind == Kind.CROESUS_MENU && DungeonChestValuer.CROESUS_MENU_TITLE.matcher(title).matches()) {
-            // The run highlight itself is drawn per slot, behind each item (drawRunSlot). This is only the info box.
+        if (DungeonChestValuer.CROESUS_MENU_TITLE.matcher(title).matches()) {
+            // The run highlight itself is drawn per slot, behind each item (drawRunSlot). This is only the info box -
+            // drawn once THIS screen's items are in, so it never shows the totals of before the page loaded.
             if (!CroesusConfig.getInstance().isHighlightRuns()) {
+                return;
+            }
+            statesFor(screen);
+            if (containerStacks(screen).stream().allMatch(ItemStack::isEmpty)) {
                 return;
             }
             int[] t = runTotals();
