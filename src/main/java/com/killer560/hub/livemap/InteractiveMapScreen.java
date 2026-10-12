@@ -125,9 +125,9 @@ public class InteractiveMapScreen extends Screen {
 
     /** @return grid index of the cell under a screen point, or -1. */
     private int cellAt(double mouseX, double mouseY) {
-        int gx = MapPainter.unitToGrid((mouseX - originX()) / ppu());
-        int gz = MapPainter.unitToGrid((mouseY - originY()) / ppu());
-        return gx < 0 || gz < 0 ? -1 : gx + gz * LiveMapFeature.GRID;
+        // The strip between two tiles of one room is that room's nearest tile (LiveMapFeature.mapCellAt), for the
+        // hover and the press alike - they read this one function.
+        return LiveMapFeature.mapCellAt((mouseX - originX()) / ppu(), (mouseY - originY()) / ppu());
     }
 
     /** The grid cell the cursor is over right now, or -1 when it is off the map panel or nothing has rendered

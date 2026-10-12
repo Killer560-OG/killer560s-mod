@@ -213,11 +213,37 @@ public final class DungeonLayout {
         // assigned to the neighbouring room. LiveMapFeature.gridCellFor uses the double directly and was
         // right; this disagreed with it by one block, and roomAtWorld feeds canPath, getLockedDoor,
         // nearestDoorOut, Blood Rush and the pathfinder's start room.
-        int gx = Math.max(0, Math.min(10,
-                (int) Math.round((Math.floor(x) - LiveMapFeature.START_X) / 32.0) * 2));
-        int gz = Math.max(0, Math.min(10,
-                (int) Math.round((Math.floor(z) - LiveMapFeature.START_Z) / 32.0) * 2));
-        return roomOf[gz * GRID + gx];
+        //
+        // Measured from the middle of the tile's centre block (START + 0.5), on the position itself (2026-10-12): the
+        // one-block gap between two tiles is exactly halfway, and from the block's floor every position in it went to
+        // the +x / +z tile. Now each half of the gap block goes to the tile it is nearer - a doorway's two sides to
+        // their own rooms. Inside one room both sides are the same room anyway; where the nearer tile is no room at all
+        // (the missing quarter of an L, next to its inner corner) the nearest tile that IS a room answers.
+        double fx = (x - 0.5 - LiveMapFeature.START_X) / 32.0;
+        double fz = (z - 0.5 - LiveMapFeature.START_Z) / 32.0;
+        int ix = Math.max(0, Math.min(5, (int) Math.round(fx)));
+        int iz = Math.max(0, Math.min(5, (int) Math.round(fz)));
+        int room = roomOf[iz * 2 * GRID + ix * 2];
+        if (room >= 0) {
+            return room;
+        }
+        int best = -1;
+        double bestD = Double.MAX_VALUE;
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int jx = ix + dx;
+                int jz = iz + dz;
+                if (jx < 0 || jz < 0 || jx > 5 || jz > 5 || roomOf[jz * 2 * GRID + jx * 2] < 0) {
+                    continue;
+                }
+                double d = Math.max(Math.abs(fx - jx), Math.abs(fz - jz));
+                if (d < 0.53 && d < bestD) {   // the gap round the tile, not the next tile over
+                    bestD = d;
+                    best = roomOf[jz * 2 * GRID + jx * 2];
+                }
+            }
+        }
+        return best;
     }
 
     public int doorType(int idx) {

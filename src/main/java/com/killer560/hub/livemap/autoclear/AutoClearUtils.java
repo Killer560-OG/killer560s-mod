@@ -204,7 +204,13 @@ public final class AutoClearUtils {
         if (!canPath(layout)) {
             return false;
         }
-        BlockPos goal = layout.currentRoom() < 0 ? null : DungeonMapPathfinder.getDoorPos(layout, layout.currentRoom(), door);
+        // An open door's goal is the doorway itself (its floor block); a locked one's the spot in front of it on his side.
+        BlockPos goal = !layout.isLocked(door) || layout.currentRoom() >= 0
+                ? DungeonMapPathfinder.getDoorPos(layout, layout.currentRoom(), door) : null;
+        if (goal != null && !TeleportUtils.landable(goal)) {
+            // Not a block to land on (a slab, stairs, a missing floor): the nearest one that is, per the landing rules.
+            goal = TeleportUtils.nearestEtherwarpable(goal);
+        }
         if (goal == null) {
             ModChat.send(ClearExecutor.CHAT, ModChat.bad("Could not find door coordinates"));
             return false;
