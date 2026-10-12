@@ -269,3 +269,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **A mod-menu tab's buttons act on the config object they were built with.** Health and Mana Bars' lambdas capture
   `PlayerStatsConfig.getInstance()`, and `PlayerStatsConfig.load()` (a profile apply) replaces the instance, so until the tab
   rebuilds, a press changes the old object (testkit 893's first runs: Bar Style "did nothing" after a reload, 2026-10-12).
+- **Judge "can you tell these colours apart" with CIEDE2000, over the real background, with a CVD simulation.** CIE76 rated
+  Croesus's old gold needs-a-key border 39 from the unclaimed orange, which he could not tell apart; CIEDE2000 puts the
+  gold-vs-gold "not looked at" pair at 19.8 and orange-vs-gold for a deuteranope at 11.6. Magenta and blue collapse for a
+  protanope whatever the shades, so the key mark and its plate carry that pair, and testkit 898 samples those pixels too.

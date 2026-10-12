@@ -82,11 +82,23 @@ public final class CroesusConfig {
     public static final int DEFAULT_RUN_UNCLAIMED_COLOR = 0xFF8C1A;
     public static final int DEFAULT_RUN_CLAIMED_COLOR = 0x202020;
     /** killer560, 2026-10-12: "if i need to go back and use a chest key it should also have a different highlight" -
-     *  a claimed run whose second chest is worth a key (Auto Croesus's key rules); never hidden. Gold. */
-    public static final int DEFAULT_RUN_KEY_COLOR = 0xFFD000;
-    /** "If no chest key then it should be different": claimed, no key used, nothing left worth a key. A clear blue, so
-     *  it reads apart from the dark key-used tint at a glance. */
-    public static final int DEFAULT_RUN_OPENED_COLOR = 0x2F6FD0;
+     *  a claimed run whose second chest is worth a key (Auto Croesus's key rules); never hidden. Magenta since
+     *  2026-10-12 ("these colors are hard to actually tell if they are different": the old gold read as the unclaimed
+     *  orange over Hypixel's green and red heads), with a thicker border and a key mark. */
+    public static final int DEFAULT_RUN_KEY_COLOR = 0xCC0096;
+    /** The needs-a-key default before the redesign: a config still on it moves to the new one. */
+    static final int LEGACY_RUN_KEY_COLOR = 0xFFD000;
+    /** A claimed run whose chests were not looked at yet: cyan corner marks and a "?" mark, no fill. */
+    public static final int DEFAULT_RUN_UNKNOWN_COLOR = 0x7DF9FF;
+    private int runUnknownColor = DEFAULT_RUN_UNKNOWN_COLOR;
+    /** A one-line key to the run colours in the Croesus info box. */
+    private boolean showRunLegend = true;
+    /** "If no chest key then it should be different": claimed, no key used, nothing left worth a key. A muted mid blue
+     *  with a solid border, so it reads apart from the dark key-used tint and, for a protanope, from the deep magenta
+     *  needs-a-key (2026-10-12; 0x2F6FD0 was too close to it). */
+    public static final int DEFAULT_RUN_OPENED_COLOR = 0x578DD9;
+    /** Earlier opened defaults (0x3A4A66, then 0x2F6FD0): a config still on one moves to the new one. */
+    static final int[] LEGACY_RUN_OPENED_COLORS = {0x3A4A66, 0x2F6FD0};
     private int runKeyColor = DEFAULT_RUN_KEY_COLOR;
     private int runOpenedColor = DEFAULT_RUN_OPENED_COLOR;
     private int runUnclaimedColor = DEFAULT_RUN_UNCLAIMED_COLOR;
@@ -139,7 +151,17 @@ public final class CroesusConfig {
             cfg.runUnclaimedColor = ConfigJson.getInt(obj, "runUnclaimedColor", cfg.runUnclaimedColor) & 0xFFFFFF;
             cfg.runClaimedColor = ConfigJson.getInt(obj, "runClaimedColor", cfg.runClaimedColor) & 0xFFFFFF;
             cfg.runKeyColor = ConfigJson.getInt(obj, "runKeyColor", cfg.runKeyColor) & 0xFFFFFF;
+            if (cfg.runKeyColor == LEGACY_RUN_KEY_COLOR) {
+                cfg.runKeyColor = DEFAULT_RUN_KEY_COLOR; // still on the old default: the new palette; a picked colour stays
+            }
+            cfg.runUnknownColor = ConfigJson.getInt(obj, "runUnknownColor", cfg.runUnknownColor) & 0xFFFFFF;
+            cfg.showRunLegend = ConfigJson.getBool(obj, "showRunLegend", cfg.showRunLegend);
             cfg.runOpenedColor = ConfigJson.getInt(obj, "runOpenedColor", cfg.runOpenedColor) & 0xFFFFFF;
+            for (int legacy : LEGACY_RUN_OPENED_COLORS) {
+                if (cfg.runOpenedColor == legacy) {
+                    cfg.runOpenedColor = DEFAULT_RUN_OPENED_COLOR;
+                }
+            }
             cfg.hideOpenedRuns = ConfigJson.getBool(obj, "hideOpenedRuns", cfg.hideOpenedRuns);
             cfg.highlightSecondWithKey = ConfigJson.getBool(obj, "highlightSecondWithKey", cfg.highlightSecondWithKey);
             cfg.priceMode = obj.has("priceMode")
@@ -176,6 +198,8 @@ public final class CroesusConfig {
             obj.addProperty("runUnclaimedColor", runUnclaimedColor);
             obj.addProperty("runClaimedColor", runClaimedColor);
             obj.addProperty("runKeyColor", runKeyColor);
+            obj.addProperty("runUnknownColor", runUnknownColor);
+            obj.addProperty("showRunLegend", showRunLegend);
             obj.addProperty("runOpenedColor", runOpenedColor);
             obj.addProperty("hideOpenedRuns", hideOpenedRuns);
             obj.addProperty("highlightSecondWithKey", highlightSecondWithKey);
@@ -271,6 +295,22 @@ public final class CroesusConfig {
 
     public void setRunKeyColor(int rgb) {
         this.runKeyColor = rgb & 0xFFFFFF;
+    }
+
+    public int getRunUnknownColor() {
+        return runUnknownColor;
+    }
+
+    public void setRunUnknownColor(int rgb) {
+        this.runUnknownColor = rgb & 0xFFFFFF;
+    }
+
+    public boolean isShowRunLegend() {
+        return showRunLegend;
+    }
+
+    public void setShowRunLegend(boolean v) {
+        this.showRunLegend = v;
     }
 
     public int getRunOpenedColor() {
