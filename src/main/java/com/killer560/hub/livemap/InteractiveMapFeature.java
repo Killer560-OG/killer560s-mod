@@ -113,7 +113,13 @@ public final class InteractiveMapFeature {
         boolean startDown = hasWindow && bindPollable(cfg.getStartKeyCode(), pollMouseBinds)
                 && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), cfg.getStartKeyCode());
         if (startDown && !startWasDown && mapOpen && inClear && cfg.isInteractiveMapEnabled() && !isDead(client)) {
-            onMapPress(cellUnderCursor(client));
+            InteractiveMapScreen map = McCompat.screen(client) instanceof InteractiveMapScreen m ? m : null;
+            double[] at = map == null ? null : map.unitsUnderCursor();
+            if (at != null) {
+                onMapPressAt(at[0], at[1], false);
+            } else {
+                onMapPress(cellUnderCursor(client));
+            }
         }
         startWasDown = startDown;
         boolean lockedDown = hasWindow && bindPollable(cfg.getLockedDoorKeyCode(), pollMouseBinds)
@@ -127,7 +133,13 @@ public final class InteractiveMapFeature {
         boolean goSecretDown = hasWindow && bindPollable(cfg.getGoSecretKeyCode(), pollMouseBinds)
                 && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), cfg.getGoSecretKeyCode());
         if (goSecretDown && !goSecretWasDown && mapOpen && inClear && cfg.isInteractiveMapEnabled() && !isDead(client)) {
-            onMapSecretPress(cellUnderCursor(client));
+            InteractiveMapScreen map = McCompat.screen(client) instanceof InteractiveMapScreen m ? m : null;
+            double[] at = map == null ? null : map.unitsUnderCursor();
+            if (at != null) {
+                onMapPressAt(at[0], at[1], true);
+            } else {
+                onMapSecretPress(cellUnderCursor(client));
+            }
         }
         goSecretWasDown = goSecretDown;
         tickPendingGoal(client);
@@ -178,7 +190,19 @@ public final class InteractiveMapFeature {
      * @param cell grid cell under the cursor, or -1 when the cursor is not over the map
      */
     static void onMapPress(int cell) {
-        onMapPress(cell, false);
+        onMapPress(cell, false, null);
+    }
+
+    /**
+     * A press at a point of the drawn map (map units): on the strip joining two tiles of a room it goes to THAT spot of
+     * the room (killer560, 2026-10-12: "since there is a room there that is actual tangible space"); anywhere else it is
+     * {@link #onMapPress(int)} / {@link #onMapSecretPress(int)} on the cell there.
+     */
+    static void onMapPressAt(double ux, double uz, boolean secret) {
+        int cell = LiveMapFeature.mapCellAt(ux, uz);
+        double[] spot = LiveMapFeature.onRoomStrip(ux, uz)
+                ? new double[]{MapPainter.unitsToWorld(ux), MapPainter.unitsToWorld(uz)} : null;
+        onMapPress(cell, secret, spot);
     }
 
     /**
@@ -188,10 +212,11 @@ public final class InteractiveMapFeature {
      * cancels a playing secret route exactly as they do.
      */
     static void onMapSecretPress(int cell) {
-        onMapPress(cell, true);
+        onMapPress(cell, true, null);
     }
 
-    private static void onMapPress(int cell, boolean forceStartNode) {
+    /** @param spot world {x, z} of a press on a room's strip (it goes there), or null */
+    private static void onMapPress(int cell, boolean forceStartNode, double[] spot) {
         LiveMapConfig cfg = LiveMapConfig.getInstance();
         if (!cfg.isInteractiveMapEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             // Used to quietly fall back to toggling waypoints, which is why a press sometimes did something
@@ -239,7 +264,23 @@ public final class InteractiveMapFeature {
         // Both remaining cases are the same call: activateRoom hands the click to Auto Routes when it is the
         // room you are standing in ("If I click a room I am already in once then it does its secrets still")
         // and paths there otherwise. Queueing it is what makes the mid-path press a retarget.
+        if (spot != null) {
+            queue(tile, (l, r, t) -> activateSpot(l, r, t, spot[0], spot[1]));
+            return;
+        }
         queue(tile, InteractiveMapFeature::activateRoom);
+    }
+
+    /** {@link #activateRoom} for a press on the strip between two of the room's tiles: the spot pressed, not a tile. */
+    static void activateSpot(DungeonLayout layout, int room, int tile, double x, double z) {
+        if (room < 0) {
+            ModChat.send(CHAT, ModChat.bad("That room is unknown"));
+            return;
+        }
+        if (com.killer560.hub.autoroutes.AutoRoutesFeature.onMapRoomClicked(layout, room)) {
+            return;
+        }
+        AutoClearUtils.pathToSpot(layout, room, tile, x, z);
     }
 
     /** @return true when this press is the second of a double press. */

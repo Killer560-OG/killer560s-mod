@@ -130,8 +130,16 @@ public class InteractiveMapScreen extends Screen {
         return LiveMapFeature.mapCellAt((mouseX - originX()) / ppu(), (mouseY - originY()) / ppu());
     }
 
-    /** The grid cell the cursor is over right now, or -1 when it is off the map panel or nothing has rendered
-     *  yet. This is what a bound KEY press acts on - see {@link #cursorX}. */
+    /** The map-unit point under the cursor, or null off the panel - what a bound KEY press acts on. */
+    double[] unitsUnderCursor() {
+        if (cursorX < 0 || !inside(panel(), cursorX, cursorY)) {
+            return null;
+        }
+        return new double[]{(cursorX - originX()) / ppu(), (cursorY - originY()) / ppu()};
+    }
+
+    /** The grid cell the cursor is over right now, or -1 when it is off the panel or nothing has rendered
+     *  yet. See {@link #cursorX}. */
     int cellUnderCursor() {
         if (cursorX < 0 || !inside(panel(), cursorX, cursorY)) {
             return -1;
@@ -256,16 +264,74 @@ public class InteractiveMapScreen extends Screen {
         int tile = gx % 2 == 0 && gz % 2 == 0 ? cell : group.mainIdx;
         int tx = tile % g;
         int tz = tile / g;
-        int x0 = Math.round(ox + MapPainter.cellPos(tx) * ppu);
-        int y0 = Math.round(oy + MapPainter.cellPos(tz) * ppu);
-        int x1 = Math.round(ox + (MapPainter.cellPos(tx) + MapPainter.cellSize(tx)) * ppu);
-        int y1 = Math.round(oy + (MapPainter.cellPos(tz) + MapPainter.cellSize(tz)) * ppu);
-        graphics.fill(x0, y0, x1, y1, MapPainter.multiply(MapPainter.roomColor(group, cfg), 1.15f));
+        int gid = LiveMapFeature.groupIdAt(tile);
+        // killer560 (2026-10-12): "since there is a room there that is actual tangible space that should also be
+        // highlighted" - the strip joining this tile to the room's next one is real floor, so the hovered tile takes
+        // the half of each such strip on its side (and the quarter of a 2x2's middle when both its strips are the
+        // room's), and the next tile's hover takes the other half: neighbouring highlights meet, nothing in the room is
+        // left unlit between them. The white edge goes only along the room's outside, never across its floor.
+        boolean west = tx > 0 && LiveMapFeature.groupIdAt(tile - 1) == gid;
+        boolean east = tx < g - 1 && LiveMapFeature.groupIdAt(tile + 1) == gid;
+        boolean north = tz > 0 && LiveMapFeature.groupIdAt(tile - g) == gid;
+        boolean south = tz < g - 1 && LiveMapFeature.groupIdAt(tile + g) == gid;
+        float half = MapPainter.cellSize(1) / 2f;
+        float ux0 = MapPainter.cellPos(tx);
+        float uz0 = MapPainter.cellPos(tz);
+        float ux1 = ux0 + MapPainter.cellSize(tx);
+        float uz1 = uz0 + MapPainter.cellSize(tz);
+        int colour = MapPainter.multiply(MapPainter.roomColor(group, cfg), 1.15f);
+        fillUnits(graphics, ux0, uz0, ux1, uz1, colour, ox, oy, ppu);
+        if (west) {
+            fillUnits(graphics, ux0 - half, uz0, ux0, uz1, colour, ox, oy, ppu);
+        }
+        if (east) {
+            fillUnits(graphics, ux1, uz0, ux1 + half, uz1, colour, ox, oy, ppu);
+        }
+        if (north) {
+            fillUnits(graphics, ux0, uz0 - half, ux1, uz0, colour, ox, oy, ppu);
+        }
+        if (south) {
+            fillUnits(graphics, ux0, uz1, ux1, uz1 + half, colour, ox, oy, ppu);
+        }
+        // The corners of a 2x2's middle: only when the diagonal cell is the room's too (an L has no middle there).
+        int[][] corners = {{-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
+        for (int[] c : corners) {
+            boolean sideX = c[0] < 0 ? west : east;
+            boolean sideZ = c[1] < 0 ? north : south;
+            int diag = tile + c[0] + c[1] * g;
+            if (sideX && sideZ && LiveMapFeature.groupIdAt(diag) == gid) {
+                float cx0 = c[0] < 0 ? ux0 - half : ux1;
+                float cz0 = c[1] < 0 ? uz0 - half : uz1;
+                fillUnits(graphics, cx0, cz0, cx0 + half, cz0 + half, colour, ox, oy, ppu);
+            }
+        }
         int edge = 0xB4FFFFFF;
-        graphics.fill(x0 - 1, y0 - 1, x1 + 1, y0, edge);
-        graphics.fill(x0 - 1, y1, x1 + 1, y1 + 1, edge);
-        graphics.fill(x0 - 1, y0, x0, y1, edge);
-        graphics.fill(x1, y0, x1 + 1, y1, edge);
+        float ex0 = west ? ux0 - half : ux0;
+        float ex1 = east ? ux1 + half : ux1;
+        float ez0 = north ? uz0 - half : uz0;
+        float ez1 = south ? uz1 + half : uz1;
+        int x0 = Math.round(ox + ex0 * ppu);
+        int x1 = Math.round(ox + ex1 * ppu);
+        int y0 = Math.round(oy + ez0 * ppu);
+        int y1 = Math.round(oy + ez1 * ppu);
+        if (!north) {
+            graphics.fill(x0 - 1, y0 - 1, x1 + 1, y0, edge);
+        }
+        if (!south) {
+            graphics.fill(x0 - 1, y1, x1 + 1, y1 + 1, edge);
+        }
+        if (!west) {
+            graphics.fill(x0 - 1, y0, x0, y1, edge);
+        }
+        if (!east) {
+            graphics.fill(x1, y0, x1 + 1, y1, edge);
+        }
+    }
+
+    private static void fillUnits(GuiGraphicsExtractor graphics, float ux0, float uz0, float ux1, float uz1, int colour,
+                                  float ox, float oy, float ppu) {
+        graphics.fill(Math.round(ox + ux0 * ppu), Math.round(oy + uz0 * ppu), Math.round(ox + ux1 * ppu),
+                Math.round(oy + uz1 * ppu), colour);
     }
 
     private static boolean holdingLeap(Minecraft client) {
@@ -729,7 +795,11 @@ public class InteractiveMapScreen extends Screen {
             return;
         }
         if (isBind(cfg.getGoSecretKeyCode(), button)) {
-            InteractiveMapFeature.onMapSecretPress(inside(panel(), mouseX, mouseY) ? cellAt(mouseX, mouseY) : -1);
+            if (inside(panel(), mouseX, mouseY)) {
+                InteractiveMapFeature.onMapPressAt((mouseX - originX()) / ppu(), (mouseY - originY()) / ppu(), true);
+            } else {
+                InteractiveMapFeature.onMapSecretPress(-1);
+            }
             return;
         }
         boolean startButton = isBind(cfg.getStartKeyCode(), button)
@@ -738,7 +808,11 @@ public class InteractiveMapScreen extends Screen {
             // One dispatcher for both inputs, so a click and a key press cannot drift apart - including the
             // double-press rule, which is counted per ROOM and not per input device. Off the panel it gets -1,
             // exactly what the key poll passes when the cursor is off the map.
-            InteractiveMapFeature.onMapPress(inside(panel(), mouseX, mouseY) ? cellAt(mouseX, mouseY) : -1);
+            if (inside(panel(), mouseX, mouseY)) {
+                InteractiveMapFeature.onMapPressAt((mouseX - originX()) / ppu(), (mouseY - originY()) / ppu(), false);
+            } else {
+                InteractiveMapFeature.onMapPress(-1);
+            }
             return;
         }
         if (button == 2) {
