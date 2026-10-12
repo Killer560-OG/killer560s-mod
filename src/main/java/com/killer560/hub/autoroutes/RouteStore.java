@@ -460,6 +460,7 @@ public final class RouteStore {
                 n.planToX = to[0];
                 n.planToY = to[1];
                 n.planToZ = to[2];
+                n.planBreakers = ConfigJson.getInt(o, "planBreakers", 0);
             }
         }
         return n;
@@ -549,6 +550,7 @@ public final class RouteStore {
             // The saved warps (see RouteNode#pathHops) - planned once, replayed every run.
             o.addProperty("planFrom", String.format(Locale.US, "%.6f %.6f %.6f", n.planFromX, n.planFromY, n.planFromZ));
             o.addProperty("planTo", String.format(Locale.US, "%.6f %.6f %.6f", n.planToX, n.planToY, n.planToZ));
+            o.addProperty("planBreakers", n.planBreakers);
             JsonArray hops = new JsonArray();
             for (RouteNode.PathHop h : n.pathHops) {
                 hops.add(String.format(Locale.US, "%.6f %.6f %.6f %.6f %.6f %d %d %d %.6f %.6f %.6f", h.ox(), h.oy(),

@@ -146,12 +146,12 @@ public final class RoutePathPlanner {
         // its route as they should be broken whenever it goes by"). Read here, on the client thread, through the aura's
         // own rule: only while the aura is on, and only blocks it would actually break. If one is still standing when
         // the warp goes, the warp lands short and is handled as any failed landing is.
-        java.util.Set<Long> air = breakerAir(client);
+        java.util.Set<Long> air = breakerAir(route, frame, src);
         planning = true;
         plansStarted++;
         LOGGER.info("[AutoRoutes] Path #{} -> #{}: planning with the Interactive Map's floor planner, {} to {}{}", a, b,
                 fmt(from), goal.toShortString(), air.isEmpty() ? "" : " (" + air.size()
-                        + " Breaker Aura block(s) planned as broken)");
+                        + " breaker node block(s) planned as broken)");
         // On the Interactive Map's planner thread, never one of our own: the floor graph is shared with the map's
         // warm-up and is not thread-safe. A search here racing the warm-up pushed the graph's node count past its
         // arrays, after which nothing planned for the rest of the floor (2026-10-06).
@@ -293,21 +293,65 @@ public final class RoutePathPlanner {
     }
 
     /**
-     * The Breaker Aura picks the planner may treat as gone, packed: every block of the active pick list that
-     * {@link com.killer560.hub.dungeonextras.BreakerAuraFeature#plannerTreatsAsAir} accepts (the aura is on and would
-     * break it). Client thread.
+     * The blocks the route's own Dungeon Breaker nodes break before {@code src}'s pair flies, in world coordinates:
+     * every block of every DUNGEON_BREAKER node numbered before {@code src}, or stacked on its tile (a breaker fires
+     * before the etherwarp slot). killer560 (2026-10-12): "the path node isn't planning like there aren't any blocks
+     * blocking it for dungeon breaker stuff" - and "During clear the only way to auto break blocks is through the
+     * breaker node", so Breaker Aura's list (boss only) is not read here at all. Client thread.
      */
-    static java.util.Set<Long> breakerAir(Minecraft client) {
-        java.util.Set<Long> out = new java.util.HashSet<>();
-        if (client.level == null) {
+    public static List<BlockPos> breakerBlocksBefore(Route route, RouteCoords.Frame frame, RouteNode src) {
+        List<BlockPos> out = new ArrayList<>();
+        if (route == null || frame == null || src == null) {
             return out;
         }
-        for (BlockPos p : com.killer560.hub.dungeonextras.BreakerAuraFeature.selectedBlocks()) {
-            if (com.killer560.hub.dungeonextras.BreakerAuraFeature.plannerTreatsAsAir(client.level, p)) {
-                out.add(com.killer560.hub.livemap.autoclear.EtherSearch.pack(p.getX(), p.getY(), p.getZ()));
+        int at = route.indexOf(src);
+        List<RouteNode> nodes = route.nodes();
+        for (int i = 0; i < nodes.size(); i++) {
+            RouteNode n = nodes.get(i);
+            if (n.type != RouteNode.Type.DUNGEON_BREAKER) {
+                continue;
+            }
+            boolean before = i < at;
+            boolean stacked = Math.floor(n.x) == Math.floor(src.x) && Math.floor(n.z) == Math.floor(src.z)
+                    && Math.abs(n.y - src.y) < 1.0;
+            if (!before && !stacked) {
+                continue;
+            }
+            for (BlockPos rel : n.breakerBlocks) {
+                out.add(RouteCoords.toRealBlock(frame, rel));
             }
         }
         return out;
+    }
+
+    /** {@link #breakerBlocksBefore}, packed for the planner ({@code EtherSearch.pack}). */
+    static java.util.Set<Long> breakerAir(Route route, RouteCoords.Frame frame, RouteNode src) {
+        java.util.Set<Long> out = new java.util.HashSet<>();
+        for (BlockPos p : breakerBlocksBefore(route, frame, src)) {
+            out.add(com.killer560.hub.livemap.autoclear.EtherSearch.pack(p.getX(), p.getY(), p.getZ()));
+        }
+        return out;
+    }
+
+    /** A stamp of the breaker blocks a pair's plan assumed broken (0 for none), saved with the plan. */
+    public static int breakerStamp(Route route, RouteNode src) {
+        int h = 0;
+        if (route == null) {
+            return h;
+        }
+        int at = route.indexOf(src);
+        List<RouteNode> nodes = route.nodes();
+        for (int i = 0; i < nodes.size(); i++) {
+            RouteNode n = nodes.get(i);
+            boolean stacked = Math.floor(n.x) == Math.floor(src.x) && Math.floor(n.z) == Math.floor(src.z)
+                    && Math.abs(n.y - src.y) < 1.0;
+            if (n.type == RouteNode.Type.DUNGEON_BREAKER && (i < at || stacked)) {
+                for (BlockPos b : n.breakerBlocks) {
+                    h = h * 31 + b.hashCode();
+                }
+            }
+        }
+        return h;
     }
 
     /**
@@ -356,6 +400,7 @@ public final class RoutePathPlanner {
         src.planToX = tx;
         src.planToY = ty;
         src.planToZ = tz;
+        src.planBreakers = breakerStamp(route, src);
         src.roundToSaved();
         RouteStore.getInstance().save();
         return null;

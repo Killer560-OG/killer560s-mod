@@ -163,6 +163,9 @@ public final class RouteNode {
     public double planToX;
     public double planToY;
     public double planToZ;
+    /** {@link RoutePathPlanner#breakerStamp} when the pair was planned: when the route's breaker blocks before the pair
+     *  change, the saved plan predates them (it is NOT re-planned on its own - /ar replan; chat says so). */
+    public int planBreakers;
 
     /**
      * One saved warp of a path: stand at {@code (ox, oy, oz)}, look along {@code yaw}/{@code pitch} (relative, as a
@@ -422,6 +425,7 @@ public final class RouteNode {
         planToX = o.planToX;
         planToY = o.planToY;
         planToZ = o.planToZ;
+        planBreakers = o.planBreakers;
     }
 
     /** True when every stored field matches {@code o}'s - the editor's "nothing changed, push no undo entry". */
