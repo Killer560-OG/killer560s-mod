@@ -60,10 +60,16 @@ public final class ChestProfitFeature {
     private static final int HIGHLIGHT_BEST_BORDER = 0xFF00FF00;
     private static final int HIGHLIGHT_SECOND_FILL = 0x40FFA040;
     private static final int HIGHLIGHT_SECOND_BORDER = 0xFFFFA040;
-    /** Run heads in the Croesus menu: green = nothing claimed from that run yet, red = something already was. */
-    private static final int RUN_UNCLAIMED_FILL = 0x5000FF00;
-    private static final int RUN_UNCLAIMED_BORDER = 0xFF00FF00;
-    private static final int RUN_CLAIMED_FILL = 0x50FF5555;
+    /** Run heads in the Croesus menu (2026-10-12 redesign): an unclaimed run gets a light tint of its colour and a 1 px
+     *  border INSIDE its 16x16 slot (slots are 18 apart, so no two borders touch); a claimed run a darker tint, no
+     *  border. Drawn behind the item from {@code croesus/mixin/CroesusSlotMixin}, so the item and tooltip cover it. */
+    private static final int RUN_UNCLAIMED_FILL_ALPHA = 0x30;
+    private static final int RUN_UNCLAIMED_BORDER_ALPHA = 0xC0;
+    private static final int RUN_CLAIMED_FILL_ALPHA = 0x70;
+    /** "Croesus can keep up to 60 runs, and each run has a 72 hours expiry date." - hypixelskyblock.minecraft.wiki/w/Croesus
+     *  (read 2026-10-12). 28 run slots a page, so 60 runs is the "(n/3)" pages killer560's screenshot shows. */
+    public static final int MAX_STORED_RUNS = 60;
+    private static final java.util.regex.Pattern MENU_PAGE = java.util.regex.Pattern.compile("^\\((\\d{1,2})/(\\d{1,2})\\) Croesus$");
 
     private enum Kind { NONE, CROESUS_MENU, RUN_VIEW, CHEST }
 
@@ -74,8 +80,13 @@ public final class ChestProfitFeature {
     /** Per run-head slot in the Croesus menu: 0 = not a run, 1 = nothing claimed yet, 2 = already claimed.
      *  Built once per tick (not per frame) - the fps pass found lore scans in render paths. */
     private static byte[] runHeadState = new byte[0];
-    private static int unclaimedRuns = 0;
-    private static int claimedRuns = 0;
+    /** The container the run states above were read from, so a newer screen never borrows them. */
+    private static int runHeadContainerId = Integer.MIN_VALUE;
+    /** killer560, 2026-10-12: "count from all pages combined out of how many at max it can store". Each Croesus page's
+     *  {unclaimed, claimed} as last read this session, keyed by page; cleared when the page count changes. A page not
+     *  seen yet leaves the total partial ("+"). */
+    private static final Map<Integer, int[]> PAGE_COUNTS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static int pageCount = 0;
     private static List<ChestValue> runViewChests = List.of();
     private static ChestValue chestScreenValue = null;
     private static String runViewFloor = null;
@@ -111,6 +122,7 @@ public final class ChestProfitFeature {
             runViewChests = List.of();
             chestScreenValue = null;
             runHeadState = new byte[0];
+            runHeadContainerId = Integer.MIN_VALUE;
         });
         ChatObserver.subscribe(message -> {
             if (pending == null) {
@@ -125,7 +137,7 @@ public final class ChestProfitFeature {
 
     private static boolean active() {
         CroesusConfig cfg = CroesusConfig.getInstance();
-        return cfg.isChestProfitEnabled() || cfg.isLoggerEnabled() || cfg.isAutoCroesusEnabled();
+        return cfg.isChestProfitEnabled() || cfg.isLoggerEnabled() || cfg.isAutoCroesusEnabled() || cfg.isHideOpenedRuns();
     }
 
     // ---- public API used by AutoCroesusFeature --------------------------------------------------
@@ -263,6 +275,11 @@ public final class ChestProfitFeature {
         // real hotbar-swap packet.
         ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
             try {
+                // A hidden run takes no hotbar swap or drop either (each is a real click on it); Escape still closes.
+                if (hidesHovered(containerScreen) && event.key() != InputConstants.KEY_ESCAPE
+                        && !Minecraft.getInstance().options.keyInventory.matches(event)) {
+                    return false;
+                }
                 if (!AutoCroesusFeature.stopOnKeyPress()) {
                     return true;
                 }
@@ -276,6 +293,9 @@ public final class ChestProfitFeature {
             try {
                 if (AutoCroesusFeature.tryClickStartButton(event.x(), event.y())) {
                     return false;
+                }
+                if (hidesHovered(containerScreen)) {
+                    return false; // Hide Opened Runs: an empty-looking slot opens nothing
                 }
                 if (!active()) {
                     return true;
@@ -370,8 +390,80 @@ public final class ChestProfitFeature {
             }
         }
         runHeadState = state;
-        unclaimedRuns = unclaimed;
-        claimedRuns = claimed;
+        runHeadContainerId = screen.getMenu().containerId;
+        if (stacks.stream().allMatch(ItemStack::isEmpty)) {
+            return; // the page's items have not arrived: keep what this page held last time
+        }
+        Matcher m = MENU_PAGE.matcher(titleOf(screen));
+        int page = m.matches() ? Integer.parseInt(m.group(1)) : 1;
+        int pages = m.matches() ? Math.max(1, Integer.parseInt(m.group(2))) : 1;
+        if (pages != pageCount) {
+            PAGE_COUNTS.clear(); // runs expired or arrived across a page boundary: the old pages are not comparable
+            pageCount = pages;
+        }
+        PAGE_COUNTS.put(page, new int[]{unclaimed, claimed});
+    }
+
+    /** {unclaimed, claimed, pages seen, pages} across every Croesus page read this session. */
+    public static int[] runTotals() {
+        int u = 0;
+        int c = 0;
+        for (int[] v : PAGE_COUNTS.values()) {
+            u += v[0];
+            c += v[1];
+        }
+        return new int[]{u, c, PAGE_COUNTS.size(), pageCount};
+    }
+
+    // ---- run heads drawn by croesus/mixin/CroesusSlotMixin ------------------------------------------------------
+
+    /** 0 = not a run, 1 = unclaimed, 2 = claimed, for a slot of {@code screen} (only the Croesus menu it was read from). */
+    private static int runState(AbstractContainerScreen<?> screen, Slot slot) {
+        if (kind != Kind.CROESUS_MENU || screen.getMenu().containerId != runHeadContainerId) {
+            return 0;
+        }
+        byte[] state = runHeadState;
+        return slot.index >= 0 && slot.index < state.length ? state[slot.index] : 0;
+    }
+
+    /** Highlight Runs, behind the item: called at the one {@code Slot.isFake()} call in {@code extractSlot}, where the
+     *  pose is the container's (slot-local coordinates), so the item, the hover highlight and the tooltip all cover it. */
+    public static void drawRunSlot(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
+        CroesusConfig cfg = CroesusConfig.getInstance();
+        if (!cfg.isChestProfitEnabled() || !cfg.isHighlightRuns()) {
+            return;
+        }
+        int state = runState(screen, slot);
+        if (state == 0) {
+            return;
+        }
+        int x = slot.x;
+        int y = slot.y;
+        if (state == 1) {
+            int rgb = cfg.getRunUnclaimedColor();
+            graphics.fill(x, y, x + 16, y + 16, (RUN_UNCLAIMED_FILL_ALPHA << 24) | rgb);
+            int border = (RUN_UNCLAIMED_BORDER_ALPHA << 24) | rgb;
+            graphics.fill(x, y, x + 16, y + 1, border);
+            graphics.fill(x, y + 15, x + 16, y + 16, border);
+            graphics.fill(x, y + 1, x + 1, y + 15, border);
+            graphics.fill(x + 15, y + 1, x + 16, y + 15, border);
+        } else {
+            graphics.fill(x, y, x + 16, y + 16, (RUN_CLAIMED_FILL_ALPHA << 24) | cfg.getRunClaimedColor());
+        }
+    }
+
+    /** Hide Opened Runs: this slot is a run already claimed from, so it is drawn empty. */
+    public static boolean hidesSlot(AbstractContainerScreen<?> screen, Slot slot) {
+        return slot != null && CroesusConfig.getInstance().isHideOpenedRuns() && runState(screen, slot) == 2;
+    }
+
+    /** The slot under the mouse is a hidden run: no hover highlight, no tooltip, no click. */
+    public static boolean hidesHovered(AbstractContainerScreen<?> screen) {
+        if (!CroesusConfig.getInstance().isHideOpenedRuns()) {
+            return false;
+        }
+        Slot hovered = ((AbstractContainerScreenAccessor) screen).killer560smod$getHoveredSlot();
+        return hidesSlot(screen, hovered);
     }
 
     private static void setKind(Kind newKind, String title) {
@@ -460,28 +552,20 @@ public final class ChestProfitFeature {
         ContainerPos pos = positions(screen);
         List<Line> lines = new ArrayList<>();
         if (kind == Kind.CROESUS_MENU && DungeonChestValuer.CROESUS_MENU_TITLE.matcher(title).matches()) {
+            // The run highlight itself is drawn per slot, behind each item (drawRunSlot). This is only the info box.
             if (!CroesusConfig.getInstance().isHighlightRuns()) {
                 return;
             }
-            for (int slot = 0; slot < runHeadState.length && slot < screen.getMenu().slots.size(); slot++) {
-                if (runHeadState[slot] == 0) {
-                    continue;
-                }
-                Slot s = screen.getMenu().slots.get(slot);
-                int x = pos.left() + s.x;
-                int y = pos.top() + s.y;
-                if (runHeadState[slot] == 1) {
-                    graphics.fill(x, y, x + 16, y + 16, RUN_UNCLAIMED_FILL);
-                    graphics.outline(x - 1, y - 1, 18, 18, RUN_UNCLAIMED_BORDER);
-                } else {
-                    graphics.fill(x, y, x + 16, y + 16, RUN_CLAIMED_FILL);
-                }
-            }
+            int[] t = runTotals();
+            boolean partial = t[2] < t[3];
+            String plus = partial ? "+" : "";
             lines.add(new Line("Croesus", 0xFF000000 | ModChat.ORANGE, null, 0));
-            lines.add(new Line("Unclaimed runs", 0xFF000000 | ModChat.TEXT, String.valueOf(unclaimedRuns),
-                    0xFF000000 | (unclaimedRuns > 0 ? ModChat.GOOD : ModChat.DIM)));
-            lines.add(new Line("Already claimed", 0xFF000000 | ModChat.TEXT, String.valueOf(claimedRuns),
-                    0xFF000000 | ModChat.DIM));
+            lines.add(new Line("Unclaimed runs", 0xFF000000 | ModChat.TEXT, t[0] + plus + " / " + MAX_STORED_RUNS,
+                    0xFF000000 | (t[0] > 0 ? ModChat.GOOD : ModChat.DIM)));
+            lines.add(new Line("Already claimed", 0xFF000000 | ModChat.TEXT, t[1] + plus, 0xFF000000 | ModChat.DIM));
+            if (partial) {
+                lines.add(new Line("Pages seen " + t[2] + " of " + t[3], 0xFF000000 | ModChat.DIM, null, 0));
+            }
             drawPanel(screen, graphics, pos, lines);
             return;
         }

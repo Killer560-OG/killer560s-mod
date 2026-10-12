@@ -1835,7 +1835,10 @@ final class SettingTooltipsData {
         d.put("ability cooldowns/mage cut", "How much shorter ability cooldowns are while you play Mage, as a percentage.");
         d.put("arrow align/highlight color", "Colour of the box drawn on frames that still need clicking.");
         d.put("arrow align/trigger bot delay", "How long your crosshair must sit on a frame before Trigger Bot clicks it, in ms (cheat build only). Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
-        d.put("croesus/highlight runs", "Outlines Croesus runs green if unclaimed and red if already claimed.");
+        d.put("croesus/highlight runs", "In the Croesus menu, tints each run you have not claimed from yet with a thin border, and darkens the ones you already claimed. Drawn behind the items, under their tooltips.");
+        d.put("croesus/unclaimed run colour", "The tint and border colour of a run you have not claimed anything from yet.");
+        d.put("croesus/claimed run colour", "The tint colour of a run you already claimed a chest from.");
+        d.put("croesus/hide opened runs", "Runs you already claimed a chest from show as empty slots in the Croesus menu: no item, no tooltip, and clicking them does nothing. Auto Croesus still sees them and can go back in for a key chest.");
         d.put("croesus/second best with key", "Also highlights the second-best chest if it still profits after paying for a Chest Key.");
         d.put("croesus/open profit tracker", "Opens the /croesus tracker with your profit totals and big drops.");
         d.put("auto croesus/use chest keys", "Lets Auto Croesus spend a Dungeon Chest Key on a second chest (cheat build only).");

@@ -67,8 +67,26 @@ public class CroesusTab extends BaseTab {
                         cfg.save();
                         btn.setMessage(onOff("Second Best With Key", cfg.isHighlightSecondWithKey()));
                     }).bounds(contentX + half + GAP, y, half, 18).build());
-            y += 26;
+            y += 20;
+            if (cfg.isHighlightRuns()) {
+                widgets.add(colourButton("Unclaimed Run Colour", cfg.getRunUnclaimedColor(),
+                        CroesusConfig.DEFAULT_RUN_UNCLAIMED_COLOR, rgb -> cfg.setRunUnclaimedColor(rgb), contentX, y, half));
+                widgets.add(colourButton("Claimed Run Colour", cfg.getRunClaimedColor(),
+                        CroesusConfig.DEFAULT_RUN_CLAIMED_COLOR, rgb -> cfg.setRunClaimedColor(rgb),
+                        contentX + half + GAP, y, half));
+                y += 20;
+            }
+            y += 6;
         }
+
+        // killer560, 2026-10-12: "make an option to hide opened chests". Its own row, outside Chest Profit: it hides
+        // claimed runs whether or not the values are shown.
+        widgets.add(SettingsButtonWidget.builder(onOff("Hide Opened Runs", cfg.isHideOpenedRuns()), btn -> {
+                    cfg.setHideOpenedRuns(!cfg.isHideOpenedRuns());
+                    cfg.save();
+                    btn.setMessage(onOff("Hide Opened Runs", cfg.isHideOpenedRuns()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
 
         // Price Mode (killer560, 2026-10-11): how every Croesus value is priced - the chest overlay, the logger and
         // Auto Croesus's decisions. Left click steps forward, right click back.
@@ -103,6 +121,18 @@ public class CroesusTab extends BaseTab {
         }
 
         return widgets;
+    }
+
+    private static AbstractWidget colourButton(String label, int rgb, int defaultRgb,
+                                               java.util.function.IntConsumer set, int x, int y, int w) {
+        return SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label(label, 0xFF000000 | rgb), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(McCompat.screen(client), label,
+                            0xFF000000 | rgb, 0xFF000000 | defaultRgb, argb -> {
+                        set.accept(argb & 0xFFFFFF);
+                        CroesusConfig.getInstance().save();
+                    }));
+                }).bounds(x, y, w, 18).build();
     }
 
     private static Component priceModeText(CroesusConfig cfg) {

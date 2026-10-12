@@ -240,3 +240,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - Opening a screen over a container is safe to come back from: `AbstractContainerScreen.removed()` only runs
   `menu.removed(player)`, which drops a cursor item client-side and sends nothing (javap 26.1.2), so the server's menu stays
   open and `setScreen(container)` restores it. Edit HUD does this and refuses with an item on the cursor.
+
+- **Anything drawn per slot from `ScreenEvents.afterExtract` lands on top of the tooltip.** Croesus's Highlight Runs filled
+  each run slot from there and outlined it 1 px outside, so the boxes joined into a green grid painted over the item
+  tooltip (killer560's screenshot, 2026-10-12). Per-slot drawing goes at `extractSlot`'s `Slot.isFake()` call in slot-local
+  coordinates (`croesus/mixin/CroesusSlotMixin`, like Inventory Search), and borders stay inside the 16x16 square;
+  testkit 875 diffs the shots and counts changed pixels inside the tooltip box (0) and in the gaps (0).

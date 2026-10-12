@@ -76,6 +76,16 @@ public final class CroesusConfig {
     private boolean highlightBest = true;
     /** Colour the run heads in the Croesus menu by whether anything has been claimed from them yet. */
     private boolean highlightRuns = false;
+    /** Highlight Runs' colours (killer560, 2026-10-12: "the highlight runs portion of croesus just kind of looks like
+     *  poop"): a light tint and a thin inset border on a run nothing was claimed from, a dark tint on one already
+     *  claimed. RGB; the alphas are fixed in ChestProfitFeature. */
+    public static final int DEFAULT_RUN_UNCLAIMED_COLOR = 0xFF8C1A;
+    public static final int DEFAULT_RUN_CLAIMED_COLOR = 0x202020;
+    private int runUnclaimedColor = DEFAULT_RUN_UNCLAIMED_COLOR;
+    private int runClaimedColor = DEFAULT_RUN_CLAIMED_COLOR;
+    /** killer560, 2026-10-12: "make an option to hide opened chests" - runs already claimed from draw as empty
+     *  slots, show no tooltip and take no click (Auto Croesus still reads and clicks the real slots). */
+    private boolean hideOpenedRuns = false;
     /** Also highlight the second-best chest when it still profits after paying for a Dungeon Chest Key. */
     private boolean highlightSecondWithKey = false;
     /** See {@link PriceMode}. Before it existed Croesus followed the RNG Meter's "Use Instant-Buy Price", so a config
@@ -118,6 +128,9 @@ public final class CroesusConfig {
             cfg.includeEssence = ConfigJson.getBool(obj, "includeEssence", cfg.includeEssence);
             cfg.highlightBest = ConfigJson.getBool(obj, "highlightBest", cfg.highlightBest);
             cfg.highlightRuns = ConfigJson.getBool(obj, "highlightRuns", cfg.highlightRuns);
+            cfg.runUnclaimedColor = ConfigJson.getInt(obj, "runUnclaimedColor", cfg.runUnclaimedColor) & 0xFFFFFF;
+            cfg.runClaimedColor = ConfigJson.getInt(obj, "runClaimedColor", cfg.runClaimedColor) & 0xFFFFFF;
+            cfg.hideOpenedRuns = ConfigJson.getBool(obj, "hideOpenedRuns", cfg.hideOpenedRuns);
             cfg.highlightSecondWithKey = ConfigJson.getBool(obj, "highlightSecondWithKey", cfg.highlightSecondWithKey);
             cfg.priceMode = obj.has("priceMode")
                     ? ConfigJson.getEnum(obj, "priceMode", PriceMode.class, PriceMode.INSTA_SELL) : legacyPriceMode();
@@ -150,6 +163,9 @@ public final class CroesusConfig {
             obj.addProperty("includeEssence", includeEssence);
             obj.addProperty("highlightBest", highlightBest);
             obj.addProperty("highlightRuns", highlightRuns);
+            obj.addProperty("runUnclaimedColor", runUnclaimedColor);
+            obj.addProperty("runClaimedColor", runClaimedColor);
+            obj.addProperty("hideOpenedRuns", hideOpenedRuns);
             obj.addProperty("highlightSecondWithKey", highlightSecondWithKey);
             obj.addProperty("priceMode", priceMode.name());
             obj.addProperty("loggerEnabled", loggerEnabled);
@@ -219,6 +235,30 @@ public final class CroesusConfig {
 
     public void setHighlightRuns(boolean v) {
         this.highlightRuns = v;
+    }
+
+    public int getRunUnclaimedColor() {
+        return runUnclaimedColor;
+    }
+
+    public void setRunUnclaimedColor(int rgb) {
+        this.runUnclaimedColor = rgb & 0xFFFFFF;
+    }
+
+    public int getRunClaimedColor() {
+        return runClaimedColor;
+    }
+
+    public void setRunClaimedColor(int rgb) {
+        this.runClaimedColor = rgb & 0xFFFFFF;
+    }
+
+    public boolean isHideOpenedRuns() {
+        return hideOpenedRuns;
+    }
+
+    public void setHideOpenedRuns(boolean v) {
+        this.hideOpenedRuns = v;
     }
 
     public boolean isHighlightSecondWithKey() {
