@@ -814,7 +814,7 @@ public final class ChestProfitFeature {
             }
             // killer560, 2026-10-13: "can you change that light blue to be a full outline". Both blue states are a
             // solid outline as thick as the action states' borders, with no fill: the fill is what keeps unclaimed and
-            // needs-a-key louder. Cyan = not looked at, blue = opened.
+            // needs-a-key louder, and both colours are muted (898 salience). Teal = not looked at, grey-blue = opened.
             case RUN_UNKNOWN -> outline(graphics, x, y, 0xFF000000 | cfg.getRunUnknownColor());
             case RUN_OPENED -> outline(graphics, x, y, 0xFF000000 | cfg.getRunOpenedColor());
             default -> graphics.fill(x, y, x + 16, y + 16, (RUN_USED_FILL_ALPHA << 24) | cfg.getRunClaimedColor());
