@@ -50,6 +50,10 @@ public final class DoorHelpersConfig {
     // Capped at the reach measured to be accepted and unflagged - see CheatUtilsConfig.MEASURED_MAX_REACH.
     private double autoDoorRange = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
     private int autoDoorRetryDelayMs = 500;
+    /** Triggerbot mode: how long the crosshair must stay on the door before it is clicked. 0 = at once (the behaviour
+     *  before this setting, 2026-10-11). */
+    private int autoDoorTriggerDelayMs = 0;
+    public static final int TRIGGER_DELAY_MAX_MS = 1000;
     private boolean autoDoorSwing = false;
 
     private DoorHelpersConfig() {
@@ -75,6 +79,7 @@ public final class DoorHelpersConfig {
             cfg.autoDoorMode = ConfigJson.getEnum(obj, "autoDoorMode", OpenerMode.class, cfg.autoDoorMode);
             cfg.setAutoDoorRange(ConfigJson.getDouble(obj, "autoDoorRange", cfg.autoDoorRange));
             cfg.setAutoDoorRetryDelayMs(ConfigJson.getInt(obj, "autoDoorRetryDelayMs", cfg.autoDoorRetryDelayMs));
+            cfg.setAutoDoorTriggerDelayMs(ConfigJson.getInt(obj, "autoDoorTriggerDelayMs", cfg.autoDoorTriggerDelayMs));
             cfg.autoDoorSwing = ConfigJson.getBool(obj, "autoDoorSwing", cfg.autoDoorSwing);
             instance = cfg;
         } catch (Exception e) {
@@ -90,6 +95,7 @@ public final class DoorHelpersConfig {
             obj.addProperty("autoDoorMode", autoDoorMode.name());
             obj.addProperty("autoDoorRange", autoDoorRange);
             obj.addProperty("autoDoorRetryDelayMs", autoDoorRetryDelayMs);
+            obj.addProperty("autoDoorTriggerDelayMs", autoDoorTriggerDelayMs);
             obj.addProperty("autoDoorSwing", autoDoorSwing);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -135,6 +141,15 @@ public final class DoorHelpersConfig {
     public void setAutoDoorRetryDelayMs(int ms) {
         int clamped = Math.max(RETRY_MIN_MS, Math.min(RETRY_MAX_MS, ms));
         this.autoDoorRetryDelayMs = Math.round(clamped / 50f) * 50;
+    }
+
+    public int getAutoDoorTriggerDelayMs() {
+        return autoDoorTriggerDelayMs;
+    }
+
+    public void setAutoDoorTriggerDelayMs(int ms) {
+        int clamped = Math.max(0, Math.min(TRIGGER_DELAY_MAX_MS, ms));
+        this.autoDoorTriggerDelayMs = Math.round(clamped / 25f) * 25;
     }
 
     public boolean isAutoDoorSwing() {

@@ -68,17 +68,17 @@ public class AutoBloodCampTab extends BaseTab {
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 20;
 
-            double offsetNorm = (cfg.getManualTickOffset() + 3) / 6.0;
+            double leadNorm = cfg.getHitLeadTicks() / (double) BloodCampConfig.MAX_HIT_LEAD_TICKS;
             widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
-                    Component.literal("Click Offset: " + cfg.getManualTickOffset() + "t"), offsetNorm) {
+                    Component.literal("Hit Lead: " + cfg.getHitLeadTicks() + "t"), leadNorm) {
                 @Override
                 protected void updateMessage() {
-                    setMessage(Component.literal("Click Offset: " + cfg.getManualTickOffset() + "t"));
+                    setMessage(Component.literal("Hit Lead: " + cfg.getHitLeadTicks() + "t"));
                 }
 
                 @Override
                 protected void applyValue() {
-                    cfg.setManualTickOffset((int) Math.round(this.value * 6) - 3);
+                    cfg.setHitLeadTicks((int) Math.round(this.value * BloodCampConfig.MAX_HIT_LEAD_TICKS));
                     cfg.save();
                 }
             });

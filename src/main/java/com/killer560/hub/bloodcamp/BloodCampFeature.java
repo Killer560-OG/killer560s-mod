@@ -122,9 +122,6 @@ public final class BloodCampFeature {
     /** The Trigger Bot only fires inside this many ticks past its due moment; after that the prediction is
      *  stale and a click would just be a random swing at whatever is still standing there. */
     private static final double TRIGGER_WINDOW_TICKS = 20.0;
-    /** How many ticks before the countdown's end the Trigger Bot's attack should reach the server (killer560,
-     *  2026-10-11). */
-    static final double TRIGGER_LEAD_TICKS = 3.0;
     /** What a ping does not cover: both ends act on a packet only at a tick - the client's countdown and click run on
      *  client ticks, the server handles the attack between its own - so 0 to 1 tick is lost at each end, in whatever
      *  phase the two tick clocks happen to have. Measured on the testkit's real server (testkit 792, 2026-10-11): on
@@ -442,10 +439,10 @@ public final class BloodCampFeature {
         // A FIXED SERVER-SIDE LEAD. killer560 (2026-10-11): "delay should be fixed. That means that I want to hit 3 ticks
         // before the mob spawns, with ping factored. So if i have 100ms of ping i have about 2ticks worth so i need to hit
         // 5 ticks early to have my server side attack come out 3 ticks early." (This replaces the 2026-09-27 "never
-        // early" rule.) The attack should ARRIVE at the server TRIGGER_LEAD_TICKS before the countdown's end, so it goes
-        // out that lead plus the measured round trip in ticks (ms / 50; the countdown is one way behind the server and
-        // the attack takes one way back) plus the tick a packet waits on average at the two ends' tick boundaries
-        // (TRIGGER_PIPELINE_TICKS) plus Click Offset, a small fine-tune (-3..+3, positive = earlier, default 0).
+        // early" rule.) The attack should ARRIVE at the server Hit Lead ticks (his setting, 3 by default) before the
+        // countdown's end, so it goes out that lead plus the measured round trip in ticks (ms / 50; the countdown is one
+        // way behind the server and the attack takes one way back) plus the tick a packet waits on average at the two
+        // ends' tick boundaries (TRIGGER_PIPELINE_TICKS).
         // Rounding: the countdown steps one whole tick at a time, so exactly one tick's value lies within half a tick of
         // the target; the click goes on that tick (the first with remaining <= target + 0.5). That puts the mean
         // server-side arrival within half a tick of the lead; the tick phase of the two ends spreads it by +-1.
@@ -699,10 +696,10 @@ public final class BloodCampFeature {
      *  server sent it, and the click needs one more way to get back, so a click due at server time T must leave when
      *  our countdown still reads one round trip. Until 2026-10-11 this read the tab-list latency, about 1 ms on
      *  Hypixel, so it never led at all. */
-    /** Ticks left on the countdown at which the Trigger Bot aims to click: {@link #TRIGGER_LEAD_TICKS} +
-     *  {@link #TRIGGER_PIPELINE_TICKS} + Click Offset + the measured round trip in ticks (Auto Detect Lag). The click goes on the tick nearest this value. */
+    /** Ticks left on the countdown at which the Trigger Bot aims to click: Hit Lead +
+     *  {@link #TRIGGER_PIPELINE_TICKS} + the measured round trip in ticks (Auto Detect Lag). The click goes on the tick nearest this value. */
     static double triggerTargetTicks(BloodCampConfig cfg, Minecraft client) {
-        return TRIGGER_LEAD_TICKS + TRIGGER_PIPELINE_TICKS + cfg.getManualTickOffset() + autoLagOffsetTicks(cfg, client);
+        return cfg.getHitLeadTicks() + TRIGGER_PIPELINE_TICKS + autoLagOffsetTicks(cfg, client);
     }
 
     private static double autoLagOffsetTicks(BloodCampConfig cfg, Minecraft client) {
