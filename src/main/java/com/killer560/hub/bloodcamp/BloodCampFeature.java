@@ -122,6 +122,16 @@ public final class BloodCampFeature {
     /** The Trigger Bot only fires inside this many ticks past its due moment; after that the prediction is
      *  stale and a click would just be a random swing at whatever is still standing there. */
     private static final double TRIGGER_WINDOW_TICKS = 20.0;
+    /** How many ticks before the countdown's end the Trigger Bot's attack should reach the server (killer560,
+     *  2026-10-11). */
+    static final double TRIGGER_LEAD_TICKS = 3.0;
+    /** What a ping does not cover: both ends act on a packet only at a tick - the client's countdown and click run on
+     *  client ticks, the server handles the attack between its own - so 0 to 1 tick is lost at each end, in whatever
+     *  phase the two tick clocks happen to have. Measured on the testkit's real server (testkit 792, 2026-10-11): on
+     *  top of the round trip the attack was acted on 0, 1, 1 and 2 ticks later than aimed over four trips, at 1 ms and
+     *  at 200 ms alike. 1 is the mean, so the click goes on the countdown tick nearest 4 + ping in ticks (the countdown
+     *  only takes x.8 values, so 3.8 + ping) and the hit lands 2.8 ticks early on average, 1.8-3.8 by tick phase. */
+    static final double TRIGGER_PIPELINE_TICKS = 1.0;
     /**
      * How far the crosshair test reaches for "looking at the spawn hitbox". It used to be the attack reach (3 blocks),
      * so standing further than 3 blocks from where a mob lands - which is where anyone camps blood from - the Trigger
@@ -133,8 +143,6 @@ public final class BloodCampFeature {
     private static int triggerClicks;
     private static int triggerAttacks;
     private static String lastTrigger = "none";
-    /** Said once per session, not every tick: his offset setting is being held back to "never early". */
-    private static boolean loggedOffsetClamp;
     /** A gap this long with no move packet means the stand finished its trip and a later packet starts a new
      *  one - see {@link #onMoveEntity}. */
     private static final long RESETTLE_GAP_TICKS = 10L;
@@ -431,27 +439,17 @@ public final class BloodCampFeature {
         Entity triggerTarget = null;
         BloodMobState triggerData = null;
         double bestRemaining = Double.MAX_VALUE;
-        // NEVER EARLY. killer560 (2026-09-27): "make it so it cannot triggerbot click before the kill
-        // notification timing would go off. Then if my crosshair is looking in a blood mobs spawn hitbox when it
-        // goes to spawn have it click once."
-        //
-        // The window used to OPEN at `manual offset + ping`, both of which lead the prediction, so the click went
-        // out while remainingTicks was still positive - before the moment the kill notification is timed to. That
-        // lead was deliberate once (a laggy connection fires early so the packet lands on time), and he has now
-        // asked for the opposite rule, so the requested offset may only ever DELAY the click, never advance it.
-        //
-        // The cost is explicit and is his to choose: giving up the ping lead means the packet reaches Hypixel
-        // roughly one ping AFTER the moment rather than on it. He asked for "cannot click before", and a click
-        // that lands early is the thing he is ruling out.
-        double requestedOffset = cfg.getManualTickOffset() + autoLagOffsetTicks(cfg, client);
-        double clickAtTicks = Math.min(0.0, requestedOffset);
-        if (requestedOffset > 0.0 && !loggedOffsetClamp) {
-            loggedOffsetClamp = true;
-            LOGGER.info("[BloodCamp] Trigger Bot offset {} tick(s) would fire BEFORE the kill-notification moment"
-                            + " - held to 0. Early clicks are off by request (2026-09-27); a negative offset still"
-                            + " delays normally.",
-                    String.format(Locale.US, "%.1f", requestedOffset));
-        }
+        // A FIXED SERVER-SIDE LEAD. killer560 (2026-10-11): "delay should be fixed. That means that I want to hit 3 ticks
+        // before the mob spawns, with ping factored. So if i have 100ms of ping i have about 2ticks worth so i need to hit
+        // 5 ticks early to have my server side attack come out 3 ticks early." (This replaces the 2026-09-27 "never
+        // early" rule.) The attack should ARRIVE at the server TRIGGER_LEAD_TICKS before the countdown's end, so it goes
+        // out that lead plus the measured round trip in ticks (ms / 50; the countdown is one way behind the server and
+        // the attack takes one way back) plus the tick a packet waits on average at the two ends' tick boundaries
+        // (TRIGGER_PIPELINE_TICKS) plus Click Offset, a small fine-tune (-3..+3, positive = earlier, default 0).
+        // Rounding: the countdown steps one whole tick at a time, so exactly one tick's value lies within half a tick of
+        // the target; the click goes on that tick (the first with remaining <= target + 0.5). That puts the mean
+        // server-side arrival within half a tick of the lead; the tick phase of the two ends spreads it by +-1.
+        double clickAtTicks = triggerTargetTicks(cfg, client) + 0.5;
         boolean triggerBotUsable = cfg.isTriggerBotEnabled()
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client);
         double reach = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
@@ -701,6 +699,12 @@ public final class BloodCampFeature {
      *  server sent it, and the click needs one more way to get back, so a click due at server time T must leave when
      *  our countdown still reads one round trip. Until 2026-10-11 this read the tab-list latency, about 1 ms on
      *  Hypixel, so it never led at all. */
+    /** Ticks left on the countdown at which the Trigger Bot aims to click: {@link #TRIGGER_LEAD_TICKS} +
+     *  {@link #TRIGGER_PIPELINE_TICKS} + Click Offset + the measured round trip in ticks (Auto Detect Lag). The click goes on the tick nearest this value. */
+    static double triggerTargetTicks(BloodCampConfig cfg, Minecraft client) {
+        return TRIGGER_LEAD_TICKS + TRIGGER_PIPELINE_TICKS + cfg.getManualTickOffset() + autoLagOffsetTicks(cfg, client);
+    }
+
     private static double autoLagOffsetTicks(BloodCampConfig cfg, Minecraft client) {
         if (!cfg.isAutoDetectLag() || client.getConnection() == null || client.player == null) {
             return 0;

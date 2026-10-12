@@ -128,3 +128,8 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `constants/HoppityEggLocations.json` the Time Tower is 38 (39 is the Rabbit Shrine), the Coach 41, and 42/43/47-51/53 are
   menu buttons. `chocolatefactory/ChocolateFactoryMenu` is the one reader for the auto and the legit helper; check that
   file in his SkyHanni repo copy before changing a slot (testkit 754 puts traps on 39 and 42).
+- **A ping does not cover the tick boundaries.** Blood Camp's Trigger Bot aims its attack to reach the server 3 ticks before
+  the mob is due (killer560, 2026-10-11), so it clicks at 3 + measured ping in ticks + 1. The +1 is measured: on the
+  testkit server (792, server-side `attack_entity` tick) the attack was acted on 0-2 ticks later than ping alone predicts,
+  over five trips, at 1 ms and 200 ms alike - each end only acts on a packet at a tick. The countdown only takes x.8 values,
+  so the click lands on 3.8 + ping and the hit arrives 2.8 ticks early on average, 1.8-3.8 by tick phase.
