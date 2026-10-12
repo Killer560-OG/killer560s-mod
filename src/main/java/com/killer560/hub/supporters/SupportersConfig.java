@@ -65,6 +65,8 @@ public final class SupportersConfig {
     private float ownScale = 1.0f;
     /** A local size multiplier for every OTHER real player's model; never shared. */
     private float othersScale = 1.0f;
+    /** "My Name in F5" - your own nametag in both third-person views (never first person). Off by default. */
+    private boolean ownNameInF5 = false;
 
     private SupportersConfig() {
     }
@@ -94,6 +96,7 @@ public final class SupportersConfig {
                 cfg.modelThickness = clamp(ConfigJson.getFloat(obj, "modelThickness", 1.0f));
                 cfg.ownScale = clampSize(ConfigJson.getFloat(obj, "ownScale", 1.0f));
                 cfg.othersScale = clampSize(ConfigJson.getFloat(obj, "othersScale", 1.0f));
+                cfg.ownNameInF5 = ConfigJson.getBool(obj, "ownNameInF5", false);
             } catch (Exception e) {
                 cfg = new SupportersConfig();
             }
@@ -117,6 +120,7 @@ public final class SupportersConfig {
             obj.addProperty("modelThickness", modelThickness);
             obj.addProperty("ownScale", ownScale);
             obj.addProperty("othersScale", othersScale);
+            obj.addProperty("ownNameInF5", ownNameInF5);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -203,6 +207,15 @@ public final class SupportersConfig {
 
     public void setOthersScale(float value) {
         this.othersScale = clampSize(value);
+        version++;
+    }
+
+    public boolean isOwnNameInF5() {
+        return ownNameInF5;
+    }
+
+    public void setOwnNameInF5(boolean value) {
+        this.ownNameInF5 = value;
         version++;
     }
 

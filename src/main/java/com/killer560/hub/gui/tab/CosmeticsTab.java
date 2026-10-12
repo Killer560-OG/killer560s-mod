@@ -45,7 +45,7 @@ public class CosmeticsTab extends BaseTab {
     private static final long REFRESH_COOLDOWN_MS = 30_000L;
 
     private static final List<String> SEARCHABLE_LABELS = List.of(
-            "cosmetics", "toggle global cosmetics", "global cosmetics", "supporter names", "supporter sizes", "share if supporter", "custom names", "player size",
+            "cosmetics", "toggle global cosmetics", "global cosmetics", "supporter names", "supporter sizes", "share if supporter", "custom names", "my name in f5", "player size",
             "my size", "others' size", "width", "height", "thickness", "held item",
             "copy settings for global cosmetics", "reset cosmetics");
 
@@ -123,6 +123,13 @@ public class CosmeticsTab extends BaseTab {
                     requestRebuild.run();
                 });
         if (customNamesOpen) {
+            // Outside the Name Changer's own widgets on purpose: it works with the Name Changer off too (your real name).
+            widgets.add(SettingsButtonWidget.builder(onOff("My Name in F5", cfg.isOwnNameInF5()), btn -> {
+                        cfg.setOwnNameInF5(!cfg.isOwnNameInF5());
+                        cfg.save();
+                        btn.setMessage(onOff("My Name in F5", cfg.isOwnNameInF5()));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
             List<AbstractWidget> built = nameChangerTab.buildWidgets(contentX, y, contentWidth, requestRebuild);
             for (AbstractWidget w : built) {
                 SettingTooltips.scope(w, nameChangerTab.name);

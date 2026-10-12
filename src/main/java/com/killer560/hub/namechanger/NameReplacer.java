@@ -7,7 +7,6 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.FormattedCharSink;
-import net.minecraft.util.StringDecomposer;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -429,7 +428,8 @@ public final class NameReplacer {
                 int start = sc.starts[m];
                 if (i == start) {
                     // § codes in the display name layer on top of the original style (click/hover events survive).
-                    StringDecomposer.iterateFormatted(sc.entries[m].replacement, style, adder);
+                    // NameColor's decoder, not StringDecomposer's: a fade's §x hex escapes are misread by vanilla.
+                    NameColor.iterateFormatted(sc.entries[m].replacement, style, adder);
                 }
                 if (i == start + sc.lens[m] - 1) {
                     m++;

@@ -33,10 +33,25 @@ public abstract class SupportersScaleMixin {
             at = @At("TAIL"), require = 0)
     private void killer560smod$supportersScale(Avatar entity, AvatarRenderState state, float partialTick,
                                                 CallbackInfo ci) {
-        float factor = PlayerNameDisplay.modelScaleFor(entity.getUUID(),
-                entity == net.minecraft.client.Minecraft.getInstance().player);
+        boolean local = entity == net.minecraft.client.Minecraft.getInstance().player;
+        float factor = PlayerNameDisplay.modelScaleFor(entity.getUUID(), local);
         if (factor != 1.0f) {
             state.scale *= factor;
+        }
+        // The nametag follows the model (killer560, 2026-10-11: "if they are big right now it is in the middle of their
+        // body if they are small it is nowhere near their head"). nameTagAttachment comes from the entity's own
+        // dimensions in EntityRenderer.extractRenderState, which this TAIL runs after (javap, 26.1.2 and 26.2), and
+        // the model is scaled from the feet, so scaling the attachment by the same factor puts the tag over the head at
+        // any size. Your own Height stretch (CosmeticsModelShapeMixin) moves the head too. The tag's own 0.5-block lift
+        // (EntityRenderer's submit adds it, unscaled) is scaled as well by adding 0.25 per unit of size, so the gap
+        // above the head grows and shrinks with the player. Testkit 816 (screenshot, 5 blocks away, looking up) measures
+        // the sky gap at 0.11 / 0.19 / 0.11 blocks for 0.5x / 1x / 2x; with the attachment scaled alone the 2x tag sat
+        // on the head (0.01), and unscaled (the old code) it was inside the body at 2x.
+        float tagY = factor * (local ? com.killer560.hub.supporters.SupportersConfig.getInstance().getModelHeight() : 1.0f);
+        net.minecraft.world.phys.Vec3 att = state.nameTagAttachment;
+        if (att != null && (factor != 1.0f || tagY != 1.0f)) {
+            state.nameTagAttachment = new net.minecraft.world.phys.Vec3(att.x * factor,
+                    att.y * tagY + 0.25 * (tagY - 1.0f), att.z * factor);
         }
     }
 }

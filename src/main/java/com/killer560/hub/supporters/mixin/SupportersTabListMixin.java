@@ -15,6 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * {@code (Lnet/minecraft/client/multiplayer/PlayerInfo;)Lnet/minecraft/network/chat/Component;}.
  * {@code PlayerInfo.getProfile().id()} is the real account UUID from Hypixel's own login handshake, so this
  * matches the exact same way the nametag hook does - never by the text the tab list would otherwise show.
+ * A row whose profile is not a supporter (on Skyblock: every row, since the visible ones are Hypixel's fake
+ * {@code !A-a} entries) goes to {@code SupportersTabText}, which finds a supporter's IGN in the row's text.
  * {@code require = 0}: a wrong target here only leaves the tab list showing real IGNs, never a crash.
  */
 @Mixin(PlayerTabOverlay.class)
@@ -27,6 +29,10 @@ public abstract class SupportersTabListMixin {
             return;
         }
         Component replaced = PlayerNameDisplay.displayNameFor(info.getProfile().id());
+        if (replaced == null) {
+            // Hypixel's fake rows carry the player's name as TEXT under a fake profile (SupportersTabText).
+            replaced = com.killer560.hub.supporters.SupportersTabText.replace(info, cir.getReturnValue());
+        }
         if (replaced != null) {
             cir.setReturnValue(replaced);
         }

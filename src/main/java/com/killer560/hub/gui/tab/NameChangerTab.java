@@ -68,9 +68,13 @@ public class NameChangerTab extends BaseTab {
         ownField.setMaxLength(64);
         ownField.setValue(cfg.getOwnDisplayName());
         ownField.setHint(Component.literal("§8My display name"));
+        // Preview (killer560, 2026-10-11, the fade fix): the name exactly as it is painted in game - colour, fade and
+        // letter colours - updated as you type. Built here so the responder can reach it; added below the fade row.
+        StringWidget preview = new StringWidget(contentX, 0, contentWidth, 12, previewLine(), font);
         ownField.setResponder(text -> {
             cfg.setOwnDisplayName(text);
             cfg.save();
+            preview.setMessage(previewLine());
         });
         widgets.add(ownField);
         widgets.add(colorButton(contentX + contentWidth - colorW, y, colorW, "My Name Color", cfg.getOwnColor(),
@@ -98,6 +102,9 @@ public class NameChangerTab extends BaseTab {
                     }));
         }
         y += 24;
+        preview.setY(y);
+        widgets.add(preview);
+        y += 16;
 
         y = buildLetterColours(widgets, cfg, contentX, y, contentWidth, font, requestRebuild);
 
@@ -237,6 +244,10 @@ public class NameChangerTab extends BaseTab {
         }
         int rows = (letters + perRow - 1) / perRow;
         return y + rows * step + 4;
+    }
+
+    private static Component previewLine() {
+        return Component.literal("§7Preview: §r").append(NameChangerFeature.ownPreview());
     }
 
     private static Component letterLabel(String ch, int argb) {

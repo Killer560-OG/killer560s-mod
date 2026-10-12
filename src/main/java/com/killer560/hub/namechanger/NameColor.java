@@ -1,6 +1,11 @@
 package com.killer560.hub.namechanger;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.util.FormattedCharSink;
 
 import java.util.Locale;
 import com.killer560.hub.util.ChatColors;
@@ -101,39 +106,106 @@ public final class NameColor {
     }
 
     /**
-     * Cosmetics tab: "allow them to fade the color" (killer560). Builds a per-letter true-RGB gradient from
-     * {@code fromArgb} to {@code toArgb} across {@code plainText}, using vanilla's own {@code §x} hex-colour
-     * extension - ONE {@code §x§R§R§G§G§B§B} prefix per visible character, which {@code StringDecomposer}
-     * (and therefore {@link com.killer560.hub.namechanger.NameReplacer}'s Font-level replace, both the
-     * String and FormattedCharSequence paths) already understands, so this needs no new rendering machinery.
+     * Cosmetics tab: "allow them to fade the color" (killer560). A per-letter true-RGB gradient from {@code fromArgb}
+     * to {@code toArgb} across the letters of {@code text}, written as one {@code §x§R§R§G§G§B§B} prefix per letter.
      * <p>
-     * LOCAL rendering only: {@code SupporterNameValidator} only accepts the 16 plain {@code &0-9a-fk-or}
-     * legacy codes, so a fade like this would be rejected outright by the supporters relay - {@code
-     * SupportersAutoShare} deliberately sends just {@code fromArgb} (via {@link #prefix}) instead of a fade
-     * whenever it pushes your own name to the relay. Your own client still sees the full gradient everywhere
-     * your own name is drawn; other players only ever see your fade if they don't have this mod's Cosmetics
-     * tab pointed at a relay that supports it.
+     * <b>Vanilla does not read that escape.</b> {@code StringDecomposer.iterateFormatted} (javap, 26.1.2 and 26.2) skips
+     * {@code §x} as an unknown code and then applies each {@code §<hex digit>} as a LEGACY colour, so every letter took
+     * the 16-colour code of its blue channel's low nibble - the "random blacks, whites and pinks" between the two picked
+     * colours (killer560, 2026-10-11). Every place this mod turns one of these strings into styled glyphs therefore goes
+     * through {@link #iterateFormatted} ({@code NameReplacer}, the {@code Font.prepareText(String)} redirect in
+     * {@code NameChangerFontMixin}, {@link #toComponent}). {@code §} codes already in the text (bold, ...) are copied
+     * through and are not letters.
+     * <p>
+     * LOCAL rendering only: {@code SupporterNameValidator} only accepts the 16 plain legacy codes, so {@code
+     * SupportersAutoShare} shares just {@code fromArgb} (via {@link #prefix}).
      */
-    public static String buildFade(String plainText, int fromArgb, int toArgb) {
-        if (plainText == null || plainText.isEmpty()) {
-            return plainText == null ? "" : plainText;
+    public static String buildFade(String text, int fromArgb, int toArgb) {
+        return buildPerChar(text, fromArgb, toArgb, i -> NONE);
+    }
+
+    /**
+     * {@code StringDecomposer.iterateFormatted(s, base, sink)} plus Bungee's {@code §x§R§R§G§G§B§B} true-colour escape,
+     * which vanilla misreads (see {@link #buildFade}). A hex colour keeps the bold/italic/... already active, so a
+     * gradient over a bold name stays bold. Every other code behaves exactly as vanilla: {@code §r} goes back to
+     * {@code base}, a legacy colour or format goes through {@code Style.applyLegacyFormat}, an unknown code is skipped.
+     */
+    public static boolean iterateFormatted(String s, Style base, FormattedCharSink sink) {
+        if (s == null) {
+            return true;
         }
-        int n = plainText.codePointCount(0, plainText.length());
-        if (n <= 1) {
-            return prefix(fromArgb) + plainText;
-        }
-        StringBuilder sb = new StringBuilder(plainText.length() * 15);
+        int n = s.length();
+        Style style = base;
         int i = 0;
-        int idx = 0;
-        while (i < plainText.length()) {
-            int cp = plainText.codePointAt(i);
-            float t = idx / (float) (n - 1);
-            sb.append(hexPrefix(lerpArgb(fromArgb, toArgb, t)));
-            sb.appendCodePoint(cp);
+        while (i < n) {
+            char c = s.charAt(i);
+            if (c == '§') {
+                if (i + 1 >= n) {
+                    break;
+                }
+                char code = s.charAt(i + 1);
+                if ((code == 'x' || code == 'X') && i + 13 < n) {
+                    int rgb = hexEscape(s, i + 2);
+                    if (rgb >= 0) {
+                        style = style.withColor(TextColor.fromRgb(rgb));
+                        i += 14;
+                        continue;
+                    }
+                }
+                ChatFormatting f = ChatFormatting.getByCode(code);
+                if (f != null) {
+                    style = f == ChatFormatting.RESET ? base : style.applyLegacyFormat(f);
+                }
+                i += 2;
+                continue;
+            }
+            int cp = s.codePointAt(i);
+            if (!sink.accept(i, style, cp)) {
+                return false;
+            }
             i += Character.charCount(cp);
-            idx++;
         }
-        return sb.toString();
+        return true;
+    }
+
+    /** The RGB of the six {@code §<hex>} pairs starting at {@code from}, or -1 when they are not six such pairs. */
+    private static int hexEscape(String s, int from) {
+        int rgb = 0;
+        for (int k = 0; k < 6; k++) {
+            int at = from + 2 * k;
+            if (s.charAt(at) != '§') {
+                return -1;
+            }
+            int d = Character.digit(s.charAt(at + 1), 16);
+            if (d < 0) {
+                return -1;
+            }
+            rgb = (rgb << 4) | d;
+        }
+        return rgb;
+    }
+
+    /** A legacy-coded string (hex escapes included) as a {@link Component} with real styles, one run per style. */
+    public static Component toComponent(String s) {
+        MutableComponent out = Component.empty();
+        if (s == null || s.isEmpty()) {
+            return out;
+        }
+        StringBuilder run = new StringBuilder();
+        Style[] runStyle = {null};
+        iterateFormatted(s, Style.EMPTY, (pos, style, cp) -> {
+            if (runStyle[0] != null && !style.equals(runStyle[0])) {
+                out.append(Component.literal(run.toString()).withStyle(runStyle[0]));
+                run.setLength(0);
+            }
+            runStyle[0] = style;
+            run.appendCodePoint(cp);
+            return true;
+        });
+        if (runStyle[0] != null && run.length() > 0) {
+            out.append(Component.literal(run.toString()).withStyle(runStyle[0]));
+        }
+        return out;
     }
 
     /**
@@ -197,8 +269,8 @@ public final class NameColor {
         return 0xFF000000 | (r << 16) | (g << 8) | b;
     }
 
-    /** Vanilla's {@code §x} hex-colour escape: {@code §x} followed by 6 {@code §<hex digit>} pairs, one per
-     *  RGB nibble - the same format Hypixel ranks like MVP++ already use for their own gradient names. */
+    /** Bungee's {@code §x} hex-colour escape: {@code §x} followed by 6 {@code §<hex digit>} pairs, one per RGB nibble.
+     *  Vanilla does NOT understand it - only {@link #iterateFormatted} does (see {@link #buildFade}). */
     private static String hexPrefix(int argb) {
         String hex = String.format(Locale.ROOT, "%06x", argb & 0xFFFFFF);
         StringBuilder sb = new StringBuilder(14);
