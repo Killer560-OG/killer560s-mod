@@ -34,7 +34,8 @@ import com.killer560.hub.compat.McCompat;
  * from QUOI {@code dungeon/secrets/impl/SecretAura.kt} (itself from NoobRoutes):
  * <ul>
  * <li>Candidates: CHEST / TRAPPED_CHEST, LEVER, and skulls that {@link SecretsFeature#isWitherEssence} or
- * {@link SecretsFeature#isRedstoneKey} confirms by skin profile id (QUOI's redstone-BLOCK placement is not ported).
+ * {@link SecretsFeature#isRedstoneKey} confirms by skin profile id; and, once a key skull in reach has gone (picked up),
+ * the room's REDSTONE_BLOCK once, to put the key on it (QUOI; Place Redstone Key).
  * <li>Nearest candidate within range: chests and levers 4.5 eye to block BOX (QUOI 6.2 to the centre, which the
  * server refused past 4.5); essence skulls QUOI's 4.7 eye to block CENTRE (3.8-4.2 to the box), and never past
  * the 4.5 box cap either. Every click also waits out ActionGate's 20-tick world-change settle (QUOI AuraManager).
@@ -99,6 +100,13 @@ public final class SecretAuraFeature {
     private static final Map<Long, Boolean> leverInitialState = new HashMap<>();
     private static long lastClickMs = 0;
     private static Long lastClickKey = null;
+    /** Redstone Key skulls seen in reach this run; one that stops being a key skull has been picked up (by anyone). */
+    private static final Set<Long> keySkullsSeen = new HashSet<>();
+    /**
+     * A Redstone Key has been picked up and not yet placed. Since Hypixel 0.18.4 the key is no longer an item: once
+     * found, any player can put it on the room's redstone block (hypixelskyblock.minecraft.wiki, Redstone Key).
+     */
+    private static boolean keyFound = false;
     private static Object lastLevel = null;
     private static int lastGeneration = 0;
     private static boolean wasActive = false;
@@ -143,6 +151,16 @@ public final class SecretAuraFeature {
                 lastClickKey = null;
             }
             updateDone(client, now);
+        }
+        if (client.level != null && !keySkullsSeen.isEmpty()) {
+            var it = keySkullsSeen.iterator();
+            while (it.hasNext()) {
+                BlockPos p = BlockPos.of(it.next());
+                if (client.level.isLoaded(p) && !SecretsFeature.isRedstoneKey(client.level, p)) {
+                    it.remove();
+                    keyFound = true; // the skull went: the key was picked up
+                }
+            }
         }
 
         String gate = null;
@@ -207,6 +225,9 @@ public final class SecretAuraFeature {
                 continue;
             }
             BlockState state = client.level.getBlockState(pos);
+            if (state.getBlock() instanceof AbstractSkullBlock && isLooseKey(client, pos)) {
+                keySkullsSeen.add(key);
+            }
             String kind = classify(client, cfg, pos, state, inBoss, leversAllowed, chestsAllowed);
             if (kind == null) {
                 continue;
@@ -218,7 +239,7 @@ public final class SecretAuraFeature {
             // BlockHits.boxDistanceSq: comparing centre distance against a range capped at vanilla's 4.5
             // made the effective reach nearer 4.0 and dropped clicks the server would have taken.
             double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
-            if ("essence".equals(kind) || "redstoneKey".equals(kind)) {
+            if ("essence".equals(kind) || "redstoneKey".equals(kind) || "redstoneNode".equals(kind)) {
                 // A skull goes by its CENTRE, QUOI's 4.7 (see CheatUtilsConfig.MAX_AURA_SKULL_RANGE), and still never
                 // past the 4.5-to-the-box cap every click has.
                 if (Vec3.atCenterOf(pos).distanceToSqr(eye) > skullRangeSq || distSq > capSq) {
@@ -304,12 +325,15 @@ public final class SecretAuraFeature {
             return; // no outline to strike; skipping beats sending an impossible hit
         }
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
+        if ("redstoneNode".equals(bestKind)) {
+            keyFound = false; // one key, one redstone block
+        }
         if (cfg.isAuraSwing()) {
             client.player.swing(InteractionHand.MAIN_HAND);
         }
     }
 
-    /** @return "chest"/"lever"/"essence"/"bossLever" when this block is a secret the aura may click, else null. */
+    /** @return "chest"/"lever"/"essence"/"redstoneKey"/"redstoneNode"/"bossLever" when the aura may click it, else null. */
     private static String classify(Minecraft client, CheatUtilsConfig cfg, BlockPos pos, BlockState state,
                                    boolean inBoss, boolean leversAllowed, boolean chestsAllowed) {
         Block block = state.getBlock();
@@ -329,9 +353,25 @@ public final class SecretAuraFeature {
                 return "essence";
             }
             // QUOI clicks the Redstone Key's skull too, at the same skull range (killer560, 2026-10-12).
-            return cfg.isAuraRedstoneKey() && SecretsFeature.isRedstoneKey(client.level, pos) ? "redstoneKey" : null;
+            return cfg.isAuraRedstoneKey() && isLooseKey(client, pos) ? "redstoneKey" : null;
+        }
+        // The key's target: the room's redstone block, QUOI's rule (it clicks a REDSTONE_BLOCK once the key skull is
+        // gone). Only with a key found and not yet placed, and never with a block in hand - that click would place it.
+        if (block == Blocks.REDSTONE_BLOCK && keyFound && cfg.isAuraPlaceRedstoneKey()
+                && !(client.player.getMainHandItem().getItem() instanceof net.minecraft.world.item.BlockItem)) {
+            return "redstoneNode";
         }
         return null;
+    }
+
+    /**
+     * A Redstone Key skull still to be picked up - not one already PLACED on its redstone block. Without this the aura
+     * picked the key straight back up off the block it had just put it on (testkit 848's first run: two uses, no key
+     * left on the block).
+     */
+    private static boolean isLooseKey(Minecraft client, BlockPos pos) {
+        return SecretsFeature.isRedstoneKey(client.level, pos)
+                && client.level.getBlockState(pos.below()).getBlock() != Blocks.REDSTONE_BLOCK;
     }
 
     /** QUOI {@code isBossBlock}: P3 lever with a "Not Activated" stand above, or an unpowered device lever. */
@@ -455,5 +495,7 @@ public final class SecretAuraFeature {
         attempts.clear();
         leverInitialState.clear();
         lastClickKey = null;
+        keySkullsSeen.clear();
+        keyFound = false;
     }
 }

@@ -79,6 +79,8 @@ public final class CheatUtilsConfig {
     private boolean auraEssence = true;
     /** Redstone Key skulls (QUOI clicks them at the skull range too; killer560 said yes 2026-10-12). */
     private boolean auraRedstoneKey = true;
+    /** Once a Redstone Key is found, put it on the room's redstone block (QUOI; killer560 said yes 2026-10-12). */
+    private boolean auraPlaceRedstoneKey = true;
     private boolean auraBossLevers = false;
     // Was QUOI's 6.2. Capped at the measured maximum: past 4.5 the server refused the click and the
     // anticheat flagged the attempt, so the bigger number cost traffic and bought nothing.
@@ -151,6 +153,7 @@ public final class CheatUtilsConfig {
                 cfg.auraLevers = bool(o, "auraLevers", true);
                 cfg.auraEssence = bool(o, "auraEssence", true);
                 cfg.auraRedstoneKey = bool(o, "auraRedstoneKey", true);
+                cfg.auraPlaceRedstoneKey = bool(o, "auraPlaceRedstoneKey", true);
                 cfg.auraBossLevers = bool(o, "auraBossLevers", false);
                 cfg.setAuraRange(ConfigJson.getDouble(o, "auraRange", 6.2));
                 cfg.setAuraSkullRange(ConfigJson.getDouble(o, "auraSkullRange", 4.7));
@@ -199,6 +202,7 @@ public final class CheatUtilsConfig {
             o.addProperty("auraLevers", auraLevers);
             o.addProperty("auraEssence", auraEssence);
             o.addProperty("auraRedstoneKey", auraRedstoneKey);
+            o.addProperty("auraPlaceRedstoneKey", auraPlaceRedstoneKey);
             o.addProperty("auraBossLevers", auraBossLevers);
             o.addProperty("auraRange", auraRange);
             o.addProperty("auraSkullRange", auraSkullRange);
@@ -283,6 +287,8 @@ public final class CheatUtilsConfig {
     public void setAuraEssence(boolean v) { auraEssence = v; }
     public boolean isAuraRedstoneKey() { return auraRedstoneKey; }
     public void setAuraRedstoneKey(boolean v) { auraRedstoneKey = v; }
+    public boolean isAuraPlaceRedstoneKey() { return auraPlaceRedstoneKey; }
+    public void setAuraPlaceRedstoneKey(boolean v) { auraPlaceRedstoneKey = v; }
     public boolean isAuraBossLevers() { return auraBossLevers; }
     public void setAuraBossLevers(boolean v) { auraBossLevers = v; }
     public double getAuraRange() { return auraRange; }
