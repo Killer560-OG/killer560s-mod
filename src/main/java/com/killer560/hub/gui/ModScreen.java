@@ -208,13 +208,22 @@ public class ModScreen extends Screen {
             return tabs;
         }
         List<BaseTab> result = new ArrayList<>();
-        String query = SearchAliases.apply(searchQuery);
         for (BaseTab tab : tabs) {
-            if (tab.matchesSearch(query)) {
+            if (matchingQuery(tab) != null) {
                 result.add(tab);
             }
         }
         return result;
+    }
+
+    /** The first of the typed query and its {@link SearchAliases} that this tab matches, or null. */
+    private static String matchingQuery(BaseTab tab) {
+        for (String q : SearchAliases.variants(searchQuery)) {
+            if (tab.matchesSearch(q)) {
+                return q;
+            }
+        }
+        return null;
     }
 
     /** Rebuilds the current tab's widgets - for state that changes outside the menu while it is open (a profile
@@ -252,7 +261,8 @@ public class ModScreen extends Screen {
 
         BaseTab selected = tabs.get(selectedTab);
         if (selected instanceof FolderTab folderTab) {
-            folderTab.setSearchQuery(searchQuery.isBlank() ? searchQuery : SearchAliases.apply(searchQuery));
+            String q = searchQuery.isBlank() ? null : matchingQuery(folderTab);
+            folderTab.setSearchQuery(q == null ? searchQuery : q);
         }
         List<AbstractWidget> contentWidgets;
         if (com.killer560.hub.BuildVariant.TESTING && !(selected instanceof FolderTab)) {
