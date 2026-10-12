@@ -225,6 +225,8 @@ public final class RouteExecutor {
     private static boolean plannedInPlace;
     /** PATH: a plan this node asked for, and how it came out ("ok", a reason, or null while it runs). */
     private static boolean planAsked;
+    /** PATH: the pair the "planned before its breaker blocks changed" line last went out for. */
+    private static RouteNode staleSaid;
     /** PATH: the "waits for its proof" line went out for the pair being held. */
     private static boolean provingSaid;
     private static volatile String planOutcome;
@@ -1748,6 +1750,12 @@ public final class RouteExecutor {
                     return;
                 }
             }
+            if (node.planBreakers != RoutePathPlanner.breakerStamp(route, node) && staleSaid != node) {
+                // His choice (2026-10-11): re-planning after pick changes is manual. Say so, once a pair.
+                staleSaid = node;
+                AutoRoutesFeature.chatBad("Path #" + (route.indexOf(node) + 1) + " -> #" + (route.indexOf(dest) + 1)
+                        + " was planned before its breaker blocks changed - /ar replan to plan it with them.");
+            }
             LOGGER.info("[AutoRoutes] Node #{} PATH: flying {} saved warp(s) to #{}", route.indexOf(node) + 1,
                     node.pathHops.size(), route.indexOf(dest) + 1);
             loadHop(node, 0);
@@ -1944,7 +1952,7 @@ public final class RouteExecutor {
             if (!landingBlockThere(client)) {
                 return false;
             }
-            if (pickStillStanding(client, player)) {
+            if (pickStillStanding(client, player, node)) {
                 return false;
             }
             if (!warpAimReady(player)) {
@@ -2098,7 +2106,7 @@ public final class RouteExecutor {
      *
      * @return true while waiting (send nothing)
      */
-    private static boolean pickStillStanding(Minecraft client, LocalPlayer player) {
+    private static boolean pickStillStanding(Minecraft client, LocalPlayer player, RouteNode node) {
         BlockPos target = warpTarget;
         if (hopIndex < 0 || target == null || client.level == null) {
             return false;
@@ -2112,7 +2120,7 @@ public final class RouteExecutor {
             AABB targetBox = new AABB(target.getX(), target.getY(), target.getZ(), target.getX() + 1, target.getY() + 1,
                     target.getZ() + 1);
             Vec3 end = targetBox.clip(eye, far).orElse(Vec3.atCenterOf(target));
-            for (BlockPos p : com.killer560.hub.dungeonextras.BreakerAuraFeature.selectedBlocks()) {
+            for (BlockPos p : RoutePathPlanner.breakerBlocksBefore(route, frame, node)) {
                 if (client.level.getBlockState(p).isAir()) {
                     continue;   // already broken
                 }
@@ -2127,7 +2135,7 @@ public final class RouteExecutor {
         }
         if (waitOn == null) {
             if (pickWaitBlock != null) {
-                LOGGER.info("[AutoRoutes] Path hop {}: the Breaker Aura pick at {} is gone - warping", hopIndex + 1,
+                LOGGER.info("[AutoRoutes] Path hop {}: the breaker block at {} is gone - warping", hopIndex + 1,
                         pickWaitBlock.toShortString());
             }
             pickWaitBlock = null;
@@ -2136,11 +2144,11 @@ public final class RouteExecutor {
         pickWaitTicksTotal++;
         if (!waitOn.equals(pickWaitBlock)) {
             pickWaitBlock = waitOn.immutable();
-            LOGGER.info("[AutoRoutes] Path hop {}: waiting for the Breaker Aura pick at {} ({}) - the warp to {} goes"
+            LOGGER.info("[AutoRoutes] Path hop {}: waiting for the breaker block at {} ({}) - the warp to {} goes"
                     + " through it", hopIndex + 1, waitOn.toShortString(), client.level.getBlockState(waitOn),
                     target.toShortString());
-            AutoRoutesFeature.chat(ModChat.text("Waiting for Breaker Aura to break "), ModChat.value(
-                    waitOn.toShortString()), ModChat.text(" - path warp " + (hopIndex + 1) + " goes through it."));
+            AutoRoutesFeature.chat(ModChat.text("Waiting for the breaker block at "), ModChat.value(
+                    waitOn.toShortString()), ModChat.text(" to go - path warp " + (hopIndex + 1) + " goes through it."));
         }
         return true;
     }

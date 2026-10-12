@@ -466,7 +466,7 @@ public final class BreakerAuraFeature {
         // works.
         boolean active = cfg.isBreakerAuraEnabled() && !cfg.isBreakerAuraEditMode()
                 && client.player != null && client.level != null
-                && client.gameMode != null && DungeonState.isInDungeon();
+                && client.gameMode != null && DungeonState.isInDungeon() && inBoss();
         if (active != wasActive) {
             wasActive = active;
             LOGGER.info("[DungeonExtras] Breaker Aura {}.", active ? "active" : "inactive");
@@ -838,13 +838,24 @@ public final class BreakerAuraFeature {
      */
     public static boolean plannerTreatsAsAir(ClientLevel level, BlockPos pos) {
         DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
-        if (!cfg.isBreakerAuraEnabled()) {
+        if (!cfg.isBreakerAuraEnabled() || !inBoss()) {
             return false;
         }
         // Only a block he has actually picked is one the route may count on being gone - the aura breaks nothing
         // else. Treating every breakable block as air would let a route plan straight through a wall the aura will
         // never touch.
         return isPicked(pos) && isValidTarget(level, pos);
+    }
+
+    /**
+     * Breaker Aura acts only in a boss fight (killer560, 2026-10-12: "breaker aura should only work in boss phase.
+     * During clear it should not do anything. During clear the only way to auto break blocks is through the breaker
+     * node."). Boss is the F7/M7 boss phase ({@link DungeonState#isBossPhaseActive}, which /killer560 sim forces on) or
+     * any floor's boss room ({@link com.killer560.hub.livemap.LiveMapFeature#isInBoss}, latched once he is in it). A sim
+     * clear is not a boss.
+     */
+    public static boolean inBoss() {
+        return DungeonState.isBossPhaseActive() || com.killer560.hub.livemap.LiveMapFeature.isInBoss();
     }
 
     private static boolean isValidTarget(ClientLevel level, BlockPos pos) {
