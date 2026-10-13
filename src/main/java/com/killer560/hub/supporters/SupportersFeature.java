@@ -65,6 +65,9 @@ public final class SupportersFeature {
         }
         SupportersChatRewriter.register();
         SupportersFetcher.start(ON_FETCHED);
+        // Linked-supporter status once at startup (with backoff), so names and the trail share without opening the menu.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(
+                com.killer560.hub.util.FeatureGuard.end("SupportersStartupCheck", client -> SupportersAutoShare.tickStartupCheck()));
     }
 
     /** Forces an immediate re-fetch of {@code GET /supporters} instead of waiting for the next scheduled

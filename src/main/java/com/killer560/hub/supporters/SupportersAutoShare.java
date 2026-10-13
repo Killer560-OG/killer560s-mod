@@ -31,7 +31,9 @@ import java.util.function.Consumer;
  * <p>
  * Your Trail goes along as the relay's {@code trail} while "Share Trail" and the Trail itself are on (killer560,
  * 2026-10-13: "it can only be shared by a supporter") - see {@link #trailToShare} and {@link #shareCurrent}, which the
- * Player Cosmetics and Trail tabs call on every rebuild and {@code RemoteTrails} every 35 seconds.
+ * Player Cosmetics and Trail tabs call on every rebuild and {@code RemoteTrails} every 35 seconds. Linked status is
+ * checked once at startup ({@link #tickStartupCheck}), so this works without opening the menu. With no display name the
+ * push carries only the trail (or clears the entry); the relay never lets either replace a name staff set.
  */
 public final class SupportersAutoShare {
 
@@ -138,6 +140,64 @@ public final class SupportersAutoShare {
 
     public static void setLinked(boolean value) {
         linked = value;
+    }
+
+    // ---- startup check (killer560, 2026-10-13: names and the trail share without opening Player Cosmetics) ----
+
+    private static final long FIRST_CHECK_DELAY_MS = 10_000L;
+    private static final long RETRY_BASE_MS = 30_000L;
+    private static final long RETRY_MAX_MS = 15 * 60_000L;
+    private static volatile boolean startupDone = false;
+    private static volatile boolean startupInFlight = false;
+    private static volatile long nextStartupCheckAtMs = -1L;
+    private static volatile int startupFailures = 0;
+    private static volatile String startupState = "waiting";
+
+    /**
+     * Called every client tick: once, about {@link #FIRST_CHECK_DELAY_MS} after the game starts, asks the relay
+     * ({@code GET /supporters/me}) whether this account is a linked supporter, never blocking. A failure (relay down,
+     * offline, no Mojang key yet) retries after 30 s, doubling to at most 15 minutes; an answer ends it. A linked answer
+     * pushes your name, size and trail at once.
+     */
+    public static void tickStartupCheck() {
+        if (startupDone || startupInFlight) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (nextStartupCheckAtMs < 0) {
+            nextStartupCheckAtMs = now + FIRST_CHECK_DELAY_MS;
+            return;
+        }
+        if (now < nextStartupCheckAtMs) {
+            return;
+        }
+        startupInFlight = true;
+        SupportersSelfService.fetchMe().whenComplete((result, error) ->
+                Minecraft.getInstance().execute(() -> onStartupMe(result)));
+    }
+
+    /** The startup check's answer (on the client thread). Public for the testkit, which feeds it a made-up answer. */
+    public static void onStartupMe(SupportersSelfService.MeResult result) {
+        startupInFlight = false;
+        if (result != null && result.ok()) {
+            startupDone = true;
+            linked = result.whitelisted();
+            startupState = linked ? "linked" : "not linked";
+            if (linked) {
+                shareCurrent(null);
+            }
+            return;
+        }
+        startupFailures++;
+        long delay = Math.min(RETRY_MAX_MS, RETRY_BASE_MS << Math.min(10, startupFailures - 1));
+        nextStartupCheckAtMs = System.currentTimeMillis() + delay;
+        startupState = "retry in " + delay / 1000 + " s after " + startupFailures + " failure(s)"
+                + (result == null || result.error() == null ? "" : ": " + result.error());
+    }
+
+    /** "waiting", "linked", "not linked" or "retry in N s after K failure(s): reason" - for the testkit. */
+    public static String startupCheckState() {
+        return startupState;
     }
 
     /** Your Trail as it is shared: only while Share Trail is on and your Trail is on, else null (no trail field). */

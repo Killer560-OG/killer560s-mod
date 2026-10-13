@@ -74,5 +74,6 @@ lines and the parser each one feeds are listed in `SimTabList`'s javadoc.
 
 No property. `SupportersSelfService.lastAttempt()` is "POST <body>" or "DELETE" for the last share push attempted (set
 before the network call, so it reads the same offline) and `attempts()` counts them; `SupportersAutoShare.setLinked`
-stands in for the relay's linked-supporter answer. `RemoteTrails.tracked()`, `lastDrawnTrails()`, `framesDrawn()`,
+stands in for the relay's linked-supporter answer. The startup check (`tickStartupCheck`, first try 10 s in, retries
+30 s doubling to 15 min) reports `startupCheckState()`, and `onStartupMe(MeResult)` feeds it a made-up answer. `RemoteTrails.tracked()`, `lastDrawnTrails()`, `framesDrawn()`,
 `ribbonState(uuid)` and `squareCount(uuid)` say what other players' trails were kept and drawn (testkit 1036-1039).
