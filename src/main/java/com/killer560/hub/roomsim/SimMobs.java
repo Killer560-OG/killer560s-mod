@@ -310,6 +310,11 @@ public final class SimMobs {
     }
 
     private static void spawnDummy(ServerLevel level, Mob mob, BlockPos pos, boolean starred, double health) {
+        spawnDummy(level, mob, pos, pos.getY(), starred, health);
+    }
+
+    private static void spawnDummy(ServerLevel level, Mob mob, BlockPos pos, double feetY, boolean starred,
+                                   double health) {
         mob.getAttribute(Attributes.MAX_HEALTH).setBaseValue(health);
         mob.setHealth((float) health);
         mob.setPersistenceRequired();
@@ -318,7 +323,7 @@ public final class SimMobs {
         // exactly where the capture found it, which is also the only way a practised route means anything -
         // a route timed against mobs that chase you is a route timed against your own path.
         mob.setNoAi(true);
-        mob.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+        mob.setPos(pos.getX() + 0.5, feetY, pos.getZ() + 0.5);
         level.addFreshEntity(mob);
         SPAWNED.add(mob.getUUID());
         if (starred) {
@@ -452,7 +457,25 @@ public final class SimMobs {
             // that looks for starred mobs counts it.
             undead.setCustomName(Component.literal(scoringPrince ? "Crypt Prince" : "Crypt Undead"));
             undead.setCustomNameVisible(true);
-            spawnDummy(level, undead, pos, false);
+            // ON THE FLOOR. killer560 (2026-10-13): "make sure the princes and the crypts spawn on the floor once they
+            // explode" - a sim mob has no AI and so no gravity, and Big Red Flag's prince was placed above the top
+            // block of its tomb, which the blast had just removed, leaving it hanging in the air.
+            BlockPos at = pos;
+            for (int up = 0; up < 4 && !level.getBlockState(at).getCollisionShape(level, at).isEmpty(); up++) {
+                at = at.above();
+            }
+            double feetY = at.getY();
+            for (int down = 0; down < 24; down++) {
+                BlockPos below = at.below();
+                var shape = level.getBlockState(below).getCollisionShape(level, below);
+                if (!shape.isEmpty()) {
+                    feetY = below.getY() + shape.max(net.minecraft.core.Direction.Axis.Y);
+                    break;
+                }
+                at = below;
+                feetY = at.getY();
+            }
+            spawnDummy(level, undead, at, feetY, false, ONE_HP);
             CRYPT_MOBS.put(undead.getUUID(), scoringPrince);
         });
     }
