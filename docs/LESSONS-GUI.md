@@ -370,3 +370,5 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **A key that CLOSES a screen also opens it again** if the opener polls raw keys at END_CLIENT_TICK: the press reaches the
   screen first, so at the poll there is no screen and the key reads as a fresh edge. The closer marks the key held
   (`PeekChatFeature.closedByKey`) so the poll waits for a release (testkit 1314: open, key, closed).
+- A vanilla `StringWidget` always shadows its text (smeared on the Light theme); a themed screen's labels override its
+  draw (`ScoreboardEditorScreen.label`, screen sweep C, 2026-10-13).

@@ -16,8 +16,8 @@ import net.minecraft.network.chat.Component;
  */
 public class ThemedEditBox extends EditBox {
 
-    private final int ox;
-    private final int oy;
+    private int ox;
+    private int oy;
     private final int ow;
     private final int oh;
     private String themedHint = "";
@@ -51,6 +51,21 @@ public class ThemedEditBox extends EditBox {
 
     public String themedHint() {
         return themedHint;
+    }
+
+    /** Moves the drawn box (and the text line inside it) so its left edge is at {@code x} (screen sweep C: the
+     *  scoreboard editor lays its rows out after building them). */
+    @Override
+    public void setX(int x) {
+        this.ox = x;
+        super.setX(x + 5);
+    }
+
+    /** Moves the drawn box (and the text line inside it) so its top is at {@code y}. */
+    @Override
+    public void setY(int y) {
+        this.oy = y;
+        super.setY(y + (oh - 8) / 2);
     }
 
     @Override

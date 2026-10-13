@@ -347,6 +347,9 @@ public final class SettingsButtonWidget extends AbstractWidget {
             }
             r.submit();
             String label = MenuStyle.ellipsize(getMessage().getString(), w - 10);
+            if (MenuStyle.LIGHT) {
+                label = MenuStyle.lightReadable(label); // a §a / §7 label stays readable on a light theme
+            }
             int color = !active ? MenuStyle.DIM2 : (danger ? 0xFFFFD0D0 : (hover || primary ? MenuStyle.OR_HOVER : MenuStyle.OR));
             graphics.text(font, label, x0 + (w - font.width(label)) / 2, textY, faded(color), MenuStyle.TEXT_SHADOW);
             return;

@@ -1,7 +1,11 @@
 package com.killer560.hub.roomsim;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.profit.ProfitPanels;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ThemedEditBox;
+import com.killer560.hub.hud.GuiRects;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -25,7 +29,23 @@ import com.killer560.hub.compat.McCompat;
  * or drill one room. The single-room mode is the one that gets used most while learning a room, so it is not
  * buried behind the map generator.
  */
-public class SimMenuScreen extends Screen {
+public class SimMenuScreen extends Screen implements MenuThemedScreen {
+
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
+    public static final String THEME_ID = "sim";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
+    }
 
     private enum Mode {
         HOME("Dungeon Sim"),
@@ -207,8 +227,8 @@ public class SimMenuScreen extends Screen {
         // Puzzles buttons that sat here (2026-09-30, 2026-10-05) are rows of the shared Filters panel now, on
         // Load a Room's own SimRoomFilters.PICKER; the button sits beside the search box.
         int fw = filtersWidth();
-        search = new EditBox(this.font, x, y, right - x - fw - 4, 18, Component.literal("Search"));
-        search.setHint(Component.literal("Search rooms..."));
+        search = new ThemedEditBox(this.font, x, y, right - x - fw - 4, 18, Component.literal("Search"));
+        ((ThemedEditBox) search).hint("Search rooms...");
         search.setValue(searchText);
         search.setResponder(v -> {
             searchText = v;
@@ -332,32 +352,29 @@ public class SimMenuScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        g.fill(0, 0, this.width, this.height, 0xCC000000);
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, ProfitPanels.PANEL_BG);
-        g.outline(panelX, panelY, panelW, panelH, ProfitPanels.BORDER);
-        g.fill(panelX, panelY, panelX + panelW, panelY + 30, 0xFF000000);
-        g.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
-        g.text(this.font, mode.title.toUpperCase(Locale.ROOT), panelX + 10, panelY + 11,
-                ProfitPanels.ACCENT, false);
+        // The menu theme (screen sweep, 2026-10-13): the menu's panel and header bar, lists in a recessed well with
+        // hover / selected rows, every colour from the active theme.
+        ScreenChrome.backdrop(g, this.width, this.height);
+        themedBounds = new int[]{panelX, panelY, panelW, panelH};
+        ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
+        ScreenChrome.headerBar(g, panelX, panelY, panelW);
+        ScreenChrome.title(g, mode.title.toUpperCase(Locale.ROOT), panelX + 10, panelY + 11, false);
         if (mode == Mode.HOME) {
             String hint = RoomLibrary.roomCount() == 0
                     ? "No rooms loaded - the shipped room library did not load"
                     : "Pick what to practise";
-            g.text(this.font, hint, panelX + 20, panelY + 42, ProfitPanels.DIM, false);
+            ScreenChrome.text(g, hint, panelX + 20, panelY + 42, MenuStyle.DIM);
         } else if (mode == Mode.CYCLE) {
             if (com.killer560.hub.roomdatabase.RoomDatabase.isReady() != cycleBuiltWithDatabase) {
                 rebuildWidgets();
             }
-            g.text(this.font, this.font.plainSubstrByWidth(
-                    "One room at a time - /next and /back step through the set", panelW - 40),
-                    panelX + 20, panelY + 42, ProfitPanels.DIM, false);
+            ScreenChrome.text(g, this.font.plainSubstrByWidth(
+                    "One room at a time - /next and /back step through the set", panelW - 40), panelX + 20, panelY + 42, MenuStyle.DIM);
             int filters = SimRoomFilters.CYCLE.activeCount();
-            g.text(this.font, this.font.plainSubstrByWidth(filters == 0
+            ScreenChrome.text(g, this.font.plainSubstrByWidth(filters == 0
                     ? "No puzzles, Blood, Entrance, Fairy or 0-secret rooms"
-                    : filters + (filters == 1 ? " filter" : " filters") + " on - counts are after them", panelW - 40),
-                    panelX + 20, panelY + 56 + 3 * 24 + 2, ProfitPanels.DIM, false);
-            g.text(this.font, "KEYBINDS (sim only)", panelX + 20, panelY + 56 + 3 * 24 + 16,
-                    ProfitPanels.ACCENT, false);
+                    : filters + (filters == 1 ? " filter" : " filters") + " on - counts are after them", panelW - 40), panelX + 20, panelY + 56 + 3 * 24 + 2, MenuStyle.DIM);
+            ScreenChrome.section(g, "KEYBINDS (sim only)", panelX + 20, panelY + 56 + 3 * 24 + 16, panelX + panelW - 20, false);
         } else if (mode == Mode.ROOM || mode == Mode.PREVIOUS) {
             boolean needsDatabase = !SimRoomFilters.PICKER.isDefault();
             if (mode == Mode.ROOM && needsDatabase
@@ -366,15 +383,14 @@ public class SimMenuScreen extends Screen {
             }
             int top = listTop();
             int h = listHeight();
-            g.fill(panelX + 6, top, panelX + panelW - 6, top + h, ProfitPanels.INNER_BG);
-            g.outline(panelX + 5, top - 1, panelW - 10, h + 2, ProfitPanels.BORDER);
+            ScreenChrome.well(g, panelX + 5, top - 1, panelW - 10, h + 2);
             g.enableScissor(panelX + 6, top, panelX + panelW - 6, top + h);
             try {
                 if (listed.isEmpty()) {
                     String none = mode != Mode.ROOM ? "No saved runs yet"
                             : needsDatabase && !listedWithDatabase ? "Loading the room database..."
                             : "No rooms match";
-                    g.text(this.font, none, panelX + 14, top + 6, ProfitPanels.DIM, false);
+                    ScreenChrome.text(g, none, panelX + 14, top + 6, MenuStyle.DIM);
                 }
                 for (int i = 0; i < listed.size(); i++) {
                     int rowY = top + i * 14 - scroll + 3;
@@ -385,6 +401,13 @@ public class SimMenuScreen extends Screen {
                         continue;
                     }
                     String name = listed.get(i);
+                    boolean hover = mouseX >= panelX + 6 && mouseX < panelX + panelW - 6 && mouseY >= top
+                            && mouseY < top + h && mouseY >= rowY - 3 && mouseY < rowY + 11;
+                    if (hover) {
+                        GuiRects rr = GuiRects.begin(g);
+                        ScreenChrome.row(rr, panelX + 6, rowY - 3, panelW - 12, 14, true, false, false);
+                        rr.submit();
+                    }
                     int nameRoom = panelW - 28;
                     if (mode == Mode.ROOM) {
                         // Each room's Auto Routes at a glance: green node count when it has a route, a dim
@@ -393,13 +416,13 @@ public class SimMenuScreen extends Screen {
                         String marker = routeMarker(name);
                         if (marker != null) {
                             int mw = this.font.width(marker);
-                            int colour = SimRoomRoutes.routeNodes(name) > 0 ? 0xFF55FF55 : ProfitPanels.DIM;
-                            g.text(this.font, marker, panelX + panelW - 14 - mw, rowY, colour, false);
+                            int colour = SimRoomRoutes.routeNodes(name) > 0 ? ScreenChrome.readable(0xFF55FF55) : MenuStyle.DIM;
+                            MenuStyle.text(g, marker, panelX + panelW - 14 - mw, rowY, colour);
                             nameRoom -= mw + 8;
                         }
                     }
-                    g.text(this.font, this.font.plainSubstrByWidth(name, nameRoom),
-                            panelX + 14, rowY, ProfitPanels.TEXT, false);
+                    MenuStyle.text(g, this.font.plainSubstrByWidth(name, nameRoom), panelX + 14, rowY,
+                            hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
                 }
             } finally {
                 g.disableScissor();

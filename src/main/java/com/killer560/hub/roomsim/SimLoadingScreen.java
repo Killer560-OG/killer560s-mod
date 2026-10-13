@@ -1,6 +1,8 @@
 package com.killer560.hub.roomsim;
 
-import com.killer560.hub.gui.profit.ProfitPanels;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
+import com.killer560.hub.gui.MenuThemedScreen;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -27,7 +29,23 @@ import com.killer560.hub.compat.McCompat;
  * <p>It cannot be dismissed with Escape on purpose. Escaping out of it would drop him into exactly the
  * half-built world it exists to hide, which is the confusing state, not a useful escape hatch.
  */
-public final class SimLoadingScreen extends Screen {
+public final class SimLoadingScreen extends Screen implements MenuThemedScreen {
+
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
+    public static final String THEME_ID = "sim";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
+    }
 
     private String what;
     private String detail = "";
@@ -65,21 +83,24 @@ public final class SimLoadingScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        g.fill(0, 0, this.width, this.height, 0xFF0B0B0B);
+        // The menu theme (screen sweep, 2026-10-13): an opaque themed backdrop - it hides the half-built world - and the
+        // menu's panel, header bar and a recessed progress bar.
+        MenuStyle.use();
+        g.fill(0, 0, this.width, this.height, MenuStyle.WELL);
 
         int panelW = Math.min(this.width - 40, 420);
         int panelH = 110;
         int panelX = (this.width - panelW) / 2;
         int panelY = (this.height - panelH) / 2;
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, ProfitPanels.PANEL_BG);
-        g.outline(panelX, panelY, panelW, panelH, ProfitPanels.BORDER);
-
-        g.centeredText(this.font, "DUNGEON SIM", panelX + panelW / 2, panelY + 16, ProfitPanels.ACCENT);
+        themedBounds = new int[]{panelX, panelY, panelW, panelH};
+        ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
+        ScreenChrome.headerBar(g, panelX, panelY, panelW);
+        ScreenChrome.titleCentred(g, "DUNGEON SIM", panelX + panelW / 2, panelY + 11, false);
         if (!what.isEmpty()) {
-            g.centeredText(this.font, what, panelX + panelW / 2, panelY + 38, ProfitPanels.TEXT);
+            ScreenChrome.centered(g, what, panelX + panelW / 2, panelY + 38, MenuStyle.TXT);
         }
         if (!detail.isEmpty()) {
-            g.centeredText(this.font, detail, panelX + panelW / 2, panelY + 52, ProfitPanels.DIM);
+            ScreenChrome.centered(g, detail, panelX + panelW / 2, panelY + 52, MenuStyle.DIM);
         }
 
         // A real bar. killer560 (2026-09-28): "instead of the moving bar at the bottom [...] make an acttual
@@ -90,15 +111,11 @@ public final class SimLoadingScreen extends Screen {
         // dense ones, which is worse than no bar because it looks like it has hung.
         int barX = panelX + 20;
         int barW = panelW - 40;
-        int barY = panelY + panelH - 30;
-        g.fill(barX, barY, barX + barW, barY + 6, 0xFF1A1A1A);
+        int barY = panelY + panelH - 32;
         float progress = SimBuildQueue.progress();
-        int filled = Math.max(0, Math.min(barW, Math.round(barW * progress)));
-        if (filled > 0) {
-            g.fill(barX, barY, barX + filled, barY + 6, ProfitPanels.ACCENT);
-        }
+        ScreenChrome.progress(g, barX, barY, barW, 8, progress, MenuStyle.OR);
         String pct = Math.round(progress * 100) + "%";
-        g.centeredText(this.font, pct, panelX + panelW / 2, barY + 10, ProfitPanels.DIM);
+        ScreenChrome.centered(g, pct, panelX + panelW / 2, barY + 12, MenuStyle.DIM);
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
 

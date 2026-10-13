@@ -1,6 +1,6 @@
 package com.killer560.hub.roomsim;
 
-import net.minecraft.client.gui.components.AbstractSliderButton;
+import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.network.chat.Component;
 
 import java.util.function.IntConsumer;
@@ -11,7 +11,7 @@ import java.util.function.IntConsumer;
  * <p>killer560 (2026-09-28): "Max rooms to blood should be 8 and it should be a sliding bar between 2-8 [...]
  * Make puzzles a bar as well from 2-5."
  *
- * <p>Built on vanilla's own slider rather than drawn here, so it drags, keyboards and narrates like every other
+ * <p>Built on vanilla's own slider (through {@link ThemedSliderButton}, which only draws it in the menu theme), so it drags, keyboards and narrates like every other
  * slider in the game. The only thing added is that it snaps to integers and reports them: vanilla's slider is a
  * 0..1 double, and a "3.4 puzzles" is not a thing a floor can have.
  *
@@ -21,7 +21,7 @@ import java.util.function.IntConsumer;
  * {@code max} itself is still reachable, one notch in. Whoever resolves {@link #RANDOM} draws inside
  * {@code min..max}, so random can never produce a floor the slider could not have asked for directly.
  */
-public final class SimSlider extends AbstractSliderButton {
+public final class SimSlider extends ThemedSliderButton {
 
     /** What {@link #intValue()} reports when the handle is at the far right. */
     public static final int RANDOM = Integer.MIN_VALUE;

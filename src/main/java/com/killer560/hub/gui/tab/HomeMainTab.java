@@ -129,6 +129,8 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
         widgets.add(toggle("Equal Spacing", hc::isSnapEqualSpacing, hc::setSnapEqualSpacing, contentX, y, contentWidth, true,
                 null));
         y += 24;
+        // The HUD editor's own Theme (screen sweep, 2026-10-13): Theme Default follows the menu.
+        com.killer560.hub.gui.ScreenThemes.append(widgets, HudEditorScreen.THEME_ID, contentX, contentWidth, y);
 
         return widgets;
     }

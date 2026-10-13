@@ -1,6 +1,9 @@
 package com.killer560.hub.ap3;
 
-import com.killer560.hub.gui.SectionHeaders;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -23,7 +26,23 @@ import com.killer560.hub.compat.McCompat;
  * (plain file name, safe characters, never an existing file) and the reason is shown on the panel when it is not
  * accepted. Closing goes back to the mod menu, which rebuilds the AP3 tab so the button shows the new name.
  */
-public class Ap3ConfigScreen extends Screen {
+public class Ap3ConfigScreen extends Screen implements MenuThemedScreen {
+
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
+    public static final String THEME_ID = "ap3";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
+    }
 
     private static final int PANEL_W = 260;
     private static final int PAD = 10;
@@ -80,9 +99,9 @@ public class Ap3ConfigScreen extends Screen {
         statusY = y;
         y += 16;
 
-        EditBox nameBox = new EditBox(this.font, x, y, w - NEW_W - GAP, ROW, Component.literal("New config name"));
+        EditBox nameBox = new ThemedEditBox(this.font, x, y, w - NEW_W - GAP, ROW, Component.literal("New config name"));
         nameBox.setMaxLength(Ap3Store.MAX_CONFIG_NAME + 5); // room for a typed ".json"
-        nameBox.setHint(Component.literal("§8new config name"));
+        ((ThemedEditBox) nameBox).hint("new config name");
         nameBox.setValue(newName);
         nameBox.setResponder(text -> newName = text == null ? "" : text);
         this.addRenderableWidget(nameBox);
@@ -109,16 +128,19 @@ public class Ap3ConfigScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xFF0D0D0D);
-        graphics.outline(panelX, panelY, panelW, panelH, 0xFF553311);
-        graphics.centeredText(this.font, this.title, panelX + panelW / 2, panelY + 8, SectionHeaders.color(true));
+        // The menu theme (screen sweep, 2026-10-13): panel and header bar, the title in the cheat red (a cheat-only
+        // screen), the folder under it, the config rows as the menu's raised buttons.
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        themedBounds = new int[]{panelX, panelY, panelW, panelH};
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.headerBar(graphics, panelX, panelY, panelW);
+        ScreenChrome.titleCentred(graphics, this.title.getString(), panelX + panelW / 2, panelY + 6, true);
         String where = names.size() > MAX_VISIBLE
                 ? String.format(Locale.US, "%d files - scroll", names.size())
                 : Ap3Store.directory().getFileName().toString() + "/";
-        graphics.centeredText(this.font, where, panelX + panelW / 2, panelY + 19, 0xFF9A8C80);
+        ScreenChrome.centered(graphics, where, panelX + panelW / 2, panelY + 17, MenuStyle.DIM);
         if (!status.isEmpty()) {
-            graphics.text(this.font, status, panelX + PAD, statusY + 2, 0xFFFFFFFF, false);
+            ScreenChrome.text(graphics, status, panelX + PAD, statusY + 2, MenuStyle.TXT);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }

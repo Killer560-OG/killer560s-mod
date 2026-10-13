@@ -1,5 +1,7 @@
 package com.killer560.hub.livemap;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.livemap.autoclear.BloodRush;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
@@ -24,17 +26,50 @@ import java.util.List;
  * puzzle, clear state, who cleared), scroll zoom, right/middle-drag pan (never the left button) and a legend.
  * No world dim/blur, like QUOI's {@code open(background = false)}.
  */
-public class InteractiveMapScreen extends Screen {
+public class InteractiveMapScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
+
+    /** The Theme setting this screen's chrome follows (ScreenThemes; "Theme Default" = the menu's theme). The map
+     *  itself keeps the live map's own palette. */
+    public static final String THEME_ID = "interactivemap";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
+    }
 
     /** Wide enough that the longest swatch label ("Entrance") fits its half-width column whole. */
     private static final int LEGEND_W = 120;
-    private static final int ORANGE = 0xFFCC6600;
+    // The chrome's colours (screen sweep, 2026-10-13): the theme's, read each frame from MenuStyle after
+    // MenuStyle.use(). The hover tooltips keep these fixed ones - vanilla draws their dark box.
     private static final int LIGHT_ORANGE = 0xFFFFA040;
-    private static final int PANEL = 0xD00D0D0D;
-    private static final int TEXT = 0xFFF0E6DC;
+    /** The map's canvas, the same on every theme (the room palette is drawn for it). */
+    private static final int MAP_CANVAS = 0xD00D0D0D;
     private static final int DIM = 0xFF9A8C80;
-    private static final int GOOD = 0xFF55FF55;
-    private static final int BAD = 0xFFFF5555;
+
+    private static int accent() {
+        return MenuStyle.OR;
+    }
+
+    private static int accentSoft() {
+        return MenuStyle.LIGHT ? MenuStyle.OR2
+                : MenuStyle.OR_LIGHT;
+    }
+
+    private static int text() {
+        return MenuStyle.TXT;
+    }
+
+    private static int dim() {
+        return MenuStyle.DIM;
+    }
 
     // Room/door colours, the 16/4 layout, checkmarks and player markers all live in MapPainter now - the HUD map
     // shares exactly the same painter (killer560, 2026-09-17: "the live map hud does not look like the real
@@ -156,8 +191,14 @@ public class InteractiveMapScreen extends Screen {
         cursorX = mouseX;
         cursorY = mouseY;
         int[] p = panel();
-        graphics.fill(p[0], p[1], p[2], p[3], PANEL);
-        graphics.outline(p[0] - 1, p[1] - 1, p[2] - p[0] + 2, p[3] - p[1] + 2, ORANGE);
+        // The map's frame in the theme: the menu frame's ring and a recessed edge. The canvas inside stays the map's own
+        // dark on every theme - the room colours and labels are drawn for it, and a Light canvas washed them out.
+        MenuStyle.use();
+        com.killer560.hub.hud.GuiRects frame = com.killer560.hub.hud.GuiRects.begin(graphics);
+        frame.outline(p[0] - 2, p[1] - 2, p[2] - p[0] + 4, p[3] - p[1] + 4, MenuStyle.FRAME_RING);
+        frame.outline(p[0] - 1, p[1] - 1, p[2] - p[0] + 2, p[3] - p[1] + 2, MenuStyle.BLACK);
+        frame.fill(p[0], p[1], p[2], p[3], MAP_CANVAS);
+        frame.submit();
         float ox = originX();
         float oy = originY();
         float ppu = ppu();
@@ -481,8 +522,8 @@ public class InteractiveMapScreen extends Screen {
             bottom = layoutLegend(null, x, y, cfg, false);
         }
         bottom = Math.min(maxBottom, bottom);
-        graphics.fill(x, y, x + LEGEND_W, bottom, PANEL);
-        graphics.outline(x - 1, y - 1, LEGEND_W + 2, bottom - y + 2, ORANGE);
+        themedBounds = new int[]{x - 1, y - 1, LEGEND_W + 2, bottom - y + 2};
+        ScreenChrome.card(graphics, x - 1, y - 1, LEGEND_W + 2, bottom - y + 2, false);
         legendRect = new int[]{x, y, x + LEGEND_W, bottom};
         graphics.enableScissor(x, y, x + LEGEND_W, bottom);
         try {
@@ -502,7 +543,7 @@ public class InteractiveMapScreen extends Screen {
         ty = swatchPair(g, x, ty, cfg.getColorBlood(), "Blood", cfg.getColorEntrance(), "Entrance");
         ty = legendHeader(g, "Doors", null, x, ty + SECTION_GAP);
         ty = swatchPair(g, x, ty, cfg.getColorWitherDoor(), "Wither", cfg.getColorBlood(), "Blood");
-        ty = swatchPair(g, x, ty, 0xFF55FF55, "You", 0, null);
+        ty = swatchPair(g, x, ty, 0xFF55FF55, "You", 0, null); // the map's own marker colour
 
         int headerY = ty + SECTION_GAP;
         ty = legendHeader(g, "Controls", expanded ? "[-]" : "[+]", x, headerY);
@@ -537,13 +578,13 @@ public class InteractiveMapScreen extends Screen {
         }
         if (viewMoved()) {
             int rowY = ty;
-            ty = text(g, "Reset view", x + PAD, ty, LIGHT_ORANGE);
+            ty = text(g, "Reset view", x + PAD, ty, accentSoft());
             if (g != null) {
                 resetViewRect = new int[]{x, rowY - 1, x + LEGEND_W, ty - 1};
             }
         }
         if (BloodRush.isRunning()) {
-            ty = text(g, "Blood Rush", x + PAD, ty + 2, BAD);
+            ty = text(g, "Blood Rush", x + PAD, ty + 2, MenuStyle.RED);
         }
         // killer560, 2026-09-27: "the extra info ... s+ secrets". Since 2026-10-07 the estimate is tracked whenever
         // this toggle is on (ScoreCalculatorFeature.estimateWanted), Score Calculator or not - it used to draw only
@@ -551,10 +592,10 @@ public class InteractiveMapScreen extends Screen {
         // says so in one dim line instead of vanishing.
         if (cfg.isShowExtraInfo() && ScoreCalculatorFeature.currentResult() == null) {
             ty = legendHeader(g, "Extra Info", null, x, ty + SECTION_GAP);
-            ty = text(g, fit("Waiting for the run's tab list", LEGEND_W - 2 * PAD), x + PAD, ty, DIM);
+            ty = text(g, fit("Waiting for the run's tab list", LEGEND_W - 2 * PAD), x + PAD, ty, dim());
         } else if (cfg.isShowExtraInfo()) {
             ty = legendHeader(g, "Extra Info", null, x, ty + SECTION_GAP);
-            ty = infoRow(g, x, ty, "Crypts", ScoreCalculatorFeature.getCrypts() + "/5", TEXT);
+            ty = infoRow(g, x, ty, "Crypts", ScoreCalculatorFeature.getCrypts() + "/5", text());
             ty = flagsRow(g, x, ty, new String[]{"Bat", "Mimic", "Prince"}, new boolean[]{
                     ScoreCalculatorFeature.isBatKilled(), ScoreCalculatorFeature.isMimicKilled(),
                     ScoreCalculatorFeature.isPrinceKilled()});
@@ -562,7 +603,7 @@ public class InteractiveMapScreen extends Screen {
             // things, not that they are done but as is. Then it needs to assume all rooms are cleared." -
             // exactly what ScoreCalculator.calculate()'s own secretsNeeded already computes (see its doc);
             // this reuses that one live number instead of a second copy of the formula.
-            ty = infoRow(g, x, ty, "S+ Secrets", ScoreCalculatorFeature.secretsNeededSummary(), LIGHT_ORANGE);
+            ty = infoRow(g, x, ty, "S+ Secrets", ScoreCalculatorFeature.secretsNeededSummary(), accentSoft());
         }
         return ty + PAD - 2;
     }
@@ -597,16 +638,16 @@ public class InteractiveMapScreen extends Screen {
     /** One line of text at {@code (x, y)}, recorded. @return the next row's y. */
     private int text(GuiGraphicsExtractor g, String s, int x, int y, int color) {
         if (g != null) {
-            g.text(font, s, x, y, color, false);
+            MenuStyle.flat(g, s, x, y, color);
             legendBoxes.add(new LegendBox(s, x, y, x + font.width(s), y + font.lineHeight - 1));
         }
         return y + ROW;
     }
 
     private int legendHeader(GuiGraphicsExtractor g, String label, String right, int x, int y) {
-        text(g, label, x + PAD, y, ORANGE);
+        text(g, label, x + PAD, y, accent());
         if (right != null) {
-            text(g, right, x + LEGEND_W - PAD - font.width(right), y, DIM);
+            text(g, right, x + LEGEND_W - PAD - font.width(right), y, dim());
         }
         return y + ROW + 1;
     }
@@ -625,9 +666,9 @@ public class InteractiveMapScreen extends Screen {
             return;
         }
         g.fill(x, y, x + 7, y + 7, color);
-        g.outline(x, y, 7, 7, 0xFF303030);
+        g.outline(x, y, 7, 7, MenuStyle.BLACK);
         legendBoxes.add(new LegendBox("swatch " + label, x, y, x + 7, y + 7));
-        text(g, fit(label, width - 9), x + 9, y, TEXT);
+        text(g, fit(label, width - 9), x + 9, y, text());
     }
 
     private int control(GuiGraphicsExtractor g, int x, int y, String key, String action) {
@@ -636,15 +677,15 @@ public class InteractiveMapScreen extends Screen {
         int inner = LEGEND_W - 2 * PAD;
         int actionW = font.width(action);
         String k = fit(key, inner - actionW - 4);
-        text(g, k, x + PAD, y, LIGHT_ORANGE);
-        text(g, action, x + LEGEND_W - PAD - actionW, y, TEXT);
+        text(g, k, x + PAD, y, accentSoft());
+        text(g, action, x + LEGEND_W - PAD - actionW, y, text());
         return y + ROW;
     }
 
     /** One "label ... value" row, value right-aligned; a value that cannot share the row gets its own. */
     private int infoRow(GuiGraphicsExtractor g, int x, int y, String label, String value, int valueColor) {
         int inner = LEGEND_W - 2 * PAD;
-        text(g, label, x + PAD, y, DIM);
+        text(g, label, x + PAD, y, dim());
         if (font.width(label) + 6 + font.width(value) > inner) {
             y += ROW;
             value = fit(value, inner);
@@ -662,16 +703,17 @@ public class InteractiveMapScreen extends Screen {
         }
         if (total > inner) {
             for (int i = 0; i < labels.length; i++) {
-                y = infoRow(g, x, y, labels[i], done[i] ? "✔" : "✘", done[i] ? GOOD : BAD);
+                y = infoRow(g, x, y, labels[i], done[i] ? "✔" : "✘", done[i] ? ScreenChrome.readable(0xFF55FF55)
+                        : MenuStyle.RED);
             }
             return y;
         }
         int cx = x + PAD;
         for (int i = 0; i < labels.length; i++) {
             String mark = done[i] ? "✔" : "✘";
-            text(g, labels[i], cx, y, DIM);
+            text(g, labels[i], cx, y, dim());
             cx += font.width(labels[i]) + 2;
-            text(g, mark, cx, y, done[i] ? GOOD : BAD);
+            text(g, mark, cx, y, done[i] ? ScreenChrome.readable(0xFF55FF55) : MenuStyle.RED);
             cx += font.width(mark) + 6;
         }
         return y + ROW;

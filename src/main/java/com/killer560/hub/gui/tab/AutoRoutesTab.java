@@ -211,6 +211,9 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         // killer560, 2026-10-04: "move the colors above the keybind section" - the two dropdowns close the tab.
         buildColourSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         buildKeybindSection(w, cfg, contentX, y, contentWidth, requestRebuild);
+        // The node editor's Theme (/ar edit; screen sweep 2026-10-13).
+        com.killer560.hub.gui.ScreenThemes.append(w, com.killer560.hub.autoroutes.AutoRoutesEditScreen.THEME_ID,
+                contentX, contentWidth, contentY);
         return w;
     }
 

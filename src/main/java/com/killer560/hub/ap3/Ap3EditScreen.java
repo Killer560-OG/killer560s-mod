@@ -1,8 +1,11 @@
 package com.killer560.hub.ap3;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.compat.McCompat;
-import com.killer560.hub.gui.SectionHeaders;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.gui.SettingsButtonWidget;
 
 import net.minecraft.ChatFormatting;
@@ -47,7 +50,23 @@ import java.util.Map;
  * "-" then "1" then "2" through a live responder would move the node to -1 on the way to -12, and a node that
  * moves while you are typing its position is worse than one that waits.
  */
-public class Ap3EditScreen extends Screen {
+public class Ap3EditScreen extends Screen implements MenuThemedScreen {
+
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
+    public static final String THEME_ID = "ap3";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
+    }
 
     private static final int PANEL_W = 300;
     private static final int PAD = 10;
@@ -403,7 +422,7 @@ public class Ap3EditScreen extends Screen {
 
     /** A text box {@code w} wide at {@code x}, {@code shown} drawn in its first {@code labelW} pixels. */
     private void addField(int x, int y, int w, String label, String shown, int labelW) {
-        EditBox box = new EditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(shown));
+        EditBox box = new ThemedEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(shown));
         box.setMaxLength(32);
         box.setValue(pending.getOrDefault(label, ""));
         this.addRenderableWidget(box);
@@ -556,22 +575,23 @@ public class Ap3EditScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xFF0D0D0D);
-        graphics.outline(panelX, panelY, panelW, panelH, 0xFF553311);
-        graphics.centeredText(this.font, this.title, panelX + panelW / 2, panelY + 8,
-                SectionHeaders.color(true));
+        // The menu theme (screen sweep, 2026-10-13): panel and header bar, title in the cheat red, the field labels in
+        // the theme's soft text, the boxes as recessed wells.
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        themedBounds = new int[]{panelX, panelY, panelW, panelH};
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.headerBar(graphics, panelX, panelY, panelW);
+        ScreenChrome.titleCentred(graphics, this.title.getString(), panelX + panelW / 2, panelY + 6, true);
         Ap3Node n = node();
         String sub = n == null ? "§cno such node" : "§7" + Ap3Feature.currentChainLabel();
-        graphics.centeredText(this.font, sub, panelX + panelW / 2, panelY + 19, 0xFF9A8C80);
+        ScreenChrome.centered(graphics, sub, panelX + panelW / 2, panelY + 17, MenuStyle.DIM);
         for (Field f : fields) {
             if (f.labelX() >= 0) {
-                graphics.text(this.font, labels.getOrDefault(f.label(), f.label()), f.labelX(), f.box().getY() + 4,
-                        0xFFBBAA99, false);
+                ScreenChrome.text(graphics, labels.getOrDefault(f.label(), f.label()), f.labelX(), f.box().getY(), MenuStyle.TXT_SOFT);
             }
         }
         if (!status.isEmpty() && statusY >= 0) {
-            graphics.centeredText(this.font, status, panelX + panelW / 2, statusY, 0xFFFFFFFF);
+            ScreenChrome.centered(graphics, status, panelX + panelW / 2, statusY, MenuStyle.TXT);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         for (Icon icon : icons) {

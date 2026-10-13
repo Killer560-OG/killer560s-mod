@@ -46,6 +46,7 @@ public class CustomScoreboardTab extends BaseTab {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new ScoreboardEditorScreen(McCompat.screen(client)));
                 }).primary().bounds(contentX, y, contentWidth, 20).build());
+        com.killer560.hub.gui.ScreenThemes.append(widgets, ScoreboardEditorScreen.THEME_ID, contentX, contentWidth, y);
         return widgets;
     }
 

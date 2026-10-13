@@ -252,6 +252,8 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 y += 20;
             }
         }
+        // The config picker's Theme (Choose Breaker Aura Config; screen sweep 2026-10-13).
+        com.killer560.hub.gui.ScreenThemes.append(widgets, BreakerAuraConfigScreen.THEME_ID, contentX, contentWidth, y);
 
         return widgets;
     }

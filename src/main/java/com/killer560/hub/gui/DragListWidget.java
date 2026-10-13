@@ -55,9 +55,6 @@ public final class DragListWidget extends AbstractWidget implements WheelTarget 
 
     public static final int ROW_H = 16;
     static final int DRAG_SLOP = 3;
-    private static final int ACCENT = 0xFFCC6600;
-    private static final int ACCENT_BRIGHT = 0xFFFFAA33;
-    private static final int BORDER = 0xFF553311;
     private static final int TRASH_W = 14;
     /** Auto-scroll: band at each edge, and speed range in units per second. */
     private static final int EDGE = ROW_H;
@@ -274,12 +271,14 @@ public final class DragListWidget extends AbstractWidget implements WheelTarget 
         Font font = Minecraft.getInstance().font;
         int x = getX();
         int w = getWidth();
-        g.fill(x, getY(), x + w, getY() + getHeight(), 0xFF080808);
-        g.outline(x, getY(), w, getHeight(), BORDER);
+        // The menu theme's recessed well (screen sweep, 2026-10-13); MenuStyle already holds the open screen's theme.
+        com.killer560.hub.hud.GuiRects well = com.killer560.hub.hud.GuiRects.begin(g);
+        MenuStyle.well(well, x, getY(), w, getHeight(), MenuStyle.WELL);
+        well.submit();
         int top = innerTop();
         int bottom = innerBottom();
         if (model.size() == 0) {
-            g.text(font, "§7" + emptyText, x + 6, top + 4, 0xFFFFFFFF, false);
+            g.text(font, emptyText, x + 6, top + 4, MenuStyle.DIM, MenuStyle.TEXT_SHADOW);
             return;
         }
         g.enableScissor(x + 1, top, x + w - 1, bottom);
@@ -303,7 +302,7 @@ public final class DragListWidget extends AbstractWidget implements WheelTarget 
             }
             if (dragging) {
                 int lineY = top + insertSlot * ROW_H - state.scroll;
-                g.fill(x + 1, lineY - 1, x + w - 1, lineY + 1, ACCENT_BRIGHT);
+                g.fill(x + 1, lineY - 1, x + w - 1, lineY + 1, MenuStyle.OR);
             }
         } finally {
             g.disableScissor();
@@ -318,22 +317,28 @@ public final class DragListWidget extends AbstractWidget implements WheelTarget 
 
     private void drawRow(GuiGraphicsExtractor g, Font font, int index, int x, int y, int w, boolean hovered,
                          boolean trashHovered, boolean selected, boolean lifted) {
-        int bg = lifted ? 0xEE2A1A08 : selected ? 0xFF24170A : hovered ? 0xFF262626 : (index % 2 == 0 ? 0xFF121212 : 0xFF0D0D0D);
+        int bg = lifted ? MenuStyle.alpha(MenuStyle.SEL_TOP, 0xEE) : selected ? MenuStyle.SEL_BOTTOM
+                : hovered ? MenuStyle.mix(MenuStyle.WELL, MenuStyle.TXT, 0.10f)
+                : (index % 2 == 0 ? MenuStyle.mix(MenuStyle.WELL, MenuStyle.TXT, 0.04f) : MenuStyle.WELL);
         g.fill(x, y, x + w, y + ROW_H, bg);
         if (selected || lifted) {
-            g.outline(x, y, w, ROW_H, lifted ? ACCENT_BRIGHT : ACCENT);
+            g.outline(x, y, w, ROW_H, lifted ? MenuStyle.OR : MenuStyle.ACCENT_EDGE);
         }
         // Handle: three short bars.
-        int hc = hovered || lifted ? ACCENT_BRIGHT : 0xFF777777;
+        int hc = hovered || lifted ? MenuStyle.OR : MenuStyle.DIM2;
         for (int b = 0; b < 3; b++) {
             g.fill(x + 3, y + 5 + b * 3, x + 10, y + 6 + b * 3, hc);
         }
         int textX = x + 14;
         int textW = trashLeft() - 4 - textX;
-        String text = "§7" + (index + 1) + ". §f" + model.label(index);
-        g.text(font, font.plainSubstrByWidth(text, Math.max(10, textW)), textX, y + 4, 0xFFFFFFFF, false);
+        String num = (index + 1) + ". ";
+        g.text(font, num, textX, y + 4, MenuStyle.DIM, MenuStyle.TEXT_SHADOW);
+        int nw = font.width(num);
+        String label = model.label(index);
+        g.text(font, font.plainSubstrByWidth(MenuStyle.LIGHT ? MenuStyle.lightReadable(label) : label,
+                Math.max(10, textW - nw)), textX + nw, y + 4, MenuStyle.TXT, MenuStyle.TEXT_SHADOW);
         if (!lifted) {
-            drawTrash(g, trashLeft() + 3, y + 2, trashHovered ? 0xFFFF5555 : (hovered ? 0xFFBBBBBB : 0xFF777777));
+            drawTrash(g, trashLeft() + 3, y + 2, trashHovered ? MenuStyle.RED : (hovered ? MenuStyle.TXT_SOFT : MenuStyle.DIM2));
         }
     }
 
@@ -353,11 +358,11 @@ public final class DragListWidget extends AbstractWidget implements WheelTarget 
         }
         int h = visibleRows * ROW_H;
         int trackX = getX() + getWidth() - 4;
-        g.fill(trackX, innerTop(), trackX + 3, innerBottom(), 0xFF1A1A1A);
+        g.fill(trackX, innerTop(), trackX + 3, innerBottom(), MenuStyle.shadow(0x80));
         int contentH = Math.max(1, model.size() * ROW_H);
         int thumbH = Math.max(10, h * h / contentH);
         int thumbY = innerTop() + (h - thumbH) * state.scroll / max;
-        g.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, ACCENT);
+        g.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, MenuStyle.OR);
     }
 
     /** Empty while a row is being dragged, so the mod menu's hover description does not cover the drop line. */

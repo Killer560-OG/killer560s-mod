@@ -253,5 +253,70 @@ public final class ScreenChrome {
             Style dark = style.withColor(TextColor.fromRgb(white & 0xFFFFFF));
             return sink.accept(index, dark, cp);
         });
+    // ---- screen sweep C (2026-10-13): the pieces the sim / AP3 / editor screens add ------------------------------------
+
+    /** A raised card; {@code selected} adds the accent glow and ring, a hover the dim accent ring. */
+    public static void card(GuiRects r, int x, int y, int w, int h, boolean hover, boolean selected) {
+        if (selected) {
+            MenuStyle.glow(r, x, y, w, h, MenuStyle.OR, 0x50);
+        }
+        MenuStyle.dropShadow(r, x, y, w, h, 2);
+        card(r, x, y, w, h, hover);
+        if (selected || hover) {
+            r.outline(x - 1, y - 1, w + 2, h + 2, selected ? MenuStyle.OR : MenuStyle.ACCENT_EDGE);
+        }
+    }
+
+    /** {@link #header}'s bar alone, for a screen that writes its own title (centred, two lines, or cheat red). */
+    public static void headerBar(GuiGraphicsExtractor g, int panelX, int panelY, int panelW) {
+        GuiRects r = GuiRects.begin(g);
+        MenuStyle.dropShadow(r, panelX + 4, panelY + 4, panelW - 8, HEADER_H, 2);
+        MenuStyle.bevel(r, panelX + 4, panelY + 4, panelW - 8, HEADER_H, MenuStyle.HEADER_TOP, MenuStyle.HEADER_BOTTOM);
+        r.submit();
+    }
+
+    /** A screen title: the brand gradient, or bold cheat red for a cheat-only screen. */
+    public static void title(GuiGraphicsExtractor g, String s, int x, int y, boolean cheat) {
+        if (cheat) {
+            g.text(MenuStyle.font(), net.minecraft.network.chat.Component.literal(s)
+                    .withStyle(net.minecraft.ChatFormatting.BOLD), x, y, MenuStyle.RED_TITLE, MenuStyle.TEXT_SHADOW);
+            return;
+        }
+        MenuStyle.gradientText(g, s, x, y, 1f, MenuStyle.BRAND_TOP, MenuStyle.BRAND_BOTTOM);
+    }
+
+    /** {@link #title} centred on {@code cx}. */
+    public static void titleCentred(GuiGraphicsExtractor g, String s, int cx, int y, boolean cheat) {
+        int w = cheat ? MenuStyle.font().width(net.minecraft.network.chat.Component.literal(s)
+                .withStyle(net.minecraft.ChatFormatting.BOLD)) : MenuStyle.font().width(s);
+        title(g, s, cx - w / 2, y, cheat);
+    }
+
+    /** A bold section label in the accent (or cheat red) with a separator running on to {@code x1}. */
+    public static void section(GuiGraphicsExtractor g, String label, int x, int y, int x1, boolean red) {
+        net.minecraft.network.chat.Component c = net.minecraft.network.chat.Component.literal(label)
+                .withStyle(net.minecraft.ChatFormatting.BOLD);
+        g.text(MenuStyle.font(), c, x, y, red ? MenuStyle.RED_TITLE : MenuStyle.OR, MenuStyle.TEXT_SHADOW);
+        int tw = MenuStyle.font().width(c);
+        if (x + tw + 6 < x1) {
+            GuiRects r = GuiRects.begin(g);
+            MenuStyle.separator(r, x + tw + 6, x1, y + 4);
+            r.submit();
+        }
+    }
+
+    /** A hover description box in the menu's tooltip look; {@code lines} already wrapped, {@code w}/{@code h} their size. */
+    public static void tooltip(GuiGraphicsExtractor g, java.util.List<FormattedCharSequence> lines, int x, int y, int w,
+                               int h) {
+        GuiRects r = GuiRects.begin(g);
+        MenuStyle.dropShadow(r, x - 4, y - 4, w + 8, h + 8, 3);
+        MenuStyle.bevel(r, x - 4, y - 4, w + 8, h + 8, MenuStyle.TOOLTIP_TOP, MenuStyle.TOOLTIP_BOTTOM);
+        r.outline(x - 5, y - 5, w + 10, h + 10, MenuStyle.ACCENT_EDGE);
+        r.submit();
+        int ly = y;
+        for (FormattedCharSequence line : lines) {
+            text(g, line, x, ly, MenuStyle.TXT);
+            ly += 10;
+        }
     }
 }

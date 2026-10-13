@@ -1,8 +1,11 @@
 package com.killer560.hub.roomsim;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.profit.ProfitPanels;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -29,16 +32,31 @@ import java.util.Map;
  *
  * <p>Drawn in the mod's own style, not the mockup's (killer560, 2026-10-07: "make sure that the filter section for
  * creating the map is in our mods style and not a direct copy"): the panel, header bar, title and "N of M rooms" are
- * Design a Map's ({@link SimMapEditorScreen}), with {@link ProfitPanels}' colours; a chip is a
- * {@link SettingsButtonWidget} box, and a chosen one has the amber border and a §6 label, the way the mod marks the
- * chosen value everywhere else; Clear all and Done are plain {@link SettingsButtonWidget}s.
+ * Design a Map's ({@link SimMapEditorScreen}), in the menu theme ({@link ScreenChrome}, screen sweep 2026-10-13); a chip
+ * is the menu's value pill, lit in the accent when chosen; Clear all and Done are the menu's raised buttons.
  *
  * <p>The chips flow: they wrap onto as many lines as the width needs, and on a narrow window the labels go on a line
  * of their own above their chips. When that is taller than the window the rows scroll (mouse wheel) between the
  * header and the footer, so nothing is ever drawn over anything else - testkit 75 and 97-sim-roomcycle check every
  * chip's box against every other at several window sizes.
  */
-public class SimRoomFilterScreen extends Screen {
+public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
+
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
+    public static final String THEME_ID = "sim";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
+    }
 
     static final int CHIP_H = 16;
     private static final int CHIP_GAP = 4;
@@ -288,33 +306,33 @@ public class SimRoomFilterScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        // Design a Map's frame (SimMapEditorScreen.extractRenderState): shade, panel, border, black header bar with an
-        // amber rule under it, the title in capitals in the accent colour, and the room count right-aligned in the bar.
-        g.fill(0, 0, this.width, this.height, 0xCC000000);
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, ProfitPanels.PANEL_BG);
-        g.outline(panelX, panelY, panelW, panelH, ProfitPanels.BORDER);
-        g.fill(panelX, panelY, panelX + panelW, panelY + BAR, 0xFF000000);
-        g.fill(panelX, panelY + BAR - 1, panelX + panelW, panelY + BAR, ProfitPanels.ACCENT);
-        g.text(this.font, "FILTERS", panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
+        // Design a Map's frame (SimMapEditorScreen.extractRenderState): the menu theme's panel and header bar, the title,
+        // and the room count right-aligned in the bar.
+        ScreenChrome.backdrop(g, this.width, this.height);
+        themedBounds = new int[]{panelX, panelY, panelW, panelH};
+        ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
+        ScreenChrome.headerBar(g, panelX, panelY, panelW);
+        ScreenChrome.title(g, "FILTERS", panelX + 10, panelY + 11, false);
         String count = shown + " of " + total + " rooms" + (filter.isDefault() ? "" : " (filtered)");
         int maxW = panelW - 20 - this.font.width("FILTERS") - 10;
         String shownCount = this.font.width(count) <= maxW ? count : shown + "/" + total;
-        g.text(this.font, shownCount, panelX + panelW - 10 - this.font.width(shownCount), panelY + 11,
-                filter.isDefault() ? ProfitPanels.DIM : ProfitPanels.ACCENT, false);
+        MenuStyle.text(g, shownCount, panelX + panelW - 10 - this.font.width(shownCount), panelY + 11,
+                filter.isDefault() ? MenuStyle.DIM : MenuStyle.OR);
 
         // The footer's rule, then the note beside Clear all and Done.
-        g.fill(panelX + 1, contentBottom + 1, panelX + panelW - 1, contentBottom + 2, ProfitPanels.BORDER);
+        GuiRects rule = GuiRects.begin(g);
+        MenuStyle.separator(rule, panelX + 3, panelX + panelW - 3, contentBottom + 1);
+        rule.submit();
         int noteW = panelW - PAD * 2 - footerButtonW() * 2 - 6 - 8;
         String foot = RoomDatabase.isReady() ? note : "room database loading...";
-        g.text(this.font, fitNote(foot, Math.max(0, noteW)), panelX + PAD,
-                panelY + panelH - BUTTON_H / 2 - 6 - 4, ProfitPanels.DIM, false);
+        ScreenChrome.text(g, fitNote(foot, Math.max(0, noteW)), panelX + PAD, panelY + panelH - BUTTON_H / 2 - 6 - 4, MenuStyle.DIM);
 
         g.enableScissor(panelX + 1, contentTop, panelX + panelW - 1, contentBottom);
         for (Object[] l : labels) {
             int ly = (Integer) l[2] - scroll;
             // Same rule as the chips (applyScroll): a label shows only when it fits whole in the band.
             if (ly >= contentTop && ly + 9 <= contentBottom) {
-                g.text(this.font, (String) l[0], (Integer) l[1], ly, ProfitPanels.DIM, false);
+                MenuStyle.text(g, (String) l[0], (Integer) l[1], ly, MenuStyle.TXT_SOFT);
             }
         }
         g.disableScissor();
@@ -324,8 +342,9 @@ public class SimRoomFilterScreen extends Screen {
             int bar = Math.max(12, band * band / contentHeight);
             int by = contentTop + (band - bar) * scroll / maxScroll();
             int sx = panelX + panelW - PAD + 4;
-            g.fill(sx, contentTop, sx + 3, contentBottom, 0xFF1A1A1A);
-            g.fill(sx, by, sx + 3, by + bar, ProfitPanels.ACCENT);
+            GuiRects sb = GuiRects.begin(g);
+            MenuStyle.scrollbar(sb, sx, contentTop, contentBottom - contentTop, scroll, maxScroll(), band);
+            sb.submit();
         }
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
@@ -366,12 +385,18 @@ public class SimRoomFilterScreen extends Screen {
 
         @Override
         protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-            SettingsButtonWidget.drawBox(g, getX(), getY(), getWidth(), getHeight(), isHovered && active, selected);
+            // The menu's value pill: recessed when not chosen, lit in the accent when chosen (screen sweep, 2026-10-13).
+            boolean hover = isHovered && active;
+            GuiRects r = GuiRects.begin(g);
+            MenuStyle.pill(r, getX(), getY(), getWidth(), getHeight(), selected && active, hover);
+            r.submit();
             var font = Minecraft.getInstance().font;
             String shown = font.width(label) <= getWidth() - 8 ? label : font.plainSubstrByWidth(label, getWidth() - 8);
-            String code = !active ? "§8" : selected ? "§6" : "";
-            g.centeredText(font, Component.literal(code + shown), getX() + getWidth() / 2,
-                    getY() + (getHeight() - 8) / 2, 0xFFFFFFFF);
+            int colour = !active ? MenuStyle.DIM2 : selected
+                    ? (MenuStyle.luminance(MenuStyle.OR) > 0.55f ? 0xFF1A120A : 0xFFFFFFFF)
+                    : (hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
+            g.text(font, shown, getX() + (getWidth() - font.width(shown)) / 2, getY() + (getHeight() - 8) / 2, colour,
+                    MenuStyle.TEXT_SHADOW && !(selected && active));
         }
 
         @Override

@@ -174,4 +174,17 @@ public final class ScreenThemes {
     private static Component text(String label, String screenId) {
         return Component.literal(label + ": " + label(get(screenId)));
     }
+
+    /**
+     * Adds a screen's Theme button one row under everything already in {@code widgets}, so no existing row moves (screen
+     * sweep C's tabs). {@code width} is capped at 220.
+     */
+    public static void append(List<net.minecraft.client.gui.components.AbstractWidget> widgets, String screenId, int x,
+                              int width, int fallbackY) {
+        int y = fallbackY;
+        for (net.minecraft.client.gui.components.AbstractWidget w : widgets) {
+            y = Math.max(y, w.getY() + w.getHeight() + 6);
+        }
+        widgets.add(button(screenId, x, y, Math.min(220, width), 20));
+    }
 }
