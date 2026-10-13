@@ -1985,6 +1985,23 @@ public class ModScreen extends Screen {
     private record HomeButton(String label, Runnable action) {
     }
 
+    private static final String HOME_PROFILES = "Profiles";
+
+    /** Screen box {x, y, w, h} of Home's quick button {@code label} on the current page, or null. For the testkit. */
+    public int[] homeButtonBounds(String label) {
+        for (Item it : items) {
+            if (it.kind == ItemKind.BLOCK && it.block instanceof HeroBlock hero) {
+                List<HomeButton> buttons = hero.buttons();
+                for (int i = 0; i < buttons.size(); i++) {
+                    if (buttons.get(i).label().equals(label)) {
+                        return hero.buttonBox(i, it.x, it.y - gridScroll, it.w);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     /** Home's top box: the build, the update channel and its last result, and the quick buttons. */
     private final class HeroBlock implements Block {
 
@@ -1998,13 +2015,15 @@ public class ModScreen extends Screen {
                 Minecraft client = Minecraft.getInstance();
                 McCompat.setScreen(client, com.killer560.hub.hud.HudEditorScreen.forBars(McCompat.screen(client)));
             }));
-            b.add(new HomeButton("Profiles", () -> {
-                int i = indexOf(com.killer560.hub.gui.tab.ProfilesTab.class);
-                if (i >= 0) {
-                    selectCategory(i);
-                    openFeature = null;
-                    scrollOffset = 0;
-                    rebuild();
+            // Wherever the Profiles tab lives: its own page normally, a drawer in a testing build's Untested category
+            // (where indexOf found no top-level Profiles and this button did nothing, 2026-10-13).
+            b.add(new HomeButton(HOME_PROFILES, () -> {
+                for (BaseTab leaf : allLeaves()) {
+                    if (leaf instanceof com.killer560.hub.gui.tab.ProfilesTab) {
+                        scrollOffset = 0;
+                        openFeature(leaf);
+                        return;
+                    }
                 }
             }));
             b.add(new HomeButton("Check Updates", () -> com.killer560.hub.gui.tab.AutoUpdateTab.checkNow(() -> { })));
