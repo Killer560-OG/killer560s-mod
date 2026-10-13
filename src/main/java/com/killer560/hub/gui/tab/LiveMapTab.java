@@ -84,6 +84,9 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
             // killer560, 2026-10-07: player heads instead of arrows, on this map and the Interactive Map alike.
             widgets.add(toggle("Player Heads", cfg::isPlayerHeads, cfg::setPlayerHeads, cfg, colB, y, colW));
             y += 20;
+            // killer560, 2026-10-13: every teammate's name on the map while he holds a leap, or none.
+            widgets.add(toggle("Names Holding Leap", cfg::isLeapNames, cfg::setLeapNames, cfg, contentX, y, colW));
+            y += 20;
             widgets.add(keyButton("Peek Key", KeyTarget.PEEK, cfg.getPeekKeyCode(), contentX, y, colW));
             widgets.add(slider("Peek Scale", cfg::getPeekScale, v -> cfg.setPeekScale((float) v), 1.25, 4, "x", cfg, colB, y, colW));
             y += 24;

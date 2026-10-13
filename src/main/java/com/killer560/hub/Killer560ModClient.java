@@ -796,23 +796,4 @@ public class Killer560ModClient implements ClientModInitializer {
         }
         editKeyWasDown = down;
     }
-
-    /** Same raw-keyboard-poll pattern as {@link #checkHudEditKeybind} - per killer560's explicit
-     *  requirement that the Experiments emergency-cancel key "work even on the prevent keypress
-     *  option," it's checked directly against hardware key state every tick rather than through any
-     *  container screen's own key-event handling, which is exactly what that setting blocks. */
-    private static boolean experimentsCancelKeyWasDown = false;
-
-    private static void checkExperimentsCancelKeybind(Minecraft client) {
-        int code = ExperimentsConfig.getInstance().getEmergencyCancelKeyCode();
-        if (code < 0) {
-            experimentsCancelKeyWasDown = false;
-            return;
-        }
-        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
-        if (down && !experimentsCancelKeyWasDown) {
-            ExperimentsFeature.emergencyCancel();
-        }
-        experimentsCancelKeyWasDown = down;
-    }
 }

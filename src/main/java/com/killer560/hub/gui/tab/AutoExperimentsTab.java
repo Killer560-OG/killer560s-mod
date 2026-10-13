@@ -3,7 +3,6 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.experiments.ExperimentsConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
@@ -24,11 +23,10 @@ import java.util.function.IntSupplier;
  *  is the old "Mode: Solver Only / Autonomous" button, which is now a plain on/off for the automation
  *  alone - the solver is its own toggle over in {@link ExperimentsTab} and no longer switches off when this
  *  one switches on. */
-public class AutoExperimentsTab extends BaseTab implements KeyCaptureTab {
+public class AutoExperimentsTab extends BaseTab {
 
     private static final int GAP = 6;
 
-    private boolean listening = false;
 
     public AutoExperimentsTab() {
         super("Auto Experimentation Table");
@@ -122,14 +120,8 @@ public class AutoExperimentsTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX + half + GAP, y, half, 20).build());
         y += 24;
 
-        // Per killer560's request: the "Cancel Now" manual-trigger button removed entirely - the real
-        // emergency-cancel mechanism is the keybind below, which works while actually playing without
-        // needing this settings menu open at all. Stop At paired with it here.
-        Component cancelKeyLabel = listening ? Component.literal("Press any key...") : emergencyCancelKeyText();
-        widgets.add(SettingsButtonWidget.builder(cancelKeyLabel, btn -> {
-                    listening = true;
-                    btn.setMessage(Component.literal("Press any key..."));
-                }).bounds(contentX, y, half, 20).build());
+        // The Emergency Cancel Key went on 2026-10-13 (killer560): any key, click or scroll of his stops a run now,
+        // and chat names which (ExperimentsFeature.stopOnPlayerInput). Stop At has the row to itself.
         widgets.add(SettingsButtonWidget.builder(stopStrategyText(), btn -> {
                     ExperimentsConfig c = ExperimentsConfig.getInstance();
                     c.setStopStrategy(c.getStopStrategy().next());
@@ -140,7 +132,7 @@ public class AutoExperimentsTab extends BaseTab implements KeyCaptureTab {
                     c.setStopStrategy(c.getStopStrategy().previous());
                     c.save();
                     btn.setMessage(stopStrategyText());
-                }).bounds(contentX + half + GAP, y, half, 20).build());
+                }).bounds(contentX, y, contentWidth, 20).build());
         y += 28;
 
         // 2026-10-04, killer560: "make the timeouts bars and remove the boxes I can type in. Have the bars be
@@ -350,30 +342,5 @@ public class AutoExperimentsTab extends BaseTab implements KeyCaptureTab {
         return Component.literal(price <= 0
                 ? "Max Titanic Price: §7Disabled"
                 : String.format("Max Titanic Price: §b%,.0f coins", price));
-    }
-
-    private static Component emergencyCancelKeyText() {
-        int code = ExperimentsConfig.getInstance().getEmergencyCancelKeyCode();
-        String name = code < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
-        return Component.literal("Emergency Cancel Key: §b" + name);
-    }
-
-    @Override
-    public boolean isListeningForKey() {
-        return listening;
-    }
-
-    @Override
-    public void onKeyCaptured(int keyCode) {
-        listening = false;
-        ExperimentsConfig cfg = ExperimentsConfig.getInstance();
-        // Per killer560's explicit request (2026-09-06): pressing Escape while capturing this keybind
-        // unbinds it entirely (same "Escape cancels/clears" convention vanilla Minecraft's own keybind
-        // settings use), rather than literally binding the emergency-cancel key to Escape itself -
-        // verified via javap that InputConstants.KEY_ESCAPE is the real constant matching the raw GLFW
-        // key code keyPressed hands to onKeyCaptured.
-        cfg.setEmergencyCancelKeyCode(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
-        cfg.save();
     }
 }

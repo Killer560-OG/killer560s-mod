@@ -1,15 +1,12 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.BuildVariant;
-import com.killer560.hub.fastleap.FastLeapConfig.LeapGroup;
 import com.killer560.hub.fastleap.FastLeapSection;
 import com.killer560.hub.gui.SectionHeaders;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,20 +19,8 @@ import java.util.Locale;
  * Custom Leap Menu, Leap Order and Leap Message. The i4 leap stays in the Sharp Shooter (i4) tab, where it
  * sits next to the rest of the i4 device settings it depends on.
  * <p>
- * Two views, same tab (2026-09-15, killer560: "I dont like the current leaps style. Make it so on the left
- * half it is the title of leaps, on the right half is an edit button. If you press the edit button then it
- * opens all the settings for that specific auto/fastleap"):
- * <ul>
- *     <li>the LIST - the "Fast Leap" general section, then one row per leap (name + ON/OFF on the left half,
- *     an "Edit" button on the right half);</li>
- *     <li>the EDITOR - "&lt; Back", then that one leap's own red header and every setting it has.</li>
- * </ul>
- * Which one is showing is plain tab state ({@link #editingLeap}) plus {@code requestRebuild}, deliberately NOT
- * a separate {@code Screen}: the mod menu's search box, scrolling and tab chrome all belong to {@code ModScreen}
- * and keep working as normal this way. {@code ModScreen} builds its tab list once and reuses it across every
- * open/close (so the selected tab, scroll position and search text survive reopening), which means this field
- * survives too - on purpose, it's the same "reopen where I left off" behaviour; it is only force-reset when the
- * state would be nonsense (cheat features off, or the Fast Leap master switch turned off).
+ * Every leap's settings sit in the list itself since 2026-10-13 (killer560: "remove the edit buttons and instead have
+ * a toggle then a button to select what class/name it should leap to") - see {@link FastLeapSection#buildLeapList}.
  * <p>
  * Cheat-only, so the tab title and every section header are red ({@link SectionHeaders}).
  * <p>
@@ -51,12 +36,6 @@ public class FastLeapTab extends BaseTab {
 
     private static final int HEADER_H = 14;
     private static final int SECTION_GAP = 10;
-    private static final int ROW = FastLeapSection.ROW;
-    private static final int GAP = FastLeapSection.GAP;
-    private static final int BACK_W = 76;
-
-    /** null = showing the leap list; otherwise the leap whose settings page is open. */
-    private LeapGroup editingLeap = null;
 
     public FastLeapTab() {
         super("Fast/Auto Leap");
@@ -71,13 +50,6 @@ public class FastLeapTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
             return new ArrayList<>();
-        }
-        if (editingLeap != null && !FastLeapSection.isEnabledSetting()) {
-            // master switch went off (here or from anywhere else) - a single leap's page would be dead controls
-            editingLeap = null;
-        }
-        if (editingLeap != null) {
-            return buildEditor(editingLeap, contentX, contentY, contentWidth, requestRebuild);
         }
         return buildList(contentX, contentY, contentWidth, requestRebuild);
     }
@@ -98,40 +70,14 @@ public class FastLeapTab extends BaseTab {
 
         widgets.add(header(contentX, y, contentWidth, "Leaps"));
         y += HEADER_H;
-        FastLeapSection.buildLeapList(widgets, contentX, y, contentWidth, group -> {
-            editingLeap = group;
-            requestRebuild.run();
-        });
-        return widgets;
-    }
-
-    // ---------------------------------------------------------------- one leap's settings page
-
-    private List<AbstractWidget> buildEditor(LeapGroup group, int contentX, int contentY, int contentWidth,
-                                             Runnable requestRebuild) {
-        List<AbstractWidget> widgets = new ArrayList<>();
-        int y = contentY;
-
-        widgets.add(SettingsButtonWidget.builder(Component.literal("< Back"), btn -> {
-            editingLeap = null;
-            requestRebuild.run();
-        }).bounds(contentX, y, Math.min(BACK_W, Math.max(1, contentWidth)), ROW).build());
-        y += ROW + GAP + 2;
-
-        widgets.add(header(contentX, y, contentWidth, group.label + " Leap"));
-        y += HEADER_H;
-        FastLeapSection.buildLeapEditor(widgets, contentX, y, contentWidth, group);
+        FastLeapSection.buildLeapList(widgets, contentX, y, contentWidth, requestRebuild);
         return widgets;
     }
 
     // ---------------------------------------------------------------- search
 
-    /** Search has to see EVERY leap's settings, not just whichever view happens to be open - otherwise
-     *  typing "keywords" or "gate blown" would only find them while that one leap's page was already open
-     *  (and the list page would hide the rest). So this scans the list view plus every leap's editor body,
-     *  instead of the default {@link BaseTab#widgetsMatchSearch}, which only ever sees the current view.
-     *  Same speculative build-and-throw-away as the default: only ever run from the search field's
-     *  responder, never per frame. */
+    /** Search sees the settings the master switch or Block Inputs hide, by building them off screen. Only ever run
+     *  from the search field's responder, never per frame. */
     @Override
     public boolean matchesSearch(String query) {
         if (query.isBlank() || nameMatches(query)) {
@@ -144,10 +90,7 @@ public class FastLeapTab extends BaseTab {
         scan.add(header(0, 0, 200, "Fast Leap"));
         FastLeapSection.buildGeneral(scan, 0, 0, 200, () -> {}, true);
         scan.add(header(0, 0, 200, "Leaps"));
-        FastLeapSection.buildLeapList(scan, 0, 0, 200, group -> {});
-        for (LeapGroup group : LeapGroup.values()) {
-            FastLeapSection.buildLeapEditor(scan, 0, 0, 200, group, true);
-        }
+        FastLeapSection.buildLeapList(scan, 0, 0, 400, () -> {});
         String q = query.toLowerCase(Locale.US);
         for (AbstractWidget widget : scan) {
             String text = ChatFormatting.stripFormatting(widget.getMessage().getString());

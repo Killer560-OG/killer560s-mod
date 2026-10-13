@@ -2795,15 +2795,15 @@ public final class Ap3Executor {
                 String name = cfg.getTargetName(target);
                 DungeonClass clazz = cfg.getTargetClass(target);
                 switch (cfg.getTargetMode()) {
-                    case NAME -> {
-                        if (name.isBlank()) {
-                            leapFailed(node, "Fast Leap " + target.label + " has no name set");
-                            return false;
+                    case PER_LEAP -> {
+                        if (!cfg.isTargetByClass(target)) {
+                            if (name.isBlank()) {
+                                leapFailed(node, "Fast Leap " + target.label + " has no name set");
+                                return false;
+                            }
+                            LeapManager.leap(name, block, fast, swap);
+                            return true;
                         }
-                        LeapManager.leap(name, block, fast, swap);
-                        return true;
-                    }
-                    case CLASS -> {
                         if (clazz == null) {
                             leapFailed(node, "Fast Leap " + target.label + " has no class set");
                             return false;

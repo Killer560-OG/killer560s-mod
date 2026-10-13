@@ -183,6 +183,8 @@ public final class ExperimentsFeature {
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ExperimentsFeature", client -> tick()));
+        net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register(
+                (client, screen, w, h) -> onScreenOpened(screen));
         // Superpairs' Adaptive Timeout extends its confirm wait by however long the server stalls.
         ServerLagSensor.register();
         // Profit tracker (2026-09-15 roadmap) - its own tick/chat hooks, gated only on its own toggle
@@ -383,6 +385,13 @@ public final class ExperimentsFeature {
      *  the Start ETable button, otherwise leaves the click alone. Hit-test uses the same resolved
      *  HUD position/scale the render call uses, mirroring how {@code RngMeterOverlay.handleScroll}
      *  hit-tests its own draggable overlay. */
+    /** The Start ETable button's box {x, y, w, h} in the screen coordinates {@link #tryClickStartButton} tests (testkit). */
+    public static int[] startButtonBounds() {
+        int[] pos = resolveStartButtonPosition();
+        float scale = resolveStartButtonScale();
+        return new int[]{pos[0], pos[1], Math.round(START_BUTTON_WIDTH * scale), Math.round(START_BUTTON_HEIGHT * scale)};
+    }
+
     public static boolean tryClickStartButton(double mouseX, double mouseY) {
         if (!shouldShowStartButton()) {
             return false;
@@ -1352,43 +1361,69 @@ public final class ExperimentsFeature {
     }
 
     /**
-     * Per killer560's explicit request: an emergency stop, bound to its own keybind (polled raw against
-     * the keyboard every tick from {@link com.killer560.hub.Killer560ModClient}, the same mechanism
-     * the HUD editor's own keybind already uses - NOT routed through any container screen's key-event
-     * handling, so it fires "even on the prevent keypress option," which only ever blocks input a
-     * screen's own listeners would otherwise see). Immediately un-arms the run, resets both the
-     * navigator and the Guardian-pet swapper back to their idle state (so "Start ETable" reappears
-     * and a fresh run can begin cleanly), drops any actions still queued, and cancels a pending table
-     * reopen - a real bug killer560 found and reported: once armed, there was previously no way at all
-     * to interrupt or reset a run in progress short of leaving and rejoining the world.
+     * Any input of his stops a run (killer560, 2026-10-13: it replaced the Emergency Cancel Key): every key, mouse
+     * button and scroll, but not moving the mouse. Called raw from {@code ExperimentsStopKeyMixin} /
+     * {@code ExperimentsStopMouseMixin} at the head of Minecraft's own key and mouse handlers, so it is ahead of every
+     * screen and Block Input cannot hide it; and from {@link #onScreenOpened} for a screen the run did not open.
      * <p>
-     * Deliberately instant - never routed through {@link #scheduleAction}'s jitter, since a random
-     * delay on an EMERGENCY stop would defeat the entire point of it.
+     * The input that STARTED the run is never counted: the Start ETable click reaches the handler head before
+     * {@link #tryClickStartButton} arms the run, and only presses count, so its release is ignored too. Keys typed
+     * into a screen that is not a container (chat, this mod's menu) are ignored, per the CLAUDE.md "any key stops it"
+     * lesson - opening that screen is what stops the run. The run's own clicks and its Escape go straight to the game
+     * and never pass here.
      * <p>
-     * Per killer560's explicit correction: never closes anything at all, regardless of what's open -
-     * "just stop the script from doing any more actions." Whatever screen is currently open (the
-     * table, Pets, this mod's own menu, anything) is left exactly as-is; this only stops the
-     * automation state from producing any further clicks/commands/closes of its own.
+     * Never closes anything ("just stop the script from doing any more actions"), and names what stopped it in chat.
+     * @return true when it stopped a run, so the caller swallows that press (nothing lands on the puzzle).
      */
-    public static void emergencyCancel() {
-        // Per killer560's request (2026-09-07): only announce a cancel if a run was actually armed/running
-        // at the moment the keybind fired - pressing it while doing something else entirely (autonomous
-        // mode off, or on but no run started yet) has nothing to actually cancel, so it shouldn't pop up
-        // a "cancelled" message implying it interrupted something.
-        boolean wasArmed = armed;
-        resetRunState();
-        if (wasArmed) {
-            // Per killer560's request (2026-09-09) - same "chat message, not a popup" treatment the
-            // natural-finish notification already got (see the DONE_SIGNAL branch in tickUnsafe()).
-            var player = Minecraft.getInstance().player;
-            if (player != null) {
-                player.sendSystemMessage(ModChat.line("Killer560's Mod",
-                        ModChat.text("Experiment Table automation "), ModChat.bad("cancelled")));
-            }
+    public static boolean stopOnPlayerInput(String what) {
+        if (!armed) {
+            return false;
+        }
+        Screen screen = McCompat.screen(Minecraft.getInstance());
+        if (screen != null && !(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)) {
+            return false;
+        }
+        stopRun(what);
+        return true;
+    }
+
+    /** A screen that is not a container opened during a run: he opened it (chat, inventory, a menu), so the run stops. */
+    private static void onScreenOpened(Screen screen) {
+        if (armed && !(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)) {
+            String title = screen.getTitle().getString();
+            stopRun(title.isBlank() ? screen.getClass().getSimpleName() + " opening" : "opening " + title);
         }
     }
 
-    /** Shared by {@link #emergencyCancel()} and the natural DONE_SIGNAL stop (see the navigator branch
+    private static void stopRun(String what) {
+        resetRunState();
+        lastStopReason = what;
+        LOGGER.info("[Experiments] Auto E-Table stopped by {}", what);
+        ModChat.send("Auto E-Table", ModChat.text("Stopped by "), ModChat.value(what));
+    }
+
+    /** What stopped the last run ("the W key", "left click", "scroll wheel", "opening Chat"; testkit). */
+    private static volatile String lastStopReason = "";
+
+    public static String lastStopReason() {
+        return lastStopReason;
+    }
+
+    /** Whether a run is armed (Start ETable pressed, not stopped or finished; testkit). */
+    public static boolean isArmed() {
+        return armed;
+    }
+
+    public static String mouseButtonName(int button) {
+        return switch (button) {
+            case 0 -> "left click";
+            case 1 -> "right click";
+            case 2 -> "middle click";
+            default -> "mouse button " + (button + 1);
+        };
+    }
+
+    /** Shared by {@link #stopOnPlayerInput} and the natural DONE_SIGNAL stop (see the navigator branch
      *  in {@link #tickUnsafe()}) - un-arms the run and resets everything back to idle, without touching
      *  whatever screen is currently open. Extracted (2026-09-06) once a second caller needed the exact
      *  same reset, per killer560's "it should stop on this screen" - a natural stop should leave the

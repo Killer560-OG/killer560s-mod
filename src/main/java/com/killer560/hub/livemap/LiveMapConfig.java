@@ -33,6 +33,9 @@ public final class LiveMapConfig {
     // ---- HUD dungeon map ----
     private boolean enabled = false;
     private boolean showTeammates = true;
+    /** Teammates' names by their markers on this map while he holds a Spirit Leap or Infinileap (killer560, 2026-10-13:
+     *  "if i am holding my spirit leap i can choose if someones name on my map shows up or doesnt via a toggle"). */
+    private boolean leapNames = false;
     private boolean classRecolorTeammates = true;
     /** killer560s-mod-relay task (2026-09-21): dim/mark a room or door PartyRoomIntel reported but this
      *  client has not scanned itself. Default ON, unlike most new settings - it only ever adds what a
@@ -175,6 +178,7 @@ public final class LiveMapConfig {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.showTeammates = ConfigJson.getBool(obj, "showTeammates", true);
+                cfg.leapNames = ConfigJson.getBool(obj, "leapNames", false);
                 cfg.classRecolorTeammates = ConfigJson.getBool(obj, "classRecolorTeammates", true);
                 cfg.markReportedRooms = ConfigJson.getBool(obj, "markReportedRooms", true);
                 cfg.playerHeads = ConfigJson.getBool(obj, "playerHeadMarkers", false);
@@ -265,6 +269,7 @@ public final class LiveMapConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("showTeammates", showTeammates);
+            obj.addProperty("leapNames", leapNames);
             obj.addProperty("classRecolorTeammates", classRecolorTeammates);
             obj.addProperty("markReportedRooms", markReportedRooms);
             obj.addProperty("playerHeadMarkers", playerHeads);
@@ -369,6 +374,14 @@ public final class LiveMapConfig {
 
     public void setShowTeammates(boolean showTeammates) {
         this.showTeammates = showTeammates;
+    }
+
+    public boolean isLeapNames() {
+        return leapNames;
+    }
+
+    public void setLeapNames(boolean v) {
+        this.leapNames = v;
     }
 
     public boolean isClassRecolorTeammates() {

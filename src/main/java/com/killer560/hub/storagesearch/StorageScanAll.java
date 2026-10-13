@@ -39,8 +39,32 @@ public final class StorageScanAll {
     }
 
     private static final int OPEN_TIMEOUT_TICKS = 30;
+    /** Base waits; every wait actually taken is {@link #vary}'d: 20-30% slower than these on average and never the
+     *  same rhythm twice (killer560, 2026-10-13: "20-30% slower between actions, with a little randomisation"). */
     private static final int SETTLE_TICKS = 12;
     private static final int CLICK_GAP_TICKS = 8;
+    /** This wait's length: a whole number of ticks drawn evenly from base x 1.1 to base x 1.4 (mean x 1.25). */
+    static int vary(int base) {
+        int lo = Math.max(1, Math.round(base * 1.1f));
+        int hi = Math.max(lo, Math.round(base * 1.4f));
+        return lo + java.util.concurrent.ThreadLocalRandom.current().nextInt(hi - lo + 1);
+    }
+
+    private static int settleTicks = SETTLE_TICKS;
+    private static int clickGapTicks = CLICK_GAP_TICKS;
+    private static int interVisitWait = 0;
+    /** The last run's actions (command, next-page click, close) as "ms action", for the testkit's interval check. */
+    private static final List<String> actionLog = new ArrayList<>();
+
+    public static List<String> actionLog() {
+        return List.copyOf(actionLog);
+    }
+
+    private static void noteAction(String what) {
+        if (actionLog.size() < 400) {
+            actionLog.add(System.nanoTime() / 1_000_000L + " " + what);
+        }
+    }
     private static final int MAX_EXTRA_PAGES = 9;
     private static final String STORAGE_COMMAND = "storage";
     private static final String STORAGE_TITLE = "Storage";
@@ -127,6 +151,8 @@ public final class StorageScanAll {
         }
         queue.clear();
         plannedPages.clear();
+        actionLog.clear();
+        interVisitWait = 0;
         skippedLocked = 0;
         skippedEmpty = 0;
         planFromMenu = false;
@@ -169,6 +195,13 @@ public final class StorageScanAll {
             return;
         }
         if (current == null) {
+            if (interVisitWait > 0) {
+                interVisitWait--;
+                if (McCompat.screen(client) != null) {
+                    stop("another screen opened");
+                }
+                return;
+            }
             if (McCompat.screen(client) != null) {
                 // Between two visits nothing of ours is open (finishVisit closes the menu at once), so this is a screen
                 // he opened - Escape's pause menu, chat, his inventory. It used to wait here until he closed it again.
@@ -180,6 +213,7 @@ public final class StorageScanAll {
             clicksDone = 0;
             opened = false;
             client.player.connection.sendCommand(current.command());
+            noteAction("command " + current.command());
             return;
         }
         ticks++;
@@ -188,6 +222,9 @@ public final class StorageScanAll {
             if (containerOpen) {
                 opened = true;
                 ticks = 0;
+                settleTicks = vary(SETTLE_TICKS);
+                clickGapTicks = vary(CLICK_GAP_TICKS);
+                noteAction("open settle=" + settleTicks + " gap=" + clickGapTicks);
             } else if (ticks > OPEN_TIMEOUT_TICKS) {
                 if (STORAGE_COMMAND.equals(current.command())) {
                     planPages(null); // the Storage menu never opened: fall back to what the overlay knows
@@ -209,17 +246,19 @@ public final class StorageScanAll {
             return;
         }
         if (clicksDone < current.nextClicks()) {
-            if (ticks >= CLICK_GAP_TICKS) {
+            if (ticks >= clickGapTicks) {
                 if (!clickNextPage(client)) {
                     finishVisit(client, false); // fewer pages than expected
                     return;
                 }
+                noteAction("click next page");
                 clicksDone++;
                 ticks = 0;
+                clickGapTicks = vary(CLICK_GAP_TICKS);
             }
             return;
         }
-        if (ticks >= SETTLE_TICKS) {
+        if (ticks >= settleTicks) {
             finishVisit(client, true);
         }
     }
@@ -233,6 +272,9 @@ public final class StorageScanAll {
         }
         boolean hasNext = captured && findNextPage(client) != null;
         client.player.closeContainer(); // the close is what records wardrobe / pets pages
+        // the next page is asked for on the next tick (as before) or the one after, at random
+        interVisitWait = java.util.concurrent.ThreadLocalRandom.current().nextInt(2);
+        noteAction("close " + done.command() + " wait=" + interVisitWait);
         if (captured) {
             visited++;
         }

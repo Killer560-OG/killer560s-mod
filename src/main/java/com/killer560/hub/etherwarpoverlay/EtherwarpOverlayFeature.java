@@ -86,7 +86,14 @@ public final class EtherwarpOverlayFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-etherwarpoverlay");
 
+    /** What the last frame did: "drawn ..." or why it drew nothing (testkit reads it; one string write a frame). */
+    private static volatile String lastOutcome = "never";
+
     private EtherwarpOverlayFeature() {
+    }
+
+    public static String lastOutcome() {
+        return lastOutcome;
     }
 
     public static void register() {
@@ -97,6 +104,7 @@ public final class EtherwarpOverlayFeature {
         EtherwarpOverlayConfig cfg = EtherwarpOverlayConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
         if (!cfg.isEnabled() || McCompat.screen(client) != null || client.player == null || client.level == null) {
+            lastOutcome = "off";
             return;
         }
 
@@ -107,11 +115,13 @@ public final class EtherwarpOverlayFeature {
             CompoundTag held = com.killer560.hub.util.ItemNbt.view(mainHand);
             String heldId = held == null || !held.contains("id") ? null : held.getStringOr("id", null);
             if (!ETHERWARP_CONDUIT_ID.equals(heldId)) {
+                lastOutcome = "not sneaking";
                 return;
             }
         }
         CompoundTag etherData = getEtherwarpData(mainHand);
         if (etherData == null) {
+            lastOutcome = "no etherwarp item";
             return;
         }
         // Read the id off the tag getEtherwarpData already copied (2026-09-20, FPS pass): the old
@@ -120,17 +130,21 @@ public final class EtherwarpOverlayFeature {
         String diagItemId = etherData.contains("id") ? etherData.getStringOr("id", null) : null;
         boolean isConduit = ETHERWARP_CONDUIT_ID.equals(diagItemId);
         if (!client.player.isShiftKeyDown() && !isConduit) {
+            lastOutcome = "not sneaking";
             return;
         }
 
         double distance = 57.0 + etherData.getIntOr("tuned_transmission", 0);
         EtherPos etherPos = getEtherPos(client.level, client.player.position(), client.player, distance);
         if (!etherPos.succeeded() && !cfg.isShowWhenFailed()) {
+            lastOutcome = "failed " + etherPos.pos();
             return;
         }
         if (etherPos.pos() == null) {
+            lastOutcome = "no target";
             return;
         }
+        lastOutcome = "drawn " + etherPos.pos().toShortString() + (etherPos.succeeded() ? " ok" : " failed");
 
         AABB box = cfg.isFullBlock() ? new AABB(etherPos.pos()) : realBoxFor(client.level, etherPos.pos());
         // Colour + style are user-picked since 2026-09-16 (killer560's testing feedback); the defaults are the

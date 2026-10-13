@@ -548,7 +548,7 @@ public final class LeapManager {
         return t.equalsIgnoreCase("Spirit Leap") || t.equalsIgnoreCase("Teleport to Player");
     }
 
-    static boolean isLeapItem(ItemStack stack) {
+    public static boolean isLeapItem(ItemStack stack) {
         String id = skyblockId(stack);
         return "SPIRIT_LEAP".equals(id) || "INFINITE_SPIRIT_LEAP".equals(id);
     }
