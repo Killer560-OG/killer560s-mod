@@ -5,6 +5,11 @@ import com.killer560.hub.profileviewer.ProfileViewerFeature;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import com.killer560.hub.profileviewer.data.LevelTables;
 import com.killer560.hub.profileviewer.data.SbProfile;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ScreenChrome;
+import com.killer560.hub.gui.ThemedEditBox;
+import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.util.ModChat;
 import com.mojang.authlib.GameProfile;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -45,18 +50,57 @@ import com.killer560.hub.compat.McCompat;
  * {@code StorageSearchScreen}). Drawn immediate-mode: each frame registers its clickable regions, and
  * {@link #mouseClicked} hit-tests the last frame's list. The only real widget is the 3D skin preview.
  */
-public class ProfileViewerScreen extends Screen {
+public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
-    static final int ACCENT = 0xFFCC6600;
-    static final int BORDER = 0xFF553311;
-    static final int PANEL_BG = 0xFF0D0D0D;
-    static final int BOX_BG = 0xFF121212;
-    static final int BAR_BG = 0xFF262626;
-    static final int TEXT = 0xFF000000 | ModChat.TEXT;
-    static final int VALUE = 0xFF000000 | ModChat.LIGHT_ORANGE;
-    static final int DIM = 0xFF000000 | ModChat.DIM;
-    static final int BAD = 0xFF000000 | ModChat.BAD;
-    static final int MAXED = 0xFFFFAA00;
+    // The page colours, taken from the menu theme (or this screen's own Theme setting) by syncTheme() at the start of
+    // every frame (2026-10-13); the values here are Amber's. Not final on purpose: every page reads them.
+    static int ACCENT = 0xFFCC6600;
+    static int BORDER = 0xFF553311;
+    static int PANEL_BG = 0xFF0D0D0D;
+    static int BOX_BG = 0xFF121212;
+    static int BAR_BG = 0xFF262626;
+    static int TEXT = 0xFF000000 | ModChat.TEXT;
+    static int VALUE = 0xFF000000 | ModChat.LIGHT_ORANGE;
+    static int DIM = 0xFF000000 | ModChat.DIM;
+    static int BAD = 0xFF000000 | ModChat.BAD;
+    static int MAXED = 0xFFFFAA00;
+    /** A "done/have it" green, readable on the theme. */
+    static int GOOD = 0xFF55FF55;
+    /** A slot's or tile's recessed square, and its edge. */
+    static int SLOT_BG = 0xFF1C1C1C;
+    static int SLOT_EDGE = 0xFF2E2E2E;
+    /** Alternate table rows. */
+    static int STRIPE = 0xFF161616;
+    /** This screen's own Theme setting (Theme Default follows the menu). */
+    public static final String THEME_ID = "profileviewer";
+
+    /** The vanilla tooltip stays dark on every theme, so tooltip lines keep the old fixed colours. */
+    private static final int TIP_ACCENT = 0xFFCC6600;
+    private static final int TIP_TEXT = 0xFF000000 | ModChat.TEXT;
+    private static final int TIP_VALUE = 0xFF000000 | ModChat.LIGHT_ORANGE;
+    private static final int TIP_DIM = 0xFF000000 | ModChat.DIM;
+    private static final int TIP_BAD = 0xFF000000 | ModChat.BAD;
+    private static final int TIP_MAXED = 0xFFFFAA00;
+    private static final int TIP_GOOD = 0xFF55FF55;
+
+    /** Derives the menu palette and points every page colour at it. */
+    static void syncTheme() {
+        MenuStyle.use();
+        ACCENT = MenuStyle.OR;
+        BORDER = MenuStyle.ACCENT_EDGE;
+        PANEL_BG = MenuStyle.PANEL_BOTTOM;
+        BOX_BG = MenuStyle.CARD_TOP;
+        BAR_BG = MenuStyle.TRACK;
+        TEXT = MenuStyle.TXT;
+        VALUE = MenuStyle.OR_LIGHT;
+        DIM = MenuStyle.DIM;
+        BAD = MenuStyle.RED;
+        MAXED = ScreenChrome.readable(0xFFFFAA00);
+        GOOD = ScreenChrome.readable(0xFF55FF55);
+        SLOT_BG = MenuStyle.WELL;
+        SLOT_EDGE = MenuStyle.BLACK;
+        STRIPE = MenuStyle.alpha(MenuStyle.TXT, 0x0A);
+    }
 
     static final String[] PAGES = {"Basic Info", "Dungeons", "Inventories", "Pets", "Collections", "Mining", "Bestiary",
             "Crimson Isle", "Museum", "Rift", "Farming", "Networth", "Misc", "Weight"};
@@ -319,9 +363,9 @@ public class ProfileViewerScreen extends Screen {
             sidebarY = panelY;
             sidebarW = Math.min(SIDEBAR_W_WANTED, margin - SIDEBAR_GAP - 2);
             sidebarH = panelH;
-            switchBox = new EditBox(this.font, sidebarX + 4, sidebarY + 16, sidebarW - 8, 14, Component.literal("Player name"));
+            switchBox = new ThemedEditBox(this.font, sidebarX + 4, sidebarY + 16, sidebarW - 8, 14, Component.literal("Player name"))
+                    .hint("Name...");
             switchBox.setMaxLength(16);
-            switchBox.setHint(Component.literal("Name..."));
             switchBox.setValue(switchBoxText);
             switchBox.setResponder(text -> {
                 switchBoxText = text;
@@ -444,8 +488,7 @@ public class ProfileViewerScreen extends Screen {
         int w = switchBox.getWidth();
         int n = Math.min(SUGGESTION_ROWS, suggestions.size());
         int first = suggestionIndex >= SUGGESTION_ROWS ? suggestionIndex - SUGGESTION_ROWS + 1 : 0;
-        g.fill(x, y, x + w, y + n * SUGGESTION_ROW_H + 2, 0xF0000000);
-        g.outline(x, y, w, n * SUGGESTION_ROW_H + 2, ACCENT);
+        popup(g, x, y, w, n * SUGGESTION_ROW_H + 2);
         for (int r = 0; r < n; r++) {
             int i = first + r;
             if (i >= suggestions.size()) {
@@ -455,9 +498,9 @@ public class ProfileViewerScreen extends Screen {
             int ry = y + 1 + r * SUGGESTION_ROW_H;
             boolean hover = inside(mx, my, x, ry, w, SUGGESTION_ROW_H);
             if (hover || i == suggestionIndex) {
-                g.fill(x + 1, ry, x + w - 1, ry + SUGGESTION_ROW_H, 0xFF2A1A0A);
+                selBand(g, x + 1, ry, w - 2, SUGGESTION_ROW_H);
             }
-            g.text(this.font, this.font.plainSubstrByWidth(name, w - 6), x + 3, ry + 2, i == suggestionIndex ? VALUE : TEXT, false);
+            tx(g, this.font.plainSubstrByWidth(name, w - 6), x + 3, ry + 2, i == suggestionIndex ? VALUE : TEXT);
             overlayHotspots.add(new Hotspot(x, ry, w, SUGGESTION_ROW_H, () -> {
                 pickSuggestion(name);
                 submitSwitch();
@@ -581,6 +624,16 @@ public class ProfileViewerScreen extends Screen {
     }
 
     @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
+    }
+
+    @Override
     public void onClose() {
         McCompat.setScreen(this.minecraft, parent);
     }
@@ -599,9 +652,9 @@ public class ProfileViewerScreen extends Screen {
         pendingTooltip = null;
         pendingItemTooltip = ItemStack.EMPTY;
 
-        g.fill(0, 0, this.width, this.height, 0xCC000000);
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, PANEL_BG);
-        g.outline(panelX, panelY, panelW, panelH, BORDER);
+        syncTheme();
+        ScreenChrome.backdrop(g, this.width, this.height);
+        ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
 
         drawHeader(g, mouseX, mouseY);
         if (sidebarVisible) {
@@ -660,12 +713,15 @@ public class ProfileViewerScreen extends Screen {
     }
 
     private void drawHeader(GuiGraphicsExtractor g, int mx, int my) {
-        g.fill(panelX, panelY, panelX + panelW, panelY + 24, 0xFF000000);
-        g.fill(panelX, panelY + 23, panelX + panelW, panelY + 24, ACCENT);
-        g.text(this.font, "Profile Viewer", panelX + 8, panelY + 8, ACCENT, false);
+        // Header bar (the menu's): the brand-gradient title, then the player's name.
+        GuiRects hr = GuiRects.begin(g);
+        MenuStyle.dropShadow(hr, panelX + 2, panelY + 2, panelW - 4, 22, 2);
+        MenuStyle.bevel(hr, panelX + 2, panelY + 2, panelW - 4, 22, MenuStyle.HEADER_TOP, MenuStyle.HEADER_BOTTOM);
+        hr.submit();
+        MenuStyle.gradientText(g, "Profile Viewer", panelX + 8, panelY + 8, 1f, MenuStyle.BRAND_TOP, MenuStyle.BRAND_BOTTOM);
         int nameX = panelX + 16 + this.font.width("Profile Viewer");
-        g.text(this.font, "·", nameX - 4, panelY + 8, DIM, false);
-        g.text(this.font, displayName == null ? "" : displayName, nameX + 4, panelY + 8, VALUE, false);
+        tx(g, "·", nameX - 4, panelY + 8, DIM);
+        tx(g, displayName == null ? "" : displayName, nameX + 4, panelY + 8, VALUE);
 
         int right = panelX + panelW - 6;
         // Refresh
@@ -697,10 +753,23 @@ public class ProfileViewerScreen extends Screen {
             final int idx = i;
             boolean sel = i == page;
             boolean hover = inside(mx, my, tx, ty, w, 18) && !dropdownOpen;
-            g.fill(tx, ty, tx + w, ty + 18, sel ? 0xFF2A1A0A : hover ? 0xFF222222 : BOX_BG);
-            g.outline(tx, ty, w, 18, sel ? ACCENT : hover ? ACCENT : BORDER);
+            GuiRects tr = GuiRects.begin(g);
+            if (sel) {
+                // The sidebar's selected look: accent glow and gradient, accent strip on the left.
+                MenuStyle.glow(tr, tx, ty, w, 18, MenuStyle.OR, 0x22);
+                MenuStyle.hGradient(tr, tx + 1, ty + 1, tx + w - 1, ty + 17, MenuStyle.SEL_TOP, MenuStyle.SEL_BOTTOM, 6);
+                tr.outline(tx, ty, w, 18, MenuStyle.ACCENT_EDGE);
+                tr.fill(tx + 1, ty + 1, tx + w - 1, ty + 2, MenuStyle.HILITE);
+                tr.fill(tx + 1, ty + 1, tx + 3, ty + 17, MenuStyle.OR);
+            } else {
+                ScreenChrome.card(tr, tx, ty, w, 18, hover);
+                if (hover) {
+                    tr.outline(tx, ty, w, 18, MenuStyle.OR2);
+                }
+            }
+            tr.submit();
             g.item(pageIcon(i), tx + 2, ty + 1);
-            g.text(this.font, this.font.plainSubstrByWidth(PAGES[i], w - 21), tx + 19, ty + 5, sel ? VALUE : TEXT, false);
+            tx(g, this.font.plainSubstrByWidth(PAGES[i], w - 21), tx + 19, ty + 5, sel ? VALUE : TEXT);
             hotspots.add(new Hotspot(tx, ty, w, 18, () -> setPage(idx)));
         }
     }
@@ -746,7 +815,9 @@ public class ProfileViewerScreen extends Screen {
         button(g, x, btnY, sidebarW - 8, 14, "Go", mx, my, false, this::submitSwitch);
         y += 19;
 
-        g.fill(sidebarX + 2, y, sidebarX + sidebarW - 2, y + 1, BORDER);
+        GuiRects sep = GuiRects.begin(g);
+        MenuStyle.separator(sep, sidebarX + 4, sidebarX + sidebarW - 4, y);
+        sep.submit();
         y += 4;
         text(g, "Recent", x, y, DIM);
         y += SIDEBAR_ROW_H;
@@ -768,17 +839,19 @@ public class ProfileViewerScreen extends Screen {
     private int sidebarRow(GuiGraphicsExtractor g, int x, int y, UUID uuid, String storedName, int mx, int my, Runnable onClick) {
         boolean hover = inside(mx, my, x - 2, y - 1, sidebarW - 4, SIDEBAR_ROW_H) && !dropdownOpen;
         if (hover) {
-            g.fill(x - 2, y - 1, x + sidebarW - 6, y - 1 + SIDEBAR_ROW_H, 0xFF2A1A0A);
+            GuiRects hr = GuiRects.begin(g);
+            ScreenChrome.row(hr, x - 2, y - 1, sidebarW - 4, SIDEBAR_ROW_H, true, false, false);
+            hr.submit();
         }
         g.item(headFor(uuid), x, y - 1);
         String name = LIVE_NAME_CACHE.getOrDefault(uuid, storedName);
-        g.text(this.font, this.font.plainSubstrByWidth(name, sidebarW - 22), x + 18, y + 3, hover ? VALUE : TEXT, false);
+        tx(g, this.font.plainSubstrByWidth(name, sidebarW - 22), x + 18, y + 3, hover ? VALUE : TEXT);
         hotspots.add(new Hotspot(x - 2, y - 1, sidebarW - 4, SIDEBAR_ROW_H, onClick));
         return y + SIDEBAR_ROW_H;
     }
 
     private void text(GuiGraphicsExtractor g, String str, int x, int y, int color) {
-        g.text(this.font, str, x, y, color, false);
+        tx(g, str, x, y, color);
     }
 
     /** A player-head icon for the sidebar, fetched (and cached process-wide) from the session service the
@@ -817,17 +890,16 @@ public class ProfileViewerScreen extends Screen {
         x = Math.max(panelX + 4, Math.min(x, panelX + panelW - 4 - w));
         int y = panelY + 21;
         int rowH = 14;
-        g.fill(x, y, x + w, y + list.size() * rowH + 4, 0xF0000000);
-        g.outline(x, y, w, list.size() * rowH + 4, ACCENT);
+        popup(g, x, y, w, list.size() * rowH + 4);
         for (int i = 0; i < list.size(); i++) {
             SbProfile p = list.get(i);
             int ry = y + 2 + i * rowH;
             boolean hover = inside(mx, my, x, ry, w, rowH);
             if (hover) {
-                g.fill(x + 1, ry, x + w - 1, ry + rowH, 0xFF2A1A0A);
+                selBand(g, x + 1, ry, w - 2, rowH);
             }
             String label = p.cuteName + gameModeTag(p) + (p.selected ? "  (selected)" : "");
-            g.text(this.font, label, x + 6, ry + 3, i == profileIndex ? VALUE : TEXT, false);
+            tx(g, label, x + 6, ry + 3, i == profileIndex ? VALUE : TEXT);
             final int idx = i;
             overlayHotspots.add(new Hotspot(x, ry, w, rowH, () -> {
                 profileIndex = idx;
@@ -851,7 +923,7 @@ public class ProfileViewerScreen extends Screen {
         y += 16;
         for (String line : lines) {
             for (var seq : this.font.split(Component.literal(line), contentW - 20)) {
-                g.centeredText(this.font, seq, contentX + contentW / 2, y, TEXT);
+                ScreenChrome.text(g, seq, contentX + contentW / 2 - this.font.width(seq) / 2, y, TEXT);
                 y += 11;
             }
         }
@@ -913,8 +985,8 @@ public class ProfileViewerScreen extends Screen {
         // Skills
         int sy = contentY + 5;
         if (p.skillXp == null) {
-            g.text(this.font, "Skills", rx + 6, sy, ACCENT, false);
-            g.text(this.font, "Skills API is disabled.", rx + 6, sy + 14, DIM, false);
+            tx(g, "Skills", rx + 6, sy, ACCENT);
+            tx(g, "Skills API is disabled.", rx + 6, sy + 14, DIM);
             sy += 30;
         } else {
             double sum = 0;
@@ -951,13 +1023,13 @@ public class ProfileViewerScreen extends Screen {
                 i++;
             }
             String avg = count == 0 ? "" : String.format(Locale.ROOT, "Skill Avg %.2f", sum / count);
-            g.text(this.font, "Skills", rx + 6, sy, ACCENT, false);
-            g.text(this.font, avg, rx + rw - 6 - this.font.width(avg), sy, VALUE, false);
+            tx(g, "Skills", rx + 6, sy, ACCENT);
+            tx(g, avg, rx + rw - 6 - this.font.width(avg), sy, VALUE);
             sy += 12 + ((skills.size() + 1) / 2) * rowH + 2;
         }
 
         // Slayers
-        g.text(this.font, "Slayers", rx + 6, sy, ACCENT, false);
+        tx(g, "Slayers", rx + 6, sy, ACCENT);
         List<LevelTables.Slayer> slayers = LevelTables.slayers();
         int colW = (rw - 24) / 3;
         long totalXp = 0;
@@ -979,12 +1051,12 @@ public class ProfileViewerScreen extends Screen {
             }
         }
         String total = "Total XP " + commas(totalXp);
-        g.text(this.font, total, rx + rw - 6 - this.font.width(total), sy, VALUE, false);
+        tx(g, total, rx + rw - 6 - this.font.width(total), sy, VALUE);
     }
 
     private int stat(GuiGraphicsExtractor g, int x, int y, String label, String value) {
-        g.text(this.font, label, x, y, DIM, false);
-        g.text(this.font, value, x + 106 - this.font.width(value), y, VALUE, false);
+        tx(g, label, x, y, DIM);
+        tx(g, value, x + 106 - this.font.width(value), y, VALUE);
         return y + 11;
     }
 
@@ -1001,12 +1073,10 @@ public class ProfileViewerScreen extends Screen {
         int tx = x + 18;
         int bw = w - 18;
         String levelText = levelSuffix == null ? String.valueOf(lvl.level()) : lvl.level() + levelSuffix;
-        g.text(this.font, this.font.plainSubstrByWidth(name, bw - this.font.width(levelText) - 4), tx, y, TEXT, false);
-        g.text(this.font, levelText, tx + bw - this.font.width(levelText), y, lvl.maxed() ? MAXED : VALUE, false);
+        tx(g, this.font.plainSubstrByWidth(name, bw - this.font.width(levelText) - 4), tx, y, TEXT);
+        tx(g, levelText, tx + bw - this.font.width(levelText), y, lvl.maxed() ? MAXED : VALUE);
         int barY = y + 11;
-        g.fill(tx, barY, tx + bw, barY + 4, BAR_BG);
-        int fill = (int) Math.round(bw * (lvl.maxed() ? 1 : lvl.progress()));
-        g.fill(tx, barY, tx + fill, barY + 4, lvl.maxed() ? MAXED : ACCENT);
+        ScreenChrome.progress(g, tx, barY, bw, 4, lvl.maxed() ? 1 : lvl.progress(), lvl.maxed() ? MAXED : ACCENT);
         if (inside(mx, my, x, y, w, 17)) {
             List<Component> tip = new ArrayList<>();
             tip.add(Component.literal(name + " " + lvl.level()).withStyle(style(VALUE)));
@@ -1059,15 +1129,15 @@ public class ProfileViewerScreen extends Screen {
         box(g, contentX, contentY, leftW, contentH);
         int x = contentX + 6;
         int y = contentY + 5;
-        g.text(this.font, "Catacombs", x, y, ACCENT, false);
+        tx(g, "Catacombs", x, y, ACCENT);
         y += 12;
         LevelTables.Level cata = LevelTables.catacombsLevel(d.catacombsXp(), true);
         bar(g, x, y, leftW - 12, new ItemStack(Items.WITHER_SKELETON_SKULL), "Catacombs", cata, mx, my, d.catacombsXp());
         y += 24;
 
         String selected = d.selectedClass().isEmpty() ? "None" : SbProfile.titleCase(d.selectedClass());
-        g.text(this.font, "Classes", x, y, ACCENT, false);
-        g.text(this.font, selected, x + leftW - 12 - this.font.width(selected), y, VALUE, false);
+        tx(g, "Classes", x, y, ACCENT);
+        tx(g, selected, x + leftW - 12 - this.font.width(selected), y, VALUE);
         y += 12;
         double classSum = 0;
         for (Map.Entry<String, Long> e : d.classXp().entrySet()) {
@@ -1075,7 +1145,7 @@ public class ProfileViewerScreen extends Screen {
             classSum += Math.min(50, lvl.level());
             String name = SbProfile.titleCase(e.getKey());
             if (e.getKey().equals(d.selectedClass())) {
-                g.fill(x - 2, y - 1, x + leftW - 10, y + 17, 0xFF2A1A0A);
+                selBand(g, x - 2, y - 1, leftW - 8, 18);
             }
             bar(g, x, y, leftW - 12, classIcon(e.getKey()), name, lvl, mx, my, e.getValue());
             y += 20;
@@ -1095,7 +1165,7 @@ public class ProfileViewerScreen extends Screen {
         int ty = contentY + 5;
         String[] headers = {"Floor", "Runs", "Score", "S+", "S"};
         for (int i = 0; i < headers.length; i++) {
-            g.text(this.font, headers[i], cols[i], ty, ACCENT, false);
+            tx(g, headers[i], cols[i], ty, ACCENT);
         }
         ty += 12;
         int rowH = Math.max(10, Math.min(12, (contentH - 22) / 16));
@@ -1110,19 +1180,19 @@ public class ProfileViewerScreen extends Screen {
 
     private int floorRow(GuiGraphicsExtractor g, int[] cols, int y, int rowH, String label, SbProfile.Floor f, boolean shade) {
         if (shade) {
-            g.fill(cols[0] - 3, y - 1, cols[0] - 3 + (contentX + contentW - cols[0] - 3), y + rowH - 1, 0xFF161616);
+            g.fill(cols[0] - 3, y - 1, cols[0] - 3 + (contentX + contentW - cols[0] - 3), y + rowH - 1, STRIPE);
         }
-        g.text(this.font, label, cols[0], y, f == null ? DIM : TEXT, false);
-        g.text(this.font, f == null ? "-" : commas(f.completions()), cols[1], y, f == null ? DIM : VALUE, false);
-        g.text(this.font, f == null || f.bestScore() <= 0 ? "-" : String.valueOf(f.bestScore()), cols[2], y, f == null ? DIM : TEXT, false);
-        g.text(this.font, f == null ? "-" : time(f.fastestSPlus()), cols[3], y, f == null || f.fastestSPlus() <= 0 ? DIM : MAXED, false);
-        g.text(this.font, f == null ? "-" : time(f.fastestS()), cols[4], y, f == null || f.fastestS() <= 0 ? DIM : VALUE, false);
+        tx(g, label, cols[0], y, f == null ? DIM : TEXT);
+        tx(g, f == null ? "-" : commas(f.completions()), cols[1], y, f == null ? DIM : VALUE);
+        tx(g, f == null || f.bestScore() <= 0 ? "-" : String.valueOf(f.bestScore()), cols[2], y, f == null ? DIM : TEXT);
+        tx(g, f == null ? "-" : time(f.fastestSPlus()), cols[3], y, f == null || f.fastestSPlus() <= 0 ? DIM : MAXED);
+        tx(g, f == null ? "-" : time(f.fastestS()), cols[4], y, f == null || f.fastestS() <= 0 ? DIM : VALUE);
         return y + rowH;
     }
 
     int stat2(GuiGraphicsExtractor g, int x, int y, int w, String label, String value) {
-        g.text(this.font, label, x, y, DIM, false);
-        g.text(this.font, value, x + w - this.font.width(value), y, VALUE, false);
+        tx(g, label, x, y, DIM);
+        tx(g, value, x + w - this.font.width(value), y, VALUE);
         return y + 11;
     }
 
@@ -1185,7 +1255,7 @@ public class ProfileViewerScreen extends Screen {
         int top = contentY + 22;
         switch (invView) {
             case 0 -> {
-                g.text(this.font, "Inventory", rx + 6, contentY + 6, ACCENT, false);
+                tx(g, "Inventory", rx + 6, contentY + 6, ACCENT);
                 // Armor (helmet first) + equipment beside the main grid.
                 int sideX = rx + 8;
                 List<ItemStack> armor = inv.armor();
@@ -1205,19 +1275,19 @@ public class ProfileViewerScreen extends Screen {
                 }
                 int bagY = hotbarY + 26;
                 if (!inv.quiver().isEmpty() || !inv.fishingBag().isEmpty()) {
-                    g.text(this.font, "Arrows in quiver: " + countItems(inv.quiver()), mainX, bagY, DIM, false);
+                    tx(g, "Arrows in quiver: " + countItems(inv.quiver()), mainX, bagY, DIM);
                 }
             }
             // killer560: "for the enderchest and backpacks, make that fit a similar style to our custom
             // gui overlay, so I can see more at once" - tile every page/backpack in a scrollable grid of
             // panels (like the storage overlay does) instead of one page with "< 1/5 >" arrows.
             case 1 -> {
-                g.text(this.font, "Ender Chest", rx + 6, contentY + 6, ACCENT, false);
+                tx(g, "Ender Chest", rx + 6, contentY + 6, ACCENT);
                 multiPanelGrid(g, rx, rw, top, numbered("Page", inv.enderChest().size()), inv.enderChest(), mx, my);
             }
             case 2 -> {
                 List<SbProfile.Backpack> bps = inv.backpacks();
-                g.text(this.font, "Backpacks", rx + 6, contentY + 6, ACCENT, false);
+                tx(g, "Backpacks", rx + 6, contentY + 6, ACCENT);
                 if (bps.isEmpty()) {
                     centeredIn(g, "No backpacks.", rx, rw, contentY + contentH / 2 - 4, DIM);
                     return;
@@ -1234,7 +1304,7 @@ public class ProfileViewerScreen extends Screen {
             case 3 -> pagedGrid(g, "Wardrobe", inv.wardrobe(), rx, rw, gridX, top, mx, my, inv.wardrobeEquipped());
             case 4 -> pagedGrid(g, "Accessory Bag", inv.accessories(), rx, rw, gridX, top, mx, my, -1);
             case 5 -> {
-                g.text(this.font, "Personal Vault", rx + 6, contentY + 6, ACCENT, false);
+                tx(g, "Personal Vault", rx + 6, contentY + 6, ACCENT);
                 if (inv.personalVault().isEmpty()) {
                     centeredIn(g, "Empty or not shared.", rx, rw, contentY + contentH / 2 - 4, DIM);
                 } else {
@@ -1270,7 +1340,7 @@ public class ProfileViewerScreen extends Screen {
     private void pagedGrid(GuiGraphicsExtractor g, String title, List<List<ItemStack>> pages, int rx, int rw, int gridX,
                            int top, int mx, int my, int wardrobeEquipped) {
         if (pages.isEmpty()) {
-            g.text(this.font, title, rx + 6, contentY + 6, ACCENT, false);
+            tx(g, title, rx + 6, contentY + 6, ACCENT);
             centeredIn(g, "Empty.", rx, rw, contentY + contentH / 2 - 4, DIM);
             return;
         }
@@ -1352,10 +1422,9 @@ public class ProfileViewerScreen extends Screen {
 
         if (maxScrollRow > 0) {
             int trackX = rx + rw - 4;
-            g.fill(trackX, top, trackX + 2, top + visibleH, 0xFF1A1A1A);
             int thumbH = Math.max(8, visibleH * (panelRows - maxScrollRow) / panelRows);
             int thumbY = top + (visibleH - thumbH) * invScroll / Math.max(1, maxScrollRow);
-            g.fill(trackX, thumbY, trackX + 2, thumbY + thumbH, ACCENT);
+            ScreenChrome.scrollbar(g, trackX - 1, top, 4, visibleH, thumbY, thumbH, false);
         }
     }
 
@@ -1375,7 +1444,7 @@ public class ProfileViewerScreen extends Screen {
         int h = overlayPanelHeight(rows);
         g.fill(x, y, x + OVERLAY_PANEL_W, y + h, theme.panelBg);
         g.outline(x, y, OVERLAY_PANEL_W, h, theme.border);
-        g.text(this.font, this.font.plainSubstrByWidth(label, OVERLAY_PANEL_W - 6), x + 3, y + 3, theme.text, false);
+        tx(g, this.font.plainSubstrByWidth(label, OVERLAY_PANEL_W - 6), x + 3, y + 3, theme.text);
         int gridX = x + 2;
         int gridY = y + this.font.lineHeight + 4;
         int gw = 9 * 18;
@@ -1398,21 +1467,21 @@ public class ProfileViewerScreen extends Screen {
             g.item(stack, sx, sy);
             g.itemDecorations(this.font, stack, sx, sy);
             if (inside(mx, my, sx, sy, 16, 16) && my >= clipTop && my < clipBottom && !dropdownOpen) {
-                g.fill(sx, sy, sx + 16, sy + 16, 0x40FFFFFF);
+                g.fill(sx, sy, sx + 16, sy + 16, MenuStyle.alpha(MenuStyle.TXT, 0x40));
                 pendingItemTooltip = stack;
             }
         }
     }
 
     private void pager(GuiGraphicsExtractor g, String title, int rx, int rw, int index, int count, int mx, int my) {
-        g.text(this.font, title, rx + 24, contentY + 7, ACCENT, false);
+        tx(g, title, rx + 24, contentY + 7, ACCENT);
         if (count <= 1) {
             return;
         }
         String label = (index + 1) + " / " + count;
         int right = rx + rw - 6;
         button(g, right - 16, contentY + 3, 16, 14, ">", mx, my, false, () -> invPage++);
-        g.text(this.font, label, right - 22 - this.font.width(label), contentY + 7, VALUE, false);
+        tx(g, label, right - 22 - this.font.width(label), contentY + 7, VALUE);
         button(g, right - 42 - this.font.width(label), contentY + 3, 16, 14, "<", mx, my, false, () -> invPage--);
     }
 
@@ -1425,14 +1494,13 @@ public class ProfileViewerScreen extends Screen {
     }
 
     void slot(GuiGraphicsExtractor g, int x, int y, ItemStack stack, int mx, int my, boolean highlight) {
-        g.fill(x, y, x + 18, y + 18, 0xFF1C1C1C);
-        g.outline(x, y, 18, 18, highlight ? ACCENT : 0xFF2E2E2E);
+        slotBox(g, x, y, 18, highlight ? ACCENT : 0);
         if (!stack.isEmpty()) {
             rarity(g, stack, x + 1, y + 1);
             g.item(stack, x + 1, y + 1);
             g.itemDecorations(this.font, stack, x + 1, y + 1);
             if (inside(mx, my, x, y, 18, 18) && !dropdownOpen) {
-                g.fill(x + 1, y + 1, x + 17, y + 17, 0x40FFFFFF);
+                g.fill(x + 1, y + 1, x + 17, y + 17, MenuStyle.alpha(MenuStyle.TXT, 0x40));
                 pendingItemTooltip = stack;
             }
         }
@@ -1468,10 +1536,10 @@ public class ProfileViewerScreen extends Screen {
         int gx = contentX;
         int gw = contentW - infoW - 6;
         box(g, gx, contentY, gw, contentH);
-        g.text(this.font, "Pets (" + p.pets.size() + ")", gx + 6, contentY + 5, ACCENT, false);
+        tx(g, "Pets (" + p.pets.size() + ")", gx + 6, contentY + 5, ACCENT);
         if (p.petScore > 0) {
             String score = "Pet Score " + p.petScore;
-            g.text(this.font, score, gx + gw - 6 - this.font.width(score), contentY + 5, VALUE, false);
+            tx(g, score, gx + gw - 6 - this.font.width(score), contentY + 5, VALUE);
         }
         if (p.pets.isEmpty()) {
             centeredIn(g, "No pets.", gx, gw, contentY + contentH / 2 - 4, DIM);
@@ -1493,16 +1561,15 @@ public class ProfileViewerScreen extends Screen {
             int x = startX + (i % cols) * cell;
             int y = startY + row * cell;
             int rarity = 0xFF000000 | LevelTables.rarityColor(pet.tier);
-            g.fill(x + 1, y + 1, x + cell - 1, y + cell - 1, 0xFF1A1A1A);
-            g.outline(x + 1, y + 1, cell - 2, cell - 2, pet.active ? ACCENT : (rarity & 0x80FFFFFF));
+            slotBox(g, x + 1, y + 1, cell - 2, pet.active ? ACCENT : (rarity & 0x80FFFFFF));
             if (pet == pinnedPet) {
-                g.outline(x, y, cell, cell, 0xFFFFFFFF);
+                g.outline(x, y, cell, cell, MenuStyle.TXT);
             }
             g.item(pet.icon(), x + 2, y + 2);
             boolean hover = inside(mx, my, x, y, cell, cell) && !dropdownOpen;
             if (hover) {
                 hovered = pet;
-                g.fill(x + 2, y + 2, x + cell - 2, y + cell - 2, 0x40FFFFFF);
+                g.fill(x + 2, y + 2, x + cell - 2, y + cell - 2, MenuStyle.alpha(MenuStyle.TXT, 0x40));
                 List<Component> tip = new ArrayList<>();
                 tip.add(Component.literal("[Lvl " + pet.level.level() + "] ").withStyle(style(DIM))
                         .append(Component.literal(pet.displayName()).withStyle(style(rarity))));
@@ -1518,10 +1585,9 @@ public class ProfileViewerScreen extends Screen {
         if (totalRows > visibleRows) {
             int trackX = gx + gw - 4;
             int trackH = visibleRows * cell;
-            g.fill(trackX, startY, trackX + 2, startY + trackH, 0xFF1A1A1A);
             int thumbH = Math.max(8, trackH * visibleRows / totalRows);
             int thumbY = startY + (trackH - thumbH) * petScroll / Math.max(1, totalRows - visibleRows);
-            g.fill(trackX, thumbY, trackX + 2, thumbY + thumbH, ACCENT);
+            ScreenChrome.scrollbar(g, trackX - 1, startY, 4, trackH, thumbY, thumbH, false);
         }
 
         int ix = contentX + contentW - infoW;
@@ -1533,34 +1599,33 @@ public class ProfileViewerScreen extends Screen {
         }
         int x = ix + 6;
         int y = contentY + 6;
-        int rarity = 0xFF000000 | LevelTables.rarityColor(show.tier);
+        int rarity = ScreenChrome.readable(0xFF000000 | LevelTables.rarityColor(show.tier));
         g.item(show.icon(), x, y);
-        g.text(this.font, this.font.plainSubstrByWidth(show.displayName(), infoW - 30), x + 20, y, rarity, false);
-        g.text(this.font, SbProfile.titleCase(show.tier) + (show.active ? " · Active" : ""), x + 20, y + 10, DIM, false);
+        tx(g, this.font.plainSubstrByWidth(show.displayName(), infoW - 30), x + 20, y, rarity);
+        tx(g, SbProfile.titleCase(show.tier) + (show.active ? " · Active" : ""), x + 20, y + 10, DIM);
         y += 26;
         LevelTables.Level lvl = show.level;
         int w = infoW - 12;
         y = stat2(g, x, y, w, "Level", String.valueOf(lvl.level()));
-        g.fill(x, y, x + w, y + 4, BAR_BG);
-        g.fill(x, y, x + (int) Math.round(w * (lvl.maxed() ? 1 : lvl.progress())), y + 4, lvl.maxed() ? MAXED : ACCENT);
+        ScreenChrome.progress(g, x, y, w, 4, lvl.maxed() ? 1 : lvl.progress(), lvl.maxed() ? MAXED : ACCENT);
         y += 8;
         if (!lvl.maxed()) {
             y = stat2(g, x, y, w, "Next", shorten(lvl.xpIntoLevel()) + " / " + shorten(lvl.xpForLevel()));
         }
         y = stat2(g, x, y, w, "Total XP", shorten(show.exp));
         if (show.heldItem != null) {
-            g.text(this.font, "Held Item", x, y, DIM, false);
+            tx(g, "Held Item", x, y, DIM);
             y += 10;
-            g.text(this.font, this.font.plainSubstrByWidth(SbProfile.titleCase(show.heldItem.replace("PET_ITEM_", "")), w), x, y, VALUE, false);
+            tx(g, this.font.plainSubstrByWidth(SbProfile.titleCase(show.heldItem.replace("PET_ITEM_", "")), w), x, y, VALUE);
             y += 11;
         }
         if (show.candyUsed > 0) {
             y = stat2(g, x, y, w, "Candy Used", String.valueOf(show.candyUsed));
         }
         if (show.skin != null) {
-            g.text(this.font, "Skin", x, y, DIM, false);
+            tx(g, "Skin", x, y, DIM);
             y += 10;
-            g.text(this.font, this.font.plainSubstrByWidth(SbProfile.titleCase(show.skin), w), x, y, VALUE, false);
+            tx(g, this.font.plainSubstrByWidth(SbProfile.titleCase(show.skin), w), x, y, VALUE);
         }
     }
 
@@ -1579,16 +1644,42 @@ public class ProfileViewerScreen extends Screen {
         return this.font;
     }
 
+    /** A content box: the menu's card. */
     void box(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-        g.fill(x, y, x + w, y + h, BOX_BG);
-        g.outline(x, y, w, h, BORDER);
+        ScreenChrome.card(g, x, y, w, h, false);
+    }
+
+    /** A recessed item square; {@code edge} 0 is the plain outline, anything else an accent/rarity edge inside it. */
+    void slotBox(GuiGraphicsExtractor g, int x, int y, int size, int edge) {
+        GuiRects r = GuiRects.begin(g);
+        r.fill(x + 1, y + 1, x + size - 1, y + size - 1, SLOT_BG);
+        r.outline(x, y, size, size, SLOT_EDGE);
+        r.fill(x + 1, y + 1, x + size - 1, y + 2, MenuStyle.shadow(0x60));
+        if (edge != 0) {
+            r.outline(x, y, size, size, edge);
+        }
+        r.submit();
+    }
+
+    /** The highlighted row of a list or popup: the menu's selected-row gradient with its accent strip. */
+    void selBand(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        GuiRects r = GuiRects.begin(g);
+        ScreenChrome.row(r, x, y, w, h + 1, false, true, false);
+        r.submit();
+    }
+
+    /** A popup (name suggestions, the profile list): a raised card with the accent ring. */
+    private void popup(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        GuiRects r = GuiRects.begin(g);
+        MenuStyle.dropShadow(r, x, y, w, h, 3);
+        MenuStyle.bevel(r, x, y, w, h, MenuStyle.DRAWER_TOP, MenuStyle.DRAWER_BOTTOM);
+        r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.OR2);
+        r.submit();
     }
 
     void button(GuiGraphicsExtractor g, int x, int y, int w, int h, String label, int mx, int my, boolean selected, Runnable action) {
         boolean hover = inside(mx, my, x, y, w, h) && (!dropdownOpen || y < panelY + 22);
-        g.fill(x, y, x + w, y + h, selected ? 0xFF2A1A0A : hover ? 0xFF262626 : 0xFF1A1A1A);
-        g.outline(x, y, w, h, selected || hover ? ACCENT : 0xFF663D1A);
-        g.centeredText(this.font, label, x + w / 2, y + (h - 8) / 2, selected ? VALUE : 0xFFFFFFFF);
+        ScreenChrome.button(g, x, y, w, h, label, hover, selected);
         hotspots.add(new Hotspot(x, y, w, h, action));
     }
 
@@ -1597,15 +1688,52 @@ public class ProfileViewerScreen extends Screen {
     }
 
     void centeredIn(GuiGraphicsExtractor g, String text, int x, int w, int y, int color) {
-        g.text(this.font, text, x + (w - this.font.width(text)) / 2, y, color, false);
+        tx(g, text, x + (w - this.font.width(text)) / 2, y, color);
     }
 
     static boolean inside(double mx, double my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
+    /** A tooltip line's style. Tooltips are vanilla's (dark on every theme), so a page colour is swapped back for the
+     *  fixed colour it had before the theme reached this screen. */
     static Style style(int argb) {
-        return Style.EMPTY.withColor(TextColor.fromRgb(argb & 0xFFFFFF)).withItalic(false);
+        return Style.EMPTY.withColor(TextColor.fromRgb(tipColour(argb) & 0xFFFFFF)).withItalic(false);
+    }
+
+    private static int tipColour(int c) {
+        if (c == VALUE) {
+            return TIP_VALUE;
+        }
+        if (c == DIM) {
+            return TIP_DIM;
+        }
+        if (c == TEXT) {
+            return TIP_TEXT;
+        }
+        if (c == ACCENT) {
+            return TIP_ACCENT;
+        }
+        if (c == BAD) {
+            return TIP_BAD;
+        }
+        if (c == MAXED) {
+            return TIP_MAXED;
+        }
+        if (c == GOOD) {
+            return TIP_GOOD;
+        }
+        return c;
+    }
+
+    /** Page text in the theme (readable on Light; shadow on dark themes only). */
+    static void tx(GuiGraphicsExtractor g, String s, int x, int y, int color) {
+        ScreenChrome.text(g, s, x, y, color);
+    }
+
+    /** A styled line (a rank tag) keeps its own colours; only its unstyled parts take {@code color}. */
+    static void tx(GuiGraphicsExtractor g, Component s, int x, int y, int color) {
+        ScreenChrome.text(g, s.getVisualOrderText(), x, y, color);
     }
 
     static String commas(double v) {

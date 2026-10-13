@@ -1,17 +1,19 @@
 package com.killer560.hub.gui;
 
 /**
- * A mod screen drawn in the menu theme (screen sweep, killer560 2026-10-13: "make the theme for each match the gui's
- * theme"). While one of these is the open screen, {@link SettingsButtonWidget}, {@link ThemedSliderButton} and
- * {@link RangeSliderWidget} take the mod menu's look (switch rows, value pills, raised buttons, slider tracks) instead of
- * their old plain boxes, so the screen's own controls follow the active {@link MenuTheme} the same way the menu does.
- * The screen draws its own chrome through {@link ToolScreenKit}.
+ * A screen of the mod's own drawn in the mod menu's active theme (killer560, 2026-10-13: "make the theme for each [custom
+ * menu] match the gui's theme"). The marker is what {@link SettingsButtonWidget} reads to draw its raised, themed button
+ * there instead of the old fixed amber box; the screen itself paints its frame, header and rows through
+ * {@link ScreenChrome}, whose colours all come from {@link MenuStyle}.
  */
 public interface MenuThemedScreen {
 
-    /**
-     * The id of this screen's own Theme setting ({@link ScreenThemeConfig}, read by {@link MenuTheme#forScreen}): one
-     * per feature, so the sim's five screens share "sim".
-     */
-    String themeId();
+    /** {x, y, w, h} of the screen's main themed panel (for the pet wheel, its first tile) as last laid out, in GUI units.
+     *  Read by the testkit, which samples it under each theme. */
+    int[] themedPanelBounds();
+
+    /** The id of this screen's own Theme setting in {@link ScreenThemes}, or null to always follow the menu. */
+    default String themeId() {
+        return null;
+    }
 }

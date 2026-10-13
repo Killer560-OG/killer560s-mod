@@ -98,6 +98,9 @@ public class WindowLayoutTab extends BaseTab {
                     btn.setMessage(onOff("Full Monitor Borderless", cfg.isFullMonitorBorderless()));
                 }).bounds(contentX, y, colW, 18).build());
 
+        y += 22;
+        widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.windowlayout.WindowLayoutScreen.THEME_ID, contentX, y, colW, 18));
+
 
         return widgets;
     }

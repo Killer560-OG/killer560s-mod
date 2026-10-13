@@ -212,7 +212,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         buildColourSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         buildKeybindSection(w, cfg, contentX, y, contentWidth, requestRebuild);
         // The node editor's Theme (/ar edit; screen sweep 2026-10-13).
-        com.killer560.hub.gui.ScreenThemeConfig.append(w, com.killer560.hub.autoroutes.AutoRoutesEditScreen.THEME_ID,
+        com.killer560.hub.gui.ScreenThemes.append(w, com.killer560.hub.autoroutes.AutoRoutesEditScreen.THEME_ID,
                 contentX, contentWidth, contentY);
         return w;
     }

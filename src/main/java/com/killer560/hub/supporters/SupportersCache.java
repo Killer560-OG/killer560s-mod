@@ -60,7 +60,8 @@ final class SupportersCache {
                         UUID uuid = UUID.fromString(ConfigJson.getString(o, "uuid", ""));
                         String name = ConfigJson.getString(o, "name", "");
                         float scale = ConfigJson.getFloat(o, "scale", 1.0f);
-                        out.add(new SupporterEntry(uuid, name, scale, SupporterEntry.colorsFrom(o.get("colors"))));
+                        out.add(new SupporterEntry(uuid, name, scale, SupporterEntry.colorsFrom(o.get("colors")),
+                                SupporterEntry.animationFrom(o.get("animation"))));
                     } catch (Exception badEntry) {
                         // one malformed row must not lose the rest of the cached list
                     }
@@ -88,6 +89,9 @@ final class SupportersCache {
                 o.addProperty("scale", e.scale());
                 if (e.colors() != null) {
                     o.add("colors", SupporterEntry.colorsJson(e.colors()));
+                }
+                if (e.animation() != null) {
+                    o.add("animation", SupporterEntry.animationJson(e.animation()));
                 }
                 arr.add(o);
             }

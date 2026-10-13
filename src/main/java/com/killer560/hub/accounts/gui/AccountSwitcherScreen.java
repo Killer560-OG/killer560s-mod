@@ -7,13 +7,16 @@ import com.killer560.hub.accounts.core.PrismAccount;
 import com.killer560.hub.accounts.core.PrismAccountStore;
 import com.killer560.hub.accounts.core.SharedBanStatusStore;
 import com.killer560.hub.accounts.core.StoredBanStatus;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.proxy.config.AccountProxyProfile;
 import com.killer560.hub.proxy.config.AccountProxyStore;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
@@ -24,6 +27,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,7 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import com.killer560.hub.compat.McCompat;
 
-public class AccountSwitcherScreen extends Screen {
+public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
 
     private static final MicrosoftAuthFlow AUTH_FLOW = new MicrosoftAuthFlow();
     private static final ZoneId CENTRAL = ZoneId.of("America/Chicago");
@@ -60,6 +64,16 @@ public class AccountSwitcherScreen extends Screen {
     private static final int ROW_H = 22;
     private int maxScroll;
 
+    /** The framed panel, the account list's well and the rows shown in it, laid out in init (2026-10-13 redo in the
+     *  menu theme: one panel with a header, the accounts as rows in a recessed list, the four actions in a footer). */
+    private int panelX, panelY, panelW, panelH;
+    private int listX, listY, listW, listH;
+    private int statusY;
+    /** One shown row: its top, and the ban-status lines drawn beside its buttons (null line = none). */
+    private record Row(int y, int textX, int textW, String line1, String line2, boolean banned) {
+    }
+    private final List<Row> rows = new ArrayList<>();
+
     public AccountSwitcherScreen(Screen parent) {
         super(Component.literal("Swap Accounts"));
         this.parent = parent;
@@ -80,36 +94,41 @@ public class AccountSwitcherScreen extends Screen {
         this.banStatuses = SharedBanStatusStore.load();
 
         int rowHeight = ROW_H;
-        int buttonWidth = 200;
         int copyWidth = 60;
         int proxyWidth = 70;
-        int statusWidth = 240;
-        int gap = 10;
-        // Per killer560's "remove the not checked yet portion and recenter it" (2026-09-09): the ban
-        // status column is now blank for any account that's never been checked (see
-        // addBanStatusWidgets), so it's no longer counted in the centering math - the account/copy/proxy
-        // button group is centered as its own unit, with status text (when there IS any) sitting as an
-        // annex to the right of that centered group rather than pulling the whole row off-center.
-        int totalWidth = buttonWidth + gap + copyWidth + gap + proxyWidth;
-        int startX = this.width / 2 - totalWidth / 2;
-        int startY = 40;
+        int gap = 6;
+        int footerButtonW = 200;
 
-        if (this.statusMessage != null) {
-            this.addRenderableOnly(new StringWidget(0, 20, this.width, 16,
-                    Component.literal(this.statusMessage), this.font));
-        }
+        this.panelW = Math.min(this.width - 12, 620);
+        this.panelX = (this.width - this.panelW) / 2;
+        this.panelY = 6;
+        this.panelH = this.height - 12;
+        // Status message (sign-in progress, errors) on its own line under the header.
+        this.statusY = this.panelY + 32;
+        this.listX = this.panelX + 6;
+        this.listY = this.panelY + 30 + (this.statusMessage != null ? 14 : 0);
+        this.listW = this.panelW - 12;
+        // Footer: Back / Direct Session Login over Set Instance Proxy / Universal, two rows of two.
+        int footerTop = this.panelY + this.panelH - 6 - 20 - 6 - 20;
+        this.listH = Math.max(rowHeight + 6, footerTop - 6 - this.listY);
 
-        // The list gets the space above the four footer buttons; beyond that it scrolls with the mouse wheel, and
-        // rows scrolled out of that band are simply not added (no overlap with the title or the footer).
-        int footerHeight = 4 * 26 + 12;
-        int listBottom = Math.max(startY + rowHeight, this.height - footerHeight - 8);
+        // Each row: account button, Copy ID, Proxy, then the ban status (only for an account that was checked -
+        // killer560 2026-09-09: "remove the not checked yet portion") in the room left on the right.
+        int avail = this.listW - 12;
+        int fixed = copyWidth + proxyWidth + 2 * gap + 8;
+        int buttonWidth = Math.max(100, Math.min(200, avail - fixed - 200));
+        int startX = this.listX + 6;
+        int startY = this.listY + 3;
+
+        rows.clear();
+        int listBottom = this.listY + this.listH - 3;
         int visibleRows = Math.max(1, (listBottom - startY) / rowHeight);
         this.maxScroll = Math.max(0, (this.accounts.size() - visibleRows) * rowHeight);
         this.scroll = Math.max(0, Math.min(this.maxScroll, this.scroll));
         int i = 0;
         for (PrismAccount account : this.accounts) {
             int y = startY + i * rowHeight - this.scroll;
-            if (y < startY || y + rowHeight > listBottom) {
+            if (y < startY || y + rowHeight > listBottom + 2) {
                 i++;
                 continue;
             }
@@ -133,35 +152,41 @@ public class AccountSwitcherScreen extends Screen {
             proxyButton.active = !this.busy;
             this.addRenderableWidget(proxyButton);
 
-            addBanStatusWidgets(account, startX + buttonWidth + gap + copyWidth + gap + proxyWidth + gap, y, statusWidth);
+            int textX = startX + buttonWidth + gap + copyWidth + gap + proxyWidth + 8;
+            addBanStatusRow(account, textX, y, this.listX + this.listW - 6 - textX);
 
             i++;
         }
 
-        int belowListY = Math.min(startY + Math.max(i, 1) * rowHeight, listBottom) + 12;
+        int fx = this.width / 2 - footerButtonW - 3;
+        int fx2 = this.width / 2 + 3;
+        if (this.panelW < 2 * footerButtonW + 18) {
+            footerButtonW = (this.panelW - 18) / 2;
+            fx = this.panelX + 6;
+            fx2 = fx + footerButtonW + 6;
+        }
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), btn -> onBack())
-                .bounds(this.width / 2 - buttonWidth / 2, belowListY, buttonWidth, 20)
+                .bounds(fx, footerTop, footerButtonW, 20)
                 .build());
 
-        // Bottom-middle "Direct Connect"-style entry point: a temporary login from a raw session
-        // token, not one of Prism's saved accounts (see DirectSessionLoginScreen).
+        // "Direct Connect"-style entry point: a temporary login from a raw session token, not one of Prism's saved
+        // accounts (see DirectSessionLoginScreen).
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Direct Session Login"), btn ->
                         McCompat.setScreen(Minecraft.getInstance(), new DirectSessionLoginScreen(this, this.parent)))
-                .bounds(this.width / 2 - buttonWidth / 2, belowListY + 26, buttonWidth, 20)
+                .bounds(fx2, footerTop, footerButtonW, 20)
                 .build());
 
         // Proxy controls (2026-09-15: moved here from the multiplayer screen). "Set Instance Proxy" opens this
         // instance's own proxy editor (the instance proxy is also set automatically by an account's saved proxy on
         // swap). "Universal" is a plain ON/OFF toggle (killer560: "should just be a toggle on or off not open any
-        // menu"): ON publishes this instance's proxy to every instance, OFF disables it. Same two rows / heights as
-        // before, so the account list layout below it doesn't move.
-        int proxyY = belowListY + 58;
+        // menu"): ON publishes this instance's proxy to every instance, OFF disables it.
+        int proxyY = footerTop + 26;
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Set Instance Proxy"), btn ->
                         McCompat.setScreen(Minecraft.getInstance(), new com.killer560.hub.proxy.gui.ProxyConfigScreen(this)))
-                .bounds(this.width / 2 - buttonWidth / 2, proxyY, buttonWidth, 20)
+                .bounds(fx, proxyY, footerButtonW, 20)
                 .build());
         this.universalButton = SettingsButtonWidget.builder(universalToggleLabel(), btn -> onUniversalToggled())
-                .bounds(this.width / 2 - buttonWidth / 2, proxyY + 26, buttonWidth, 20)
+                .bounds(fx2, proxyY, footerButtonW, 20)
                 .build();
         this.addRenderableWidget(this.universalButton);
     }
@@ -218,25 +243,69 @@ public class AccountSwitcherScreen extends Screen {
         }
     }
 
-    /** Black + amber theme (2026-09-09), matching {@link com.killer560.hub.gui.ModScreen} - per
-     *  killer560's "make the account switcher and proxy mod more fit the new theme." Same dim overlay
-     *  instead of the vanilla blurred background (only when the themed title background isn't drawn),
-     *  title drawn in the same amber accent as the main menu's own header. */
+    /** This screen's own Theme setting (Theme Default follows the menu). */
+    public static final String THEME_ID = "accounts";
+
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        if (!AccountScreenBackground.themed()) {
-            graphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        }
-        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        graphics.centeredText(this.font, this.title, this.width / 2, 16, 0xFFCC6600);
+    public String themeId() {
+        return THEME_ID;
     }
 
-    private void addBanStatusWidgets(PrismAccount account, int x, int y, int width) {
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
+    }
+
+    /** The menu theme's panel over the animated title background (or the dim, in a world): header, status line, the
+     *  account rows in a recessed well, their ban status beside the buttons, and the footer buttons. */
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        if (AccountScreenBackground.themed()) {
+            MenuStyle.use();
+        } else {
+            ScreenChrome.backdrop(graphics, this.width, this.height);
+        }
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.header(graphics, panelX, panelY, panelW, this.title.getString());
+        ScreenChrome.headerRight(graphics, panelX, panelY, panelW, this.accounts.size() + " account(s)", MenuStyle.DIM);
+        if (this.statusMessage != null) {
+            ScreenChrome.centered(graphics, MenuStyle.ellipsize(this.statusMessage, panelW - 12), this.width / 2, statusY,
+                    MenuStyle.TXT);
+        }
+        ScreenChrome.well(graphics, listX, listY, listW, listH);
+        GuiRects r = GuiRects.begin(graphics);
+        int k = 0;
+        for (Row row : rows) {
+            boolean hover = mouseX >= listX && mouseX < listX + listW && mouseY >= row.y() - 1 && mouseY < row.y() + ROW_H - 1;
+            ScreenChrome.row(r, listX + 2, row.y() - 1, listW - 4, ROW_H, hover, false, k++ % 2 == 0);
+        }
+        r.submit();
+        if (maxScroll > 0) {
+            int view = listH - 6;
+            int thumbH = Math.max(14, view * view / (view + maxScroll));
+            int thumbY = listY + 3 + (view - thumbH) * scroll / maxScroll;
+            ScreenChrome.scrollbar(graphics, listX + listW - 6, listY + 3, 4, view, thumbY, thumbH, false);
+        }
+        for (Row row : rows) {
+            if (row.line1() != null && row.textW() > 10) {
+                int c = row.banned() ? MenuStyle.RED : ScreenChrome.readable(0xFF55FF55);
+                ScreenChrome.text(graphics, MenuStyle.ellipsize(row.line1(), row.textW()), row.textX(), row.y() + 1, c);
+                if (row.line2() != null) {
+                    ScreenChrome.text(graphics, MenuStyle.ellipsize(row.line2(), row.textW()), row.textX(), row.y() + 11,
+                            MenuStyle.DIM);
+                }
+            }
+        }
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+    }
+
+    private void addBanStatusRow(PrismAccount account, int x, int y, int width) {
         StoredBanStatus info = this.banStatuses.get(account.uuid());
         // Per killer560's "remove the not checked yet portion" (2026-09-09): an account with no
         // recorded status at all now shows nothing here, instead of a "Not checked yet"/"Join Hypixel
         // to check" placeholder.
         if (info == null) {
+            rows.add(new Row(y, x, width, null, null, false));
             return;
         }
         String line1;
@@ -263,10 +332,8 @@ public class AccountSwitcherScreen extends Screen {
             line2 = "Checked " + relativeTime(info.recordedAtEpochMillis());
         }
 
-        this.addRenderableOnly(new StringWidget(x, y, width, 10, Component.literal(line1), this.font));
-        if (line2 != null) {
-            this.addRenderableOnly(new StringWidget(x, y + 10, width, 10, Component.literal(line2), this.font));
-        }
+        rows.add(new Row(y, x, width, line1, line2,
+                info.status() == com.killer560.hub.accounts.core.HypixelBanStatus.Status.BANNED));
     }
 
     private static String relativeTime(long epochMillis) {

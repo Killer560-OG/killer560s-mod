@@ -19,7 +19,7 @@ import net.minecraft.network.chat.Component;
  *  Option A menu (2026-10-12): inside the mod menu a slider is a setting ROW - its label on the left, a recessed track
  *  with an orange fill and a white knob in the middle, the value on the right. A click or drag maps onto that drawn
  *  track ({@link #trackRange()}), not the whole row, so the knob lands where the mouse is. Too narrow for that, the
- *  label and value sit above a full-width track. Outside the menu it keeps the old box.
+ *  label and value sit above a full-width track. A MenuThemedScreen (screen sweep C) gets the same row; elsewhere it keeps the old box.
  */
 public abstract class ThemedSliderButton extends AbstractSliderButton {
 
@@ -59,7 +59,7 @@ public abstract class ThemedSliderButton extends AbstractSliderButton {
     public int[] trackRange() {
         int x0 = getX();
         int w = getWidth();
-        if (!SettingsButtonWidget.inMenu()) {
+        if (!(SettingsButtonWidget.inMenu() || SettingsButtonWidget.inThemedScreen())) {
             return new int[]{x0 + 4, x0 + w - 4};
         }
         if (!rowLayout()) {
@@ -82,14 +82,14 @@ public abstract class ThemedSliderButton extends AbstractSliderButton {
     @Override
     public void onClick(MouseButtonEvent event, boolean doubleClick) {
         super.onClick(event, doubleClick);
-        if (SettingsButtonWidget.inMenu() && this.active) {
+        if ((SettingsButtonWidget.inMenu() || SettingsButtonWidget.inThemedScreen()) && this.active) {
             setValue(valueAt(event.x()));
         }
     }
 
     @Override
     protected void onDrag(MouseButtonEvent event, double dragX, double dragY) {
-        if (SettingsButtonWidget.inMenu()) {
+        if ((SettingsButtonWidget.inMenu() || SettingsButtonWidget.inThemedScreen())) {
             setValue(valueAt(event.x()));
             return;
         }
@@ -102,7 +102,7 @@ public abstract class ThemedSliderButton extends AbstractSliderButton {
         int y0 = getY();
         int w = getWidth();
         int h = getHeight();
-        if (SettingsButtonWidget.inMenu()) {
+        if ((SettingsButtonWidget.inMenu() || SettingsButtonWidget.inThemedScreen())) {
             var font = Minecraft.getInstance().font;
             String[] s = split();
             int[] t = trackRange();

@@ -5,6 +5,10 @@ import com.google.common.collect.Multimap;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ScreenChrome;
+import com.killer560.hub.hud.GuiRects;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -44,21 +48,15 @@ import com.killer560.hub.util.KeyUtil;
  * per-pet {@link ItemStack} icon is built once per screen instance and cached in {@link #iconCache} rather
  * than rebuilt every frame, and nothing here allocates per frame beyond the fixed-size per-slice draw calls.
  */
-public class PetWheelScreen extends Screen {
+public class PetWheelScreen extends Screen implements MenuThemedScreen {
 
+    /** The wheel draws over the world, so the dim stays lighter than a full menu's. Everything else is the menu
+     *  theme's (2026-10-13): tiles are its cards, the hovered one its accent, the spokes its accent at half alpha. */
     private static final int BG_DIM = 0x99000000;
-    private static final int TILE_BG = 0xFF1A1A1A;
-    private static final int TILE_BG_HOVER = 0xFF262626;
-    private static final int TILE_BORDER = 0xFF663D1A;
-    private static final int TILE_BORDER_HOVER = 0xFFCC6600;
-    private static final int TILE_BORDER_PENDING = 0xFFFFFFFF;
-    private static final int TILE_BG_EMPTY = 0xFF141414;
-    private static final int TEXT = 0xFFFFFFFF;
-    private static final int TEXT_HOVER = 0xFFCC6600;
-    private static final int TEXT_DIM = 0xFF9A8C80;
-    /** 50% alpha of {@link #TILE_BORDER_HOVER} - the pie-chart divider spokes, orange-themed like everything
-     *  else in this tab rather than a plain white/grey line. */
-    private static final int DIVIDER_COLOR = 0x80CC6600;
+    /** This screen's own Theme setting (Theme Default follows the menu). */
+    public static final String THEME_ID = "petwheel";
+    /** First tile drawn last frame, {x, y, w, h}; read by the testkit through {@link #themedPanelBounds}. */
+    private int[] firstTile = new int[4];
 
     private static final float BASE_RADIUS = 84f;
     private static final int BASE_TILE = 28;
@@ -214,6 +212,7 @@ public class PetWheelScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         lastMouseX = mouseX;
         lastMouseY = mouseY;
+        MenuStyle.use();
         graphics.fill(0, 0, width, height, BG_DIM);
 
         int count = slotsOnPage(page);
@@ -232,17 +231,17 @@ public class PetWheelScreen extends Screen {
         }
 
         if (editMode) {
-            graphics.centeredText(font, "Right click to edit, left click to rearrange",
-                    width / 2, (int) (layoutData.centerY() - layoutData.radius() - tile - 22), TEXT);
+            plateText(graphics, "Right click to edit, left click to rearrange",
+                    width / 2, (int) (layoutData.centerY() - layoutData.radius() - tile - 22), MenuStyle.TXT);
         } else if (pageCount() > 1) {
-            graphics.centeredText(font, "Page " + (page + 1) + "/" + pageCount(),
-                    (int) layoutData.centerX(), (int) (layoutData.centerY() - layoutData.radius() - tile - 22), TEXT);
-            graphics.centeredText(font, "Scroll to flip pages",
-                    (int) layoutData.centerX(), (int) (layoutData.centerY() - layoutData.radius() - tile - 11), TEXT);
+            plateText(graphics, "Page " + (page + 1) + "/" + pageCount(),
+                    (int) layoutData.centerX(), (int) (layoutData.centerY() - layoutData.radius() - tile - 22), MenuStyle.TXT);
+            plateText(graphics, "Scroll to flip pages",
+                    (int) layoutData.centerX(), (int) (layoutData.centerY() - layoutData.radius() - tile - 11), MenuStyle.TXT);
         }
         if (editMode && pageCount() > 1) {
-            graphics.centeredText(font, "Page " + (page + 1) + "/" + pageCount() + " - scroll to flip",
-                    (int) layoutData.centerX(), (int) (layoutData.centerY() - layoutData.radius() - tile - 11), TEXT_DIM);
+            plateText(graphics, "Page " + (page + 1) + "/" + pageCount() + " - scroll to flip",
+                    (int) layoutData.centerX(), (int) (layoutData.centerY() - layoutData.radius() - tile - 11), MenuStyle.DIM);
         }
 
         // Dragged slice follows the cursor as a small ghost icon, same idea as SlotBindsFeature's cursor-link.
@@ -251,12 +250,12 @@ public class PetWheelScreen extends Screen {
             if (dragged != null) {
                 int half = tile / 2;
                 graphics.item(iconFor(dragged), (int) dragCurrentX - 8, (int) dragCurrentY - 8);
-                graphics.outline((int) dragCurrentX - half, (int) dragCurrentY - half, tile, tile, TILE_BORDER_PENDING);
+                graphics.outline((int) dragCurrentX - half, (int) dragCurrentY - half, tile, tile, MenuStyle.OR_HOVER);
             }
         }
 
         if (editMode) {
-            graphics.centeredText(font, "Escape to finish", width / 2, height - 16, TEXT_DIM);
+            plateText(graphics, "Escape to finish", width / 2, height - 16, MenuStyle.DIM);
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
@@ -279,7 +278,7 @@ public class PetWheelScreen extends Screen {
             float angle = (float) (-Math.PI / 2.0 + i * sliceAngle - sliceAngle / 2.0);
             graphics.pose().pushMatrix();
             graphics.pose().rotate(angle);
-            graphics.fill(inner, -1, outer, 1, DIVIDER_COLOR);
+            graphics.fill(inner, -1, outer, 1, MenuStyle.alpha(MenuStyle.OR, 0x80));
             graphics.pose().popMatrix();
         }
         graphics.pose().popMatrix();
@@ -293,13 +292,27 @@ public class PetWheelScreen extends Screen {
         int x0 = Math.round(px - tile / 2f);
         int y0 = Math.round(py - tile / 2f);
 
-        int border = pending ? TILE_BORDER_PENDING : hovered ? TILE_BORDER_HOVER : TILE_BORDER;
-        graphics.fill(x0, y0, x0 + tile, y0 + tile, pet == null ? TILE_BG_EMPTY : hovered ? TILE_BG_HOVER : TILE_BG);
-        graphics.outline(x0, y0, tile, tile, border);
+        if (index == 0) {
+            firstTile = new int[]{x0, y0, tile, tile};
+        }
+        GuiRects r = GuiRects.begin(graphics);
+        if (hovered || pending) {
+            MenuStyle.glow(r, x0, y0, tile, tile, MenuStyle.OR, pending ? 0x60 : 0x40);
+        }
+        if (pet == null) {
+            // The one trailing empty/"+" slot in edit mode is a recessed well - right-click it to fill it.
+            MenuStyle.well(r, x0, y0, tile, tile, MenuStyle.WELL);
+        } else {
+            MenuStyle.dropShadow(r, x0, y0, tile, tile, 2);
+            ScreenChrome.card(r, x0, y0, tile, tile, hovered);
+        }
+        if (hovered || pending) {
+            r.outline(x0, y0, tile, tile, pending ? MenuStyle.TXT : MenuStyle.OR);
+        }
+        r.submit();
 
         if (pet == null) {
-            // The one trailing empty/"+" slot in edit mode - right-click it to fill it.
-            drawScaledCentered(graphics, "+", px, py - 4 * scale, hovered ? TEXT_HOVER : TEXT_DIM);
+            drawScaledCentered(graphics, "+", px, py - 4 * scale, hovered ? MenuStyle.OR_HOVER : MenuStyle.DIM);
             return;
         }
 
@@ -313,7 +326,7 @@ public class PetWheelScreen extends Screen {
 
         String label = sliceLabel(pet);
         if (!label.isEmpty()) {
-            drawScaledCentered(graphics, label, px, y0 + tile + 2, hovered ? TEXT_HOVER : TEXT);
+            drawScaledCentered(graphics, label, px, y0 + tile + 2, hovered ? MenuStyle.OR_HOVER : MenuStyle.TXT);
         }
     }
 
@@ -322,8 +335,32 @@ public class PetWheelScreen extends Screen {
         graphics.pose().pushMatrix();
         graphics.pose().translate(x, y);
         graphics.pose().scale(scale, scale);
-        graphics.centeredText(font, text, 0, 0, color);
+        plateText(graphics, text, 0, 0, color);
         graphics.pose().popMatrix();
+    }
+
+    /** Centred text on a small card plate: the wheel draws over the world, where the Light theme's dark text would
+     *  vanish without one. */
+    private void plateText(GuiGraphicsExtractor graphics, String text, int cx, int y, int color) {
+        int w = font.width(text);
+        GuiRects r = GuiRects.begin(graphics);
+        MenuStyle.bevel(r, cx - w / 2 - 3, y - 2, w + 6, 12, MenuStyle.CARD_TOP, MenuStyle.CARD_BOTTOM);
+        r.submit();
+        ScreenChrome.text(graphics, text, cx - w / 2, y, color);
+    }
+
+    private void plateText(GuiGraphicsExtractor graphics, String text, float cx, float y, int color) {
+        plateText(graphics, text, Math.round(cx), Math.round(y), color);
+    }
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    @Override
+    public int[] themedPanelBounds() {
+        return firstTile.clone();
     }
 
     /** killer560: "add an option to hide their level and an option to hide the pets name" - each toggle is

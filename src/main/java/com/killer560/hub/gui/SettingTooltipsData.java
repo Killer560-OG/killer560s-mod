@@ -21,6 +21,16 @@ final class SettingTooltipsData {
         crosshair(d);
         autoSecret(d);
         menuTheme(d);
+        colourPicker(d);
+    }
+
+    private static void colourPicker(Map<String, String> d) {
+        // Every colour setting's picker (gui/ColorPickerScreen), 2026-10-13: Copy / Paste / Recent between menus.
+        d.put("colour picker/copy", "Copies this colour to the clipboard as #RRGGBB (#AARRGGBB when it is see-through), and adds it to Recent. Ctrl+C does the same.");
+        d.put("colour picker/paste", "Uses the colour on the clipboard: #RRGGBB, RRGGBB, #RGB, 0xRRGGBB or #AARRGGBB. Ctrl+V does the same; anything else is refused.");
+        d.put("colour picker/set default", "Puts this setting's own default colour back.");
+        d.put("colour picker/done", "Closes the picker. The colour is already saved as you change it.");
+        d.put("colour picker/alpha", "How see-through the colour is. A pasted colour without alpha keeps this value.");
     }
 
     private static void menuTheme(Map<String, String> d) {
@@ -217,8 +227,7 @@ final class SettingTooltipsData {
         d.put("text", "Makes this box show text; type the words in the text step.");
         d.put("gif", "Makes this box show a GIF; click in the GIF step to cycle through your .gif files.");
         d.put("<- back to list", "Returns to the list of DVD boxes; changes already set are kept.");
-        d.put("text color hex", "Type a 6-digit hex colour for the text, like FF00AA, then press Set Color.");
-        d.put("set color (hex, e.g. ff00aa)", "Applies the hex colour typed in the box to the DVD text.");
+        d.put("dvd/text color", "Opens a color picker for the DVD text; type or paste a hex colour there.");
         d.put("hud elements/background", "Draws a dark box behind the DVD text.");
         d.put("background", "Draws a backdrop behind this element.");
         d.put("change color on corner hit", "Switches the text to a random colour when the box hits a corner exactly.");
@@ -354,7 +363,9 @@ final class SettingTooltipsData {
         d.put("enchant colours/good", "Colour for an enchant at its good level, like Sharpness V.");
         d.put("enchant colours/great", "Colour for an enchant above good but below max, like Sharpness VI.");
         d.put("enchant colours/perfect", "Colour for a maxed enchant when Perfect Chroma is off.");
-        d.put("perfect chroma", "Shows a maxed enchant as an animated rainbow instead of one colour.");
+        d.put("perfect chroma", "Shows a maxed enchant as an animated rainbow that flows diagonally, top left to bottom right, across the whole tooltip.");
+        d.put("enchant colours/chroma speed", "How fast the Perfect Chroma rainbow flows across the tooltip.");
+        d.put("enchant colours/chroma size", "How wide each band of the Perfect Chroma rainbow is. Higher is wider.");
         d.put("bold perfect", "Also renders a maxed enchant in bold.");
         d.put("ultimate override", "Gives every Ultimate enchant one shared colour.");
         d.put("ultimate colour", "Opens a colour picker for the shared Ultimate enchant colour.");
@@ -897,6 +908,13 @@ final class SettingTooltipsData {
         d.put("auto scale (monitor)", "Keeps every HUD element and menu of this mod the same size relative to your window on any monitor and at any GUI Scale, using a 2560x1440 screen at GUI Scale 3 as the reference (unchanged there). HUD Scale multiplies on top. ON by default; saved with profiles.");
         d.put("borderless fullscreen", "Stretches the window over the whole monitor without borders.");
         d.put("fullbright", "Renders the world at full brightness in any light.");
+        d.put("profile viewer/theme", "The colours /pv draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone.");
+        d.put("friends list/theme", "The colours the custom Friends List draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone.");
+        d.put("best friends/theme", "The colours /bestfriends draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone.");
+        d.put("pet wheel/theme", "The colours the pet wheel draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for the wheel alone.");
+        d.put("auto update/theme", "The colours of the \"updated to\" popup. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for it alone.");
+        d.put("window layout/theme", "The colours of the Window Layout picker. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for it alone.");
+        d.put("swap accounts theme", "The colours of the title screen's Swap Accounts page and its proxy and session login pages. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours.");
         d.put("themed main menu", "Gives the game's menus the mod's black and orange theme.");
         d.put("auto join skyblock", "Runs /skyblock whenever you first join the server.");
         d.put("profile name", "Name for a new settings profile.");
@@ -1168,8 +1186,8 @@ final class SettingTooltipsData {
         d.put("alpha footer", "Footer text shown instead of the normal one on the Alpha network.");
         d.put("gradient border", "Fades the border colour from top to bottom.");
         d.put("border bottom color", "Bottom colour of the border gradient.");
-        d.put("chroma border", "Cycles the border through rainbow colours.");
-        d.put("chroma speed", "How fast the chroma border cycles, 1-20.");
+        d.put("chroma border", "A rainbow that flows diagonally round the border, top left to bottom right.");
+        d.put("chroma speed", "How fast the chroma border flows, 1-20.");
         d.put("image background", "Draws background.png from the scoreboard image folder behind the board.");
         d.put("image opacity", "How solid the background image is, 5-100%.");
         d.put("reload image", "Re-reads background.png so file changes show up without a restart.");
@@ -2147,6 +2165,8 @@ final class SettingTooltipsData {
         d.put("name changer/letter colours", "Opens a row with one button per letter of your display name, to colour each letter.");
         d.put("name changer/clear letter colours", "Removes every per-letter colour so the name's normal colour or fade shows again.");
         d.put("fade color", "Turns your display name into a two-colour gradient instead of one flat colour.");
+        d.put("name animation", "Animates your faded or letter-coloured name: Wave flows the colours along it to the right, Pulse dims and brightens it. Other players with the mod see it too when Share if Supporter is on.");
+        d.put("animation speed", "How fast your name's Wave or Pulse runs, from 0.25x to 3x.");
         d.put("party interop/share dungeon data with party", "Shares your dungeon info (rooms, secrets, mimic, dragons) with your party over the mod relay.");
         d.put("party interop/cross-mod bridge", "Shares dungeon data both ways with users of Devonian, NoammAddons and Odin.");
         d.put("party interop/devonian bridge", "Shares room secret counts with Devonian users in your dungeon party.");

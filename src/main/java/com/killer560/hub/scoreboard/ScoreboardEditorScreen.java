@@ -1,13 +1,13 @@
 package com.killer560.hub.scoreboard;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.DragListWidget;
-import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuThemedScreen;
-import com.killer560.hub.gui.ToolScreenKit;
-import com.killer560.hub.gui.WellEditBox;
+import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.gui.SettingTooltips;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -52,12 +52,20 @@ import java.util.function.Supplier;
  */
 public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
 
-    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
     public static final String THEME_ID = "scoreboard";
 
     @Override
     public String themeId() {
         return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
     }
 
     private enum Page {
@@ -145,7 +153,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
     @Override
     protected void init() {
         // The theme's palette now, so the section headings and hints built below take its colours.
-        MenuStyle.use(ToolScreenKit.themeOf(this));
+        MenuStyle.use();
         cfg = CustomScoreboardConfig.getInstance();
         if (selected != null && !cfg.entries().contains(selected)) {
             selected = null;
@@ -762,18 +770,17 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         }
         // The menu theme (screen sweep, 2026-10-13): one panel over the window with the two help lines in its header
         // bar, the board in a recessed well, the settings side on a raised box, every colour from the theme.
-        ToolScreenKit.begin(g, this, true);
-        ToolScreenKit.panel(g, this, 3, 3, this.width - 6, this.height - 6);
+        ScreenChrome.backdrop(g, this.width, this.height);
+        themedBounds = new int[]{3, 3, this.width - 6, this.height - 6};
+        ScreenChrome.frame(g, 3, 3, this.width - 6, this.height - 6);
         GuiRects chrome = GuiRects.begin(g);
         MenuStyle.bevel(chrome, 5, 5, this.width - 10, 27, MenuStyle.HEADER_TOP, MenuStyle.HEADER_BOTTOM);
         chrome.submit();
-        ToolScreenKit.box(g, null, panelX - 6, boardY - 1, panelW + 10, panelBottom - boardY + 5);
-        ToolScreenKit.text(g, "Drag lines on the board to move them. Drag one to the right to take it off.",
-                MARGIN, 9, MenuStyle.OR);
-        ToolScreenKit.text(g, "The board shows sample text; in game each line shows your real data.", MARGIN, 20,
-                MenuStyle.DIM);
+        ScreenChrome.card(g, panelX - 6, boardY - 1, panelW + 10, panelBottom - boardY + 5, false);
+        ScreenChrome.text(g, "Drag lines on the board to move them. Drag one to the right to take it off.", MARGIN, 9, MenuStyle.OR);
+        ScreenChrome.text(g, "The board shows sample text; in game each line shows your real data.", MARGIN, 20, MenuStyle.DIM);
 
-        ToolScreenKit.well(g, boardX, boardY, boardW, boardH);
+        ScreenChrome.well(g, boardX, boardY, boardW, boardH);
         ScoreboardEntry lifted = dragging && !pressedFromInactive ? pressed : null;
         Board b = board(lifted);
         drawBoard(g, b);
@@ -857,7 +864,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
                 row.outline(r[0] - 1, r[1] - 1, r[2] + 2, r[3] + 1, MenuStyle.ACCENT_EDGE);
             }
             row.submit();
-            MenuStyle.text(g, "+ ", r[0] + 3, r[1] + 2, hover ? MenuStyle.OR : ToolScreenKit.good());
+            MenuStyle.text(g, "+ ", r[0] + 3, r[1] + 2, hover ? MenuStyle.OR : ScreenChrome.readable(0xFF55FF55));
             MenuStyle.text(g, e.label, r[0] + 3 + this.font.width("+ "), r[1] + 2, MenuStyle.TXT);
         }
         int max = maxInactiveScroll();
@@ -923,7 +930,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         if (y + h + 8 > this.height) {
             y = Math.max(4, my - h - 16);
         }
-        ToolScreenKit.tooltip(g, lines, x, y, w, h);
+        ScreenChrome.tooltip(g, lines, x, y, w, h);
     }
 
     // ---- widget helpers ----
@@ -1012,10 +1019,10 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
     }
 
     private EditBox textBox(String name, String value, java.util.function.Consumer<String> setter, int x, int y, int w) {
-        EditBox box = new WellEditBox(Minecraft.getInstance().font, x, y, w, ROW, Component.literal(name));
+        EditBox box = new ThemedEditBox(Minecraft.getInstance().font, x, y, w, ROW, Component.literal(name));
         box.setMaxLength(256);
         box.setValue(value);
-        box.setHint(Component.literal("§8" + name));
+        ((ThemedEditBox) box).hint(name);
         box.setResponder(text -> {
             setter.accept(text);
             cfg.save();

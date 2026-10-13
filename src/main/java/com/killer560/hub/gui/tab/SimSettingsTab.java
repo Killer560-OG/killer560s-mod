@@ -34,7 +34,7 @@ public class SimSettingsTab extends BaseTab {
                 SimBreakerState.setSecretCharges((int) Math.round(this.value * SimBreakerState.MAX_SECRET_CHARGES));
             }
         });
-        com.killer560.hub.gui.ScreenThemeConfig.append(w, com.killer560.hub.roomsim.SimMenuScreen.THEME_ID, contentX,
+        com.killer560.hub.gui.ScreenThemes.append(w, com.killer560.hub.roomsim.SimMenuScreen.THEME_ID, contentX,
                 contentWidth, contentY);
         return w;
     }

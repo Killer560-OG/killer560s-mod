@@ -83,7 +83,7 @@ public abstract class RangeSliderWidget extends AbstractWidget {
         int y0 = getY();
         int w = getWidth();
         int h = getHeight();
-        if (SettingsButtonWidget.inMenu()) {
+        if ((SettingsButtonWidget.inMenu() || SettingsButtonWidget.inThemedScreen())) {
             // Option A menu: label and range above a recessed track, both knobs on it. The knobs sit at the centres of
             // the same handle boxes the mouse maps onto (handleX + HANDLE_WIDTH / 2), so a click lands where it looks.
             var font = Minecraft.getInstance().font;

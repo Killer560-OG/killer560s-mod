@@ -327,6 +327,13 @@ public final class SimRoomCycle {
         saveKeys();
     }
 
+    /** A profile load replaced the keys file: read it again on next use. */
+    public static synchronized void forgetKeys() {
+        keysLoaded = false;
+        nextKey = KeyUtil.NONE;
+        backKey = KeyUtil.NONE;
+    }
+
     private static void loadKeys() {
         if (keysLoaded) {
             return;

@@ -17,7 +17,7 @@ import java.nio.file.Path;
  * is loaded into a dynamic texture and stretched over the board. The file's modification time is re-checked every
  * 2 seconds, so replacing the image applies without a restart. Must only be used from the render thread.
  */
-final class ScoreboardBackgroundImage {
+public final class ScoreboardBackgroundImage {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-customscoreboard");
     static final Path FILE = CustomScoreboardConfig.DATA_DIR.resolve("background.png");
@@ -42,8 +42,8 @@ final class ScoreboardBackgroundImage {
         return registered ? TEXTURE_ID : null;
     }
 
-    /** Forces a re-read on the next frame (the "Reload Image" button). */
-    static void reload() {
+    /** Forces a re-read on the next frame (the "Reload Image" button, and a profile load that swapped the image). */
+    public static void reload() {
         loadedModified = Long.MIN_VALUE;
         lastCheckMs = 0L;
     }

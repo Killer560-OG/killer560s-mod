@@ -1,5 +1,6 @@
 package com.killer560.hub.enchantcolors;
 
+import com.killer560.hub.util.ChromaWave;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -73,17 +74,12 @@ public final class EnchantColorsFeature {
      *  {@code enchantmentExclusivePattern}. Must NOT match e.g. {@code §7by §c10% §7per hit, capped at}. */
     private static final Pattern WHITESPACE_RUN = Pattern.compile("\\s+");
 
-    /** Shared "nothing to recolour" result - one instance instead of allocating a fresh one per non-matching
-     *  item. */
-    private static final ApplyResult NO_CHANGE = new ApplyResult(null, false);
-    /** How often a chroma-coloured Perfect enchant's cached result is allowed to go stale and rebuild - see
-     *  {@link #recolor}'s doc. 100ms = 10 colour steps/sec, smooth enough to read as an animation without
-     *  reintroducing the uncapped per-frame cost the cache exists to avoid. */
-    private static final long CHROMA_BUCKET_MS = 100L;
-    /** Full hue cycle length for {@link #chromaColor()}. Not sourced from SkyHanni (its ChromaColour cycle
-     *  speed lives in a separate bundled dependency this mod doesn't pull in) - just a readable animation
-     *  speed for the same "Perfect enchants visibly animate" idea. */
-    private static final long CHROMA_PERIOD_MS = 3000L;
+    /** The Perfect tier's chroma (killer560, 2026-10-13: "waterfalls the color from top left to bottom right in a
+     *  wavy manner"). A Perfect segment is styled with this spec's colour, and {@code ChromaGlyphColorMixin} colours
+     *  each glyph from its own screen position as the tooltip is drawn, so every enchant line of a tooltip is one
+     *  diagonal waterfall and the cached components never need rebuilding to animate. Speed and size follow the
+     *  tab's Chroma Speed / Chroma Size, synced on every {@link #recolor}. */
+    private static final ChromaWave.Spec PERFECT_CHROMA = ChromaWave.rainbowSpec(EnchantColorsDefaults.PERFECT);
 
     private static final Pattern ENCHANT_LINE = Pattern.compile(
             "^(?:(?:§.)*[A-Za-z][A-Za-z '-]+ (?:[IVXLCDM]+|[0-9]+)"
@@ -196,64 +192,32 @@ public final class EnchantColorsFeature {
         if (data == null) {
             return lines;
         }
-        long bucket = System.currentTimeMillis() / CHROMA_BUCKET_MS;
+        PERFECT_CHROMA.speed(cfg.getChromaSpeed()).size(cfg.getChromaSize());
         CacheEntry cached = CACHE.get(stack);
-        // killer560, 2026-09-27: "make the enchant colors the exact same as skyhanni's" - SkyHanni's real
-        // Perfect default is an animated chroma cycle, not a fixed colour (see EnchantColorsDefaults' class
-        // doc), which the identity/lore-keyed cache below can't represent - a baked Component's colour is
-        // frozen at whatever it was when the cache was last (re)built. An item with a chroma-coloured Perfect
-        // enchant therefore also has to match on the current chroma "bucket" (a coarse ~100ms time slice, not
-        // every single frame) to stay cached, so it re-animates instead of freezing at one random colour.
-        // Everything without a chroma-coloured line is unaffected - it still only rebuilds on a real change.
-        if (cached != null && cached.lore == lore && cached.data == data && cached.size == lines.size()
-                && (!cached.hasChroma || cached.bucket == bucket)) {
+        // A chroma Perfect segment carries PERFECT_CHROMA's colour and is coloured per glyph as it is drawn (see
+        // that field), so a cached result animates by itself: until 2026-10-13 it was rebuilt every 100 ms instead.
+        if (cached != null && cached.lore == lore && cached.data == data && cached.size == lines.size()) {
             return cached.result == null ? lines : cached.result;
         }
         List<Component> result;
-        boolean hasChroma;
         try {
-            ApplyResult applied = apply(cfg, data, lines);
-            result = applied.lines;
-            hasChroma = applied.hasChroma;
+            result = apply(cfg, data, lines);
         } catch (Exception e) {
             result = null;
-            hasChroma = false;
         }
-        CACHE.put(stack, new CacheEntry(lore, data, lines.size(), result, hasChroma, bucket));
+        CACHE.put(stack, new CacheEntry(lore, data, lines.size(), result));
         return result == null ? lines : result;
     }
 
-    /** killer560, 2026-09-27: animated Perfect-tier colour, cycling the full hue spectrum - the closest this
-     *  mod can get to SkyHanni's real "Chroma" default without pulling in its ChromaColour animation engine
-     *  (see {@link EnchantColorsDefaults}'s class doc). Not claimed to be frame-identical to SkyHanni's own
-     *  cycle speed/curve - just the same idea (Perfect enchants are the one tier that visibly animates). */
-    private static int chromaColor() {
-        float hue = (System.currentTimeMillis() % CHROMA_PERIOD_MS) / (float) CHROMA_PERIOD_MS;
-        return 0xFF000000 | (hsbToRgb(hue) & 0xFFFFFF);
-    }
-
-    /** Minimal hue(0-1)-&gt;RGB at full saturation/brightness, so this doesn't have to pull in
-     *  {@code java.awt.Color} just for one conversion. Standard 6-sector HSB formula. */
-    private static int hsbToRgb(float hue) {
-        float h = (hue - (float) Math.floor(hue)) * 6f;
-        int sector = (int) h;
-        float frac = h - sector;
-        int p = 0;
-        int q = Math.round(255 * (1 - frac));
-        int t = Math.round(255 * frac);
-        return switch (sector) {
-            case 0 -> (255 << 16) | (t << 8) | p;
-            case 1 -> (q << 16) | (255 << 8) | p;
-            case 2 -> (p << 16) | (255 << 8) | t;
-            case 3 -> (p << 16) | (q << 8) | 255;
-            case 4 -> (t << 16) | (p << 8) | 255;
-            default -> (255 << 16) | (p << 8) | q;
-        };
+    /** The Perfect chroma spec (the testkit matches tooltip styles against its colour). */
+    public static ChromaWave.Spec perfectChroma() {
+        return PERFECT_CHROMA;
     }
 
     // ---------------------------------------------------------------- the work
 
-    private static ApplyResult apply(EnchantColorsConfig cfg, CustomData data, List<Component> lines) {
+    /** @return the recoloured lines, or null when nothing on this item needed recolouring. */
+    private static List<Component> apply(EnchantColorsConfig cfg, CustomData data, List<Component> lines) {
         CompoundTag tag = data.copyTag();
         // Hypixel's ExtraAttributes arrives as the item's custom-data root (same place ItemRarityFeature
         // reads "id" and "petInfo" from, and DungeonChestValuer reads "enchantments" from). No enchantments
@@ -261,7 +225,7 @@ public final class EnchantColorsFeature {
         // rather than guessing from text.
         CompoundTag enchants = tag.getCompoundOrEmpty("enchantments");
         if (enchants.isEmpty()) {
-            return NO_CHANGE;
+            return null;
         }
 
         // Lore name -> NBT level, for every enchant on the item (both the plain and, for ultimates, the
@@ -286,31 +250,22 @@ public final class EnchantColorsFeature {
         }
 
         List<Component> out = null;
-        boolean hasChroma = false;
-        // Reused across lines rather than allocated per line - rebuildLine sets [0] = true when it painted a
-        // chroma-coloured Perfect segment, so apply() can tell recolor() whether this item's cached result
-        // needs the chroma-bucket freshness check (see recolor()'s own doc for why).
-        boolean[] chromaOut = new boolean[1];
         for (int i = 0; i < lines.size(); i++) {
             Component line = lines.get(i);
             String legacy = LegacyText.toLegacy(line);
             if (legacy.isEmpty() || !ENCHANT_LINE.matcher(legacy).matches()) {
                 continue;
             }
-            chromaOut[0] = false;
-            Component rebuilt = rebuildLine(cfg, line, legacy, levels, isUltimate, chromaOut);
+            Component rebuilt = rebuildLine(cfg, line, legacy, levels, isUltimate);
             if (rebuilt == null) {
                 continue;
-            }
-            if (chromaOut[0]) {
-                hasChroma = true;
             }
             if (out == null) {
                 out = new ArrayList<>(lines);
             }
             out.set(i, rebuilt);
         }
-        return new ApplyResult(out, hasChroma);
+        return out;
     }
 
     private static void putName(Map<String, Integer> levels, Map<String, Boolean> isUltimate, String name,
@@ -324,12 +279,9 @@ public final class EnchantColorsFeature {
         }
     }
 
-    /** @param chromaOut {@code [0]} is set true if a chroma-coloured Perfect segment was painted on this
-     *                    line - never cleared here, only ever set, so the caller resets it per line.
-     *  @return the recoloured line, or null if nothing on it was a recognised enchant. */
+    /** @return the recoloured line, or null if nothing on it was a recognised enchant. */
     private static Component rebuildLine(EnchantColorsConfig cfg, Component original, String legacy,
-                                         Map<String, Integer> levels, Map<String, Boolean> isUltimate,
-                                         boolean[] chromaOut) {
+                                         Map<String, Integer> levels, Map<String, Boolean> isUltimate) {
         Matcher m = ENCHANT.matcher(legacy);
         MutableComponent rebuilt = Component.empty().withStyle(original.getStyle());
         int cursor = 0;
@@ -347,6 +299,7 @@ public final class EnchantColorsFeature {
 
             Integer color;
             boolean bold;
+            boolean chroma = false;
             if (ultimate) {
                 color = cfg.getUltimateColor();
                 bold = cfg.isUltimateBold();
@@ -371,8 +324,8 @@ public final class EnchantColorsFeature {
                         // killer560, 2026-09-27: SkyHanni's real Perfect default is an animated rainbow, not
                         // a fixed colour - see EnchantColorsDefaults' class doc. cfg.getPerfectColor() is
                         // only used as the static fallback while this toggle is off.
-                        color = chromaColor();
-                        chromaOut[0] = true;
+                        color = EnchantColorsDefaults.PERFECT;
+                        chroma = true;
                     } else {
                         color = perfect ? cfg.getPerfectColor()
                                 : nbtLevel > goodLevel ? cfg.getGreatColor()
@@ -404,7 +357,7 @@ public final class EnchantColorsFeature {
             // plain text would otherwise inherit the NEW colour instead of Hypixel's.
             appendRaw(rebuilt, legacy, cursor, m.start());
             Style style = Style.EMPTY
-                    .withColor(TextColor.fromRgb(color & 0xFFFFFF))
+                    .withColor(chroma ? PERFECT_CHROMA.textColor() : TextColor.fromRgb(color & 0xFFFFFF))
                     .withItalic(Boolean.FALSE)
                     .withBold(bold ? Boolean.TRUE : Boolean.FALSE);
             rebuilt.append(Component.literal(m.group("enchant") + " " + m.group("level")).withStyle(style));
@@ -434,23 +387,12 @@ public final class EnchantColorsFeature {
         final int size;
         /** null = this stack needs no recolouring at all. */
         final List<Component> result;
-        /** Whether {@link #result} contains a chroma-coloured Perfect segment - see {@link #recolor}'s doc. */
-        final boolean hasChroma;
-        /** The chroma time-bucket {@link #result} was built for; meaningless when {@link #hasChroma} is
-         *  false. */
-        final long bucket;
 
-        CacheEntry(ItemLore lore, CustomData data, int size, List<Component> result, boolean hasChroma, long bucket) {
+        CacheEntry(ItemLore lore, CustomData data, int size, List<Component> result) {
             this.lore = lore;
             this.data = data;
             this.size = size;
             this.result = result;
-            this.hasChroma = hasChroma;
-            this.bucket = bucket;
         }
-    }
-
-    /** @param lines null = nothing on this item needed recolouring at all. */
-    private record ApplyResult(List<Component> lines, boolean hasChroma) {
     }
 }

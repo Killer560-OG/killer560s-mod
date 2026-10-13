@@ -1,11 +1,11 @@
 package com.killer560.hub.leapmenu;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.dungeonclass.ClassOverrides;
 import com.killer560.hub.dungeonclass.DungeonClass;
-import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ToolScreenKit;
 import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.spiritleap.SpiritLeapOverlayConfig;
@@ -50,12 +50,20 @@ import com.killer560.hub.compat.McCompat;
  */
 public class LeapOrderScreen extends Screen implements MenuThemedScreen {
 
-    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
     public static final String THEME_ID = "leaporder";
 
     @Override
     public String themeId() {
         return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
     }
 
     private static final int BOX_W = 180;
@@ -327,21 +335,21 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         String name = wizard.get(wizardIndex);
         int cx = width / 2;
         int y = wizardY();
-        ToolScreenKit.titleCentred(graphics, "Teammate " + (wizardIndex + 1) + " of " + wizard.size()
+        ScreenChrome.titleCentred(graphics, "Teammate " + (wizardIndex + 1) + " of " + wizard.size()
                 + " - what class are they?", cx, 16, false);
         int face = 32;
         GuiRects r = GuiRects.begin(graphics);
-        ToolScreenKit.card(r, cx - face / 2 - 4, y - 4, face + 8, face + 8, false, false);
+        ScreenChrome.card(r, cx - face / 2 - 4, y - 4, face + 8, face + 8, false, false);
         r.fill(cx - face / 2 - 1, y - 1, cx + face / 2 + 1, y + face + 1, MenuStyle.BLACK);
         r.submit();
         com.killer560.hub.livemap.LeapMapView.drawFace(graphics, name, cx - face / 2, y, face);
         DungeonClass now = PartyTracker.classOf(name);
-        ToolScreenKit.centred(graphics, name, cx, y + 40, now != null ? ToolScreenKit.onPanel(now.color()) : MenuStyle.TXT);
+        ScreenChrome.centered(graphics, name, cx, y + 40, now != null ? ScreenChrome.readable(now.color()) : MenuStyle.TXT);
         DungeonClass detected = PartyTracker.detectedClassOf(name);
         String source = detected != null ? "The tab list says " + detected.displayName()
                 + (now != detected ? " (you picked " + (now == null ? "?" : now.displayName()) + ")" : "")
                 : now != null ? "Picked by you" : "Not detected yet - pick their class";
-        ToolScreenKit.centred(graphics, source, cx, y + 51, MenuStyle.DIM);
+        ScreenChrome.centered(graphics, source, cx, y + 51, MenuStyle.DIM);
     }
 
     @Override
@@ -399,19 +407,20 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         // The menu theme (screen sweep, 2026-10-13): one panel over the whole window with a header band for the title
         // (and the Default Order pill), the spots as the menu's cards with their class colour as the edge, the class
         // buttons as cards too. Every position is the one it had: the spots still sit exactly where the leap menu puts them.
-        ToolScreenKit.begin(graphics, this, true);
-        ToolScreenKit.panel(graphics, this, 6, 6, width - 12, height - 12);
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        themedBounds = new int[]{6, 6, width - 12, height - 12};
+        ScreenChrome.frame(graphics, 6, 6, width - 12, height - 12);
         GuiRects head = GuiRects.begin(graphics);
         MenuStyle.bevel(head, 9, 9, width - 18, editing != null && wizard == null ? 40 : 18, MenuStyle.HEADER_TOP,
                 MenuStyle.HEADER_BOTTOM);
         head.submit();
         if (editing == null) {
-            ToolScreenKit.titleCentred(graphics, "Leap Order", width / 2, 16, false);
-            ToolScreenKit.centred(graphics, "Select your class", width / 2, height / 2 - 90, MenuStyle.TXT_SOFT);
+            ScreenChrome.titleCentred(graphics, "Leap Order", width / 2, 16, false);
+            ScreenChrome.centered(graphics, "Select your class", width / 2, height / 2 - 90, MenuStyle.TXT_SOFT);
         } else if (wizard != null) {
             renderWizard(graphics);
         } else {
-            ToolScreenKit.titleCentred(graphics, "Leap Order - " + editing.displayName(), width / 2, 16, false);
+            ScreenChrome.titleCentred(graphics, "Leap Order - " + editing.displayName(), width / 2, 16, false);
             String[] layout = currentLayout();
             LeapMenuConfig cfg = LeapMenuConfig.getInstance();
             boolean any = false;
@@ -421,9 +430,9 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                 String name = layout[spot];
                 any |= name != null;
                 DungeonClass c = name == null ? null : PartyTracker.classOf(name);
-                int color = c != null ? ToolScreenKit.onPanel(c.color()) : MenuStyle.OR;
+                int color = c != null ? ScreenChrome.readable(c.color()) : MenuStyle.OR;
                 GuiRects card = GuiRects.begin(graphics);
-                ToolScreenKit.card(card, b[0], b[1], b[2], b[3], hovered, spot == selectedSpot);
+                ScreenChrome.card(card, b[0], b[1], b[2], b[3], hovered, spot == selectedSpot);
                 // The class colour as the card's edge and a strip down its left side.
                 card.outline(b[0] + 1, b[1] + 1, b[2] - 2, b[3] - 2, name == null ? MenuStyle.ACCENT_EDGE : color);
                 if (name != null) {
@@ -433,7 +442,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                 if (name != null) {
                     // Above the class button when the box has one.
                     int textY = b[3] >= 34 ? b[1] + (b[3] - 17) / 2 - 4 : b[1] + b[3] / 2 - 4;
-                    ToolScreenKit.centred(graphics, name, b[0] + b[2] / 2, textY, color);
+                    ScreenChrome.centered(graphics, name, b[0] + b[2] / 2, textY, color);
                     if (cfg.isPinned(editing, name)) {
                         // Subtle: moved by hand, so the default order leaves this one alone until Reset.
                         MenuStyle.text(graphics, "pinned", b[0] + b[2] - font.width("pinned") - 4, b[1] + 4, MenuStyle.DIM2);
@@ -441,7 +450,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                 }
             }
             if (!any) {
-                ToolScreenKit.centred(graphics, "No party members found", width / 2, height / 2 - 4, MenuStyle.DIM);
+                ScreenChrome.centered(graphics, "No party members found", width / 2, height / 2 - 4, MenuStyle.DIM);
             }
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
@@ -522,12 +531,12 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         @Override
         protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
             // A card in the menu theme with the class colour as its edge (screen sweep, 2026-10-13).
-            int c = ToolScreenKit.onPanel(color);
+            int c = ScreenChrome.readable(color);
             GuiRects r = GuiRects.begin(graphics);
-            ToolScreenKit.card(r, getX(), getY(), getWidth(), getHeight(), isHovered, false);
+            ScreenChrome.card(r, getX(), getY(), getWidth(), getHeight(), isHovered, false);
             r.outline(getX() + 1, getY() + 1, getWidth() - 2, getHeight() - 2, c);
             r.submit();
-            ToolScreenKit.centred(graphics, label, getX() + getWidth() / 2, getY() + (getHeight() - 8) / 2, c);
+            ScreenChrome.centered(graphics, label, getX() + getWidth() / 2, getY() + (getHeight() - 8) / 2, c);
         }
 
         @Override

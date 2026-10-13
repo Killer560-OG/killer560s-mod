@@ -1,5 +1,7 @@
 package com.killer560.hub.termism;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.terminals.TerminalType;
 import net.minecraft.client.Minecraft;
@@ -22,12 +24,20 @@ import com.killer560.hub.compat.McCompat;
  *  Random/New Puzzle can never land on it by chance. */
 public class TermismMenuScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
 
-    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
     public static final String THEME_ID = "termism";
 
     @Override
     public String themeId() {
         return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
     }
 
     // Package-visible (not private) so TermismPracticeScreen's own "New Puzzle" reroll (killer560's
@@ -79,15 +89,14 @@ public class TermismMenuScreen extends Screen implements com.killer560.hub.gui.M
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         // The menu theme (screen sweep, 2026-10-13): a panel round the list with the title in its header bar.
-        com.killer560.hub.gui.ToolScreenKit.begin(graphics, this, true);
+        ScreenChrome.backdrop(graphics, this.width, this.height);
         int px = this.width / 2 - 130;
         int py = this.height / 2 - 152;
-        com.killer560.hub.gui.ToolScreenKit.panel(graphics, this, px, py, 260, 252);
-        com.killer560.hub.gui.ToolScreenKit.header(graphics, px, py, 260);
-        com.killer560.hub.gui.ToolScreenKit.titleCentred(graphics, "Termism - Terminal Practice", this.width / 2,
-                this.height / 2 - 142, false);
-        com.killer560.hub.gui.ToolScreenKit.centred(graphics, "Generates a fake terminal to practice on - never a real one.",
-                this.width / 2, this.height / 2 - 126, com.killer560.hub.gui.MenuStyle.DIM);
+        themedBounds = new int[]{px, py, 260, 252};
+        ScreenChrome.frame(graphics, px, py, 260, 252);
+        ScreenChrome.headerBar(graphics, px, py, 260);
+        ScreenChrome.titleCentred(graphics, "Termism - Terminal Practice", this.width / 2, this.height / 2 - 142, false);
+        ScreenChrome.centered(graphics, "Generates a fake terminal to practice on - never a real one.", this.width / 2, this.height / 2 - 126, MenuStyle.DIM);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 

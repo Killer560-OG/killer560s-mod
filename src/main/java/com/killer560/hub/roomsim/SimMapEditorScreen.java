@@ -1,10 +1,10 @@
 package com.killer560.hub.roomsim;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
+import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.MenuThemedScreen;
-import com.killer560.hub.gui.ToolScreenKit;
-import com.killer560.hub.gui.WellEditBox;
+import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
@@ -37,12 +37,20 @@ import com.killer560.hub.compat.McCompat;
  */
 public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
 
-    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
     public static final String THEME_ID = "sim";
 
     @Override
     public String themeId() {
         return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
     }
 
     /** Room slots per side. The 11x11 cell grid holds rooms on even cells, so six of them. */
@@ -197,9 +205,9 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // (which draws from the list) and Generate - see SimRoomFilters.
         int active = SimRoomFilters.activeCount();
         int filtersW = this.font.width("Filters (99)") + 12;
-        search = new WellEditBox(this.font, listX, panelY + 44, Math.max(20, listW - filtersW - 4), 16,
+        search = new ThemedEditBox(this.font, listX, panelY + 44, Math.max(20, listW - filtersW - 4), 16,
                 Component.literal("Search"));
-        search.setHint(Component.literal("Search rooms..."));
+        ((ThemedEditBox) search).hint("Search rooms...");
         search.setValue(searchText);
         search.setResponder(v -> {
             searchText = v;
@@ -214,8 +222,8 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                 }).bounds(listX + listW - filtersW, panelY + 44, filtersW, 16).build());
 
         // The map's name, like the field in Ashfall's Dungeon Maker. Save uses it; Load fills it in.
-        nameBox = new WellEditBox(this.font, gridX, panelY + 44, cell * GRID, 16, Component.literal("Name"));
-        nameBox.setHint(Component.literal("Map name..."));
+        nameBox = new ThemedEditBox(this.font, gridX, panelY + 44, cell * GRID, 16, Component.literal("Name"));
+        ((ThemedEditBox) nameBox).hint("Map name...");
         nameBox.setValue(mapName);
         nameBox.setResponder(v -> mapName = v);
         addRenderableWidget(nameBox);
@@ -680,10 +688,11 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         // The menu theme (screen sweep, 2026-10-13): the menu's panel and header bar; the grid and the room list are
         // recessed wells, list rows hover / select like the menu's, every colour from the active theme.
-        ToolScreenKit.begin(g, this, true);
-        ToolScreenKit.panel(g, this, panelX, panelY, panelW, panelH);
-        ToolScreenKit.header(g, panelX, panelY, panelW);
-        ToolScreenKit.title(g, "DESIGN A MAP", panelX + 10, panelY + 11, false);
+        ScreenChrome.backdrop(g, this.width, this.height);
+        themedBounds = new int[]{panelX, panelY, panelW, panelH};
+        ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
+        ScreenChrome.headerBar(g, panelX, panelY, panelW);
+        ScreenChrome.title(g, "DESIGN A MAP", panelX + 10, panelY + 11, false);
         // The type filters read the room database; a list built before it loaded is rebuilt the moment it does.
         if (!listedWithDatabase && panel == Panel.ROOMS && RoomDatabase.isReady()) {
             refilter();
@@ -711,12 +720,11 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // Writing a shorter string would only move the problem to the next window that is narrower still, so
         // the width is measured: the full wording when it fits, a short form when it does not, and a trim as
         // the last resort so a long status line can never reach the list either.
-        ToolScreenKit.text(g, fit(status.isEmpty()
+        ScreenChrome.text(g, fit(status.isEmpty()
                         ? "click a room, then a cell · right-click a cell to remove"
                         : status,
                 status.isEmpty() ? "click a room, then a cell" : null,
-                listX - 8 - gridX),
-                gridX, gridY + cell * GRID + 4, MenuStyle.DIM);
+                listX - 8 - gridX), gridX, gridY + cell * GRID + 4, MenuStyle.DIM);
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
 
@@ -945,7 +953,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     private void drawList(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         int top = panelY + 66;
         int bottom = listBottom();
-        ToolScreenKit.well(g, listX - 1, top - 1, listW + 2, bottom - top + 2);
+        ScreenChrome.well(g, listX - 1, top - 1, listW + 2, bottom - top + 2);
         g.enableScissor(listX, top, listX + listW, bottom);
         for (int i = 0; i < listed.size(); i++) {
             int y = top + i * ROW_H - scroll;
@@ -957,7 +965,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             boolean hover = mouseX >= listX && mouseX < listX + listW && mouseY >= y && mouseY < y + ROW_H;
             if (isSelected || hover) {
                 GuiRects rr = GuiRects.begin(g);
-                ToolScreenKit.row(rr, listX, y, listX + listW - listX, ROW_H, hover, isSelected);
+                ScreenChrome.row(rr, listX, y, listX + listW - listX, ROW_H, hover, isSelected, false);
                 rr.submit();
             }
             if (panel == Panel.MAPS) {

@@ -1,5 +1,7 @@
 package com.killer560.hub.hud;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.playerstats.PlayerStatsConfig;
 import com.killer560.hub.playerstats.StatElements;
 import com.killer560.hub.playerstats.StatLayout;
@@ -72,12 +74,20 @@ import com.killer560.hub.compat.McCompat;
  */
 public class HudEditorScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
 
-    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
     public static final String THEME_ID = "hudeditor";
 
     @Override
     public String themeId() {
         return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
     }
 
     private final Screen parent;
@@ -129,21 +139,21 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
 
     private static final int BOX_BG = 0x55FFFFFF;
     private static final int BOX_BG_DRAGGING = 0x8055FF55;
-    // The accent colours come from the theme (screen sweep, 2026-10-13): MenuStyle after ToolScreenKit.begin.
+    // The accent colours come from the theme (screen sweep, 2026-10-13): MenuStyle, which holds the open screen's theme.
     private static int boxOutline() {
-        return com.killer560.hub.gui.MenuStyle.OR;
+        return MenuStyle.OR;
     }
 
     private static int handle() {
-        return com.killer560.hub.gui.MenuStyle.OR_LIGHT;
+        return MenuStyle.OR_LIGHT;
     }
 
     private static int guide() {
-        return com.killer560.hub.gui.MenuStyle.OR_LIGHT;
+        return MenuStyle.OR_LIGHT;
     }
 
     private static int zone(int alpha) {
-        return com.killer560.hub.gui.MenuStyle.alpha(com.killer560.hub.gui.MenuStyle.OR, alpha);
+        return MenuStyle.alpha(MenuStyle.OR, alpha);
     }
 
     private static final int TRAY_FILL = 0x66000000;
@@ -282,7 +292,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
         StatLayout.newFrame();
         drawParentContainer(graphics, partialTick);
         graphics.fill(0, 0, this.width, this.height, 0x33000000);
-        com.killer560.hub.gui.ToolScreenKit.begin(graphics, this, false);
+        MenuStyle.use();
         // One dim line, gone while something is dragged (2026-10-08, killer560: the editor's panels "block a lot of my
         // screen"). With nothing listed, the line says why instead. Since the screen sweep (2026-10-13) it sits on a
         // small chip in the theme, so it reads over any world and on a light theme.
@@ -479,7 +489,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
                 {x0, (y0 + y1) / 2}, {x1, (y0 + y1) / 2}}
                 : new int[][]{{x0, y0}, {x1, y0}, {x0, y1}, {x1, y1}};
         for (int[] p : at) {
-            g.fill(p[0] - 3, p[1] - 3, p[0] + 3, p[1] + 3, com.killer560.hub.gui.MenuStyle.BLACK);
+            g.fill(p[0] - 3, p[1] - 3, p[0] + 3, p[1] + 3, MenuStyle.BLACK);
             g.fill(p[0] - 2, p[1] - 2, p[0] + 2, p[1] + 2, handle());
         }
     }
@@ -513,8 +523,9 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
     /** A hint line on a small raised chip in the theme (the chip is what the testkit samples). */
     private void hintChip(GuiGraphicsExtractor g, String line, int y) {
         int w = this.font.width(line);
-        com.killer560.hub.gui.ToolScreenKit.box(g, this, 1, y - 3, w + 7, 15);
-        com.killer560.hub.gui.ToolScreenKit.text(g, line, 4, y, com.killer560.hub.gui.MenuStyle.TXT);
+        themedBounds = new int[]{1, y - 3, w + 7, 15};
+        ScreenChrome.card(g, 1, y - 3, w + 7, 15, false);
+        ScreenChrome.text(g, line, 4, y, MenuStyle.TXT);
     }
 
     /** A hint cut to the window's width, so a small window never shows half a word at its edge. */

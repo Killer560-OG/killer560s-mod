@@ -1,5 +1,7 @@
 package com.killer560.hub.termism;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.terminals.TerminalSolverConfig;
 import com.killer560.hub.terminals.TerminalSolverFeature;
@@ -35,12 +37,20 @@ import com.killer560.hub.compat.McItems;
  *  puzzle), the entire point here is practicing reading it yourself. */
 public class TermismPracticeScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
 
-    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
     public static final String THEME_ID = "termism";
 
     @Override
     public String themeId() {
         return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
     }
 
     private static final int CELL_SIZE = 18;
@@ -664,7 +674,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         // The menu theme round the board (screen sweep, 2026-10-13): a panel with the title in its header bar and the
         // hint under the board. The board itself keeps the terminal's own look (the solver's panel with Custom GUI on,
         // vanilla's grey with it off), since that is what is being practised.
-        com.killer560.hub.gui.ToolScreenKit.begin(graphics, this, true);
+        ScreenChrome.backdrop(graphics, this.width, this.height);
 
         boolean customGui = customGuiOn();
         int bgColor = customGui ? PANEL_BG_COLOR : VANILLA_BG_COLOR;
@@ -676,8 +686,9 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         int frameX = this.width / 2 - frameW / 2;
         int frameY = gridOriginY - PANEL_PADDING - 32;
         int frameH = panelHeight + PANEL_PADDING * 2 + 32 + 28;
-        com.killer560.hub.gui.ToolScreenKit.panel(graphics, this, frameX, frameY, frameW, frameH);
-        com.killer560.hub.gui.ToolScreenKit.header(graphics, frameX, frameY, frameW);
+        themedBounds = new int[]{frameX, frameY, frameW, frameH};
+        ScreenChrome.frame(graphics, frameX, frameY, frameW, frameH);
+        ScreenChrome.headerBar(graphics, frameX, frameY, frameW);
         graphics.fill(gridOriginX - PANEL_PADDING, gridOriginY - PANEL_PADDING,
                 gridOriginX + panelWidth + PANEL_PADDING, gridOriginY + panelHeight + PANEL_PADDING, bgColor);
         graphics.outline(gridOriginX - PANEL_PADDING, gridOriginY - PANEL_PADDING,
@@ -697,17 +708,14 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         }
         graphics.pose().popMatrix();
 
-        com.killer560.hub.gui.ToolScreenKit.centred(graphics, headerText(), this.width / 2, gridOriginY - PANEL_PADDING - 21,
-                com.killer560.hub.gui.MenuStyle.TXT);
+        ScreenChrome.centered(graphics, headerText(), this.width / 2, gridOriginY - PANEL_PADDING - 21, MenuStyle.TXT);
 
         if (solved) {
             double seconds = (solvedAtMs - startedAtMs) / 1000.0;
-            com.killer560.hub.gui.ToolScreenKit.centred(graphics, String.format("§aSolved in %.1fs! Click New Puzzle to try again.",
-                    seconds), this.width / 2, gridOriginY + panelHeight + PANEL_PADDING + 10,
-                    com.killer560.hub.gui.ToolScreenKit.good());
+            ScreenChrome.centered(graphics, String.format("§aSolved in %.1fs! Click New Puzzle to try again.",
+                    seconds), this.width / 2, gridOriginY + panelHeight + PANEL_PADDING + 10, ScreenChrome.readable(0xFF55FF55));
         } else {
-            com.killer560.hub.gui.ToolScreenKit.centred(graphics, hintText(),
-                    this.width / 2, gridOriginY + panelHeight + PANEL_PADDING + 10, com.killer560.hub.gui.MenuStyle.DIM);
+            ScreenChrome.centered(graphics, hintText(), this.width / 2, gridOriginY + panelHeight + PANEL_PADDING + 10, MenuStyle.DIM);
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);

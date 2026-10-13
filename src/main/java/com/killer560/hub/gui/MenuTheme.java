@@ -65,13 +65,10 @@ public enum MenuTheme {
         return AMBER;
     }
 
-    /**
-     * The theme screen {@code id} draws in: its own Theme setting ({@link ScreenThemeConfig}), or the main menu's theme
-     * when that is "Theme Default" (killer560, 2026-10-13). Draw with {@code MenuStyle.use(MenuTheme.forScreen(id))}.
-     */
-    public static MenuTheme forScreen(String id) {
-        MenuTheme own = id == null ? null : ScreenThemeConfig.getInstance().get(id);
-        return own != null ? own : MenuConfig.getInstance().getTheme();
+    /** The five base colours a themed screen draws in: its own Theme setting resolved by {@link ScreenThemes} ("Theme
+     *  Default" = the menu's active colours). The one per-screen lookup every themed screen goes through. */
+    public static int[] forScreen(String screenId) {
+        return ScreenThemes.colours(screenId);
     }
 
     /** The presets only (Custom excluded). */

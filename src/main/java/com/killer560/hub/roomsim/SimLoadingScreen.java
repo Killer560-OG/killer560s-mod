@@ -1,8 +1,8 @@
 package com.killer560.hub.roomsim;
 
 import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.MenuThemedScreen;
-import com.killer560.hub.gui.ToolScreenKit;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -31,12 +31,20 @@ import com.killer560.hub.compat.McCompat;
  */
 public final class SimLoadingScreen extends Screen implements MenuThemedScreen {
 
-    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
     public static final String THEME_ID = "sim";
 
     @Override
     public String themeId() {
         return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
     }
 
     private String what;
@@ -77,21 +85,22 @@ public final class SimLoadingScreen extends Screen implements MenuThemedScreen {
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         // The menu theme (screen sweep, 2026-10-13): an opaque themed backdrop - it hides the half-built world - and the
         // menu's panel, header bar and a recessed progress bar.
-        ToolScreenKit.begin(g, this, false);
+        MenuStyle.use();
         g.fill(0, 0, this.width, this.height, MenuStyle.WELL);
 
         int panelW = Math.min(this.width - 40, 420);
         int panelH = 110;
         int panelX = (this.width - panelW) / 2;
         int panelY = (this.height - panelH) / 2;
-        ToolScreenKit.panel(g, this, panelX, panelY, panelW, panelH);
-        ToolScreenKit.header(g, panelX, panelY, panelW);
-        ToolScreenKit.titleCentred(g, "DUNGEON SIM", panelX + panelW / 2, panelY + 11, false);
+        themedBounds = new int[]{panelX, panelY, panelW, panelH};
+        ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
+        ScreenChrome.headerBar(g, panelX, panelY, panelW);
+        ScreenChrome.titleCentred(g, "DUNGEON SIM", panelX + panelW / 2, panelY + 11, false);
         if (!what.isEmpty()) {
-            ToolScreenKit.centred(g, what, panelX + panelW / 2, panelY + 38, MenuStyle.TXT);
+            ScreenChrome.centered(g, what, panelX + panelW / 2, panelY + 38, MenuStyle.TXT);
         }
         if (!detail.isEmpty()) {
-            ToolScreenKit.centred(g, detail, panelX + panelW / 2, panelY + 52, MenuStyle.DIM);
+            ScreenChrome.centered(g, detail, panelX + panelW / 2, panelY + 52, MenuStyle.DIM);
         }
 
         // A real bar. killer560 (2026-09-28): "instead of the moving bar at the bottom [...] make an acttual
@@ -104,9 +113,9 @@ public final class SimLoadingScreen extends Screen implements MenuThemedScreen {
         int barW = panelW - 40;
         int barY = panelY + panelH - 32;
         float progress = SimBuildQueue.progress();
-        ToolScreenKit.progress(g, barX, barY, barW, 8, progress);
+        ScreenChrome.progress(g, barX, barY, barW, 8, progress, MenuStyle.OR);
         String pct = Math.round(progress * 100) + "%";
-        ToolScreenKit.centred(g, pct, panelX + panelW / 2, barY + 12, MenuStyle.DIM);
+        ScreenChrome.centered(g, pct, panelX + panelW / 2, barY + 12, MenuStyle.DIM);
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
 

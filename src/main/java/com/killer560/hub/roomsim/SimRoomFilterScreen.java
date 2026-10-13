@@ -1,10 +1,10 @@
 package com.killer560.hub.roomsim;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuThemedScreen;
-import com.killer560.hub.gui.ToolScreenKit;
 import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import net.minecraft.client.Minecraft;
@@ -32,7 +32,7 @@ import java.util.Map;
  *
  * <p>Drawn in the mod's own style, not the mockup's (killer560, 2026-10-07: "make sure that the filter section for
  * creating the map is in our mods style and not a direct copy"): the panel, header bar, title and "N of M rooms" are
- * Design a Map's ({@link SimMapEditorScreen}), in the menu theme ({@link ToolScreenKit}, screen sweep 2026-10-13); a chip
+ * Design a Map's ({@link SimMapEditorScreen}), in the menu theme ({@link ScreenChrome}, screen sweep 2026-10-13); a chip
  * is the menu's value pill, lit in the accent when chosen; Clear all and Done are the menu's raised buttons.
  *
  * <p>The chips flow: they wrap onto as many lines as the width needs, and on a narrow window the labels go on a line
@@ -42,12 +42,20 @@ import java.util.Map;
  */
 public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
 
-    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
     public static final String THEME_ID = "sim";
 
     @Override
     public String themeId() {
         return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
     }
 
     static final int CHIP_H = 16;
@@ -300,10 +308,11 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         // Design a Map's frame (SimMapEditorScreen.extractRenderState): the menu theme's panel and header bar, the title,
         // and the room count right-aligned in the bar.
-        ToolScreenKit.begin(g, this, true);
-        ToolScreenKit.panel(g, this, panelX, panelY, panelW, panelH);
-        ToolScreenKit.header(g, panelX, panelY, panelW);
-        ToolScreenKit.title(g, "FILTERS", panelX + 10, panelY + 11, false);
+        ScreenChrome.backdrop(g, this.width, this.height);
+        themedBounds = new int[]{panelX, panelY, panelW, panelH};
+        ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
+        ScreenChrome.headerBar(g, panelX, panelY, panelW);
+        ScreenChrome.title(g, "FILTERS", panelX + 10, panelY + 11, false);
         String count = shown + " of " + total + " rooms" + (filter.isDefault() ? "" : " (filtered)");
         int maxW = panelW - 20 - this.font.width("FILTERS") - 10;
         String shownCount = this.font.width(count) <= maxW ? count : shown + "/" + total;
@@ -316,8 +325,7 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
         rule.submit();
         int noteW = panelW - PAD * 2 - footerButtonW() * 2 - 6 - 8;
         String foot = RoomDatabase.isReady() ? note : "room database loading...";
-        ToolScreenKit.text(g, fitNote(foot, Math.max(0, noteW)), panelX + PAD,
-                panelY + panelH - BUTTON_H / 2 - 6 - 4, MenuStyle.DIM);
+        ScreenChrome.text(g, fitNote(foot, Math.max(0, noteW)), panelX + PAD, panelY + panelH - BUTTON_H / 2 - 6 - 4, MenuStyle.DIM);
 
         g.enableScissor(panelX + 1, contentTop, panelX + panelW - 1, contentBottom);
         for (Object[] l : labels) {

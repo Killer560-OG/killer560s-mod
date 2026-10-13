@@ -1,9 +1,9 @@
 package com.killer560.hub.dungeonextras;
 
 import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.MenuThemedScreen;
-import com.killer560.hub.gui.ToolScreenKit;
-import com.killer560.hub.gui.WellEditBox;
+import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -30,12 +30,20 @@ import com.killer560.hub.compat.McCompat;
  */
 public class BreakerAuraConfigScreen extends Screen implements MenuThemedScreen {
 
-    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
     public static final String THEME_ID = "breakeraura";
 
     @Override
     public String themeId() {
         return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
     }
 
     private static final int PANEL_W = 300;
@@ -107,9 +115,9 @@ public class BreakerAuraConfigScreen extends Screen implements MenuThemedScreen 
         statusY = y;
         y += 16;
 
-        EditBox nameBox = new WellEditBox(this.font, x, y, w - NEW_W - GAP, ROW, Component.literal("New config name"));
+        EditBox nameBox = new ThemedEditBox(this.font, x, y, w - NEW_W - GAP, ROW, Component.literal("New config name"));
         nameBox.setMaxLength(BreakerAuraStore.MAX_CONFIG_NAME + 5); // room for a typed ".json"
-        nameBox.setHint(Component.literal("§8new config name"));
+        ((ThemedEditBox) nameBox).hint("new config name");
         nameBox.setValue(newName);
         nameBox.setResponder(text -> newName = text == null ? "" : text);
         this.addRenderableWidget(nameBox);
@@ -138,16 +146,17 @@ public class BreakerAuraConfigScreen extends Screen implements MenuThemedScreen 
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         // The menu theme (screen sweep, 2026-10-13): panel and header bar, the title in the cheat red (a cheat-only
         // screen), the folder under it, the config rows as the menu's raised buttons.
-        ToolScreenKit.begin(graphics, this, true);
-        ToolScreenKit.panel(graphics, this, panelX, panelY, panelW, panelH);
-        ToolScreenKit.header(graphics, panelX, panelY, panelW);
-        ToolScreenKit.titleCentred(graphics, this.title.getString(), panelX + panelW / 2, panelY + 6, true);
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        themedBounds = new int[]{panelX, panelY, panelW, panelH};
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.headerBar(graphics, panelX, panelY, panelW);
+        ScreenChrome.titleCentred(graphics, this.title.getString(), panelX + panelW / 2, panelY + 6, true);
         String where = names.size() > MAX_VISIBLE
                 ? String.format(Locale.US, "%d files - scroll", names.size())
                 : BreakerAuraStore.directory().getFileName().toString() + "/";
-        ToolScreenKit.centred(graphics, where, panelX + panelW / 2, panelY + 17, MenuStyle.DIM);
+        ScreenChrome.centered(graphics, where, panelX + panelW / 2, panelY + 17, MenuStyle.DIM);
         if (!status.isEmpty()) {
-            ToolScreenKit.text(graphics, status, panelX + PAD, statusY + 2, MenuStyle.TXT);
+            ScreenChrome.text(graphics, status, panelX + PAD, statusY + 2, MenuStyle.TXT);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }

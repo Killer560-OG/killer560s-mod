@@ -25,12 +25,12 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Themed title screen button layout (2026-09-15, killer560): no Realms button, no language / accessibility
- * icon buttons, and "Swap Accounts" moved from the top-left corner into the main button column:
+ * Themed title screen button layout (2026-09-15, killer560): no Realms button, no language / accessibility /
+ * friends / Mod Menu icon buttons, and "Swap Accounts" moved from the top-left corner into the main button column:
  * <pre>
  *   Singleplayer
  *   Multiplayer
- *   [other full-width column buttons, e.g. ModMenu's "Mods", dev "Create Test World"]
+ *   [other mods' full-width column buttons, dev "Create Test World"]
  *   Swap Accounts
  *   Options... | Quit Game
  *        Playing as &lt;name&gt;   (dim line, or button tooltip when there's no vertical room)
@@ -45,7 +45,17 @@ import com.killer560.hub.compat.McCompat;
  * Nothing is keyed on pixel positions from other mods: Realms / language / accessibility / Options / Quit are
  * found by their translation keys (javap 26.1.2: TitleScreen uses "menu.online", "menu.options", "menu.quit";
  * CommonButtons.language/accessibility use "options.language" / "options.accessibility"), ModMenu's widgets
- * by class name (no hard runtime dependency), and our button by its marker class. The column is rebuilt from
+ * by class name (no hard runtime dependency), 26.2's Friends icon through {@code McCompat.isFriendsButton}
+ * (a FriendsButton; 26.1.2 has none), and our button by its marker class.
+ * <p>
+ * 26.2 (javap): TitleScreen.init puts a row of icons (friends, language, accessibility) between the column and
+ * Options/Quit, and Mod Menu 20's "icon" style adds a {@code SmallModMenuButtonWidget} to that row (Mod Menu 18
+ * on 26.1.2 used {@code UpdateCheckerTexturedButtonWidget} beside Quit instead). The row stayed at its old y on
+ * top of the rebuilt column (killer560, 2026-10-13: "it has the friends and mod menu thing on my main screen on
+ * 26.2 and that should be hidden"), so every icon in it is removed, on both versions. Mod Menu's list stays
+ * reachable from the pause menu's Mods button and its "Open Mod Menu" key (Controls, Miscellaneous, unbound by
+ * default). Its full-width "classic" Mods row goes too (killer560, 2026-10-13: the mod menu thing "should be
+ * hidden"), so both versions show the same column whatever Mod Menu's style. The column is rebuilt from
  * scratch each init, so whatever ModMenu's button style shifted, it ends up in the same place.
  * <p>
  * Removing the Realms button is safe: TitleScreen keeps no field for it (fields: splash,
@@ -72,6 +82,11 @@ public final class MainMenuTitleLayout {
     private static final int VANILLA_ROWS = 3;
     /** Keep the "Playing as" line clear of the bottom-left footer lines (mod tag at height-20, version at height-10). */
     private static final int FOOTER_CLEARANCE = 22;
+    /** Vanilla's copyright line is a 10-tall PlainTextButton at height - 10, right-aligned (javap, both versions). */
+    private static final int COPYRIGHT_HEIGHT = 10;
+    /** Bottom of the logo's "Java Edition" strip: LogoRenderer DEFAULT_HEIGHT_OFFSET 30 + LOGO_HEIGHT 44 - overlap 7
+     *  + EDITION_HEIGHT 14 (javap, both versions), plus a 2-unit gap. The column never starts above it. */
+    private static final int LOGO_BOTTOM = 83;
 
     private static final String KEY_REALMS = "menu.online";
     private static final String KEY_OPTIONS = "menu.options";
@@ -170,7 +185,8 @@ public final class MainMenuTitleLayout {
             AbstractWidget accessibility = null;
             AbstractWidget options = null;
             AbstractWidget quit = null;
-            AbstractWidget mods = null;
+            List<AbstractWidget> mods = new ArrayList<>();
+            List<AbstractWidget> friends = new ArrayList<>();
             AbstractWidget multiplayer = null;
             AbstractWidget sim = simButton.get();
             if (sim != null && !widgets.contains(sim)) {
@@ -192,14 +208,16 @@ public final class MainMenuTitleLayout {
                     language = w;
                 } else if (KEY_ACCESSIBILITY.equals(key)) {
                     accessibility = w;
+                } else if (McCompat.isFriendsButton(w)) {
+                    friends.add(w);
                 } else if (KEY_OPTIONS.equals(key) && options == null) {
                     options = w;
                 } else if (KEY_QUIT.equals(key) && quit == null) {
                     quit = w;
                 } else if (KEY_MULTIPLAYER.equals(key) && multiplayer == null) {
                     multiplayer = w;
-                } else if (mods == null && isModMenuButton(w)) {
-                    mods = w;
+                } else if (isModMenuButton(w)) {
+                    mods.add(w);
                 }
             }
             if (options == null || quit == null) {
@@ -209,19 +227,16 @@ public final class MainMenuTitleLayout {
 
             int cx = screen.width / 2;
             int oldRowY = options.getY();
-            boolean modsIsIcon = mods != null && mods.getWidth() <= ROW_HEIGHT;
 
-            // Column: every visible full-width centred widget above the Options row, plus ModMenu's (possibly
-            // shrunk) Mods button; Realms / icons / our own button excluded. Stable-sorted by current y.
+            // Column: every visible full-width centred widget above the Options row; Realms, icons, every Mod Menu
+            // button and our own button excluded. Stable-sorted by current y.
             List<AbstractWidget> column = new ArrayList<>();
             for (AbstractWidget w : widgets) {
                 if (w == swap || w == realms || w == language || w == accessibility || w == options || w == quit
-                        || w == sim) {
+                        || w == sim || friends.contains(w)) {
                     continue;
                 }
-                if (w == mods && !modsIsIcon) {
-                    column.add(w);
-                } else if (w != mods && w.visible && w.getWidth() == COLUMN_WIDTH && w.getX() == cx - COLUMN_WIDTH / 2
+                if (!mods.contains(w) && w.visible && w.getWidth() == COLUMN_WIDTH && w.getX() == cx - COLUMN_WIDTH / 2
                         && w.getY() < oldRowY) {
                     column.add(w);
                 }
@@ -281,14 +296,31 @@ public final class MainMenuTitleLayout {
                 w.setY(start + ROW_STEP * i);
                 w.setWidth(COLUMN_WIDTH);
             }
-            int rowY = start + ROW_STEP * (rows - 1) + OPTIONS_ROW_GAP;
+            int gap = OPTIONS_ROW_GAP;
+            // A short window: Options/Quit would run into the copyright line (testkit 341 at 854x480 with Mod
+            // Menu's classic Mods row: Quit 216-236 over the line at 230). Close the gap to a normal row step
+            // first, then lift the column as far as the logo allows.
+            int overflow = start + ROW_STEP * (rows - 1) + gap + ROW_HEIGHT + 1 - (screen.height - COPYRIGHT_HEIGHT);
+            if (overflow > 0) {
+                int fromGap = Math.min(overflow, OPTIONS_ROW_GAP - ROW_STEP);
+                gap -= fromGap;
+                overflow -= fromGap;
+            }
+            if (overflow > 0 && start > LOGO_BOTTOM) {
+                int lift = Math.min(overflow, start - LOGO_BOTTOM);
+                start -= lift;
+                for (int i = 0; i < rows; i++) {
+                    column.get(i).setY(start + ROW_STEP * i);
+                }
+            }
+            int rowY = start + ROW_STEP * (rows - 1) + gap;
 
             // Other mods' widgets that sat on the old Options row move with it.
             int dy = rowY - oldRowY;
             if (dy != 0) {
                 for (AbstractWidget w : widgets) {
                     if (w != options && w != quit && w != language && w != accessibility && w != swap
-                            && !column.contains(w) && w.getY() == oldRowY) {
+                            && !mods.contains(w) && !friends.contains(w) && !column.contains(w) && w.getY() == oldRowY) {
                         w.setY(w.getY() + dy);
                     }
                 }
@@ -299,17 +331,18 @@ public final class MainMenuTitleLayout {
             quit.setX(cx + COLUMN_WIDTH / 2 - HALF_WIDTH);
             quit.setY(rowY);
             quit.setWidth(HALF_WIDTH);
-            if (modsIsIcon) {
-                // ModMenu "icon" style: take the slot right of Quit that the accessibility icon used to have.
-                mods.setX(cx + COLUMN_WIDTH / 2 + 4);
-                mods.setY(rowY);
-            }
 
             // Removal goes through Fabric's ButtonList, which removes from renderables, children and
             // narratables together.
             removeWidget(screen, widgets, realms);
             removeWidget(screen, widgets, language);
             removeWidget(screen, widgets, accessibility);
+            for (AbstractWidget f : friends) {
+                removeWidget(screen, widgets, f);
+            }
+            for (AbstractWidget m : mods) {
+                removeWidget(screen, widgets, m);
+            }
 
             if (swap != null) {
                 String name = playerName();
@@ -392,11 +425,13 @@ public final class MainMenuTitleLayout {
         return contents instanceof TranslatableContents tc ? tc.getKey() : null;
     }
 
-    /** ModMenu's Mods button (ModMenuButtonWidget) or its icon variant (UpdateCheckerTexturedButtonWidget),
-     *  matched by class name so ModMenu stays optional at runtime. */
+    /** ModMenu's Mods button (ModMenuButtonWidget) or its icon variant (UpdateCheckerTexturedButtonWidget in Mod
+     *  Menu 18 / 26.1.2, SmallModMenuButtonWidget in Mod Menu 20 / 26.2; javap of both jars), matched by class
+     *  name so ModMenu stays optional at runtime. */
     private static boolean isModMenuButton(AbstractWidget w) {
         String name = w.getClass().getName();
         return name.startsWith(MODMENU_PACKAGE)
-                && (name.endsWith(".ModMenuButtonWidget") || name.endsWith(".UpdateCheckerTexturedButtonWidget"));
+                && (name.endsWith(".ModMenuButtonWidget") || name.endsWith(".UpdateCheckerTexturedButtonWidget")
+                        || name.endsWith(".SmallModMenuButtonWidget"));
     }
 }

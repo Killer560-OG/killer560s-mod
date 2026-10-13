@@ -1,11 +1,12 @@
 package com.killer560.hub.autoroutes;
 
+import com.killer560.hub.gui.ThemedEditBox;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.ap3.Ap3Node;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.SettingTooltips;
-import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ToolScreenKit;
 import com.killer560.hub.livemap.autoclear.TeleportUtils;
 import com.killer560.hub.pathfinding.EtherwarpHopper;
 
@@ -54,12 +55,20 @@ import java.util.Map;
  */
 public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
 
-    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
     public static final String THEME_ID = "autoroutes";
 
     @Override
     public String themeId() {
         return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
     }
 
     private static final int PANEL_W = 300;
@@ -314,12 +323,12 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
 
     /** A text box {@code w} wide at {@code x}, its label drawn in the first {@code labelW} pixels (0: no label). */
     private void addField(int x, int y, int w, String label, int labelW) {
-        EditBox box = new com.killer560.hub.gui.WellEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(label));
+        EditBox box = new ThemedEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(label));
         box.setMaxLength(label.equals("Item") ? RouteStore.MAX_ITEM_ID : 32);
         box.setValue(pending.getOrDefault(label, ""));
         if (label.equals("Item")) {
             // An empty Item is a node of its own: the use clicks the block it looks at with an empty hand.
-            box.setHint(Component.literal("(empty hand - clicks the block)").withStyle(ChatFormatting.GRAY));
+            ((ThemedEditBox) box).hint("(empty hand - clicks the block)");
         }
         this.addRenderableWidget(box);
         fields.add(new Field(label, box, labelW > 0 ? x : -1));
@@ -609,27 +618,28 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         // The menu theme (screen sweep, 2026-10-13): panel and header bar, title in the cheat red, section headings in
         // the accent with the menu's separator, the boxes as recessed wells, the hover text as the menu's tooltip.
-        ToolScreenKit.begin(graphics, this, true);
-        ToolScreenKit.panel(graphics, this, panelX, panelY, panelW, panelH);
-        ToolScreenKit.header(graphics, panelX, panelY, panelW);
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        themedBounds = new int[]{panelX, panelY, panelW, panelH};
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.headerBar(graphics, panelX, panelY, panelW);
         boolean ok = alive();
         String title = ok ? "Auto Routes node #" + number() : "Auto Routes node";
-        ToolScreenKit.titleCentred(graphics, title, panelX + panelW / 2, panelY + 6, true);
+        ScreenChrome.titleCentred(graphics, title, panelX + panelW / 2, panelY + 6, true);
         String sub = ok ? "§7" + route.roomName()
                 + (type == RouteNode.Type.DUNGEON_BREAKER ? " §8- " + node.breakerBlocks.size() + " block(s)" : "")
                 + (node.type == type ? "" : " §8(type changes on Save)")
                 : "§cthat node is gone";
-        ToolScreenKit.centred(graphics, sub, panelX + panelW / 2, panelY + 17, MenuStyle.DIM);
+        ScreenChrome.centered(graphics, sub, panelX + panelW / 2, panelY + 17, MenuStyle.DIM);
         for (Heading h : headings) {
-            ToolScreenKit.section(graphics, h.text(), panelX + PAD, h.y() + 1, panelX + panelW - PAD, false);
+            ScreenChrome.section(graphics, h.text(), panelX + PAD, h.y() + 1, panelX + panelW - PAD, false);
         }
         for (Field f : fields) {
             if (f.labelX() >= 0) {
-                MenuStyle.text(graphics, f.label(), f.labelX(), f.box().getY() + 4, MenuStyle.TXT_SOFT);
+                MenuStyle.text(graphics, f.label(), f.labelX(), f.box().getY(), MenuStyle.TXT_SOFT);
             }
         }
         if (!status.isEmpty()) {
-            ToolScreenKit.centred(graphics, status, panelX + panelW / 2, panelY + panelH - 12, MenuStyle.TXT);
+            ScreenChrome.centered(graphics, status, panelX + panelW / 2, panelY + panelH - 12, MenuStyle.TXT);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         drawTooltip(graphics, mouseX, mouseY);
@@ -672,7 +682,7 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
         if (y + h + 8 > this.height) {
             y = Math.max(4, mouseY - h - 16);
         }
-        ToolScreenKit.tooltip(graphics, lines, x, y, w, h);
+        ScreenChrome.tooltip(graphics, lines, x, y, w, h);
     }
 
     @Override

@@ -1,11 +1,11 @@
 package com.killer560.hub.ap3;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.compat.McCompat;
-import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuThemedScreen;
-import com.killer560.hub.gui.ToolScreenKit;
-import com.killer560.hub.gui.WellEditBox;
+import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.gui.SettingsButtonWidget;
 
 import net.minecraft.ChatFormatting;
@@ -52,12 +52,20 @@ import java.util.Map;
  */
 public class Ap3EditScreen extends Screen implements MenuThemedScreen {
 
-    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
     public static final String THEME_ID = "ap3";
 
     @Override
     public String themeId() {
         return THEME_ID;
+    }
+
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
     }
 
     private static final int PANEL_W = 300;
@@ -414,7 +422,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
 
     /** A text box {@code w} wide at {@code x}, {@code shown} drawn in its first {@code labelW} pixels. */
     private void addField(int x, int y, int w, String label, String shown, int labelW) {
-        EditBox box = new WellEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(shown));
+        EditBox box = new ThemedEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(shown));
         box.setMaxLength(32);
         box.setValue(pending.getOrDefault(label, ""));
         this.addRenderableWidget(box);
@@ -569,21 +577,21 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         // The menu theme (screen sweep, 2026-10-13): panel and header bar, title in the cheat red, the field labels in
         // the theme's soft text, the boxes as recessed wells.
-        ToolScreenKit.begin(graphics, this, true);
-        ToolScreenKit.panel(graphics, this, panelX, panelY, panelW, panelH);
-        ToolScreenKit.header(graphics, panelX, panelY, panelW);
-        ToolScreenKit.titleCentred(graphics, this.title.getString(), panelX + panelW / 2, panelY + 6, true);
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        themedBounds = new int[]{panelX, panelY, panelW, panelH};
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.headerBar(graphics, panelX, panelY, panelW);
+        ScreenChrome.titleCentred(graphics, this.title.getString(), panelX + panelW / 2, panelY + 6, true);
         Ap3Node n = node();
         String sub = n == null ? "§cno such node" : "§7" + Ap3Feature.currentChainLabel();
-        ToolScreenKit.centred(graphics, sub, panelX + panelW / 2, panelY + 17, MenuStyle.DIM);
+        ScreenChrome.centered(graphics, sub, panelX + panelW / 2, panelY + 17, MenuStyle.DIM);
         for (Field f : fields) {
             if (f.labelX() >= 0) {
-                ToolScreenKit.text(graphics, labels.getOrDefault(f.label(), f.label()), f.labelX(), f.box().getY() + 4,
-                        MenuStyle.TXT_SOFT);
+                ScreenChrome.text(graphics, labels.getOrDefault(f.label(), f.label()), f.labelX(), f.box().getY(), MenuStyle.TXT_SOFT);
             }
         }
         if (!status.isEmpty() && statusY >= 0) {
-            ToolScreenKit.centred(graphics, status, panelX + panelW / 2, statusY, MenuStyle.TXT);
+            ScreenChrome.centered(graphics, status, panelX + panelW / 2, statusY, MenuStyle.TXT);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         for (Icon icon : icons) {

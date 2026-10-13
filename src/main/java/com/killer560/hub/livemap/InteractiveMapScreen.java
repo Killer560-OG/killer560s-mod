@@ -1,5 +1,7 @@
 package com.killer560.hub.livemap;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.livemap.autoclear.BloodRush;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
@@ -26,7 +28,7 @@ import java.util.List;
  */
 public class InteractiveMapScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
 
-    /** The Theme setting this screen's chrome follows (ScreenThemeConfig; "Theme Default" = the menu's theme). The map
+    /** The Theme setting this screen's chrome follows (ScreenThemes; "Theme Default" = the menu's theme). The map
      *  itself keeps the live map's own palette. */
     public static final String THEME_ID = "interactivemap";
 
@@ -35,30 +37,38 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         return THEME_ID;
     }
 
+    /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
+    private int[] themedBounds = new int[4];
+
+    @Override
+    public int[] themedPanelBounds() {
+        return themedBounds.clone();
+    }
+
     /** Wide enough that the longest swatch label ("Entrance") fits its half-width column whole. */
     private static final int LEGEND_W = 120;
     // The chrome's colours (screen sweep, 2026-10-13): the theme's, read each frame from MenuStyle after
-    // ToolScreenKit.begin. The hover tooltips keep these fixed ones - vanilla draws their dark box.
+    // MenuStyle.use(). The hover tooltips keep these fixed ones - vanilla draws their dark box.
     private static final int LIGHT_ORANGE = 0xFFFFA040;
     /** The map's canvas, the same on every theme (the room palette is drawn for it). */
     private static final int MAP_CANVAS = 0xD00D0D0D;
     private static final int DIM = 0xFF9A8C80;
 
     private static int accent() {
-        return com.killer560.hub.gui.MenuStyle.OR;
+        return MenuStyle.OR;
     }
 
     private static int accentSoft() {
-        return com.killer560.hub.gui.MenuStyle.LIGHT ? com.killer560.hub.gui.MenuStyle.OR2
-                : com.killer560.hub.gui.MenuStyle.OR_LIGHT;
+        return MenuStyle.LIGHT ? MenuStyle.OR2
+                : MenuStyle.OR_LIGHT;
     }
 
     private static int text() {
-        return com.killer560.hub.gui.MenuStyle.TXT;
+        return MenuStyle.TXT;
     }
 
     private static int dim() {
-        return com.killer560.hub.gui.MenuStyle.DIM;
+        return MenuStyle.DIM;
     }
 
     // Room/door colours, the 16/4 layout, checkmarks and player markers all live in MapPainter now - the HUD map
@@ -183,10 +193,10 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         int[] p = panel();
         // The map's frame in the theme: the menu frame's ring and a recessed edge. The canvas inside stays the map's own
         // dark on every theme - the room colours and labels are drawn for it, and a Light canvas washed them out.
-        com.killer560.hub.gui.ToolScreenKit.begin(graphics, this, false);
+        MenuStyle.use();
         com.killer560.hub.hud.GuiRects frame = com.killer560.hub.hud.GuiRects.begin(graphics);
-        frame.outline(p[0] - 2, p[1] - 2, p[2] - p[0] + 4, p[3] - p[1] + 4, com.killer560.hub.gui.MenuStyle.FRAME_RING);
-        frame.outline(p[0] - 1, p[1] - 1, p[2] - p[0] + 2, p[3] - p[1] + 2, com.killer560.hub.gui.MenuStyle.BLACK);
+        frame.outline(p[0] - 2, p[1] - 2, p[2] - p[0] + 4, p[3] - p[1] + 4, MenuStyle.FRAME_RING);
+        frame.outline(p[0] - 1, p[1] - 1, p[2] - p[0] + 2, p[3] - p[1] + 2, MenuStyle.BLACK);
         frame.fill(p[0], p[1], p[2], p[3], MAP_CANVAS);
         frame.submit();
         float ox = originX();
@@ -512,7 +522,8 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
             bottom = layoutLegend(null, x, y, cfg, false);
         }
         bottom = Math.min(maxBottom, bottom);
-        com.killer560.hub.gui.ToolScreenKit.box(graphics, this, x - 1, y - 1, LEGEND_W + 2, bottom - y + 2);
+        themedBounds = new int[]{x - 1, y - 1, LEGEND_W + 2, bottom - y + 2};
+        ScreenChrome.card(graphics, x - 1, y - 1, LEGEND_W + 2, bottom - y + 2, false);
         legendRect = new int[]{x, y, x + LEGEND_W, bottom};
         graphics.enableScissor(x, y, x + LEGEND_W, bottom);
         try {
@@ -573,7 +584,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
             }
         }
         if (BloodRush.isRunning()) {
-            ty = text(g, "Blood Rush", x + PAD, ty + 2, com.killer560.hub.gui.ToolScreenKit.bad());
+            ty = text(g, "Blood Rush", x + PAD, ty + 2, MenuStyle.RED);
         }
         // killer560, 2026-09-27: "the extra info ... s+ secrets". Since 2026-10-07 the estimate is tracked whenever
         // this toggle is on (ScoreCalculatorFeature.estimateWanted), Score Calculator or not - it used to draw only
@@ -627,7 +638,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
     /** One line of text at {@code (x, y)}, recorded. @return the next row's y. */
     private int text(GuiGraphicsExtractor g, String s, int x, int y, int color) {
         if (g != null) {
-            com.killer560.hub.gui.MenuStyle.flat(g, s, x, y, color);
+            MenuStyle.flat(g, s, x, y, color);
             legendBoxes.add(new LegendBox(s, x, y, x + font.width(s), y + font.lineHeight - 1));
         }
         return y + ROW;
@@ -655,7 +666,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
             return;
         }
         g.fill(x, y, x + 7, y + 7, color);
-        g.outline(x, y, 7, 7, com.killer560.hub.gui.MenuStyle.BLACK);
+        g.outline(x, y, 7, 7, MenuStyle.BLACK);
         legendBoxes.add(new LegendBox("swatch " + label, x, y, x + 7, y + 7));
         text(g, fit(label, width - 9), x + 9, y, text());
     }
@@ -692,8 +703,8 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         }
         if (total > inner) {
             for (int i = 0; i < labels.length; i++) {
-                y = infoRow(g, x, y, labels[i], done[i] ? "✔" : "✘", done[i] ? com.killer560.hub.gui.ToolScreenKit.good()
-                        : com.killer560.hub.gui.ToolScreenKit.bad());
+                y = infoRow(g, x, y, labels[i], done[i] ? "✔" : "✘", done[i] ? ScreenChrome.readable(0xFF55FF55)
+                        : MenuStyle.RED);
             }
             return y;
         }
@@ -702,7 +713,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
             String mark = done[i] ? "✔" : "✘";
             text(g, labels[i], cx, y, dim());
             cx += font.width(labels[i]) + 2;
-            text(g, mark, cx, y, done[i] ? com.killer560.hub.gui.ToolScreenKit.good() : com.killer560.hub.gui.ToolScreenKit.bad());
+            text(g, mark, cx, y, done[i] ? ScreenChrome.readable(0xFF55FF55) : MenuStyle.RED);
             cx += font.width(mark) + 6;
         }
         return y + ROW;

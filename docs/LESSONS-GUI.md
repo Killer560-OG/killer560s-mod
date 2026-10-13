@@ -321,13 +321,33 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   falls through to the button on it) and `hoveredChild` skips it when a real widget sits on it, or the buttons lose their
   tooltips. A vanilla `EditBox` draws its text and hint with a shadow, which smears dark text on the Light theme: call
   `setTextShadow(MenuStyle.TEXT_SHADOW)` (both versions, javap) and paint the hint yourself (testkit 948's shots).
-- **A screen with its own Theme draws from a palette nobody else may re-derive mid-frame** (screen sweep C, 2026-10-13).
-  `MenuStyle.use(MenuTheme.forScreen(id))` re-derives the shared statics for that screen's theme and caches on the menu's
-  version AND the theme; a widget that calls `MenuStyle.use()` while drawing (the old `DragListWidget` / an EditBox) would
-  put the menu's theme back halfway through the frame. Widgets read the statics; only the screen (`ToolScreenKit.begin`)
-  and `ModScreen` derive. Testkit 976: Termism on Light while the menu is Amber, and the menu stays Amber.
-- **A themed EditBox keeps `bordered` true and hides only the sprite** (`gui/WellEditBox`): vanilla's draw tests
-  `isBordered()` once, for the sprite blit, and reads the text position from fields set while bordered, so answering false
-  only during the draw keeps text, cursor and clicks where they were; `getInnerWidth()` also calls `isBordered()`, so it is
-  pinned to the bordered width (javap, 26.1.2 and 26.2). The hint is drawn with `text(...III)` - always shadowed - so the
-  box paints its own. A vanilla `StringWidget` shadows its text too: a tool screen's labels override its draw.
+- **Anything that must change a name's look over time belongs at `Font.prepareText`, not where the name is built.** Chat
+  lines are styled once when added and the tab list caches its rows, so a name built with per-frame colours would only
+  animate in some places. `NameAnimation` (Wave/Pulse, 2026-10-13) recolours at draw time, recognising a name by its
+  exact letters in their exact base colours; testkit 960-965 freeze its clock to compare two frames pixel for pixel.
+- **Never find a menu tab by its top-level index.** A testing build's `TestingMenu.arrange` moves every untested tab into
+  Untested, Profiles included, so Home's Profiles button (`indexOf(ProfilesTab.class)`) silently did nothing there until
+  2026-10-13. Open the leaf from `allLeaves()` with `openFeature(leaf)`: a page normally, a drawer in Untested (testkit 948).
+- **Per-glyph text colour belongs in the font, not in the component.** Rebuilding a styled `Component` to animate a colour
+  (Enchant Colours' old 100 ms chroma bucket) can only give a whole segment one colour. `Font$PreparedTextBuilder.accept`
+  reads `style.getColor()` once per glyph while `x`/`y` are still that glyph's origin, and GUI text is prepared there at its
+  GUI coordinates every frame (`GuiTextRenderState.ensurePrepared`; javap 26.1.2 and 26.2), so `chroma/mixin/
+  ChromaGlyphColorMixin` redirects that call for a `util/ChromaWave` spec's TextColor (matched by identity; `fromRgb` never
+  interns) and a whole tooltip is one diagonal waterfall (testkit 971: line 2 continues line 1 by +23.8 deg, 2026-10-13).
+- **26.2's title screen has a row of icons the themed layout must name.** `TitleScreen.init` adds `FriendsButton`
+  (key `gui.friends.open`), language and accessibility between the column and Options/Quit, and Mod Menu 20's icon style adds
+  `SmallModMenuButtonWidget` there (18 on 26.1.2 used `UpdateCheckerTexturedButtonWidget`; javap). Unrecognised, both stayed
+  on top of Swap Accounts (killer560, 2026-10-13). `MainMenuTitleLayout` removes them and every other Mod Menu button,
+  classic row included (Friends via `McCompat.isFriendsButton`);
+  testkit 341 checks every visible widget and every pair's overlap, Mod Menu loaded, both styles, both versions.
+- **A fill drawn after an item in the same slot is always above it, player heads included** (javap 26.1.2 and 26.2): every
+  non-oversized item is blitted from the item atlas, and an oversized one through its picture-in-picture, both into the
+  item's OWN render node (`forEachItem` sets `current` before `addBlitToCurrentLayer`), while a later fill over it is
+  placed in a node above (`findAppropriateNode` checks `itemStates`). So "the item paints over my overlay" is not a
+  render-pass fact; testkit 961 shows Item Protect's star on heads (real skin, pack-era, helmet) on both versions.
+- **A themed text box is an unbordered EditBox inside the box you draw, so widen its hit area.** Unbordered, vanilla draws the
+  text at the box's top-left and only that line takes clicks; `AbstractWidget.mouseClicked` asks `isMouseOver` (javap 26.1.2),
+  so `gui/ThemedEditBox` overrides it with the drawn well. Per-screen Theme (2026-10-13): `MenuStyle.use()` reads the open
+  `MenuThemedScreen`'s `themeId()` through `MenuTheme.forScreen`, so every helper that calls `use()` gets that screen's palette.
+- A vanilla `StringWidget` always shadows its text (smeared on the Light theme); a themed screen's labels override its
+  draw (`ScoreboardEditorScreen.label`, screen sweep C, 2026-10-13).

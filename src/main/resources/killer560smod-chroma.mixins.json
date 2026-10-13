@@ -1,0 +1,12 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.chroma.mixin",
+	"client": [
+		"ChromaGlyphColorMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

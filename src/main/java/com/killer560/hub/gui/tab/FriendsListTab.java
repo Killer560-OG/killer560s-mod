@@ -31,6 +31,8 @@ public class FriendsListTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, 220, 20).build());
         y += 26;
+        widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.social.FriendsListScreen.THEME_ID, contentX, y, 220, 20));
+        y += 26;
         // killer560 (2026-10-08) asked for the "/fl opens our list..." line and the "N friends on your list." line
         // to go; the Use Our /fl tooltip says what /fl, /flcustom and /flhypixel do.
 

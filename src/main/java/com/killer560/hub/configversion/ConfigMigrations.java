@@ -98,6 +98,29 @@ public final class ConfigMigrations {
         }
     }
 
+    /**
+     * A profile written by mod version {@code profileVersion} (null when it is from before profiles carried a version)
+     * was just copied over the live files: run every migration that version had not seen, exactly as {@link #run()}
+     * does for an install moving onto this version. Never throws.
+     */
+    public static void runForProfile(String profileVersion) {
+        String current = currentVersion();
+        if (current.equals(profileVersion)) {
+            return;
+        }
+        for (Migration m : MIGRATIONS) {
+            if (m.version().equals(profileVersion)) {
+                continue;
+            }
+            try {
+                m.apply().run();
+            } catch (Throwable t) {
+                LOGGER.error("Config migration for {} failed on a loaded profile ({}) - continuing", m.version(),
+                        m.reason(), t);
+            }
+        }
+    }
+
     /** What the last run wrote, or null if this install has never recorded one. */
     public static String readStamp() {
         if (!Files.exists(STAMP)) {
