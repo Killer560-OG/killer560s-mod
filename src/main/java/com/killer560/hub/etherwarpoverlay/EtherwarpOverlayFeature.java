@@ -97,7 +97,11 @@ public final class EtherwarpOverlayFeature {
     }
 
     public static void register() {
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(EtherwarpOverlayFeature::onWorldRender);
+        // COLLECT_SUBMITS, while the frame is still gathering what to draw. It was AFTER_TRANSLUCENT_FEATURES, which on
+        // 26.2 runs after that frame's submitted geometry has been drawn, so the box was dropped on some frames and drawn
+        // a frame late on others, from the previous frame's camera - behind the block while he walked into it
+        // (killer560, 2026-10-13, 26.2). Testkit 1322 lost it on 4 of 27 walking frames there and on none after the move.
+        LevelRenderEvents.COLLECT_SUBMITS.register(EtherwarpOverlayFeature::onWorldRender);
     }
 
     private static void onWorldRender(LevelRenderContext context) {
@@ -147,6 +151,10 @@ public final class EtherwarpOverlayFeature {
         lastOutcome = "drawn " + etherPos.pos().toShortString() + (etherPos.succeeded() ? " ok" : " failed");
 
         AABB box = cfg.isFullBlock() ? new AABB(etherPos.pos()) : realBoxFor(client.level, etherPos.pos());
+        // Pulled 1% of the way towards the camera, so lines drawn exactly on the block's own faces never tie with them
+        // for depth. Scaling about the eye moves every point along its own sight line: the box lands on exactly the same
+        // pixels and only its depth changes (growing the box instead pushed the lines visibly outside the face up close).
+        box = towardsCamera(box, com.killer560.hub.compat.McRender.cameraPos(context));
         // Colour + style are user-picked since 2026-09-16 (killer560's testing feedback); the defaults are the
         // exact green/red outline this always drew. Style semantics copied from Simon Says so "Filled" and
         // "Filled+Outline" look the same across the mod: a plain fill uses the colour's own alpha, the combo
@@ -161,9 +169,10 @@ public final class EtherwarpOverlayFeature {
                 }
                 default -> {
                     WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 1f, 2f);
-                    Direction near = nearFace(box, com.killer560.hub.compat.McRender.cameraPos(context));
+                    Vec3 cam = com.killer560.hub.compat.McRender.cameraPos(context);
+                    Direction near = nearFace(box, cam);
                     if (near != null) {
-                        WorldRenderUtils.renderFilledFace(context, box, near, c[0], c[1], c[2], c[3] * NEAR_FACE_ALPHA);
+                        WorldRenderUtils.renderOutlineBox(context, nearFaceFrame(box, near, cam), c[0], c[1], c[2], 1f, 2f);
                     }
                 }
             }
@@ -178,11 +187,44 @@ public final class EtherwarpOverlayFeature {
      * killer560's friend (2026-10-13): "for the box it doesnt draw on the face close to the player"; testkit 1321
      * measured it on 26.1.2, 26.2 and with Sodium (every edge sample off screen, every pixel of the face unchanged),
      * while every other camera-facing face drew at every angle and distance in both styles. So when the camera is
-     * within {@link #NEAR_FACE_DISTANCE} of a face and inside its footprint (the face fills the view), that one face is
-     * also tinted; anywhere else the outline is exactly what it always was (1321 checks both).
+     * within {@link #NEAR_FACE_DISTANCE} of a face and inside its footprint (the face fills the view), that one face gets
+     * a smaller outline on its own plane, shrunk around the camera so it stays on screen ({@link #nearFaceFrame}).
+     * It was tinted first, and killer560 (2026-10-13, 26.2) did not want the shading: "I do not want the etherwarp
+     * overlay to turn shaded red when I am close"; he wants the outline on the front face. Anywhere else the outline is
+     * exactly what it always was.
      */
-    static final double NEAR_FACE_DISTANCE = 0.5;
-    static final float NEAR_FACE_ALPHA = 0.35f;
+    static final double NEAR_FACE_DISTANCE = 0.85;
+    /** Half-width of the near-face outline per block of distance: 0.6 is a 31-degree half angle, inside any FOV. */
+    private static final double NEAR_FACE_REACH = 0.6;
+
+    /**
+     * The flat box (zero thickness on the face's axis) outlining the visible part of {@code face}: centred on where the
+     * camera looks straight at the face, at most NEAR_FACE_REACH x distance either side, never past the face's own edges,
+     * and a hair in front of the plane so it never z-fights the block.
+     */
+    static AABB nearFaceFrame(AABB box, Direction face, Vec3 cam) {
+        Direction.Axis axis = face.getAxis();
+        double plane = (face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? box.max(axis) : box.min(axis))
+                + face.getAxisDirection().getStep() * 0.003;
+        double dist = Math.abs(cam.get(axis) - plane);
+        double reach = Math.min(NEAR_FACE_REACH * dist, 0.5);
+        double[] lo = new double[3];
+        double[] hi = new double[3];
+        for (Direction.Axis a : Direction.Axis.values()) {
+            if (a == axis) {
+                lo[a.ordinal()] = plane;
+                hi[a.ordinal()] = plane;
+                continue;
+            }
+            double min = box.min(a);
+            double max = box.max(a);
+            double half = Math.min(reach, (max - min) / 2.0);
+            double centre = Math.max(min + half, Math.min(max - half, cam.get(a)));
+            lo[a.ordinal()] = centre - half;
+            hi[a.ordinal()] = centre + half;
+        }
+        return new AABB(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
+    }
 
     /** The box face the camera is pressed up against (within its footprint, nearest first), or null. */
     static Direction nearFace(AABB box, Vec3 cam) {
@@ -207,6 +249,16 @@ public final class EtherwarpOverlayFeature {
             }
         }
         return best;
+    }
+
+    /** How far towards the camera the drawn box is pulled, as a fraction of its distance. */
+    static final double TOWARDS_CAMERA = 0.01;
+
+    /** {@code box} scaled about {@code cam} by 1 - TOWARDS_CAMERA: the same on screen, a little nearer in depth. */
+    static AABB towardsCamera(AABB box, Vec3 cam) {
+        double k = 1.0 - TOWARDS_CAMERA;
+        return new AABB(cam.x + (box.minX - cam.x) * k, cam.y + (box.minY - cam.y) * k, cam.z + (box.minZ - cam.z) * k,
+                cam.x + (box.maxX - cam.x) * k, cam.y + (box.maxY - cam.y) * k, cam.z + (box.maxZ - cam.z) * k);
     }
 
     private static AABB realBoxFor(Level level, BlockPos pos) {

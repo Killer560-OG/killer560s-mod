@@ -376,8 +376,10 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   camera is closer than about 0.4 of a block to the face, so the Etherwarp Overlay's default Outline drew no pixel at all
   walking into a wall ("doesnt draw on the face close to the player", 2026-10-13); every other face drew at every angle,
   distance, version and with Sodium (the box faces never z-fight the block, LEQUAL/GEQUAL with no bias is enough). That
-  face is now tinted within 0.5 and inside its footprint (`EtherwarpOverlayFeature.nearFace`); testkit 1321 samples every
-  camera-facing face. Sodium 0.9.2 breaks the gametest API's `takeScreenshot` ("Global terrain uniforms have not been
+  face first got a tint, which killer560 did not want on 26.2 ("shaded red when I am close", 2026-10-13); within 0.85 and
+  inside its footprint it now gets a smaller outline on its own plane, shrunk around the camera to stay on screen
+  (`EtherwarpOverlayFeature.nearFace` / `nearFaceFrame`); testkit 1321 samples every camera-facing face and checks the
+  pressed case is an outline with no shading. Sodium 0.9.2 breaks the gametest API's `takeScreenshot` ("Global terrain uniforms have not been
   updated"); read the main target back with `Screenshot.takeScreenshot` instead.
 - **Hypixel's sidebar owner is one INVALID format code** ("§i", "§p", "§s"; prefix = the first 16 characters, then owner, then
   suffix), and `stripFormatting` only removes valid codes, so a "drop the owner when it strips blank" test kept it inside every
@@ -390,3 +392,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   hooks at ~280 us a frame (8.5-9.5%) in a busy hub on both versions, 75 us with every name feature off; after a probe
   fast reject, a two-generation identity map, the unstyled `FormattedText.visit` for widths and one reused Component per
   supporter name (`PlayerNameDisplay.cached`) it is ~150 / ~30 us (2026-10-13), glyph-for-glyph identical (975's dumps).
+- **On 26.2, geometry submitted from `LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES` is dropped on some frames and drawn a
+  frame late on others** - that event runs after the frame's submitted nodes have been drawn. The Etherwarp Overlay box
+  vanished or sat behind the block while he crouch-walked into it (2026-10-13); testkit 1322 walks into a gold block and
+  lost the outline on 4 of 27 frames until the overlay moved to `COLLECT_SUBMITS` (0 of 27, both versions). The camera was
+  never stale: the probe in 1322 showed McRender's camera equal to the main camera every frame. 36 other registrations
+  still use AFTER_TRANSLUCENT_FEATURES.
