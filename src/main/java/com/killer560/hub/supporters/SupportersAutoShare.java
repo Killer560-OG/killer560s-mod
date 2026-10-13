@@ -2,7 +2,7 @@ package com.killer560.hub.supporters;
 
 import com.killer560.hub.namechanger.NameChangerConfig;
 import com.killer560.hub.namechanger.NameColor;
-import com.killer560.hub.trail.TrailConfig;
+import com.killer560.hub.trail.RibbonTrailConfig;
 import com.killer560.hub.trail.TrailSpec;
 import net.minecraft.client.Minecraft;
 
@@ -29,9 +29,9 @@ import java.util.function.Consumer;
  * which is what a client older than 2026-10-11 shows; a fade or letter colours go alongside it as the relay's
  * {@code colors} list, one true colour per visible letter, which newer clients paint exactly as you see it.
  * <p>
- * Your Trail goes along as the relay's {@code trail} while "Share Trail" and the Trail itself are on (killer560,
- * 2026-10-13: "it can only be shared by a supporter") - see {@link #trailToShare} and {@link #shareCurrent}, which the
- * Player Cosmetics and Trail tabs call on every rebuild and {@code RemoteTrails} every 35 seconds. Linked status is
+ * Your Ribbon Trail goes along as the relay's {@code trail} while "Share Trail" and the Ribbon Trail itself are on
+ * (killer560, 2026-10-13: "it can only be shared by a supporter"; 2026-10-14: only the ribbon, never the squares Trail) -
+ * see {@link #trailToShare} and {@link #shareCurrent}, which the Player Cosmetics and Ribbon Trail tabs call on every rebuild and {@code RemoteTrails} every 35 seconds. Linked status is
  * checked once at startup ({@link #tickStartupCheck}), so this works without opening the menu. With no display name the
  * push carries only the trail (or clears the entry); the relay never lets either replace a name staff set.
  */
@@ -200,12 +200,13 @@ public final class SupportersAutoShare {
         return startupState;
     }
 
-    /** Your Trail as it is shared: only while Share Trail is on and your Trail is on, else null (no trail field). */
+    /** Your Ribbon Trail as it is shared: only while Share Trail is on and your Ribbon Trail is on, else null (no trail
+     *  field). The squares Trail is never shared (killer560, 2026-10-14). */
     public static TrailSpec trailToShare() {
-        if (!SupportersConfig.getInstance().isShareTrail() || !TrailConfig.getInstance().isEnabledRaw()) {
+        if (!SupportersConfig.getInstance().isShareTrail() || !RibbonTrailConfig.getInstance().isEnabledRaw()) {
             return null;
         }
-        return TrailSpec.fromConfig(TrailConfig.getInstance());
+        return TrailSpec.fromConfig(RibbonTrailConfig.getInstance());
     }
 
     /** Why your trail is not being shared right now, in one line, or null when it is (or would be once linked
@@ -217,8 +218,8 @@ public final class SupportersAutoShare {
         if (!SupportersConfig.getInstance().isShareIfSupporter()) {
             return "Turn on Share if Supporter to share your trail.";
         }
-        if (!TrailConfig.getInstance().isEnabledRaw()) {
-            return "Your Trail is off - turn it on in Cosmetics > Trail to share it.";
+        if (!RibbonTrailConfig.getInstance().isEnabledRaw()) {
+            return "Your Ribbon Trail is off - turn it on in Cosmetics > Ribbon Trail to share it.";
         }
         return null;
     }
