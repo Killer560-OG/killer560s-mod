@@ -372,3 +372,10 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   (`PeekChatFeature.closedByKey`) so the poll waits for a release (testkit 1314: open, key, closed).
 - A vanilla `StringWidget` always shadows its text (smeared on the Light theme); a themed screen's labels override its
   draw (`ScoreboardEditorScreen.label`, screen sweep C, 2026-10-13).
+- **An outline-only box shows nothing on a face you are pressed against.** Its four edges leave a 70-degree view once the
+  camera is closer than about 0.4 of a block to the face, so the Etherwarp Overlay's default Outline drew no pixel at all
+  walking into a wall ("doesnt draw on the face close to the player", 2026-10-13); every other face drew at every angle,
+  distance, version and with Sodium (the box faces never z-fight the block, LEQUAL/GEQUAL with no bias is enough). That
+  face is now tinted within 0.5 and inside its footprint (`EtherwarpOverlayFeature.nearFace`); testkit 1321 samples every
+  camera-facing face. Sodium 0.9.2 breaks the gametest API's `takeScreenshot` ("Global terrain uniforms have not been
+  updated"); read the main target back with `Screenshot.takeScreenshot` instead.
