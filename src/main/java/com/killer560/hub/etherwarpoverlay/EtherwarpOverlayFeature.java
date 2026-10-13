@@ -167,88 +167,14 @@ public final class EtherwarpOverlayFeature {
                     WorldRenderUtils.renderFilledBox(context, box, c[0], c[1], c[2], c[3] * 0.5f);
                     WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 1f, 2f);
                 }
-                default -> {
-                    WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 1f, 2f);
-                    Vec3 cam = com.killer560.hub.compat.McRender.cameraPos(context);
-                    Direction near = nearFace(box, cam);
-                    if (near != null) {
-                        WorldRenderUtils.renderOutlineBox(context, nearFaceFrame(box, near, cam), c[0], c[1], c[2], 1f, 2f);
-                    }
-                }
+                // Just the box's own twelve edges, at every distance: an edge off screen is simply not seen. killer560
+                // (2026-10-13): "I want the full outline and if you can't see an Edge then don't draw that part of it" -
+                // replacing a red tint, then a smaller outline shrunk onto the face he was pressed against.
+                default -> WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 1f, 2f);
             }
         } catch (Exception e) {
             LOGGER.warn("[EtherwarpOverlay] Render failed: {}", e.toString());
         }
-    }
-
-    /**
-     * An outline is only its twelve edges, so pressed against the block - camera 0.3 from the face, which then fills
-     * the whole view - all four edges of the face in front of him are off screen and the box shows nothing at all.
-     * killer560's friend (2026-10-13): "for the box it doesnt draw on the face close to the player"; testkit 1321
-     * measured it on 26.1.2, 26.2 and with Sodium (every edge sample off screen, every pixel of the face unchanged),
-     * while every other camera-facing face drew at every angle and distance in both styles. So when the camera is
-     * within {@link #NEAR_FACE_DISTANCE} of a face and inside its footprint (the face fills the view), that one face gets
-     * a smaller outline on its own plane, shrunk around the camera so it stays on screen ({@link #nearFaceFrame}).
-     * It was tinted first, and killer560 (2026-10-13, 26.2) did not want the shading: "I do not want the etherwarp
-     * overlay to turn shaded red when I am close"; he wants the outline on the front face. Anywhere else the outline is
-     * exactly what it always was.
-     */
-    static final double NEAR_FACE_DISTANCE = 0.85;
-    /** Half-width of the near-face outline per block of distance: 0.6 is a 31-degree half angle, inside any FOV. */
-    private static final double NEAR_FACE_REACH = 0.6;
-
-    /**
-     * The flat box (zero thickness on the face's axis) outlining the visible part of {@code face}: centred on where the
-     * camera looks straight at the face, at most NEAR_FACE_REACH x distance either side, never past the face's own edges,
-     * and a hair in front of the plane so it never z-fights the block.
-     */
-    static AABB nearFaceFrame(AABB box, Direction face, Vec3 cam) {
-        Direction.Axis axis = face.getAxis();
-        double plane = (face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? box.max(axis) : box.min(axis))
-                + face.getAxisDirection().getStep() * 0.003;
-        double dist = Math.abs(cam.get(axis) - plane);
-        double reach = Math.min(NEAR_FACE_REACH * dist, 0.5);
-        double[] lo = new double[3];
-        double[] hi = new double[3];
-        for (Direction.Axis a : Direction.Axis.values()) {
-            if (a == axis) {
-                lo[a.ordinal()] = plane;
-                hi[a.ordinal()] = plane;
-                continue;
-            }
-            double min = box.min(a);
-            double max = box.max(a);
-            double half = Math.min(reach, (max - min) / 2.0);
-            double centre = Math.max(min + half, Math.min(max - half, cam.get(a)));
-            lo[a.ordinal()] = centre - half;
-            hi[a.ordinal()] = centre + half;
-        }
-        return new AABB(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
-    }
-
-    /** The box face the camera is pressed up against (within its footprint, nearest first), or null. */
-    static Direction nearFace(AABB box, Vec3 cam) {
-        Direction best = null;
-        double bestDist = NEAR_FACE_DISTANCE;
-        for (Direction d : Direction.values()) {
-            Direction.Axis axis = d.getAxis();
-            double plane = d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? box.max(axis) : box.min(axis);
-            double dist = (cam.get(axis) - plane) * d.getAxisDirection().getStep();
-            if (dist <= 0 || dist > bestDist) {
-                continue;
-            }
-            boolean inFront = true;
-            for (Direction.Axis other : Direction.Axis.values()) {
-                if (other != axis && (cam.get(other) < box.min(other) || cam.get(other) > box.max(other))) {
-                    inFront = false;
-                }
-            }
-            if (inFront) {
-                best = d;
-                bestDist = dist;
-            }
-        }
-        return best;
     }
 
     /** How far towards the camera the drawn box is pulled, as a fraction of its distance. */

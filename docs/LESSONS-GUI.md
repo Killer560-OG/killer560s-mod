@@ -376,10 +376,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   camera is closer than about 0.4 of a block to the face, so the Etherwarp Overlay's default Outline drew no pixel at all
   walking into a wall ("doesnt draw on the face close to the player", 2026-10-13); every other face drew at every angle,
   distance, version and with Sodium (the box faces never z-fight the block, LEQUAL/GEQUAL with no bias is enough). That
-  face first got a tint, which killer560 did not want on 26.2 ("shaded red when I am close", 2026-10-13); within 0.85 and
-  inside its footprint it now gets a smaller outline on its own plane, shrunk around the camera to stay on screen
-  (`EtherwarpOverlayFeature.nearFace` / `nearFaceFrame`); testkit 1321 samples every camera-facing face and checks the
-  pressed case is an outline with no shading. Sodium 0.9.2 breaks the gametest API's `takeScreenshot` ("Global terrain uniforms have not been
+  face first got a tint, then a smaller outline shrunk onto it; killer560 wanted neither (2026-10-13: "I want the full
+  outline and if you can't see an Edge then don't draw that part of it"), so the Outline style is the box's own edges at
+  every distance and pressed against it you see nothing. Testkit 1321 and 1322 check that. Sodium 0.9.2 breaks the gametest API's `takeScreenshot` ("Global terrain uniforms have not been
   updated"); read the main target back with `Screenshot.takeScreenshot` instead.
 - **Hypixel's sidebar owner is one INVALID format code** ("§i", "§p", "§s"; prefix = the first 16 characters, then owner, then
   suffix), and `stripFormatting` only removes valid codes, so a "drop the owner when it strips blank" test kept it inside every
