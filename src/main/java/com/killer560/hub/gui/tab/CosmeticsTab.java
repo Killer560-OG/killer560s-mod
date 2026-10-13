@@ -101,7 +101,8 @@ public class CosmeticsTab extends BaseTab {
         y += 20;
         // Trails (killer560, 2026-10-13: "it should be toggleable to see in cosmetics for whether it is shared or not
         // and it can only be shared by a supporter"): Share Trail is greyed out, with the reason under it, until the
-        // relay says this account is a linked supporter.
+        // relay says this account is a linked supporter. Only the Ribbon Trail is shared (2026-10-14); the same two
+        // switches are on the Ribbon Trail tab too.
         String trailBlocker = SupportersAutoShare.trailShareBlocker();
         boolean canShareTrail = SupportersAutoShare.isLinked();
         SettingsButtonWidget shareTrail = SettingsButtonWidget.builder(onOff("Share Trail", cfg.isShareTrail() && canShareTrail),

@@ -26,12 +26,12 @@ import java.util.UUID;
 
 /**
  * Other players' shared trails (killer560, 2026-10-13): a supporter's relay entry may carry a {@link TrailSpec}
- * ({@link SupportersFeature#trailFor}); this draws it behind that player with the same renderers as your own trail -
- * {@link SquareTrail} sampled each tick, {@link RibbonTrail} laid from their interpolated position each frame exactly as
- * yours is - one ring buffer per player.
+ * ({@link SupportersFeature#trailFor}); this draws it behind that player with the same renderer as your own Ribbon Trail
+ * ({@link RibbonTrail}, laid from their interpolated position each frame exactly as yours is), one ring buffer per
+ * player. Only ribbons: a squares trail an older client shares never gets this far ({@link TrailSpec#fromJson}, 2026-10-14).
  * <p>
  * Bounded: at most {@link #MAX_PLAYERS} trails, the nearest ones within {@link #MAX_DISTANCE} blocks; each ring is
- * fixed-size (256 ribbon points, 100 squares). A player who leaves, goes out of range, stops sharing, turns invisible
+ * fixed-size (256 ribbon points). A player who leaves, goes out of range, stops sharing, turns invisible
  * or becomes a spectator loses their slot on the next tick; a world change, disconnect or "Show Others' Trails" OFF
  * drops them all. The local player is never drawn here - their own trail is {@link TrailFeature}'s.
  * <p>
@@ -47,7 +47,6 @@ public final class RemoteTrails {
     /** One player's trail. */
     static final class Slot {
         final RibbonTrail ribbon = new RibbonTrail();
-        final SquareTrail squares = new SquareTrail();
         TrailSpec spec;
         int entityId;
         int[] fadeEnds;
@@ -109,16 +108,13 @@ public final class RemoteTrails {
             UUID id = p.getUUID();
             TrailSpec spec = SupportersFeature.trailFor(id);
             Slot slot = SLOTS.get(id);
-            if (slot == null || slot.spec == null || slot.spec.style() != spec.style() || slot.entityId != p.getId()) {
+            if (slot == null || slot.entityId != p.getId()) {
                 slot = new Slot();
                 SLOTS.put(id, slot);
             }
             slot.spec = spec;
             slot.entityId = p.getId();
             slot.fadeEnds = SupportersFeature.nameFadeEndsFor(id);
-            if (spec.style() == TrailConfig.Style.SQUARES) {
-                slot.squares.sample(p.getX(), p.getY(), p.getZ(), p.onGround());
-            }
             keep.add(id);
         }
         SLOTS.keySet().retainAll(keep);
@@ -140,14 +136,9 @@ public final class RemoteTrails {
             if (!(e instanceof Player p) || slot.spec == null) {
                 continue;
             }
-            TrailSpec spec = slot.spec;
-            if (spec.style() == TrailConfig.Style.RIBBON) {
-                long before = slot.ribbon.frames();
-                slot.ribbon.draw(context, p, spec, slot.fadeEnds, false);
-                if (slot.ribbon.frames() > before) {
-                    drawn++;
-                }
-            } else if (slot.squares.render(context, Math.round(spec.length()), spec.width(), spec.opacity(), true) > 0) {
+            long before = slot.ribbon.frames();
+            slot.ribbon.draw(context, p, slot.spec, slot.fadeEnds, false);
+            if (slot.ribbon.frames() > before) {
                 drawn++;
             }
         }
@@ -178,9 +169,9 @@ public final class RemoteTrails {
         return s == null ? null : new double[]{s.ribbon.drawnPoints(), s.ribbon.drawnLength(), s.ribbon.frames()};
     }
 
-    /** Squares {@code id}'s trail holds, or -1 when untracked. */
-    public static int squareCount(UUID id) {
+    /** {@code id}'s ribbon vertices from its last drawn frame (see {@link RibbonTrail#vertices}), or null when untracked. */
+    public static float[] ribbonVertices(UUID id) {
         Slot s = SLOTS.get(id);
-        return s == null ? -1 : s.squares.size();
+        return s == null ? null : s.ribbon.vertices();
     }
 }

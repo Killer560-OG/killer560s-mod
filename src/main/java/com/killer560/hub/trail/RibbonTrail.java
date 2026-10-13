@@ -15,16 +15,21 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 /**
- * The Ribbon trail style (killer560, 2026-10-13, a Roblox "Using Trails" picture: "can you make trails have an option
- * to do something like this as well?"): one continuous band streaming behind the player from about waist height, the
- * head colour at the body running to the tail colour at the end, fading to nothing there.
+ * The Ribbon Trail (killer560, 2026-10-13, a Roblox "Using Trails" picture: "can you make trails have an option to do
+ * something like this as well?"): one continuous band streaming behind the player, the head colour at the body running
+ * to the tail colour at the end, fading to nothing there.
+ *
+ * <p>The band is a WORLD-FIXED vertical strip like a Roblox Trail (killer560, 2026-10-14: "it looks to be horizontal and
+ * depending on how i move my mouse sometimes it is vertical" / "I want the ribbon to be vertical behind them, not
+ * horizontal or any angle"): each point of the path gets two vertices with the SAME x and z, one at the band's bottom
+ * and one at its top ({@link #bandBottom}), so nothing about it depends on the camera, pitch, velocity or lean. The
+ * old camera-facing billboard flipped between flat and upright as the view swung.
  *
  * <p>Points are taken from the player's INTERPOLATED position every frame, but only every {@link #SPACING} blocks, so
  * the band does not jitter with frame rate or idle wobble; each point remembers when it was laid and expires after
  * Ribbon Length seconds, so standing still lets the band shrink back into the player over that time. At draw time the
- * points (oldest first, then the live anchor) are smoothed with two [1 2 1] passes, and each one gets a sideways
- * vector perpendicular to both the path and the line to the camera: from behind (F5) that lies flat, from the side
- * it stands up, so the band reads at full width from wherever it is seen.
+ * points (oldest first, then the live anchor) are smoothed with two [1 2 1] passes; the points sit at the feet and
+ * the band stands Ribbon Height tall above them.
  *
  * <p>Everything lives in preallocated arrays capped at {@link #MAX_POINTS}: no allocation per frame, one draw call.
  * The finished vertices are written into {@link #verts} before submitting, because on 26.2 the geometry callback runs
@@ -44,8 +49,10 @@ public final class RibbonTrail {
     public static final double SPACING = 0.2;
     /** A jump further than this between frames (a teleport, an AOTV) starts a new ribbon instead of a long streak. */
     private static final double TELEPORT = 6.0;
-    /** Waist height as a share of eye height (1.62 standing gives 0.89, sneaking 1.27 gives 0.70). */
-    private static final double WAIST = 0.55;
+    /** The band's middle as a share of eye height (1.62 standing gives 0.75, so a 1-block band runs 0.25 to 1.25). */
+    private static final double MIDDLE = 0.463;
+    /** The band's bottom never goes below this, however tall it is. */
+    private static final double MIN_BOTTOM = 0.05;
     /** Blocks behind him (against his movement, or his facing when still) where the band starts. */
     private static final double BACK_OFFSET = 0.3;
     /** Length of the leash that finds "behind him"; longer turns the start of the band round more slowly. */
@@ -73,7 +80,7 @@ public final class RibbonTrail {
     private final float[] age = new float[MAX_POINTS + 1];
     private final float[] along = new float[MAX_POINTS + 1];
 
-    /** Two vertices (left, right) per point, each x y z r g b a. */
+    /** Two vertices (bottom, top) per point, each x y z r g b a, in world space. */
     private final float[] verts = new float[(MAX_POINTS + 1) * 2 * 7];
     private int vertPoints = 0;
     private final McRender.Geometry geometry = this::emit;
@@ -108,6 +115,27 @@ public final class RibbonTrail {
 
     public static void clear() {
         LOCAL.reset();
+    }
+
+    /** Your ribbon's last drawn vertices (see {@link #vertices()}). */
+    public static float[] lastVertices() {
+        return LOCAL.vertices();
+    }
+
+    /** World-space x y z of every vertex of the last drawn frame, bottom then top for each point, oldest first;
+     *  empty when the last frame drew nothing. The test hook for "vertical, and the same from every camera angle". */
+    public float[] vertices() {
+        int pts = lastPointCount == 0 ? 0 : vertPoints;
+        float[] out = new float[pts * 2 * 3];
+        for (int v = 0; v < pts * 2; v++) {
+            System.arraycopy(verts, v * 7, out, v * 3, 3);
+        }
+        return out;
+    }
+
+    /** Height of the band's bottom above the feet for a player with {@code eyeHeight} and a band {@code height} tall. */
+    static double bandBottom(double eyeHeight, double height) {
+        return Math.max(MIN_BOTTOM, eyeHeight * MIDDLE - height / 2.0);
     }
 
     /** This ribbon's frames drawn (the shared trails' test hook). */
@@ -192,7 +220,7 @@ public final class RibbonTrail {
         }
         double ax = feet.x + backX * BACK_OFFSET;
         double az = feet.z + backZ * BACK_OFFSET;
-        double ay = feet.y + player.getEyeHeight() * WAIST;
+        double ay = feet.y;
 
         // Lay points every SPACING blocks along the way from the newest point to the anchor.
         if (count == 0) {
@@ -265,55 +293,20 @@ public final class RibbonTrail {
             along[i] /= (float) total;
         }
 
-        Vec3 cam = McRender.cameraPos(context);
-        double half = spec.width() / 2.0;
+        // Strictly vertical: bottom and top share the point's x and z.
+        double bottom = bandBottom(player.getEyeHeight(), spec.width());
+        double top = bottom + spec.width();
         float baseAlpha = spec.opacity() / 100f;
-        double lastSx = 0, lastSy = 0, lastSz = 0;
         int o = 0;
         for (int i = 0; i < n; i++) {
-            int a = Math.max(0, i - 1);
-            int b = Math.min(n - 1, i + 1);
-            double tx = px[b] - px[a], ty = py[b] - py[a], tz = pz[b] - pz[a];
-            double vx = cam.x - px[i], vy = cam.y - py[i], vz = cam.z - pz[i];
-            // side = tangent x to-camera
-            double cx = ty * vz - tz * vy;
-            double cy = tz * vx - tx * vz;
-            double cz = tx * vy - ty * vx;
-            double len = Math.sqrt(cx * cx + cy * cy + cz * cz);
-            if (len < 1.0e-6) {
-                // Looking straight down the path: lie flat (tangent x up).
-                cx = -tz;
-                cy = 0;
-                cz = tx;
-                len = Math.sqrt(cx * cx + cz * cz);
-                if (len < 1.0e-6) {
-                    cx = 1;
-                    cz = 0;
-                    len = 1;
-                }
-            }
-            cx /= len;
-            cy /= len;
-            cz /= len;
-            // Keep neighbouring sides pointing the same way, or the band twists through itself.
-            if (i > 0 && cx * lastSx + cy * lastSy + cz * lastSz < 0) {
-                cx = -cx;
-                cy = -cy;
-                cz = -cz;
-            }
-            lastSx = cx;
-            lastSy = cy;
-            lastSz = cz;
-
             float u = along[i];
             float fade = Math.min(Math.max(0f, 1f - age[i]), u);
             float alpha = baseAlpha * fade;
             int rgb = colorAt(spec, fadeEnds, u);
             float r = ((rgb >> 16) & 0xFF) / 255f, g = ((rgb >> 8) & 0xFF) / 255f, bl = (rgb & 0xFF) / 255f;
-            float lx = (float) (px[i] - cx * half), ly = (float) (py[i] - cy * half), lz = (float) (pz[i] - cz * half);
-            float qx = (float) (px[i] + cx * half), qy = (float) (py[i] + cy * half), qz = (float) (pz[i] + cz * half);
-            o = put(o, lx, ly, lz, r, g, bl, alpha);
-            o = put(o, qx, qy, qz, r, g, bl, alpha);
+            float x = (float) px[i], z = (float) pz[i];
+            o = put(o, x, (float) (py[i] + bottom), z, r, g, bl, alpha);
+            o = put(o, x, (float) (py[i] + top), z, r, g, bl, alpha);
         }
         vertPoints = n;
         lastPointCount = n;
@@ -333,7 +326,7 @@ public final class RibbonTrail {
         return o + 7;
     }
 
-    /** One quad per segment, in both windings so it reads the same from either side whatever the culling. */
+    /** One quad per segment, in both windings so it reads the same from either side whatever the culling (double-sided). */
     private void emit(PoseStack.Pose pose, VertexConsumer buffer) {
         Matrix4f m = pose.pose();
         for (int i = 0; i + 1 < vertPoints; i++) {

@@ -22,9 +22,9 @@ import net.minecraft.client.player.LocalPlayer;
  * cost audit). {@link TrailConfig#getLength()} only controls how much of that buffer is currently drawn;
  * the buffer itself never resizes, so dragging the length slider is free.
  * <p>
- * The Ribbon style ({@link RibbonTrail}) records and draws per frame instead; this class only routes to it.
- * A supporter can share the trail through the relay (Player Cosmetics' "Share Trail", 2026-10-13); other players'
- * shared trails are drawn by {@link RemoteTrails} with the same two renderers ({@link SquareTrail}, {@link RibbonTrail}).
+ * The Ribbon Trail ({@link RibbonTrail}, its own Cosmetics tab and {@link RibbonTrailConfig} since 2026-10-14) records
+ * and draws per frame instead; this class only routes to it. Both can be on at once. Only the ribbon can be shared
+ * (Share Trail); other players' shared ribbons are drawn by {@link RemoteTrails}. The squares are never sent.
  * <p>
  * Purely visual, client-side, no gameplay effect - legit in both builds. Renders through the same
  * {@code LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES} + {@link WorldRenderUtils} path as Etherwarp's
@@ -40,7 +40,7 @@ public final class TrailFeature {
     private static boolean wasEnabled = false;
     private static ClientLevel lastLevel = null;
     private static volatile boolean clearRequested = false;
-    private static TrailConfig.Style lastStyle = null;
+    private static boolean wasRibbon = false;
     /** The local look, rebuilt each tick from the settings (the renderers read it every frame). */
     private static volatile TrailSpec localSpec = null;
     /** The Name Changer's own colour and fade target for Name Fade (null when no colour is set), rebuilt each tick. */
@@ -60,10 +60,10 @@ public final class TrailFeature {
         RemoteTrails.register();
     }
 
-    /** The local trail's look as it would be shared. */
+    /** The local Ribbon Trail's look as it would be shared. */
     public static TrailSpec localSpec() {
         TrailSpec spec = localSpec;
-        return spec != null ? spec : TrailSpec.fromConfig(TrailConfig.getInstance());
+        return spec != null ? spec : TrailSpec.fromConfig(RibbonTrailConfig.getInstance());
     }
 
     /** The Name Changer's own colour (head) and its fade target (tail) as 0xRRGGBB, or null when no colour is set. */
@@ -92,23 +92,24 @@ public final class TrailFeature {
         }
 
         TrailConfig cfg = TrailConfig.getInstance();
-        localSpec = TrailSpec.fromConfig(cfg);
+        RibbonTrailConfig ribbon = RibbonTrailConfig.getInstance();
+        localSpec = TrailSpec.fromConfig(ribbon);
         localFadeEnds = ownFadeEnds();
         boolean enabledNow = cfg.isEnabled();
         if (wasEnabled && !enabledNow) {
             // Same "leaving true -> false" edge-triggered reset every other per-run state in this mod
             // uses - avoids a big stale jump reappearing if the trail is re-enabled later.
-            clear();
+            SQUARES.clear();
         }
         wasEnabled = enabledNow;
-        if (cfg.getStyle() != lastStyle) {
-            // Switching style drops the other style's points, so switching back starts clean.
-            clear();
-            lastStyle = cfg.getStyle();
+        boolean ribbonNow = ribbon.isEnabled();
+        if (wasRibbon && !ribbonNow) {
+            RibbonTrail.clear();
         }
+        wasRibbon = ribbonNow;
 
         LocalPlayer player = client.player;
-        if (!enabledNow || level == null || player == null || cfg.getStyle() != TrailConfig.Style.SQUARES) {
+        if (!enabledNow || level == null || player == null) {
             SQUARES.forgetLast();
             return;
         }
@@ -116,20 +117,17 @@ public final class TrailFeature {
     }
 
     private static void onWorldRender(LevelRenderContext context) {
-        TrailConfig cfg = TrailConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            return;
-        }
-        if (cfg.getStyle() == TrailConfig.Style.RIBBON) {
-            Minecraft client = Minecraft.getInstance();
-            boolean hidden = !cfg.isShowInFirstPerson() && client.options.getCameraType().isFirstPerson();
+        Minecraft client = Minecraft.getInstance();
+        RibbonTrailConfig ribbon = RibbonTrailConfig.getInstance();
+        if (ribbon.isEnabled()) {
+            boolean hidden = !ribbon.isShowInFirstPerson() && client.options.getCameraType().isFirstPerson();
             RibbonTrail.LOCAL.draw(context, client.player, localSpec(), localFadeEnds, hidden);
+        }
+        TrailConfig cfg = TrailConfig.getInstance();
+        if (!cfg.isEnabled() || SQUARES.size() == 0) {
             return;
         }
-        if (SQUARES.size() == 0) {
-            return;
-        }
-        if (!cfg.isShowInFirstPerson() && Minecraft.getInstance().options.getCameraType().isFirstPerson()) {
+        if (!cfg.isShowInFirstPerson() && client.options.getCameraType().isFirstPerson()) {
             return;
         }
         SQUARES.render(context, cfg.getLength(), cfg.getSquareSize(), cfg.getOpacityPercent(), cfg.isFadeOut());
