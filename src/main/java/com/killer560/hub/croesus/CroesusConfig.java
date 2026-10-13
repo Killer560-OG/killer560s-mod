@@ -67,6 +67,9 @@ public final class CroesusConfig {
     public static final int MAX_DELAY_BOUND_MS = 2000;
     /** Min-profit slider range for Auto Croesus, in thousands of coins (0 - 20M). */
     public static final int MAX_MIN_PROFIT_K = 20_000;
+    /** Chest Key Min Profit runs 0 to 2,000,000 in 20k steps (killer560, 2026-10-13). */
+    public static final int MAX_KEY_MIN_PROFIT_K = 2_000;
+    public static final int KEY_MIN_PROFIT_STEP_K = 20;
 
     private static CroesusConfig instance;
 
@@ -135,7 +138,11 @@ public final class CroesusConfig {
     /** Spend a Dungeon Chest Key on a further chest in the same run when it clears {@link #autoKeyMinProfitK}. */
     private boolean autoUseChestKeys = false;
     private int autoKeyMinProfitK = 1_000;
-    private ChestKeyMode chestKeyMode = ChestKeyMode.SET_PROFIT;
+    /** Key Buy-Offer by default since 2026-10-13 (killer560: "Use Key Based On defaults to Key Buy Offer"). */
+    private ChestKeyMode chestKeyMode = ChestKeyMode.KEY_BUY_OFFER;
+    /** One-time: a file saved before the default changed always carries the old default (Set Profit), which is moved to
+     *  Key Buy-Offer once; a Set Profit picked after that stays. */
+    private boolean chestKeyModeDefaulted = true;
     /** Spend a Kismet Feather on a Bedrock chest whose profit is below {@link #autoRerollBelowK}. */
     private boolean autoUseKismets = false;
     private int autoRerollBelowK = 1_000;
@@ -196,8 +203,12 @@ public final class CroesusConfig {
             cfg.autoMinDelayMs = clamp(ConfigJson.getInt(obj, "autoMinDelayMs", cfg.autoMinDelayMs), MIN_DELAY_BOUND_MS, MAX_DELAY_BOUND_MS);
             cfg.autoMaxDelayMs = clamp(ConfigJson.getInt(obj, "autoMaxDelayMs", cfg.autoMaxDelayMs), MIN_DELAY_BOUND_MS, MAX_DELAY_BOUND_MS);
             cfg.autoUseChestKeys = ConfigJson.getBool(obj, "autoUseChestKeys", cfg.autoUseChestKeys);
-            cfg.autoKeyMinProfitK = clamp(ConfigJson.getInt(obj, "autoKeyMinProfitK", cfg.autoKeyMinProfitK), 0, MAX_MIN_PROFIT_K);
+            cfg.autoKeyMinProfitK = keyStep(ConfigJson.getInt(obj, "autoKeyMinProfitK", cfg.autoKeyMinProfitK));
             cfg.chestKeyMode = ConfigJson.getEnum(obj, "chestKeyMode", ChestKeyMode.class, cfg.chestKeyMode);
+            // decided from the OLD file's keys: no marker = written before the default moved
+            if (!obj.has("chestKeyModeDefaulted") && cfg.chestKeyMode == ChestKeyMode.SET_PROFIT) {
+                cfg.chestKeyMode = ChestKeyMode.KEY_BUY_OFFER;
+            }
             cfg.autoUseKismets = ConfigJson.getBool(obj, "autoUseKismets", cfg.autoUseKismets);
             cfg.autoRerollBelowK = clamp(ConfigJson.getInt(obj, "autoRerollBelowK", cfg.autoRerollBelowK), 0, MAX_MIN_PROFIT_K);
             // Same min <= max invariant the setters enforce (a hand-edit could otherwise load min > max).
@@ -238,11 +249,18 @@ public final class CroesusConfig {
             obj.addProperty("autoUseChestKeys", autoUseChestKeys);
             obj.addProperty("autoKeyMinProfitK", autoKeyMinProfitK);
             obj.addProperty("chestKeyMode", chestKeyMode.name());
+            obj.addProperty("chestKeyModeDefaulted", chestKeyModeDefaulted);
             obj.addProperty("autoUseKismets", autoUseKismets);
             obj.addProperty("autoRerollBelowK", autoRerollBelowK);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
+    }
+
+    /** A Chest Key Min Profit in k, clamped to 0..{@link #MAX_KEY_MIN_PROFIT_K} and snapped to the 20k step. */
+    public static int keyStep(int k) {
+        int c = clamp(k, 0, MAX_KEY_MIN_PROFIT_K);
+        return Math.min(MAX_KEY_MIN_PROFIT_K, Math.round(c / (float) KEY_MIN_PROFIT_STEP_K) * KEY_MIN_PROFIT_STEP_K);
     }
 
     private static int clamp(int v, int lo, int hi) {
@@ -452,7 +470,7 @@ public final class CroesusConfig {
     }
 
     public void setAutoKeyMinProfitK(int v) {
-        this.autoKeyMinProfitK = clamp(v, 0, MAX_MIN_PROFIT_K);
+        this.autoKeyMinProfitK = keyStep(v);
     }
 
     public ChestKeyMode getChestKeyMode() {

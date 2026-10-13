@@ -31,9 +31,11 @@ public final class FastLeapConfig {
     public static final int MAX_CLICK_DELAY_MS = 500;
     public static final int CLICK_DELAY_STEP_MS = 50;
 
-    /** QUOI "Leap mode" (Name/Class) plus Posmsg: target = whoever last announced that position in party chat. */
+    /** How a leap picks who it goes to. PER_LEAP: each leap's own Target button (a class or a name - QUOI's Name and
+     *  Class modes, chosen per leap since 2026-10-13). POSMSG: whoever last announced that position in party chat,
+     *  with the leap's Target as the backup. Files from before 2026-10-13 say NAME or CLASS, read as PER_LEAP. */
     public enum TargetMode {
-        NAME("Name"), CLASS("Class"), POSMSG("Posmsg");
+        PER_LEAP("Per Leap"), POSMSG("Posmsg");
 
         public final String label;
 
@@ -42,10 +44,13 @@ public final class FastLeapConfig {
         }
     }
 
-    /** One QUOI leap switch ("P1 leap", "P3 leap", ...), each with its "Auto" child. */
+    /** One QUOI leap switch ("Crystal leap", "P3 leap", ...), each Fast (on his left click) or Auto. The constant
+     *  names are the file's keys, so P1 keeps its name though the leap is "Crystal" since 2026-10-13 (killer560:
+     *  "Rename p1 leap to crystal leap") - an old file's P1 settings carry straight over. The temporary Test leap
+     *  went the same day ("Remove test leap"); an old file's TEST entry is ignored. */
     public enum LeapGroup {
         DOOR("Door Opener"),
-        P1("P1"),
+        P1("Crystal"),
         PREDEV("Predev"),
         GREEN("Green Pad"),
         YELLOW("Yellow Pad"),
@@ -55,15 +60,7 @@ public final class FastLeapConfig {
         P3("P3"),
         MIDDLE("Middle"),
         P4("P4"),
-        RELIC("Relic"),
-        /** TEMPORARY - testing aid added 2026-09-15 at killer560's request ("also add a test fast leap that
-         *  will have the option to auto leap or just fast leap and select a class... it is only for testing
-         *  right now and will be removed after I finish testing"). Unlike every other leap it has no position
-         *  or phase condition at all: while it's on it always leaps to {@link FastLeapConfig#getTestLeapClass()},
-         *  wherever you are, which is exactly why it must not outlive the testing. REMOVE this constant (and
-         *  the {@code testLeapClass} field below, the Test branch in {@code FastLeapSection.buildLeapEditor}
-         *  and the test hooks in {@code FastLeapFeature}) when testing is done. */
-        TEST("Test");
+        RELIC("Relic");
 
         public final String label;
 
@@ -111,21 +108,20 @@ public final class FastLeapConfig {
         String name = "";
         DungeonClass clazz;
         String keywords;
+        /** Which of the two the Target button picked: the class (true) or the name. */
+        boolean byClass = true;
     }
 
     private static FastLeapConfig instance;
 
     private boolean enabled = false;
-    private TargetMode targetMode = TargetMode.NAME;
+    private TargetMode targetMode = TargetMode.PER_LEAP;
     private int clickDelayMs = 250;
     private boolean blockInputs = false;
     private boolean fastMode = false;
     private boolean swapBack = false;
     private boolean disableAfterBloodOpen = false;
     private boolean onlyWhenGateBlown = false;
-    /** TEMPORARY - the class {@link LeapGroup#TEST} always leaps to (2026-09-15 testing aid, see that enum
-     *  constant). null = nothing picked yet, which makes the test leap a no-op. Remove with the test leap. */
-    private DungeonClass testLeapClass = null;
     private final Map<LeapGroup, GroupSettings> groups = new EnumMap<>(LeapGroup.class);
     private final Map<LeapTarget, TargetSettings> targets = new EnumMap<>(LeapTarget.class);
 
@@ -154,16 +150,14 @@ public final class FastLeapConfig {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = bool(obj, "enabled", false);
-                cfg.targetMode = parseMode(str(obj, "targetMode", "NAME"));
+                String oldMode = str(obj, "targetMode", "NAME");
+                cfg.targetMode = parseMode(oldMode);
                 cfg.clickDelayMs = clampDelay(obj.has("clickDelayMs") ? obj.get("clickDelayMs").getAsInt() : 250);
                 cfg.blockInputs = bool(obj, "blockInputs", false);
                 cfg.fastMode = bool(obj, "fastMode", false);
                 cfg.swapBack = bool(obj, "swapBack", false);
                 cfg.disableAfterBloodOpen = bool(obj, "disableAfterBloodOpen", false);
                 cfg.onlyWhenGateBlown = bool(obj, "onlyWhenGateBlown", false);
-                // TEMPORARY (test leap, 2026-09-15) - remove with LeapGroup.TEST
-                String testClass = str(obj, "testLeapClass", "");
-                cfg.testLeapClass = testClass.isEmpty() ? null : DungeonClass.byName(testClass);
                 if (obj.has("groups") && obj.get("groups").isJsonObject()) {
                     JsonObject g = obj.getAsJsonObject("groups");
                     for (LeapGroup group : LeapGroup.values()) {
@@ -187,6 +181,11 @@ public final class FastLeapConfig {
                                 s.clazz = c.isJsonNull() || c.getAsString().isEmpty() ? null : DungeonClass.byName(c.getAsString());
                             }
                             s.keywords = str(o, "keywords", target.defaultKeywords);
+                            // Before 2026-10-13 one global mode said whether every leap went by name or by class
+                            // (Posmsg's backup tried the name first). Decided from the OLD key, never from fields.
+                            s.byClass = o.has("byClass") ? bool(o, "byClass", true)
+                                    : "CLASS".equalsIgnoreCase(oldMode)
+                                    || ("POSMSG".equalsIgnoreCase(oldMode) && s.name.isBlank());
                         }
                     }
                 }
@@ -210,8 +209,6 @@ public final class FastLeapConfig {
             obj.addProperty("swapBack", swapBack);
             obj.addProperty("disableAfterBloodOpen", disableAfterBloodOpen);
             obj.addProperty("onlyWhenGateBlown", onlyWhenGateBlown);
-            // TEMPORARY (test leap, 2026-09-15) - remove with LeapGroup.TEST
-            obj.addProperty("testLeapClass", testLeapClass == null ? "" : testLeapClass.name());
             JsonObject g = new JsonObject();
             for (LeapGroup group : LeapGroup.values()) {
                 GroupSettings s = groups.get(group);
@@ -228,6 +225,7 @@ public final class FastLeapConfig {
                 o.addProperty("name", s.name);
                 o.addProperty("class", s.clazz == null ? "" : s.clazz.name());
                 o.addProperty("keywords", s.keywords);
+                o.addProperty("byClass", s.byClass);
                 t.add(target.name(), o);
             }
             obj.add("targets", t);
@@ -254,12 +252,7 @@ public final class FastLeapConfig {
     }
 
     private static TargetMode parseMode(String s) {
-        for (TargetMode m : TargetMode.values()) {
-            if (m.name().equalsIgnoreCase(s)) {
-                return m;
-            }
-        }
-        return TargetMode.NAME;
+        return "POSMSG".equalsIgnoreCase(s) ? TargetMode.POSMSG : TargetMode.PER_LEAP;
     }
 
     private static int clampDelay(int ms) {
@@ -287,7 +280,7 @@ public final class FastLeapConfig {
     }
 
     public void setTargetMode(TargetMode mode) {
-        targetMode = mode == null ? TargetMode.NAME : mode;
+        targetMode = mode == null ? TargetMode.PER_LEAP : mode;
     }
 
     public int getClickDelayMs() {
@@ -338,18 +331,6 @@ public final class FastLeapConfig {
         onlyWhenGateBlown = v;
     }
 
-    // ---- TEMPORARY: test leap (2026-09-15) ---------------------------------------------------------------------
-    // Testing aid only - see LeapGroup.TEST. Delete this whole block when the test leap is removed.
-
-    /** @return the class {@link LeapGroup#TEST} always leaps to, or null when none has been picked. */
-    public DungeonClass getTestLeapClass() {
-        return testLeapClass;
-    }
-
-    public void setTestLeapClass(DungeonClass clazz) {
-        testLeapClass = clazz;
-    }
-
     // ---- per leap ---------------------------------------------------------------------------------------------
 
     public boolean isLeapEnabled(LeapGroup group) {
@@ -360,13 +341,44 @@ public final class FastLeapConfig {
         groups.get(group).enabled = v;
     }
 
-    /** QUOI's "Auto" children only act while their parent leap switch is also on. */
+    /** The leap's Mode is Auto: it leaps by itself when its trigger happens. Only acts while the leap is also on. */
     public boolean isLeapAuto(LeapGroup group) {
         return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).auto;
     }
 
     public void setLeapAuto(LeapGroup group, boolean v) {
         groups.get(group).auto = v;
+    }
+
+    /** On and in Fast mode: his left click with a leap item leaps (killer560 2026-10-13: "whether it is fast leaping
+     *  (on my left click) or auto leaping"). An Auto leap does not also take the click. */
+    public boolean isLeapFast(LeapGroup group) {
+        return isLeapEnabled(group) && !groups.get(group).auto;
+    }
+
+    /** The leap's Target button: a class (true) or a name. */
+    public boolean isTargetByClass(LeapTarget target) {
+        return targets.get(target).byClass;
+    }
+
+    /** Points the target at a class (the name stays, as Posmsg's second backup). */
+    public void setTargetPickClass(LeapTarget target, DungeonClass clazz) {
+        TargetSettings s = targets.get(target);
+        s.clazz = clazz;
+        s.byClass = true;
+    }
+
+    /** Points the target at a player by name. */
+    public void setTargetPickName(LeapTarget target, String name) {
+        TargetSettings s = targets.get(target);
+        s.name = name == null ? "" : name.trim();
+        s.byClass = false;
+    }
+
+    /** Whether the target has anything picked (a class, or a non-blank name). */
+    public boolean hasTargetPick(LeapTarget target) {
+        TargetSettings s = targets.get(target);
+        return s.byClass ? s.clazz != null : !s.name.isBlank();
     }
 
     public String getTargetName(LeapTarget target) {

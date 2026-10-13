@@ -89,13 +89,6 @@ public final class ExperimentsConfig {
      *  run. ON by default since 2026-10-04 (killer560: "For auto etable have auto swap to guardian pet on by
      *  default"); a saved file keeps whatever it already says. */
     private boolean autoSwapGuardianPet = true;
-    /** GLFW key code that immediately cancels a running autonomous session (see
-     *  {@link com.killer560.hub.experiments.ExperimentsFeature#emergencyCancel()}), or -1 if unbound.
-     *  Polled directly against raw keyboard state every tick (same mechanism the HUD editor's own
-     *  keybind already uses), NOT through any container screen's key-event handling - per killer560's
-     *  explicit "this key should work even on the prevent keypress option," since that setting only
-     *  ever blocks input routed through a container screen's own listeners. */
-    private int emergencyCancelKeyCode = -1;
     /** Solver Only mode only: while on (default), a manual click on the wrong Chronomatron/
      *  Ultrasequencer slot is swallowed instead of reaching the game, per
      *  {@link ExperimentsFeature#shouldBlockManualMisclick}. Holding Shift always bypasses the block
@@ -164,7 +157,6 @@ public final class ExperimentsConfig {
             cfg.randomDelayMaxMs = obj.has("randomDelayMaxMs")
                     ? Math.max(MIN_DELAY_MS, Math.min(MAX_DELAY_MS, obj.get("randomDelayMaxMs").getAsInt())) : 0;
             cfg.autoSwapGuardianPet = !obj.has("autoSwapGuardianPet") || obj.get("autoSwapGuardianPet").getAsBoolean();
-            cfg.emergencyCancelKeyCode = obj.has("emergencyCancelKeyCode") ? com.killer560.hub.util.KeyUtil.sanitize(obj.get("emergencyCancelKeyCode").getAsInt()) : -1;
             cfg.clickProtectionEnabled = !obj.has("clickProtectionEnabled") || obj.get("clickProtectionEnabled").getAsBoolean();
             cfg.notifyMaxClicksReached = !obj.has("notifyMaxClicksReached") || obj.get("notifyMaxClicksReached").getAsBoolean();
             cfg.profitTrackerEnabled = !obj.has("profitTrackerEnabled") || obj.get("profitTrackerEnabled").getAsBoolean();
@@ -204,7 +196,6 @@ public final class ExperimentsConfig {
             obj.addProperty("titanicMaxPriceCoins", titanicMaxPriceCoins);
             obj.addProperty("randomDelayMaxMs", randomDelayMaxMs);
             obj.addProperty("autoSwapGuardianPet", autoSwapGuardianPet);
-            obj.addProperty("emergencyCancelKeyCode", emergencyCancelKeyCode);
             obj.addProperty("clickProtectionEnabled", clickProtectionEnabled);
             obj.addProperty("notifyMaxClicksReached", notifyMaxClicksReached);
             obj.addProperty("profitTrackerEnabled", profitTrackerEnabled);
@@ -339,14 +330,6 @@ public final class ExperimentsConfig {
 
     public void setAutoSwapGuardianPet(boolean autoSwapGuardianPet) {
         this.autoSwapGuardianPet = autoSwapGuardianPet;
-    }
-
-    public int getEmergencyCancelKeyCode() {
-        return emergencyCancelKeyCode;
-    }
-
-    public void setEmergencyCancelKeyCode(int emergencyCancelKeyCode) {
-        this.emergencyCancelKeyCode = emergencyCancelKeyCode;
     }
 
     public boolean isClickProtectionEnabled() {

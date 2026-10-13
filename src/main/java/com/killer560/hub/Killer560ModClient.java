@@ -397,7 +397,6 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.bazaarflip.BazaarFlipCommands.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Killer560ModClient.checkHudEditKeybind", Killer560ModClient::checkHudEditKeybind));
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Killer560ModClient.checkExperimentsCancelKeybind", Killer560ModClient::checkExperimentsCancelKeybind));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WindowModeFeature.tickApplyOnce", WindowModeFeature::tickApplyOnce));
 
         // "/ew waypoint add|remove|undo" (killer560, 2026-09-21: "change the command to /ew waypoint add. add in
@@ -794,24 +793,5 @@ public class Killer560ModClient implements ClientModInitializer {
             McCompat.setScreen(client, new HudEditorScreen(open));
         }
         editKeyWasDown = down;
-    }
-
-    /** Same raw-keyboard-poll pattern as {@link #checkHudEditKeybind} - per killer560's explicit
-     *  requirement that the Experiments emergency-cancel key "work even on the prevent keypress
-     *  option," it's checked directly against hardware key state every tick rather than through any
-     *  container screen's own key-event handling, which is exactly what that setting blocks. */
-    private static boolean experimentsCancelKeyWasDown = false;
-
-    private static void checkExperimentsCancelKeybind(Minecraft client) {
-        int code = ExperimentsConfig.getInstance().getEmergencyCancelKeyCode();
-        if (code < 0) {
-            experimentsCancelKeyWasDown = false;
-            return;
-        }
-        boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), code);
-        if (down && !experimentsCancelKeyWasDown) {
-            ExperimentsFeature.emergencyCancel();
-        }
-        experimentsCancelKeyWasDown = down;
     }
 }

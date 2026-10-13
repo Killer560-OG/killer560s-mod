@@ -22,34 +22,10 @@ import java.util.function.Consumer;
  * 2026-09-15, per killer560: "For fast leap put that in its own complete section outside of the leap menu.
  * Title it fast/auto leap. Then reformat it to look better." It used to be a section inside the Leap Menu tab.
  * <p>
- * Reworked again 2026-09-15 (killer560: "I dont like the current leaps style. Make it so on the left half it is
- * the title of leaps, on the right half is an edit button. If you press the edit button then it opens all the
- * settings for that specific auto/fastleap"). The old "Leaps" switch grid + "Leap Targets" block are gone;
- * instead there are two views, and {@code FastLeapTab} decides which one it is showing:
- * <ol>
- *     <li>{@link #buildGeneral} - the master switch, then two headed groups: Targeting (Target Mode, which
- *         every leap below shares) and Click Behavior (Click Delay, Block Inputs, Fast Mode, Swap Back).
- *         Always at the top of the LIST view.</li>
- *     <li>{@link #buildLeapList} - one row per leap under a red header per boss phase (Door Opener, P1, P2,
- *         P3, P4, P5, plus Testing for the temporary Test leap): the leap's name + its ON/OFF state on the
- *         left half, an "Edit" button on the right half.</li>
- *     <li>{@link #buildLeapEditor} - one leap's own page: its ON switch, then - only once that's on - Auto,
- *         its extra toggle if it has one, and its target fields, indented under the switch that gates them.</li>
- * </ol>
- * Regrouped again 2026-09-21 (killer560: "I hate the way fast leaps menu is currently set up. Please redesign
- * the setting menu for it" - a judgement call, see {@code FastLeapTab}'s class doc for the reasoning). Two
- * concrete problems drove it: (1) the general row of toggles put Fast Mode next to Block Inputs as if they were
- * equally-weighted peers, when Fast Mode's own tooltip says it does nothing unless Block Inputs is also on;
- * (2) a leap's Auto switch, its extra toggle and every one of its targets used to show unconditionally even
- * while that leap's own ON switch was off, so a leap that would never fire still looked fully configured. Both
- * now follow the same "hide the child until its parent is on" rule Simon Says' own three-section layout uses
- * ({@code SimonSaysTab}, 2026-09-21). The 13-leap list was also flat with no grouping at all; it's now split
- * into the phase headers above, sourced straight from each leap's own tooltip text (see the "F7 P1"/"F7 P2"/
- * etc. wording in {@code SettingTooltipsData}) so the grouping doesn't invent any dungeon fact that wasn't
- * already documented. None of this changes what any setting does, only where it sits and when it's drawn -
- * {@code buildGeneral}/{@code buildLeapEditor} both take an {@code includeHidden} escape hatch so
- * {@code FastLeapTab#matchesSearch}'s off-screen scan still finds a hidden child by text, exactly as it did
- * before anything here was ever hidden.
+ * Two parts: {@link #buildGeneral} (the master switch, Targeting and Click Behavior) and {@link #buildLeapList} (every
+ * leap's switch, Mode and Target in place, under a red header per boss phase). Until 2026-10-13 each leap had an Edit
+ * page instead; killer560 asked for them to go ("remove the edit buttons and instead have a toggle then a button to
+ * select what class/name it should leap to").
  * <p>
  * This class builds bodies only - the tab draws the (red, cheat-only) section headers and the "&lt; Back"
  * button, so a header never appears twice. Every row is {@link #ROW} high with {@link #GAP} between controls;
@@ -169,14 +145,10 @@ public final class FastLeapSection {
         return y;
     }
 
-    // ---- section 2: the leap list -------------------------------------------------------------------------------
+    // ---- section 2: the leaps ----------------------------------------------------------------------------------
 
-    /** One boss-phase bucket of {@link #buildLeapList}'s rows: a red header plus the leaps under it. Wording and
-     *  membership come straight from each {@link LeapGroup}'s own tooltip text in {@code SettingTooltipsData}
-     *  ("F7 boss P1", "F7 P2", "F7 P3", "F7 P4", "F7/M7 P5") so the grouping doesn't assert a dungeon fact this
-     *  code doesn't already document elsewhere. Door Opener stands alone because its own tooltip is explicit
-     *  that it fires "outside the boss" at any door, not tied to a phase; Predev sits with P1 because its
-     *  tooltip places its trigger "during P1/P2" starting from the P1 window. */
+    /** One boss-phase bucket of {@link #buildLeapList}'s rows: a red header plus the leaps under it. Door Opener stands
+     *  alone because it fires outside the boss at any door; Predev sits with Crystal (P1) because it starts there. */
     private record LeapPhase(String header, LeapGroup... groups) {
     }
 
@@ -187,162 +159,208 @@ public final class FastLeapSection {
             new LeapPhase("P3", LeapGroup.P3),
             new LeapPhase("P4", LeapGroup.MIDDLE, LeapGroup.P4),
             new LeapPhase("P5", LeapGroup.RELIC),
-            // "(Temporary)" so it reads as the testing aid it is, not a 14th real leap - see LeapGroup.TEST.
-            new LeapPhase("Testing (Temporary)", LeapGroup.TEST),
     };
 
-    /** One row per leap, grouped under a red {@link #sectionHeader} per {@link #PHASES} bucket instead of one
-     *  flat 13-row list: "&lt;name&gt; Leap: ON/OFF" on the left half, an "Edit" button on the right half.
-     *  Clicking Edit hands the leap to {@code onEdit}, which is what makes the tab switch to
-     *  {@link #buildLeapEditor} for it.
-     *  @return the y below the last row. */
-    public static int buildLeapList(List<AbstractWidget> widgets, int x, int y, int width, Consumer<LeapGroup> onEdit) {
+    /** Below this a leap's row stacks: its switch on one line, Mode and Target on the next. */
+    private static final int MIN_ONE_LINE_W = 300;
+
+    /**
+     * Every leap's settings in place, no Edit pages (killer560, 2026-10-13: "there is no option under each leap to change
+     * whether it is fast leaping (on my left click) or auto leaping. Also remove the edit buttons and instead have a toggle
+     * then a button to select what class/name it should leap to"). One row per leap: "&lt;name&gt; Leap: ON/OFF", then
+     * "Mode: Fast/Auto" and "Target: ..." - Door Opener has no target (it goes to whoever opened the door), so its third
+     * button is After Blood Off; P3's is Gate Blown Only and its four section targets sit on the row below. In Posmsg mode
+     * each target also gets its keyword box. Everything shows whether the leap is on or not.
+     * @return the y below the last row.
+     */
+    public static int buildLeapList(List<AbstractWidget> widgets, int x, int y, int width, Runnable requestRebuild) {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
             return y;
         }
         FastLeapConfig cfg = FastLeapConfig.getInstance();
-        // left half = the leap's title + state, right half = its Edit button (killer560's own wording)
-        int half = Math.max(1, (width - GAP) / 2);
-        int editX = x + half + GAP;
-        int editW = Math.max(1, x + width - editX);
+        int w = Math.max(1, width);
         for (LeapPhase phase : PHASES) {
-            widgets.add(sectionHeader(x, y, width, phase.header()));
+            widgets.add(sectionHeader(x, y, w, phase.header()));
             y += SECTION_HEADER_H;
             for (LeapGroup group : phase.groups()) {
-                widgets.add(rowLabel(x, y, half, onOffText(group.label + " Leap", cfg.isLeapEnabled(group))));
-                widgets.add(SettingsButtonWidget.builder(Component.literal("Edit"), btn -> onEdit.accept(group))
-                        .bounds(editX, y, editW, ROW).build());
-                y += ROW + GAP;
+                y = buildLeapRow(widgets, x, y, w, group, cfg, requestRebuild);
             }
             y += GROUP_GAP - GAP;
         }
         return y;
     }
 
-    // ---- section 3: one leap's own settings page ----------------------------------------------------------------
-
-    /** One leap's own page: its ON switch first, full width. Only once that's on does anything else appear -
-     *  Auto, then whichever extra toggle this leap has (Door -> "After Blood Off", P3 -> "Gate Blown Only",
-     *  Test -> its class), then each of its targets - indented under the switch that gates all of them. See the
-     *  class doc for why this used to show everything unconditionally and no longer does.
-     *  @return the y below the last row. */
-    public static int buildLeapEditor(List<AbstractWidget> widgets, int x, int y, int width, LeapGroup group) {
-        return buildLeapEditor(widgets, x, y, width, group, false);
-    }
-
-    /** @param includeHidden true also draws Auto/the extra toggle/every target even while this leap's own ON
-     *  switch is off - only for {@code FastLeapTab#matchesSearch}'s off-screen scan, so a search still finds
-     *  (say) a Posmsg keyword on a leap that happens to be turned off, which is most of them by default. */
-    public static int buildLeapEditor(List<AbstractWidget> widgets, int x, int y, int width, LeapGroup group,
-                                      boolean includeHidden) {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return y;
-        }
-        FastLeapConfig cfg = FastLeapConfig.getInstance();
-        int w = Math.max(1, width);
+    private static int buildLeapRow(List<AbstractWidget> widgets, int x, int y, int w, LeapGroup group, FastLeapConfig cfg,
+                                    Runnable requestRebuild) {
+        boolean oneLine = w >= MIN_ONE_LINE_W;
+        int switchW = oneLine ? (w - 2 * GAP) * 2 / 5 : w;
+        int restX = oneLine ? x + switchW + GAP : x + INDENT;
+        int restW = oneLine ? w - switchW - GAP : w - INDENT;
+        int halfW = Math.max(1, (restW - GAP) / 2);
+        int thirdX = restX + halfW + GAP;
+        int thirdW = Math.max(1, restX + restW - thirdX);
 
         // "<group> Leap" is also the SettingTooltips key
-        widgets.add(toggle(x, y, w, group.label + " Leap",
+        widgets.add(toggle(x, y, switchW, group.label + " Leap",
                 () -> cfg.isLeapEnabled(group), v -> cfg.setLeapEnabled(group, v), cfg));
-        y += ROW + GAP;
-
-        if (!cfg.isLeapEnabled(group) && !includeHidden) {
-            widgets.add(titleLabel(x, y, w, "§7Turn this leap on to set up its options below."));
-            return y + GROUP_TITLE_H;
+        if (!oneLine) {
+            y += ROW + GAP;
         }
+        widgets.add(SettingsButtonWidget.cycling(modeLabel(cfg.isLeapAuto(group)), (btn, dir) -> {
+            cfg.setLeapAuto(group, !cfg.isLeapAuto(group));
+            cfg.save();
+            btn.setMessage(modeLabel(cfg.isLeapAuto(group)));
+        }).bounds(restX, y, halfW, ROW).build());
+        LeapTarget single = null;
+        if (group == LeapGroup.DOOR) {
+            widgets.add(toggle(thirdX, y, thirdW, "After Blood Off", cfg::isDisableAfterBloodOpen,
+                    v -> cfg.setDisableAfterBloodOpen(v), cfg));
+        } else if (group == LeapGroup.P3) {
+            widgets.add(toggle(thirdX, y, thirdW, "Gate Blown Only", cfg::isOnlyWhenGateBlown,
+                    v -> cfg.setOnlyWhenGateBlown(v), cfg));
+        } else {
+            for (LeapTarget t : LeapTarget.values()) {
+                if (t.group == group) {
+                    single = t;
+                }
+            }
+            if (single != null) {
+                widgets.add(targetButton(thirdX, y, thirdW, single, cfg));
+            }
+        }
+        y += ROW + GAP;
 
         int ix = x + INDENT;
         int iw = Math.max(1, w - INDENT);
-
-        widgets.add(toggle(ix, y, iw, "Auto", () -> cfg.isLeapAuto(group), v -> cfg.setLeapAuto(group, v), cfg));
-        y += ROW + GAP;
-
-        if (group == LeapGroup.DOOR) {
-            widgets.add(toggle(ix, y, iw, "After Blood Off", cfg::isDisableAfterBloodOpen,
-                    v -> cfg.setDisableAfterBloodOpen(v), cfg));
-            y += ROW + GAP;
-        } else if (group == LeapGroup.P3) {
-            widgets.add(toggle(ix, y, iw, "Gate Blown Only", cfg::isOnlyWhenGateBlown,
-                    v -> cfg.setOnlyWhenGateBlown(v), cfg));
-            y += ROW + GAP;
-        } else if (group == LeapGroup.TEST) {
-            // TEMPORARY - test leap, added 2026-09-15 at killer560's request ("a test fast leap ... it will
-            // always leap to that class no matter where I am ... only for testing right now and will be
-            // removed after I finish testing"). Delete this whole branch when the test leap goes. The old
-            // three lines of "Testing aid: ..." panel text are gone (2026-09-21, in-panel paragraphs are being
-            // removed mod-wide) - the same explanation now lives in the "fast/auto leap/test leap" tooltip.
-            widgets.add(classButton(ix, y, iw, "Class", cfg.getTestLeapClass(), c -> {
-                cfg.setTestLeapClass(c);
-                cfg.save();
-            }));
-            y += ROW + GAP;
-            return y;
+        if (group == LeapGroup.P3) {
+            // S1-S4: four target buttons, two to a row (one on a very narrow panel)
+            int cols = iw >= 2 * MIN_TOGGLE_W + GAP ? 2 : 1;
+            int cw = Math.max(1, (iw - GAP * (cols - 1)) / cols);
+            int col = 0;
+            for (LeapTarget t : LeapTarget.values()) {
+                if (t.group != LeapGroup.P3) {
+                    continue;
+                }
+                widgets.add(targetButton(ix + col * (cw + GAP), y, col == cols - 1 ? ix + iw - (ix + col * (cw + GAP)) : cw,
+                        t, cfg));
+                if (++col == cols) {
+                    col = 0;
+                    y += ROW + GAP;
+                }
+            }
+            if (col != 0) {
+                y += ROW + GAP;
+            }
         }
-
-        for (LeapTarget target : LeapTarget.values()) {
-            if (target.group == group) {
-                y = buildTarget(widgets, ix, y + GROUP_GAP - GAP, iw, target, cfg);
+        if (cfg.getTargetMode() == FastLeapConfig.TargetMode.POSMSG) {
+            for (LeapTarget t : LeapTarget.values()) {
+                if (t.group != group) {
+                    continue;
+                }
+                String hint = (group == LeapGroup.P3 ? t.label + " " : "") + "Keywords";
+                widgets.add(editBox(ix, y, iw, cfg.getTargetKeywords(t), hint, 128, v -> {
+                    cfg.setTargetKeywords(t, v);
+                    cfg.save();
+                }));
+                y += ROW + GAP;
             }
         }
         return y;
     }
 
-    /** One target of the leap being edited: a title line ("Target", or "S1".."S4" for P3) and then, depending
-     *  on Target Mode, a full-width name box, a full-width class button, or the Posmsg keyword box with the
-     *  two backup controls under it. Full width on purpose - the old layout squeezed these boxes into a
-     *  shared row where you couldn't read what you'd typed. */
-    private static int buildTarget(List<AbstractWidget> widgets, int x, int y, int width, LeapTarget target,
-                                   FastLeapConfig cfg) {
-        widgets.add(titleLabel(x, y, width, "§6" + target.label));
-        y += GROUP_TITLE_H;
-        switch (cfg.getTargetMode()) {
-            case NAME -> {
-                widgets.add(editBox(x, y, width, cfg.getTargetName(target), "Name", 16, v -> {
-                    cfg.setTargetName(target, v);
-                    cfg.save();
-                }));
-                y += ROW + GAP;
-            }
-            case CLASS -> {
-                widgets.add(classButton(x, y, width, "Class", cfg.getTargetClass(target), c -> {
-                    cfg.setTargetClass(target, c);
-                    cfg.save();
-                }));
-                y += ROW + GAP;
-            }
-            default -> {
-                widgets.add(editBox(x, y, width, cfg.getTargetKeywords(target), "Keywords", 128, v -> {
-                    cfg.setTargetKeywords(target, v);
-                    cfg.save();
-                }));
-                y += ROW + GAP;
-                if (width >= MIN_SPLIT_ROW_W) {
-                    int nw = (width - GAP) / 2;
-                    int cw = Math.max(1, width - nw - GAP);
-                    widgets.add(editBox(x, y, nw, cfg.getTargetName(target), "Backup name", 16, v -> {
-                        cfg.setTargetName(target, v);
-                        cfg.save();
-                    }));
-                    widgets.add(classButton(x + nw + GAP, y, cw, "Backup", cfg.getTargetClass(target), c -> {
-                        cfg.setTargetClass(target, c);
-                        cfg.save();
-                    }));
-                    y += ROW + GAP;
-                } else {
-                    widgets.add(editBox(x, y, width, cfg.getTargetName(target), "Backup name", 16, v -> {
-                        cfg.setTargetName(target, v);
-                        cfg.save();
-                    }));
-                    y += ROW + GAP;
-                    widgets.add(classButton(x, y, width, "Backup", cfg.getTargetClass(target), c -> {
-                        cfg.setTargetClass(target, c);
-                        cfg.save();
-                    }));
-                    y += ROW + GAP;
+    static Component modeLabel(boolean auto) {
+        return Component.literal("Mode: §6" + (auto ? "Auto" : "Fast"));
+    }
+
+    /**
+     * The leap's Target button (killer560: "a button to select what class/name it should leap to"): left click forward,
+     * right click back through None, the five classes, then everyone in the party by name. A class shows who in the party
+     * has it now with Leap Order's class picks applied ({@link Teammates#firstAliveOfClass} is what the leap itself uses),
+     * and a name shows that player's class. Labelled "Target", or "S1".."S4" for P3's sections.
+     */
+    static SettingsButtonWidget targetButton(int x, int y, int w, LeapTarget target, FastLeapConfig cfg) {
+        String label = target.group == LeapGroup.P3 ? target.label : "Target";
+        return SettingsButtonWidget.cycling(targetLabel(label, target, cfg), (btn, dir) -> {
+            stepTarget(target, cfg, dir);
+            cfg.save();
+            btn.setMessage(targetLabel(label, target, cfg));
+        }).bounds(x, y, Math.max(1, w), ROW).build();
+    }
+
+    /** The Target button's choices in order: null (None), each class, then each party member's name. */
+    static List<Object> targetChoices(LeapTarget target, FastLeapConfig cfg) {
+        List<Object> out = new java.util.ArrayList<>();
+        out.add(null);
+        out.addAll(List.of(DungeonClass.values()));
+        for (String n : com.killer560.hub.leapmenu.PartyTracker.teammates()) {
+            out.add(n);
+        }
+        String name = cfg.getTargetName(target);
+        if (!cfg.isTargetByClass(target) && !name.isBlank() && !containsIgnoreCase(out, name)) {
+            out.add(name); // a saved name from an earlier party stays selectable
+        }
+        return out;
+    }
+
+    /** Moves the target one choice forward (dir 1) or back (dir -1), wrapping. */
+    public static void stepTarget(LeapTarget target, FastLeapConfig cfg, int dir) {
+        List<Object> choices = targetChoices(target, cfg);
+        int at = 0;
+        if (cfg.isTargetByClass(target)) {
+            at = Math.max(0, choices.indexOf(cfg.getTargetClass(target)));
+        } else {
+            String name = cfg.getTargetName(target);
+            for (int i = 0; i < choices.size(); i++) {
+                if (choices.get(i) instanceof String s && s.equalsIgnoreCase(name)) {
+                    at = i;
                 }
             }
         }
-        return y;
+        Object next = choices.get(Math.floorMod(at + (dir < 0 ? -1 : 1), choices.size()));
+        if (next instanceof String s) {
+            cfg.setTargetPickName(target, s);
+        } else {
+            cfg.setTargetPickClass(target, (DungeonClass) next);
+        }
+    }
+
+    private static boolean containsIgnoreCase(List<Object> list, String name) {
+        for (Object o : list) {
+            if (o instanceof String s && s.equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static Component targetLabel(String label, LeapTarget target, FastLeapConfig cfg) {
+        String shown;
+        if (cfg.isTargetByClass(target)) {
+            DungeonClass c = cfg.getTargetClass(target);
+            if (c == null) {
+                shown = "§7None";
+            } else {
+                Teammates.Teammate who = Teammates.firstAliveOfClass(c);
+                String holder = who != null ? who.name() : partyMemberOfClass(c);
+                shown = com.killer560.hub.gui.tab.ClassOverridesTab.colourCode(c) + c.displayName()
+                        + (holder == null ? "" : " §7(" + holder + ")");
+            }
+        } else {
+            String n = cfg.getTargetName(target);
+            DungeonClass c = n.isBlank() ? null : com.killer560.hub.leapmenu.PartyTracker.classOf(n);
+            shown = "§6" + (n.isBlank() ? "None" : n) + (c == null ? "" : " §7(" + c.displayName() + ")");
+        }
+        return Component.literal(label + ": " + shown);
+    }
+
+    /** Outside a dungeon (no Teammates yet): the party member Leap Order's class picks give this class. */
+    private static String partyMemberOfClass(DungeonClass c) {
+        for (String n : com.killer560.hub.leapmenu.PartyTracker.teammates()) {
+            if (com.killer560.hub.leapmenu.PartyTracker.classOf(n) == c) {
+                return n;
+            }
+        }
+        return null;
     }
 
     // ---- layout helpers -----------------------------------------------------------------------------------------

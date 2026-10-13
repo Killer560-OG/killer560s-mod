@@ -35,16 +35,12 @@ import com.killer560.hub.compat.McCompat;
  * <li><b>Auto</b>: QUOI's triggers - door opened (outside boss), 2nd Energy Laser charge (P1), Storm's lightning line
  * (predev), 1st/2nd Storm crush (pads), teammate reaching the PY healer spot, Storm's death line, P3 section complete
  * (or gate blown), Necron's "impressive trick" line (middle), 2nd Necron ARGH (P4), picking up a relic (P5).</li>
- * <li><b>Target mode</b>: Name, Class (first alive teammate of that class), or Posmsg (see {@link PosmsgTargets}; falls
- * back to the leap's name, then class).</li>
+ * <li><b>Target</b>: each leap's own pick, a class (first alive teammate of that class, Leap Order's class picks
+ * applied) or a name; or, in Posmsg mode, whoever announced the spot (see {@link PosmsgTargets}), with the pick as backup.</li>
+ * <li><b>Mode</b> (2026-10-13): a leap is Fast (his left click with a leap item) OR Auto (its trigger), never both.</li>
  * </ul>
  * One {@link #register()} call wires this, {@link I4LeapFeature}, {@link LeapManager}, {@link Floor7Tracker},
  * {@link Teammates} and {@link PosmsgTargets}.
- * <p>
- * TEMPORARY (2026-09-15): {@link LeapGroup#TEST} ("Test Leap") is a testing aid with no position or phase
- * condition - it always leaps to its own class. It touches exactly two places in here, both marked TEMPORARY:
- * the top of {@link #attemptFastLeap()} (manual click) and {@link #testAutoOverride(FastLeapConfig)} (the
- * automatic side). Expected to be removed once killer560 has finished testing.
  */
 public final class FastLeapFeature {
 
@@ -324,7 +320,7 @@ public final class FastLeapFeature {
             return true;
         }
         if (!attemptFastLeap()) {
-            if (!cfg.isLeapEnabled(LeapGroup.P3) || !Floor7Tracker.inF7Boss()) {
+            if (!cfg.isLeapFast(LeapGroup.P3) || !Floor7Tracker.inF7Boss()) {
                 return true;
             }
             handleP3Leap(Floor7Tracker.getStageAt());
@@ -345,23 +341,9 @@ public final class FastLeapFeature {
 
     private static boolean attemptFastLeap() {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
-        // TEMPORARY test leap (2026-09-15, killer560: "add a test fast leap... it will always leap to that class
-        // no matter where I am and it is only for testing right now and will be removed after I finish testing").
-        // Deliberately the FIRST thing checked, above every position/phase branch below, so the test leap wins
-        // wherever you're standing - that's the whole point of it, and the settings page says so in grey.
-        if (cfg.isLeapEnabled(LeapGroup.TEST)) {
-            DungeonClass test = cfg.getTestLeapClass();
-            if (test == null) {
-                ModChat.send("Fast Leap", ModChat.bad("Test leap is on but no class is selected"));
-                return true;
-            }
-            LOGGER.info("[FastLeap] Test leap (position ignored) -> {}", test.displayName());
-            leapNow(test, cfg);
-            return true;
-        }
         if (!Floor7Tracker.inBoss()) {
             String opener = doorOpener;
-            if (!cfg.isLeapEnabled(LeapGroup.DOOR) || "Unknown".equals(opener) || opener.equalsIgnoreCase(Teammates.selfName())
+            if (!cfg.isLeapFast(LeapGroup.DOOR) || "Unknown".equals(opener) || opener.equalsIgnoreCase(Teammates.selfName())
                     || (cfg.isDisableAfterBloodOpen() && bloodOpen)) {
                 return false;
             }
@@ -371,34 +353,34 @@ public final class FastLeapFeature {
         if (!Floor7Tracker.inF7Boss()) {
             return false;
         }
-        if (cfg.isLeapEnabled(LeapGroup.PREDEV) && isInPredev()) {
+        if (cfg.isLeapFast(LeapGroup.PREDEV) && isInPredev()) {
             return leapToConfigured(LeapTarget.PREDEV);
         }
-        if (cfg.isLeapEnabled(LeapGroup.RELIC) && isInRelic()) {
+        if (cfg.isLeapFast(LeapGroup.RELIC) && isInRelic()) {
             return leapToConfigured(LeapTarget.RELIC);
         }
-        if (cfg.isLeapEnabled(LeapGroup.P1) && isInP1()) {
+        if (cfg.isLeapFast(LeapGroup.P1) && isInP1()) {
             return leapToConfigured(LeapTarget.P1);
         }
-        if (cfg.isLeapEnabled(LeapGroup.P4) && isInMiddle()) {
+        if (cfg.isLeapFast(LeapGroup.P4) && isInMiddle()) {
             return leapToConfigured(LeapTarget.P4);
         }
-        if (cfg.isLeapEnabled(LeapGroup.GREEN) && isInGreenPad()) {
+        if (cfg.isLeapFast(LeapGroup.GREEN) && isInGreenPad()) {
             return leapToConfigured(LeapTarget.GREEN);
         }
-        if (cfg.isLeapEnabled(LeapGroup.YELLOW) && isInYellowPad()) {
+        if (cfg.isLeapFast(LeapGroup.YELLOW) && isInYellowPad()) {
             return leapToConfigured(LeapTarget.YELLOW);
         }
-        if (cfg.isLeapEnabled(LeapGroup.PURPLE) && isInPurplePad()) {
+        if (cfg.isLeapFast(LeapGroup.PURPLE) && isInPurplePad()) {
             return leapToConfigured(LeapTarget.PURPLE);
         }
-        if (cfg.isLeapEnabled(LeapGroup.PY_HEALER) && isInHealerPy()) {
+        if (cfg.isLeapFast(LeapGroup.PY_HEALER) && isInHealerPy()) {
             return leapToConfigured(LeapTarget.PY_HEALER);
         }
-        if (cfg.isLeapEnabled(LeapGroup.STORM_DEATH) && isInP2()) {
+        if (cfg.isLeapFast(LeapGroup.STORM_DEATH) && isInP2()) {
             return leapToConfigured(LeapTarget.STORM_DEATH);
         }
-        if (cfg.isLeapEnabled(LeapGroup.MIDDLE) && isOutsideMiddle()) {
+        if (cfg.isLeapFast(LeapGroup.MIDDLE) && isOutsideMiddle()) {
             return leapToConfigured(LeapTarget.MIDDLE);
         }
         return false;
@@ -432,25 +414,29 @@ public final class FastLeapFeature {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
         String name = cfg.getTargetName(target);
         DungeonClass clazz = cfg.getTargetClass(target);
+        boolean byClass = cfg.isTargetByClass(target);
         switch (cfg.getTargetMode()) {
-            case NAME -> {
-                if (name.isBlank()) {
+            case PER_LEAP -> {
+                if (byClass ? clazz == null : name.isBlank()) {
+                    ModChat.send("Fast Leap", ModChat.value(displayLabel(target)), ModChat.text(" has no target picked"));
                     return false;
                 }
-                leap(name);
-                return true;
-            }
-            case CLASS -> {
-                if (clazz == null) {
-                    return false;
+                if (byClass) {
+                    leap(clazz);
+                } else {
+                    leap(name);
                 }
-                leap(clazz);
                 return true;
             }
             default -> {
                 String sender = PosmsgTargets.sender(target);
                 if (sender != null && LeapManager.resolveName(sender) != null) {
                     leap(sender);
+                    return true;
+                }
+                // the leap's own pick first, then the other half of the target
+                if (byClass && clazz != null) {
+                    leap(clazz);
                     return true;
                 }
                 if (!name.isBlank()) {
@@ -474,38 +460,22 @@ public final class FastLeapFeature {
 
     private static void leap(String name) {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
-        DungeonClass test = testAutoOverride(cfg);
-        if (test != null) {
-            leapNow(test, cfg);
-            return;
-        }
+        lastTarget = "name " + name;
         LeapManager.leap(name, cfg.isBlockInputs(), cfg.isFastMode(), cfg.isSwapBack());
     }
 
+    /** Every leap ultimately goes out through here or {@link LeapManager#leap(String, boolean, boolean, boolean)}. */
     private static void leap(DungeonClass clazz) {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
-        DungeonClass test = testAutoOverride(cfg);
-        leapNow(test != null ? test : clazz, cfg);
-    }
-
-    /** Fires a leap at a class with no test-leap override applied - every leap ultimately goes out through
-     *  here or {@link LeapManager#leap(String, boolean, boolean, boolean)}. */
-    private static void leapNow(DungeonClass clazz, FastLeapConfig cfg) {
+        lastTarget = "class " + clazz.name();
         LeapManager.leap(clazz, cfg.isBlockInputs(), cfg.isFastMode(), cfg.isSwapBack());
     }
 
-    /** TEMPORARY test leap (2026-09-15, killer560) - see {@link LeapGroup#TEST}. The ONE decision point for the
-     *  automatic side: {@link #leap(String)} and {@link #leap(DungeonClass)} are what every auto trigger in this
-     *  class funnels through, so with "Test Leap" AND its "Auto" both on, whichever auto trigger fires (door
-     *  opened, Storm crush, P3 stage done, relic, ...) is redirected to the test class instead of that leap's own
-     *  target - no per-trigger special cases anywhere else. With Auto off, the test leap only acts on a manual
-     *  fast-leap click (see {@link #attemptFastLeap()}) and the automatic leaps behave exactly as before.
-     *  @return the class to leap to instead, or null when the test leap isn't overriding anything. */
-    private static DungeonClass testAutoOverride(FastLeapConfig cfg) {
-        if (!cfg.isLeapEnabled(LeapGroup.TEST) || !cfg.isLeapAuto(LeapGroup.TEST)) {
-            return null;
-        }
-        return cfg.getTestLeapClass();
+    /** What the last fast/auto leap was sent to ("class MAGE", "name Bob"; testkit). */
+    private static volatile String lastTarget = "";
+
+    public static String lastTarget() {
+        return lastTarget;
     }
 
     // ------------------------------------------------------------------------------------------------------------

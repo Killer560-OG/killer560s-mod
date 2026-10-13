@@ -64,6 +64,14 @@ import com.killer560.hub.compat.McBlocks;
  */
 public final class LiveMapFeature {
 
+    /** Whether the last map frame drew teammates' names (Names Holding Leap; testkit). */
+    private static volatile boolean namesShown = false;
+
+    public static boolean namesShown() {
+        return namesShown;
+    }
+
+
     static final int GRID = 11;
     public static final int START_X = -185;
     public static final int START_Z = -185;
@@ -1343,13 +1351,16 @@ public final class LiveMapFeature {
 
             // Real arrow/head markers at the exact world position instead of a whole cell filled yellow. The list is
             // cached per tick - it used to run a fresh level.players() party scan every frame.
+            boolean names = cfg.isLeapNames() && client.player != null
+                    && com.killer560.hub.fastleap.LeapManager.isLeapItem(client.player.getMainHandItem());
             for (InteractiveMapFeature.MapPlayer mp : InteractiveMapFeature.playersCached(client)) {
                 if (!mp.self() && !cfg.isShowTeammates()) {
                     continue;
                 }
                 MapPainter.drawMarker(graphics, client.font, mp, cfg, ox, oy, ppu, ppu,
-                        cfg.isClassRecolorTeammates(), false, -1, -1);
+                        cfg.isClassRecolorTeammates(), names && !mp.self(), -1, -1);
             }
+            namesShown = names;
         }
     }
 }

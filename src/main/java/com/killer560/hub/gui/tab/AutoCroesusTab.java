@@ -20,6 +20,8 @@ import java.util.List;
 public class AutoCroesusTab extends BaseTab {
 
     private static final int GAP = 8;
+    /** A toggle's own settings sit indented under it. */
+    private static final int INDENT = 10;
 
     public AutoCroesusTab() {
         super("Auto Croesus");
@@ -102,38 +104,29 @@ public class AutoCroesusTab extends BaseTab {
             });
             y += 24;
 
+            // Chest keys, then kismets, each toggle on its own row with its settings directly under it (killer560,
+            // 2026-10-13: the chest key settings sit right below Use Chest Keys, Kismets not in between).
             widgets.add(SettingsButtonWidget.builder(onOff("Use Chest Keys", cfg.isAutoUseChestKeys()), btn -> {
                         cfg.setAutoUseChestKeys(!cfg.isAutoUseChestKeys());
                         cfg.save();
                         requestRebuild.run();
-                    }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("Use Kismets", cfg.isAutoUseKismets()), btn -> {
-                        cfg.setAutoUseKismets(!cfg.isAutoUseKismets());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX + half + GAP, y, half, 18).build());
+                    }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
             if (cfg.isAutoUseChestKeys()) {
                 // killer560 (2026-09-27): "have an option for it to use based off of key insta buy
-                // price, buy offer price, or by set profit." Left-click cycles forward, right-click
-                // back (same repo-wide rule as every other cycling button - see SettingsButtonWidget).
-                widgets.add(SettingsButtonWidget.builder(chestKeyModeText(cfg), btn -> {
-                            cfg.setChestKeyMode(cfg.getChestKeyMode().next());
+                // price, buy offer price, or by set profit." Left-click cycles forward, right-click back.
+                widgets.add(SettingsButtonWidget.cycling(chestKeyModeText(cfg), (btn, dir) -> {
+                            cfg.setChestKeyMode(SettingsButtonWidget.step(cfg.getChestKeyMode(), dir));
                             cfg.save();
                             btn.setMessage(chestKeyModeText(cfg));
                             requestRebuild.run();
-                        }).secondaryPress(btn -> {
-                            cfg.setChestKeyMode(cfg.getChestKeyMode().previous());
-                            cfg.save();
-                            btn.setMessage(chestKeyModeText(cfg));
-                            requestRebuild.run();
-                        }).bounds(contentX, y, contentWidth, 18).build());
+                        }).bounds(contentX + INDENT, y, contentWidth - INDENT, 18).build());
                 y += 22;
                 // Still shown (and still saved) in the two key-price modes - it's the fallback threshold
                 // used until the key's live Bazaar price has actually loaded (see
                 // AutoCroesusFeature#keyModeThreshold), not just the Set Profit mode's own value.
-                widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, keyProfitText(cfg),
-                        cfg.getAutoKeyMinProfitK() / (double) CroesusConfig.MAX_MIN_PROFIT_K) {
+                widgets.add(new ThemedSliderButton(contentX + INDENT, y, contentWidth - INDENT, 20, keyProfitText(cfg),
+                        cfg.getAutoKeyMinProfitK() / (double) CroesusConfig.MAX_KEY_MIN_PROFIT_K) {
                     @Override
                     protected void updateMessage() {
                         setMessage(keyProfitText(cfg));
@@ -141,16 +134,22 @@ public class AutoCroesusTab extends BaseTab {
 
                     @Override
                     protected void applyValue() {
-                        int k = (int) Math.round(this.value * CroesusConfig.MAX_MIN_PROFIT_K / 50.0) * 50;
+                        // 0 to 2,000,000 in 20k steps (killer560, 2026-10-13)
                         CroesusConfig c = CroesusConfig.getInstance();
-                        c.setAutoKeyMinProfitK(k);
+                        c.setAutoKeyMinProfitK((int) Math.round(this.value * CroesusConfig.MAX_KEY_MIN_PROFIT_K));
                         c.save();
                     }
                 });
                 y += 24;
             }
+            widgets.add(SettingsButtonWidget.builder(onOff("Use Kismets", cfg.isAutoUseKismets()), btn -> {
+                        cfg.setAutoUseKismets(!cfg.isAutoUseKismets());
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
             if (cfg.isAutoUseKismets()) {
-                widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, rerollBelowText(),
+                widgets.add(new ThemedSliderButton(contentX + INDENT, y, contentWidth - INDENT, 20, rerollBelowText(),
                         cfg.getAutoRerollBelowK() / (double) CroesusConfig.MAX_MIN_PROFIT_K) {
                     @Override
                     protected void updateMessage() {
