@@ -39,7 +39,6 @@ public final class AutoUpdateFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-autoupdate");
     public static final String MOD_ID = "killer560smod";
-    static final String HELPER_CLASS = "com.killer560.hub.autoupdate.SwapHelper";
 
     private static final AtomicBoolean checking = new AtomicBoolean();
     private static volatile AutoUpdater.Outcome lastOutcome;
@@ -232,22 +231,41 @@ public final class AutoUpdateFeature {
      */
     public static long spawnHelper(long parentPid, String oldJar, String newJar, String stagingDir) throws Exception {
         Path staging = Path.of(stagingDir);
-        Path classDir = staging.resolve("helper");
-        String rel = HELPER_CLASS.replace('.', '/') + ".class";
+        long pid = spawnStandalone(SwapHelper.class, staging.resolve("helper"), staging.resolve("swap-helper-out.log"),
+                List.of(Long.toString(parentPid), oldJar, newJar, stagingDir));
+        try {
+            // /reboot's relauncher (reboot/RebootHelper) reads this to wait for the swap before starting the game.
+            Files.writeString(staging.resolve(INSTALLER_PID_FILE), Long.toString(pid));
+        } catch (Exception e) {
+            LOGGER.warn("[AutoUpdate] could not write {}: {}", INSTALLER_PID_FILE, e.toString());
+        }
+        return pid;
+    }
+
+    /** The file {@link #spawnHelper} writes the installer's PID to, in the staging folder. */
+    public static final String INSTALLER_PID_FILE = "installer.pid";
+
+    /**
+     * Runs a standalone one-class helper ({@link SwapHelper}, {@code reboot/RebootHelper}) as its own process with this
+     * game's java binary, from a copy of its class file in {@code classDir} (never from the mod jar, which Auto Update
+     * may be about to delete). Its output goes to {@code outLog}. Returns the helper's PID.
+     */
+    public static long spawnStandalone(Class<?> helper, Path classDir, Path outLog, List<String> args) throws Exception {
+        String rel = helper.getName().replace('.', '/') + ".class";
         Path classFile = classDir.resolve(rel);
         Files.createDirectories(classFile.getParent());
-        byte[] bytes = helperClassBytes(rel);
-        Files.write(classFile, bytes);
-        List<String> cmd = List.of(javaBinary(), "-cp", classDir.toString(), HELPER_CLASS,
-                Long.toString(parentPid), oldJar, newJar, stagingDir);
+        Files.write(classFile, helperClassBytes(helper, rel));
+        List<String> cmd = new ArrayList<>(List.of(javaBinary(), "-cp", classDir.toString(), helper.getName()));
+        cmd.addAll(args);
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.redirectErrorStream(true);
-        pb.redirectOutput(ProcessBuilder.Redirect.appendTo(staging.resolve("swap-helper-out.log").toFile()));
+        Files.createDirectories(outLog.toAbsolutePath().getParent());
+        pb.redirectOutput(ProcessBuilder.Redirect.appendTo(outLog.toFile()));
         return pb.start().pid();
     }
 
-    private static byte[] helperClassBytes(String rel) throws Exception {
-        try (InputStream in = SwapHelper.class.getResourceAsStream("/" + rel)) {
+    private static byte[] helperClassBytes(Class<?> helper, String rel) throws Exception {
+        try (InputStream in = helper.getResourceAsStream("/" + rel)) {
             if (in != null) {
                 return in.readAllBytes();
             }

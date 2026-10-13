@@ -1848,7 +1848,12 @@ public class ModScreen extends Screen {
                     + ". Click for the next preset, right click for the previous (Amber, Dark, Light, Ocean, Custom).";
         } else if (!pageMode() && inside(mouseX, mouseY, gridX, gridY, gridW, gridH)
                 && !(openFeature != null && drawerOverlay)) {
-            for (Item it : items) {
+            String homeLabel = homeButtonAt(mouseX, mouseY);
+            if (homeLabel != null) {
+                key = homeLabel; // a literal label, so the same object every frame (the hover delay compares by identity)
+                text = SettingTooltips.describeScoped(null, "home button", homeLabel);
+            }
+            for (Item it : homeLabel != null ? List.<Item>of() : items) {
                 if ((it.kind == ItemKind.CARD || (it.kind == ItemKind.HEADER && it.tab != null))
                         && inside(mouseX, mouseY + gridScroll, it.x, it.y, it.w, it.h)) {
                     key = it.tab;
@@ -1986,6 +1991,23 @@ public class ModScreen extends Screen {
     }
 
     private static final String HOME_PROFILES = "Profiles";
+    private static final String HOME_REBOOT = "Reboot";
+
+    /** Home's quick button label under the mouse, or null. Its tooltip is SettingTooltipsData's "home button/<label>". */
+    private String homeButtonAt(int mouseX, int mouseY) {
+        for (Item it : items) {
+            if (it.kind == ItemKind.BLOCK && it.block instanceof HeroBlock hero) {
+                List<HomeButton> buttons = hero.buttons();
+                for (int i = 0; i < buttons.size(); i++) {
+                    int[] b = hero.buttonBox(i, it.x, it.y - gridScroll, it.w);
+                    if (inside(mouseX, mouseY, b[0], b[1], b[2], b[3])) {
+                        return buttons.get(i).label();
+                    }
+                }
+            }
+        }
+        return null;
+    }
 
     /** Screen box {x, y, w, h} of Home's quick button {@code label} on the current page, or null. For the testkit. */
     public int[] homeButtonBounds(String label) {
@@ -2031,6 +2053,7 @@ public class ModScreen extends Screen {
             b.add(new HomeButton("Discord", () -> com.killer560.hub.util.ExternalOpen.uri(DISCORD_URL)));
             b.add(new HomeButton("GitHub", () -> com.killer560.hub.util.ExternalOpen.uri(GITHUB_URL)));
             b.add(new HomeButton("Features Doc", () -> com.killer560.hub.util.ExternalOpen.uri(FEATURES_URL)));
+            b.add(new HomeButton(HOME_REBOOT, com.killer560.hub.reboot.RebootFeature::pressButton));
             return b;
         }
 
@@ -2040,7 +2063,7 @@ public class ModScreen extends Screen {
 
         @Override
         public int height(int width) {
-            int rows = (8 + cols(width) - 1) / cols(width);
+            int rows = (buttons().size() + cols(width) - 1) / cols(width);
             return 50 + rows * 20 + 6;
         }
 
