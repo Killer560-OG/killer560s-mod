@@ -365,3 +365,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **A key that CLOSES a screen also opens it again** if the opener polls raw keys at END_CLIENT_TICK: the press reaches the
   screen first, so at the poll there is no screen and the key reads as a fresh edge. The closer marks the key held
   (`PeekChatFeature.closedByKey`) so the poll waits for a release (testkit 1314: open, key, closed).
+- **Hypixel's sidebar owner is one INVALID format code** ("§i", "§p", "§s"; prefix = the first 16 characters, then owner, then
+  suffix), and `stripFormatting` only removes valid codes, so a "drop the owner when it strips blank" test kept it inside every
+  number crossing character 16 ("Copper: §c114,25§i0" read 11,425, 2026-10-13). Judge visibility as the renderer does: '§' plus
+  ANY next character is invisible (`ScoreboardData.hasVisibleText`; testkit 1311's Hypixel-shape block).
