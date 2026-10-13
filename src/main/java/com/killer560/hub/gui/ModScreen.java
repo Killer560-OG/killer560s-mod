@@ -259,7 +259,7 @@ public class ModScreen extends Screen {
         headerY = panelY + 4;
         headerW = panelW - 8;
         headerH = 26;
-        int iconsW = 3 * 16 + 4;
+        int iconsW = 4 * 16 + 4;
         searchW = Math.max(110, Math.min(200, headerW / 3));
         searchH = 16;
         searchX = headerX + headerW - 8 - iconsW - 6 - searchW;
@@ -717,6 +717,7 @@ public class ModScreen extends Screen {
         BaseTab cat = selected();
         if (cat instanceof HomeTab) {
             items.add(new Item(ItemKind.BLOCK, null, null, false, new HeroBlock()));
+            items.add(new Item(ItemKind.BLOCK, null, null, false, new ThemeBlock()));
             items.add(new Item(ItemKind.BLOCK, null, null, false, new FavouritesBlock()));
             items.add(new Item(ItemKind.HEADER, null, "Mod settings", false, null));
         }
@@ -827,24 +828,6 @@ public class ModScreen extends Screen {
                 return;
             }
         }
-    }
-
-    // ---- counts ----------------------------------------------------------------------------------------------------
-
-    /** "on/total" for a category: its features with a master switch, and how many of them are on. */
-    public static int[] counts(BaseTab category) {
-        int on = 0;
-        int total = 0;
-        for (BaseTab leaf : leavesOf(category)) {
-            Boolean s = FeatureCards.state(leaf);
-            if (s != null) {
-                total++;
-                if (s) {
-                    on++;
-                }
-            }
-        }
-        return new int[]{on, total};
     }
 
     // ---- input -----------------------------------------------------------------------------------------------------
@@ -976,7 +959,7 @@ public class ModScreen extends Screen {
             focusSearch();
             return super.mouseClicked(event, doubleClick);
         }
-        if (button == 0 && headerClick(mx, my)) {
+        if (headerClick(mx, my, button)) {
             unfocusSearch();
             return true;
         }
@@ -1019,7 +1002,18 @@ public class ModScreen extends Screen {
                 net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0f));
     }
 
-    private boolean headerClick(double mx, double my) {
+    private boolean headerClick(double mx, double my, int button) {
+        int[] t = iconBounds(3);
+        if (inside(mx, my, t[0], t[1], t[2], t[3]) && (button == 0 || button == 1)) {
+            // The menu theme: left click the next preset, right click the previous (Amber, Dark, Light, Custom).
+            clickSound();
+            com.killer560.hub.gui.tab.MenuThemeTab.step(button == 0 ? 1 : -1);
+            rebuild();
+            return true;
+        }
+        if (button != 0) {
+            return false;
+        }
         String[] urls = {DISCORD_URL, GITHUB_URL, FEATURES_URL};
         for (int i = 0; i < 3; i++) {
             int[] b = iconBounds(i);
@@ -1032,9 +1026,10 @@ public class ModScreen extends Screen {
         return false;
     }
 
-    private int[] iconBounds(int i) {
+    /** The header's round buttons {x, y, w, h}: 0 Discord, 1 GitHub, 2 features doc, 3 menu theme. */
+    public int[] iconBounds(int i) {
         int size = 14;
-        int x = headerX + headerW - 8 - (3 - i) * (size + 2) + 2;
+        int x = headerX + headerW - 8 - (4 - i) * (size + 2) + 2;
         return new int[]{x, headerY + (headerH - size) / 2, size, size};
     }
 
@@ -1411,7 +1406,8 @@ public class ModScreen extends Screen {
         if (openFeature != null && drawerMaster != null) {
             FeatureCards.setKnownState(openFeature, drawerMaster.isOn());
         }
-        g.fill(0, 0, this.width, this.height, 0xB0000000);
+        MenuStyle.use();
+        g.fill(0, 0, this.width, this.height, MenuStyle.BACKDROP);
         drawFrame(g);
         drawHeader(g, mouseX, mouseY);
         drawSidebar(g, mouseX, mouseY);
@@ -1438,36 +1434,37 @@ public class ModScreen extends Screen {
         // drop shadow (0 18px 50px #000c): a few widening dark rings below and around the panel
         for (int i = 6; i >= 1; i--) {
             int a = 0x18 + (6 - i) * 0x10;
-            r.fill(panelX - i, panelY - i + 4, panelX + panelW + i, panelY + panelH + i + 4, MenuStyle.alpha(0, a / 2));
+            r.fill(panelX - i, panelY - i + 4, panelX + panelW + i, panelY + panelH + i + 4, MenuStyle.shadow(a / 2));
         }
-        r.outline(panelX - 1, panelY - 1, panelW + 2, panelH + 2, 0xFF4A3420);
-        MenuStyle.bevel(r, panelX, panelY, panelW, panelH, 0xFF1C1712, 0xFF120F0C);
+        r.outline(panelX - 1, panelY - 1, panelW + 2, panelH + 2, MenuStyle.FRAME_RING);
+        MenuStyle.bevel(r, panelX, panelY, panelW, panelH, MenuStyle.PANEL_TOP, MenuStyle.PANEL_BOTTOM);
         r.outline(panelX, panelY, panelW, panelH, MenuStyle.BLACK);
-        r.fill(panelX + 1, panelY + 1, panelX + panelW - 1, panelY + 2, 0x14FFFFFF);
+        r.fill(panelX + 1, panelY + 1, panelX + panelW - 1, panelY + 2, MenuStyle.HILITE_SOFT);
         r.submit();
     }
 
     private void drawHeader(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         GuiRects r = GuiRects.begin(g);
         MenuStyle.dropShadow(r, headerX, headerY, headerW, headerH, 2);
-        MenuStyle.bevel(r, headerX, headerY, headerW, headerH, 0xFF2A2119, 0xFF1A1510);
+        MenuStyle.bevel(r, headerX, headerY, headerW, headerH, MenuStyle.HEADER_TOP, MenuStyle.HEADER_BOTTOM);
         // search well
         boolean focus = searchField.isFocused();
         MenuStyle.well(r, searchX, searchY, searchW, searchH, MenuStyle.WELL_DEEP);
         if (focus || inside(mouseX, mouseY, searchX, searchY, searchW, searchH)) {
-            r.outline(searchX - 1, searchY - 1, searchW + 2, searchH + 2, focus ? MenuStyle.OR2 : 0xFF3A2A1A);
+            r.outline(searchX - 1, searchY - 1, searchW + 2, searchH + 2, focus ? MenuStyle.OR2 : MenuStyle.KEY_CHIP_EDGE);
         }
         // Ctrl K chip
         boolean showHint = searchQuery.isEmpty();
         int kw = font.width("Ctrl K") + 6;
         int kx = searchX + searchW - kw - 3;
         if (showHint) {
-            r.outline(kx, searchY + 3, kw, searchH - 6, 0xFF3A2A1A);
-            r.fill(kx + 1, searchY + 4, kx + kw - 1, searchY + searchH - 4, 0xFF0D0B09);
+            r.outline(kx, searchY + 3, kw, searchH - 6, MenuStyle.KEY_CHIP_EDGE);
+            r.fill(kx + 1, searchY + 4, kx + kw - 1, searchY + searchH - 4, MenuStyle.KEY_CHIP_BG);
         }
         // icons
-        int[] colours = {0xFF5865F2, 0xFF333333, MenuStyle.OR2};
-        for (int i = 0; i < 3; i++) {
+        // Discord's and GitHub's own colours, then the features doc and the theme switch in the menu's accent.
+        int[] colours = {0xFF5865F2, 0xFF333333, MenuStyle.OR2, MenuStyle.OR};
+        for (int i = 0; i < 4; i++) {
             int[] b = iconBounds(i);
             boolean hover = inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
             roundIcon(r, b[0], b[1], b[2], hover ? MenuStyle.mix(colours[i], 0xFFFFFFFF, 0.18f) : colours[i], hover);
@@ -1476,7 +1473,7 @@ public class ModScreen extends Screen {
         // brand: gradient title, a third larger, then the version and variant
         float scale = 4f / 3f;
         int brandY = headerY + (headerH - Math.round(8 * scale)) / 2;
-        MenuStyle.gradientText(g, "Killer560's Mod", headerX + 8, brandY, scale, 0xFFFFB15A, 0xFFFF7A0A);
+        MenuStyle.gradientText(g, "Killer560's Mod", headerX + 8, brandY, scale, MenuStyle.BRAND_TOP, MenuStyle.BRAND_BOTTOM);
         int bw = Math.round(font.width("Killer560's Mod") * scale);
         String ver = modVersion() + " · " + com.killer560.hub.autoupdate.BuildInfo.variant()
                 + (com.killer560.hub.BuildVariant.TESTING ? " · testing" : "");
@@ -1485,8 +1482,8 @@ public class ModScreen extends Screen {
         if (showHint) {
             MenuStyle.flat(g, "Ctrl K", kx + 3, searchY + 4, MenuStyle.DIM2);
         }
-        String[] glyphs = {"D", "G", "?"};
-        for (int i = 0; i < 3; i++) {
+        String[] glyphs = {"D", "G", "?", "◐"};
+        for (int i = 0; i < 4; i++) {
             int[] b = iconBounds(i);
             g.text(font, glyphs[i], b[0] + (b[2] - font.width(glyphs[i])) / 2 + 1, b[1] + 3, 0xFFFFFFFF, true);
         }
@@ -1500,7 +1497,7 @@ public class ModScreen extends Screen {
         r.fill(x + 2, y + 2, x + s - 2, y + s - 2, colour);
         r.fill(x + 1, y + 3, x + s - 1, y + s - 3, colour);
         r.fill(x + 3, y + 1, x + s - 3, y + 3, 0x40FFFFFF);
-        r.fill(x + 3, y + s - 3, x + s - 3, y + s - 1, 0x50000000);
+        r.fill(x + 3, y + s - 3, x + s - 3, y + s - 1, MenuStyle.shadow(0x50));
         if (hover) {
             MenuStyle.glow(r, x, y, s, s, colour, 0x40);
         }
@@ -1518,7 +1515,7 @@ public class ModScreen extends Screen {
     private void drawSidebar(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         GuiRects r = GuiRects.begin(g);
         MenuStyle.dropShadow(r, sideX, sideY, sideW, sideH, 3);
-        MenuStyle.bevel(r, sideX, sideY, sideW, sideH, 0xFF19140F, 0xFF16120E);
+        MenuStyle.bevel(r, sideX, sideY, sideW, sideH, MenuStyle.SIDE_TOP, MenuStyle.SIDE_BOTTOM);
         for (int y : sideSeparators) {
             MenuStyle.separator(r, sideX + 6, sideX + sideW - 6, y);
         }
@@ -1528,12 +1525,12 @@ public class ModScreen extends Screen {
             if (sel) {
                 MenuStyle.dropShadow(r, e.x(), e.y(), e.w(), e.h(), 2);
                 MenuStyle.glow(r, e.x(), e.y(), e.w(), e.h(), MenuStyle.OR, 0x22);
-                MenuStyle.hGradient(r, e.x() + 1, e.y() + 1, e.x() + e.w() - 1, e.y() + e.h() - 1, 0xFF3A220C, 0xFF24160A, 6);
-                r.outline(e.x(), e.y(), e.w(), e.h(), 0xFF5A3812);
-                r.fill(e.x() + 1, e.y() + 1, e.x() + e.w() - 1, e.y() + 2, 0x18FFFFFF);
+                MenuStyle.hGradient(r, e.x() + 1, e.y() + 1, e.x() + e.w() - 1, e.y() + e.h() - 1, MenuStyle.SEL_TOP, MenuStyle.SEL_BOTTOM, 6);
+                r.outline(e.x(), e.y(), e.w(), e.h(), MenuStyle.ACCENT_EDGE);
+                r.fill(e.x() + 1, e.y() + 1, e.x() + e.w() - 1, e.y() + 2, MenuStyle.HILITE);
                 r.fill(e.x() + 1, e.y() + 1, e.x() + 3, e.y() + e.h() - 1, MenuStyle.OR);
             } else if (hover) {
-                r.fill(e.x(), e.y(), e.x() + e.w(), e.y() + e.h(), 0x14FFFFFF);
+                r.fill(e.x(), e.y(), e.x() + e.w(), e.y() + e.h(), MenuStyle.alpha(MenuStyle.TXT, 0x14));
             }
         }
         r.submit();
@@ -1541,16 +1538,9 @@ public class ModScreen extends Screen {
             boolean sel = e.favourites() ? favouritesSelected : (!favouritesSelected && e.tab() == selectedTab);
             boolean hover = inside(mouseX, mouseY, e.x(), e.y(), e.w(), e.h());
             int ty = e.y() + (e.h() - 8) / 2;
-            int tc = sel ? MenuStyle.OR : (hover ? 0xFFD8CFC4 : MenuStyle.DIM);
+            int tc = sel ? MenuStyle.OR : (hover ? MenuStyle.TXT_SOFT : MenuStyle.DIM);
             MenuStyle.text(g, e.icon(), e.x() + 7, ty, sel ? MenuStyle.OR : MenuStyle.DIM2);
-            String count = "";
-            if (e.favourites()) {
-                int n = MenuConfig.getInstance().getFavourites().size();
-                count = n == 0 ? "" : String.valueOf(n);
-            } else if (tabs.get(e.tab()) instanceof FolderTab && !(tabs.get(e.tab()) instanceof HomeTab)) {
-                int[] c = counts(tabs.get(e.tab()));
-                count = c[1] == 0 ? "" : c[0] + "/" + c[1];
-            }
+            String count = sideCount(e);
             int cw = font.width(count);
             String label = MenuStyle.ellipsize(e.label(), e.w() - 26 - cw - 4);
             MenuStyle.text(g, label, e.x() + 20, ty, tc);
@@ -1558,6 +1548,26 @@ public class ModScreen extends Screen {
                 MenuStyle.flat(g, count, e.x() + e.w() - 5 - cw, ty, sel ? MenuStyle.OR2 : MenuStyle.DIM2);
             }
         }
+    }
+
+    /** The small number beside a sidebar row: only Favourites has one (how many are starred). The categories' on/total
+     *  counts were taken out on killer560's request (2026-10-12: "HUD 7/12" became "HUD"). */
+    private static String sideCount(SideEntry e) {
+        if (e.favourites()) {
+            int n = MenuConfig.getInstance().getFavourites().size();
+            return n == 0 ? "" : String.valueOf(n);
+        }
+        return "";
+    }
+
+    /** Every sidebar row's text exactly as drawn (label, then its number if it has one). Read by the testkit. */
+    public List<String> sideTexts() {
+        List<String> out = new ArrayList<>();
+        for (SideEntry e : side) {
+            String count = sideCount(e);
+            out.add(count.isEmpty() ? e.label() : e.label() + " " + count);
+        }
+        return out;
     }
 
     private void drawPageWell(GuiGraphicsExtractor g) {
@@ -1619,11 +1629,12 @@ public class ModScreen extends Screen {
         if (selected) {
             MenuStyle.glow(r, x, y, w, h, MenuStyle.OR, 0x50);
         }
-        MenuStyle.bevel(r, x, y, w, h, hover ? 0xFF2D241B : 0xFF251E17, hover ? 0xFF201912 : 0xFF1A1510);
+        MenuStyle.bevel(r, x, y, w, h, hover ? MenuStyle.CARD_HOVER_TOP : MenuStyle.CARD_TOP,
+                hover ? MenuStyle.CARD_HOVER_BOTTOM : MenuStyle.CARD_BOTTOM);
         if (selected) {
             r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.OR);
         } else if (hover) {
-            r.outline(x - 1, y - 1, w + 2, h + 2, 0xFF5A3812);
+            r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.ACCENT_EDGE);
         }
         int[] sw = cardSwitch(it);
         if (state != null) {
@@ -1634,7 +1645,7 @@ public class ModScreen extends Screen {
         int nameW = w - 14 - (state != null ? MenuStyle.SWITCH_W + 4 : 0);
         List<String> name = MenuStyle.wrap(tab.name, nameW, 2);
         int ty = y + 6;
-        int nameColour = tab.isCheatOnly() ? MenuStyle.RED_TITLE : (hover ? 0xFFFFF4E8 : MenuStyle.TXT);
+        int nameColour = tab.isCheatOnly() ? MenuStyle.RED_TITLE : (hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
         for (String line : name) {
             MenuStyle.text(g, line, x + 7, ty, nameColour);
             ty += 10;
@@ -1652,10 +1663,10 @@ public class ModScreen extends Screen {
             g.text(font, fav ? "★" : "☆", st[0] + 1, sy + 1, fav ? (starHover ? MenuStyle.OR_LIGHT : MenuStyle.OR)
                     : (starHover ? MenuStyle.OR : MenuStyle.DIM2), true);
         }
-        g.text(font, "⚙", x + w - 13, y + h - 12, hover || selected ? MenuStyle.OR2 : 0xFF4A423A, false);
+        g.text(font, "⚙", x + w - 13, y + h - 12, hover || selected ? MenuStyle.OR2 : MenuStyle.GEAR, false);
         if (Boolean.FALSE.equals(state) && !selected) {
             GuiRects o = GuiRects.begin(g);
-            o.fill(x, y, x + w, y + h, hover ? 0x500B0907 : 0x800B0907);
+            o.fill(x, y, x + w, y + h, hover ? MenuStyle.OFF_VEIL_HOVER : MenuStyle.OFF_VEIL);
             o.submit();
         }
     }
@@ -1664,12 +1675,12 @@ public class ModScreen extends Screen {
         GuiRects r = GuiRects.begin(g);
         // -4px 0 12px #000a shadow on the grid side
         for (int i = 1; i <= 4; i++) {
-            r.fill(drawerX - i, drawerY + 1, drawerX - i + 1, drawerY + drawerH - 1, MenuStyle.alpha(0, 0x70 - i * 0x14));
+            r.fill(drawerX - i, drawerY + 1, drawerX - i + 1, drawerY + drawerH - 1, MenuStyle.shadow(0x70 - i * 0x14));
         }
-        MenuStyle.bevel(r, drawerX, drawerY, drawerW, drawerH, 0xFF1D1813, 0xFF13100C);
+        MenuStyle.bevel(r, drawerX, drawerY, drawerW, drawerH, MenuStyle.DRAWER_TOP, MenuStyle.DRAWER_BOTTOM);
         // title bar
-        r.gradient(drawerX + 1, drawerY + 1, drawerX + drawerW - 1, drawerY + 25, 0xFF2C2219, 0xFF1D1712);
-        r.fill(drawerX + 1, drawerY + 1, drawerX + drawerW - 1, drawerY + 2, 0x18FFFFFF);
+        r.gradient(drawerX + 1, drawerY + 1, drawerX + drawerW - 1, drawerY + 25, MenuStyle.TITLE_TOP, MenuStyle.TITLE_BOTTOM);
+        r.fill(drawerX + 1, drawerY + 1, drawerX + drawerW - 1, drawerY + 2, MenuStyle.HILITE);
         MenuStyle.separator(r, drawerX + 1, drawerX + drawerW - 1, drawerY + 25);
         if (drawerMaster != null) {
             int[] s = drawerSwitchBounds();
@@ -1683,7 +1694,7 @@ public class ModScreen extends Screen {
                 boolean active = (i == 1) == advOpen;
                 if (active) {
                     r.fill(b[0] + 4, b[1] + b[3] - 2, b[0] + b[2] - 4, b[1] + b[3], MenuStyle.OR);
-                    r.fill(b[0] + 3, b[1] + b[3] - 3, b[0] + b[2] - 3, b[1] + b[3] - 2, 0x40FF8A1F);
+                    r.fill(b[0] + 3, b[1] + b[3] - 3, b[0] + b[2] - 3, b[1] + b[3] - 2, MenuStyle.alpha(MenuStyle.OR, 0x40));
                 }
             }
             MenuStyle.separator(r, drawerX + 1, drawerX + drawerW - 1, drawerY + 26 + 16);
@@ -1709,7 +1720,7 @@ public class ModScreen extends Screen {
                 int[] b = stripBounds(i);
                 boolean active = (i == 1) == advOpen;
                 boolean hov = inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
-                int col = active ? MenuStyle.OR : (hov ? 0xFFD8CFC4 : MenuStyle.DIM);
+                int col = active ? MenuStyle.OR : (hov ? MenuStyle.TXT_SOFT : MenuStyle.DIM);
                 MenuStyle.text(g, names[i], b[0] + (b[2] - font.width(names[i])) / 2, b[1] + 3, col);
             }
         }
@@ -1756,14 +1767,14 @@ public class ModScreen extends Screen {
         lastPalMouseY = mouseY;
         int palH = palRowsY - palY + palRows * PAL_ROW + 4;
         GuiRects r = GuiRects.begin(g);
-        r.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0x60000000);
+        r.fill(panelX, panelY, panelX + panelW, panelY + panelH, MenuStyle.shadow(0x60));
         for (int i = 8; i >= 1; i--) {
-            r.fill(palX - i, palY - i + 6, palX + palW + i, palY + palH + i + 6, MenuStyle.alpha(0, 0x14));
+            r.fill(palX - i, palY - i + 6, palX + palW + i, palY + palH + i + 6, MenuStyle.shadow(0x14));
         }
         MenuStyle.glow(r, palX, palY, palW, palH, MenuStyle.OR, 0x40);
         r.outline(palX - 1, palY - 1, palW + 2, palH + 2, MenuStyle.OR);
-        MenuStyle.bevel(r, palX, palY, palW, palH, 0xFF1A1510, 0xFF0C0A08);
-        r.fill(palX + 1, palY + 1, palX + palW - 1, palY + 16, 0xFF070605);
+        MenuStyle.bevel(r, palX, palY, palW, palH, MenuStyle.DRAWER_TOP, MenuStyle.DRAWER_BOTTOM);
+        r.fill(palX + 1, palY + 1, palX + palW - 1, palY + 16, MenuStyle.WELL_DEEP);
         r.fill(palX + 1, palY + 16, palX + palW - 1, palY + 17, MenuStyle.BLACK);
         int shown = Math.min(palRows, results.size() - paletteScroll);
         for (int i = 0; i < shown; i++) {
@@ -1774,7 +1785,7 @@ public class ModScreen extends Screen {
                 paletteSel = idx;
             }
             if (idx == paletteSel) {
-                MenuStyle.hGradient(r, palX + 1, ry, palX + palW - 1, ry + PAL_ROW, 0xFF3A220C, 0xFF1A1209, 8);
+                MenuStyle.hGradient(r, palX + 1, ry, palX + palW - 1, ry + PAL_ROW, MenuStyle.SEL_TOP, MenuStyle.SEL_BOTTOM, 8);
                 r.fill(palX + 1, ry, palX + 3, ry + PAL_ROW, MenuStyle.OR);
             }
             Result res = results.get(idx);
@@ -1825,6 +1836,10 @@ public class ModScreen extends Screen {
             } catch (RuntimeException e) {
                 text = null;
             }
+        } else if (inside(mouseX, mouseY, iconBounds(3)[0], iconBounds(3)[1], iconBounds(3)[2], iconBounds(3)[3])) {
+            key = "theme";
+            text = "Menu theme: " + MenuConfig.getInstance().getTheme().label
+                    + ". Click for the next preset, right click for the previous (Amber, Dark, Light, Custom).";
         } else if (!pageMode() && inside(mouseX, mouseY, gridX, gridY, gridW, gridH)
                 && !(openFeature != null && drawerOverlay)) {
             for (Item it : items) {
@@ -1869,11 +1884,11 @@ public class ModScreen extends Screen {
         GuiRects r = GuiRects.begin(graphics);
         MenuStyle.dropShadow(r, x - 4, y - 4, w + 8, h + 8, 3);
         r.outline(x - 5, y - 5, w + 10, h + 10, MenuStyle.OR2);
-        MenuStyle.bevel(r, x - 4, y - 4, w + 8, h + 8, 0xF51D1813, 0xF513100C);
+        MenuStyle.bevel(r, x - 4, y - 4, w + 8, h + 8, MenuStyle.TOOLTIP_TOP, MenuStyle.TOOLTIP_BOTTOM);
         r.submit();
         int ly = y;
         for (var line : lines) {
-            graphics.text(this.font, line, x, ly, 0xFFF0E6DC, true);
+            graphics.text(this.font, line, x, ly, MenuStyle.TXT, MenuStyle.TEXT_SHADOW);
             ly += 10;
         }
     }
@@ -2015,8 +2030,8 @@ public class ModScreen extends Screen {
             int h = height(w);
             GuiRects r = GuiRects.begin(g);
             MenuStyle.dropShadow(r, x, y, w, h, 3);
-            MenuStyle.bevel(r, x, y, w, h, 0xFF211A14, 0xFF16120E);
-            r.gradient(x + 1, y + 1, x + w - 1, y + 15, 0xFF2C2219, 0xFF1D1712);
+            MenuStyle.bevel(r, x, y, w, h, MenuStyle.BOX_TOP, MenuStyle.BOX_BOTTOM);
+            r.gradient(x + 1, y + 1, x + w - 1, y + 15, MenuStyle.TITLE_TOP, MenuStyle.TITLE_BOTTOM);
             r.fill(x + 1, y + 15, x + w - 1, y + 16, MenuStyle.BLACK);
             List<HomeButton> buttons = buttons();
             for (int i = 0; i < buttons.size(); i++) {
@@ -2035,7 +2050,7 @@ public class ModScreen extends Screen {
                 int[] b = buttonBox(i, x, y, w);
                 boolean hov = mouseX >= 0 && inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
                 String l = MenuStyle.ellipsize(buttons.get(i).label(), b[2] - 6);
-                MenuStyle.text(g, l, b[0] + (b[2] - font.width(l)) / 2, b[1] + 4, hov ? 0xFFFFB060 : MenuStyle.OR);
+                MenuStyle.text(g, l, b[0] + (b[2] - font.width(l)) / 2, b[1] + 4, hov ? MenuStyle.OR_HOVER : MenuStyle.OR);
             }
         }
 
@@ -2049,6 +2064,81 @@ public class ModScreen extends Screen {
                     buttons.get(i).action().run();
                     return true;
                 }
+            }
+            return false;
+        }
+    }
+
+    /** Home's Menu Theme row: the four presets as chips (the active one lit) and Customise, which opens the Menu Theme
+     *  drawer with Custom's colours. */
+    private final class ThemeBlock implements Block {
+
+        private static final String CUSTOMISE = "Customise...";
+
+        @Override
+        public int height(int width) {
+            return 40;
+        }
+
+        private int[] chip(int i, int x, int y, int w) {
+            int n = MenuTheme.values().length + 1;
+            int cw = Math.min(90, (w - 20 - (n - 1) * 6) / n);
+            return new int[]{x + 10 + i * (cw + 6), y + 20, cw, 14};
+        }
+
+        @Override
+        public void render(GuiGraphicsExtractor g, int x, int y, int w, int mouseX, int mouseY) {
+            GuiRects r = GuiRects.begin(g);
+            MenuStyle.dropShadow(r, x, y, w, 40, 3);
+            MenuStyle.bevel(r, x, y, w, 40, MenuStyle.BOX_TOP, MenuStyle.BOX_BOTTOM);
+            r.gradient(x + 1, y + 1, x + w - 1, y + 15, MenuStyle.TITLE_TOP, MenuStyle.TITLE_BOTTOM);
+            r.fill(x + 1, y + 15, x + w - 1, y + 16, MenuStyle.BLACK);
+            MenuTheme active = MenuConfig.getInstance().getTheme();
+            MenuTheme[] all = MenuTheme.values();
+            for (int i = 0; i <= all.length; i++) {
+                int[] b = chip(i, x, y, w);
+                boolean hov = mouseX >= 0 && inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
+                if (i < all.length) {
+                    MenuStyle.pill(r, b[0], b[1], b[2], b[3], all[i] == active, hov);
+                } else {
+                    MenuStyle.raisedButton(r, b[0], b[1], b[2], b[3], hov, false);
+                }
+            }
+            r.submit();
+            MenuStyle.text(g, "MENU THEME", x + 8, y + 4, MenuStyle.OR2);
+            for (int i = 0; i <= all.length; i++) {
+                int[] b = chip(i, x, y, w);
+                boolean lit = i < all.length && all[i] == active;
+                String l = MenuStyle.ellipsize(i < all.length ? all[i].label : CUSTOMISE, b[2] - 6);
+                int colour = lit ? (MenuStyle.luminance(MenuStyle.OR) > 0.55f ? 0xFF160C02 : 0xFFFFFFFF) : MenuStyle.OR;
+                g.text(font, l, b[0] + (b[2] - font.width(l)) / 2, b[1] + 3, colour, MenuStyle.TEXT_SHADOW && !lit);
+            }
+        }
+
+        @Override
+        public boolean click(int x, int y, int w, double mx, double my) {
+            MenuTheme[] all = MenuTheme.values();
+            for (int i = 0; i <= all.length; i++) {
+                int[] b = chip(i, x, y, w);
+                if (!inside(mx, my, b[0], b[1], b[2], b[3])) {
+                    continue;
+                }
+                clickSound();
+                if (i < all.length) {
+                    MenuConfig cfg = MenuConfig.getInstance();
+                    cfg.setTheme(all[i]);
+                    cfg.save();
+                    rebuild();
+                } else {
+                    for (BaseTab leaf : allLeaves()) {
+                        if (leaf instanceof com.killer560.hub.gui.tab.MenuThemeTab) {
+                            openFeature = leaf;
+                            scrollOffset = 0;
+                            rebuild();
+                        }
+                    }
+                }
+                return true;
             }
             return false;
         }
@@ -2094,14 +2184,14 @@ public class ModScreen extends Screen {
             List<BaseTab> favs = favs();
             GuiRects r = GuiRects.begin(g);
             MenuStyle.dropShadow(r, x, y, w, h, 3);
-            MenuStyle.bevel(r, x, y, w, h, 0xFF211A14, 0xFF16120E);
-            r.gradient(x + 1, y + 1, x + w - 1, y + 15, 0xFF2C2219, 0xFF1D1712);
+            MenuStyle.bevel(r, x, y, w, h, MenuStyle.BOX_TOP, MenuStyle.BOX_BOTTOM);
+            r.gradient(x + 1, y + 1, x + w - 1, y + 15, MenuStyle.TITLE_TOP, MenuStyle.TITLE_BOTTOM);
             r.fill(x + 1, y + 15, x + w - 1, y + 16, MenuStyle.BLACK);
             for (int i = 0; i < favs.size(); i++) {
                 int[] b = rowBox(i, x, y, w);
                 boolean hov = mouseX >= 0 && inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
                 if (hov) {
-                    r.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], 0x10FFFFFF);
+                    r.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], MenuStyle.alpha(MenuStyle.TXT, 0x10));
                 }
                 MenuStyle.separator(r, b[0], b[0] + b[2], b[1] + b[3] - 1);
                 Boolean s = FeatureCards.state(favs.get(i));
@@ -2200,12 +2290,39 @@ public class ModScreen extends Screen {
                     if (child.getY() + child.getHeight() <= top || child.getY() >= bottom) {
                         continue;
                     }
+                    if (child instanceof StringWidget s && drawString(graphics, s)) {
+                        continue;
+                    }
                     child.extractRenderState(graphics, mouseX, mouseY, partialTick);
                 }
             } finally {
                 // Must run even if a child's render throws, or the rest of the frame inherits this clip.
                 graphics.disableScissor();
             }
+        }
+
+        /**
+         * A tab's text line in the theme: a section heading ("§6§l" / "§c§l") in the accent or the cheat red, and on a
+         * light theme every other line with its washed-out colour codes darkened. False leaves it to the widget.
+         */
+        private static boolean drawString(GuiGraphicsExtractor g, StringWidget s) {
+            String raw = s.getMessage().getString();
+            boolean red = raw.startsWith(SectionHeaders.CHEAT_PREFIX);
+            boolean heading = red || raw.startsWith(SectionHeaders.LEGIT_PREFIX);
+            if (!heading && !MenuStyle.LIGHT) {
+                return false;
+            }
+            var font = Minecraft.getInstance().font;
+            int y = s.getY() + (s.getHeight() - 8) / 2;
+            if (heading) {
+                String plain = net.minecraft.ChatFormatting.stripFormatting(raw);
+                g.text(font, Component.literal(MenuStyle.ellipsize(plain == null ? raw : plain, s.getWidth()))
+                        .withStyle(net.minecraft.ChatFormatting.BOLD), s.getX(), y,
+                        red ? MenuStyle.RED_TITLE : MenuStyle.OR, MenuStyle.TEXT_SHADOW);
+                return true;
+            }
+            g.text(font, MenuStyle.ellipsize(MenuStyle.lightReadable(raw), s.getWidth()), s.getX(), y, MenuStyle.TXT, false);
+            return true;
         }
 
         AbstractWidget hoveredChild(int mouseX, int mouseY) {

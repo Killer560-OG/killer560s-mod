@@ -314,26 +314,26 @@ public final class SettingsButtonWidget extends AbstractWidget {
             }
             r.submit();
             String label = MenuStyle.ellipsize(getMessage().getString(), w - 10);
-            int color = !active ? MenuStyle.DIM2 : (danger ? 0xFFFFD0D0 : (hover || primary ? 0xFFFFB060 : MenuStyle.OR));
-            graphics.text(font, label, x0 + (w - font.width(label)) / 2, textY, faded(color), true);
+            int color = !active ? MenuStyle.DIM2 : (danger ? 0xFFFFD0D0 : (hover || primary ? MenuStyle.OR_HOVER : MenuStyle.OR));
+            graphics.text(font, label, x0 + (w - font.width(label)) / 2, textY, faded(color), MenuStyle.TEXT_SHADOW);
             return;
         }
         if (p.look() == Look.HEADER) {
             MenuStyle.sectionBand(r, x0, y0 + 1, w, h - 2, getMessage().getString().contains("§c"));
             if (hover) {
-                r.fill(x0, y0 + 2, x0 + w, y0 + h - 1, 0x10FFFFFF);
+                r.fill(x0, y0 + 2, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, 0x10));
             }
             r.submit();
             boolean red = getMessage().getString().contains("§c");
-            int color = red ? MenuStyle.RED_TITLE : (hover ? MenuStyle.OR_LIGHT : MenuStyle.OR);
-            graphics.text(font, p.on() ? "▼" : "▶", x0 + 5, textY, faded(color), true);
+            int color = red ? MenuStyle.RED_TITLE : (hover ? MenuStyle.OR_HOVER : MenuStyle.OR);
+            graphics.text(font, p.on() ? "▼" : "▶", x0 + 5, textY, faded(color), MenuStyle.TEXT_SHADOW);
             graphics.text(font, net.minecraft.network.chat.Component.literal(p.label())
-                    .withStyle(net.minecraft.ChatFormatting.BOLD), x0 + 16, textY, faded(color), true);
+                    .withStyle(net.minecraft.ChatFormatting.BOLD), x0 + 16, textY, faded(color), MenuStyle.TEXT_SHADOW);
             return;
         }
         // A setting row: faint hover band and a separator under it, label left, control right.
         if (hover) {
-            r.fill(x0, y0, x0 + w, y0 + h - 1, 0x0EFFFFFF);
+            r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, 0x0E));
         }
         MenuStyle.separator(r, x0, x0 + w, y0 + h - 2);
         int[] c = controlBounds();
@@ -342,19 +342,19 @@ public final class SettingsButtonWidget extends AbstractWidget {
             case PILL -> MenuStyle.pill(r, c[0], c[1], c[2], c[3], false, hover);
             default -> {
                 r.outline(c[0], c[1], c[2], c[3], hover ? MenuStyle.OR2 : MenuStyle.BLACK);
-                r.fill(c[0] + 1, c[1] + 1, c[0] + c[2] - 1, c[1] + c[3] - 1, 0xFF0A0908);
-                r.fill(c[0] + 1, c[1] + 1, c[0] + c[2] - 1, c[1] + 2, 0xC0000000);
+                r.fill(c[0] + 1, c[1] + 1, c[0] + c[2] - 1, c[1] + c[3] - 1, MenuStyle.PILL_BG);
+                r.fill(c[0] + 1, c[1] + 1, c[0] + c[2] - 1, c[1] + 2, MenuStyle.shadow(0xC0));
             }
         }
         r.submit();
-        int labelColor = !active ? MenuStyle.DIM2 : (p.dimLabel() ? MenuStyle.DIM : (hover ? 0xFFFFF4E8 : MenuStyle.TXT));
+        int labelColor = !active ? MenuStyle.DIM2 : (p.dimLabel() ? MenuStyle.DIM : (hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT));
         int labelMax = c[0] - x0 - 10;
         String label = p.label();
         if (!p.note().isEmpty() && font.width(label + " " + p.note()) <= labelMax) {
-            graphics.text(font, label, x0 + 4, textY, faded(labelColor), true);
-            graphics.text(font, p.note(), x0 + 4 + font.width(label) + 4, textY, faded(MenuStyle.DIM2), true);
+            graphics.text(font, label, x0 + 4, textY, faded(labelColor), MenuStyle.TEXT_SHADOW);
+            graphics.text(font, p.note(), x0 + 4 + font.width(label) + 4, textY, faded(MenuStyle.DIM2), MenuStyle.TEXT_SHADOW);
         } else {
-            graphics.text(font, MenuStyle.ellipsize(label, labelMax), x0 + 4, textY, faded(labelColor), true);
+            graphics.text(font, MenuStyle.ellipsize(label, labelMax), x0 + 4, textY, faded(labelColor), MenuStyle.TEXT_SHADOW);
         }
         int vy = c[1] + (c[3] - 8) / 2;
         if (p.look() == Look.PILL) {
@@ -362,12 +362,33 @@ public final class SettingsButtonWidget extends AbstractWidget {
             graphics.text(font, "‹", c[0] + 3, vy, faded(arrow), false);
             graphics.text(font, "›", c[0] + c[2] - 3 - font.width("›"), vy, faded(arrow), false);
             String v = MenuStyle.ellipsize(p.value(), c[2] - 18);
-            graphics.text(font, v, c[0] + (c[2] - font.width(v)) / 2, vy, faded(hover ? 0xFFFFB060 : MenuStyle.OR), true);
+            graphics.text(font, v, c[0] + (c[2] - font.width(v)) / 2, vy, faded(hover ? MenuStyle.OR_HOVER : MenuStyle.OR),
+                    MenuStyle.TEXT_SHADOW);
         } else if (p.look() == Look.CHIP) {
+            Integer swatch = swatchColour();
+            if (swatch != null) {
+                // A colour setting ("Colour: ■" from ColorSwatch): the chip shows the colour itself.
+                com.killer560.hub.hud.GuiRects sw = com.killer560.hub.hud.GuiRects.begin(graphics);
+                sw.fill(c[0] + 3, c[1] + 3, c[0] + c[2] - 3, c[1] + c[3] - 3, 0xFF000000 | swatch);
+                sw.outline(c[0] + 2, c[1] + 2, c[2] - 4, c[3] - 4, MenuStyle.BLACK);
+                sw.submit();
+                return;
+            }
             String v = MenuStyle.ellipsize(p.value(), c[2] - 8);
             int plainW = font.width(v);
-            graphics.text(font, v, c[0] + (c[2] - plainW) / 2, vy, faded(0xFFD8CFC4), true);
+            graphics.text(font, MenuStyle.LIGHT ? MenuStyle.lightReadable(v) : v, c[0] + (c[2] - plainW) / 2, vy,
+                    faded(MenuStyle.TXT_SOFT), MenuStyle.TEXT_SHADOW);
         }
+    }
+
+    /** The RGB of a {@code ColorSwatch} label's "■", or null when this is not a colour setting. */
+    private Integer swatchColour() {
+        for (net.minecraft.network.chat.Component part : getMessage().getSiblings()) {
+            if ("■".equals(part.getString()) && part.getStyle().getColor() != null) {
+                return part.getStyle().getColor().getValue();
+            }
+        }
+        return null;
     }
 
     @Override

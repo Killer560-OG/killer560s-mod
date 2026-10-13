@@ -30,6 +30,14 @@ public final class MenuConfig {
     private static MenuConfig instance;
 
     private final Set<String> favourites = new LinkedHashSet<>();
+    /** The colour preset the menu draws in (killer560, 2026-10-12): Amber by default. */
+    private MenuTheme theme = MenuTheme.AMBER;
+    /** The preset the Custom colours were started from (what Reset puts back). */
+    private MenuTheme customBase = MenuTheme.AMBER;
+    /** Custom's five colours, in {@link MenuTheme.Slot} order. */
+    private final int[] custom = MenuTheme.AMBER.base();
+    /** Bumped on every theme change, so the drawing side knows to re-derive its palette. */
+    private static int version;
 
     private MenuConfig() {
     }
@@ -47,6 +55,24 @@ public final class MenuConfig {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
                         .getAsJsonObject();
+                if (obj.has("theme")) {
+                    cfg.theme = MenuTheme.parse(obj.get("theme").getAsString());
+                }
+                if (obj.has("customBase")) {
+                    MenuTheme b = MenuTheme.parse(obj.get("customBase").getAsString());
+                    cfg.customBase = b == MenuTheme.CUSTOM ? MenuTheme.AMBER : b;
+                }
+                System.arraycopy(cfg.customBase.base(), 0, cfg.custom, 0, cfg.custom.length);
+                if (obj.has("custom") && obj.get("custom").isJsonObject()) {
+                    JsonObject c = obj.getAsJsonObject("custom");
+                    for (MenuTheme.Slot slot : MenuTheme.Slot.values()) {
+                        String k = slot.name().toLowerCase(java.util.Locale.ROOT);
+                        if (c.has(k)) {
+                            cfg.custom[slot.ordinal()] = 0xFF000000 | (int) Long.parseLong(
+                                    c.get(k).getAsString().replace("#", ""), 16);
+                        }
+                    }
+                }
                 if (obj.has("favourites") && obj.get("favourites").isJsonArray()) {
                     for (JsonElement e : obj.getAsJsonArray("favourites")) {
                         if (e.isJsonPrimitive() && !e.getAsString().isBlank()) {
@@ -59,6 +85,7 @@ public final class MenuConfig {
             }
         }
         instance = cfg;
+        version++;
     }
 
     public void save() {
@@ -70,6 +97,14 @@ public final class MenuConfig {
                 arr.add(id);
             }
             obj.add("favourites", arr);
+            obj.addProperty("theme", theme.name());
+            obj.addProperty("customBase", customBase.name());
+            JsonObject c = new JsonObject();
+            for (MenuTheme.Slot slot : MenuTheme.Slot.values()) {
+                c.addProperty(slot.name().toLowerCase(java.util.Locale.ROOT),
+                        String.format("#%06X", custom[slot.ordinal()] & 0xFFFFFF));
+            }
+            obj.add("custom", c);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -77,6 +112,63 @@ public final class MenuConfig {
 
     public static Path path() {
         return CONFIG_PATH;
+    }
+
+    /** Changes whenever the theme or a custom colour changes (or the file is re-read). */
+    public static int version() {
+        return version;
+    }
+
+    public MenuTheme getTheme() {
+        return theme;
+    }
+
+    /** Picks a theme. Choosing Custom from a preset starts Custom from that preset's colours (killer560's
+     *  "a Custom option starting from the active preset"); Custom keeps its own colours after that. */
+    public void setTheme(MenuTheme t) {
+        MenuTheme next = t == null ? MenuTheme.AMBER : t;
+        if (next == MenuTheme.CUSTOM && theme != MenuTheme.CUSTOM) {
+            startCustomFrom(theme);
+        }
+        theme = next;
+        version++;
+    }
+
+    public MenuTheme getCustomBase() {
+        return customBase;
+    }
+
+    /** The five colours the menu draws from right now (the preset's, or Custom's). */
+    public int[] activeColours() {
+        return theme == MenuTheme.CUSTOM ? custom.clone() : theme.base();
+    }
+
+    public int getCustomColour(MenuTheme.Slot slot) {
+        return custom[slot.ordinal()];
+    }
+
+    /** Sets one Custom colour and switches the menu to Custom (started from the preset in use, if it was one). */
+    public void setCustomColour(MenuTheme.Slot slot, int argb) {
+        if (theme != MenuTheme.CUSTOM) {
+            startCustomFrom(theme);
+            theme = MenuTheme.CUSTOM;
+        }
+        custom[slot.ordinal()] = 0xFF000000 | (argb & 0xFFFFFF);
+        version++;
+    }
+
+    /** Custom's colours back to the preset it was started from. */
+    public void resetCustom() {
+        System.arraycopy(customBase.base(), 0, custom, 0, custom.length);
+        version++;
+    }
+
+    private void startCustomFrom(MenuTheme preset) {
+        if (preset == MenuTheme.CUSTOM) {
+            return;
+        }
+        customBase = preset;
+        System.arraycopy(preset.base(), 0, custom, 0, custom.length);
     }
 
     /** The starred feature ids, oldest first. */

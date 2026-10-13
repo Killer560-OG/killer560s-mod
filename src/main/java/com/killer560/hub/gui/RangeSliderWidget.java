@@ -97,7 +97,7 @@ public abstract class RangeSliderWidget extends AbstractWidget {
             boolean hover = isHovered || dragging >= 0;
             com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(graphics);
             if (isHovered) {
-                r.fill(x0, y0, x0 + w, y0 + h - 1, 0x0EFFFFFF);
+                r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, 0x0E));
             }
             MenuStyle.separator(r, x0, x0 + w, y0 + h - 2);
             int cy = y0 + h - 6;
@@ -114,8 +114,8 @@ public abstract class RangeSliderWidget extends AbstractWidget {
             MenuStyle.knob(r, highC - 4, cy - 4, hover);
             r.submit();
             graphics.text(font, MenuStyle.ellipsize(label, w - 12 - font.width(value)), x0 + 4, y0 + 1,
-                    isHovered ? 0xFFFFF4E8 : MenuStyle.TXT, true);
-            graphics.text(font, value, x0 + w - 4 - font.width(value), y0 + 1, MenuStyle.DIM, true);
+                    isHovered ? MenuStyle.TXT_HOVER : MenuStyle.TXT, MenuStyle.TEXT_SHADOW);
+            graphics.text(font, value, x0 + w - 4 - font.width(value), y0 + 1, MenuStyle.DIM, MenuStyle.TEXT_SHADOW);
             return;
         }
         graphics.fill(x0, y0, x0 + w, y0 + h, TRACK_BG);

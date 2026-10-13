@@ -109,7 +109,7 @@ public abstract class ThemedSliderButton extends AbstractSliderButton {
             boolean hover = isHovered;
             com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(graphics);
             if (hover) {
-                r.fill(x0, y0, x0 + w, y0 + h - 1, 0x0EFFFFFF);
+                r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, 0x0E));
             }
             MenuStyle.separator(r, x0, x0 + w, y0 + h - 2);
             boolean row = rowLayout();
@@ -117,14 +117,14 @@ public abstract class ThemedSliderButton extends AbstractSliderButton {
             MenuStyle.sliderTrack(r, t[0], t[1], cy, this.value, hover);
             r.submit();
             int textY = row ? y0 + (h - 8) / 2 : y0 + 1;
-            int labelColor = this.active ? (hover ? 0xFFFFF4E8 : MenuStyle.TXT) : MenuStyle.DIM2;
+            int labelColor = this.active ? (hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT) : MenuStyle.DIM2;
             if (row) {
-                graphics.text(font, MenuStyle.ellipsize(s[0], t[0] - x0 - 14), x0 + 4, textY, labelColor, true);
-                graphics.text(font, s[1], x0 + w - 4 - font.width(s[1]), textY, MenuStyle.DIM, true);
+                graphics.text(font, MenuStyle.ellipsize(s[0], t[0] - x0 - 14), x0 + 4, textY, labelColor, MenuStyle.TEXT_SHADOW);
+                graphics.text(font, s[1], x0 + w - 4 - font.width(s[1]), textY, MenuStyle.DIM, MenuStyle.TEXT_SHADOW);
             } else {
                 String l = MenuStyle.ellipsize(s[0], w - 12 - font.width(s[1]));
-                graphics.text(font, l, x0 + 4, textY, labelColor, true);
-                graphics.text(font, s[1], x0 + w - 4 - font.width(s[1]), textY, MenuStyle.DIM, true);
+                graphics.text(font, l, x0 + 4, textY, labelColor, MenuStyle.TEXT_SHADOW);
+                graphics.text(font, s[1], x0 + w - 4 - font.width(s[1]), textY, MenuStyle.DIM, MenuStyle.TEXT_SHADOW);
             }
             return;
         }

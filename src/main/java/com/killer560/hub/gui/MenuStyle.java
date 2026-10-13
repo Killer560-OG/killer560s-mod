@@ -22,24 +22,197 @@ public final class MenuStyle {
     private MenuStyle() {
     }
 
-    // ---- palette (mockup :root and depth pass) ----------------------------------------------------------------------
-    public static final int OR = 0xFFFF8A1F;
-    public static final int OR2 = 0xFFC76A14;
-    public static final int OR_LIGHT = 0xFFFFA040;
-    public static final int OR_DARK = 0xFFC06010;
-    public static final int TXT = 0xFFE9E2D8;
-    public static final int DIM = 0xFF9A8F82;
-    public static final int DIM2 = 0xFF6B6259;
-    public static final int RED = 0xFFE05555;
-    public static final int RED_TITLE = 0xFFFF5555;
-    public static final int BLACK = 0xFF000000;
-    public static final int WELL = 0xFF0B0907;
-    public static final int WELL_DEEP = 0xFF070605;
-    public static final int HILITE = 0x1CFFFFFF;
-    public static final int HILITE_SOFT = 0x12FFFFFF;
-    public static final int SHADE = 0x80000000;
-    public static final int TRACK = 0xFF3B332B;
-    public static final int KNOB_OFF = 0xFF8D8478;
+    // ---- palette ----------------------------------------------------------------------------------------------------
+    // Every colour the menu draws. Derived by use() from the active MenuTheme's five base colours; the initial values
+    // are Amber's (the mockup's :root and depth pass). Mutable on purpose: ModScreen calls use() before it draws.
+    public static int OR = 0xFFFF8A1F;
+    public static int OR2 = 0xFFC76A14;
+    public static int OR_LIGHT = 0xFFFFA040;
+    public static int OR_DARK = 0xFFC06010;
+    /** A hovered accent (brighter on dark themes, deeper on light ones). */
+    public static int OR_HOVER = 0xFFFFB060;
+    /** A dim accent line: the raised button's ring, a hovered card's outline, the selected row's border. */
+    public static int ACCENT_EDGE = 0xFF7A4A18;
+    public static int TXT = 0xFFE9E2D8;
+    public static int TXT_HOVER = 0xFFFFF4E8;
+    public static int TXT_SOFT = 0xFFD8CFC4;
+    public static int DIM = 0xFF9A8F82;
+    public static int DIM2 = 0xFF6B6259;
+    public static int RED = 0xFFE05555;
+    public static int RED_TITLE = 0xFFFF5555;
+    public static int RED_BAND = 0xFF3A1414;
+    /** The outline colour (black on dark themes, a mid grey on light ones). */
+    public static int BLACK = 0xFF000000;
+    public static int WELL = 0xFF0B0907;
+    public static int WELL_DEEP = 0xFF070605;
+    public static int HILITE = 0x1CFFFFFF;
+    public static int HILITE_SOFT = 0x12FFFFFF;
+    public static int SHADE = 0x80000000;
+    /** How strong drop shadows and inner shadows are (1 dark, ~0.35 light). */
+    public static float SHADOW = 1f;
+    /** Whether text gets the 1px drop shadow (dark themes) - dark text on a light panel does not. */
+    public static boolean TEXT_SHADOW = true;
+    public static boolean LIGHT = false;
+    public static int TRACK = 0xFF3B332B;
+    public static int KNOB_OFF = 0xFF8D8478;
+    public static int SW_OFF_TOP = 0xFF2E2721;
+    public static int SW_OFF_BOTTOM = 0xFF3B332B;
+    public static int SW_ON_TOP = 0xFFC45F0A;
+    public static int SW_ON_BOTTOM = 0xFFFF8A1F;
+    public static int PANEL_TOP = 0xFF1C1712;
+    public static int PANEL_BOTTOM = 0xFF120F0C;
+    public static int FRAME_RING = 0xFF4A3420;
+    public static int HEADER_TOP = 0xFF2A2119;
+    public static int HEADER_BOTTOM = 0xFF1A1510;
+    public static int SIDE_TOP = 0xFF19140F;
+    public static int SIDE_BOTTOM = 0xFF16120E;
+    public static int CARD_TOP = 0xFF251E17;
+    public static int CARD_BOTTOM = 0xFF1A1510;
+    public static int CARD_HOVER_TOP = 0xFF2D241B;
+    public static int CARD_HOVER_BOTTOM = 0xFF201912;
+    public static int DRAWER_TOP = 0xFF1D1813;
+    public static int DRAWER_BOTTOM = 0xFF13100C;
+    public static int TITLE_TOP = 0xFF2C2219;
+    public static int TITLE_BOTTOM = 0xFF1D1712;
+    public static int BOX_TOP = 0xFF211A14;
+    public static int BOX_BOTTOM = 0xFF16120E;
+    public static int SEL_TOP = 0xFF3A220C;
+    public static int SEL_BOTTOM = 0xFF24160A;
+    public static int BTN_TOP = 0xFF3A2510;
+    public static int BTN_BOTTOM = 0xFF22160A;
+    public static int BTN_HOVER_TOP = 0xFF4A3016;
+    public static int BTN_HOVER_BOTTOM = 0xFF2C1C0C;
+    public static int BTN_PRESSED_TOP = 0xFF4A2A08;
+    public static int BTN_PRESSED_BOTTOM = 0xFF63380B;
+    public static int BAND = 0xFF2A1D10;
+    public static int PILL_BG = 0xFF0A0908;
+    public static int PILL_BG_HOVER = 0xFF15110D;
+    public static int GEAR = 0xFF4A423A;
+    /** The veil over a switched-off card (alpha included), and its lighter hovered version. */
+    public static int OFF_VEIL = 0x800B0907;
+    public static int OFF_VEIL_HOVER = 0x500B0907;
+    /** The dim behind the whole menu. */
+    public static int BACKDROP = 0xB0000000;
+    public static int BRAND_TOP = 0xFFFFB15A;
+    public static int BRAND_BOTTOM = 0xFFFF7A0A;
+    public static int TOOLTIP_TOP = 0xF51D1813;
+    public static int TOOLTIP_BOTTOM = 0xF513100C;
+    public static int KEY_CHIP_BG = 0xFF0D0B09;
+    public static int KEY_CHIP_EDGE = 0xFF3A2A1A;
+    public static int KNOB = 0xFFFFFFFF;
+    public static int KNOB_HOVER = 0xFFFFE0C0;
+    public static int KNOB_EDGE = 0xFFB8B0A8;
+
+    private static int usedVersion = -1;
+
+    /** Derives the palette from the menu's active theme (cheap when nothing changed). Call before drawing. */
+    public static void use() {
+        MenuConfig cfg = MenuConfig.getInstance();
+        if (usedVersion == MenuConfig.version()) {
+            return;
+        }
+        usedVersion = MenuConfig.version();
+        int[] c = cfg.activeColours();
+        derive(c[0], c[1], c[2], c[3], c[4]);
+    }
+
+    private static int lift(int c, float t) {
+        return mix(c, 0xFFFFFFFF, t);
+    }
+
+    private static int sink(int c, float t) {
+        return mix(c, 0xFF000000, t);
+    }
+
+    /** 0 (black) .. 1 (white). */
+    public static float luminance(int c) {
+        return (0.299f * ((c >> 16) & 0xFF) + 0.587f * ((c >> 8) & 0xFF) + 0.114f * (c & 0xFF)) / 255f;
+    }
+
+    /** Every palette colour from the five base colours (accent, panel, card, text, on-switch). */
+    public static void derive(int accent, int panel, int card, int text, int switchOn) {
+        accent |= 0xFF000000;
+        panel |= 0xFF000000;
+        card |= 0xFF000000;
+        text |= 0xFF000000;
+        switchOn |= 0xFF000000;
+        boolean light = luminance(panel) > 0.5f;
+        LIGHT = light;
+        TEXT_SHADOW = !light;
+        SHADOW = light ? 0.35f : 1f;
+        OR = accent;
+        OR_LIGHT = light ? accent : lift(accent, 0.25f);
+        OR_DARK = sink(accent, 0.25f);
+        OR2 = light ? sink(accent, 0.15f) : mix(accent, panel, 0.22f);
+        OR_HOVER = light ? sink(accent, 0.25f) : lift(accent, 0.4f);
+        ACCENT_EDGE = mix(panel, accent, light ? 0.55f : 0.42f);
+        TXT = text;
+        TXT_HOVER = light ? sink(text, 0.4f) : lift(text, 0.5f);
+        TXT_SOFT = mix(text, panel, 0.12f);
+        DIM = mix(text, panel, 0.4f);
+        DIM2 = mix(text, panel, 0.58f);
+        RED = light ? 0xFFB02A2A : 0xFFE05555;
+        RED_TITLE = light ? 0xFFC62828 : 0xFFFF5555;
+        RED_BAND = mix(panel, 0xFFC02020, light ? 0.18f : 0.22f);
+        BLACK = light ? sink(panel, 0.42f) : 0xFF000000;
+        HILITE = light ? 0x90FFFFFF : 0x1CFFFFFF;
+        HILITE_SOFT = light ? 0x60FFFFFF : 0x12FFFFFF;
+        SHADE = light ? 0x28000000 : 0x80000000;
+        WELL = light ? sink(panel, 0.07f) : sink(panel, 0.6f);
+        WELL_DEEP = light ? lift(panel, 0.7f) : sink(panel, 0.72f);
+        TRACK = light ? sink(panel, 0.18f) : mix(panel, text, 0.15f);
+        KNOB_OFF = mix(panel, text, light ? 0.35f : 0.5f);
+        SW_OFF_TOP = light ? sink(panel, 0.2f) : mix(panel, text, 0.08f);
+        SW_OFF_BOTTOM = light ? sink(panel, 0.12f) : mix(panel, text, 0.15f);
+        SW_ON_TOP = sink(switchOn, 0.25f);
+        SW_ON_BOTTOM = switchOn;
+        PANEL_TOP = light ? lift(panel, 0.25f) : lift(panel, 0.02f);
+        PANEL_BOTTOM = light ? sink(panel, 0.04f) : sink(panel, 0.3f);
+        FRAME_RING = mix(panel, accent, light ? 0.45f : 0.25f);
+        HEADER_TOP = light ? lift(panel, 0.55f) : mix(lift(panel, 0.06f), accent, 0.04f);
+        HEADER_BOTTOM = light ? lift(panel, 0.15f) : sink(panel, 0.05f);
+        SIDE_TOP = light ? lift(panel, 0.35f) : sink(panel, 0.1f);
+        SIDE_BOTTOM = light ? lift(panel, 0.1f) : sink(panel, 0.2f);
+        CARD_TOP = card;
+        CARD_BOTTOM = light ? sink(card, 0.06f) : sink(card, 0.3f);
+        CARD_HOVER_TOP = light ? lift(card, 0.5f) : lift(card, 0.05f);
+        CARD_HOVER_BOTTOM = light ? sink(card, 0.02f) : sink(card, 0.14f);
+        DRAWER_TOP = light ? lift(panel, 0.45f) : lift(panel, 0.02f);
+        DRAWER_BOTTOM = light ? lift(panel, 0.1f) : sink(panel, 0.32f);
+        TITLE_TOP = light ? lift(card, 0.4f) : mix(lift(card, 0.05f), accent, 0.03f);
+        TITLE_BOTTOM = light ? sink(card, 0.04f) : sink(card, 0.2f);
+        BOX_TOP = light ? card : mix(panel, card, 0.6f);
+        BOX_BOTTOM = light ? sink(card, 0.05f) : sink(panel, 0.2f);
+        SEL_TOP = mix(panel, accent, light ? 0.3f : 0.22f);
+        SEL_BOTTOM = mix(panel, accent, light ? 0.14f : 0.1f);
+        BTN_TOP = light ? lift(mix(panel, accent, 0.12f), 0.4f) : mix(panel, accent, 0.15f);
+        BTN_BOTTOM = light ? mix(panel, accent, 0.1f) : mix(sink(panel, 0.2f), accent, 0.07f);
+        BTN_HOVER_TOP = light ? lift(mix(panel, accent, 0.2f), 0.4f) : mix(panel, accent, 0.22f);
+        BTN_HOVER_BOTTOM = light ? mix(panel, accent, 0.18f) : mix(panel, accent, 0.1f);
+        BTN_PRESSED_TOP = mix(panel, accent, light ? 0.35f : 0.28f);
+        BTN_PRESSED_BOTTOM = mix(panel, accent, light ? 0.45f : 0.38f);
+        BAND = mix(panel, accent, light ? 0.16f : 0.1f);
+        PILL_BG = light ? sink(panel, 0.1f) : sink(panel, 0.62f);
+        PILL_BG_HOVER = light ? sink(panel, 0.16f) : sink(panel, 0.45f);
+        GEAR = mix(text, panel, 0.72f);
+        OFF_VEIL = alpha(light ? panel : sink(panel, 0.55f), light ? 0x99 : 0x80);
+        OFF_VEIL_HOVER = alpha(light ? panel : sink(panel, 0.55f), light ? 0x60 : 0x50);
+        BACKDROP = light ? 0x90000000 : 0xB0000000;
+        BRAND_TOP = light ? lift(accent, 0.1f) : lift(accent, 0.3f);
+        BRAND_BOTTOM = light ? sink(accent, 0.2f) : sink(accent, 0.05f);
+        TOOLTIP_TOP = alpha(light ? lift(card, 0.3f) : lift(panel, 0.02f), 0xF5);
+        TOOLTIP_BOTTOM = alpha(light ? card : sink(panel, 0.3f), 0xF5);
+        KEY_CHIP_BG = light ? lift(panel, 0.5f) : sink(panel, 0.5f);
+        KEY_CHIP_EDGE = mix(panel, accent, light ? 0.3f : 0.15f);
+        KNOB = 0xFFFFFFFF;
+        KNOB_HOVER = lift(accent, 0.75f);
+        KNOB_EDGE = light ? 0xFFC8C4BE : 0xFFB8B0A8;
+    }
+
+    /** A shadow colour at {@code a} (0..255), scaled by the theme's shadow strength. */
+    public static int shadow(int a) {
+        return alpha(0xFF000000, Math.round(a * SHADOW));
+    }
 
     public static Font font() {
         return Minecraft.getInstance().font;
@@ -92,19 +265,19 @@ public final class MenuStyle {
         // inset 3px 3px 8px #000 approximated by three fading strips
         int[] a = {0xB0, 0x60, 0x28};
         for (int i = 0; i < a.length && i * 2 + 4 < Math.min(w, h); i++) {
-            int c = alpha(BLACK, a[i]);
+            int c = shadow(a[i]);
             r.fill(x + 1, y + 1 + i, x + w - 1, y + 2 + i, c);
             r.fill(x + 1 + i, y + 2 + i, x + 2 + i, y + h - 1, c);
         }
-        r.fill(x + 1, y + h - 1, x + w, y + h, 0x10FFFFFF);
-        r.fill(x + w - 1, y + 1, x + w, y + h - 1, 0x10FFFFFF);
+        r.fill(x + 1, y + h - 1, x + w, y + h, HILITE_SOFT);
+        r.fill(x + w - 1, y + 1, x + w, y + h - 1, HILITE_SOFT);
     }
 
     /** A drop shadow under/right of a box (0 3px 6px #000c), drawn BEFORE the box. */
     public static void dropShadow(GuiRects r, int x, int y, int w, int h, int depth) {
         int[] a = {0x90, 0x50, 0x24};
         for (int i = 0; i < Math.min(depth, a.length); i++) {
-            int c = alpha(BLACK, a[i]);
+            int c = shadow(a[i]);
             r.fill(x + 1 + i, y + h + i, x + w + i, y + h + i + 1, c);
             r.fill(x + w + i, y + 1 + i, x + w + i + 1, y + h + i, c);
         }
@@ -140,7 +313,7 @@ public final class MenuStyle {
     /** A 1px black separator with a faint light line under it. */
     public static void separator(GuiRects r, int x0, int x1, int y) {
         r.fill(x0, y, x1, y + 1, BLACK);
-        r.fill(x0, y + 1, x1, y + 2, 0x12FFFFFF);
+        r.fill(x0, y + 1, x1, y + 2, HILITE_SOFT);
     }
 
     /** Width and height of {@link #toggle}. */
@@ -152,54 +325,54 @@ public final class MenuStyle {
         int w = SWITCH_W;
         int h = SWITCH_H;
         if (on) {
-            glow(r, x, y, w, h, OR, hover ? 0x60 : 0x40);
+            glow(r, x, y, w, h, SW_ON_BOTTOM, hover ? 0x60 : 0x40);
         }
         // pill: square ends softened by clipping a pixel off each corner
-        int top = on ? 0xFFC45F0A : 0xFF2E2721;
-        int bottom = on ? 0xFFFF8A1F : 0xFF3B332B;
+        int top = on ? SW_ON_TOP : SW_OFF_TOP;
+        int bottom = on ? SW_ON_BOTTOM : SW_OFF_BOTTOM;
         r.fill(x + 1, y, x + w - 1, y + 1, BLACK);
         r.fill(x + 1, y + h - 1, x + w - 1, y + h, BLACK);
         r.fill(x, y + 1, x + 1, y + h - 1, BLACK);
         r.fill(x + w - 1, y + 1, x + w, y + h - 1, BLACK);
         r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, top, bottom);
-        r.fill(x + 1, y + 1, x + w - 1, y + 2, alpha(BLACK, 0x70));
-        r.fill(x + 1, y + 2, x + 2, y + h - 1, alpha(BLACK, 0x50));
+        r.fill(x + 1, y + 1, x + w - 1, y + 2, shadow(0x70));
+        r.fill(x + 1, y + 2, x + 2, y + h - 1, shadow(0x50));
         int k = h - 2;
         int kx = on ? x + w - 1 - k : x + 1;
         int ky = y + 1;
-        int knob = on ? 0xFFFFFFFF : (hover ? 0xFFA59C90 : KNOB_OFF);
+        int knob = on ? KNOB : (hover ? mix(KNOB_OFF, TXT, 0.3f) : KNOB_OFF);
         r.fill(kx + 1, ky, kx + k - 1, ky + k, knob);
         r.fill(kx, ky + 1, kx + k, ky + k - 1, knob);
         r.fill(kx + 1, ky, kx + k - 1, ky + 1, 0x60FFFFFF);
-        r.fill(kx + 1, ky + k - 1, kx + k - 1, ky + k, 0x4D000000);
+        r.fill(kx + 1, ky + k - 1, kx + k - 1, ky + k, shadow(0x4D));
     }
 
     /** A recessed pill holding a value (the cycling buttons): dark well, an orange-gradient face when {@code lit}. */
     public static void pill(GuiRects r, int x, int y, int w, int h, boolean lit, boolean hover) {
         r.outline(x, y, w, h, BLACK);
         if (lit) {
-            r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, hover ? 0xFFFFB060 : OR_LIGHT, hover ? 0xFFE87A1A : 0xFFD86A0A);
+            r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, hover ? OR_HOVER : OR_LIGHT, hover ? OR : OR_DARK);
             r.fill(x + 1, y + 1, x + w - 1, y + 2, 0x60FFFFFF);
-            r.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, 0x50000000);
+            r.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, shadow(0x50));
         } else {
-            r.fill(x + 1, y + 1, x + w - 1, y + h - 1, hover ? 0xFF15110D : 0xFF0A0908);
-            r.fill(x + 1, y + 1, x + w - 1, y + 2, 0xC0000000);
-            r.fill(x + 1, y + 2, x + 2, y + h - 1, 0x80000000);
+            r.fill(x + 1, y + 1, x + w - 1, y + h - 1, hover ? PILL_BG_HOVER : PILL_BG);
+            r.fill(x + 1, y + 1, x + w - 1, y + 2, shadow(0xC0));
+            r.fill(x + 1, y + 2, x + 2, y + h - 1, shadow(0x80));
         }
     }
 
     /** A raised button with the orange outline ring (.btn): dark-orange gradient face, black edge, orange ring outside. */
     public static void raisedButton(GuiRects r, int x, int y, int w, int h, boolean hover, boolean pressedLook) {
         dropShadow(r, x, y, w, h, 2);
-        r.outline(x - 1, y - 1, w + 2, h + 2, hover ? OR : 0xFF7A4A18);
-        int top = pressedLook ? 0xFF4A2A08 : (hover ? 0xFF4A3016 : 0xFF3A2510);
-        int bottom = pressedLook ? 0xFF63380B : (hover ? 0xFF2C1C0C : 0xFF22160A);
+        r.outline(x - 1, y - 1, w + 2, h + 2, hover ? OR : ACCENT_EDGE);
+        int top = pressedLook ? BTN_PRESSED_TOP : (hover ? BTN_HOVER_TOP : BTN_TOP);
+        int bottom = pressedLook ? BTN_PRESSED_BOTTOM : (hover ? BTN_HOVER_BOTTOM : BTN_BOTTOM);
         r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, top, bottom);
         r.outline(x, y, w, h, BLACK);
-        r.fill(x + 1, y + 1, x + w - 1, y + 2, 0x28FFFFFF);
-        r.fill(x + 1, y + 2, x + 2, y + h - 1, 0x28FFFFFF);
-        r.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, 0x80000000);
-        r.fill(x + w - 2, y + 2, x + w - 1, y + h - 2, 0x80000000);
+        r.fill(x + 1, y + 1, x + w - 1, y + 2, HILITE);
+        r.fill(x + 1, y + 2, x + 2, y + h - 1, HILITE);
+        r.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, SHADE);
+        r.fill(x + w - 2, y + 2, x + w - 1, y + h - 2, SHADE);
     }
 
     /** A red raised button (a destructive action asking for its confirming click). */
@@ -208,7 +381,7 @@ public final class MenuStyle {
         r.outline(x - 1, y - 1, w + 2, h + 2, hover ? 0xFFFF4444 : 0xFFCC2222);
         r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, hover ? 0xFF7A1A1A : 0xFF5A1010, hover ? 0xFF4A0E0E : 0xFF3A0A0A);
         r.outline(x, y, w, h, BLACK);
-        r.fill(x + 1, y + 1, x + w - 1, y + 2, 0x28FFFFFF);
+        r.fill(x + 1, y + 1, x + w - 1, y + 2, HILITE);
     }
 
     /** The orange scrollbar thumb (5 wide) in a dark track: {@code offset} of {@code max}, {@code view} of {@code view+max}. */
@@ -216,7 +389,7 @@ public final class MenuStyle {
         if (max <= 0 || height <= 6) {
             return;
         }
-        r.fill(x, top, x + 4, top + height, 0x80000000);
+        r.fill(x, top, x + 4, top + height, shadow(0x80));
         int content = view + max;
         int thumb = Math.max(14, height * view / Math.max(1, content));
         int ty = top + (height - thumb) * Math.max(0, Math.min(offset, max)) / max;
@@ -228,8 +401,9 @@ public final class MenuStyle {
     /** The section band (.sec): a fading orange (or red) gradient strip with a black top edge. */
     public static void sectionBand(GuiRects r, int x, int y, int w, int h, boolean red) {
         r.fill(x, y, x + w, y + 1, BLACK);
-        r.fill(x, y + 1, x + w, y + 2, 0x0CFFFFFF);
-        hGradient(r, x, y + 1, x + w, y + h, red ? 0xFF3A1414 : 0xFF2A1D10, red ? 0x003A1414 : 0x002A1D10, 12);
+        r.fill(x, y + 1, x + w, y + 2, HILITE_SOFT);
+        int c = red ? RED_BAND : BAND;
+        hGradient(r, x, y + 1, x + w, y + h, c, alpha(c, 0), 12);
     }
 
     /** Slider track (recessed) with the filled part orange and a bevelled white knob. */
@@ -238,7 +412,7 @@ public final class MenuStyle {
         int y = cy - h / 2;
         r.outline(x0, y, x1 - x0, h, BLACK);
         r.fill(x0 + 1, y + 1, x1 - 1, y + h - 1, TRACK);
-        r.fill(x0 + 1, y + 1, x1 - 1, y + 2, 0xA0000000);
+        r.fill(x0 + 1, y + 1, x1 - 1, y + 2, shadow(0xA0));
         int kx = x0 + (int) Math.round(Math.max(0, Math.min(1, t)) * (x1 - x0));
         if (kx > x0 + 1) {
             r.gradient(x0 + 1, y + 1, Math.min(kx, x1 - 1), y + h - 1, OR_LIGHT, OR_DARK);
@@ -252,17 +426,17 @@ public final class MenuStyle {
         r.fill(x + 2, y, x + s - 2, y + s, BLACK);
         r.fill(x, y + 2, x + s, y + s - 2, BLACK);
         r.fill(x + 1, y + 1, x + s - 1, y + s - 1, BLACK);
-        int face = hover ? 0xFFFFE0C0 : 0xFFFFFFFF;
+        int face = hover ? KNOB_HOVER : KNOB;
         r.fill(x + 2, y + 1, x + s - 2, y + s - 1, face);
         r.fill(x + 1, y + 2, x + s - 1, y + s - 2, face);
-        r.fill(x + 2, y + s - 2, x + s - 2, y + s - 1, 0xFFB8B0A8);
-        r.fill(x + 1, y + s - 3, x + 2, y + s - 2, 0xFFB8B0A8);
-        r.fill(x + s - 2, y + s - 3, x + s - 1, y + s - 2, 0xFFB8B0A8);
+        r.fill(x + 2, y + s - 2, x + s - 2, y + s - 1, KNOB_EDGE);
+        r.fill(x + 1, y + s - 3, x + 2, y + s - 2, KNOB_EDGE);
+        r.fill(x + s - 2, y + s - 3, x + s - 1, y + s - 2, KNOB_EDGE);
     }
 
     /** A tiny orange dot with a glow (the "changed from default" marker). */
     public static void dot(GuiRects r, int x, int y) {
-        r.fill(x - 1, y - 1, x + 4, y + 4, 0x30FF8A1F);
+        r.fill(x - 1, y - 1, x + 4, y + 4, alpha(OR, 0x30));
         r.fill(x, y, x + 3, y + 3, OR);
     }
 
@@ -270,15 +444,15 @@ public final class MenuStyle {
 
     /** Text with the 1px black drop shadow (text-shadow: 1px 1px 0 #000c). */
     public static void text(GuiGraphicsExtractor g, String s, int x, int y, int color) {
-        g.text(font(), s, x, y, color, true);
+        g.text(font(), s, x, y, color, TEXT_SHADOW);
     }
 
     public static void text(GuiGraphicsExtractor g, Component s, int x, int y, int color) {
-        g.text(font(), s, x, y, color, true);
+        g.text(font(), s, x, y, color, TEXT_SHADOW);
     }
 
     public static void text(GuiGraphicsExtractor g, FormattedCharSequence s, int x, int y, int color) {
-        g.text(font(), s, x, y, color, true);
+        g.text(font(), s, x, y, color, TEXT_SHADOW);
     }
 
     /** Text with no shadow. */
@@ -295,7 +469,9 @@ public final class MenuStyle {
         g.pose().pushMatrix();
         g.pose().translate(x, y);
         g.pose().scale(scale, scale);
-        g.text(f, s, 1, 1, 0xFF000000, false);
+        if (TEXT_SHADOW) {
+            g.text(f, s, 1, 1, 0xFF000000, false);
+        }
         int w = f.width(s);
         int[] cuts = {0, 3, 6, 9};
         for (int i = 0; i < 3; i++) {
@@ -305,6 +481,33 @@ public final class MenuStyle {
             g.disableScissor();
         }
         g.pose().popMatrix();
+    }
+
+    /** Legacy colour codes that wash out on a light panel swapped for their darker partners (white text becomes black). */
+    public static String lightReadable(String raw) {
+        if (raw.indexOf('§') < 0) {
+            return raw;
+        }
+        StringBuilder out = new StringBuilder(raw.length());
+        for (int i = 0; i < raw.length(); i++) {
+            char ch = raw.charAt(i);
+            out.append(ch);
+            if (ch == '§' && i + 1 < raw.length()) {
+                char code = Character.toLowerCase(raw.charAt(i + 1));
+                char to = switch (code) {
+                    case 'a' -> '2';
+                    case 'b' -> '3';
+                    case 'e' -> '6';
+                    case 'f' -> '0';
+                    case '7' -> '8';
+                    case 'd' -> '5';
+                    default -> code;
+                };
+                out.append(to);
+                i++;
+            }
+        }
+        return out.toString();
     }
 
     /** {@code s} cut to {@code maxW} pixels with "..." when it does not fit (formatting codes kept). */

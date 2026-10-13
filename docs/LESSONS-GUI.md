@@ -305,3 +305,14 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **A narrow drawer stacks side-by-side rows** (`ModScreen.stackRows`): only a line made purely of setting rows sharing one
   y, with nothing else overlapping it, is stacked full width; everything below moves down by the same amount. A line
   with a text box, a preview or a list keeps its layout. Tabs still lay themselves out for any width.
+- **The menu's colours are one palette derived from five.** `MenuStyle`'s colours are mutable statics that `MenuStyle.use()`
+  re-derives from the active `MenuTheme` (accent, panel, card, text, on-switch) whenever `MenuConfig.version()` moves, so a
+  Custom set gets the same bevels, wells and hover shades as a preset; a panel above mid luminance switches on the light
+  treatment (grey outlines, shadows at a third, no text shadow). A new piece of the menu takes its colours from those
+  statics - a literal there is a colour the theme cannot change. Danger red and Discord/GitHub's own colours are the
+  only fixed ones.
+- **A tab's `StringWidget` colours its own text** (§ codes, drawn through `visitLines`, left-aligned at `getX()`), so a
+  light theme cannot reach it: the drawer pane draws section headings itself in the accent / cheat red, and on a light
+  theme every other line too, with the washed-out codes (§7 §f §a §b §e) swapped for darker partners
+  (`MenuStyle.lightReadable`). `ColorSwatch`'s square is a styled sibling, not a § code, so `getString()` loses it: the
+  row reads the sibling's `TextColor` and paints the swatch.
