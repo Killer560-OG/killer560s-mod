@@ -81,6 +81,11 @@ public final class MainMenuTitleLayout {
     private static final int VANILLA_ROWS = 3;
     /** Keep the "Playing as" line clear of the bottom-left footer lines (mod tag at height-20, version at height-10). */
     private static final int FOOTER_CLEARANCE = 22;
+    /** Vanilla's copyright line is a 10-tall PlainTextButton at height - 10, right-aligned (javap, both versions). */
+    private static final int COPYRIGHT_HEIGHT = 10;
+    /** Bottom of the logo's "Java Edition" strip: LogoRenderer DEFAULT_HEIGHT_OFFSET 30 + LOGO_HEIGHT 44 - overlap 7
+     *  + EDITION_HEIGHT 14 (javap, both versions), plus a 2-unit gap. The column never starts above it. */
+    private static final int LOGO_BOTTOM = 83;
 
     private static final String KEY_REALMS = "menu.online";
     private static final String KEY_OPTIONS = "menu.options";
@@ -293,7 +298,24 @@ public final class MainMenuTitleLayout {
                 w.setY(start + ROW_STEP * i);
                 w.setWidth(COLUMN_WIDTH);
             }
-            int rowY = start + ROW_STEP * (rows - 1) + OPTIONS_ROW_GAP;
+            int gap = OPTIONS_ROW_GAP;
+            // A short window: Options/Quit would run into the copyright line (testkit 341 at 854x480 with Mod
+            // Menu's classic Mods row: Quit 216-236 over the line at 230). Close the gap to a normal row step
+            // first, then lift the column as far as the logo allows.
+            int overflow = start + ROW_STEP * (rows - 1) + gap + ROW_HEIGHT + 1 - (screen.height - COPYRIGHT_HEIGHT);
+            if (overflow > 0) {
+                int fromGap = Math.min(overflow, OPTIONS_ROW_GAP - ROW_STEP);
+                gap -= fromGap;
+                overflow -= fromGap;
+            }
+            if (overflow > 0 && start > LOGO_BOTTOM) {
+                int lift = Math.min(overflow, start - LOGO_BOTTOM);
+                start -= lift;
+                for (int i = 0; i < rows; i++) {
+                    column.get(i).setY(start + ROW_STEP * i);
+                }
+            }
+            int rowY = start + ROW_STEP * (rows - 1) + gap;
 
             // Other mods' widgets that sat on the old Options row move with it.
             int dy = rowY - oldRowY;
