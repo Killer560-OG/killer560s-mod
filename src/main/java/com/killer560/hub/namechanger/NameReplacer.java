@@ -1,6 +1,5 @@
 package com.killer560.hub.namechanger;
 
-import com.google.common.collect.MapMaker;
 import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
@@ -12,7 +11,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * The actual text rewriting behind {@link NameChangerFeature}, called only from the render-side Font hooks
@@ -21,7 +19,7 @@ import java.util.concurrent.ConcurrentMap;
  * Performance: the no-match path (nearly every string, every frame) does a single allocation-free pass - a reusable
  * per-thread scanner walks the glyphs, splits them into name-shaped words and probes {@link NameTable} with a rolling
  * hash. Only text that actually contains a name builds a replacement, and that result is cached: per sequence
- * identity (weak keys, so chat lines / cached component visual-order text are rebuilt at most once) and per string
+ * identity (two bounded generations, so chat lines / cached component visual-order text are rebuilt at most once) and per string
  * (small LRU) for the plain-String path. Caches are dropped whenever the table is rebuilt.
  */
 public final class NameReplacer {
@@ -29,8 +27,49 @@ public final class NameReplacer {
     /** Render-thread counter: while > 0 (inside an EditBox) text is left exactly as typed. */
     private static int suppressDepth = 0;
 
-    private static final ConcurrentMap<FormattedCharSequence, FormattedCharSequence> SEQ_CACHE =
-            new MapMaker().weakKeys().concurrencyLevel(2).makeMap();
+    /**
+     * Per sequence identity: what {@link #replaceSeq} answered. Two generations of a strong identity map instead of a
+     * weak-keyed one (nametag perf, 2026-10-13): vanilla rebuilds every tab row's and every nametag's Component each
+     * frame, so most sequences seen are new, and each one cost a WeakReference, a ReferenceQueue poll and a locked put in
+     * the old Guava map - about a quarter of the name hooks' time in a busy hub (testkit 975's JFR). A sequence found in
+     * the old generation is promoted, so the stable ones (chat lines) stay; at most {@code 2 * SEQ_GEN} sequences are
+     * held, a few frames' worth, and nothing is kept alive longer than that.
+     */
+    private static final int SEQ_GEN = 1024;
+    private static java.util.IdentityHashMap<FormattedCharSequence, FormattedCharSequence> seqNew =
+            new java.util.IdentityHashMap<>(2 * SEQ_GEN);
+    private static java.util.IdentityHashMap<FormattedCharSequence, FormattedCharSequence> seqOld =
+            new java.util.IdentityHashMap<>(2 * SEQ_GEN);
+    private static final Object SEQ_LOCK = new Object();
+
+    private static FormattedCharSequence seqCacheGet(FormattedCharSequence key) {
+        synchronized (SEQ_LOCK) {
+            FormattedCharSequence v = seqNew.get(key);
+            if (v == null) {
+                v = seqOld.get(key);
+                if (v != null) {
+                    seqCachePutLocked(key, v);
+                }
+            }
+            return v;
+        }
+    }
+
+    private static void seqCachePut(FormattedCharSequence key, FormattedCharSequence value) {
+        synchronized (SEQ_LOCK) {
+            seqCachePutLocked(key, value);
+        }
+    }
+
+    private static void seqCachePutLocked(FormattedCharSequence key, FormattedCharSequence value) {
+        if (seqNew.size() >= SEQ_GEN) {
+            java.util.IdentityHashMap<FormattedCharSequence, FormattedCharSequence> t = seqOld;
+            t.clear();
+            seqOld = seqNew;
+            seqNew = t;
+        }
+        seqNew.put(key, value);
+    }
 
     private static final int STRING_CACHE_SIZE = 512;
     private static final Map<String, String> STRING_CACHE = Collections.synchronizedMap(
@@ -41,7 +80,7 @@ public final class NameReplacer {
                 }
             });
 
-    /** {@link #SEQ_CACHE} value for a sequence that holds no name to replace. */
+    /** Sequence-cache value for a sequence that holds no name to replace. */
     private static final FormattedCharSequence NO_MATCH = sink -> true;
 
     private static final ThreadLocal<Scanner> SCANNER = ThreadLocal.withInitial(Scanner::new);
@@ -112,7 +151,10 @@ public final class NameReplacer {
     }
 
     static void clearCaches() {
-        SEQ_CACHE.clear();
+        synchronized (SEQ_LOCK) {
+            seqNew.clear();
+            seqOld.clear();
+        }
         STRING_CACHE.clear();
     }
 
@@ -141,7 +183,7 @@ public final class NameReplacer {
         if (table == null) {
             return seq;
         }
-        FormattedCharSequence cached = SEQ_CACHE.get(seq);
+        FormattedCharSequence cached = seqCacheGet(seq);
         if (cached != null) {
             return cached == NO_MATCH ? seq : cached;
         }
@@ -152,13 +194,13 @@ public final class NameReplacer {
         if (sc.matchCount == 0) {
             // Remembered too: text with no name in it is nearly all text, and it was rescanned glyph by glyph on every
             // draw and width call - every chat line, tab entry and sidebar line, every frame, while Name Changer is on
-            // (FPS sweep, 2026-10-07). Stored as NO_MATCH, never as the sequence itself: a strong value naming its own
-            // weak key would keep it alive forever. A table rebuild clears this cache like any other.
-            SEQ_CACHE.put(seq, NO_MATCH);
+            // (FPS sweep, 2026-10-07). Stored as NO_MATCH, so a hit needs no second identity test. A table rebuild
+            // clears this cache like any other.
+            seqCachePut(seq, NO_MATCH);
             return seq;
         }
         Replaced out = sc.buildSequence(seq);
-        SEQ_CACHE.put(seq, out);
+        seqCachePut(seq, out);
         return out;
     }
 
@@ -218,7 +260,9 @@ public final class NameReplacer {
         }
         Scanner sc = SCANNER.get();
         sc.begin(table);
-        text.visit(sc, Style.EMPTY);
+        // The unstyled visit: the same content strings in the same order, without merging a Style per part (the scan
+        // never reads styles) - this ran for every tab row and nametag width each frame.
+        text.visit(sc.contents);
         sc.flush();
         if (sc.matchCount == 0) {
             return null;
@@ -262,7 +306,7 @@ public final class NameReplacer {
 
     // ------------------------------------------------------------------ scanner
 
-    private static final class Scanner implements FormattedCharSink, FormattedText.StyledContentConsumer<Object> {
+    private static final class Scanner implements FormattedCharSink {
         private NameTable table;
         private final char[] buf = new char[NameTable.MAX_LEN];
         private int len;
@@ -330,11 +374,10 @@ public final class NameReplacer {
         }
 
         /** FormattedText pass (width detection only - positions unused). § codes act as word breaks. */
-        @Override
-        public Optional<Object> accept(Style style, String contents) {
-            feedLegacyString(contents, false);
+        final FormattedText.ContentConsumer<Object> contents = text -> {
+            feedLegacyString(text, false);
             return Optional.empty();
-        }
+        };
 
         void feedLegacyString(String s, boolean charIndices) {
             int n = s.length();

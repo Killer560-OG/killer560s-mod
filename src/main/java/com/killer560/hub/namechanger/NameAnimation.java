@@ -23,9 +23,11 @@ import java.util.Locale;
  * glyphs are recoloured for the current time. So chat lines baked minutes ago, the tab list's cached rows, nametags,
  * the menu preview and anything else that paints the name all animate, without one hook per place.
  * <p>
- * Cost: with no animated name known, {@link #animate} is one volatile read. Otherwise each prepared text is walked
- * once into a reused per-thread buffer; a text without a glyph in a registered starting colour is returned as it was,
- * and only a text that contains an animated name allocates (its copy and one style per animated letter). The colour is
+ * Cost: with no animated name known, {@link #animate} is one volatile read. Otherwise each prepared text is first
+ * walked by a probe that tests one colour per change of style and stops at a glyph in a registered starting colour; a
+ * text without one is returned as it was (nametag perf, 2026-10-13: buffering every glyph of every text first was 70 us
+ * a frame in a busy hub, testkit 975). Only a candidate is walked again into a reused per-thread buffer, and only a
+ * text that contains an animated name allocates (its copy and one style per animated letter). The colour is
  * computed from the wall clock each frame, so it is smooth at any frame rate and two clients show roughly the same
  * phase.
  */
@@ -153,6 +155,8 @@ public final class NameAnimation {
     private static volatile Entry ownEntry;
     private static volatile List<Entry> shared = List.of();
     private static int builtOwnVersion = Integer.MIN_VALUE;
+    /** Whether {@link #shared} is in {@link #entries}: only while Show Supporter Names is on (killer560, 2026-10-13). */
+    private static volatile boolean sharedShown = true;
 
     /** Test hook (testkit 960-965): a fixed clock in epoch ms, or -1 for the real one. */
     private static volatile long frozenMs = -1L;
@@ -223,7 +227,9 @@ public final class NameAnimation {
         if (own != null) {
             all.add(own);
         }
-        all.addAll(shared);
+        if (sharedShown) {
+            all.addAll(shared);
+        }
         int[] s = new int[all.size()];
         for (int i = 0; i < s.length; i++) {
             s[i] = all.get(i).rgb[0];
@@ -235,6 +241,14 @@ public final class NameAnimation {
 
     private static Entry[] registry() {
         refreshOwn();
+        // Other players' animated names only while their names are shown at all: with Show Supporter Names off they
+        // cost every text a walk for nothing (testkit 975: ~30 us a frame in a busy hub). Lines already in chat that
+        // carry such a name then keep its fade but stop waving - killer560's call, 2026-10-13.
+        boolean show = com.killer560.hub.supporters.SupportersConfig.getInstance().isShowSupporterNames();
+        if (show != sharedShown) {
+            sharedShown = show;
+            rebuild();
+        }
         return entries;
     }
 
@@ -255,7 +269,13 @@ public final class NameAnimation {
         }
         b.busy = true;
         try {
-            b.reset(starts);
+            // Fast reject first: nearly no text holds a glyph in a registered starting colour, and finding that out
+            // needs no buffer - one colour test per change of Style, stopping at the first hit.
+            int[] startCols = starts;
+            if (!b.probe.anyStart(seq, startCols)) {
+                return seq;
+            }
+            b.reset(startCols);
             seq.accept(b);
             if (!b.candidate || !b.recolour(reg, nowSec())) {
                 return seq;
@@ -292,9 +312,14 @@ public final class NameAnimation {
         boolean replay;
         b.busy = true;
         try {
-            b.reset(starts);
-            NameColor.iterateFormatted(text, base, b);
-            replay = b.candidate && b.recolour(reg, nowSec());
+            int[] st = starts;
+            if (b.probe.anyStart(text, base, st)) {
+                b.reset(st);
+                NameColor.iterateFormatted(text, base, b);
+                replay = b.candidate && b.recolour(reg, nowSec());
+            } else {
+                replay = false;
+            }
             if (replay) {
                 int n = b.count;
                 for (int i = 0; i < n; i++) {
@@ -325,8 +350,53 @@ public final class NameAnimation {
 
     private static final ThreadLocal<Buf> BUF = ThreadLocal.withInitial(Buf::new);
 
+    /** Does a text hold any glyph whose colour is a registered starting colour? Stops at the first one. */
+    private static final class Probe implements FormattedCharSink {
+        private int[] startColours;
+        private Style lastStyle;
+        private boolean hit;
+
+        boolean anyStart(FormattedCharSequence seq, int[] startColours) {
+            begin(startColours);
+            seq.accept(this);
+            return end();
+        }
+
+        boolean anyStart(String text, Style base, int[] startColours) {
+            begin(startColours);
+            NameColor.iterateFormatted(text, base, this);
+            return end();
+        }
+
+        private void begin(int[] startColours) {
+            this.startColours = startColours;
+            lastStyle = null;
+            hit = false;
+        }
+
+        private boolean end() {
+            lastStyle = null; // hold nothing between calls
+            return hit;
+        }
+
+        @Override
+        public boolean accept(int position, Style style, int codepoint) {
+            if (style == lastStyle) {
+                return true;
+            }
+            lastStyle = style;
+            TextColor c = style.getColor();
+            if (c != null && Arrays.binarySearch(startColours, c.getValue() & 0xFFFFFF) >= 0) {
+                hit = true;
+                return false;
+            }
+            return true;
+        }
+    }
+
     /** The glyphs of one text, reused between calls on a thread. */
     private static final class Buf implements FormattedCharSink {
+        final Probe probe = new Probe();
         int[] pos = new int[128];
         int[] cps = new int[128];
         Style[] styles = new Style[128];

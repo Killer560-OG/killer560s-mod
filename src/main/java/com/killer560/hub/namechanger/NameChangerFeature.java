@@ -255,6 +255,12 @@ public final class NameChangerFeature {
      * same player, which needs "does a mapping exist for this UUID's current real ign" rather than the
      * forward text-scan {@link NameReplacer} already does for everything else.
      */
+    /** Cheap gate for {@link #mappingDisplayFor}: false when no manual rename can apply at all. */
+    public static boolean mappingsOn() {
+        NameChangerConfig cfg = NameChangerConfig.getInstance();
+        return cfg.isEnabled() && cfg.isMappingsEnabled();
+    }
+
     public static String mappingDisplayFor(String currentIgn) {
         if (currentIgn == null || currentIgn.isEmpty()) {
             return null;

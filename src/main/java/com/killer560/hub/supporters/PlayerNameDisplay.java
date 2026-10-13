@@ -1,6 +1,7 @@
 package com.killer560.hub.supporters;
 
 import com.killer560.hub.namechanger.NameChangerFeature;
+import com.killer560.hub.namechanger.NameColor;
 import com.killer560.hub.players.PlayerNames;
 import net.minecraft.network.chat.Component;
 
@@ -45,11 +46,38 @@ public final class PlayerNameDisplay {
         if (SupportersFeature.isSelfOverridden(id)) {
             return null;
         }
-        String mapped = NameChangerFeature.mappingDisplayFor(PlayerNames.nameFor(id));
+        // Asked every frame for every nametag and tab row (testkit 975): the IGN lookup only when a mapping could apply.
+        String mapped = NameChangerFeature.mappingsOn() ? NameChangerFeature.mappingDisplayFor(PlayerNames.nameFor(id)) : null;
         if (mapped != null) {
-            return Component.literal(mapped);
+            return cached(mapped, false);
         }
         return SupportersFeature.displayNameFor(id);
+    }
+
+    private static final java.util.Map<String, Component> LITERALS = new java.util.HashMap<>();
+    private static final java.util.Map<String, Component> DECODED = new java.util.HashMap<>();
+
+    /**
+     * One Component per display text, reused (nametag perf, 2026-10-13). A nametag or tab row used to get a new
+     * Component every frame, so its visual-order text - ICU Bidi included - and Name Changer's and Name Animation's scans
+     * of it were redone every frame for every supporter in view; a reused one keeps its visual order and hits their
+     * caches. The text is the same either way. {@code decoded}: through {@link NameColor#toComponent} (the {@code §x} hex
+     * escape a shared fade is written in), else {@link Component#literal}. Nothing the game does with a nametag or tab
+     * name changes the Component it is handed.
+     */
+    static Component cached(String text, boolean decoded) {
+        java.util.Map<String, Component> m = decoded ? DECODED : LITERALS;
+        synchronized (m) {
+            Component c = m.get(text);
+            if (c == null) {
+                if (m.size() >= 512) {
+                    m.clear();
+                }
+                c = decoded ? NameColor.toComponent(text) : Component.literal(text);
+                m.put(text, c);
+            }
+            return c;
+        }
     }
 
     /** Player-model render scale for {@code id} - see {@link SupportersFeature#scaleFor} for what this does

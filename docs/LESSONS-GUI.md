@@ -383,3 +383,10 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   suffix), and `stripFormatting` only removes valid codes, so a "drop the owner when it strips blank" test kept it inside every
   number crossing character 16 ("Copper: §c114,25§i0" read 11,425, 2026-10-13). Judge visibility as the renderer does: '§' plus
   ANY next character is invisible (`ScoreboardData.hasVisibleText`; testkit 1311's Hypixel-shape block).
+- **Text drawn from a Component the game rebuilds every frame never hits an identity cache.** Vanilla copies every tab
+  row's and nametag's Component each frame, so its visual-order sequence is new each frame: Name Changer's weak-keyed
+  cache paid a WeakReference and a locked put for each, Name Animation buffered every glyph of every text, and supporter
+  names were rebuilt with `NameColor.toComponent` per frame (Bidi included). testkit 975's per-call timer put the name
+  hooks at ~280 us a frame (8.5-9.5%) in a busy hub on both versions, 75 us with every name feature off; after a probe
+  fast reject, a two-generation identity map, the unstyled `FormattedText.visit` for widths and one reused Component per
+  supporter name (`PlayerNameDisplay.cached`) it is ~150 / ~30 us (2026-10-13), glyph-for-glyph identical (975's dumps).

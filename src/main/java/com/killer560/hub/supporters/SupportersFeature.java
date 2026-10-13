@@ -126,7 +126,7 @@ public final class SupportersFeature {
             return null;
         }
         // NameColor's decoder, not Component.literal: a shared fade is written in the §x hex escape vanilla misreads.
-        return NameColor.toComponent(r.displayText());
+        return PlayerNameDisplay.cached(r.displayText(), true);
     }
 
     /** Player-model render scale for {@code id} - always {@code 1.0} when not a supporter or cosmetics are
