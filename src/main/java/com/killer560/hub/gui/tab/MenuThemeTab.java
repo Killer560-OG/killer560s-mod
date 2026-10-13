@@ -34,7 +34,8 @@ public class MenuThemeTab extends BaseTab {
         int y = contentY;
         widgets.add(SettingsButtonWidget.cycling(themeText(), (btn, dir) -> {
                     step(dir);
-                    requestRebuild.run();
+                    btn.setMessage(themeText());
+                    requestRebuild.run(); // the colour rows show the new theme's colours
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
