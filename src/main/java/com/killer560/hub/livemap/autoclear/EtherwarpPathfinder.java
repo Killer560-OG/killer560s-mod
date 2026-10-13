@@ -243,7 +243,56 @@ public final class EtherwarpPathfinder {
     private static List<Node> planFloor(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
                                         DungeonLayout layout, boolean exactWanted, long exactNanos, boolean onBlock,
                                         java.util.Set<Long> air) {
+        List<Node> plan = planFloorAny(from, to, tileIdx, cfg, dist, layout, exactWanted, exactNanos, onBlock, air);
+        if (!onBlock || plan == null || plan.isEmpty()) {
+            return plan;
+        }
+        // A path node's plan must end ON the node's block (killer560, 2026-10-12: "a path node must be 100% accurate").
+        // When the block itself cannot be reached, the fallbacks below (the floor graph's near landing, the room-by-room
+        // planner's "near") hand back a plan that ends on a block next to it, and the pair flew there and stopped short
+        // of the node (testkit 634, Scaffolding: floor blocks under the walkway that no warp reaches, the plan landing on
+        // a stair 4 up). Checked hop by hop in the world the plan was made for.
+        Level level = Minecraft.getInstance().level;
+        if (level == null) {
+            return null;
+        }
+        EtherSearch es = new EtherSearch(AirOverride.wrap(new LevelEtherGrid(level), air));
+        double[] look = new double[3];
+        for (int i = 0; i < plan.size(); i++) {
+            Node n = plan.get(i);
+            BlockPos target = i + 1 < plan.size() ? plan.get(i + 1).pos : to;
+            double ey = n.y + EtherSearch.SNEAK_EYE;
+            EtherSearch.look(n.yaw, n.pitch, look);
+            int r = es.cast(n.x, ey, n.z, n.x + look[0] * dist, ey + look[1] * dist, n.z + look[2] * dist);
+            boolean onIt = r == EtherSearch.LANDS && es.hitX == target.getX() && es.hitY == target.getY()
+                    && es.hitZ == target.getZ();
+            if (!onIt) {
+                String ends = r == EtherSearch.MISS ? "nothing" : es.hitX + ", " + es.hitY + ", " + es.hitZ;
+                LOGGER.info("[Path] path node {}: warp {} of {} lands on {}, not {} - the block itself cannot be"
+                        + " reached by etherwarp; not planned", to.toShortString(), i + 1, plan.size(), ends,
+                        target.toShortString());
+                ExactInfo info = lastExact;
+                lastExact = new ExactInfo(info == null ? -1 : info.graphWarps(), -1, info != null && info.proven(),
+                        info == null ? 0 : info.fewerThan(), info == null ? 0 : info.graphMs(),
+                        info == null ? 0 : info.ms(), "the block cannot be reached by etherwarp");
+                unreachable = true;
+                return null;
+            }
+        }
+        return plan;
+    }
+
+    /**
+     * Set by {@link #findOptimalPath} when it refused a plan because it does not end on the block itself (the block
+     * cannot be reached by etherwarp), so the caller can say so instead of "found no path".
+     */
+    public static volatile boolean unreachable;
+
+    private static List<Node> planFloorAny(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
+                                           DungeonLayout layout, boolean exactWanted, long exactNanos, boolean onBlock,
+                                           java.util.Set<Long> air) {
         lastExact = null;
+        unreachable = false;
         lastProver = null;
         Level level = Minecraft.getInstance().level;
         if (level == null) {

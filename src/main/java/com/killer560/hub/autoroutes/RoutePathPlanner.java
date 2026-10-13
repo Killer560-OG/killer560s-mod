@@ -168,9 +168,13 @@ public final class RoutePathPlanner {
             List<EtherwarpPathfinder.Node> result = path;
             EtherwarpPathfinder.ExactInfo info = EtherwarpPathfinder.lastExact;
             EtherwarpPathfinder.Prover prover = EtherwarpPathfinder.lastProver;
+            boolean unreachable = EtherwarpPathfinder.unreachable;
             client.execute(() -> {
                 planning = false;
-                String why = save(route, frame, src, result, range, fx, fy, fz, tx, ty, tz, goal, !air.isEmpty());
+                String why = result == null && unreachable
+                        ? "no etherwarp path ends on path #" + b + "'s block " + goal.toShortString()
+                        + " - warps only land next to it; place the node on a block a warp can reach"
+                        : save(route, frame, src, result, range, fx, fy, fz, tx, ty, tz, goal, !air.isEmpty());
                 if (prover != null) {
                     // Not proved on the planner thread in its turn: what was found is saved (if anything) and the proof
                     // carries on, unbounded, on its own thread. The pair does not fly until it is proved.
