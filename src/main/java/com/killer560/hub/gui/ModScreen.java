@@ -267,6 +267,8 @@ public class ModScreen extends Screen {
         searchField.setMaxLength(64);
         searchField.setTextColor(MenuStyle.TXT);
         searchField.setHint(Component.literal("§8Search features & settings"));
+        // The search is not kept across a reopen: its results list would cover the page you came back to.
+        searchQuery = "";
         searchField.setValue(searchQuery);
         searchField.setResponder(text -> {
             searchQuery = text;
@@ -505,32 +507,30 @@ public class ModScreen extends Screen {
             contentX = drawerX + 8;
             contentY = top + 4;
             contentW = drawerW - 22;
-            buildContent(openFeature, drawerY + drawerH - 6);
+            BaseTab built = openFeature;
+            boolean reserved = advancedLabel(built);
+            buildContent(built, drawerY + drawerH - 6);
             for (AbstractWidget w : contentPane == null ? List.<AbstractWidget>of() : contentPane.children()) {
                 if (w instanceof SettingsButtonWidget b && b.parts().look() == SettingsButtonWidget.Look.HEADER
                         && b.parts().label().equalsIgnoreCase("Advanced")) {
                     advancedHeader = b;
                 }
             }
+            // The strip's room is known only once the real drawer has been built (no off-screen build for it: a tab
+            // can consume a one-shot flag in buildWidgets, like Translate's picker for /language). Lay out again once
+            // if it changed.
+            if (openFeature == built && (advancedHeader != null) != reserved) {
+                hasAdvanced.put(built, advancedHeader != null);
+                rebuild();
+            }
         }
     }
 
     /** Whether the tab has an Advanced section (cached): its drawer then gets the Basic / Advanced strip. */
-    private final Map<BaseTab, Boolean> hasAdvanced = new IdentityHashMap<>();
+    private static final Map<BaseTab, Boolean> hasAdvanced = new IdentityHashMap<>();
 
     private boolean advancedLabel(BaseTab tab) {
-        return hasAdvanced.computeIfAbsent(tab, t -> {
-            try {
-                for (AbstractWidget w : t.buildWidgets(0, 0, 300, () -> { })) {
-                    if (w instanceof SettingsButtonWidget b && b.parts().look() == SettingsButtonWidget.Look.HEADER
-                            && b.parts().label().equalsIgnoreCase("Advanced")) {
-                        return true;
-                    }
-                }
-            } catch (RuntimeException ignored) {
-            }
-            return false;
-        });
+        return tab != null && hasAdvanced.getOrDefault(tab, false);
     }
 
     private void buildContent(BaseTab tab, int visibleBottom) {

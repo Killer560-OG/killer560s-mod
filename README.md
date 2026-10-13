@@ -12,7 +12,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 
 **Full descriptions of every feature: [Killer560's Mod - Features](https://docs.google.com/document/d/e/2PACX-1vQsLEy_hlz-Dv518bH7AgYjyoGgdNl2jSAF4T8vzQHawmkg0f56q6Yrp67Zqncc8h9N-pdAvFLC5_D-/pub)**
 
-Open the menu in game with `/killer560`; every feature sits in its own category there. Features marked † have extra automation or through-walls options in the cheat build.
+Open the menu in game with `/killer560`: every feature is a card with its own on/off switch in its category (Dungeons, HUD, Chat, Items, Social, Cosmetics, Misc), clicking a card opens its settings, and Ctrl K searches every feature and setting. Features marked † have extra automation or through-walls options in the cheat build.
 
 **Chat** - Auto Correct, Auto Meow, Chat Emotes, Chat Hider, Chat Keybinds, Click Translate, Command Auto Correct, Copy Chat, Cringe, Mod Chat, Party Commands, Spotify Mod, Translate, Voice To Text
 
@@ -36,7 +36,7 @@ Open the menu in game with `/killer560`; every feature sits in its own category 
 
 **Display & Menus** - Borderless Fullscreen, Custom Crosshair, Fullbright, Motion Blur, Pack Disabler, Skyblock Only, Themed Main Menu, Window Layout
 
-**Accounts, Home & Profiles** - Account Switcher, Auto Scale (monitor), Blank Profile, Bug Report, Edit Bars, HUD Editor, HUD Scale, Auto Update, Menu Memory, Profiles, Proxy Client, Update Notice
+**Accounts, Home & Profiles** - Account Switcher, Auto Scale (monitor), Blank Profile, Bug Report, Edit Bars, Favourites, HUD Editor, HUD Scale, Auto Update, Menu Memory, Menu Search (Ctrl K), Profiles, Proxy Client, Update Notice
 
 **Cheat Build Only** - 0 Ping Dungeon Breaker, AP3 (F7/M7 P3 automation), Auto Anvil, Auto Blood Camp, Auto Clear, Auto Close Chest, Correction Alarm, Auto Croesus, Auto Debuff (M7 dragons), Dungeon Autopilot, Dungeon Sim (WIP), Dungeon Sim Room Filters, Dungeon Sim Teleports (/goto, /tpto, /c), Map Designer, Auto Dialogue / Breaker Aura, Auto Door Opener, Auto Puzzles (QUOI port), Auto Quiz / Auto Three Weirdos, Auto Routes, Auto Secret, Auto Sell, Auto Trap, Bazaar Flipper, Cheat Utilities, Fast/Auto Leap, Freeze State, Full Block, Goldor Triggerbot, I Hate Diorite, i4 Leap Out, Interactive Map, Lever Aura, Secret Triggerbot, Terminal Aura, Terminal Triggerbot
 

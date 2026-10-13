@@ -286,3 +286,22 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **A testkit "restart" that reloads one store is not a restart.** 890 reloaded the run memory from disk and passed, while the
   Croesus totals lived in a second static map the reload never touched - on a real restart they came back "18+ / 60, Pages
   seen 1 of 3". The page counts are now saved with the run memory, and 890 also clears any leftover static when it restarts.
+- **The Option A menu (2026-10-12) draws the tabs' own widgets as rows, centrally.** `SettingsButtonWidget`,
+  `ThemedSliderButton` and `RangeSliderWidget` take the row look (label left; switch, value pill or track right) only
+  while `ModScreen` is the screen (`SettingsButtonWidget.inMenu`); every other screen using them keeps the plain box. The
+  look is read from the message: `"Label: ON/OFF"` is a switch, a `cycling(...)` button a pill, `"Label: value"` a chip,
+  `▶/▼` a section header, anything else a raised button. A tab never needs to know.
+- **A restyled slider must map the mouse onto the track it draws.** `AbstractSliderButton.setValueFromMouse` is private
+  and maps the WHOLE widget width (`getX() + 4`, `width - 8`; javap 26.1.2 and 26.2), so a row whose track is only its
+  middle third put the knob a third of a row away from the mouse. `ThemedSliderButton` overrides `onClick` (super for
+  the drag flag, then `setValue` at the track) and `onDrag`, from the same `trackRange()` its drawing uses.
+- **Regrouping categories must not move a tooltip.** `SettingTooltipsData` has category-scoped keys (`dungeon/mode`,
+  `hud elements/scale`, `helpers/mode`); the regroup renamed every category, so `MenuCategories` remembers each tab's OLD
+  category and the drawer looks tooltips up with it (`legacyCategory`). Rename a key only if the text should change.
+- **The menu builds every tab off-screen** (card switches, the on/total counts, the search), so a one-shot flag a tab
+  consumes in `buildWidgets` is eaten by whichever build runs first: `TranslateTab.openPickerOnNextBuild` (`/language`)
+  would open the picker in a throwaway build. The real drawer is built first on open, and the Basic/Advanced strip's room
+  is learned from that real build (one extra layout) rather than from an off-screen one.
+- **A narrow drawer stacks side-by-side rows** (`ModScreen.stackRows`): only a line made purely of setting rows sharing one
+  y, with nothing else overlapping it, is stacked full width; everything below moves down by the same amount. A line
+  with a text box, a preview or a list keeps its layout. Tabs still lay themselves out for any width.
