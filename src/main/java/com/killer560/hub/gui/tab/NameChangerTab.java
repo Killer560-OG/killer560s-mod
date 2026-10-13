@@ -2,6 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.namechanger.NameAnimation;
 import com.killer560.hub.namechanger.NameChangerConfig;
 import com.killer560.hub.namechanger.NameChangerFeature;
 import com.killer560.hub.namechanger.NameColor;
@@ -102,6 +103,25 @@ public class NameChangerTab extends BaseTab {
                     }));
         }
         y += 24;
+
+        // "Name Animation" (killer560, 2026-10-13: "have it pulsate and kind of do a wave ... where the color shifts
+        // right"): only for a name with a fade or letter colours, the only kind that has colours to move. Shared with
+        // the name by Share if Supporter, so other mod users see it too (NameAnimation).
+        if (cfg.isOwnColorFadeEnabled() || cfg.hasOwnCharColors()) {
+            int animW = (contentWidth - gap) / 2;
+            widgets.add(SettingsButtonWidget.cycling(animationText(cfg), (btn, dir) -> {
+                        cfg.setOwnAnimation(SettingsButtonWidget.step(cfg.getOwnAnimation(), dir));
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y, animW, 18).build());
+            widgets.add(SettingsButtonWidget.cycling(speedText(cfg), (btn, dir) -> {
+                        cfg.setOwnAnimationSpeed(SettingsButtonWidget.step(cfg.getOwnAnimationSpeed(),
+                                NameAnimation.SPEED_STEP, NameAnimation.MIN_SPEED, NameAnimation.MAX_SPEED, dir));
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(contentX + animW + gap, y, contentWidth - animW - gap, 18).build());
+            y += 24;
+        }
         preview.setY(y);
         widgets.add(preview);
         y += 16;
@@ -171,6 +191,14 @@ public class NameChangerTab extends BaseTab {
         }
 
         return widgets;
+    }
+
+    private static Component animationText(NameChangerConfig cfg) {
+        return Component.literal("Name Animation: " + cfg.getOwnAnimation().label);
+    }
+
+    private static Component speedText(NameChangerConfig cfg) {
+        return Component.literal("Animation Speed: " + NameAnimation.speedLabel(cfg.getOwnAnimationSpeed()));
     }
 
     /**

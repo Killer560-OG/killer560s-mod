@@ -214,6 +214,22 @@ public final class NameChangerFeature {
         return colours.length == 0 ? null : colours;
     }
 
+    /** Your own name's Wave/Pulse ({@link NameAnimation}), or {@code null} when it is Off or the name has no fade and no
+     *  letter colours to animate (a flat name never animates). */
+    public static NameAnimation.Spec ownAnimation() {
+        NameChangerConfig cfg = NameChangerConfig.getInstance();
+        if (cfg.getOwnDisplayName().isEmpty() || (!cfg.isOwnColorFadeEnabled() && !cfg.hasOwnCharColors())) {
+            return null;
+        }
+        return NameAnimation.Spec.of(cfg.getOwnAnimation(), cfg.getOwnAnimationSpeed());
+    }
+
+    /** What Share if Supporter sends as {@code animation}: {@link #ownAnimation} when {@link #ownShareColours} sends a
+     *  colour list for it to animate, else {@code null}. */
+    public static NameAnimation.Spec ownShareAnimation() {
+        return ownShareColours() == null ? null : ownAnimation();
+    }
+
     /** The Name Changer tab's preview: your display name exactly as {@link #ownStyled} paints it (colour, fade, letter
      *  colours), or your real IGN when no display name is typed, as a styled Component. */
     public static net.minecraft.network.chat.Component ownPreview() {

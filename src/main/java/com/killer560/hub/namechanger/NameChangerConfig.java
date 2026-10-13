@@ -61,6 +61,10 @@ public final class NameChangerConfig {
      *  is the gradient's start and {@link #ownColorFadeTo} its end; see {@link NameColor#buildFade}. */
     private boolean ownColorFadeEnabled = false;
     private int ownColorFadeTo = NameColor.NONE;
+    /** "Name Animation" (killer560, 2026-10-13): Off, Wave or Pulse for a faded / letter-coloured own name, and its
+     *  speed - see {@link NameAnimation}. Shared with the name by Share if Supporter. */
+    private NameAnimation.Mode ownAnimation = NameAnimation.Mode.OFF;
+    private double ownAnimationSpeed = NameAnimation.DEFAULT_SPEED;
     /** Per-letter colours for your own display name (killer560, 2026-10-04: "add an option to change each
      *  character's colour for your own name"). Index = visible character position; {@link NameColor#NONE}
      *  means that letter keeps the name's normal colour (flat or fade). Entries past the name's length are
@@ -109,6 +113,9 @@ public final class NameChangerConfig {
                 }
                 cfg.ownColorFadeEnabled = ConfigJson.getBool(obj, "ownColorFadeEnabled", false);
                 cfg.ownColorFadeTo = ConfigJson.getInt(obj, "ownColorFadeTo", NameColor.NONE);
+                cfg.ownAnimation = NameAnimation.Mode.fromWire(ConfigJson.getString(obj, "ownAnimation", "off"));
+                cfg.ownAnimationSpeed = NameAnimation.clampSpeed(
+                        ConfigJson.getDouble(obj, "ownAnimationSpeed", NameAnimation.DEFAULT_SPEED));
                 JsonArray charColors = ConfigJson.getArray(obj, "ownCharColors");
                 if (charColors != null) {
                     for (JsonElement el : charColors) {
@@ -166,6 +173,8 @@ public final class NameChangerConfig {
             obj.addProperty("ownColor", ownColor);
             obj.addProperty("ownColorFadeEnabled", ownColorFadeEnabled);
             obj.addProperty("ownColorFadeTo", ownColorFadeTo);
+            obj.addProperty("ownAnimation", ownAnimation.wire);
+            obj.addProperty("ownAnimationSpeed", ownAnimationSpeed);
             JsonArray charColors = new JsonArray();
             for (Integer c : ownCharColors) {
                 charColors.add(c == null ? NameColor.NONE : c);
@@ -247,6 +256,24 @@ public final class NameChangerConfig {
 
     public void setOwnColorFadeTo(int argb) {
         this.ownColorFadeTo = argb;
+        version++;
+    }
+
+    public NameAnimation.Mode getOwnAnimation() {
+        return ownAnimation;
+    }
+
+    public void setOwnAnimation(NameAnimation.Mode mode) {
+        this.ownAnimation = mode == null ? NameAnimation.Mode.OFF : mode;
+        version++;
+    }
+
+    public double getOwnAnimationSpeed() {
+        return ownAnimationSpeed;
+    }
+
+    public void setOwnAnimationSpeed(double speed) {
+        this.ownAnimationSpeed = NameAnimation.clampSpeed(speed);
         version++;
     }
 
@@ -336,6 +363,8 @@ public final class NameChangerConfig {
         ownColor = NameColor.NONE;
         ownColorFadeEnabled = false;
         ownColorFadeTo = NameColor.NONE;
+        ownAnimation = NameAnimation.Mode.OFF;
+        ownAnimationSpeed = NameAnimation.DEFAULT_SPEED;
         ownCharColors.clear();
         version++;
     }

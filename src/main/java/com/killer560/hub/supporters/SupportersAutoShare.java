@@ -56,6 +56,14 @@ public final class SupportersAutoShare {
      *  only when it has exactly one entry per visible letter of the shared name; otherwise the name goes alone. */
     public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
                                    int[] colors, double scale, Consumer<String> onError) {
+        maybeShare(shareIfSupporter, whitelisted, plainName, argb, colors, null, scale, onError);
+    }
+
+    /** @param animation your name's Wave/Pulse ({@code NameChangerFeature.ownShareAnimation}), or null; sent only with
+     *  {@code colors}. */
+    public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
+                                   int[] colors, com.killer560.hub.namechanger.NameAnimation.Spec animation,
+                                   double scale, Consumer<String> onError) {
         if (!shareIfSupporter || !whitelisted) {
             return;
         }
@@ -67,7 +75,8 @@ public final class SupportersAutoShare {
             colors = null;
         }
         final int[] sendColors = colors;
-        String key = rawName + "|" + scale + "|" + java.util.Arrays.toString(colors);
+        final com.killer560.hub.namechanger.NameAnimation.Spec sendAnimation = colors == null ? null : animation;
+        String key = rawName + "|" + scale + "|" + java.util.Arrays.toString(colors) + "|" + sendAnimation;
         if (key.equals(lastPushedKey)) {
             return;
         }
@@ -82,7 +91,7 @@ public final class SupportersAutoShare {
         lastPushedKey = key;
         long seq = ++requestSeq;
         CompletableFuture<SupportersSelfService.SaveResult> future =
-                rawName.isEmpty() ? SupportersSelfService.clear() : SupportersSelfService.save(rawName, scale, sendColors);
+                rawName.isEmpty() ? SupportersSelfService.clear() : SupportersSelfService.save(rawName, scale, sendColors, sendAnimation);
         future.whenComplete((result, ignored) -> Minecraft.getInstance().execute(() -> {
             if (seq != requestSeq) {
                 return; // superseded by a newer change

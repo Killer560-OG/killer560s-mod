@@ -2142,6 +2142,8 @@ final class SettingTooltipsData {
         d.put("name changer/letter colours", "Opens a row with one button per letter of your display name, to colour each letter.");
         d.put("name changer/clear letter colours", "Removes every per-letter colour so the name's normal colour or fade shows again.");
         d.put("fade color", "Turns your display name into a two-colour gradient instead of one flat colour.");
+        d.put("name animation", "Animates your faded or letter-coloured name: Wave flows the colours along it to the right, Pulse dims and brightens it. Other players with the mod see it too when Share if Supporter is on.");
+        d.put("animation speed", "How fast your name's Wave or Pulse runs, from 0.25x to 3x.");
         d.put("party interop/share dungeon data with party", "Shares your dungeon info (rooms, secrets, mimic, dragons) with your party over the mod relay.");
         d.put("party interop/cross-mod bridge", "Shares dungeon data both ways with users of Devonian, NoammAddons and Odin.");
         d.put("party interop/devonian bridge", "Shares room secret counts with Devonian users in your dungeon party.");
