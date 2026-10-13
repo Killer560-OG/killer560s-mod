@@ -229,6 +229,7 @@ public final class LiveMapFeature {
         groupsDirty = true;
         resetGeneration++;
         foundSecretsByRoom.clear();
+        MapPainter.forgetMimics();
         DungeonMapScanner.reset();
         PartyMapIntel.reset();
         bossLatched = false;
@@ -284,6 +285,9 @@ public final class LiveMapFeature {
         }
         wasInDungeon = inDungeon;
         updateBossState(client, inDungeon);
+        if (inDungeon && !isInBoss()) {
+            MapPainter.onMimicKillTick(client);   // his mimic kill latches its room red, both builds
+        }
 
         // In the SIM the floor is PUBLISHED, not scanned - see publishSimFloor.
         //

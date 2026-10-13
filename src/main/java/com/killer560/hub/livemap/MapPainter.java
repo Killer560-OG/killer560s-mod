@@ -446,11 +446,13 @@ public final class MapPainter {
         // instead of only the one the player is standing in - this map shows the whole run at once, not
         // just the current room. A faint blend (mix(), same helper reportedRoomColor's dimming above uses),
         // not a flat overwrite, so it reads as "this brown room" plus a warning, not a different room type.
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && hasLiveMimic(group)) {
-            color = mix(color, MIMIC_TINT);
-        } else if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && hasSimMimic(group)) {
-            // Same tint as the live mimic. It was the Blood colour (2026-10-01), which killer560 later rejected
-            // (2026-10-05: "I just don't like it and blood looking the exact same").
+        // The sim's mimic is a real trapped chest at one of the room's database secret positions (SimMimic), so
+        // this one check covers it too; the sim-only branch that asked SimMimic for its cell is gone (2026-10-13).
+        // The tint only blends the FILL: the room's checkmark, name colour and secret count are drawn over it as
+        // before, so a cleared mimic room reads "red-tinted brown with its checkmark".
+        // Both builds: a room is red once the mimic is known to be there. The cheat build knows it in advance (the
+        // trapped chest scan); the legit build only once HE has killed it there (onMimicKillTick), killer560 2026-10-13.
+        if (hasLiveMimic(group)) {
             color = mix(color, MIMIC_TINT);
         }
         return color;
@@ -462,46 +464,97 @@ public final class MapPainter {
     private static final int MIMIC_TINT = 0x33FF0000;
 
     /**
-     * Whether the SIM's mimic is in this room.
+     * Every room TILE (grid index) that has shown the mimic this run. Once a second the scan below looks for a
+     * {@code trapped_chest} at each identified room's database secret chest positions, and any room it finds one
+     * in has its tiles added here - and never removed until {@link #forgetMimics} (a grid reset: new floor, new
+     * world, a sim rebuild).
      *
-     * <p>Separate from {@link #hasLiveMimic} because the two know different things. On Hypixel the mimic is a
-     * {@code trapped_chest} standing where the database says a secret chest is, and that is what the live
-     * check looks for. The sim's mimic is an ordinary chest that {@code SimMimic} happened to pick, so there
-     * is nothing in the world to find - it has to be asked. Cheap: one cell comparison, no block reads, so it
-     * needs none of the once-a-second caching the live scan does.
+     * <p>killer560, 2026-10-13: "If i get a mimic in a room do not have that room go back to being grey it should
+     * stay red on my map." It went back because this used to be a per-second SNAPSHOT of what the world held:
+     * when the mimic springs, Hypixel replaces its trapped chest (the sim does the same, with air), and when he
+     * walks away the chunk can unload ({@code isLoaded} false) - either way the next scan found nothing and the
+     * tint was gone the moment he had found the mimic. A room that has had the mimic keeps it.
+     *
+     * <p>Tiles rather than {@code mainIdx}: a room's group is rebuilt as more of it is revealed, and its top-left
+     * tile can change with it, while the tiles already seen stay part of the room.
      */
-    private static boolean hasSimMimic(LiveMapFeature.RoomGroup group) {
-        if (!com.killer560.hub.roomsim.SimState.isActive()) {
-            return false;
+    private static final Set<Integer> MIMIC_TILES = new HashSet<>();
+    private static long mimicScanStampMs = 0L;
+    private static final long MIMIC_SCAN_TTL_MS = 1000L;
+
+    /** Called by {@code LiveMapFeature.resetGrid}: the latched mimic rooms belong to one run. */
+    static void forgetMimics() {
+        MIMIC_TILES.clear();
+        MIMIC_DEATHS_SEEN.clear();
+        mimicScanStampMs = 0L;
+    }
+
+    /** Test hook: the tiles currently latched as the mimic's room. */
+    public static int[] mimicTiles() {
+        return MIMIC_TILES.stream().mapToInt(Integer::intValue).sorted().toArray();
+    }
+
+    /** Baby zombies already seen dying, so one death latches once. Cleared with the latch. */
+    private static final Set<Integer> MIMIC_DEATHS_SEEN = new HashSet<>();
+    /** How close to him a dying baby zombie must be to count as HIS mimic kill: a sword or a Hyperion at the mimic. */
+    private static final double MIMIC_KILL_RANGE = 12.0;
+
+    /**
+     * Every client tick in a dungeon (from {@code LiveMapFeature.tick}), BOTH builds: the mimic dying near him latches
+     * its room. killer560's coordinator, 2026-10-13: on the legit map too, "a room where HE killed the mimic turns red
+     * and stays red for the rest of the run (no advance warning - only after his own kill)". The signal is the one
+     * Auto Routes' {@code AwaitEvents} and the score calculator use for the mimic kill - a baby zombie dying (Odin
+     * Mimic.kt) - here within {@link #MIMIC_KILL_RANGE} of him; never a chest scan, which stays cheat-only.
+     */
+    static void onMimicKillTick(Minecraft client) {
+        if (client.level == null || client.player == null) {
+            return;
         }
-        int cell = com.killer560.hub.roomsim.SimMimic.mimicCell();
-        if (cell < 0) {
-            return false;
+        for (net.minecraft.world.entity.Entity e : client.level.entitiesForRendering()) {
+            if (e instanceof net.minecraft.world.entity.monster.zombie.Zombie z && z.isBaby() && z.isDeadOrDying()
+                    && z.distanceTo(client.player) <= MIMIC_KILL_RANGE && MIMIC_DEATHS_SEEN.add(z.getId())) {
+                int tile = tileAt(z.getX(), z.getZ());
+                int gid = tile < 0 ? -1 : LiveMapFeature.groupIdAt(tile);
+                if (gid >= 0) {
+                    for (int t : LiveMapFeature.groupsView().get(gid).tiles) {
+                        MIMIC_TILES.add(t);
+                    }
+                } else if (tile >= 0) {
+                    MIMIC_TILES.add(tile);
+                }
+            }
         }
-        for (int c : group.cells) {
-            if (c == cell) {
+    }
+
+    /** The room tile (even grid cell) whose 32x32 footprint holds this x/z: the nearest tile centre. */
+    private static int tileAt(double x, double z) {
+        int best = -1;
+        double bestD = 16.5 * 16.5 * 2;
+        for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
+            if ((idx % DungeonLayout.GRID) % 2 != 0 || (idx / DungeonLayout.GRID) % 2 != 0) {
+                continue;
+            }
+            BlockPos c = DungeonLayout.cellCenter(idx);
+            double dx = c.getX() - x;
+            double dz = c.getZ() - z;
+            if (dx * dx + dz * dz < bestD) {
+                bestD = dx * dx + dz * dz;
+                best = idx;
+            }
+        }
+        return best;
+    }
+
+    private static boolean hasLiveMimic(LiveMapFeature.RoomGroup group) {
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            refreshMimicScanIfStale();
+        }
+        for (int tile : group.tiles) {
+            if (MIMIC_TILES.contains(tile)) {
                 return true;
             }
         }
         return false;
-    }
-
-    /** Once-a-second snapshot of which rooms (by {@code mainIdx}) currently have a live mimic - see
-     *  {@link #hasLiveMimic}. Rebuilt lazily, never more often than {@link #MIMIC_SCAN_TTL_MS}: a live block
-     *  check per room per frame is exactly the per-frame cost the 2026-09-20 fps pass removed elsewhere on
-     *  this same map. */
-    private static Set<Integer> mimicMainIdx = Set.of();
-    private static long mimicScanStampMs = 0L;
-    private static final long MIMIC_SCAN_TTL_MS = 1000L;
-
-    private static boolean hasLiveMimic(LiveMapFeature.RoomGroup group) {
-        RoomEntry entry = group.entry;
-        if (entry == null || entry.secretCoords == null || entry.secretCoords.chest == null
-                || entry.secretCoords.chest.isEmpty()) {
-            return false;
-        }
-        refreshMimicScanIfStale();
-        return mimicMainIdx.contains(group.mainIdx);
     }
 
     private static void refreshMimicScanIfStale() {
@@ -512,10 +565,8 @@ public final class MapPainter {
         mimicScanStampMs = now;
         var level = Minecraft.getInstance().level;
         if (level == null) {
-            mimicMainIdx = Set.of();
-            return;
+            return;   // never clears the latch: only a grid reset does
         }
-        Set<Integer> found = new HashSet<>();
         for (LiveMapFeature.RoomGroup group : LiveMapFeature.groupsView()) {
             RoomEntry entry = group.entry;
             if (entry == null || entry.secretCoords == null || entry.secretCoords.chest == null
@@ -532,12 +583,13 @@ public final class MapPainter {
                 BlockPos real = RoomDatabase.toRealCoord(relative, clayRot[0], clayRot[1], clayRot[2])
                         .above(DungeonLayout.simYOffset());
                 if (level.isLoaded(real) && level.getBlockState(real).getBlock() == Blocks.TRAPPED_CHEST) {
-                    found.add(group.mainIdx);
+                    for (int tile : group.tiles) {
+                        MIMIC_TILES.add(tile);
+                    }
                     break;
                 }
             }
         }
-        mimicMainIdx = found;
     }
 
     /** A teammate-reported room's fill colour: its real type colour once {@link RoomDatabase#lookupByName}

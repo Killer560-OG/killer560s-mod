@@ -918,9 +918,11 @@ placed**: `chooseForMap` ran in the placement loop, while the secret chests go i
 callback, so the pick only ever saw the chests the captures themselves carry. It runs in that callback now,
 which is what "once everything is down" was always supposed to mean.
 
-The mimic's room is painted the map's own blood red (`cfg.getColorBlood()`), not the faint `MIMIC_TINT` blend
-the live check uses - the live check looks for a `trapped_chest` at a database secret position, which a sim
-never has, so `SimMimic.mimicCell()` answers directly instead.
+The mimic's room gets the map's ordinary `MIMIC_TINT` from the ordinary check (a `trapped_chest` at a database secret
+position, cheat build): since 2026-10-13 the sim picks its mimic only among the secret chests `SimSecrets` placed, and
+the sim-only `mimicCell()` branch in `MapPainter` is gone (it took the NEAREST cell centre, a doorway cell for any chest
+more than 8 blocks off its tile centre). The map latches the room for the rest of the run (`MapPainter.MIMIC_TILES`),
+because the chest turns to air when the mimic springs - which is what made his room lose its red on Hypixel.
 
 ## Trap rooms take your abilities
 
