@@ -321,3 +321,6 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   falls through to the button on it) and `hoveredChild` skips it when a real widget sits on it, or the buttons lose their
   tooltips. A vanilla `EditBox` draws its text and hint with a shadow, which smears dark text on the Light theme: call
   `setTextShadow(MenuStyle.TEXT_SHADOW)` (both versions, javap) and paint the hint yourself (testkit 948's shots).
+- **Never find a menu tab by its top-level index.** A testing build's `TestingMenu.arrange` moves every untested tab into
+  Untested, Profiles included, so Home's Profiles button (`indexOf(ProfilesTab.class)`) silently did nothing there until
+  2026-10-13. Open the leaf from `allLeaves()` with `openFeature(leaf)`: a page normally, a drawer in Untested (testkit 948).
