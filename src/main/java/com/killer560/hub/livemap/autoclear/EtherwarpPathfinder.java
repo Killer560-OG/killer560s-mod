@@ -492,7 +492,7 @@ public final class EtherwarpPathfinder {
     private static ExactWarpSearch exactSearch(EtherSearch.Grid grid, java.util.function.Supplier<EtherSearch.Grid> grids,
                                                EtherSearch.CellTest deadEnd) {
         return new ExactWarpSearch(grid, grids, workers(), workerCount, graphRange, STAND_OFFSET, EtherSearch.SNEAK_EYE,
-                graphRule::ok, deadEnd, graphMinX, graphMaxX, graphMinZ, graphMaxZ, graphFloor - 20, graphFloor + 45);
+                graphRule::ok, deadEnd, graphMinX, graphMaxX, graphMinZ, graphMaxZ, graphMinY, graphMaxY);
     }
 
     /** The exact search's goal: the block, or (tile6 >= 0) the tile's click region, nearest its centre first. */
@@ -628,7 +628,7 @@ public final class EtherwarpPathfinder {
             int r = layout.roomAtWorld(x + 0.5, z + 0.5);
             return (r == startRoom || r == goalRoom) && base.ok(g, x, y, z);
         };
-        WarpGraph fine = new WarpGraph(graphRange, STAND_OFFSET, 1, rule, graphFloor - 20, graphFloor + 45);
+        WarpGraph fine = new WarpGraph(graphRange, STAND_OFFSET, 1, rule, graphMinY, graphMaxY);
         fine.partialFrom = 0.0;
         fine.startPartialFrom = 0.0;
         fine.setExtraAimPoints(true);
@@ -707,6 +707,16 @@ public final class EtherwarpPathfinder {
     /** The floor graph's landing rule and floor height, for the fine room search (finePlan). Planner thread. */
     private static WarpGraph.LandingRule graphRule;
     private static int graphFloor;
+    private static int graphMinY;
+    private static int graphMaxY;
+    /**
+     * The graph's height band: from Hypixel's y 0 (the bottom of the dungeon world) to 45 over the floor, as the sim
+     * shifts them. Rooms reach well under the floor - Altar's lower level stands 26 below it - and the old floor - 20
+     * left every landing there out, so a path node on one was "no route (proved)" from anywhere above (killer560's
+     * Altar #9 -> #10, 2026-10-12, testkit 941).
+     */
+    private static final int BAND_BELOW_FLOOR = 69;
+    private static final int BAND_ABOVE_FLOOR = 45;
     private static int graphMinX;
     private static int graphMaxX;
     private static int graphMinZ;
@@ -788,18 +798,22 @@ public final class EtherwarpPathfinder {
                     && covered(g, x, y, z, floor, topY);
             graphRule = rule;
             graphFloor = floor;
+            int minY = Math.max(level.getMinY(), floor - BAND_BELOW_FLOOR);
+            int maxY = floor + BAND_ABOVE_FLOOR;
+            graphMinY = minY;
+            graphMaxY = maxY;
             graphMinX = minX;
             graphMaxX = maxX;
             graphMinZ = minZ;
             graphMaxZ = maxZ;
-            WarpGraph made = new WarpGraph(range, STAND_OFFSET, BUCKET, rule, floor - 20, floor + 45);
+            WarpGraph made = new WarpGraph(range, STAND_OFFSET, BUCKET, rule, minY, maxY);
             FloorTiles tiles = new FloorTiles(first.getX(), first.getZ(), floor);
             made.setTiles(tiles);
             made.setFine(EtherwarpPathfinder::doorwayColumn);
             made.partialFrom = PARTIAL_FROM;
             // The quick graph a click uses until the full one is warm (FloorGraphs): same landing rule and tiles,
             // coarser, only the doorways' own centre lines kept whole, cheap aims.
-            WarpGraph quick = new WarpGraph(range, STAND_OFFSET, FloorGraphs.QUICK_BUCKET, rule, floor - 20, floor + 45);
+            WarpGraph quick = new WarpGraph(range, STAND_OFFSET, FloorGraphs.QUICK_BUCKET, rule, minY, maxY);
             quick.setTiles(tiles);
             quick.setFine(EtherwarpPathfinder::doorLineColumn);
             quick.partialFrom = FloorGraphs.QUICK_PARTIAL_FROM;
