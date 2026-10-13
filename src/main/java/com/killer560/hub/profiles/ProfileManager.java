@@ -1169,6 +1169,13 @@ public final class ProfileManager {
         // GIFs, presets, routes and the rest (ProfileData), the same way.
         int[] dataCounts = new int[2];
         lastLiveData = ProfileData.sync(dir, lastLiveData, dataCounts);
+        // Files this build just wrote are this build's: re-stamp, so a later load runs only the migrations they need.
+        if ((copied > 0 || removed > 0) && dataCounts[0] == 0 && dataCounts[1] == 0) {
+            try {
+                ProfileData.writeMeta(dir);
+            } catch (IOException ignored) {
+            }
+        }
         copied += dataCounts[0];
         removed += dataCounts[1];
         if (copied > 0 || removed > 0) {
