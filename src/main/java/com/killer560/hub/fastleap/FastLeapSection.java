@@ -152,13 +152,15 @@ public final class FastLeapSection {
     }
 
     static Component returnLabel(int slot) {
-        return Component.literal("Return To: §6" + (slot == FastLeapConfig.RETURN_PREVIOUS ? "Previous Slot" : "Slot " + (slot + 1)));
+        return Component.literal("Return To: §6" + (slot == FastLeapConfig.RETURN_PREVIOUS ? "Previous Slot"
+                : slot == FastLeapConfig.RETURN_STAY ? "Stay on Leap" : "Slot " + (slot + 1)));
     }
 
-    /** Previous Slot, Slot 1 ... Slot 9, wrapping; dir 1 forward, -1 back. */
+    /** Previous Slot, Stay on Leap, Slot 1 ... Slot 9, wrapping; dir 1 forward, -1 back. */
     static int stepReturn(int slot, int dir) {
-        int i = slot + 1; // Previous = 0, Slot 1 = 1 ...
-        return Math.floorMod(i + (dir < 0 ? -1 : 1), 10) - 1;
+        int i = slot == FastLeapConfig.RETURN_PREVIOUS ? 0 : slot == FastLeapConfig.RETURN_STAY ? 1 : slot + 2;
+        int n = Math.floorMod(i + (dir < 0 ? -1 : 1), 11);
+        return n == 0 ? FastLeapConfig.RETURN_PREVIOUS : n == 1 ? FastLeapConfig.RETURN_STAY : n - 2;
     }
 
     // ---- section 2: the leaps ----------------------------------------------------------------------------------

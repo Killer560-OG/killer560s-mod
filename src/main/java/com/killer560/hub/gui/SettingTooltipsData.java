@@ -1553,7 +1553,7 @@ final class SettingTooltipsData {
         d.put("fast/auto leap/click delay", "Minimum time between fast leap clicks, 100-500 ms (cheat build only).");
         d.put("fast/auto leap/block inputs", "Blocks your keyboard and mouse while a fast or auto leap is clicking (cheat build only).");
         d.put("fast/auto leap/fast mode", "Blocks input only between the leap menu opening and the click (cheat build only).");
-        d.put("fast/auto leap/return to", "The hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap: your previous slot or a fixed slot 1-9 (cheat build only).");
+        d.put("fast/auto leap/return to", "The hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap: your previous slot, Stay on Leap (no swap back), or a fixed slot 1-9 (cheat build only).");
         d.put("fast/auto leap/target", "Who this leap goes to: a class (the teammate who has it, Leap Order's class picks included) or a party member by name. Left click forward, right click back.");
         d.put("fast/auto leap/keywords", "Posmsg mode: party-chat words that mark who is at this spot, comma separated.");
         d.put("fast/auto leap/s1", "Who you leap to when section 1 is done: a class or a party member. Left click forward, right click back.");

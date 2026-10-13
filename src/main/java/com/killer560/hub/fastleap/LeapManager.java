@@ -503,8 +503,8 @@ public final class LeapManager {
             suppressUseInput(client);
             if (req.swapBack && !already) {
                 int want = FastLeapConfig.getInstance().getReturnToSlot();
-                int slot = want == FastLeapConfig.RETURN_PREVIOUS ? selected : want;
-                a.returnSlot = slot == leapSlot ? -1 : slot;
+                int slot = want == FastLeapConfig.RETURN_PREVIOUS ? selected : want; // RETURN_STAY: -2, no swap back
+                a.returnSlot = slot < 0 || slot == leapSlot ? -1 : slot;
             }
             // nothing is sent here: each step goes out on its own tick from onStartTick
         }

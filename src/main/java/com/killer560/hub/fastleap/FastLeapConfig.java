@@ -109,8 +109,10 @@ public final class FastLeapConfig {
     }
 
     /** Return To: the hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap first.
-     *  {@link #RETURN_PREVIOUS} is the slot held before the swap; 0-8 a fixed hotbar slot. */
+     *  {@link #RETURN_PREVIOUS} is the slot held before the swap; {@link #RETURN_STAY} stays on the leap (no swap back,
+     *  killer560 2026-10-13); 0-8 a fixed hotbar slot. */
     public static final int RETURN_PREVIOUS = -1;
+    public static final int RETURN_STAY = -2;
 
     private static final class TargetSettings {
         String name = "";
@@ -276,7 +278,7 @@ public final class FastLeapConfig {
     }
 
     private static int clampReturn(int slot) {
-        return slot < 0 || slot > 8 ? RETURN_PREVIOUS : slot;
+        return slot == RETURN_STAY ? RETURN_STAY : slot < 0 || slot > 8 ? RETURN_PREVIOUS : slot;
     }
 
     private static int clampDelay(int ms) {
@@ -331,7 +333,7 @@ public final class FastLeapConfig {
         fastMode = v;
     }
 
-    /** Return To: {@link #RETURN_PREVIOUS} or a hotbar slot 0-8. */
+    /** Return To: {@link #RETURN_PREVIOUS}, {@link #RETURN_STAY} or a hotbar slot 0-8. */
     public int getReturnToSlot() {
         return returnToSlot;
     }
