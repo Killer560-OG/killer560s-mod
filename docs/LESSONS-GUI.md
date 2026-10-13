@@ -316,3 +316,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   theme every other line too, with the washed-out codes (§7 §f §a §b §e) swapped for darker partners
   (`MenuStyle.lightReadable`). `ColorSwatch`'s square is a styled sibling, not a § code, so `getString()` loses it: the
   row reads the sibling's `TextColor` and paints the swatch.
+- **Anything that must change a name's look over time belongs at `Font.prepareText`, not where the name is built.** Chat
+  lines are styled once when added and the tab list caches its rows, so a name built with per-frame colours would only
+  animate in some places. `NameAnimation` (Wave/Pulse, 2026-10-13) recolours at draw time, recognising a name by its
+  exact letters in their exact base colours; testkit 960-965 freeze its clock to compare two frames pixel for pixel.
