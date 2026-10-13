@@ -56,6 +56,9 @@ public class BestFriendsTab extends BaseTab {
                 }).bounds(col2X, y, colW, 18).build());
         y += 24;
 
+        widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.social.BestFriendsScreen.THEME_ID, contentX, y, colW, 18));
+        y += 24;
+
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Best Friends (/bestfriends)"), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new BestFriendsScreen(McCompat.screen(client)));

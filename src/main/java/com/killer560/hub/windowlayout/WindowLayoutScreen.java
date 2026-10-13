@@ -1,6 +1,10 @@
 package com.killer560.hub.windowlayout;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.hud.GuiRects;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -11,19 +15,14 @@ import com.killer560.hub.compat.McCompat;
 
 /** Scaled preview of one monitor with the N layout cells outlined; clicking a cell moves + resizes this
  *  Minecraft window into it (see {@link WindowLayoutFeature}). */
-public class WindowLayoutScreen extends Screen {
+public class WindowLayoutScreen extends Screen implements MenuThemedScreen {
 
-    private static final int ACCENT = 0xFFCC6600;
-    private static final int ACCENT_LIGHT = 0xFFFFA040;
-    private static final int BORDER = 0xFF553311;
-    private static final int PANEL = 0xFF0D0D0D;
-    private static final int OUTSIDE_WORK = 0xFF1A1108;
-    private static final int CELL_BG = 0xFF1A1A1A;
-    private static final int CELL_HOVER = 0xFF3D2A14;
-
-    private static final int TOP = 26;
-    private static final int BOTTOM = 34;
+    /** Room above the monitor preview (the frame's header bar) and below it (the button row), and beside it. */
+    private static final int TOP = 36;
+    private static final int BOTTOM = 40;
     private static final int SIDE = 20;
+    /** The frame around everything, inset from the window edge. */
+    private static final int MARGIN = 6;
 
     private final Screen parent;
     private List<WindowMonitors.MonitorInfo> monitors = List.of();
@@ -48,7 +47,7 @@ public class WindowLayoutScreen extends Screen {
         int gap = 6;
         int total = bw * 4 + gap * 3;
         int x = width / 2 - total / 2;
-        int y = height - BOTTOM + 7;
+        int y = height - BOTTOM + 8;
 
         addRenderableWidget(SettingsButtonWidget.cycling(monitorText(), (btn, dir) -> {
             if (monitors.isEmpty()) {
@@ -141,21 +140,39 @@ public class WindowLayoutScreen extends Screen {
         return -1;
     }
 
+    /** This screen's own Theme setting (Theme Default follows the menu). */
+    public static final String THEME_ID = "windowlayout";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{MARGIN, MARGIN, width - 2 * MARGIN, height - 2 * MARGIN};
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, width, height, 0xCC000000);
-        graphics.centeredText(font, "Window Layout", width / 2, 9, ACCENT);
+        ScreenChrome.backdrop(graphics, width, height);
+        ScreenChrome.frame(graphics, MARGIN, MARGIN, width - 2 * MARGIN, height - 2 * MARGIN);
+        ScreenChrome.header(graphics, MARGIN, MARGIN, width - 2 * MARGIN, "Window Layout");
+        ScreenChrome.headerRight(graphics, MARGIN, MARGIN, width - 2 * MARGIN, "Click a cell to move this window there",
+                MenuStyle.DIM);
 
         double[] p = preview();
         if (p != null) {
             WindowLayoutConfig cfg = WindowLayoutConfig.getInstance();
             int[] mon = toGui(p, monitor.x(), monitor.y(), monitor.width(), monitor.height());
-            graphics.fill(mon[0], mon[1], mon[2], mon[3], cfg.isRespectTaskbar() ? OUTSIDE_WORK : PANEL);
+            GuiRects r = GuiRects.begin(graphics);
+            // The monitor is a recessed well; the taskbar strip outside the work area is a deeper shade of it.
+            MenuStyle.well(r, mon[0] - 1, mon[1] - 1, mon[2] - mon[0] + 2, mon[3] - mon[1] + 2,
+                    cfg.isRespectTaskbar() ? MenuStyle.WELL_DEEP : MenuStyle.WELL);
             if (cfg.isRespectTaskbar()) {
                 int[] work = toGui(p, monitor.workX(), monitor.workY(), monitor.workWidth(), monitor.workHeight());
-                graphics.fill(work[0], work[1], work[2], work[3], PANEL);
+                r.fill(work[0], work[1], work[2], work[3], MenuStyle.WELL);
             }
-            graphics.outline(mon[0] - 1, mon[1] - 1, mon[2] - mon[0] + 2, mon[3] - mon[1] + 2, BORDER);
 
             int[][] cells = guiCells(p);
             int hovered = hoveredCell(cells, mouseX, mouseY);
@@ -165,14 +182,23 @@ public class WindowLayoutScreen extends Screen {
             for (int i = 0; i < cells.length; i++) {
                 int[] c = cells[i];
                 boolean hover = i == hovered;
-                graphics.fill(c[0], c[1], c[2], c[3], hover ? CELL_HOVER : CELL_BG);
-                int outline = hover ? ACCENT_LIGHT : ACCENT;
-                graphics.outline(c[0], c[1], c[2] - c[0], c[3] - c[1], outline);
-                if (hover || (lastHere && i == cfg.getLastCellIndex())) {
-                    graphics.outline(c[0] + 1, c[1] + 1, c[2] - c[0] - 2, c[3] - c[1] - 2, outline);
+                boolean last = lastHere && i == cfg.getLastCellIndex();
+                if (hover) {
+                    MenuStyle.glow(r, c[0], c[1], c[2] - c[0], c[3] - c[1], MenuStyle.OR, 0x40);
                 }
+                ScreenChrome.card(r, c[0], c[1], c[2] - c[0], c[3] - c[1], hover);
+                if (hover || last) {
+                    r.outline(c[0], c[1], c[2] - c[0], c[3] - c[1], hover ? MenuStyle.OR_HOVER : MenuStyle.OR);
+                    r.outline(c[0] + 1, c[1] + 1, c[2] - c[0] - 2, c[3] - c[1] - 2, hover ? MenuStyle.OR_HOVER : MenuStyle.OR);
+                } else {
+                    r.outline(c[0], c[1], c[2] - c[0], c[3] - c[1], MenuStyle.ACCENT_EDGE);
+                }
+            }
+            r.submit();
+            for (int i = 0; i < cells.length; i++) {
+                int[] c = cells[i];
                 drawNumber(graphics, String.valueOf(i + 1), (c[0] + c[2]) / 2, (c[1] + c[3]) / 2,
-                        Math.min(c[2] - c[0], c[3] - c[1]), hover ? ACCENT_LIGHT : 0xFFFFFFFF);
+                        Math.min(c[2] - c[0], c[3] - c[1]), i == hovered ? MenuStyle.OR_HOVER : MenuStyle.TXT);
             }
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
@@ -183,7 +209,7 @@ public class WindowLayoutScreen extends Screen {
         graphics.pose().pushMatrix();
         graphics.pose().translate(cx, cy);
         graphics.pose().scale(scale, scale);
-        graphics.centeredText(font, text, 0, -4, color);
+        ScreenChrome.centered(graphics, text, 0, -4, color);
         graphics.pose().popMatrix();
     }
 

@@ -70,6 +70,9 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     btn.setMessage(onOff("Show Skin", cfg.isShowSkin()));
                 }).bounds(colBX, y, colW, 18).build());
+        y += 22;
+
+        widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.profileviewer.screen.ProfileViewerScreen.THEME_ID, contentX, y, colW, 18));
         y += 28;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal("Hypixel API Key"), mc.font));

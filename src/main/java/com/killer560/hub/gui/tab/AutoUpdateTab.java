@@ -49,6 +49,10 @@ public class AutoUpdateTab extends BaseTab {
                 }).bounds(contentX + half + gap, y, rightW, 20).build());
         y += 24;
 
+        // The "updated to" popup's own Theme (2026-10-13; Theme Default follows the menu).
+        widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.autoupdate.UpdatedScreen.THEME_ID, contentX, y, half, 20));
+        y += 24;
+
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal("§7This build: "
                 + BuildInfo.shortCommit() + " (" + BuildInfo.minecraft() + " " + BuildInfo.variant() + ")"),
                 Minecraft.getInstance().font));

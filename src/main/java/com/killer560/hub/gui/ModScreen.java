@@ -268,7 +268,9 @@ public class ModScreen extends Screen {
         searchField.setBordered(false);
         searchField.setMaxLength(64);
         searchField.setTextColor(MenuStyle.TXT);
-        searchField.setHint(Component.literal("§8Search features & settings"));
+        searchField.setTextShadow(MenuStyle.TEXT_SHADOW);
+        // The hint is painted by drawHeader: EditBox draws its hint with a text shadow, which smears dark text on the
+        // Light theme (the Profiles name box had the same bug, 786297ce).
         // The search is not kept across a reopen: its results list would cover the page you came back to.
         searchQuery = "";
         searchField.setValue(searchQuery);
@@ -1485,6 +1487,13 @@ public class ModScreen extends Screen {
                 + (com.killer560.hub.BuildVariant.TESTING ? " · testing" : "");
         MenuStyle.text(g, ver, headerX + 8 + bw + 8, headerY + (headerH - 8) / 2 + 1, MenuStyle.DIM2);
         MenuStyle.flat(g, "⌕", searchX + 4, searchY + 4, MenuStyle.DIM2);
+        // The theme can change with the menu open (the ◐ icon), so the box takes its colour and shadow every frame.
+        searchField.setTextColor(MenuStyle.TXT);
+        searchField.setTextShadow(MenuStyle.TEXT_SHADOW);
+        if (showHint && !focus) {
+            MenuStyle.flat(g, MenuStyle.ellipsize("Search features & settings", kx - 3 - searchField.getX()),
+                    searchField.getX(), searchField.getY(), MenuStyle.DIM2);
+        }
         if (showHint) {
             MenuStyle.flat(g, "Ctrl F", kx + 3, searchY + 4, MenuStyle.DIM2);
         }

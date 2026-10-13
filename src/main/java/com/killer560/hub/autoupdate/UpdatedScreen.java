@@ -1,6 +1,9 @@
 package com.killer560.hub.autoupdate;
 
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -11,12 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** The one-time "Updated to <hash>" popup after Auto Update installed a new jar, with the release notes. */
-public class UpdatedScreen extends Screen {
-
-    private static final int ACCENT = 0xFFFF8C1A;
-    private static final int PANEL_BG = 0xF0141010;
-    private static final int TEXT = 0xFFF0E6DC;
-    private static final int DIM = 0xFF9A8C80;
+public class UpdatedScreen extends Screen implements MenuThemedScreen {
 
     private final Screen parent;
     private final String hash;
@@ -42,14 +40,14 @@ public class UpdatedScreen extends Screen {
         panelH = Math.min(this.height - 20, 260);
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
-        int maxLines = Math.max(1, (panelH - 30 - 34) / 10);
+        int maxLines = Math.max(1, (panelH - 44 - 34) / 10);
         List<FormattedCharSequence> all = new ArrayList<>();
         for (String raw : plain(notes).split("\\R")) {
             if (raw.isBlank()) {
                 all.add(FormattedCharSequence.EMPTY);
                 continue;
             }
-            all.addAll(this.font.split(Component.literal(raw), panelW - 16));
+            all.addAll(this.font.split(Component.literal(raw), panelW - 28));
         }
         while (!all.isEmpty() && all.get(all.size() - 1) == FormattedCharSequence.EMPTY) {
             all.remove(all.size() - 1);
@@ -69,22 +67,37 @@ public class UpdatedScreen extends Screen {
                 .replaceAll("(?m)^\\s*[-*]\\s+", "- ");
     }
 
+    /** This screen's own Theme setting (Theme Default follows the menu). */
+    public static final String THEME_ID = "autoupdate";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, PANEL_BG);
-        graphics.outline(panelX, panelY, panelW, panelH, ACCENT);
-        graphics.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ACCENT);
-        graphics.text(this.font, "Killer560's Mod updated to " + hash, panelX + 10, panelY + 11, ACCENT, false);
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.header(graphics, panelX, panelY, panelW, "Killer560's Mod updated to " + hash);
         if (!tag.isEmpty()) {
-            graphics.text(this.font, tag, panelX + panelW - 10 - this.font.width(tag), panelY + 11, DIM, false);
+            ScreenChrome.headerRight(graphics, panelX, panelY, panelW, tag, MenuStyle.DIM);
         }
-        int y = panelY + 38;
+        // The notes sit in a recessed well between the header and the OK button.
+        int wellY = panelY + 30;
+        int wellH = panelH - 30 - 30;
+        ScreenChrome.well(graphics, panelX + 6, wellY, panelW - 12, wellH);
+        int y = wellY + 6;
         if (lines.isEmpty()) {
-            graphics.text(this.font, "No release notes.", panelX + 8, y, DIM, false);
+            ScreenChrome.text(graphics, "No release notes.", panelX + 14, y, MenuStyle.DIM);
         }
         for (FormattedCharSequence line : lines) {
-            graphics.text(this.font, line, panelX + 8, y, TEXT, false);
+            ScreenChrome.text(graphics, line, panelX + 14, y, MenuStyle.TXT);
             y += 10;
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);

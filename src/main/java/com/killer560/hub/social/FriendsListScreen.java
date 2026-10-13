@@ -1,6 +1,11 @@
 package com.killer560.hub.social;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedEditBox;
+import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -28,11 +33,7 @@ import com.killer560.hub.compat.McCompat;
  * tab-list-only "Nearby now" guess. When it couldn't, this falls back to that same "Nearby now"/"Unknown"
  * guess (same server instance as you right now) rather than claiming to know something it doesn't.
  */
-public class FriendsListScreen extends Screen {
-
-    private static final int ACCENT = 0xFFCC6600;
-    private static final int BORDER = 0xFF553311;
-    private static final int PANEL_BG = 0xFF0D0D0D;
+public class FriendsListScreen extends Screen implements MenuThemedScreen {
     private static final int ROW_H = 22;
     private static final int HEAD_SIZE = 16;
     /** killer560 (2026-10-04): "Make the scroll bar bigger and something I can click on to scroll with." */
@@ -48,6 +49,9 @@ public class FriendsListScreen extends Screen {
     private final Screen parent;
     private EditBox addBox;
     private EditBox noteBox;
+    /** The list view's search box, and its text (kept across a rebuild). */
+    private EditBox searchBox;
+    private String searchQuery = "";
     private List<FriendsListConfig.Friend> visible = List.of();
     private FriendsListConfig.Friend selected;
     private String statusMessage = "";
@@ -72,9 +76,12 @@ public class FriendsListScreen extends Screen {
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
         listX = panelX + 6;
-        listY = panelY + 60;
+        // The list view has a search row under the Add row (killer560's to-do, 2026-10-13: "make the custom friends
+        // list typing narrow down people"); the detail page does not.
+        int top = selected == null ? 82 : 60;
+        listY = panelY + top;
         listW = panelW - 12;
-        listH = Math.max(20, panelH - 60 - (selected != null ? 44 : 8) - STATUS_H);
+        listH = Math.max(20, panelH - top - (selected != null ? 44 : 8) - STATUS_H);
 
         // One rate-limited sync per open, same as the old refreshOnlineNames() call this replaces - see
         // FriendsListSync's doc on why this can never spam Hypixel (opening the menu is an explicit click).
@@ -88,9 +95,9 @@ public class FriendsListScreen extends Screen {
         int addBtnW = 70;
         int refreshBtnW = 62;
         int addBoxW = panelW - 12 - addBtnW - 4 - refreshBtnW - 4;
-        addBox = new EditBox(this.font, panelX + 6, panelY + 34, addBoxW, 18, Component.literal("Add by name"));
+        addBox = new ThemedEditBox(this.font, panelX + 6, panelY + 34, addBoxW, 18, Component.literal("Add by name"))
+                .hint("Add by name (sends /f add)...");
         addBox.setMaxLength(16);
-        addBox.setHint(Component.literal("Add by name (sends /f add)..."));
         addRenderableWidget(addBox);
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Add"), btn -> addByName())
                 .bounds(panelX + 6 + addBoxW + 4, panelY + 34, addBtnW, 18).build());
@@ -106,6 +113,20 @@ public class FriendsListScreen extends Screen {
                     }
                 }).bounds(panelX + panelW - 6 - refreshBtnW, panelY + 34, refreshBtnW, 18).build());
 
+        searchBox = null;
+        if (selected == null) {
+            searchBox = new ThemedEditBox(this.font, panelX + 6, panelY + 56, panelW - 12, 18, Component.literal("Search"))
+                    .hint("Type to search friends...");
+            searchBox.setMaxLength(16);
+            searchBox.setValue(searchQuery);
+            searchBox.setResponder(text -> {
+                searchQuery = text;
+                scroll = 0;
+                refresh();
+            });
+            addRenderableWidget(searchBox);
+        }
+
         refresh();
 
         if (selected != null) {
@@ -119,9 +140,9 @@ public class FriendsListScreen extends Screen {
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Invite"), btn -> invite(selected))
                     .bounds(panelX + 6 + 74, barY, 56, 18).build());
             int noteW = panelW - 12 - 70 - 56 - 70 - 12;
-            noteBox = new EditBox(this.font, panelX + 6 + 74 + 60, barY, noteW, 18, Component.literal("Note"));
+            noteBox = new ThemedEditBox(this.font, panelX + 6 + 74 + 60, barY, noteW, 18, Component.literal("Note"))
+                    .hint("Note...");
             noteBox.setMaxLength(64);
-            noteBox.setHint(Component.literal("Note..."));
             noteBox.setValue(selected.note == null ? "" : selected.note);
             noteBox.setResponder(text -> {
                 FriendsListConfig.getInstance().setNote(selected.name, text);
@@ -143,7 +164,32 @@ public class FriendsListScreen extends Screen {
      *  re-fetched here - it only ever goes stale if that friend was actually removed, in which case it just
      *  keeps showing what it last knew until the player presses "< Back" or "Remove" themselves. */
     private void refresh() {
-        visible = FriendsListConfig.getInstance().friends();
+        visible = filter(FriendsListConfig.getInstance().friends(), searchQuery);
+    }
+
+    /** The friends whose name contains {@code query} (case-insensitive); everyone for a blank query. */
+    static List<FriendsListConfig.Friend> filter(List<FriendsListConfig.Friend> all, String query) {
+        String q = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
+        if (q.isEmpty()) {
+            return all;
+        }
+        List<FriendsListConfig.Friend> out = new java.util.ArrayList<>();
+        for (FriendsListConfig.Friend f : all) {
+            if (f.name != null && f.name.toLowerCase(java.util.Locale.ROOT).contains(q)) {
+                out.add(f);
+            }
+        }
+        return out;
+    }
+
+    /** Typing on the list with no box focused goes into the search box, so just typing a name narrows the list. */
+    @Override
+    public boolean charTyped(net.minecraft.client.input.CharacterEvent event) {
+        if (searchBox != null && selected == null && !(getFocused() instanceof EditBox)) {
+            setFocused(searchBox);
+            searchBox.setFocused(true);
+        }
+        return super.charTyped(event);
     }
 
     /** Sends the real {@code /f add <name>} - Hypixel resolves/validates the name itself, so unlike the old
@@ -295,19 +341,13 @@ public class FriendsListScreen extends Screen {
         refresh();
         scroll = Math.max(0, Math.min(scroll, maxScroll())); // the list can shrink under us on a re-sync
 
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, PANEL_BG);
-        graphics.outline(panelX, panelY, panelW, panelH, BORDER);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + 28, 0xFF000000);
-        graphics.outline(panelX, panelY, panelW, 28, BORDER);
-        graphics.fill(panelX, panelY + 27, panelX + panelW, panelY + 28, ACCENT);
-        graphics.text(this.font, "Friends List", panelX + 10, panelY + 10, ACCENT, false);
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.header(graphics, panelX, panelY, panelW, "Friends List");
         String right = FriendsListConfig.getInstance().isEnabled() ? "/fl opens this menu" : "/fl passes through to Hypixel";
-        graphics.text(this.font, right, panelX + panelW - 10 - this.font.width(right), panelY + 10,
-                0xFF000000 | ModChat.DIM, false);
+        ScreenChrome.headerRight(graphics, panelX, panelY, panelW, right, MenuStyle.DIM);
 
-        graphics.fill(listX, listY, listX + listW, listY + listH, 0xFF080808);
-        graphics.outline(listX - 1, listY - 1, listW + 2, listH + 2, BORDER);
+        ScreenChrome.well(graphics, listX - 1, listY - 1, listW + 2, listH + 2);
         graphics.enableScissor(listX, listY, listX + listW, listY + listH);
         try {
             if (selected != null) {
@@ -320,18 +360,17 @@ public class FriendsListScreen extends Screen {
         }
         if (selected == null && maxScroll() > 0) {
             int trackX = trackX();
-            graphics.fill(trackX, listY, trackX + SCROLLBAR_W, listY + listH, 0xFF1A1A1A);
-            graphics.outline(trackX, listY, SCROLLBAR_W, listH, BORDER);
             int thumbH = thumbHeight();
             int thumbY = thumbY();
             boolean hot = draggingScroll || (mouseX >= trackX && mouseX <= trackX + SCROLLBAR_W
                     && mouseY >= thumbY && mouseY < thumbY + thumbH);
-            graphics.fill(trackX + 1, thumbY, trackX + SCROLLBAR_W - 1, thumbY + thumbH, hot ? 0xFFFF9933 : ACCENT);
+            ScreenChrome.scrollbar(graphics, trackX, listY, SCROLLBAR_W, listH, thumbY, thumbH, hot);
         }
         String status = statusText();
         if (!status.isEmpty()) {
-            graphics.text(this.font, this.font.plainSubstrByWidth(status, listW), statusX(), statusY(),
-                    0xFF000000 | (FriendsListSync.isSyncing() || statusMessage.isEmpty() ? ModChat.DIM : statusColor), false);
+            ScreenChrome.text(graphics, this.font.plainSubstrByWidth(status, listW), statusX(), statusY(),
+                    FriendsListSync.isSyncing() || statusMessage.isEmpty() ? MenuStyle.DIM
+                            : statusColor == ModChat.BAD ? MenuStyle.RED : MenuStyle.DIM);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
@@ -367,7 +406,7 @@ public class FriendsListScreen extends Screen {
         if (cfg.isLastSyncTruncated()) {
             return "§6Hypixel's /fl may show more than this - the last sync looked cut short.";
         }
-        return "§7" + visible.size() + " real friend(s), last synced " + secondsAgo(cfg.getLastSyncedAtMs()) + " ago.";
+        return "§7" + cfg.friends().size() + " real friend(s), last synced " + secondsAgo(cfg.getLastSyncedAtMs()) + " ago.";
     }
 
     private static String secondsAgo(long epochMs) {
@@ -380,10 +419,12 @@ public class FriendsListScreen extends Screen {
 
     private void drawList(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         if (visible.isEmpty()) {
-            String msg = FriendsListConfig.getInstance().isEverSynced()
+            String msg = !searchQuery.isBlank() && !FriendsListConfig.getInstance().friends().isEmpty()
+                    ? "No friends match \"" + searchQuery.trim() + "\"."
+                    : FriendsListConfig.getInstance().isEverSynced()
                     ? "No friends on your real Hypixel list."
                     : "Not synced yet - press Refresh above.";
-            graphics.text(this.font, msg, listX + 6, listY + 8, 0xFF000000 | ModChat.DIM, false);
+            ScreenChrome.text(graphics, msg, listX + 6, listY + 8, MenuStyle.DIM);
             return;
         }
         FriendsListConfig.Friend hovered = rowAt(mouseX, mouseY);
@@ -395,11 +436,9 @@ public class FriendsListScreen extends Screen {
             }
             FriendsListConfig.Friend f = visible.get(i);
             int right = rowRight();
-            if (f == hovered) {
-                graphics.fill(listX, rowY, right, rowY + ROW_H, 0xFF262626);
-            } else if (i % 2 == 0) {
-                graphics.fill(listX, rowY, right, rowY + ROW_H, 0xFF121212);
-            }
+            GuiRects rr = GuiRects.begin(graphics);
+            ScreenChrome.row(rr, listX, rowY, right - listX, ROW_H, f == hovered, false, i % 2 == 0);
+            rr.submit();
             if (f.uuid == null) {
                 f.uuid = PlayerHeadRenderer.resolveId(null, f.name); // not persisted - see Friend#uuid
             }
@@ -409,25 +448,21 @@ public class FriendsListScreen extends Screen {
             int bx = right - 3 - INVITE_W;
             int by = rowY + (ROW_H - INVITE_H) / 2;
             boolean inviteHot = overInvite(i, mouseX, mouseY) && mouseY >= listY && mouseY < listY + listH;
-            graphics.fill(bx, by, bx + INVITE_W, by + INVITE_H, inviteHot ? 0xFF3A2410 : 0xFF1A1A1A);
-            graphics.outline(bx, by, INVITE_W, INVITE_H, inviteHot ? ACCENT : BORDER);
-            String inv = "Invite";
-            graphics.text(this.font, inv, bx + (INVITE_W - this.font.width(inv)) / 2, by + (INVITE_H - 8) / 2 + 1,
-                    inviteHot ? ACCENT : 0xFFDDDDDD, false);
+            ScreenChrome.button(graphics, bx, by, INVITE_W, INVITE_H, "Invite", inviteHot, false);
 
             int lineY1 = rowY + 2;
             int lineY2 = rowY + 12;
             String status = onlineStatusText(f);
             int statusW = this.font.width(status);
-            graphics.text(this.font, status, bx - 6 - statusW, lineY1, 0xFFFFFFFF, false);
+            ScreenChrome.text(graphics, status, bx - 6 - statusW, lineY1, MenuStyle.TXT);
             String name = f.name == null || f.name.isBlank() ? "?" : f.name;
             int nameX = listX + 3 + HEAD_SIZE + 6;
             String label = name + (f.note != null && !f.note.isBlank() ? "  §7- " + f.note : "");
             int nameSpace = bx - 6 - statusW - 4 - nameX;
-            graphics.text(this.font, this.font.plainSubstrByWidth(label, Math.max(10, nameSpace)), nameX, lineY1, 0xFFFFFFFF, false);
+            ScreenChrome.text(graphics, this.font.plainSubstrByWidth(label, Math.max(10, nameSpace)), nameX, lineY1, MenuStyle.TXT);
             String activity = activityText(f);
-            graphics.text(this.font, this.font.plainSubstrByWidth(activity, Math.max(10, bx - 6 - nameX)), nameX, lineY2,
-                    0xFFFFFFFF, false);
+            ScreenChrome.text(graphics, this.font.plainSubstrByWidth(activity, Math.max(10, bx - 6 - nameX)), nameX, lineY2,
+                    MenuStyle.TXT);
         }
     }
 
@@ -477,11 +512,11 @@ public class FriendsListScreen extends Screen {
         PlayerHeadRenderer.draw(graphics, f.uuid, f.name, listX + 6, listY + 6, 32);
         int textX = listX + 6 + 32 + 10;
         String name = f.name == null || f.name.isBlank() ? "?" : f.name;
-        graphics.text(this.font, "§l" + name, textX, listY + 6, 0xFFFFFFFF, false);
-        graphics.text(this.font, detailStatusText(f), textX, listY + 18, 0xFFFFFFFF, false);
-        graphics.text(this.font, "§7Doing: " + activityText(f), textX, listY + 30, 0xFFFFFFFF, false);
-        graphics.text(this.font, "§7Known since " + formatDate(f.firstSeenAtMs), listX + 6, listY + 46, 0xFFFFFFFF, false);
-        graphics.text(this.font, "§7Edit the note below (local only, never sent anywhere):", listX + 6, listY + 60, 0xFFFFFFFF, false);
+        ScreenChrome.text(graphics, "§l" + name, textX, listY + 6, MenuStyle.TXT);
+        ScreenChrome.text(graphics, detailStatusText(f), textX, listY + 18, MenuStyle.TXT);
+        ScreenChrome.text(graphics, "§7Doing: " + activityText(f), textX, listY + 30, MenuStyle.TXT);
+        ScreenChrome.text(graphics, "§7Known since " + formatDate(f.firstSeenAtMs), listX + 6, listY + 46, MenuStyle.TXT);
+        ScreenChrome.text(graphics, "§7Edit the note below (local only, never sent anywhere):", listX + 6, listY + 60, MenuStyle.TXT);
     }
 
     private static String formatDate(long epochMs) {
@@ -491,6 +526,19 @@ public class FriendsListScreen extends Screen {
         return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd", java.util.Locale.US)
                 .withZone(java.time.ZoneId.systemDefault())
                 .format(java.time.Instant.ofEpochMilli(epochMs));
+    }
+
+    /** This screen's own Theme setting (Theme Default follows the menu). */
+    public static final String THEME_ID = "friendslist";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
     }
 
     @Override
