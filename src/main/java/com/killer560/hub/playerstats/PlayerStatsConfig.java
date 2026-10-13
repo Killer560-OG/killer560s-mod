@@ -67,7 +67,8 @@ public final class PlayerStatsConfig {
     public static final int MIN_BAR_WIDTH = 40;
     public static final int MAX_BAR_WIDTH = 300;
     public static final int MIN_BAR_HEIGHT = 2;
-    /** 30 since 2026-10-07 (was 20): a bar showing its number is at least 14 thick, which left 20 almost no range. */
+    /** 30 since 2026-10-07 (was 20): a bar showing its number was at least 14 thick (12 since 2026-10-13,
+     *  StatElements.MIN_VALUE_THICKNESS), which left 20 almost no range. */
     public static final int MAX_BAR_HEIGHT = 30;
     public static final int DEFAULT_ABSORPTION_COLOR = 0xFFFFAA00;
     public static final int DEFAULT_BAR_BACKGROUND = 0xAA000000;

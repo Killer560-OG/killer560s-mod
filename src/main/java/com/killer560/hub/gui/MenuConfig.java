@@ -21,6 +21,9 @@ import java.util.Set;
  * starred. A feature is named by its tab class's simple name ({@code HealthAndManaBarsTab}), the same id the testing
  * build's Mark tested uses, so renaming a label never loses a star. Saved in {@code killer560smod-menu.json}; profiles
  * carry it like every other setting file.
+ * <p>Saved themes (killer560, 2026-10-13: "Make it so each custom menu you save you can rename. Also they should be
+ * saved."): any number of named Custom colour sets. Using one makes it the Custom set the menu draws; while one is in
+ * use, changing a Custom colour changes that saved theme too.
  */
 public final class MenuConfig {
 
@@ -38,6 +41,24 @@ public final class MenuConfig {
     private final int[] custom = MenuTheme.AMBER.base();
     /** Bumped on every theme change, so the drawing side knows to re-derive its palette. */
     private static int version;
+
+    /** A named Custom colour set: its five colours in {@link MenuTheme.Slot} order and the preset it started from. */
+    public static final class SavedTheme {
+        public String name;
+        public MenuTheme base;
+        public final int[] colours;
+
+        SavedTheme(String name, MenuTheme base, int[] colours) {
+            this.name = name;
+            this.base = base;
+            this.colours = colours;
+        }
+    }
+
+    public static final int MAX_THEME_NAME = 24;
+    private final List<SavedTheme> savedThemes = new ArrayList<>();
+    /** The saved theme the Custom set is, or -1 when Custom is not a saved one. */
+    private int activeSaved = -1;
 
     private MenuConfig() {
     }
@@ -64,14 +85,27 @@ public final class MenuConfig {
                 }
                 System.arraycopy(cfg.customBase.base(), 0, cfg.custom, 0, cfg.custom.length);
                 if (obj.has("custom") && obj.get("custom").isJsonObject()) {
-                    JsonObject c = obj.getAsJsonObject("custom");
-                    for (MenuTheme.Slot slot : MenuTheme.Slot.values()) {
-                        String k = slot.name().toLowerCase(java.util.Locale.ROOT);
-                        if (c.has(k)) {
-                            cfg.custom[slot.ordinal()] = 0xFF000000 | (int) Long.parseLong(
-                                    c.get(k).getAsString().replace("#", ""), 16);
+                    readColours(obj.getAsJsonObject("custom"), cfg.custom);
+                }
+                if (obj.has("savedThemes") && obj.get("savedThemes").isJsonArray()) {
+                    for (JsonElement e : obj.getAsJsonArray("savedThemes")) {
+                        if (!e.isJsonObject()) {
+                            continue;
                         }
+                        JsonObject t = e.getAsJsonObject();
+                        MenuTheme base = t.has("base") ? MenuTheme.parse(t.get("base").getAsString()) : MenuTheme.AMBER;
+                        base = base == MenuTheme.CUSTOM ? MenuTheme.AMBER : base;
+                        int[] cols = base.base();
+                        if (t.has("colours") && t.get("colours").isJsonObject()) {
+                            readColours(t.getAsJsonObject("colours"), cols);
+                        }
+                        String name = t.has("name") ? t.get("name").getAsString() : "";
+                        cfg.savedThemes.add(new SavedTheme(cleanName(name), base, cols));
                     }
+                }
+                if (obj.has("activeSaved")) {
+                    int a = obj.get("activeSaved").getAsInt();
+                    cfg.activeSaved = a >= 0 && a < cfg.savedThemes.size() ? a : -1;
                 }
                 if (obj.has("favourites") && obj.get("favourites").isJsonArray()) {
                     for (JsonElement e : obj.getAsJsonArray("favourites")) {
@@ -88,6 +122,28 @@ public final class MenuConfig {
         version++;
     }
 
+    private static void readColours(JsonObject c, int[] into) {
+        for (MenuTheme.Slot slot : MenuTheme.Slot.values()) {
+            String k = slot.name().toLowerCase(java.util.Locale.ROOT);
+            if (c.has(k)) {
+                into[slot.ordinal()] = 0xFF000000 | (int) Long.parseLong(c.get(k).getAsString().replace("#", ""), 16);
+            }
+        }
+    }
+
+    private static JsonObject writeColours(int[] cols) {
+        JsonObject c = new JsonObject();
+        for (MenuTheme.Slot slot : MenuTheme.Slot.values()) {
+            c.addProperty(slot.name().toLowerCase(java.util.Locale.ROOT), String.format("#%06X", cols[slot.ordinal()] & 0xFFFFFF));
+        }
+        return c;
+    }
+
+    private static String cleanName(String name) {
+        String n = name == null ? "" : name.strip();
+        return n.length() > MAX_THEME_NAME ? n.substring(0, MAX_THEME_NAME) : n;
+    }
+
     public void save() {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
@@ -99,12 +155,17 @@ public final class MenuConfig {
             obj.add("favourites", arr);
             obj.addProperty("theme", theme.name());
             obj.addProperty("customBase", customBase.name());
-            JsonObject c = new JsonObject();
-            for (MenuTheme.Slot slot : MenuTheme.Slot.values()) {
-                c.addProperty(slot.name().toLowerCase(java.util.Locale.ROOT),
-                        String.format("#%06X", custom[slot.ordinal()] & 0xFFFFFF));
+            obj.add("custom", writeColours(custom));
+            JsonArray saved = new JsonArray();
+            for (SavedTheme t : savedThemes) {
+                JsonObject o = new JsonObject();
+                o.addProperty("name", t.name);
+                o.addProperty("base", t.base.name());
+                o.add("colours", writeColours(t.colours));
+                saved.add(o);
             }
-            obj.add("custom", c);
+            obj.add("savedThemes", saved);
+            obj.addProperty("activeSaved", activeSaved);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -154,19 +215,95 @@ public final class MenuConfig {
             theme = MenuTheme.CUSTOM;
         }
         custom[slot.ordinal()] = 0xFF000000 | (argb & 0xFFFFFF);
+        if (activeSaved >= 0) {
+            savedThemes.get(activeSaved).colours[slot.ordinal()] = custom[slot.ordinal()];
+        }
         version++;
     }
 
     /** Custom's colours back to the preset it was started from. */
     public void resetCustom() {
         System.arraycopy(customBase.base(), 0, custom, 0, custom.length);
+        if (activeSaved >= 0) {
+            System.arraycopy(custom, 0, savedThemes.get(activeSaved).colours, 0, custom.length);
+        }
         version++;
+    }
+
+    // ---- saved themes ----
+
+    /** The saved themes, in the order they were saved (read-only; change them through this class). */
+    public List<SavedTheme> getSavedThemes() {
+        return java.util.Collections.unmodifiableList(savedThemes);
+    }
+
+    /** The saved theme the menu draws now, or -1 (a preset, or a Custom set that is not saved). */
+    public int getActiveSaved() {
+        return theme == MenuTheme.CUSTOM ? activeSaved : -1;
+    }
+
+    /** Saves the colours the menu draws now as a new theme called "Custom N" and switches to it. Returns its index. */
+    public int saveCurrentAsTheme() {
+        int[] cols = activeColours();
+        MenuTheme base = theme == MenuTheme.CUSTOM ? customBase : theme;
+        java.util.Set<String> taken = new java.util.HashSet<>();
+        for (SavedTheme t : savedThemes) {
+            taken.add(t.name.toLowerCase(java.util.Locale.ROOT));
+        }
+        int n = savedThemes.size() + 1;
+        while (taken.contains("custom " + n)) {
+            n++;
+        }
+        savedThemes.add(new SavedTheme("Custom " + n, base, cols));
+        useSavedTheme(savedThemes.size() - 1);
+        return savedThemes.size() - 1;
+    }
+
+    /** Makes saved theme {@code i} the Custom set and draws it. */
+    public void useSavedTheme(int i) {
+        if (i < 0 || i >= savedThemes.size()) {
+            return;
+        }
+        SavedTheme t = savedThemes.get(i);
+        customBase = t.base;
+        System.arraycopy(t.colours, 0, custom, 0, custom.length);
+        theme = MenuTheme.CUSTOM;
+        activeSaved = i;
+        version++;
+    }
+
+    /** Renames saved theme {@code i}: trimmed, at most {@link #MAX_THEME_NAME} characters; a blank name shows as
+     *  "Untitled" ({@link #shownName}). */
+    public void renameSavedTheme(int i, String name) {
+        if (i >= 0 && i < savedThemes.size()) {
+            savedThemes.get(i).name = cleanName(name);
+        }
+    }
+
+    /** Deletes saved theme {@code i}. The menu keeps drawing the same colours (Custom just stops being that theme). */
+    public void deleteSavedTheme(int i) {
+        if (i < 0 || i >= savedThemes.size()) {
+            return;
+        }
+        savedThemes.remove(i);
+        if (activeSaved == i) {
+            activeSaved = -1;
+        } else if (activeSaved > i) {
+            activeSaved--;
+        }
+        version++;
+    }
+
+    /** A saved theme's name as shown: "Untitled" when blank. */
+    public static String shownName(SavedTheme t) {
+        return t.name == null || t.name.isBlank() ? "Untitled" : t.name;
     }
 
     private void startCustomFrom(MenuTheme preset) {
         if (preset == MenuTheme.CUSTOM) {
             return;
         }
+        activeSaved = -1; // a fresh Custom started from a preset is not any saved theme
         customBase = preset;
         System.arraycopy(preset.base(), 0, custom, 0, custom.length);
     }

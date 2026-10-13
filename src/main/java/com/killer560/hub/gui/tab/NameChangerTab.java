@@ -85,6 +85,16 @@ public class NameChangerTab extends BaseTab {
                 }));
         y += 24;
 
+        // "Bold Name" (killer560, 2026-10-13: "make a toggle for custom names to be bold"): your own display name in
+        // bold here and, with Share if Supporter, for other mod users too (NameChangerFeature#ownStyled).
+        widgets.add(SettingsButtonWidget.builder(onOff("Bold Name", cfg.isOwnBold()), btn -> {
+                    cfg.setOwnBold(!cfg.isOwnBold());
+                    cfg.save();
+                    preview.setMessage(previewLine());
+                    btn.setMessage(onOff("Bold Name", cfg.isOwnBold()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
+
         // "Fade Color" (killer560, cosmetics tab: "also allow them to fade the color") - a second colour
         // endpoint that turns the flat single-colour name into a per-letter gradient (NameColor#buildFade).
         // Only the local render sees the gradient - SupportersAutoShare only ever shares the FROM colour

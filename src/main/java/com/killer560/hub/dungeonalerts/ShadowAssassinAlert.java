@@ -23,7 +23,7 @@ final class ShadowAssassinAlert {
     /** Called on the main thread for every ClientboundInitializeBorderPacket. */
     static void onInitializeBorder() {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
-        if (!cfg.shadowAssassinEnabled || !DungeonState.isInDungeon()) {
+        if (!cfg.shadowAssassinOn() || !DungeonState.isInDungeon()) {
             return;
         }
         int floor = DungeonAlertsFeature.floorNumber();

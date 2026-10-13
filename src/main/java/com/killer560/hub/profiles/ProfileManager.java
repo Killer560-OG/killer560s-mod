@@ -420,6 +420,7 @@ public final class ProfileManager {
                 // (shelved/mining/README.md); their files stay on disk unread.
                 com.killer560.hub.updatecheck.UpdateCheckConfig::load,
                 com.killer560.hub.autoupdate.AutoUpdateConfig::load,
+                com.killer560.hub.cringe.CringeConfig::load,
                 com.killer560.hub.gui.MenuConfig::load,
                 com.killer560.hub.gui.RecentColours::load,
                 com.killer560.hub.gui.ScreenThemes::load,
@@ -458,6 +459,7 @@ public final class ProfileManager {
                 com.killer560.hub.clicktranslate.ClickTranslateConfig::load,
                 com.killer560.hub.commandkeybinds.CommandKeybindsConfig::load,
                 com.killer560.hub.copychat.CopyChatConfig::load,
+                com.killer560.hub.peekchat.PeekChatConfig::load,
                 com.killer560.hub.chattidy.ChatTidyConfig::load,
                 com.killer560.hub.croesus.CroesusConfig::load,
                 com.killer560.hub.diorite.DioriteGlassConfig::load,

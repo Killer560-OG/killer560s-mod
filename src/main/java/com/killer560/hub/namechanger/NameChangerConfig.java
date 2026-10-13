@@ -61,6 +61,9 @@ public final class NameChangerConfig {
      *  is the gradient's start and {@link #ownColorFadeTo} its end; see {@link NameColor#buildFade}. */
     private boolean ownColorFadeEnabled = false;
     private int ownColorFadeTo = NameColor.NONE;
+    /** "Bold Name" (killer560, 2026-10-13: "make a toggle for custom names to be bold"): your own display name drawn in
+     *  bold, and shared bold by Share if Supporter (an {@code &l} after its colour, which the relay already accepts). */
+    private boolean ownBold = false;
     /** "Name Animation" (killer560, 2026-10-13): Off, Wave or Pulse for a faded / letter-coloured own name, and its
      *  speed - see {@link NameAnimation}. Shared with the name by Share if Supporter. */
     private NameAnimation.Mode ownAnimation = NameAnimation.Mode.OFF;
@@ -112,6 +115,7 @@ public final class NameChangerConfig {
                     cfg.ownColor = migrated.argb();
                 }
                 cfg.ownColorFadeEnabled = ConfigJson.getBool(obj, "ownColorFadeEnabled", false);
+                cfg.ownBold = ConfigJson.getBool(obj, "ownBold", false);
                 cfg.ownColorFadeTo = ConfigJson.getInt(obj, "ownColorFadeTo", NameColor.NONE);
                 cfg.ownAnimation = NameAnimation.Mode.fromWire(ConfigJson.getString(obj, "ownAnimation", "off"));
                 cfg.ownAnimationSpeed = NameAnimation.clampSpeed(
@@ -172,6 +176,7 @@ public final class NameChangerConfig {
             obj.addProperty("ownDisplayName", ownDisplayName);
             obj.addProperty("ownColor", ownColor);
             obj.addProperty("ownColorFadeEnabled", ownColorFadeEnabled);
+            obj.addProperty("ownBold", ownBold);
             obj.addProperty("ownColorFadeTo", ownColorFadeTo);
             obj.addProperty("ownAnimation", ownAnimation.wire);
             obj.addProperty("ownAnimationSpeed", ownAnimationSpeed);
@@ -247,6 +252,15 @@ public final class NameChangerConfig {
 
     public void setOwnColorFadeEnabled(boolean ownColorFadeEnabled) {
         this.ownColorFadeEnabled = ownColorFadeEnabled;
+        version++;
+    }
+
+    public boolean isOwnBold() {
+        return ownBold;
+    }
+
+    public void setOwnBold(boolean ownBold) {
+        this.ownBold = ownBold;
         version++;
     }
 
@@ -363,6 +377,7 @@ public final class NameChangerConfig {
         ownColor = NameColor.NONE;
         ownColorFadeEnabled = false;
         ownColorFadeTo = NameColor.NONE;
+        ownBold = false;
         ownAnimation = NameAnimation.Mode.OFF;
         ownAnimationSpeed = NameAnimation.DEFAULT_SPEED;
         ownCharColors.clear();

@@ -63,6 +63,9 @@ public final class F7SpotsConfig {
     private static F7SpotsConfig instance;
 
     // ---- walk-to waypoints ----
+    /** F7 Spots as a whole (killer560, 2026-10-13): off, every part of it stands down whatever its own switches say.
+     *  On by default, so nothing changes until he flips it. */
+    private boolean f7SpotsEnabled = true;
     private boolean walkWaypoints = false;
     private boolean walkLabels = true;
     private boolean walkDistance = true;
@@ -104,6 +107,7 @@ public final class F7SpotsConfig {
             }
         }
         if (obj != null) {
+            cfg.f7SpotsEnabled = ConfigJson.getBool(obj, "f7SpotsEnabled", true);
             cfg.walkWaypoints = ConfigJson.getBool(obj, "walkWaypoints", false);
             cfg.walkLabels = ConfigJson.getBool(obj, "walkLabels", true);
             cfg.walkDistance = ConfigJson.getBool(obj, "walkDistance", true);
@@ -170,6 +174,7 @@ public final class F7SpotsConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
+            obj.addProperty("f7SpotsEnabled", f7SpotsEnabled);
             obj.addProperty("walkWaypoints", walkWaypoints);
             obj.addProperty("walkLabels", walkLabels);
             obj.addProperty("walkDistance", walkDistance);
@@ -221,7 +226,10 @@ public final class F7SpotsConfig {
     }
 
     // ---- walk-to waypoints ----
-    public boolean isWalkWaypointsEnabled() { return walkWaypoints && SkyblockGate.allows(); }
+    public boolean isF7SpotsEnabled() { return f7SpotsEnabled; }
+    public void setF7SpotsEnabled(boolean v) { f7SpotsEnabled = v; }
+
+    public boolean isWalkWaypointsEnabled() { return f7SpotsEnabled && walkWaypoints && SkyblockGate.allows(); }
     public boolean getWalkWaypointsRaw() { return walkWaypoints; }
     public void setWalkWaypoints(boolean v) { walkWaypoints = v; }
 
@@ -260,7 +268,7 @@ public final class F7SpotsConfig {
     }
 
     // ---- aim spots ----
-    public boolean isAimSpotsEnabled() { return aimSpots && SkyblockGate.allows(); }
+    public boolean isAimSpotsEnabled() { return f7SpotsEnabled && aimSpots && SkyblockGate.allows(); }
     public boolean getAimSpotsRaw() { return aimSpots; }
     public void setAimSpots(boolean v) { aimSpots = v; }
 

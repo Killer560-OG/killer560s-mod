@@ -59,13 +59,6 @@ public class F7SpotsTab extends BaseTab {
         super("F7 Spots");
     }
 
-    /** Several independent switches and no master one: the menu card shows no switch (Option A menu, 2026-10-12). */
-    @Override
-    public com.killer560.hub.gui.SettingsButtonWidget masterToggle(
-            java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
-        return null;
-    }
-
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
@@ -75,6 +68,18 @@ public class F7SpotsTab extends BaseTab {
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
         int y = contentY;
+
+        // F7 Spots as a whole (killer560, 2026-10-13): first, so it is the card's switch. Off, the feature stands down in its
+        // config's effective getters and the settings below are hidden.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("F7 Spots: " + (cfg.isF7SpotsEnabled() ? "§aON" : "§cOFF")), btn -> {
+                    cfg.setF7SpotsEnabled(!cfg.isF7SpotsEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        if (!cfg.isF7SpotsEnabled()) {
+            return widgets;
+        }
 
         // ---- Walk-to waypoints ----
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Walk-To Waypoints", false), mc.font));

@@ -38,6 +38,9 @@ public final class ObjectHiderConfig {
     private static ObjectHiderConfig instance;
 
     // --- Dungeon clutter -------------------------------------------------------------------------
+    /** Object Hider as a whole (killer560, 2026-10-13): off, nothing in the pack hides anything (No Fire Overlay too),
+     *  whatever the switches below say. On by default, so nothing changes until he flips it. */
+    private boolean objectHiderEnabled = true;
     private boolean hideFairy = false;
     private boolean hideHealerOrbs = false;
     private boolean keepNearbyOrbs = false;
@@ -120,9 +123,9 @@ public final class ObjectHiderConfig {
      *  (HUD bars, fog, text shadow, nametags, chat, cooldowns, item animations) run from their own separate,
      *  already-cheap injection points and do not touch this per-entity path - see each mixin's own class doc. */
     public boolean hidesAnyEntity() {
-        return hideFairy || hideHealerOrbs || hideSoulweaverSkulls || hideArcherPassive || hideSheep
+        return objectHiderEnabled && (hideFairy || hideHealerOrbs || hideSoulweaverSkulls || hideArcherPassive || hideSheep
                 || hideCloakCreepers || hideDyingDragons || hideWitherKing || hideBossDamageSplash
-                || cleanEnd || hideGroundedArrows || hideDeathAnimations || hidePlayers;
+                || cleanEnd || hideGroundedArrows || hideDeathAnimations || hidePlayers);
     }
 
 
@@ -139,6 +142,7 @@ public final class ObjectHiderConfig {
             try {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
+                cfg.objectHiderEnabled = ConfigJson.getBool(obj, "objectHiderEnabled", true);
                 cfg.hideFairy = ConfigJson.getBool(obj, "hideFairy", false);
                 cfg.hideHealerOrbs = ConfigJson.getBool(obj, "hideHealerOrbs", false);
                 cfg.keepNearbyOrbs = ConfigJson.getBool(obj, "keepNearbyOrbs", false);
@@ -202,6 +206,7 @@ public final class ObjectHiderConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
+            obj.addProperty("objectHiderEnabled", objectHiderEnabled);
             obj.addProperty("hideFairy", hideFairy);
             obj.addProperty("hideHealerOrbs", hideHealerOrbs);
             obj.addProperty("keepNearbyOrbs", keepNearbyOrbs);
@@ -259,8 +264,16 @@ public final class ObjectHiderConfig {
 
     // --- Gated getters (feature code) + raw getters (settings GUI) --------------------------------
 
+    public boolean isObjectHiderEnabled() {
+        return objectHiderEnabled;
+    }
+
+    public void setObjectHiderEnabled(boolean v) {
+        this.objectHiderEnabled = v;
+    }
+
     public boolean isHideFairy() {
-        return hideFairy && SkyblockGate.allows();
+        return objectHiderEnabled && hideFairy && SkyblockGate.allows();
     }
 
     public boolean getHideFairyRaw() {
@@ -272,7 +285,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideHealerOrbs() {
-        return hideHealerOrbs && SkyblockGate.allows();
+        return objectHiderEnabled && hideHealerOrbs && SkyblockGate.allows();
     }
 
     public boolean getHideHealerOrbsRaw() {
@@ -300,7 +313,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideSoulweaverSkulls() {
-        return hideSoulweaverSkulls && SkyblockGate.allows();
+        return objectHiderEnabled && hideSoulweaverSkulls && SkyblockGate.allows();
     }
 
     public boolean getHideSoulweaverSkullsRaw() {
@@ -312,7 +325,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideArcherPassive() {
-        return hideArcherPassive && SkyblockGate.allows();
+        return objectHiderEnabled && hideArcherPassive && SkyblockGate.allows();
     }
 
     public boolean getHideArcherPassiveRaw() {
@@ -324,7 +337,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideSheep() {
-        return hideSheep && SkyblockGate.allows();
+        return objectHiderEnabled && hideSheep && SkyblockGate.allows();
     }
 
     public boolean getHideSheepRaw() {
@@ -336,7 +349,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideCloakCreepers() {
-        return hideCloakCreepers && SkyblockGate.allows();
+        return objectHiderEnabled && hideCloakCreepers && SkyblockGate.allows();
     }
 
     public boolean getHideCloakCreepersRaw() {
@@ -348,7 +361,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideHypeHearts() {
-        return hideHypeHearts && SkyblockGate.allows();
+        return objectHiderEnabled && hideHypeHearts && SkyblockGate.allows();
     }
 
     public boolean getHideHypeHeartsRaw() {
@@ -360,7 +373,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideDyingDragons() {
-        return hideDyingDragons && SkyblockGate.allows();
+        return objectHiderEnabled && hideDyingDragons && SkyblockGate.allows();
     }
 
     public boolean getHideDyingDragonsRaw() {
@@ -372,7 +385,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideWitherKing() {
-        return hideWitherKing && SkyblockGate.allows();
+        return objectHiderEnabled && hideWitherKing && SkyblockGate.allows();
     }
 
     public boolean getHideWitherKingRaw() {
@@ -384,7 +397,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideBossDamageSplash() {
-        return hideBossDamageSplash && SkyblockGate.allows();
+        return objectHiderEnabled && hideBossDamageSplash && SkyblockGate.allows();
     }
 
     public boolean getHideBossDamageSplashRaw() {
@@ -396,7 +409,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isCleanEnd() {
-        return cleanEnd && SkyblockGate.allows();
+        return objectHiderEnabled && cleanEnd && SkyblockGate.allows();
     }
 
     public boolean getCleanEndRaw() {
@@ -416,7 +429,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideGroundedArrows() {
-        return hideGroundedArrows && SkyblockGate.allows();
+        return objectHiderEnabled && hideGroundedArrows && SkyblockGate.allows();
     }
 
     public boolean getHideGroundedArrowsRaw() {
@@ -428,7 +441,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isDisableBlindness() {
-        return disableBlindness && SkyblockGate.allows();
+        return objectHiderEnabled && disableBlindness && SkyblockGate.allows();
     }
 
     public boolean getDisableBlindnessRaw() {
@@ -440,7 +453,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideDeathAnimations() {
-        return hideDeathAnimations && SkyblockGate.allows();
+        return objectHiderEnabled && hideDeathAnimations && SkyblockGate.allows();
     }
 
     public boolean getHideDeathAnimationsRaw() {
@@ -452,7 +465,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideDeadNametags() {
-        return hideDeadNametags;
+        return objectHiderEnabled && hideDeadNametags;
     }
 
     public void setHideDeadNametags(boolean v) {
@@ -460,7 +473,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideBlockBreakParticles() {
-        return hideBlockBreakParticles && SkyblockGate.allows();
+        return objectHiderEnabled && hideBlockBreakParticles && SkyblockGate.allows();
     }
 
     public boolean getHideBlockBreakParticlesRaw() {
@@ -473,7 +486,7 @@ public final class ObjectHiderConfig {
 
     /** 2026-09-20: renamed from "Explosion Particles"/isHideExplosionParticles - see the field's own comment. */
     public boolean isHideWitherImpactExplosions() {
-        return hideWitherImpactExplosions && SkyblockGate.allows();
+        return objectHiderEnabled && hideWitherImpactExplosions && SkyblockGate.allows();
     }
 
     public boolean getHideWitherImpactExplosionsRaw() {
@@ -485,7 +498,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideSmokeParticles() {
-        return hideSmokeParticles && SkyblockGate.allows();
+        return objectHiderEnabled && hideSmokeParticles && SkyblockGate.allows();
     }
 
     public boolean getHideSmokeParticlesRaw() {
@@ -499,7 +512,7 @@ public final class ObjectHiderConfig {
     // --- QUOI Render Optimiser ---------------------------------------------------------------------
 
     public boolean isDisableTextShadow() {
-        return disableTextShadow && SkyblockGate.allows();
+        return objectHiderEnabled && disableTextShadow && SkyblockGate.allows();
     }
 
     public boolean getDisableTextShadowRaw() {
@@ -511,7 +524,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isContainerTextShadow() {
-        return containerTextShadow && SkyblockGate.allows();
+        return objectHiderEnabled && containerTextShadow && SkyblockGate.allows();
     }
 
     public boolean getContainerTextShadowRaw() {
@@ -523,7 +536,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isDisableFog() {
-        return disableFog && SkyblockGate.allows();
+        return objectHiderEnabled && disableFog && SkyblockGate.allows();
     }
 
     public boolean getDisableFogRaw() {
@@ -535,7 +548,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isFixCrimsonIsleFog() {
-        return fixCrimsonIsleFog && SkyblockGate.allows();
+        return objectHiderEnabled && fixCrimsonIsleFog && SkyblockGate.allows();
     }
 
     public boolean getFixCrimsonIsleFogRaw() {
@@ -547,7 +560,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideFallingBlocks() {
-        return hideFallingBlocks && SkyblockGate.allows();
+        return objectHiderEnabled && hideFallingBlocks && SkyblockGate.allows();
     }
 
     public boolean getHideFallingBlocksRaw() {
@@ -559,7 +572,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideLightning() {
-        return hideLightning && SkyblockGate.allows();
+        return objectHiderEnabled && hideLightning && SkyblockGate.allows();
     }
 
     public boolean getHideLightningRaw() {
@@ -571,7 +584,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideRecipeBookButton() {
-        return hideRecipeBookButton && SkyblockGate.allows();
+        return objectHiderEnabled && hideRecipeBookButton && SkyblockGate.allows();
     }
 
     public boolean getHideRecipeBookButtonRaw() {
@@ -585,7 +598,7 @@ public final class ObjectHiderConfig {
     // --- QUOI Name Tags -----------------------------------------------------------------------------
 
     public boolean isCancelVanillaNametags() {
-        return cancelVanillaNametags && SkyblockGate.allows();
+        return objectHiderEnabled && cancelVanillaNametags && SkyblockGate.allows();
     }
 
     public boolean getCancelVanillaNametagsRaw() {
@@ -599,7 +612,7 @@ public final class ObjectHiderConfig {
     // --- QUOI Player Display -> Hide -----------------------------------------------------------------
 
     public boolean isHideHealthBar() {
-        return hideHealthBar && SkyblockGate.allows();
+        return objectHiderEnabled && hideHealthBar && SkyblockGate.allows();
     }
 
     public boolean getHideHealthBarRaw() {
@@ -611,7 +624,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideAbsorptionHearts() {
-        return hideAbsorptionHearts && SkyblockGate.allows();
+        return objectHiderEnabled && hideAbsorptionHearts && SkyblockGate.allows();
     }
 
     public boolean getHideAbsorptionHeartsRaw() {
@@ -623,7 +636,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideMountHealthBar() {
-        return hideMountHealthBar && SkyblockGate.allows();
+        return objectHiderEnabled && hideMountHealthBar && SkyblockGate.allows();
     }
 
     public boolean getHideMountHealthBarRaw() {
@@ -635,7 +648,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideRegenBounce() {
-        return hideRegenBounce && SkyblockGate.allows();
+        return objectHiderEnabled && hideRegenBounce && SkyblockGate.allows();
     }
 
     public boolean getHideRegenBounceRaw() {
@@ -647,7 +660,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideArmorBar() {
-        return hideArmorBar && SkyblockGate.allows();
+        return objectHiderEnabled && hideArmorBar && SkyblockGate.allows();
     }
 
     public boolean getHideArmorBarRaw() {
@@ -659,7 +672,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isHideHungerBar() {
-        return hideHungerBar && SkyblockGate.allows();
+        return objectHiderEnabled && hideHungerBar && SkyblockGate.allows();
     }
 
     public boolean getHideHungerBarRaw() {
@@ -673,7 +686,7 @@ public final class ObjectHiderConfig {
     // --- QUOI Tweaks --------------------------------------------------------------------------------
 
     public boolean isDisableItemCooldowns() {
-        return disableItemCooldowns && SkyblockGate.allows();
+        return objectHiderEnabled && disableItemCooldowns && SkyblockGate.allows();
     }
 
     public boolean getDisableItemCooldownsRaw() {
@@ -687,7 +700,7 @@ public final class ObjectHiderConfig {
     // --- QUOI Item Animations ------------------------------------------------------------------------
 
     public boolean isNoEatAnimation() {
-        return noEatAnimation && SkyblockGate.allows();
+        return objectHiderEnabled && noEatAnimation && SkyblockGate.allows();
     }
 
     public boolean getNoEatAnimationRaw() {
@@ -699,7 +712,7 @@ public final class ObjectHiderConfig {
     }
 
     public boolean isNoShortbowSwing() {
-        return noShortbowSwing && SkyblockGate.allows();
+        return objectHiderEnabled && noShortbowSwing && SkyblockGate.allows();
     }
 
     public boolean getNoShortbowSwingRaw() {
@@ -713,7 +726,7 @@ public final class ObjectHiderConfig {
     // --- QUOI 1.1.1 Hide Players -------------------------------------------------------------------------
 
     public boolean isHidePlayers() {
-        return hidePlayers && SkyblockGate.allows();
+        return objectHiderEnabled && hidePlayers && SkyblockGate.allows();
     }
 
     public boolean getHidePlayersRaw() {

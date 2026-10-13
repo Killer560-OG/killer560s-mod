@@ -30,13 +30,6 @@ public class ThornTab extends BaseTab {
         super("Thorn (F4)");
     }
 
-    /** Several independent switches and no master one: the menu card shows no switch (Option A menu, 2026-10-12). */
-    @Override
-    public com.killer560.hub.gui.SettingsButtonWidget masterToggle(
-            java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
-        return null;
-    }
-
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
@@ -47,6 +40,18 @@ public class ThornTab extends BaseTab {
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
         int y = contentY;
+
+        // Thorn as a whole (killer560, 2026-10-13): first, so it is the card's switch. Off, every part below stands down
+        // (ThornConfig's effective getters) and its settings are hidden.
+        widgets.add(SettingsButtonWidget.builder(onOff("Thorn", cfg.isThornEnabled()), btn -> {
+                    cfg.setThornEnabled(!cfg.isThornEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        if (!cfg.isThornEnabled()) {
+            return widgets;
+        }
 
         // ---- Spirit Bear counter ----
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Spirit Bear Counter", false), mc.font));

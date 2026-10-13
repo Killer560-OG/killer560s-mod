@@ -132,7 +132,7 @@ public final class HotbarTheme {
             r.outline(bar[0], bar[1], bar[2], bar[3], u, withAlpha(p.border(), alpha));
             for (int i = 0; i < 9; i++) {
                 int sx = x0 + 3 + 20 * i;
-                InventoryThemeFeature.sunken(r, sx - 1, bottom - 20, sx + 17, bottom - 2, p.slotFill(), p);
+                InventoryThemeFeature.slotSquare(r, sx - 1, bottom - 20, sx + 17, bottom - 2, p.slotFill(), p);
             }
             // Vanilla's ring in every preset, its light band in the preset's colour (killer560, 2026-10-12: "Mimic that for
             // all presets"): Mod Theme and Custom in the accent, Dark in a muted grey so it does not glare.
@@ -150,7 +150,7 @@ public final class HotbarTheme {
                 int ox1 = r.x(itemX - 3 + 22);
                 r.fill(ox0, bar[1], ox1, bar[3], withAlpha(p.panel(), alpha));
                 r.outline(ox0, bar[1], ox1, bar[3], u, withAlpha(p.border(), alpha));
-                InventoryThemeFeature.sunken(r, itemX - 1, bottom - 20, itemX + 17, bottom - 2, p.slotFill(), p);
+                InventoryThemeFeature.slotSquare(r, itemX - 1, bottom - 20, itemX + 17, bottom - 2, p.slotFill(), p);
             }
         } finally {
             r.submit();

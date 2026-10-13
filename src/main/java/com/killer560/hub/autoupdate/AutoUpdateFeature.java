@@ -91,7 +91,7 @@ public final class AutoUpdateFeature {
     // ---- gates ---------------------------------------------------------------------------------------------------
 
     static AutoUpdater.Request currentRequest() {
-        return new AutoUpdater.Request(AutoUpdateConfig.getInstance().getChannel(), BuildVariant.TESTING,
+        return new AutoUpdater.Request(AutoUpdateConfig.getInstance().effectiveChannel(), BuildVariant.TESTING,
                 FabricLoader.getInstance().getGameDir(), BuildInfo.minecraft(), BuildInfo.variant(),
                 BuildInfo.commit(), AutoUpdateConfig.stagingDir());
     }

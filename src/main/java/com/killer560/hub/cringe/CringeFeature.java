@@ -22,6 +22,10 @@ public final class CringeFeature {
     }
 
     public static void sendRandom(String channelCommandWord) {
+        if (!CringeConfig.getInstance().isEnabled()) {
+            com.killer560.hub.notify.ModOverlayMessage.show("§c[Killer560's Mod] Cringe is off (its switch in the menu)", 3000);
+            return;
+        }
         TranslateFeature.sendGenerated(randomLine(), channelCommandWord);
     }
 

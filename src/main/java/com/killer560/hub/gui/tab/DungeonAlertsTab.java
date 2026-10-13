@@ -29,13 +29,6 @@ public class DungeonAlertsTab extends BaseTab {
         super("Dungeon Alerts");
     }
 
-    /** Several independent switches and no master one: the menu card shows no switch (Option A menu, 2026-10-12). */
-    @Override
-    public com.killer560.hub.gui.SettingsButtonWidget masterToggle(
-            java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
-        return null;
-    }
-
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();
@@ -44,6 +37,18 @@ public class DungeonAlertsTab extends BaseTab {
         int half = (contentWidth - gap) / 2;
         int colB = contentX + half + gap;
         int[] y = {contentY};
+
+        // Dungeon Alerts as a whole (killer560, 2026-10-13): first, so it is the card's switch. Off, both alerts below
+        // stand down (DungeonAlertsConfig#shadowAssassinOn / #roomAlertsOn) and their settings are hidden.
+        w.add(SettingsButtonWidget.builder(onOff("Dungeon Alerts", cfg.isDungeonAlertsEnabled()), btn -> {
+                    cfg.setDungeonAlertsEnabled(!cfg.isDungeonAlertsEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y[0], contentWidth, 20).build());
+        y[0] += 24;
+        if (!cfg.isDungeonAlertsEnabled()) {
+            return w;
+        }
 
         // --- Shadow Assassin Alert ---
         header(w, contentX, y, contentWidth, "Shadow Assassin Alert");

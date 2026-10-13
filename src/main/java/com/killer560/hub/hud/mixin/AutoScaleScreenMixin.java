@@ -55,7 +55,10 @@ public abstract class AutoScaleScreenMixin {
         killer560smod$autoScalePushed = false;
         // Not while a mouse button is held: the HUD Scale slider sizes this very menu now (2026-10-08), and a relayout
         // mid-drag would rebuild the slider out from under the cursor. It lays out on the first frame after release.
-        if (AutoScale.needsRelayout(self) && !self.isDragging() && !killer560smod$leftMouseDown()) {
+        // ...except a mod-menu slider's own drag (ThemedSliderButton#liveDragKey): ModScreen hands that drag to the
+        // rebuilt slider, so HUD Scale resizes the menu live while it is dragged (killer560, 2026-10-13).
+        boolean liveSlider = com.killer560.hub.gui.ThemedSliderButton.liveDragKey() != null && self.isDragging();
+        if (AutoScale.needsRelayout(self) && (liveSlider || (!self.isDragging() && !killer560smod$leftMouseDown()))) {
             // Auto Scale was toggled (or its factor moved) while this screen was open - usually from the very menu
             // holding the toggle. Lay it out again before drawing so drawing, layout and mouse agree.
             Window window = Minecraft.getInstance().getWindow();

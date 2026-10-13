@@ -397,6 +397,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.bazaarflip.BazaarFlipCommands.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Killer560ModClient.checkHudEditKeybind", Killer560ModClient::checkHudEditKeybind));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PeekChatFeature.tick", com.killer560.hub.peekchat.PeekChatFeature::tick));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Killer560ModClient.checkExperimentsCancelKeybind", Killer560ModClient::checkExperimentsCancelKeybind));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WindowModeFeature.tickApplyOnce", WindowModeFeature::tickApplyOnce));
 

@@ -34,12 +34,25 @@ public class AutoUpdateTab extends BaseTab {
                 SectionHeaders.header("Auto Update", false), Minecraft.getInstance().font));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.cycling(channelText(), (btn, dir) -> {
-                    AutoUpdateConfig cfg = AutoUpdateConfig.getInstance();
-                    cfg.setChannel(SettingsButtonWidget.step(cfg.getChannel(), dir));
-                    cfg.save();
-                    btn.setMessage(channelText());
-                }).bounds(contentX, y, half, 20).build());
+        // Auto Update as a whole (killer560, 2026-10-13: "make a toggle for auto update"): first, so it is the card's
+        // switch; on by default. Off, the updater follows Channel.OFF (AutoUpdateConfig#effectiveChannel) and the
+        // channel row is hidden.
+        AutoUpdateConfig ac = AutoUpdateConfig.getInstance();
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Auto Update: " + (ac.isEnabled() ? "§aON" : "§cOFF")),
+                btn -> {
+                    ac.setEnabled(!ac.isEnabled());
+                    ac.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        if (ac.isEnabled()) {
+            widgets.add(SettingsButtonWidget.cycling(channelText(), (btn, dir) -> {
+                        AutoUpdateConfig cfg = AutoUpdateConfig.getInstance();
+                        cfg.setChannel(AutoUpdateConfig.stepChannel(cfg.getChannel(), dir));
+                        cfg.save();
+                        btn.setMessage(channelText());
+                    }).bounds(contentX, y, half, 20).build());
+        }
         widgets.add(SettingsButtonWidget.builder(checkText(), btn -> {
                     if (AutoUpdateFeature.isChecking()) {
                         return;
@@ -60,13 +73,12 @@ public class AutoUpdateTab extends BaseTab {
     }
 
     private static Component channelText() {
-        AutoUpdateConfig.Channel c = AutoUpdateConfig.getInstance().getChannel();
-        return Component.literal("Auto Update: " + (c == AutoUpdateConfig.Channel.OFF ? "§c" : "§a") + c.label);
+        return Component.literal("Channel: §a" + AutoUpdateConfig.getInstance().getChannel().label);
     }
 
     /** "Full Release - up to date": the channel and the last check's result, for the menu's Home page. */
     public static String statusLine() {
-        AutoUpdateConfig.Channel c = AutoUpdateConfig.getInstance().getChannel();
+        AutoUpdateConfig.Channel c = AutoUpdateConfig.getInstance().effectiveChannel();
         String check = checkText().getString();
         int colon = check.indexOf(':');
         String status = colon > 0 ? check.substring(colon + 1).trim() : "not checked yet";

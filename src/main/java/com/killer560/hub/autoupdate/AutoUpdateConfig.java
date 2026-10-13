@@ -11,7 +11,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 
-/** Auto Update's one setting, the channel (killer560, 2026-10-11): Off, Full Release (the default) or Beta. */
+/** Auto Update's settings: the master switch (killer560, 2026-10-13: "make a toggle for auto update", on by default)
+ *  and the channel it follows (2026-10-11): Full Release (the default) or Beta. Off is the switch now, not a channel;
+ *  a file saved with the old Off channel loads as the switch off and the channel back on Full Release. */
 public final class AutoUpdateConfig {
 
     /** Which GitHub release the updater follows. */
@@ -54,6 +56,7 @@ public final class AutoUpdateConfig {
     private static AutoUpdateConfig instance;
 
     private Channel channel = Channel.FULL_RELEASE;
+    private boolean enabled = true;
 
     private AutoUpdateConfig() {
     }
@@ -77,6 +80,10 @@ public final class AutoUpdateConfig {
                         cfg.channel = c;
                     }
                 }
+                cfg.enabled = com.killer560.hub.util.ConfigJson.getBool(obj, "enabled", cfg.channel != Channel.OFF);
+                if (cfg.channel == Channel.OFF) {
+                    cfg.channel = Channel.FULL_RELEASE;
+                }
             } catch (Exception ignored) {
                 // A broken file reads as the defaults, like every other config.
             }
@@ -89,6 +96,7 @@ public final class AutoUpdateConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("channel", channel.name());
+            obj.addProperty("enabled", enabled);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -98,8 +106,29 @@ public final class AutoUpdateConfig {
         return channel;
     }
 
+    /** Never Off: Off is {@link #setEnabled(boolean) the switch} now. */
     public void setChannel(Channel channel) {
-        this.channel = channel == null ? Channel.FULL_RELEASE : channel;
+        this.channel = channel == null || channel == Channel.OFF ? Channel.FULL_RELEASE : channel;
+    }
+
+    /** The channel moved {@code dir} steps through Full Release and Beta (Off is the switch, not a channel). */
+    public static Channel stepChannel(Channel current, int dir) {
+        Channel[] ring = {Channel.FULL_RELEASE, Channel.BETA};
+        int i = current == Channel.BETA ? 1 : 0;
+        return ring[Math.floorMod(i + dir, ring.length)];
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    /** What the updater follows: the channel, or Off while the switch is off. */
+    public Channel effectiveChannel() {
+        return enabled ? channel : Channel.OFF;
     }
 
     /** The staging folder: downloaded jars, staged.json / installed.json and the helper's log. */

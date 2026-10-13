@@ -9,6 +9,7 @@ import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
@@ -20,8 +21,15 @@ import java.util.List;
  * Dark, Light or Custom - and Custom's five colours, each opened in the usual colour picker. Changing a colour while a
  * preset is in use starts Custom from that preset; Reset puts Custom back to the preset it started from. Saved in
  * {@code killer560smod-menu.json} with Favourites ({@link MenuConfig}).
+ * <p>Saved Themes (killer560, 2026-10-13): Save as New Theme keeps the colours on screen as a named theme; each saved
+ * theme has Use, a name box to rename it, and Delete (a second click confirms). They are kept in the same file.
  */
 public class MenuThemeTab extends BaseTab {
+
+    /** The saved theme whose Delete was clicked once (a second click within {@link #ARM_MS} deletes it), or -1. */
+    private int armedDelete = -1;
+    private long armedAt;
+    private static final long ARM_MS = 4000;
 
     public MenuThemeTab() {
         super("Menu Theme");
@@ -58,11 +66,77 @@ public class MenuThemeTab extends BaseTab {
                     resetCustom();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
+        y += 26;
+
+        // ---- Saved Themes ----
+        var font = Minecraft.getInstance().font;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Saved Themes", false), font));
+        y += 16;
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Save as New Theme"), btn -> {
+                    MenuConfig c = MenuConfig.getInstance(); // a profile load replaces the instance this tab was built with
+                    c.saveCurrentAsTheme();
+                    c.save();
+                    armedDelete = -1;
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+        List<MenuConfig.SavedTheme> saved = cfg.getSavedThemes();
+        if (saved.isEmpty()) {
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("§7None yet - Save as New Theme keeps the colours you see now."), font));
+            return widgets;
+        }
+        int useW = 54;
+        int deleteW = 58;
+        int gap = 4;
+        int nameW = Math.max(40, contentWidth - useW - deleteW - 2 * gap);
+        int active = cfg.getActiveSaved();
+        for (int i = 0; i < saved.size(); i++) {
+            int index = i;
+            MenuConfig.SavedTheme t = saved.get(i);
+            boolean using = i == active;
+            widgets.add(SettingsButtonWidget.builder(Component.literal(using ? "§aIn Use" : "Use"), btn -> {
+                        MenuConfig c = MenuConfig.getInstance();
+                        c.useSavedTheme(index);
+                        c.save();
+                        armedDelete = -1;
+                        requestRebuild.run();
+                    }).bounds(contentX, y, useW, 18).build());
+            EditBox name = new EditBox(font, contentX + useW + gap, y, nameW, 18, Component.literal("Theme name"));
+            name.setMaxLength(MenuConfig.MAX_THEME_NAME);
+            name.setTextShadow(com.killer560.hub.gui.MenuStyle.TEXT_SHADOW);
+            name.setValue(t.name);
+            name.setResponder(text -> {
+                MenuConfig c = MenuConfig.getInstance();
+                c.renameSavedTheme(index, text);
+                c.save();
+            });
+            widgets.add(name);
+            boolean armed = armedDelete == i && System.currentTimeMillis() - armedAt <= ARM_MS;
+            widgets.add(SettingsButtonWidget.builder(Component.literal(armed ? "Confirm" : "Delete"), btn -> {
+                        if (armedDelete != index || System.currentTimeMillis() - armedAt > ARM_MS) {
+                            armedDelete = index;
+                            armedAt = System.currentTimeMillis();
+                            requestRebuild.run();
+                            return;
+                        }
+                        armedDelete = -1;
+                        MenuConfig c = MenuConfig.getInstance();
+                        c.deleteSavedTheme(index);
+                        c.save();
+                        requestRebuild.run();
+                    }).bounds(contentX + useW + gap + nameW + gap, y, deleteW, 18).danger(armed).build());
+            y += 22;
+        }
         return widgets;
     }
 
     private static Component themeText() {
-        return Component.literal("Menu Theme: §6" + MenuConfig.getInstance().getTheme().label);
+        MenuConfig cfg = MenuConfig.getInstance();
+        int active = cfg.getActiveSaved();
+        String shown = active >= 0 ? cfg.getTheme().label + " (" + MenuConfig.shownName(cfg.getSavedThemes().get(active)) + ")"
+                : cfg.getTheme().label;
+        return Component.literal("Menu Theme: §6" + shown);
     }
 
     /** The next (dir +1) or previous (-1) theme, Amber - Dark - Light - Custom, wrapping; saved. */
