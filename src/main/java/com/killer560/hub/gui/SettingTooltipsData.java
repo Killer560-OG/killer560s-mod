@@ -20,6 +20,22 @@ final class SettingTooltipsData {
         bazaarFlip(d);
         crosshair(d);
         autoSecret(d);
+        menuTheme(d);
+    }
+
+    private static void menuTheme(Map<String, String> d) {
+        // Option A menu, 2026-10-12: the menu's colour presets and Custom colours (gui/tab/MenuThemeTab).
+        d.put("menu theme", "The mod menu's colours: Amber (the default orange), Dark (neutral greys), Light (light panels, dark text) or Custom. The round button in the menu's header switches it too.");
+        d.put("menu theme/menu theme", "Amber, Dark, Light or Custom. Left click goes to the next, right click back.");
+        d.put("menu theme/accent", "Custom: the colour of titles, selections, outlines and buttons. Changing any colour switches the menu to Custom, started from the theme you were on.");
+        d.put("menu theme/panel background", "Custom: the menu's background. A light colour turns on the light look (grey outlines, soft shadows, dark text expected).");
+        d.put("menu theme/card background", "Custom: the feature cards and the boxes on Home.");
+        d.put("menu theme/text", "Custom: the colour of names, labels and descriptions.");
+        d.put("menu theme/switch on", "Custom: the colour of a switch that is on.");
+        for (String preset : new String[]{"Amber", "Dark", "Light"}) {
+            d.put("menu theme/reset custom to " + preset.toLowerCase(java.util.Locale.ROOT), "Puts Custom's five colours"
+                    + " back to the " + preset + " preset it was started from.");
+        }
     }
 
     private static void autoSecret(Map<String, String> d) {
@@ -63,7 +79,8 @@ final class SettingTooltipsData {
         d.put("simon says", "Highlights the Simon Says buttons you need to press.");
         d.put("show highlights", "Draws boxes on the Simon Says buttons you still need to click.");
         d.put("show numbers", "Writes each button's order number on the Simon Says buttons.");
-        d.put("dungeon/style", "How Simon Says highlights are drawn: filled, outline, or both.");
+        // "dungeon/style" (Simon Says' text) is gone (Option A menu, 2026-10-12): Simon Says has its own "simon says/style",
+        // and the category key only put Simon Says' text on Etherwarp Waypoints' Style row.
         d.put("style", "How this highlight is drawn: filled, outline only, or both.");
         d.put("dungeon/scale", "Size of the numbers drawn on the Simon Says buttons.");
         d.put("hud elements/scale", "Size of the Storage Overlay (50-200%) or the DVD box.");

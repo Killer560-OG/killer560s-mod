@@ -83,6 +83,41 @@ public abstract class RangeSliderWidget extends AbstractWidget {
         int y0 = getY();
         int w = getWidth();
         int h = getHeight();
+        if (SettingsButtonWidget.inMenu()) {
+            // Option A menu: label and range above a recessed track, both knobs on it. The knobs sit at the centres of
+            // the same handle boxes the mouse maps onto (handleX + HANDLE_WIDTH / 2), so a click lands where it looks.
+            var font = Minecraft.getInstance().font;
+            String plain = net.minecraft.ChatFormatting.stripFormatting(getMessage().getString());
+            if (plain == null) {
+                plain = getMessage().getString();
+            }
+            int colon = plain.indexOf(':');
+            String label = colon > 0 ? plain.substring(0, colon).trim() : "";
+            String value = colon > 0 ? plain.substring(colon + 1).trim() : plain.trim();
+            boolean hover = isHovered || dragging >= 0;
+            com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(graphics);
+            if (isHovered) {
+                r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, 0x0E));
+            }
+            MenuStyle.separator(r, x0, x0 + w, y0 + h - 2);
+            int cy = y0 + h - 6;
+            int tx0 = x0 + HANDLE_WIDTH / 2;
+            int tx1 = x0 + w - HANDLE_WIDTH / 2;
+            r.outline(tx0, cy - 2, tx1 - tx0, 4, MenuStyle.BLACK);
+            r.fill(tx0 + 1, cy - 1, tx1 - 1, cy + 1, MenuStyle.TRACK);
+            int lowC = handleX(low) + HANDLE_WIDTH / 2;
+            int highC = handleX(high) + HANDLE_WIDTH / 2;
+            if (highC > lowC) {
+                r.gradient(lowC, cy - 1, highC, cy + 1, MenuStyle.OR_LIGHT, MenuStyle.OR_DARK);
+            }
+            MenuStyle.knob(r, lowC - 4, cy - 4, hover);
+            MenuStyle.knob(r, highC - 4, cy - 4, hover);
+            r.submit();
+            graphics.text(font, MenuStyle.ellipsize(label, w - 12 - font.width(value)), x0 + 4, y0 + 1,
+                    isHovered ? MenuStyle.TXT_HOVER : MenuStyle.TXT, MenuStyle.TEXT_SHADOW);
+            graphics.text(font, value, x0 + w - 4 - font.width(value), y0 + 1, MenuStyle.DIM, MenuStyle.TEXT_SHADOW);
+            return;
+        }
         graphics.fill(x0, y0, x0 + w, y0 + h, TRACK_BG);
         int lowX = handleX(low);
         int highX = handleX(high);

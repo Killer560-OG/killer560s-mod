@@ -93,10 +93,12 @@ his typos into a command, label or alias.
 A setting that steps through values is built with `SettingsButtonWidget.cycling(label, (btn, dir) -> ...)` and its
 `step` helpers: left click forward, right click back, wrapping (killer560, 2026-10-11); testkit 806 finds them by `isCycling()`.
 
-Menu placement (killer560, 2026-10-07): every feature is its own tab in its category - no combined folders (only
-Secrets and Puzzle Solvers group tabs, at his request). Cheat-only tabs go in one block at the BOTTOM of their
-category, never directly under the legit tab they go with, and cheat-only settings go at the bottom of their tab under
-a red `SectionHeaders` header. Testkit 511-514 check it on cheat, legit and testing jars.
+Menu placement (killer560, 2026-10-07): every feature is its own tab (a card in the Option A menu, 2026-10-12) in its
+category - no combined folders (only Secrets and Puzzle Solvers group tabs, at his request). Cheat-only tabs go in one
+block at the BOTTOM of their category (the menu draws it under a red "Cheat" header), never directly under the legit tab
+they go with, and cheat-only settings go at the bottom of their tab under a red `SectionHeaders` header. The categories
+are put together in `gui/tab/MenuCategories`; a new tab still goes in its old folder class (`DungeonTab`, `ItemsTab`...).
+Testkit 511-514 check it on cheat, legit and testing jars.
 
 Never track a `HANDOFF.md` in the repo; handoff notes live only in
 `C:\Users\Hunter\.claude\killer560s-mod-HANDOFF-PRIVATE.txt`. The Discord bot token lives at

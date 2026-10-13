@@ -73,10 +73,9 @@ public class Killer560ModClient implements ClientModInitializer {
     private static boolean editKeyWasDown = false;
     /** Whether he was typing at the previous Edit HUD key poll - see checkHudEditKeybind. */
     private static boolean editKeyTypingLastTick = false;
-    // ModScreen's tab order: Home, Chat, Dungeon, Spotify, GIF Player - see ModScreen.init().
-    // Translate lives inside the Chat folder tab (as its first sub-tab), so opening Chat lands on Translate. By
-    // name: the old index (1) had pointed at Profiles since categories were added in front of Chat.
-    private static final String TRANSLATE_TAB = "Chat";
+    // /language opens the menu with the Translate feature's drawer open (ModScreen.atTab takes a category or a
+    // feature name; by name, since indexes went stale whenever a category moved).
+    private static final String TRANSLATE_TAB = "Translate";
 
     @Override
     public void onInitializeClient() {

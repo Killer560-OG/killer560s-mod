@@ -183,6 +183,8 @@ public final class ModPaths {
         t.put("hud", "interface/hud");
         t.put("customscoreboard", "interface/customscoreboard");
         t.put("mainmenu", "interface/mainmenu");
+        // The mod menu's own settings: Favourites (killer560smod-menu.json, Option A menu 2026-10-12).
+        t.put("menu", "interface/menu");
         t.put("window", "interface/window");
         t.put("inventorytheme", "interface/inventorytheme");
         t.put("enchantcolors", "interface/enchantcolors");

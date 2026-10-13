@@ -79,6 +79,29 @@ public final class SettingTooltips {
         SCOPES.clear();
     }
 
+    /** {@link #describe(String, net.minecraft.client.gui.components.AbstractWidget, String)} for a label with no widget:
+     *  the sub-tab's scoped entry, then the category's, then the bare label (the menu's feature cards read their master
+     *  toggle's text this way). */
+    public static String describeScoped(String subTab, String category, String label) {
+        String k = key(label);
+        if (k.isEmpty()) {
+            return null;
+        }
+        if (subTab != null) {
+            String scoped = DESCRIPTIONS.get(subTab.trim().toLowerCase(Locale.ROOT) + "/" + k);
+            if (scoped != null) {
+                return scoped;
+            }
+        }
+        if (category != null) {
+            String scoped = DESCRIPTIONS.get(category.trim().toLowerCase(Locale.ROOT) + "/" + k);
+            if (scoped != null) {
+                return scoped;
+            }
+        }
+        return DESCRIPTIONS.get(k);
+    }
+
     /** @return the description for a widget label shown in {@code tabName}, or null if there is none. */
     public static String describe(String tabName, String label) {
         return describe(tabName, null, label);

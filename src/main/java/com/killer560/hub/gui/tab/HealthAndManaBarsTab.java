@@ -77,6 +77,16 @@ public class HealthAndManaBarsTab extends BaseTab {
     private boolean scanningForSearch;
 
     @Override
+    public List<String> searchHits(String query) {
+        scanningForSearch = true;
+        try {
+            return super.searchHits(query);
+        } finally {
+            scanningForSearch = false;
+        }
+    }
+
+    @Override
     protected boolean widgetsMatchSearch(String query) {
         scanningForSearch = true;
         try {
