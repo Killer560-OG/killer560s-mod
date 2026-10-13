@@ -63,7 +63,8 @@ final class SettingTooltipsData {
         d.put("simon says", "Highlights the Simon Says buttons you need to press.");
         d.put("show highlights", "Draws boxes on the Simon Says buttons you still need to click.");
         d.put("show numbers", "Writes each button's order number on the Simon Says buttons.");
-        d.put("dungeon/style", "How Simon Says highlights are drawn: filled, outline, or both.");
+        // "dungeon/style" (Simon Says' text) is gone (Option A menu, 2026-10-12): Simon Says has its own "simon says/style",
+        // and the category key only put Simon Says' text on Etherwarp Waypoints' Style row.
         d.put("style", "How this highlight is drawn: filled, outline only, or both.");
         d.put("dungeon/scale", "Size of the numbers drawn on the Simon Says buttons.");
         d.put("hud elements/scale", "Size of the Storage Overlay (50-200%) or the DVD box.");

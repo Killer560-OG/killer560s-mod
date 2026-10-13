@@ -248,7 +248,9 @@ public class ModScreen extends Screen {
         }
 
         // Panel: most of the canvas, as the mockup (the canvas is ~853x480 at every Auto Scaled window).
-        panelW = Math.max(Math.min(this.width - 12, 480), Math.min((int) (this.width * 0.93), 1000));
+        // Nearly the full width: the drawer needs ~340 units of content (the narrowest the tabs were ever laid out at,
+        // the old menu's smallest panel) beside a three-column grid.
+        panelW = Math.min(this.width - 12, 1000);
         panelH = Math.max(Math.min(this.height - 12, 300), Math.min((int) (this.height * 0.90), 600));
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
@@ -402,12 +404,12 @@ public class ModScreen extends Screen {
         int bodyH = panelY + panelH - 4 - bodyY;
         sideX = panelX + 4;
         sideY = bodyY;
-        sideW = Math.max(96, Math.min(124, panelW * 14 / 100));
+        sideW = Math.max(96, Math.min(124, panelW * 12 / 100));
         sideH = bodyH;
         int restX = sideX + sideW + 5;
         int restW = panelX + panelW - 4 - restX;
         boolean drawer = openFeature != null && !pageMode();
-        int wantDrawer = Math.max(270, Math.min(400, restW * 42 / 100));
+        int wantDrawer = Math.max(DRAWER_MIN, Math.min(440, restW / 2));
         drawerOverlay = drawer && restW - wantDrawer - 5 < 2 * CARD_MIN_W + 2 * GRID_PAD;
         gridX = restX;
         gridY = bodyY;
@@ -598,12 +600,15 @@ public class ModScreen extends Screen {
         for (AbstractWidget w : widgets) {
             w.setY(w.getY() - scrollOffset);
         }
-        contentPane = new ScrollingContentPane(contentX - 4, contentY, contentW + 8, visibleContentHeight, widgets);
+        // The pane reaches 4 units above the first row, so a row scrolled to the very top is clear of the clip edge.
+        contentPane = new ScrollingContentPane(contentX - 4, contentY - 4, contentW + 8, visibleContentHeight + 4, widgets);
         this.addRenderableWidget(contentPane);
     }
 
     /** A drawer narrower than this stacks a tab's side-by-side setting rows (see {@link #stackRows}). */
-    private static final int STACK_BELOW = 330;
+    private static final int STACK_BELOW = 380;
+    /** The drawer's narrowest: 340 units of content (22 go to its padding and scrollbar). */
+    private static final int DRAWER_MIN = 362;
 
     private static boolean simpleRow(AbstractWidget w) {
         return w instanceof SettingsButtonWidget || w instanceof ThemedSliderButton || w instanceof RangeSliderWidget;
@@ -1269,6 +1274,10 @@ public class ModScreen extends Screen {
         if (active instanceof FolderTab folder) {
             return folder.findListeningKeyCaptureTab();
         }
+        // Home's sections are pinned (always shown in the old menu): one of them waiting counts while Home is up.
+        if (!favouritesSelected && selected() instanceof HomeTab home) {
+            return home.findListeningKeyCaptureTab();
+        }
         return null;
     }
 
@@ -1812,20 +1821,22 @@ public class ModScreen extends Screen {
         Object key = hovered;
         if (hovered != null) {
             try {
-                BaseTab owner = pageMode() ? selected() : openFeature;
-                String category = owner == null ? selected().name : MenuCategories.legacyCategory(owner);
-                text = SettingTooltips.describe(category, hovered, hovered.getMessage().getString());
+                text = SettingTooltips.describe(tooltipCategory(hovered), hovered, hovered.getMessage().getString());
             } catch (RuntimeException e) {
                 text = null;
             }
         } else if (!pageMode() && inside(mouseX, mouseY, gridX, gridY, gridW, gridH)
                 && !(openFeature != null && drawerOverlay)) {
             for (Item it : items) {
-                if (it.kind == ItemKind.CARD && inside(mouseX, mouseY + gridScroll, it.x, it.y, it.w, it.h)) {
+                if ((it.kind == ItemKind.CARD || (it.kind == ItemKind.HEADER && it.tab != null))
+                        && inside(mouseX, mouseY + gridScroll, it.x, it.y, it.w, it.h)) {
                     key = it.tab;
-                    text = FeatureCards.description(it.tab);
-                    if (text != null && text.length() < 60) {
-                        text = null; // short enough to read on the card itself
+                    text = cardTooltip(it.tab);
+                    if (text == null && it.kind == ItemKind.CARD) {
+                        text = FeatureCards.description(it.tab);
+                        if (text != null && text.length() < 60) {
+                            text = null; // short enough to read on the card itself
+                        }
                     }
                     break;
                 }
@@ -1887,6 +1898,36 @@ public class ModScreen extends Screen {
             FeatureCards.refresh(leaf);
         }
         rebuild();
+    }
+
+    /**
+     * What hovering a card, or a group's title in the grid, shows: the description the tab's NAME had as an accordion
+     * header row before the Option A menu (looked up under its old category), or null when it had none - the card's
+     * own line then shows instead, in full, when the card cuts it short. Read by the testkit's tooltip cases.
+     */
+    public static String cardTooltip(BaseTab tab) {
+        String header = SettingTooltips.describeScoped(null, MenuCategories.legacyCategory(tab), tab.name);
+        return header == null || header.isBlank() ? null : header;
+    }
+
+    /**
+     * The category name a row's tooltip is looked up under: the OLD category of the tab that built it
+     * ({@link MenuCategories#legacyCategory}), so the category-scoped keys ("dungeon/mode") still answer after the
+     * regroup. Read by the testkit's tooltip cases too, so they judge exactly what the menu shows.
+     */
+    public static String tooltipCategory(AbstractWidget w) {
+        String scope = SettingTooltips.scopeOf(w);
+        if (scope != null) {
+            for (BaseTab leaf : allLeaves()) {
+                if (leaf.name.equals(scope)) {
+                    return MenuCategories.legacyCategory(leaf);
+                }
+            }
+        }
+        if (openFeature != null) {
+            return MenuCategories.legacyCategory(openFeature);
+        }
+        return tabs == null || tabs.isEmpty() ? null : tabs.get(Math.max(0, Math.min(selectedTab, tabs.size() - 1))).name;
     }
 
     // ---- Home page blocks ------------------------------------------------------------------------------------------
