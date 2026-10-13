@@ -148,3 +148,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   added to the gap: Lever Aura measured 4.48 at 5 CPS and 7.89 at 10 (testkit 846, 2026-10-12). It now schedules from the
   tick the turn took (5.17 / 10.00). On different blocks every click needs a turn, so 20 CPS tops out at 10. Arrow Align
   Aura had the same bug (832 sweep 4.57 / 8.00 at 5 / 10 CPS, now 5.00 / 10.00, arrow-turn).
+- **The floor graph's height band must reach under the floor** (killer560's Altar #9 -> #10, 2026-10-12). Every planner search
+  took landings only from floor - 20, and Altar's lower level is 26 below the floor, so no landing could see the goal: the
+  exact search's empty first backward layer read as "no route (proved)". The band now starts at Hypixel's y 0 (floor - 69,
+  `EtherwarpPathfinder.graphMinY`); testkit 941 plans 2 warps and flies them (main: not planned).
