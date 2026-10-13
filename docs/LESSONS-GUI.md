@@ -359,3 +359,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   the same crisp factor, so 985 measures at 1920x1080.
 - `ModScreenDriver`'s merged layouts (a group like Secrets or Puzzle Solvers) only take real screen clicks on the drawer
   opened last, so 806 reports their cyclers as "single value"; 987 checks the pill halves on one drawer directly.
+- **A ChatScreen subclass must not call `ChatScreen.removed`** if it has no text of its own: vanilla's `removed` discards the saved
+  draft when the box is blank and overwrites it otherwise (javap 26.1.2/26.2), so a read-only chat (Peek Chat, 2026-10-13) would
+  eat his half-typed message. `PeekChatScreen.removed` only resets the scroll; testkit 1314 checks the draft survives.
+- **A key that CLOSES a screen also opens it again** if the opener polls raw keys at END_CLIENT_TICK: the press reaches the
+  screen first, so at the poll there is no screen and the key reads as a fresh edge. The closer marks the key held
+  (`PeekChatFeature.closedByKey`) so the poll waits for a release (testkit 1314: open, key, closed).
