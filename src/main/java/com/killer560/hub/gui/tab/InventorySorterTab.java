@@ -68,6 +68,8 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
         if (!cfg.isEnabledRaw()) {
             return widgets;
         }
+        widgets.add(com.killer560.hub.gui.ScreenThemes.button("invsort", contentX, y, contentWidth, 18));
+        y += 22;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Layouts"), btn -> {
                     Minecraft mc = Minecraft.getInstance();

@@ -1,5 +1,7 @@
 package com.killer560.hub.gui.profit;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -35,15 +37,16 @@ public final class ProfitCardWidget extends AbstractWidget {
         int y = getY();
         int w = getWidth();
         int h = getHeight();
-        g.fill(x, y, x + w, y + h, isHovered ? 0xFF1C1208 : ProfitPanels.PANEL_BG);
-        g.outline(x, y, w, h, isHovered ? ProfitPanels.ACCENT : ProfitPanels.BORDER);
-        g.fill(x, y, x + 2, y + h, ProfitPanels.ACCENT);
-        g.text(font, font.plainSubstrByWidth(tracker.label, w - 20), x + 10, y + 8, ProfitPanels.TEXT, false);
-        g.text(font, font.plainSubstrByWidth(tracker.blurb, w - 20), x + 10, y + 20, ProfitPanels.DIM, false);
+        // In the menu's theme (sweep-b, 2026-10-13): a raised card, lifted and ringed while hovered, accent stripe.
+        ScreenChrome.card(g, x, y, w, h, isHovered);
+        ScreenChrome.stripe(g, x, y, h, MenuStyle.OR);
+        MenuStyle.text(g, font.plainSubstrByWidth(tracker.label, w - 20), x + 10, y + 8,
+                isHovered ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
+        MenuStyle.text(g, font.plainSubstrByWidth(tracker.blurb, w - 20), x + 10, y + 20, MenuStyle.DIM);
         ProfitTracker.Summary s = tracker.summary();
-        g.text(font, font.plainSubstrByWidth(s.text(), w - 20), x + 10, y + 34, s.color(), false);
+        MenuStyle.text(g, font.plainSubstrByWidth(s.text(), w - 20), x + 10, y + 34, ProfitPanels.themed(s.color()));
         String cmd = "/profit " + tracker.command();
-        g.text(font, cmd, x + w - 8 - font.width(cmd), y + h - 12, ProfitPanels.ACCENT, false);
+        MenuStyle.text(g, cmd, x + w - 8 - font.width(cmd), y + h - 12, MenuStyle.OR);
     }
 
     @Override

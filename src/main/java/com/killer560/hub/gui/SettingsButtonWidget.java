@@ -285,6 +285,12 @@ public final class SettingsButtonWidget extends AbstractWidget {
         String raw = getMessage().getString();
         String label = MenuStyle.ellipsize(MenuStyle.LIGHT ? MenuStyle.lightReadable(raw) : raw, w - 8);
         int color = !active ? MenuStyle.DIM2 : (danger ? 0xFFFFD0D0 : (hover || primary ? MenuStyle.OR_HOVER : MenuStyle.OR));
+        if (swatchColour() != null) {
+            // A ColorSwatch label ("Colour: ■"): drawn as the Component so the square keeps its own colour (sweep-b).
+            graphics.text(font, getMessage(), x0 + (w - font.width(getMessage())) / 2, y0 + (h - 8) / 2, faded(color),
+                    MenuStyle.TEXT_SHADOW);
+            return;
+        }
         graphics.text(font, label, x0 + (w - font.width(label)) / 2, y0 + (h - 8) / 2, faded(color), MenuStyle.TEXT_SHADOW);
     }
 

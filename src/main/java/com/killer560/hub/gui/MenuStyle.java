@@ -125,6 +125,17 @@ public final class MenuStyle {
         derive(c[0], c[1], c[2], c[3], c[4]);
     }
 
+    /** Derives the palette from five base colours given directly: the Bazaar and Auction House, whose reskins draw over
+     *  a vanilla container (not a {@link MenuThemedScreen}), pass their own Theme's {@link MenuTheme#forScreen}. The next
+     *  {@link #use()} re-derives the menu's (or its screen's) own. */
+    public static void use(int[] c) {
+        if (c == null || java.util.Arrays.equals(c, usedColours)) {
+            return;
+        }
+        usedColours = c.clone();
+        derive(c[0], c[1], c[2], c[3], c[4]);
+    }
+
     private static int lift(int c, float t) {
         return mix(c, 0xFFFFFFFF, t);
     }

@@ -2,7 +2,11 @@ package com.killer560.hub.armourdye;
 
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ThemedEditBox;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -29,14 +33,13 @@ import java.util.Optional;
  * Skyblock armour), Skin and Trim / Pattern (armour), the Look (any item model id, or "Copy Look" then
  * click another item - a head's texture comes with it), and Remove. Nothing is ever sent to the server.
  */
-public class CustomItemsScreen extends Screen {
+public class CustomItemsScreen extends Screen implements MenuThemedScreen {
 
     private static final int SLOT = 18;
     private static final int PANEL_W = 364;
     private static final int PANEL_H = 212;
     private static final int LIST_ROW = 11;
     private static final int LIST_ROWS = 5;
-    private static final int ACCENT = 0xFFCC6600;
     private static final EquipmentSlot[] ARMOUR = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
             EquipmentSlot.FEET};
 
@@ -50,7 +53,7 @@ public class CustomItemsScreen extends Screen {
     private boolean copyingLook;
     private int listScroll;
     private String status = "";
-    private int statusColor = 0xFFAAAAAA;
+    private boolean statusBad;
 
     private int panelX;
     private int panelY;
@@ -299,7 +302,7 @@ public class CustomItemsScreen extends Screen {
 
     private void say(String text, boolean bad) {
         status = text;
-        statusColor = bad ? 0xFFFF5555 : 0xFF55FF55;
+        statusBad = bad;
     }
 
     private void refresh() {
@@ -402,10 +405,10 @@ public class CustomItemsScreen extends Screen {
         addRenderableWidget(remove);
         y += 22;
 
-        lookBox = new EditBox(this.font, rightX, y + 1, rightW - 40, 16, Component.literal("Look"));
+        lookBox = new ThemedEditBox(this.font, rightX, y + 1, rightW - 40, 16, Component.literal("Look"))
+                .hint(e != null && !e.iconModel.isBlank() ? shortId(e.iconModel)
+                        : e != null && !e.headTexture.isBlank() ? "(head texture)" : "item id, e.g. diamond_sword");
         lookBox.setMaxLength(4096);
-        lookBox.setHint(Component.literal(e != null && !e.iconModel.isBlank() ? shortId(e.iconModel)
-                : e != null && !e.headTexture.isBlank() ? "(head texture)" : "item id, e.g. diamond_sword"));
         lookBox.active = has;
         addRenderableWidget(lookBox);
         SettingsButtonWidget set = SettingsButtonWidget.builder(Component.literal("Set"), b -> setLook(lookBox.getValue()))
@@ -468,29 +471,30 @@ public class CustomItemsScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xAA000000);
-        graphics.fill(panelX, panelY, panelX + PANEL_W, panelY + PANEL_H, 0xF0101010);
-        graphics.outline(panelX, panelY, PANEL_W, PANEL_H, ACCENT);
-        graphics.text(this.font, "Custom Items", panelX + 8, panelY + 7, ACCENT, false);
+        // In the menu's theme (sweep-b, 2026-10-13); cells, rows and buttons keep their places.
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        ScreenChrome.frame(graphics, panelX, panelY, PANEL_W, PANEL_H);
+        ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, PANEL_W - 6, 16, "Custom Items");
         if (!cfg().isEnabledRaw()) {
-            graphics.text(this.font, "§cCustom Items is OFF in its tab - looks are saved but not drawn.",
-                    panelX + 80, panelY + 7, 0xFFFF5555, false);
+            MenuStyle.text(graphics, this.font.plainSubstrByWidth(
+                    "Custom Items is OFF in its tab - looks are saved but not drawn.", PANEL_W - 80 - 54),
+                    panelX + 80, panelY + 6, ScreenChrome.bad());
         }
+
 
         ItemStack hover = ItemStack.EMPTY;
         for (int i = 0; i < 40; i++) {
             int[] p = cellPos(i);
             ItemStack stack = cellStack(i);
             boolean sel = !selectedStack.isEmpty() && stack == selectedStack;
-            graphics.fill(p[0], p[1], p[0] + SLOT, p[1] + SLOT, sel ? 0xFF5A3A12 : 0xFF262626);
-            graphics.outline(p[0], p[1], SLOT, SLOT, sel ? ACCENT : 0xFF553311);
+            ScreenChrome.slot(graphics, p[0], p[1], SLOT, sel, false);
             if (stack.isEmpty()) {
                 continue;
             }
             graphics.item(stack, p[0] + 1, p[1] + 1);
             graphics.itemDecorations(this.font, stack, p[0] + 1, p[1] + 1);
             if (ArmourDye.entryFor(stack) != null) {
-                graphics.fill(p[0] + SLOT - 4, p[1] + 1, p[0] + SLOT - 1, p[1] + 4, ACCENT); // has a look
+                graphics.fill(p[0] + SLOT - 4, p[1] + 1, p[0] + SLOT - 1, p[1] + 4, MenuStyle.OR); // has a look
             }
             if (mouseX >= p[0] && mouseX < p[0] + SLOT && mouseY >= p[1] && mouseY < p[1] + SLOT) {
                 graphics.fill(p[0] + 1, p[1] + 1, p[0] + SLOT - 1, p[1] + SLOT - 1, 0x40FFFFFF);
@@ -500,27 +504,25 @@ public class CustomItemsScreen extends Screen {
 
         // Saved looks.
         List<ArmourDyeEntry> entries = cfg().getEntries();
-        graphics.text(this.font, "Saved looks (" + entries.size() + ")", gridX, listY - 11, 0xFFDDDDDD, false);
+        MenuStyle.text(graphics, "SAVED LOOKS (" + entries.size() + ")", gridX, listY - 11, MenuStyle.DIM);
         listScroll = Math.max(0, Math.min(listScroll, Math.max(0, entries.size() - LIST_ROWS)));
-        graphics.outline(gridX, listY, 9 * SLOT, LIST_ROWS * LIST_ROW + 1, 0xFF553311);
+        ScreenChrome.well(graphics, gridX, listY, 9 * SLOT, LIST_ROWS * LIST_ROW + 1);
         for (int row = 0; row < LIST_ROWS && listScroll + row < entries.size(); row++) {
             ArmourDyeEntry e = entries.get(listScroll + row);
             int ry = listY + 1 + row * LIST_ROW;
             boolean sel = e.itemId.equals(selectedKey);
             boolean over = mouseX >= gridX && mouseX < gridX + 9 * SLOT && mouseY >= ry && mouseY < ry + LIST_ROW;
-            if (sel || over) {
-                graphics.fill(gridX + 1, ry, gridX + 9 * SLOT - 1, ry + LIST_ROW, sel ? 0x66CC6600 : 0x33FFFFFF);
-            }
+            ScreenChrome.row(graphics, gridX + 1, ry, 9 * SLOT - 2, LIST_ROW, over, sel, (row) % 2 == 1);
             String text = (e.isPerItem() ? "[item] " : "") + e.label;
-            graphics.text(this.font, this.font.plainSubstrByWidth(text, 9 * SLOT - 6), gridX + 3, ry + 2,
-                    e.enabled ? 0xFFDDDDDD : 0xFF777777, false);
+            MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(text, 9 * SLOT - 8)), gridX + 4,
+                    ry + 2, !e.enabled ? MenuStyle.DIM2 : sel ? MenuStyle.OR_HOVER : MenuStyle.TXT);
         }
 
         // Right side: preview + name.
         String title = selectedKey == null ? "Click an item to change its look" : selectedLabel;
-        graphics.text(this.font, this.font.plainSubstrByWidth(title, rightW), rightX, gridY, 0xFFFFFFFF, false);
-        graphics.fill(rightX, gridY + 12, rightX + 48, gridY + 60, 0xFF1C1C1C);
-        graphics.outline(rightX, gridY + 12, 48, 48, 0xFF553311);
+        MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(title, rightW)), rightX, gridY,
+                selectedKey == null ? MenuStyle.DIM : MenuStyle.TXT);
+        ScreenChrome.well(graphics, rightX, gridY + 12, 48, 48);
         if (!selectedStack.isEmpty()) {
             graphics.pose().pushMatrix();
             graphics.pose().translate(rightX + 4, gridY + 16);
@@ -529,8 +531,8 @@ public class CustomItemsScreen extends Screen {
             graphics.pose().popMatrix();
         }
 
-        graphics.text(this.font, this.font.plainSubstrByWidth(status, PANEL_W - 16), panelX + 8,
-                panelY + PANEL_H - 12, statusColor, false);
+        MenuStyle.text(graphics, this.font.plainSubstrByWidth(status, PANEL_W - 16), panelX + 8,
+                panelY + PANEL_H - 12, statusBad ? ScreenChrome.bad() : ScreenChrome.good());
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
@@ -594,5 +596,14 @@ public class CustomItemsScreen extends Screen {
             Minecraft mc = Minecraft.getInstance();
             mc.setScreenAndShow(new ColorPickerScreen(back, label + " Colour", current, 0xFFFFFFFF, onChange));
         }
+    }
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, PANEL_W, PANEL_H};
+    }
+
+    @Override
+    public String themeId() {
+        return "custom_items";
     }
 }

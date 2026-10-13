@@ -1,6 +1,9 @@
 package com.killer560.hub.auction.ah;
 
 import com.killer560.hub.auction.AuctionHouseConfig;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
+import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
 import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
@@ -123,10 +126,16 @@ public final class AhUi {
     public void frame() {
         layout.add("frame " + w + " " + h);
         g.fill(0, 0, w, h, t.backdrop());
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, t.panel());
-        g.outline(panelX, panelY, panelW, panelH, t.border());
-        // A thin accent line under the header, the look's one strong stroke.
-        g.fill(panelX + 1, toolbarY - 3, panelX + panelW - 1, toolbarY - 2, t.borderStrong());
+        if (t.bevel()) {
+            // The menu's bevelled panel and a separator under the header (sweep-b, 2026-10-13).
+            ScreenChrome.frameTight(g, panelX, panelY, panelW, panelH);
+            ScreenChrome.separator(g, panelX + 4, panelX + panelW - 4, toolbarY - 3);
+        } else {
+            g.fill(panelX, panelY, panelX + panelW, panelY + panelH, t.panel());
+            g.outline(panelX, panelY, panelW, panelH, t.border());
+            // A thin accent line under the header, the look's one strong stroke.
+            g.fill(panelX + 1, toolbarY - 3, panelX + panelW - 1, toolbarY - 2, t.borderStrong());
+        }
         region("panel", panelX, panelY, panelW, panelH);
     }
 
@@ -246,8 +255,17 @@ public final class AhUi {
         int searchW = Math.max(40, right - left - bwTotal - statusW);
         // the search field
         boolean hover = in(left, y, searchW, TOOLBAR_H);
-        g.fill(left, y, left + searchW, y + TOOLBAR_H, t.surface());
-        g.outline(left, y, searchW, TOOLBAR_H, focused ? t.accent() : hover ? t.borderStrong() : t.border());
+        if (t.bevel()) {
+            GuiRects r = GuiRects.begin(g);
+            MenuStyle.well(r, left, y, searchW, TOOLBAR_H, MenuStyle.WELL_DEEP);
+            if (focused || hover) {
+                r.outline(left - 1, y - 1, searchW + 2, TOOLBAR_H + 2, focused ? MenuStyle.OR2 : MenuStyle.KEY_CHIP_EDGE);
+            }
+            r.submit();
+        } else {
+            g.fill(left, y, left + searchW, y + TOOLBAR_H, t.surface());
+            g.outline(left, y, searchW, TOOLBAR_H, focused ? t.accent() : hover ? t.borderStrong() : t.border());
+        }
         String icon = "⌕";
         text("toolbar", icon, left + 4, y + 4, t.faint());
         int tx = left + 6 + font.width(icon);
@@ -298,9 +316,15 @@ public final class AhUi {
     /** One pill button: a slot button (hotspot on its slot) or an action button. */
     public void button(Button b, String label, int x, int y, int bw, int bh, String region) {
         boolean hover = in(x, y, bw, bh);
-        int bg = b.on() ? t.selected() : hover ? t.hover() : t.surfaceAlt();
-        g.fill(x, y, x + bw, y + bh, bg);
-        g.outline(x, y, bw, bh, hover || b.on() ? t.accent() : t.border());
+        if (t.bevel()) {
+            GuiRects r = GuiRects.begin(g);
+            MenuStyle.raisedButton(r, x + 1, y + 1, bw - 2, bh - 2, hover, b.on());
+            r.submit();
+        } else {
+            int bg = b.on() ? t.selected() : hover ? t.hover() : t.surfaceAlt();
+            g.fill(x, y, x + bw, y + bh, bg);
+            g.outline(x, y, bw, bh, hover || b.on() ? t.accent() : t.border());
+        }
         int textX = x + 5;
         if (b.icon() != null && !b.icon().isEmpty() && bh >= 18) {
             g.item(b.icon(), x + 2, y + (bh - 16) / 2);
@@ -375,8 +399,7 @@ public final class AhUi {
         int x = railX;
         int y = bodyY;
         int hgt = bodyBottom - bodyY;
-        g.fill(x, y, x + railW, y + hgt, t.surfaceAlt());
-        g.outline(x, y, railW, hgt, t.border());
+        well(x, y, railW, hgt, t.surfaceAlt());
         region("rail", x, y, railW, hgt);
         AuctionHouseConfig cfg = AuctionHouseConfig.getInstance();
         List<String> searches = cfg.getRecentSearches();
@@ -637,8 +660,7 @@ public final class AhUi {
         boolean spark0 = hist.size() >= 2 && cw >= 220;
         int hgt = Math.min(maxH, !sales.isEmpty() || spark0 ? 30 : 16);
         region("market", x, y, cw, hgt);
-        g.fill(x, y, x + cw, y + hgt, t.surfaceAlt());
-        g.outline(x, y, cw, hgt, t.border());
+        well(x, y, cw, hgt, t.surfaceAlt());
         text("market", "MARKET", x + 5, y + 4, t.faint());
         StringBuilder line = new StringBuilder();
         if (st != null && st.lowestBin() > 0) {
@@ -726,9 +748,27 @@ public final class AhUi {
     /** A pill with a label (no hotspot of its own). */
     public void pill(int x, int y, int bw, int bh, boolean on, String label, int color, String region) {
         boolean hover = in(x, y, bw, bh);
-        g.fill(x, y, x + bw, y + bh, on ? t.selected() : hover ? t.hover() : t.surfaceAlt());
-        g.outline(x, y, bw, bh, hover ? t.accent() : t.border());
+        if (t.bevel()) {
+            GuiRects r = GuiRects.begin(g);
+            MenuStyle.raisedButton(r, x + 1, y + 1, bw - 2, bh - 2, hover, on);
+            r.submit();
+        } else {
+            g.fill(x, y, x + bw, y + bh, on ? t.selected() : hover ? t.hover() : t.surfaceAlt());
+            g.outline(x, y, bw, bh, hover ? t.accent() : t.border());
+        }
         text(region, label, x + 5, y + (bh - 8) / 2, hover ? t.text() : color);
+    }
+
+    /** A recessed area on a menu theme, the old filled box on the Inventory Theme style. */
+    private void well(int x, int y, int ww, int hh, int fill) {
+        if (t.bevel()) {
+            GuiRects r = GuiRects.begin(g);
+            MenuStyle.well(r, x, y, ww, hh, fill);
+            r.submit();
+        } else {
+            g.fill(x, y, x + ww, y + hh, fill);
+            g.outline(x, y, ww, hh, t.border());
+        }
     }
 
     public void text(String region, String s, int x, int y, int color) {

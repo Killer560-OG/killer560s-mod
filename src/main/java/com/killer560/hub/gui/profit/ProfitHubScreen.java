@@ -1,7 +1,10 @@
 package com.killer560.hub.gui.profit;
 
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.MenuThemedScreen;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -15,7 +18,7 @@ import net.minecraft.network.chat.Component;
  * etable or whatnot to open the menu specifically." Laid out like the Croesus screen (same panel, header and
  * {@link ProfitPanels} colours) so the two read as one family; Auto Scale is the screen mixin's job, nothing here.
  */
-public class ProfitHubScreen extends Screen {
+public class ProfitHubScreen extends Screen implements MenuThemedScreen {
 
     private static final int CARD_H = 54;
     private static final int GAP = 6;
@@ -56,17 +59,12 @@ public class ProfitHubScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, ProfitPanels.PANEL_BG);
-        graphics.outline(panelX, panelY, panelW, panelH, ProfitPanels.BORDER);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + 30, 0xFF000000);
-        graphics.outline(panelX, panelY, panelW, 30, ProfitPanels.BORDER);
-        graphics.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
-        graphics.text(this.font, "PROFIT TRACKERS", panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.header(graphics, panelX, panelY, panelW, "Profit Trackers");
         String hint = "/profit <name> opens one directly";
-        graphics.text(this.font, hint, panelX + panelW - 10 - this.font.width(hint), panelY + 11,
-                ProfitPanels.DIM, false);
-        graphics.text(this.font, "Pick a tracker", panelX + 8, panelY + 38, ProfitPanels.DIM, false);
+        MenuStyle.text(graphics, hint, panelX + panelW - 12 - this.font.width(hint), panelY + 12, MenuStyle.DIM2);
+        MenuStyle.text(graphics, "PICK A TRACKER", panelX + 8, panelY + 40, MenuStyle.DIM);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
@@ -78,5 +76,14 @@ public class ProfitHubScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
+    }
+
+    @Override
+    public String themeId() {
+        return "profit";
     }
 }

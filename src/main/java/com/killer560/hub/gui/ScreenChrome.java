@@ -2,6 +2,9 @@ package com.killer560.hub.gui;
 
 import com.killer560.hub.hud.GuiRects;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.FormattedCharSequence;
 
 /**
@@ -156,5 +159,99 @@ public final class ScreenChrome {
     /** {@link #text} centred on {@code cx}. */
     public static void centered(GuiGraphicsExtractor g, String s, int cx, int y, int colour) {
         text(g, s, cx - MenuStyle.font().width(s) / 2, y, colour);
+    }
+
+    // ---- sweep-b additions (profit, Croesus, Storage Search, Run Log, Inventory Sorter, Custom Items, Bazaar, AH) ----
+
+    /** {@link #frame} with a drop shadow only 2 units deep, for the Bazaar and Auction House: their reskins keep a 4-8
+     *  unit margin whose outer 6 units must stay pure backdrop over the hotbar at Auto Scale 1.125 (testkit 496). */
+    public static void frameTight(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        GuiRects r = GuiRects.begin(g);
+        for (int i = 2; i >= 1; i--) {
+            r.fill(x - i, y - i, x + w + i, y + h + i, MenuStyle.shadow((0x28 + (2 - i) * 0x18) / 2));
+        }
+        r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.FRAME_RING);
+        MenuStyle.bevel(r, x, y, w, h, MenuStyle.PANEL_TOP, MenuStyle.PANEL_BOTTOM);
+        r.fill(x + 1, y + 1, x + w - 1, y + 2, MenuStyle.HILITE_SOFT);
+        r.submit();
+    }
+
+    /** A header bar of a given size (compact fixed-size panels: the Inventory Sorter and Custom Items). */
+    public static void headerBar(GuiGraphicsExtractor g, int x, int y, int w, int h, String title) {
+        GuiRects r = GuiRects.begin(g);
+        MenuStyle.dropShadow(r, x, y, w, h, 2);
+        MenuStyle.bevel(r, x, y, w, h, MenuStyle.HEADER_TOP, MenuStyle.HEADER_BOTTOM);
+        r.submit();
+        MenuStyle.gradientText(g, title, x + 6, y + (h - 8) / 2, 1f, MenuStyle.BRAND_TOP, MenuStyle.BRAND_BOTTOM);
+    }
+
+    /** {@link #row(GuiRects, int, int, int, int, boolean, boolean, boolean)} as one element of its own. */
+    public static void row(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean hover, boolean selected,
+            boolean stripe) {
+        GuiRects r = GuiRects.begin(g);
+        row(r, x, y, w, h, hover, selected, stripe);
+        r.submit();
+    }
+
+    /** The accent scrollbar (4 wide at {@code x}) for a list scrolled {@code offset} of {@code max}, showing {@code view}. */
+    public static void scrollbar(GuiGraphicsExtractor g, int x, int top, int height, int offset, int max, int view) {
+        GuiRects r = GuiRects.begin(g);
+        MenuStyle.scrollbar(r, x, top, height, offset, max, view);
+        r.submit();
+    }
+
+    /** An item slot: a small recessed square; {@code selected} rings it in the accent, {@code hover} lightens it. */
+    public static void slot(GuiGraphicsExtractor g, int x, int y, int size, boolean selected, boolean hover) {
+        GuiRects r = GuiRects.begin(g);
+        r.fill(x + 1, y + 1, x + size - 1, y + size - 1, selected ? MenuStyle.SEL_TOP : MenuStyle.WELL);
+        r.outline(x, y, size, size, selected ? MenuStyle.OR : MenuStyle.BLACK);
+        r.fill(x + 1, y + 1, x + size - 1, y + 2, MenuStyle.shadow(0x60));
+        r.fill(x + 1, y + 2, x + 2, y + size - 1, MenuStyle.shadow(0x40));
+        if (hover) {
+            r.fill(x + 1, y + 1, x + size - 1, y + size - 1, MenuStyle.alpha(MenuStyle.TXT, 0x30));
+        }
+        r.submit();
+    }
+
+    /** A card's coloured stripe down its left edge (inside the outline). */
+    public static void stripe(GuiGraphicsExtractor g, int x, int y, int h, int color) {
+        g.fill(x + 1, y + 1, x + 3, y + h - 1, color);
+    }
+
+    /** A thin separator line across a panel. */
+    public static void separator(GuiGraphicsExtractor g, int x0, int x1, int y) {
+        GuiRects r = GuiRects.begin(g);
+        MenuStyle.separator(r, x0, x1, y);
+        r.submit();
+    }
+
+    /** A profit / "it worked" green that reads on the panel. */
+    public static int good() {
+        return MenuStyle.LIGHT ? 0xFF1E7A2E : 0xFF4ADE80;
+    }
+
+    /** A loss / error red that reads on the panel. */
+    public static int bad() {
+        return MenuStyle.LIGHT ? 0xFFB02A2A : 0xFFEF5555;
+    }
+
+    /** A § coded line made readable on the panel (Light swaps the pale codes for darker partners). */
+    public static String readable(String raw) {
+        return MenuStyle.LIGHT ? MenuStyle.lightReadable(raw) : raw;
+    }
+
+    /** Styled text (an item name in Hypixel's colours) made readable on the panel. */
+    public static FormattedCharSequence readable(Component c) {
+        FormattedCharSequence s = c.getVisualOrderText();
+        if (!MenuStyle.LIGHT) {
+            return s;
+        }
+        return sink -> s.accept((index, style, cp) -> {
+            TextColor col = style.getColor();
+            int rgb = col == null ? (MenuStyle.TXT & 0xFFFFFF) : col.getValue();
+            int white = rgb == 0xFFFFFF ? MenuStyle.TXT : readable(0xFF000000 | rgb);
+            Style dark = style.withColor(TextColor.fromRgb(white & 0xFFFFFF));
+            return sink.accept(index, dark, cp);
+        });
     }
 }

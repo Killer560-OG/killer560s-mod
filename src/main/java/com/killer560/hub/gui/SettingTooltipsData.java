@@ -36,7 +36,7 @@ final class SettingTooltipsData {
     private static void menuTheme(Map<String, String> d) {
         // Option A menu, 2026-10-12: the menu's colour presets and Custom colours (gui/tab/MenuThemeTab).
         d.put("menu theme", "The mod menu's colours: Amber (the default orange), Dark (neutral greys), Light (light panels, dark text) or Custom. The round button in the menu's header switches it too.");
-        d.put("menu theme/menu theme", "Amber, Dark, Light, Ocean or Custom. Left click goes to the next, right click back.");
+        d.put("menu theme/menu theme","Amber, Dark, Light, Ocean or Custom. Left click goes to the next, right click back.");
         d.put("menu theme/accent", "Custom: the colour of titles, selections, outlines and buttons. Changing any colour switches the menu to Custom, started from the theme you were on.");
         d.put("menu theme/panel background", "Custom: the menu's background. A light colour turns on the light look (grey outlines, soft shadows, dark text expected).");
         d.put("menu theme/card background", "Custom: the feature cards and the boxes on Home.");
@@ -915,6 +915,14 @@ final class SettingTooltipsData {
         d.put("pet wheel/theme", "The colours the pet wheel draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for the wheel alone.");
         d.put("auto update/theme", "The colours of the \"updated to\" popup. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for it alone.");
         d.put("window layout/theme", "The colours of the Window Layout picker. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for it alone.");
+        d.put("bazaar/theme", "The colours the Bazaar draws in (its browser and its reskin of Hypixel's menus). Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone. Inventory Theme keeps the older flat look, which follows the Inventory Theme setting.");
+        d.put("auction house/theme", "The colours the Auction House draws in (its browser and its reskin of Hypixel's menus). Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone. Inventory Theme keeps the older flat look, which follows the Inventory Theme setting.");
+        d.put("inventory sorter/theme", "The colours the layouts menu (/invsort) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone.");
+        d.put("custom items/theme", "The colours the Custom Items menu draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone.");
+        d.put("storage search/theme", "The colours the Storage Search screen draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone.");
+        d.put("croesus/theme", "The colours the Dungeon Profit screen (/croesus) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone.");
+        d.put("experiments/theme", "The colours /profit and the Experimentation Table profit screen draw in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone.");
+        d.put("run summary/theme", "The colours the Run Log (/log) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone.");
         d.put("swap accounts theme", "The colours of the title screen's Swap Accounts page and its proxy and session login pages. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours.");
         d.put("themed main menu", "Gives the game's menus the mod's black and orange theme.");
         d.put("auto join skyblock", "Runs /skyblock whenever you first join the server.");

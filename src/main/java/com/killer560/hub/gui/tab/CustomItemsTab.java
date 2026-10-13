@@ -44,6 +44,8 @@ public class CustomItemsTab extends BaseTab {
             requestRebuild.run();
         }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
+        widgets.add(com.killer560.hub.gui.ScreenThemes.button("custom_items", contentX, y, contentWidth, 18));
+        y += 22;
 
         int gap = 8;
         int half = (contentWidth - gap) / 2;

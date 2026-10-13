@@ -8,6 +8,9 @@ import com.killer560.hub.auction.BazaarOrderLevel;
 import com.killer560.hub.auction.BazaarOrderParser;
 import com.killer560.hub.auction.BazaarProduct;
 import com.killer560.hub.auction.BoosterCookie;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
+import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.util.ServerCommands;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
@@ -235,8 +238,12 @@ public final class BazaarView {
         int px = (width - panelW) / 2;
         int py = m;
         int pad = 6;
-        g.fill(px, py, px + panelW, py + panelH, t.panelBg());
-        g.outline(px, py, panelW, panelH, t.border());
+        if (t.bevel()) {
+            ScreenChrome.frameTight(g, px, py, panelW, panelH);
+        } else {
+            g.fill(px, py, px + panelW, py + panelH, t.panelBg());
+            g.outline(px, py, panelW, panelH, t.border());
+        }
         region("panel", px, py, panelW, panelH);
 
         int headerY = py + pad;
@@ -263,8 +270,7 @@ public final class BazaarView {
         contentY = bodyY;
         contentW = px + panelW - pad - contentX;
         contentH = bodyBottom - bodyY;
-        g.fill(contentX, contentY, contentX + contentW, contentY + contentH, t.listBg());
-        g.outline(contentX, contentY, contentW, contentH, t.border());
+        wellBox(contentX, contentY, contentW, contentH, t.listBg());
         region("content", contentX, contentY, contentW, contentH);
         String content = drawContent(cp, shown);
         drawBottom(px + pad, bottomY, panelW - 2 * pad, bottomH, cp);
@@ -284,6 +290,31 @@ public final class BazaarView {
             }
         }
         g = null;
+    }
+
+    /** A button's box: the menu's raised button on a menu theme ({@code pressed} for a chosen tab), the old flat box on
+     *  the Inventory Theme style. Same rectangle either way. */
+    private static void control(int x, int y, int w, int h, boolean hover, boolean pressed) {
+        if (t.bevel()) {
+            GuiRects r = GuiRects.begin(g);
+            MenuStyle.raisedButton(r, x + 1, y + 1, w - 2, h - 2, hover, pressed);
+            r.submit();
+        } else {
+            g.fill(x, y, x + w, y + h, hover ? t.controlHover() : t.control());
+            g.outline(x, y, w, h, hover ? t.accent() : t.border());
+        }
+    }
+
+    /** A recessed area (the list, the rail) on a menu theme, the old filled box on the Inventory Theme style. */
+    private static void wellBox(int x, int y, int w, int h, int fill) {
+        if (t.bevel()) {
+            GuiRects r = GuiRects.begin(g);
+            MenuStyle.well(r, x, y, w, h, fill);
+            r.submit();
+        } else {
+            g.fill(x, y, x + w, y + h, fill);
+            g.outline(x, y, w, h, t.border());
+        }
     }
 
     private static Mode effectiveMode(BazaarReskin.State cp) {
@@ -323,8 +354,7 @@ public final class BazaarView {
             String label = fit(goBack != null ? backLabel(goBack) : "‹ Back", labelMax);
             int bw = font.width(label) + 10;
             boolean hover = in(bx, y, bw, 12);
-            g.fill(bx, y, bx + bw, y + 12, hover ? t.controlHover() : t.control());
-            g.outline(bx, y, bw, 12, hover ? t.accent() : t.border());
+            control(bx, y, bw, 12, hover, false);
             text("header", label, bx + 5, y + 2, hover ? t.accentBright() : t.text());
             if (goBack != null) {
                 slotHot("back", bx, y, bw, 12, goBack, cp.stackAt(goBack.slot()));
@@ -344,8 +374,7 @@ public final class BazaarView {
             int bw = font.width(label) + 10;
             int bxr = right - bw;
             boolean hover = in(bxr, y, bw, 12);
-            g.fill(bxr, y, bxr + bw, y + 12, hover ? t.controlHover() : t.control());
-            g.outline(bxr, y, bw, 12, hover ? t.accent() : t.border());
+            control(bxr, y, bw, 12, hover, false);
             text("header", label, bxr + 5, y + 2, hover ? t.accentBright() : t.dim());
             BazaarReskin.State host = cp;
             actionHot("hypixel-menu", bxr, y, bw, 12, label, () -> BazaarReskin.showHypixelMenu(host));
@@ -441,11 +470,18 @@ public final class BazaarView {
             int tw = widths[i];
             boolean sel = cat.equals(tab);
             boolean hover = in(tx, y, tw, h);
-            int bg = sel ? (active ? t.selectedBg() : t.controlHover()) : hover ? t.controlHover() : t.control();
-            g.fill(tx, y, tx + tw, y + h, bg);
-            g.outline(tx, y, tw, h, sel && active ? t.accent() : hover ? t.accent() : t.border());
-            if (sel && active) {
-                g.fill(tx + 1, y + h - 2, tx + tw - 1, y + h - 1, t.accent());
+            if (t.bevel()) {
+                control(tx, y, tw, h, hover, sel);
+                if (sel && active) {
+                    g.fill(tx + 2, y + h - 3, tx + tw - 2, y + h - 2, t.accent());
+                }
+            } else {
+                int bg = sel ? (active ? t.selectedBg() : t.controlHover()) : hover ? t.controlHover() : t.control();
+                g.fill(tx, y, tx + tw, y + h, bg);
+                g.outline(tx, y, tw, h, sel && active ? t.accent() : hover ? t.accent() : t.border());
+                if (sel && active) {
+                    g.fill(tx + 1, y + h - 2, tx + tw - 1, y + h - 1, t.accent());
+                }
             }
             int lx = tx + 5;
             if (icons) {
@@ -473,8 +509,18 @@ public final class BazaarView {
 
     private static void drawSearch() {
         boolean hover = in(searchX, searchY, searchW, searchH);
-        g.fill(searchX, searchY, searchX + searchW, searchY + searchH, t.listBg());
-        g.outline(searchX, searchY, searchW, searchH, searchFocused ? t.accent() : hover ? t.accent() : t.border());
+        if (t.bevel()) {
+            GuiRects r = GuiRects.begin(g);
+            MenuStyle.well(r, searchX, searchY, searchW, searchH, MenuStyle.WELL_DEEP);
+            if (searchFocused || hover) {
+                r.outline(searchX - 1, searchY - 1, searchW + 2, searchH + 2,
+                        searchFocused ? MenuStyle.OR2 : MenuStyle.KEY_CHIP_EDGE);
+            }
+            r.submit();
+        } else {
+            g.fill(searchX, searchY, searchX + searchW, searchY + searchH, t.listBg());
+            g.outline(searchX, searchY, searchW, searchH, searchFocused ? t.accent() : hover ? t.accent() : t.border());
+        }
         LAYOUT.add("widget search " + searchX + " " + searchY + " " + searchW + " " + searchH);
         int tx = searchX + 5;
         int room = searchW - 10;
@@ -497,8 +543,7 @@ public final class BazaarView {
     // Recents rail -------------------------------------------------------------------------------------------------
 
     private static void drawRail(BazaarReskin.State cp, boolean frozen) {
-        g.fill(railX, railY, railX + railW, railY + railH, t.railBg());
-        g.outline(railX, railY, railW, railH, t.border());
+        wellBox(railX, railY, railW, railH, t.railBg());
         region("rail", railX, railY, railW, railH);
         int cell = Math.max(16, Math.min(18, (railW - 6) / 9));
         int invH = 14 + 4 * cell + 3 + 4;
@@ -672,8 +717,7 @@ public final class BazaarView {
             boolean canCommand = cp == null || cookie() == BoosterCookie.State.ACTIVE;
             boolean available = item != null || canCommand;
             boolean hover = in(bx, y, bw, h);
-            g.fill(bx, y, bx + bw, y + h, hover && available ? t.controlHover() : t.control());
-            g.outline(bx, y, bw, h, hover && available ? t.accent() : t.border());
+            control(bx, y, bw, h, hover && available, false);
             ItemStack icon = item != null ? cp.stackAt(item.slot()) : new ItemStack(switch (name) {
                 case "Sell Inventory Now" -> Items.CHEST;
                 case "Sell Sacks Now" -> Items.CAULDRON;
@@ -1459,7 +1503,7 @@ public final class BazaarView {
         int bw = font.width(label) + 8;
         int bx = right - bw;
         boolean hover = in(bx, y - 2, bw, 11);
-        g.fill(bx, y - 2, bx + bw, y + 9, hover ? t.controlHover() : t.control());
+        control(bx, y - 2, bw, 11, hover, false);
         text("list-head", label, bx + 4, y, hover ? t.accentBright() : t.text());
         slotHot(String.valueOf(it.slot()), bx, y - 2, bw, 11, it, cp.stackAt(it.slot()));
         return bx - 4;
