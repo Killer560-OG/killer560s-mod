@@ -67,6 +67,11 @@ public final class SupportersConfig {
     private float othersScale = 1.0f;
     /** "My Name in F5" - your own nametag in both third-person views (never first person). Off by default. */
     private boolean ownNameInF5 = false;
+    /** "Share Trail" (killer560, 2026-10-13): your Trail goes out with your shared cosmetics. Only a linked supporter
+     *  can share, and only while Share if Supporter is on. ON by default, like every sharing setting. */
+    private boolean shareTrail = true;
+    /** "Show Others' Trails": draw the trails other supporters share. ON by default. */
+    private boolean showOthersTrails = true;
 
     private SupportersConfig() {
     }
@@ -97,6 +102,8 @@ public final class SupportersConfig {
                 cfg.ownScale = clampSize(ConfigJson.getFloat(obj, "ownScale", 1.0f));
                 cfg.othersScale = clampSize(ConfigJson.getFloat(obj, "othersScale", 1.0f));
                 cfg.ownNameInF5 = ConfigJson.getBool(obj, "ownNameInF5", false);
+                cfg.shareTrail = ConfigJson.getBool(obj, "shareTrail", true);
+                cfg.showOthersTrails = ConfigJson.getBool(obj, "showOthersTrails", true);
             } catch (Exception e) {
                 cfg = new SupportersConfig();
             }
@@ -121,6 +128,8 @@ public final class SupportersConfig {
             obj.addProperty("ownScale", ownScale);
             obj.addProperty("othersScale", othersScale);
             obj.addProperty("ownNameInF5", ownNameInF5);
+            obj.addProperty("shareTrail", shareTrail);
+            obj.addProperty("showOthersTrails", showOthersTrails);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -216,6 +225,24 @@ public final class SupportersConfig {
 
     public void setOwnNameInF5(boolean value) {
         this.ownNameInF5 = value;
+        version++;
+    }
+
+    public boolean isShareTrail() {
+        return shareTrail;
+    }
+
+    public void setShareTrail(boolean value) {
+        this.shareTrail = value;
+        version++;
+    }
+
+    public boolean isShowOthersTrails() {
+        return showOthersTrails;
+    }
+
+    public void setShowOthersTrails(boolean value) {
+        this.showOthersTrails = value;
         version++;
     }
 

@@ -35,6 +35,8 @@ public class TrailTab extends BaseTab {
         List<AbstractWidget> w = new ArrayList<>();
         TrailConfig cfg = TrailConfig.getInstance();
         int[] y = {contentY};
+        // A supporter's shared trail follows these settings (Player Cosmetics' Share Trail); a no-op otherwise.
+        com.killer560.hub.supporters.SupportersAutoShare.shareCurrent(null);
 
         header(w, contentX, y, contentWidth, "Trail");
         w.add(SettingsButtonWidget.builder(onOff("Trail", cfg.isEnabledRaw()), btn -> {

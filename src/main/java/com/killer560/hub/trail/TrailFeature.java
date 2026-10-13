@@ -1,7 +1,8 @@
 package com.killer560.hub.trail;
 
+import com.killer560.hub.namechanger.NameChangerConfig;
+import com.killer560.hub.namechanger.NameColor;
 import com.killer560.hub.util.FeatureGuard;
-import com.killer560.hub.mainmenu.MainMenuTheme;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -10,8 +11,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 /**
  * killer560's item 8.4, verbatim: "Trail: one square per tick, 1-100, orange while grounded, blue while
@@ -24,49 +23,28 @@ import net.minecraft.world.phys.Vec3;
  * the buffer itself never resizes, so dragging the length slider is free.
  * <p>
  * The Ribbon style ({@link RibbonTrail}) records and draws per frame instead; this class only routes to it.
- * Both styles draw on the local player only - the trail is not shared with other mod users.
+ * A supporter can share the trail through the relay (Player Cosmetics' "Share Trail", 2026-10-13); other players'
+ * shared trails are drawn by {@link RemoteTrails} with the same two renderers ({@link SquareTrail}, {@link RibbonTrail}).
  * <p>
  * Purely visual, client-side, no gameplay effect - legit in both builds. Renders through the same
  * {@code LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES} + {@link WorldRenderUtils} path as Etherwarp's
  * waypoint boxes ({@link com.killer560.hub.etherwarp.EtherwarpFeature#onWorldRender}), reusing
- * {@link WorldRenderUtils#renderFilledBox} rather than a second vertex-buffer approach: each trail
+ * {@link WorldRenderUtils#renderFilledBox} ({@link SquareTrail}) rather than a second vertex-buffer approach: each trail
  * "square" is a thin, flat filled box sitting on the ground at the recorded feet position.
  */
 public final class TrailFeature {
 
-    /** The airborne colour - a bright blue chosen to read clearly against the mod's amber/orange
-     *  (see {@link MainMenuTheme#ORANGE}, used here for the grounded colour). */
-    private static final int AIRBORNE_BLUE = 0x2299FF;
+    /** The local player's squares (the ribbon's points live in {@link RibbonTrail#LOCAL}). */
+    private static final SquareTrail SQUARES = new SquareTrail();
 
-    /** How thick (in blocks) each flat square is drawn - just enough to not z-fight with the ground. */
-    private static final float SQUARE_THICKNESS = 0.04f;
-
-    /** Squared epsilon distance (blocks) below which the player is considered "standing still" - filters
-     *  out tiny idle jitter (looking around, sub-pixel physics settling) so it doesn't spam squares. */
-    private static final double STILL_EPSILON_SQ = 0.02 * 0.02;
-
-    /** Green while grounded (killer560, 2026-09-21: "make the on ground color green instead of orange"). */
-    private static final float[] GROUNDED_RGB = rgbToFloats(0x55FF55);
-    private static final float[] AIRBORNE_RGB = rgbToFloats(AIRBORNE_BLUE);
-
-    // Fixed-capacity ring buffer, sized to the max possible length regardless of the current setting -
-    // see the class doc for why. Parallel primitive arrays instead of a List<Point> so tracking a trail
-    // never allocates on the hot tick/render path.
-    private static final double[] xs = new double[TrailConfig.MAX_LENGTH];
-    private static final double[] ys = new double[TrailConfig.MAX_LENGTH];
-    private static final double[] zs = new double[TrailConfig.MAX_LENGTH];
-    private static final boolean[] grounded = new boolean[TrailConfig.MAX_LENGTH];
-    private static int head = 0;
-    private static int size = 0;
-
-    private static double lastX;
-    private static double lastY;
-    private static double lastZ;
-    private static boolean hasLast = false;
     private static boolean wasEnabled = false;
     private static ClientLevel lastLevel = null;
     private static volatile boolean clearRequested = false;
     private static TrailConfig.Style lastStyle = null;
+    /** The local look, rebuilt each tick from the settings (the renderers read it every frame). */
+    private static volatile TrailSpec localSpec = null;
+    /** The Name Changer's own colour and fade target for Name Fade (null when no colour is set), rebuilt each tick. */
+    private static volatile int[] localFadeEnds = null;
 
     private TrailFeature() {
     }
@@ -79,6 +57,24 @@ public final class TrailFeature {
         // on whatever's drawn immediately after - same belt-and-suspenders reset ChunkCacheManager uses.
         // DISCONNECT runs on the Netty thread (CLAUDE.md), so it only leaves a flag the next tick drains.
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clearRequested = true);
+        RemoteTrails.register();
+    }
+
+    /** The local trail's look as it would be shared. */
+    public static TrailSpec localSpec() {
+        TrailSpec spec = localSpec;
+        return spec != null ? spec : TrailSpec.fromConfig(TrailConfig.getInstance());
+    }
+
+    /** The Name Changer's own colour (head) and its fade target (tail) as 0xRRGGBB, or null when no colour is set. */
+    static int[] ownFadeEnds() {
+        NameChangerConfig nc = NameChangerConfig.getInstance();
+        int from = nc.getOwnColor();
+        if (from == NameColor.NONE) {
+            return null;
+        }
+        int to = nc.isOwnColorFadeEnabled() && nc.getOwnColorFadeTo() != NameColor.NONE ? nc.getOwnColorFadeTo() : from;
+        return new int[]{from & 0xFFFFFF, to & 0xFFFFFF};
     }
 
     private static void tick() {
@@ -96,6 +92,8 @@ public final class TrailFeature {
         }
 
         TrailConfig cfg = TrailConfig.getInstance();
+        localSpec = TrailSpec.fromConfig(cfg);
+        localFadeEnds = ownFadeEnds();
         boolean enabledNow = cfg.isEnabled();
         if (wasEnabled && !enabledNow) {
             // Same "leaving true -> false" edge-triggered reset every other per-run state in this mod
@@ -111,34 +109,10 @@ public final class TrailFeature {
 
         LocalPlayer player = client.player;
         if (!enabledNow || level == null || player == null || cfg.getStyle() != TrailConfig.Style.SQUARES) {
-            hasLast = false;
+            SQUARES.forgetLast();
             return;
         }
-
-        Vec3 pos = player.position();
-        if (hasLast) {
-            double dx = pos.x - lastX;
-            double dy = pos.y - lastY;
-            double dz = pos.z - lastZ;
-            if (dx * dx + dy * dy + dz * dz >= STILL_EPSILON_SQ) {
-                push(pos.x, pos.y, pos.z, player.onGround());
-            }
-        }
-        lastX = pos.x;
-        lastY = pos.y;
-        lastZ = pos.z;
-        hasLast = true;
-    }
-
-    private static void push(double x, double y, double z, boolean onGround) {
-        xs[head] = x;
-        ys[head] = y;
-        zs[head] = z;
-        grounded[head] = onGround;
-        head = (head + 1) % TrailConfig.MAX_LENGTH;
-        if (size < TrailConfig.MAX_LENGTH) {
-            size++;
-        }
+        SQUARES.sample(player.getX(), player.getY(), player.getZ(), player.onGround());
     }
 
     private static void onWorldRender(LevelRenderContext context) {
@@ -147,51 +121,24 @@ public final class TrailFeature {
             return;
         }
         if (cfg.getStyle() == TrailConfig.Style.RIBBON) {
-            RibbonTrail.render(context, cfg);
+            Minecraft client = Minecraft.getInstance();
+            boolean hidden = !cfg.isShowInFirstPerson() && client.options.getCameraType().isFirstPerson();
+            RibbonTrail.LOCAL.draw(context, client.player, localSpec(), localFadeEnds, hidden);
             return;
         }
-        if (size == 0) {
+        if (SQUARES.size() == 0) {
             return;
         }
         if (!cfg.isShowInFirstPerson() && Minecraft.getInstance().options.getCameraType().isFirstPerson()) {
             return;
         }
-        int visible = Math.min(size, cfg.getLength());
-        if (visible <= 0) {
-            return;
-        }
-        float half = cfg.getSquareSize() / 2f;
-        float baseAlpha = cfg.getOpacityPercent() / 100f;
-        boolean fade = cfg.isFadeOut();
-
-        for (int i = 0; i < visible; i++) {
-            int idx = Math.floorMod(head - 1 - i, TrailConfig.MAX_LENGTH);
-            float alpha = baseAlpha;
-            if (fade && visible > 1) {
-                alpha *= 1f - ((float) i / (visible - 1));
-            }
-            if (alpha <= 0.01f) {
-                continue;
-            }
-            float[] rgb = grounded[idx] ? GROUNDED_RGB : AIRBORNE_RGB;
-            double x = xs[idx];
-            double y = ys[idx];
-            double z = zs[idx];
-            AABB box = new AABB(x - half, y, z - half, x + half, y + SQUARE_THICKNESS, z + half);
-            WorldRenderUtils.renderFilledBox(context, box, rgb[0], rgb[1], rgb[2], alpha);
-        }
+        SQUARES.render(context, cfg.getLength(), cfg.getSquareSize(), cfg.getOpacityPercent(), cfg.isFadeOut());
     }
 
     /** Drops every recorded point - called on world/dimension change, disconnect, and the trail being
      *  toggled off. */
     public static void clear() {
-        head = 0;
-        size = 0;
-        hasLast = false;
+        SQUARES.clear();
         RibbonTrail.clear();
-    }
-
-    private static float[] rgbToFloats(int rgb) {
-        return new float[]{((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f};
     }
 }

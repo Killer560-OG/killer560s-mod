@@ -1,6 +1,9 @@
 package com.killer560.hub.supporters;
 
+import com.killer560.hub.namechanger.NameChangerConfig;
 import com.killer560.hub.namechanger.NameColor;
+import com.killer560.hub.trail.TrailConfig;
+import com.killer560.hub.trail.TrailSpec;
 import net.minecraft.client.Minecraft;
 
 import java.util.concurrent.CompletableFuture;
@@ -25,6 +28,10 @@ import java.util.function.Consumer;
  * SupportersSelfService#save}. The name itself carries the nearest legacy {@code &} colour (the fade's FROM colour),
  * which is what a client older than 2026-10-11 shows; a fade or letter colours go alongside it as the relay's
  * {@code colors} list, one true colour per visible letter, which newer clients paint exactly as you see it.
+ * <p>
+ * Your Trail goes along as the relay's {@code trail} while "Share Trail" and the Trail itself are on (killer560,
+ * 2026-10-13: "it can only be shared by a supporter") - see {@link #trailToShare} and {@link #shareCurrent}, which the
+ * Player Cosmetics and Trail tabs call on every rebuild and {@code RemoteTrails} every 35 seconds.
  */
 public final class SupportersAutoShare {
 
@@ -64,6 +71,17 @@ public final class SupportersAutoShare {
     public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
                                    int[] colors, com.killer560.hub.namechanger.NameAnimation.Spec animation,
                                    double scale, Consumer<String> onError) {
+        maybeShare(shareIfSupporter, whitelisted, plainName, argb, colors, animation, scale, null, onError);
+    }
+
+    /**
+     * @param trail your Trail as shared ({@link #trailToShare}), or null for none. With a trail and no display name the
+     *              entry still goes up, with an empty name (the relay's trail-only entry, shown under your real name);
+     *              with neither, your entry is cleared as before.
+     */
+    public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
+                                   int[] colors, com.killer560.hub.namechanger.NameAnimation.Spec animation,
+                                   double scale, TrailSpec trail, Consumer<String> onError) {
         if (!shareIfSupporter || !whitelisted) {
             return;
         }
@@ -76,7 +94,7 @@ public final class SupportersAutoShare {
         }
         final int[] sendColors = colors;
         final com.killer560.hub.namechanger.NameAnimation.Spec sendAnimation = colors == null ? null : animation;
-        String key = rawName + "|" + scale + "|" + java.util.Arrays.toString(colors) + "|" + sendAnimation;
+        String key = rawName + "|" + scale + "|" + java.util.Arrays.toString(colors) + "|" + sendAnimation + "|" + trail;
         if (key.equals(lastPushedKey)) {
             return;
         }
@@ -90,8 +108,9 @@ public final class SupportersAutoShare {
         lastPushAtMs = now;
         lastPushedKey = key;
         long seq = ++requestSeq;
-        CompletableFuture<SupportersSelfService.SaveResult> future =
-                rawName.isEmpty() ? SupportersSelfService.clear() : SupportersSelfService.save(rawName, scale, sendColors, sendAnimation);
+        CompletableFuture<SupportersSelfService.SaveResult> future = rawName.isEmpty() && trail == null
+                ? SupportersSelfService.clear()
+                : SupportersSelfService.save(rawName, scale, sendColors, sendAnimation, trail);
         future.whenComplete((result, ignored) -> Minecraft.getInstance().execute(() -> {
             if (seq != requestSeq) {
                 return; // superseded by a newer change
@@ -105,5 +124,53 @@ public final class SupportersAutoShare {
                 }
             }
         }));
+    }
+
+    // ---- what to share, from the settings (2026-10-13) ----
+
+    /** Whether the relay last said this account is a linked supporter ({@code GET /supporters/me}, fetched by the
+     *  Player Cosmetics tab). Nothing is ever shared before that says yes. */
+    private static volatile boolean linked = false;
+
+    public static boolean isLinked() {
+        return linked;
+    }
+
+    public static void setLinked(boolean value) {
+        linked = value;
+    }
+
+    /** Your Trail as it is shared: only while Share Trail is on and your Trail is on, else null (no trail field). */
+    public static TrailSpec trailToShare() {
+        if (!SupportersConfig.getInstance().isShareTrail() || !TrailConfig.getInstance().isEnabledRaw()) {
+            return null;
+        }
+        return TrailSpec.fromConfig(TrailConfig.getInstance());
+    }
+
+    /** Why your trail is not being shared right now, in one line, or null when it is (or would be once linked
+     *  status arrives). For the Player Cosmetics tab, beside the Share Trail switch. */
+    public static String trailShareBlocker() {
+        if (!linked) {
+            return "Only supporters can share a trail.";
+        }
+        if (!SupportersConfig.getInstance().isShareIfSupporter()) {
+            return "Turn on Share if Supporter to share your trail.";
+        }
+        if (!TrailConfig.getInstance().isEnabledRaw()) {
+            return "Your Trail is off - turn it on in Cosmetics > Trail to share it.";
+        }
+        return null;
+    }
+
+    /** Pushes the current name, colours, animation, size and trail from the settings (no-op unless linked and Share if
+     *  Supporter is on, or when nothing changed since the last push). */
+    public static void shareCurrent(Consumer<String> onError) {
+        SupportersConfig cfg = SupportersConfig.getInstance();
+        NameChangerConfig nc = NameChangerConfig.getInstance();
+        maybeShare(cfg.isShareIfSupporter(), linked, NameColor.migrate(nc.getOwnDisplayName()).text(), nc.getOwnColor(),
+                com.killer560.hub.namechanger.NameChangerFeature.ownShareColours(),
+                com.killer560.hub.namechanger.NameChangerFeature.ownShareAnimation(), cfg.getOwnScale(),
+                trailToShare(), onError);
     }
 }

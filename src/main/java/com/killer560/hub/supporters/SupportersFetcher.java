@@ -114,7 +114,8 @@ final class SupportersFetcher {
                 String name = o.has("name") && !o.get("name").isJsonNull() ? o.get("name").getAsString() : "";
                 float scale = o.has("scale") && !o.get("scale").isJsonNull() ? o.get("scale").getAsFloat() : 1.0f;
                 out.add(new SupporterEntry(uuid, name, scale, SupporterEntry.colorsFrom(o.get("colors")),
-                        SupporterEntry.animationFrom(o.get("animation"))));
+                        SupporterEntry.animationFrom(o.get("animation")),
+                        com.killer560.hub.trail.TrailSpec.fromJson(o.get("trail"))));
             } catch (Exception badEntry) {
                 // one malformed entry from the relay must not drop the rest of the list
             }
