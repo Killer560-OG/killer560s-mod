@@ -1,7 +1,11 @@
 package com.killer560.hub.roomsim;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.profit.ProfitPanels;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ToolScreenKit;
+import com.killer560.hub.gui.WellEditBox;
+import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -31,7 +35,15 @@ import com.killer560.hub.compat.McCompat;
  * footprint would let him place something that pastes over its neighbour, and a map editor that silently
  * corrupts the floor is worse than one with a shorter list.
  */
-public class SimMapEditorScreen extends Screen {
+public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
+
+    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    public static final String THEME_ID = "sim";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
 
     /** Room slots per side. The 11x11 cell grid holds rooms on even cells, so six of them. */
     private static final int GRID = (com.killer560.hub.livemap.DungeonLayout.GRID + 1) / 2;
@@ -185,7 +197,7 @@ public class SimMapEditorScreen extends Screen {
         // (which draws from the list) and Generate - see SimRoomFilters.
         int active = SimRoomFilters.activeCount();
         int filtersW = this.font.width("Filters (99)") + 12;
-        search = new EditBox(this.font, listX, panelY + 44, Math.max(20, listW - filtersW - 4), 16,
+        search = new WellEditBox(this.font, listX, panelY + 44, Math.max(20, listW - filtersW - 4), 16,
                 Component.literal("Search"));
         search.setHint(Component.literal("Search rooms..."));
         search.setValue(searchText);
@@ -202,7 +214,7 @@ public class SimMapEditorScreen extends Screen {
                 }).bounds(listX + listW - filtersW, panelY + 44, filtersW, 16).build());
 
         // The map's name, like the field in Ashfall's Dungeon Maker. Save uses it; Load fills it in.
-        nameBox = new EditBox(this.font, gridX, panelY + 44, cell * GRID, 16, Component.literal("Name"));
+        nameBox = new WellEditBox(this.font, gridX, panelY + 44, cell * GRID, 16, Component.literal("Name"));
         nameBox.setHint(Component.literal("Map name..."));
         nameBox.setValue(mapName);
         nameBox.setResponder(v -> mapName = v);
@@ -666,12 +678,12 @@ public class SimMapEditorScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        g.fill(0, 0, this.width, this.height, 0xCC000000);
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, ProfitPanels.PANEL_BG);
-        g.outline(panelX, panelY, panelW, panelH, ProfitPanels.BORDER);
-        g.fill(panelX, panelY, panelX + panelW, panelY + 30, 0xFF000000);
-        g.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
-        g.text(this.font, "DESIGN A MAP", panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
+        // The menu theme (screen sweep, 2026-10-13): the menu's panel and header bar; the grid and the room list are
+        // recessed wells, list rows hover / select like the menu's, every colour from the active theme.
+        ToolScreenKit.begin(g, this, true);
+        ToolScreenKit.panel(g, this, panelX, panelY, panelW, panelH);
+        ToolScreenKit.header(g, panelX, panelY, panelW);
+        ToolScreenKit.title(g, "DESIGN A MAP", panelX + 10, panelY + 11, false);
         // The type filters read the room database; a list built before it loaded is rebuilt the moment it does.
         if (!listedWithDatabase && panel == Panel.ROOMS && RoomDatabase.isReady()) {
             refilter();
@@ -682,8 +694,8 @@ public class SimMapEditorScreen extends Screen {
                     + (SimRoomFilters.isDefault() ? "" : " (filtered)");
             int maxW = panelW - 20 - this.font.width("DESIGN A MAP") - 10;
             String shownCount = this.font.width(count) <= maxW ? count : listed.size() + "/" + roomTotal;
-            g.text(this.font, shownCount, panelX + panelW - 10 - this.font.width(shownCount), panelY + 11,
-                    SimRoomFilters.isDefault() ? ProfitPanels.DIM : ProfitPanels.ACCENT, false);
+            MenuStyle.text(g, shownCount, panelX + panelW - 10 - this.font.width(shownCount), panelY + 11,
+                    SimRoomFilters.isDefault() ? MenuStyle.DIM : MenuStyle.OR);
         }
         drawGrid(g, mouseX, mouseY);
         drawList(g, mouseX, mouseY);
@@ -699,12 +711,12 @@ public class SimMapEditorScreen extends Screen {
         // Writing a shorter string would only move the problem to the next window that is narrower still, so
         // the width is measured: the full wording when it fits, a short form when it does not, and a trim as
         // the last resort so a long status line can never reach the list either.
-        g.text(this.font, fit(status.isEmpty()
+        ToolScreenKit.text(g, fit(status.isEmpty()
                         ? "click a room, then a cell · right-click a cell to remove"
                         : status,
                 status.isEmpty() ? "click a room, then a cell" : null,
                 listX - 8 - gridX),
-                gridX, gridY + cell * GRID + 4, ProfitPanels.DIM, false);
+                gridX, gridY + cell * GRID + 4, MenuStyle.DIM);
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
 
@@ -773,11 +785,14 @@ public class SimMapEditorScreen extends Screen {
 
     private void drawGrid(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         int size = cell * GRID;
-        g.fill(gridX, gridY, gridX + size, gridY + size, ProfitPanels.INNER_BG);
-        for (int i = 0; i <= GRID; i++) {
-            g.fill(gridX + i * cell, gridY, gridX + i * cell + 1, gridY + size, 0xFF1A1A1A);
-            g.fill(gridX, gridY + i * cell, gridX + size, gridY + i * cell + 1, 0xFF1A1A1A);
+        GuiRects well = GuiRects.begin(g);
+        MenuStyle.well(well, gridX - 1, gridY - 1, size + 2, size + 2, MenuStyle.WELL);
+        int line = MenuStyle.mix(MenuStyle.WELL, MenuStyle.TXT, 0.10f);
+        for (int i = 1; i < GRID; i++) {
+            well.fill(gridX + i * cell, gridY, gridX + i * cell + 1, gridY + size, line);
+            well.fill(gridX, gridY + i * cell, gridX + size, gridY + i * cell + 1, line);
         }
+        well.submit();
         for (Map.Entry<Integer, String> e : placements.entrySet()) {
             String name = e.getValue();
             int[] b = roomBox(e.getKey(), name);
@@ -826,7 +841,7 @@ public class SimMapEditorScreen extends Screen {
         if (mouseX >= gridX && mouseX < gridX + size && mouseY >= gridY && mouseY < gridY + size) {
             int gx = (mouseX - gridX) / cell;
             int gz = (mouseY - gridY) / cell;
-            g.outline(gridX + gx * cell, gridY + gz * cell, cell, cell, ProfitPanels.ACCENT);
+            g.outline(gridX + gx * cell, gridY + gz * cell, cell, cell, MenuStyle.OR);
         }
     }
 
@@ -930,8 +945,7 @@ public class SimMapEditorScreen extends Screen {
     private void drawList(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         int top = panelY + 66;
         int bottom = listBottom();
-        g.fill(listX, top, listX + listW, bottom, ProfitPanels.INNER_BG);
-        g.outline(listX - 1, top - 1, listW + 2, bottom - top + 2, ProfitPanels.BORDER);
+        ToolScreenKit.well(g, listX - 1, top - 1, listW + 2, bottom - top + 2);
         g.enableScissor(listX, top, listX + listW, bottom);
         for (int i = 0; i < listed.size(); i++) {
             int y = top + i * ROW_H - scroll;
@@ -942,32 +956,32 @@ public class SimMapEditorScreen extends Screen {
             boolean isSelected = panel == Panel.ROOMS && name.equals(selected);
             boolean hover = mouseX >= listX && mouseX < listX + listW && mouseY >= y && mouseY < y + ROW_H;
             if (isSelected || hover) {
-                g.fill(listX, y, listX + listW, y + ROW_H, isSelected ? 0xFF241A0E : 0xFF141414);
+                GuiRects rr = GuiRects.begin(g);
+                ToolScreenKit.row(rr, listX, y, listX + listW - listX, ROW_H, hover, isSelected);
+                rr.submit();
             }
             if (panel == Panel.MAPS) {
                 Map<Integer, String> saved = SimMapPresets.get(name);
-                g.fill(listX + 2, y + 3, listX + 6, y + ROW_H - 3, ProfitPanels.ACCENT);
-                g.text(this.font, name, listX + 10, y + 3, ProfitPanels.TEXT, false);
-                g.text(this.font, (saved == null ? 0 : saved.size())
-                                + " room(s), right-click to delete",
-                        listX + 10, y + 12, ProfitPanels.DIM, false);
+                g.fill(listX + 3, y + 3, listX + 7, y + ROW_H - 3, MenuStyle.OR);
+                MenuStyle.text(g, name, listX + 10, y + 3, MenuStyle.TXT);
+                MenuStyle.text(g, (saved == null ? 0 : saved.size()) + " room(s), right-click to delete",
+                        listX + 10, y + 12, MenuStyle.DIM);
                 continue;
             }
-            g.fill(listX + 2, y + 3, listX + 6, y + ROW_H - 3, colourFor(name));
-            g.text(this.font, name, listX + 10, y + 3, isSelected ? ProfitPanels.ACCENT : ProfitPanels.TEXT,
-                    false);
+            g.fill(listX + 3, y + 3, listX + 7, y + ROW_H - 3, colourFor(name));
+            MenuStyle.text(g, name, listX + 10, y + 3, isSelected ? MenuStyle.OR : MenuStyle.TXT);
             RoomEntry entry = RoomDatabase.lookupByName(name);
             String sub = SimFloorGen.typeOf(name).toLowerCase(Locale.ROOT);
             if (entry != null) {
                 sub += "  ·  " + (entry.shape == null ? "?" : entry.shape)
                         + "  ·  " + entry.secrets + " secrets";
             }
-            g.text(this.font, sub, listX + 10, y + 12, ProfitPanels.DIM, false);
+            MenuStyle.text(g, sub, listX + 10, y + 12, MenuStyle.DIM);
         }
         g.disableScissor();
         if (listed.isEmpty()) {
-            g.text(this.font, panel == Panel.ROOMS && !SimRoomFilters.isDefault() ? "no rooms match the filters"
-                    : "no rooms match", listX + 8, top + 8, ProfitPanels.DIM, false);
+            MenuStyle.text(g, panel == Panel.ROOMS && !SimRoomFilters.isDefault() ? "no rooms match the filters"
+                    : "no rooms match", listX + 8, top + 8, MenuStyle.DIM);
         }
     }
 

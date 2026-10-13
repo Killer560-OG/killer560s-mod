@@ -33,7 +33,15 @@ import com.killer560.hub.compat.McItems;
  *  one, so practicing here matches the genuine terminal's real click behavior. Deliberately renders the
  *  RAW puzzle with no highlighting at all - unlike Custom GUI mode (which exists to skip reading the
  *  puzzle), the entire point here is practicing reading it yourself. */
-public class TermismPracticeScreen extends Screen {
+public class TermismPracticeScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
+
+    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    public static final String THEME_ID = "termism";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
 
     private static final int CELL_SIZE = 18;
     private static final int PANEL_PADDING = 8;
@@ -653,7 +661,10 @@ public class TermismPracticeScreen extends Screen {
             updateMelodyAnimation();
         }
         tickAutoClick();
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        // The menu theme round the board (screen sweep, 2026-10-13): a panel with the title in its header bar and the
+        // hint under the board. The board itself keeps the terminal's own look (the solver's panel with Custom GUI on,
+        // vanilla's grey with it off), since that is what is being practised.
+        com.killer560.hub.gui.ToolScreenKit.begin(graphics, this, true);
 
         boolean customGui = customGuiOn();
         int bgColor = customGui ? PANEL_BG_COLOR : VANILLA_BG_COLOR;
@@ -661,6 +672,12 @@ public class TermismPracticeScreen extends Screen {
         float scale = scale();
         int panelWidth = Math.round(columns * CELL_SIZE * scale);
         int panelHeight = Math.round(rows * CELL_SIZE * scale);
+        int frameW = Math.max(panelWidth + PANEL_PADDING * 2 + 24, 300);
+        int frameX = this.width / 2 - frameW / 2;
+        int frameY = gridOriginY - PANEL_PADDING - 32;
+        int frameH = panelHeight + PANEL_PADDING * 2 + 32 + 28;
+        com.killer560.hub.gui.ToolScreenKit.panel(graphics, this, frameX, frameY, frameW, frameH);
+        com.killer560.hub.gui.ToolScreenKit.header(graphics, frameX, frameY, frameW);
         graphics.fill(gridOriginX - PANEL_PADDING, gridOriginY - PANEL_PADDING,
                 gridOriginX + panelWidth + PANEL_PADDING, gridOriginY + panelHeight + PANEL_PADDING, bgColor);
         graphics.outline(gridOriginX - PANEL_PADDING, gridOriginY - PANEL_PADDING,
@@ -680,15 +697,17 @@ public class TermismPracticeScreen extends Screen {
         }
         graphics.pose().popMatrix();
 
-        graphics.centeredText(this.font, headerText(), this.width / 2, gridOriginY - PANEL_PADDING - 22, 0xFFFFFFFF);
+        com.killer560.hub.gui.ToolScreenKit.centred(graphics, headerText(), this.width / 2, gridOriginY - PANEL_PADDING - 21,
+                com.killer560.hub.gui.MenuStyle.TXT);
 
         if (solved) {
             double seconds = (solvedAtMs - startedAtMs) / 1000.0;
-            graphics.centeredText(this.font, String.format("§aSolved in %.1fs! Click New Puzzle to try again.", seconds),
-                    this.width / 2, gridOriginY + panelHeight + PANEL_PADDING + 10, 0xFF55FF55);
+            com.killer560.hub.gui.ToolScreenKit.centred(graphics, String.format("§aSolved in %.1fs! Click New Puzzle to try again.",
+                    seconds), this.width / 2, gridOriginY + panelHeight + PANEL_PADDING + 10,
+                    com.killer560.hub.gui.ToolScreenKit.good());
         } else {
-            graphics.centeredText(this.font, hintText(),
-                    this.width / 2, gridOriginY + panelHeight + PANEL_PADDING + 10, 0xFFAAAAAA);
+            com.killer560.hub.gui.ToolScreenKit.centred(graphics, hintText(),
+                    this.width / 2, gridOriginY + panelHeight + PANEL_PADDING + 10, com.killer560.hub.gui.MenuStyle.DIM);
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);

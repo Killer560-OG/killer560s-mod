@@ -70,7 +70,15 @@ import com.killer560.hub.compat.McCompat;
  * it goes back. No handles: the area decides a bar's length; scroll still scales it. Its own saved position is never
  * written here, so switching back to Custom finds it where it was.
  */
-public class HudEditorScreen extends Screen {
+public class HudEditorScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
+
+    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    public static final String THEME_ID = "hudeditor";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
 
     private final Screen parent;
     private final Map<String, int[]> livePositions = new HashMap<>();
@@ -121,13 +129,23 @@ public class HudEditorScreen extends Screen {
 
     private static final int BOX_BG = 0x55FFFFFF;
     private static final int BOX_BG_DRAGGING = 0x8055FF55;
-    private static final int BOX_OUTLINE = 0xFFCC6600;
-    private static final int HANDLE = 0xFFFF8800;
-    private static final int GUIDE = 0xFFFF9933;
-    private static final int ZONE_FILL = 0x33FF8800;
-    private static final int ZONE_EDGE = 0xCCFF8800;
-    private static final int ZONE_FILL_TARGET = 0x55FF8800;
-    private static final int ZONE_EDGE_TARGET = 0xFFFF8800;
+    // The accent colours come from the theme (screen sweep, 2026-10-13): MenuStyle after ToolScreenKit.begin.
+    private static int boxOutline() {
+        return com.killer560.hub.gui.MenuStyle.OR;
+    }
+
+    private static int handle() {
+        return com.killer560.hub.gui.MenuStyle.OR_LIGHT;
+    }
+
+    private static int guide() {
+        return com.killer560.hub.gui.MenuStyle.OR_LIGHT;
+    }
+
+    private static int zone(int alpha) {
+        return com.killer560.hub.gui.MenuStyle.alpha(com.killer560.hub.gui.MenuStyle.OR, alpha);
+    }
+
     private static final int TRAY_FILL = 0x66000000;
     /**
      * Screen pixels the box stands out from the element on every side - the same for every element at every scale.
@@ -264,10 +282,12 @@ public class HudEditorScreen extends Screen {
         StatLayout.newFrame();
         drawParentContainer(graphics, partialTick);
         graphics.fill(0, 0, this.width, this.height, 0x33000000);
+        com.killer560.hub.gui.ToolScreenKit.begin(graphics, this, false);
         // One dim line, gone while something is dragged (2026-10-08, killer560: the editor's panels "block a lot of my
-        // screen"). With nothing listed, the line says why instead.
+        // screen"). With nothing listed, the line says why instead. Since the screen sweep (2026-10-13) it sits on a
+        // small chip in the theme, so it reads over any world and on a light theme.
         if (draggingId == null) {
-            graphics.text(this.font, fit(shown.isEmpty() ? emptyLine() : hintLine()), 4, 4, 0xFFFFFFFF);
+            hintChip(graphics, fit(shown.isEmpty() ? emptyLine() : hintLine()), 4);
         }
 
         // Predefined stat readouts go where their layout puts them, every frame (it moves as others are dragged).
@@ -282,8 +302,7 @@ public class HudEditorScreen extends Screen {
         }
         if (anyAnchored) {
             if (draggingId == null) {
-                graphics.text(this.font, fit("§7Predefined: drop one on an area (Hidden hides it); scroll sizes them all."),
-                        4, 15, 0xFFFFFFFF);
+                hintChip(graphics, fit("§7Predefined: drop one on an area (Hidden hides it); scroll sizes them all."), 19);
             }
             drawAreas(graphics);
         }
@@ -314,7 +333,7 @@ public class HudEditorScreen extends Screen {
 
             graphics.fill(x - BOX_PAD, y - BOX_PAD, x + scaledW + BOX_PAD, y + scaledH + BOX_PAD,
                     dragging ? BOX_BG_DRAGGING : BOX_BG);
-            graphics.outline(x - BOX_PAD, y - BOX_PAD, scaledW + 2 * BOX_PAD, scaledH + 2 * BOX_PAD, BOX_OUTLINE);
+            graphics.outline(x - BOX_PAD, y - BOX_PAD, scaledW + 2 * BOX_PAD, scaledH + 2 * BOX_PAD, boxOutline());
             // The name above the box is cut to the box's own width so side-by-side boxes' names never run into
             // each other ("Health Bar (1.0x, 100x8)" over "Mana Bar"); the one being hovered or dragged shows in full.
             boolean anchored = StatLayout.manages(element);
@@ -374,8 +393,8 @@ public class HudEditorScreen extends Screen {
         if (dragZones != null) {
             for (StatLayout.Zone z : dragZones.zones) {
                 boolean target = dragTarget != null && dragTarget.area() == z.area();
-                g.fill(z.x0(), z.y0(), z.x1(), z.y1(), target ? ZONE_FILL_TARGET : ZONE_FILL);
-                g.outline(z.x0(), z.y0(), z.x1() - z.x0(), z.y1() - z.y0(), target ? ZONE_EDGE_TARGET : ZONE_EDGE);
+                g.fill(z.x0(), z.y0(), z.x1(), z.y1(), zone(target ? 0x55 : 0x33));
+                g.outline(z.x0(), z.y0(), z.x1() - z.x0(), z.y1() - z.y0(), zone(target ? 0xFF : 0xCC));
                 if (z.area() == StatLayout.Area.HIDDEN) {
                     tray = null; // drawn here already
                     g.text(this.font, "§6Hidden", z.x0() + 3, z.y0() + 2, 0xFFFFFFFF);
@@ -389,7 +408,7 @@ public class HudEditorScreen extends Screen {
         }
         if (tray != null) {
             g.fill(tray.x0(), tray.y0(), tray.x1(), tray.y1(), TRAY_FILL);
-            g.outline(tray.x0(), tray.y0(), tray.x1() - tray.x0(), tray.y1() - tray.y0(), ZONE_EDGE);
+            g.outline(tray.x0(), tray.y0(), tray.x1() - tray.x0(), tray.y1() - tray.y0(), zone(0xCC));
             g.text(this.font, "§6Hidden", tray.x0() + 3, tray.y0() + 2, 0xFFFFFFFF);
         }
     }
@@ -460,7 +479,8 @@ public class HudEditorScreen extends Screen {
                 {x0, (y0 + y1) / 2}, {x1, (y0 + y1) / 2}}
                 : new int[][]{{x0, y0}, {x1, y0}, {x0, y1}, {x1, y1}};
         for (int[] p : at) {
-            g.fill(p[0] - 2, p[1] - 2, p[0] + 2, p[1] + 2, HANDLE);
+            g.fill(p[0] - 3, p[1] - 3, p[0] + 3, p[1] + 3, com.killer560.hub.gui.MenuStyle.BLACK);
+            g.fill(p[0] - 2, p[1] - 2, p[0] + 2, p[1] + 2, handle());
         }
     }
 
@@ -470,24 +490,31 @@ public class HudEditorScreen extends Screen {
             int a = (int) Math.round(Math.min(guide.from(), guide.to()));
             int b = (int) Math.round(Math.max(guide.from(), guide.to()));
             if (guide.vertical()) {
-                g.fill(at, a, at + 1, b, GUIDE);
-                g.fill(at - 2, a, at + 3, a + 1, GUIDE);
-                g.fill(at - 2, b - 1, at + 3, b, GUIDE);
+                g.fill(at, a, at + 1, b, guide());
+                g.fill(at - 2, a, at + 3, a + 1, guide());
+                g.fill(at - 2, b - 1, at + 3, b, guide());
             } else {
-                g.fill(a, at, b, at + 1, GUIDE);
-                g.fill(a, at - 2, a + 1, at + 3, GUIDE);
-                g.fill(b - 1, at - 2, b, at + 3, GUIDE);
+                g.fill(a, at, b, at + 1, guide());
+                g.fill(a, at - 2, a + 1, at + 3, guide());
+                g.fill(b - 1, at - 2, b, at + 3, guide());
             }
             return;
         }
         // A line on the screen's far edge would be drawn just off it; pull it in by one.
         if (guide.vertical()) {
             int x = Math.min(at, this.width - 1);
-            g.fill(x, 0, x + 1, this.height, GUIDE);
+            g.fill(x, 0, x + 1, this.height, guide());
         } else {
             int y = Math.min(at, this.height - 1);
-            g.fill(0, y, this.width, y + 1, GUIDE);
+            g.fill(0, y, this.width, y + 1, guide());
         }
+    }
+
+    /** A hint line on a small raised chip in the theme (the chip is what the testkit samples). */
+    private void hintChip(GuiGraphicsExtractor g, String line, int y) {
+        int w = this.font.width(line);
+        com.killer560.hub.gui.ToolScreenKit.box(g, this, 1, y - 3, w + 7, 15);
+        com.killer560.hub.gui.ToolScreenKit.text(g, line, 4, y, com.killer560.hub.gui.MenuStyle.TXT);
     }
 
     /** A hint cut to the window's width, so a small window never shows half a word at its edge. */

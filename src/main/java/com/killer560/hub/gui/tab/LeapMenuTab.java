@@ -51,6 +51,7 @@ public class LeapMenuTab extends BaseTab {
 
         y = buildCustomMenuSection(widgets, contentX, y, contentWidth, requestRebuild);
         buildLeapMessageSection(widgets, contentX, y, contentWidth, requestRebuild);
+        com.killer560.hub.gui.ScreenThemeConfig.append(widgets, LeapOrderScreen.THEME_ID, contentX, contentWidth, y);
 
         return widgets;
     }

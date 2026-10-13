@@ -169,6 +169,8 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
                     v -> cfg.setBloodRushDoorTimeoutSec((int) Math.round(v)), 5, 60, "s", cfg, colB, y, colW));
             y += 20;
         }
+        com.killer560.hub.gui.ScreenThemeConfig.append(widgets, com.killer560.hub.livemap.InteractiveMapScreen.THEME_ID,
+                contentX, contentWidth, y);
         return widgets;
     }
 

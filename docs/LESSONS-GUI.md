@@ -321,3 +321,13 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   falls through to the button on it) and `hoveredChild` skips it when a real widget sits on it, or the buttons lose their
   tooltips. A vanilla `EditBox` draws its text and hint with a shadow, which smears dark text on the Light theme: call
   `setTextShadow(MenuStyle.TEXT_SHADOW)` (both versions, javap) and paint the hint yourself (testkit 948's shots).
+- **A screen with its own Theme draws from a palette nobody else may re-derive mid-frame** (screen sweep C, 2026-10-13).
+  `MenuStyle.use(MenuTheme.forScreen(id))` re-derives the shared statics for that screen's theme and caches on the menu's
+  version AND the theme; a widget that calls `MenuStyle.use()` while drawing (the old `DragListWidget` / an EditBox) would
+  put the menu's theme back halfway through the frame. Widgets read the statics; only the screen (`ToolScreenKit.begin`)
+  and `ModScreen` derive. Testkit 976: Termism on Light while the menu is Amber, and the menu stays Amber.
+- **A themed EditBox keeps `bordered` true and hides only the sprite** (`gui/WellEditBox`): vanilla's draw tests
+  `isBordered()` once, for the sprite blit, and reads the text position from fields set while bordered, so answering false
+  only during the draw keeps text, cursor and clicks where they were; `getInnerWidth()` also calls `isBordered()`, so it is
+  pinned to the bordered width (javap, 26.1.2 and 26.2). The hint is drawn with `text(...III)` - always shadowed - so the
+  box paints its own. A vanilla `StringWidget` shadows its text too: a tool screen's labels override its draw.

@@ -192,6 +192,8 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         // killer560 (2026-09-21): colours "right above the keybinds section and also make that collapsible".
         buildColorSection(w, cfg, contentX, y, contentWidth, half, requestRebuild);
         buildKeybindSection(w, cfg, contentX, y, contentWidth, requestRebuild);
+        // The AP3 screens' Theme (Choose AP3 Config, /ap3 edit; screen sweep 2026-10-13).
+        com.killer560.hub.gui.ScreenThemeConfig.append(w, Ap3ConfigScreen.THEME_ID, contentX, contentWidth, contentY);
         return w;
     }
 

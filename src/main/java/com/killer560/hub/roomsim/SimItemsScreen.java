@@ -1,6 +1,9 @@
 package com.killer560.hub.roomsim;
 
-import com.killer560.hub.gui.profit.ProfitPanels;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ToolScreenKit;
+import com.killer560.hub.hud.GuiRects;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -26,7 +29,15 @@ import com.killer560.hub.compat.McCompat;
  * <p>The items themselves still come from {@link SimItems}, which owns the one table of what exists and what
  * each one does. This is a way of asking, not a second list to keep in step.
  */
-public final class SimItemsScreen extends Screen {
+public final class SimItemsScreen extends Screen implements MenuThemedScreen {
+
+    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    public static final String THEME_ID = "sim";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
 
     /** Nine across, the width of a hotbar - the row he will be filling. */
     private static final int COLUMNS = 9;
@@ -113,31 +124,36 @@ public final class SimItemsScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        g.fill(0, 0, this.width, this.height, 0xCC000000);
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, ProfitPanels.PANEL_BG);
-        g.outline(panelX, panelY, panelW, panelH, ProfitPanels.BORDER);
-        g.fill(panelX, panelY, panelX + panelW, panelY + 30, 0xFF000000);
-        g.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
-        g.text(this.font, "SIM ITEMS", panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
+        // The menu theme (screen sweep, 2026-10-13): panel, header bar, each item in a recessed slot (the hovered one a
+        // raised card with the accent ring), and Give me everything as the menu's raised button.
+        ToolScreenKit.begin(g, this, true);
+        ToolScreenKit.panel(g, this, panelX, panelY, panelW, panelH);
+        ToolScreenKit.header(g, panelX, panelY, panelW);
+        ToolScreenKit.title(g, "SIM ITEMS", panelX + 10, panelY + 11, false);
 
         hovered = cellAt(mouseX, mouseY);
+        GuiRects r = GuiRects.begin(g);
         for (int i = 0; i < entries.size(); i++) {
             int cx = gridX + (i % COLUMNS) * (CELL + PAD);
             int cy = gridY + (i / COLUMNS) * (CELL + PAD);
-            g.fill(cx, cy, cx + CELL, cy + CELL, i == hovered ? 0xFF3A2A12 : 0xFF141414);
             if (i == hovered) {
-                g.outline(cx, cy, CELL, CELL, ProfitPanels.ACCENT);
+                ToolScreenKit.card(r, cx, cy, CELL, CELL, true, true);
+            } else {
+                MenuStyle.well(r, cx, cy, CELL, CELL, MenuStyle.WELL);
             }
+        }
+        int allY = panelY + panelH - 28;
+        boolean overAll = isOverGiveAll(mouseX, mouseY);
+        MenuStyle.raisedButton(r, panelX + 11, allY + 1, panelW - 22, 16, overAll, false);
+        r.submit();
+        for (int i = 0; i < entries.size(); i++) {
+            int cx = gridX + (i % COLUMNS) * (CELL + PAD);
+            int cy = gridY + (i / COLUMNS) * (CELL + PAD);
             // Centred in the cell rather than pinned to a corner - an item icon is 16px.
             g.item(icons.get(i), cx + (CELL - 16) / 2, cy + (CELL - 16) / 2);
         }
-
-        int allY = panelY + panelH - 28;
-        boolean overAll = isOverGiveAll(mouseX, mouseY);
-        g.fill(panelX + 10, allY, panelX + panelW - 10, allY + 18, overAll ? 0xFF3A2A12 : 0xFF141414);
-        g.outline(panelX + 10, allY, panelW - 20, 18, overAll ? ProfitPanels.ACCENT : ProfitPanels.BORDER);
-        g.centeredText(this.font, "Give me everything", panelX + panelW / 2, allY + 5,
-                overAll ? ProfitPanels.ACCENT : ProfitPanels.TEXT);
+        ToolScreenKit.centred(g, "Give me everything", panelX + panelW / 2, allY + 5,
+                overAll ? MenuStyle.OR_HOVER : MenuStyle.OR);
 
         // The name under the grid rather than in a floating tooltip: the grid is small and a tooltip would
         // cover the neighbouring items you are choosing between.
@@ -145,8 +161,8 @@ public final class SimItemsScreen extends Screen {
                 ? entries.get(hovered).displayName()
                 : "Click an item to take one";
         // Its own line, clear of both the grid above and the button below.
-        g.centeredText(this.font, label, panelX + panelW / 2, panelY + panelH - FOOTER + 6,
-                hovered >= 0 ? ProfitPanels.TEXT : ProfitPanels.DIM);
+        ToolScreenKit.centred(g, label, panelX + panelW / 2, panelY + panelH - FOOTER + 6,
+                hovered >= 0 ? MenuStyle.TXT : MenuStyle.DIM);
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
 

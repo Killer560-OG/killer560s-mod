@@ -104,15 +104,35 @@ public final class MenuStyle {
     public static int KNOB_EDGE = 0xFFB8B0A8;
 
     private static int usedVersion = -1;
+    private static MenuTheme usedTheme;
 
     /** Derives the palette from the menu's active theme (cheap when nothing changed). Call before drawing. */
     public static void use() {
+        use(MenuConfig.getInstance().getTheme());
+    }
+
+    /**
+     * Derives the palette from {@code theme} - a screen with its own Theme setting ({@link MenuTheme#forScreen}) - with
+     * {@link MenuTheme#CUSTOM} meaning the menu's saved Custom colours. Cheap when neither the theme nor the menu's
+     * colours changed since the last call.
+     */
+    public static void use(MenuTheme theme) {
         MenuConfig cfg = MenuConfig.getInstance();
-        if (usedVersion == MenuConfig.version()) {
+        MenuTheme t = theme == null ? cfg.getTheme() : theme;
+        if (usedVersion == MenuConfig.version() && usedTheme == t) {
             return;
         }
         usedVersion = MenuConfig.version();
-        int[] c = cfg.activeColours();
+        usedTheme = t;
+        int[] c;
+        if (t == MenuTheme.CUSTOM) {
+            c = new int[MenuTheme.Slot.values().length];
+            for (MenuTheme.Slot s : MenuTheme.Slot.values()) {
+                c[s.ordinal()] = cfg.getCustomColour(s);
+            }
+        } else {
+            c = t.base();
+        }
         derive(c[0], c[1], c[2], c[3], c[4]);
     }
 

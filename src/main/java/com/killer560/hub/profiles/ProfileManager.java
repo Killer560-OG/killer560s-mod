@@ -386,6 +386,7 @@ public final class ProfileManager {
                 com.killer560.hub.updatecheck.UpdateCheckConfig::load,
                 com.killer560.hub.autoupdate.AutoUpdateConfig::load,
                 com.killer560.hub.gui.MenuConfig::load,
+                com.killer560.hub.gui.ScreenThemeConfig::load,
                 com.killer560.hub.autocorrect.AutoCorrectConfig::load,
                 com.killer560.hub.trail.TrailConfig::load,
                 com.killer560.hub.heldoutline.HeldOutlineConfig::load,

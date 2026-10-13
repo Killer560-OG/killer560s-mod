@@ -28,6 +28,8 @@ public class TermismTab extends BaseTab {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new TermismMenuScreen(McCompat.screen(client)));
                 }).bounds(contentX, y, 220, 20).build());
+        com.killer560.hub.gui.ScreenThemeConfig.append(widgets, com.killer560.hub.termism.TermismMenuScreen.THEME_ID,
+                contentX, contentWidth, y);
 
         return widgets;
     }

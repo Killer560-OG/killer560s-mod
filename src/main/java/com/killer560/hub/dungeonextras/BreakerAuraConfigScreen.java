@@ -1,6 +1,9 @@
 package com.killer560.hub.dungeonextras;
 
-import com.killer560.hub.gui.SectionHeaders;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ToolScreenKit;
+import com.killer560.hub.gui.WellEditBox;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -25,7 +28,15 @@ import com.killer560.hub.compat.McCompat;
  * reason is shown on the panel when it is not accepted. Closing goes back to the mod menu, which rebuilds the
  * Breaker Aura tab so the button shows the new name.
  */
-public class BreakerAuraConfigScreen extends Screen {
+public class BreakerAuraConfigScreen extends Screen implements MenuThemedScreen {
+
+    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    public static final String THEME_ID = "breakeraura";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
 
     private static final int PANEL_W = 300;
     private static final int PAD = 10;
@@ -96,7 +107,7 @@ public class BreakerAuraConfigScreen extends Screen {
         statusY = y;
         y += 16;
 
-        EditBox nameBox = new EditBox(this.font, x, y, w - NEW_W - GAP, ROW, Component.literal("New config name"));
+        EditBox nameBox = new WellEditBox(this.font, x, y, w - NEW_W - GAP, ROW, Component.literal("New config name"));
         nameBox.setMaxLength(BreakerAuraStore.MAX_CONFIG_NAME + 5); // room for a typed ".json"
         nameBox.setHint(Component.literal("§8new config name"));
         nameBox.setValue(newName);
@@ -125,16 +136,18 @@ public class BreakerAuraConfigScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xFF0D0D0D);
-        graphics.outline(panelX, panelY, panelW, panelH, 0xFF553311);
-        graphics.centeredText(this.font, this.title, panelX + panelW / 2, panelY + 8, SectionHeaders.color(true));
+        // The menu theme (screen sweep, 2026-10-13): panel and header bar, the title in the cheat red (a cheat-only
+        // screen), the folder under it, the config rows as the menu's raised buttons.
+        ToolScreenKit.begin(graphics, this, true);
+        ToolScreenKit.panel(graphics, this, panelX, panelY, panelW, panelH);
+        ToolScreenKit.header(graphics, panelX, panelY, panelW);
+        ToolScreenKit.titleCentred(graphics, this.title.getString(), panelX + panelW / 2, panelY + 6, true);
         String where = names.size() > MAX_VISIBLE
                 ? String.format(Locale.US, "%d files - scroll", names.size())
                 : BreakerAuraStore.directory().getFileName().toString() + "/";
-        graphics.centeredText(this.font, where, panelX + panelW / 2, panelY + 19, 0xFF9A8C80);
+        ToolScreenKit.centred(graphics, where, panelX + panelW / 2, panelY + 17, MenuStyle.DIM);
         if (!status.isEmpty()) {
-            graphics.text(this.font, status, panelX + PAD, statusY + 2, 0xFFFFFFFF, false);
+            ToolScreenKit.text(graphics, status, panelX + PAD, statusY + 2, MenuStyle.TXT);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }

@@ -4,7 +4,11 @@ import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.DragListWidget;
-import com.killer560.hub.gui.SectionHeaders;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ToolScreenKit;
+import com.killer560.hub.gui.WellEditBox;
+import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.gui.SettingTooltips;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
@@ -46,7 +50,15 @@ import java.util.function.Supplier;
  * settings the tab's General and Background pages held). The panel scrolls with the wheel when its page is taller
  * than the screen.
  */
-public class ScoreboardEditorScreen extends Screen {
+public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
+
+    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    public static final String THEME_ID = "scoreboard";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
 
     private enum Page {
         BOARD("Board"), GENERAL("General"), BACKGROUND("Background");
@@ -61,8 +73,6 @@ public class ScoreboardEditorScreen extends Screen {
     /** Tooltip scope: the settings keep the keys they had on the Custom Scoreboard tab. */
     private static final String TOOLTIP_SCOPE = "Custom Scoreboard";
     private static final int MARGIN = 10;
-    private static final int BORDER = 0xFF553311;
-    private static final int ORANGE = 0xFFFF9900;
     private static final int ROW = 18;
     private static final int STEP = 22;
     private static final int COL_GAP = 6;
@@ -134,6 +144,8 @@ public class ScoreboardEditorScreen extends Screen {
 
     @Override
     protected void init() {
+        // The theme's palette now, so the section headings and hints built below take its colours.
+        MenuStyle.use(ToolScreenKit.themeOf(this));
         cfg = CustomScoreboardConfig.getInstance();
         if (selected != null && !cfg.entries().contains(selected)) {
             selected = null;
@@ -206,7 +218,7 @@ public class ScoreboardEditorScreen extends Screen {
         int headerY = panelBottom - inactiveH;
         inactiveY = headerY + STEP;
 
-        out.add(new StringWidget(panelX, headerY + 4, panelW - 90, 12, SectionHeaders.header("Not Active", false), font));
+        out.add(label(panelX, headerY + 4, panelW - 90, 12, heading("Not Active")));
         out.add(SettingsButtonWidget.builder(Component.literal("Reset Board"), btn -> {
                     cfg.resetEntries();
                     cfg.save();
@@ -223,7 +235,7 @@ public class ScoreboardEditorScreen extends Screen {
             hint(out, panelX, y + 36, panelW, "Click or drag a Not Active line to add it.");
             return panelBottom;
         }
-        out.add(new StringWidget(panelX, y + 4, panelW - 90, 12, SectionHeaders.header(selected.label, false), font));
+        out.add(label(panelX, y + 4, panelW - 90, 12, heading(selected.label)));
         ScoreboardEntry sel = selected;
         out.add(SettingsButtonWidget.builder(Component.literal("§cRemove"), btn -> {
                     cfg.entries().remove(sel);
@@ -748,13 +760,20 @@ public class ScoreboardEditorScreen extends Screen {
             mouseX = mx;
             mouseY = my;
         }
-        g.fill(0, 0, this.width, this.height, 0xCC000000);
-        g.text(this.font, "§eDrag lines on the board to move them. Drag one to the right to take it off.",
-                MARGIN, 10, 0xFFFFFFFF);
-        g.text(this.font, "§7The board shows sample text; in game each line shows your real data.", MARGIN, 22, 0xFFFFFFFF);
+        // The menu theme (screen sweep, 2026-10-13): one panel over the window with the two help lines in its header
+        // bar, the board in a recessed well, the settings side on a raised box, every colour from the theme.
+        ToolScreenKit.begin(g, this, true);
+        ToolScreenKit.panel(g, this, 3, 3, this.width - 6, this.height - 6);
+        GuiRects chrome = GuiRects.begin(g);
+        MenuStyle.bevel(chrome, 5, 5, this.width - 10, 27, MenuStyle.HEADER_TOP, MenuStyle.HEADER_BOTTOM);
+        chrome.submit();
+        ToolScreenKit.box(g, null, panelX - 6, boardY - 1, panelW + 10, panelBottom - boardY + 5);
+        ToolScreenKit.text(g, "Drag lines on the board to move them. Drag one to the right to take it off.",
+                MARGIN, 9, MenuStyle.OR);
+        ToolScreenKit.text(g, "The board shows sample text; in game each line shows your real data.", MARGIN, 20,
+                MenuStyle.DIM);
 
-        g.fill(boardX, boardY, boardX + boardW, boardY + boardH, 0xFF0D0D0D);
-        g.outline(boardX, boardY, boardW, boardH, BORDER);
+        ToolScreenKit.well(g, boardX, boardY, boardW, boardH);
         ScoreboardEntry lifted = dragging && !pressedFromInactive ? pressed : null;
         Board b = board(lifted);
         drawBoard(g, b);
@@ -776,7 +795,7 @@ public class ScoreboardEditorScreen extends Screen {
                     lineY = b.blockBottom(b.blocks().get(b.blocks().size() - 1));
                 }
                 int ly = (int) Math.round(lineY);
-                g.fill(b.x() - 2, ly - 1, b.right() + 2, ly + 1, ORANGE);
+                g.fill(b.x() - 2, ly - 1, b.right() + 2, ly + 1, MenuStyle.OR);
             }
         } else {
             Block hover = blockAt(b, mx, my);
@@ -784,10 +803,10 @@ public class ScoreboardEditorScreen extends Screen {
                 int top = (int) Math.round(b.blockTop(bl));
                 int bottom = (int) Math.round(b.blockBottom(bl));
                 if (bl == hover) {
-                    g.fill(b.x(), top, b.right(), bottom, 0x30FFFFFF);
+                    g.fill(b.x(), top, b.right(), bottom, MenuStyle.alpha(MenuStyle.TXT, 0x24));
                 }
                 if (bl.entry() == selected) {
-                    g.outline(b.x() - 1, top, b.right() - b.x() + 2, Math.max(1, bottom - top), ORANGE);
+                    g.outline(b.x() - 1, top, b.right() - b.x() + 2, Math.max(1, bottom - top), MenuStyle.OR);
                 }
             }
         }
@@ -821,7 +840,7 @@ public class ScoreboardEditorScreen extends Screen {
     private void drawInactive(GuiGraphicsExtractor g, int mx, int my) {
         List<ScoreboardEntry> list = inactive();
         if (list.isEmpty()) {
-            g.text(this.font, "§7Every line is on the board.", inactiveX, inactiveY + 2, 0xFFFFFFFF);
+            MenuStyle.text(g, "Every line is on the board.", inactiveX, inactiveY + 2, MenuStyle.DIM);
             return;
         }
         for (int i = 0; i < list.size(); i++) {
@@ -831,15 +850,22 @@ public class ScoreboardEditorScreen extends Screen {
             }
             ScoreboardEntry e = list.get(i);
             boolean hover = !dragging && mx >= r[0] && mx < r[0] + r[2] && my >= r[1] && my < r[1] + r[3];
-            g.fill(r[0], r[1], r[0] + r[2], r[1] + r[3] - 1, hover ? 0xFF3A2410 : 0xFF1A1A1A);
-            g.text(this.font, (hover ? "§6+ " : "§a+ ") + "§f" + e.label, r[0] + 3, r[1] + 2, 0xFFFFFFFF);
+            GuiRects row = GuiRects.begin(g);
+            MenuStyle.bevel(row, r[0], r[1], r[2], r[3] - 1, hover ? MenuStyle.CARD_HOVER_TOP : MenuStyle.CARD_TOP,
+                    hover ? MenuStyle.CARD_HOVER_BOTTOM : MenuStyle.CARD_BOTTOM);
+            if (hover) {
+                row.outline(r[0] - 1, r[1] - 1, r[2] + 2, r[3] + 1, MenuStyle.ACCENT_EDGE);
+            }
+            row.submit();
+            MenuStyle.text(g, "+ ", r[0] + 3, r[1] + 2, hover ? MenuStyle.OR : ToolScreenKit.good());
+            MenuStyle.text(g, e.label, r[0] + 3 + this.font.width("+ "), r[1] + 2, MenuStyle.TXT);
         }
         int max = maxInactiveScroll();
         if (max > 0) {
             int trackH = inactiveVisibleH();
             int thumbH = Math.max(10, trackH * trackH / (trackH + max));
             int thumbY = inactiveY + (trackH - thumbH) * inactiveScroll / max;
-            g.fill(inactiveX + inactiveW + 1, thumbY, inactiveX + inactiveW + 3, thumbY + thumbH, 0xFF886644);
+            g.fill(inactiveX + inactiveW + 1, thumbY, inactiveX + inactiveW + 3, thumbY + thumbH, MenuStyle.OR);
         }
     }
 
@@ -852,8 +878,8 @@ public class ScoreboardEditorScreen extends Screen {
         int h = lines.size() * (this.font.lineHeight + 1);
         int x = (int) Math.round(mouseX - Math.min(grabDX, w));
         int y = (int) Math.round(mouseY - grabDY);
-        g.fill(x - 3, y - 2, x + w + 3, y + h + 1, 0xE0101010);
-        g.outline(x - 3, y - 2, w + 6, h + 3, ORANGE);
+        g.fill(x - 3, y - 2, x + w + 3, y + h + 1, 0xE0101010); // the board's own dark, so its colours read as in game
+        g.outline(x - 3, y - 2, w + 6, h + 3, MenuStyle.OR);
         int ly = y;
         for (ScoreboardLine l : lines) {
             g.text(this.font, l.text(), x, ly, 0xFFFFFFFF, true);
@@ -897,13 +923,7 @@ public class ScoreboardEditorScreen extends Screen {
         if (y + h + 8 > this.height) {
             y = Math.max(4, my - h - 16);
         }
-        g.fill(x - 4, y - 4, x + w + 4, y + h + 4, 0xF00D0D0D);
-        g.outline(x - 4, y - 4, w + 8, h + 8, 0xFFCC6600);
-        int ly = y;
-        for (var line : lines) {
-            g.text(this.font, line, x, ly, 0xFFF0E6DC, false);
-            ly += 10;
-        }
+        ToolScreenKit.tooltip(g, lines, x, y, w, h);
     }
 
     // ---- widget helpers ----
@@ -917,7 +937,23 @@ public class ScoreboardEditorScreen extends Screen {
     }
 
     private static void hint(List<AbstractWidget> out, int x, int y, int w, String text) {
-        out.add(new StringWidget(x, y, w, 10, Component.literal("§7" + text), Minecraft.getInstance().font));
+        out.add(label(x, y, w, 10, Component.literal(text).withColor(MenuStyle.DIM & 0xFFFFFF)));
+    }
+
+    /** A text line as a StringWidget (the tooltip and layout code treat it as one) drawn the theme's way: a vanilla
+     *  StringWidget always shadows its text, which smears on a light theme. */
+    private static StringWidget label(int x, int y, int w, int h, Component text) {
+        return new StringWidget(x, y, w, h, text, Minecraft.getInstance().font) {
+            @Override
+            public void extractWidgetRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+                MenuStyle.text(g, getMessage(), getX(), getY() + (getHeight() - 8) / 2, MenuStyle.TXT);
+            }
+        };
+    }
+
+    /** A section heading in the theme's accent, bold (a StringWidget colours its own text). */
+    private static Component heading(String title) {
+        return Component.literal(title).withStyle(net.minecraft.ChatFormatting.BOLD).withColor(MenuStyle.OR & 0xFFFFFF);
     }
 
     private AbstractWidget toggle(String label, BoolGetter getter, BoolSetter setter, int x, int y, int w) {
@@ -976,7 +1012,7 @@ public class ScoreboardEditorScreen extends Screen {
     }
 
     private EditBox textBox(String name, String value, java.util.function.Consumer<String> setter, int x, int y, int w) {
-        EditBox box = new EditBox(Minecraft.getInstance().font, x, y, w, ROW, Component.literal(name));
+        EditBox box = new WellEditBox(Minecraft.getInstance().font, x, y, w, ROW, Component.literal(name));
         box.setMaxLength(256);
         box.setValue(value);
         box.setHint(Component.literal("§8" + name));

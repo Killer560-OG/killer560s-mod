@@ -258,7 +258,9 @@ public final class SettingsButtonWidget extends AbstractWidget {
     /** Whether a widget is being drawn inside the mod menu right now, where it takes the menu's row look. Elsewhere (the
      *  title screen, the AR editor, every other screen that uses this button) it keeps its plain box. */
     static boolean inMenu() {
-        return com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof ModScreen;
+        var screen = com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance());
+        // A MenuThemedScreen (the sim, AP3 / Auto Routes editors, Leap Order, ...) draws its controls the menu's way too.
+        return screen instanceof ModScreen || screen instanceof MenuThemedScreen;
     }
 
     /** A left click, as the menu's card and search switches send it: the same {@code onPress} a real click runs. */
@@ -314,6 +316,9 @@ public final class SettingsButtonWidget extends AbstractWidget {
             }
             r.submit();
             String label = MenuStyle.ellipsize(getMessage().getString(), w - 10);
+            if (MenuStyle.LIGHT) {
+                label = MenuStyle.lightReadable(label); // a §a / §7 label stays readable on a light theme
+            }
             int color = !active ? MenuStyle.DIM2 : (danger ? 0xFFFFD0D0 : (hover || primary ? MenuStyle.OR_HOVER : MenuStyle.OR));
             graphics.text(font, label, x0 + (w - font.width(label)) / 2, textY, faded(color), MenuStyle.TEXT_SHADOW);
             return;

@@ -2,9 +2,10 @@ package com.killer560.hub.autoroutes;
 
 import com.killer560.hub.ap3.Ap3Node;
 import com.killer560.hub.compat.McCompat;
-import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingTooltips;
+import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ToolScreenKit;
 import com.killer560.hub.livemap.autoclear.TeleportUtils;
 import com.killer560.hub.pathfinding.EtherwarpHopper;
 
@@ -51,7 +52,15 @@ import java.util.Map;
  * <p>Every change goes through {@link AutoRoutesFeature#applyNodeEdit}, which records it in {@link RouteHistory},
  * so {@code /ar undo} reverts a whole Save and {@code /ar redo} re-applies it.
  */
-public class AutoRoutesEditScreen extends Screen {
+public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
+
+    /** The Theme setting this screen follows (ScreenThemeConfig; "Theme Default" = the menu's theme). */
+    public static final String THEME_ID = "autoroutes";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
 
     private static final int PANEL_W = 300;
     private static final int PAD = 10;
@@ -305,7 +314,7 @@ public class AutoRoutesEditScreen extends Screen {
 
     /** A text box {@code w} wide at {@code x}, its label drawn in the first {@code labelW} pixels (0: no label). */
     private void addField(int x, int y, int w, String label, int labelW) {
-        EditBox box = new EditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(label));
+        EditBox box = new com.killer560.hub.gui.WellEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(label));
         box.setMaxLength(label.equals("Item") ? RouteStore.MAX_ITEM_ID : 32);
         box.setValue(pending.getOrDefault(label, ""));
         if (label.equals("Item")) {
@@ -598,30 +607,29 @@ public class AutoRoutesEditScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xFF0D0D0D);
-        graphics.outline(panelX, panelY, panelW, panelH, 0xFF553311);
+        // The menu theme (screen sweep, 2026-10-13): panel and header bar, title in the cheat red, section headings in
+        // the accent with the menu's separator, the boxes as recessed wells, the hover text as the menu's tooltip.
+        ToolScreenKit.begin(graphics, this, true);
+        ToolScreenKit.panel(graphics, this, panelX, panelY, panelW, panelH);
+        ToolScreenKit.header(graphics, panelX, panelY, panelW);
         boolean ok = alive();
         String title = ok ? "Auto Routes node #" + number() : "Auto Routes node";
-        graphics.centeredText(this.font, title, panelX + panelW / 2, panelY + 8, SectionHeaders.color(true));
+        ToolScreenKit.titleCentred(graphics, title, panelX + panelW / 2, panelY + 6, true);
         String sub = ok ? "§7" + route.roomName()
                 + (type == RouteNode.Type.DUNGEON_BREAKER ? " §8- " + node.breakerBlocks.size() + " block(s)" : "")
                 + (node.type == type ? "" : " §8(type changes on Save)")
                 : "§cthat node is gone";
-        graphics.centeredText(this.font, sub, panelX + panelW / 2, panelY + 19, 0xFF9A8C80);
+        ToolScreenKit.centred(graphics, sub, panelX + panelW / 2, panelY + 17, MenuStyle.DIM);
         for (Heading h : headings) {
-            String text = "§l" + h.text();
-            graphics.text(this.font, text, panelX + PAD, h.y() + 1, 0xFFCC8844, false);
-            int tw = this.font.width(text);
-            graphics.fill(panelX + PAD + tw + 4, h.y() + 5, panelX + panelW - PAD, h.y() + 6, 0xFF3A2A1A);
+            ToolScreenKit.section(graphics, h.text(), panelX + PAD, h.y() + 1, panelX + panelW - PAD, false);
         }
         for (Field f : fields) {
             if (f.labelX() >= 0) {
-                graphics.text(this.font, f.label(), f.labelX(), f.box().getY() + 4, 0xFFBBAA99, false);
+                MenuStyle.text(graphics, f.label(), f.labelX(), f.box().getY() + 4, MenuStyle.TXT_SOFT);
             }
         }
         if (!status.isEmpty()) {
-            graphics.centeredText(this.font, status, panelX + panelW / 2, panelY + panelH - 12, 0xFFFFFFFF);
+            ToolScreenKit.centred(graphics, status, panelX + panelW / 2, panelY + panelH - 12, MenuStyle.TXT);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         drawTooltip(graphics, mouseX, mouseY);
@@ -664,13 +672,7 @@ public class AutoRoutesEditScreen extends Screen {
         if (y + h + 8 > this.height) {
             y = Math.max(4, mouseY - h - 16);
         }
-        graphics.fill(x - 4, y - 4, x + w + 4, y + h + 4, 0xF00D0D0D);
-        graphics.outline(x - 4, y - 4, w + 8, h + 8, 0xFFCC6600);
-        int ly = y;
-        for (var line : lines) {
-            graphics.text(this.font, line, x, ly, 0xFFF0E6DC, false);
-            ly += 10;
-        }
+        ToolScreenKit.tooltip(graphics, lines, x, y, w, h);
     }
 
     @Override
