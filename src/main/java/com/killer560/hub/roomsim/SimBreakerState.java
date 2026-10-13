@@ -124,6 +124,11 @@ public final class SimBreakerState {
      * killer560 (2026-10-06): "the regaining charges should be an optional slider or setting somewhere. The main
      * server it is under the essence shop for either essence or for undead that gives charges back each secret".
      */
+    /** A profile load replaced the file: read it again on next use. */
+    public static synchronized void forgetSecretCharges() {
+        secretCharges = -1;
+    }
+
     public static synchronized int secretCharges() {
         if (secretCharges < 0) {
             secretCharges = DEFAULT_SECRET_CHARGES;

@@ -49,6 +49,11 @@ public final class SimSpeed {
     private SimSpeed() {
     }
 
+    /** A profile load replaced the file: read it again on next use. */
+    public static synchronized void forgetSaved() {
+        savedSpeed = -1;
+    }
+
     /** The remembered speed, or the default when none has been set. */
     public static synchronized int saved() {
         if (savedSpeed < 0) {

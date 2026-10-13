@@ -30,6 +30,9 @@ import java.util.zip.ZipOutputStream;
  * settings in a static instance loaded once per session, so the next {@code save()} of ANY setting wrote
  * the old in-memory values straight back over the just-applied profile.
  * <p>
+ * Since 2026-10-13 a profile also carries every other file the mod keeps per user (GIFs, presets, routes...) in a
+ * {@code data/} folder, and a {@code profile.json} format stamp - see {@link ProfileData}.
+ * <p>
  * Deliberately EXCLUDES real credentials/caches that should never be silently overwritten or shared:
  * the direct-session-login token, per-account proxy assignments (tied to this user's own saved
  * accounts/proxy service, meaningless on another PC), and the RNG-meter/storage-overlay caches (real
@@ -73,7 +76,14 @@ public final class ProfileManager {
             // Storage Search's per-page "last seen" times - tied to the storage-overlay cache above.
             "killer560smod-storagesearch-timestamps.json",
             // The Bazaar screen's recently opened products, per SkyBlock profile - his history, not a setting.
-            "killer560smod-bazaar-recent.json"
+            "killer560smod-bazaar-recent.json",
+            // The Auction House's downloaded listings (~3 MB) and its price history built from those scans - a
+            // re-downloadable price cache, not a setting (profiles-all, 2026-10-13).
+            "killer560smod-auction-cache.json",
+            "killer560smod-auction-history.json",
+            // Which mod version last ran on this INSTALL (ConfigMigrations). A profile carries its own version in
+            // profile.json instead; copying this one in made an older profile rewind the install's stamp.
+            "killer560smod-configversion.json"
     );
 
     /** Whether a file name is one of this mod's own setting files that profiles may copy. Applied on
@@ -199,15 +209,18 @@ public final class ProfileManager {
         if (!Files.isDirectory(dir)) {
             return new ProfileInfo(0L, 0);
         }
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.json")) {
             for (Path entry : stream) {
-                if (Files.isRegularFile(entry)) {
+                if (Files.isRegularFile(entry) && isProfileSettingFile(entry.getFileName().toString())) {
                     files++;
                     newest = Math.max(newest, Files.getLastModifiedTime(entry).toMillis());
                 }
             }
         } catch (IOException ignored) {
         }
+        // Plus the GIFs, presets, routes and the rest it carries (ProfileData).
+        files += ProfileData.countFiles(dir);
+        newest = Math.max(newest, ProfileData.newestFile(dir));
         return new ProfileInfo(newest, files);
     }
 
@@ -253,7 +266,9 @@ public final class ProfileManager {
                 }
                 count++;
             }
-            return new Result(true, "§a[Profiles] Saved " + count + " setting file(s) as profile \"" + name + "\".");
+            int data = ProfileData.snapshot(dir);
+            return new Result(true, "§a[Profiles] Saved " + count + " setting file(s)"
+                    + (data == 0 ? "" : " and " + data + " other file(s)") + " as profile \"" + name + "\".");
         } catch (IOException e) {
             return new Result(false, "§cFailed to save profile: " + e.getMessage());
         }
@@ -316,13 +331,33 @@ public final class ProfileManager {
                     reset++;
                 }
             }
+            // A profile written by another mod version: run the config migrations the version change calls for on the
+            // files just copied in, exactly as a startup on a new version does (format 1 has no version: run all).
+            ProfileData.Meta meta = ProfileData.readMeta(dir);
+            com.killer560.hub.configversion.ConfigMigrations.runForProfile(meta.modVersion());
+            // Everything else it carries (GIFs, presets, routes...): replaced as a set. A profile from before the
+            // data folder existed leaves the live data alone (null).
+            int[] data = ProfileData.apply(dir);
             Files.writeString(ACTIVE_MARKER, name, StandardCharsets.UTF_8);
             // The live files now ARE this profile; its auto-save starts from here.
             lastLiveNames = null;
+            lastLiveData = null;
             lastSyncedProfile = name;
             runOnClientThread(ProfileManager::reloadAllConfigs);
-            return new Result(true, "§a[Profiles] Applied " + count + " setting file(s) from \"" + name + "\""
-                    + (reset == 0 ? "." : ", and reset " + reset + " the profile didn't cover."));
+            StringBuilder msg = new StringBuilder("§a[Profiles] Applied " + count + " setting file(s)");
+            if (data != null && data[0] > 0) {
+                msg.append(" and ").append(data[0]).append(" other file(s)");
+            }
+            msg.append(" from \"").append(name).append("\"");
+            msg.append(reset == 0 ? "." : ", and reset " + reset + " the profile didn't cover.");
+            if (data != null && data[2] > 0) {
+                msg.append(" §c").append(data[2]).append(" file(s) could not be copied (in use?) - see the log.");
+            }
+            if (meta.format() > ProfileData.FORMAT) {
+                msg.append(" §eIt was made by a newer mod version (").append(meta.describe())
+                        .append("); anything this version does not know was left out.");
+            }
+            return new Result(true, msg.toString());
         } catch (IOException e) {
             return new Result(false, "§cFailed to apply profile: " + e.getMessage());
         }
@@ -560,6 +595,14 @@ public final class ProfileManager {
         Runnable[] refreshers = {
                 // Loaded GIF textures + their HUD elements are synced to GifPlayerConfig's enabled files.
                 com.killer560.hub.gifplayer.GifPlayerFeature::reload,
+                // Data a profile carries (ProfileData) that a feature holds in memory: re-read it from disk.
+                com.killer560.hub.cringe.CringeLines::load,
+                com.killer560.hub.dungeonextras.BreakerAuraStore::reload,
+                com.killer560.hub.invsort.InventoryLayoutStore::reload,
+                com.killer560.hub.scoreboard.ScoreboardBackgroundImage::reload,
+                com.killer560.hub.roomsim.SimSpeed::forgetSaved,
+                com.killer560.hub.roomsim.SimRoomCycle::forgetKeys,
+                com.killer560.hub.roomsim.SimBreakerState::forgetSecretCharges,
                 // DVD runtimes hold the OLD DvdEntry objects; rebuild them from the new ones.
                 com.killer560.hub.dvd.DvdFeature::reloadFromConfig,
                 // Borderless is applied to the real window once; follow a changed setting.
@@ -594,6 +637,9 @@ public final class ProfileManager {
             "killer560smod-autotrap.json",
             // Where his HUD elements sit and how big they are: a layout, not a switch (HudConfig is left as it is).
             "killer560smod-hud.json");
+
+    /** Data entries (ProfileData) a blank profile carries over: route recordings, not settings. */
+    private static final Set<String> BLANK_KEEPS_DATA = Set.of("killer560smod-ap3", "killer560smod-breakeraura");
 
     /**
      * "New Blank Profile": creates (but does not switch to) a profile in which every setting switch of every config is
@@ -643,6 +689,11 @@ public final class ProfileManager {
             reloadConfigsOnly();
             off = BlankProfile.switchEverythingOff();
             result = saveCurrentAsProfile(name);
+            if (result.success()) {
+                // Starts empty for the data too (no GIFs, presets, layouts...), except his recorded AP3 routes and
+                // Breaker Aura picks, kept for the same reason BLANK_KEEPS_LIVE keeps his Auto Routes.
+                ProfileData.keepOnly(PROFILES_DIR.resolve(name), BLANK_KEEPS_DATA);
+            }
         } catch (Throwable t) {
             LOGGER.warn("[Profiles] blank profile failed", t);
             result = new Result(false, "§cFailed to make a blank profile: " + t.getMessage());
@@ -685,12 +736,7 @@ public final class ProfileManager {
             return new Result(false, "§cNo profile named \"" + name + "\".");
         }
         try {
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
-                for (Path file : stream) {
-                    Files.deleteIfExists(file);
-                }
-            }
-            Files.deleteIfExists(dir);
+            ProfileData.deleteRecursive(dir);
             if (name.equals(getActiveProfile())) {
                 Files.deleteIfExists(ACTIVE_MARKER);
             }
@@ -712,21 +758,70 @@ public final class ProfileManager {
         if (!Files.isDirectory(dir)) {
             return new Result(false, "§cNo profile named \"" + name + "\".");
         }
+        // The active profile gets the last two seconds of changes first, so the zip is what he sees now.
+        if (name.equals(getActiveProfile())) {
+            syncActiveProfile();
+        }
         Path zipPath = shareFolder().resolve(name + ".zip");
+        int settings = 0;
+        int data = 0;
         try (OutputStream fos = Files.newOutputStream(zipPath);
-             ZipOutputStream zos = new ZipOutputStream(fos);
-             DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.json")) {
-            for (Path file : stream) {
-                if (!Files.isRegularFile(file) || !isProfileSettingFile(file.getFileName().toString())) {
-                    continue;
-                }
-                zos.putNextEntry(new ZipEntry(file.getFileName().toString()));
-                Files.copy(file, zos);
-                zos.closeEntry();
+             ZipOutputStream zos = new ZipOutputStream(fos)) {
+            // The format stamp first, so an importer (and a person opening the zip) sees what made it. Written now
+            // for a profile from before the stamp too: its contents are what this build would save.
+            if (!Files.isRegularFile(dir.resolve(ProfileData.META_FILE))) {
+                ProfileData.writeMeta(dir);
             }
-            return new Result(true, "§a[Profiles] Exported to " + zipPath + " - send that file to share it.");
+            zos.putNextEntry(new ZipEntry(ProfileData.META_FILE));
+            Files.copy(dir.resolve(ProfileData.META_FILE), zos);
+            zos.closeEntry();
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.json")) {
+                for (Path file : stream) {
+                    String fileName = file.getFileName().toString();
+                    if (!Files.isRegularFile(file) || !isProfileSettingFile(fileName)) {
+                        continue;
+                    }
+                    zos.putNextEntry(new ZipEntry(fileName));
+                    zos.write(exportBytes(file));
+                    zos.closeEntry();
+                    settings++;
+                }
+            }
+            for (java.util.Map.Entry<String, Path> e : ProfileData.storedFiles(dir).entrySet()) {
+                zos.putNextEntry(new ZipEntry(ProfileData.DATA_DIR + "/" + e.getKey()));
+                Files.copy(e.getValue(), zos);
+                zos.closeEntry();
+                data++;
+            }
+            return new Result(true, "§a[Profiles] Exported " + settings + " setting file(s)"
+                    + (data == 0 ? "" : " and " + data + " other file(s)") + " to " + zipPath
+                    + " - send that file to share it.");
         } catch (IOException e) {
             return new Result(false, "§cFailed to export profile: " + e.getMessage());
+        }
+    }
+
+    /** A setting file's bytes for a zip, with its secret fields blanked again (a profile saved by hand or by an old
+     *  build might still hold one). */
+    private static byte[] exportBytes(Path file) throws IOException {
+        Set<String> secrets = SECRET_FIELDS.get(file.getFileName().toString());
+        byte[] raw = Files.readAllBytes(file);
+        if (secrets == null) {
+            return raw;
+        }
+        try {
+            com.google.gson.JsonObject obj = com.google.gson.JsonParser
+                    .parseString(new String(raw, StandardCharsets.UTF_8)).getAsJsonObject();
+            for (String field : secrets) {
+                if (obj.has(field)) {
+                    obj.addProperty(field, "");
+                }
+            }
+            return new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(obj)
+                    .getBytes(StandardCharsets.UTF_8);
+        } catch (RuntimeException e) {
+            // Unreadable: leave it out rather than risk shipping the secret.
+            return "{}".getBytes(StandardCharsets.UTF_8);
         }
     }
 
@@ -780,50 +875,121 @@ public final class ProfileManager {
                     + "\" (checked that path directly, and inside the profiles and share folders).");
         }
         Path dir = PROFILES_DIR.resolve(name);
+        boolean existed = Files.isDirectory(dir);
+        int count = 0;
+        int data = 0;
+        int unreadable = 0;
+        long total = 0L;
+        ProfileData.Meta meta = new ProfileData.Meta(1, null, null, null, false);
         try {
             Files.createDirectories(dir);
-            int count = 0;
             try (InputStream fis = Files.newInputStream(zipPath); ZipInputStream zis = new ZipInputStream(fis)) {
                 ZipEntry entry;
                 while ((entry = zis.getNextEntry()) != null) {
                     if (entry.isDirectory()) {
                         continue;
                     }
-                    String entryName;
-                    try {
-                        Path entryFile = Path.of(entry.getName()).getFileName();
-                        entryName = entryFile == null ? "" : entryFile.toString();
-                    } catch (RuntimeException badName) {
-                        continue;
+                    String path = entry.getName().replace('\\', '/');
+                    String[] parts = path.split("/");
+                    String fileName = parts[parts.length - 1];
+                    // data/<entry>/... - anywhere in the zip, so a zip someone re-packed inside a folder still works.
+                    int dataAt = -1;
+                    for (int i = 0; i < parts.length - 1; i++) {
+                        if (parts[i].equals(ProfileData.DATA_DIR)) {
+                            dataAt = i;
+                            break;
+                        }
                     }
-                    if (!isProfileSettingFile(entryName)) {
-                        continue;
+                    byte[] bytes = readCapped(zis, ProfileData.MAX_TOTAL_BYTES - total);
+                    if (bytes == null) {
+                        throw new IOException("the profile is larger than " + (ProfileData.MAX_TOTAL_BYTES >> 20)
+                                + " MB");
                     }
-                    Files.copy(zis, dir.resolve(entryName), StandardCopyOption.REPLACE_EXISTING);
-                    count++;
+                    total += bytes.length;
+                    if (dataAt >= 0) {
+                        String rel = String.join("/", java.util.Arrays.copyOfRange(parts, dataAt + 1, parts.length));
+                        String top = parts[dataAt + 1];
+                        boolean topIsDir = parts.length - dataAt - 1 > 1;
+                        if (!ProfileData.isDataName(top, topIsDir) || !ProfileData.isCarriedRelative(rel)) {
+                            continue;
+                        }
+                        Path dataRoot = dir.resolve(ProfileData.DATA_DIR);
+                        Path target = dataRoot.resolve(rel).normalize();
+                        if (!target.startsWith(dataRoot)) {
+                            continue;
+                        }
+                        Files.createDirectories(target.getParent());
+                        Files.write(target, bytes);
+                        data++;
+                    } else if (fileName.equals(ProfileData.META_FILE)) {
+                        meta = ProfileData.parseMeta(new String(bytes, StandardCharsets.UTF_8));
+                        Files.write(dir.resolve(ProfileData.META_FILE), bytes);
+                    } else if (isProfileSettingFile(fileName)) {
+                        try {
+                            com.google.gson.JsonParser.parseString(new String(bytes, StandardCharsets.UTF_8));
+                        } catch (RuntimeException bad) {
+                            // A broken file would only be thrown away by its config on load; say so instead.
+                            unreadable++;
+                            continue;
+                        }
+                        Files.write(dir.resolve(fileName), bytes);
+                        count++;
+                    }
                 }
             }
-            if (count == 0) {
+            if (count == 0 && data == 0) {
                 // Not a profile zip: leave no empty profile behind.
-                deleteFolderQuietly(dir);
+                if (!existed) {
+                    deleteFolderQuietly(dir);
+                }
                 return new Result(false, "§c[Profiles] \"" + zipPath.getFileName() + "\" has no setting files in it.");
             }
-            return new Result(true, "§a[Profiles] Imported " + count + " setting file(s) into new profile \""
-                    + name + "\". Use /killer560 profile load " + name + " to switch to it.");
-        } catch (IOException e) {
+            StringBuilder msg = new StringBuilder("§a[Profiles] Imported " + count + " setting file(s)");
+            if (data > 0) {
+                msg.append(" and ").append(data).append(" other file(s)");
+            }
+            msg.append(" into new profile \"").append(name).append("\"");
+            if (meta.format() > 1) {
+                msg.append(" (made on ").append(meta.describe()).append(")");
+            }
+            msg.append(". Use /killer560 profile load ").append(name).append(" to switch to it.");
+            if (unreadable > 0) {
+                msg.append(" §e").append(unreadable).append(" damaged setting file(s) were skipped; those settings")
+                        .append(" will use their defaults.");
+            }
+            if (meta.format() > ProfileData.FORMAT) {
+                msg.append(" §eIt was made by a newer mod version; anything this version does not know is left out.");
+            }
+            return new Result(true, msg.toString());
+        } catch (IOException | RuntimeException e) {
+            // Never a crash from someone else's zip: undo and say what went wrong.
+            if (!existed) {
+                deleteFolderQuietly(dir);
+            }
+            LOGGER.warn("[Profiles] import of {} failed", zipPath, e);
             return new Result(false, "§cFailed to import profile: " + e.getMessage());
         }
     }
 
-    private static void deleteFolderQuietly(Path dir) {
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
-            for (Path file : stream) {
-                Files.deleteIfExists(file);
+    /** Reads the rest of a zip entry, or null once it passes {@code limit} bytes. */
+    private static byte[] readCapped(InputStream in, long limit) throws IOException {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        long read = 0;
+        while ((n = in.read(buf)) > 0) {
+            read += n;
+            if (read > limit) {
+                return null;
             }
-        } catch (IOException ignored) {
+            out.write(buf, 0, n);
         }
+        return out.toByteArray();
+    }
+
+    private static void deleteFolderQuietly(Path dir) {
         try {
-            Files.deleteIfExists(dir);
+            ProfileData.deleteRecursive(dir);
         } catch (IOException ignored) {
         }
     }
@@ -907,6 +1073,8 @@ public final class ProfileManager {
     private static final long AUTO_SAVE_PERIOD_MS = 2000L;
     /** Live setting-file names seen by the previous poll for the active profile; null right after a switch. */
     private static Set<String> lastLiveNames;
+    /** The same for the active profile's data files (ProfileData); null right after a switch. */
+    private static Set<String> lastLiveData;
     private static String lastSyncedProfile;
     private static java.util.concurrent.ScheduledExecutorService autoSaveExecutor;
 
@@ -956,11 +1124,13 @@ public final class ProfileManager {
         Path dir = active == null ? null : PROFILES_DIR.resolve(sanitize(active));
         if (dir == null || !Files.isDirectory(dir)) {
             lastLiveNames = null;
+            lastLiveData = null;
             lastSyncedProfile = null;
             return;
         }
         if (!active.equals(lastSyncedProfile)) {
             lastLiveNames = null;
+            lastLiveData = null;
             lastSyncedProfile = active;
         }
         Set<String> liveNames = new java.util.HashSet<>();
@@ -996,6 +1166,11 @@ public final class ProfileManager {
             }
         }
         lastLiveNames = liveNames;
+        // GIFs, presets, routes and the rest (ProfileData), the same way.
+        int[] dataCounts = new int[2];
+        lastLiveData = ProfileData.sync(dir, lastLiveData, dataCounts);
+        copied += dataCounts[0];
+        removed += dataCounts[1];
         if (copied > 0 || removed > 0) {
             LOGGER.info("[Profiles] Auto-saved {} changed setting file(s) into \"{}\"{}", copied, active,
                     removed == 0 ? "" : " and removed " + removed + " reset one(s)");
