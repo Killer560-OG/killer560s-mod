@@ -1569,7 +1569,43 @@ public final class RouteExecutor {
             stepTicks = 0;
             return;
         }
+        jumpCooldownUntil.put(node, System.currentTimeMillis() + JUMP_COOLDOWN_MS);
         finishAction();
+    }
+
+    /**
+     * killer560 (2026-10-14): "if i make a jump node with 1, then make it so it jumps once then times out for 3s before it
+     * will trigger that node again. Right now it stops jumping but then falls right back onto the node." The jump itself
+     * takes him out of the ring (0.1 high by default), and being in no node clears the latch and the finished flag, so
+     * landing armed the node again. A finished JUMP node's tile does not arm for this long (real time), whatever the
+     * latch says; the route it belongs to carries on at once.
+     */
+    static final long JUMP_COOLDOWN_MS = 3000;
+    private static final java.util.Map<RouteNode, Long> jumpCooldownUntil = new java.util.IdentityHashMap<>();
+
+    /** Milliseconds left on a jump cooldown covering {@code inside}'s tile (any finished jump node on it), or 0. */
+    static long jumpCooldownLeft(RouteNode inside) {
+        if (inside == null || jumpCooldownUntil.isEmpty()) {
+            return 0;
+        }
+        long now = System.currentTimeMillis();
+        long left = 0;
+        java.util.Iterator<java.util.Map.Entry<RouteNode, Long>> it = jumpCooldownUntil.entrySet().iterator();
+        while (it.hasNext()) {
+            java.util.Map.Entry<RouteNode, Long> e = it.next();
+            long l = e.getValue() - now;
+            if (l <= 0) {
+                it.remove();
+            } else if (e.getKey() == inside || e.getKey().sameTile(inside)) {
+                left = Math.max(left, l);
+            }
+        }
+        return left;
+    }
+
+    /** Read by the testkit (96-ar-jumpcd). */
+    public static long jumpCooldownMs() {
+        return JUMP_COOLDOWN_MS;
     }
 
     private static void tickRotate(RouteNode node) {

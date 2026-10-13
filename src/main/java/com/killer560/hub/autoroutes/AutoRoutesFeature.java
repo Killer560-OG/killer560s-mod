@@ -1058,6 +1058,16 @@ public final class AutoRoutesFeature {
             RouteExecutor.clearJustFinished();
             return;
         }
+        // A jump node that just finished holds its tile for 3 s (RouteExecutor.JUMP_COOLDOWN_MS), in addition to the
+        // latch rules below: the jump lifts him out of the ring, which clears them, and he lands back in it.
+        long cooldown = RouteExecutor.jumpCooldownLeft(inside);
+        if (cooldown > 0) {
+            String prefix = "in node #" + (route.indexOf(inside) + 1) + " - jump cooldown ";
+            if (lastGate == null || !lastGate.startsWith(prefix)) {   // once per cooldown, not every tick's countdown
+                gate(prefix + String.format(java.util.Locale.US, "%.1fs left", cooldown / 1000.0));
+            }
+            return;
+        }
         if (breakerRefire(client, route, frame, inside)) {
             return;
         }

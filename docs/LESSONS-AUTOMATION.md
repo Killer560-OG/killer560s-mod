@@ -159,3 +159,8 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   ending on a stair 4 blocks up, which `RoutePathPlanner.save` stored as the pair. A path node's plan is now checked hop by
   hop to end ON the block (`planFloor`, `onBlock` only) and refused otherwise, with the reason in chat; the map's tile and
   near clicks are unchanged.
+- **A jump takes him out of every node's ring** (0.1 high by default), and standing in no node clears the latch,
+  `justFinished` and `stoppedByUser`, so a finished JUMP node armed again the moment he landed back on it ("falls right back
+  onto the node", killer560 2026-10-14). A finished jump node now holds its tile for 3 s of real time
+  (`RouteExecutor.jumpCooldownLeft`, gate line "jump cooldown N.Ns left"), then the latch rules apply as before; testkit
+  96-ar-1014-jumpcd / 62-argrim-1014-jumpcd measure 3.04-3.10 s between fires, and a jump -> etherwarp route goes on at once.
