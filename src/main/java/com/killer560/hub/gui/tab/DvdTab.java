@@ -170,18 +170,16 @@ public class DvdTab extends BaseTab {
                 }).bounds(contentX + 226, y, contentWidth - 226, ROW_H).build());
         y += ROW_H + 4;
 
-        EditBox colorField = new EditBox(Minecraft.getInstance().font, contentX, y, 100, ROW_H, Component.literal("Text color hex"));
-        colorField.setMaxLength(6);
-        colorField.setValue(e.textColorHex);
-        widgets.add(colorField);
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Set Color (hex, e.g. FF00AA)"), btn -> {
-                    String hex = colorField.getValue().replace("#", "").trim();
-                    if (hex.matches("(?i)[0-9a-f]{6}")) {
-                        e.textColorHex = hex.toUpperCase(Locale.US);
-                        DvdConfig.getInstance().save();
-                    }
-                    requestRebuild.run();
-                }).bounds(contentX + 106, y, contentWidth - 106, ROW_H).build());
+        // The colour picker (hex box, Copy / Paste, Recent) instead of a bare 6-digit hex field (2026-10-13).
+        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("Text Color", e.textColor()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    com.killer560.hub.compat.McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(
+                            com.killer560.hub.compat.McCompat.screen(client), "DVD Text Color", e.textColor(), 0xFFFFFFFF,
+                            argb -> {
+                                e.textColorHex = String.format(Locale.US, "%06X", argb & 0xFFFFFF);
+                                DvdConfig.getInstance().save();
+                            }));
+                }).bounds(contentX, y, contentWidth, ROW_H).build());
         y += ROW_H + 4;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Background: " + (e.backgroundEnabled ? "§aON" : "§cOFF")), btn -> {

@@ -21,6 +21,16 @@ final class SettingTooltipsData {
         crosshair(d);
         autoSecret(d);
         menuTheme(d);
+        colourPicker(d);
+    }
+
+    private static void colourPicker(Map<String, String> d) {
+        // Every colour setting's picker (gui/ColorPickerScreen), 2026-10-13: Copy / Paste / Recent between menus.
+        d.put("colour picker/copy", "Copies this colour to the clipboard as #RRGGBB (#AARRGGBB when it is see-through), and adds it to Recent. Ctrl+C does the same.");
+        d.put("colour picker/paste", "Uses the colour on the clipboard: #RRGGBB, RRGGBB, #RGB, 0xRRGGBB or #AARRGGBB. Ctrl+V does the same; anything else is refused.");
+        d.put("colour picker/set default", "Puts this setting's own default colour back.");
+        d.put("colour picker/done", "Closes the picker. The colour is already saved as you change it.");
+        d.put("colour picker/alpha", "How see-through the colour is. A pasted colour without alpha keeps this value.");
     }
 
     private static void menuTheme(Map<String, String> d) {
@@ -215,8 +225,7 @@ final class SettingTooltipsData {
         d.put("text", "Makes this box show text; type the words in the text step.");
         d.put("gif", "Makes this box show a GIF; click in the GIF step to cycle through your .gif files.");
         d.put("<- back to list", "Returns to the list of DVD boxes; changes already set are kept.");
-        d.put("text color hex", "Type a 6-digit hex colour for the text, like FF00AA, then press Set Color.");
-        d.put("set color (hex, e.g. ff00aa)", "Applies the hex colour typed in the box to the DVD text.");
+        d.put("dvd/text color", "Opens a color picker for the DVD text; type or paste a hex colour there.");
         d.put("hud elements/background", "Draws a dark box behind the DVD text.");
         d.put("background", "Draws a backdrop behind this element.");
         d.put("change color on corner hit", "Switches the text to a random colour when the box hits a corner exactly.");
