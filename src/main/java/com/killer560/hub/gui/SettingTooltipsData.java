@@ -362,7 +362,9 @@ final class SettingTooltipsData {
         d.put("enchant colours/good", "Colour for an enchant at its good level, like Sharpness V.");
         d.put("enchant colours/great", "Colour for an enchant above good but below max, like Sharpness VI.");
         d.put("enchant colours/perfect", "Colour for a maxed enchant when Perfect Chroma is off.");
-        d.put("perfect chroma", "Shows a maxed enchant as an animated rainbow instead of one colour.");
+        d.put("perfect chroma", "Shows a maxed enchant as an animated rainbow that flows diagonally, top left to bottom right, across the whole tooltip.");
+        d.put("enchant colours/chroma speed", "How fast the Perfect Chroma rainbow flows across the tooltip.");
+        d.put("enchant colours/chroma size", "How wide each band of the Perfect Chroma rainbow is. Higher is wider.");
         d.put("bold perfect", "Also renders a maxed enchant in bold.");
         d.put("ultimate override", "Gives every Ultimate enchant one shared colour.");
         d.put("ultimate colour", "Opens a colour picker for the shared Ultimate enchant colour.");
@@ -1176,8 +1178,8 @@ final class SettingTooltipsData {
         d.put("alpha footer", "Footer text shown instead of the normal one on the Alpha network.");
         d.put("gradient border", "Fades the border colour from top to bottom.");
         d.put("border bottom color", "Bottom colour of the border gradient.");
-        d.put("chroma border", "Cycles the border through rainbow colours.");
-        d.put("chroma speed", "How fast the chroma border cycles, 1-20.");
+        d.put("chroma border", "A rainbow that flows diagonally round the border, top left to bottom right.");
+        d.put("chroma speed", "How fast the chroma border flows, 1-20.");
         d.put("image background", "Draws background.png from the scoreboard image folder behind the board.");
         d.put("image opacity", "How solid the background image is, 5-100%.");
         d.put("reload image", "Re-reads background.png so file changes show up without a restart.");

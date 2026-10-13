@@ -70,9 +70,13 @@ public final class CustomCrosshairFeature {
     public static int baseColor(CustomCrosshairConfig c) {
         int main = c.getColor();
         if (c.isChroma()) {
-            long period = Math.max(100L, (long) (3000f / c.getChromaSpeed()));
-            float hue = (System.currentTimeMillis() % period) / (float) period;
-            main = (main & 0xFF000000) | (java.awt.Color.HSBtoRGB(hue, 1f, 1f) & 0xFFFFFF);
+            // The shared chroma waterfall (util/ChromaWave), sampled where the crosshair sits - the screen centre - so it
+            // shows the same colour as any chroma text or border passing behind it. One colour for the whole shape: a
+            // crosshair is a few units across, a sliver of one band.
+            com.mojang.blaze3d.platform.Window w = Minecraft.getInstance().getWindow();
+            int rgb = com.killer560.hub.util.ChromaWave.rainbow(w.getGuiScaledWidth() / 2f, w.getGuiScaledHeight() / 2f,
+                    c.getChromaSpeed(), 1f);
+            main = (main & 0xFF000000) | rgb;
         }
         return main;
     }

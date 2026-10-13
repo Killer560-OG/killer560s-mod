@@ -1,10 +1,12 @@
 package com.killer560.hub.scoreboard;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
+import com.killer560.hub.util.ChromaWave;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.SkyblockGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -742,36 +744,14 @@ public final class CustomScoreboardFeature {
         g.blit(RenderPipelines.GUI_TEXTURED, texture, x, y + r, 0f, r, w, h - 2 * r, w, h - 2 * r, w, h, color);
     }
 
-    /** Border colour for row {@code row} of an {@code h}-tall border: solid, top-to-bottom gradient, or chroma. */
+    /** Border colour for row {@code row} of an {@code h}-tall border: solid or top-to-bottom gradient. Chroma is
+     *  {@link #drawChromaBorder}, which colours by position along the row too. */
     private static int borderColor(CustomScoreboardConfig cfg, int row, int h, long now) {
         float t = h <= 1 ? 0f : row / (float) (h - 1);
-        if (cfg.isChromaBorder()) {
-            float speed = cfg.getChromaSpeed() / 5f;
-            float hue = (now % 100_000L) / 1000f * 0.1f * speed + (cfg.isBorderGradient() ? t * 0.35f : 0f);
-            return (cfg.getBorderColor() >>> 24) << 24 | hsvToRgb(hue - (float) Math.floor(hue), 0.8f, 1f);
-        }
         if (!cfg.isBorderGradient()) {
             return cfg.getBorderColor();
         }
         return lerpArgb(cfg.getBorderColor(), cfg.getBorderColorBottom(), t);
-    }
-
-    /** Hue/saturation/value in [0,1] to 0xRRGGBB (no AWT on the render thread). */
-    private static int hsvToRgb(float h, float s, float v) {
-        float c = v * s;
-        float hp = h * 6f;
-        float x = c * (1 - Math.abs(hp % 2 - 1));
-        float r = 0, g = 0, b = 0;
-        switch ((int) hp % 6) {
-            case 0 -> { r = c; g = x; }
-            case 1 -> { r = x; g = c; }
-            case 2 -> { g = c; b = x; }
-            case 3 -> { g = x; b = c; }
-            case 4 -> { r = x; b = c; }
-            default -> { r = c; b = x; }
-        }
-        float m = v - c;
-        return Math.round((r + m) * 255) << 16 | Math.round((g + m) * 255) << 8 | Math.round((b + m) * 255);
     }
 
     private static int lerpArgb(int a, int b, float t) {
@@ -784,6 +764,10 @@ public final class CustomScoreboardFeature {
     static void drawRoundedBorder(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int t,
                                   CustomScoreboardConfig cfg, long now, float alphaMul) {
         if (w <= 0 || h <= 0) {
+            return;
+        }
+        if (cfg.isChromaBorder()) {
+            drawChromaBorder(g, x, y, w, h, r, t, cfg, alphaMul);
             return;
         }
         int innerW = w - 2 * t;
@@ -831,6 +815,76 @@ public final class CustomScoreboardFeature {
         if (runStart >= 0) {
             fillBorderRun(g, x, y, w, runStart, h, runA, runB, runColor);
         }
+    }
+
+    /** Width (GUI units) of one solid piece of a chroma border's top/bottom band. */
+    private static final int CHROMA_PIECE = 3;
+    /** Height (rows) of one top-to-bottom gradient piece of a chroma border's side. */
+    private static final int CHROMA_SIDE_ROWS = 4;
+
+    /**
+     * The chroma border (killer560, 2026-10-13): the shared waterfall ({@link ChromaWave}), sampled at each piece's
+     * real GUI position, so the colour bands run diagonally across the board top-left to bottom-right instead of the
+     * whole border changing colour at once. The top/bottom bands are {@link #CHROMA_PIECE}-wide solid pieces, the sides
+     * {@link #CHROMA_SIDE_ROWS}-row vertical gradients with the waterfall's colour at each piece's top and bottom edge,
+     * and everything is one {@link GuiRects} element: about 150 pieces for a default board, where the old per-row
+     * chroma colour broke every run into two fills per row (~300 elements).
+     */
+    private static void drawChromaBorder(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int t,
+                                         CustomScoreboardConfig cfg, float alphaMul) {
+        int alpha = Math.round((cfg.getBorderColor() >>> 24) * alphaMul);
+        if (alpha <= 0) {
+            return;
+        }
+        int a24 = Math.min(255, alpha) << 24;
+        float speed = cfg.getChromaSpeed() / 5f;
+        long now = ChromaWave.now();
+        int innerW = w - 2 * t;
+        int innerH = h - 2 * t;
+        int innerR = Math.max(0, r - t);
+        GuiRects rects = GuiRects.begin(g);
+        int row = 0;
+        while (row < h) {
+            int outer = inset(row, h, r);
+            int b = chromaInnerEdge(row, t, innerW, innerH, innerR, outer);
+            int end = row + 1;
+            if (b < 0) {
+                while (end < h && inset(end, h, r) == outer && chromaInnerEdge(end, t, innerW, innerH, innerR, outer) < 0) {
+                    end++;
+                }
+                float cy = y + (row + end) / 2f;
+                for (int px = x + outer; px < x + w - outer; px += CHROMA_PIECE) {
+                    int px1 = Math.min(px + CHROMA_PIECE, x + w - outer);
+                    rects.fill(px, y + row, px1, y + end,
+                            a24 | ChromaWave.rainbow((px + px1) / 2f, cy, now, speed, 1f, 0.8f, 1f));
+                }
+            } else {
+                while (end < h && end - row < CHROMA_SIDE_ROWS && inset(end, h, r) == outer
+                        && chromaInnerEdge(end, t, innerW, innerH, innerR, outer) == b) {
+                    end++;
+                }
+                float lx = x + (outer + b) / 2f;
+                float rx = x + w - (outer + b) / 2f;
+                rects.gradient(x + outer, y + row, x + b, y + end,
+                        a24 | ChromaWave.rainbow(lx, y + row, now, speed, 1f, 0.8f, 1f),
+                        a24 | ChromaWave.rainbow(lx, y + end, now, speed, 1f, 0.8f, 1f));
+                rects.gradient(x + w - b, y + row, x + w - outer, y + end,
+                        a24 | ChromaWave.rainbow(rx, y + row, now, speed, 1f, 0.8f, 1f),
+                        a24 | ChromaWave.rainbow(rx, y + end, now, speed, 1f, 0.8f, 1f));
+            }
+            row = end;
+        }
+        rects.submit();
+    }
+
+    /** The inner edge {@code b} of a two-span border row (sides {@code outer..b} and {@code w-b..w-outer}), or -1 for a
+     *  one-span top/bottom band row - the same split {@link #drawRoundedBorder} makes. */
+    private static int chromaInnerEdge(int row, int t, int innerW, int innerH, int innerR, int outer) {
+        int innerRow = row - t;
+        if (innerRow < 0 || innerRow >= innerH || innerW <= 0) {
+            return -1;
+        }
+        return Math.max(outer, t + inset(innerRow, innerH, innerR));
     }
 
     /** Rows {@code fromRow..toRow-1} of a border run from {@link #drawRoundedBorder}. */

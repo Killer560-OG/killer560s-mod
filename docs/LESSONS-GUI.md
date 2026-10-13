@@ -328,3 +328,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **Never find a menu tab by its top-level index.** A testing build's `TestingMenu.arrange` moves every untested tab into
   Untested, Profiles included, so Home's Profiles button (`indexOf(ProfilesTab.class)`) silently did nothing there until
   2026-10-13. Open the leaf from `allLeaves()` with `openFeature(leaf)`: a page normally, a drawer in Untested (testkit 948).
+- **Per-glyph text colour belongs in the font, not in the component.** Rebuilding a styled `Component` to animate a colour
+  (Enchant Colours' old 100 ms chroma bucket) can only give a whole segment one colour. `Font$PreparedTextBuilder.accept`
+  reads `style.getColor()` once per glyph while `x`/`y` are still that glyph's origin, and GUI text is prepared there at its
+  GUI coordinates every frame (`GuiTextRenderState.ensurePrepared`; javap 26.1.2 and 26.2), so `chroma/mixin/
+  ChromaGlyphColorMixin` redirects that call for a `util/ChromaWave` spec's TextColor (matched by identity; `fromRgb` never
+  interns) and a whole tooltip is one diagonal waterfall (testkit 971: line 2 continues line 1 by +23.8 deg, 2026-10-13).
