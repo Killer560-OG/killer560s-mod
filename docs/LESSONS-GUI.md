@@ -340,3 +340,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   on top of Swap Accounts (killer560, 2026-10-13). `MainMenuTitleLayout` removes them and every other Mod Menu button,
   classic row included (Friends via `McCompat.isFriendsButton`);
   testkit 341 checks every visible widget and every pair's overlap, Mod Menu loaded, both styles, both versions.
+- **A fill drawn after an item in the same slot is always above it, player heads included** (javap 26.1.2 and 26.2): every
+  non-oversized item is blitted from the item atlas, and an oversized one through its picture-in-picture, both into the
+  item's OWN render node (`forEachItem` sets `current` before `addBlitToCurrentLayer`), while a later fill over it is
+  placed in a node above (`findAppropriateNode` checks `itemStates`). So "the item paints over my overlay" is not a
+  render-pass fact; testkit 961 shows Item Protect's star on heads (real skin, pack-era, helmet) on both versions.
