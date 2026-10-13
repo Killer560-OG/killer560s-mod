@@ -30,7 +30,7 @@ import com.killer560.hub.compat.McCompat;
  * <pre>
  *   Singleplayer
  *   Multiplayer
- *   [other full-width column buttons, e.g. ModMenu's "Mods", dev "Create Test World"]
+ *   [other mods' full-width column buttons, dev "Create Test World"]
  *   Swap Accounts
  *   Options... | Quit Game
  *        Playing as &lt;name&gt;   (dim line, or button tooltip when there's no vertical room)
@@ -54,7 +54,8 @@ import com.killer560.hub.compat.McCompat;
  * top of the rebuilt column (killer560, 2026-10-13: "it has the friends and mod menu thing on my main screen on
  * 26.2 and that should be hidden"), so every icon in it is removed, on both versions. Mod Menu's list stays
  * reachable from the pause menu's Mods button and its "Open Mod Menu" key (Controls, Miscellaneous, unbound by
- * default). Its full-width "classic" Mods button is a column row like any other and is kept. The column is rebuilt from
+ * default). Its full-width "classic" Mods row goes too (killer560, 2026-10-13: the mod menu thing "should be
+ * hidden"), so both versions show the same column whatever Mod Menu's style. The column is rebuilt from
  * scratch each init, so whatever ModMenu's button style shifted, it ends up in the same place.
  * <p>
  * Removing the Realms button is safe: TitleScreen keeps no field for it (fields: splash,
@@ -184,7 +185,7 @@ public final class MainMenuTitleLayout {
             AbstractWidget accessibility = null;
             AbstractWidget options = null;
             AbstractWidget quit = null;
-            AbstractWidget mods = null;
+            List<AbstractWidget> mods = new ArrayList<>();
             List<AbstractWidget> friends = new ArrayList<>();
             AbstractWidget multiplayer = null;
             AbstractWidget sim = simButton.get();
@@ -215,8 +216,8 @@ public final class MainMenuTitleLayout {
                     quit = w;
                 } else if (KEY_MULTIPLAYER.equals(key) && multiplayer == null) {
                     multiplayer = w;
-                } else if (mods == null && isModMenuButton(w)) {
-                    mods = w;
+                } else if (isModMenuButton(w)) {
+                    mods.add(w);
                 }
             }
             if (options == null || quit == null) {
@@ -226,19 +227,16 @@ public final class MainMenuTitleLayout {
 
             int cx = screen.width / 2;
             int oldRowY = options.getY();
-            boolean modsIsIcon = mods != null && mods.getWidth() <= ROW_HEIGHT;
 
-            // Column: every visible full-width centred widget above the Options row, plus ModMenu's (possibly
-            // shrunk) Mods button; Realms / icons / our own button excluded. Stable-sorted by current y.
+            // Column: every visible full-width centred widget above the Options row; Realms, icons, every Mod Menu
+            // button and our own button excluded. Stable-sorted by current y.
             List<AbstractWidget> column = new ArrayList<>();
             for (AbstractWidget w : widgets) {
                 if (w == swap || w == realms || w == language || w == accessibility || w == options || w == quit
                         || w == sim || friends.contains(w)) {
                     continue;
                 }
-                if (w == mods && !modsIsIcon) {
-                    column.add(w);
-                } else if (w != mods && w.visible && w.getWidth() == COLUMN_WIDTH && w.getX() == cx - COLUMN_WIDTH / 2
+                if (!mods.contains(w) && w.visible && w.getWidth() == COLUMN_WIDTH && w.getX() == cx - COLUMN_WIDTH / 2
                         && w.getY() < oldRowY) {
                     column.add(w);
                 }
@@ -322,7 +320,7 @@ public final class MainMenuTitleLayout {
             if (dy != 0) {
                 for (AbstractWidget w : widgets) {
                     if (w != options && w != quit && w != language && w != accessibility && w != swap
-                            && w != mods && !friends.contains(w) && !column.contains(w) && w.getY() == oldRowY) {
+                            && !mods.contains(w) && !friends.contains(w) && !column.contains(w) && w.getY() == oldRowY) {
                         w.setY(w.getY() + dy);
                     }
                 }
@@ -342,8 +340,8 @@ public final class MainMenuTitleLayout {
             for (AbstractWidget f : friends) {
                 removeWidget(screen, widgets, f);
             }
-            if (modsIsIcon) {
-                removeWidget(screen, widgets, mods);
+            for (AbstractWidget m : mods) {
+                removeWidget(screen, widgets, m);
             }
 
             if (swap != null) {
