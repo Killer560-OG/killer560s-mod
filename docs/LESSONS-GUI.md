@@ -316,3 +316,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   theme every other line too, with the washed-out codes (§7 §f §a §b §e) swapped for darker partners
   (`MenuStyle.lightReadable`). `ColorSwatch`'s square is a styled sibling, not a § code, so `getString()` loses it: the
   row reads the sibling's `TextColor` and paints the swatch.
+- **A hand-drawn card under real buttons in a menu page is a `gui/PaintedPanel`** (Profiles page, 2026-10-13): the content
+  pane presses the FIRST child under the cursor, so the card is `active = false` (its `mouseClicked` declines and the press
+  falls through to the button on it) and `hoveredChild` skips it when a real widget sits on it, or the buttons lose their
+  tooltips. A vanilla `EditBox` draws its text and hint with a shadow, which smears dark text on the Light theme: call
+  `setTextShadow(MenuStyle.TEXT_SHADOW)` (both versions, javap) and paint the hint yourself (testkit 948's shots).
