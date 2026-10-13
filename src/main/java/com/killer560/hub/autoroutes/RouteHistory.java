@@ -181,9 +181,14 @@ final class RouteHistory {
 
     private static Undone step(Deque<Entry> from, Deque<Entry> to, boolean redoing) {
         while (!from.isEmpty()) {
-            Applied a = apply(from.pop(), redoing);
+            Entry e = from.pop();
+            Applied a = apply(e, redoing);
             if (a != null) {
                 push(to, a.inverse());
+                if (restoreMarks.remove(e)) {
+                    // Undoing a restore and redoing it again is still that restore: the next restore looks past it.
+                    restoreMarks.add(a.inverse());
+                }
                 return a.done();
             }
         }

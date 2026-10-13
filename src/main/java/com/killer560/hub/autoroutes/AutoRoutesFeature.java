@@ -960,8 +960,13 @@ public final class AutoRoutesFeature {
      * when every block is already gone. @return true when it fired
      */
     private static boolean breakerRefire(Minecraft client, Route route, RouteCoords.Frame frame, RouteNode inside) {
-        boolean latched = inside == latchedNode || inside.sameTile(latchedNode) || RouteExecutor.justFinished()
-                || RouteExecutor.wasStoppedByUser();
+        if (RouteExecutor.wasStoppedByUser()) {
+            // He took the controls back (a movement key, /ar stop) - typically while the node waited for charges, its
+            // blocks still standing. Re-firing here restarted it the next tick (testkit 96-ar-breakerwait): nothing
+            // fires again until he steps off every node, which clears the stop, and back on.
+            return false;
+        }
+        boolean latched = inside == latchedNode || inside.sameTile(latchedNode) || RouteExecutor.justFinished();
         for (RouteNode n : route.stackOf(inside)) {
             if (n.type != RouteNode.Type.DUNGEON_BREAKER || n.breakerBlocks.isEmpty()) {
                 continue;
