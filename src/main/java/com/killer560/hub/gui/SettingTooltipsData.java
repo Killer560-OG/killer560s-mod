@@ -1970,6 +1970,9 @@ final class SettingTooltipsData {
         d.put("mask invincibility/boss only", "Hides the HUD until the boss fight starts.");
         d.put("mask invincibility/announce in chat", "Prints a line only you can see when a mask or the Phoenix pet pops.");
         d.put("mask invincibility/announce to party", "Sends a /pc message to your party when a mask or Phoenix pops.");
+        d.put("auto mask/auto mask", "Cheat build: Auto Mask as a whole - off, nothing here swaps masks or Phoenix for you. Needs Mask Invincibility on.");
+        d.put("auto simon says/auto simon says", "Cheat build: Auto Simon Says as a whole - off, Trigger Bot, Auto Start, Auto Solve and Auto Restart all stay idle, whatever their own switches say.");
+        d.put("freeze state/freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freeze State as a whole - off, its keys, /freezestate and /rewind do nothing, and a freeze in progress resumes.");
         d.put("auto mask/auto swap", "Cheat build: automatically swaps to Spirit, then Phoenix, then Bonzo whenever one is ready.");
         d.put("auto mask/swap step delay", "Pause between each step of an automatic swap; higher is safer on a laggy server.");
         d.put("auto mask/return to slot", "Switches back to what you were holding once the rod has been thrown.");

@@ -37,14 +37,8 @@ public class AutoMaskTab extends BaseTab {
         MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
         int col1 = contentX;
 
-        if (!cfg.isEnabled()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("\u00a77Turn on Mask Invincibility in its own section to use this."),
-                    Minecraft.getInstance().font));
-            return widgets;
-        }
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Auto Swap", cfg.isAutoSwapEnabled()), btn -> {
+        // Auto Mask as a whole (killer560, 2026-10-13) - first, so it is the card's switch even while Mask Invincibility is off.
+        widgets.add(SettingsButtonWidget.builder(onOff("Auto Mask", cfg.isAutoSwapEnabled()), btn -> {
                     cfg.setAutoSwapEnabled(!cfg.isAutoSwapEnabled());
                     cfg.save();
                     requestRebuild.run();
@@ -54,6 +48,15 @@ public class AutoMaskTab extends BaseTab {
         if (!cfg.isAutoSwapEnabled()) {
             return widgets;
         }
+
+        if (!cfg.isEnabled()) {
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("\u00a77Turn on Mask Invincibility in its own section to use this."),
+                    Minecraft.getInstance().font));
+            return widgets;
+        }
+
+
 
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, stepDelayLabel(cfg),
                 (cfg.getSwapStepDelayMs() - MaskInvincibilityConfig.MIN_STEP_DELAY_MS)

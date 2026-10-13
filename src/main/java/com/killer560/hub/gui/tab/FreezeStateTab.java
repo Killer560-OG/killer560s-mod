@@ -65,6 +65,16 @@ public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
         Ap3Config cfg = Ap3Config.getInstance();
         int y = contentY;
 
+        w.add(SettingsButtonWidget.builder(Component.literal("Freeze State: " + (cfg.isFreezeStateEnabled() ? "§aON" : "§cOFF")),
+                btn -> {
+                    cfg.setFreezeStateEnabled(!cfg.isFreezeStateEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + 6;
+        if (!cfg.isFreezeStateEnabled()) {
+            return w;
+        }
         w.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Freeze State", true), font));
         y += 16;
         String[] warning = {

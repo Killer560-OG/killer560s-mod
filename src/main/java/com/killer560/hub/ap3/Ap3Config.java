@@ -270,6 +270,9 @@ public final class Ap3Config {
     private boolean alignFreezeView = true;
     /** Freeze State: how many ticks of position history are kept for stepping back (20 ticks = 1 second). */
     private int rewindTicks = DEFAULT_REWIND_TICKS;
+    /** Freeze State as a whole (killer560, 2026-10-13: "make a toggle for that portion as a whole"). On by default, as
+     *  it always was; off, its keys and /freezestate and /rewind refuse, and a freeze in progress resumes. */
+    private boolean freezeStateEnabled = true;
     /** The box every newly placed node gets (killer560, 2026-09-21: "a default size option so I can set the default
      *  nodes to .5 of a block or 1 block"); w/l modifiers on the add command still override it. */
     private double defaultNodeSize = 0.5;
@@ -390,6 +393,7 @@ public final class Ap3Config {
                 cfg.alignMethod = ConfigJson.getEnum(o, "alignMethodV2", AlignMethod.class, cfg.alignMethod);
                 cfg.alignFreezeView = ConfigJson.getBool(o, "alignFreezeView", cfg.alignFreezeView);
                 cfg.setRewindTicks(ConfigJson.getInt(o, "rewindTicks", cfg.rewindTicks));
+                cfg.freezeStateEnabled = ConfigJson.getBool(o, "freezeStateEnabled", cfg.freezeStateEnabled);
                 cfg.setDefaultNodeSize(ConfigJson.getDouble(o, "defaultNodeSize", cfg.defaultNodeSize));
                 cfg.setAlignTimeoutTicks(ConfigJson.getInt(o, "alignTimeoutTicks", cfg.alignTimeoutTicks));
                 cfg.setMoveTimeoutTicks(ConfigJson.getInt(o, "moveTimeoutTicks", cfg.moveTimeoutTicks));
@@ -455,6 +459,7 @@ public final class Ap3Config {
             o.addProperty("alignMethodV2", alignMethod.name());
             o.addProperty("alignFreezeView", alignFreezeView);
             o.addProperty("rewindTicks", rewindTicks);
+            o.addProperty("freezeStateEnabled", freezeStateEnabled);
             o.addProperty("defaultNodeSize", defaultNodeSize);
             o.addProperty("alignTimeoutTicks", alignTimeoutTicks);
             o.addProperty("moveTimeoutTicks", moveTimeoutTicks);
@@ -656,6 +661,8 @@ public final class Ap3Config {
     public static final int MIN_REWIND_TICKS = 20;
     public static final int MAX_REWIND_TICKS = 2400;
     public int getRewindTicks() { return rewindTicks; }
+    public boolean isFreezeStateEnabled() { return freezeStateEnabled; }
+    public void setFreezeStateEnabled(boolean v) { freezeStateEnabled = v; }
     public void setRewindTicks(int v) { rewindTicks = Math.max(MIN_REWIND_TICKS, Math.min(MAX_REWIND_TICKS, v)); }
 
     public double getDefaultNodeSize() { return defaultNodeSize; }
