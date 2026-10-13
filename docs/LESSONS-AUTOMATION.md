@@ -152,3 +152,10 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   took landings only from floor - 20, and Altar's lower level is 26 below the floor, so no landing could see the goal: the
   exact search's empty first backward layer read as "no route (proved)". The band now starts at Hypixel's y 0 (floor - 69,
   `EtherwarpPathfinder.graphMinY`); testkit 941 plans 2 warps and flies them (main: not planned).
+- **"No route (proved)" was followed by a plan anyway** (testkit 634, Scaffolding #12/#17/#36, 2026-10-12). The planner and
+  the server agreed on every ray; the goal sat in a 5x5 floor pocket that no warp from outside reaches (testkit 947's
+  server-side closure: 24 landings reach the goal, none of them reachable from the start). The exact search proved that,
+  and then `planFloor`'s fallbacks (the floor graph's NEAR landing, the room-by-room planner's "near") returned a chain
+  ending on a stair 4 blocks up, which `RoutePathPlanner.save` stored as the pair. A path node's plan is now checked hop by
+  hop to end ON the block (`planFloor`, `onBlock` only) and refused otherwise, with the reason in chat; the map's tile and
+  near clicks are unchanged.
