@@ -1559,12 +1559,13 @@ final class SettingTooltipsData {
         // "experiments/mode" is gone with the Mode button: the solver and the automation are two independent
         // settings now, not two positions of one switch.
         d.put("fast/auto leap/fast leap", "Left-clicking a leap item in a dungeon leaps straight to your target instead of opening the menu (cheat build only).");
-        d.put("fast/auto leap/leaps", "One row per leap spot: its switch, Fast or Auto, and who it leaps to.");
-        d.put("fast/auto leap/mode", "Fast: leaps when you left click with a Spirit Leap or Infinileap. Auto: leaps by itself when this leap's trigger happens. Left click or right click switches (cheat build only).");
+        d.put("fast/auto leap/leaps", "One row per leap spot: its Fast and Auto switches, and who it leaps to.");
+        d.put("fast/auto leap/fast", "This leap fires when you left click with a Spirit Leap or Infinileap here. Works alongside Auto (cheat build only).");
+        d.put("fast/auto leap/auto", "This leap fires by itself when its trigger happens: swaps to your leap from the hotbar, opens it, clicks the target, then swaps to Return To (cheat build only).");
         d.put("fast/auto leap/click delay", "Minimum time between fast leap clicks, 100-500 ms (cheat build only).");
         d.put("fast/auto leap/block inputs", "Blocks your keyboard and mouse while a fast or auto leap is clicking (cheat build only).");
         d.put("fast/auto leap/fast mode", "Blocks input only between the leap menu opening and the click (cheat build only).");
-        d.put("fast/auto leap/swap back", "Switches back to your previous hotbar slot after an auto leap (cheat build only).");
+        d.put("fast/auto leap/return to", "The hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap: your previous slot, Stay on Leap (no swap back), or a fixed slot 1-9 (cheat build only).");
         d.put("fast/auto leap/target", "Who this leap goes to: a class (the teammate who has it, Leap Order's class picks included) or a party member by name. Left click forward, right click back.");
         d.put("fast/auto leap/keywords", "Posmsg mode: party-chat words that mark who is at this spot, comma separated.");
         d.put("fast/auto leap/s1", "Who you leap to when section 1 is done: a class or a party member. Left click forward, right click back.");

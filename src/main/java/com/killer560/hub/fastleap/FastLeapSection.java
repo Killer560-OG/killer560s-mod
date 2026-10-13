@@ -23,9 +23,10 @@ import java.util.function.Consumer;
  * Title it fast/auto leap. Then reformat it to look better." It used to be a section inside the Leap Menu tab.
  * <p>
  * Two parts: {@link #buildGeneral} (the master switch, Targeting and Click Behavior) and {@link #buildLeapList} (every
- * leap's switch, Mode and Target in place, under a red header per boss phase). Until 2026-10-13 each leap had an Edit
- * page instead; killer560 asked for them to go ("remove the edit buttons and instead have a toggle then a button to
- * select what class/name it should leap to").
+ * leap's Fast and Auto switches and Target in place, under a red header per boss phase). Until 2026-10-13 each leap had
+ * an Edit page instead; killer560 asked for them to go ("remove the edit buttons and instead have a toggle then a button
+ * to select what class/name it should leap to"), and later that day for the Mode button to become two toggles ("for
+ * fast leap it should be a toggle for each specific section").
  * <p>
  * This class builds bodies only - the tab draws the (red, cheat-only) section headers and the "&lt; Back"
  * button, so a header never appears twice. Every row is {@link #ROW} high with {@link #GAP} between controls;
@@ -139,10 +140,27 @@ public final class FastLeapSection {
             y += ROW + GAP;
         }
 
-        // independent of the above - always visible once Click Behavior is showing at all
-        widgets.add(toggle(x, y, width, "Swap Back", cfg::isSwapBack, v -> cfg.setSwapBack(v), cfg));
+        // Return To (2026-10-13): one setting for every Auto leap, not one per leap - an Auto leap that had to swap to
+        // the leap item always swaps back, and where to is a property of his hotbar, not of the boss phase
+        widgets.add(SettingsButtonWidget.cycling(returnLabel(cfg.getReturnToSlot()), (btn, dir) -> {
+            cfg.setReturnToSlot(stepReturn(cfg.getReturnToSlot(), dir));
+            cfg.save();
+            btn.setMessage(returnLabel(cfg.getReturnToSlot()));
+        }).bounds(x, y, Math.max(1, width), ROW).build());
         y += ROW + GAP;
         return y;
+    }
+
+    static Component returnLabel(int slot) {
+        return Component.literal("Return To: §6" + (slot == FastLeapConfig.RETURN_PREVIOUS ? "Previous Slot"
+                : slot == FastLeapConfig.RETURN_STAY ? "Stay on Leap" : "Slot " + (slot + 1)));
+    }
+
+    /** Previous Slot, Stay on Leap, Slot 1 ... Slot 9, wrapping; dir 1 forward, -1 back. */
+    static int stepReturn(int slot, int dir) {
+        int i = slot == FastLeapConfig.RETURN_PREVIOUS ? 0 : slot == FastLeapConfig.RETURN_STAY ? 1 : slot + 2;
+        int n = Math.floorMod(i + (dir < 0 ? -1 : 1), 11);
+        return n == 0 ? FastLeapConfig.RETURN_PREVIOUS : n == 1 ? FastLeapConfig.RETURN_STAY : n - 2;
     }
 
     // ---- section 2: the leaps ----------------------------------------------------------------------------------
@@ -161,16 +179,18 @@ public final class FastLeapSection {
             new LeapPhase("P5", LeapGroup.RELIC),
     };
 
-    /** Below this a leap's row stacks: its switch on one line, Mode and Target on the next. */
-    private static final int MIN_ONE_LINE_W = 300;
+    /** From this width a leap's name, Fast, Auto and Target share one line; below it Target (or the leap's own option)
+     *  goes on an indented line under them. */
+    private static final int MIN_ONE_LINE_W = 420;
 
     /**
      * Every leap's settings in place, no Edit pages (killer560, 2026-10-13: "there is no option under each leap to change
      * whether it is fast leaping (on my left click) or auto leaping. Also remove the edit buttons and instead have a toggle
-     * then a button to select what class/name it should leap to"). One row per leap: "&lt;name&gt; Leap: ON/OFF", then
-     * "Mode: Fast/Auto" and "Target: ..." - Door Opener has no target (it goes to whoever opened the door), so its third
-     * button is After Blood Off; P3's is Gate Blown Only and its four section targets sit on the row below. In Posmsg mode
-     * each target also gets its keyword box. Everything shows whether the leap is on or not.
+     * then a button to select what class/name it should leap to"; then "for fast leap it should be a toggle for each
+     * specific section"). One row per leap: its name, "Fast: ON/OFF", "Auto: ON/OFF" (each on or off by itself, both
+     * allowed) and "Target: ..." - Door Opener has no target (it goes to whoever opened the door), so its last button is
+     * After Blood Off; P3's is Gate Blown Only and its four section targets sit on the row below. In Posmsg mode each
+     * target also gets its keyword box. Everything shows whether the leap is on or not.
      * @return the y below the last row.
      */
     public static int buildLeapList(List<AbstractWidget> widgets, int x, int y, int width, Runnable requestRebuild) {
@@ -193,24 +213,22 @@ public final class FastLeapSection {
     private static int buildLeapRow(List<AbstractWidget> widgets, int x, int y, int w, LeapGroup group, FastLeapConfig cfg,
                                     Runnable requestRebuild) {
         boolean oneLine = w >= MIN_ONE_LINE_W;
-        int switchW = oneLine ? (w - 2 * GAP) * 2 / 5 : w;
-        int restX = oneLine ? x + switchW + GAP : x + INDENT;
-        int restW = oneLine ? w - switchW - GAP : w - INDENT;
-        int halfW = Math.max(1, (restW - GAP) / 2);
-        int thirdX = restX + halfW + GAP;
-        int thirdW = Math.max(1, restX + restW - thirdX);
+        int nameW = Math.min(LABEL_W + 20, w / 3);
+        int restX = x + nameW + GAP;
+        int restW = Math.max(1, w - nameW - GAP);
+        int cells = oneLine ? 3 : 2;
+        int cellW = Math.max(1, (restW - GAP * (cells - 1)) / cells);
+        int thirdX = oneLine ? restX + 2 * (cellW + GAP) : x + INDENT;
+        int thirdW = oneLine ? Math.max(1, x + w - thirdX) : Math.max(1, w - INDENT);
 
-        // "<group> Leap" is also the SettingTooltips key
-        widgets.add(toggle(x, y, switchW, group.label + " Leap",
-                () -> cfg.isLeapEnabled(group), v -> cfg.setLeapEnabled(group, v), cfg));
+        widgets.add(rowLabel(x, y, nameW, group.label + " Leap"));
+        widgets.add(toggle(restX, y, cellW, "Fast", () -> cfg.isLeapFast(group), v -> cfg.setLeapFast(group, v), cfg));
+        int autoX = restX + cellW + GAP;
+        widgets.add(toggle(autoX, y, oneLine ? cellW : Math.max(1, x + w - autoX), "Auto",
+                () -> cfg.isLeapAuto(group), v -> cfg.setLeapAuto(group, v), cfg));
         if (!oneLine) {
             y += ROW + GAP;
         }
-        widgets.add(SettingsButtonWidget.cycling(modeLabel(cfg.isLeapAuto(group)), (btn, dir) -> {
-            cfg.setLeapAuto(group, !cfg.isLeapAuto(group));
-            cfg.save();
-            btn.setMessage(modeLabel(cfg.isLeapAuto(group)));
-        }).bounds(restX, y, halfW, ROW).build());
         LeapTarget single = null;
         if (group == LeapGroup.DOOR) {
             widgets.add(toggle(thirdX, y, thirdW, "After Blood Off", cfg::isDisableAfterBloodOpen,
@@ -266,10 +284,6 @@ public final class FastLeapSection {
             }
         }
         return y;
-    }
-
-    static Component modeLabel(boolean auto) {
-        return Component.literal("Mode: §6" + (auto ? "Auto" : "Fast"));
     }
 
     /**
