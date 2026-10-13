@@ -5,7 +5,8 @@ import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedScreen;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ThemedEditBox;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -32,7 +33,7 @@ import java.util.Optional;
  * Skyblock armour), Skin and Trim / Pattern (armour), the Look (any item model id, or "Copy Look" then
  * click another item - a head's texture comes with it), and Remove. Nothing is ever sent to the server.
  */
-public class CustomItemsScreen extends Screen implements ThemedScreen {
+public class CustomItemsScreen extends Screen implements MenuThemedScreen {
 
     private static final int SLOT = 18;
     private static final int PANEL_W = 364;
@@ -63,9 +64,6 @@ public class CustomItemsScreen extends Screen implements ThemedScreen {
     private int listY;
 
     private EditBox lookBox;
-    /** The Look field's well {x, y, w, h} and hint (the box sits inside it, borderless). */
-    private int[] lookWell = new int[4];
-    private String lookHint = "";
 
     public CustomItemsScreen(Screen parent) {
         super(Component.literal("Custom Items"));
@@ -407,13 +405,10 @@ public class CustomItemsScreen extends Screen implements ThemedScreen {
         addRenderableWidget(remove);
         y += 22;
 
-        lookWell = new int[]{rightX, y + 1, rightW - 40, 16};
-        int[] in = ScreenChrome.fieldInset(rightX, y + 1, rightW - 40, 16);
-        lookBox = new EditBox(this.font, in[0], in[1], in[2], in[3], Component.literal("Look"));
-        ScreenChrome.styleField(lookBox);
+        lookBox = new ThemedEditBox(this.font, rightX, y + 1, rightW - 40, 16, Component.literal("Look"))
+                .hint(e != null && !e.iconModel.isBlank() ? shortId(e.iconModel)
+                        : e != null && !e.headTexture.isBlank() ? "(head texture)" : "item id, e.g. diamond_sword");
         lookBox.setMaxLength(4096);
-        lookHint = e != null && !e.iconModel.isBlank() ? shortId(e.iconModel)
-                : e != null && !e.headTexture.isBlank() ? "(head texture)" : "item id, e.g. diamond_sword";
         lookBox.active = has;
         addRenderableWidget(lookBox);
         SettingsButtonWidget set = SettingsButtonWidget.builder(Component.literal("Set"), b -> setLook(lookBox.getValue()))
@@ -477,18 +472,15 @@ public class CustomItemsScreen extends Screen implements ThemedScreen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         // In the menu's theme (sweep-b, 2026-10-13); cells, rows and buttons keep their places.
-        ScreenChrome.begin("custom_items");
         ScreenChrome.backdrop(graphics, this.width, this.height);
         ScreenChrome.frame(graphics, panelX, panelY, PANEL_W, PANEL_H);
-        ScreenChrome.header(graphics, panelX + 3, panelY + 2, PANEL_W - 6, 16, "Custom Items");
+        ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, PANEL_W - 6, 16, "Custom Items");
         if (!cfg().isEnabledRaw()) {
             MenuStyle.text(graphics, this.font.plainSubstrByWidth(
                     "Custom Items is OFF in its tab - looks are saved but not drawn.", PANEL_W - 80 - 54),
                     panelX + 80, panelY + 6, ScreenChrome.bad());
         }
-        ScreenChrome.fieldWell(graphics, lookWell[0], lookWell[1], lookWell[2], lookWell[3], lookBox, lookHint,
-                mouseX >= lookWell[0] && mouseX < lookWell[0] + lookWell[2] && mouseY >= lookWell[1]
-                        && mouseY < lookWell[1] + lookWell[3]);
+
 
         ItemStack hover = ItemStack.EMPTY;
         for (int i = 0; i < 40; i++) {
@@ -520,7 +512,7 @@ public class CustomItemsScreen extends Screen implements ThemedScreen {
             int ry = listY + 1 + row * LIST_ROW;
             boolean sel = e.itemId.equals(selectedKey);
             boolean over = mouseX >= gridX && mouseX < gridX + 9 * SLOT && mouseY >= ry && mouseY < ry + LIST_ROW;
-            ScreenChrome.row(graphics, gridX + 1, ry, 9 * SLOT - 2, LIST_ROW, row, over, sel);
+            ScreenChrome.row(graphics, gridX + 1, ry, 9 * SLOT - 2, LIST_ROW, over, sel, (row) % 2 == 1);
             String text = (e.isPerItem() ? "[item] " : "") + e.label;
             MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(text, 9 * SLOT - 8)), gridX + 4,
                     ry + 2, !e.enabled ? MenuStyle.DIM2 : sel ? MenuStyle.OR_HOVER : MenuStyle.TXT);
@@ -604,5 +596,14 @@ public class CustomItemsScreen extends Screen implements ThemedScreen {
             Minecraft mc = Minecraft.getInstance();
             mc.setScreenAndShow(new ColorPickerScreen(back, label + " Colour", current, 0xFFFFFFFF, onChange));
         }
+    }
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, PANEL_W, PANEL_H};
+    }
+
+    @Override
+    public String themeId() {
+        return "custom_items";
     }
 }

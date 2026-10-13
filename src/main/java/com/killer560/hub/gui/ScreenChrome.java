@@ -2,40 +2,170 @@ package com.killer560.hub.gui;
 
 import com.killer560.hub.hud.GuiRects;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.FormattedCharSequence;
 
 /**
- * The pieces a standalone {@link ThemedScreen} is drawn from, all in the menu's active theme ({@link MenuStyle} after
- * {@link #begin()}): the dimmed backdrop, the bevelled frame with its ring and drop shadow, the header bar with the
- * gradient title, recessed wells for lists and fields, raised cards, list rows, item slots, the scrollbar, and the
- * colours a screen's own text takes (good / bad / gold, and anything Hypixel or a § code coloured, made readable on
- * Light). Every colour comes from the theme, so Amber, Dark, Light, Ocean and Custom all reach these screens.
+ * The mod menu's look for the mod's other screens (Profile Viewer, Friends List, Swap Accounts, ...): the same bevelled
+ * frame, header bar, recessed wells, cards, rows and raised buttons {@link ModScreen} draws, every colour taken from
+ * {@link MenuStyle} so all five themes (Amber, Dark, Light, Ocean, Custom) reach them. Call {@link #backdrop} (which
+ * derives the palette) first each frame. Text goes through {@link #text}, which keeps it readable on the Light theme.
  */
 public final class ScreenChrome {
 
     private ScreenChrome() {
     }
 
-    /** Height of {@link #header}. */
-    public static final int HEADER_H = 24;
+    /** Height of {@link #header}'s bar; it sits 4 units inside the frame, so content can start at {@code y + 30}. */
+    public static final int HEADER_H = 22;
 
-    /** Derives the palette for screen {@code screenId} (its Screen Theme, or the menu's). Call first thing in a draw. */
-    public static void begin(String screenId) {
-        MenuStyle.use(MenuTheme.forScreen(screenId));
-    }
-
+    /** Derives the palette from the active theme and dims the whole screen behind the panel. */
     public static void backdrop(GuiGraphicsExtractor g, int w, int h) {
+        MenuStyle.use();
         g.fill(0, 0, w, h, MenuStyle.BACKDROP);
     }
 
-    /** The outer panel: soft drop shadow, the accent-tinted ring, then the bevelled panel. The shadow stays within 2
-     *  units of the panel: the Bazaar and AH reskins keep only a 4-8 unit margin, and its outer 6 units must stay pure
-     *  backdrop over the hotbar at Auto Scale 1.125 (testkit 496; 3 units reached 2 pixel rows into it). */
+    /** The menu's outer panel: soft drop shadow, accent ring, bevelled panel gradient. */
     public static void frame(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        MenuStyle.use();
+        GuiRects r = GuiRects.begin(g);
+        for (int i = 6; i >= 1; i--) {
+            int a = 0x18 + (6 - i) * 0x10;
+            r.fill(x - i, y - i + 4, x + w + i, y + h + i + 4, MenuStyle.shadow(a / 2));
+        }
+        r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.FRAME_RING);
+        MenuStyle.bevel(r, x, y, w, h, MenuStyle.PANEL_TOP, MenuStyle.PANEL_BOTTOM);
+        r.fill(x + 1, y + 1, x + w - 1, y + 2, MenuStyle.HILITE_SOFT);
+        r.submit();
+    }
+
+    /** The header bar across the top of a {@link #frame}: a bevelled strip with the title in the brand gradient. */
+    public static void header(GuiGraphicsExtractor g, int panelX, int panelY, int panelW, String title) {
+        int x = panelX + 4;
+        int y = panelY + 4;
+        int w = panelW - 8;
+        GuiRects r = GuiRects.begin(g);
+        MenuStyle.dropShadow(r, x, y, w, HEADER_H, 2);
+        MenuStyle.bevel(r, x, y, w, HEADER_H, MenuStyle.HEADER_TOP, MenuStyle.HEADER_BOTTOM);
+        r.submit();
+        MenuStyle.gradientText(g, title, x + 6, y + (HEADER_H - 8) / 2, 1f, MenuStyle.BRAND_TOP, MenuStyle.BRAND_BOTTOM);
+    }
+
+    /** Header text right-aligned inside the bar (a count, a hint), in {@code colour}. */
+    public static void headerRight(GuiGraphicsExtractor g, int panelX, int panelY, int panelW, String s, int colour) {
+        int w = MenuStyle.font().width(s);
+        text(g, s, panelX + panelW - 10 - w, panelY + 4 + (HEADER_H - 8) / 2, colour);
+    }
+
+    /** A recessed well (a list's or a page's background). */
+    public static void well(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        GuiRects r = GuiRects.begin(g);
+        MenuStyle.well(r, x, y, w, h, MenuStyle.WELL);
+        r.submit();
+    }
+
+    /** A raised card (a content box), lighter when hovered. */
+    public static void card(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean hover) {
+        GuiRects r = GuiRects.begin(g);
+        card(r, x, y, w, h, hover);
+        r.submit();
+    }
+
+    public static void card(GuiRects r, int x, int y, int w, int h, boolean hover) {
+        MenuStyle.bevel(r, x, y, w, h, hover ? MenuStyle.CARD_HOVER_TOP : MenuStyle.CARD_TOP,
+                hover ? MenuStyle.CARD_HOVER_BOTTOM : MenuStyle.CARD_BOTTOM);
+    }
+
+    /**
+     * One list row inside a well: the selected row gets the sidebar's selected look (accent gradient, accent strip on its
+     * left), a hovered one a faint band, every other row a fainter stripe; a separator closes each row.
+     */
+    public static void row(GuiRects r, int x, int y, int w, int h, boolean hover, boolean selected, boolean stripe) {
+        if (selected) {
+            MenuStyle.hGradient(r, x, y, x + w, y + h - 1, MenuStyle.SEL_TOP, MenuStyle.SEL_BOTTOM, 6);
+            r.fill(x, y, x + 2, y + h - 1, MenuStyle.OR);
+        } else if (hover) {
+            r.fill(x, y, x + w, y + h - 1, MenuStyle.alpha(MenuStyle.TXT, 0x16));
+            r.fill(x, y, x + 2, y + h - 1, MenuStyle.OR2);
+        } else if (stripe) {
+            r.fill(x, y, x + w, y + h - 1, MenuStyle.alpha(MenuStyle.TXT, 0x07));
+        }
+        r.fill(x + 2, y + h - 1, x + w - 2, y + h, MenuStyle.alpha(MenuStyle.BLACK, MenuStyle.LIGHT ? 0x40 : 0x80));
+    }
+
+    /** A hand-drawn raised button (one that scrolls under a scissor, where a widget would not clip), label centred. */
+    public static void button(GuiGraphicsExtractor g, int x, int y, int w, int h, String label, boolean hover,
+                              boolean selected) {
+        GuiRects r = GuiRects.begin(g);
+        MenuStyle.raisedButton(r, x + 1, y + 1, w - 2, h - 2, hover, selected);
+        r.submit();
+        String s = MenuStyle.ellipsize(label, w - 6);
+        int c = selected || hover ? MenuStyle.OR_HOVER : MenuStyle.OR;
+        text(g, s, x + (w - MenuStyle.font().width(s)) / 2, y + (h - 8) / 2, c);
+    }
+
+    /** A vertical scrollbar: recessed track and the accent thumb, the thumb's box given directly. */
+    public static void scrollbar(GuiGraphicsExtractor g, int x, int y, int w, int h, int thumbY, int thumbH, boolean hot) {
+        GuiRects r = GuiRects.begin(g);
+        r.fill(x, y, x + w, y + h, MenuStyle.shadow(0x60));
+        r.outline(x, y, w, h, MenuStyle.alpha(MenuStyle.BLACK, 0xA0));
+        MenuStyle.glow(r, x + 1, thumbY, w - 2, thumbH, MenuStyle.OR, hot ? 0x40 : 0x20);
+        MenuStyle.hGradient(r, x + 1, thumbY, x + w - 1, thumbY + thumbH, hot ? MenuStyle.OR_HOVER : MenuStyle.OR_LIGHT,
+                MenuStyle.OR_DARK, Math.max(1, w - 2));
+        r.fill(x + 1, thumbY, x + 2, thumbY + thumbH, 0x50FFFFFF);
+        r.submit();
+    }
+
+    /** A progress bar: recessed track, the filled part in {@code fillColour} with a light top line. */
+    public static void progress(GuiGraphicsExtractor g, int x, int y, int w, int h, double t, int fillColour) {
+        GuiRects r = GuiRects.begin(g);
+        r.fill(x, y, x + w, y + h, MenuStyle.TRACK);
+        r.fill(x, y, x + w, y + 1, MenuStyle.shadow(0x70));
+        int fw = (int) Math.round(w * Math.max(0, Math.min(1, t)));
+        if (fw > 0) {
+            r.gradient(x, y, x + fw, y + h, MenuStyle.mix(fillColour, 0xFFFFFFFF, MenuStyle.LIGHT ? 0.1f : 0.2f), fillColour);
+        }
+        r.submit();
+    }
+
+    /**
+     * A colour that stays readable on the panel: on a light theme a bright colour (white, a rarity's yellow or aqua, the
+     * old fixed palette's green) is darkened to about a third of white's luminance, keeping its hue. Dark themes keep it.
+     */
+    public static int readable(int argb) {
+        if (!MenuStyle.LIGHT) {
+            return argb;
+        }
+        float lum = MenuStyle.luminance(argb);
+        if (lum <= 0.55f) {
+            return argb;
+        }
+        return MenuStyle.shade(argb, 0.36f / lum);
+    }
+
+    /** Text in the theme: § colours swapped for readable partners and the base colour darkened on Light; shadow only on
+     *  dark themes. */
+    public static void text(GuiGraphicsExtractor g, String s, int x, int y, int colour) {
+        g.text(MenuStyle.font(), MenuStyle.LIGHT ? MenuStyle.lightReadable(s) : s, x, y, readable(colour),
+                MenuStyle.TEXT_SHADOW);
+    }
+
+    public static void text(GuiGraphicsExtractor g, FormattedCharSequence s, int x, int y, int colour) {
+        g.text(MenuStyle.font(), s, x, y, readable(colour), MenuStyle.TEXT_SHADOW);
+    }
+
+    /** {@link #text} centred on {@code cx}. */
+    public static void centered(GuiGraphicsExtractor g, String s, int cx, int y, int colour) {
+        text(g, s, cx - MenuStyle.font().width(s) / 2, y, colour);
+    }
+
+    // ---- sweep-b additions (profit, Croesus, Storage Search, Run Log, Inventory Sorter, Custom Items, Bazaar, AH) ----
+
+    /** {@link #frame} with a drop shadow only 2 units deep, for the Bazaar and Auction House: their reskins keep a 4-8
+     *  unit margin whose outer 6 units must stay pure backdrop over the hotbar at Auto Scale 1.125 (testkit 496). */
+    public static void frameTight(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         GuiRects r = GuiRects.begin(g);
         for (int i = 2; i >= 1; i--) {
             r.fill(x - i, y - i, x + w + i, y + h + i, MenuStyle.shadow((0x28 + (2 - i) * 0x18) / 2));
@@ -46,62 +176,27 @@ public final class ScreenChrome {
         r.submit();
     }
 
-    /** A bevelled header bar with {@code title} in the brand gradient at its left. */
-    public static void header(GuiGraphicsExtractor g, int x, int y, int w, int h, String title) {
+    /** A header bar of a given size (compact fixed-size panels: the Inventory Sorter and Custom Items). */
+    public static void headerBar(GuiGraphicsExtractor g, int x, int y, int w, int h, String title) {
         GuiRects r = GuiRects.begin(g);
         MenuStyle.dropShadow(r, x, y, w, h, 2);
         MenuStyle.bevel(r, x, y, w, h, MenuStyle.HEADER_TOP, MenuStyle.HEADER_BOTTOM);
         r.submit();
-        if (title != null && !title.isEmpty()) {
-            MenuStyle.gradientText(g, title, x + 8, y + (h - 8) / 2, 1f, MenuStyle.BRAND_TOP, MenuStyle.BRAND_BOTTOM);
-        }
+        MenuStyle.gradientText(g, title, x + 6, y + (h - 8) / 2, 1f, MenuStyle.BRAND_TOP, MenuStyle.BRAND_BOTTOM);
     }
 
-    /** A recessed well (lists, previews, graphs). */
-    public static void well(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+    /** {@link #row(GuiRects, int, int, int, int, boolean, boolean, boolean)} as one element of its own. */
+    public static void row(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean hover, boolean selected,
+            boolean stripe) {
         GuiRects r = GuiRects.begin(g);
-        MenuStyle.well(r, x, y, w, h, MenuStyle.WELL);
+        row(r, x, y, w, h, hover, selected, stripe);
         r.submit();
     }
 
-    /** A raised card; {@code hover} lifts it and rings it in the accent. */
-    public static void card(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean hover) {
+    /** The accent scrollbar (4 wide at {@code x}) for a list scrolled {@code offset} of {@code max}, showing {@code view}. */
+    public static void scrollbar(GuiGraphicsExtractor g, int x, int top, int height, int offset, int max, int view) {
         GuiRects r = GuiRects.begin(g);
-        MenuStyle.dropShadow(r, x, y, w, h, 2);
-        if (hover) {
-            MenuStyle.glow(r, x, y, w, h, MenuStyle.OR, 0x30);
-        }
-        MenuStyle.bevel(r, x, y, w, h, hover ? MenuStyle.CARD_HOVER_TOP : MenuStyle.CARD_TOP,
-                hover ? MenuStyle.CARD_HOVER_BOTTOM : MenuStyle.CARD_BOTTOM);
-        if (hover) {
-            r.outline(x, y, w, h, MenuStyle.ACCENT_EDGE);
-        }
-        r.submit();
-    }
-
-    /** A card's accent stripe down its left edge (inside the outline). */
-    public static void stripe(GuiGraphicsExtractor g, int x, int y, int h, int color) {
-        g.fill(x + 1, y + 1, x + 3, y + h - 1, color);
-    }
-
-    /**
-     * One list row's background: selected rows get the accent band with a bar on the left, a hovered row a faint band,
-     * every other row a barely-there stripe so long lists stay readable.
-     */
-    public static void row(GuiGraphicsExtractor g, int x, int y, int w, int h, int index, boolean hover, boolean selected) {
-        GuiRects r = GuiRects.begin(g);
-        if (selected) {
-            r.gradient(x, y, x + w, y + h, MenuStyle.SEL_TOP, MenuStyle.SEL_BOTTOM);
-            r.fill(x, y, x + 2, y + h, MenuStyle.OR);
-            if (hover) {
-                r.fill(x + 2, y, x + w, y + h, MenuStyle.alpha(MenuStyle.TXT, 0x10));
-            }
-        } else if (hover) {
-            r.fill(x, y, x + w, y + h, MenuStyle.alpha(MenuStyle.TXT, MenuStyle.LIGHT ? 0x14 : 0x12));
-            r.outline(x, y, w, h, MenuStyle.ACCENT_EDGE);
-        } else if (index % 2 == 1) {
-            r.fill(x, y, x + w, y + h, MenuStyle.alpha(MenuStyle.TXT, MenuStyle.LIGHT ? 0x0A : 0x07));
-        }
+        MenuStyle.scrollbar(r, x, top, height, offset, max, view);
         r.submit();
     }
 
@@ -118,11 +213,9 @@ public final class ScreenChrome {
         r.submit();
     }
 
-    /** The accent scrollbar in its track, at {@code x} (5 wide). */
-    public static void scrollbar(GuiGraphicsExtractor g, int x, int top, int height, int offset, int max, int view) {
-        GuiRects r = GuiRects.begin(g);
-        MenuStyle.scrollbar(r, x, top, height, offset, max, view);
-        r.submit();
+    /** A card's coloured stripe down its left edge (inside the outline). */
+    public static void stripe(GuiGraphicsExtractor g, int x, int y, int h, int color) {
+        g.fill(x + 1, y + 1, x + 3, y + h - 1, color);
     }
 
     /** A thin separator line across a panel. */
@@ -132,43 +225,6 @@ public final class ScreenChrome {
         r.submit();
     }
 
-    // ---- text field -----------------------------------------------------------------------------------------------
-
-    /** Makes a vanilla box draw like the menu's search: no border of its own, theme text, no text shadow on Light.
-     *  Place it inside its well with {@link #fieldInset}. */
-    public static void styleField(EditBox box) {
-        box.setBordered(false);
-        box.setTextColor(MenuStyle.TXT);
-        box.setTextShadow(MenuStyle.TEXT_SHADOW);
-    }
-
-    /** Where a borderless box goes inside a well of {x, y, w, h}: {x, y, w, h}. */
-    public static int[] fieldInset(int x, int y, int w, int h) {
-        return new int[]{x + 5, y + (h - 8) / 2, Math.max(8, w - 10), 10};
-    }
-
-    /** The well under a borderless box (outlined in the accent while focused) and its hint while empty, painted here:
-     *  the box's own hint carries a text shadow, which smears on Light. */
-    public static void fieldWell(GuiGraphicsExtractor g, int x, int y, int w, int h, EditBox box, String hint,
-            boolean hover) {
-        GuiRects r = GuiRects.begin(g);
-        MenuStyle.well(r, x, y, w, h, MenuStyle.WELL_DEEP);
-        boolean focus = box != null && box.isFocused();
-        if (focus || hover) {
-            r.outline(x - 1, y - 1, w + 2, h + 2, focus ? MenuStyle.OR2 : MenuStyle.KEY_CHIP_EDGE);
-        }
-        r.submit();
-        if (box != null) {
-            box.setTextColor(box.active ? MenuStyle.TXT : MenuStyle.DIM2);
-            box.setTextShadow(MenuStyle.TEXT_SHADOW);
-        }
-        if (hint != null && box != null && box.getValue().isEmpty() && !box.isFocused()) {
-            MenuStyle.flat(g, MenuStyle.ellipsize(hint, w - 10), x + 5, y + (h - 8) / 2, MenuStyle.DIM2);
-        }
-    }
-
-    // ---- colours --------------------------------------------------------------------------------------------------
-
     /** A profit / "it worked" green that reads on the panel. */
     public static int good() {
         return MenuStyle.LIGHT ? 0xFF1E7A2E : 0xFF4ADE80;
@@ -177,29 +233,6 @@ public final class ScreenChrome {
     /** A loss / error red that reads on the panel. */
     public static int bad() {
         return MenuStyle.LIGHT ? 0xFFB02A2A : 0xFFEF5555;
-    }
-
-    /** Coins gold that reads on the panel. */
-    public static int gold() {
-        return MenuStyle.LIGHT ? 0xFF8A5A00 : 0xFFFFC040;
-    }
-
-    /** {@code argb} made readable on the panel: a pale colour (white, yellow, aqua...) darkened on Light; unchanged on a
-     *  dark theme. White text becomes the theme's text colour. */
-    public static int readable(int argb) {
-        if (!MenuStyle.LIGHT) {
-            return argb;
-        }
-        int r = (argb >> 16) & 0xFF;
-        int gr = (argb >> 8) & 0xFF;
-        int b = argb & 0xFF;
-        if (r > 0xC8 && gr > 0xC8 && b > 0xC8) {
-            return (argb & 0xFF000000) | (MenuStyle.TXT & 0xFFFFFF);
-        }
-        if (MenuStyle.luminance(argb | 0xFF000000) < 0.45f) {
-            return argb;
-        }
-        return (argb & 0xFF000000) | ((r * 45 / 100) << 16) | ((gr * 45 / 100) << 8) | (b * 45 / 100);
     }
 
     /** A § coded line made readable on the panel (Light swaps the pale codes for darker partners). */
@@ -216,17 +249,9 @@ public final class ScreenChrome {
         return sink -> s.accept((index, style, cp) -> {
             TextColor col = style.getColor();
             int rgb = col == null ? (MenuStyle.TXT & 0xFFFFFF) : col.getValue();
-            Style dark = style.withColor(TextColor.fromRgb(readable(0xFF000000 | rgb) & 0xFFFFFF));
+            int white = rgb == 0xFFFFFF ? MenuStyle.TXT : readable(0xFF000000 | rgb);
+            Style dark = style.withColor(TextColor.fromRgb(white & 0xFFFFFF));
             return sink.accept(index, dark, cp);
         });
-    }
-
-    /** Theme text with the theme's shadow setting. */
-    public static void text(GuiGraphicsExtractor g, String s, int x, int y, int color) {
-        MenuStyle.text(g, s, x, y, color);
-    }
-
-    public static void text(GuiGraphicsExtractor g, FormattedCharSequence s, int x, int y, int color) {
-        MenuStyle.text(g, s, x, y, color);
     }
 }

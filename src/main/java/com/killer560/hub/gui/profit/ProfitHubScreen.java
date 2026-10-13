@@ -4,7 +4,7 @@ import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedScreen;
+import com.killer560.hub.gui.MenuThemedScreen;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -18,7 +18,7 @@ import net.minecraft.network.chat.Component;
  * etable or whatnot to open the menu specifically." Laid out like the Croesus screen (same panel, header and
  * {@link ProfitPanels} colours) so the two read as one family; Auto Scale is the screen mixin's job, nothing here.
  */
-public class ProfitHubScreen extends Screen implements ThemedScreen {
+public class ProfitHubScreen extends Screen implements MenuThemedScreen {
 
     private static final int CARD_H = 54;
     private static final int GAP = 6;
@@ -59,10 +59,9 @@ public class ProfitHubScreen extends Screen implements ThemedScreen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        ScreenChrome.begin("profit");
         ScreenChrome.backdrop(graphics, this.width, this.height);
         ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
-        ScreenChrome.header(graphics, panelX + 4, panelY + 4, panelW - 8, ScreenChrome.HEADER_H, "Profit Trackers");
+        ScreenChrome.header(graphics, panelX, panelY, panelW, "Profit Trackers");
         String hint = "/profit <name> opens one directly";
         MenuStyle.text(graphics, hint, panelX + panelW - 12 - this.font.width(hint), panelY + 12, MenuStyle.DIM2);
         MenuStyle.text(graphics, "PICK A TRACKER", panelX + 8, panelY + 40, MenuStyle.DIM);
@@ -77,5 +76,14 @@ public class ProfitHubScreen extends Screen implements ThemedScreen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
+    }
+
+    @Override
+    public String themeId() {
+        return "profit";
     }
 }

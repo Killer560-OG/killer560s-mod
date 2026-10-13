@@ -4,7 +4,8 @@ import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedScreen;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.gui.tab.CommandKeybindsTab;
 import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -40,7 +41,7 @@ import java.util.Optional;
  * layouts: click one to load it into the grid and select it, then Apply / Rename (to the typed name) / Delete / Bind
  * Key act on the selected one. Apply closes the menu and the executor sorts the real inventory.
  */
-public class InventorySorterScreen extends Screen implements ThemedScreen {
+public class InventorySorterScreen extends Screen implements MenuThemedScreen {
 
     private static final int SLOT = 18;
     private static final int PANEL_W = 356;
@@ -74,8 +75,6 @@ public class InventorySorterScreen extends Screen implements ThemedScreen {
     private int listW;
 
     private EditBox nameBox;
-    /** The name field's well {x, y, w, h} (the box sits inside it, borderless). */
-    private int[] nameWell = new int[4];
     private SettingsButtonWidget bindButton;
 
     public InventorySorterScreen(Screen parent) {
@@ -311,10 +310,8 @@ public class InventorySorterScreen extends Screen implements ThemedScreen {
 
         int below = gridY + 4 * SLOT + 4 + 6;
         String typed = nameBox == null ? (selected == null ? "" : selected) : nameBox.getValue();
-        nameWell = new int[]{gridX, below, 9 * SLOT, 16};
-        int[] in = ScreenChrome.fieldInset(gridX, below, 9 * SLOT, 16);
-        nameBox = new EditBox(this.font, in[0], in[1], in[2], in[3], Component.literal("Layout name"));
-        ScreenChrome.styleField(nameBox);
+        nameBox = new ThemedEditBox(this.font, gridX, below, 9 * SLOT, 16, Component.literal("Layout name"))
+                .hint("Layout name");
         nameBox.setMaxLength(InventoryLayoutStore.MAX_NAME);
         nameBox.setValue(typed);
         addRenderableWidget(nameBox);
@@ -375,16 +372,12 @@ public class InventorySorterScreen extends Screen implements ThemedScreen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         // In the menu's theme (sweep-b, 2026-10-13); slots, list rows and buttons keep their places.
-        ScreenChrome.begin("invsort");
         ScreenChrome.backdrop(graphics, this.width, this.height);
         ScreenChrome.frame(graphics, panelX, panelY, PANEL_W, PANEL_H);
-        ScreenChrome.header(graphics, panelX + 3, panelY + 2, PANEL_W - 6, 18, "Inventory Sorter");
+        ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, PANEL_W - 6, 18, "Inventory Sorter");
         MenuStyle.text(graphics, "layouts", panelX + 11 + this.font.width("Inventory Sorter") + 6, panelY + 7,
                 MenuStyle.DIM2);
         MenuStyle.text(graphics, "SAVED LAYOUTS", listX, gridY, MenuStyle.DIM);
-        ScreenChrome.fieldWell(graphics, nameWell[0], nameWell[1], nameWell[2], nameWell[3], nameBox, "Layout name",
-                mouseX >= nameWell[0] && mouseX < nameWell[0] + nameWell[2] && mouseY >= nameWell[1]
-                        && mouseY < nameWell[1] + nameWell[3]);
 
         ItemStack hover = ItemStack.EMPTY;
         for (int i = 0; i < 36; i++) {
@@ -417,7 +410,7 @@ public class InventorySorterScreen extends Screen implements ThemedScreen {
             int ry = listY + 1 + row * LIST_ROW;
             boolean sel = name.equalsIgnoreCase(selected);
             boolean over = mouseX >= listX && mouseX < listX + listW && mouseY >= ry && mouseY < ry + LIST_ROW;
-            ScreenChrome.row(graphics, listX + 1, ry, listW - 2, LIST_ROW, row, over, sel);
+            ScreenChrome.row(graphics, listX + 1, ry, listW - 2, LIST_ROW, over, sel, (row) % 2 == 1);
             int code = InventorySorterConfig.getInstance().getLayoutKey(name);
             String key = code == KeyUtil.NONE ? "" : " [" + CommandKeybindsTab.bindName(code) + "]";
             MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(name + key, listW - 8)),
@@ -531,5 +524,14 @@ public class InventorySorterScreen extends Screen implements ThemedScreen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, PANEL_W, PANEL_H};
+    }
+
+    @Override
+    public String themeId() {
+        return "invsort";
     }
 }

@@ -73,6 +73,12 @@ public class DisplayOptionsTab extends BaseTab {
                 }).bounds(contentX, y, 220, 20).build());
         y += 22;
 
+        // The title screen's Swap Accounts screens (and their proxy / session login pages) have their own Theme
+        // (2026-10-13; Theme Default follows the menu).
+        widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.accounts.gui.AccountSwitcherScreen.THEME_ID, "Swap Accounts Theme",
+                contentX, y, 220, 20));
+        y += 22;
+
         return widgets;
     }
 

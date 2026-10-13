@@ -4,7 +4,7 @@ import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedScreen;
+import com.killer560.hub.gui.MenuThemedScreen;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -20,7 +20,7 @@ import java.util.List;
  * <p>Back (top right) and Escape both return to {@code parent} - the {@code /profit} hub when it was opened from
  * there, or the game when it was opened directly.
  */
-public abstract class ProfitTrackerScreen extends Screen implements ThemedScreen {
+public abstract class ProfitTrackerScreen extends Screen implements MenuThemedScreen {
 
     /** One headline card. */
     protected record Card(String label, String value, int valueColor, String sub, int stripe) {
@@ -44,8 +44,9 @@ public abstract class ProfitTrackerScreen extends Screen implements ThemedScreen
 
     protected abstract List<Card> cards();
 
-    /** This screen's Screen Theme id (the profit screens share the Experiments tab's). */
-    protected String themeId() {
+    /** This screen's Theme id (the profit screens share the Experiments tab's). */
+    @Override
+    public String themeId() {
         return "profit";
     }
 
@@ -113,10 +114,9 @@ public abstract class ProfitTrackerScreen extends Screen implements ThemedScreen
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        ScreenChrome.begin(themeId());
         ScreenChrome.backdrop(g, this.width, this.height);
         ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
-        ScreenChrome.header(g, panelX + 4, panelY + 4, panelW - 8, ScreenChrome.HEADER_H, heading);
+        ScreenChrome.header(g, panelX, panelY, panelW, heading);
 
         int y = panelY + 36 + ProfitScopeBar.HEIGHT + 4;
         String note = note();
@@ -191,5 +191,9 @@ public abstract class ProfitTrackerScreen extends Screen implements ThemedScreen
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
     }
 }

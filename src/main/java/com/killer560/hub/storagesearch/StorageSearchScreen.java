@@ -3,7 +3,8 @@ package com.killer560.hub.storagesearch;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedScreen;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.util.ModChat;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -19,7 +20,7 @@ import com.killer560.hub.compat.McCompat;
 
 /** The search screen for {@link StorageSearchFeature}, drawn in the mod menu's active theme ({@link ScreenChrome}: bevelled
  *  frame, header bar, recessed search field and results well, themed rows). Every control keeps its place. */
-public class StorageSearchScreen extends Screen implements ThemedScreen {
+public class StorageSearchScreen extends Screen implements MenuThemedScreen {
 
     private static final int ROW_H = 22;
 
@@ -28,14 +29,14 @@ public class StorageSearchScreen extends Screen implements ThemedScreen {
 
     private StorageSearchIndex index;
     private List<StorageSearchIndex.Entry> results = new ArrayList<>();
-    private EditBox searchBox;
+    private ThemedEditBox searchBox;
     private SettingsButtonWidget loreButton;
     private SettingsButtonWidget invButton;
     private SettingsButtonWidget sortButton;
     private SettingsButtonWidget sourceButton;
 
     private int panelX, panelY, panelW, panelH;
-    /** The search field's well (the box itself sits inside it, borderless). */
+    /** The search field's outer box (a {@link ThemedEditBox}: the well it draws and takes clicks on). */
     private int boxX, boxY, boxW, boxH;
     private int listX, listY, listW, listH;
     private int scroll = 0;
@@ -78,9 +79,7 @@ public class StorageSearchScreen extends Screen implements ThemedScreen {
         boxY = panelY + 36;
         this.boxW = boxW;
         boxH = 18;
-        int[] in = ScreenChrome.fieldInset(boxX, boxY, boxW, boxH);
-        searchBox = new EditBox(this.font, in[0], in[1], in[2], in[3], Component.literal("Search"));
-        ScreenChrome.styleField(searchBox);
+        searchBox = new ThemedEditBox(this.font, boxX, boxY, boxW, boxH, Component.literal("Search")).hint(hint());
         searchBox.setMaxLength(100);
         searchBox.setValue(current);
         searchBox.setResponder(text -> refilter());
@@ -122,6 +121,7 @@ public class StorageSearchScreen extends Screen implements ThemedScreen {
             cfg.setSearchLore(!cfg.isSearchLore());
             cfg.save();
             btn.setMessage(onOff("Lore", cfg.isSearchLore()));
+            searchBox.hint(hint());
             refilter();
         }).bounds(panelX + panelW - bw * 2 - 10, panelY + 6, bw, 18).build();
         addRenderableWidget(loreButton);
@@ -136,7 +136,7 @@ public class StorageSearchScreen extends Screen implements ThemedScreen {
         refilter();
     }
 
-    /** The search field's hint (painted by {@link ScreenChrome#fieldWell}). */
+    /** The search field's hint. */
     private static String hint() {
         return "Name, Skyblock id" + (StorageSearchConfig.getInstance().isSearchLore() ? " or lore" : "") + "...";
     }
@@ -189,12 +189,10 @@ public class StorageSearchScreen extends Screen implements ThemedScreen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        ScreenChrome.begin("storage_search");
         ScreenChrome.backdrop(graphics, this.width, this.height);
         ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
-        ScreenChrome.header(graphics, panelX + 4, panelY + 4, panelW - 8, ScreenChrome.HEADER_H, "Storage Search");
-        ScreenChrome.fieldWell(graphics, boxX, boxY, boxW, boxH, searchBox, hint(),
-                mouseX >= boxX && mouseX < boxX + boxW && mouseY >= boxY && mouseY < boxY + boxH);
+        ScreenChrome.header(graphics, panelX, panelY, panelW, "Storage Search");
+
 
         // Summary line.
         int cached = 0;
@@ -274,7 +272,7 @@ public class StorageSearchScreen extends Screen implements ThemedScreen {
     private void drawRow(GuiGraphicsExtractor graphics, StorageSearchIndex.Entry e, int i, int y, boolean hovered) {
         int x = listX;
         int w = listW - 4;
-        ScreenChrome.row(graphics, x, y, w, ROW_H, i, hovered, false);
+        ScreenChrome.row(graphics, x, y, w, ROW_H, hovered, false, (i) % 2 == 1);
         graphics.item(e.stack(), x + 3, y + 3);
 
         String count = "x" + e.stack().getCount();
@@ -351,5 +349,14 @@ public class StorageSearchScreen extends Screen implements ThemedScreen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
+    }
+
+    @Override
+    public String themeId() {
+        return "storage_search";
     }
 }

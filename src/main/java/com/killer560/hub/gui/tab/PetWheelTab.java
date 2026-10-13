@@ -147,6 +147,9 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
+        widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.petwheel.PetWheelScreen.THEME_ID, contentX, y, contentWidth, 18));
+        y += 24;
+
         widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Pets"), btn ->
                         McCompat.setScreen(Minecraft.getInstance(), PetWheelScreen.forEdit(McCompat.screen(Minecraft.getInstance()))))
                 .bounds(contentX, y, contentWidth, 20).build());

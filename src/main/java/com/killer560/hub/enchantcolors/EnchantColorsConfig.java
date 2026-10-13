@@ -51,6 +51,12 @@ public final class EnchantColorsConfig {
      *  swatch. Turn it off to use {@link #perfectColor} instead, which this mod's colour picker CAN express
      *  and SkyHanni's animated one can't be reduced to. */
     private boolean perfectChroma = true;
+    /** Chroma waterfall (killer560, 2026-10-13): how fast the colour bands sweep (x, 1 = one cycle in 3 s) and how
+     *  wide they are (x, 1 = one rainbow per 160 GUI units along the diagonal). See {@code util/ChromaWave}. */
+    public static final float MIN_CHROMA_SPEED = 0.1f, MAX_CHROMA_SPEED = 5f;
+    public static final float MIN_CHROMA_SIZE = 0.25f, MAX_CHROMA_SIZE = 4f;
+    private float chromaSpeed = 1f;
+    private float chromaSize = 1f;
     /** SkyHanni's own default (boldPerfectEnchant) - kept as a toggle rather than hardcoded, same as Ultimate. */
     private boolean perfectBold = false;
     private boolean ultimateEnabled = true;
@@ -96,6 +102,8 @@ public final class EnchantColorsConfig {
             cfg.greatColor = ConfigJson.getInt(obj, "greatColor", EnchantColorsDefaults.GREAT);
             cfg.perfectColor = ConfigJson.getInt(obj, "perfectColor", EnchantColorsDefaults.PERFECT);
             cfg.perfectChroma = ConfigJson.getBool(obj, "perfectChroma", true);
+            cfg.setChromaSpeed(ConfigJson.getFloat(obj, "chromaSpeed", 1f));
+            cfg.setChromaSize(ConfigJson.getFloat(obj, "chromaSize", 1f));
             cfg.perfectBold = ConfigJson.getBool(obj, "perfectBold", false);
             cfg.ultimateEnabled = ConfigJson.getBool(obj, "ultimateEnabled", true);
             cfg.ultimateColor = ConfigJson.getInt(obj, "ultimateColor", EnchantColorsDefaults.ULTIMATE);
@@ -120,6 +128,8 @@ public final class EnchantColorsConfig {
             obj.addProperty("greatColor", greatColor);
             obj.addProperty("perfectColor", perfectColor);
             obj.addProperty("perfectChroma", perfectChroma);
+            obj.addProperty("chromaSpeed", chromaSpeed);
+            obj.addProperty("chromaSize", chromaSize);
             obj.addProperty("perfectBold", perfectBold);
             obj.addProperty("ultimateEnabled", ultimateEnabled);
             obj.addProperty("ultimateColor", ultimateColor);
@@ -201,6 +211,22 @@ public final class EnchantColorsConfig {
 
     public void setPerfectChroma(boolean perfectChroma) {
         this.perfectChroma = perfectChroma;
+    }
+
+    public float getChromaSpeed() {
+        return chromaSpeed;
+    }
+
+    public void setChromaSpeed(float v) {
+        chromaSpeed = Float.isFinite(v) ? Math.max(MIN_CHROMA_SPEED, Math.min(MAX_CHROMA_SPEED, v)) : 1f;
+    }
+
+    public float getChromaSize() {
+        return chromaSize;
+    }
+
+    public void setChromaSize(float v) {
+        chromaSize = Float.isFinite(v) ? Math.max(MIN_CHROMA_SIZE, Math.min(MAX_CHROMA_SIZE, v)) : 1f;
     }
 
     public boolean isPerfectBold() {

@@ -4,11 +4,14 @@ import com.killer560.hub.accounts.AccountApplier;
 import com.killer560.hub.accounts.core.AuthException;
 import com.killer560.hub.accounts.core.MicrosoftAuthFlow;
 import com.killer560.hub.accounts.core.SessionLoginStore;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedEditBox;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -25,7 +28,7 @@ import com.killer560.hub.compat.McCompat;
  * be there next launch, he just doesn't want it showing up in the main account list like a
  * permanent saved account.
  */
-public class DirectSessionLoginScreen extends Screen {
+public class DirectSessionLoginScreen extends Screen implements MenuThemedScreen {
 
     private static final MicrosoftAuthFlow AUTH_FLOW = new MicrosoftAuthFlow();
 
@@ -50,6 +53,12 @@ public class DirectSessionLoginScreen extends Screen {
     private boolean resolving;
     private boolean resolveAttempted;
 
+    /** The framed panel and the two text lines above the box (drawn in the theme, not as white StringWidgets). */
+    private int panelX, panelY, panelW, panelH;
+    private int infoY;
+    private int statusY;
+    private static final String EXPLAIN = "Paste a Minecraft session/access token - kept, but not shown as a saved account";
+
     public DirectSessionLoginScreen(Screen backTarget, Screen successTarget) {
         super(Component.literal("Direct Session Login"));
         this.backTarget = backTarget;
@@ -73,20 +82,20 @@ public class DirectSessionLoginScreen extends Screen {
         }
         String initialValue = firstBuild ? SessionLoginStore.getInstance().getToken() : this.tokenField.getValue();
 
-        this.addRenderableOnly(new StringWidget(centerX - fieldWidth / 2, y - 34, fieldWidth, 12,
-                Component.literal(resolvedNameLine()), this.font));
-        this.addRenderableOnly(new StringWidget(centerX - fieldWidth / 2, y - 20, fieldWidth, 12,
-                Component.literal("Paste a Minecraft session/access token - kept, but not shown as a saved account"),
-                this.font));
+        this.infoY = y - 34;
+        this.statusY = y + 80;
+        this.panelW = Math.max(fieldWidth, this.font.width(EXPLAIN)) + 24;
+        this.panelX = centerX - this.panelW / 2;
+        this.panelY = y - 34 - 32;
+        this.panelH = this.statusY + 10 + 8 - this.panelY;
 
-        this.tokenField = new EditBox(this.font, centerX - fieldWidth / 2, y, fieldWidth, 20,
-                Component.literal("Session Token"));
+        this.tokenField = new ThemedEditBox(this.font, centerX - fieldWidth / 2, y, fieldWidth, 20,
+                Component.literal("Session Token")).hint("Session/access token...");
         this.tokenField.setMaxLength(4096);
         // Credential field: never draw the token itself (screenshots / streams / shoulder-surfing). Paste,
         // clear and the IGN resolve below still work - only the glyphs are replaced.
         this.tokenField.addFormatter((text, offset) -> net.minecraft.util.FormattedCharSequence.forward(
                 "*".repeat(text.length()), net.minecraft.network.chat.Style.EMPTY));
-        this.tokenField.setHint(Component.literal("Session/access token..."));
         this.tokenField.setValue(initialValue);
         this.tokenField.setResponder(text -> {
             SessionLoginStore store = SessionLoginStore.getInstance();
@@ -116,10 +125,6 @@ public class DirectSessionLoginScreen extends Screen {
                 .bounds(centerX - fieldWidth / 2, y + 52, fieldWidth, 20)
                 .build());
 
-        if (this.statusMessage != null) {
-            this.addRenderableOnly(new StringWidget(centerX - fieldWidth / 2, y + 78, fieldWidth, 12,
-                    Component.literal(this.statusMessage), this.font));
-        }
     }
 
     /** Same animated title-screen background as the account switcher - see {@link AccountScreenBackground}. */
@@ -130,14 +135,36 @@ public class DirectSessionLoginScreen extends Screen {
         }
     }
 
-    /** Black + amber theme (2026-09-09) - see {@link AccountSwitcherScreen#extractRenderState}. */
+    /** This screen's own Theme setting (Theme Default follows the menu). */
+    public static final String THEME_ID = "accounts";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
+    }
+
+    /** The menu theme's panel over the animated title background (or the dim, in a world). */
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        if (!AccountScreenBackground.themed()) {
-            graphics.fill(0, 0, this.width, this.height, 0xCC000000);
+        if (AccountScreenBackground.themed()) {
+            MenuStyle.use();
+        } else {
+            ScreenChrome.backdrop(graphics, this.width, this.height);
         }
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.header(graphics, panelX, panelY, panelW, this.title.getString());
+        int cx = this.width / 2;
+        ScreenChrome.centered(graphics, resolvedNameLine(), cx, infoY + 2, MenuStyle.TXT);
+        ScreenChrome.centered(graphics, EXPLAIN, cx, infoY + 16, MenuStyle.DIM);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        graphics.centeredText(this.font, this.title, this.width / 2, 16, 0xFFCC6600);
+        if (this.statusMessage != null) {
+            ScreenChrome.centered(graphics, MenuStyle.ellipsize(this.statusMessage, panelW - 12), cx, statusY, MenuStyle.TXT);
+        }
     }
 
     private void onBack() {

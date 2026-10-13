@@ -99,10 +99,10 @@ final class WeightPage {
         String ovf = overflow > 0 ? " +" + num(overflow) : "";
         int ovfW = f().width(ovf);
         if (!ovf.isEmpty()) {
-            g.text(f(), ovf, right - ovfW, y, DIM, false);
+            ProfileViewerScreen.tx(g, ovf, right - ovfW, y, DIM);
         }
         String val = num(weight);
-        g.text(f(), val, right - ovfW - f().width(val), y, valueColor, false);
+        ProfileViewerScreen.tx(g, val, right - ovfW - f().width(val), y, valueColor);
     }
 
     private void column(GuiGraphicsExtractor g, SkyblockWeight.Result r, int x, int w, int listTop, int visible,
@@ -114,7 +114,7 @@ final class WeightPage {
 
         // Title
         String title = r.system() + " Weight";
-        g.text(f(), title, lx, y, ACCENT, false);
+        ProfileViewerScreen.tx(g, title, lx, y, ACCENT);
         if (hover(mx, my, lx, y - 1, f().width(title), 10)) {
             tip(List.of(line(title, VALUE), line(about1, DIM), line(about2, DIM),
                     line("Calculated locally from this profile's API data.", DIM)));
@@ -126,23 +126,23 @@ final class WeightPage {
         g.pose().pushMatrix();
         g.pose().translate(lx, y);
         g.pose().scale(1.5f, 1.5f);
-        g.text(f(), total, 0, 0, MAXED, false);
+        ProfileViewerScreen.tx(g, total, 0, 0, MAXED);
         g.pose().popMatrix();
         int totalW = (int) Math.ceil(f().width(total) * 1.5f);
         if (hover(mx, my, lx, y - 1, Math.max(totalW, w - 12), 14)) {
             tip(summaryTooltip(r));
         }
         y += 15;
-        g.text(f(), f().plainSubstrByWidth(num(r.weight()) + " + " + num(r.overflow()) + " overflow", w - 12), lx, y, DIM, false);
+        ProfileViewerScreen.tx(g, f().plainSubstrByWidth(num(r.weight()) + " + " + num(r.overflow()) + " overflow", w - 12), lx, y, DIM);
         y += 13;
 
         // Category summary
         for (SkyblockWeight.Group grp : List.of(r.skills(), r.slayers(), r.dungeons())) {
-            g.text(f(), grp.name(), lx, y, TEXT, false);
+            ProfileViewerScreen.tx(g, grp.name(), lx, y, TEXT);
             boolean apiOff = grp == r.skills() && !r.skillsApi();
             if (apiOff) {
                 String off = "API off";
-                g.text(f(), off, right - f().width(off), y, DIM, false);
+                ProfileViewerScreen.tx(g, off, right - f().width(off), y, DIM);
             } else {
                 valueWithOverflow(g, grp.weight(), grp.overflow(), right, y, VALUE);
             }
@@ -161,10 +161,10 @@ final class WeightPage {
             Row row = rows.get(i);
             int ry = listTop + (i - start) * ROW_H;
             if (row.part() == null) {
-                g.text(f(), row.group().name(), lx, ry, ACCENT, false);
+                ProfileViewerScreen.tx(g, row.group().name(), lx, ry, ACCENT);
                 if (row.group() == r.skills() && !r.skillsApi()) {
                     String off = "Skills API off";
-                    g.text(f(), off, right - f().width(off), ry, DIM, false);
+                    ProfileViewerScreen.tx(g, off, right - f().width(off), ry, DIM);
                 } else {
                     valueWithOverflow(g, row.group().weight(), row.group().overflow(), right, ry, VALUE);
                 }
@@ -173,7 +173,7 @@ final class WeightPage {
                 }
             } else {
                 SkyblockWeight.Part part = row.part();
-                g.text(f(), f().plainSubstrByWidth(part.name(), w / 2), lx + 6, ry, part.total() > 0 ? TEXT : DIM, false);
+                ProfileViewerScreen.tx(g, f().plainSubstrByWidth(part.name(), w / 2), lx + 6, ry, part.total() > 0 ? TEXT : DIM);
                 valueWithOverflow(g, part.weight(), part.overflow(), right, ry, part.total() > 0 ? VALUE : DIM);
                 if (hover(mx, my, lx - 2, ry - 1, w - 8, ROW_H)) {
                     List<Component> t = new ArrayList<>();
@@ -193,11 +193,11 @@ final class WeightPage {
         if (rows.size() > visible) {
             int trackX = x + w - 4;
             int trackH = visible * ROW_H;
-            g.fill(trackX, listTop, trackX + 2, listTop + trackH, 0xFF1A1A1A);
+
             int thumbH = Math.max(8, trackH * visible / rows.size());
             int maxScroll = Math.max(1, rows.size() - visible);
             int thumbY = listTop + (trackH - thumbH) * Math.min(start, maxScroll) / maxScroll;
-            g.fill(trackX, thumbY, trackX + 2, thumbY + thumbH, ACCENT);
+            com.killer560.hub.gui.ScreenChrome.scrollbar(g, trackX - 1, listTop, 4, trackH, thumbY, thumbH, false);
         }
     }
 

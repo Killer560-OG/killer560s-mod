@@ -128,7 +128,7 @@ public final class AhUi {
         g.fill(0, 0, w, h, t.backdrop());
         if (t.bevel()) {
             // The menu's bevelled panel and a separator under the header (sweep-b, 2026-10-13).
-            ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
+            ScreenChrome.frameTight(g, panelX, panelY, panelW, panelH);
             ScreenChrome.separator(g, panelX + 4, panelX + panelW - 4, toolbarY - 3);
         } else {
             g.fill(panelX, panelY, panelX + panelW, panelY + panelH, t.panel());

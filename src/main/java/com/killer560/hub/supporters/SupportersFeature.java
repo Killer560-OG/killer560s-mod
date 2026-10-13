@@ -78,13 +78,19 @@ public final class SupportersFeature {
 
     private static void apply(int version, List<SupporterEntry> entries, boolean persist) {
         Map<UUID, Resolved> map = new java.util.HashMap<>();
+        List<Object[]> animated = new java.util.ArrayList<>();
         for (SupporterEntry e : entries) {
             String display = e.rawName().isEmpty() || SlurFilter.isBlocked(e.rawName())
                     ? null
                     : styled(e);
             map.put(e.uuid(), new Resolved(display, e.scale()));
+            if (display != null && e.animation() != null) {
+                animated.add(new Object[]{display, e.animation()});
+            }
         }
         byUuid = Map.copyOf(map);
+        // Wave/Pulse names are recoloured where text is drawn (NameAnimation), recognised by these painted texts.
+        com.killer560.hub.namechanger.NameAnimation.setShared(animated);
         lastAppliedVersion = version;
         if (persist) {
             SupportersCache.save(version, entries);

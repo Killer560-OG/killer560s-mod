@@ -3,7 +3,7 @@ package com.killer560.hub.croesus;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedScreen;
+import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.profit.ProfitPanels;
 import com.killer560.hub.gui.profit.ProfitScopeBar;
 import com.killer560.hub.util.ModChat;
@@ -32,7 +32,7 @@ import com.killer560.hub.compat.McCompat;
  * every claim with its cost, value and profit, which is exactly what the three tabs want. There is no second
  * store and no new file.
  */
-public class CroesusTrackerScreen extends Screen implements ThemedScreen {
+public class CroesusTrackerScreen extends Screen implements MenuThemedScreen {
 
     private static final int ROW_H = 12;
 
@@ -277,10 +277,9 @@ public class CroesusTrackerScreen extends Screen implements ThemedScreen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         // In the menu's theme (sweep-b, 2026-10-13); every widget keeps its place.
-        ScreenChrome.begin("croesus");
         ScreenChrome.backdrop(graphics, this.width, this.height);
         ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
-        ScreenChrome.header(graphics, panelX + 4, panelY + 4, panelW - 8, ScreenChrome.HEADER_H, "Dungeon Profit");
+        ScreenChrome.header(graphics, panelX, panelY, panelW, "Dungeon Profit");
         String claims = CroesusProfitLog.entryCount() + " claims";
         MenuStyle.text(graphics, claims, resetX() - 8 - this.font.width(claims), panelY + 12, MenuStyle.DIM);
 
@@ -386,7 +385,7 @@ public class CroesusTrackerScreen extends Screen implements ThemedScreen {
                     continue;
                 }
                 if (row.right() != null) {
-                    ScreenChrome.row(graphics, listX + 1, rowY - 2, listW - 7, ROW_H, i, false, false);
+                    ScreenChrome.row(graphics, listX + 1, rowY - 2, listW - 7, ROW_H, false, false, (i) % 2 == 1);
                 }
                 int rightW = 0;
                 if (row.right() != null) {
@@ -436,5 +435,14 @@ public class CroesusTrackerScreen extends Screen implements ThemedScreen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
+    }
+
+    @Override
+    public String themeId() {
+        return "croesus";
     }
 }

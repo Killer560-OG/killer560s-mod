@@ -185,8 +185,8 @@ public final class ModPaths {
         t.put("mainmenu", "interface/mainmenu");
         // The mod menu's own settings: Favourites (killer560smod-menu.json, Option A menu 2026-10-12).
         t.put("menu", "interface/menu");
-        // Each themed screen's own Screen Theme (killer560smod-screenthemes.json, sweep-b 2026-10-13).
-        t.put("screenthemes", "interface/menu");
+        // Every colour picker's Recent row (killer560smod-colours.json, 2026-10-13).
+        t.put("colours", "interface/menu");
         t.put("window", "interface/window");
         t.put("inventorytheme", "interface/inventorytheme");
         t.put("enchantcolors", "interface/enchantcolors");

@@ -4,7 +4,7 @@ import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedScreen;
+import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -32,7 +32,7 @@ import com.killer560.hub.compat.McCompat;
  * Party rows are keyed on UUID and show the CURRENT IGN (see {@link RunSummaryFeature#currentIgn}), so a name
  * change never orphans a logged run.
  */
-public class RunLogScreen extends Screen implements ThemedScreen {
+public class RunLogScreen extends Screen implements MenuThemedScreen {
 
     private static final int ROW_H = 13;
     private static final int MAP_CELL = 9;
@@ -195,10 +195,9 @@ public class RunLogScreen extends Screen implements ThemedScreen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         // In the menu's theme (sweep-b, 2026-10-13); every control keeps its place.
-        ScreenChrome.begin("run_log");
         ScreenChrome.backdrop(graphics, this.width, this.height);
         ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
-        ScreenChrome.header(graphics, panelX + 4, panelY + 4, panelW - 8, ScreenChrome.HEADER_H, "Run Log");
+        ScreenChrome.header(graphics, panelX, panelY, panelW, "Run Log");
         String right = mode == Mode.KUUDRA ? "Kuudra" : visible.size() + " run" + (visible.size() == 1 ? "" : "s");
         MenuStyle.text(graphics, right, panelX + panelW - 12 - this.font.width(right), panelY + 12, MenuStyle.DIM);
 
@@ -239,7 +238,7 @@ public class RunLogScreen extends Screen implements ThemedScreen {
                 break;
             }
             RunRecord run = visible.get(i);
-            ScreenChrome.row(graphics, listX, rowY, listW - 6, ROW_H, i, run == hovered, false);
+            ScreenChrome.row(graphics, listX, rowY, listW - 6, ROW_H, run == hovered, false, (i) % 2 == 1);
             MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(RunSummaryFeature.listLine(run),
                     listW - 14)), listX + 5, rowY + 3, MenuStyle.TXT);
         }
@@ -373,5 +372,14 @@ public class RunLogScreen extends Screen implements ThemedScreen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
+    }
+
+    @Override
+    public String themeId() {
+        return "run_log";
     }
 }

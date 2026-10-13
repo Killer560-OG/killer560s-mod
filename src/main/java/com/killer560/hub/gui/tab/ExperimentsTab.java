@@ -92,7 +92,7 @@ public class ExperimentsTab extends BaseTab {
                                 com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()))))
                 .bounds(contentX + half + GAP, y, half, 20).build());
         y += 24;
-        widgets.add(com.killer560.hub.gui.ScreenThemeConfig.button("profit", contentX, y, contentWidth, 18));
+        widgets.add(com.killer560.hub.gui.ScreenThemes.button("profit", contentX, y, contentWidth, 18));
         y += 22;
         return y;
     }

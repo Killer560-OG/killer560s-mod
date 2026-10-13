@@ -316,14 +316,41 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   theme every other line too, with the washed-out codes (§7 §f §a §b §e) swapped for darker partners
   (`MenuStyle.lightReadable`). `ColorSwatch`'s square is a styled sibling, not a § code, so `getString()` loses it: the
   row reads the sibling's `TextColor` and paints the swatch.
-- **MenuStyle's palette is one set of statics, so a screen on its own Screen Theme must not leave it behind** (sweep-b,
-  2026-10-13). `MenuStyle.use(MenuTheme)` derives a screen's palette and records what it derived for; the menu's `use()`
-  re-derives whenever that record is not "menu + this version", so the menu never draws in a screen's colours. A widget
-  drawn on a themed screen must not call `use()` itself (it would swap the screen's palette for the menu's mid-frame):
-  `ScreenChrome.begin(id)` derives once per frame and everything after reads the statics. Standalone screens opt in
-  with the `ThemedScreen` marker, which is also what gives their `SettingsButtonWidget`s the themed look.
+- **A container reskin is not a MenuThemedScreen, so it sets its palette itself** (sweep-b, 2026-10-13). The Bazaar and AH
+  reskins draw over a vanilla `ContainerScreen`, where `MenuStyle.use()` falls back to the menu's colours; they call
+  `MenuStyle.use(MenuTheme.forScreen(id))` before reading the palette, and the next `use()` re-derives the menu's. Their
+  frame is `ScreenChrome.frameTight`: the reskin keeps a 4-8 unit margin whose outer 6 units testkit 496 requires to be
+  pure backdrop at Auto Scale 1.125, and a 3-unit shadow already reached 2 pixel rows into it.
 - **A hand-drawn card under real buttons in a menu page is a `gui/PaintedPanel`** (Profiles page, 2026-10-13): the content
   pane presses the FIRST child under the cursor, so the card is `active = false` (its `mouseClicked` declines and the press
   falls through to the button on it) and `hoveredChild` skips it when a real widget sits on it, or the buttons lose their
   tooltips. A vanilla `EditBox` draws its text and hint with a shadow, which smears dark text on the Light theme: call
   `setTextShadow(MenuStyle.TEXT_SHADOW)` (both versions, javap) and paint the hint yourself (testkit 948's shots).
+- **Anything that must change a name's look over time belongs at `Font.prepareText`, not where the name is built.** Chat
+  lines are styled once when added and the tab list caches its rows, so a name built with per-frame colours would only
+  animate in some places. `NameAnimation` (Wave/Pulse, 2026-10-13) recolours at draw time, recognising a name by its
+  exact letters in their exact base colours; testkit 960-965 freeze its clock to compare two frames pixel for pixel.
+- **Never find a menu tab by its top-level index.** A testing build's `TestingMenu.arrange` moves every untested tab into
+  Untested, Profiles included, so Home's Profiles button (`indexOf(ProfilesTab.class)`) silently did nothing there until
+  2026-10-13. Open the leaf from `allLeaves()` with `openFeature(leaf)`: a page normally, a drawer in Untested (testkit 948).
+- **Per-glyph text colour belongs in the font, not in the component.** Rebuilding a styled `Component` to animate a colour
+  (Enchant Colours' old 100 ms chroma bucket) can only give a whole segment one colour. `Font$PreparedTextBuilder.accept`
+  reads `style.getColor()` once per glyph while `x`/`y` are still that glyph's origin, and GUI text is prepared there at its
+  GUI coordinates every frame (`GuiTextRenderState.ensurePrepared`; javap 26.1.2 and 26.2), so `chroma/mixin/
+  ChromaGlyphColorMixin` redirects that call for a `util/ChromaWave` spec's TextColor (matched by identity; `fromRgb` never
+  interns) and a whole tooltip is one diagonal waterfall (testkit 971: line 2 continues line 1 by +23.8 deg, 2026-10-13).
+- **26.2's title screen has a row of icons the themed layout must name.** `TitleScreen.init` adds `FriendsButton`
+  (key `gui.friends.open`), language and accessibility between the column and Options/Quit, and Mod Menu 20's icon style adds
+  `SmallModMenuButtonWidget` there (18 on 26.1.2 used `UpdateCheckerTexturedButtonWidget`; javap). Unrecognised, both stayed
+  on top of Swap Accounts (killer560, 2026-10-13). `MainMenuTitleLayout` removes them and every other Mod Menu button,
+  classic row included (Friends via `McCompat.isFriendsButton`);
+  testkit 341 checks every visible widget and every pair's overlap, Mod Menu loaded, both styles, both versions.
+- **A fill drawn after an item in the same slot is always above it, player heads included** (javap 26.1.2 and 26.2): every
+  non-oversized item is blitted from the item atlas, and an oversized one through its picture-in-picture, both into the
+  item's OWN render node (`forEachItem` sets `current` before `addBlitToCurrentLayer`), while a later fill over it is
+  placed in a node above (`findAppropriateNode` checks `itemStates`). So "the item paints over my overlay" is not a
+  render-pass fact; testkit 961 shows Item Protect's star on heads (real skin, pack-era, helmet) on both versions.
+- **A themed text box is an unbordered EditBox inside the box you draw, so widen its hit area.** Unbordered, vanilla draws the
+  text at the box's top-left and only that line takes clicks; `AbstractWidget.mouseClicked` asks `isMouseOver` (javap 26.1.2),
+  so `gui/ThemedEditBox` overrides it with the drawn well. Per-screen Theme (2026-10-13): `MenuStyle.use()` reads the open
+  `MenuThemedScreen`'s `themeId()` through `MenuTheme.forScreen`, so every helper that calls `use()` gets that screen's palette.

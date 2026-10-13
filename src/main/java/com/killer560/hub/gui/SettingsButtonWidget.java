@@ -261,6 +261,39 @@ public final class SettingsButtonWidget extends AbstractWidget {
         return com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof ModScreen;
     }
 
+    /** Whether the open screen is one of the mod's screens drawn in the menu theme ({@link MenuThemedScreen}). There the
+     *  button keeps its full label (no row look) but draws as the menu's raised, themed button. */
+    static boolean inThemedScreen() {
+        return com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof MenuThemedScreen;
+    }
+
+    private void renderThemed(GuiGraphicsExtractor graphics) {
+        MenuStyle.use();
+        int x0 = getX();
+        int y0 = getY();
+        int w = getWidth();
+        int h = getHeight();
+        boolean hover = isHovered && active;
+        com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(graphics);
+        if (danger) {
+            MenuStyle.dangerButton(r, x0 + 1, y0 + 1, w - 2, h - 2, hover);
+        } else {
+            MenuStyle.raisedButton(r, x0 + 1, y0 + 1, w - 2, h - 2, hover, primary);
+        }
+        r.submit();
+        var font = Minecraft.getInstance().font;
+        String raw = getMessage().getString();
+        String label = MenuStyle.ellipsize(MenuStyle.LIGHT ? MenuStyle.lightReadable(raw) : raw, w - 8);
+        int color = !active ? MenuStyle.DIM2 : (danger ? 0xFFFFD0D0 : (hover || primary ? MenuStyle.OR_HOVER : MenuStyle.OR));
+        if (swatchColour() != null) {
+            // A ColorSwatch label ("Colour: ■"): drawn as the Component so the square keeps its own colour (sweep-b).
+            graphics.text(font, getMessage(), x0 + (w - font.width(getMessage())) / 2, y0 + (h - 8) / 2, faded(color),
+                    MenuStyle.TEXT_SHADOW);
+            return;
+        }
+        graphics.text(font, label, x0 + (w - font.width(label)) / 2, y0 + (h - 8) / 2, faded(color), MenuStyle.TEXT_SHADOW);
+    }
+
     /** A left click, as the menu's card and search switches send it: the same {@code onPress} a real click runs. */
     public void press() {
         if (active && visible && onPress != null) {
@@ -381,79 +414,6 @@ public final class SettingsButtonWidget extends AbstractWidget {
         }
     }
 
-    /**
-     * The look on a {@link ThemedScreen} (a standalone screen in the menu's theme): always a bevelled button in its own
-     * bounds. A label starting {@code §6} is the screen's "this one is chosen" mark and draws pressed in the accent, one
-     * starting {@code §c} (or a {@link Builder#danger()} button) draws red; "Label: ON/OFF" gets a small switch at the
-     * right, "Label: value" the value in the accent (a colour swatch as its colour). The message text is untouched.
-     */
-    private void renderThemed(GuiGraphicsExtractor graphics) {
-        // The palette is the screen's own (ScreenChrome.begin derived it this frame).
-        Parts p = parts();
-        String raw = getMessage().getString();
-        boolean chosen = raw.startsWith("§6");
-        boolean red = danger || raw.startsWith("§c");
-        int x0 = getX();
-        int y0 = getY();
-        int w = getWidth();
-        int h = getHeight();
-        var font = Minecraft.getInstance().font;
-        boolean hover = isHovered && active;
-        int textY = y0 + (h - 8) / 2;
-        com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(graphics);
-        if (red) {
-            MenuStyle.dangerButton(r, x0 + 1, y0 + 1, w - 2, h - 2, hover);
-        } else {
-            MenuStyle.raisedButton(r, x0 + 1, y0 + 1, w - 2, h - 2, hover, primary || chosen);
-        }
-        int right = x0 + w - 5;
-        if (p.look() == Look.SWITCH) {
-            MenuStyle.toggle(r, right - MenuStyle.SWITCH_W, y0 + (h - MenuStyle.SWITCH_H) / 2, p.on(), hover);
-        }
-        Integer swatch = p.look() == Look.CHIP ? swatchColour() : null;
-        if (swatch != null) {
-            int s = Math.max(6, h - 8);
-            r.fill(right - s, y0 + (h - s) / 2, right, y0 + (h - s) / 2 + s, 0xFF000000 | swatch);
-            r.outline(right - s - 1, y0 + (h - s) / 2 - 1, s + 2, s + 2, MenuStyle.BLACK);
-        }
-        r.submit();
-        int labelColor = !active ? MenuStyle.DIM2 : red ? 0xFFFFD0D0
-                : (chosen || primary) ? MenuStyle.OR_HOVER : (hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
-        switch (p.look()) {
-            case SWITCH -> {
-                String label = MenuStyle.ellipsize(p.label(), w - MenuStyle.SWITCH_W - 14);
-                graphics.text(font, label, x0 + 6, textY, faded(labelColor), MenuStyle.TEXT_SHADOW);
-            }
-            case PILL, CHIP -> {
-                String label = p.label().isEmpty() ? "" : p.label() + ": ";
-                if (swatch != null) {
-                    graphics.text(font, MenuStyle.ellipsize(p.label(), w - h - 6), x0 + 6, textY, faded(labelColor),
-                            MenuStyle.TEXT_SHADOW);
-                    break;
-                }
-                String value = net.minecraft.ChatFormatting.stripFormatting(p.value());
-                value = value == null ? p.value() : value;
-                int lw = font.width(label);
-                int vw = font.width(value);
-                int start = x0 + Math.max(5, (w - lw - vw) / 2);
-                if (lw + vw > w - 10) {
-                    start = x0 + 5;
-                    value = MenuStyle.ellipsize(value, Math.max(10, w - 10 - lw));
-                }
-                int dim = !active ? MenuStyle.DIM2 : MenuStyle.DIM;
-                graphics.text(font, label, start, textY, faded(dim), MenuStyle.TEXT_SHADOW);
-                int valueColor = !active ? MenuStyle.DIM2 : hover ? MenuStyle.OR_HOVER : MenuStyle.OR;
-                graphics.text(font, value, start + lw, textY, faded(valueColor), MenuStyle.TEXT_SHADOW);
-            }
-            default -> {
-                String plain = net.minecraft.ChatFormatting.stripFormatting(raw);
-                String label = MenuStyle.ellipsize(plain == null ? raw : plain, w - 8);
-                graphics.text(font, label, x0 + (w - font.width(label)) / 2, textY, faded(labelColor),
-                        MenuStyle.TEXT_SHADOW);
-            }
-        }
-    }
-
     /** The RGB of a {@code ColorSwatch} label's "■", or null when this is not a colour setting. */
     private Integer swatchColour() {
         for (net.minecraft.network.chat.Component part : getMessage().getSiblings()) {
@@ -470,7 +430,7 @@ public final class SettingsButtonWidget extends AbstractWidget {
             renderMenu(graphics, mouseX, mouseY);
             return;
         }
-        if (com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof ThemedScreen) {
+        if (inThemedScreen()) {
             renderThemed(graphics);
             return;
         }

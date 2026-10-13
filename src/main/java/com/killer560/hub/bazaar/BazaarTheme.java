@@ -3,7 +3,7 @@ package com.killer560.hub.bazaar;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuTheme;
 import com.killer560.hub.gui.PanelTheme;
-import com.killer560.hub.gui.ScreenThemeConfig;
+import com.killer560.hub.gui.ScreenThemes;
 import com.killer560.hub.inventorytheme.InventoryThemeConfig;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
@@ -34,10 +34,12 @@ public record BazaarTheme(String name, boolean light, int backdrop, int panelBg,
 
     /** The Screen Theme id the Bazaar tab sets. */
     public static final String SCREEN_ID = "bazaar";
+    /** The Theme choice that keeps the older look (an extra choice on the Bazaar tab's Theme button). */
+    public static final String INVENTORY_STYLE = "INVENTORY";
 
     /** The theme in force right now (derives the menu palette for the Bazaar's Screen Theme as a side effect). */
     public static BazaarTheme current() {
-        if (!ScreenThemeConfig.INVENTORY.equals(ScreenThemeConfig.getInstance().get(SCREEN_ID))) {
+        if (!INVENTORY_STYLE.equals(ScreenThemes.get(SCREEN_ID))) {
             MenuStyle.use(MenuTheme.forScreen(SCREEN_ID));
             return fromMenu();
         }

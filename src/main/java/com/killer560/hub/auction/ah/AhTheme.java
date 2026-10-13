@@ -3,7 +3,7 @@ package com.killer560.hub.auction.ah;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuTheme;
 import com.killer560.hub.gui.PanelTheme;
-import com.killer560.hub.gui.ScreenThemeConfig;
+import com.killer560.hub.gui.ScreenThemes;
 import com.killer560.hub.inventorytheme.InventoryThemeConfig;
 
 /**
@@ -20,13 +20,15 @@ public record AhTheme(boolean light, int accent, int accentBright, int backdrop,
 
     /** The Screen Theme id the Auction House tab sets. */
     public static final String SCREEN_ID = "auction_house";
+    /** The Theme choice that keeps the older look (an extra choice on the AH tab's Theme button). */
+    public static final String INVENTORY_STYLE = "INVENTORY";
 
     private static PanelTheme cachedTheme;
     private static int cachedAccent;
     private static AhTheme cached;
 
     public static AhTheme current() {
-        if (!ScreenThemeConfig.INVENTORY.equals(ScreenThemeConfig.getInstance().get(SCREEN_ID))) {
+        if (!INVENTORY_STYLE.equals(ScreenThemes.get(SCREEN_ID))) {
             MenuStyle.use(MenuTheme.forScreen(SCREEN_ID));
             return fromMenu();
         }

@@ -239,7 +239,7 @@ public final class BazaarView {
         int py = m;
         int pad = 6;
         if (t.bevel()) {
-            ScreenChrome.frame(g, px, py, panelW, panelH);
+            ScreenChrome.frameTight(g, px, py, panelW, panelH);
         } else {
             g.fill(px, py, px + panelW, py + panelH, t.panelBg());
             g.outline(px, py, panelW, panelH, t.border());

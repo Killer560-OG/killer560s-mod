@@ -65,29 +65,10 @@ public enum MenuTheme {
         return AMBER;
     }
 
-    /**
-     * The theme a themed screen draws in: its own Screen Theme setting ({@link ScreenThemeConfig}), or the mod menu's
-     * theme when that is Theme Default (or the screen's own older style, which the screen resolves itself).
-     */
-    public static MenuTheme forScreen(String screenId) {
-        String c = ScreenThemeConfig.getInstance().get(screenId);
-        if (ScreenThemeConfig.DEFAULT.equals(c) || ScreenThemeConfig.INVENTORY.equals(c)) {
-            return MenuConfig.getInstance().getTheme();
-        }
-        return parse(c);
-    }
-
-    /** The five colours this theme draws from (Custom: the menu's custom set). */
-    public int[] colours() {
-        if (this != CUSTOM) {
-            return base();
-        }
-        MenuConfig cfg = MenuConfig.getInstance();
-        int[] out = new int[Slot.values().length];
-        for (Slot s : Slot.values()) {
-            out[s.ordinal()] = cfg.getCustomColour(s);
-        }
-        return out;
+    /** The five base colours a themed screen draws in: its own Theme setting resolved by {@link ScreenThemes} ("Theme
+     *  Default" = the menu's active colours). The one per-screen lookup every themed screen goes through. */
+    public static int[] forScreen(String screenId) {
+        return ScreenThemes.colours(screenId);
     }
 
     /** The presets only (Custom excluded). */

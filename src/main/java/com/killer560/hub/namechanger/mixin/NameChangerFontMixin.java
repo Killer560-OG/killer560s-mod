@@ -27,7 +27,8 @@ public abstract class NameChangerFontMixin {
             method = "prepareText(Lnet/minecraft/util/FormattedCharSequence;FFIZZI)Lnet/minecraft/client/gui/Font$PreparedText;",
             at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
     private FormattedCharSequence killer560smod$nameChangerPrepareSeq(FormattedCharSequence text) {
-        return NameReplacer.replace(text);
+        // Then animated names (Wave/Pulse) recoloured for this frame - see NameAnimation. Drawing only, never width.
+        return com.killer560.hub.namechanger.NameAnimation.animate(NameReplacer.replace(text));
     }
 
     @ModifyVariable(
@@ -42,7 +43,7 @@ public abstract class NameChangerFontMixin {
      * FormattedCharSink)} (javap, 26.1.2 and 26.2), which misreads the {@code §x§R§R§G§G§B§B} escape a name fade is
      * written in (see {@code NameColor.buildFade}): a faded name drawn through a String path came out in random legacy
      * colours. {@code NameColor.iterateFormatted} is the same decoder plus that escape; for any other string it is
-     * glyph-for-glyph what vanilla produces.
+     * glyph-for-glyph what vanilla produces. {@code NameAnimation.iterate} is that decoder with animated names recoloured.
      */
     @Redirect(
             method = "prepareText(Ljava/lang/String;FFIZI)Lnet/minecraft/client/gui/Font$PreparedText;",
@@ -50,7 +51,7 @@ public abstract class NameChangerFontMixin {
                     + "Ljava/lang/String;Lnet/minecraft/network/chat/Style;Lnet/minecraft/util/FormattedCharSink;)Z"),
             require = 0)
     private boolean killer560smod$hexAwareDecode(String text, Style style, FormattedCharSink sink) {
-        return com.killer560.hub.namechanger.NameColor.iterateFormatted(text, style, sink);
+        return com.killer560.hub.namechanger.NameAnimation.iterate(text, style, sink);
     }
 
     @ModifyVariable(method = "width(Lnet/minecraft/util/FormattedCharSequence;)I",
