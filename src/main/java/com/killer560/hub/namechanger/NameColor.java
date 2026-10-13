@@ -267,6 +267,39 @@ public final class NameColor {
         return sb.toString();
     }
 
+    /**
+     * {@code text} in bold all through: a {@code §l} at the start and again after every legacy colour code and
+     * {@code §r} (each of which ends bold in vanilla). A {@code §x} true colour keeps bold ({@link #iterateFormatted}),
+     * so it is copied whole and untouched.
+     */
+    public static String bold(String text) {
+        if (text == null || text.isEmpty()) {
+            return text == null ? "" : text;
+        }
+        StringBuilder sb = new StringBuilder(text.length() + 8).append("§l");
+        int i = 0;
+        while (i < text.length()) {
+            char c = text.charAt(i);
+            if (c == '§' && i + 1 < text.length()) {
+                char code = Character.toLowerCase(text.charAt(i + 1));
+                if (code == 'x' && i + 13 < text.length()) {
+                    sb.append(text, i, i + 14);
+                    i += 14;
+                    continue;
+                }
+                sb.append(c).append(text.charAt(i + 1));
+                if ("0123456789abcdefr".indexOf(code) >= 0) {
+                    sb.append("§l");
+                }
+                i += 2;
+                continue;
+            }
+            sb.append(c);
+            i++;
+        }
+        return sb.toString();
+    }
+
     /** Letters a player sees in {@code text}: code points, not counting {@code §x} format pairs. */
     public static int visibleLetters(String text) {
         if (text == null) {

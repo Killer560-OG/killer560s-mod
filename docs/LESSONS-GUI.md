@@ -349,3 +349,13 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   text at the box's top-left and only that line takes clicks; `AbstractWidget.mouseClicked` asks `isMouseOver` (javap 26.1.2),
   so `gui/ThemedEditBox` overrides it with the drawn well. Per-screen Theme (2026-10-13): `MenuStyle.use()` reads the open
   `MenuThemedScreen`'s `themeId()` through `MenuTheme.forScreen`, so every helper that calls `use()` gets that screen's palette.
+- **The menu "remembered" its drawer, but Escape closed the drawer first,** so the remembered one was always none: closing
+  the menu with a drawer open was impossible from the keyboard. Escape now closes the menu and the X closes the drawer
+  (doc-menu, 2026-10-13; testkit 942/986).
+- **A widget that resizes the screen it sits in can stay live if the drag is handed over.** HUD Scale's relayout waited for
+  the release; now the slider keeps its press-time track in WINDOW units (`ThemedSliderButton.LiveDrag`, layout x times the
+  applied factor) and `ModScreen.resumeLiveDrag` re-focuses the rebuilt slider, so the menu follows the drag without the
+  value feeding back through the moving track (testkit 985). In the small test window every HUD Scale under 100% snaps to
+  the same crisp factor, so 985 measures at 1920x1080.
+- `ModScreenDriver`'s merged layouts (a group like Secrets or Puzzle Solvers) only take real screen clicks on the drawer
+  opened last, so 806 reports their cyclers as "single value"; 987 checks the pill halves on one drawer directly.

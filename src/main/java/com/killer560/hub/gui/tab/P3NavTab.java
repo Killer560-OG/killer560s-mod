@@ -31,13 +31,6 @@ public class P3NavTab extends BaseTab {
         super("P3 Nav");
     }
 
-    /** Several independent switches and no master one: the menu card shows no switch (Option A menu, 2026-10-12). */
-    @Override
-    public com.killer560.hub.gui.SettingsButtonWidget masterToggle(
-            java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
-        return null;
-    }
-
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
@@ -48,6 +41,18 @@ public class P3NavTab extends BaseTab {
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
         int y = contentY;
+
+        // P3 Nav as a whole (killer560, 2026-10-13): first, so it is the card's switch. Off, the feature stands down in its
+        // config's effective getters and the settings below are hidden.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("P3 Nav: " + (cfg.isP3NavEnabled() ? "§aON" : "§cOFF")), btn -> {
+                    cfg.setP3NavEnabled(!cfg.isP3NavEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        if (!cfg.isP3NavEnabled()) {
+            return widgets;
+        }
 
         // ---- Gate Highlight ----
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Gate Highlight", false), mc.font));

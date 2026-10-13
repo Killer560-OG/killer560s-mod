@@ -385,9 +385,11 @@ public final class SettingsButtonWidget extends AbstractWidget {
         }
         int vy = c[1] + (c[3] - 8) / 2;
         if (p.look() == Look.PILL) {
-            int arrow = hover ? MenuStyle.OR : MenuStyle.DIM2;
-            graphics.text(font, "‹", c[0] + 3, vy, faded(arrow), false);
-            graphics.text(font, "›", c[0] + c[2] - 3 - font.width("›"), vy, faded(arrow), false);
+            // The arrow on the half the mouse is over lights up: that half is what a click steps (pillStep).
+            int half = hover ? pillHalf(mouseX, c) : 0;
+            graphics.text(font, "‹", c[0] + 3, vy, faded(half < 0 ? MenuStyle.OR_HOVER : hover ? MenuStyle.OR : MenuStyle.DIM2), false);
+            graphics.text(font, "›", c[0] + c[2] - 3 - font.width("›"), vy,
+                    faded(half > 0 ? MenuStyle.OR_HOVER : hover ? MenuStyle.OR : MenuStyle.DIM2), false);
             String v = MenuStyle.ellipsize(p.value(), c[2] - 18);
             graphics.text(font, v, c[0] + (c[2] - font.width(v)) / 2, vy, faded(hover ? MenuStyle.OR_HOVER : MenuStyle.OR),
                     MenuStyle.TEXT_SHADOW);
@@ -490,8 +492,39 @@ public final class SettingsButtonWidget extends AbstractWidget {
      *  (button 1) path, and only when a {@code secondaryPress} was actually set, so a plain button with
      *  no cycling behavior can never have right-click do anything. The right click plays the same click sound
      *  vanilla's left click does ({@code AbstractWidget.mouseClicked} -> {@code playDownSound}, javap 26.1.2 and 26.2). */
+    /** -1 when {@code mouseX} is on the pill's left half (the ‹ side), +1 on its right half, 0 off the pill. */
+    private static int pillHalf(double mouseX, int[] c) {
+        if (mouseX < c[0] || mouseX >= c[0] + c[2]) {
+            return 0;
+        }
+        return mouseX < c[0] + c[2] / 2.0 ? -1 : 1;
+    }
+
+    /**
+     * In the mod menu a cycling row steps only from its value pill (killer560, 2026-10-13): a left click on the left
+     * half (‹) goes back, on the right half (›) forward, and a right click anywhere on the pill goes back. A click on
+     * the label does nothing, so a stray click on a row no longer changes it. Everywhere else (the plain box, no
+     * arrows) left click forward and right click back on the whole button, as before.
+     */
+    private boolean pillClick(MouseButtonEvent event) {
+        if (onSecondaryPress == null || !active || !visible || !inMenu() || parts().look() != Look.PILL
+                || (event.button() != 0 && event.button() != 1) || !isMouseOver(event.x(), event.y())) {
+            return false;
+        }
+        return true;
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (pillClick(event)) {
+            int half = pillHalf(event.x(), controlBounds());
+            if (half == 0) {
+                return false;
+            }
+            playDownSound(Minecraft.getInstance().getSoundManager());
+            (event.button() == 1 || half < 0 ? onSecondaryPress : onPress).onPress(this);
+            return true;
+        }
         if (onSecondaryPress != null && active && visible && event.button() == 1
                 && isMouseOver(event.x(), event.y())) {
             playDownSound(Minecraft.getInstance().getSoundManager());

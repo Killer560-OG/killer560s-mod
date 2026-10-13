@@ -33,7 +33,8 @@ public abstract class ScreenEffectRendererMixin {
 
     @Inject(method = {"renderFire", "submitFire"}, at = @At("HEAD"), cancellable = true, require = 1)
     private static void killer560smod$cancelFireOverlay(CallbackInfo ci) {
-        if (NoFireConfig.getInstance().isEnabled()) {
+        if (NoFireConfig.getInstance().isEnabled()
+                && com.killer560.hub.objecthider.ObjectHiderConfig.getInstance().isObjectHiderEnabled()) {
             ci.cancel();
         }
     }

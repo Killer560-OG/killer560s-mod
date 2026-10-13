@@ -79,10 +79,54 @@ public abstract class ThemedSliderButton extends AbstractSliderButton {
         return Math.max(0, Math.min(1, (mouseX - t[0]) / Math.max(1.0, t[1] - t[0])));
     }
 
+    /**
+     * A drag in the mod menu, held by its row's label and with the track's ends in WINDOW GUI units (layout units times
+     * the screen's Auto Scale factor), taken at the press. HUD Scale resizes the very menu it sits in, and since
+     * 2026-10-13 it does so live while it is dragged (killer560: "the HUD must update live while dragging, not only on
+     * release"): the relayout rebuilds this row, and ModScreen hands the drag to the new one ({@link #liveDragKey}).
+     * Measuring against the track where it was pressed, in window units, keeps the value under the cursor monotonic
+     * however the menu grows or shrinks under it.
+     */
+    private record LiveDrag(String key, double x0, double x1) {
+    }
+
+    private static LiveDrag liveDrag;
+
+    /** The label of the menu slider being dragged right now, or null. */
+    public static String liveDragKey() {
+        return liveDrag == null ? null : liveDrag.key();
+    }
+
+    /** Forgets a drag whose release never arrived (the menu closed under it). */
+    public static void endLiveDrag() {
+        liveDrag = null;
+    }
+
+    /** This row's label, the key a drag is handed over by. */
+    public String dragKey() {
+        return split()[0];
+    }
+
+    private static float screenFactor() {
+        return com.killer560.hub.hud.AutoScale.openScreenFactor();
+    }
+
+    private double dragValueAt(double mouseX) {
+        LiveDrag d = liveDrag;
+        if (d == null || !d.key().equals(dragKey())) {
+            return valueAt(mouseX);
+        }
+        double windowX = mouseX * screenFactor();
+        return Math.max(0, Math.min(1, (windowX - d.x0()) / Math.max(1.0, d.x1() - d.x0())));
+    }
+
     @Override
     public void onClick(MouseButtonEvent event, boolean doubleClick) {
         super.onClick(event, doubleClick);
         if (SettingsButtonWidget.inMenu() && this.active) {
+            int[] t = trackRange();
+            float f = screenFactor();
+            liveDrag = new LiveDrag(dragKey(), t[0] * (double) f, t[1] * (double) f);
             setValue(valueAt(event.x()));
         }
     }
@@ -90,10 +134,16 @@ public abstract class ThemedSliderButton extends AbstractSliderButton {
     @Override
     protected void onDrag(MouseButtonEvent event, double dragX, double dragY) {
         if (SettingsButtonWidget.inMenu()) {
-            setValue(valueAt(event.x()));
+            setValue(dragValueAt(event.x()));
             return;
         }
         super.onDrag(event, dragX, dragY);
+    }
+
+    @Override
+    public void onRelease(MouseButtonEvent event) {
+        super.onRelease(event);
+        liveDrag = null;
     }
 
     @Override

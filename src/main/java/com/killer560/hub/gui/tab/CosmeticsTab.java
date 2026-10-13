@@ -283,8 +283,12 @@ public class CosmeticsTab extends BaseTab {
         ModOverlayMessage.show("§a[Cosmetics] Copied - hand this to staff for the Discord bot route.", 3000);
     }
 
+    /** Your display name as shared: its text without the colour (sent separately), with an {@code &l} in front when
+     *  Bold Name is on - the relay accepts {@code &k-o} (SupporterNameValidator), so bold is shared with no relay change. */
     private String plainOwnName() {
-        return NameColor.migrate(NameChangerConfig.getInstance().getOwnDisplayName()).text();
+        NameChangerConfig nc = NameChangerConfig.getInstance();
+        String text = NameColor.migrate(nc.getOwnDisplayName()).text();
+        return nc.isOwnBold() && !text.isEmpty() ? "&l" + text : text;
     }
 
     private void startFetch(Runnable requestRebuild) {

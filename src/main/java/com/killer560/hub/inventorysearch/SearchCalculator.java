@@ -20,6 +20,9 @@ import java.util.Locale;
  *   <li>Postfix suffixes, any case: {@code k} 1,000, {@code m} 1,000,000, {@code b} 10^9, {@code t} 10^12,
  *   {@code s} 64 (a stack), {@code e} 160 (an enchanted item's worth), {@code %} divides by 100.</li>
  *   <li>{@code .} and {@code ,} are both decimal points ({@code 1,5} is 1.5), as in NEU.</li>
+ *   <li>Implicit multiplication next to brackets (killer560, 2026-10-13: "2(1+1)" did not work): {@code 2(1+1)},
+ *   {@code (1+1)(2)}, {@code (1+1)2} and {@code 2k(3)} are products. Two bare numbers side by side ({@code 2 3}) are
+ *   still not a sum, so a search for two numbers stays a search. There are no named constants ({@code pi}).</li>
  *   <li>Every step rounds to {@link #PRECISION} decimal places, half up; an exponent must be a whole number from 0
  *   to 999; dividing by zero is an error.</li>
  * </ul>
@@ -133,6 +136,24 @@ public final class SearchCalculator {
                 continue;
             }
             throw new IllegalArgumentException("Unknown character '" + c + "' at " + i);
+        }
+        return implicitProducts(out);
+    }
+
+    /** A {@code *} between a value and an opening bracket ({@code 2(}, {@code )(}, {@code k(}) and between a closing
+     *  bracket and a number ({@code )2}). Nothing else is joined, so every expression that parsed before means the same. */
+    private static List<Token> implicitProducts(List<Token> in) {
+        List<Token> out = new ArrayList<>(in.size() + 2);
+        for (int i = 0; i < in.size(); i++) {
+            Token t = in.get(i);
+            if (i > 0) {
+                Kind prev = in.get(i - 1).kind();
+                boolean valueBefore = prev == Kind.NUMBER || prev == Kind.POSTFIX || prev == Kind.RPAREN;
+                if ((valueBefore && t.kind() == Kind.LPAREN) || (prev == Kind.RPAREN && t.kind() == Kind.NUMBER)) {
+                    out.add(new Token(Kind.OP, "*", null));
+                }
+            }
+            out.add(t);
         }
         return out;
     }

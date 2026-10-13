@@ -40,6 +40,11 @@ final class SettingTooltipsData {
         d.put("menu theme/accent", "Custom: the colour of titles, selections, outlines and buttons. Changing any colour switches the menu to Custom, started from the theme you were on.");
         d.put("menu theme/panel background", "Custom: the menu's background. A light colour turns on the light look (grey outlines, soft shadows, dark text expected).");
         d.put("menu theme/card background", "Custom: the feature cards and the boxes on Home.");
+        d.put("menu theme/save as new theme", "Keeps the colours the menu is drawn in now as a new saved theme (named Custom 1, Custom 2...) and switches to it.");
+        d.put("menu theme/use", "Draws the menu in this saved theme. While it is in use, changing a Custom colour changes this theme too.");
+        d.put("menu theme/in use", "The menu is drawn in this saved theme. Changing a Custom colour changes this theme too.");
+        d.put("menu theme/delete", "Deletes this saved theme. Asks for a second click.");
+        d.put("menu theme/confirm", "Click again to delete this saved theme.");
         d.put("menu theme/text", "Custom: the colour of names, labels and descriptions.");
         d.put("menu theme/switch on", "Custom: the colour of a switch that is on.");
         for (String preset : new String[]{"Amber", "Dark", "Light"}) {
@@ -882,16 +887,11 @@ final class SettingTooltipsData {
         d.put("secret triggerbot", "Right-clicks a dungeon secret as soon as your crosshair is on it (cheat build only).");
         d.put("swap to slot", "Switches to a chosen hotbar slot right before clicking a secret.");
         d.put("swap slot", "Hotbar slot (1-9) to switch to before clicking a secret.");
-        d.put("check for updates", "Checks GitHub for a newer release; click again to open its download page.");
-        d.put("checking for updates...", "Checks GitHub for a newer release; click again to open its download page.");
-        d.put("update available", "A newer release is on GitHub. Click to open its download page.");
-        d.put("check failed - click to retry", "The update check couldn't reach GitHub. Click to try again.");
         d.put("notify me of updates", "Tells you when you join a world if a newer release of the mod exists.");
-        d.put("auto update", "Installs new versions of the mod for you. Full Release follows the newest numbered release, Beta the rolling dev build (newer, less tested), Off never updates. It only ever installs the same variant (cheat or legit) and Minecraft version you have, only a jar whose SHA-256 matches the release's checksum file, and only when the release was built from a different commit. The new jar is downloaded on launch and swapped in after you close the game.");
+        d.put("auto update", "Installs new versions of the mod for you, on by default; off, it never updates. It follows its Channel: Full Release, the newest numbered release, or Beta, the rolling dev build (newer, less tested). It only ever installs the same variant (cheat or legit) and Minecraft version you have, only a jar whose SHA-256 matches the release's checksum file, and only when the release was built from a different commit. The new jar is downloaded on launch and swapped in after you close the game.");
+        d.put("auto update/channel", "Which release Auto Update follows: Full Release (the newest numbered release) or Beta (the rolling dev build, newer and less tested). Left click forward, right click back.");
         d.put("check now", "Checks your Auto Update channel right now and downloads the update if there is one. It installs when you close the game.");
         d.put("this build", "The commit this jar was built from, and its Minecraft version and variant. Auto Update compares the commit with the release's.");
-        d.put("join discord", "Opens the mod's Discord server invite in your browser.");
-        d.put("edit hud positions", "Opens the HUD editor to drag and resize on-screen elements.");
         d.put("edit hud keybind", "Key that opens the HUD editor, over any screen (a chest, Croesus, this menu) so its overlays can be placed where they sit. It does nothing while you are typing: chat, a rename, a sign or book, any search box.");
         d.put("correction alarm", "Plays a siren when the server corrects your position while an automation (AP3, Auto Routes, the Interactive Map, the auto puzzles...) is moving you. A correction never stops anything: the feature posts a chat line and carries on from where the server put you. At most once every 3 s.");
         d.put("alarm volume", "How loud the Correction Alarm plays, 0-100%.");
@@ -1427,6 +1427,8 @@ final class SettingTooltipsData {
         d.put("p3 nav/gate line width", "Thickness of the gate box outline.");
         d.put("p3 nav/hide once destroyed", "ON hides the gate box once the gate is broken; OFF keeps it drawn.");
         d.put("p3 nav/current section only", "ON only boxes your current section; OFF boxes everything left in Phase 3.");
+        d.put("p3 nav/p3 nav", "P3 Nav as a whole - off, no gate, terminal or device box is drawn, whatever their own switches say.");
+        d.put("f7 spots/f7 spots", "F7 Spots as a whole - off, no walk-to waypoint or aim spot is drawn, whatever their own switches say. Your saved spots are kept.");
         d.put("p3 nav/through walls", "Cheat build only. Draws terminal and device boxes through blocks.");
 
         // Hover Terminals + Run Summary
@@ -1483,6 +1485,8 @@ final class SettingTooltipsData {
         d.put("auto correct", "Fixes common typing mistakes in the chat messages you send.");
         d.put("chat emotes", "Replaces Hypixel's emote shortcuts in your messages with the real emote text.");
         d.put("auto meow", "Replies with a random cat line when another player says meow, purr, nya or mew, in the same chat it came from: party, guild, officer, co-op, a private message (back to that player), all chat or Mod Chat.");
+        d.put("cringe/cringe", "Cringe as a whole - off, /cringe and Leap Message's cringe line send nothing.");
+        d.put("dvd/dvd", "DVD as a whole - off, no DVD box is drawn, bounces or plays its sound, whatever each box's own switch says. Your boxes are kept.");
         d.put("cringe", "Run /cringe to send a random line from cringe-lines.txt, which you can edit.");
         d.put("croesus", "Shows what each dungeon reward chest is worth and logs your claims. Auto Croesus is its own tab (cheat build).");
         d.put("auto croesus/min delay", "Cheat build only. Shortest random wait between Auto Croesus's clicks, 100-2000 ms.");
@@ -1509,6 +1513,7 @@ final class SettingTooltipsData {
         d.put("auto door opener/range", "Cheat build only. How close a locked door must be before Aura clicks it, 2.0-6.0 blocks.");
         d.put("auto door opener/swing hand", "Cheat build only. Swings your arm each time a door is clicked.");
         d.put("door keys/show tracer", "Draws a line from your eyes to the highlighted key.");
+        d.put("dungeon alerts/dungeon alerts", "Dungeon Alerts as a whole - off, neither the Shadow Assassin Alert nor the Room Alerts fire, whatever their own switches say.");
         d.put("dungeon alerts/room cleared", "Alerts when a room's objective is cleared, for any room on the map.");
         d.put("dungeon alerts/secrets done", "Alerts once every secret in the room you're standing in is found.");
         d.put("dungeon alerts/on-screen text", "Shows the room name and alert as orange text on screen.");
@@ -1603,6 +1608,7 @@ final class SettingTooltipsData {
         d.put("leap menu", "Spirit Leap settings: the custom leap menu, its Leap Order editor, and the party message sent after you leap.");
         d.put("mapping", "Dungeon-map research tools that dump the raw pixels of the map you are holding.");
         d.put("maxor's crystals", "Phase 1 crystal helpers: timers, an unplaced-crystal warning, a counter and crystal boxes.");
+        d.put("object hider/object hider", "Object Hider as a whole - off, nothing here hides anything (No Fire Overlay included), whatever the switches below say.");
         d.put("object hider", "Hides clutter such as fairies, support orbs, particles and dying dragons.");
         d.put("p3 nav", "Phase 3 navigation: boxes the next section gate and the terminals and devices you have left.");
         d.put("player stats", "HUD line with your health, mana and defense, read off the action bar.");
@@ -1613,6 +1619,7 @@ final class SettingTooltipsData {
         d.put("leap menu/scale", "Size of the custom leap menu's four teammate boxes, 50% to 400%.");
         d.put("lever aura/range", "Maximum distance in blocks this feature reaches.");
         d.put("lever aura/swing hand", "Plays your arm swing each time Lever Aura flicks a lever (cheat build only).");
+        d.put("maxor's crystals/maxor's crystals", "Maxor's Crystals as a whole - off, none of the timers, the alert, the counter or the crystal boxes run, whatever their own switches say.");
         d.put("maxor's crystals/respawn timer", "Shows a countdown to the next crystal spawning.");
         d.put("maxor's crystals/place timer", "Times how long you take to place a crystal and remembers your best.");
         d.put("maxor's crystals/unplaced crystal alert", "Warns you while you are carrying a crystal you have not placed.");
@@ -1711,6 +1718,7 @@ final class SettingTooltipsData {
         d.put("terminal triggerbot/cooldown", "Cheat build: minimum time between two terminal opens, 0-2000 ms.");
         d.put("terminal triggerbot/range", "Cheat build: how far away you can open a terminal you look at, 1-4 blocks.");
         d.put("dungeon/termism", "Opens fake F7/M7 terminals to practice on anywhere; /termism opens it too.");
+        d.put("thorn (f4)/thorn", "Thorn as a whole - off, the Spirit Bear counter, every Thorn highlight and the stun spots stop, whatever their own switches say.");
         d.put("thorn (f4)/thorn highlights", "Coloured boxes or a glow on Thorn-fight targets during the F4/M4 boss.");
         d.put("trajectories/bows", "Draws the arrow path and landing spot while you hold a bow.");
         d.put("trajectories/ender pearls", "Draws the throw path and landing spot while you hold an Ender Pearl.");
@@ -1783,6 +1791,7 @@ final class SettingTooltipsData {
         d.put("dungeon esp/wither boss color", "Colour of the wither bosses while ESP is on.");
         d.put("dungeon esp/wither style", "How the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
         d.put("starred mob hitboxes/wither style", "Picks how the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
+        d.put("solver highlights/solver highlights", "Solver Highlights as a whole - off, no puzzle or boss solver draws its boxes, waypoints or lines in the world (the solvers still solve, and their chat and HUD lines still show).");
         d.put("solver highlights/waypoint style", "Draws puzzle solver waypoints as an outline or a see-through full block.");
         d.put("solver highlights/through walls", "Draws every solver highlight through blocks so you can see answers early.");
         d.put("livid solver/draw line to livid", "Draws a line from you to whichever Livid the wool clue says is real.");
@@ -2163,6 +2172,7 @@ final class SettingTooltipsData {
         d.put("name changer/reset name to default", "Clears your display name, its colour, fade and letter colours.");
         d.put("name changer/letter colours", "Opens a row with one button per letter of your display name, to colour each letter.");
         d.put("name changer/clear letter colours", "Removes every per-letter colour so the name's normal colour or fade shows again.");
+        d.put("bold name", "Draws your display name in bold. With Share if Supporter on, other mod users see it bold too.");
         d.put("fade color", "Turns your display name into a two-colour gradient instead of one flat colour.");
         d.put("name animation", "Animates your faded or letter-coloured name: Wave flows the colours along it to the right, Pulse dims and brightens it. Other players with the mod see it too when Share if Supporter is on.");
         d.put("animation speed", "How fast your name's Wave or Pulse runs, from 0.25x to 3x.");

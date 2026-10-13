@@ -31,6 +31,9 @@ public final class MaxorConfig {
 
     private static MaxorConfig instance;
 
+    /** Maxor's Crystals as a whole (killer560, 2026-10-13): off, every part of it stands down whatever its own switches say.
+     *  On by default, so nothing changes until he flips it. */
+    private boolean maxorCrystalsEnabled = true;
     private boolean spawnTimer = false;
     private boolean placeTimer = false;
     private boolean placeAlert = false;
@@ -62,6 +65,7 @@ public final class MaxorConfig {
             }
         }
         if (obj != null) {
+            cfg.maxorCrystalsEnabled = ConfigJson.getBool(obj, "maxorCrystalsEnabled", true);
             cfg.spawnTimer = ConfigJson.getBool(obj, "spawnTimer", false);
             cfg.placeTimer = ConfigJson.getBool(obj, "placeTimer", false);
             cfg.placeAlert = ConfigJson.getBool(obj, "placeAlert", false);
@@ -78,6 +82,7 @@ public final class MaxorConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
+            obj.addProperty("maxorCrystalsEnabled", maxorCrystalsEnabled);
             obj.addProperty("spawnTimer", spawnTimer);
             obj.addProperty("placeTimer", placeTimer);
             obj.addProperty("placeAlert", placeAlert);
@@ -91,23 +96,26 @@ public final class MaxorConfig {
         }
     }
 
-    public boolean isSpawnTimerEnabled() { return spawnTimer && SkyblockGate.allows(); }
+    public boolean isMaxorCrystalsEnabled() { return maxorCrystalsEnabled; }
+    public void setMaxorCrystalsEnabled(boolean v) { maxorCrystalsEnabled = v; }
+
+    public boolean isSpawnTimerEnabled() { return maxorCrystalsEnabled && spawnTimer && SkyblockGate.allows(); }
     public boolean getSpawnTimerRaw() { return spawnTimer; }
     public void setSpawnTimer(boolean v) { spawnTimer = v; }
 
-    public boolean isPlaceTimerEnabled() { return placeTimer && SkyblockGate.allows(); }
+    public boolean isPlaceTimerEnabled() { return maxorCrystalsEnabled && placeTimer && SkyblockGate.allows(); }
     public boolean getPlaceTimerRaw() { return placeTimer; }
     public void setPlaceTimer(boolean v) { placeTimer = v; }
 
-    public boolean isPlaceAlertEnabled() { return placeAlert && SkyblockGate.allows(); }
+    public boolean isPlaceAlertEnabled() { return maxorCrystalsEnabled && placeAlert && SkyblockGate.allows(); }
     public boolean getPlaceAlertRaw() { return placeAlert; }
     public void setPlaceAlert(boolean v) { placeAlert = v; }
 
-    public boolean isActiveCounterEnabled() { return activeCounter && SkyblockGate.allows(); }
+    public boolean isActiveCounterEnabled() { return maxorCrystalsEnabled && activeCounter && SkyblockGate.allows(); }
     public boolean getActiveCounterRaw() { return activeCounter; }
     public void setActiveCounter(boolean v) { activeCounter = v; }
 
-    public boolean isHighlightEnabled() { return highlight && SkyblockGate.allows(); }
+    public boolean isHighlightEnabled() { return maxorCrystalsEnabled && highlight && SkyblockGate.allows(); }
     public boolean getHighlightRaw() { return highlight; }
     public void setHighlight(boolean v) { highlight = v; }
 
