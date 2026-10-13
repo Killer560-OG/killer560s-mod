@@ -253,6 +253,8 @@ public final class ScreenChrome {
             Style dark = style.withColor(TextColor.fromRgb(white & 0xFFFFFF));
             return sink.accept(index, dark, cp);
         });
+    }
+
     // ---- screen sweep C (2026-10-13): the pieces the sim / AP3 / editor screens add ------------------------------------
 
     /** A raised card; {@code selected} adds the accent glow and ring, a hover the dim accent ring. */

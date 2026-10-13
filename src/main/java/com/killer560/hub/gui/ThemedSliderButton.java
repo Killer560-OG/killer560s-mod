@@ -123,21 +123,18 @@ public abstract class ThemedSliderButton extends AbstractSliderButton {
     @Override
     public void onClick(MouseButtonEvent event, boolean doubleClick) {
         super.onClick(event, doubleClick);
-        if (SettingsButtonWidget.inMenu() && this.active) {
+        if ((SettingsButtonWidget.inMenu() || SettingsButtonWidget.inThemedScreen()) && this.active) {
             int[] t = trackRange();
             float f = screenFactor();
             liveDrag = new LiveDrag(dragKey(), t[0] * (double) f, t[1] * (double) f);
-        if ((SettingsButtonWidget.inMenu() || SettingsButtonWidget.inThemedScreen()) && this.active) {
             setValue(valueAt(event.x()));
         }
     }
 
     @Override
     protected void onDrag(MouseButtonEvent event, double dragX, double dragY) {
-        if (SettingsButtonWidget.inMenu()) {
-            setValue(dragValueAt(event.x()));
         if ((SettingsButtonWidget.inMenu() || SettingsButtonWidget.inThemedScreen())) {
-            setValue(valueAt(event.x()));
+            setValue(dragValueAt(event.x()));
             return;
         }
         super.onDrag(event, dragX, dragY);
