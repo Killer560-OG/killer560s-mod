@@ -379,3 +379,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   face is now tinted within 0.5 and inside its footprint (`EtherwarpOverlayFeature.nearFace`); testkit 1321 samples every
   camera-facing face. Sodium 0.9.2 breaks the gametest API's `takeScreenshot` ("Global terrain uniforms have not been
   updated"); read the main target back with `Screenshot.takeScreenshot` instead.
+- **Hypixel's sidebar owner is one INVALID format code** ("§i", "§p", "§s"; prefix = the first 16 characters, then owner, then
+  suffix), and `stripFormatting` only removes valid codes, so a "drop the owner when it strips blank" test kept it inside every
+  number crossing character 16 ("Copper: §c114,25§i0" read 11,425, 2026-10-13). Judge visibility as the renderer does: '§' plus
+  ANY next character is invisible (`ScoreboardData.hasVisibleText`; testkit 1311's Hypixel-shape block).

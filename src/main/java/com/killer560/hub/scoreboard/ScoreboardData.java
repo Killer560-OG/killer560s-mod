@@ -144,13 +144,32 @@ public final class ScoreboardData {
         }
         String start = formatted(team.getPlayerPrefix(), true);
         String owner = entry.owner();
-        String ownerPlain = com.killer560.hub.util.ChatObserver.stripCodes(owner);
-        // Hypixel's owners are invisible colour-code-only names; only keep a real, visible owner (other servers).
-        if (ownerPlain != null && !ownerPlain.isBlank()) {
+        // Hypixel's owners are invisible code-only names; only keep a real, visible owner (other servers). They are
+        // NOT valid codes: Hypixel uses "§i", "§p", "§s"... (his logs, 2026-10-13), which stripFormatting leaves in place
+        // but vanilla's renderer swallows. Kept, that owner sat between the 16-character prefix and the suffix, inside
+        // any number crossing the seam - "Copper: §c114,25§i0" read as 114,25 and showed 11,425.
+        if (hasVisibleText(owner)) {
             start = start + owner;
         }
         String end = formatted(team.getPlayerSuffix(), true);
         return joinPrefixSuffix(start, end);
+    }
+
+    /** True when {@code s} draws anything: vanilla's renderer ({@code StringDecomposer}) skips '§' and the character
+     *  after it whether or not that is a real formatting code, so "§i§r" is as invisible as "§1§r". */
+    static boolean hasVisibleText(String s) {
+        if (s == null) {
+            return false;
+        }
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            if (ch == '§') {
+                i++;
+            } else if (!Character.isWhitespace(ch)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** SkyHanni's {@code ScoreboardData.formatLines}: strip colour codes from the start of the suffix that the
