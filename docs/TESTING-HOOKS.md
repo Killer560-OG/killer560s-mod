@@ -52,6 +52,12 @@ pipe), the Proxy Client (the game connection itself), and anything Minecraft or 
   to its `[Path] ... warp(s) (tile)` line, so a harness can check that landing nearer the centre never costs a warp
   (testkit 95-sim-map-warp). Costs one more search per click; never set outside the testkit.
 
+## Name Animation clock (`namechanger/NameAnimation`)
+
+No property. `NameAnimation.freezeClockForTest(epochMs)` fixes the clock Wave/Pulse names are coloured from (-1 goes
+back to the real one), so two screenshots are exact (testkit 960-965); `coloursNow(sequence)` returns the colours the
+Font hook paints for a text at that time. Wave at 1x moves one letter per 250 ms; Pulse at 1x is darkest at 1000 ms.
+
 ## Chat listener failures (`util/ChatObserver`)
 
 No property. `ChatObserver.failures()` counts every listener or rewriter throw it has caught since start-up,

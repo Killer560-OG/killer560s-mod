@@ -321,3 +321,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   falls through to the button on it) and `hoveredChild` skips it when a real widget sits on it, or the buttons lose their
   tooltips. A vanilla `EditBox` draws its text and hint with a shadow, which smears dark text on the Light theme: call
   `setTextShadow(MenuStyle.TEXT_SHADOW)` (both versions, javap) and paint the hint yourself (testkit 948's shots).
+- **Anything that must change a name's look over time belongs at `Font.prepareText`, not where the name is built.** Chat
+  lines are styled once when added and the tab list caches its rows, so a name built with per-frame colours would only
+  animate in some places. `NameAnimation` (Wave/Pulse, 2026-10-13) recolours at draw time, recognising a name by its
+  exact letters in their exact base colours; testkit 960-965 freeze its clock to compare two frames pixel for pixel.

@@ -101,13 +101,22 @@ public final class SupportersSelfService {
         return save(rawName, scale, null);
     }
 
-    /** {@code colors}: one 0xRRGGBB per visible letter of {@code rawName} (fade / letter colours), or null for none. */
     public static CompletableFuture<SaveResult> save(String rawName, double scale, int[] colors) {
+        return save(rawName, scale, colors, null);
+    }
+
+    /** {@code colors}: one 0xRRGGBB per visible letter of {@code rawName} (fade / letter colours), or null for none.
+     *  {@code animation}: their Wave/Pulse, sent only alongside {@code colors} (the relay refuses it alone). */
+    public static CompletableFuture<SaveResult> save(String rawName, double scale, int[] colors,
+                                                     com.killer560.hub.namechanger.NameAnimation.Spec animation) {
         JsonObject body = new JsonObject();
         body.addProperty("name", rawName == null ? "" : rawName);
         body.addProperty("scale", scale);
         if (colors != null) {
             body.add("colors", SupporterEntry.colorsJson(colors));
+            if (animation != null) {
+                body.add("animation", SupporterEntry.animationJson(animation));
+            }
         }
         return request("POST", HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8));
     }

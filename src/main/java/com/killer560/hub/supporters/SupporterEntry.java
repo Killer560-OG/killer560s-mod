@@ -1,5 +1,6 @@
 package com.killer560.hub.supporters;
 
+import com.killer560.hub.namechanger.NameAnimation;
 import com.killer560.hub.namechanger.NameColor;
 
 import java.util.UUID;
@@ -14,8 +15,11 @@ import java.util.UUID;
  * per visible letter of {@code rawName}, or {@code null} for an entry without styling - every entry from before that
  * date, and any staff-set one, which then shows its single {@code &} colour as always. A list whose length does not
  * match the letters is dropped here, never half-applied.
+ * <p>
+ * {@code animation} (relay field {@code animation}, 2026-10-13): Wave or Pulse for those colours ({@link NameAnimation}),
+ * or {@code null} - always null without {@code colors}, since there is nothing to animate.
  */
-record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors) {
+record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, NameAnimation.Spec animation) {
 
     SupporterEntry {
         if (uuid == null) {
@@ -37,10 +41,44 @@ record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors) {
                 colors = masked;
             }
         }
+        if (colors == null) {
+            animation = null;
+        }
+    }
+
+    SupporterEntry(UUID uuid, String rawName, float scale, int[] colors) {
+        this(uuid, rawName, scale, colors, null);
     }
 
     SupporterEntry(UUID uuid, String rawName, float scale) {
-        this(uuid, rawName, scale, null);
+        this(uuid, rawName, scale, null, null);
+    }
+
+    /** {@code animation} from JSON ({@code {"mode":"wave"|"pulse","speed":0.25-3}}), or null when absent, Off or not
+     *  that shape. The speed is snapped onto the mod's own grid. */
+    static NameAnimation.Spec animationFrom(com.google.gson.JsonElement el) {
+        if (el == null || !el.isJsonObject()) {
+            return null;
+        }
+        com.google.gson.JsonObject o = el.getAsJsonObject();
+        com.google.gson.JsonElement mode = o.get("mode");
+        com.google.gson.JsonElement speed = o.get("speed");
+        if (mode == null || !mode.isJsonPrimitive() || !mode.getAsJsonPrimitive().isString()
+                || speed == null || !speed.isJsonPrimitive() || !speed.getAsJsonPrimitive().isNumber()) {
+            return null;
+        }
+        double s = speed.getAsDouble();
+        if (!Double.isFinite(s) || s < NameAnimation.MIN_SPEED || s > NameAnimation.MAX_SPEED) {
+            return null;
+        }
+        return NameAnimation.Spec.of(NameAnimation.Mode.fromWire(mode.getAsString()), s);
+    }
+
+    static com.google.gson.JsonObject animationJson(NameAnimation.Spec spec) {
+        com.google.gson.JsonObject o = new com.google.gson.JsonObject();
+        o.addProperty("mode", spec.mode().wire);
+        o.addProperty("speed", spec.speed());
+        return o;
     }
 
     /** {@code colors} from a JSON array, or null when absent / not an array of numbers. */
