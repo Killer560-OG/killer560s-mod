@@ -545,6 +545,10 @@ public final class AutoRoutesFeature {
 
     private static void suppressAutoArm() {
         suppressArm = true;
+        // An edit means he is building this room's route where he stands, so a map arrival's "start node only" is
+        // over: it outlived a map warp into a route with no start node and silently skipped every node he then added
+        // (his Museum breaker nodes, Mod Only Test 2026-10-12).
+        mapArrivalGuard = false;
     }
 
     /** Removes the whole route (nodes + recording) for the room you are in. @return true when one existed. */
@@ -709,6 +713,7 @@ public final class AutoRoutesFeature {
      */
     static boolean fireAddedNode(Route route, RouteNode node) {
         latchedNode = node;
+        mapArrivalGuard = false; // see suppressAutoArm: adding a node ends a map arrival's start-only hold
         if (RouteExecutor.isRunning() || RouteRecorder.isRecording()) {
             addedToFire = null;
             addedToFireRoute = null;
@@ -1008,11 +1013,16 @@ public final class AutoRoutesFeature {
         }
         AABB playerBox = player.getBoundingBox();
         double height = cfg.getHeight();
-        boolean startOnly = cfg.isStartFromStartNodeOnly() || mapArrivalGuard;
+        // "Start node only" (the toggle, or a map arrival's hold) applies only to a route that HAS a start node. On one
+        // without, it used to mean "never", so nothing in that room fired again; killer560 (2026-10-12): "they should
+        // work without a start node anyways incase I dont want one treated as a start node" - so every node arms.
+        List<RouteNode> ordered = route.nodesInPathOrder();
+        boolean hasStartNode = ordered.stream().anyMatch(n -> n.start);
+        boolean startOnly = hasStartNode && (cfg.isStartFromStartNodeOnly() || mapArrivalGuard);
         // The first node (path order) whose ring he is in. Every node on that node's tile then fires with it, as one
         // stack in the approved type order - RouteExecutor.beginStack / Route#stackOf.
         RouteNode inside = null;
-        for (RouteNode node : route.nodesInPathOrder()) {
+        for (RouteNode node : ordered) {
             if (startOnly && !node.start) {
                 continue;
             }
@@ -1066,7 +1076,7 @@ public final class AutoRoutesFeature {
             return;
         }
         latchedNode = inside;
-        if (inside.start) {
+        if (inside.start || !hasStartNode) {
             mapArrivalGuard = false;
         }
         gate("armed node #" + (route.indexOf(inside) + 1) + " (" + inside.type + (inside.start ? ", start" : "") + ")");
@@ -1118,7 +1128,7 @@ public final class AutoRoutesFeature {
      *  from the route, never the player's position, so it does not change every tick. */
     private static String idleGate(Route route, RouteCoords.Frame frame, boolean startOnly) {
         RouteNode start = route.startNode();
-        String where = start == null ? "no start node"
+        String where = start == null ? "no start node, so every node arms"
                 : String.format(java.util.Locale.US, "start node #%d at %s", route.indexOf(start) + 1,
                         RouteCoords.toReal(frame, start.relativePos()));
         return "in no node of " + frame.roomName() + " (" + route.nodes().size() + " node(s), "
