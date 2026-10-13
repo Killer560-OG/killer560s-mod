@@ -210,7 +210,8 @@ final class SettingTooltipsData {
         d.put("+ add new dvd", "Adds a new bouncing DVD-screensaver box and opens its setup.");
         d.put("edit", "Opens this DVD box's setup to change its content, look and speed.");
         d.put("hud elements/delete", "Removes this DVD box and its settings immediately.");
-        d.put("profiles/delete", "Permanently deletes this saved profile.");
+        d.put("profiles/delete", "Permanently deletes this saved profile. Asks for a second click.");
+        d.put("profiles/confirm", "Deletes this saved profile now. It cannot be undone.");
         d.put("delete", "Removes this entry.");
         d.put("text", "Makes this box show text; type the words in the text step.");
         d.put("gif", "Makes this box show a GIF; click in the GIF step to cycle through your .gif files.");
