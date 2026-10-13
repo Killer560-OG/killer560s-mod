@@ -325,3 +325,6 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   lines are styled once when added and the tab list caches its rows, so a name built with per-frame colours would only
   animate in some places. `NameAnimation` (Wave/Pulse, 2026-10-13) recolours at draw time, recognising a name by its
   exact letters in their exact base colours; testkit 960-965 freeze its clock to compare two frames pixel for pixel.
+- **Never find a menu tab by its top-level index.** A testing build's `TestingMenu.arrange` moves every untested tab into
+  Untested, Profiles included, so Home's Profiles button (`indexOf(ProfilesTab.class)`) silently did nothing there until
+  2026-10-13. Open the leaf from `allLeaves()` with `openFeature(leaf)`: a page normally, a drawer in Untested (testkit 948).
