@@ -50,6 +50,7 @@ public class ProfilesTab extends BaseTab {
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
+        MenuStyle.use(); // the name box takes the theme's text colour and shadow when built
         List<AbstractWidget> widgets = new ArrayList<>();
         Font font = MenuStyle.font();
         int x = contentX;
@@ -99,8 +100,10 @@ public class ProfilesTab extends BaseTab {
         nameField.setBordered(false);
         nameField.setMaxLength(32);
         nameField.setTextColor(MenuStyle.TXT);
+        nameField.setTextShadow(MenuStyle.TEXT_SHADOW);
         nameField.setValue(newProfileName);
-        nameField.setHint(Component.literal("§8New profile name..."));
+        // The hint is painted by the card (paintNewCard): EditBox draws its hint with a text shadow, which smears dark
+        // text on the Light theme.
         nameField.setResponder(text -> newProfileName = text);
         widgets.add(nameField);
         int bx = oneLine ? x + 10 + boxW + 8 : x + 10;
@@ -231,6 +234,9 @@ public class ProfilesTab extends BaseTab {
         box(r, x, y, w, h);
         MenuStyle.well(r, x + 10, y + 22, boxW, 20, MenuStyle.WELL_DEEP);
         r.submit();
+        if (newProfileName.isEmpty()) {
+            MenuStyle.flat(g, "New profile name...", x + 15, y + 27, MenuStyle.DIM2);
+        }
         MenuStyle.text(g, "NEW PROFILE", x + 8, y + 4, MenuStyle.OR2);
         MenuStyle.flat(g, MenuStyle.ellipsize("Save copies your current settings; Blank starts with every setting off. "
                 + "Neither switches to it.", w - 20), x + 10, y + h - 14, MenuStyle.DIM);
