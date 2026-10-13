@@ -404,7 +404,7 @@ public class ModScreen extends Screen {
         int bodyH = panelY + panelH - 4 - bodyY;
         sideX = panelX + 4;
         sideY = bodyY;
-        sideW = Math.max(96, Math.min(124, panelW * 12 / 100));
+        sideW = Math.max(110, Math.min(124, panelW * 13 / 100));
         sideH = bodyH;
         int restX = sideX + sideW + 5;
         int restW = panelX + panelW - 4 - restX;
