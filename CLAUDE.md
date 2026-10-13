@@ -13,6 +13,7 @@ Java 25 and a JDK on `JAVA_HOME`. Gradle wrapper, Fabric Loom.
 ./gradlew build -Prelease=true      # official release: compiles dev tooling OUT
 ./gradlew build [-PcheatBuild=true] -PtestingBuild=true  # killer560's private jar, ...-26.1.2-<cheat|legit>-testing.jar: Untested category, Mark tested, /k560tested; lists in testing/; deploy ONLY with --testing-instance-cheat/--testing-instance-legit NAME
 python deploy-to-instances.py [--dry-run] [--jars-dir DIR]   # install into every Prism instance; writes minecraft/killer560smod-no-auto-update in each (Auto Update off there)
+# --auto-update-instance NAME: leave NAME to the mod's own Auto Update (no jar, marker removed) - Mod Only Test since 2026-10-13
 ```
 
 The Minecraft version is in every jar name, and one gradle run builds one version. The deploy script keeps

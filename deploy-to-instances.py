@@ -179,6 +179,9 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="report what would change, change nothing")
     ap.add_argument("--jars-dir", default=BUILD, help="where the built jars are (default: build/libs)")
     ap.add_argument("--instances-dir", default=INSTANCES, help=argparse.SUPPRESS)  # for testing on a copy
+    ap.add_argument("--auto-update-instance", metavar="NAME", action="append", default=[],
+                    help="leave this instance to the mod's own Auto Update: no jar, and its no-auto-update marker is "
+                         "removed (killer560, 2026-10-13: testing Auto Update in Mod Only Test); repeatable")
     ap.add_argument("--testing-instance-cheat", metavar="NAME",
                     help="the one instance that gets the CHEAT testing jar (-PcheatBuild=true -PtestingBuild=true)")
     ap.add_argument("--testing-instance-legit", metavar="NAME",
@@ -213,6 +216,12 @@ def main():
         if not os.path.isdir(mods):
             continue
         marker = os.path.join(folder, "minecraft", NO_AUTO_UPDATE_MARKER)
+        if name in args.auto_update_instance:
+            if os.path.exists(marker) and not dry:
+                os.remove(marker)
+            lines.append(("%s [MC %s]" % (name, mc_version(folder)), "skipped",
+                          "left to Auto Update (no jar written, no-auto-update marker removed)"))
+            continue
         if not os.path.exists(marker):
             if not dry:
                 with open(marker, "w", encoding="utf-8", newline="\n") as fh:
