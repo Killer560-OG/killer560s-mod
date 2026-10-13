@@ -25,8 +25,8 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Themed title screen button layout (2026-09-15, killer560): no Realms button, no language / accessibility
- * icon buttons, and "Swap Accounts" moved from the top-left corner into the main button column:
+ * Themed title screen button layout (2026-09-15, killer560): no Realms button, no language / accessibility /
+ * friends / Mod Menu icon buttons, and "Swap Accounts" moved from the top-left corner into the main button column:
  * <pre>
  *   Singleplayer
  *   Multiplayer
@@ -45,7 +45,16 @@ import com.killer560.hub.compat.McCompat;
  * Nothing is keyed on pixel positions from other mods: Realms / language / accessibility / Options / Quit are
  * found by their translation keys (javap 26.1.2: TitleScreen uses "menu.online", "menu.options", "menu.quit";
  * CommonButtons.language/accessibility use "options.language" / "options.accessibility"), ModMenu's widgets
- * by class name (no hard runtime dependency), and our button by its marker class. The column is rebuilt from
+ * by class name (no hard runtime dependency), 26.2's Friends icon through {@code McCompat.isFriendsButton}
+ * (a FriendsButton; 26.1.2 has none), and our button by its marker class.
+ * <p>
+ * 26.2 (javap): TitleScreen.init puts a row of icons (friends, language, accessibility) between the column and
+ * Options/Quit, and Mod Menu 20's "icon" style adds a {@code SmallModMenuButtonWidget} to that row (Mod Menu 18
+ * on 26.1.2 used {@code UpdateCheckerTexturedButtonWidget} beside Quit instead). The row stayed at its old y on
+ * top of the rebuilt column (killer560, 2026-10-13: "it has the friends and mod menu thing on my main screen on
+ * 26.2 and that should be hidden"), so every icon in it is removed, on both versions. Mod Menu's list stays
+ * reachable from the pause menu's Mods button and its "Open Mod Menu" key (Controls, Miscellaneous, unbound by
+ * default). Its full-width "classic" Mods button is a column row like any other and is kept. The column is rebuilt from
  * scratch each init, so whatever ModMenu's button style shifted, it ends up in the same place.
  * <p>
  * Removing the Realms button is safe: TitleScreen keeps no field for it (fields: splash,
@@ -171,6 +180,7 @@ public final class MainMenuTitleLayout {
             AbstractWidget options = null;
             AbstractWidget quit = null;
             AbstractWidget mods = null;
+            List<AbstractWidget> friends = new ArrayList<>();
             AbstractWidget multiplayer = null;
             AbstractWidget sim = simButton.get();
             if (sim != null && !widgets.contains(sim)) {
@@ -192,6 +202,8 @@ public final class MainMenuTitleLayout {
                     language = w;
                 } else if (KEY_ACCESSIBILITY.equals(key)) {
                     accessibility = w;
+                } else if (McCompat.isFriendsButton(w)) {
+                    friends.add(w);
                 } else if (KEY_OPTIONS.equals(key) && options == null) {
                     options = w;
                 } else if (KEY_QUIT.equals(key) && quit == null) {
@@ -216,7 +228,7 @@ public final class MainMenuTitleLayout {
             List<AbstractWidget> column = new ArrayList<>();
             for (AbstractWidget w : widgets) {
                 if (w == swap || w == realms || w == language || w == accessibility || w == options || w == quit
-                        || w == sim) {
+                        || w == sim || friends.contains(w)) {
                     continue;
                 }
                 if (w == mods && !modsIsIcon) {
@@ -288,7 +300,7 @@ public final class MainMenuTitleLayout {
             if (dy != 0) {
                 for (AbstractWidget w : widgets) {
                     if (w != options && w != quit && w != language && w != accessibility && w != swap
-                            && !column.contains(w) && w.getY() == oldRowY) {
+                            && w != mods && !friends.contains(w) && !column.contains(w) && w.getY() == oldRowY) {
                         w.setY(w.getY() + dy);
                     }
                 }
@@ -299,17 +311,18 @@ public final class MainMenuTitleLayout {
             quit.setX(cx + COLUMN_WIDTH / 2 - HALF_WIDTH);
             quit.setY(rowY);
             quit.setWidth(HALF_WIDTH);
-            if (modsIsIcon) {
-                // ModMenu "icon" style: take the slot right of Quit that the accessibility icon used to have.
-                mods.setX(cx + COLUMN_WIDTH / 2 + 4);
-                mods.setY(rowY);
-            }
 
             // Removal goes through Fabric's ButtonList, which removes from renderables, children and
             // narratables together.
             removeWidget(screen, widgets, realms);
             removeWidget(screen, widgets, language);
             removeWidget(screen, widgets, accessibility);
+            for (AbstractWidget f : friends) {
+                removeWidget(screen, widgets, f);
+            }
+            if (modsIsIcon) {
+                removeWidget(screen, widgets, mods);
+            }
 
             if (swap != null) {
                 String name = playerName();
@@ -392,11 +405,13 @@ public final class MainMenuTitleLayout {
         return contents instanceof TranslatableContents tc ? tc.getKey() : null;
     }
 
-    /** ModMenu's Mods button (ModMenuButtonWidget) or its icon variant (UpdateCheckerTexturedButtonWidget),
-     *  matched by class name so ModMenu stays optional at runtime. */
+    /** ModMenu's Mods button (ModMenuButtonWidget) or its icon variant (UpdateCheckerTexturedButtonWidget in Mod
+     *  Menu 18 / 26.1.2, SmallModMenuButtonWidget in Mod Menu 20 / 26.2; javap of both jars), matched by class
+     *  name so ModMenu stays optional at runtime. */
     private static boolean isModMenuButton(AbstractWidget w) {
         String name = w.getClass().getName();
         return name.startsWith(MODMENU_PACKAGE)
-                && (name.endsWith(".ModMenuButtonWidget") || name.endsWith(".UpdateCheckerTexturedButtonWidget"));
+                && (name.endsWith(".ModMenuButtonWidget") || name.endsWith(".UpdateCheckerTexturedButtonWidget")
+                        || name.endsWith(".SmallModMenuButtonWidget"));
     }
 }
