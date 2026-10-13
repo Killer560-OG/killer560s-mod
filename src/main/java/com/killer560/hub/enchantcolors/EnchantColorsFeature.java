@@ -244,6 +244,12 @@ public final class EnchantColorsFeature {
                 putName(levels, isUltimate, "ultimate " + spaced, level, true);
             } else {
                 String lore = ID_TO_LORE_NAME.get(bare);
+                if (lore == null && bare.startsWith("turbo_")) {
+                    // Every Turbo-Crop prints hyphenated ("Turbo-Wheat"), so the underscore-as-space guess below
+                    // missed all but the two aliased above - none of them tiered, so Turbo VII never got chroma
+                    // (killer560, 2026-10-13: "all turbo crop 7's are not chroma'd either like they should be").
+                    lore = "turbo-" + bare.substring("turbo_".length());
+                }
                 String spaced = lore != null ? lore : normalize(bare.replace('_', ' '));
                 putName(levels, isUltimate, spaced, level, false);
             }
