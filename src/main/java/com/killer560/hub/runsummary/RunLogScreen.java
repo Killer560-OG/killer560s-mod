@@ -1,7 +1,10 @@
 package com.killer560.hub.runsummary;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedScreen;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -29,11 +32,8 @@ import com.killer560.hub.compat.McCompat;
  * Party rows are keyed on UUID and show the CURRENT IGN (see {@link RunSummaryFeature#currentIgn}), so a name
  * change never orphans a logged run.
  */
-public class RunLogScreen extends Screen {
+public class RunLogScreen extends Screen implements ThemedScreen {
 
-    private static final int ACCENT = 0xFFCC6600;
-    private static final int BORDER = 0xFF553311;
-    private static final int PANEL_BG = 0xFF0D0D0D;
     private static final int ROW_H = 13;
     private static final int MAP_CELL = 9;
 
@@ -194,26 +194,21 @@ public class RunLogScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, PANEL_BG);
-        graphics.outline(panelX, panelY, panelW, panelH, BORDER);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + 30, 0xFF000000);
-        graphics.outline(panelX, panelY, panelW, 30, BORDER);
-        graphics.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ACCENT);
-        graphics.text(this.font, "Run Log", panelX + 10, panelY + 11, ACCENT, false);
+        // In the menu's theme (sweep-b, 2026-10-13); every control keeps its place.
+        ScreenChrome.begin("run_log");
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.header(graphics, panelX + 4, panelY + 4, panelW - 8, ScreenChrome.HEADER_H, "Run Log");
         String right = mode == Mode.KUUDRA ? "Kuudra" : visible.size() + " run" + (visible.size() == 1 ? "" : "s");
-        graphics.text(this.font, right, panelX + panelW - 10 - this.font.width(right), panelY + 11,
-                0xFF000000 | ModChat.DIM, false);
+        MenuStyle.text(graphics, right, panelX + panelW - 12 - this.font.width(right), panelY + 12, MenuStyle.DIM);
 
-        graphics.fill(listX, listY, listX + listW, listY + listH, 0xFF080808);
-        graphics.outline(listX - 1, listY - 1, listW + 2, listH + 2, BORDER);
+        ScreenChrome.well(graphics, listX - 1, listY - 1, listW + 2, listH + 2);
         graphics.enableScissor(listX, listY, listX + listW, listY + listH);
         try {
             if (mode == Mode.KUUDRA) {
-                graphics.text(this.font, "Kuudra run logging is in development.", listX + 6, listY + 8,
-                        0xFF000000 | ModChat.LIGHT_ORANGE, false);
-                graphics.text(this.font, "Dungeon runs are logged now; Kuudra will use the same menu.",
-                        listX + 6, listY + 20, 0xFF000000 | ModChat.DIM, false);
+                MenuStyle.text(graphics, "Kuudra run logging is in development.", listX + 6, listY + 8, MenuStyle.OR);
+                MenuStyle.text(graphics, "Dungeon runs are logged now; Kuudra will use the same menu.",
+                        listX + 6, listY + 20, MenuStyle.DIM);
             } else if (selected != null) {
                 drawDetail(graphics, selected);
             } else {
@@ -223,12 +218,7 @@ public class RunLogScreen extends Screen {
             graphics.disableScissor();
         }
         if (maxScroll() > 0) {
-            int trackX = listX + listW - 3;
-            graphics.fill(trackX, listY, trackX + 3, listY + listH, 0xFF1A1A1A);
-            int contentH = Math.max(1, contentHeight());
-            int thumbH = Math.max(10, listH * listH / contentH);
-            int thumbY = listY + (listH - thumbH) * scroll / maxScroll();
-            graphics.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, ACCENT);
+            ScreenChrome.scrollbar(graphics, listX + listW - 5, listY, listH, scroll, maxScroll(), listH);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
@@ -238,7 +228,7 @@ public class RunLogScreen extends Screen {
             String message = RunSummaryConfig.getInstance().isEnabledRaw()
                     ? "No runs logged yet - finish a dungeon with Run Summary on."
                     : "Run Summary is off - turn it on in the mod menu and runs will appear here.";
-            graphics.text(this.font, message, listX + 6, listY + 8, 0xFF000000 | ModChat.DIM, false);
+            MenuStyle.text(graphics, message, listX + 6, listY + 8, MenuStyle.DIM);
             return;
         }
         RunRecord hovered = runAt(mouseX, mouseY);
@@ -249,13 +239,9 @@ public class RunLogScreen extends Screen {
                 break;
             }
             RunRecord run = visible.get(i);
-            if (run == hovered) {
-                graphics.fill(listX, rowY, listX + listW - 4, rowY + ROW_H, 0xFF262626);
-            } else if (i % 2 == 0) {
-                graphics.fill(listX, rowY, listX + listW - 4, rowY + ROW_H, 0xFF121212);
-            }
-            graphics.text(this.font, this.font.plainSubstrByWidth(RunSummaryFeature.listLine(run), listW - 12),
-                    listX + 4, rowY + 3, 0xFFFFFFFF, false);
+            ScreenChrome.row(graphics, listX, rowY, listW - 6, ROW_H, i, run == hovered, false);
+            MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(RunSummaryFeature.listLine(run),
+                    listW - 14)), listX + 5, rowY + 3, MenuStyle.TXT);
         }
     }
 
@@ -279,8 +265,8 @@ public class RunLogScreen extends Screen {
             // Once the text has scrolled past the map it gets the full width back.
             int width = y >= mapBottom ? listW - 16 : textWidth;
             if (!line.isEmpty()) {
-                graphics.text(this.font, Component.literal(this.font.plainSubstrByWidth(line, width)),
-                        textX, y, 0xFFFFFFFF, false);
+                MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(line, width)), textX, y,
+                        MenuStyle.TXT);
             }
             y += 10;
         }
@@ -329,8 +315,10 @@ public class RunLogScreen extends Screen {
     /** The 11x11 grid the run finished on - rooms coloured by type, doors as their own darker cells. */
     private void drawMap(GuiGraphicsExtractor graphics, RunRecord.MapSnapshot map, int x, int y) {
         int grid = RunRecord.MapSnapshot.GRID;
+        // The map keeps its own dark backdrop on every theme: the room colours are the map's, not the theme's.
         graphics.fill(x - 2, y - 2, x + grid * MAP_CELL + 2, y + grid * MAP_CELL + 2, 0xFF050505);
-        graphics.outline(x - 2, y - 2, grid * MAP_CELL + 4, grid * MAP_CELL + 4, BORDER);
+        graphics.outline(x - 3, y - 3, grid * MAP_CELL + 6, grid * MAP_CELL + 6, MenuStyle.BLACK);
+        graphics.outline(x - 2, y - 2, grid * MAP_CELL + 4, grid * MAP_CELL + 4, MenuStyle.ACCENT_EDGE);
         for (int cell = 0; cell < grid * grid; cell++) {
             int cx = x + (cell % grid) * MAP_CELL;
             int cy = y + (cell / grid) * MAP_CELL;
@@ -358,7 +346,7 @@ public class RunLogScreen extends Screen {
             }
         }
         String caption = map.rooms().size() + " rooms";
-        graphics.text(this.font, caption, x, y + grid * MAP_CELL + 4, 0xFF000000 | ModChat.DIM, false);
+        MenuStyle.text(graphics, caption, x, y + grid * MAP_CELL + 4, MenuStyle.DIM);
     }
 
     private static int colorForRoom(String type) {

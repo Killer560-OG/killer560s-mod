@@ -122,6 +122,8 @@ public class RunSummaryTab extends BaseTab {
         });
         y += 24;
 
+        widgets.add(com.killer560.hub.gui.ScreenThemeConfig.button("run_log", contentX, y, contentWidth, 18));
+        y += 24;
         widgets.add(header(contentX, y, contentWidth, "History"));
         y += HEADER_H;
 

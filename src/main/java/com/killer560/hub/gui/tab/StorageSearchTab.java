@@ -53,6 +53,8 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
             return widgets;
         }
 
+        widgets.add(com.killer560.hub.gui.ScreenThemeConfig.button("storage_search", contentX, y, contentWidth, 18));
+        y += 22;
         int gap = 8;
         int colW = (contentWidth - gap) / 2;
         int colBX = contentX + colW + gap;

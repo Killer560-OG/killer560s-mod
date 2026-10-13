@@ -45,6 +45,8 @@ public class AuctionHouseTab extends BaseTab implements KeyCaptureTab {
         if (!cfg.isAhEnabledRaw()) {
             return widgets;
         }
+        widgets.add(com.killer560.hub.gui.ScreenThemeConfig.button("auction_house", contentX, y, contentWidth, 18));
+        y += 22;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Auction House"), btn -> AuctionHouseFeature.openDeferred())
                 .bounds(contentX, y, colW, 18).build());

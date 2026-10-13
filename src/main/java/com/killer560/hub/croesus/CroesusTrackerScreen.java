@@ -1,6 +1,9 @@
 package com.killer560.hub.croesus;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedScreen;
 import com.killer560.hub.gui.profit.ProfitPanels;
 import com.killer560.hub.gui.profit.ProfitScopeBar;
 import com.killer560.hub.util.ModChat;
@@ -29,7 +32,7 @@ import com.killer560.hub.compat.McCompat;
  * every claim with its cost, value and profit, which is exactly what the three tabs want. There is no second
  * store and no new file.
  */
-public class CroesusTrackerScreen extends Screen {
+public class CroesusTrackerScreen extends Screen implements ThemedScreen {
 
     private static final int ROW_H = 12;
 
@@ -273,15 +276,13 @@ public class CroesusTrackerScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, ProfitPanels.PANEL_BG);
-        graphics.outline(panelX, panelY, panelW, panelH, ProfitPanels.BORDER);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + 30, 0xFF000000);
-        graphics.outline(panelX, panelY, panelW, 30, ProfitPanels.BORDER);
-        graphics.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
-        graphics.text(this.font, "DUNGEON PROFIT", panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
+        // In the menu's theme (sweep-b, 2026-10-13); every widget keeps its place.
+        ScreenChrome.begin("croesus");
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.header(graphics, panelX + 4, panelY + 4, panelW - 8, ScreenChrome.HEADER_H, "Dungeon Profit");
         String claims = CroesusProfitLog.entryCount() + " claims";
-        graphics.text(this.font, claims, resetX() - 8 - this.font.width(claims), panelY + 11, ProfitPanels.DIM, false);
+        MenuStyle.text(graphics, claims, resetX() - 8 - this.font.width(claims), panelY + 12, MenuStyle.DIM);
 
         if (view == View.OVERVIEW) {
             renderOverview(graphics);
@@ -299,14 +300,14 @@ public class CroesusTrackerScreen extends Screen {
         int cardW = (panelW - 12 - gap * 2) / 3;
         int cx = panelX + 6;
 
-        ProfitPanels.card(g, this.font, cx, cardsY, cardW, cardH, "Net Profit",
+        ProfitPanels.themedCard(g, this.font, cx, cardsY, cardW, cardH, "Net Profit",
                 ProfitPanels.signedCoins(t.profit), t.profit >= 0 ? ProfitPanels.GOOD : ProfitPanels.BAD,
                 t.chests + " chests", t.profit >= 0 ? ProfitPanels.GOOD : ProfitPanels.BAD);
         cx += cardW + gap;
-        ProfitPanels.card(g, this.font, cx, cardsY, cardW, cardH, "Gross Value",
+        ProfitPanels.themedCard(g, this.font, cx, cardsY, cardW, cardH, "Gross Value",
                 ProfitPanels.coins(t.value), ProfitPanels.TEXT, "Before chest costs", ProfitPanels.ACCENT);
         cx += cardW + gap;
-        ProfitPanels.card(g, this.font, cx, cardsY, cardW, cardH, "Chest Cost",
+        ProfitPanels.themedCard(g, this.font, cx, cardsY, cardW, cardH, "Chest Cost",
                 ProfitPanels.coins(t.cost), ProfitPanels.BAD, "Coins spent opening", ProfitPanels.BAD);
 
         int bodyY = cardsY + cardH + gap;
@@ -319,9 +320,8 @@ public class CroesusTrackerScreen extends Screen {
     }
 
     private void renderRareDrops(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-        g.fill(x, y, x + w, y + h, ProfitPanels.INNER_BG);
-        g.outline(x, y, w, h, ProfitPanels.BORDER);
-        g.text(this.font, "RARE DROPS", x + 8, y + 8, ProfitPanels.DIM, false);
+        ScreenChrome.well(g, x, y, w, h);
+        MenuStyle.text(g, "RARE DROPS", x + 8, y + 8, MenuStyle.DIM);
         List<CroesusProfitLog.ItemTotals> items = CroesusProfitLog.itemIndex();
         int rowY = y + 22;
         int shown = 0;
@@ -333,49 +333,46 @@ public class CroesusTrackerScreen extends Screen {
                 continue;
             }
             String name = this.font.plainSubstrByWidth(item.name(), w - 70);
-            g.text(this.font, name, x + 8, rowY, ProfitPanels.TEXT, false);
+            MenuStyle.text(g, ScreenChrome.readable(name), x + 8, rowY, MenuStyle.TXT);
             String count = "x" + item.amount();
-            g.text(this.font, count, x + 8, rowY + 10, ProfitPanels.DIM, false);
+            MenuStyle.text(g, count, x + 8, rowY + 10, MenuStyle.DIM);
             String val = ProfitPanels.coins(item.value());
-            g.text(this.font, val, x + w - 8 - this.font.width(val), rowY + 5, ProfitPanels.ACCENT, false);
+            MenuStyle.text(g, val, x + w - 8 - this.font.width(val), rowY + 5, MenuStyle.OR);
             rowY += 22;
             shown++;
         }
         if (shown == 0) {
-            g.text(this.font, "No notable drops yet", x + 8, y + 24, ProfitPanels.DIM, false);
+            MenuStyle.text(g, "No notable drops yet", x + 8, y + 24, MenuStyle.DIM2);
         }
     }
 
     private void renderPerformance(GuiGraphicsExtractor g, int x, int y, int w, int h,
                                    CroesusProfitLog.Totals t) {
-        g.fill(x, y, x + w, y + h, ProfitPanels.INNER_BG);
-        g.outline(x, y, w, h, ProfitPanels.BORDER);
-        g.text(this.font, (sessionOnly ? "SESSION" : "OVERALL") + " PERFORMANCE", x + 8, y + 8,
-                ProfitPanels.DIM, false);
-        g.text(this.font, ProfitPanels.signedCoins(t.profit), x + 8, y + 20,
-                t.profit >= 0 ? ProfitPanels.GOOD : ProfitPanels.BAD, false);
+        ScreenChrome.well(g, x, y, w, h);
+        MenuStyle.text(g, (sessionOnly ? "SESSION" : "OVERALL") + " PERFORMANCE", x + 8, y + 8, MenuStyle.DIM);
+        MenuStyle.text(g, ProfitPanels.signedCoins(t.profit), x + 8, y + 20,
+                t.profit >= 0 ? ScreenChrome.good() : ScreenChrome.bad());
         String per = t.chests > 0 ? ProfitPanels.coins(t.profit / t.chests) + " avg" : "no chests yet";
-        g.text(this.font, t.chests + " chests  •  " + per, x + 8, y + 32, ProfitPanels.DIM, false);
+        MenuStyle.text(g, t.chests + " chests  •  " + per, x + 8, y + 32, MenuStyle.DIM);
 
         int graphY = y + 46;
         int graphH = h - 46 - 18;
-        ProfitPanels.barGraph(g, this.font, x + 6, graphY, w - 12, graphH, netPerRun());
+        ProfitPanels.themedBarGraph(g, this.font, x + 6, graphY, w - 12, graphH, netPerRun());
 
         List<CroesusProfitLog.Claim> claims = CroesusProfitLog.claims();
         if (!claims.isEmpty()) {
             CroesusProfitLog.Claim last = claims.get(claims.size() - 1);
             String recent = "RECENT  " + last.floor() + " " + last.chest();
-            g.text(this.font, this.font.plainSubstrByWidth(recent, w - 80), x + 8, y + h - 12,
-                    ProfitPanels.DIM, false);
+            MenuStyle.text(g, ScreenChrome.readable(this.font.plainSubstrByWidth(recent, w - 80)), x + 8, y + h - 12,
+                    MenuStyle.DIM);
             String v = ProfitPanels.signedCoins(last.profit());
-            g.text(this.font, v, x + w - 8 - this.font.width(v), y + h - 12,
-                    last.profit() >= 0 ? ProfitPanels.GOOD : ProfitPanels.BAD, false);
+            MenuStyle.text(g, v, x + w - 8 - this.font.width(v), y + h - 12,
+                    last.profit() >= 0 ? ScreenChrome.good() : ScreenChrome.bad());
         }
     }
 
     private void renderList(GuiGraphicsExtractor graphics) {
-        graphics.fill(listX, listY, listX + listW, listY + listH, ProfitPanels.INNER_BG);
-        graphics.outline(listX - 1, listY - 1, listW + 2, listH + 2, ProfitPanels.BORDER);
+        ScreenChrome.well(graphics, listX - 1, listY - 1, listW + 2, listH + 2);
         graphics.enableScissor(listX, listY, listX + listW, listY + listH);
         try {
             int first = Math.max(0, scroll / ROW_H);
@@ -388,19 +385,23 @@ public class CroesusTrackerScreen extends Screen {
                 if (row.left().isEmpty() && row.middle() == null) {
                     continue;
                 }
+                if (row.right() != null) {
+                    ScreenChrome.row(graphics, listX + 1, rowY - 2, listW - 7, ROW_H, i, false, false);
+                }
                 int rightW = 0;
                 if (row.right() != null) {
                     rightW = this.font.width(row.right());
-                    graphics.text(this.font, row.right(), listX + listW - 6 - rightW, rowY, row.rightColor(), false);
+                    MenuStyle.text(graphics, row.right(), listX + listW - 10 - rightW, rowY,
+                            ProfitPanels.themed(row.rightColor()));
                 }
                 int leftW = this.font.width(row.left());
-                graphics.text(this.font, this.font.plainSubstrByWidth(row.left(), listW - 12 - rightW),
-                        listX + 4, rowY, row.leftColor(), false);
+                MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(row.left(), listW - 16 - rightW)),
+                        listX + 4, rowY, ProfitPanels.themed(row.leftColor()));
                 if (row.middle() != null && !row.middle().isEmpty()) {
-                    int space = listW - 16 - rightW - leftW;
+                    int space = listW - 20 - rightW - leftW;
                     if (space > 20) {
-                        graphics.text(this.font, this.font.plainSubstrByWidth(row.middle(), space),
-                                listX + 8 + leftW, rowY, ProfitPanels.DIM, false);
+                        MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(row.middle(), space)),
+                                listX + 8 + leftW, rowY, MenuStyle.DIM);
                     }
                 }
             }
@@ -408,12 +409,7 @@ public class CroesusTrackerScreen extends Screen {
             graphics.disableScissor();
         }
         if (maxScroll() > 0) {
-            int trackX = listX + listW - 3;
-            graphics.fill(trackX, listY, trackX + 3, listY + listH, 0xFF1A1A1A);
-            int contentH = rows.size() * ROW_H;
-            int thumbH = Math.max(10, listH * listH / contentH);
-            int thumbY = listY + (listH - thumbH) * scroll / maxScroll();
-            graphics.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, ProfitPanels.ACCENT);
+            ScreenChrome.scrollbar(graphics, listX + listW - 5, listY + 1, listH - 2, scroll, maxScroll(), listH);
         }
     }
 

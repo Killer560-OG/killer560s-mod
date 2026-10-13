@@ -140,6 +140,8 @@ public class CroesusTab extends BaseTab {
             widgets.add(label(contentX, y, contentWidth, "§7" + CroesusProfitLog.entryCount()
                     + " claims logged §8- §7/croesus"));
             y += 18;
+            widgets.add(com.killer560.hub.gui.ScreenThemeConfig.button("croesus", contentX, y, contentWidth, 18));
+            y += 22;
         }
 
         return widgets;

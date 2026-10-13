@@ -1,22 +1,35 @@
 package com.killer560.hub.auction.ah;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuTheme;
 import com.killer560.hub.gui.PanelTheme;
+import com.killer560.hub.gui.ScreenThemeConfig;
 import com.killer560.hub.inventorytheme.InventoryThemeConfig;
 
 /**
- * The unified Auction House's colours, taken from the mod's theme setting (Inventory Theme: Amber, Dark or Light, plus
- * its accent, custom or the theme's own) so the AH matches the menus he themed. Read once per frame; nothing is
- * written back. Amber with the default accent gives the same orange-on-black as the Bazaar.
+ * The unified Auction House's colours. By default the mod menu's theme (the AH's Screen Theme, set in its tab: Theme
+ * Default follows the menu, or any preset / Custom), derived from {@link MenuStyle} with {@code bevel} on, so the panel,
+ * field and buttons take the menu's bevelled look (sweep-b, 2026-10-13). The Screen Theme "Inventory Theme" keeps the
+ * older look, from the Inventory Theme (Amber, Dark or Light plus its accent), flat. Read once per frame; nothing is
+ * written back.
  */
 public record AhTheme(boolean light, int accent, int accentBright, int backdrop, int panel, int surface, int surfaceAlt,
                       int hover, int selected, int border, int borderStrong, int text, int dim, int faint, int gold,
-                      int green, int red, int aqua, int card, int cardHover, int cardText, int cardDim, int cardFaint) {
+                      int green, int red, int aqua, int card, int cardHover, int cardText, int cardDim, int cardFaint,
+                      boolean bevel) {
+
+    /** The Screen Theme id the Auction House tab sets. */
+    public static final String SCREEN_ID = "auction_house";
 
     private static PanelTheme cachedTheme;
     private static int cachedAccent;
     private static AhTheme cached;
 
     public static AhTheme current() {
+        if (!ScreenThemeConfig.INVENTORY.equals(ScreenThemeConfig.getInstance().get(SCREEN_ID))) {
+            MenuStyle.use(MenuTheme.forScreen(SCREEN_ID));
+            return fromMenu();
+        }
         PanelTheme t;
         int accent;
         try {
@@ -37,6 +50,26 @@ public record AhTheme(boolean light, int accent, int accentBright, int backdrop,
         return theme;
     }
 
+    /** The menu palette in force ({@link MenuStyle} after {@code use}) as the AH's colours. Cards stay dark on a light
+     *  theme, as they always have: item names arrive in Hypixel's colours. */
+    private static AhTheme fromMenu() {
+        boolean light = MenuStyle.LIGHT;
+        int accent = MenuStyle.OR;
+        int surface = MenuStyle.CARD_BOTTOM;
+        int hover = mix(surface, accent, 0.20f);
+        int panel = MenuStyle.PANEL_BOTTOM;
+        int card = light ? 0xFF2A2A2F : surface;
+        return new AhTheme(light, accent, light ? MenuStyle.OR_HOVER : MenuStyle.OR_LIGHT,
+                0xFF000000 | MenuStyle.mix(panel, 0xFF000000, light ? 0.15f : 0.4f), panel, surface,
+                MenuStyle.CARD_TOP, hover, mix(surface, accent, 0.32f), MenuStyle.ACCENT_EDGE, mix(panel, accent, 0.65f),
+                MenuStyle.TXT, MenuStyle.DIM, MenuStyle.DIM2,
+                light ? 0xFFA86A00 : 0xFFFFC040, light ? 0xFF1E8A1E : 0xFF62DD62, light ? 0xFFC02020 : 0xFFFF6060,
+                light ? 0xFF107A8A : 0xFF55DDEE,
+                card, light ? mix(0xFF2A2A2F, accent, 0.30f) : hover,
+                light ? 0xFFF0F0F2 : MenuStyle.TXT, light ? 0xFFB4B4BC : MenuStyle.DIM, light ? 0xFF85858E : MenuStyle.DIM2,
+                true);
+    }
+
     private static AhTheme dark(int accent, boolean neutral) {
         int border = neutral ? 0xFF34343A : mix(accent, 0xFF101010, 0.62f);
         return new AhTheme(false, accent, brighten(accent),
@@ -49,7 +82,8 @@ public record AhTheme(boolean light, int accent, int accentBright, int backdrop,
                 border, mix(accent, 0xFF101010, 0.35f),
                 0xFFECE6DE, 0xFFA59A8F, 0xFF6E655D,
                 0xFFFFC040, 0xFF62DD62, 0xFFFF6060, 0xFF55DDEE,
-                neutral ? 0xFF17171B : 0xFF15120F, mix(accent, 0xFF161210, 0.80f), 0xFFECE6DE, 0xFFA59A8F, 0xFF6E655D);
+                neutral ? 0xFF17171B : 0xFF15120F, mix(accent, 0xFF161210, 0.80f), 0xFFECE6DE, 0xFFA59A8F, 0xFF6E655D,
+                false);
     }
 
     private static AhTheme light(int accent) {
@@ -61,7 +95,7 @@ public record AhTheme(boolean light, int accent, int accentBright, int backdrop,
                 0xFFA86A00, 0xFF1E8A1E, 0xFFC02020, 0xFF107A8A,
                 // Cards stay dark in the Light theme: item names arrive in Hypixel's own colours (white for COMMON),
                 // which a white card would swallow.
-                0xFF2A2A2F, mix(accent, 0xFF2A2A2F, 0.70f), 0xFFF0F0F2, 0xFFB4B4BC, 0xFF85858E);
+                0xFF2A2A2F, mix(accent, 0xFF2A2A2F, 0.70f), 0xFFF0F0F2, 0xFFB4B4BC, 0xFF85858E, false);
     }
 
     /** Colours for text ON a card: cards stay dark in the Light theme, so they take the dark theme's bright tones. */

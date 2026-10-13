@@ -49,6 +49,43 @@ public final class ProfitPanels {
     }
 
     /**
+     * One headline figure in the menu's active theme: a raised card with the stripe on its left. Colours given as
+     * {@link #GOOD} / {@link #BAD} / {@link #TEXT} / {@link #ACCENT} / {@link #DIM} are mapped to the theme's own.
+     */
+    public static void themedCard(GuiGraphicsExtractor g, Font font, int x, int y, int w, int h,
+                                  String label, String value, int valueColor, String sub, int stripe) {
+        com.killer560.hub.gui.ScreenChrome.card(g, x, y, w, h, false);
+        com.killer560.hub.gui.ScreenChrome.stripe(g, x, y, h, themed(stripe));
+        com.killer560.hub.gui.MenuStyle.text(g, label.toUpperCase(Locale.ROOT), x + 10, y + 8,
+                com.killer560.hub.gui.MenuStyle.DIM);
+        com.killer560.hub.gui.MenuStyle.text(g, value, x + 10, y + 22, themed(valueColor));
+        if (sub != null && !sub.isEmpty()) {
+            com.killer560.hub.gui.MenuStyle.text(g, font.plainSubstrByWidth(sub, w - 16), x + 10, y + h - 14,
+                    com.killer560.hub.gui.MenuStyle.DIM2);
+        }
+    }
+
+    /** One of this class's fixed colours as the active theme draws it (anything else made readable on the panel). */
+    public static int themed(int c) {
+        if (c == GOOD) {
+            return com.killer560.hub.gui.ScreenChrome.good();
+        }
+        if (c == BAD) {
+            return com.killer560.hub.gui.ScreenChrome.bad();
+        }
+        if (c == TEXT) {
+            return com.killer560.hub.gui.MenuStyle.TXT;
+        }
+        if (c == ACCENT) {
+            return com.killer560.hub.gui.MenuStyle.OR;
+        }
+        if (c == DIM) {
+            return com.killer560.hub.gui.MenuStyle.DIM;
+        }
+        return com.killer560.hub.gui.ScreenChrome.readable(c);
+    }
+
+    /**
      * Net-per-run bars, newest on the right, with a zero line.
      *
      * <p>Drawn straight rather than averaged because the shape of this data is the point: dungeon profit is a
@@ -61,9 +98,22 @@ public final class ProfitPanels {
     public static void barGraph(GuiGraphicsExtractor g, Font font, int x, int y, int w, int h, long[] values) {
         g.fill(x, y, x + w, y + h, INNER_BG);
         g.outline(x, y, w, h, BORDER);
+        bars(g, font, x, y, w, h, values, ACCENT, BAD, DIM, 0xFF2A2A2A, false);
+    }
+
+    /** {@link #barGraph} in the menu's active theme, in a recessed well (the themed profit screens). */
+    public static void themedBarGraph(GuiGraphicsExtractor g, Font font, int x, int y, int w, int h, long[] values) {
+        com.killer560.hub.gui.ScreenChrome.well(g, x, y, w, h);
+        bars(g, font, x, y, w, h, values, com.killer560.hub.gui.MenuStyle.OR, com.killer560.hub.gui.ScreenChrome.bad(),
+                com.killer560.hub.gui.MenuStyle.DIM, com.killer560.hub.gui.MenuStyle.TRACK,
+                com.killer560.hub.gui.MenuStyle.TEXT_SHADOW);
+    }
+
+    private static void bars(GuiGraphicsExtractor g, Font font, int x, int y, int w, int h, long[] values, int up,
+            int down, int dim, int zero, boolean shadow) {
         if (values.length == 0) {
             String none = "No runs logged yet";
-            g.text(font, none, x + (w - font.width(none)) / 2, y + h / 2 - 4, DIM, false);
+            g.text(font, none, x + (w - font.width(none)) / 2, y + h / 2 - 4, dim, shadow);
             return;
         }
         long max = 0;
@@ -82,7 +132,7 @@ public final class ProfitPanels {
         long span = Math.max(1L, max - min);
         int zeroY = plotY + (int) ((double) max / span * plotH);
 
-        g.fill(plotX, zeroY, plotX + plotW, zeroY + 1, 0xFF2A2A2A);
+        g.fill(plotX, zeroY, plotX + plotW, zeroY + 1, zero);
 
         int buckets = Math.min(plotW, values.length);
         for (int b = 0; b < buckets; b++) {
@@ -101,16 +151,16 @@ public final class ProfitPanels {
                 px = 1;
             }
             if (peak >= 0) {
-                g.fill(barX, zeroY - px, barX + barW, zeroY, ACCENT);
+                g.fill(barX, zeroY - px, barX + barW, zeroY, up);
             } else {
-                g.fill(barX, zeroY, barX + barW, zeroY + px, BAD);
+                g.fill(barX, zeroY, barX + barW, zeroY + px, down);
             }
         }
-        g.text(font, coins(max), plotX, plotY - 1, DIM, false);
+        g.text(font, coins(max), plotX, plotY - 1, dim, shadow);
         String lo = coins(min);
-        g.text(font, lo, plotX, y + h - 10, DIM, false);
+        g.text(font, lo, plotX, y + h - 10, dim, shadow);
         String count = values.length + " runs";
-        g.text(font, count, x + w - 4 - font.width(count), y + h - 10, DIM, false);
+        g.text(font, count, x + w - 4 - font.width(count), y + h - 10, dim, shadow);
     }
 
     /** Short coin formatting - 1.23B / 45.6M / 789K. The screens deal in billions and a raw figure is unreadable. */

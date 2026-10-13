@@ -44,6 +44,8 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
         if (!cfg.isBazaarEnabledRaw()) {
             return widgets;
         }
+        widgets.add(com.killer560.hub.gui.ScreenThemeConfig.button("bazaar", contentX, y, contentWidth, 18));
+        y += 22;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Bazaar"), btn -> BazaarFeature.openOrExplain())
                 .bounds(contentX, y, colW, 18).build());

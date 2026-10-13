@@ -26,7 +26,8 @@ final class SettingTooltipsData {
     private static void menuTheme(Map<String, String> d) {
         // Option A menu, 2026-10-12: the menu's colour presets and Custom colours (gui/tab/MenuThemeTab).
         d.put("menu theme", "The mod menu's colours: Amber (the default orange), Dark (neutral greys), Light (light panels, dark text) or Custom. The round button in the menu's header switches it too.");
-        d.put("menu theme/menu theme", "Amber, Dark, Light, Ocean or Custom. Left click goes to the next, right click back.");
+        d.put("screen theme", "The colours this feature's own screen draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or Custom (the menu's custom colours) for this screen alone. The Bazaar and Auction House also offer Inventory Theme, the look they had before (it follows the Inventory Theme setting). Left click goes to the next, right click back.");
+        d.put("menu theme/menu theme","Amber, Dark, Light, Ocean or Custom. Left click goes to the next, right click back.");
         d.put("menu theme/accent", "Custom: the colour of titles, selections, outlines and buttons. Changing any colour switches the menu to Custom, started from the theme you were on.");
         d.put("menu theme/panel background", "Custom: the menu's background. A light colour turns on the light look (grey outlines, soft shadows, dark text expected).");
         d.put("menu theme/card background", "Custom: the feature cards and the boxes on Home.");

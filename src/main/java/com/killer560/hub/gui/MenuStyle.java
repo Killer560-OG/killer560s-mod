@@ -103,16 +103,34 @@ public final class MenuStyle {
     public static int KNOB_HOVER = 0xFFFFE0C0;
     public static int KNOB_EDGE = 0xFFB8B0A8;
 
-    private static int usedVersion = -1;
+    /** What the palette was last derived for ("menu" or a theme name, with the config version). */
+    private static String derivedFor = "";
 
     /** Derives the palette from the menu's active theme (cheap when nothing changed). Call before drawing. */
     public static void use() {
         MenuConfig cfg = MenuConfig.getInstance();
-        if (usedVersion == MenuConfig.version()) {
+        String key = "menu:" + MenuConfig.version();
+        if (key.equals(derivedFor)) {
             return;
         }
-        usedVersion = MenuConfig.version();
+        derivedFor = key;
         int[] c = cfg.activeColours();
+        derive(c[0], c[1], c[2], c[3], c[4]);
+    }
+
+    /** Derives the palette from {@code theme} (a themed screen's own Screen Theme); the menu re-derives its own on its
+     *  next {@link #use()}. */
+    public static void use(MenuTheme theme) {
+        if (theme == null || theme == MenuConfig.getInstance().getTheme()) {
+            use();
+            return;
+        }
+        String key = theme.name() + ":" + MenuConfig.version();
+        if (key.equals(derivedFor)) {
+            return;
+        }
+        derivedFor = key;
+        int[] c = theme.colours();
         derive(c[0], c[1], c[2], c[3], c[4]);
     }
 

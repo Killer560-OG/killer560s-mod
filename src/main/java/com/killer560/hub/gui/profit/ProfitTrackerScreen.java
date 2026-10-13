@@ -1,13 +1,15 @@
 package com.killer560.hub.gui.profit;
 
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedScreen;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * A standalone profit screen for a tracker that used to live only in a settings tab (Experimentation Table,
@@ -18,7 +20,7 @@ import java.util.Locale;
  * <p>Back (top right) and Escape both return to {@code parent} - the {@code /profit} hub when it was opened from
  * there, or the game when it was opened directly.
  */
-public abstract class ProfitTrackerScreen extends Screen {
+public abstract class ProfitTrackerScreen extends Screen implements ThemedScreen {
 
     /** One headline card. */
     protected record Card(String label, String value, int valueColor, String sub, int stripe) {
@@ -41,6 +43,11 @@ public abstract class ProfitTrackerScreen extends Screen {
     }
 
     protected abstract List<Card> cards();
+
+    /** This screen's Screen Theme id (the profit screens share the Experiments tab's). */
+    protected String themeId() {
+        return "profit";
+    }
 
     protected abstract String listTitle();
 
@@ -106,18 +113,15 @@ public abstract class ProfitTrackerScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        g.fill(0, 0, this.width, this.height, 0xCC000000);
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, ProfitPanels.PANEL_BG);
-        g.outline(panelX, panelY, panelW, panelH, ProfitPanels.BORDER);
-        g.fill(panelX, panelY, panelX + panelW, panelY + 30, 0xFF000000);
-        g.outline(panelX, panelY, panelW, 30, ProfitPanels.BORDER);
-        g.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ProfitPanels.ACCENT);
-        g.text(this.font, heading.toUpperCase(Locale.ROOT), panelX + 10, panelY + 11, ProfitPanels.ACCENT, false);
+        ScreenChrome.begin(themeId());
+        ScreenChrome.backdrop(g, this.width, this.height);
+        ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
+        ScreenChrome.header(g, panelX + 4, panelY + 4, panelW - 8, ScreenChrome.HEADER_H, heading);
 
         int y = panelY + 36 + ProfitScopeBar.HEIGHT + 4;
         String note = note();
         if (note != null) {
-            g.text(this.font, note, panelX + 8, y, ProfitPanels.BAD, false);
+            MenuStyle.text(g, note, panelX + 8, y, ScreenChrome.bad());
             y += 12;
         }
 
@@ -127,7 +131,7 @@ public abstract class ProfitTrackerScreen extends Screen {
         int cardW = (panelW - 12 - gap * (cards.size() - 1)) / cards.size();
         int cx = panelX + 6;
         for (Card c : cards) {
-            ProfitPanels.card(g, this.font, cx, y, cardW, cardH, c.label(), c.value(), c.valueColor(), c.sub(),
+            ProfitPanels.themedCard(g, this.font, cx, y, cardW, cardH, c.label(), c.value(), c.valueColor(), c.sub(),
                     c.stripe());
             cx += cardW + gap;
         }
@@ -142,12 +146,11 @@ public abstract class ProfitTrackerScreen extends Screen {
     }
 
     private void renderList(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-        g.fill(x, y, x + w, y + h, ProfitPanels.INNER_BG);
-        g.outline(x, y, w, h, ProfitPanels.BORDER);
-        g.text(this.font, listTitle(), x + 8, y + 8, ProfitPanels.DIM, false);
+        ScreenChrome.well(g, x, y, w, h);
+        MenuStyle.text(g, listTitle(), x + 8, y + 8, MenuStyle.DIM);
         List<String> lines = listLines();
         if (lines.isEmpty()) {
-            g.text(this.font, emptyText(), x + 8, y + 24, ProfitPanels.DIM, false);
+            MenuStyle.text(g, emptyText(), x + 8, y + 24, MenuStyle.DIM2);
             return;
         }
         int rowY = y + 22;
@@ -155,18 +158,18 @@ public abstract class ProfitTrackerScreen extends Screen {
             if (rowY > y + h - 12) {
                 break;
             }
-            g.text(this.font, this.font.plainSubstrByWidth(line, w - 16), x + 8, rowY, ProfitPanels.TEXT, false);
+            MenuStyle.text(g, ScreenChrome.readable(this.font.plainSubstrByWidth(line, w - 16)), x + 8, rowY,
+                    MenuStyle.TXT);
             rowY += 12;
         }
     }
 
     private void renderDetail(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-        g.fill(x, y, x + w, y + h, ProfitPanels.INNER_BG);
-        g.outline(x, y, w, h, ProfitPanels.BORDER);
-        g.text(this.font, detailTitle(), x + 8, y + 8, ProfitPanels.DIM, false);
+        ScreenChrome.well(g, x, y, w, h);
+        MenuStyle.text(g, detailTitle(), x + 8, y + 8, MenuStyle.DIM);
         long[] values = graph();
         if (values != null) {
-            ProfitPanels.barGraph(g, this.font, x + 6, y + 22, w - 12, h - 28, values);
+            ProfitPanels.themedBarGraph(g, this.font, x + 6, y + 22, w - 12, h - 28, values);
             return;
         }
         int rowY = y + 22;
@@ -174,7 +177,8 @@ public abstract class ProfitTrackerScreen extends Screen {
             if (rowY > y + h - 12) {
                 break;
             }
-            g.text(this.font, this.font.plainSubstrByWidth(line, w - 16), x + 8, rowY, ProfitPanels.TEXT, false);
+            MenuStyle.text(g, ScreenChrome.readable(this.font.plainSubstrByWidth(line, w - 16)), x + 8, rowY,
+                    MenuStyle.TXT);
             rowY += 12;
         }
     }

@@ -1,6 +1,9 @@
 package com.killer560.hub.storagesearch;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedScreen;
 import com.killer560.hub.util.ModChat;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -14,13 +17,10 @@ import java.util.ArrayList;
 import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
-/** Black + orange search screen for {@link StorageSearchFeature} - same chrome as {@code ModScreen}
- *  (dim backdrop, near-black panel, dim-amber border, black header with the bright amber underline). */
-public class StorageSearchScreen extends Screen {
+/** The search screen for {@link StorageSearchFeature}, drawn in the mod menu's active theme ({@link ScreenChrome}: bevelled
+ *  frame, header bar, recessed search field and results well, themed rows). Every control keeps its place. */
+public class StorageSearchScreen extends Screen implements ThemedScreen {
 
-    private static final int ACCENT = 0xFFCC6600;
-    private static final int BORDER = 0xFF553311;
-    private static final int PANEL_BG = 0xFF0D0D0D;
     private static final int ROW_H = 22;
 
     private final Screen parent;
@@ -35,6 +35,8 @@ public class StorageSearchScreen extends Screen {
     private SettingsButtonWidget sourceButton;
 
     private int panelX, panelY, panelW, panelH;
+    /** The search field's well (the box itself sits inside it, borderless). */
+    private int boxX, boxY, boxW, boxH;
     private int listX, listY, listW, listH;
     private int scroll = 0;
 
@@ -72,9 +74,14 @@ public class StorageSearchScreen extends Screen {
         }
         int sourceW = 84;
         int boxW = Math.max(80, panelW - 12 - sortW - sourceW - 8);
-        searchBox = new EditBox(this.font, panelX + 6, panelY + 36, boxW, 18, Component.literal("Search"));
+        boxX = panelX + 6;
+        boxY = panelY + 36;
+        this.boxW = boxW;
+        boxH = 18;
+        int[] in = ScreenChrome.fieldInset(boxX, boxY, boxW, boxH);
+        searchBox = new EditBox(this.font, in[0], in[1], in[2], in[3], Component.literal("Search"));
+        ScreenChrome.styleField(searchBox);
         searchBox.setMaxLength(100);
-        searchBox.setHint(Component.literal("Name, Skyblock id" + (cfg.isSearchLore() ? " or lore" : "") + "..."));
         searchBox.setValue(current);
         searchBox.setResponder(text -> refilter());
         addRenderableWidget(searchBox);
@@ -115,7 +122,6 @@ public class StorageSearchScreen extends Screen {
             cfg.setSearchLore(!cfg.isSearchLore());
             cfg.save();
             btn.setMessage(onOff("Lore", cfg.isSearchLore()));
-            searchBox.setHint(Component.literal("Name, Skyblock id" + (cfg.isSearchLore() ? " or lore" : "") + "..."));
             refilter();
         }).bounds(panelX + panelW - bw * 2 - 10, panelY + 6, bw, 18).build();
         addRenderableWidget(loreButton);
@@ -128,6 +134,11 @@ public class StorageSearchScreen extends Screen {
 
         setInitialFocus(searchBox);
         refilter();
+    }
+
+    /** The search field's hint (painted by {@link ScreenChrome#fieldWell}). */
+    private static String hint() {
+        return "Name, Skyblock id" + (StorageSearchConfig.getInstance().isSearchLore() ? " or lore" : "") + "...";
     }
 
     private void refilter() {
@@ -178,13 +189,12 @@ public class StorageSearchScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, PANEL_BG);
-        graphics.outline(panelX, panelY, panelW, panelH, BORDER);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + 30, 0xFF000000);
-        graphics.outline(panelX, panelY, panelW, 30, BORDER);
-        graphics.fill(panelX, panelY + 29, panelX + panelW, panelY + 30, ACCENT);
-        graphics.text(this.font, "Storage Search", panelX + 10, panelY + 11, ACCENT, false);
+        ScreenChrome.begin("storage_search");
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.header(graphics, panelX + 4, panelY + 4, panelW - 8, ScreenChrome.HEADER_H, "Storage Search");
+        ScreenChrome.fieldWell(graphics, boxX, boxY, boxW, boxH, searchBox, hint(),
+                mouseX >= boxX && mouseX < boxX + boxW && mouseY >= boxY && mouseY < boxY + boxH);
 
         // Summary line.
         int cached = 0;
@@ -207,24 +217,23 @@ public class StorageSearchScreen extends Screen {
             summary.append("  ·  ").append(index.knownChests()).append(" chest")
                     .append(index.knownChests() == 1 ? "" : "s");
         }
-        graphics.text(this.font, summary.toString(), panelX + 8, panelY + 59, 0xFF000000 | ModChat.LIGHT_ORANGE, false);
+        MenuStyle.text(graphics, summary.toString(), panelX + 8, panelY + 59, MenuStyle.OR);
         int neverOpened = unopened + index.unopenedChests();
         if (neverOpened > 0) {
             String warn = neverOpened + " never opened";
-            graphics.text(this.font, warn, panelX + panelW - 8 - this.font.width(warn), panelY + 59, 0xFF000000 | ModChat.BAD, false);
+            MenuStyle.text(graphics, warn, panelX + panelW - 8 - this.font.width(warn), panelY + 59, ScreenChrome.bad());
         }
 
         // Results list.
-        graphics.fill(listX, listY, listX + listW, listY + listH, 0xFF080808);
-        graphics.outline(listX - 1, listY - 1, listW + 2, listH + 2, BORDER);
+        ScreenChrome.well(graphics, listX - 1, listY - 1, listW + 2, listH + 2);
         StorageSearchIndex.Entry hovered = entryAt(mouseX, mouseY);
         if (minecraft.level == null) {
-            graphics.text(this.font, "Join a world to search your storages.", listX + 6, listY + 6, 0xFF000000 | ModChat.DIM, false);
+            MenuStyle.text(graphics, "Join a world to search your storages.", listX + 6, listY + 6, MenuStyle.DIM);
         } else if (results.isEmpty()) {
             String msg = index.entries().isEmpty()
                     ? "Nothing cached yet - open your Ender Chest pages / Backpacks once."
                     : "No matches.";
-            graphics.text(this.font, msg, listX + 6, listY + 6, 0xFF000000 | ModChat.DIM, false);
+            MenuStyle.text(graphics, msg, listX + 6, listY + 6, MenuStyle.DIM);
         }
         graphics.enableScissor(listX, listY, listX + listW, listY + listH);
         try {
@@ -240,24 +249,19 @@ public class StorageSearchScreen extends Screen {
             graphics.disableScissor();
         }
         if (maxScroll() > 0) {
-            int trackX = listX + listW - 3;
-            graphics.fill(trackX, listY, trackX + 3, listY + listH, 0xFF1A1A1A);
-            int contentH = results.size() * ROW_H;
-            int thumbH = Math.max(10, listH * listH / contentH);
-            int thumbY = listY + (listH - thumbH) * scroll / maxScroll();
-            graphics.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, ACCENT);
+            ScreenChrome.scrollbar(graphics, listX + listW - 4, listY, listH, scroll, maxScroll(), listH);
         }
 
         // Footer: the chunk-cache warning first (it changes what island-chest search can even see), else the
         // stalest cached storage.
         if (StorageSearchConfig.getInstance().isSearchChests() && !index.chunkCacheActive()) {
             String footer = "Chunk Cache is off - chests only count while their chunk is loaded.";
-            graphics.text(this.font, this.font.plainSubstrByWidth(footer, panelW - 16), panelX + 8, panelY + panelH - 13,
-                    0xFF000000 | ModChat.BAD, false);
+            MenuStyle.text(graphics, this.font.plainSubstrByWidth(footer, panelW - 16), panelX + 8, panelY + panelH - 13,
+                    ScreenChrome.bad());
         } else if (oldest != null) {
             String footer = "Oldest cache: " + oldest.label() + " · " + ageText(oldest.updatedMs(), oldest.updatedIsUpperBound());
-            graphics.text(this.font, this.font.plainSubstrByWidth(footer, panelW - 16), panelX + 8, panelY + panelH - 13,
-                    ageColor(oldest.updatedMs()), false);
+            MenuStyle.text(graphics, this.font.plainSubstrByWidth(footer, panelW - 16), panelX + 8, panelY + panelH - 13,
+                    ageColor(oldest.updatedMs()));
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
@@ -270,41 +274,39 @@ public class StorageSearchScreen extends Screen {
     private void drawRow(GuiGraphicsExtractor graphics, StorageSearchIndex.Entry e, int i, int y, boolean hovered) {
         int x = listX;
         int w = listW - 4;
-        graphics.fill(x, y, x + w, y + ROW_H, hovered ? 0xFF262626 : (i % 2 == 0 ? 0xFF121212 : 0xFF0D0D0D));
-        if (hovered) {
-            graphics.outline(x, y, w, ROW_H, ACCENT);
-        }
+        ScreenChrome.row(graphics, x, y, w, ROW_H, i, hovered, false);
         graphics.item(e.stack(), x + 3, y + 3);
 
         String count = "x" + e.stack().getCount();
         int countW = this.font.width(count);
-        graphics.text(this.font, count, x + w - 6 - countW, y + 3, 0xFF000000 | ModChat.LIGHT_ORANGE, false);
+        MenuStyle.text(graphics, count, x + w - 6 - countW, y + 3, MenuStyle.OR);
 
         int textX = x + 23;
         int nameMax = w - 23 - countW - 12;
         if (e.rarityRgb() >= 0) {
-            graphics.text(this.font, this.font.plainSubstrByWidth(e.name(), nameMax), textX, y + 3, 0xFF000000 | e.rarityRgb(), false);
+            MenuStyle.text(graphics, this.font.plainSubstrByWidth(e.name(), nameMax), textX, y + 3,
+                    ScreenChrome.readable(0xFF000000 | e.rarityRgb()));
         } else if (!e.name().equals(e.stack().getHoverName().getString())) {
-            graphics.text(this.font, this.font.plainSubstrByWidth(e.name(), nameMax), textX, y + 3, 0xFFFFFFFF, false);
+            MenuStyle.text(graphics, this.font.plainSubstrByWidth(e.name(), nameMax), textX, y + 3, MenuStyle.TXT);
         } else if (this.font.width(e.stack().getHoverName()) <= nameMax) {
-            graphics.text(this.font, e.stack().getHoverName(), textX, y + 3, 0xFFFFFFFF, false);
+            MenuStyle.text(graphics, ScreenChrome.readable(e.stack().getHoverName()), textX, y + 3, MenuStyle.TXT);
         } else {
-            graphics.text(this.font, this.font.plainSubstrByWidth(e.name(), nameMax), textX, y + 3, 0xFFFFFFFF, false);
+            MenuStyle.text(graphics, this.font.plainSubstrByWidth(e.name(), nameMax), textX, y + 3, MenuStyle.TXT);
         }
 
         String age;
         int ageColor;
         if (e.type() == StorageSearchIndex.SourceType.INVENTORY) {
             age = "live";
-            ageColor = 0xFF000000 | ModChat.GOOD;
+            ageColor = ScreenChrome.good();
         } else {
             age = ageText(e.updatedMs(), e.updatedIsUpperBound());
             ageColor = ageColor(e.updatedMs());
         }
         int ageW = this.font.width(age);
-        graphics.text(this.font, age, x + w - 6 - ageW, y + 12, ageColor, false);
+        MenuStyle.text(graphics, age, x + w - 6 - ageW, y + 12, ageColor);
         String loc = this.font.plainSubstrByWidth(e.location(), w - 23 - ageW - 12);
-        graphics.text(this.font, loc, textX, y + 12, 0xFF000000 | ModChat.DIM, false);
+        MenuStyle.text(graphics, ScreenChrome.readable(loc), textX, y + 12, MenuStyle.DIM);
     }
 
     private static String ageText(long updatedMs, boolean upperBound) {
@@ -314,19 +316,19 @@ public class StorageSearchScreen extends Screen {
         return upperBound ? "updated before " + StorageSearchTimestamps.ago(updatedMs) : "updated " + StorageSearchTimestamps.ago(updatedMs);
     }
 
-    /** Light orange under an hour, dim under a day, red beyond - stale data should look stale. */
+    /** The accent under an hour, dim under a day, red beyond - stale data should look stale. */
     private static int ageColor(long updatedMs) {
         if (updatedMs < 0) {
-            return 0xFF000000 | ModChat.BAD;
+            return ScreenChrome.bad();
         }
         long age = System.currentTimeMillis() - updatedMs;
         if (age < 3_600_000L) {
-            return 0xFF000000 | ModChat.LIGHT_ORANGE;
+            return MenuStyle.OR;
         }
         if (age < 86_400_000L) {
-            return 0xFF000000 | ModChat.DIM;
+            return MenuStyle.DIM;
         }
-        return 0xFF000000 | ModChat.BAD;
+        return ScreenChrome.bad();
     }
 
     private static Component onOff(String label, boolean value) {
