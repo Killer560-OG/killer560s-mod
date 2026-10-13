@@ -152,4 +152,12 @@ public final class McCompat {
         return monitor.monitor();
     }
 
+    // ------------------------------------------------------------------------------------------------ title screen
+
+    /** True for the title screen's Friends icon button. 26.2 added it (TitleScreen.init calls
+     *  CommonButtons.friends, a FriendsButton with message key "gui.friends.open"; javap 26.2). */
+    public static boolean isFriendsButton(net.minecraft.client.gui.components.AbstractWidget w) {
+        return w instanceof net.minecraft.client.gui.components.FriendsButton;
+    }
+
 }

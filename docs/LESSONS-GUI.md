@@ -334,3 +334,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   GUI coordinates every frame (`GuiTextRenderState.ensurePrepared`; javap 26.1.2 and 26.2), so `chroma/mixin/
   ChromaGlyphColorMixin` redirects that call for a `util/ChromaWave` spec's TextColor (matched by identity; `fromRgb` never
   interns) and a whole tooltip is one diagonal waterfall (testkit 971: line 2 continues line 1 by +23.8 deg, 2026-10-13).
+- **26.2's title screen has a row of icons the themed layout must name.** `TitleScreen.init` adds `FriendsButton`
+  (key `gui.friends.open`), language and accessibility between the column and Options/Quit, and Mod Menu 20's icon style adds
+  `SmallModMenuButtonWidget` there (18 on 26.1.2 used `UpdateCheckerTexturedButtonWidget`; javap). Unrecognised, both stayed
+  on top of Swap Accounts (killer560, 2026-10-13). `MainMenuTitleLayout` removes them and every other Mod Menu button,
+  classic row included (Friends via `McCompat.isFriendsButton`);
+  testkit 341 checks every visible widget and every pair's overlap, Mod Menu loaded, both styles, both versions.

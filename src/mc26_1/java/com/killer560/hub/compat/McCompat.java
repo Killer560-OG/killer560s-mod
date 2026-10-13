@@ -193,4 +193,11 @@ public final class McCompat {
         return monitor.getMonitor();
     }
 
+    // ------------------------------------------------------------------------------------------------ title screen
+
+    /** True for the title screen's Friends icon button. 26.1.2 has none (no FriendsButton class; javap 26.1.2). */
+    public static boolean isFriendsButton(net.minecraft.client.gui.components.AbstractWidget w) {
+        return false;
+    }
+
 }
