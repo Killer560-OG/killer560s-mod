@@ -19,7 +19,7 @@ final class FeatureDescriptions {
     static {
         // Filled from the feature sources, 2026-10-12 (Option A menu): only tabs whose master toggle has no tooltip, or
         // that have no master toggle at all.
-        BY_TAB.put("HomeMainTab", "Update check, Discord, Skyblock Only, and the HUD editor, HUD Scale and Auto Scale.");
+        BY_TAB.put("HomeMainTab", "Update notice, Skyblock Only, the Edit HUD key, HUD Scale, Auto Scale and the HUD editor's snapping.");
         BY_TAB.put("WitherDoorsTab", "Highlights the closest wither door, green once you hold a key.");
         BY_TAB.put("SimSettingsTab", "Dungeon Sim settings: Dungeon Breaker charges each secret gives back.");
         BY_TAB.put("SimKeybindsTab", "Next Room and Previous Room keys for route practice in the Dungeon Sim.");

@@ -60,7 +60,7 @@ final class RoomAlerts {
 
     private static void tick() {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
-        if (!cfg.roomAlertsEnabled || !DungeonState.isInDungeon() || !com.killer560.hub.util.SkyblockGate.allows()) {
+        if (!cfg.roomAlertsOn() || !DungeonState.isInDungeon() || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         if (cfg.roomAlertsRoomCleared) {
@@ -140,13 +140,13 @@ final class RoomAlerts {
 
         @Override
         public boolean isEnabledInSettings() {
-            return DungeonAlertsConfig.getInstance().roomAlertsEnabled;
+            return DungeonAlertsConfig.getInstance().roomAlertsOn();
         }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             boolean example = DungeonAlertsFeature.isEditorOpen();
-            if (!example && (!DungeonAlertsConfig.getInstance().roomAlertsEnabled || System.currentTimeMillis() >= alertUntilMs)) {
+            if (!example && (!DungeonAlertsConfig.getInstance().roomAlertsOn() || System.currentTimeMillis() >= alertUntilMs)) {
                 return;
             }
             String text = example ? "Water Board Cleared!" : alertText;

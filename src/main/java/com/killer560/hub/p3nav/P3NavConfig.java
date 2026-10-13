@@ -46,6 +46,9 @@ public final class P3NavConfig {
     private static P3NavConfig instance;
 
     // ---- Gate Highlight ----
+    /** P3 Nav as a whole (killer560, 2026-10-13): off, every part of it stands down whatever its own switches say.
+     *  On by default, so nothing changes until he flips it. */
+    private boolean p3NavEnabled = true;
     private boolean gateHighlight = false;
     private int gateColor = DEFAULT_GATE_COLOR;
     private Style gateStyle = Style.FILLED_OUTLINE;
@@ -86,6 +89,7 @@ public final class P3NavConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             P3NavConfig cfg = new P3NavConfig();
+            cfg.p3NavEnabled = ConfigJson.getBool(obj, "p3NavEnabled", true);
             cfg.gateHighlight = ConfigJson.getBool(obj, "gateHighlight", false);
             cfg.gateColor = ConfigJson.getInt(obj, "gateColor", DEFAULT_GATE_COLOR);
             cfg.gateStyle = ConfigJson.getEnum(obj, "gateStyle", Style.class, Style.FILLED_OUTLINE);
@@ -110,6 +114,7 @@ public final class P3NavConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
+            obj.addProperty("p3NavEnabled", p3NavEnabled);
             obj.addProperty("gateHighlight", gateHighlight);
             obj.addProperty("gateColor", gateColor);
             obj.addProperty("gateStyle", gateStyle.name());
@@ -133,8 +138,11 @@ public final class P3NavConfig {
     }
 
     // ---- Gate Highlight ----
+    public boolean isP3NavEnabled() { return p3NavEnabled; }
+    public void setP3NavEnabled(boolean v) { p3NavEnabled = v; }
+
     public boolean isGateHighlightEnabled() {
-        return gateHighlight && com.killer560.hub.util.SkyblockGate.allows();
+        return p3NavEnabled && gateHighlight && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public boolean getGateHighlightRaw() { return gateHighlight; }
@@ -161,7 +169,7 @@ public final class P3NavConfig {
 
     // ---- Terminal / Device ESP ----
     public boolean isTerminalEspEnabled() {
-        return terminalEsp && com.killer560.hub.util.SkyblockGate.allows();
+        return p3NavEnabled && terminalEsp && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public boolean getTerminalEspRaw() { return terminalEsp; }
@@ -187,7 +195,7 @@ public final class P3NavConfig {
     public void setTerminalCurrentSectionOnly(boolean v) { terminalCurrentSectionOnly = v; }
 
     public boolean isDeviceEspEnabled() {
-        return deviceEsp && com.killer560.hub.util.SkyblockGate.allows();
+        return p3NavEnabled && deviceEsp && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public boolean getDeviceEspRaw() { return deviceEsp; }
@@ -197,7 +205,7 @@ public final class P3NavConfig {
     public void setDeviceColor(int v) { deviceColor = v; }
 
     /** Cheat build only - a legit jar never reports true. */
-    public boolean isTerminalThroughWalls() { return cheat() && terminalThroughWalls; }
+    public boolean isTerminalThroughWalls() { return cheat() && p3NavEnabled && terminalThroughWalls; }
     public boolean getTerminalThroughWallsRaw() { return terminalThroughWalls; }
     public void setTerminalThroughWalls(boolean v) { terminalThroughWalls = v; }
 

@@ -178,6 +178,11 @@ public final class NameChangerFeature {
      *  didn't ask them to look like. Falls back to white -> red when a colour endpoint was never picked, so
      *  turning Fade on always shows something instead of two identical (invisible) endpoints. */
     static String ownStyled(NameChangerConfig cfg) {
+        String styled = ownStyledPlain(cfg);
+        return cfg.isOwnBold() ? NameColor.bold(styled) : styled;
+    }
+
+    private static String ownStyledPlain(NameChangerConfig cfg) {
         String display = colorize(cfg.getOwnDisplayName());
         boolean perChar = cfg.hasOwnCharColors();
         if (!cfg.isOwnColorFadeEnabled() && !perChar) {

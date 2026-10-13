@@ -17,32 +17,34 @@ public class SolverHighlightsTab extends BaseTab {
         super("Solver Highlights");
     }
 
-    /** Several independent switches and no master one: the menu card shows no switch (Option A menu, 2026-10-12). */
-    @Override
-    public com.killer560.hub.gui.SettingsButtonWidget masterToggle(
-            java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
-        return null;
-    }
-
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         SolverEspConfig cfg = SolverEspConfig.getInstance();
+        int y = contentY;
 
+        // Solver Highlights as a whole (killer560, 2026-10-13): first, so it is the card's switch. Off, no solver draws
+        // a world highlight (SolverEspRender) and the two shared settings below are hidden.
+        widgets.add(SettingsButtonWidget.builder(onOff("Solver Highlights", cfg.isEnabled()), btn -> {
+                    cfg.setEnabled(!cfg.isEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        if (!cfg.isEnabled()) {
+            return widgets;
+        }
         widgets.add(SettingsButtonWidget.builder(onOff("Through Walls", cfg.isThroughWalls()), btn -> {
                     cfg.setThroughWalls(!cfg.isThroughWalls());
                     cfg.save();
                     btn.setMessage(onOff("Through Walls", cfg.isThroughWalls()));
-                }).bounds(contentX, contentY, contentWidth, 20).build());
-        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
-                    cfg.setWaypointStyle(cfg.getWaypointStyle().next());
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
+                    cfg.setWaypointStyle(SettingsButtonWidget.step(cfg.getWaypointStyle(), dir));
                     cfg.save();
                     btn.setMessage(styleText(cfg));
-                }).secondaryPress(btn -> {
-                    cfg.setWaypointStyle(cfg.getWaypointStyle().previous());
-                    cfg.save();
-                    btn.setMessage(styleText(cfg));
-                }).bounds(contentX, contentY + 24, contentWidth, 20).build());
+                }).bounds(contentX, y, contentWidth, 20).build());
 
         return widgets;
     }

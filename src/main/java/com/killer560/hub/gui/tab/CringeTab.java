@@ -22,6 +22,19 @@ public class CringeTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
+        com.killer560.hub.cringe.CringeConfig cfg = com.killer560.hub.cringe.CringeConfig.getInstance();
+
+        // Cringe as a whole (killer560, 2026-10-13): first, so it is the card's switch. Off, /cringe and Leap Message's
+        // cringe line send nothing (CringeFeature#sendRandom) and the buttons below are hidden.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Cringe: " + (cfg.isEnabled() ? "§aON" : "§cOFF")), btn -> {
+                    cfg.setEnabled(!cfg.isEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        if (!cfg.isEnabled()) {
+            return widgets;
+        }
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Cringe Lines Folder"), btn -> openFolder())
                 .bounds(contentX, y, 220, 20).build());

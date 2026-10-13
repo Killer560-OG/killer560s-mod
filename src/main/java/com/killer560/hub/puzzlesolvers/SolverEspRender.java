@@ -69,6 +69,11 @@ public final class SolverEspRender {
                         .build())).sortOnUpload().createRenderSetup());
     }
 
+    /** Solver Highlights' master switch: off, every method below draws nothing. */
+    private static boolean off() {
+        return !SolverEspConfig.getInstance().isEnabled();
+    }
+
     private static boolean throughWalls() {
         return SolverEspConfig.getInstance().isThroughWalls();
     }
@@ -80,6 +85,9 @@ public final class SolverEspRender {
 
     public static void renderOutlineBox(LevelRenderContext context, AABB box, float r, float g, float b, float a,
                                         float thickness) {
+        if (off()) {
+            return;
+        }
         if (!throughWalls()) {
             WorldRenderUtils.renderOutlineBox(context, box.inflate(Z_FIGHT_NUDGE), r, g, b, a, thickness);
             return;
@@ -90,6 +98,9 @@ public final class SolverEspRender {
 
     /** A solver waypoint in the shared Waypoint Style - an outline, or a translucent full block. */
     public static void renderWaypoint(LevelRenderContext context, AABB box, float r, float g, float b, float thickness) {
+        if (off()) {
+            return;
+        }
         if (SolverEspConfig.getInstance().getWaypointStyle() == SolverEspConfig.WaypointStyle.FULL) {
             renderFilledBox(context, box, r, g, b, 0.45f);
         } else {
@@ -98,6 +109,9 @@ public final class SolverEspRender {
     }
 
     public static void renderFilledBox(LevelRenderContext context, AABB box, float r, float g, float b, float a) {
+        if (off()) {
+            return;
+        }
         if (!throughWalls()) {
             WorldRenderUtils.renderFilledBox(context, box.inflate(Z_FIGHT_NUDGE), r, g, b, a);
             return;
@@ -108,6 +122,9 @@ public final class SolverEspRender {
 
     public static void renderLineStrip(LevelRenderContext context, List<Vec3> points,
                                        float r, float g, float b, float a, float thickness) {
+        if (off()) {
+            return;
+        }
         if (!throughWalls()) {
             WorldRenderUtils.renderLineStrip(context, points, r, g, b, a, thickness);
             return;

@@ -202,7 +202,7 @@ public final class DvdFeature {
         if (com.killer560.hub.hud.GuiOverlays.containerOpen()) {
             return;
         }
-        if (!com.killer560.hub.util.SkyblockGate.allows()) {
+        if (!com.killer560.hub.util.SkyblockGate.allows() || !DvdConfig.getInstance().isDvdEnabled()) {
             return;
         }
         long now = System.currentTimeMillis();

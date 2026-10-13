@@ -40,6 +40,23 @@ public class DvdTab extends BaseTab {
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
+        // DVD as a whole (killer560, 2026-10-13): first on every page, so it is the card's switch. Off, no box draws
+        // (DvdFeature#renderOverlay) and the list and wizard are hidden.
+        DvdConfig dc = DvdConfig.getInstance();
+        List<AbstractWidget> all = new ArrayList<>();
+        all.add(SettingsButtonWidget.builder(Component.literal("DVD: " + (dc.isDvdEnabled() ? "§aON" : "§cOFF")), btn -> {
+                    dc.setDvdEnabled(!dc.isDvdEnabled());
+                    dc.save();
+                    requestRebuild.run();
+                }).bounds(contentX, contentY, contentWidth, ROW_H).build());
+        if (!dc.isDvdEnabled()) {
+            return all;
+        }
+        all.addAll(buildPage(contentX, contentY + ROW_H + 8, contentWidth, requestRebuild));
+        return all;
+    }
+
+    private List<AbstractWidget> buildPage(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         if (editingId != null) {
             Optional<DvdEntry> found = DvdConfig.getInstance().entries().stream()
                     .filter(e -> e.id.equals(editingId)).findFirst();

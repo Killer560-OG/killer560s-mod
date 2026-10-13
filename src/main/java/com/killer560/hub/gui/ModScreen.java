@@ -150,7 +150,6 @@ public class ModScreen extends Screen {
     // ---- links (the ones the mod already publishes) -----------------------------------------------------------------
     static final String DISCORD_URL = "https://discord.gg/hkQMF5fE84";
     static final String GITHUB_URL = "https://github.com/" + com.killer560.hub.autoupdate.AutoUpdater.REPO;
-    static final String CHANGELOG_URL = GITHUB_URL + "/releases";
     static final String FEATURES_URL = "https://docs.google.com/document/d/e/2PACX-1vQsLEy_hlz-Dv518bH7AgYjyoGgdNl2jSAF4T8vzQ"
             + "Hawmkg0f56q6Yrp67Zqncc8h9N-pdAvFLC5_D-/pub";
 
@@ -524,6 +523,28 @@ public class ModScreen extends Screen {
             if (openFeature == built && (advancedHeader != null) != reserved) {
                 hasAdvanced.put(built, advancedHeader != null);
                 rebuild();
+                return;
+            }
+        }
+        resumeLiveDrag();
+    }
+
+    /**
+     * A slider dragged while the menu is laid out again (HUD Scale resizes this menu live, 2026-10-13) is rebuilt as a
+     * new widget: give the drag to the new one, so the press that started it keeps moving it until the release.
+     */
+    private void resumeLiveDrag() {
+        String key = ThemedSliderButton.liveDragKey();
+        if (key == null || contentPane == null) {
+            return;
+        }
+        for (AbstractWidget w : contentPane.children()) {
+            if (w instanceof ThemedSliderButton s && key.equals(s.dragKey())) {
+                this.setFocused(contentPane);
+                this.setDragging(true);
+                contentPane.setFocused(s);
+                contentPane.setDragging(true);
+                return;
             }
         }
     }
@@ -718,13 +739,15 @@ public class ModScreen extends Screen {
         if (cat instanceof HomeTab) {
             items.add(new Item(ItemKind.BLOCK, null, null, false, new HeroBlock()));
             items.add(new Item(ItemKind.BLOCK, null, null, false, new ThemeBlock()));
-            items.add(new Item(ItemKind.BLOCK, null, null, false, new FavouritesBlock()));
             items.add(new Item(ItemKind.HEADER, null, "Mod settings", false, null));
         }
         FolderTab folder = (FolderTab) cat;
         List<BaseTab> legit = new ArrayList<>();
         List<BaseTab> cheat = new ArrayList<>();
         for (BaseTab s : folder.subTabs()) {
+            if (cat instanceof HomeTab && s instanceof com.killer560.hub.gui.tab.MenuThemeTab) {
+                continue; // killer560, 2026-10-13: set from Home's Menu Theme row; Customise... still opens its drawer
+            }
             (s.isCheatOnly() ? cheat : legit).add(s);
         }
         addSections(legit, false);
@@ -906,10 +929,8 @@ public class ModScreen extends Screen {
                 }
             }
         }
-        if (key == InputConstants.KEY_ESCAPE && openFeature != null && !pageMode()) {
-            closeDrawer();
-            return true;
-        }
+        // Escape closes the menu with the drawer left open (killer560, 2026-10-13: reopening the menu reopens the same
+        // drawer at the same scroll - openFeature and scrollOffset are static). The drawer's X closes the drawer.
         return super.keyPressed(keyEvent);
     }
 
@@ -1900,6 +1921,12 @@ public class ModScreen extends Screen {
     }
 
     @Override
+    public void removed() {
+        ThemedSliderButton.endLiveDrag();
+        super.removed();
+    }
+
+    @Override
     public void onClose() {
         if (openFeature != null) {
             FeatureCards.refresh(openFeature);
@@ -1985,8 +2012,6 @@ public class ModScreen extends Screen {
     private record HomeButton(String label, Runnable action) {
     }
 
-    private static final String HOME_PROFILES = "Profiles";
-
     /** Screen box {x, y, w, h} of Home's quick button {@code label} on the current page, or null. For the testkit. */
     public int[] homeButtonBounds(String label) {
         for (Item it : items) {
@@ -2015,19 +2040,7 @@ public class ModScreen extends Screen {
                 Minecraft client = Minecraft.getInstance();
                 McCompat.setScreen(client, com.killer560.hub.hud.HudEditorScreen.forBars(McCompat.screen(client)));
             }));
-            // Wherever the Profiles tab lives: its own page normally, a drawer in a testing build's Untested category
-            // (where indexOf found no top-level Profiles and this button did nothing, 2026-10-13).
-            b.add(new HomeButton(HOME_PROFILES, () -> {
-                for (BaseTab leaf : allLeaves()) {
-                    if (leaf instanceof com.killer560.hub.gui.tab.ProfilesTab) {
-                        scrollOffset = 0;
-                        openFeature(leaf);
-                        return;
-                    }
-                }
-            }));
             b.add(new HomeButton("Check Updates", () -> com.killer560.hub.gui.tab.AutoUpdateTab.checkNow(() -> { })));
-            b.add(new HomeButton("Changelog", () -> com.killer560.hub.util.ExternalOpen.uri(CHANGELOG_URL)));
             b.add(new HomeButton("Discord", () -> com.killer560.hub.util.ExternalOpen.uri(DISCORD_URL)));
             b.add(new HomeButton("GitHub", () -> com.killer560.hub.util.ExternalOpen.uri(GITHUB_URL)));
             b.add(new HomeButton("Features Doc", () -> com.killer560.hub.util.ExternalOpen.uri(FEATURES_URL)));
@@ -2035,12 +2048,12 @@ public class ModScreen extends Screen {
         }
 
         private int cols(int w) {
-            return w >= 420 ? 4 : 2;
+            return w >= 420 ? 3 : 2;
         }
 
         @Override
         public int height(int width) {
-            int rows = (8 + cols(width) - 1) / cols(width);
+            int rows = (buttons().size() + cols(width) - 1) / cols(width);
             return 50 + rows * 20 + 6;
         }
 
@@ -2162,104 +2175,6 @@ public class ModScreen extends Screen {
                             rebuild();
                         }
                     }
-                }
-                return true;
-            }
-            return false;
-        }
-    }
-
-    /** Home's Favourites box: every starred feature with its live switch; clicking a name opens its drawer. */
-    private final class FavouritesBlock implements Block {
-
-        private List<BaseTab> favs() {
-            List<BaseTab> out = new ArrayList<>();
-            List<BaseTab> leaves = allLeaves();
-            for (String id : MenuConfig.getInstance().getFavourites()) {
-                for (BaseTab leaf : leaves) {
-                    if (id(leaf).equals(id)) {
-                        out.add(leaf);
-                        break;
-                    }
-                }
-            }
-            return out;
-        }
-
-        private int cols(int w) {
-            return w >= 420 ? 2 : 1;
-        }
-
-        @Override
-        public int height(int width) {
-            int n = favs().size();
-            int rows = n == 0 ? 1 : (n + cols(width) - 1) / cols(width);
-            return 20 + rows * 16 + 4;
-        }
-
-        private int[] rowBox(int i, int x, int y, int w) {
-            int cols = cols(w);
-            int cw = (w - 12 - (cols - 1) * 8) / cols;
-            return new int[]{x + 6 + (i % cols) * (cw + 8), y + 20 + (i / cols) * 16, cw, 15};
-        }
-
-        @Override
-        public void render(GuiGraphicsExtractor g, int x, int y, int w, int mouseX, int mouseY) {
-            int h = height(w);
-            List<BaseTab> favs = favs();
-            GuiRects r = GuiRects.begin(g);
-            MenuStyle.dropShadow(r, x, y, w, h, 3);
-            MenuStyle.bevel(r, x, y, w, h, MenuStyle.BOX_TOP, MenuStyle.BOX_BOTTOM);
-            r.gradient(x + 1, y + 1, x + w - 1, y + 15, MenuStyle.TITLE_TOP, MenuStyle.TITLE_BOTTOM);
-            r.fill(x + 1, y + 15, x + w - 1, y + 16, MenuStyle.BLACK);
-            for (int i = 0; i < favs.size(); i++) {
-                int[] b = rowBox(i, x, y, w);
-                boolean hov = mouseX >= 0 && inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
-                if (hov) {
-                    r.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], MenuStyle.alpha(MenuStyle.TXT, 0x10));
-                }
-                MenuStyle.separator(r, b[0], b[0] + b[2], b[1] + b[3] - 1);
-                Boolean s = FeatureCards.state(favs.get(i));
-                if (s != null) {
-                    MenuStyle.toggle(r, b[0] + b[2] - 2 - MenuStyle.SWITCH_W, b[1] + 2, s, hov);
-                }
-            }
-            r.submit();
-            MenuStyle.text(g, "FAVOURITES", x + 8, y + 4, MenuStyle.OR2);
-            if (favs.isEmpty()) {
-                MenuStyle.text(g, MenuStyle.ellipsize("Star a feature card (☆) to keep its switch here.", w - 20),
-                        x + 10, y + 23, MenuStyle.DIM);
-                return;
-            }
-            for (int i = 0; i < favs.size(); i++) {
-                int[] b = rowBox(i, x, y, w);
-                BaseTab t = favs.get(i);
-                String where = MenuCategories.category(t).name;
-                int ww = font.width(where);
-                int nameMax = b[2] - MenuStyle.SWITCH_W - 16 - ww - 6;
-                MenuStyle.text(g, "★", b[0] + 2, b[1] + 3, MenuStyle.OR);
-                MenuStyle.text(g, MenuStyle.ellipsize(t.name, nameMax), b[0] + 13, b[1] + 3,
-                        t.isCheatOnly() ? MenuStyle.RED_TITLE : MenuStyle.TXT);
-                MenuStyle.flat(g, where, b[0] + b[2] - MenuStyle.SWITCH_W - 8 - ww, b[1] + 3, MenuStyle.DIM2);
-            }
-        }
-
-        @Override
-        public boolean click(int x, int y, int w, double mx, double my) {
-            List<BaseTab> favs = favs();
-            for (int i = 0; i < favs.size(); i++) {
-                int[] b = rowBox(i, x, y, w);
-                if (!inside(mx, my, b[0], b[1], b[2], b[3])) {
-                    continue;
-                }
-                clickSound();
-                BaseTab t = favs.get(i);
-                if (FeatureCards.state(t) != null && mx >= b[0] + b[2] - 2 - MenuStyle.SWITCH_W - 3) {
-                    toggleCard(t);
-                } else {
-                    openFeature = t;
-                    scrollOffset = 0;
-                    rebuild();
                 }
                 return true;
             }

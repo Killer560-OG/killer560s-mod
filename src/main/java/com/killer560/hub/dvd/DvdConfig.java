@@ -25,10 +25,17 @@ public final class DvdConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-dvd.json");
+    /** DVD's master switch lives in its own file: killer560smod-dvd.json is a bare array of boxes, and an older jar
+     *  reading an object there would lose every box. */
+    private static final Path MASTER_PATH =
+            ModPaths.config("killer560smod-dvd-master.json");
 
     private static DvdConfig instance;
 
     private final List<DvdEntry> entries = new ArrayList<>();
+    /** DVD as a whole (killer560, 2026-10-13): off, no box is drawn, bounces or plays a sound, whatever each box's
+     *  own switch says. On by default, so nothing changes until he flips it. */
+    private boolean dvdEnabled = true;
 
     private DvdConfig() {
     }
@@ -85,7 +92,23 @@ public final class DvdConfig {
             } catch (Exception ignored) {
             }
         }
+        if (Files.exists(MASTER_PATH)) {
+            try {
+                JsonObject master = JsonParser.parseString(Files.readString(MASTER_PATH, StandardCharsets.UTF_8))
+                        .getAsJsonObject();
+                cfg.dvdEnabled = ConfigJson.getBool(master, "dvdEnabled", true);
+            } catch (Exception ignored) {
+            }
+        }
         instance = cfg;
+    }
+
+    public boolean isDvdEnabled() {
+        return dvdEnabled;
+    }
+
+    public void setDvdEnabled(boolean v) {
+        this.dvdEnabled = v;
     }
 
     /** Never returns null (a JSON null would otherwise NPE later in the tab/feature). */
@@ -119,6 +142,9 @@ public final class DvdConfig {
                 array.add(obj);
             }
             Files.writeString(CONFIG_PATH, GSON.toJson(array), StandardCharsets.UTF_8);
+            JsonObject master = new JsonObject();
+            master.addProperty("dvdEnabled", dvdEnabled);
+            Files.writeString(MASTER_PATH, GSON.toJson(master), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
     }

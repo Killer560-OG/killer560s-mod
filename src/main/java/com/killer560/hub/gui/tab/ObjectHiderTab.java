@@ -36,18 +36,23 @@ public class ObjectHiderTab extends BaseTab {
         super("Object Hider");
     }
 
-    /** Several independent switches and no master one: the menu card shows no switch (Option A menu, 2026-10-12). */
-    @Override
-    public com.killer560.hub.gui.SettingsButtonWidget masterToggle(
-            java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
-        return null;
-    }
-
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
         int[] y = {contentY};
+
+        // Object Hider as a whole (killer560, 2026-10-13): first, so it is the card's switch. Off, the feature stands down in its
+        // config's effective getters and the settings below are hidden.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Object Hider: " + (cfg.isObjectHiderEnabled() ? "§aON" : "§cOFF")), btn -> {
+                    cfg.setObjectHiderEnabled(!cfg.isObjectHiderEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y[0], contentWidth, 20).build());
+        y[0] += 24;
+        if (!cfg.isObjectHiderEnabled()) {
+            return widgets;
+        }
 
         header(widgets, contentX, contentWidth, y, "Screen");
 

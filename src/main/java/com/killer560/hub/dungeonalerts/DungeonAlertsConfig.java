@@ -29,6 +29,10 @@ public final class DungeonAlertsConfig {
 
     private static DungeonAlertsConfig instance;
 
+    /** Dungeon Alerts as a whole (killer560, 2026-10-13): off, Shadow Assassin Alert and Room Alerts both stand down
+     *  whatever their own switches say. On by default, so nothing changes until he flips it. */
+    public boolean dungeonAlertsEnabled = true;
+
     // Shadow Assassin Alert
     public boolean shadowAssassinEnabled = false;
 
@@ -96,6 +100,7 @@ public final class DungeonAlertsConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+                cfg.dungeonAlertsEnabled = bool(o, "dungeonAlertsEnabled", cfg.dungeonAlertsEnabled);
                 cfg.shadowAssassinEnabled = bool(o, "shadowAssassinEnabled", cfg.shadowAssassinEnabled);
                 cfg.secretSoundEnabled = bool(o, "secretSoundEnabled", cfg.secretSoundEnabled);
                 cfg.secretSoundId = ConfigJson.getString(o, "secretSoundId", cfg.secretSoundId);
@@ -126,6 +131,7 @@ public final class DungeonAlertsConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject o = new JsonObject();
+            o.addProperty("dungeonAlertsEnabled", dungeonAlertsEnabled);
             o.addProperty("shadowAssassinEnabled", shadowAssassinEnabled);
             o.addProperty("secretSoundEnabled", secretSoundEnabled);
             o.addProperty("secretSoundId", secretSoundId);
@@ -148,6 +154,24 @@ public final class DungeonAlertsConfig {
         } catch (Exception e) {
             LOGGER.warn("[DungeonAlerts] Failed to save config", e);
         }
+    }
+
+    public boolean isDungeonAlertsEnabled() {
+        return dungeonAlertsEnabled;
+    }
+
+    public void setDungeonAlertsEnabled(boolean v) {
+        this.dungeonAlertsEnabled = v;
+    }
+
+    /** Shadow Assassin Alert's effective switch: its own AND Dungeon Alerts as a whole. */
+    public boolean shadowAssassinOn() {
+        return dungeonAlertsEnabled && shadowAssassinEnabled;
+    }
+
+    /** Room Alerts' effective switch: its own AND Dungeon Alerts as a whole. */
+    public boolean roomAlertsOn() {
+        return dungeonAlertsEnabled && roomAlertsEnabled;
     }
 
     private static boolean bool(JsonObject o, String key, boolean def) {
