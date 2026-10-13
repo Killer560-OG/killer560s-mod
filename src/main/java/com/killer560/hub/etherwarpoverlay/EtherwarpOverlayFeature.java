@@ -159,11 +159,54 @@ public final class EtherwarpOverlayFeature {
                     WorldRenderUtils.renderFilledBox(context, box, c[0], c[1], c[2], c[3] * 0.5f);
                     WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 1f, 2f);
                 }
-                default -> WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 1f, 2f);
+                default -> {
+                    WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 1f, 2f);
+                    Direction near = nearFace(box, com.killer560.hub.compat.McRender.cameraPos(context));
+                    if (near != null) {
+                        WorldRenderUtils.renderFilledFace(context, box, near, c[0], c[1], c[2], c[3] * NEAR_FACE_ALPHA);
+                    }
+                }
             }
         } catch (Exception e) {
             LOGGER.warn("[EtherwarpOverlay] Render failed: {}", e.toString());
         }
+    }
+
+    /**
+     * An outline is only its twelve edges, so pressed against the block - camera 0.3 from the face, which then fills
+     * the whole view - all four edges of the face in front of him are off screen and the box shows nothing at all.
+     * killer560's friend (2026-10-13): "for the box it doesnt draw on the face close to the player"; testkit 1321
+     * measured it on 26.1.2, 26.2 and with Sodium (every edge sample off screen, every pixel of the face unchanged),
+     * while every other camera-facing face drew at every angle and distance in both styles. So when the camera is
+     * within {@link #NEAR_FACE_DISTANCE} of a face and inside its footprint (the face fills the view), that one face is
+     * also tinted; anywhere else the outline is exactly what it always was (1321 checks both).
+     */
+    static final double NEAR_FACE_DISTANCE = 0.5;
+    static final float NEAR_FACE_ALPHA = 0.35f;
+
+    /** The box face the camera is pressed up against (within its footprint, nearest first), or null. */
+    static Direction nearFace(AABB box, Vec3 cam) {
+        Direction best = null;
+        double bestDist = NEAR_FACE_DISTANCE;
+        for (Direction d : Direction.values()) {
+            Direction.Axis axis = d.getAxis();
+            double plane = d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? box.max(axis) : box.min(axis);
+            double dist = (cam.get(axis) - plane) * d.getAxisDirection().getStep();
+            if (dist <= 0 || dist > bestDist) {
+                continue;
+            }
+            boolean inFront = true;
+            for (Direction.Axis other : Direction.Axis.values()) {
+                if (other != axis && (cam.get(other) < box.min(other) || cam.get(other) > box.max(other))) {
+                    inFront = false;
+                }
+            }
+            if (inFront) {
+                best = d;
+                bestDist = dist;
+            }
+        }
+        return best;
     }
 
     private static AABB realBoxFor(Level level, BlockPos pos) {

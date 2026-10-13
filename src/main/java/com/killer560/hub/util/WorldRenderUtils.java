@@ -46,6 +46,38 @@ public final class WorldRenderUtils {
     }
 
     /**
+     * One face of {@code box}, filled and depth-tested like {@link #renderFilledBox}, wound to face outward (the same
+     * corner order {@code addChainedFilledBoxVertices} uses for that face), so it is drawn whichever way the
+     * pipeline culls when seen from outside the box.
+     */
+    public static void renderFilledFace(LevelRenderContext context, AABB box, net.minecraft.core.Direction face,
+                                        float r, float g, float b, float a) {
+        final float x0 = (float) box.minX, y0 = (float) box.minY, z0 = (float) box.minZ;
+        final float x1 = (float) box.maxX, y1 = (float) box.maxY, z1 = (float) box.maxZ;
+        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+            var m = pose.pose();
+            switch (face) {
+                case WEST -> quad(buffer, m, x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, r, g, b, a);
+                case EAST -> quad(buffer, m, x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1, r, g, b, a);
+                case NORTH -> quad(buffer, m, x0, y0, z0, x0, y1, z0, x1, y1, z0, x1, y0, z0, r, g, b, a);
+                case SOUTH -> quad(buffer, m, x1, y0, z1, x1, y1, z1, x0, y1, z1, x0, y0, z1, r, g, b, a);
+                case DOWN -> quad(buffer, m, x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1, r, g, b, a);
+                case UP -> quad(buffer, m, x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0, r, g, b, a);
+            }
+        });
+    }
+
+    private static void quad(VertexConsumer buffer, org.joml.Matrix4f m,
+                             float ax, float ay, float az, float bx, float by, float bz,
+                             float cx, float cy, float cz, float dx, float dy, float dz,
+                             float r, float g, float b, float a) {
+        vertex(buffer, m, ax, ay, az, r, g, b, a);
+        vertex(buffer, m, bx, by, bz, r, g, b, a);
+        vertex(buffer, m, cx, cy, cz, r, g, b, a);
+        vertex(buffer, m, dx, dy, dz, r, g, b, a);
+    }
+
+    /**
      * Draws a solid upright cylinder (sides and both caps) around a vertical axis, depth-tested like
      * {@link #renderFilledBox}. Every face is emitted in both windings so it reads the same from inside and outside
      * whatever the pipeline's culling; a cap is a fan of quads whose last two corners coincide (one triangle each),
