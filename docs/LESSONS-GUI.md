@@ -316,3 +316,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   theme every other line too, with the washed-out codes (§7 §f §a §b §e) swapped for darker partners
   (`MenuStyle.lightReadable`). `ColorSwatch`'s square is a styled sibling, not a § code, so `getString()` loses it: the
   row reads the sibling's `TextColor` and paints the swatch.
+- **A fill drawn after an item in the same slot is always above it, player heads included** (javap 26.1.2 and 26.2): every
+  non-oversized item is blitted from the item atlas, and an oversized one through its picture-in-picture, both into the
+  item's OWN render node (`forEachItem` sets `current` before `addBlitToCurrentLayer`), while a later fill over it is
+  placed in a node above (`findAppropriateNode` checks `itemStates`). So "the item paints over my overlay" is not a
+  render-pass fact; testkit 961 shows Item Protect's star on heads (real skin, pack-era, helmet) on both versions.
