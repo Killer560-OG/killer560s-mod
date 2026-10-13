@@ -7,6 +7,7 @@ import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -135,6 +136,22 @@ public class EnchantColorsTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
+        // killer560, 2026-10-13: the chroma waterfalls diagonally across the whole tooltip (util/ChromaWave);
+        // these set how fast the bands sweep and how wide they are. Only while Perfect Chroma is on.
+        if (cfg.isPerfectChroma()) {
+            widgets.add(slider(contentX, y, half, "Chroma Speed", EnchantColorsConfig.MIN_CHROMA_SPEED,
+                    EnchantColorsConfig.MAX_CHROMA_SPEED, 0.1f, cfg.getChromaSpeed(), v -> {
+                        cfg.setChromaSpeed(v);
+                        cfg.save();
+                    }));
+            widgets.add(slider(col2, y, half, "Chroma Size", EnchantColorsConfig.MIN_CHROMA_SIZE,
+                    EnchantColorsConfig.MAX_CHROMA_SIZE, 0.05f, cfg.getChromaSize(), v -> {
+                        cfg.setChromaSize(v);
+                        cfg.save();
+                    }));
+            y += 22;
+        }
+
         widgets.add(SettingsButtonWidget.builder(onOff("Bold Perfect", cfg.isPerfectBold()), btn -> {
                     cfg.setPerfectBold(!cfg.isPerfectBold());
                     cfg.save();
@@ -187,5 +204,30 @@ public class EnchantColorsTab extends BaseTab {
 
     private static Component onOff(String label, boolean value) {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
+    }
+
+    /** A themed slider over [min, max] snapped to {@code step}, labelled "Label: 1.0x". */
+    private static AbstractWidget slider(int x, int y, int width, String label, float min, float max, float step,
+                                         float current, java.util.function.Consumer<Float> set) {
+        double start = (Math.max(min, Math.min(max, current)) - min) / (double) (max - min);
+        return new ThemedSliderButton(x, y, width, 18, sliderLabel(label, current), start) {
+            private float shown = current;
+
+            @Override
+            protected void updateMessage() {
+                setMessage(sliderLabel(label, shown));
+            }
+
+            @Override
+            protected void applyValue() {
+                float raw = (float) (min + this.value * (max - min));
+                shown = Math.max(min, Math.min(max, Math.round(raw / step) * step));
+                set.accept(shown);
+            }
+        };
+    }
+
+    private static Component sliderLabel(String label, float v) {
+        return Component.literal(label + ": " + String.format(java.util.Locale.ROOT, "%.2f", v) + "x");
     }
 }
