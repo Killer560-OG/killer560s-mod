@@ -2193,6 +2193,8 @@ final class SettingTooltipsData {
         d.put("player cosmetics/height", "Stretches your own player model up and down (0.5x-2x), in your own F5 view only.");
         d.put("player cosmetics/thickness", "Stretches your own player model front to back (0.5x-2x), in your own F5 view only.");
         d.put("share if supporter", "Automatically shares your display name and your own player size with other players who have this mod.");
+        d.put("share trail", "Shares your Trail (style, colours, size) with other players who have this mod, while Share if Supporter and your Trail are on. Only supporters can share a trail.");
+        d.put("show others' trails", "Draws the trails other supporters share behind them. Off hides every other player's trail; your own is unaffected.");
         d.put("copy settings for global cosmetics", "Copies your name and scale to your clipboard so staff can apply them for you.");
         d.put("reset cosmetics", "Puts your display name, colours, fade, both player sizes and model shape back to default.");
         d.put("name changer/reset name to default", "Clears your display name, its colour, fade and letter colours.");

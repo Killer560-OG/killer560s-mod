@@ -1,18 +1,16 @@
 package com.killer560.hub.trail;
 
 import com.killer560.hub.compat.McRender;
-import com.killer560.hub.namechanger.NameChangerConfig;
-import com.killer560.hub.namechanger.NameColor;
 import com.killer560.hub.util.ChromaWave;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
@@ -31,8 +29,14 @@ import org.joml.Matrix4f;
  * <p>Everything lives in preallocated arrays capped at {@link #MAX_POINTS}: no allocation per frame, one draw call.
  * The finished vertices are written into {@link #verts} before submitting, because on 26.2 the geometry callback runs
  * later in the frame ({@link McRender#inCameraSpace}).
+ *
+ * <p>One instance per player: {@link #LOCAL} is your own ribbon, and {@link RemoteTrails} keeps one for each player
+ * whose shared trail is drawn (2026-10-13). The static test hooks read {@link #LOCAL}.
  */
 public final class RibbonTrail {
+
+    /** Your own ribbon. */
+    public static final RibbonTrail LOCAL = new RibbonTrail();
 
     /** The most points the ribbon keeps (ring buffer); a faster mover gets a shorter ribbon instead of more points. */
     public static final int MAX_POINTS = 256;
@@ -48,60 +52,80 @@ public final class RibbonTrail {
     private static final double LEASH = 0.5;
 
     // Ring buffer of laid points, oldest at (head - count).
-    private static final double[] rx = new double[MAX_POINTS];
-    private static final double[] ry = new double[MAX_POINTS];
-    private static final double[] rz = new double[MAX_POINTS];
-    private static final long[] rt = new long[MAX_POINTS];
-    private static int head = 0;
-    private static int count = 0;
-    private static ClientLevel lastLevel;
+    private final double[] rx = new double[MAX_POINTS];
+    private final double[] ry = new double[MAX_POINTS];
+    private final double[] rz = new double[MAX_POINTS];
+    private final long[] rt = new long[MAX_POINTS];
+    private int head = 0;
+    private int count = 0;
+    private ClientLevel lastLevel;
     // The leash point dragged after his feet, and the unit "behind him" direction it gives.
-    private static double leashX;
-    private static double leashZ;
-    private static double backX;
-    private static double backZ;
-    private static boolean hasBack = false;
+    private double leashX;
+    private double leashZ;
+    private double backX;
+    private double backZ;
+    private boolean hasBack = false;
 
     // Per-frame scratch, oldest first, the live anchor last (MAX_POINTS + 1 entries).
-    private static final double[] px = new double[MAX_POINTS + 1];
-    private static final double[] py = new double[MAX_POINTS + 1];
-    private static final double[] pz = new double[MAX_POINTS + 1];
-    private static final float[] age = new float[MAX_POINTS + 1];
-    private static final float[] along = new float[MAX_POINTS + 1];
+    private final double[] px = new double[MAX_POINTS + 1];
+    private final double[] py = new double[MAX_POINTS + 1];
+    private final double[] pz = new double[MAX_POINTS + 1];
+    private final float[] age = new float[MAX_POINTS + 1];
+    private final float[] along = new float[MAX_POINTS + 1];
 
     /** Two vertices (left, right) per point, each x y z r g b a. */
-    private static final float[] verts = new float[(MAX_POINTS + 1) * 2 * 7];
-    private static int vertPoints = 0;
-    private static final McRender.Geometry GEOMETRY = RibbonTrail::emit;
+    private final float[] verts = new float[(MAX_POINTS + 1) * 2 * 7];
+    private int vertPoints = 0;
+    private final McRender.Geometry geometry = this::emit;
 
     // Test hooks (read by the testkit).
-    private static long framesDrawn = 0;
-    private static int lastPointCount = 0;
-    private static double lastLength = 0;
+    private long framesDrawn = 0;
+    private int lastPointCount = 0;
+    private double lastLength = 0;
 
-    private RibbonTrail() {
+    RibbonTrail() {
     }
 
+    /** Frames your own ribbon was drawn. */
     public static long framesDrawn() {
-        return framesDrawn;
+        return LOCAL.framesDrawn;
     }
 
-    /** Points (laid + the anchor) in the last drawn frame; 0 when the last frame drew nothing. */
+    /** Points (laid + the anchor) in your ribbon's last drawn frame; 0 when the last frame drew nothing. */
     public static int lastPointCount() {
-        return lastPointCount;
+        return LOCAL.lastPointCount;
     }
 
-    /** Length in blocks of the band drawn last frame; 0 when it drew nothing. */
+    /** Length in blocks of your band drawn last frame; 0 when it drew nothing. */
     public static double lastLength() {
-        return lastLength;
+        return LOCAL.lastLength;
     }
 
-    /** Laid points currently held. */
+    /** Laid points your ribbon currently holds. */
     public static int pointCount() {
-        return count;
+        return LOCAL.count;
     }
 
     public static void clear() {
+        LOCAL.reset();
+    }
+
+    /** This ribbon's frames drawn (the shared trails' test hook). */
+    public long frames() {
+        return framesDrawn;
+    }
+
+    /** Points in this ribbon's last drawn frame. */
+    public int drawnPoints() {
+        return lastPointCount;
+    }
+
+    /** Length in blocks of this ribbon's last drawn band. */
+    public double drawnLength() {
+        return lastLength;
+    }
+
+    void reset() {
         hasBack = false;
         head = 0;
         count = 0;
@@ -109,7 +133,7 @@ public final class RibbonTrail {
         lastLength = 0;
     }
 
-    private static void push(double x, double y, double z, long t) {
+    private void push(double x, double y, double z, long t) {
         rx[head] = x;
         ry[head] = y;
         rz[head] = z;
@@ -120,25 +144,29 @@ public final class RibbonTrail {
         }
     }
 
-    private static int idx(int fromOldest) {
+    private int idx(int fromOldest) {
         return Math.floorMod(head - count + fromOldest, MAX_POINTS);
     }
 
-    /** Lays new points and draws; called every frame while the trail is on in Ribbon style. */
-    static void render(LevelRenderContext context, TrailConfig cfg) {
+    /**
+     * Lays new points behind {@code player} and draws; called every frame while this ribbon is shown. {@code spec} is
+     * the look ({@code length} is the seconds a point lasts), {@code fadeEnds} the head/tail colours Name Fade uses (null
+     * falls back to the spec's colours), and {@code hidden} lays points but draws nothing (your own ribbon in first
+     * person with Show In First Person off).
+     */
+    void draw(LevelRenderContext context, Player player, TrailSpec spec, int[] fadeEnds, boolean hidden) {
         Minecraft client = Minecraft.getInstance();
-        LocalPlayer player = client.player;
         ClientLevel level = client.level;
         if (level != lastLevel) {
-            clear();
+            reset();
             lastLevel = level;
         }
-        if (player == null || level == null) {
-            clear();
+        if (player == null || level == null || spec == null) {
+            reset();
             return;
         }
         long now = Util.getMillis();
-        long lifeMs = Math.max(1L, Math.round(cfg.getRibbonSeconds() * 1000.0));
+        long lifeMs = Math.max(1L, Math.round(spec.length() * 1000.0));
 
         float partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 feet = player.getPosition(partial);
@@ -175,7 +203,7 @@ public final class RibbonTrail {
             double dx = ax - lx, dy = ay - ly, dz = az - lz;
             double d = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (d > TELEPORT) {
-                clear();
+                reset();
                 push(ax, ay, az, now);
             } else if (d >= SPACING) {
                 double ux = dx / d, uy = dy / d, uz = dz / d;
@@ -190,7 +218,7 @@ public final class RibbonTrail {
             count--;
         }
 
-        if (!cfg.isShowInFirstPerson() && client.options.getCameraType().isFirstPerson()) {
+        if (hidden) {
             lastPointCount = 0;
             lastLength = 0;
             return;
@@ -238,8 +266,8 @@ public final class RibbonTrail {
         }
 
         Vec3 cam = McRender.cameraPos(context);
-        double half = cfg.getRibbonWidth() / 2.0;
-        float baseAlpha = cfg.getOpacityPercent() / 100f;
+        double half = spec.width() / 2.0;
+        float baseAlpha = spec.opacity() / 100f;
         double lastSx = 0, lastSy = 0, lastSz = 0;
         int o = 0;
         for (int i = 0; i < n; i++) {
@@ -280,7 +308,7 @@ public final class RibbonTrail {
             float u = along[i];
             float fade = Math.min(Math.max(0f, 1f - age[i]), u);
             float alpha = baseAlpha * fade;
-            int rgb = colorAt(cfg, u, now);
+            int rgb = colorAt(spec, fadeEnds, u);
             float r = ((rgb >> 16) & 0xFF) / 255f, g = ((rgb >> 8) & 0xFF) / 255f, bl = (rgb & 0xFF) / 255f;
             float lx = (float) (px[i] - cx * half), ly = (float) (py[i] - cy * half), lz = (float) (pz[i] - cz * half);
             float qx = (float) (px[i] + cx * half), qy = (float) (py[i] + cy * half), qz = (float) (pz[i] + cz * half);
@@ -291,10 +319,10 @@ public final class RibbonTrail {
         lastPointCount = n;
         lastLength = total;
         framesDrawn++;
-        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), GEOMETRY);
+        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), geometry);
     }
 
-    private static int put(int o, float x, float y, float z, float r, float g, float b, float a) {
+    private int put(int o, float x, float y, float z, float r, float g, float b, float a) {
         verts[o] = x;
         verts[o + 1] = y;
         verts[o + 2] = z;
@@ -306,7 +334,7 @@ public final class RibbonTrail {
     }
 
     /** One quad per segment, in both windings so it reads the same from either side whatever the culling. */
-    private static void emit(PoseStack.Pose pose, VertexConsumer buffer) {
+    private void emit(PoseStack.Pose pose, VertexConsumer buffer) {
         Matrix4f m = pose.pose();
         for (int i = 0; i + 1 < vertPoints; i++) {
             int l0 = i * 14, r0 = l0 + 7, l1 = l0 + 14, r1 = l0 + 21;
@@ -321,14 +349,15 @@ public final class RibbonTrail {
         }
     }
 
-    private static void v(VertexConsumer buffer, Matrix4f m, int o) {
+    private void v(VertexConsumer buffer, Matrix4f m, int o) {
         buffer.addVertex(m, verts[o], verts[o + 1], verts[o + 2])
                 .setColor(verts[o + 3], verts[o + 4], verts[o + 5], verts[o + 6]);
     }
 
-    /** Colour at {@code u} along the band (1 = at the player, 0 = the tail end). 0xRRGGBB. */
-    static int colorAt(TrailConfig cfg, float u, long now) {
-        switch (cfg.getColorMode()) {
+    /** Colour at {@code u} along the band (1 = at the player, 0 = the tail end). 0xRRGGBB. {@code fadeEnds}: Name Fade's
+     *  head and tail colours, or null to fall back to the spec's own colours. */
+    static int colorAt(TrailSpec spec, int[] fadeEnds, float u) {
+        switch (spec.mode()) {
             case CHROMA: {
                 long period = (long) ChromaWave.BASE_PERIOD_MS;
                 float t = (ChromaWave.now() % period) / (float) period;
@@ -336,23 +365,19 @@ public final class RibbonTrail {
                 return ChromaWave.hsv((1f - u) * 0.6f - t, 1f, 1f);
             }
             case NAME_FADE: {
-                NameChangerConfig nc = NameChangerConfig.getInstance();
-                int from = nc.getOwnColor();
-                if (from != NameColor.NONE) {
-                    int to = nc.isOwnColorFadeEnabled() && nc.getOwnColorFadeTo() != NameColor.NONE
-                            ? nc.getOwnColorFadeTo() : from;
-                    return lerp(to, from, u);
+                if (fadeEnds != null && fadeEnds.length >= 2) {
+                    return lerp(fadeEnds[fadeEnds.length - 1], fadeEnds[0], u);
                 }
                 break;
             }
             default:
                 break;
         }
-        if (cfg.getColorCount() >= 3) {
-            return u >= 0.5f ? lerp(cfg.getMidColor(), cfg.getHeadColor(), (u - 0.5f) * 2f)
-                    : lerp(cfg.getTailColor(), cfg.getMidColor(), u * 2f);
+        int[] c = spec.colors();
+        if (c.length >= 3) {
+            return u >= 0.5f ? lerp(c[1], c[0], (u - 0.5f) * 2f) : lerp(c[2], c[1], u * 2f);
         }
-        return lerp(cfg.getTailColor(), cfg.getHeadColor(), u);
+        return lerp(c[c.length - 1], c[0], u);
     }
 
     /** {@code a} at k = 0 to {@code b} at k = 1. 0xRRGGBB. */

@@ -39,7 +39,7 @@ public final class SupportersFeature {
     /** One fetched+resolved supporter, keyed by account UUID. {@code displayText} is {@code null} when the
      *  stored name is blank or trips {@link SlurFilter} - the real IGN is shown instead, but the entry (and
      *  its scale) still exists. */
-    private record Resolved(String displayText, float scale) {
+    private record Resolved(String displayText, float scale, com.killer560.hub.trail.TrailSpec trail, int[] fadeEnds) {
     }
 
     /** What {@link SupportersChatRewriter} needs back for a matched sender. */
@@ -65,6 +65,9 @@ public final class SupportersFeature {
         }
         SupportersChatRewriter.register();
         SupportersFetcher.start(ON_FETCHED);
+        // Linked-supporter status once at startup (with backoff), so names and the trail share without opening the menu.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(
+                com.killer560.hub.util.FeatureGuard.end("SupportersStartupCheck", client -> SupportersAutoShare.tickStartupCheck()));
     }
 
     /** Forces an immediate re-fetch of {@code GET /supporters} instead of waiting for the next scheduled
@@ -83,7 +86,9 @@ public final class SupportersFeature {
             String display = e.rawName().isEmpty() || SlurFilter.isBlocked(e.rawName())
                     ? null
                     : styled(e);
-            map.put(e.uuid(), new Resolved(display, e.scale()));
+            int[] c = e.colors();
+            int[] ends = c == null || c.length == 0 ? null : new int[]{c[0], c[c.length - 1]};
+            map.put(e.uuid(), new Resolved(display, e.scale(), e.trail(), ends));
             if (display != null && e.animation() != null) {
                 animated.add(new Object[]{display, e.animation()});
             }
@@ -138,6 +143,20 @@ public final class SupportersFeature {
         }
         Resolved r = byUuid.get(id);
         return r == null ? 1.0f : r.scale();
+    }
+
+    /** {@code id}'s shared trail, or {@code null} when they share none (the "Show Others' Trails" switch is the
+     *  caller's, {@code com.killer560.hub.trail.RemoteTrails}). */
+    public static com.killer560.hub.trail.TrailSpec trailFor(UUID id) {
+        Resolved r = id == null ? null : byUuid.get(id);
+        return r == null ? null : r.trail();
+    }
+
+    /** The first and last letter colours of {@code id}'s shared name (their fade's ends, 0xRRGGBB) for a shared
+     *  trail's Name Fade, or {@code null} when their name has no colours. */
+    public static int[] nameFadeEndsFor(UUID id) {
+        Resolved r = id == null ? null : byUuid.get(id);
+        return r == null ? null : r.fadeEnds();
     }
 
     /**

@@ -69,3 +69,11 @@ count per listener. A harness asserts `failures()` did not move across a scenari
 No property. The dungeon sim's integrated server publishes a Hypixel-shaped tab list (80 fake player-info
 entries plus a header/footer packet), so tab-list readers run the same code in the sim as on Hypixel. The
 lines and the parser each one feeds are listed in `SimTabList`'s javadoc.
+
+## Shared trails (`trail/RemoteTrails`, `supporters/SupportersAutoShare`)
+
+No property. `SupportersSelfService.lastAttempt()` is "POST <body>" or "DELETE" for the last share push attempted (set
+before the network call, so it reads the same offline) and `attempts()` counts them; `SupportersAutoShare.setLinked`
+stands in for the relay's linked-supporter answer. The startup check (`tickStartupCheck`, first try 10 s in, retries
+30 s doubling to 15 min) reports `startupCheckState()`, and `onStartupMe(MeResult)` feeds it a made-up answer. `RemoteTrails.tracked()`, `lastDrawnTrails()`, `framesDrawn()`,
+`ribbonState(uuid)` and `squareCount(uuid)` say what other players' trails were kept and drawn (testkit 1036-1039).

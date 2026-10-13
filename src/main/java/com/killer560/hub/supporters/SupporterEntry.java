@@ -2,6 +2,7 @@ package com.killer560.hub.supporters;
 
 import com.killer560.hub.namechanger.NameAnimation;
 import com.killer560.hub.namechanger.NameColor;
+import com.killer560.hub.trail.TrailSpec;
 
 import java.util.UUID;
 
@@ -18,8 +19,12 @@ import java.util.UUID;
  * <p>
  * {@code animation} (relay field {@code animation}, 2026-10-13): Wave or Pulse for those colours ({@link NameAnimation}),
  * or {@code null} - always null without {@code colors}, since there is nothing to animate.
+ * <p>
+ * {@code trail} (relay field {@code trail}, 2026-10-13): the supporter's shared movement trail ({@link TrailSpec}), or
+ * {@code null}. Independent of the name; an entry may carry only a trail, with an empty name.
  */
-record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, NameAnimation.Spec animation) {
+record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, NameAnimation.Spec animation,
+                      TrailSpec trail) {
 
     SupporterEntry {
         if (uuid == null) {
@@ -46,12 +51,16 @@ record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, Name
         }
     }
 
+    SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, NameAnimation.Spec animation) {
+        this(uuid, rawName, scale, colors, animation, null);
+    }
+
     SupporterEntry(UUID uuid, String rawName, float scale, int[] colors) {
-        this(uuid, rawName, scale, colors, null);
+        this(uuid, rawName, scale, colors, null, null);
     }
 
     SupporterEntry(UUID uuid, String rawName, float scale) {
-        this(uuid, rawName, scale, null, null);
+        this(uuid, rawName, scale, null, null, null);
     }
 
     /** {@code animation} from JSON ({@code {"mode":"wave"|"pulse","speed":0.25-3}}), or null when absent, Off or not

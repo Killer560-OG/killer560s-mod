@@ -102,13 +102,31 @@ public final class SupportersSelfService {
     }
 
     public static CompletableFuture<SaveResult> save(String rawName, double scale, int[] colors) {
-        return save(rawName, scale, colors, null);
+        return save(rawName, scale, colors, null, null);
     }
 
     /** {@code colors}: one 0xRRGGBB per visible letter of {@code rawName} (fade / letter colours), or null for none.
      *  {@code animation}: their Wave/Pulse, sent only alongside {@code colors} (the relay refuses it alone). */
     public static CompletableFuture<SaveResult> save(String rawName, double scale, int[] colors,
                                                      com.killer560.hub.namechanger.NameAnimation.Spec animation) {
+        return save(rawName, scale, colors, animation, null);
+    }
+
+    /** {@code trail}: the shared movement trail, or null for none. With a trail, {@code rawName} may be empty (a
+     *  supporter sharing a trail but no custom name; the relay accepts that only beside a trail). */
+    public static CompletableFuture<SaveResult> save(String rawName, double scale, int[] colors,
+                                                     com.killer560.hub.namechanger.NameAnimation.Spec animation,
+                                                     com.killer560.hub.trail.TrailSpec trail) {
+        String json = body(rawName, scale, colors, animation, trail);
+        lastAttempt = "POST " + json;
+        attempts++;
+        return request("POST", HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8));
+    }
+
+    /** The {@code POST /supporters/me} body for these values. */
+    static String body(String rawName, double scale, int[] colors,
+                       com.killer560.hub.namechanger.NameAnimation.Spec animation,
+                       com.killer560.hub.trail.TrailSpec trail) {
         JsonObject body = new JsonObject();
         body.addProperty("name", rawName == null ? "" : rawName);
         body.addProperty("scale", scale);
@@ -118,11 +136,29 @@ public final class SupportersSelfService {
                 body.add("animation", SupporterEntry.animationJson(animation));
             }
         }
-        return request("POST", HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8));
+        if (trail != null) {
+            body.add("trail", trail.toJson());
+        }
+        return body.toString();
     }
 
     public static CompletableFuture<SaveResult> clear() {
+        lastAttempt = "DELETE";
+        attempts++;
         return request("DELETE", HttpRequest.BodyPublishers.noBody());
+    }
+
+    // Test hooks (read by the testkit): what the last push tried to send, and how many pushes were attempted.
+    private static volatile String lastAttempt = null;
+    private static volatile int attempts = 0;
+
+    /** "POST {body}" or "DELETE" for the last push attempted (whatever the network then did), or null. */
+    public static String lastAttempt() {
+        return lastAttempt;
+    }
+
+    public static int attempts() {
+        return attempts;
     }
 
     private static CompletableFuture<SaveResult> request(String method, HttpRequest.BodyPublisher body) {

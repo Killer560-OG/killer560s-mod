@@ -45,7 +45,8 @@ public class CosmeticsTab extends BaseTab {
     private static final long REFRESH_COOLDOWN_MS = 30_000L;
 
     private static final List<String> SEARCHABLE_LABELS = List.of(
-            "cosmetics", "toggle global cosmetics", "global cosmetics", "supporter names", "supporter sizes", "share if supporter", "custom names", "my name in f5", "player size",
+            "cosmetics", "toggle global cosmetics", "global cosmetics", "supporter names", "supporter sizes", "share if supporter",
+            "share trail", "show others' trails", "trail", "custom names", "my name in f5", "player size",
             "my size", "others' size", "width", "height", "thickness", "held item",
             "copy settings for global cosmetics", "reset cosmetics");
 
@@ -98,6 +99,29 @@ public class CosmeticsTab extends BaseTab {
                     btn.setMessage(onOff("Share if Supporter", cfg.isShareIfSupporter()));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
+        // Trails (killer560, 2026-10-13: "it should be toggleable to see in cosmetics for whether it is shared or not
+        // and it can only be shared by a supporter"): Share Trail is greyed out, with the reason under it, until the
+        // relay says this account is a linked supporter.
+        String trailBlocker = SupportersAutoShare.trailShareBlocker();
+        boolean canShareTrail = SupportersAutoShare.isLinked();
+        SettingsButtonWidget shareTrail = SettingsButtonWidget.builder(onOff("Share Trail", cfg.isShareTrail() && canShareTrail),
+                btn -> {
+                    cfg.setShareTrail(!cfg.isShareTrail());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, half, 18).build();
+        shareTrail.active = canShareTrail;
+        widgets.add(shareTrail);
+        widgets.add(SettingsButtonWidget.builder(onOff("Show Others' Trails", cfg.isShowOthersTrails()), btn -> {
+                    cfg.setShowOthersTrails(!cfg.isShowOthersTrails());
+                    cfg.save();
+                    btn.setMessage(onOff("Show Others' Trails", cfg.isShowOthersTrails()));
+                }).bounds(contentX + half + 4, y, contentWidth - half - 4, 18).build());
+        y += 20;
+        if (trailBlocker != null && (cfg.isShareTrail() || !canShareTrail)) {
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal("§7" + trailBlocker), font));
+            y += 14;
+        }
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(statusLine()), font));
         y += 14;
         if (shareError != null) {
@@ -112,11 +136,7 @@ public class CosmeticsTab extends BaseTab {
         if (!fetchInFlight && (neverFetched || stale)) {
             startFetch(requestRebuild);
         }
-        SupportersAutoShare.maybeShare(cfg.isShareIfSupporter(), status == MeStatus.LINKED,
-                plainOwnName(), NameChangerConfig.getInstance().getOwnColor(),
-                com.killer560.hub.namechanger.NameChangerFeature.ownShareColours(),
-                com.killer560.hub.namechanger.NameChangerFeature.ownShareAnimation(), cfg.getOwnScale(),
-                err -> shareError = err);
+        SupportersAutoShare.shareCurrent(err -> shareError = err);
 
         // --- Custom Names
         y = CollapsibleSection.header(widgets, contentX, y, contentWidth, "Custom Names", false, customNamesOpen,
@@ -315,6 +335,7 @@ public class CosmeticsTab extends BaseTab {
         } else {
             status = MeStatus.LINKED;
         }
+        SupportersAutoShare.setLinked(status == MeStatus.LINKED);
         requestRebuild.run();
     }
 
