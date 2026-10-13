@@ -907,6 +907,13 @@ final class SettingTooltipsData {
         d.put("auto scale (monitor)", "Keeps every HUD element and menu of this mod the same size relative to your window on any monitor and at any GUI Scale, using a 2560x1440 screen at GUI Scale 3 as the reference (unchanged there). HUD Scale multiplies on top. ON by default; saved with profiles.");
         d.put("borderless fullscreen", "Stretches the window over the whole monitor without borders.");
         d.put("fullbright", "Renders the world at full brightness in any light.");
+        d.put("profile viewer/theme", "The colours /pv draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone.");
+        d.put("friends list/theme", "The colours the custom Friends List draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone.");
+        d.put("best friends/theme", "The colours /bestfriends draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for this screen alone.");
+        d.put("pet wheel/theme", "The colours the pet wheel draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for the wheel alone.");
+        d.put("auto update/theme", "The colours of the \"updated to\" popup. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for it alone.");
+        d.put("window layout/theme", "The colours of the Window Layout picker. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours for it alone.");
+        d.put("swap accounts theme", "The colours of the title screen's Swap Accounts page and its proxy and session login pages. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colours.");
         d.put("themed main menu", "Gives the game's menus the mod's black and orange theme.");
         d.put("auto join skyblock", "Runs /skyblock whenever you first join the server.");
         d.put("profile name", "Name for a new settings profile.");

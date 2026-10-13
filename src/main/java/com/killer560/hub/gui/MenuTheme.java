@@ -65,6 +65,12 @@ public enum MenuTheme {
         return AMBER;
     }
 
+    /** The five base colours a themed screen draws in: its own Theme setting resolved by {@link ScreenThemes} ("Theme
+     *  Default" = the menu's active colours). The one per-screen lookup every themed screen goes through. */
+    public static int[] forScreen(String screenId) {
+        return ScreenThemes.colours(screenId);
+    }
+
     /** The presets only (Custom excluded). */
     public static MenuTheme[] presets() {
         return new MenuTheme[]{AMBER, DARK, LIGHT, OCEAN};

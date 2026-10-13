@@ -1,7 +1,11 @@
 package com.killer560.hub.social;
 
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.util.ModChat;
+import com.killer560.hub.gui.ThemedEditBox;
+import com.killer560.hub.hud.GuiRects;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -21,11 +25,7 @@ import com.killer560.hub.compat.McCompat;
  * Reads {@link BestFriendsStore} (accumulated data) and {@link BestFriendsConfig} (this menu's own sort/
  * filter prefs, persisted the same way {@code StorageSearchConfig} persists its sort/source toggles).
  */
-public class BestFriendsScreen extends Screen {
-
-    private static final int ACCENT = 0xFFCC6600;
-    private static final int BORDER = 0xFF553311;
-    private static final int PANEL_BG = 0xFF0D0D0D;
+public class BestFriendsScreen extends Screen implements MenuThemedScreen {
     private static final int ROW_H = 20;
     private static final int HEAD_SIZE = 16;
     /** Room either side of a button's label. */
@@ -89,9 +89,9 @@ public class BestFriendsScreen extends Screen {
         int sortBoxW = sortW;
         int filterBoxW = filterW;
 
-        searchBox = new EditBox(this.font, panelX + 6, panelY + 34, boxW, 18, Component.literal("Search"));
+        searchBox = new ThemedEditBox(this.font, panelX + 6, panelY + 34, boxW, 18, Component.literal("Search"))
+                .hint("Search name...");
         searchBox.setMaxLength(32);
-        searchBox.setHint(Component.literal("Search name..."));
         searchBox.setValue(current);
         searchBox.setResponder(text -> refilter());
         addRenderableWidget(searchBox);
@@ -180,6 +180,16 @@ public class BestFriendsScreen extends Screen {
 
     // ---- interaction -----------------------------------------------------------------------------
 
+    /** Typing with no box focused goes into the search box (as on the Friends List), so typing a name narrows the list. */
+    @Override
+    public boolean charTyped(net.minecraft.client.input.CharacterEvent event) {
+        if (searchBox != null && !(getFocused() instanceof EditBox)) {
+            setFocused(searchBox);
+            searchBox.setFocused(true);
+        }
+        return super.charTyped(event);
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (selected == null && event.button() == 0) {
@@ -222,28 +232,20 @@ public class BestFriendsScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, PANEL_BG);
-        graphics.outline(panelX, panelY, panelW, panelH, BORDER);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + 28, 0xFF000000);
-        graphics.outline(panelX, panelY, panelW, 28, BORDER);
-        graphics.fill(panelX, panelY + 27, panelX + panelW, panelY + 28, ACCENT);
-        graphics.text(this.font, "Best Friends", panelX + 10, panelY + 10, ACCENT, false);
+        ScreenChrome.backdrop(graphics, this.width, this.height);
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.header(graphics, panelX, panelY, panelW, "Best Friends");
         if (selected != null) {
             // The "< Back" button sits where the count would be.
         } else if (!BestFriendsConfig.getInstance().getEnabledRaw()) {
             String warn = this.font.plainSubstrByWidth("Party Time Tracker is OFF - turn it on in the Best Friends tab",
                     Math.max(0, panelW - 30 - this.font.width("Best Friends")));
-            graphics.text(this.font, warn, panelX + panelW - 10 - this.font.width(warn), panelY + 10,
-                    0xFF000000 | ModChat.BAD, false);
+            ScreenChrome.headerRight(graphics, panelX, panelY, panelW, warn, MenuStyle.RED);
         } else {
-            String count = visible.size() + " tracked";
-            graphics.text(this.font, count, panelX + panelW - 10 - this.font.width(count), panelY + 10,
-                    0xFF000000 | ModChat.DIM, false);
+            ScreenChrome.headerRight(graphics, panelX, panelY, panelW, visible.size() + " tracked", MenuStyle.DIM);
         }
 
-        graphics.fill(listX, listY, listX + listW, listY + listH, 0xFF080808);
-        graphics.outline(listX - 1, listY - 1, listW + 2, listH + 2, BORDER);
+        ScreenChrome.well(graphics, listX - 1, listY - 1, listW + 2, listH + 2);
         graphics.enableScissor(listX, listY, listX + listW, listY + listH);
         try {
             if (selected != null) {
@@ -255,12 +257,11 @@ public class BestFriendsScreen extends Screen {
             graphics.disableScissor();
         }
         if (maxScroll() > 0) {
-            int trackX = listX + listW - 3;
-            graphics.fill(trackX, listY, trackX + 3, listY + listH, 0xFF1A1A1A);
+            int trackX = listX + listW - 4;
             int contentH = selected == null ? Math.max(1, visible.size() * ROW_H) : Math.max(1, detailLines(selected).size() * 10);
             int thumbH = Math.max(10, listH * listH / contentH);
             int thumbY = listY + (listH - thumbH) * scroll / maxScroll();
-            graphics.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, ACCENT);
+            ScreenChrome.scrollbar(graphics, trackX, listY, 4, listH, thumbY, thumbH, false);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
@@ -270,7 +271,7 @@ public class BestFriendsScreen extends Screen {
             String message = BestFriendsStore.records().isEmpty()
                     ? "Nobody tracked yet - party up with Party Time Tracker on and it'll fill in."
                     : "No players match this search/filter.";
-            graphics.text(this.font, message, listX + 6, listY + 8, 0xFF000000 | ModChat.DIM, false);
+            ScreenChrome.text(graphics, message, listX + 6, listY + 8, MenuStyle.DIM);
             return;
         }
         BestFriendsStore.Record hovered = rowAt(mouseX, mouseY);
@@ -281,11 +282,9 @@ public class BestFriendsScreen extends Screen {
                 break;
             }
             BestFriendsStore.Record record = visible.get(i);
-            if (record == hovered) {
-                graphics.fill(listX, rowY, listX + listW - 4, rowY + ROW_H, 0xFF262626);
-            } else if (i % 2 == 0) {
-                graphics.fill(listX, rowY, listX + listW - 4, rowY + ROW_H, 0xFF121212);
-            }
+            GuiRects rr = GuiRects.begin(graphics);
+            ScreenChrome.row(rr, listX, rowY, listW - 5, ROW_H, record == hovered, false, i % 2 == 0);
+            rr.submit();
             int textY = rowY + (ROW_H - 8) / 2;
             PlayerHeadRenderer.draw(graphics, record.uuid, record.lastKnownName, listX + 3, rowY + (ROW_H - HEAD_SIZE) / 2, HEAD_SIZE);
             String name = record.lastKnownName == null || record.lastKnownName.isBlank() ? "?" : record.lastKnownName;
@@ -295,9 +294,9 @@ public class BestFriendsScreen extends Screen {
             int nameX = listX + 3 + HEAD_SIZE + 6;
             String right = formatCompact(BestFriendsTracker.liveTotalMs(record)) + "  §8|§r  " + record.totalDungeonRuns() + " runs";
             int rightW = this.font.width(this.font.plainSubstrByWidth(right, listW - 12));
-            graphics.text(this.font, right, listX + listW - 6 - rightW, textY, 0xFF000000 | ModChat.LIGHT_ORANGE, false);
+            ScreenChrome.text(graphics, right, listX + listW - 6 - rightW, textY, MenuStyle.OR_LIGHT);
             int nameSpace = listW - (nameX - listX) - rightW - 10;
-            graphics.text(this.font, this.font.plainSubstrByWidth(name, Math.max(10, nameSpace)), nameX, textY, 0xFFFFFFFF, false);
+            ScreenChrome.text(graphics, this.font.plainSubstrByWidth(name, Math.max(10, nameSpace)), nameX, textY, MenuStyle.TXT);
         }
     }
 
@@ -305,9 +304,9 @@ public class BestFriendsScreen extends Screen {
         PlayerHeadRenderer.draw(graphics, record.uuid, record.lastKnownName, listX + 6, listY + 6 - scroll, 32);
         int textX = listX + 6 + 32 + 10;
         String name = record.lastKnownName == null || record.lastKnownName.isBlank() ? "?" : record.lastKnownName;
-        graphics.text(this.font, "§l" + name, textX, listY + 6 - scroll, 0xFFFFFFFF, false);
-        graphics.text(this.font, PlayerLookup.isOnlineNow(record.uuid) ? "§aOn your tab list right now" : "§8Not on your tab list right now",
-                textX, listY + 18 - scroll, 0xFFFFFFFF, false);
+        ScreenChrome.text(graphics, "§l" + name, textX, listY + 6 - scroll, MenuStyle.TXT);
+        ScreenChrome.text(graphics, PlayerLookup.isOnlineNow(record.uuid) ? "§aOn your tab list right now" : "§8Not on your tab list right now",
+                textX, listY + 18 - scroll, MenuStyle.TXT);
 
         int y = listY + 6 - scroll + 38;
         for (String line : detailLines(record)) {
@@ -315,7 +314,7 @@ public class BestFriendsScreen extends Screen {
                 break;
             }
             if (!line.isEmpty()) {
-                graphics.text(this.font, this.font.plainSubstrByWidth(line, listW - 16), listX + 6, y, 0xFFFFFFFF, false);
+                ScreenChrome.text(graphics, this.font.plainSubstrByWidth(line, listW - 16), listX + 6, y, MenuStyle.TXT);
             }
             y += 10;
         }
@@ -388,6 +387,19 @@ public class BestFriendsScreen extends Screen {
         return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.US)
                 .withZone(java.time.ZoneId.systemDefault())
                 .format(java.time.Instant.ofEpochMilli(epochMs));
+    }
+
+    /** This screen's own Theme setting (Theme Default follows the menu). */
+    public static final String THEME_ID = "bestfriends";
+
+    @Override
+    public String themeId() {
+        return THEME_ID;
+    }
+
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
     }
 
     @Override

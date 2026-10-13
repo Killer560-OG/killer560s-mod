@@ -103,16 +103,25 @@ public final class MenuStyle {
     public static int KNOB_HOVER = 0xFFFFE0C0;
     public static int KNOB_EDGE = 0xFFB8B0A8;
 
-    private static int usedVersion = -1;
+    private static int[] usedColours;
 
-    /** Derives the palette from the menu's active theme (cheap when nothing changed). Call before drawing. */
+    /**
+     * Derives the palette from the active theme (cheap when nothing changed). Call before drawing. While a
+     * {@link MenuThemedScreen} with its own Theme setting is open that screen's colours are used
+     * ({@link MenuTheme#forScreen}; "Theme Default" is the menu's), otherwise the menu's own.
+     */
     public static void use() {
-        MenuConfig cfg = MenuConfig.getInstance();
-        if (usedVersion == MenuConfig.version()) {
+        int[] c = null;
+        if (com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof MenuThemedScreen t && t.themeId() != null) {
+            c = MenuTheme.forScreen(t.themeId());
+        }
+        if (c == null) {
+            c = MenuConfig.getInstance().activeColours();
+        }
+        if (java.util.Arrays.equals(c, usedColours)) {
             return;
         }
-        usedVersion = MenuConfig.version();
-        int[] c = cfg.activeColours();
+        usedColours = c.clone();
         derive(c[0], c[1], c[2], c[3], c[4]);
     }
 

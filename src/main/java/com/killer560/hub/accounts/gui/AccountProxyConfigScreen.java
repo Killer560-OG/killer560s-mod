@@ -1,7 +1,11 @@
 package com.killer560.hub.accounts.gui;
 
 import com.killer560.hub.accounts.core.PrismAccount;
+import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.proxy.config.AccountProxyProfile;
 import com.killer560.hub.proxy.config.AccountProxyStore;
 import com.killer560.hub.proxy.config.ProxyType;
@@ -21,7 +25,7 @@ import com.killer560.hub.compat.McCompat;
  * happens in {@link AccountSwitcherScreen#onAccountSelected}, which reads whatever this screen saves
  * here right after every account swap.
  */
-public class AccountProxyConfigScreen extends Screen {
+public class AccountProxyConfigScreen extends Screen implements MenuThemedScreen {
 
     private final Screen parent;
     private final PrismAccount account;
@@ -38,11 +42,8 @@ public class AccountProxyConfigScreen extends Screen {
     private static final int FIELD_WIDTH = 200;
     private static final int FIELD_HEIGHT = 20;
 
-    private static final int COLOR_TITLE = 0xFFCC6600;
-    private static final int COLOR_WARNING = 0xFFFF5555;
-    private static final int COLOR_LABEL = 0xFFA0A0A0;
-    private static final int FIELD_BORDER = 0xFF663D1A;
-    private static final int FIELD_BORDER_FOCUSED = 0xFFCC6600;
+    /** The framed panel around the form, laid out in init(). */
+    private int panelX, panelY, panelW, panelH;
 
     public AccountProxyConfigScreen(Screen parent, PrismAccount account) {
         super(Component.literal("Proxy for " + account.displayName()));
@@ -59,12 +60,17 @@ public class AccountProxyConfigScreen extends Screen {
         int centerX = this.width / 2;
         int fieldX = centerX - FIELD_WIDTH / 2;
 
-        int typeButtonsTop = this.height / 4;
+        // Never so high that the panel's header (44 above the type row) leaves the screen.
+        int typeButtonsTop = Math.max(this.height / 4, 48);
         int addressFieldTop = typeButtonsTop + 34;
         int usernameFieldTop = addressFieldTop + 44;
         int passwordFieldTop = usernameFieldTop + 34;
         int actionButtonsTop = passwordFieldTop + 40;
         this.warningY = actionButtonsTop + 28;
+        this.panelW = Math.max(FIELD_WIDTH + 40, this.font.width(footerLine()) + 24);
+        this.panelX = centerX - this.panelW / 2;
+        this.panelY = typeButtonsTop - 44;
+        this.panelH = this.warningY + 12 * footerLines() + 6 - this.panelY;
 
         int halfWidth = (FIELD_WIDTH - 4) / 2;
         this.socks4Button = SettingsButtonWidget.builder(typeLabel(ProxyType.SOCKS4), b -> selectType(ProxyType.SOCKS4))
@@ -76,27 +82,24 @@ public class AccountProxyConfigScreen extends Screen {
         this.addRenderableWidget(this.socks4Button);
         this.addRenderableWidget(this.socks5Button);
 
-        this.addressField = new EditBox(this.font, fieldX, addressFieldTop, FIELD_WIDTH, FIELD_HEIGHT,
-                Component.literal("Address"));
+        this.addressField = new ThemedEditBox(this.font, fieldX, addressFieldTop, FIELD_WIDTH, FIELD_HEIGHT,
+                Component.literal("Address")).hint("127.0.0.1:1080").brightHint();
         this.addressField.setMaxLength(256);
-        this.addressField.setHint(Component.literal("127.0.0.1:1080").withStyle(ChatFormatting.WHITE));
         this.addressField.setValue(existing != null ? existing.getAddressString() : "");
         this.addRenderableWidget(this.addressField);
 
-        this.usernameField = new EditBox(this.font, fieldX, usernameFieldTop, FIELD_WIDTH, FIELD_HEIGHT,
-                Component.literal("Username"));
+        this.usernameField = new ThemedEditBox(this.font, fieldX, usernameFieldTop, FIELD_WIDTH, FIELD_HEIGHT,
+                Component.literal("Username")).hint("Username").brightHint();
         this.usernameField.setMaxLength(256);
-        this.usernameField.setHint(Component.literal("Username").withStyle(ChatFormatting.WHITE));
         this.usernameField.setValue(existing != null ? existing.getUsername() : "");
         this.addRenderableWidget(this.usernameField);
 
-        this.passwordField = new EditBox(this.font, fieldX, passwordFieldTop, FIELD_WIDTH, FIELD_HEIGHT,
-                Component.literal("Password"));
+        this.passwordField = new ThemedEditBox(this.font, fieldX, passwordFieldTop, FIELD_WIDTH, FIELD_HEIGHT,
+                Component.literal("Password")).hint("Password").brightHint();
         this.passwordField.setMaxLength(256);
         // Masked: the saved SOCKS password must not be re-rendered in cleartext every time the screen opens.
         this.passwordField.addFormatter((text, offset) -> net.minecraft.util.FormattedCharSequence.forward(
                 "*".repeat(text.length()), net.minecraft.network.chat.Style.EMPTY));
-        this.passwordField.setHint(Component.literal("Password").withStyle(ChatFormatting.WHITE));
         this.passwordField.setValue(existing != null ? existing.getPassword() : "");
         this.addRenderableWidget(this.passwordField);
 
@@ -157,36 +160,45 @@ public class AccountProxyConfigScreen extends Screen {
         }
     }
 
+    /** This screen's own Theme setting (Theme Default follows the menu). */
+    public static final String THEME_ID = "accounts";
+
     @Override
-    public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
-        if (!AccountScreenBackground.themed()) {
-            guiGraphics.fill(0, 0, this.width, this.height, 0xCC000000);
-        }
-        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
-        outlineField(guiGraphics, this.addressField);
-        outlineField(guiGraphics, this.usernameField);
-        outlineField(guiGraphics, this.passwordField);
-
-        int centerX = this.width / 2;
-
-        guiGraphics.centeredText(this.font, this.title, centerX, this.height / 4 - 34, COLOR_TITLE);
-
-        guiGraphics.text(this.font, "Type:",
-                this.socks4Button.getX(), this.socks4Button.getY() - 11, COLOR_LABEL);
-
-        guiGraphics.text(this.font, "IPAddress:Port",
-                this.addressField.getX(), this.addressField.getY() - 11, COLOR_LABEL);
-
-        guiGraphics.centeredText(this.font, Component.literal("Login (optional)"),
-                centerX, this.usernameField.getY() - 14, COLOR_TITLE);
-
-        guiGraphics.centeredText(this.font, Component.literal("Applied automatically every time you swap to this account."),
-                centerX, this.warningY, COLOR_WARNING);
+    public String themeId() {
+        return THEME_ID;
     }
 
-    private static void outlineField(GuiGraphicsExtractor graphics, EditBox field) {
-        graphics.outline(field.getX(), field.getY(), field.getWidth(), field.getHeight(),
-                field.isFocused() ? FIELD_BORDER_FOCUSED : FIELD_BORDER);
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
+    }
+
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        // The menu theme's panel over the animated title background (or the dim, in a world).
+        if (AccountScreenBackground.themed()) {
+            MenuStyle.use();
+        } else {
+            ScreenChrome.backdrop(guiGraphics, this.width, this.height);
+        }
+        ScreenChrome.frame(guiGraphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.header(guiGraphics, panelX, panelY, panelW, this.title.getString());
+        int centerX = this.width / 2;
+        int[] address = ((ThemedEditBox) this.addressField).outer();
+        int[] user = ((ThemedEditBox) this.usernameField).outer();
+        ScreenChrome.text(guiGraphics, "Type:", this.socks4Button.getX(), this.socks4Button.getY() - 11, MenuStyle.DIM);
+        ScreenChrome.text(guiGraphics, "IPAddress:Port", address[0], address[1] - 11, MenuStyle.DIM);
+        ScreenChrome.centered(guiGraphics, "Login (optional)", centerX, user[1] - 14, MenuStyle.OR);
+        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
+        ScreenChrome.centered(guiGraphics, footerLine(), centerX, this.warningY, MenuStyle.RED);
+    }
+
+    private static String footerLine() {
+        return "Applied automatically every time you swap to this account.";
+    }
+
+    private int footerLines() {
+        return 1;
     }
 
     @Override

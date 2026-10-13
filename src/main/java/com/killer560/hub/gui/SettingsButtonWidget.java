@@ -261,6 +261,33 @@ public final class SettingsButtonWidget extends AbstractWidget {
         return com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof ModScreen;
     }
 
+    /** Whether the open screen is one of the mod's screens drawn in the menu theme ({@link MenuThemedScreen}). There the
+     *  button keeps its full label (no row look) but draws as the menu's raised, themed button. */
+    static boolean inThemedScreen() {
+        return com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof MenuThemedScreen;
+    }
+
+    private void renderThemed(GuiGraphicsExtractor graphics) {
+        MenuStyle.use();
+        int x0 = getX();
+        int y0 = getY();
+        int w = getWidth();
+        int h = getHeight();
+        boolean hover = isHovered && active;
+        com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(graphics);
+        if (danger) {
+            MenuStyle.dangerButton(r, x0 + 1, y0 + 1, w - 2, h - 2, hover);
+        } else {
+            MenuStyle.raisedButton(r, x0 + 1, y0 + 1, w - 2, h - 2, hover, primary);
+        }
+        r.submit();
+        var font = Minecraft.getInstance().font;
+        String raw = getMessage().getString();
+        String label = MenuStyle.ellipsize(MenuStyle.LIGHT ? MenuStyle.lightReadable(raw) : raw, w - 8);
+        int color = !active ? MenuStyle.DIM2 : (danger ? 0xFFFFD0D0 : (hover || primary ? MenuStyle.OR_HOVER : MenuStyle.OR));
+        graphics.text(font, label, x0 + (w - font.width(label)) / 2, y0 + (h - 8) / 2, faded(color), MenuStyle.TEXT_SHADOW);
+    }
+
     /** A left click, as the menu's card and search switches send it: the same {@code onPress} a real click runs. */
     public void press() {
         if (active && visible && onPress != null) {
@@ -395,6 +422,10 @@ public final class SettingsButtonWidget extends AbstractWidget {
     protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         if (inMenu()) {
             renderMenu(graphics, mouseX, mouseY);
+            return;
+        }
+        if (inThemedScreen()) {
+            renderThemed(graphics);
             return;
         }
         int x0 = getX();

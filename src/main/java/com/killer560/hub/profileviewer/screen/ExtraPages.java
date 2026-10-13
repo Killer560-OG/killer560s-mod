@@ -38,6 +38,9 @@ import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.BAR_BG;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.DIM;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.MAXED;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.TEXT;
+import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.GOOD;
+import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.STRIPE;
+import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.tx;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.VALUE;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.commas;
 import static com.killer560.hub.profileviewer.screen.ProfileViewerScreen.inside;
@@ -53,7 +56,6 @@ import com.killer560.hub.compat.McItems;
  */
 final class ExtraPages {
 
-    private static final int GOOD = 0xFF55FF55;
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US);
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm", Locale.US);
 
@@ -119,15 +121,15 @@ final class ExtraPages {
     }
 
     private void text(GuiGraphicsExtractor g, String str, int x, int y, int color) {
-        g.text(f(), str, x, y, color, false);
+        tx(g, str, x, y, color);
     }
 
     private void title(GuiGraphicsExtractor g, String str, int x, int y) {
-        g.text(f(), str, x, y, ACCENT, false);
+        tx(g, str, x, y, ACCENT);
     }
 
     private void rightText(GuiGraphicsExtractor g, String str, int right, int y, int color) {
-        g.text(f(), str, right - f().width(str), y, color, false);
+        tx(g, str, right - f().width(str), y, color);
     }
 
     private static Component line(String str, int color) {
@@ -229,7 +231,7 @@ final class ExtraPages {
                 s.subPage++;
                 s.pageScroll = 0;
             });
-            g.text(f(), n, right - 22 - f().width(n), y + 5, VALUE, false);
+            tx(g, n, right - 22 - f().width(n), y + 5, VALUE);
             s.button(g, right - 42 - f().width(n), y + 1, 16, 14, "<", mx, my, false, () -> {
                 s.subPage--;
                 s.pageScroll = 0;
@@ -248,15 +250,13 @@ final class ExtraPages {
         if (totalRows <= visibleRows) {
             return;
         }
-        g.fill(x, y, x + 2, y + h, 0xFF1A1A1A);
         int thumbH = Math.max(8, h * visibleRows / totalRows);
         int thumbY = y + (h - thumbH) * s.pageScroll / Math.max(1, totalRows - visibleRows);
-        g.fill(x, thumbY, x + 2, thumbY + thumbH, ACCENT);
+        com.killer560.hub.gui.ScreenChrome.scrollbar(g, x - 1, y, 4, h, thumbY, thumbH, false);
     }
 
     private void progressBar(GuiGraphicsExtractor g, int x, int y, int w, double progress, boolean maxed) {
-        g.fill(x, y, x + w, y + 3, BAR_BG);
-        g.fill(x, y, x + (int) Math.round(w * (maxed ? 1 : Math.max(0, Math.min(1, progress)))), y + 3, maxed ? MAXED : ACCENT);
+        com.killer560.hub.gui.ScreenChrome.progress(g, x, y, w, 3, maxed ? 1 : progress, maxed ? MAXED : ACCENT);
     }
 
     private static String date(long ms) {
@@ -495,8 +495,7 @@ final class ExtraPages {
             ProfileExtras.Crystal c = m.crystals().get(CRYSTALS[i]);
             String state = c == null ? "NOT_FOUND" : c.state();
             boolean have = state.equals("FOUND") || state.equals("PLACED");
-            g.fill(ix, iy, ix + 18, iy + 18, 0xFF1C1C1C);
-            g.outline(ix, iy, 18, 18, have ? ACCENT : 0xFF2E2E2E);
+            s.slotBox(g, ix, iy, 18, have ? ACCENT : 0);
             g.item(new ItemStack(CRYSTAL_ICONS[i]), ix + 1, iy + 1);
             g.itemDecorations(f(), new ItemStack(CRYSTAL_ICONS[i]), ix + 1, iy + 1, have ? "§a✔" : "§c✘");
             if (hover(mx, my, ix, iy, 18, 18)) {
@@ -696,8 +695,7 @@ final class ExtraPages {
             int tier = countAtOrBelow(tiers, k);
             boolean isMaxed = tiers.length > 0 && tier >= tiers.length;
             ItemStack icon = k == 0 ? new ItemStack(McItems.GRAY_DYE) : familyIcon(fam);
-            g.fill(ix + 1, iy + 1, ix + cell - 1, iy + cell - 1, 0xFF1A1A1A);
-            g.outline(ix + 1, iy + 1, cell - 2, cell - 2, isMaxed ? MAXED : 0xFF2E2E2E);
+            s.slotBox(g, ix + 1, iy + 1, cell - 2, isMaxed ? MAXED : 0);
             g.item(icon, ix + 2, iy + 2);
             g.itemDecorations(f(), icon, ix + 2, iy + 2, (isMaxed ? "§6" : "§f") + tier);
             if (hover(mx, my, ix, iy, cell, cell)) {
@@ -1015,7 +1013,7 @@ final class ExtraPages {
         y += 14;
         for (String l : detail.split("\n")) {
             for (var seq : f().split(Component.literal(l), s.contentW - 20)) {
-                g.centeredText(f(), seq, s.contentX + s.contentW / 2, y, TEXT);
+                com.killer560.hub.gui.ScreenChrome.text(g, seq, s.contentX + s.contentW / 2 - f().width(seq) / 2, y, TEXT);
                 y += 10;
             }
         }
@@ -1312,7 +1310,7 @@ final class ExtraPages {
                 break;
             }
             if (row++ % 2 == 0) {
-                g.fill(rx + 2, ty - 2, rx + rw - 2, ty + rowH - 2, 0xFF161616);
+                g.fill(rx + 2, ty - 2, rx + rw - 2, ty + rowH - 2, STRIPE);
             }
             // Not getOrDefault: titleCase builds a String eagerly, once per row per frame, and CROP_NAMES
             // covers every vanilla crop so it is thrown away every time.
@@ -1446,7 +1444,7 @@ final class ExtraPages {
         g.pose().pushMatrix();
         g.pose().translate(x, y);
         g.pose().scale(1.5f, 1.5f);
-        g.text(f(), shorten(r.total()), 0, 0, MAXED, false);
+        tx(g, shorten(r.total()), 0, 0, MAXED);
         g.pose().popMatrix();
         if (hover(mx, my, x, y, w, 13)) {
             tip(List.of(line(commas(r.total()) + " coins", VALUE)));
@@ -1549,7 +1547,7 @@ final class ExtraPages {
             rightText(g, "Unavailable", x + w, y, DIM);
         } else {
             Component rank = rank(pf.getNow(null).data());
-            g.text(f(), rank, x + w - f().width(rank), y, 0xFFFFFFFF, false);
+            tx(g, rank, x + w - f().width(rank), y, TEXT);
         }
         y += 11;
         y = s.stat2(g, x, y, w, "First Join", date(p.firstJoin));
