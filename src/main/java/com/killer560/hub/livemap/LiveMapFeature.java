@@ -229,6 +229,7 @@ public final class LiveMapFeature {
         groupsDirty = true;
         resetGeneration++;
         foundSecretsByRoom.clear();
+        MapPainter.forgetMimics();
         DungeonMapScanner.reset();
         PartyMapIntel.reset();
         bossLatched = false;

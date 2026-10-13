@@ -159,7 +159,19 @@ public final class SimMimic {
                     SimState.floorLabel());
             return;
         }
-        List<BlockPos> pool = new ArrayList<>(CANDIDATES);
+        // On Hypixel the mimic is always one of the room's SECRET chests - a database position - and that is where the
+        // map's mimic check (MapPainter.hasLiveMimic) and Secret Waypoints look for its trapped chest. A chest baked
+        // into a capture away from every database position could be picked before 2026-10-13, and the map then had
+        // to be told the cell by a sim-only branch. Only when no secret chest is a candidate does any chest do.
+        List<BlockPos> pool = new ArrayList<>();
+        for (BlockPos c : CANDIDATES) {
+            if (SimSecrets.PLACED_CHESTS.contains(c)) {
+                pool.add(c);
+            }
+        }
+        if (pool.isEmpty()) {
+            pool.addAll(CANDIDATES);
+        }
         mimic = pool.get(RNG.nextInt(pool.size()));
         LOGGER.info("Sim mimic: 1 of {} candidate chest(s) on {}, at {}",
                 pool.size(), SimState.floorLabel(), mimic);
@@ -196,34 +208,10 @@ public final class SimMimic {
         }
     }
 
-    /**
-     * The grid cell the mimic's chest is in, or -1 - so the map can paint that room.
-     *
-     * <p>killer560 (2026-10-01): "make that room the red that the normal map uses as well for the map." The
-     * map's own mimic highlight tests for a live {@code trapped_chest} at a database secret position, which a
-     * sim never has: the sim's mimic is an ordinary chest that one of them happens to be. So the sim says
-     * which cell instead, and {@code MapPainter} reads it.
-     */
-    public static int mimicCell() {
-        BlockPos pos = mimic;
-        if (pos == null) {
-            return -1;
-        }
-        int best = -1;
-        long bestDist = Long.MAX_VALUE;
-        int cells = com.killer560.hub.livemap.DungeonLayout.GRID * com.killer560.hub.livemap.DungeonLayout.GRID;
-        for (int i = 0; i < cells; i++) {
-            BlockPos centre = com.killer560.hub.livemap.DungeonLayout.cellCenter(i);
-            long dx = centre.getX() - pos.getX();
-            long dz = centre.getZ() - pos.getZ();
-            long dist = dx * dx + dz * dz;
-            if (dist < bestDist) {
-                bestDist = dist;
-                best = i;
-            }
-        }
-        return best;
-    }
+    // mimicCell() is gone (2026-10-13). The map painted the sim's mimic room from it, a sim-only branch, because the
+    // sim's mimic was once an ordinary chest; it has been a real trapped chest at a secret position since, which the
+    // map's own check reads. It also picked the NEAREST cell centre, which for a chest more than 8 blocks off its tile
+    // centre was a doorway cell outside the room, so that branch missed many mimic rooms anyway.
 
     public static boolean hasMimic() {
         return mimic != null;
