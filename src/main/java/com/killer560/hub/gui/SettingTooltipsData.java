@@ -2055,11 +2055,20 @@ final class SettingTooltipsData {
         d.put("held item outline/fill color", "Colour and transparency laid over the held item.");
         d.put("held item outline/main hand", "Outline the item in your main hand.");
         d.put("held item outline/off hand", "Outline the item in your off hand.");
-        d.put("trail/trail", "Draws a cosmetic trail of squares at your feet as you move.");
+        d.put("trail/trail", "Draws a cosmetic trail behind you as you move: squares at your feet, or a ribbon (see Style).");
         d.put("trail/length", "How many squares the trail keeps, from 1 to 100.");
         d.put("trail/square size", "How big each trail square is, in blocks.");
-        d.put("trail/opacity", "How visible the trail squares are.");
+        d.put("trail/opacity", "How visible the trail is (squares or ribbon).");
         d.put("trail/fade toward tail", "Squares fade out the older they get.");
+        d.put("trail/style", "Squares drops a square behind you each tick. Ribbon draws one smooth band streaming behind you that fades out at the end.");
+        d.put("trail/ribbon width", "How wide the ribbon is, in blocks.");
+        d.put("trail/ribbon length", "How long each part of the ribbon lasts, in seconds. A longer time makes a longer ribbon, and it takes that long to shrink away when you stand still.");
+        d.put("trail/color mode", "Gradient uses the colours below. Name Fade uses your Name Changer colour and its fade colour (the gradient if you have none). Chroma is a rainbow that flows down the ribbon.");
+        d.put("trail/colors", "Two colours (head to tail) or three (head, middle, tail).");
+        d.put("trail/head color", "The ribbon's colour right behind you.");
+        d.put("trail/middle color", "The ribbon's colour halfway along.");
+        d.put("trail/tail color", "The ribbon's colour at its far end, where it fades out.");
+        d.put("trail/show in first person", "Whether the trail is drawn while you are in first person. Third person always shows it.");
         // 2026-09-27 regroup: one toggle per Catacombs floor now covers that floor's Master Mode
         // shortcut too (killer560: "clump them into groups like catacombs/mastermode as one toggle for
         // each floor"), and Kuudra's toggles moved onto the same Group-keyed entries - see

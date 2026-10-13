@@ -23,6 +23,9 @@ import net.minecraft.world.phys.Vec3;
  * cost audit). {@link TrailConfig#getLength()} only controls how much of that buffer is currently drawn;
  * the buffer itself never resizes, so dragging the length slider is free.
  * <p>
+ * The Ribbon style ({@link RibbonTrail}) records and draws per frame instead; this class only routes to it.
+ * Both styles draw on the local player only - the trail is not shared with other mod users.
+ * <p>
  * Purely visual, client-side, no gameplay effect - legit in both builds. Renders through the same
  * {@code LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES} + {@link WorldRenderUtils} path as Etherwarp's
  * waypoint boxes ({@link com.killer560.hub.etherwarp.EtherwarpFeature#onWorldRender}), reusing
@@ -62,6 +65,8 @@ public final class TrailFeature {
     private static boolean hasLast = false;
     private static boolean wasEnabled = false;
     private static ClientLevel lastLevel = null;
+    private static volatile boolean clearRequested = false;
+    private static TrailConfig.Style lastStyle = null;
 
     private TrailFeature() {
     }
@@ -72,12 +77,17 @@ public final class TrailFeature {
         // Disconnecting drops client.level to null anyway (tick() below would catch that on its own next
         // tick), but clearing right away avoids a one-tick window where a stale trail could show through
         // on whatever's drawn immediately after - same belt-and-suspenders reset ChunkCacheManager uses.
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clear());
+        // DISCONNECT runs on the Netty thread (CLAUDE.md), so it only leaves a flag the next tick drains.
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clearRequested = true);
     }
 
     private static void tick() {
         Minecraft client = Minecraft.getInstance();
         ClientLevel level = client.level;
+        if (clearRequested) {
+            clearRequested = false;
+            clear();
+        }
         if (level != lastLevel) {
             // World or dimension change (including join/leave) - old squares belong to a place that no
             // longer exists, so don't let them draw stale in the new world.
@@ -93,9 +103,14 @@ public final class TrailFeature {
             clear();
         }
         wasEnabled = enabledNow;
+        if (cfg.getStyle() != lastStyle) {
+            // Switching style drops the other style's points, so switching back starts clean.
+            clear();
+            lastStyle = cfg.getStyle();
+        }
 
         LocalPlayer player = client.player;
-        if (!enabledNow || level == null || player == null) {
+        if (!enabledNow || level == null || player == null || cfg.getStyle() != TrailConfig.Style.SQUARES) {
             hasLast = false;
             return;
         }
@@ -128,7 +143,17 @@ public final class TrailFeature {
 
     private static void onWorldRender(LevelRenderContext context) {
         TrailConfig cfg = TrailConfig.getInstance();
-        if (!cfg.isEnabled() || size == 0) {
+        if (!cfg.isEnabled()) {
+            return;
+        }
+        if (cfg.getStyle() == TrailConfig.Style.RIBBON) {
+            RibbonTrail.render(context, cfg);
+            return;
+        }
+        if (size == 0) {
+            return;
+        }
+        if (!cfg.isShowInFirstPerson() && Minecraft.getInstance().options.getCameraType().isFirstPerson()) {
             return;
         }
         int visible = Math.min(size, cfg.getLength());
@@ -163,6 +188,7 @@ public final class TrailFeature {
         head = 0;
         size = 0;
         hasLast = false;
+        RibbonTrail.clear();
     }
 
     private static float[] rgbToFloats(int rgb) {
