@@ -50,6 +50,9 @@ public final class SimonSaysConfig {
 
     // Assist / automation (cheat-build gated, see isTriggerBotEnabled/isAutoSolveEnabled/isAutoStartEnabled)
     private boolean triggerBotEnabled = false;
+    /** Auto Simon Says as a whole (killer560, 2026-10-13): off, Trigger Bot, Auto Start, Auto Solve and Auto Restart all
+     *  stand down whatever their own switches say. On by default, as before. */
+    private boolean autoSimonSaysEnabled = true;
     // Trigger Bot reaction delay (2026-09-15, killer560: "a slider in ms of how long from the ms it detects it is on
     // the right button to when it will actually click").
     public static final int MAX_TRIGGER_BOT_DELAY_MS = 500;
@@ -157,6 +160,7 @@ public final class SimonSaysConfig {
             cfg.announceProgress = getBool(obj, "announceProgress", false);
             cfg.partyProgressTrackerEnabled = getBool(obj, "partyProgressTrackerEnabled", true);
             cfg.triggerBotEnabled = getBool(obj, "triggerBotEnabled", false);
+            cfg.autoSimonSaysEnabled = getBool(obj, "autoSimonSaysEnabled", true);
             cfg.setTriggerBotDelayMs(getInt(obj, "triggerBotDelayMs", 0));
             cfg.autoSolveEnabled = getBool(obj, "autoSolveEnabled", false);
             cfg.autoSolveRotate = getBool(obj, "autoSolveRotate", false);
@@ -199,6 +203,7 @@ public final class SimonSaysConfig {
             obj.addProperty("announceProgress", announceProgress);
             obj.addProperty("partyProgressTrackerEnabled", partyProgressTrackerEnabled);
             obj.addProperty("triggerBotEnabled", triggerBotEnabled);
+            obj.addProperty("autoSimonSaysEnabled", autoSimonSaysEnabled);
             obj.addProperty("triggerBotDelayMs", triggerBotDelayMs);
             obj.addProperty("autoSolveEnabled", autoSolveEnabled);
             obj.addProperty("autoSolveRotate", autoSolveRotate);
@@ -329,8 +334,17 @@ public final class SimonSaysConfig {
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - a real click-assist
      *  macro, same pattern as Auto Terminals. */
+    public boolean isAutoSimonSaysEnabled() {
+        return autoSimonSaysEnabled;
+    }
+
+    public void setAutoSimonSaysEnabled(boolean v) {
+        this.autoSimonSaysEnabled = v;
+    }
+
     public boolean isTriggerBotEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && triggerBotEnabled && com.killer560.hub.util.SkyblockGate.allows();
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSimonSaysEnabled && triggerBotEnabled
+                && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public int getTriggerBotDelayMs() {
@@ -348,7 +362,8 @@ public final class SimonSaysConfig {
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - full no-rotate
      *  auto-clicking through the whole sequence, a real macro. */
     public boolean isAutoSolveEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSolveEnabled && com.killer560.hub.util.SkyblockGate.allows();
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSimonSaysEnabled && autoSolveEnabled
+                && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAutoSolveEnabled(boolean autoSolveEnabled) {
@@ -399,7 +414,8 @@ public final class SimonSaysConfig {
      *  button to set up a "skip", a real macro. Real trigger: SimonSaysFeature fires this itself the
      *  moment the real Goldor phase-start line is seen (ported from NoammAddons), not from a GUI button. */
     public boolean isAutoStartEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoStartEnabled && com.killer560.hub.util.SkyblockGate.allows();
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSimonSaysEnabled && autoStartEnabled
+                && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public void setAutoStartEnabled(boolean autoStartEnabled) {
@@ -426,7 +442,8 @@ public final class SimonSaysConfig {
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - clicks the start button. */
     public boolean isAutoRestartEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoRestartEnabled && com.killer560.hub.util.SkyblockGate.allows();
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSimonSaysEnabled && autoRestartEnabled
+                && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     public boolean getAutoRestartRaw() {

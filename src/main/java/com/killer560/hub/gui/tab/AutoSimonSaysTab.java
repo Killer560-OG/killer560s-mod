@@ -45,6 +45,17 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         int col2aX = contentX;
         int col2bX = contentX + col2W + gap;
 
+        // Auto Simon Says as a whole (killer560, 2026-10-13: a toggle for the portion as a whole) - first, so the card's
+        // switch is this one, and shown even while Simon Says itself is off.
+        widgets.add(SettingsButtonWidget.builder(onOff("Auto Simon Says", cfg.isAutoSimonSaysEnabled()), btn -> {
+                    cfg.setAutoSimonSaysEnabled(!cfg.isAutoSimonSaysEnabled());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
+        if (!cfg.isAutoSimonSaysEnabled()) {
+            return widgets;
+        }
         if (!cfg.isEnabled()) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                     Component.literal("\u00a77Turn on Simon Says in its own section to use these."),

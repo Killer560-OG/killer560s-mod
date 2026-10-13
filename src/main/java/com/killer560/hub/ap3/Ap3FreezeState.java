@@ -97,6 +97,10 @@ public final class Ap3FreezeState {
             cursor = -1;
             return;
         }
+        if (frozen && !Ap3Config.getInstance().isFreezeStateEnabled()) {
+            unfreeze(player); // switched off while frozen: resume rather than leave him stuck
+            return;
+        }
         if (frozen && stepRan) {
             stepRan = false;
             record(player);
@@ -133,11 +137,23 @@ public final class Ap3FreezeState {
         if (player == null) {
             return;
         }
+        if (!frozen && refuseWhenOff()) {
+            return;
+        }
         if (frozen) {
             unfreeze(player);
         } else {
             freeze(player, true);
         }
+    }
+
+    /** The Freeze State switch is off: say so and do nothing. */
+    private static boolean refuseWhenOff() {
+        if (Ap3Config.getInstance().isFreezeStateEnabled()) {
+            return false;
+        }
+        ModChat.send("Freeze State", ModChat.bad("Freeze State is turned off - switch it on in its menu card first."));
+        return true;
     }
 
     private static void freeze(LocalPlayer player, boolean announce) {
@@ -188,6 +204,9 @@ public final class Ap3FreezeState {
     public static void step(int dir, int count, boolean typed) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
+            return;
+        }
+        if (refuseWhenOff()) {
             return;
         }
         boolean hypixel = onHypixel();
