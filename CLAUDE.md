@@ -253,7 +253,8 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   START and ABORT in the same tick, so nothing is left open server-side either. What it does NOT clear is
   `stoppedByUser`/`justFinished`, and both make `AutoRoutesFeature` latch instead of arming *while the player
   stands inside a node* - which is exactly where a map warp puts him. Clear them whenever something other than
-  the player cancels a route.
+  the player cancels a route. Anything that fires a node on its own (the breaker re-fire) must honour `stoppedByUser`
+  too: counting it as a mere latch restarted a breaker the tick after his strafe stopped it (96-ar-breakerwait, 2026-10-12).
 - A movement key held when an Auto Routes node fires is the walk that got him there, not a takeover. The input
   mixin used to return before installing the route's input whenever any movement key was down, so walking onto
   an `/ar add ew start` node never got the etherwarp's sneak out and timed out (and a driven route stopped on its

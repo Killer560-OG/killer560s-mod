@@ -103,6 +103,7 @@ final class RouteHistory {
     static void reset() {
         undo.clear();
         redo.clear();
+        restoreMarks.clear();
     }
 
     private static void record(Entry e) {
@@ -110,6 +111,7 @@ final class RouteHistory {
             return;
         }
         redo.clear();
+        restoreMarks.clear(); // a new change starts a new chain of restores
         push(undo, e);
     }
 
@@ -143,15 +145,50 @@ final class RouteHistory {
         return step(redo, undo, true);
     }
 
+    /** Entries a restore pushed onto the undo stack (the re-delete of what it brought back): the next restore looks
+     *  past them, so /ar redo pressed again brings back the delete before that one. */
+    private static final java.util.Set<Entry> restoreMarks = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+    /**
+     * {@code /ar redo} with nothing undone to redo (killer560, 2026-10-12: "if i do /ar delete or /ar remove and then do
+     * /ar redo then it should bring them back. Same if i do /clear"): brings back the newest delete or clear still on
+     * the undo history, looking past earlier restores. Its inverse goes on the undo stack, so /ar undo deletes it again.
+     * @return what was restored, or null when the newest change is not a delete or clear
+     */
+    static Undone restoreNewestRemoval() {
+        for (Entry e : new ArrayList<>(undo)) {
+            if (restoreMarks.contains(e)) {
+                continue;
+            }
+            if (!(e instanceof Removed) && !(e instanceof Cleared)) {
+                return null;
+            }
+            undo.removeFirstOccurrence(e);
+            Applied a = apply(e, false);
+            if (a == null) {
+                continue; // stale (the room changed since): dropped, look at the one before it
+            }
+            push(undo, a.inverse());
+            restoreMarks.add(a.inverse());
+            return a.done();
+        }
+        return null;
+    }
+
     static boolean canRedo() {
         return !redo.isEmpty();
     }
 
     private static Undone step(Deque<Entry> from, Deque<Entry> to, boolean redoing) {
         while (!from.isEmpty()) {
-            Applied a = apply(from.pop(), redoing);
+            Entry e = from.pop();
+            Applied a = apply(e, redoing);
             if (a != null) {
                 push(to, a.inverse());
+                if (restoreMarks.remove(e)) {
+                    // Undoing a restore and redoing it again is still that restore: the next restore looks past it.
+                    restoreMarks.add(a.inverse());
+                }
                 return a.done();
             }
         }
