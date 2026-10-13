@@ -316,6 +316,10 @@ public final class AutoRoutesFeature {
     public static boolean redo() {
         RouteHistory.Undone done = RouteHistory.redo();
         if (done == null) {
+            // Nothing undone to redo: bring back the newest /ar delete, /ar remove or /ar clear instead.
+            done = RouteHistory.restoreNewestRemoval();
+        }
+        if (done == null) {
             chatBad("Nothing to redo.");
             return false;
         }
