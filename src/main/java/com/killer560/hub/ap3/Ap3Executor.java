@@ -2744,7 +2744,7 @@ public final class Ap3Executor {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
         boolean block = cfg.isBlockInputs();
         boolean fast = cfg.isFastMode();
-        boolean swap = cfg.isSwapBack();
+        boolean swap = false; // AP3 finishes the node on the click and its next node picks its own item; a Return To swap could land after it
         switch (node.leapMode) {
             case CLASS -> {
                 if (node.leapClass == null) {

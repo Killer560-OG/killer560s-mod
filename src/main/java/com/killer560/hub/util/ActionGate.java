@@ -105,7 +105,13 @@ public final class ActionGate {
         /** Slots inside a container the feature is driving. Must only fire while that exact screen is focused. */
         SCREEN,
         /** A chat command. No screen rules, but still takes a slot so it can't ride along with a click. */
-        COMMAND
+        COMMAND,
+        /**
+         * A hotbar slot change (the held-item packet). Never while a container is open, visible or headless (a vanilla
+         * client cannot change its held slot with a menu up), but no cross-class wait and no teleport settle: it aims
+         * at nothing in the world and clicks nothing in a menu. Takes the tick's slot like everything else.
+         */
+        HOTBAR
     }
 
     /**
@@ -135,6 +141,13 @@ public final class ActionGate {
         ROUTE(Kind.WORLD),
         /** Class ultimate fired off a chat trigger. Losing the tick loses the ult, so it sits near the top. */
         AUTO_ULT(Kind.WORLD),
+        /** Fast/Auto Leap's (and AP3's / I4's) Spirit Leap, one step a tick (killer560, 2026-10-13: "swap to your
+         *  leap, open it, then leap to the person, then swap back"): the swap to the leap and back, the item use that
+         *  opens the menu, and the click on the target's head. One flow, so the use does not hold the click for
+         *  {@link #CROSS_CLASS_TICKS}. Wired in {@code fastleap.LeapManager}, its only caller. */
+        LEAP_HOTBAR(Kind.HOTBAR, "leap"),
+        LEAP_USE(Kind.WORLD, "leap"),
+        LEAP_MENU(Kind.SCREEN, "leap"),
         /** Auto Terminals solving an open terminal GUI. */
         TERMINAL_SOLVER(Kind.SCREEN),
         /** Terminal Aura / Terminal Triggerbot right-clicking the terminal block in the world. */
@@ -220,9 +233,17 @@ public final class ActionGate {
         AUTO_KICK(Kind.COMMAND);
 
         private final Kind kind;
+        /** Actors that are steps of one sequence (one item use opening the menu its next step clicks) share a flow,
+         *  and the cross-class wait does not apply between them. Null: its own. */
+        private final String flow;
 
         Actor(Kind kind) {
+            this(kind, null);
+        }
+
+        Actor(Kind kind, String flow) {
             this.kind = kind;
+            this.flow = flow;
         }
 
         public Kind kind() {
@@ -254,6 +275,8 @@ public final class ActionGate {
     private static long spacingNanos = 0L;
     private static long lastWorldTick = Long.MIN_VALUE / 4;
     private static long lastScreenTick = Long.MIN_VALUE / 4;
+    private static Actor lastWorldActor = null;
+    private static Actor lastScreenActor = null;
     private static long settleUntilTick = Long.MIN_VALUE;
     private static long teleportSettleUntilTick = Long.MIN_VALUE;
     private static Actor selfTeleportActor = null;
@@ -410,7 +433,7 @@ public final class ActionGate {
 
     // ---- the gate ----
 
-    /** For {@link Kind#WORLD} and {@link Kind#COMMAND} actors. */
+    /** For {@link Kind#WORLD}, {@link Kind#COMMAND} and {@link Kind#HOTBAR} actors. */
     public static boolean tryAct(Actor actor) {
         return tryAct(actor, null);
     }
@@ -495,7 +518,7 @@ public final class ActionGate {
                 if (client.player.containerMenu != client.player.inventoryMenu) {
                     return deny(actor, "a headless container is open");
                 }
-                if (armed && tick - lastScreenTick < CROSS_CLASS_TICKS) {
+                if (armed && tick - lastScreenTick < CROSS_CLASS_TICKS && !sameFlow(actor, lastScreenActor)) {
                     return deny(actor, "a GUI automation just clicked");
                 }
             }
@@ -507,7 +530,7 @@ public final class ActionGate {
                     if (client.player.containerMenu != headlessMenu) {
                         return deny(actor, "its headless menu is not the open container");
                     }
-                    if (armed && tick - lastWorldTick < CROSS_CLASS_TICKS) {
+                    if (armed && tick - lastWorldTick < CROSS_CLASS_TICKS && !sameFlow(actor, lastWorldActor)) {
                         return deny(actor, "a world aura just clicked");
                     }
                     break;
@@ -518,8 +541,16 @@ public final class ActionGate {
                 if (!(screen instanceof AbstractContainerScreen<?>)) {
                     return deny(actor, "focused screen is not a container");
                 }
-                if (armed && tick - lastWorldTick < CROSS_CLASS_TICKS) {
+                if (armed && tick - lastWorldTick < CROSS_CLASS_TICKS && !sameFlow(actor, lastWorldActor)) {
                     return deny(actor, "a world aura just clicked");
+                }
+            }
+            case HOTBAR -> {
+                if (screen instanceof AbstractContainerScreen<?>) {
+                    return deny(actor, "a container screen is open");
+                }
+                if (client.player.containerMenu != client.player.inventoryMenu) {
+                    return deny(actor, "a headless container is open");
                 }
             }
             case COMMAND -> {
@@ -529,7 +560,7 @@ public final class ActionGate {
         if (armed && tick < settleUntilTick) {
             return deny(actor, "settling after a screen/world transition");
         }
-        if (armed && tick < teleportSettleUntilTick
+        if (armed && tick < teleportSettleUntilTick && actor.kind != Kind.HOTBAR
                 && !(actor == selfTeleportActor && tick <= selfTeleportUntilTick)) {
             return deny(actor, "settling after a teleport");
         }
@@ -550,10 +581,16 @@ public final class ActionGate {
         YIELD_STREAK[actor.ordinal()] = 0;
         if (actor.kind == Kind.WORLD) {
             lastWorldTick = tick;
+            lastWorldActor = actor;
         } else if (actor.kind == Kind.SCREEN) {
             lastScreenTick = tick;
+            lastScreenActor = actor;
         }
         return true;
+    }
+
+    private static boolean sameFlow(Actor a, Actor b) {
+        return b != null && a.flow != null && a.flow.equals(b.flow);
     }
 
     /**
@@ -595,6 +632,8 @@ public final class ActionGate {
         spacingNanos = rollSpacing();
         lastWorldTick = Long.MIN_VALUE / 4;
         lastScreenTick = Long.MIN_VALUE / 4;
+        lastWorldActor = null;
+        lastScreenActor = null;
         teleportSettleUntilTick = Long.MIN_VALUE;
         selfTeleportActor = null;
         selfTeleportUntilTick = Long.MIN_VALUE;

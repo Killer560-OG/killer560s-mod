@@ -44,7 +44,9 @@ public final class FastLeapConfig {
         }
     }
 
-    /** One QUOI leap switch ("Crystal leap", "P3 leap", ...), each Fast (on his left click) or Auto. The constant
+    /** One QUOI leap ("Crystal leap", "P3 leap", ...), with its own Fast switch (his left click) and Auto switch (its
+     *  trigger), each on or off by itself since 2026-10-13 (killer560: "for fast leap it should be a toggle for each
+     *  specific section"). The constant
      *  names are the file's keys, so P1 keeps its name though the leap is "Crystal" since 2026-10-13 (killer560:
      *  "Rename p1 leap to crystal leap") - an old file's P1 settings carry straight over. The temporary Test leap
      *  went the same day ("Remove test leap"); an old file's TEST entry is ignored. */
@@ -100,9 +102,15 @@ public final class FastLeapConfig {
     }
 
     private static final class GroupSettings {
-        boolean enabled = false;
+        /** Fast: his left click with a leap item leaps to this section's target. */
+        boolean fast = false;
+        /** Auto: the section's trigger leaps by itself. */
         boolean auto = false;
     }
+
+    /** Return To: the hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap first.
+     *  {@link #RETURN_PREVIOUS} is the slot held before the swap; 0-8 a fixed hotbar slot. */
+    public static final int RETURN_PREVIOUS = -1;
 
     private static final class TargetSettings {
         String name = "";
@@ -119,7 +127,7 @@ public final class FastLeapConfig {
     private int clickDelayMs = 250;
     private boolean blockInputs = false;
     private boolean fastMode = false;
-    private boolean swapBack = false;
+    private int returnToSlot = RETURN_PREVIOUS;
     private boolean disableAfterBloodOpen = false;
     private boolean onlyWhenGateBlown = false;
     private final Map<LeapGroup, GroupSettings> groups = new EnumMap<>(LeapGroup.class);
@@ -155,7 +163,9 @@ public final class FastLeapConfig {
                 cfg.clickDelayMs = clampDelay(obj.has("clickDelayMs") ? obj.get("clickDelayMs").getAsInt() : 250);
                 cfg.blockInputs = bool(obj, "blockInputs", false);
                 cfg.fastMode = bool(obj, "fastMode", false);
-                cfg.swapBack = bool(obj, "swapBack", false);
+                // "swapBack" (before 2026-10-13) is not carried over: an Auto leap always returns now (killer560:
+                // "swap to your leap, open it, then leap to the person, then swap back to the item you want").
+                cfg.returnToSlot = clampReturn(obj.has("returnToSlot") ? obj.get("returnToSlot").getAsInt() : RETURN_PREVIOUS);
                 cfg.disableAfterBloodOpen = bool(obj, "disableAfterBloodOpen", false);
                 cfg.onlyWhenGateBlown = bool(obj, "onlyWhenGateBlown", false);
                 if (obj.has("groups") && obj.get("groups").isJsonObject()) {
@@ -164,8 +174,18 @@ public final class FastLeapConfig {
                         if (g.has(group.name()) && g.get(group.name()).isJsonObject()) {
                             JsonObject o = g.getAsJsonObject(group.name());
                             GroupSettings s = cfg.groups.get(group);
-                            s.enabled = bool(o, "enabled", false);
-                            s.auto = bool(o, "auto", false);
+                            if (o.has("fast")) {
+                                s.fast = bool(o, "fast", false);
+                                s.auto = bool(o, "auto", false);
+                            } else {
+                                // Before 2026-10-13 (v2): one switch plus a Mode, Fast or Auto. Decided from the OLD
+                                // keys: Mode Fast -> Fast on / Auto off, Mode Auto -> Auto on / Fast off, and a leap
+                                // whose switch was off stays off (both).
+                                boolean on = bool(o, "enabled", false);
+                                boolean auto = bool(o, "auto", false);
+                                s.fast = on && !auto;
+                                s.auto = on && auto;
+                            }
                         }
                     }
                 }
@@ -206,14 +226,14 @@ public final class FastLeapConfig {
             obj.addProperty("clickDelayMs", clickDelayMs);
             obj.addProperty("blockInputs", blockInputs);
             obj.addProperty("fastMode", fastMode);
-            obj.addProperty("swapBack", swapBack);
+            obj.addProperty("returnToSlot", returnToSlot);
             obj.addProperty("disableAfterBloodOpen", disableAfterBloodOpen);
             obj.addProperty("onlyWhenGateBlown", onlyWhenGateBlown);
             JsonObject g = new JsonObject();
             for (LeapGroup group : LeapGroup.values()) {
                 GroupSettings s = groups.get(group);
                 JsonObject o = new JsonObject();
-                o.addProperty("enabled", s.enabled);
+                o.addProperty("fast", s.fast);
                 o.addProperty("auto", s.auto);
                 g.add(group.name(), o);
             }
@@ -253,6 +273,10 @@ public final class FastLeapConfig {
 
     private static TargetMode parseMode(String s) {
         return "POSMSG".equalsIgnoreCase(s) ? TargetMode.POSMSG : TargetMode.PER_LEAP;
+    }
+
+    private static int clampReturn(int slot) {
+        return slot < 0 || slot > 8 ? RETURN_PREVIOUS : slot;
     }
 
     private static int clampDelay(int ms) {
@@ -307,12 +331,13 @@ public final class FastLeapConfig {
         fastMode = v;
     }
 
-    public boolean isSwapBack() {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && swapBack;
+    /** Return To: {@link #RETURN_PREVIOUS} or a hotbar slot 0-8. */
+    public int getReturnToSlot() {
+        return returnToSlot;
     }
 
-    public void setSwapBack(boolean v) {
-        swapBack = v;
+    public void setReturnToSlot(int slot) {
+        returnToSlot = clampReturn(slot);
     }
 
     public boolean isDisableAfterBloodOpen() {
@@ -333,27 +358,22 @@ public final class FastLeapConfig {
 
     // ---- per leap ---------------------------------------------------------------------------------------------
 
-    public boolean isLeapEnabled(LeapGroup group) {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).enabled;
+    /** Fast: his left click with a leap item leaps to this section's target. Independent of Auto. */
+    public boolean isLeapFast(LeapGroup group) {
+        return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).fast;
     }
 
-    public void setLeapEnabled(LeapGroup group, boolean v) {
-        groups.get(group).enabled = v;
+    public void setLeapFast(LeapGroup group, boolean v) {
+        groups.get(group).fast = v;
     }
 
-    /** The leap's Mode is Auto: it leaps by itself when its trigger happens. Only acts while the leap is also on. */
+    /** Auto: the leap fires by itself when its trigger happens. Independent of Fast. */
     public boolean isLeapAuto(LeapGroup group) {
         return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).auto;
     }
 
     public void setLeapAuto(LeapGroup group, boolean v) {
         groups.get(group).auto = v;
-    }
-
-    /** On and in Fast mode: his left click with a leap item leaps (killer560 2026-10-13: "whether it is fast leaping
-     *  (on my left click) or auto leaping"). An Auto leap does not also take the click. */
-    public boolean isLeapFast(LeapGroup group) {
-        return isLeapEnabled(group) && !groups.get(group).auto;
     }
 
     /** The leap's Target button: a class (true) or a name. */

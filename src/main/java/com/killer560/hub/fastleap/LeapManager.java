@@ -2,6 +2,7 @@ package com.killer560.hub.fastleap;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.KeyMapping;
@@ -30,10 +31,13 @@ import com.killer560.hub.compat.McCompat;
  * <p>
  * Flow (all on the client thread, driven from START_CLIENT_TICK like QUOI's task runner): resolve the target teammate
  * (by name, or first alive teammate of a class) -&gt; if the leap menu is already open click straight away, if another
- * screen is open queue it until the screen closes, else swap to the Spirit Leap (skyblock id
- * {@code INFINITE_SPIRIT_LEAP}/{@code SPIRIT_LEAP}) and use it -&gt; wait up to 20 ticks for the "Spirit Leap" container
- * -&gt; wait up to 20 ticks for a container slot (never the 36 player-inventory slots, same bound as
- * {@code AutoLeapFeature}) whose item name is the target -&gt; PICKUP-click it -&gt; close the menu, optionally swap back.
+ * screen is open queue it until the screen closes, else, one step a tick and each through {@link ActionGate} (killer560,
+ * 2026-10-13: "swap to your leap, open it, then leap to the person, then swap back to the item you want"): swap to the
+ * Spirit Leap (skyblock id {@code INFINITE_SPIRIT_LEAP}/{@code SPIRIT_LEAP}) when it is not held, only ever from the
+ * hotbar -&gt; use it -&gt; wait up to {@link #MENU_TIMEOUT_TICKS} for the "Spirit Leap" container -&gt; wait up to
+ * {@link #ITEM_TIMEOUT_TICKS} for a container slot (never the 36 player-inventory slots) whose item name is the target
+ * -&gt; PICKUP-click it and close the menu -&gt; on a later tick swap to Return To ({@link FastLeapConfig#getReturnToSlot})
+ * when the leap had to swap and the caller asked for it. Every failure says which step in chat and still swaps back.
  * <p>
  * QUOI semantics kept: movement keys are held up for the whole leap (or, in Fast mode, only from the menu opening
  * until the click); "Block inputs" blocks keyboard/mouse input for the same window (see {@link #blocksInput()});
@@ -54,8 +58,12 @@ import com.killer560.hub.compat.McCompat;
 public final class LeapManager {
 
     private static final String LEAP_MENU_TITLE = "spirit leap";
-    private static final int CONTAINER_TIMEOUT_TICKS = 20;
-    private static final int ITEM_TIMEOUT_TICKS = 20;
+    /** Ticks from the item use to the leap menu arriving before "the leap menu did not open" (polled once a tick). */
+    static final int MENU_TIMEOUT_TICKS = 40;
+    /** Ticks from the menu arriving to the target's head showing before "not in the leap menu". */
+    static final int ITEM_TIMEOUT_TICKS = 40;
+    /** Ticks a step may wait for {@link ActionGate} to give it a tick before the leap gives up on it. */
+    static final int GATE_TIMEOUT_TICKS = 20;
     private static final long QUEUE_EXPIRY_MS = 10_000L;
     private static final int FALLBACK_AFTER_LOADED_TICKS = 2;
 
@@ -80,12 +88,25 @@ public final class LeapManager {
         }
     }
 
+    private enum Step {
+        /** Swap to the leap item's hotbar slot (only when it is not held). */
+        SWAP,
+        /** Use the leap item. */
+        USE,
+        /** Wait for the menu and click the target's head. */
+        MENU
+    }
+
     private static final class Active {
         final Request request;
         final boolean preOpened;
         Target current;
+        Step step = Step.MENU;
+        int leapSlot = -1;
+        int gateWaitTicks;
         boolean usedItem;
-        int previousSlot = -1;
+        /** The hotbar slot to swap to once the leap is done, or -1 for none. */
+        int returnSlot = -1;
         int waitTicks;
         AbstractContainerMenu menu;
         int itemWaitTicks;
@@ -111,6 +132,12 @@ public final class LeapManager {
     /** QUOI {@code leapCD}: ticks until the Spirit Leap is usable again ({@code 48 * mage multiplier} after a leap). */
     private static double leapCdTicks = 0.0;
     private static final double LEAP_COOLDOWN_TICKS = 48.0;
+    /** Return To still to be done after the leap: the slot to swap to (-1 none) and the leap slot it swaps away from. */
+    private static int returnTo = -1;
+    private static int returnFrom = -1;
+    private static int returnWaitTicks = 0;
+    /** The last leap's steps, "tick step" (ActionGate ticks), for the testkit. */
+    private static final List<String> STEP_LOG = new java.util.ArrayList<>();
 
     private LeapManager() {
     }
@@ -174,9 +201,19 @@ public final class LeapManager {
         return t == null ? null : new Target(t.name(), t.name() + " (" + clazz.displayName() + ")");
     }
 
-    /** True while a leap is queued, waiting, or running. */
+    /** True while a leap is queued, waiting, running, or still has its Return To swap to make. */
     public static boolean isBusy() {
-        return incoming != null || pending != null || active != null;
+        return incoming != null || pending != null || active != null || returnTo >= 0;
+    }
+
+    /** The last leap's steps as "tick step", oldest first (testkit). */
+    public static List<String> stepLog() {
+        return new java.util.ArrayList<>(STEP_LOG);
+    }
+
+    private static void logStep(String step) {
+        STEP_LOG.add(ActionGate.currentTick() + " " + step);
+        FastLeapFeature.LOGGER.info("[FastLeap] step {} at tick {}", step, ActionGate.currentTick());
     }
 
     public static long lastLeapMs() {
@@ -211,6 +248,7 @@ public final class LeapManager {
     static void onWorldChange() {
         incoming = null;
         pending = null;
+        returnTo = -1;
         if (active != null) {
             Active a = active;
             active = null;
@@ -226,6 +264,7 @@ public final class LeapManager {
         FastLeapFeature.LOGGER.error("[FastLeap] Leap aborted after an exception - inputs restored", t);
         incoming = null;
         pending = null;
+        returnTo = -1;
         Active a = active;
         active = null;
         if (a != null) {
@@ -308,13 +347,17 @@ public final class LeapManager {
             movementSuppressed = true;
         }
 
+        if (active == null && returnTo >= 0) {
+            tickReturn(client, player);
+        }
         if (incoming != null) {
             Request req = incoming;
             incoming = null;
             startLeap(client, req);
         }
-        // QUOI TickEvent.Server: run a queued leap once no screen/container/task is open
-        if (pending != null && active == null && McCompat.screen(client) == null && player.containerMenu == player.inventoryMenu) {
+        // QUOI TickEvent.Server: run a queued leap once no screen/container/task (or Return To swap) is open
+        if (pending != null && active == null && returnTo < 0 && McCompat.screen(client) == null
+                && player.containerMenu == player.inventoryMenu) {
             Request req = pending;
             pending = null;
             if (System.currentTimeMillis() - req.createdAtMs <= QUEUE_EXPIRY_MS) {
@@ -323,12 +366,86 @@ public final class LeapManager {
         }
 
         a = active;
-        if (a != null && !a.preOpened && !a.usedItem) {
-            // action { PlayerUtils.interact() }
-            client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-            a.usedItem = true;
+        if (a == null) {
+            return;
         }
-        poll(client);
+        switch (a.step) {
+            case SWAP -> stepSwap(client, player, a);
+            case USE -> stepUse(client, player, a);
+            case MENU -> poll(client);
+        }
+    }
+
+    /** Step 1: swap to the leap item's hotbar slot, on its own tick. */
+    private static void stepSwap(Minecraft client, LocalPlayer player, Active a) {
+        if (!isLeapStack(player.getInventory().getItem(a.leapSlot))) {
+            finish(a, Result.FAILURE, "the leap item left hotbar slot " + (a.leapSlot + 1));
+            return;
+        }
+        if (!ActionGate.tryAct(ActionGate.Actor.LEAP_HOTBAR)) {
+            if (++a.gateWaitTicks > GATE_TIMEOUT_TICKS) {
+                finish(a, Result.FAILURE, "no free tick to swap to the leap");
+            }
+            return;
+        }
+        select(client, player, a.leapSlot);
+        logStep("swap " + (a.leapSlot + 1));
+        a.step = Step.USE;
+        a.gateWaitTicks = 0;
+    }
+
+    /** Step 2: use the leap item, on its own tick; the menu is polled from the next one. */
+    private static void stepUse(Minecraft client, LocalPlayer player, Active a) {
+        if (player.getInventory().getSelectedSlot() != a.leapSlot || !isLeapStack(player.getMainHandItem())) {
+            finish(a, Result.FAILURE, "the leap item is no longer held");
+            return;
+        }
+        if (!ActionGate.tryAct(ActionGate.Actor.LEAP_USE)) {
+            if (++a.gateWaitTicks > GATE_TIMEOUT_TICKS) {
+                finish(a, Result.FAILURE, "no free tick to use the leap");
+            }
+            return;
+        }
+        // action { PlayerUtils.interact() }
+        client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+        a.usedItem = true;
+        logStep("use");
+        a.step = Step.MENU;
+        a.gateWaitTicks = 0;
+    }
+
+    /** Last step: the Return To swap, on a tick after the click. Skipped if he changed slot himself meanwhile. */
+    private static void tickReturn(Minecraft client, LocalPlayer player) {
+        int selected = player.getInventory().getSelectedSlot();
+        if (selected == returnTo || selected != returnFrom) {
+            returnTo = -1;
+            return;
+        }
+        if (McCompat.screen(client) == null && player.containerMenu == player.inventoryMenu
+                && ActionGate.tryAct(ActionGate.Actor.LEAP_HOTBAR)) {
+            int slot = returnTo;
+            returnTo = -1;
+            select(client, player, slot);
+            logStep("return " + (slot + 1));
+            return;
+        }
+        if (++returnWaitTicks > GATE_TIMEOUT_TICKS && McCompat.screen(client) == null) {
+            ModChat.send("Fast Leap", ModChat.bad("Could not swap back to hotbar slot " + (returnTo + 1)));
+            returnTo = -1;
+        }
+    }
+
+    /** A hotbar swap the game mode knows about, so its own tick does not send the slot a second time (LESSONS.md). */
+    private static void select(Minecraft client, LocalPlayer player, int slot) {
+        if (player.getInventory().getSelectedSlot() == slot) {
+            return;
+        }
+        player.getInventory().setSelectedSlot(slot);
+        if (client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker) {
+            invoker.killer560smod$invokeEnsureHasSentCarriedItem();
+        } else {
+            player.connection.send(new net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket(slot));
+        }
     }
 
     static void onEndTick(Minecraft client) {
@@ -371,22 +488,25 @@ public final class LeapManager {
         }
         LocalPlayer player = client.player;
         Active a = new Active(req, preOpened);
+        STEP_LOG.clear();
         if (!preOpened) {
             int selected = player.getInventory().getSelectedSlot();
-            int leapSlot = findLeapSlot(player);
+            // the hotbar only: an item in the inventory is never moved (killer560, 2026-10-13)
+            int leapSlot = isLeapStack(player.getInventory().getItem(selected)) ? selected : findLeapSlot(player);
             if (leapSlot < 0) {
-                ModChat.send("Fast Leap", ModChat.bad("Could not find INFINITE_SPIRIT_LEAP, SPIRIT_LEAP"));
+                ModChat.send("Fast Leap", ModChat.bad("No Spirit Leap or Infinileap in your hotbar - not leaping"));
                 return;
             }
+            a.leapSlot = leapSlot;
             boolean already = leapSlot == selected;
-            if (!already) {
-                // MultiPlayerGameMode.useItem sends the carried-item packet itself (ensureHasSentCarriedItem)
-                player.getInventory().setSelectedSlot(leapSlot);
-            }
+            a.step = already ? Step.USE : Step.SWAP;
             suppressUseInput(client);
             if (req.swapBack && !already) {
-                a.previousSlot = selected;
+                int want = FastLeapConfig.getInstance().getReturnToSlot();
+                int slot = want == FastLeapConfig.RETURN_PREVIOUS ? selected : want;
+                a.returnSlot = slot == leapSlot ? -1 : slot;
             }
+            // nothing is sent here: each step goes out on its own tick from onStartTick
         }
         active = a;
         if (preOpened) {
@@ -421,8 +541,8 @@ public final class LeapManager {
                 finish(a, Result.FAILURE, "Wrong container name. Got " + other.getTitle().getString() + ", needed Spirit Leap");
                 return;
             } else {
-                if (++a.waitTicks > CONTAINER_TIMEOUT_TICKS * 2) { // polled at tick start and end
-                    finish(a, Result.FAILURE, "Timed out waiting for container matching Spirit Leap");
+                if (++a.waitTicks > MENU_TIMEOUT_TICKS) {
+                    finish(a, Result.FAILURE, "the leap menu did not open");
                 }
                 return;
             }
@@ -469,12 +589,22 @@ public final class LeapManager {
             return;
         }
         if (match == null) {
-            if (++a.itemWaitTicks > ITEM_TIMEOUT_TICKS * 2) {
-                finish(a, Result.FAILURE, "target not found in leap menu");
+            if (++a.itemWaitTicks > ITEM_TIMEOUT_TICKS) {
+                finish(a, Result.FAILURE, "not in the leap menu");
+            }
+            return;
+        }
+        Screen shown = McCompat.screen(client);
+        boolean mayClick = a.hidden ? ActionGate.tryActHeadless(ActionGate.Actor.LEAP_MENU, a.menu)
+                : ActionGate.tryAct(ActionGate.Actor.LEAP_MENU, leapMenuScreen(shown) != null ? shown : null);
+        if (!mayClick) {
+            if (++a.gateWaitTicks > GATE_TIMEOUT_TICKS) {
+                finish(a, Result.FAILURE, "no free tick to click the leap menu");
             }
             return;
         }
         client.gameMode.handleContainerInput(a.menu.containerId, match.index, 0, ContainerInput.PICKUP, player);
+        logStep("click " + match.index);
         // finishClick(): the fast block ends with the last click
         a.fastBlockActive = false;
         a.fastBlockFinished = true;
@@ -513,8 +643,11 @@ public final class LeapManager {
             }
         }
         FastLeapFeature.LOGGER.info("[FastLeap] Leap to {} finished: {}{}", a.current.name(), result, failure == null ? "" : " (" + failure + ")");
-        if (player != null && a.previousSlot >= 0 && a.previousSlot <= 8) {
-            player.getInventory().setSelectedSlot(a.previousSlot);
+        // Return To goes out on a later tick (tickReturn), after the click and the menu's close - whatever the result
+        if (player != null && a.returnSlot >= 0 && a.returnSlot <= 8 && a.leapSlot >= 0) {
+            returnTo = a.returnSlot;
+            returnFrom = a.leapSlot;
+            returnWaitTicks = 0;
         }
         active = null;
         restoreUseInput();
@@ -546,6 +679,12 @@ public final class LeapManager {
     static boolean isLeapMenuTitle(String title) {
         String t = ChatObserver.strip(title);
         return t.equalsIgnoreCase("Spirit Leap") || t.equalsIgnoreCase("Teleport to Player");
+    }
+
+    /** A leap item by id, or (p3sim.net, no Hypixel id) by name - the same test {@link #findLeapSlot} makes. */
+    private static boolean isLeapStack(ItemStack stack) {
+        return isLeapItem(stack) || (skyblockId(stack) == null && !stack.isEmpty()
+                && ChatObserver.strip(stack.getHoverName().getString()).contains("Spirit Leap"));
     }
 
     public static boolean isLeapItem(ItemStack stack) {

@@ -37,7 +37,8 @@ import com.killer560.hub.compat.McCompat;
  * (or gate blown), Necron's "impressive trick" line (middle), 2nd Necron ARGH (P4), picking up a relic (P5).</li>
  * <li><b>Target</b>: each leap's own pick, a class (first alive teammate of that class, Leap Order's class picks
  * applied) or a name; or, in Posmsg mode, whoever announced the spot (see {@link PosmsgTargets}), with the pick as backup.</li>
- * <li><b>Mode</b> (2026-10-13): a leap is Fast (his left click with a leap item) OR Auto (its trigger), never both.</li>
+ * <li><b>Fast / Auto</b> (2026-10-13, v2): two switches per leap, each on or off by itself. An Auto leap swaps to the
+ * leap item if it is not held, uses it, clicks the target's head and swaps to Return To ({@link LeapManager}).</li>
  * </ul>
  * One {@link #register()} call wires this, {@link I4LeapFeature}, {@link LeapManager}, {@link Floor7Tracker},
  * {@link Teammates} and {@link PosmsgTargets}.
@@ -74,7 +75,7 @@ public final class FastLeapFeature {
             @Override
             public void onStageComplete(Stage stage) {
                 FastLeapConfig cfg = FastLeapConfig.getInstance();
-                if (!cfg.isEnabled() || !cfg.isLeapEnabled(LeapGroup.P3) || !cfg.isLeapAuto(LeapGroup.P3)
+                if (!cfg.isEnabled() || !cfg.isLeapAuto(LeapGroup.P3)
                         || !Floor7Tracker.inPhaseAt(Phase.P3)) {
                     return;
                 }
@@ -87,7 +88,7 @@ public final class FastLeapFeature {
             @Override
             public void onStageCompleteFull(Stage stage) {
                 FastLeapConfig cfg = FastLeapConfig.getInstance();
-                if (!cfg.isEnabled() || !cfg.isLeapEnabled(LeapGroup.P3) || !cfg.isLeapAuto(LeapGroup.P3)
+                if (!cfg.isEnabled() || !cfg.isLeapAuto(LeapGroup.P3)
                         || !Floor7Tracker.inPhaseAt(Phase.P3)) {
                     return;
                 }
@@ -150,7 +151,7 @@ public final class FastLeapFeature {
             return;
         }
         // QUOI TickEvent.End relic trigger (based on NoammAddons M7Relics)
-        if (cfg.isLeapEnabled(LeapGroup.RELIC) && cfg.isLeapAuto(LeapGroup.RELIC) && !pickedUpRelic && isInRelic()) {
+        if (cfg.isLeapAuto(LeapGroup.RELIC) && !pickedUpRelic && isInRelic()) {
             ItemStack relic = player.getInventory().getItem(8);
             if (ChatObserver.strip(relic.getHoverName().getString()).contains("Relic")) {
                 pickedUpRelic = true;
@@ -161,9 +162,8 @@ public final class FastLeapFeature {
         // QUOI PacketEvent.ReceivedPost PY healer trigger (based on NoammAddons LeapCounter): a teammate reaches the
         // healer PY spot while you're waiting there after the first Storm crush. Checked per tick from entity positions
         // (including a pending interpolation target) instead of raw movement packets.
-        if (Floor7Tracker.inF7Boss() && Floor7Tracker.inPhase(Phase.P2) && cfg.isLeapEnabled(LeapGroup.PY_HEALER)
-                && cfg.isLeapAuto(LeapGroup.PY_HEALER) && oofCount == 1 && !leapedHealerPy && isInHealerPy()
-                && client.level != null) {
+        if (Floor7Tracker.inF7Boss() && Floor7Tracker.inPhase(Phase.P2) && cfg.isLeapAuto(LeapGroup.PY_HEALER)
+                && oofCount == 1 && !leapedHealerPy && isInHealerPy() && client.level != null) {
             String self = Teammates.selfName();
             for (Player other : client.level.players()) {
                 String name = ChatObserver.strip(other.getName().getString());
@@ -225,42 +225,42 @@ public final class FastLeapFeature {
         if (STORM_CRUSH_MESSAGES.contains(unformatted)) {
             oofCount++;
             if (oofCount == 1) {
-                if (cfg.isLeapEnabled(LeapGroup.PURPLE) && cfg.isLeapAuto(LeapGroup.PURPLE) && isInPurplePad()) {
+                if (cfg.isLeapAuto(LeapGroup.PURPLE) && isInPurplePad()) {
                     leapToConfigured(LeapTarget.PURPLE);
                 }
-                if (cfg.isLeapEnabled(LeapGroup.GREEN) && cfg.isLeapAuto(LeapGroup.GREEN) && isInGreenPad()) {
+                if (cfg.isLeapAuto(LeapGroup.GREEN) && isInGreenPad()) {
                     leapToConfigured(LeapTarget.GREEN);
                 }
             }
-            if (oofCount == 2 && cfg.isLeapEnabled(LeapGroup.YELLOW) && cfg.isLeapAuto(LeapGroup.YELLOW) && isInYellowPad()) {
+            if (oofCount == 2 && cfg.isLeapAuto(LeapGroup.YELLOW) && isInYellowPad()) {
                 leapToConfigured(LeapTarget.YELLOW);
             }
         }
 
-        if ("The Energy Laser is charging up!".equals(unformatted) && cfg.isLeapEnabled(LeapGroup.P1) && cfg.isLeapAuto(LeapGroup.P1)) {
+        if ("The Energy Laser is charging up!".equals(unformatted) && cfg.isLeapAuto(LeapGroup.P1)) {
             if (++crystalCount == 2 && isInP1()) {
                 leapToConfigured(LeapTarget.P1);
             }
         }
 
         if ("[BOSS] Storm: I'd be happy to show you what that's like!".equals(unformatted)
-                && cfg.isLeapEnabled(LeapGroup.PREDEV) && cfg.isLeapAuto(LeapGroup.PREDEV) && isInPredev()) {
+                && cfg.isLeapAuto(LeapGroup.PREDEV) && isInPredev()) {
             leapToConfigured(LeapTarget.PREDEV);
         }
 
-        if ("[BOSS] Necron: ARGH!".equals(unformatted) && cfg.isLeapEnabled(LeapGroup.P4) && cfg.isLeapAuto(LeapGroup.P4)) {
+        if ("[BOSS] Necron: ARGH!".equals(unformatted) && cfg.isLeapAuto(LeapGroup.P4)) {
             if (++arghCount == 2 && isInP4()) {
                 leapToConfigured(LeapTarget.P4);
             }
         }
 
         if ("[BOSS] Necron: That's a very impressive trick. I guess I'll have to handle this myself.".equals(unformatted)
-                && cfg.isLeapEnabled(LeapGroup.MIDDLE) && cfg.isLeapAuto(LeapGroup.MIDDLE) && isOutsideMiddle()) {
+                && cfg.isLeapAuto(LeapGroup.MIDDLE) && isOutsideMiddle()) {
             leapToConfigured(LeapTarget.MIDDLE);
         }
 
         if ("[BOSS] Storm: I should have known that I stood no chance.".equals(unformatted)
-                && cfg.isLeapEnabled(LeapGroup.STORM_DEATH) && cfg.isLeapAuto(LeapGroup.STORM_DEATH)) {
+                && cfg.isLeapAuto(LeapGroup.STORM_DEATH)) {
             leapToConfigured(LeapTarget.STORM_DEATH);
         }
     }
@@ -268,7 +268,7 @@ public final class FastLeapFeature {
     /** QUOI {@code on<DungeonEvent.DoorOpen>}. */
     private static void onDoorOpen(String opener) {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isLeapEnabled(LeapGroup.DOOR) || !cfg.isLeapAuto(LeapGroup.DOOR) || Floor7Tracker.inBoss()) {
+        if (!cfg.isEnabled() || !cfg.isLeapAuto(LeapGroup.DOOR) || Floor7Tracker.inBoss()) {
             return;
         }
         if (opener.equalsIgnoreCase(Teammates.selfName())) {
@@ -461,14 +461,14 @@ public final class FastLeapFeature {
     private static void leap(String name) {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
         lastTarget = "name " + name;
-        LeapManager.leap(name, cfg.isBlockInputs(), cfg.isFastMode(), cfg.isSwapBack());
+        LeapManager.leap(name, cfg.isBlockInputs(), cfg.isFastMode(), true);
     }
 
     /** Every leap ultimately goes out through here or {@link LeapManager#leap(String, boolean, boolean, boolean)}. */
     private static void leap(DungeonClass clazz) {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
         lastTarget = "class " + clazz.name();
-        LeapManager.leap(clazz, cfg.isBlockInputs(), cfg.isFastMode(), cfg.isSwapBack());
+        LeapManager.leap(clazz, cfg.isBlockInputs(), cfg.isFastMode(), true);
     }
 
     /** What the last fast/auto leap was sent to ("class MAGE", "name Bob"; testkit). */
