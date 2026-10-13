@@ -579,45 +579,67 @@ public final class SimItems {
             // ones a single crypt already had - a slab crypt's lid, a cracked brick sealing a crypt chamber, a prince -
             // applied to every one of them within SUPERBOOM_CRYPT_REACH, each opened with its own zombie. Decorative
             // cracked brick (no chamber behind it) is still only broken when aimed at, as before.
+            //
+            // REACH IS A REAL 3-BLOCK RADIUS, measured from where the charge lands (the centre of the face it hit) to
+            // each block's BOX - not the old x/z +-3, y +-2 cube around the hit block's corner. killer560 (2026-10-14):
+            // "It should break the crypts and cracked stone and stuff from 3 blocks away", and "if it is a chain of
+            // blocks but any one is within the 3 blocks then it should break them all". So anything breakable whose
+            // box is in reach takes its whole group with it: a crypt goes whole, a prince goes with its whole tomb
+            // (SimPrince.tombOf - Big Red Flag's tomb used to lose only its lid, ring and one layer), and a cracked
+            // brick takes its connected chain of fragile blocks, even where the chain runs on past 3 blocks.
+            // Decorative cracked brick is no longer spared when it is in reach - his rule replaces the 2026-10-09 one.
+            Vec3 boom = boomPoint(center, face);
             java.util.Set<BlockPos> seenSlabs = new java.util.HashSet<>(slabSection);
-            for (int dx = -SUPERBOOM_CRYPT_REACH; dx <= SUPERBOOM_CRYPT_REACH; dx++) {
-                for (int dz = -SUPERBOOM_CRYPT_REACH; dz <= SUPERBOOM_CRYPT_REACH; dz++) {
-                    for (int dy = -2; dy <= 2; dy++) {
+            int chains = 0;
+            int scan = SUPERBOOM_CRYPT_REACH + 1;   // one further, so a crypt touched only by its rim is found
+            for (int dx = -scan; dx <= scan; dx++) {
+                for (int dz = -scan; dz <= scan; dz++) {
+                    for (int dy = -scan; dy <= scan; dy++) {
                         BlockPos p = center.offset(dx, dy, dz).immutable();
                         BlockState st = level.getBlockState(p);
                         if (st.is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE_SLAB) && seenSlabs.add(p)) {
                             java.util.List<BlockPos> run = connectedSlabs(level, p);
                             seenSlabs.addAll(run);
                             if (isCryptRun(level, run) && !targets.contains(p)) {
-                                targets.addAll(withStairsAndFloor(level, run));
-                                cryptZombies.add(p.below());
+                                java.util.List<BlockPos> crypt = withStairsAndFloor(level, run);
+                                if (anyInReach(boom, crypt)) {
+                                    targets.addAll(crypt);
+                                    cryptZombies.add(p.below());
+                                }
                             }
-                        } else if ((st.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
-                                || st.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS))
-                                && !targets.contains(p)) {
-                            net.minecraft.core.Direction side = chamberSide(level, p, chambers);
-                            if (side != null) {
-                                targets.addAll(wallSlab(level, p, side));
-                                cryptZombies.add(p.relative(side));
+                        } else if (isFragile(st) && !targets.contains(p) && inReach(boom, p)) {
+                            if (st.is(net.minecraft.world.level.block.Blocks.CRACKED_STONE_BRICKS)
+                                    || st.is(net.minecraft.world.level.block.Blocks.INFESTED_CRACKED_STONE_BRICKS)) {
+                                net.minecraft.core.Direction side = chamberSide(level, p, chambers);
+                                if (side != null) {
+                                    targets.addAll(wallSlab(level, p, side));
+                                    cryptZombies.add(p.relative(side));
+                                }
                             }
-                        }
-                        if (SimPrince.isPrince(p) && !targets.contains(p)) {
-                            targets.addAll(SimPrince.blocksOf(p));
+                            targets.addAll(fragileChain(level, p, center));
+                            chains++;
                         }
                     }
                 }
             }
-            // A prince takes its head and the layer under it with it (SimPrince.extrasOf) - asked now, before
-            // anything has been broken.
+            // Every prince any of whose tomb is in reach goes whole: its blocks, its tomb down to the floor, and the
+            // head and layer under it (SimPrince.extrasOf). Asked now, before anything has been broken.
+            java.util.List<BlockPos> tombs = SimPrince.tombsInReach(level, center, b -> inReach(boom, b));
+            targets.addAll(tombs);
             for (BlockPos here : java.util.List.copyOf(targets)) {
                 if (SimPrince.isPrince(here)) {
-                    targets.addAll(SimPrince.extrasOf(level, here));
+                    targets.addAll(SimPrince.tombOf(level, here));
                 }
             }
             boolean openedCrypt = !cryptZombies.isEmpty();
             BlockPos princeAt = null;
             int broken = 0;
             for (BlockPos here : targets) {
+                // What a blast never takes, whichever group brought it in: a secret, and anything unbreakable.
+                BlockState was = level.getBlockState(here);
+                if (was.isAir() || isSecretBlock(level, here) || was.getDestroySpeed(level, here) < 0) {
+                    continue;
+                }
                 // The prince: the golden crypt that was already in the room. Blowing one opens it and drops
                 // its zombie; only the FIRST prince of the run scores, on his word "multiple princes still
                 // the first one only gives 1 score".
@@ -644,11 +666,12 @@ public final class SimItems {
             // aimed at ordinary stone should do nothing visible, the way it does on Hypixel. A log line is not
             // something he has to read, and it is the thing that was missing.
             LOGGER.info("Sim superboom at {} face {}: aimed block {}, crypts opened={} (aimed: slab={}, cracked={},"
-                            + " sealsAChamber={}), prince={}, {} block(s) broken",
+                            + " sealsAChamber={}), prince={}, fragile chains in reach={}, prince tomb blocks={},"
+                            + " {} block(s) broken",
                     center, face,
                     net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(aimed.getBlock()),
                     cryptZombies.size(), slabCrypt ? slabSection.size() : 0, aimedCracked, wallCrypt,
-                    princeAt != null, broken);
+                    princeAt != null, chains, tombs.size(), broken);
             if (broken == 0) {
                 return true;
             }
@@ -932,6 +955,66 @@ public final class SimItems {
 
     /** How far from where a Superboom lands a crypt still counts as hit: a one-block gap is two blocks away. */
     private static final int SUPERBOOM_CRYPT_REACH = 3;
+
+    /** How far a fragile chain may run from the hit block horizontally: half a room tile, so it stays in the room. */
+    private static final int SUPERBOOM_CHAIN_SPAN = 15;
+
+    /** Where the charge goes off: the centre of the face it hit (the TNT lands ON the block, not inside it). */
+    private static Vec3 boomPoint(BlockPos hit, net.minecraft.core.Direction face) {
+        BlockPos out = hit.relative(face);
+        return Vec3.atCenterOf(hit).add((out.getX() - hit.getX()) * 0.5, (out.getY() - hit.getY()) * 0.5,
+                (out.getZ() - hit.getZ()) * 0.5);
+    }
+
+    /** Whether {@code p}'s block BOX is within {@link #SUPERBOOM_CRYPT_REACH} of the blast point (CLAUDE.md: reach is
+     *  measured to the box, never to the centre, which reads up to half a block further). */
+    static boolean inReach(Vec3 boom, BlockPos p) {
+        double dx = Math.max(0.0, Math.max(p.getX() - boom.x, boom.x - (p.getX() + 1)));
+        double dy = Math.max(0.0, Math.max(p.getY() - boom.y, boom.y - (p.getY() + 1)));
+        double dz = Math.max(0.0, Math.max(p.getZ() - boom.z, boom.z - (p.getZ() + 1)));
+        return dx * dx + dy * dy + dz * dz <= SUPERBOOM_CRYPT_REACH * SUPERBOOM_CRYPT_REACH + 1e-9;
+    }
+
+    private static boolean anyInReach(Vec3 boom, java.util.Collection<BlockPos> blocks) {
+        for (BlockPos b : blocks) {
+            if (inReach(boom, b)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The connected chain of fragile blocks containing {@code start} (six-way), however far past the reach it runs -
+     * killer560 (2026-10-14): "if it is a chain of blocks but any one is within the 3 blocks then it should break them
+     * all". Only fragile blocks are walked, so plain stone brick beside a cracked chain is never taken. Bounded at
+     * {@link #SUPERBOOM_MAX_BLOCKS} and {@link #SUPERBOOM_CHAIN_SPAN} horizontally from the hit, so it stays in the room.
+     */
+    private static java.util.List<BlockPos> fragileChain(ServerLevel level, BlockPos start, BlockPos hit) {
+        java.util.List<BlockPos> found = new java.util.ArrayList<>();
+        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
+        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+        queue.add(start.immutable());
+        seen.add(start.immutable());
+        while (!queue.isEmpty() && found.size() < SUPERBOOM_MAX_BLOCKS) {
+            BlockPos here = queue.poll();
+            found.add(here);
+            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
+                BlockPos next = here.relative(dir).immutable();
+                if (!seen.add(next) || Math.abs(next.getX() - hit.getX()) > SUPERBOOM_CHAIN_SPAN
+                        || Math.abs(next.getZ() - hit.getZ()) > SUPERBOOM_CHAIN_SPAN) {
+                    continue;
+                }
+                if (isFragile(level.getBlockState(next))) {
+                    queue.add(next);
+                }
+            }
+        }
+        if (found.size() >= SUPERBOOM_MAX_BLOCKS) {
+            LOGGER.info("Sim superboom: fragile chain from {} hit the {}-block cap", start, SUPERBOOM_MAX_BLOCKS);
+        }
+        return found;
+    }
 
     /** Whether a slab run is a crypt lid: at least {@link #MIN_CRYPT_SLABS}, and not part of a prince (Big Red Flag's
      *  prince is ringed by smooth stone slabs - SimPrince's lid rule - and is a prince, not a crypt as well). */

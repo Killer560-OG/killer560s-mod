@@ -198,6 +198,123 @@ public final class SimPrince {
         return new ArrayList<>(out);
     }
 
+    /** How far below the lowest smooth stone of a tomb its body may still reach before the floor. */
+    private static final int TOMB_DESCENT = 2;
+
+    /** A ceiling on one tomb, so a smooth stone floor can never turn a prince into a crater. */
+    private static final int TOMB_MAX = 256;
+
+    /**
+     * EVERYTHING the prince containing {@code pos} is made of: its own blocks, its whole tomb, and {@link #extrasOf}.
+     *
+     * <p>killer560, 2026-10-14, of Big Red Flag's prince after one Superboom: "that whole structure should be gone". Only
+     * the lid, its slab ring and the one layer under them went, which left the tomb's eave slabs, its smooth stone and
+     * cobble walls and its andesite feet standing (capture x 12..17, y 69..72, z 22..26). The tomb is found from the
+     * prince's blocks: the smooth stone / smooth stone slab joined to them (six-way, within 2 of them across and 3 below)
+     * gives its footprint and top, and every layer of that footprint from the top down is taken until a layer that is
+     * entirely solid - the room's floor - below the lowest smooth stone, and never more than {@value #TOMB_DESCENT}
+     * layers below it. Census over all 135 captures (2026-10-14): Big Red Flag's tomb is 86 blocks, x 12..17 z 22..26,
+     * y 69..72 - the room wall behind it at z 27 and x 18 and the floor at y 68 are outside it; every other prince
+     * (Chambers, Doors, Leaves, Market, Pirate, Red Blue, Sloth, Stairs) stops at its own layer, plus the gold plinth's
+     * smooth stone slabs. Never takes what a blast never takes (air, block entities other than a head, bedrock,
+     * barriers, levers, soul lanterns).
+     */
+    public static List<BlockPos> tombOf(ServerLevel level, BlockPos pos) {
+        List<BlockPos> blocks = blocksOf(pos);
+        Set<BlockPos> out = new java.util.LinkedHashSet<>(blocks);
+        if (blocks.isEmpty()) {
+            return new ArrayList<>(out);
+        }
+        int bx0 = Integer.MAX_VALUE, bx1 = Integer.MIN_VALUE, bz0 = Integer.MAX_VALUE, bz1 = Integer.MIN_VALUE;
+        int by0 = Integer.MAX_VALUE, by1 = Integer.MIN_VALUE;
+        for (BlockPos b : blocks) {
+            bx0 = Math.min(bx0, b.getX());
+            bx1 = Math.max(bx1, b.getX());
+            bz0 = Math.min(bz0, b.getZ());
+            bz1 = Math.max(bz1, b.getZ());
+            by0 = Math.min(by0, b.getY());
+            by1 = Math.max(by1, b.getY());
+        }
+        // The smooth stone skin joined to the prince.
+        Set<BlockPos> skin = new HashSet<>(blocks);
+        ArrayDeque<BlockPos> queue = new ArrayDeque<>(blocks);
+        while (!queue.isEmpty() && skin.size() < TOMB_MAX) {
+            BlockPos here = queue.poll();
+            for (Direction dir : Direction.values()) {
+                BlockPos next = here.relative(dir).immutable();
+                if (skin.contains(next) || next.getX() < bx0 - 2 || next.getX() > bx1 + 2 || next.getZ() < bz0 - 2
+                        || next.getZ() > bz1 + 2 || next.getY() < by0 - 3 || next.getY() > by1) {
+                    continue;
+                }
+                var state = level.getBlockState(next);
+                if (state.is(LID) || state.is(PLINTH)) {
+                    skin.add(next);
+                    queue.add(next);
+                }
+            }
+        }
+        int x0 = Integer.MAX_VALUE, x1 = Integer.MIN_VALUE, z0 = Integer.MAX_VALUE, z1 = Integer.MIN_VALUE;
+        int top = Integer.MIN_VALUE, low = Integer.MAX_VALUE;
+        for (BlockPos b : skin) {
+            x0 = Math.min(x0, b.getX());
+            x1 = Math.max(x1, b.getX());
+            z0 = Math.min(z0, b.getZ());
+            z1 = Math.max(z1, b.getZ());
+            top = Math.max(top, b.getY());
+            low = Math.min(low, b.getY());
+        }
+        for (int y = top; y >= low - TOMB_DESCENT && out.size() < TOMB_MAX; y--) {
+            boolean solid = true;
+            List<BlockPos> layer = new ArrayList<>();
+            for (int x = x0; x <= x1; x++) {
+                for (int z = z0; z <= z1; z++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    var state = level.getBlockState(p);
+                    if (state.isAir()) {
+                        solid = false;
+                        continue;
+                    }
+                    if ((state.hasBlockEntity() && !isHead(state)) || state.is(Blocks.BEDROCK)
+                            || state.is(Blocks.BARRIER) || state.is(Blocks.LEVER) || state.is(Blocks.SOUL_LANTERN)) {
+                        continue;
+                    }
+                    layer.add(p);
+                }
+            }
+            if (y < low && solid) {
+                break;   // the floor
+            }
+            out.addAll(layer);
+        }
+        out.addAll(extrasOf(level, pos));
+        return new ArrayList<>(out);
+    }
+
+    /**
+     * Every block of every not-yet-blown prince any block of whose {@link #tombOf} satisfies {@code inReach} - one
+     * Superboom anywhere within reach of a tomb opens the whole of it.
+     */
+    public static List<BlockPos> tombsInReach(ServerLevel level, BlockPos near,
+                                              java.util.function.Predicate<BlockPos> inReach) {
+        Set<BlockPos> out = new java.util.LinkedHashSet<>();
+        for (int i = 0; i < PRINCES.size(); i++) {
+            BlockPos seed = PRINCES.get(i);
+            // Only princes nearby: a tomb is far smaller than this, and reading a far one could load its chunk.
+            if (CLAIMED.contains(i) || Math.abs(seed.getX() - near.getX()) > 24 || Math.abs(seed.getZ() - near.getZ()) > 24
+                    || Math.abs(seed.getY() - near.getY()) > 24) {
+                continue;
+            }
+            List<BlockPos> tomb = tombOf(level, seed);
+            for (BlockPos b : tomb) {
+                if (inReach.test(b)) {
+                    out.addAll(tomb);
+                    break;
+                }
+            }
+        }
+        return new ArrayList<>(out);
+    }
+
     private static boolean isHead(net.minecraft.world.level.block.state.BlockState state) {
         return state.is(Blocks.PLAYER_HEAD) || state.is(Blocks.PLAYER_WALL_HEAD);
     }
