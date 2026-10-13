@@ -29,6 +29,68 @@ public abstract class BaseTab {
         return false;
     }
 
+    /**
+     * The menu card's switch (Option A menu, 2026-10-12): which of the widgets this tab just built is its master on/off,
+     * or null for a tab with none (the card then has no switch). The default takes the tab's first control, in reading
+     * order, when that control is an ON/OFF button; failing that, an ON/OFF button labelled with the tab's own name or
+     * "Enabled". Override where that picks the wrong one.
+     */
+    public com.killer560.hub.gui.SettingsButtonWidget masterToggle(List<AbstractWidget> built) {
+        AbstractWidget first = null;
+        for (AbstractWidget w : built) {
+            if (w instanceof net.minecraft.client.gui.components.StringWidget || !w.visible) {
+                continue;
+            }
+            if (first == null || w.getY() < first.getY() || (w.getY() == first.getY() && w.getX() < first.getX())) {
+                first = w;
+            }
+        }
+        if (first instanceof com.killer560.hub.gui.SettingsButtonWidget b && b.isSwitch()) {
+            return b;
+        }
+        for (AbstractWidget w : built) {
+            if (w instanceof com.killer560.hub.gui.SettingsButtonWidget b && b.isSwitch()) {
+                String l = b.parts().label();
+                if (l.equalsIgnoreCase(name) || l.equalsIgnoreCase("Enabled") || l.equalsIgnoreCase(name + " Enabled")) {
+                    return b;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** The labels (formatting stripped, cut at their ':') of this tab's rows that contain {@code query}, for the menu
+     *  search's setting hits. Built off-screen like {@link #widgetsMatchSearch}; a tab that scans with hidden sections
+     *  laid open overrides this the same way. */
+    public List<String> searchHits(String query) {
+        String q = query.toLowerCase(Locale.US).trim();
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        if (q.isEmpty()) {
+            return new java.util.ArrayList<>();
+        }
+        for (AbstractWidget widget : buildWidgets(0, 0, 200, () -> {})) {
+            String text = net.minecraft.ChatFormatting.stripFormatting(widget.getMessage().getString());
+            if (text == null) {
+                continue;
+            }
+            text = text.trim();
+            if (!text.isEmpty() && (text.charAt(0) == '▶' || text.charAt(0) == '▼')) {
+                text = text.substring(1).trim();
+            }
+            int colon = text.indexOf(':');
+            String label = colon > 0 ? text.substring(0, colon).trim() : text;
+            if (!label.isEmpty() && text.toLowerCase(Locale.US).contains(q)) {
+                out.add(label);
+            }
+        }
+        return new java.util.ArrayList<>(out);
+    }
+
+    /** The menu card's one-line description, or null to take it from the master toggle's tooltip (the default). */
+    public String cardDescription() {
+        return null;
+    }
+
     /** Whether this tab matches the given search text (blank query always matches). Checks this tab's
      *  own name AND (per killer560's report, 2026-09-08: search found top-level tabs by name and accordion
      *  sub-tabs by name, but not an individual SETTING buried inside a sub-tab) the actual labels of

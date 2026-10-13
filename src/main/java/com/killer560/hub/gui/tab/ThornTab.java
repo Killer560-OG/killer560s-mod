@@ -30,6 +30,13 @@ public class ThornTab extends BaseTab {
         super("Thorn (F4)");
     }
 
+    /** Several independent switches and no master one: the menu card shows no switch (Option A menu, 2026-10-12). */
+    @Override
+    public com.killer560.hub.gui.SettingsButtonWidget masterToggle(
+            java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
+        return null;
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();

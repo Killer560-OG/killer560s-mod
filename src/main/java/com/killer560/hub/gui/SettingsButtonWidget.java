@@ -176,8 +176,206 @@ public final class SettingsButtonWidget extends AbstractWidget {
         }
     }
 
+    /** How the mod menu draws this button, read from its message and flags (2026-10-12, Option A menu). */
+    public enum Look {
+        /** "Label: ON" / "Label: OFF" - a label and a switch. */
+        SWITCH,
+        /** A {@link #cycling} button - a label and its value in a pill with step arrows. */
+        PILL,
+        /** "Label: value" on a plain button (a key bind, a status) - a label and a value chip. */
+        CHIP,
+        /** A {@code CollapsibleSection} header ("▶ Title" / "▼ Title"). */
+        HEADER,
+        /** Anything else - a raised orange-ringed button. */
+        ACTION
+    }
+
+    private static final java.util.regex.Pattern SWITCH_TEXT =
+            java.util.regex.Pattern.compile("^(.+?):\\s*(ON|OFF)(?:\\s+(.*))?$");
+
+    /** The parts of a message as the menu draws them: label, value (ON/OFF or the cycling value) and a trailing note. */
+    public record Parts(Look look, String label, String value, String note, boolean on, boolean dimLabel) {
+    }
+
+    private String partsFor;
+    private Parts parts;
+
+    /** This button's message read the way the menu draws it. Cached per message text. */
+    public Parts parts() {
+        String raw = getMessage().getString();
+        if (parts != null && raw.equals(partsFor)) {
+            return parts;
+        }
+        partsFor = raw;
+        parts = parse(raw, isCycling());
+        return parts;
+    }
+
+    /** True when the menu draws this as an on/off switch. */
+    public boolean isSwitch() {
+        return parts().look() == Look.SWITCH;
+    }
+
+    /** For a switch: whether it reads ON. */
+    public boolean isOn() {
+        Parts p = parts();
+        return p.look() == Look.SWITCH && p.on();
+    }
+
+    static Parts parse(String raw, boolean cycling) {
+        String plain = net.minecraft.ChatFormatting.stripFormatting(raw);
+        if (plain == null) {
+            plain = raw;
+        }
+        plain = plain.trim();
+        boolean dim = raw.startsWith("§7") || raw.startsWith("§8");
+        if (plain.length() > 1 && (plain.charAt(0) == '▶' || plain.charAt(0) == '▼')) {
+            return new Parts(Look.HEADER, plain.substring(1).trim(), plain.charAt(0) == '▼' ? "open" : "closed", "",
+                    plain.charAt(0) == '▼', false);
+        }
+        java.util.regex.Matcher m = SWITCH_TEXT.matcher(plain);
+        if (m.matches()) {
+            String note = m.group(3) == null ? "" : m.group(3).trim();
+            return new Parts(Look.SWITCH, m.group(1).trim(), m.group(2), note, "ON".equals(m.group(2)), dim);
+        }
+        int colon = plain.indexOf(':');
+        if (cycling) {
+            if (colon > 0 && colon < plain.length() - 1) {
+                return new Parts(Look.PILL, plain.substring(0, colon).trim(), plain.substring(colon + 1).trim(), "",
+                        false, dim);
+            }
+            return new Parts(Look.PILL, "", plain, "", false, dim);
+        }
+        if (colon > 0 && colon < plain.length() - 1) {
+            // The value keeps its own colour codes (a key bind's §b, a status's §a/§c).
+            int rawColon = raw.indexOf(':');
+            String value = rawColon >= 0 ? raw.substring(rawColon + 1).trim() : plain.substring(colon + 1).trim();
+            return new Parts(Look.CHIP, plain.substring(0, colon).trim(), value, "", false, dim);
+        }
+        return new Parts(Look.ACTION, plain, "", "", false, dim);
+    }
+
+    /** Whether a widget is being drawn inside the mod menu right now, where it takes the menu's row look. Elsewhere (the
+     *  title screen, the AR editor, every other screen that uses this button) it keeps its plain box. */
+    static boolean inMenu() {
+        return com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof ModScreen;
+    }
+
+    /** A left click, as the menu's card and search switches send it: the same {@code onPress} a real click runs. */
+    public void press() {
+        if (active && visible && onPress != null) {
+            onPress.onPress(this);
+        }
+    }
+
+    /** Where the switch / pill sits inside this row, in screen units: {x, y, w, h}. */
+    public int[] controlBounds() {
+        Parts p = parts();
+        int h = getHeight();
+        int right = getX() + getWidth() - 4;
+        return switch (p.look()) {
+            case SWITCH -> new int[]{right - MenuStyle.SWITCH_W, getY() + (h - MenuStyle.SWITCH_H) / 2,
+                    MenuStyle.SWITCH_W, MenuStyle.SWITCH_H};
+            case PILL, CHIP -> {
+                int w = pillWidth(p);
+                yield new int[]{right - w, getY() + 3, w, h - 6};
+            }
+            default -> new int[]{getX(), getY(), getWidth(), h};
+        };
+    }
+
+    private int pillWidth(Parts p) {
+        var font = Minecraft.getInstance().font;
+        int labelMin = p.label().isEmpty() ? 0 : Math.min(font.width(p.label()), 40) + 12;
+        int max = Math.max(24, getWidth() - 8 - labelMin);
+        int want = font.width(p.value()) + (p.look() == Look.PILL ? 22 : 10);
+        if (p.label().isEmpty()) {
+            return getWidth() - 8;
+        }
+        return Math.min(max, Math.max(30, want));
+    }
+
+    private void renderMenu(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        Parts p = parts();
+        int x0 = getX();
+        int y0 = getY();
+        int w = getWidth();
+        int h = getHeight();
+        var font = Minecraft.getInstance().font;
+        boolean hover = isHovered && active;
+        int textY = y0 + (h - 8) / 2;
+        com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(graphics);
+        if (danger || primary || p.look() == Look.ACTION) {
+            int bw = w;
+            if (danger) {
+                MenuStyle.dangerButton(r, x0 + 1, y0 + 1, bw - 2, h - 2, hover);
+            } else {
+                MenuStyle.raisedButton(r, x0 + 1, y0 + 1, bw - 2, h - 2, hover, primary);
+            }
+            r.submit();
+            String label = MenuStyle.ellipsize(getMessage().getString(), w - 10);
+            int color = !active ? MenuStyle.DIM2 : (danger ? 0xFFFFD0D0 : (hover || primary ? 0xFFFFB060 : MenuStyle.OR));
+            graphics.text(font, label, x0 + (w - font.width(label)) / 2, textY, faded(color), true);
+            return;
+        }
+        if (p.look() == Look.HEADER) {
+            MenuStyle.sectionBand(r, x0, y0 + 1, w, h - 2, getMessage().getString().contains("§c"));
+            if (hover) {
+                r.fill(x0, y0 + 2, x0 + w, y0 + h - 1, 0x10FFFFFF);
+            }
+            r.submit();
+            boolean red = getMessage().getString().contains("§c");
+            int color = red ? MenuStyle.RED_TITLE : (hover ? MenuStyle.OR_LIGHT : MenuStyle.OR);
+            graphics.text(font, p.on() ? "▼" : "▶", x0 + 5, textY, faded(color), true);
+            graphics.text(font, net.minecraft.network.chat.Component.literal(p.label())
+                    .withStyle(net.minecraft.ChatFormatting.BOLD), x0 + 16, textY, faded(color), true);
+            return;
+        }
+        // A setting row: faint hover band and a separator under it, label left, control right.
+        if (hover) {
+            r.fill(x0, y0, x0 + w, y0 + h - 1, 0x0EFFFFFF);
+        }
+        MenuStyle.separator(r, x0, x0 + w, y0 + h - 2);
+        int[] c = controlBounds();
+        switch (p.look()) {
+            case SWITCH -> MenuStyle.toggle(r, c[0], c[1], p.on(), hover);
+            case PILL -> MenuStyle.pill(r, c[0], c[1], c[2], c[3], false, hover);
+            default -> {
+                r.outline(c[0], c[1], c[2], c[3], hover ? MenuStyle.OR2 : MenuStyle.BLACK);
+                r.fill(c[0] + 1, c[1] + 1, c[0] + c[2] - 1, c[1] + c[3] - 1, 0xFF0A0908);
+                r.fill(c[0] + 1, c[1] + 1, c[0] + c[2] - 1, c[1] + 2, 0xC0000000);
+            }
+        }
+        r.submit();
+        int labelColor = !active ? MenuStyle.DIM2 : (p.dimLabel() ? MenuStyle.DIM : (hover ? 0xFFFFF4E8 : MenuStyle.TXT));
+        int labelMax = c[0] - x0 - 10;
+        String label = p.label();
+        if (!p.note().isEmpty() && font.width(label + " " + p.note()) <= labelMax) {
+            graphics.text(font, label, x0 + 4, textY, faded(labelColor), true);
+            graphics.text(font, p.note(), x0 + 4 + font.width(label) + 4, textY, faded(MenuStyle.DIM2), true);
+        } else {
+            graphics.text(font, MenuStyle.ellipsize(label, labelMax), x0 + 4, textY, faded(labelColor), true);
+        }
+        int vy = c[1] + (c[3] - 8) / 2;
+        if (p.look() == Look.PILL) {
+            int arrow = hover ? MenuStyle.OR : MenuStyle.DIM2;
+            graphics.text(font, "‹", c[0] + 3, vy, faded(arrow), false);
+            graphics.text(font, "›", c[0] + c[2] - 3 - font.width("›"), vy, faded(arrow), false);
+            String v = MenuStyle.ellipsize(p.value(), c[2] - 18);
+            graphics.text(font, v, c[0] + (c[2] - font.width(v)) / 2, vy, faded(hover ? 0xFFFFB060 : MenuStyle.OR), true);
+        } else if (p.look() == Look.CHIP) {
+            String v = MenuStyle.ellipsize(p.value(), c[2] - 8);
+            int plainW = font.width(v);
+            graphics.text(font, v, c[0] + (c[2] - plainW) / 2, vy, faded(0xFFD8CFC4), true);
+        }
+    }
+
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        if (inMenu()) {
+            renderMenu(graphics, mouseX, mouseY);
+            return;
+        }
         int x0 = getX();
         int y0 = getY();
         int bg = primary ? (isHovered ? PRIMARY_BG_HOVER : PRIMARY_BG) : (isHovered ? BG_HOVER : BG);

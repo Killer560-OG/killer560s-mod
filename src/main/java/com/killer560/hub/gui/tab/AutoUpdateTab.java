@@ -60,6 +60,22 @@ public class AutoUpdateTab extends BaseTab {
         return Component.literal("Auto Update: " + (c == AutoUpdateConfig.Channel.OFF ? "§c" : "§a") + c.label);
     }
 
+    /** "Full Release - up to date": the channel and the last check's result, for the menu's Home page. */
+    public static String statusLine() {
+        AutoUpdateConfig.Channel c = AutoUpdateConfig.getInstance().getChannel();
+        String check = checkText().getString();
+        int colon = check.indexOf(':');
+        String status = colon > 0 ? check.substring(colon + 1).trim() : "not checked yet";
+        return c.label + "  §8·  " + status;
+    }
+
+    /** Starts a check (as the Check Now button does); {@code done} runs on the result. */
+    public static void checkNow(Runnable done) {
+        if (!AutoUpdateFeature.isChecking()) {
+            AutoUpdateFeature.checkAsync(o -> done.run());
+        }
+    }
+
     private static Component checkText() {
         if (AutoUpdateFeature.isChecking()) {
             return Component.literal("Check Now: §7checking...");
