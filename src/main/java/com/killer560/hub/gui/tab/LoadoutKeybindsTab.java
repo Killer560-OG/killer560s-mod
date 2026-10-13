@@ -97,23 +97,25 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 24;
 
-        for (int i = 0; i < 12; i += 2) {
-            int left = i;
-            int right = i + 1;
-            widgets.add(SettingsButtonWidget.builder(keyText("Slot " + (left + 1), cfg.getSlotKey(left), left), btn -> {
-                        capturingIndex = left;
+        // killer560, 2026-10-13: "a toggle per keybind to have that keybind open the menu and swap then close it or just
+        // only swap if you are in the menu. This should be for each keybind." One row per slot: its key, then its mode.
+        for (int i = 0; i < 12; i++) {
+            int index = i;
+            widgets.add(SettingsButtonWidget.builder(keyText("Slot " + (index + 1), cfg.getSlotKey(index), index), btn -> {
+                        capturingIndex = index;
                         btn.setMessage(Component.literal("Press any key..."));
                     }).bounds(col2aX, y, col2W, 18).build());
-            widgets.add(SettingsButtonWidget.builder(keyText("Slot " + (right + 1), cfg.getSlotKey(right), right), btn -> {
-                        capturingIndex = right;
-                        btn.setMessage(Component.literal("Press any key..."));
+            widgets.add(SettingsButtonWidget.cycling(modeText(cfg, index), (btn, dir) -> {
+                        cfg.setSlotMode(index, SettingsButtonWidget.step(cfg.getSlotMode(index), dir));
+                        cfg.save();
+                        btn.setMessage(modeText(cfg, index));
                     }).bounds(col2bX, y, col2W, 18).build());
             y += 20;
         }
         y += 6;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Only active on the real \"(N/M) Loadout\" screen. Esc clears a bind."),
+                Component.literal("§7Only In Menu keys need the Loadout menu open. Esc clears a bind."),
                 Minecraft.getInstance().font));
 
         return widgets;
@@ -129,6 +131,11 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
 
     private static Component onOff(String label, boolean value) {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
+    }
+
+    /** A slot's mode button's label; the testkit finds it by "Slot N Mode". */
+    public static Component modeText(LoadoutKeybindsConfig cfg, int index) {
+        return Component.literal("Slot " + (index + 1) + " Mode: " + cfg.getSlotMode(index).label());
     }
 
     private Component keyText(String label, int key, int index) {

@@ -190,6 +190,12 @@ public final class ActionGate {
         /** Pet Wheel sending the /pets command itself. The summon's /pets is the player's own pick and goes through
          *  {@link #noteCommand} (never held); the Edit Pets right-click still asks {@link #tryAct}. */
         PET_WHEEL_CMD(Kind.COMMAND),
+        /** Loadout Keybinds' "Open, Swap, Close" mode clicking the loadout in the menu its /loadouts opened, and
+         *  closing that menu ({@code loadoutkeybinds.LoadoutSwapper}). */
+        LOADOUT_SWAP_MENU(Kind.SCREEN),
+        /** The /loadouts that "Open, Swap, Close" sends on his key press: his own input, so it goes through
+         *  {@link #noteCommand} ({@code loadoutkeybinds.LoadoutSwapper#request}). */
+        LOADOUT_SWAP_CMD(Kind.COMMAND),
         /** Auto Inventory Sorter clicking slots in the player's own inventory screen to apply a saved layout
          *  (killer560: "I should be able to save item locations in my inventory and have them sorted there"). A
          *  convenience, not a race-losing action - sits with the shop/farm automation at the bottom. */
