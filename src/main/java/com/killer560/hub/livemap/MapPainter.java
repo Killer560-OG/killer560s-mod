@@ -450,7 +450,9 @@ public final class MapPainter {
         // this one check covers it too; the sim-only branch that asked SimMimic for its cell is gone (2026-10-13).
         // The tint only blends the FILL: the room's checkmark, name colour and secret count are drawn over it as
         // before, so a cleared mimic room reads "red-tinted brown with its checkmark".
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && hasLiveMimic(group)) {
+        // Both builds: a room is red once the mimic is known to be there. The cheat build knows it in advance (the
+        // trapped chest scan); the legit build only once HE has killed it there (onMimicKillTick), killer560 2026-10-13.
+        if (hasLiveMimic(group)) {
             color = mix(color, MIMIC_TINT);
         }
         return color;
@@ -483,6 +485,7 @@ public final class MapPainter {
     /** Called by {@code LiveMapFeature.resetGrid}: the latched mimic rooms belong to one run. */
     static void forgetMimics() {
         MIMIC_TILES.clear();
+        MIMIC_DEATHS_SEEN.clear();
         mimicScanStampMs = 0L;
     }
 
@@ -491,8 +494,61 @@ public final class MapPainter {
         return MIMIC_TILES.stream().mapToInt(Integer::intValue).sorted().toArray();
     }
 
+    /** Baby zombies already seen dying, so one death latches once. Cleared with the latch. */
+    private static final Set<Integer> MIMIC_DEATHS_SEEN = new HashSet<>();
+    /** How close to him a dying baby zombie must be to count as HIS mimic kill: a sword or a Hyperion at the mimic. */
+    private static final double MIMIC_KILL_RANGE = 12.0;
+
+    /**
+     * Every client tick in a dungeon (from {@code LiveMapFeature.tick}), BOTH builds: the mimic dying near him latches
+     * its room. killer560's coordinator, 2026-10-13: on the legit map too, "a room where HE killed the mimic turns red
+     * and stays red for the rest of the run (no advance warning - only after his own kill)". The signal is the one
+     * Auto Routes' {@code AwaitEvents} and the score calculator use for the mimic kill - a baby zombie dying (Odin
+     * Mimic.kt) - here within {@link #MIMIC_KILL_RANGE} of him; never a chest scan, which stays cheat-only.
+     */
+    static void onMimicKillTick(Minecraft client) {
+        if (client.level == null || client.player == null) {
+            return;
+        }
+        for (net.minecraft.world.entity.Entity e : client.level.entitiesForRendering()) {
+            if (e instanceof net.minecraft.world.entity.monster.zombie.Zombie z && z.isBaby() && z.isDeadOrDying()
+                    && z.distanceTo(client.player) <= MIMIC_KILL_RANGE && MIMIC_DEATHS_SEEN.add(z.getId())) {
+                int tile = tileAt(z.getX(), z.getZ());
+                int gid = tile < 0 ? -1 : LiveMapFeature.groupIdAt(tile);
+                if (gid >= 0) {
+                    for (int t : LiveMapFeature.groupsView().get(gid).tiles) {
+                        MIMIC_TILES.add(t);
+                    }
+                } else if (tile >= 0) {
+                    MIMIC_TILES.add(tile);
+                }
+            }
+        }
+    }
+
+    /** The room tile (even grid cell) whose 32x32 footprint holds this x/z: the nearest tile centre. */
+    private static int tileAt(double x, double z) {
+        int best = -1;
+        double bestD = 16.5 * 16.5 * 2;
+        for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
+            if ((idx % DungeonLayout.GRID) % 2 != 0 || (idx / DungeonLayout.GRID) % 2 != 0) {
+                continue;
+            }
+            BlockPos c = DungeonLayout.cellCenter(idx);
+            double dx = c.getX() - x;
+            double dz = c.getZ() - z;
+            if (dx * dx + dz * dz < bestD) {
+                bestD = dx * dx + dz * dz;
+                best = idx;
+            }
+        }
+        return best;
+    }
+
     private static boolean hasLiveMimic(LiveMapFeature.RoomGroup group) {
-        refreshMimicScanIfStale();
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            refreshMimicScanIfStale();
+        }
         for (int tile : group.tiles) {
             if (MIMIC_TILES.contains(tile)) {
                 return true;
