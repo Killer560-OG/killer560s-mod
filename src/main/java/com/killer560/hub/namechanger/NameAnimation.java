@@ -155,6 +155,8 @@ public final class NameAnimation {
     private static volatile Entry ownEntry;
     private static volatile List<Entry> shared = List.of();
     private static int builtOwnVersion = Integer.MIN_VALUE;
+    /** Whether {@link #shared} is in {@link #entries}: only while Show Supporter Names is on (killer560, 2026-10-13). */
+    private static volatile boolean sharedShown = true;
 
     /** Test hook (testkit 960-965): a fixed clock in epoch ms, or -1 for the real one. */
     private static volatile long frozenMs = -1L;
@@ -225,7 +227,9 @@ public final class NameAnimation {
         if (own != null) {
             all.add(own);
         }
-        all.addAll(shared);
+        if (sharedShown) {
+            all.addAll(shared);
+        }
         int[] s = new int[all.size()];
         for (int i = 0; i < s.length; i++) {
             s[i] = all.get(i).rgb[0];
@@ -237,6 +241,14 @@ public final class NameAnimation {
 
     private static Entry[] registry() {
         refreshOwn();
+        // Other players' animated names only while their names are shown at all: with Show Supporter Names off they
+        // cost every text a walk for nothing (testkit 975: ~30 us a frame in a busy hub). Lines already in chat that
+        // carry such a name then keep its fade but stop waving - killer560's call, 2026-10-13.
+        boolean show = com.killer560.hub.supporters.SupportersConfig.getInstance().isShowSupporterNames();
+        if (show != sharedShown) {
+            sharedShown = show;
+            rebuild();
+        }
         return entries;
     }
 
