@@ -187,6 +187,30 @@ public final class ProfileManager {
         return names;
     }
 
+    /** What the Profiles page shows on a profile's card: when any of its files last changed (0 if unknown) and how
+     *  many setting files it holds. */
+    public record ProfileInfo(long lastChangedMs, int files) {
+    }
+
+    public static ProfileInfo info(String rawName) {
+        Path dir = PROFILES_DIR.resolve(sanitize(rawName));
+        long newest = 0L;
+        int files = 0;
+        if (!Files.isDirectory(dir)) {
+            return new ProfileInfo(0L, 0);
+        }
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+            for (Path entry : stream) {
+                if (Files.isRegularFile(entry)) {
+                    files++;
+                    newest = Math.max(newest, Files.getLastModifiedTime(entry).toMillis());
+                }
+            }
+        } catch (IOException ignored) {
+        }
+        return new ProfileInfo(newest, files);
+    }
+
     public static String getActiveProfile() {
         try {
             if (Files.exists(ACTIVE_MARKER)) {

@@ -37,7 +37,7 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * The mod menu, "Option A" (killer560 approved the mockup on 2026-10-12): a header bar (the mod's name, version and
- * variant, a search box with a Ctrl K hint, and round Discord / GitHub / features-doc buttons), a sidebar of categories
+ * variant, a search box with a Ctrl F hint, and round Discord / GitHub / features-doc buttons), a sidebar of categories
  * with an icon and an on/total count, a grid of FEATURE CARDS (name, one line, the feature's own on/off switch; a
  * disabled feature's card is dimmed) and, when a card is clicked, a settings DRAWER on the right holding that feature's
  * tab exactly as it always was built. Depth everywhere: bevels, black outlines, recessed wells, drop shadows, the orange
@@ -873,7 +873,13 @@ public class ModScreen extends Screen {
             return true;
         }
         int key = keyEvent.key();
-        if (key == InputConstants.KEY_K && keyEvent.hasControlDown()) {
+        // Ctrl F (killer560, 2026-10-13: "make the ctrl k become ctrl f to search"). A text box in the page or drawer
+        // that has focus is asked first, so it keeps any Ctrl shortcut of its own; vanilla's EditBox has none on F.
+        if (key == InputConstants.KEY_F && keyEvent.hasControlDown()) {
+            GuiEventListener typing = contentPane == null ? null : contentPane.getFocused();
+            if (typing instanceof EditBox && typing.keyPressed(keyEvent)) {
+                return true;
+            }
             focusSearch();
             return true;
         }
@@ -915,7 +921,7 @@ public class ModScreen extends Screen {
         }
     }
 
-    /** Puts the cursor in the search box (Ctrl K). */
+    /** Puts the cursor in the search box (Ctrl F). */
     public void focusSearch() {
         this.setFocused(searchField);
         searchField.setFocused(true);
@@ -1453,9 +1459,9 @@ public class ModScreen extends Screen {
         if (focus || inside(mouseX, mouseY, searchX, searchY, searchW, searchH)) {
             r.outline(searchX - 1, searchY - 1, searchW + 2, searchH + 2, focus ? MenuStyle.OR2 : MenuStyle.KEY_CHIP_EDGE);
         }
-        // Ctrl K chip
+        // Ctrl F chip
         boolean showHint = searchQuery.isEmpty();
-        int kw = font.width("Ctrl K") + 6;
+        int kw = font.width("Ctrl F") + 6;
         int kx = searchX + searchW - kw - 3;
         if (showHint) {
             r.outline(kx, searchY + 3, kw, searchH - 6, MenuStyle.KEY_CHIP_EDGE);
@@ -1480,7 +1486,7 @@ public class ModScreen extends Screen {
         MenuStyle.text(g, ver, headerX + 8 + bw + 8, headerY + (headerH - 8) / 2 + 1, MenuStyle.DIM2);
         MenuStyle.flat(g, "⌕", searchX + 4, searchY + 4, MenuStyle.DIM2);
         if (showHint) {
-            MenuStyle.flat(g, "Ctrl K", kx + 3, searchY + 4, MenuStyle.DIM2);
+            MenuStyle.flat(g, "Ctrl F", kx + 3, searchY + 4, MenuStyle.DIM2);
         }
         String[] glyphs = {"D", "G", "?", "◐"};
         for (int i = 0; i < 4; i++) {
@@ -2329,13 +2335,20 @@ public class ModScreen extends Screen {
             if (!isMouseOver(mouseX, mouseY)) {
                 return null;
             }
+            // A painted card (PaintedPanel) answers only where no real widget sits on it.
+            AbstractWidget panel = null;
             for (AbstractWidget child : children) {
                 if (child.visible && mouseX >= child.getX() && mouseX < child.getX() + child.getWidth()
                         && mouseY >= child.getY() && mouseY < child.getY() + child.getHeight()) {
-                    return child;
+                    if (!(child instanceof PaintedPanel)) {
+                        return child;
+                    }
+                    if (panel == null) {
+                        panel = child;
+                    }
                 }
             }
-            return null;
+            return panel;
         }
 
         // AbstractWidget implements every method below as a leaf; each override opts back into the container routing.
