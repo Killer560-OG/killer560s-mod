@@ -349,3 +349,10 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   text at the box's top-left and only that line takes clicks; `AbstractWidget.mouseClicked` asks `isMouseOver` (javap 26.1.2),
   so `gui/ThemedEditBox` overrides it with the drawn well. Per-screen Theme (2026-10-13): `MenuStyle.use()` reads the open
   `MenuThemedScreen`'s `themeId()` through `MenuTheme.forScreen`, so every helper that calls `use()` gets that screen's palette.
+- **Text drawn from a Component the game rebuilds every frame never hits an identity cache.** Vanilla copies every tab
+  row's and nametag's Component each frame, so its visual-order sequence is new each frame: Name Changer's weak-keyed
+  cache paid a WeakReference and a locked put for each, Name Animation buffered every glyph of every text, and supporter
+  names were rebuilt with `NameColor.toComponent` per frame (Bidi included). testkit 975's per-call timer put the name
+  hooks at ~280 us a frame (8.5-9.5%) in a busy hub on both versions, 75 us with every name feature off; after a probe
+  fast reject, a two-generation identity map, the unstyled `FormattedText.visit` for widths and one reused Component per
+  supporter name (`PlayerNameDisplay.cached`) it is ~150 / ~30 us (2026-10-13), glyph-for-glyph identical (975's dumps).
