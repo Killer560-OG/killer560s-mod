@@ -1005,7 +1005,7 @@ public class ModScreen extends Screen {
     private boolean headerClick(double mx, double my, int button) {
         int[] t = iconBounds(3);
         if (inside(mx, my, t[0], t[1], t[2], t[3]) && (button == 0 || button == 1)) {
-            // The menu theme: left click the next preset, right click the previous (Amber, Dark, Light, Custom).
+            // The menu theme: left click the next preset, right click the previous (Amber, Dark, Light, Ocean, Custom).
             clickSound();
             com.killer560.hub.gui.tab.MenuThemeTab.step(button == 0 ? 1 : -1);
             rebuild();
@@ -1839,7 +1839,7 @@ public class ModScreen extends Screen {
         } else if (inside(mouseX, mouseY, iconBounds(3)[0], iconBounds(3)[1], iconBounds(3)[2], iconBounds(3)[3])) {
             key = "theme";
             text = "Menu theme: " + MenuConfig.getInstance().getTheme().label
-                    + ". Click for the next preset, right click for the previous (Amber, Dark, Light, Custom).";
+                    + ". Click for the next preset, right click for the previous (Amber, Dark, Light, Ocean, Custom).";
         } else if (!pageMode() && inside(mouseX, mouseY, gridX, gridY, gridW, gridH)
                 && !(openFeature != null && drawerOverlay)) {
             for (Item it : items) {
