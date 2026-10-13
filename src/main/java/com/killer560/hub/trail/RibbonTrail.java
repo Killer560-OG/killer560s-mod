@@ -11,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -41,6 +42,10 @@ public final class RibbonTrail {
     private static final double TELEPORT = 6.0;
     /** Waist height as a share of eye height (1.62 standing gives 0.89, sneaking 1.27 gives 0.70). */
     private static final double WAIST = 0.55;
+    /** Blocks behind him (against his movement, or his facing when still) where the band starts. */
+    private static final double BACK_OFFSET = 0.3;
+    /** Length of the leash that finds "behind him"; longer turns the start of the band round more slowly. */
+    private static final double LEASH = 0.5;
 
     // Ring buffer of laid points, oldest at (head - count).
     private static final double[] rx = new double[MAX_POINTS];
@@ -50,6 +55,12 @@ public final class RibbonTrail {
     private static int head = 0;
     private static int count = 0;
     private static ClientLevel lastLevel;
+    // The leash point dragged after his feet, and the unit "behind him" direction it gives.
+    private static double leashX;
+    private static double leashZ;
+    private static double backX;
+    private static double backZ;
+    private static boolean hasBack = false;
 
     // Per-frame scratch, oldest first, the live anchor last (MAX_POINTS + 1 entries).
     private static final double[] px = new double[MAX_POINTS + 1];
@@ -91,6 +102,7 @@ public final class RibbonTrail {
     }
 
     public static void clear() {
+        hasBack = false;
         head = 0;
         count = 0;
         lastPointCount = 0;
@@ -130,9 +142,29 @@ public final class RibbonTrail {
 
         float partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 feet = player.getPosition(partial);
-        double ax = feet.x;
+        // Behind him, not inside his body (killer560, 2026-10-13: from the side the red end showed in front of his
+        // legs). "Behind" comes from a point on a short leash dragged after his feet: it always lies back along the way
+        // he came, swings round smoothly as he turns (so the points laid on the way keep the band continuous), and
+        // stays put while he stands still. Before he has moved at all it starts behind his back.
+        if (!hasBack) {
+            double bodyYaw = Math.toRadians(Mth.rotLerp(partial, player.yBodyRotO, player.yBodyRot));
+            leashX = feet.x + Math.sin(bodyYaw) * LEASH;
+            leashZ = feet.z - Math.cos(bodyYaw) * LEASH;
+            hasBack = true;
+        }
+        double lx0 = leashX - feet.x, lz0 = leashZ - feet.z;
+        double ll = Math.sqrt(lx0 * lx0 + lz0 * lz0);
+        if (ll > LEASH) {
+            leashX = feet.x + lx0 / ll * LEASH;
+            leashZ = feet.z + lz0 / ll * LEASH;
+        }
+        if (ll > 1.0e-4) {
+            backX = lx0 / ll;
+            backZ = lz0 / ll;
+        }
+        double ax = feet.x + backX * BACK_OFFSET;
+        double az = feet.z + backZ * BACK_OFFSET;
         double ay = feet.y + player.getEyeHeight() * WAIST;
-        double az = feet.z;
 
         // Lay points every SPACING blocks along the way from the newest point to the anchor.
         if (count == 0) {
