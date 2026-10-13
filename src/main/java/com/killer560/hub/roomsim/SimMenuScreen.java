@@ -172,15 +172,16 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         // Room under the buttons for the exclusion note (+2) and the KEYBINDS heading (+16), both drawn in render.
         y += 30;
         int half = (w - 6) / 2;
+        // Previous Room on the left, Next Room on the right (killer560, 2026-10-13).
         addRenderableWidget(SettingsButtonWidget.builder(keyLabel("Next Room", 1, SimRoomCycle.getNextKey()), b -> {
             capturing = 1;
             b.setMessage(Component.literal("Next Room: §ePress any key..."));
-        }).bounds(x, y, half, 20).build());
+        }).bounds(x + half + 6, y, w - half - 6, 20).build());
         addRenderableWidget(SettingsButtonWidget.builder(keyLabel("Previous Room", 2, SimRoomCycle.getBackKey()),
                 b -> {
                     capturing = 2;
                     b.setMessage(Component.literal("Previous Room: §ePress any key..."));
-                }).bounds(x + half + 6, y, w - half - 6, 20).build());
+                }).bounds(x, y, half, 20).build());
         backButton();
     }
 
