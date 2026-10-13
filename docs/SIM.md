@@ -2790,3 +2790,17 @@ and counts reaching a column outside the rooms or a drop with no ground: 3 / 2 /
   stayed open to the sky and below it down to the floors - 2,400-3,500 open seam blocks a floor, every one in a door
   column. `SimDoors.carveDoorway` now returns the floor it carved from and the fill walls those columns too, all but
   the opening (floor .. floor + 3). Testkit 855 also scans every seam block by kind now and requires none open.
+
+## Superboom: a real radius, and whole groups (2026-10-14, sim-superboom-radius)
+
+killer560, Big Red Flag: "that whole structure should be gone", and "if it is a chain of blocks but any one is within the 3
+blocks then it should break them all". A prince opened only its own blocks (lid + slab ring) and the one layer under them, so
+Big Red Flag's tomb (capture x 12..17, y 69..72, z 22..26) kept its eaves, walls and feet; the reach was an x/z +-3, y +-2
+cube round the hit block and decorative cracked brick in it was spared. Now: reach is radius 3 from the centre of the hit
+FACE to each block's box (`SimItems.inReach`); a prince with any tomb block in reach goes whole (`SimPrince.tombOf`: the
+smooth stone joined to it gives footprint and top, layers are taken down to a fully solid one, at most 2 under the skin;
+census: Big Red Flag 86 blocks with the room wall at z 27 / x 18 outside, every other prince only its own layer); a slab crypt
+whose lid or rim is in reach opens (still `withStairsAndFloor`, his 2026-10-01 rule - 421 slab runs in the library, many of
+them furniture, so no tomb rule there); a fragile block in reach takes its whole connected fragile chain (256 blocks, 15
+across). Captures carry no "breakable" marking, so groups are by block family and structure. Testkit 1401-1403 (642 and
+645 updated: decorative brick in reach now breaks, the eave and the wall under the lid now go).
