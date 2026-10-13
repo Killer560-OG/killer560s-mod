@@ -328,3 +328,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **Never find a menu tab by its top-level index.** A testing build's `TestingMenu.arrange` moves every untested tab into
   Untested, Profiles included, so Home's Profiles button (`indexOf(ProfilesTab.class)`) silently did nothing there until
   2026-10-13. Open the leaf from `allLeaves()` with `openFeature(leaf)`: a page normally, a drawer in Untested (testkit 948).
+- **A ChatScreen subclass must not call `ChatScreen.removed`** if it has no text of its own: vanilla's `removed` discards the saved
+  draft when the box is blank and overwrites it otherwise (javap 26.1.2/26.2), so a read-only chat (Peek Chat, 2026-10-13) would
+  eat his half-typed message. `PeekChatScreen.removed` only resets the scroll; testkit 1314 checks the draft survives.
+- **A key that CLOSES a screen also opens it again** if the opener polls raw keys at END_CLIENT_TICK: the press reaches the
+  screen first, so at the poll there is no screen and the key reads as a fresh edge. The closer marks the key held
+  (`PeekChatFeature.closedByKey`) so the poll waits for a release (testkit 1314: open, key, closed).

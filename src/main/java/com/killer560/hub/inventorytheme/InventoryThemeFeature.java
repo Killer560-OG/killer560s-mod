@@ -231,6 +231,21 @@ public final class InventoryThemeFeature {
         box(r, x1 - 1, y0 + 1, x1, y1 - 1, p.slotLight());
     }
 
+    /** A slot's square over {@code (x0,y0)..(x1,y1)} (the outer edge): vanilla's {@link #sunken} bevel in Default, and in
+     *  every other preset a one-unit outline in {@code slotLight} on all four sides, corners included, round the fill
+     *  ({@link InventoryPalette#bevelSlots}). Inventory and hotbar slots both draw through here. */
+    static void slotSquare(PixelRects r, int x0, int y0, int x1, int y1, int fill, InventoryPalette p) {
+        if (p.bevelSlots()) {
+            sunken(r, x0, y0, x1, y1, fill, p);
+            return;
+        }
+        box(r, x0, y0, x1, y1, fill);
+        box(r, x0, y0, x1, y0 + 1, p.slotLight());
+        box(r, x0, y1 - 1, x1, y1, p.slotLight());
+        box(r, x0, y0 + 1, x0 + 1, y1 - 1, p.slotLight());
+        box(r, x1 - 1, y0 + 1, x1, y1 - 1, p.slotLight());
+    }
+
     /** The crafting arrow (vanilla's sits at leftPos+135, topPos+29 in the player inventory): a shaft and a head. */
     private static void arrow(PixelRects r, int x, int y, int argb) {
         box(r, x, y + 4, x + 10, y + 8, argb);
@@ -247,7 +262,7 @@ public final class InventoryThemeFeature {
         InventoryPalette p = InventoryThemeConfig.getInstance().getPalette();
         PixelRects r = PixelRects.begin(graphics);
         try {
-            sunken(r, slot.x - 1, slot.y - 1, slot.x + SLOT_SIZE - 1, slot.y + SLOT_SIZE - 1, p.slotFill(), p);
+            slotSquare(r, slot.x - 1, slot.y - 1, slot.x + SLOT_SIZE - 1, slot.y + SLOT_SIZE - 1, p.slotFill(), p);
         } finally {
             r.submit();
         }

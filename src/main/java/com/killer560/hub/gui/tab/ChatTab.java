@@ -18,6 +18,8 @@ public class ChatTab extends FolderTab {
                 new ChatEmotesTab(),
                 new ClickTranslateTab(),
                 new CopyChatTab(),
+                // Peek Chat (2026-10-13, killer560): read the chat without a text box to type in.
+                new PeekChatTab(),
                 new AutoMeowTab(),
                 new CringeTab(),
                 new SpotifyTab(),

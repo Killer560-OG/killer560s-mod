@@ -71,6 +71,13 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
+        // killer560, 2026-10-13: "a button to open loadouts (the button should run /loadouts)". Hypixel's command, sent
+        // below the client dispatcher (util/ServerCommands), so nothing client-side can catch it; the menu Hypixel opens
+        // replaces this screen. Shown whether or not the keybinds are on.
+        widgets.add(SettingsButtonWidget.builder(Component.literal(OPEN_LOADOUTS_LABEL), btn -> openLoadouts())
+                .bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
+
         if (!cfg.isEnabled()) {
             return widgets;
         }
@@ -110,6 +117,14 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
                 Minecraft.getInstance().font));
 
         return widgets;
+    }
+
+    /** The Open Loadouts button's label (the testkit presses it by this text). */
+    public static final String OPEN_LOADOUTS_LABEL = "Open Loadouts";
+
+    /** Sends {@code /loadouts} to the server; true if it went (false with no connection). */
+    public static boolean openLoadouts() {
+        return com.killer560.hub.util.ServerCommands.toServer("loadouts");
     }
 
     private static Component onOff(String label, boolean value) {

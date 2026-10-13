@@ -174,6 +174,7 @@ public final class ModPaths {
         t.put("clicktranslate", "social/translate");
         t.put("autocorrect", "social/autocorrect");
         t.put("copychat", "social/copychat");
+        t.put("peekchat", "social/peekchat");
         t.put("chattidy", "social/chattidy");
         t.put("voice", "social/voicetotext");
         t.put("posmsg", "social/posmsg");

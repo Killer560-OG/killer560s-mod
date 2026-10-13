@@ -89,10 +89,13 @@ public final class StatElements {
      * with the default thickness 8: the number filled all but one row of it.
      */
     public static final int VALUE_ROWS = 9;
-    public static final int VALUE_PAD_Y = 2;
+    /** 1 since 2026-10-13 (was 2): killer560 asked for the default bars "a hair thinner", and with Show Value on (the
+     *  default) every bar is drawn at this floor, not at Bar Height - so the floor is what makes the default thinner
+     *  (14 -> 12). A Bar Height above it, or Show Value off, is drawn exactly as set. */
+    public static final int VALUE_PAD_Y = 1;
     public static final int VALUE_PAD_X = 4;
     /** Even, so half of it is a whole GUI pixel at Auto Scale 0.5 (13 drew 6.5 units and edge drags in the HUD editor
-     *  moved by a pixel less than dragged, testkit 399): 2 units above the number, 3 below. */
+     *  moved by a pixel less than dragged, testkit 399): the digits' body centred, 2.5 units above it and below. */
     public static final int MIN_VALUE_THICKNESS = VALUE_ROWS + 2 * VALUE_PAD_Y + 1;
 
     /** Rows of a digit (and of the capital letters): the body the eye centres. The comma's tail and the shadow hang
