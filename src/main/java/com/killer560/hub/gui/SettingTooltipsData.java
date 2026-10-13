@@ -828,6 +828,11 @@ final class SettingTooltipsData {
         d.put("slot 10", "Key that clicks loadout slot 10.");
         d.put("slot 11", "Key that clicks loadout slot 11.");
         d.put("slot 12", "Key that clicks loadout slot 12 (bottom-right).");
+        for (int slot = 1; slot <= 12; slot++) {
+            d.put("loadout keybinds/slot " + slot + " mode", "What slot " + slot + "'s key does. Only In Menu: it clicks the"
+                    + " loadout only while the Loadout menu is open. Open, Swap, Close: pressed anywhere (not while typing),"
+                    + " it runs /loadouts, clicks this loadout once the menu opens, then closes the menu.");
+        }
         d.put("peek chat", "Read chat without typing: the Peek Chat key opens the chat history with no text box. Scroll with the mouse wheel, Up/Down or Page Up/Page Down (Home jumps back to the newest); links and hover text work. Escape or the key again closes it. Your unsent chat draft is left alone.");
         d.put("peek chat key", "Key or mouse button that opens Peek Chat (press it again, or Escape, to close). Only works with no menu open. Esc while binding clears it.");
         d.put("open loadouts", "Runs /loadouts: opens Hypixel's Loadout menu. Works whether or not Loadout Keybinds is on.");

@@ -35,7 +35,28 @@ public final class LoadoutKeybindsConfig {
             InputConstants.KEY_9, InputConstants.KEY_0, InputConstants.KEY_MINUS, InputConstants.KEY_EQUALS
     };
 
+    /** What each slot's key does (killer560, 2026-10-13: "a toggle per keybind to have that keybind open the menu and
+     *  swap then close it or just only swap if you are in the menu"). Default {@link Mode#ONLY_IN_MENU}, the
+     *  behaviour every bind had before, so nothing changes until he flips one. */
+    public enum Mode {
+        ONLY_IN_MENU("Only In Menu"),
+        OPEN_SWAP_CLOSE("Open, Swap, Close");
+
+        private final String label;
+
+        Mode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    private final Mode[] slotModes = new Mode[12];
+
     private LoadoutKeybindsConfig() {
+        java.util.Arrays.fill(slotModes, Mode.ONLY_IN_MENU);
     }
 
     public static LoadoutKeybindsConfig getInstance() {
@@ -67,6 +88,16 @@ public final class LoadoutKeybindsConfig {
                     }
                 }
             }
+            JsonArray modes = ConfigJson.getArray(obj, "slotModes");
+            if (modes != null) {
+                for (int i = 0; i < cfg.slotModes.length && i < modes.size(); i++) {
+                    try {
+                        cfg.slotModes[i] = Mode.valueOf(modes.get(i).getAsString());
+                    } catch (Exception ignored) {
+                        // Unknown or malformed: keep Only In Menu.
+                    }
+                }
+            }
             instance = cfg;
         } catch (Exception e) {
             instance = new LoadoutKeybindsConfig();
@@ -85,6 +116,11 @@ public final class LoadoutKeybindsConfig {
                 arr.add(key);
             }
             obj.add("slotKeys", arr);
+            JsonArray modes = new JsonArray();
+            for (Mode mode : slotModes) {
+                modes.add(mode.name());
+            }
+            obj.add("slotModes", modes);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -120,5 +156,13 @@ public final class LoadoutKeybindsConfig {
 
     public void setSlotKey(int index, int key) {
         slotKeys[index] = key;
+    }
+
+    public Mode getSlotMode(int index) {
+        return slotModes[index];
+    }
+
+    public void setSlotMode(int index, Mode mode) {
+        slotModes[index] = mode == null ? Mode.ONLY_IN_MENU : mode;
     }
 }

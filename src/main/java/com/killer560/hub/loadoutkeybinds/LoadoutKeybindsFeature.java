@@ -22,8 +22,8 @@ import java.util.regex.Pattern;
  */
 public final class LoadoutKeybindsFeature {
 
-    private static final Pattern LOADOUT_TITLE = Pattern.compile("\\((\\d)/(\\d)\\) Loadout");
-    private static final int[] LOADOUT_SLOTS = {
+    static final Pattern LOADOUT_TITLE = Pattern.compile("\\((\\d)/(\\d)\\) Loadout");
+    static final int[] LOADOUT_SLOTS = {
             14, 15, 16,
             23, 24, 25,
             32, 33, 34,
@@ -35,6 +35,13 @@ public final class LoadoutKeybindsFeature {
 
     public static void register() {
         ScreenEvents.AFTER_INIT.register(LoadoutKeybindsFeature::onScreenInit);
+        LoadoutSwapper.register();
+    }
+
+    /** True for Hypixel's "(N/M) Loadout" menu - the one screen any of this feature's clicks go to. */
+    static boolean isLoadoutScreen(Screen screen) {
+        return screen instanceof AbstractContainerScreen<?> container
+                && LOADOUT_TITLE.matcher(container.getTitle().getString()).find();
     }
 
     private static void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
@@ -61,7 +68,6 @@ public final class LoadoutKeybindsFeature {
         int current = Integer.parseInt(matcher.group(1));
         int total = Integer.parseInt(matcher.group(2));
         LoadoutKeybindsConfig cfg = LoadoutKeybindsConfig.getInstance();
-
         int slot;
         {
             if (code == cfg.getNextPageKey()) {
@@ -87,6 +93,10 @@ public final class LoadoutKeybindsFeature {
                 }
                 slot = LOADOUT_SLOTS[keyIndex];
             }
+        }
+        if (LoadoutSwapper.isBusy()) {
+            // An "Open, Swap, Close" is driving this menu: swallow his bound key rather than send a second click.
+            return true;
         }
         client.gameMode.handleContainerInput(containerScreen.getMenu().containerId, slot, 0,
                 ContainerInput.PICKUP, client.player);
