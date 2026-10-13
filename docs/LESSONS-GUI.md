@@ -316,6 +316,12 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   theme every other line too, with the washed-out codes (§7 §f §a §b §e) swapped for darker partners
   (`MenuStyle.lightReadable`). `ColorSwatch`'s square is a styled sibling, not a § code, so `getString()` loses it: the
   row reads the sibling's `TextColor` and paints the swatch.
+- **MenuStyle's palette is one set of statics, so a screen on its own Screen Theme must not leave it behind** (sweep-b,
+  2026-10-13). `MenuStyle.use(MenuTheme)` derives a screen's palette and records what it derived for; the menu's `use()`
+  re-derives whenever that record is not "menu + this version", so the menu never draws in a screen's colours. A widget
+  drawn on a themed screen must not call `use()` itself (it would swap the screen's palette for the menu's mid-frame):
+  `ScreenChrome.begin(id)` derives once per frame and everything after reads the statics. Standalone screens opt in
+  with the `ThemedScreen` marker, which is also what gives their `SettingsButtonWidget`s the themed look.
 - **A hand-drawn card under real buttons in a menu page is a `gui/PaintedPanel`** (Profiles page, 2026-10-13): the content
   pane presses the FIRST child under the cursor, so the card is `active = false` (its `mouseClicked` declines and the press
   falls through to the button on it) and `hoveredChild` skips it when a real widget sits on it, or the buttons lose their
