@@ -2804,3 +2804,6 @@ whose lid or rim is in reach opens (still `withStairsAndFloor`, his 2026-10-01 r
 them furniture, so no tomb rule there); a fragile block in reach takes its whole connected fragile chain (256 blocks, 15
 across). Captures carry no "breakable" marking, so groups are by block family and structure. Testkit 1401-1403 (642 and
 645 updated: decorative brick in reach now breaks, the eave and the wall under the lid now go).
+- Sim mobs are `setNoAi(true)`, which also means no gravity: one placed in the air stays there. Big Red Flag's prince spawned
+  above its tomb's top block, which the same blast removed (2026-10-13). `SimMobs.spawnCrypt` drops crypt and prince undead to
+  the top of the first collision box below; 1401/1402 check the feet.
