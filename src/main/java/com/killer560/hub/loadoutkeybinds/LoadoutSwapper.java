@@ -1,6 +1,9 @@
 package com.killer560.hub.loadoutkeybinds;
 
+import com.killer560.hub.autoroutes.mixin.KeyMappingKeyAccessor;
 import com.killer560.hub.compat.McCompat;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.KeyMapping;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.KeyUtil;
@@ -94,14 +97,40 @@ public final class LoadoutSwapper {
         boolean noScreen = McCompat.screen(client) == null;
         for (int i = 0; i < wasDown.length; i++) {
             int key = cfg.getSlotKey(i);
-            boolean down = live && cfg.getSlotMode(i) == LoadoutKeybindsConfig.Mode.OPEN_SWAP_CLOSE
-                    && key != KeyUtil.NONE && KeyUtil.isBindDown(client.getWindow(), key);
+            boolean osc = live && cfg.getSlotMode(i) == LoadoutKeybindsConfig.Mode.OPEN_SWAP_CLOSE && key != KeyUtil.NONE;
+            boolean down = osc && KeyUtil.isBindDown(client.getWindow(), key);
+            // The key is the loadout's: eat vanilla's queued clicks for it (a hotbar slot on the default 1-0), here at
+            // START_CLIENT_TICK, before handleKeybinds reads them later this tick. A click found here is a press too,
+            // which also catches a tap shorter than a tick that the poll above missed.
+            boolean clicked = osc && noScreen && consumeVanillaClicks(client, key);
             // Under a screen the state is tracked but never acted on, so a key held as the screen closes is not a press.
-            if (down && !wasDown[i] && noScreen && stage == Stage.IDLE) {
+            if (((down && !wasDown[i]) || clicked) && noScreen && stage == Stage.IDLE) {
                 request(client, i);
             }
             wasDown[i] = down;
         }
+    }
+
+    /**
+     * Drains the queued clicks of every vanilla key mapping bound to {@code code} (killer560's call, 2026-10-13: an
+     * "Open, Swap, Close" key must not also switch the hotbar slot). Only clicks are taken: a held mapping's down state
+     * is left alone. True if any click was queued.
+     */
+    private static boolean consumeVanillaClicks(Minecraft client, int code) {
+        boolean mouse = KeyUtil.isMouseCode(code);
+        int value = mouse ? KeyUtil.mouseButton(code) : code;
+        boolean any = false;
+        for (KeyMapping mapping : client.options.keyMappings) {
+            InputConstants.Key bound = ((KeyMappingKeyAccessor) (Object) mapping).killer560smod$getKey();
+            if (bound == null || bound.getValue() != value
+                    || bound.getType() != (mouse ? InputConstants.Type.MOUSE : InputConstants.Type.KEYSYM)) {
+                continue;
+            }
+            while (mapping.consumeClick()) {
+                any = true;
+            }
+        }
+        return any;
     }
 
     /** Starts a swap to slot {@code index} (0-11). False, with nothing sent, while one is running or a menu is open. */
