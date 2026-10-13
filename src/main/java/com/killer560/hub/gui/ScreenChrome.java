@@ -32,13 +32,13 @@ public final class ScreenChrome {
         g.fill(0, 0, w, h, MenuStyle.BACKDROP);
     }
 
-    /** The outer panel: soft drop shadow, the accent-tinted ring, then the bevelled panel. The shadow stays within 3
-     *  units of the panel: the Bazaar and AH reskins keep only a 4-8 unit margin, which must stay pure backdrop over the
-     *  hotbar (testkit 496). */
+    /** The outer panel: soft drop shadow, the accent-tinted ring, then the bevelled panel. The shadow stays within 2
+     *  units of the panel: the Bazaar and AH reskins keep only a 4-8 unit margin, and its outer 6 units must stay pure
+     *  backdrop over the hotbar at Auto Scale 1.125 (testkit 496; 3 units reached 2 pixel rows into it). */
     public static void frame(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         GuiRects r = GuiRects.begin(g);
         for (int i = 2; i >= 1; i--) {
-            r.fill(x - i, y - i + 1, x + w + i, y + h + i + 1, MenuStyle.shadow((0x28 + (2 - i) * 0x18) / 2));
+            r.fill(x - i, y - i, x + w + i, y + h + i, MenuStyle.shadow((0x28 + (2 - i) * 0x18) / 2));
         }
         r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.FRAME_RING);
         MenuStyle.bevel(r, x, y, w, h, MenuStyle.PANEL_TOP, MenuStyle.PANEL_BOTTOM);
