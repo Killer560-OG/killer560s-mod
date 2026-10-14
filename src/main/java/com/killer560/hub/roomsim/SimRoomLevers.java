@@ -88,6 +88,20 @@ import java.util.concurrent.ConcurrentHashMap;
  *       {@code x=18, y=82, z=12..19} (28), the log floor of the channel between the dark stairs.</li>
  * </ul>
  *
+ * <h2>2026-10-13: Deathmite and Doors</h2>
+ *
+ * <ul>
+ *   <li><b>Deathmite.</b> The floor lever on the lone oak log ringed by polished diorite and chiseled quartz at
+ *       {@code (54, 70, 16)} opens the spruce stair/slab and oak log door at {@code x=28, y=65..70, z=15..17} (18 blocks,
+ *       every one wood, exactly the box) behind the stone brick arch.</li>
+ *   <li><b>Doors.</b> One corridor at {@code z=15..17} shut by four one-wood doors, and four floor levers each standing
+ *       on a log of one of those woods: the lever's log names its door. Oak {@code (62, 59, 16)} opens the oak log door
+ *       {@code x=51, y=58..63} (18); acacia {@code (51, 59, 2)} the acacia log door {@code x=40, y=58..64} (21); the pair
+ *       either side of the pillar he asked about, dark oak {@code (44, 59, 16)} and jungle {@code (46, 59, 16)}, the dark
+ *       oak door {@code x=24} and the jungle door {@code x=20} (21 each, {@code y=58..64}), in front of the two chests at
+ *       {@code (9, 58, 14)} and {@code (9, 58, 18)}. The pairing by wood is read off the capture, not seen on Hypixel.</li>
+ * </ul>
+ *
  * <p>Opening is one-way and once only, like the real thing - flicking the lever back does not put the blocks
  * back, because on Hypixel it does not either. A fresh floor rearms everything.
  */
@@ -132,7 +146,18 @@ public final class SimRoomLevers {
             new Rule("Atlas",
                     new int[]{54, 67, 32}, new int[]{7, 80, 25}, new int[]{9, 83, 26}),
             new Rule("Long Hall",
-                    new int[]{21, 70, 28}, new int[]{18, 82, 12}, new int[]{18, 82, 19}));
+                    new int[]{21, 70, 28}, new int[]{18, 82, 12}, new int[]{18, 82, 19}),
+            // 2026-10-13 (see the class comment).
+            new Rule("Deathmite",
+                    new int[]{54, 70, 16}, new int[]{28, 65, 15}, new int[]{28, 70, 17}),
+            new Rule("Doors",
+                    new int[]{62, 59, 16}, new int[]{51, 58, 15}, new int[]{51, 63, 17}),
+            new Rule("Doors",
+                    new int[]{51, 59, 2}, new int[]{40, 58, 15}, new int[]{40, 64, 17}),
+            new Rule("Doors",
+                    new int[]{44, 59, 16}, new int[]{24, 58, 15}, new int[]{24, 64, 17}),
+            new Rule("Doors",
+                    new int[]{46, 59, 16}, new int[]{20, 58, 15}, new int[]{20, 64, 17}));
 
     /** Lever world position to the blocks it clears, for the floor currently standing. */
     private static final Map<BlockPos, List<BlockPos>> ARMED = new ConcurrentHashMap<>();

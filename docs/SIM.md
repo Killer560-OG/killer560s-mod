@@ -2771,6 +2771,8 @@ it still lands in that world; `BreakerAuraFeature.plannerTreatsAsAir` decides, s
 - **Four lever doors** in `SimRoomLevers` (capture coordinates and how each was matched are in its javadoc): Bridges and
   Raccoon had their lever in the capture; Logs and Arrow Trap had none, and the sim places a floor lever on the lone wood
   block he pointed at (only into air). Testkit 647-650 flick each as the player and require the whole door gone.
+  2026-10-13 added Deathmite and Doors (javadoc). Doors' four levers each stand on a log of one wood and open the door
+  of that wood (read off the capture; testkit 1407 flicks each and requires the others' doors untouched).
 
 ## The seam between rooms was a way out of the map (2026-10-12, sim-seal)
 
