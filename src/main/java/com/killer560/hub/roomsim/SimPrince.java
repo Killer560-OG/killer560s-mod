@@ -297,6 +297,7 @@ public final class SimPrince {
     public static List<BlockPos> tombsInReach(ServerLevel level, BlockPos near,
                                               java.util.function.Predicate<BlockPos> inReach) {
         Set<BlockPos> out = new java.util.LinkedHashSet<>();
+        scanNear(level, near);
         for (int i = 0; i < PRINCES.size(); i++) {
             BlockPos seed = PRINCES.get(i);
             // Only princes nearby: a tomb is far smaller than this, and reading a far one could load its chunk.
@@ -423,9 +424,19 @@ public final class SimPrince {
             }
         }
 
-        // Grouped: one prince per connected run of gold, so a floor carrying two of those four rooms has two
-        // princes and each scores on its own.
-        Set<BlockPos> unassigned = new HashSet<>(crowns);
+        group(crowns);
+        return PRINCES.size();
+    }
+
+    /** Grouped: one prince per connected run of crown blocks, so a floor carrying two princes scores each on its own.
+     *  Blocks already part of a known prince are left alone. */
+    private static void group(List<BlockPos> crowns) {
+        Set<BlockPos> unassigned = new HashSet<>();
+        for (BlockPos c : crowns) {
+            if (!BLOCKS.containsKey(c)) {
+                unassigned.add(c.immutable());
+            }
+        }
         while (!unassigned.isEmpty()) {
             BlockPos seed = unassigned.iterator().next();
             int index = PRINCES.size();
@@ -445,7 +456,64 @@ public final class SimPrince {
                 }
             }
         }
-        return PRINCES.size();
+    }
+
+    /** Blocks around a Superboom asked again for a prince the floor scan did not register. */
+    static final int NEAR_SCAN = 8;
+
+    /**
+     * The same three signatures as {@link #scan}, asked of the {@value #NEAR_SCAN}-block cube round {@code center} - every
+     * Superboom asks before it decides what it opens. killer560 (2026-10-13), in Leaves through route practice: "this
+     * structure in leaves is a prince", and his log showed Superbooms on its polished andesite with prince=false while
+     * the same room built by itself in the testkit (646) found it - the floor scan reads only chunks already loaded,
+     * and missed it there. A prince registered here is new; one already known (blown or not) is left as it is.
+     *
+     * @return how many new princes were found
+     */
+    public static int scanNear(ServerLevel level, BlockPos center) {
+        int before = PRINCES.size();
+        List<BlockPos> crowns = new ArrayList<>();
+        Set<BlockPos> lidChecked = new HashSet<>();
+        BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
+        for (int dx = -NEAR_SCAN; dx <= NEAR_SCAN; dx++) {
+            for (int dy = -NEAR_SCAN; dy <= NEAR_SCAN; dy++) {
+                for (int dz = -NEAR_SCAN; dz <= NEAR_SCAN; dz++) {
+                    at.set(center.getX() + dx, center.getY() + dy, center.getZ() + dz);
+                    if (BLOCKS.containsKey(at) || !level.isLoaded(at)) {
+                        continue;
+                    }
+                    var state = level.getBlockState(at);
+                    BlockPos p = at.immutable();
+                    if (state.is(CROWN)) {
+                        if (onAPlinth(level, p)) {
+                            crowns.add(p);
+                        }
+                    } else if (state.is(LID)) {
+                        if (lidChecked.add(p)) {
+                            ringedLid(level, p, lidChecked, crowns);
+                        }
+                    } else if (state.is(LANTERN) && walledIn(level, p)) {
+                        crowns.add(p);
+                        for (int rx = -1; rx <= 1; rx++) {
+                            for (int rz = -1; rz <= 1; rz++) {
+                                BlockPos ring = p.offset(rx, 0, rz);
+                                if (level.getBlockState(ring).is(LANTERN_WALL)) {
+                                    crowns.add(ring);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        group(crowns);
+        int found = PRINCES.size() - before;
+        if (found > 0) {
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                    "Sim prince: {} more found near {} at the Superboom (the floor scan had missed it)", found,
+                    center.toShortString());
+        }
+        return found;
     }
 
     /** The {@link #LID} rule, asked of {@code CryptScanner} so the sim and Secret Waypoints' prince waypoints cannot

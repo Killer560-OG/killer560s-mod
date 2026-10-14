@@ -2807,3 +2807,7 @@ across). Captures carry no "breakable" marking, so groups are by block family an
 - Sim mobs are `setNoAi(true)`, which also means no gravity: one placed in the air stays there. Big Red Flag's prince spawned
   above its tomb's top block, which the same blast removed (2026-10-13). `SimMobs.spawnCrypt` drops crypt and prince undead to
   the top of the first collision box below; 1401/1402 check the feet.
+- The floor's prince scan reads only chunks already loaded, so a prince can go unregistered (Leaves through route practice,
+  2026-10-13: Superbooms on its andesite said prince=false). Every Superboom now rescans an 8-block cube round itself
+  (`SimPrince.scanNear`); testkit 1404 resets the scan and still needs prince=true. Item secrets measure his body to
+  the item's block (3 blocks, gap to gap): feet to block centre missed one 3 blocks ahead (1405).

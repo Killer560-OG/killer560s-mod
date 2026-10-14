@@ -38,7 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class SimSecretItems {
 
-    /** Blocks he has to be within. His number. */
+    /** Blocks he has to be within - his body to the item's block, gap to gap. His number. */
     private static final double TRIGGER_RANGE = 3.0;
 
     /** And for how many ticks. "longer than 5", so the sixth tick inside the range is the one that spawns it. */
@@ -247,9 +247,12 @@ public final class SimSecretItems {
         List<BlockPos> ready = new ArrayList<>();
         for (Map.Entry<BlockPos, Integer> entry : PENDING.entrySet()) {
             BlockPos at = entry.getKey();
-            double dx = at.getX() + 0.5 - px;
-            double dy = at.getY() + 0.5 - py;
-            double dz = at.getZ() + 0.5 - pz;
+            // From his BODY to the item's BLOCK, gap to gap. killer560 (2026-10-13): "I had a test where I was 3 blocks
+            // away and it didnt spawn" - feet to the block's centre read an item three blocks ahead and half a block
+            // up as further than 3. His box is 0.6 wide and 1.8 tall from his feet.
+            double dx = Math.max(0, Math.max(at.getX() - (px + 0.3), (px - 0.3) - (at.getX() + 1)));
+            double dy = Math.max(0, Math.max(at.getY() - (py + 1.8), py - (at.getY() + 1)));
+            double dz = Math.max(0, Math.max(at.getZ() - (pz + 0.3), (pz - 0.3) - (at.getZ() + 1)));
             if (dx * dx + dy * dy + dz * dz <= TRIGGER_RANGE * TRIGGER_RANGE) {
                 int ticks = entry.getValue() + 1;
                 if (ticks > TRIGGER_TICKS) {
