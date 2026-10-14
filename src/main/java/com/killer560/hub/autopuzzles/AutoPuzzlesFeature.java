@@ -165,6 +165,7 @@ public final class AutoPuzzlesFeature {
 
     private static void onTick(Minecraft client) {
         AutoPuzzleUtil.turnTick(client); // first, always: a body turned for a click is given back the tick after
+        AutoPuzzleActivity.tick(client);
         if (client.level != lastLevel) {
             lastLevel = client.level;
             resetQuiz();

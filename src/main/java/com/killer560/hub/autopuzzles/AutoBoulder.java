@@ -194,6 +194,9 @@ public final class AutoBoulder {
         boolean acting = false;
         try {
             acting = run(client, player, roomName);
+            if (acting) {
+                AutoPuzzleActivity.note("Boulder");
+            }
         } finally {
             if (!acting) {
                 settleBody(client, player);

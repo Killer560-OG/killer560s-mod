@@ -57,6 +57,7 @@ final class FreeCam {
             return;
         }
         engaged = true;
+        AutoPuzzleActivity.note(tag);
         ViewFreeze.hold(viewYaw, Mth.clamp(viewPitch, -90f, 90f));
         LOGGER.info("[AutoPuzzles] {}: free camera held", tag);
     }
@@ -64,6 +65,7 @@ final class FreeCam {
     /** Every tick of the run: renews the lease. Does nothing when not engaged. */
     void keep(LocalPlayer player) {
         if (engaged && player != null) {
+            AutoPuzzleActivity.note(tag);
             ViewFreeze.hold(player.getYRot(), player.getXRot());
         }
     }

@@ -519,6 +519,7 @@ public final class AutoPuzzleUtil {
         if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
             return false;
         }
+        AutoPuzzleActivity.note("Puzzles");
         if (exact) {
             com.killer560.hub.livemap.autoclear.ClearExecutor.etherPathExact(target, onArrive);
         } else {
@@ -691,6 +692,7 @@ public final class AutoPuzzleUtil {
      *  Callers must have claimed the tick with {@link #gateWorldClick()} first.
      *  @return false (nothing sent) if the block has no shape */
     public static boolean interactBlock(Minecraft client, BlockPos pos) {
+        AutoPuzzleActivity.note("Puzzles");
         BlockState state = client.level.getBlockState(pos);
         VoxelShape shape = state.getShape(client.level, pos);
         if (shape.isEmpty()) {

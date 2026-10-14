@@ -255,6 +255,7 @@ public final class AutoSecretFeature {
         runId++;
         lastRoomName = null;
         secreted.clear();
+        puzzleHoldSaid = null;
         noRouteSaid.clear();
         instaTried.clear();
         puzzlesDone.clear();
@@ -331,6 +332,9 @@ public final class AutoSecretFeature {
             return;
         }
         watchCorrections(client);
+        if (holdForPuzzle()) {
+            return;
+        }
         phaseTicks++;
         if (keyTarget != null && (phase == Phase.TRAVEL || phase == Phase.KEY_WAIT) && keyGone(client)) {
             return;
@@ -360,6 +364,36 @@ public final class AutoSecretFeature {
             default -> {
             }
         }
+    }
+
+    /** The auto puzzle last waited under, so the hold is said once per puzzle rather than every tick. */
+    private static String puzzleHoldSaid;
+
+    /**
+     * While an auto puzzle is working, nothing here starts a trip, a route or a door, and no wait times out
+     * (killer560, 2026-10-14: "auto clear related things need to realize when an auto puzzle is working to stop making
+     * it etherwarp back to the start"). A trip already in flight, a playing route and a hand-off to Auto Clear are left
+     * alone (Auto Routes and Auto Clear hold themselves). {@code phaseTicks} does not count under it, so the puzzle
+     * wait, the Ice Fill wait and the start node's arm wait all start counting again where they were.
+     * @return true while holding
+     */
+    private static boolean holdForPuzzle() {
+        if (!com.killer560.hub.autopuzzles.AutoPuzzleActivity.isWorking()
+                || phase == Phase.TRAVEL || phase == Phase.ROUTE || phase == Phase.AUTO_CLEAR) {
+            if (puzzleHoldSaid != null && !com.killer560.hub.autopuzzles.AutoPuzzleActivity.isWorking()) {
+                LOGGER.info("[AutoSecret] {} is done - carrying on ({})", puzzleHoldSaid, phase);
+                puzzleHoldSaid = null;
+            }
+            return false;
+        }
+        String puzzle = com.killer560.hub.autopuzzles.AutoPuzzleActivity.what();
+        status = "Waiting: " + puzzle + " is working";
+        if (!puzzle.equals(puzzleHoldSaid)) {
+            puzzleHoldSaid = puzzle;
+            LOGGER.info("[AutoSecret] waiting: {} is working (phase {})", puzzle, phase);
+            say(ModChat.dim("Waiting for " + puzzle + " to finish"));
+        }
+        return true;
     }
 
     private static void pollToggleKey(Minecraft client) {
@@ -487,7 +521,8 @@ public final class AutoSecretFeature {
      */
     private static void watchCorrections(Minecraft client) {
         boolean busy = ClearExecutor.isBusy() || RouteExecutor.isRunning() || phase == Phase.ICE_FILL
-                || phase == Phase.PUZZLE_WAIT || phase == Phase.AUTO_CLEAR;
+                || phase == Phase.PUZZLE_WAIT || phase == Phase.AUTO_CLEAR
+                || com.killer560.hub.autopuzzles.AutoPuzzleActivity.isWorking();
         quietTicks = busy ? 0 : quietTicks + 1;
         int corrections = ClearExecutor.serverCorrections();
         if (corrections != seenCorrections) {
@@ -518,6 +553,16 @@ public final class AutoSecretFeature {
 
     private static void decide(Minecraft client) {
         blockedSecrets = null;
+        // killer560, 2026-10-14: "if i have already used auto routes in a room during auto clear then it should treat
+        // it as though I got every secret in the room even if it is missing one, since some rooms auto routes will
+        // leave it missing a secret because it is so unoptimal to do." A room whose route ran to its end this run -
+        // by this run, an earlier one of Auto Secret's, or by hand - is never a secret target again.
+        for (String routed : com.killer560.hub.autoroutes.RouteRunMemory.routedRooms()) {
+            if (secreted.add(routed)) {
+                LOGGER.info("[AutoSecret] {}: its route already ran to the end this run - every secret counts as got",
+                        routed);
+            }
+        }
         DungeonLayout layout = DungeonLayout.capture();
         int here = layout.currentRoom();
         if (here >= 0) {

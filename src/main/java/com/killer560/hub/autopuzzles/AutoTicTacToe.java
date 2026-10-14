@@ -105,6 +105,9 @@ final class AutoTicTacToe {
             return;
         }
         wasInRoom = true;
+        if (approaching || chestStage != ChestStage.NONE && chestStage != ChestStage.DONE) {
+            AutoPuzzleActivity.note("Tic Tac Toe");
+        }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (!roomSpotAttempted && cr != null && McCompat.screen(client) == null) {
             // Pure navigation, tried once per room visit regardless of solver/GUARD state below - same one-shot
