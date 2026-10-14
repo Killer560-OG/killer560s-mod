@@ -73,6 +73,11 @@ public final class AutoRoutesFeature {
     private static boolean externalTeleport;
     /** The node the player is currently standing in (so a finished route doesn't instantly re-arm underfoot). */
     private static RouteNode latchedNode;
+    /** The node whose ring he was last seen in, and the client tick he entered it - for the "armed N tick(s) after you
+     *  entered its ring" log line (killer560, 2026-10-14: breaker nodes "take a really long time to actually break";
+     *  the log only had whole seconds and every node acted on its firing tick, so where the wait was could not be told). */
+    private static RouteNode ringNode;
+    private static int ringEnteredAt;
     private static String lastRoom;
     private static Object lastLevel;
     private static boolean renderFailed;
@@ -1046,6 +1051,14 @@ public final class AutoRoutesFeature {
                 break;
             }
         }
+        if (inside == null) {
+            ringNode = null;
+        } else if (ringNode == null || !inside.sameTile(ringNode)) {
+            ringNode = inside;
+            ringEnteredAt = AwaitEvents.now();
+            LOGGER.info("[AutoRoutes] Entered node #{}'s ring ({}) at tick {}", route.indexOf(inside) + 1, inside.type,
+                    ringEnteredAt);
+        }
         if (suppressArm) {
             suppressArm = false;
             if (inside != null) {
@@ -1105,6 +1118,8 @@ public final class AutoRoutesFeature {
             mapArrivalGuard = false;
         }
         gate("armed node #" + (route.indexOf(inside) + 1) + " (" + inside.type + (inside.start ? ", start" : "") + ")");
+        LOGGER.info("[AutoRoutes] Node #{} armed {} tick(s) after you entered its ring", route.indexOf(inside) + 1,
+                AwaitEvents.now() - ringEnteredAt);
         RouteExecutor.start(route, frame, inside);
     }
 
