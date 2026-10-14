@@ -565,6 +565,7 @@ final class SettingTooltipsData {
         d.put("home button/reboot", "Closes the game and has Prism Launcher start this instance again once it has fully"
                 + " closed (an update waiting to install goes in first). In a server, press twice within 10 seconds."
                 + " Same as /reboot. Only works when Prism Launcher started the game.");
+        d.put("home/sweat mode", "Click to enter sweat mode.");
         d.put("home/skyblock only", "Pauses every feature while you're not on Hypixel Skyblock or p3sim.");
         d.put("skyblock only", "Limits this feature to Hypixel Skyblock and p3sim.");
         d.put("video browser", "Shows YouTube Shorts in a small window pinned over Minecraft (Windows only).");

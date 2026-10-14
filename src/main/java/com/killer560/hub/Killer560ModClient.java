@@ -399,6 +399,7 @@ public class Killer560ModClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Killer560ModClient.checkHudEditKeybind", Killer560ModClient::checkHudEditKeybind));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PeekChatFeature.tick", com.killer560.hub.peekchat.PeekChatFeature::tick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SweatMode.tick", c -> com.killer560.hub.util.SweatMode.tick()));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WindowModeFeature.tickApplyOnce", WindowModeFeature::tickApplyOnce));
 
         // "/ew waypoint add|remove|undo" (killer560, 2026-09-21: "change the command to /ew waypoint add. add in
