@@ -69,6 +69,21 @@ public final class SimRoomIndex {
      * @param gridX the 11x11 grid coordinates of the room's top-left cell
      */
     public static void add(RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
+        add(room, gridX, gridZ, rotation, null);
+    }
+
+    /**
+     * Records a placed room on the tile cells the MAP gives it.
+     *
+     * <p>An L is not its bounding box. Recording all four tiles of an L's 2x2 capture put the quarter the map leaves
+     * out inside the room for every lookup here (SimScore.roomAt, Secret Waypoints, SimWhere) while the map and the
+     * sidebar said it was outside - one room, two answers. The builder passes the cells it published: a full floor's
+     * flood-filled footprint, a single room's {@code SimBuilder.singleRoomCells}.
+     *
+     * @param tileCells the grid cells of the room's tiles (connector cells are ignored), or null for the whole
+     *                  bounding box at this rotation
+     */
+    public static void add(RoomLibrary.Room room, int gridX, int gridZ, int rotation, int[] tileCells) {
         if (room == null) {
             return;
         }
@@ -81,12 +96,22 @@ public final class SimRoomIndex {
         int tilesZ = (rotation == 90 || rotation == 270)
                 ? tiles(room.sizeX) : tiles(room.sizeZ);
         List<Integer> cells = new ArrayList<>();
-        for (int a = 0; a < tilesX; a++) {
-            for (int b = 0; b < tilesZ; b++) {
-                int gx = gridX + a * 2;
-                int gz = gridZ + b * 2;
-                if (gx >= 0 && gz >= 0 && gx < DungeonLayout.GRID && gz < DungeonLayout.GRID) {
-                    cells.add(gz * DungeonLayout.GRID + gx);
+        if (tileCells != null) {
+            for (int c : tileCells) {
+                int gx = c % DungeonLayout.GRID;
+                int gz = c / DungeonLayout.GRID;
+                if (c >= 0 && gz < DungeonLayout.GRID && (gx & 1) == 0 && (gz & 1) == 0 && !cells.contains(c)) {
+                    cells.add(c);
+                }
+            }
+        } else {
+            for (int a = 0; a < tilesX; a++) {
+                for (int b = 0; b < tilesZ; b++) {
+                    int gx = gridX + a * 2;
+                    int gz = gridZ + b * 2;
+                    if (gx >= 0 && gz >= 0 && gx < DungeonLayout.GRID && gz < DungeonLayout.GRID) {
+                        cells.add(gz * DungeonLayout.GRID + gx);
+                    }
                 }
             }
         }

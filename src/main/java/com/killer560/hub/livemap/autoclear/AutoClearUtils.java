@@ -103,12 +103,9 @@ public final class AutoClearUtils {
         if (name.contains("Maze") || name.contains("Boulder")) {
             return false;
         }
-        if (name.contains("Trap")) {
-            int[] cr = layout.clayRotation(room);
-            if (cr != null && RoomDatabase.toRelativeCoord(player.blockPosition(), cr[0], cr[1], cr[2]).z >= 0) {
-                return false;
-            }
-        }
+        // No by-NAME trap rule after isTrap: QUOI's "Trap in the name, back half refuses" outlived the rule above, and
+        // the only room it still caught was Arrow Trap - a NORMAL room - so the map did nothing while he stood in its
+        // half (killer560, 2026-10-13: "interactive map does not work if i am in arrow trap").
         return true;
     }
 

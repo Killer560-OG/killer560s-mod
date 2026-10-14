@@ -255,11 +255,31 @@ public final class RoomDatabase {
     }
 
     private static int computeTokenHash(Block block) {
-        String name = BuiltInRegistries.BLOCK.getKey(block).toString();
+        return tokenHashOf(BuiltInRegistries.BLOCK.getKey(block).toString());
+    }
+
+    /** One block's share of a core hash, from its id ({@code minecraft:stone}); block-state properties are ignored. */
+    private static int tokenHashOf(String id) {
+        int bracket = id.indexOf('[');
+        String name = bracket < 0 ? id : id.substring(0, bracket);
         if (IGNORED_CORE_BLOCKS.contains(name) || name.endsWith("_planks")) {
             name = "minecraft:air";
         }
         return name.hashCode();
+    }
+
+    /**
+     * {@link #getCore} for a column that is not in a world - a room capture's - by the same rules and the same
+     * y 140..12 walk. {@code blockIdAt} gives the block id at a y ({@code "minecraft:air"} for anything the caller
+     * does not have).
+     */
+    public static int coreOfColumn(java.util.function.IntFunction<String> blockIdAt) {
+        int hash = 1;
+        for (int y = 140; y >= 12; y--) {
+            String id = blockIdAt.apply(y);
+            hash = hash * 31 + tokenHashOf(id == null ? "minecraft:air" : id);
+        }
+        return hash;
     }
 
     /** Real corner/rotation detection, ported from NoammAddons' own {@code UniqueRoom.findRotation} -
