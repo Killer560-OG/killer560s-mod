@@ -104,9 +104,6 @@ public final class PartyInteropState {
     private static final Map<String, Fact<Long>> DRAGONS = new LinkedHashMap<>();
     private static final Deque<String> EVENT_LOG = new ArrayDeque<>();
     private static final Map<InteropSource, Integer> ACCEPTED_BY_SOURCE = new EnumMap<>(InteropSource.class);
-    /** Filled inside the lock, drained on the client tick - so "Log Pickups" never sends chat while holding
-     *  the lock (a chat line comes straight back through {@code ChatObserver} into the parsers). */
-    private static final java.util.Queue<String> PENDING_PICKUP_MESSAGES = new java.util.concurrent.ConcurrentLinkedQueue<>();
 
     private PartyInteropState() {
     }
@@ -341,7 +338,6 @@ public final class PartyInteropState {
             DRAGONS.clear();
             EVENT_LOG.clear();
             ACCEPTED_BY_SOURCE.clear();
-            PENDING_PICKUP_MESSAGES.clear();
         }
     }
 
@@ -362,14 +358,6 @@ public final class PartyInteropState {
         while (EVENT_LOG.size() > MAX_EVENT_LOG) {
             EVENT_LOG.removeLast();
         }
-        if (InteropConfig.getInstance().isLogPickups() && PENDING_PICKUP_MESSAGES.size() < 32) {
-            PENDING_PICKUP_MESSAGES.add(text);
-        }
-    }
-
-    /** @return the next "Log Pickups" line to print, or null. Drained from the client tick. */
-    static String pollPickupMessage() {
-        return PENDING_PICKUP_MESSAGES.poll();
     }
 
     private static String describeReporter(String reporter) {

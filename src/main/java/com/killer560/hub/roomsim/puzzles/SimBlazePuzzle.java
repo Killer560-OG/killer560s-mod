@@ -419,7 +419,7 @@ public final class SimBlazePuzzle {
         }
         if (floorTop == null) {
             com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
-                    "Sim blaze puzzle: no standable floor in {}'s centre column - not armed", p.room().name);
+                    "Sim blaze puzzle: no standable floor in {}'s center column - not armed", p.room().name);
             return false;
         }
         // How much clear air is above that floor, up to the tallest chain worth building.
@@ -439,7 +439,7 @@ public final class SimBlazePuzzle {
         if (chainHeight(chosenSpacing) > headroom) {
             chosenSpacing = 1;
             com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn(
-                    "Sim blaze puzzle: {} has only {} block(s) of headroom in its centre column - stacking the "
+                    "Sim blaze puzzle: {} has only {} block(s) of headroom in its center column - stacking the "
                             + "chain at 1 block apart rather than skipping the room", p.room().name, headroom);
         }
         found = floorTop;
@@ -485,7 +485,7 @@ public final class SimBlazePuzzle {
         complete = false;
         com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
                 "Sim blaze puzzle: {} blaze(s) in {} around {}, {}-HP first, on all sides of the bar at heights "
-                        + "{}, each labelled for BlazeSolverFeature",
+                        + "{}, each labeled for BlazeSolverFeature",
                 ordered.size(), p.room().name, origin, higher ? "lowest" : "highest",
                 java.util.Arrays.stream(placed).map(b -> b.getY() - origin.getY()).sorted().toList());
         return true;

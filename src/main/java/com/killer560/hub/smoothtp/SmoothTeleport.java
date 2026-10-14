@@ -217,7 +217,7 @@ public final class SmoothTeleport {
             cancel();
             snaps++;
             lastDecision = String.format(Locale.ROOT, "snap (%s) %.2f blocks%s", verdict, dist,
-                    wasGliding ? ", glide cancelled" : "");
+                    wasGliding ? ", glide canceled" : "");
             LOGGER.debug("[SmoothTeleport] {}", lastDecision);
             return;
         }

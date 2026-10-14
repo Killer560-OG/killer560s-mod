@@ -94,7 +94,7 @@ public class QuiverDisplayTab extends BaseTab {
         y += 22;
 
         widgets.add(new StringWidget(contentX, y + 2, contentWidth, 12,
-                Component.literal("§7Low Arrow Text (& colour codes, {count} = arrows left)"), mc.font));
+                Component.literal("§7Low Arrow Text (& color codes, {count} = arrows left)"), mc.font));
         y += 14;
         EditBox text = new EditBox(mc.font, contentX, y, contentWidth, 18, Component.literal("Low Arrow Text"));
         text.setMaxLength(100);

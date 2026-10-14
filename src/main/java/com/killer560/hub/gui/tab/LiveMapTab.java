@@ -96,7 +96,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 SectionHeaders.header("Map Appearance", false), Minecraft.getInstance().font));
         y += 16;
-        widgets.add(toggle("Colour Rooms by Type", cfg::isColourByType, cfg::setColourByType, cfg, contentX, y, colW));
+        widgets.add(toggle("Color Rooms by Type", cfg::isColourByType, cfg::setColourByType, cfg, contentX, y, colW));
         widgets.add(toggle("Checkmark Sprites", cfg::isCheckmarkSprites, cfg::setCheckmarkSprites, cfg, colB, y, colW));
         y += 20;
         widgets.add(slider("Darken Unexplored", cfg::getDarkenUnopened, v -> cfg.setDarkenUnopened((float) v), 0, 0.9, "",
@@ -111,7 +111,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         // "map themes: switchable, including a custom one matching the mod's amber look. the recolour feature
         // should be able to save a theme" + "move recolouring into its own subheader under dungeon map")
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Recolouring", false), Minecraft.getInstance().font));
+                SectionHeaders.header("Recoloring", false), Minecraft.getInstance().font));
         y += 16;
         Supplier<Component> themeText = () -> Component.literal("Map Theme: " + LiveMapConfig.THEME_NAMES[cfg.getMapTheme()]);
         widgets.add(SettingsButtonWidget.cycling(themeText.get(), (btn, dir) -> {
@@ -126,9 +126,9 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(colB, y, colW, 18).build());
         y += 20;
         widgets.add(colour("Map Background", cfg::getMapBackground, cfg::setMapBackground, 0x99000000, cfg, contentX, y, colW));
-        widgets.add(colour("Border Colour", cfg::getMapBorderColor, cfg::setMapBorderColor, 0xFFCC6600, cfg, colB, y, colW));
+        widgets.add(colour("Border Color", cfg::getMapBorderColor, cfg::setMapBorderColor, 0xFFCC6600, cfg, colB, y, colW));
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(Component.literal((showColours ? "▼ " : "▶ ") + "Room Colours"), btn -> {
+        widgets.add(SettingsButtonWidget.builder(Component.literal((showColours ? "▼ " : "▶ ") + "Room Colors"), btn -> {
                     showColours = !showColours;
                     requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());
@@ -151,7 +151,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
             widgets.add(themedColour("Unexplored", cfg::getColorUnopened, cfg::setColorUnopened, 0xFF414141, cfg, contentX, y, colW));
             widgets.add(themedColour("Wither Door", cfg::getColorWitherDoor, cfg::setColorWitherDoor, 0xFF101010, cfg, colB, y, colW));
             y += 20;
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Reset Room Colours"), btn -> {
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Reset Room Colors"), btn -> {
                         cfg.applyTheme(LiveMapConfig.THEME_REAL);
                         cfg.save();
                         requestRebuild.run();

@@ -220,7 +220,7 @@ public class NameChangerTab extends BaseTab {
      */
     private int buildLetterColours(List<AbstractWidget> widgets, NameChangerConfig cfg, int contentX, int y,
                                    int contentWidth, net.minecraft.client.gui.Font font, Runnable requestRebuild) {
-        y = CollapsibleSection.header(widgets, contentX, y - 4, contentWidth, "Letter Colours", false,
+        y = CollapsibleSection.header(widgets, contentX, y - 4, contentWidth, "Letter Colors", false,
                 letterColoursOpen, () -> {
                     letterColoursOpen = !letterColoursOpen;
                     requestRebuild.run();
@@ -238,8 +238,8 @@ public class NameChangerTab extends BaseTab {
         }
         int clearW = 130;
         widgets.add(new StringWidget(contentX, y + 3, contentWidth - clearW - 8, 12,
-                Component.literal("§7Click a letter to colour it"), font));
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Clear Letter Colours"), btn -> {
+                Component.literal("§7Click a letter to color it"), font));
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Clear Letter Colors"), btn -> {
                     cfg.clearOwnCharColors();
                     cfg.save();
                     requestRebuild.run();

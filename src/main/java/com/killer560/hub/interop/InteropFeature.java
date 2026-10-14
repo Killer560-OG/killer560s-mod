@@ -67,20 +67,6 @@ public final class InteropFeature {
         if (cfg.isLocalBridge()) {
             LocalModBridge.poll();
         }
-        if (cfg.isLogPickups()) {
-            drainPickupLog(client);
-        }
-    }
-
-    private static void drainPickupLog(Minecraft client) {
-        if (client.player == null) {
-            return;
-        }
-        String text;
-        int printed = 0;
-        while (printed++ < 4 && (text = PartyInteropState.pollPickupMessage()) != null) {
-            ModChat.send("Party Interop", ModChat.text(text));
-        }
     }
 
     /** Convenience for other features: was the mimic killed, according to anyone? */

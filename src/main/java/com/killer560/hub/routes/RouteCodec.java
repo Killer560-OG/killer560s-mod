@@ -90,7 +90,7 @@ public final class RouteCodec {
             }
             return routes.isEmpty() ? Result.fail("No waypoints found in clipboard.") : new Result(routes, null);
         } catch (Exception e) {
-            return Result.fail("Clipboard isn't a recognised waypoint list.");
+            return Result.fail("Clipboard isn't a recognized waypoint list.");
         }
     }
 

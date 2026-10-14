@@ -19,7 +19,8 @@ import java.util.EnumMap;
  * for a run ... Each floor should have a bar that goes from 30s to 4m; for F7 make it go to 6 and for M7 make it go to
  * 7." So each floor's number is the slowest timed completion (S+ personal best, or S per Time Mode) a Party Finder
  * joiner may have on that floor: 30 s to 4 min, F7 to 6 min, M7 to 7 min. There is no "disabled" value any more; a floor ships at the top
- * of its range, the most lenient requirement, and the master switch and Warn Only stay the safe defaults.
+ * of its range, the most lenient requirement, and the master switch stays off by default. killer560, 2026-10-14:
+ * there is no Warn Only - a joiner who misses the floor's time is always kicked.
  * <p>
  * Per-floor keys are individual JSON entries ("target.F1", "target.M7", ...): a hand-edited key only resets that one
  * floor. An old file's 0 ("disabled") reads as the top of the range.
@@ -82,24 +83,6 @@ public final class AutoKickConfig {
         }
     }
 
-    /** What Auto Kick does to a joiner who misses the floor's time. */
-    public enum ActionMode {
-        /** Prints a chat warning only - no command is ever sent. The safe default. */
-        WARN_ONLY("Warn Only"),
-        /** Kicks the joiner ({@code /p kick <name>}). An old "Kick Specific" file reads as Warn Only. */
-        KICK_ALL("Kick");
-
-        private final String label;
-
-        ActionMode(String label) {
-            this.label = label;
-        }
-
-        public String label() {
-            return label;
-        }
-    }
-
     /** Which of a joiner's times is judged (killer560, 2026-10-11: "have a toggle for which ones it uses"). */
     public enum TimeMode {
         /** His S+ personal best only - the behaviour before this setting existed, and the default. */
@@ -148,7 +131,6 @@ public final class AutoKickConfig {
     private static AutoKickConfig instance;
 
     private boolean enabled = false;
-    private ActionMode mode = ActionMode.WARN_ONLY;
     private TimeMode timeMode = TimeMode.S_PLUS;
     private FloorSource floorSource = FloorSource.DETECT;
     /** The floor used when {@link #floorSource} is FIXED (the JSON key "queueFloor", kept from before 2026-10-11). */
@@ -174,7 +156,6 @@ public final class AutoKickConfig {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.mode = ConfigJson.getEnum(obj, "mode", ActionMode.class, ActionMode.WARN_ONLY);
                 cfg.timeMode = ConfigJson.getEnum(obj, "timeMode", TimeMode.class, TimeMode.S_PLUS);
                 Floor fixed = Floor.fromRaw(ConfigJson.getString(obj, "queueFloor", ""));
                 cfg.queueFloor = fixed == null ? Floor.F7 : fixed;
@@ -187,7 +168,7 @@ public final class AutoKickConfig {
                     cfg.setTargetSeconds(f, ConfigJson.getInt(obj, f.key(), 0));
                 }
             } catch (Exception ignored) {
-                // Unreadable file: keep the defaults above (off, Warn Only, every floor at the top of its range).
+                // Unreadable file: keep the defaults above (off, every floor at the top of its range).
             }
         }
         instance = cfg;
@@ -198,7 +179,6 @@ public final class AutoKickConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("mode", mode.name());
             obj.addProperty("timeMode", timeMode.name());
             obj.addProperty("floorSource", floorSource.name());
             obj.addProperty("queueFloor", queueFloor.name());
@@ -221,14 +201,6 @@ public final class AutoKickConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-    }
-
-    public ActionMode getMode() {
-        return mode;
-    }
-
-    public void setMode(ActionMode mode) {
-        this.mode = mode == null ? ActionMode.WARN_ONLY : mode;
     }
 
     public TimeMode getTimeMode() {

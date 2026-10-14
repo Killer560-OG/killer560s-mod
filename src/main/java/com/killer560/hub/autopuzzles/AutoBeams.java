@@ -152,7 +152,7 @@ public final class AutoBeams {
         }
         BlockPos start = PuzzleCoords.real(16, 74, 14, cr);
         if (client.level.getBlockState(start).isAir()) {
-            say("waiting: the centre platform at " + AutoPuzzleUtil.fmt(start) + " reads air (chunk not loaded yet?)");
+            say("waiting: the center platform at " + AutoPuzzleUtil.fmt(start) + " reads air (chunk not loaded yet?)");
             return;
         }
         if (REPOSITION.isActive()) {
@@ -174,10 +174,10 @@ public final class AutoBeams {
         // straight after the first had landed.
         if (Math.abs(player.getY() - platformY) > 0.5) {
             if (reposition) {
-                say("off the centre platform - repositioning onto " + AutoPuzzleUtil.fmt(start));
+                say("off the center platform - repositioning onto " + AutoPuzzleUtil.fmt(start));
                 REPOSITION.start(client, start, true, false, false);
             } else {
-                say("waiting: stand on the centre platform (Etherwarp Reposition is off)");
+                say("waiting: stand on the center platform (Etherwarp Reposition is off)");
             }
             return;
         }
@@ -246,7 +246,7 @@ public final class AutoBeams {
         LOGGER.info("[AutoPuzzles] Beams: shot at {} (pair stage {}) from {}, yaw {} pitch {}{}", AutoPuzzleUtil.fmt(lantern),
                 pair.stage, String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", eye.x, eye.y, eye.z),
                 String.format(java.util.Locale.ROOT, "%.1f", dir[0]), String.format(java.util.Locale.ROOT, "%.1f", dir[1]),
-                seen ? "" : " - no clear line to any face, aimed at the centre");
+                seen ? "" : " - no clear line to any face, aimed at the center");
     }
 
     /**

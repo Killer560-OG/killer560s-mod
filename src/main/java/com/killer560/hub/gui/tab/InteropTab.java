@@ -83,13 +83,6 @@ public class InteropTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Local Mod Bridge", cfg.isLocalBridge()));
                 }).bounds(contentX, y, 220, 18).build());
-        y += 22;
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Log Pickups", cfg.isLogPickups()), btn -> {
-                    cfg.setLogPickups(!cfg.isLogPickups());
-                    cfg.save();
-                    btn.setMessage(onOff("Log Pickups", cfg.isLogPickups()));
-                }).bounds(contentX, y, 220, 18).build());
         y += 26;
 
         // Cross-Mod Bridge (Devonian / NoammAddons / Odin party sockets) - its own block, see BridgeSettingsBlock.

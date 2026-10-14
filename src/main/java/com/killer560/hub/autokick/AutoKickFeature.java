@@ -1,7 +1,6 @@
 package com.killer560.hub.autokick;
 
 import com.google.gson.JsonObject;
-import com.killer560.hub.autokick.AutoKickConfig.ActionMode;
 import com.killer560.hub.autokick.AutoKickConfig.Floor;
 import com.killer560.hub.autokick.AutoKickConfig.TimeMode;
 import com.killer560.hub.partyfinder.PartyFinderStatsApi;
@@ -34,7 +33,7 @@ import java.util.regex.Pattern;
  * When Hypixel says "Party Finder > Name joined the dungeon group! (Class Level N)" and you are NOT in a dungeon, the
  * joiner's S+ personal best on the floor being queued is looked up ({@link PartyFinderStatsApi}, the Party Finder
  * overlay's own cached lookup), and if it is slower than that floor's time on the tab - or there is none - Auto Kick
- * warns (Warn Only, the default) or sends {@code /p kick <name>} (Kick). A lookup that fails never kicks anyone; it says
+ * sends {@code /p kick <name>} (there is no warn-only mode since 2026-10-14). A lookup that fails never kicks anyone; it says
  * so. The floor being queued comes from the Floor Source: Detect Queued (the default - {@link QueuedFloorDetector}, the
  * floor last queued in Party Finder, else the last run's), Last Run, or the Fixed Floor. Which time is
  * judged is the Time Mode: S+ (the default), S, or S+ else S.
@@ -187,13 +186,11 @@ public final class AutoKickFeature {
             return;
         }
         String pbStr = pb > 0 ? mmSs(pb) : "none";
-        boolean kick = cfg.getMode() == ActionMode.KICK_ALL;
-        decide(name + " " + floor.name() + " " + kind + " " + pbStr + " limit " + limitStr + " -> "
-                + (kick ? "kick" : "warn"));
+        decide(name + " " + floor.name() + " " + kind + " " + pbStr + " limit " + limitStr + " -> kick");
         ModChat.send("Auto Kick", ModChat.value(name), ModChat.text(" - " + floor.label() + " " + kind + " "),
                 ModChat.value(pbStr), ModChat.text(", limit "), ModChat.value(limitStr),
-                ModChat.dim(kick ? ". Kicking." : ". Warn only, not kicked."));
-        if (kick && !pendingKicks.contains(name)) {
+                ModChat.dim(". Kicking."));
+        if (!pendingKicks.contains(name)) {
             pendingKicks.add(name);
         }
     }

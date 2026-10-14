@@ -36,9 +36,9 @@ import java.util.List;
  * are on. Like that class, this does not filter by which player's name is in the message - any party
  * member obtaining the key marks it held, same as the existing behaviour it mirrors.
  * <li><b>Legit honesty:</b> the closest-door box is always drawn with {@code WorldRenderUtils.renderOutlineBox}
- * (depth-tested, so it disappears behind geometry) - "Show All Doors" and "Through Walls" only exist as
- * {@link WitherDoorsConfig} getters gated on {@link BuildVariant#CHEAT_FEATURES_ENABLED}, so the legit jar
- * cannot compile a path that sets either true regardless of a hand-edited config file.
+ * (depth-tested, so it disappears behind geometry) - "Show All Doors" (which also draws through walls) only
+ * exists as a {@link WitherDoorsConfig} getter gated on {@link BuildVariant#CHEAT_FEATURES_ENABLED}, so the legit
+ * jar cannot compile a path that sets it true regardless of a hand-edited config file.
  * <li><b>p3sim:</b> gated on {@code CheatUtils.isOnDungeonServer}, same as Door Helpers.
  * <li><b>Render cost:</b> the door grid scan ({@link WitherDoorScanner}) only touches unscanned cells and
  * re-checks every {@code RESCAN_TICKS} (10) ticks, same as the doorhelpers original. The highlight list

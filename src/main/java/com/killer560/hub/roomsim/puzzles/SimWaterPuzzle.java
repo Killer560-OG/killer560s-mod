@@ -377,7 +377,7 @@ public final class SimWaterPuzzle {
                 found += list.size();
             }
         }
-        LOGGER.info("Sim Water Board: bottom path read - {} layer piston(s) over {} colour(s)", found, LAYERS.size());
+        LOGGER.info("Sim Water Board: bottom path read - {} layer piston(s) over {} color(s)", found, LAYERS.size());
     }
 
     // ------------------------------------------------------------------------------------------- the board
@@ -626,7 +626,7 @@ public final class SimWaterPuzzle {
         hasWater = withWater;
         setFlowing(level, false);
         LOGGER.info("Sim Water Board: armed on board {} (identifier {}, optimizedPath {}) - {} gate click(s)"
-                        + " then {} timed, colours out: {}",
+                        + " then {} timed, colors out: {}",
                 slots, identifier, optimized, preFlow.size(), timed.size(), board);
         return true;
     }

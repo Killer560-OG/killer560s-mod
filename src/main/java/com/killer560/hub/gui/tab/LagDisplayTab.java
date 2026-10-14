@@ -52,7 +52,7 @@ public class LagDisplayTab extends BaseTab {
         // slider), and tooltips are looked up by lower-cased label, so a bare "CPS" would show that text.
         toggle(w, colB, y[0], half, "CPS Counter", cfg::isShowCps, cfg::setShowCps, cfg);
         y[0] += 22;
-        toggle(w, contentX, y[0], contentWidth, "Colour By Value", cfg::isColorByValue, cfg::setColorByValue, cfg);
+        toggle(w, contentX, y[0], contentWidth, "Color By Value", cfg::isColorByValue, cfg::setColorByValue, cfg);
         y[0] += 24;
         return w;
     }

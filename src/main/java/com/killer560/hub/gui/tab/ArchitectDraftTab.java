@@ -1,15 +1,18 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.architect.ArchitectDraftConfig;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /** Architect's First Draft - see {@link com.killer560.hub.architect.ArchitectDraftFeature}. The Auto Get row only
- *  exists on the cheat build (red label). */
+ *  exists on the cheat build, at the bottom under the red Cheat header (killer560, 2026-10-14). */
 public class ArchitectDraftTab extends BaseTab {
 
     public ArchitectDraftTab() {
@@ -28,10 +31,13 @@ public class ArchitectDraftTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            w.add(SettingsButtonWidget.builder(onOff("§cAuto Get From Sack", cfg.isAutoGetRaw()), btn -> {
+            w.add(new StringWidget(contentX, y, contentWidth, 12,
+                    SectionHeaders.header("Cheat Build - Automation", true), Minecraft.getInstance().font));
+            y += 16;
+            w.add(SettingsButtonWidget.builder(onOff("Auto Get From Sack", cfg.isAutoGetRaw()), btn -> {
                         cfg.setAutoGet(!cfg.isAutoGetRaw());
                         cfg.save();
-                        btn.setMessage(onOff("§cAuto Get From Sack", cfg.isAutoGetRaw()));
+                        btn.setMessage(onOff("Auto Get From Sack", cfg.isAutoGetRaw()));
                     }).bounds(contentX, y, contentWidth, 20).build());
         }
         return w;

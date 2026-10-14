@@ -263,7 +263,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
     private void buildColourSection(List<AbstractWidget> w, AutoRoutesConfig cfg, int x, int[] y, int width, int half,
                                     Runnable rebuild) {
         boolean open = scanningForSearch || cfg.isColorsSectionOpen();
-        y[0] = CollapsibleSection.header(w, x, y[0], width, "Colours", true, open, () -> {
+        y[0] = CollapsibleSection.header(w, x, y[0], width, "Colors", true, open, () -> {
             cfg.setColorsSectionOpen(!cfg.isColorsSectionOpen());
             cfg.save();
             rebuild.run();
@@ -274,22 +274,22 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         // "Colour options per node type (superboom nodes red, bat nodes bat-coloured, etc.) or one uniform colour."
         int right = Math.max(1, width - half - GAP);
         // The switch and the always-there Active Node Colour share the first row.
-        toggleCell(w, x, y[0], half, "Uniform Colour", cfg::isUniformColor, cfg::setUniformColor, rebuild);
-        colorButton(w, x + half + GAP, y[0], right, "Active Node Colour", cfg.getActiveColorArgb(), 0xFFFFFFFF, cfg::setActiveColorArgb);
+        toggleCell(w, x, y[0], half, "Uniform Color", cfg::isUniformColor, cfg::setUniformColor, rebuild);
+        colorButton(w, x + half + GAP, y[0], right, "Active Node Color", cfg.getActiveColorArgb(), 0xFFFFFFFF, cfg::setActiveColorArgb);
         y[0] += 24;
         if (cfg.isUniformColor()) {
-            colorButton(w, x, y[0], width, "Colour", cfg.getUniformColorArgb(), 0xFF00FFFF, cfg::setUniformColorArgb);
+            colorButton(w, x, y[0], width, "Color", cfg.getUniformColorArgb(), 0xFF00FFFF, cfg::setUniformColorArgb);
             y[0] += 24 + GAP;
             return;
         }
         RouteNode.Type[] types = RouteNode.Type.values();
         for (int i = 0; i < types.length; i += 2) {
             RouteNode.Type a = types[i];
-            colorButton(w, x, y[0], half, AutoRoutesCommands.typeName(a) + " Colour", cfg.getNodeColorArgb(a), defaultColor(a),
+            colorButton(w, x, y[0], half, AutoRoutesCommands.typeName(a) + " Color", cfg.getNodeColorArgb(a), defaultColor(a),
                     argb -> cfg.setNodeColorArgb(a, argb));
             if (i + 1 < types.length) {
                 RouteNode.Type b = types[i + 1];
-                colorButton(w, x + half + GAP, y[0], right, AutoRoutesCommands.typeName(b) + " Colour", cfg.getNodeColorArgb(b), defaultColor(b),
+                colorButton(w, x + half + GAP, y[0], right, AutoRoutesCommands.typeName(b) + " Color", cfg.getNodeColorArgb(b), defaultColor(b),
                         argb -> cfg.setNodeColorArgb(b, argb));
             }
             y[0] += 24;

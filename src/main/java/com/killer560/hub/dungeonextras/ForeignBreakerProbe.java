@@ -96,7 +96,7 @@ public final class ForeignBreakerProbe {
         // Only speak when somebody else was breaking, or this would drown the log during his own runs.
         if (foreignSends > 0) {
             LOGGER.info("[DungeonExtras] FOREIGN BREAKER over {}s: {} send(s) across {} tick(s), {} distinct block(s)"
-                            + " | {} a second | MOST ON ONE TICK {} | furthest: {} to the block, {} to its centre"
+                            + " | {} a second | MOST ON ONE TICK {} | furthest: {} to the block, {} to its center"
                             + " | line of sight {} clear / {} blocked | {} repeat(s)"
                             + " | {} swing(s), {} hotbar swap(s) | (his hand {}, ours {}, aborts {}, stops {})",
                     fmt(secs), foreignSends, foreignTicks, foreignBlocks.size(),
@@ -164,7 +164,7 @@ public final class ForeignBreakerProbe {
             losBlocked++;
         }
         LOGGER.info("[DungeonExtras] foreign break t{} #{} at {} face {} seq {} | {} to the block,"
-                        + " {} to its centre | line of sight {} | this tick: {}",
+                        + " {} to its center | line of sight {} | this tick: {}",
                 tick, foreignSends, pos.toShortString(), face, sequence, fmt(box), fmt(centre),
                 los ? "clear" : "BLOCKED", foreignOnThisTick);
     }

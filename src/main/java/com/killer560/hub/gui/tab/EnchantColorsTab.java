@@ -31,7 +31,7 @@ import com.killer560.hub.compat.McCompat;
 public class EnchantColorsTab extends BaseTab {
 
     public EnchantColorsTab() {
-        super("Enchant Colours");
+        super("Enchant Colors");
     }
 
     @Override
@@ -41,7 +41,7 @@ public class EnchantColorsTab extends BaseTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Enchant Colours", cfg.isEnabledRaw()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Enchant Colors", cfg.isEnabledRaw()), btn -> {
                     cfg.setEnabled(!cfg.isEnabledRaw());
                     cfg.save();
                     requestRebuild.run();
@@ -73,7 +73,7 @@ public class EnchantColorsTab extends BaseTab {
         if (!cfg.isOnlyKnownEnchants()) {
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Unknown Enchants", cfg.getUnknownColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Unknown Enchant Colour",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Unknown Enchant Color",
                                 cfg.getUnknownColor(), EnchantColorsDefaults.UNKNOWN, argb -> {
                             cfg.setUnknownColor(argb);
                             cfg.save();
@@ -84,12 +84,12 @@ public class EnchantColorsTab extends BaseTab {
 
         // ---------------- Tier colours ----------------
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Tier Colours", false), mc.font));
+                SectionHeaders.header("Tier Colors", false), mc.font));
         y += 16;
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Poor", cfg.getPoorColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Poor Enchant Colour",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Poor Enchant Color",
                             cfg.getPoorColor(), EnchantColorsDefaults.POOR, argb -> {
                         cfg.setPoorColor(argb);
                         cfg.save();
@@ -97,7 +97,7 @@ public class EnchantColorsTab extends BaseTab {
                 }).bounds(contentX, y, half, 18).build());
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Good", cfg.getGoodColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Good Enchant Colour",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Good Enchant Color",
                             cfg.getGoodColor(), EnchantColorsDefaults.GOOD, argb -> {
                         cfg.setGoodColor(argb);
                         cfg.save();
@@ -107,7 +107,7 @@ public class EnchantColorsTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Great", cfg.getGreatColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Great Enchant Colour",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Great Enchant Color",
                             cfg.getGreatColor(), EnchantColorsDefaults.GREAT, argb -> {
                         cfg.setGreatColor(argb);
                         cfg.save();
@@ -116,7 +116,7 @@ public class EnchantColorsTab extends BaseTab {
         if (!cfg.isPerfectChroma()) {
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Perfect", cfg.getPerfectColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Perfect Enchant Colour",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Perfect Enchant Color",
                                 cfg.getPerfectColor(), EnchantColorsDefaults.PERFECT, argb -> {
                             cfg.setPerfectColor(argb);
                             cfg.save();
@@ -183,9 +183,9 @@ public class EnchantColorsTab extends BaseTab {
         y += 22;
 
         if (cfg.isUltimateEnabled()) {
-            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Ultimate Colour", cfg.getUltimateColor()), btn -> {
+            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Ultimate Color", cfg.getUltimateColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Ultimate Enchant Colour",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Ultimate Enchant Color",
                                 cfg.getUltimateColor(), EnchantColorsDefaults.ULTIMATE, argb -> {
                             cfg.setUltimateColor(argb);
                             cfg.save();

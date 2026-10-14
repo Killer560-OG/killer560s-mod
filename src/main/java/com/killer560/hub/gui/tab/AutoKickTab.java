@@ -2,7 +2,6 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.autokick.AutoKickApi;
 import com.killer560.hub.autokick.AutoKickConfig;
-import com.killer560.hub.autokick.AutoKickConfig.ActionMode;
 import com.killer560.hub.autokick.AutoKickConfig.Floor;
 import com.killer560.hub.autokick.AutoKickConfig.FloorSource;
 import com.killer560.hub.autokick.AutoKickConfig.TimeMode;
@@ -53,24 +52,17 @@ public class AutoKickTab extends BaseTab {
 
         // ---------------------------------------------------------------- Action
         // killer560, 2026-10-09: Party Finder only, and the "this can remove real ...", "0 = disabled" and "ships ..."
-        // notes are gone. The Action Mode is Warn Only or Kick, and the floor being queued sits beside it.
+        // notes are gone. 2026-10-14: no Action Mode (Warn Only was removed); a joiner who misses the time is kicked.
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 SectionHeaders.header("Action", false), Minecraft.getInstance().font));
         y += 16;
-        widgets.add(SettingsButtonWidget.builder(modeText(cfg.getMode()), btn -> {
-                    cycleMode(cfg, 1);
-                    btn.setMessage(modeText(cfg.getMode()));
-                }).secondaryPress(btn -> {
-                    cycleMode(cfg, -1);
-                    btn.setMessage(modeText(cfg.getMode()));
-                }).bounds(contentX, y, colW, 18).build());
         widgets.add(SettingsButtonWidget.builder(timeModeText(cfg.getTimeMode()), btn -> {
                     cycleTimeMode(cfg, 1);
                     btn.setMessage(timeModeText(cfg.getTimeMode()));
                 }).secondaryPress(btn -> {
                     cycleTimeMode(cfg, -1);
                     btn.setMessage(timeModeText(cfg.getTimeMode()));
-                }).bounds(colBX, y, colW, 18).build());
+                }).bounds(contentX, y, colW, 18).build());
         y += 22;
         // The Fixed Floor row only matters (and only shows) when the Floor Source is Fixed.
         widgets.add(SettingsButtonWidget.builder(floorSourceText(cfg.getFloorSource()), btn -> {
@@ -153,13 +145,6 @@ public class AutoKickTab extends BaseTab {
         return Component.literal("Fixed Floor: §6" + floor.label());
     }
 
-    private static void cycleMode(AutoKickConfig cfg, int direction) {
-        ActionMode[] modes = ActionMode.values();
-        int next = Math.floorMod(cfg.getMode().ordinal() + direction, modes.length);
-        cfg.setMode(modes[next]);
-        cfg.save();
-    }
-
     /** 30 s up to the floor's own top (4 min; F7 6 min, M7 7 min), in 5 s steps. */
     private static AbstractWidget floorSlider(AutoKickConfig cfg, Floor floor, int x, int y, int w) {
         int min = AutoKickConfig.MIN_TARGET_SECONDS;
@@ -188,10 +173,6 @@ public class AutoKickTab extends BaseTab {
         int m = seconds / 60;
         int s = seconds % 60;
         return String.format(Locale.US, "%d:%02d", m, s);
-    }
-
-    private static Component modeText(ActionMode mode) {
-        return Component.literal("Action Mode: §6" + mode.label());
     }
 
     private static Component onOff(String label, boolean value) {

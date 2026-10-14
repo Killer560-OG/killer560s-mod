@@ -154,13 +154,6 @@ public class WitherDoorsTab extends BaseTab {
             y += 22;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Through Walls", cfg.isThroughWallsRaw()), btn -> {
-                    cfg.setThroughWalls(!cfg.isThroughWallsRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Through Walls", cfg.isThroughWallsRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 22;
-
         // killer560, 2026-10-07: the door into Fairy on the blood-rush path, until anyone enters Fairy (FairyDoor).
         // Both rows always built, so cycling the toggle never moves a row under the cursor.
         widgets.add(SettingsButtonWidget.builder(onOff("Fairy Door", cfg.isFairyDoorRaw()), btn -> {

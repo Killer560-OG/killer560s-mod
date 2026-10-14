@@ -364,7 +364,7 @@ public final class SimTeleportMazePuzzle {
         List<Integer> route = routeToCentre(l);
         List<Integer> diagonal = TeleportMazeLinks.diagonalWalk(l, REAL_PADS);
         com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
-                "Sim teleport maze: {} closed loop(s); following diagonals reaches the centre in {} pad(s)",
+                "Sim teleport maze: {} closed loop(s); following diagonals reaches the center in {} pad(s)",
                 TeleportMazeLinks.loops(l, REAL_PADS), diagonal == null ? "never" : String.valueOf(diagonal.size()));
         if (route != null) {
             logRoute(route);
@@ -433,8 +433,8 @@ public final class SimTeleportMazePuzzle {
                     .append(" (").append(rel[0]).append(',').append(rel[2]).append(')');
         }
         com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
-                "Sim teleport maze: exit pad is relative ({},{}) in chamber {}; shortest way to the centre is {} "
-                        + "pad(s): {} -> centre", REAL_PADS[exitPad][0], REAL_PADS[exitPad][2],
+                "Sim teleport maze: exit pad is relative ({},{}) in chamber {}; shortest way to the center is {} "
+                        + "pad(s): {} -> center", REAL_PADS[exitPad][0], REAL_PADS[exitPad][2],
                 chamberOf(exitPad), route.size(), sb);
     }
 
@@ -506,7 +506,7 @@ public final class SimTeleportMazePuzzle {
                     level.getBlockState(chest));
         }
         com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
-                "Sim teleport maze: reward chest at {}, the centre's pad returns to {}", rewardChest, returnSpot);
+                "Sim teleport maze: reward chest at {}, the center's pad returns to {}", rewardChest, returnSpot);
     }
 
     private static boolean insideCentre(BlockPos feet) {
