@@ -2807,3 +2807,15 @@ across). Captures carry no "breakable" marking, so groups are by block family an
 - Sim mobs are `setNoAi(true)`, which also means no gravity: one placed in the air stays there. Big Red Flag's prince spawned
   above its tomb's top block, which the same blast removed (2026-10-13). `SimMobs.spawnCrypt` drops crypt and prince undead to
   the top of the first collision box below; 1401/1402 check the feet.
+
+## Water stands still outside the Water Board (2026-10-13, sim-water-static)
+
+killer560: "make it so if there is water it will not update its flow path outside of water board in sim." Hypixel's dungeon
+water is static; the sim's was vanilla, so a fall without its source drained, a pool with an open side ran over the floor and
+a wall the breaker opened let it out. `roomsim/mixin/SimStaticWaterMixin` cancels `FlowingFluid.tick(ServerLevel, BlockPos,
+BlockState, FluidState)` at HEAD for water (`WaterFluid` does not override it; same descriptor in 26.1.2 and 26.2, javap) on
+the integrated server's overworld while `SimState.isActive()`, unless the column is inside a placed Water Board's paste box.
+`SimStaticWater` reads that box from `SimRoomIndex` (cached on its new `version()`): `cellCenter - TILE/2 - margin`, the
+PasteJob anchor, by the room's size turned by its paste rotation, every y - so it holds whether or not the puzzle armed.
+A cancelled tick is consumed; nothing reschedules it. `frozenTicks()`/`allowedTicks()` count both ways, and the first freeze
+on a floor logs "Sim water: holding water still outside the Water Board". Testkit 1410-sim-water-static.
