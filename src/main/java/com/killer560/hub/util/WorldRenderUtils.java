@@ -175,6 +175,38 @@ public final class WorldRenderUtils {
         });
     }
 
+    /**
+     * An outline of only the box's edges that bound a face turned towards {@code cam}. The back edges are left out, so
+     * where the block itself is not a full cube (a stair's open corner) they cannot show through it and make the box
+     * look as if it sat behind the block. killer560 (2026-10-13), the Etherwarp Overlay on a stair.
+     */
+    public static void renderFrontOutlineBox(LevelRenderContext context, AABB box, Vec3 cam, float r, float g, float b,
+                                             float a, float thickness) {
+        float x0 = (float) box.minX, y0 = (float) box.minY, z0 = (float) box.minZ;
+        float x1 = (float) box.maxX, y1 = (float) box.maxY, z1 = (float) box.maxZ;
+        // Which of the six faces look at the camera: -x, +x, -y, +y, -z, +z.
+        boolean[] faces = {cam.x < box.minX, cam.x > box.maxX, cam.y < box.minY, cam.y > box.maxY,
+                cam.z < box.minZ, cam.z > box.maxZ};
+        McRender.inCameraSpace(context, RenderTypes.LINES_TRANSLUCENT, (pose, buffer) -> {
+            for (int i = 0; i < EDGES.length; i += 2) {
+                int k0 = EDGES[i];
+                int k1 = EDGES[i + 1];
+                float sx = cornerX(k0, x0, x1), sy = cornerY(k0, y0, y1), sz = k0 >= 4 ? z1 : z0;
+                float ex = cornerX(k1, x0, x1), ey = cornerY(k1, y0, y1), ez = k1 >= 4 ? z1 : z0;
+                // The edge lies on each face whose coordinate both its corners share.
+                boolean front = sx == ex && faces[sx == x0 ? 0 : 1]
+                        || sy == ey && faces[sy == y0 ? 2 : 3]
+                        || sz == ez && faces[sz == z0 ? 4 : 5];
+                if (!front) {
+                    continue;
+                }
+                float dx = ex - sx, dy = ey - sy, dz = ez - sz;
+                buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
+                buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
+            }
+        });
+    }
+
     /** One straight line, optionally through walls ({@link #initThroughWalls()} at init for that). */
     public static void renderLine(LevelRenderContext context, Vec3 start, Vec3 end, float r, float g, float b, float a,
                                   float thickness, boolean throughWalls) {

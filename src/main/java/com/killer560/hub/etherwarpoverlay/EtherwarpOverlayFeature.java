@@ -154,7 +154,8 @@ public final class EtherwarpOverlayFeature {
         // Pulled 1% of the way towards the camera, so lines drawn exactly on the block's own faces never tie with them
         // for depth. Scaling about the eye moves every point along its own sight line: the box lands on exactly the same
         // pixels and only its depth changes (growing the box instead pushed the lines visibly outside the face up close).
-        box = towardsCamera(box, com.killer560.hub.compat.McRender.cameraPos(context));
+        Vec3 cam = com.killer560.hub.compat.McRender.cameraPos(context);
+        box = towardsCamera(box, cam);
         // Colour + style are user-picked since 2026-09-16 (killer560's testing feedback); the defaults are the
         // exact green/red outline this always drew. Style semantics copied from Simon Says so "Filled" and
         // "Filled+Outline" look the same across the mod: a plain fill uses the colour's own alpha, the combo
@@ -165,12 +166,14 @@ public final class EtherwarpOverlayFeature {
                 case FILLED -> WorldRenderUtils.renderFilledBox(context, box, c[0], c[1], c[2], c[3]);
                 case FILLED_OUTLINE -> {
                     WorldRenderUtils.renderFilledBox(context, box, c[0], c[1], c[2], c[3] * 0.5f);
-                    WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 1f, 2f);
+                    WorldRenderUtils.renderFrontOutlineBox(context, box, cam, c[0], c[1], c[2], 1f, 2f);
                 }
-                // Just the box's own twelve edges, at every distance: an edge off screen is simply not seen. killer560
-                // (2026-10-13): "I want the full outline and if you can't see an Edge then don't draw that part of it" -
-                // replacing a red tint, then a smaller outline shrunk onto the face he was pressed against.
-                default -> WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 1f, 2f);
+                // The box's own edges at every distance (an edge off screen is simply not seen), but only those of the
+                // faces turned towards him. killer560 (2026-10-13): "I want the full outline and if you can't see an Edge
+                // then don't draw that part of it" - replacing a red tint, then a smaller outline shrunk onto the face he
+                // was pressed against. The back edges showed through a stair's open corner and made the box look as if it
+                // sat behind the block (his screenshots of a stone brick stair, both versions).
+                default -> WorldRenderUtils.renderFrontOutlineBox(context, box, cam, c[0], c[1], c[2], 1f, 2f);
             }
         } catch (Exception e) {
             LOGGER.warn("[EtherwarpOverlay] Render failed: {}", e.toString());
