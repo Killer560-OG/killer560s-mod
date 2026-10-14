@@ -102,6 +102,16 @@ import java.util.concurrent.ConcurrentHashMap;
  *       {@code (9, 58, 14)} and {@code (9, 58, 18)}. The pairing by wood is read off the capture, not seen on Hypixel.</li>
  * </ul>
  *
+ * <h2>2026-10-14: Buttons and Dome</h2>
+ *
+ * <ul>
+ *   <li><b>Buttons.</b> "make this lever in buttons drop this gate": the floor lever on the oak log at {@code (43, 81, 58)}
+ *       drops the 3x9 oak log gate at {@code x=56..58, y=80..88, z=16} (27 blocks, exactly the box - the room's only
+ *       solid wood wall).</li>
+ *   <li><b>Dome.</b> "make it so the lever in dome drops this door": the wall lever at {@code (22, 75, 7)} drops the
+ *       3x5x2 oak log door right above it at {@code x=21..22, y=77..81, z=4..6} (30 blocks, exactly the box).</li>
+ * </ul>
+ *
  * <p>Opening is one-way and once only, like the real thing - flicking the lever back does not put the blocks
  * back, because on Hypixel it does not either. A fresh floor rearms everything.
  */
@@ -157,7 +167,12 @@ public final class SimRoomLevers {
             new Rule("Doors",
                     new int[]{44, 59, 16}, new int[]{24, 58, 15}, new int[]{24, 64, 17}),
             new Rule("Doors",
-                    new int[]{46, 59, 16}, new int[]{20, 58, 15}, new int[]{20, 64, 17}));
+                    new int[]{46, 59, 16}, new int[]{20, 58, 15}, new int[]{20, 64, 17}),
+            // 2026-10-14 (see the class comment).
+            new Rule("Buttons",
+                    new int[]{43, 81, 58}, new int[]{56, 80, 16}, new int[]{58, 88, 16}),
+            new Rule("Dome",
+                    new int[]{22, 75, 7}, new int[]{21, 77, 4}, new int[]{22, 81, 6}));
 
     /** Lever world position to the blocks it clears, for the floor currently standing. */
     private static final Map<BlockPos, List<BlockPos>> ARMED = new ConcurrentHashMap<>();
