@@ -344,8 +344,26 @@ public final class SimBuildQueue {
      * falling into the void, or he will practise a route that walks through one.
      */
     public static synchronized void submitSeal(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
+        submitSeal(level, minX, minZ, maxX, maxZ, null);
+    }
+
+    /**
+     * {@link #submitSeal(ServerLevel, int, int, int, int)}, leaving out the ring inside {@code skip}
+     * ({@code {minX, minZ, maxX, maxZ}}, or null) - an L room's cleared quarter, which has no wall to plug.
+     */
+    public static synchronized void submitSeal(ServerLevel level, int minX, int minZ, int maxX, int maxZ, int[] skip) {
         markStart();
-        JOBS.add(new SealJob(level, minX, minZ, maxX, maxZ));
+        JOBS.add(new SealJob(level, minX, minZ, maxX, maxZ, skip));
+    }
+
+    /**
+     * Clears a box AFTER everything already queued - unlike {@link #submitClear}, which jumps the queue so a wipe
+     * runs before the paste it makes room for. For taking something back out of a paste (an L room's fourth
+     * quarter, see {@code SimBuilder.buildSingleRoom}).
+     */
+    public static synchronized void submitClearAfter(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
+        markStart();
+        JOBS.add(new ClearJob(level, minX, minZ, maxX, maxZ));
     }
 
     /** Fills the air in a box's outer ring with an obvious block. */
@@ -356,6 +374,7 @@ public final class SimBuildQueue {
         private final int minZ;
         private final int maxX;
         private final int maxZ;
+        private final int[] skip;
         private final net.minecraft.core.BlockPos.MutableBlockPos cursor =
                 new net.minecraft.core.BlockPos.MutableBlockPos();
         private final net.minecraft.world.level.block.state.BlockState fill =
@@ -368,7 +387,8 @@ public final class SimBuildQueue {
         private long visited;
         private final long total;
 
-        SealJob(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
+        SealJob(ServerLevel level, int minX, int minZ, int maxX, int maxZ, int[] skip) {
+            this.skip = skip;
             this.total = (long) (maxX - minX + 1) * (maxZ - minZ + 1)
                     * (RoomLibrary.MAX_Y - RoomLibrary.MIN_Y + 1);
             this.level = level;
@@ -410,6 +430,9 @@ public final class SimBuildQueue {
                 }
                 visited++;
                 boolean onRing = x == minX || x == maxX || z == minZ || z == maxZ;
+                if (onRing && skip != null && x >= skip[0] && x <= skip[2] && z >= skip[1] && z <= skip[3]) {
+                    onRing = false;
+                }
                 if (onRing) {
                     cursor.set(x, y, z);
                     if (level.getBlockState(cursor).isAir()) {

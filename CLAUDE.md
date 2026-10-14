@@ -303,6 +303,11 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the
   kill. Both now score on the mob's DEATH (`SimMobs.spawnCrypt`, `SimMimic.tickServer`), the mimic chest is a trapped
   chest, and a secret bat carries Hypixel's 100 max health (the client's only way to tell it from a sceptre bat).
+- An L room's missing quarter is decided ONLY by `roomsim/RoomLShape` (room-database core of each tile's centre column,
+  then a wholly empty tile). "Emptiest in y 66..99" read Lava Ravine's ravine as missing and kept Market's Chains quarter;
+  the solo map, `SimRoomIndex`, the paste clear and the spawn all ask it (testkit 97-sim-lshape, 2026-10-14).
+- `AutoClearUtils.canPath` must not test a room NAME for "Trap" once `isTrap` has read the database: Arrow Trap is NORMAL,
+  and the leftover QUOI rule made every map press from its back half silently do nothing (99-sim-arrowtrap, 2026-10-14).
 - A map-code build (`SimBuilder.build`) is a "generated floor": the sim's Dungeon Breaker silently refuses every block
   until `SimRun` has started. A test that breaks blocks must `SimRun.begin` first.
 - Anything the sim holds that names a `ServerLevel` must be dropped on EVERY unload, not only when `SimState` is still

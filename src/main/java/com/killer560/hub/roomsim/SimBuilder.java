@@ -266,7 +266,12 @@ public final class SimBuilder {
                 // written before the paste reaches that cell would simply be pasted over.
                 afterBuild.add(() -> SimSecrets.place(level, fr, fgx, fgz, rot));
                 // So Secret Waypoints knows this room is here - see SimRoomIndex.
-                SimRoomIndex.add(room, gx, gz, rot);
+                // On the cells the map gives it, which for an L he drew is three tiles, not the capture's 2x2 box.
+                int[] footprintCells = new int[footprint.size()];
+                for (int i = 0; i < footprintCells.length; i++) {
+                    footprintCells[i] = footprint.get(i);
+                }
+                SimRoomIndex.add(room, gx, gz, rot, footprintCells);
                 // And so the build can read the blocks back afterwards and check they are this room's - see
                 // SimBuildAudit, which is the only check here whose answer comes from the world.
                 SimBuildAudit.record(room, gx, gz, rot);
@@ -674,6 +679,28 @@ public final class SimBuilder {
         return mask;
     }
 
+    /** The tile cells {@link SimRoomIndex} holds for this room placed at {@code (gridX, gridZ)}, or null. */
+    private static int[] placedCells(RoomLibrary.Room room, int gridX, int gridZ) {
+        if (room == null) {
+            return null;
+        }
+        for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
+            if (placed.gridX() == gridX && placed.gridZ() == gridZ && room.name.equals(placed.name())) {
+                return placed.cells();
+            }
+        }
+        return null;
+    }
+
+    private static boolean contains(int[] cells, int cell) {
+        for (int c : cells) {
+            if (c == cell) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static Spawn spawnFor(RoomLibrary.Room room, int gridX, int gridZ) {
         if (room == null || room.name == null) {
             return null;
@@ -840,6 +867,7 @@ public final class SimBuilder {
             if (!level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()
                     && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 1, z)).isAir()
                     && level.getBlockState(new net.minecraft.core.BlockPos(x, y + 2, z)).isAir()
+                    && !hazardNear(level, x, y + 1, z)
                     && coveredAbove(level, x, y + 3, z)) {
                 return y + 1;
             }
@@ -908,8 +936,14 @@ public final class SimBuilder {
             return null;
         }
         java.util.List<int[]> doors = new java.util.ArrayList<>();   // {wallX, wallZ, side, floorY}
+        int[] roomCells = placedCells(room, gridX, gridZ);
         for (int[] c : RoomDoors.doorCells(mask, 0, 0)) {
             int side = c[2];
+            if (roomCells != null && !contains(roomCells, (gridZ + 2 * c[1]) * DungeonLayout.GRID + gridX + 2 * c[0])) {
+                // An edge of an L's missing quarter: the mask reads it off the capture's box, where that quarter
+                // is air or a neighbour, so it "has" doorways the room does not.
+                continue;
+            }
             var centre = DungeonLayout.cellCenter((gridZ + 2 * c[1]) * DungeonLayout.GRID + gridX + 2 * c[0]);
             int wx = centre.getX() + RoomDoors.DX[side] * 15;
             int wz = centre.getZ() + RoomDoors.DZ[side] * 15;
@@ -1013,7 +1047,7 @@ public final class SimBuilder {
         return !level.getBlockState(p).getCollisionShape(level, p).isEmpty();
     }
 
-    /** Solid under the feet, and nothing - no block, no fluid - at the feet or the head. */
+    /** Solid under the feet, and nothing - no block, no fluid - at the feet or the head; and no hazard anywhere near. */
     private static boolean safeAt(ServerLevel level, int x, int y, int z) {
         var feet = new net.minecraft.core.BlockPos(x, y, z);
         var head = feet.above();
@@ -1021,8 +1055,37 @@ public final class SimBuilder {
                 && level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
                 && level.getBlockState(feet).getFluidState().isEmpty()
                 && level.getBlockState(head).getCollisionShape(level, head).isEmpty()
-                && level.getBlockState(head).getFluidState().isEmpty();
+                && level.getBlockState(head).getFluidState().isEmpty()
+                && !hazardNear(level, x, y, z);
     }
+
+    /**
+     * Whether standing with his feet at {@code (x, y, z)} puts him in or on something that hurts: any fluid at the head
+     * or the feet, or lava (or another hazard block) at the head, the feet, the block stood on or the two under that.
+     *
+     * <p>killer560 (2026-10-13): "also make it not spawn me in the lava." The landing scan took the first non-air
+     * block with two of air on it - and lava is not air, so Lava Ravine's pool was a floor to it. Every landing rule
+     * here goes through this now.
+     */
+    private static boolean hazardNear(ServerLevel level, int x, int y, int z) {
+        for (int dy = 1; dy >= -3; dy--) {
+            var p = new net.minecraft.core.BlockPos(x, y + dy, z);
+            var state = level.getBlockState(p);
+            if (dy >= 0 && !state.getFluidState().isEmpty()) {
+                return true;   // standing IN a fluid; water under a floor (a waterlogged slab, a channel) is harmless
+            }
+            String id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
+            if (HAZARDS.contains(id)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Blocks nobody should be dropped in, on or just above, by id ({@code lava} is the lava block, still or flowing). */
+    private static final java.util.Set<String> HAZARDS = java.util.Set.of(
+            "lava", "fire", "soul_fire", "magma_block", "cactus", "powder_snow", "campfire", "soul_campfire",
+            "sweet_berry_bush", "wither_rose", "pointed_dripstone");
 
     /** Whether anything solid stands anywhere above {@code fromY} in this column - a ceiling, not sky. */
     private static boolean coveredAbove(ServerLevel level, int x, int fromY, int z) {
@@ -1050,6 +1113,14 @@ public final class SimBuilder {
     static void snapPlayerTo(java.util.UUID uuid, ServerLevel level, int gridX, int gridZ,
                              RoomLibrary.Room room) {
         var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
+        // An L whose missing quarter is its anchor tile: the anchor's centre is not in the room at all (Lava Ravine
+        // as Hypixel captures it, 2026-10-13 - the scan then stood him in the void quarter, or on the ravine's lava
+        // when the quarters were read the other way round). Scan from a tile the room does have.
+        int[] roomCells = placedCells(room, gridX, gridZ);
+        int anchorCell = gridZ * DungeonLayout.GRID + gridX;
+        if (roomCells != null && roomCells.length > 0 && !contains(roomCells, anchorCell)) {
+            origin = DungeonLayout.cellCenter(roomCells[0]);
+        }
         Spawn spawn = spawnFor(room, gridX, gridZ);
         int x = origin.getX() + (spawn == null ? 0 : spawn.dx());
         int z = origin.getZ() + (spawn == null ? 0 : spawn.dz());
@@ -1119,7 +1190,8 @@ public final class SimBuilder {
             for (int yy = SimAltitude.minWorldY(); yy <= SimAltitude.maxWorldY() - 3; yy++) {
                 if (!level.getBlockState(new net.minecraft.core.BlockPos(x, yy, z)).isAir()
                         && level.getBlockState(new net.minecraft.core.BlockPos(x, yy + 1, z)).isAir()
-                        && level.getBlockState(new net.minecraft.core.BlockPos(x, yy + 2, z)).isAir()) {
+                        && level.getBlockState(new net.minecraft.core.BlockPos(x, yy + 2, z)).isAir()
+                        && !hazardNear(level, x, yy + 1, z)) {
                     landing = yy + 1;
                     found = true;
                     break;
@@ -1720,10 +1792,29 @@ public final class SimBuilder {
             // Museum #7: the wall the breaker had just opened was back, and the etherwarp through it was refused).
             SimBreakerState.reset();
             SimRoomIndex.clear();
-            SimRoomIndex.add(room, centre, centre, 0);
+            // The cells the map is given (publishSingleRoomMap) and the sidebar's map code use, so an L's left-out
+            // quarter is outside the room for every lookup, not only for the map.
+            SimRoomIndex.add(room, centre, centre, 0, cellsOf(singleRoomCells(room, centre)));
             SimAltitude.plan(level, new String[]{room.name});
             wipeWholeGrid(level);
             SimBuildQueue.submit(level, room, centre, centre, 0);
+            // An L's fourth quarter is NOT the room: its capture holds whatever stood beside it on the day (Entrance in
+            // his Lava Ravine, Chains in Market). Built, that is a piece of another room standing in a quarter the
+            // map says is empty, and the spawn could land in it. Cleared after the paste, from the box's outer edge to
+            // the seam - the seam row and column are the L's own inner wall, and are kept.
+            int[] missing = RoomLShape.missingTilePasted(room, 0);
+            int[] skip = null;
+            if (missing != null) {
+                int boxX0 = origin.getX() - RoomLibrary.TILE / 2 - room.margin;
+                int boxZ0 = origin.getZ() - RoomLibrary.TILE / 2 - room.margin;
+                int pitch = RoomLibrary.TILE + 1;
+                int qx0 = missing[0] == 0 ? boxX0 : boxX0 + room.margin + pitch;
+                int qx1 = missing[0] == 0 ? boxX0 + room.margin + RoomLibrary.TILE - 1 : boxX0 + room.sizeX - 1;
+                int qz0 = missing[1] == 0 ? boxZ0 : boxZ0 + room.margin + pitch;
+                int qz1 = missing[1] == 0 ? boxZ0 + room.margin + RoomLibrary.TILE - 1 : boxZ0 + room.sizeZ - 1;
+                SimBuildQueue.submitClearAfter(level, qx0, qz0, qx1, qz1);
+                skip = new int[]{qx0, qz0, qx1, qz1};
+            }
             // After the paste, so the ring it inspects is the room's real wall - before it, every column
             // would still be air and the whole perimeter would come out diamond.
             // The room's REAL bounds, which are not centred on the origin for anything bigger than one tile.
@@ -1732,8 +1823,9 @@ public final class SimBuilder {
             // paste uses, so the two cannot disagree.
             int sealX0 = origin.getX() - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
             int sealZ0 = origin.getZ() - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
+            // Not across an L's cleared quarter: a diamond wall there would stand in the void round nothing.
             SimBuildQueue.submitSeal(level, sealX0, sealZ0,
-                    sealX0 + room.sizeX - 1, sealZ0 + room.sizeZ - 1);
+                    sealX0 + room.sizeX - 1, sealZ0 + room.sizeZ - 1, skip);
             SimBuildQueue.whenDone(() -> {
                 // After the geometry, never before: a chest placed first would be overwritten by the paste.
                 int secrets = SimSecrets.place(level, room, centre, centre, 0);
@@ -1817,9 +1909,8 @@ public final class SimBuilder {
      * needs to be centered." This filled all four tiles of the 2x2 box, the live map's union refused a fourth tile
      * for a room whose shape is "L" (three), and the box came apart into two groups both named Altar - two labels,
      * neither where an L's label goes. Every L did it, not only the first room loaded; Altar was simply the first
-     * room of the set. The missing quarter is the capture's empty tile (no block in the dungeon's floor-to-roof
-     * band, the test {@link RoomTileAudit} uses), or failing that its emptiest one; its connectors and the box's
-     * middle cell go with it.
+     * room of the set. Which quarter is missing is {@link RoomLShape#missingTile}'s answer (the only one); its
+     * connectors and the box's middle cell go with it.
      */
     static int[] singleRoomCells(RoomLibrary.Room room, int centre) {
         int g = DungeonLayout.GRID;
@@ -1831,8 +1922,8 @@ public final class SimBuilder {
         for (boolean[] row : present) {
             java.util.Arrays.fill(row, true);
         }
-        int[] missing = lMissingTile(room, tilesX, tilesZ);
-        if (missing != null) {
+        int[] missing = RoomLShape.missingTilePasted(room, 0);
+        if (missing != null && tilesX == 2 && tilesZ == 2) {
             present[missing[0]][missing[1]] = false;
         }
         for (int tx = 0; tx < tilesX; tx++) {
@@ -1856,50 +1947,28 @@ public final class SimBuilder {
         return cellRoom;
     }
 
+    /** The grid cells a {@link #singleRoomCells} array gives the room. */
+    private static int[] cellsOf(int[] cellRoom) {
+        int n = 0;
+        for (int c : cellRoom) {
+            if (c == 0) {
+                n++;
+            }
+        }
+        int[] out = new int[n];
+        n = 0;
+        for (int i = 0; i < cellRoom.length; i++) {
+            if (cellRoom[i] == 0) {
+                out[n++] = i;
+            }
+        }
+        return out;
+    }
+
     private static void put(int[] cellRoom, int gx, int gz) {
         if (gx >= 0 && gz >= 0 && gx < DungeonLayout.GRID && gz < DungeonLayout.GRID) {
             cellRoom[gz * DungeonLayout.GRID + gx] = 0;
         }
-    }
-
-    /** For an L room (2x2 capture, database shape "L"), its missing quarter as {tx, tz}; null for any other room. */
-    private static int[] lMissingTile(RoomLibrary.Room room, int tilesX, int tilesZ) {
-        if (tilesX != 2 || tilesZ != 2) {
-            return null;
-        }
-        com.killer560.hub.roomdatabase.RoomEntry entry =
-                com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room.name);
-        if (entry == null || entry.shape == null || !"L".equalsIgnoreCase(entry.shape.trim())) {
-            return null;
-        }
-        int[] best = null;
-        long bestSolid = Long.MAX_VALUE;
-        for (int tx = 0; tx < 2; tx++) {
-            for (int tz = 0; tz < 2; tz++) {
-                int x0 = room.margin + tx * (RoomLibrary.TILE + 1);
-                int z0 = room.margin + tz * (RoomLibrary.TILE + 1);
-                long solid = 0;
-                for (int y = 66; y <= 99; y++) {
-                    for (int a = 0; a < RoomLibrary.TILE; a++) {
-                        for (int b = 0; b < RoomLibrary.TILE; b++) {
-                            short id = room.at(x0 + a, y, z0 + b);
-                            if (id >= 0 && id < room.palette.size() && !room.palette.get(id).endsWith("air")) {
-                                solid++;
-                            }
-                        }
-                    }
-                }
-                if (solid < bestSolid) {
-                    bestSolid = solid;
-                    best = new int[]{tx, tz};
-                }
-            }
-        }
-        if (bestSolid > 0) {
-            LOGGER.warn("Sim map: L room {} has no empty quarter - using tile {},{} ({} solid blocks)", room.name,
-                    best[0], best[1], bestSolid);
-        }
-        return best;
     }
 
     /** The map code for a room loaded on its own, so the sidebar's "Room:" and every room lookup name it. */
