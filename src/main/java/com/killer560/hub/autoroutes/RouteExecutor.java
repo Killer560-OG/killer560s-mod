@@ -397,6 +397,12 @@ public final class RouteExecutor {
         if (wasRunning && reason != null && USER_STOP_REASONS.contains(reason)) {
             stoppedByUser = true;
         }
+        // A breaker node only keeps mining once it has FINISHED; stopped while it was still acting (waiting for charges,
+        // say), or stopped by him (a fresh movement key, his click), it sends nothing more (96-ar-breakerwait pass 2).
+        if (wasRunning && (activeNode != null && activeNode == lingerNode
+                || reason != null && USER_STOP_REASONS.contains(reason))) {
+            clearBreakerLinger("route stopped: " + reason);
+        }
         running = false;
         stopReason = reason;
         if (wasRunning && !stackQueue.isEmpty()) {
@@ -1229,6 +1235,8 @@ public final class RouteExecutor {
 
     private static void beginAction(RouteNode node) {
         actionsBegun++;
+        // Another node fired: a breaker node still mining what was out of reach stops here (see tickBreakerLinger).
+        clearBreakerLinger(node.type == RouteNode.Type.DUNGEON_BREAKER ? "the breaker fired again" : "another node fired");
         LocalPlayer self = Minecraft.getInstance().player;
         if (node.type == RouteNode.Type.ETHERWARP) {
             Vec3 at = RouteCoords.toReal(frame, node.relativePos());
@@ -1263,7 +1271,8 @@ public final class RouteExecutor {
         // A legacy standalone AWAIT node (an unmigrated file) is nothing but this wait.
         // A CRYPT node's await is not a gate before it acts but the number of kills its action goes on for ("crypt
         // await:1" = attack until one crypt or prince of yours dies) - see tickCrypt.
-        awaitPhaseDone = (!node.awaitEnabled || node.type == RouteNode.Type.CRYPT) && node.type != RouteNode.Type.AWAIT;
+        awaitPhaseDone = (!node.awaitEnabled || node.type == RouteNode.Type.CRYPT || node.type == RouteNode.Type.BAT)
+                && node.type != RouteNode.Type.AWAIT;
         awaitHeld = !awaitPhaseDone;
         nodeActed = false;
         breakerQueue = new ArrayList<>();
@@ -1415,7 +1424,7 @@ public final class RouteExecutor {
         } else {
             forceSneak = switch (up.type) {
                 case ETHERWARP, PATH -> inPlace || (was && pathless);
-                case WALK, UNSNEAK, USE_ITEM, CRYPT -> false;
+                case WALK, UNSNEAK, USE_ITEM, CRYPT, BAT -> false;
                 default -> was && (pathless || inPlace);
             };
         }
@@ -1515,7 +1524,7 @@ public final class RouteExecutor {
             case ETHERWARP -> tickEtherwarp(client, player, node);
             case PATH -> tickPath(client, player, node);
             case USE_ITEM -> tickUseItem(client, player, node);
-            case CRYPT -> tickCrypt(client, player, node);
+            case CRYPT, BAT -> tickCrypt(client, player, node);
             case BOOM -> tickBoom(client, player, node);
             case DUNGEON_BREAKER -> tickBreaker(client, player, node);
             case JUMP -> tickJump(player, node);
@@ -2314,11 +2323,18 @@ public final class RouteExecutor {
     private static void tickCrypt(Minecraft client, LocalPlayer player, RouteNode node) {
         int goal = node.awaitEnabled && node.awaitCondition != RouteNode.AwaitCondition.DELAY
                 ? Math.max(1, node.awaitAmount) : 1;
-        AutoRoutesConfig.CryptWeapon weapon = AutoRoutesConfig.getInstance().getCryptWeapon();
+        // A BAT node is this same node for secret bats (killer560, 2026-10-13: "just like crypts ... but is for bats"):
+        // the Bat Weapon setting, Bat Attack Time, and bat kills of his (AwaitEvents#bats) instead of crypt kills.
+        boolean bat = node.type == RouteNode.Type.BAT;
+        String kind = bat ? "bat" : "crypt";
+        String KIND = bat ? "BAT" : "CRYPT";
+        AutoRoutesConfig.CryptWeapon weapon = bat ? AutoRoutesConfig.getInstance().getBatWeapon()
+                : AutoRoutesConfig.getInstance().getCryptWeapon();
         if (step == Step.PREP) {
             int slot = ItemIdentity.findHotbarSlot(player, weapon.itemId());
             if (slot < 0) {
-                stop("the crypt node has no " + weapon.label() + " in the hotbar (Crypt Weapon setting)");
+                stop("the " + kind + " node has no " + weapon.label() + " in the hotbar (" + (bat ? "Bat" : "Crypt")
+                        + " Weapon setting)");
                 return;
             }
             cryptSlotBefore = player.getInventory().getSelectedSlot();
@@ -2342,9 +2358,9 @@ public final class RouteExecutor {
                 // Legit: the camera must read exactly 90.0 before the first use - aimReady's timeout would fire it at
                 // whatever it reads. Past CRYPT_AIM_GIVE_UP it moves on with nothing used.
                 if (stepTicks > CRYPT_AIM_GIVE_UP) {
-                    AutoRoutesFeature.chatBad("Crypt node: could not aim straight down - nothing used, moving on.");
-                    LOGGER.info("[AutoRoutes] Node #{} CRYPT: gave up aiming down (pitch {} after {} tick(s))",
-                            route.indexOf(node) + 1, Float.toString(player.getXRot()), stepTicks);
+                    AutoRoutesFeature.chatBad((bat ? "Bat" : "Crypt") + " node: could not aim straight down - nothing used, moving on.");
+                    LOGGER.info("[AutoRoutes] Node #{} {}: gave up aiming down (pitch {} after {} tick(s))",
+                            route.indexOf(node) + 1, KIND, Float.toString(player.getXRot()), stepTicks);
                     restoreCryptSlot(client, player);
                     finishAction();
                     return;
@@ -2381,7 +2397,8 @@ public final class RouteExecutor {
             // Under the Interactive Map (Run While Map Open) handleKeybinds does not run; HeldUsePickMixin takes
             // that step instead (heldUseUnderScreen).
             holdUse(client, player, node);
-            logActed(node, " (" + weapon.label() + ", holding use until " + goal + " crypt/prince kill(s))");
+            logActed(node, " (" + weapon.label() + ", holding use until " + goal + (bat ? " bat kill(s))"
+                    : " crypt/prince kill(s))"));
             step = Step.CONFIRM;
             stepTicks = 0;
             return;
@@ -2389,30 +2406,31 @@ public final class RouteExecutor {
         if (step == Step.CONFIRM) {
             if (takeSkipClick(client)) {
                 // His left click skips the wait for kills too (killer560, 2026-10-06), consumed like the await's.
-                LOGGER.info("[AutoRoutes] Node #{} CRYPT: left click skipped the kill wait ({} of {} kill(s)) after "
-                        + "holding use {} tick(s)", route.indexOf(node) + 1, AwaitEvents.crypts(), goal, stepTicks);
+                LOGGER.info("[AutoRoutes] Node #{} {}: left click skipped the kill wait ({} of {} kill(s)) after "
+                        + "holding use {} tick(s)", route.indexOf(node) + 1, KIND, kills(bat), goal, stepTicks);
                 releaseUse(client);
                 restoreCryptSlot(client, player);
                 finishAction();
                 return;
             }
-            if (AwaitEvents.crypts() >= goal) {
-                LOGGER.info("[AutoRoutes] Node #{} CRYPT: {} kill(s) after holding use {} tick(s)", route.indexOf(node) + 1,
-                        AwaitEvents.crypts(), stepTicks);
+            if (kills(bat) >= goal) {
+                LOGGER.info("[AutoRoutes] Node #{} {}: {} kill(s) after holding use {} tick(s)", route.indexOf(node) + 1,
+                        KIND, kills(bat), stepTicks);
                 releaseUse(client);
                 restoreCryptSlot(client, player);
                 finishAction();
                 return;
             }
-            int attackTicks = AutoRoutesConfig.getInstance().getCryptAttackTicks();
+            int attackTicks = bat ? AutoRoutesConfig.getInstance().getBatAttackTicks()
+                    : AutoRoutesConfig.getInstance().getCryptAttackTicks();
             if (stepTicks > attackTicks) {
                 // Moves ON rather than stopping the route (Crypt Attack Time slider): an undead that walked out of
                 // reach must not strand the rest of the route.
-                LOGGER.info("[AutoRoutes] Node #{} CRYPT: {} of {} kill(s) after holding use {} tick(s) - Crypt Attack "
-                        + "Time ({} tick(s)) up, moving on", route.indexOf(node) + 1, AwaitEvents.crypts(), goal,
+                LOGGER.info("[AutoRoutes] Node #{} {}: {} of {} kill(s) after holding use {} tick(s) - attack "
+                        + "time ({} tick(s)) up, moving on", route.indexOf(node) + 1, KIND, kills(bat), goal,
                         stepTicks, attackTicks);
                 AutoRoutesFeature.chatBad(String.format(java.util.Locale.US,
-                        "Crypt node: no kill in %.1f s - moving on.", attackTicks / 20.0));
+                        "%s node: no kill in %.1f s - moving on.", bat ? "Bat" : "Crypt", attackTicks / 20.0));
                 releaseUse(client);
                 restoreCryptSlot(client, player);
                 finishAction();
@@ -2420,6 +2438,11 @@ public final class RouteExecutor {
             }
             holdUse(client, player, node);
         }
+    }
+
+    /** The kills a crypt node (crypt / prince) or a bat node (secret bats) counts. */
+    private static int kills(boolean bat) {
+        return bat ? AwaitEvents.bats() : AwaitEvents.crypts();
     }
 
     /**
@@ -2642,6 +2665,14 @@ public final class RouteExecutor {
             for (BlockPos rel : node.breakerBlocks) {
                 breakerQueue.add(RouteCoords.toRealBlock(frame, rel));
             }
+            // Everything this node owns, for the linger after it finishes (tickBreakerLinger).
+            lingerNode = node;
+            lingerBlocks.clear();
+            lingerBlocks.addAll(breakerQueue);
+            lingerLevel = client.level;
+            lingerTicks = 0;
+            lingerSentAt.clear();
+            lingerSaid = false;
             int slot = ItemIdentity.findHotbarSlotById(player, BREAKER_ID);
             if (slot < 0) {
                 stop("no Dungeon Breaker in the hotbar");
@@ -2887,6 +2918,127 @@ public final class RouteExecutor {
         }
     }
 
+    // ------------------------------------------------------------------------------------------- breaker linger
+
+    /**
+     * killer560 (2026-10-13): "if i step on a dungeon breaker node until another node fires it should still be able to
+     * mine so for instance if it mines the blocks out from under its feet and starts falling then it should keep mining
+     * as it falls." A breaker node's blocks that were out of reach when it fired (or that it had no charges for) stay
+     * its own after it finishes: every tick, any of them that is standing, loaded and now in reach goes out exactly as
+     * the node's own break does - until all are gone, another node fires ({@link #beginAction}), the room or world
+     * changes, or {@link #LINGER_MAX_TICKS} pass. Nothing is sent while a screen holds Auto Routes back.
+     */
+    private static RouteNode lingerNode;
+    private static final List<BlockPos> lingerBlocks = new ArrayList<>();
+    private static final java.util.Map<BlockPos, Integer> lingerSentAt = new java.util.HashMap<>();
+    private static net.minecraft.client.multiplayer.ClientLevel lingerLevel;
+    private static int lingerTicks;
+    private static boolean lingerSaid;
+    /** Longest a finished breaker node keeps mining what comes into reach: 10 s, longer than any fall in a room. */
+    static final int LINGER_MAX_TICKS = 200;
+    /** A block sent and still standing after this many ticks is sent again (the server refused it, or regrew it). */
+    private static final int LINGER_RESEND_TICKS = 20;
+    /** Blocks a breaker node broke after it had finished (read by the testkit, 96-ar-1013-breakerfall). */
+    private static int lingerBroken;
+
+    public static int lingerBroken() {
+        return lingerBroken;
+    }
+
+    /** Whether a finished breaker node is still mining its blocks as they come into reach. */
+    static boolean breakerLingering() {
+        return lingerNode != null && !lingerBlocks.isEmpty() && !(running && activeNode == lingerNode);
+    }
+
+    static void clearBreakerLinger(String why) {
+        if (lingerNode != null && !lingerBlocks.isEmpty() && lingerSaid) {
+            LOGGER.info("[AutoRoutes] Breaker linger ended ({}): {} block(s) left", why, lingerBlocks.size());
+        }
+        lingerNode = null;
+        lingerBlocks.clear();
+        lingerSentAt.clear();
+        lingerLevel = null;
+    }
+
+    /** Every client tick from the feature, whether a route runs or not. See the fields above. */
+    static void tickBreakerLinger(Minecraft client) {
+        if (lingerNode == null) {
+            return;
+        }
+        LocalPlayer player = client.player;
+        if (player == null || client.level == null || client.level != lingerLevel) {
+            clearBreakerLinger("world change");
+            return;
+        }
+        if (running && activeNode == lingerNode) {
+            return; // the node itself is still breaking
+        }
+        lingerBlocks.removeIf(p -> !client.level.isLoaded(p) || client.level.getBlockState(p).isAir());
+        if (lingerBlocks.isEmpty()) {
+            if (lingerSaid) {
+                LOGGER.info("[AutoRoutes] Breaker linger: every block gone after {} tick(s)", lingerTicks);
+            }
+            clearBreakerLinger("done");
+            return;
+        }
+        if (!lingerSaid) {
+            lingerSaid = true;
+            LOGGER.info("[AutoRoutes] Breaker linger: {} block(s) still standing - mining them as they come into reach"
+                    + " until another node fires", lingerBlocks.size());
+        }
+        if (++lingerTicks > LINGER_MAX_TICKS) {
+            clearBreakerLinger("timed out");
+            return;
+        }
+        if (AutoRoutesFeature.screenBlocks(client)) {
+            return;
+        }
+        boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraMultiBreak();
+        int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
+        if (!multi && lingerTicks % delay != 0) {
+            return;
+        }
+        Vec3 eye = player.getEyePosition();
+        List<BlockPos> inReach = new ArrayList<>();
+        for (BlockPos pos : lingerBlocks) {
+            Integer sent = lingerSentAt.get(pos);
+            if (sent != null && lingerTicks - sent < LINGER_RESEND_TICKS) {
+                continue;
+            }
+            if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) <= BREAKER_RANGE_SQ) {
+                inReach.add(pos);
+            }
+        }
+        if (inReach.isEmpty()) {
+            return;
+        }
+        int slot = ItemIdentity.findHotbarSlotById(player, BREAKER_ID);
+        int[] charges = slot < 0 ? null : breakerCharges(player.getInventory().getItem(slot));
+        if (charges == null || charges[0] <= 0) {
+            return; // no breaker, or no charges yet: the blocks wait (Hypixel gives two back a second)
+        }
+        select(client, player, slot);
+        int sentNow = 0;
+        for (BlockPos pos : inReach) {
+            if (sentNow >= charges[0]) {
+                break;
+            }
+            if (sentNow == 0 && !AutoRoutesConfig.getInstance().isLegitMode()) {
+                turnBodyToward(player, Vec3.atCenterOf(pos)); // a dig is always aimed (GrimAC RotationBreak)
+            }
+            sendBreak(client, player, pos);
+            lingerSentAt.put(pos, lingerTicks);
+            lingerBroken++;
+            sentNow++;
+            if (!multi) {
+                break;
+            }
+        }
+        player.swing(InteractionHand.MAIN_HAND);
+        LOGGER.info("[AutoRoutes] Breaker linger: {} block(s) broken {} tick(s) after the node, eye y {}", sentNow,
+                lingerTicks, String.format(java.util.Locale.US, "%.2f", eye.y));
+    }
+
     /**
      * One START_DESTROY_BLOCK through vanilla's own block-prediction sequence ({@code startPrediction}) - Breaker Aura's
      * {@code breakBlock} without its zero-ping - so the packet carries the sequence number a vanilla dig does.
@@ -2995,7 +3147,7 @@ public final class RouteExecutor {
         // A node waiting on its await is waiting for HIM too: he is clicking the secrets, and while the view is held the
         // crosshair follows the held view but every packet reports the body, so his own clicks would go out aimed one
         // way and reported another.
-        boolean acting = MimicKiller.isBusy() || (running && walkHoldYaw == null && !(activeNode != null && awaitHeld)
+        boolean acting = MimicKiller.isBusy() || breakerLingering() || (running && walkHoldYaw == null && !(activeNode != null && awaitHeld)
                 && (activeNode != null || !stackQueue.isEmpty() || settleTicks > 0 || landedFrom != null));
         BODY.tick(client.player, acting);
     }

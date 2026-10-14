@@ -54,6 +54,8 @@ public final class AwaitEvents {
     /** A crypt / prince kill counts as ours when one of our weapon uses was at most this many ticks before it. The
      *  tab list's crypt line refreshes about once a second (the sim's every 20 ticks), so this is three of those. */
     public static final int CRYPT_WINDOW = 60;
+    /** A dying secret bat further than this from him is not his bat node's kill. */
+    public static final double BAT_KILL_RANGE = 10.0;
     /** How long after we click a trapped chest its mimic's death still counts, in ticks. */
     private static final int MIMIC_WATCH = 1200;
     /** How close to its trapped chest a dying baby zombie must be to be that chest's mimic. */
@@ -65,6 +67,8 @@ public final class AwaitEvents {
     private static boolean active;
     private static int secrets;
     private static int crypts;
+    /** Secret bats of his killed since the window opened - only a BAT node reads it (killer560, 2026-10-13). */
+    private static int bats;
     private static final Set<String> counted = new HashSet<>();
     private static final Set<Integer> seenBats = new HashSet<>();
     private static final List<String> pending = new ArrayList<>();
@@ -147,6 +151,7 @@ public final class AwaitEvents {
     static void window(Minecraft client) {
         secrets = 0;
         crypts = 0;
+        bats = 0;
         counted.clear();
         pending.clear();
         seenBats.clear();
@@ -166,6 +171,7 @@ public final class AwaitEvents {
         pending.clear();
         secrets = 0;
         crypts = 0;
+        bats = 0;
     }
 
     static int secrets() {
@@ -174,6 +180,10 @@ public final class AwaitEvents {
 
     static int crypts() {
         return crypts;
+    }
+
+    static int bats() {
+        return bats;
     }
 
     /** The events since the last call, as log lines ("await secret 1/1: lever at x,y,z (clicked by you)"). */
@@ -200,6 +210,9 @@ public final class AwaitEvents {
             return;
         }
         for (Entity e : client.level.entitiesForRendering()) {
+            if (e instanceof Bat dying && dying.isDeadOrDying() && isSecretBat(dying)) {
+                onBatKill(client, player, dying);
+            }
             if (!(e instanceof Bat bat) || !seenBats.add(bat.getId())) {
                 continue;
             }
@@ -333,6 +346,26 @@ public final class AwaitEvents {
         }
         crypts++;
         pending.add("await crypt " + crypts + ": " + what + " (your weapon use " + ago + " tick(s) earlier)");
+    }
+
+    /**
+     * A secret bat dying near him (its death event reaches the client as health 0): his BAT node's kill when one of his
+     * weapon uses was at most {@link #CRYPT_WINDOW} ticks before it, as a crypt kill is attributed. Each bat once.
+     */
+    private static void onBatKill(Minecraft client, LocalPlayer player, Bat bat) {
+        if (!counted.add("batkill " + bat.getId())) {
+            return;
+        }
+        double d = bat.distanceTo(player);
+        int ago = ticks - lastWeaponUse;
+        if (d > BAT_KILL_RANGE || ago > CRYPT_WINDOW) {
+            LOGGER.debug("[AutoRoutes] await ignored: bat died {} blocks away, your last weapon use {} tick(s) earlier",
+                    String.format(Locale.US, "%.1f", d), ago);
+            return;
+        }
+        bats++;
+        pending.add("await bat " + bats + ": secret bat killed at " + bat.blockPosition().toShortString()
+                + String.format(Locale.US, " (%.1f blocks from you, your weapon use %d tick(s) earlier)", d, ago));
     }
 
     private static void addSecret(String key, String what) {

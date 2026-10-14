@@ -410,6 +410,8 @@ final class SettingTooltipsData {
         d.put("clear status hud", "Shows what Auto Clear is doing (room, mob, action) and why it stopped. Move it in the HUD editor.");
         d.put("mob timeout", "How long one starred mob is attacked without dying before Auto Clear skips it.");
         d.put("clear toggle key", "Starts and stops Auto Clear. Click, then press a key; Escape clears it.");
+        d.put("auto routes/bat weapon", "What a bat node (/ar add bat) uses straight down, again and again, until a secret bat dies near you after one of your uses.");
+        d.put("auto routes/bat attack time", "How long a bat node keeps using the Bat Weapon without a bat kill before the route moves on.");
         d.put("auto routes/crypt weapon", "What a crypt node (/ar add crypt) uses at the crypt it was aimed at, again and again, until a crypt or prince of yours dies.");
         d.put("run while map open", "ON: routes keep working while the Interactive Map is open (its own warps still stop them).");
         d.put("recording", "Cheat build: record a route with /ar start record and /ar stop record, or the keys under the buttons.");

@@ -92,6 +92,7 @@ public final class AutoRoutesCommands {
         ADD_PATH("add_path", "Add Path Node", "/ar add path"),
         /** killer560, 2026-10-05: a node that kills the crypt it looks at with the Crypt Weapon setting's item. */
         ADD_CRYPT("add_crypt", "Add Crypt Node", "/ar add crypt"),
+        ADD_BAT("add_bat", "Add Bat Node", "/ar add bat"),
         /** killer560, 2026-10-09: "Add a jump node to auto routes where it just jumps once." */
         ADD_JUMP("add_jump", "Add Jump Node", "/ar add jump <n>"),
         EDIT_BREAKER("edit_db", "Edit Breaker Blocks", "/ar edit db"),
@@ -139,19 +140,20 @@ public final class AutoRoutesCommands {
 
     /** Every word {@code /ar add <type>} accepts, and the only ones - killer560's list, in his order. A walk node
      *  sprints (see {@code RouteExecutor}'s walk hold) even though it is called walk. */
-    private static final java.util.Map<String, RouteNode.Type> ADD_TYPES = java.util.Map.of(
-            "boom", RouteNode.Type.BOOM,
-            "breaker", RouteNode.Type.DUNGEON_BREAKER,
-            "dungeonbreaker", RouteNode.Type.DUNGEON_BREAKER,
-            "ew", RouteNode.Type.ETHERWARP,
-            "etherwarp", RouteNode.Type.ETHERWARP,
-            "use", RouteNode.Type.USE_ITEM,
-            "walk", RouteNode.Type.WALK,
-            "path", RouteNode.Type.PATH,
-            "crypt", RouteNode.Type.CRYPT,
-            "jump", RouteNode.Type.JUMP);
+    private static final java.util.Map<String, RouteNode.Type> ADD_TYPES = java.util.Map.ofEntries(
+            java.util.Map.entry("boom", RouteNode.Type.BOOM),
+            java.util.Map.entry("breaker", RouteNode.Type.DUNGEON_BREAKER),
+            java.util.Map.entry("dungeonbreaker", RouteNode.Type.DUNGEON_BREAKER),
+            java.util.Map.entry("ew", RouteNode.Type.ETHERWARP),
+            java.util.Map.entry("etherwarp", RouteNode.Type.ETHERWARP),
+            java.util.Map.entry("use", RouteNode.Type.USE_ITEM),
+            java.util.Map.entry("walk", RouteNode.Type.WALK),
+            java.util.Map.entry("path", RouteNode.Type.PATH),
+            java.util.Map.entry("crypt", RouteNode.Type.CRYPT),
+            java.util.Map.entry("bat", RouteNode.Type.BAT),
+            java.util.Map.entry("jump", RouteNode.Type.JUMP));
     private static final List<String> TYPE_WORDS = List.of("boom", "breaker", "dungeonbreaker", "ew", "etherwarp", "use", "walk", "path",
-            "crypt", "jump");
+            "crypt", "bat", "jump");
     /** Modifiers offered after any {@code /ar add <type>}. {@code await:} completes to just that, so the number is
      *  typed straight after it (killer560, 2026-10-06: "make await fill as await: without the x"); the command
      *  refuses {@code await:} followed by anything but a number. */
@@ -359,6 +361,7 @@ public final class AutoRoutesCommands {
             case ADD_BOOM -> add(RouteNode.Type.BOOM);
             case ADD_PATH -> add(RouteNode.Type.PATH);
             case ADD_CRYPT -> add(RouteNode.Type.CRYPT);
+            case ADD_BAT -> add(RouteNode.Type.BAT);
             // A key cannot type the count (killer560, 2026-10-12: "Type the command out with the player ready to type in the
             // number of jumps"): it opens chat holding "/ar add jump " and sends nothing - Enter does, after the number.
             case ADD_JUMP -> openJumpPrompt();
@@ -491,6 +494,7 @@ public final class AutoRoutesCommands {
                     : " - matched on the item, not the slot.");
             case PATH -> ModChat.dim(" - path nodes pair up in number order; the first warps to the second.");
             case CRYPT -> ModChat.dim(" - place it at the crypt; uses the Crypt Weapon straight down until a crypt or prince dies.");
+            case BAT -> ModChat.dim(" - place it where the bat flies; uses the Bat Weapon straight down until a secret bat dies.");
             case JUMP -> ModChat.dim(" - presses jump that many times when it fires.");
             default -> ModChat.text("");
         };

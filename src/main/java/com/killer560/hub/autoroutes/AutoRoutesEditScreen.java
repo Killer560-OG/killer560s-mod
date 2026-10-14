@@ -82,7 +82,7 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
     /** The {@code /ar add} types, in killer560's order (the Type button cycles through them). */
     private static final RouteNode.Type[] TYPES = {RouteNode.Type.BOOM, RouteNode.Type.DUNGEON_BREAKER,
             RouteNode.Type.ETHERWARP, RouteNode.Type.USE_ITEM, RouteNode.Type.WALK, RouteNode.Type.PATH,
-            RouteNode.Type.CRYPT, RouteNode.Type.JUMP};
+            RouteNode.Type.CRYPT, RouteNode.Type.BAT, RouteNode.Type.JUMP};
     /** The Await Secrets dropdown's choices; 0 is "no await". */
     private static final int AWAIT_MAX = 4;
 
@@ -140,7 +140,7 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
 
     private static boolean aims(RouteNode.Type t) {
         return t == RouteNode.Type.ETHERWARP || t == RouteNode.Type.USE_ITEM || t == RouteNode.Type.WALK
-                || t == RouteNode.Type.CRYPT;
+                || t == RouteNode.Type.CRYPT || t == RouteNode.Type.BAT;
     }
 
     @Override
@@ -347,11 +347,12 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
         if (awaitChoice < 0) {
             v = "§7kept (" + node.modifierTag().replace(" [", "").replace("]", "").replace("start, ", "") + ")";
         } else {
-            String what = type == RouteNode.Type.CRYPT ? " kill" : " secret";
+            String what = type == RouteNode.Type.CRYPT || type == RouteNode.Type.BAT ? " kill" : " secret";
             v = awaitChoice == 0 ? "§7none" : "§6" + awaitChoice + what + (awaitChoice == 1 ? "" : "s");
         }
         // A crypt node's await counts crypt / prince kills, never secrets (and every other node's the reverse).
-        return (type == RouteNode.Type.CRYPT ? "Await Crypts: " : "Await Secrets: ") + v + (awaitOpen ? " §7▲" : " §7▼");
+        return (type == RouteNode.Type.CRYPT ? "Await Crypts: " : type == RouteNode.Type.BAT ? "Await Bats: "
+                : "Await Secrets: ") + v + (awaitOpen ? " §7▲" : " §7▼");
     }
 
     private static RouteNode.Type cycleType(RouteNode.Type current, int dir) {

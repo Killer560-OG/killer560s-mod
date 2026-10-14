@@ -119,6 +119,10 @@ public final class AutoRoutesConfig {
     public static final int MIN_CRYPT_ATTACK_TICKS = 10;
     public static final int MAX_CRYPT_ATTACK_TICKS = 200;
     private int cryptAttackTicks = 100;
+    /** What a BAT node uses, and how long it keeps using it without a bat kill (killer560, 2026-10-13: a bat node "just
+     *  like crypts"). Same choices and range as the crypt node's. */
+    private CryptWeapon batWeapon = CryptWeapon.HYPERION;
+    private int batAttackTicks = 100;
     /** Etherwarps Per Second (killer560, 2026-10-06: "make a slider in auto routes for etherwarps per second from 1-20 ...
      *  it should just be something you use as a general time constraint, not a hard cap"). A PACE: consecutive etherwarps
      *  of a chain (and path hops) are at least 20/rate ticks apart; 20 = as fast as the server confirms landings. */
@@ -181,6 +185,7 @@ public final class AutoRoutesConfig {
             case COMMAND -> 0xFFC0C0C0;
             case PATH -> 0xFF9B59FF;
             case CRYPT -> 0xFF7FFF7F;
+            case BAT -> 0xFF8B5A2B;
             case JUMP -> 0xFF4F8BFF;
         };
     }
@@ -204,6 +209,8 @@ public final class AutoRoutesConfig {
                 cfg.killMimic = ConfigJson.getEnum(o, "killMimic", KillMimic.class, cfg.killMimic);
                 cfg.cryptWeapon = ConfigJson.getEnum(o, "cryptWeapon", CryptWeapon.class, cfg.cryptWeapon);
                 cfg.setCryptAttackTicks(ConfigJson.getInt(o, "cryptAttackTicks", cfg.cryptAttackTicks));
+                cfg.batWeapon = ConfigJson.getEnum(o, "batWeapon", CryptWeapon.class, cfg.batWeapon);
+                cfg.setBatAttackTicks(ConfigJson.getInt(o, "batAttackTicks", cfg.batAttackTicks));
                 cfg.setEtherwarpsPerSecond(ConfigJson.getInt(o, "etherwarpsPerSecond", cfg.etherwarpsPerSecond));
                 cfg.uniformColor = ConfigJson.getBool(o, "uniformColor", cfg.uniformColor);
                 cfg.uniformColorArgb = ConfigJson.getInt(o, "uniformColorArgb", cfg.uniformColorArgb);
@@ -252,6 +259,8 @@ public final class AutoRoutesConfig {
             o.addProperty("killMimic", killMimic.name());
             o.addProperty("cryptWeapon", cryptWeapon.name());
             o.addProperty("cryptAttackTicks", cryptAttackTicks);
+            o.addProperty("batWeapon", batWeapon.name());
+            o.addProperty("batAttackTicks", batAttackTicks);
             o.addProperty("etherwarpsPerSecond", etherwarpsPerSecond);
             o.addProperty("uniformColor", uniformColor);
             o.addProperty("colorsSectionOpen", colorsSectionOpen);
@@ -353,6 +362,12 @@ public final class AutoRoutesConfig {
     public int getCryptAttackTicks() { return cryptAttackTicks; }
     public void setCryptAttackTicks(int v) {
         cryptAttackTicks = Math.max(MIN_CRYPT_ATTACK_TICKS, Math.min(MAX_CRYPT_ATTACK_TICKS, v));
+    }
+    public CryptWeapon getBatWeapon() { return batWeapon; }
+    public void setBatWeapon(CryptWeapon v) { batWeapon = v == null ? CryptWeapon.HYPERION : v; }
+    public int getBatAttackTicks() { return batAttackTicks; }
+    public void setBatAttackTicks(int v) {
+        batAttackTicks = Math.max(MIN_CRYPT_ATTACK_TICKS, Math.min(MAX_CRYPT_ATTACK_TICKS, v));
     }
     public int getEtherwarpsPerSecond() { return etherwarpsPerSecond; }
     public void setEtherwarpsPerSecond(int v) {

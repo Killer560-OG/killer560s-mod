@@ -889,9 +889,11 @@ public final class AutoRoutesFeature {
                 RouteRecorder.tick(client); // lets the recorder end itself cleanly on a room change
             }
             lastRoom = null;
+            RouteExecutor.clearBreakerLinger("left the dungeon room");
             return;
         }
         if (!frame.roomName().equals(lastRoom)) {
+            RouteExecutor.clearBreakerLinger("room change");
             if (lastRoom != null && RouteExecutor.isRunning()) {
                 RouteExecutor.stop("left the room");
             }
@@ -921,6 +923,7 @@ public final class AutoRoutesFeature {
         // route acts while breaker edit mode is open - no arming, no just-added node firing, and anything that started
         // a route meanwhile is stopped - so the only digs are his own clicks.
         if (editMode) {
+            RouteExecutor.clearBreakerLinger("edit mode");
             if (RouteExecutor.isRunning()) {
                 RouteExecutor.stop("edit mode");
             }
@@ -929,6 +932,9 @@ public final class AutoRoutesFeature {
             gate("edit mode");
             return;
         }
+        // A finished breaker node keeps mining its blocks as they come into reach (falling through the hole it made)
+        // until another node fires - RouteExecutor.tickBreakerLinger.
+        RouteExecutor.tickBreakerLinger(client);
         if (RouteExecutor.isRunning()) {
             addedToFire = null;
             gate("running");

@@ -119,6 +119,16 @@ public final class SimSecretItems {
     /** Secret bats waiting for him to come near. */
     private static final java.util.Set<BlockPos> PENDING_BATS = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Server ticks in a row he must stay within {@link #BAT_TRIGGER_RANGE} before a secret bat appears. killer560
+     * (2026-10-13): "make sure bats on the sim only spawn in after being within their range for 5 ticks. Before that they
+     * should not be spawned in." Leaving the range starts the count again.
+     */
+    public static final int BAT_TRIGGER_TICKS = 5;
+
+    /** For each pending bat he is in range of, how many ticks in a row he has been. */
+    private static final java.util.Map<BlockPos, Integer> BAT_IN_RANGE = new ConcurrentHashMap<>();
+
     /** Remembers a secret bat's position; the bat appears when he comes within {@link #BAT_TRIGGER_RANGE}. */
     public static void registerBat(BlockPos at) {
         if (at != null) {
@@ -146,6 +156,7 @@ public final class SimSecretItems {
     public static void reset() {
         PENDING.clear();
         PENDING_BATS.clear();
+        BAT_IN_RANGE.clear();
         LIVE.clear();
         warnedOnce = false;
         purgeOwed = false;
@@ -272,7 +283,7 @@ public final class SimSecretItems {
         }
     }
 
-    /** Spawns each secret bat he has come within {@link #BAT_TRIGGER_RANGE} of. */
+    /** Spawns each secret bat he has stayed within {@link #BAT_TRIGGER_RANGE} of for {@link #BAT_TRIGGER_TICKS} ticks. */
     private static void tickPendingBats(ServerLevel level, double px, double py, double pz) {
         if (PENDING_BATS.isEmpty()) {
             return;
@@ -283,11 +294,16 @@ public final class SimSecretItems {
             double dy = at.getY() + 0.5 - py;
             double dz = at.getZ() + 0.5 - pz;
             if (dx * dx + dy * dy + dz * dz <= BAT_TRIGGER_RANGE * BAT_TRIGGER_RANGE) {
-                ready.add(at);
+                if (BAT_IN_RANGE.merge(at, 1, Integer::sum) >= BAT_TRIGGER_TICKS) {
+                    ready.add(at);
+                }
+            } else {
+                BAT_IN_RANGE.remove(at);
             }
         }
         for (BlockPos at : ready) {
             PENDING_BATS.remove(at);
+            BAT_IN_RANGE.remove(at);
             SimMobs.spawnSecretBat(level, at);
             SimBuildQueue.touched(at.getX(), at.getZ());
         }

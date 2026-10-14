@@ -188,6 +188,19 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                 v -> cfg.setCryptAttackTicks((int) Math.round(AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS
                         + v * (AutoRoutesConfig.MAX_CRYPT_ATTACK_TICKS - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS))));
         y[0] += 24;
+        // killer560, 2026-10-13: a bat node, "just like crypts" - its own weapon and attack time.
+        w.add(SettingsButtonWidget.cycling(batWeaponText(cfg), (btn, dir) -> {
+                    cfg.setBatWeapon(SettingsButtonWidget.step(cfg.getBatWeapon(), dir));
+                    cfg.save();
+                    btn.setMessage(batWeaponText(cfg));
+                }).bounds(contentX, y[0], half, 20).build());
+        slider(w, contentX + half + GAP, y[0], right,
+                () -> String.format(Locale.US, "Bat Attack Time: %.1fs", cfg.getBatAttackTicks() / 20.0),
+                (cfg.getBatAttackTicks() - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS)
+                        / (double) (AutoRoutesConfig.MAX_CRYPT_ATTACK_TICKS - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS),
+                v -> cfg.setBatAttackTicks((int) Math.round(AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS
+                        + v * (AutoRoutesConfig.MAX_CRYPT_ATTACK_TICKS - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS))));
+        y[0] += 24;
         // killer560, 2026-10-06: a pace for chained etherwarps, 1-20 a second - a spacing, not a per-second budget.
         int warpSpan = AutoRoutesConfig.MAX_WARPS_PER_SECOND - AutoRoutesConfig.MIN_WARPS_PER_SECOND;
         slider(w, contentX, y[0], contentWidth,
@@ -386,6 +399,10 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
 
     private static Component cryptWeaponText(AutoRoutesConfig cfg) {
         return Component.literal("Crypt Weapon: §e" + cfg.getCryptWeapon().label());
+    }
+
+    private static Component batWeaponText(AutoRoutesConfig cfg) {
+        return Component.literal("Bat Weapon: §e" + cfg.getBatWeapon().label());
     }
 
     private static Component breakerDisplayText(AutoRoutesConfig cfg) {

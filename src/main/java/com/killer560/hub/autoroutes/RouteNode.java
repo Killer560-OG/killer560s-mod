@@ -41,6 +41,10 @@ public final class RouteNode {
          *  crypt are killed". Aimed where he looked when placing it (the crypt), it uses the Crypt Weapon setting's
          *  Hyperion or Spirit Sceptre until one crypt undead or prince of HIS is killed - or {@code await:N} of them. */
         CRYPT,
+        /** killer560, 2026-10-13: "add a bat node. This functions just like crypts ... but is for bats". A crypt node for
+         *  secret bats: the Bat Weapon setting's Hyperion or Spirit Sceptre, straight down, until one secret bat dies
+         *  near him after a use of his - or {@code await:N} of them. */
+        BAT,
         /** killer560, 2026-10-09: "Add a jump node to auto routes"; 2026-10-12: "you have to type in jump _. That number
          *  is how many times it will jump". {@link #jumpCount} presses of the jump key, one tick each, each from the
          *  ground, then done. */
@@ -64,6 +68,7 @@ public final class RouteNode {
                 case "command", "cmd" -> COMMAND;
                 case "path" -> PATH;
                 case "crypt" -> CRYPT;
+                case "bat" -> BAT;
                 case "jump" -> JUMP;
                 default -> null;
             };
@@ -84,6 +89,7 @@ public final class RouteNode {
                 case COMMAND -> "Command";
                 case PATH -> "Path";
                 case CRYPT -> "Crypt";
+                case BAT -> "Bat";
                 case JUMP -> "Jump";
             };
         }
@@ -289,7 +295,7 @@ public final class RouteNode {
             case BOOM -> 2;
             // Right after the superboom that opens the crypt (killer560, 2026-10-05: "The crypt node should go after
             // superboom nodes").
-            case CRYPT -> 3;
+            case CRYPT, BAT -> 3;
             case USE_ITEM -> 4;
             case COMMAND -> 5;
             case ROTATE -> 6;
