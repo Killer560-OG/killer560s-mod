@@ -399,6 +399,14 @@ public final class AutoClearFeature {
             }
             return;
         }
+        if (com.killer560.hub.autopuzzles.AutoPuzzleActivity.isWorking()) {
+            // An auto puzzle is moving him (killer560, 2026-10-14): wait, holding nothing, and start no trip until it
+            // is done. Its warps and teleports are its own, not corrections of ours.
+            releaseUse(client);
+            action = "waiting (" + com.killer560.hub.autopuzzles.AutoPuzzleActivity.what() + " is working)";
+            positionPacketsSeen = positionPackets;
+            return;
+        }
         checkPositionPackets(client, player);
         if (!running) {
             return;

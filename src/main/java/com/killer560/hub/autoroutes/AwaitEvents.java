@@ -108,6 +108,7 @@ public final class AwaitEvents {
     /** A route starts: the first window opens - reaching back {@link #START_LOOKBACK} ticks for his own secrets. */
     static void begin(Minecraft client) {
         active = true;
+        beganAt = ticks;
         Minecraft mc = client;
         lastTabCrypts = com.killer560.hub.scorecalc.ScoreCalculatorFeature.tabCrypts(mc);
         window(client);
@@ -133,6 +134,24 @@ public final class AwaitEvents {
      * covers that race with room to spare, and a secret he took half a second before stepping on is the start node's.
      */
     static final int START_LOOKBACK = 10;
+
+    /** The tick the running route started: a remembered secret from before it can meet a node's first await. */
+    private static int beganAt;
+
+    static int beganAt() {
+        return beganAt;
+    }
+
+    /** The secrets counted in the open window (keys as {@link RouteRunMemory} has them), for the node they meet. */
+    static Set<String> windowSecrets() {
+        Set<String> out = new HashSet<>();
+        for (String k : counted) {
+            if (!k.startsWith("batkill ")) {
+                out.add(k);
+            }
+        }
+        return out;
+    }
 
     /** A secret of his seen while no route ran, for {@link #begin}: the last few only. */
     private record Recent(int tick, String key, String what) {
@@ -226,6 +245,7 @@ public final class AwaitEvents {
                         String.format(Locale.US, "%.1f", d), BAT_SPAWN_RANGE);
                 continue;
             }
+            RouteRunMemory.gotSecret("bat " + bat.getId(), bat.position(), "bat spawned at " + p.toShortString());
             addSecret("bat " + bat.getId(), "bat spawned at " + p.toShortString()
                     + String.format(Locale.US, " (%.1f blocks from you)", d));
         }
@@ -257,6 +277,7 @@ public final class AwaitEvents {
                 BlockPos at = mimicChest;
                 mimicChest = null;
                 LOGGER.info("[AutoRoutes] Mimic of the trapped chest at {} killed", at.toShortString());
+                RouteRunMemory.gotSecret("mimic " + at.asLong(), Vec3.atCenterOf(at), "mimic killed");
                 if (active) {
                     addSecret("mimic " + at.asLong(), "mimic killed (your trapped chest at " + at.toShortString() + ")");
                 }
@@ -298,6 +319,7 @@ public final class AwaitEvents {
             LOGGER.debug("[AutoRoutes] await ignored: click on {} at {} is not a secret block", b, pos.toShortString());
             return;
         }
+        RouteRunMemory.gotSecret("block " + pos.asLong(), Vec3.atCenterOf(pos), kind + " at " + pos.toShortString());
         if (!active) {
             // Its window can arrive after a route that counts it has started: waited under like any other (below).
             if (b == Blocks.CHEST) {
@@ -322,6 +344,7 @@ public final class AwaitEvents {
         }
         Entity item = client.level == null ? null : client.level.getEntity(itemId);
         String what = "item picked up by you" + (item != null ? " at " + item.blockPosition().toShortString() : "");
+        RouteRunMemory.gotSecret("item " + itemId, item != null ? item.position() : player.position(), what);
         if (!active) {
             noteBeforeStart("item " + itemId, what);
             return;

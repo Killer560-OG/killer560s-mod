@@ -868,6 +868,18 @@ public final class AutoRoutesFeature {
             teleportSettleTicks = TELEPORT_SETTLE_TICKS;
             return;
         }
+        // Interlock 6: an auto puzzle is working -> inert (killer560, 2026-10-14: "auto clear related things need to
+        // realize when an auto puzzle is working to stop making it etherwarp back to the start"). A node the puzzle
+        // walks or warps him through must not arm and warp him off the puzzle; it arms as usual once it is quiet.
+        if (com.killer560.hub.autopuzzles.AutoPuzzleActivity.isWorking()) {
+            String puzzle = com.killer560.hub.autopuzzles.AutoPuzzleActivity.what();
+            gate("inert: " + puzzle + " is working");
+            if (RouteExecutor.isRunning()) {
+                RouteExecutor.stop(puzzle + " is working");
+            }
+            addedToFire = null;
+            return;
+        }
         if (teleportSettleTicks > 0 && --teleportSettleTicks == 0) {
             // A same-room warp (the map click that takes you to your own start node) never produces a room
             // change, so the flag had nothing to clear it and start-only stayed enforced for one extra room

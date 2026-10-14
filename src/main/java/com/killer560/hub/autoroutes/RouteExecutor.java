@@ -271,6 +271,9 @@ public final class RouteExecutor {
     /** True from a node with an await firing until its own action starts - the span a screen may be open in
      *  (a secret chest's window) without stopping the route. */
     private static boolean awaitHeld;
+    /** The active node's {@link RouteRunMemory#nodeKey}, and the secrets of this run remembered toward its await. */
+    private static String awaitNodeKey;
+    private static List<RouteRunMemory.Got> awaitRemembered = List.of();
     /** The active node has sent its action (its "acted" line is written then). */
     private static boolean nodeActed;
 
@@ -517,6 +520,7 @@ public final class RouteExecutor {
 
     private static void complete() {
         justFinished = true;
+        RouteRunMemory.routeCompleted(route.roomName());
         LOGGER.info("[AutoRoutes] Route \"{}\" complete", route.roomName());
         boolean feedback = AutoRoutesConfig.getInstance().isChatFeedback();
         stop(null);
@@ -1273,6 +1277,25 @@ public final class RouteExecutor {
         // await:1" = attack until one crypt or prince of yours dies) - see tickCrypt.
         awaitPhaseDone = (!node.awaitEnabled || node.type == RouteNode.Type.CRYPT || node.type == RouteNode.Type.BAT)
                 && node.type != RouteNode.Type.AWAIT;
+        awaitNodeKey = RouteRunMemory.nodeKey(route, node);
+        awaitRemembered = List.of();
+        if (!awaitPhaseDone && node.awaitCondition != RouteNode.AwaitCondition.DELAY) {
+            // killer560, 2026-10-14: "if it remembers I already got that secret or that bat then it will not wait for
+            // the await before doing that action". Met earlier this run: met now. First visit: a secret he already got
+            // beside this node before the route started, and no other node's await used, counts toward it.
+            if (RouteRunMemory.metThisRun(awaitNodeKey)) {
+                LOGGER.info("[AutoRoutes] Node #{} {}: await already met earlier this run - secrets met from memory, "
+                        + "not waiting", route.indexOf(node) + 1, node.type);
+                awaitPhaseDone = true;
+            } else {
+                awaitRemembered = RouteRunMemory.unclaimedNear(RouteCoords.toReal(frame, node.relativePos()),
+                        AwaitEvents.beganAt(), AwaitEvents.windowSecrets());
+                for (RouteRunMemory.Got g : awaitRemembered) {
+                    LOGGER.info("[AutoRoutes] Node #{} {}: await counts {} - already got this run", route.indexOf(node) + 1,
+                            node.type, g.what());
+                }
+            }
+        }
         awaitHeld = !awaitPhaseDone;
         nodeActed = false;
         breakerQueue = new ArrayList<>();
@@ -1679,10 +1702,17 @@ public final class RouteExecutor {
             // Only what HE did since the previous node finished counts (AwaitEvents): his clicks on secret blocks, his
             // pickups, a secret bat appearing next to him, a mimic of his dying. Never a crypt - that is a crypt
             // node's own count. The room's "x/y Secrets" bar is not read: a teammate's secret raises it too.
-            done = AwaitEvents.secrets() >= Math.max(1, node.awaitAmount);
+            int have = AwaitEvents.secrets() + awaitRemembered.size();
+            done = have >= Math.max(1, node.awaitAmount);
             if (done) {
-                LOGGER.info("[AutoRoutes] Node #{} {}: await {}/{} secrets met", route.indexOf(node) + 1, node.type,
-                        AwaitEvents.secrets(), Math.max(1, node.awaitAmount));
+                LOGGER.info("[AutoRoutes] Node #{} {}: await {}/{} secrets met{}", route.indexOf(node) + 1, node.type,
+                        have, Math.max(1, node.awaitAmount), awaitRemembered.isEmpty() ? ""
+                                : " (" + awaitRemembered.size() + " remembered from earlier this run)");
+                java.util.Set<String> used = AwaitEvents.windowSecrets();
+                for (RouteRunMemory.Got g : awaitRemembered) {
+                    used.add(g.key());
+                }
+                RouteRunMemory.met(awaitNodeKey, used);
             }
         }
         if (done) {
@@ -2330,6 +2360,12 @@ public final class RouteExecutor {
         String KIND = bat ? "BAT" : "CRYPT";
         AutoRoutesConfig.CryptWeapon weapon = bat ? AutoRoutesConfig.getInstance().getBatWeapon()
                 : AutoRoutesConfig.getInstance().getCryptWeapon();
+        if (step == Step.PREP && bat && RouteRunMemory.metThisRun(awaitNodeKey)) {
+            LOGGER.info("[AutoRoutes] Node #{} BAT: its bat was already killed earlier this run - not attacking",
+                    route.indexOf(node) + 1);
+            finishAction();
+            return;
+        }
         if (step == Step.PREP) {
             int slot = ItemIdentity.findHotbarSlot(player, weapon.itemId());
             if (slot < 0) {
@@ -2416,6 +2452,9 @@ public final class RouteExecutor {
             if (kills(bat) >= goal) {
                 LOGGER.info("[AutoRoutes] Node #{} {}: {} kill(s) after holding use {} tick(s)", route.indexOf(node) + 1,
                         KIND, kills(bat), stepTicks);
+                if (bat) {
+                    RouteRunMemory.met(awaitNodeKey, List.of());
+                }
                 releaseUse(client);
                 restoreCryptSlot(client, player);
                 finishAction();
