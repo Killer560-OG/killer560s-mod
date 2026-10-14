@@ -36,6 +36,10 @@ public final class InteropFeature {
     private static final int BRIDGE_POLL_TICKS = 10;
 
     private static boolean wasInDungeon = false;
+    /** The live map's grid generation last seen: a new floor without leaving the dungeon (a new Dungeon Sim map) is a
+     *  new run too. killer560 (2026-10-14): after a new sim map, a room cleared on the previous map showed its secrets
+     *  as already found - the room facts are keyed by room name and outlived the floor. */
+    private static int lastGridGeneration = -1;
     private static int tickCounter = 0;
 
     private InteropFeature() {
@@ -51,7 +55,10 @@ public final class InteropFeature {
     private static void tick(Minecraft client) {
         InteropConfig cfg = InteropConfig.getInstance();
         boolean inDungeon = cfg.isEnabled() && DungeonState.isInDungeon();
-        if (inDungeon != wasInDungeon) {
+        int gen = com.killer560.hub.livemap.LiveMapFeature.resetGeneration();
+        boolean newFloor = inDungeon && wasInDungeon && lastGridGeneration >= 0 && gen != lastGridGeneration;
+        lastGridGeneration = gen;
+        if (inDungeon != wasInDungeon || newFloor) {
             wasInDungeon = inDungeon;
             PartyInteropState.reset();
             SelfDerivation.onRunReset();
