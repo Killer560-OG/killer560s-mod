@@ -46,6 +46,8 @@ public final class SimRoomIndex {
     }
 
     private static final List<Placed> ROOMS = new CopyOnWriteArrayList<>();
+    /** Bumped on every change, so a reader can cache what it derives from {@link #placed()} ({@code SimStaticWater}). */
+    private static volatile int version = 0;
 
     private SimRoomIndex() {
     }
@@ -53,6 +55,12 @@ public final class SimRoomIndex {
     /** Forgets the floor. Called before a build, so a new floor never shows the last one's waypoints. */
     public static void clear() {
         ROOMS.clear();
+        version++;
+    }
+
+    /** Changes whenever the placed rooms do. */
+    public static int version() {
+        return version;
     }
 
     /**
@@ -87,6 +95,7 @@ public final class SimRoomIndex {
             cellArray[i] = cells.get(i);
         }
         ROOMS.add(new Placed(room.name, clay[0], clay[1], dbRotation, cellArray, gridX, gridZ, rotation));
+        version++;
     }
 
     /** Every placed room on the floor, in paste order. Read by {@link SimRoomPuzzles} to arm the puzzles. */
@@ -119,6 +128,7 @@ public final class SimRoomIndex {
             }
             ROOMS.set(i, new Placed(p.name(), clayX, clayZ, rotation, p.cells(), p.gridX(), p.gridZ(),
                     p.pasteRotation()));
+            version++;
             return true;
         }
         return false;
