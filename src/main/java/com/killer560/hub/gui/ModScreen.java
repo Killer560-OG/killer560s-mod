@@ -149,6 +149,8 @@ public class ModScreen extends Screen {
 
     // ---- links (the ones the mod already publishes) -----------------------------------------------------------------
     static final String DISCORD_URL = "https://discord.gg/hkQMF5fE84";
+    /** killer560's channel (2026-10-14: "Add a button to this that will take you to my youtube channel"). */
+    static final String YOUTUBE_URL = "https://www.youtube.com/@Killer560_iscool";
     static final String GITHUB_URL = "https://github.com/" + com.killer560.hub.autoupdate.AutoUpdater.REPO;
     static final String FEATURES_URL = "https://docs.google.com/document/d/e/2PACX-1vQsLEy_hlz-Dv518bH7AgYjyoGgdNl2jSAF4T8vzQ"
             + "Hawmkg0f56q6Yrp67Zqncc8h9N-pdAvFLC5_D-/pub";
@@ -1032,19 +1034,13 @@ public class ModScreen extends Screen {
     }
 
     private boolean headerClick(double mx, double my, int button) {
-        int[] t = iconBounds(3);
-        if (inside(mx, my, t[0], t[1], t[2], t[3]) && (button == 0 || button == 1)) {
-            // The menu theme: left click the next preset, right click the previous (Amber, Dark, Light, Ocean, Custom).
-            clickSound();
-            com.killer560.hub.gui.tab.MenuThemeTab.step(button == 0 ? 1 : -1);
-            rebuild();
-            return true;
-        }
         if (button != 0) {
             return false;
         }
-        String[] urls = {DISCORD_URL, GITHUB_URL, FEATURES_URL};
-        for (int i = 0; i < 3; i++) {
+        // The fourth round icon was the theme switch; killer560 (2026-10-14) had it replaced by his YouTube channel.
+        // Themes are picked in the Themes tab.
+        String[] urls = {DISCORD_URL, GITHUB_URL, FEATURES_URL, YOUTUBE_URL};
+        for (int i = 0; i < 4; i++) {
             int[] b = iconBounds(i);
             if (inside(mx, my, b[0], b[1], b[2], b[3])) {
                 clickSound();
@@ -1055,7 +1051,7 @@ public class ModScreen extends Screen {
         return false;
     }
 
-    /** The header's round buttons {x, y, w, h}: 0 Discord, 1 GitHub, 2 features doc, 3 menu theme. */
+    /** The header's round buttons {x, y, w, h}: 0 Discord, 1 GitHub, 2 features doc, 3 YouTube. */
     public int[] iconBounds(int i) {
         int size = 14;
         int x = headerX + headerW - 8 - (4 - i) * (size + 2) + 2;
@@ -1491,8 +1487,8 @@ public class ModScreen extends Screen {
             r.fill(kx + 1, searchY + 4, kx + kw - 1, searchY + searchH - 4, MenuStyle.KEY_CHIP_BG);
         }
         // icons
-        // Discord's and GitHub's own colours, then the features doc and the theme switch in the menu's accent.
-        int[] colours = {0xFF5865F2, 0xFF333333, MenuStyle.OR2, MenuStyle.OR};
+        // Discord's, GitHub's and YouTube's own colours, the features doc in the menu's accent.
+        int[] colours = {0xFF5865F2, 0xFF333333, MenuStyle.OR2, 0xFFFF0033};
         for (int i = 0; i < 4; i++) {
             int[] b = iconBounds(i);
             boolean hover = inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
@@ -1518,7 +1514,7 @@ public class ModScreen extends Screen {
         if (showHint) {
             MenuStyle.flat(g, "Ctrl F", kx + 3, searchY + 4, MenuStyle.DIM2);
         }
-        String[] glyphs = {"D", "G", "?", "◐"};
+        String[] glyphs = {"D", "G", "?", "▶"};
         for (int i = 0; i < 4; i++) {
             int[] b = iconBounds(i);
             g.text(font, glyphs[i], b[0] + (b[2] - font.width(glyphs[i])) / 2 + 1, b[1] + 3, 0xFFFFFFFF, true);
@@ -1873,9 +1869,8 @@ public class ModScreen extends Screen {
                 text = null;
             }
         } else if (inside(mouseX, mouseY, iconBounds(3)[0], iconBounds(3)[1], iconBounds(3)[2], iconBounds(3)[3])) {
-            key = "theme";
-            text = "Menu theme: " + MenuConfig.getInstance().getTheme().label
-                    + ". Click for the next preset, right click for the previous (Amber, Dark, Light, Ocean, Custom).";
+            key = "youtube";
+            text = "Killer560's YouTube channel.";
         } else if (!pageMode() && inside(mouseX, mouseY, gridX, gridY, gridW, gridH)
                 && !(openFeature != null && drawerOverlay)) {
             String homeLabel = homeButtonAt(mouseX, mouseY);
@@ -2028,6 +2023,7 @@ public class ModScreen extends Screen {
 
     private static final String HOME_PROFILES = "Profiles";
     private static final String HOME_REBOOT = "Reboot";
+    private static final String HOME_SWEAT = "Sweat Mode";
 
     /** Home's quick button label under the mouse, or null. Its tooltip is SettingTooltipsData's "home button/<label>". */
     private String homeButtonAt(int mouseX, int mouseY) {
@@ -2065,6 +2061,8 @@ public class ModScreen extends Screen {
 
         private List<HomeButton> buttons() {
             List<HomeButton> b = new ArrayList<>();
+            // killer560 (2026-10-14): his channel at the top, and Sweat Mode right next to Check Updates - nine, a full 3x3.
+            b.add(new HomeButton("YouTube", () -> com.killer560.hub.util.ExternalOpen.uri(YOUTUBE_URL)));
             b.add(new HomeButton("Edit HUD", () -> {
                 Minecraft client = Minecraft.getInstance();
                 McCompat.setScreen(client, new com.killer560.hub.hud.HudEditorScreen(McCompat.screen(client)));
@@ -2074,6 +2072,7 @@ public class ModScreen extends Screen {
                 McCompat.setScreen(client, com.killer560.hub.hud.HudEditorScreen.forBars(McCompat.screen(client)));
             }));
             b.add(new HomeButton("Check Updates", () -> com.killer560.hub.gui.tab.AutoUpdateTab.checkNow(() -> { })));
+            b.add(new HomeButton(HOME_SWEAT, com.killer560.hub.util.SweatMode::enter));
             b.add(new HomeButton("Discord", () -> com.killer560.hub.util.ExternalOpen.uri(DISCORD_URL)));
             b.add(new HomeButton("GitHub", () -> com.killer560.hub.util.ExternalOpen.uri(GITHUB_URL)));
             b.add(new HomeButton("Features Doc", () -> com.killer560.hub.util.ExternalOpen.uri(FEATURES_URL)));

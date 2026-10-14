@@ -562,6 +562,8 @@ final class SettingTooltipsData {
         d.put("item rarity backgrounds", "Draws a rarity-coloured square, circle or outline behind Skyblock items.");
         d.put("opacity", "How see-through this element is, from faint to fully solid.");
         d.put("show in hotbar", "Also draws rarity backgrounds behind items in your hotbar.");
+        d.put("home button/youtube", "Opens Killer560's YouTube channel.");
+        d.put("home button/sweat mode", "Enters sweat mode.");
         d.put("home button/reboot", "Closes the game and has Prism Launcher start this instance again once it has fully"
                 + " closed (an update waiting to install goes in first). In a server, press twice within 10 seconds."
                 + " Same as /reboot. Only works when Prism Launcher started the game.");
