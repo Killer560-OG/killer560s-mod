@@ -702,8 +702,8 @@ final class SettingTooltipsData {
         d.put("blood camp", "Tracks the Watcher's blood mobs and predicts where each will land.");
         d.put("show overlay", "Draws a countdown box where each blood mob will settle, green when it is ready to hit.");
         d.put("aura", "Cheat build: acts on targets around you without needing to aim at them.");
-        d.put("auto detect lag", "Makes the Trigger Bot click earlier by your measured ping, so its hit reaches the server Hit Lead ticks before the mob lands.");
-        d.put("hit lead", "Cheat build: how many ticks before a blood mob lands the Trigger Bot's hit reaches the server, 0-10 (3 by default).");
+        d.put("auto detect lag", "Times the Trigger Bot from the kill timer (which allows for your measured ping) instead of the countdown's own end.");
+        d.put("trigger offset", "Cheat build: ticks from the kill timer to the Trigger Bot's click, -10 to 10: below 0 clicks late, above 0 early (-1 by default).");
         d.put("boulder solver", "Outlines the stone button to press next in the Boulder puzzle.");
         d.put("show all remaining clicks", "Outlines every remaining Boulder tile at once instead of just the next one.");
         d.put("quiz solver", "Highlights the floor spot of the correct answer in the Quiz puzzle.");
@@ -1867,10 +1867,11 @@ final class SettingTooltipsData {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Cheat-only tabs (2026-10-07): Blood Camp's automation in its own Auto Blood Camp tab, and Auto Close
             // Chest. Inside the constant, so a legit jar carries none of these strings.
-            d.put("auto blood camp/trigger bot", "Left-clicks a blood mob when its countdown ends, if you are aiming at its spot (cheat build only; needs Blood Camp on).");
-            d.put("auto blood camp/aura", "Turns your camera toward the spot a blood mob is about to land (cheat build only; needs Blood Camp on).");
-            d.put("auto blood camp/auto detect lag", "Clicks earlier by your measured ping, so the hit reaches the server Hit Lead ticks before the mob lands.");
-            d.put("auto blood camp/hit lead", "How many ticks before the mob lands the hit reaches the server, 0-10 (3 by default). Auto Detect Lag adds your ping on top.");
+            d.put("auto blood camp/trigger bot", "Left-clicks a blood mob at its kill timer if you are aiming at it, and clicks again if the hit missed (cheat build only; only in the Blood Room; needs Blood Camp on).");
+            d.put("auto blood camp/aura", "Turns you toward the blood mob due next, at its chest, with a human-looking mouse movement; moving your mouse takes over (cheat build only; only in the Blood Room).");
+            d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
+            d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: below 0 clicks late, above 0 early. -1 by default.");
+            d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
             d.put("auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
             d.put("auto close chest/auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
