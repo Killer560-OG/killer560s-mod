@@ -501,3 +501,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   readout while the feature is off (95-perf-features, 2026-10-15). Other `drawAt` callers still pay it: the Auto Clear
   status and Autopilot HUDs build their lines without testing the setting `isEnabledInSettings()` reads, so a skip
   inside `drawAt` itself could change what they show.
+- **Never write a SCREEN position into HudConfig.** `HudConfig` positions are Auto Scale baseline units and
+  `resolvePosition` multiplies them by the factor. The Custom Scoreboard's SkyHanni snap stored its screen x there, read
+  back `x * factor` on the next frame, took the mismatch for an Edit HUD drag and switched the snap off for good, so the
+  board sat at `x * 0.8` (228 px in from the right edge on a 1366x768 window) instead of against it (testkit 1661/1667 on
+  main, 2026-10-15). An element that must hug an edge keeps its own anchor and serves it from `layoutPosition()`
+  (`HudElement.keepOnScreen` / `storeEditorPosition` also make Edit HUD clamp and hand the drop back to it).
