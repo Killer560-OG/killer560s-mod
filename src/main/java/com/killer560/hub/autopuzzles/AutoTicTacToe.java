@@ -69,8 +69,16 @@ final class AutoTicTacToe {
     private static final AutoReposition WARP = new AutoReposition("TicTacToe", CAMERA);
     /** Every board square within this of his standing eye's box distance - a little inside the 4.5 limit. */
     private static final double BOARD_REACH = 4.2;
-    /** From where Secret Aura (or this auto) takes the secret chest: inside its 4.5, with a little margin. */
-    private static final double CHEST_SPOT_REACH = 4.3;
+    /**
+     * From where Secret Aura takes the secret chest: ITS rule exactly - his standing eye to the chest's box within his
+     * Aura Range (capped at the measured 4.5), with no line-of-sight test (SecretAuraFeature picks by box distance and
+     * clicks through walls, as the server allows) - less a hair for where the landing settles. killer560 (2026-10-15):
+     * "it should aura the secret".
+     */
+    private static double chestSpotReach() {
+        return Math.min(com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().getAuraRange(),
+                com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH) - 0.05;
+    }
     /** Ticks Secret Aura gets to take the chest once he stands in reach of it, before the auto clicks it itself. */
     private static final int AURA_TICKS = 10;
 
@@ -439,14 +447,14 @@ final class AutoTicTacToe {
                 }
                 if (chestWalking) {
                     if (com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), chestReal)
-                            > CHEST_SPOT_REACH * CHEST_SPOT_REACH && APPROACH.tick(client)) {
+                            > chestSpotReach() * chestSpotReach() && APPROACH.tick(client)) {
                         return;
                     }
                     chestWalking = false;
                     client.options.keyUp.setDown(false);
                 }
                 if (com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), chestReal)
-                        <= CHEST_SPOT_REACH * CHEST_SPOT_REACH && player.onGround()) {
+                        <= chestSpotReach() * chestSpotReach() && player.onGround()) {
                     auraTicks = 0;
                     advanceChest(ChestStage.AURA, "the secret is in reach");
                     return;
@@ -490,15 +498,9 @@ final class AutoTicTacToe {
         if (ClearExecutor.isBusy()) {
             return;
         }
-        // In sight of it first; a covered spot (the server's reach has no line-of-sight test) when none is.
-        List<BlockPos> spots = new java.util.ArrayList<>(AutoPuzzleUtil.reachSpots(client, List.of(target),
-                CHEST_SPOT_REACH, true, Vec3.atCenterOf(target)));
-        for (BlockPos b : AutoPuzzleUtil.reachSpots(client, List.of(target), CHEST_SPOT_REACH, false,
-                Vec3.atCenterOf(target))) {
-            if (!spots.contains(b)) {
-                spots.add(b);
-            }
-        }
+        // Every block his STANDING eye has it within Secret Aura's reach from, walls or not, nearest the chest first.
+        List<BlockPos> spots = AutoPuzzleUtil.reachSpots(client, List.of(target), chestSpotReach(), false,
+                Vec3.atCenterOf(target), true);
         if (spots.isEmpty()) {
             advanceChest(ChestStage.WALK_BACK, "no block to stand on has " + label + " in reach");
             return;
@@ -519,7 +521,7 @@ final class AutoTicTacToe {
         if (!walkTried && player.onGround()) {
             BlockPos spot = MazeWalk.planToSpot(client.level, player.position(), target, 8,
                     eye -> com.killer560.hub.util.BlockHits.boxDistanceSq(eye, target)
-                            <= CHEST_SPOT_REACH * CHEST_SPOT_REACH, APPROACH);
+                            <= chestSpotReach() * chestSpotReach(), APPROACH);
             walkTried = true;
             if (spot == null) {
                 LOGGER.info("[AutoPuzzles] TicTacToe: no walk on his floor to a spot in reach of {}", label);

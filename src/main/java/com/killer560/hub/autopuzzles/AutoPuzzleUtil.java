@@ -659,6 +659,12 @@ public final class AutoPuzzleUtil {
      */
     public static java.util.List<BlockPos> reachSpots(Minecraft client, java.util.List<BlockPos> targets, double reach,
                                                      boolean needSight, Vec3 prefer) {
+        return reachSpots(client, targets, reach, needSight, prefer, false);
+    }
+
+    /** {@link #reachSpots}; {@code standingOnly}: only the standing eye has to reach (Secret Aura clicks standing). */
+    public static java.util.List<BlockPos> reachSpots(Minecraft client, java.util.List<BlockPos> targets, double reach,
+                                                     boolean needSight, Vec3 prefer, boolean standingOnly) {
         java.util.List<BlockPos> out = new java.util.ArrayList<>();
         if (client.level == null || client.player == null || targets.isEmpty()) {
             return out;
@@ -700,7 +706,7 @@ public final class AutoPuzzleUtil {
                     boolean ok = true;
                     for (BlockPos t : targets) {
                         if (com.killer560.hub.util.BlockHits.boxDistanceSq(eyeUp, t) > reachSq
-                                || com.killer560.hub.util.BlockHits.boxDistanceSq(eyeDown, t) > reachSq
+                                || (!standingOnly && com.killer560.hub.util.BlockHits.boxDistanceSq(eyeDown, t) > reachSq)
                                 || (needSight && !sees(client, eyeUp, t))) {
                             ok = false;
                             break;
