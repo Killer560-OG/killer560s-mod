@@ -8,7 +8,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * Each engagement (from the moment there is a mob to click until there is none) rolls its own pace, 7-10 clicks a
  * second; every gap is that pace's interval with a log-normal jitter (sigma 0.35), rounded to whole ticks, at least 2
  * (so never above 10 clicks a second from these alone, well under the ~14 a fast human manages), and about one gap in
- * eight is a short pause (4-9 ticks more) - a hand resetting its grip. The registering hits count as clicks too, so
+ * twelve is a short pause (3-6 ticks more) - a hand resetting its grip. The registering hits count as clicks too, so
  * the gap after one is measured from it.
  */
 final class HumanClicks {
@@ -44,8 +44,8 @@ final class HumanClicks {
         ThreadLocalRandom r = ThreadLocalRandom.current();
         double base = intervalTicks <= 0 ? 2.5 : intervalTicks;
         double g = base * Math.exp(r.nextGaussian() * 0.35);
-        if (r.nextDouble() < 0.125) {
-            g += 4 + r.nextInt(6);
+        if (r.nextDouble() < 0.08) {
+            g += 3 + r.nextInt(4);
         }
         return Math.max(MIN_GAP_TICKS, (int) Math.round(g));
     }
