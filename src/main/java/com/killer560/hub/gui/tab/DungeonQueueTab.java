@@ -35,16 +35,7 @@ public class DungeonQueueTab extends BaseTab {
      *  card is ON while either is, OFF only when both are (killer560, 2026-10-14). */
     @Override
     public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        List<SettingsButtonWidget> out = new ArrayList<>();
-        SettingsButtonWidget requeue = switchRow(built, "Auto Requeue");
-        SettingsButtonWidget overlay = switchRow(built, "Party Finder Overlay");
-        if (requeue != null) {
-            out.add(requeue);
-        }
-        if (overlay != null) {
-            out.add(overlay);
-        }
-        return out;
+        return switchRows(built, "Auto Requeue", "Party Finder Overlay");
     }
 
     @Override

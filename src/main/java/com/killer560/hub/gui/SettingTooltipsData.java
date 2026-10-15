@@ -1449,8 +1449,6 @@ final class SettingTooltipsData {
         d.put("p3 nav/gate line width", "Thickness of the gate box outline.");
         d.put("p3 nav/hide once destroyed", "ON hides the gate box once the gate is broken; OFF keeps it drawn.");
         d.put("p3 nav/current section only", "ON only boxes your current section; OFF boxes everything left in Phase 3.");
-        d.put("p3 nav/p3 nav", "P3 Nav as a whole - off, no gate, terminal or device box is drawn, whatever their own switches say.");
-        d.put("f7 spots/f7 spots", "F7 Spots as a whole - off, no walk-to waypoint or aim spot is drawn, whatever their own switches say. Your saved spots are kept.");
         d.put("p3 nav/through walls", "Cheat build only. Draws terminal and device boxes through blocks.");
 
         // Hover Terminals + Run Summary
@@ -1535,7 +1533,6 @@ final class SettingTooltipsData {
         d.put("auto door opener/range", "Cheat build only. How close a locked door must be before Aura clicks it, 2.0-6.0 blocks.");
         d.put("auto door opener/swing hand", "Cheat build only. Swings your arm each time a door is clicked.");
         d.put("door keys/show tracer", "Draws a line from your eyes to the highlighted key.");
-        d.put("dungeon alerts/dungeon alerts", "Dungeon Alerts as a whole - off, neither the Shadow Assassin Alert nor the Room Alerts fire, whatever their own switches say.");
         d.put("dungeon alerts/room cleared", "Alerts when a room's objective is cleared, for any room on the map.");
         d.put("dungeon alerts/secrets done", "Alerts once every secret in the room you're standing in is found.");
         d.put("dungeon alerts/on-screen text", "Shows the room name and alert as orange text on screen.");
@@ -1638,7 +1635,6 @@ final class SettingTooltipsData {
         d.put("leap menu/scale", "Size of the custom leap menu's four teammate boxes, 50% to 400%.");
         d.put("lever aura/range", "Maximum distance in blocks this feature reaches.");
         d.put("lever aura/swing hand", "Plays your arm swing each time Lever Aura flicks a lever (cheat build only).");
-        d.put("maxor's crystals/maxor's crystals", "Maxor's Crystals as a whole - off, none of the timers, the alert, the counter or the crystal boxes run, whatever their own switches say.");
         d.put("maxor's crystals/respawn timer", "Shows a countdown to the next crystal spawning.");
         d.put("maxor's crystals/place timer", "Times how long you take to place a crystal and remembers your best.");
         d.put("maxor's crystals/unplaced crystal alert", "Warns you while you are carrying a crystal you have not placed.");
@@ -1737,7 +1733,6 @@ final class SettingTooltipsData {
         d.put("terminal triggerbot/cooldown", "Cheat build: minimum time between two terminal opens, 0-2000 ms.");
         d.put("terminal triggerbot/range", "Cheat build: how far away you can open a terminal you look at, 1-4 blocks.");
         d.put("dungeon/termism", "Opens fake F7/M7 terminals to practice on anywhere; /termism opens it too.");
-        d.put("thorn (f4)/thorn", "Thorn as a whole - off, the Spirit Bear counter, every Thorn highlight and the stun spots stop, whatever their own switches say.");
         d.put("thorn (f4)/thorn highlights", "Colored boxes or a glow on Thorn-fight targets during the F4/M4 boss.");
         d.put("trajectories/bows", "Draws the arrow path and landing spot while you hold a bow.");
         d.put("trajectories/ender pearls", "Draws the throw path and landing spot while you hold an Ender Pearl.");

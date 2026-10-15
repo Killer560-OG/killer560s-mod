@@ -24,6 +24,12 @@ public class InventoryThemeTab extends BaseTab {
         super("Inventory Theme");
     }
 
+    /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): the theme and Hide Potion Effects are separate features. */
+    @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Inventory Theme", "Hide Potion Effects");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();

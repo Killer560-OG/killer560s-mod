@@ -44,6 +44,12 @@ public class LeapMenuTab extends BaseTab {
         super("Leap Menu");
     }
 
+    /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): the Custom Leap Menu and the Leap Message are separate features. */
+    @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Custom Leap Menu", "Leap Message Enabled");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();

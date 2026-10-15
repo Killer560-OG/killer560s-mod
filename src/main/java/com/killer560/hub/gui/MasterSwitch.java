@@ -10,8 +10,9 @@ import java.util.List;
  * still want that portion of the mod on for party finder overlay. But if i have both of those larger settings off then
  * it needs to be off"). Such a tab lists each feature's own ON/OFF row in {@link
  * com.killer560.hub.gui.tab.BaseTab#masterToggles}, and the switch is ON while ANY of them is on. Pressing it with
- * something on turns every ON one off; pressing it with all off turns every one on. Each row also keeps working by
- * itself inside the tab.
+ * something on turns every ON one off; pressing it with all off turns on only the FIRST row (the tab's primary
+ * feature), never the rest - some of them send real chat messages or act for you. Each row also keeps working by itself
+ * inside the tab.
  */
 public final class MasterSwitch {
 
@@ -41,7 +42,7 @@ public final class MasterSwitch {
         return false;
     }
 
-    /** Exactly a click on the single row; for several, all on turn off, or all off turn on. */
+    /** Exactly a click on the single row; for several, those that are on turn off, or with none on the first turns on. */
     public void press() {
         if (parts.size() == 1) {
             parts.get(0).press();
@@ -53,8 +54,12 @@ public final class MasterSwitch {
         for (int i = 0; i < on.length; i++) {
             on[i] = parts.get(i).isOn();
         }
+        if (!anyOn) {
+            parts.get(0).press();
+            return;
+        }
         for (int i = 0; i < on.length; i++) {
-            if (anyOn ? on[i] : !on[i]) {
+            if (on[i]) {
                 parts.get(i).press();
             }
         }

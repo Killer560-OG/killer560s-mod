@@ -31,6 +31,12 @@ public class P3NavTab extends BaseTab {
         super("P3 Nav");
     }
 
+    /** The card is ON while any highlight is, OFF only when all are. */
+    @Override
+    public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Gate Highlight", "Terminal Highlight", "Device Highlight");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
@@ -42,17 +48,8 @@ public class P3NavTab extends BaseTab {
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        // P3 Nav as a whole (killer560, 2026-10-13): first, so it is the card's switch. Off, the feature stands down in its
-        // config's effective getters and the settings below are hidden.
-        widgets.add(SettingsButtonWidget.builder(Component.literal("P3 Nav: " + (cfg.isP3NavEnabled() ? "§aON" : "§cOFF")), btn -> {
-                    cfg.setP3NavEnabled(!cfg.isP3NavEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
-        if (!cfg.isP3NavEnabled()) {
-            return widgets;
-        }
+        // No switch over the whole tab (killer560, 2026-10-14): the gate, terminal and device highlights are independent,
+        // each has its own switch, and the card is ON while any is.
 
         // ---- Gate Highlight ----
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Gate Highlight", false), mc.font));

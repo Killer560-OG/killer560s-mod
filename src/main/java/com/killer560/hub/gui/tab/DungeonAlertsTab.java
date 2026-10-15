@@ -29,6 +29,12 @@ public class DungeonAlertsTab extends BaseTab {
         super("Dungeon Alerts");
     }
 
+    /** The card is ON while either alert is, OFF only when both are. */
+    @Override
+    public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Shadow Assassin Alert", "Room Alerts");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();
@@ -38,18 +44,8 @@ public class DungeonAlertsTab extends BaseTab {
         int colB = contentX + half + gap;
         int[] y = {contentY};
 
-        // Dungeon Alerts as a whole (killer560, 2026-10-13): first, so it is the card's switch. Off, both alerts below
-        // stand down (DungeonAlertsConfig#shadowAssassinOn / #roomAlertsOn) and their settings are hidden.
-        w.add(SettingsButtonWidget.builder(onOff("Dungeon Alerts", cfg.isDungeonAlertsEnabled()), btn -> {
-                    cfg.setDungeonAlertsEnabled(!cfg.isDungeonAlertsEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y[0], contentWidth, 20).build());
-        y[0] += 24;
-        if (!cfg.isDungeonAlertsEnabled()) {
-            return w;
-        }
-
+        // No switch over the whole tab (killer560, 2026-10-14): the two alerts are independent, each has its own switch,
+        // and the card is ON while either is.
         // --- Shadow Assassin Alert ---
         header(w, contentX, y, contentWidth, "Shadow Assassin Alert");
         master(w, contentX, y, contentWidth, "Shadow Assassin Alert", () -> cfg.shadowAssassinEnabled,

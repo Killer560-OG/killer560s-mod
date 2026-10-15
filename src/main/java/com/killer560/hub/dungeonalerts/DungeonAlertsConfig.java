@@ -29,10 +29,6 @@ public final class DungeonAlertsConfig {
 
     private static DungeonAlertsConfig instance;
 
-    /** Dungeon Alerts as a whole (killer560, 2026-10-13): off, Shadow Assassin Alert and Room Alerts both stand down
-     *  whatever their own switches say. On by default, so nothing changes until he flips it. */
-    public boolean dungeonAlertsEnabled = true;
-
     // Shadow Assassin Alert
     public boolean shadowAssassinEnabled = false;
 
@@ -100,7 +96,6 @@ public final class DungeonAlertsConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.dungeonAlertsEnabled = bool(o, "dungeonAlertsEnabled", cfg.dungeonAlertsEnabled);
                 cfg.shadowAssassinEnabled = bool(o, "shadowAssassinEnabled", cfg.shadowAssassinEnabled);
                 cfg.secretSoundEnabled = bool(o, "secretSoundEnabled", cfg.secretSoundEnabled);
                 cfg.secretSoundId = ConfigJson.getString(o, "secretSoundId", cfg.secretSoundId);
@@ -119,6 +114,13 @@ public final class DungeonAlertsConfig {
                 cfg.roomAlertsSecretsDone = bool(o, "roomAlertsSecretsDone", cfg.roomAlertsSecretsDone);
                 cfg.roomAlertsTitle = bool(o, "roomAlertsTitle", cfg.roomAlertsTitle);
                 cfg.roomAlertsDisplaySeconds = clamp(flt(o, "roomAlertsDisplaySeconds", cfg.roomAlertsDisplaySeconds), 0.5f, 3.0f);
+                // A "Dungeon Alerts as a whole" switch (2026-10-13) sat over both alerts and is gone (2026-10-15): they
+                // are independent. A file saved with it OFF had both standing down, so they load OFF; saved ON (or
+                // without it) they keep their own switches. The key is not written back.
+                if (o.has("dungeonAlertsEnabled") && !bool(o, "dungeonAlertsEnabled", true)) {
+                    cfg.shadowAssassinEnabled = false;
+                    cfg.roomAlertsEnabled = false;
+                }
             } catch (Exception e) {
                 LOGGER.warn("[DungeonAlerts] Failed to read config, using defaults", e);
                 cfg = new DungeonAlertsConfig();
@@ -131,7 +133,6 @@ public final class DungeonAlertsConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject o = new JsonObject();
-            o.addProperty("dungeonAlertsEnabled", dungeonAlertsEnabled);
             o.addProperty("shadowAssassinEnabled", shadowAssassinEnabled);
             o.addProperty("secretSoundEnabled", secretSoundEnabled);
             o.addProperty("secretSoundId", secretSoundId);
@@ -156,22 +157,14 @@ public final class DungeonAlertsConfig {
         }
     }
 
-    public boolean isDungeonAlertsEnabled() {
-        return dungeonAlertsEnabled;
-    }
-
-    public void setDungeonAlertsEnabled(boolean v) {
-        this.dungeonAlertsEnabled = v;
-    }
-
-    /** Shadow Assassin Alert's effective switch: its own AND Dungeon Alerts as a whole. */
+    /** Shadow Assassin Alert's switch. */
     public boolean shadowAssassinOn() {
-        return dungeonAlertsEnabled && shadowAssassinEnabled;
+        return shadowAssassinEnabled;
     }
 
-    /** Room Alerts' effective switch: its own AND Dungeon Alerts as a whole. */
+    /** Room Alerts' switch. */
     public boolean roomAlertsOn() {
-        return dungeonAlertsEnabled && roomAlertsEnabled;
+        return roomAlertsEnabled;
     }
 
     private static boolean bool(JsonObject o, String key, boolean def) {

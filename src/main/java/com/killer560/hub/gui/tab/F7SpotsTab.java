@@ -59,6 +59,12 @@ public class F7SpotsTab extends BaseTab {
         super("F7 Spots");
     }
 
+    /** The card is ON while either Walk Waypoints or Aim Spots is, OFF only when both are. */
+    @Override
+    public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Walk Waypoints", "Aim Spots");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
@@ -69,17 +75,8 @@ public class F7SpotsTab extends BaseTab {
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        // F7 Spots as a whole (killer560, 2026-10-13): first, so it is the card's switch. Off, the feature stands down in its
-        // config's effective getters and the settings below are hidden.
-        widgets.add(SettingsButtonWidget.builder(Component.literal("F7 Spots: " + (cfg.isF7SpotsEnabled() ? "§aON" : "§cOFF")), btn -> {
-                    cfg.setF7SpotsEnabled(!cfg.isF7SpotsEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
-        if (!cfg.isF7SpotsEnabled()) {
-            return widgets;
-        }
+        // No switch over the whole tab (killer560, 2026-10-14): Walk Waypoints and Aim Spots are independent, each has
+        // its own switch, and the card is ON while either is.
 
         // ---- Walk-to waypoints ----
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Walk-To Waypoints", false), mc.font));

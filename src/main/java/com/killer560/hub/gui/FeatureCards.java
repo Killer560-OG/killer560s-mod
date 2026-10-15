@@ -121,6 +121,14 @@ public final class FeatureCards {
             return own;
         }
         String category = MenuCategories.legacyCategory(tab);
+        // A tab of several independent switches: its first row's tooltip would describe only that one.
+        MasterSwitch several = masterSwitch(tab, null);
+        if (several != null && several.parts().size() > 1) {
+            String fixedSeveral = FeatureDescriptions.get(tab);
+            if (fixedSeveral != null) {
+                return fixedSeveral;
+            }
+        }
         SettingsButtonWidget m = master(tab, null);
         if (m != null) {
             String tip = SettingTooltips.describeScoped(tab.name, category, m.getMessage().getString());

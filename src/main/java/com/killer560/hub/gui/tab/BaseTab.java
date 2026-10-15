@@ -70,6 +70,18 @@ public abstract class BaseTab {
         return m == null ? List.of() : List.of(m);
     }
 
+    /** The ON/OFF rows of {@code built} labelled {@code labels} (those that exist, in the order given). */
+    protected static List<com.killer560.hub.gui.SettingsButtonWidget> switchRows(List<AbstractWidget> built, String... labels) {
+        List<com.killer560.hub.gui.SettingsButtonWidget> out = new java.util.ArrayList<>();
+        for (String l : labels) {
+            com.killer560.hub.gui.SettingsButtonWidget b = switchRow(built, l);
+            if (b != null) {
+                out.add(b);
+            }
+        }
+        return out;
+    }
+
     /** The row in {@code built} whose label (formatting stripped, cut at its ':') is {@code label}, if it is an ON/OFF
      *  switch. For {@link #masterToggles} overrides. */
     protected static com.killer560.hub.gui.SettingsButtonWidget switchRow(List<AbstractWidget> built, String label) {

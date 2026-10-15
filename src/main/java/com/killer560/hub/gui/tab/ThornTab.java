@@ -30,6 +30,14 @@ public class ThornTab extends BaseTab {
         super("Thorn (F4)");
     }
 
+    /** The card is ON while any part is on, OFF only when all are; turning it on turns on the Spirit Bear HUD. */
+    @Override
+    public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Spirit Bear HUD", "Show Overkill", "Overkill Chat", "Overkill To Party",
+                "Thorn Highlight", "Spirit Bear Highlight", "Spirit Mob Highlight", "Spirit Bow Highlight",
+                "Stun Spot Waypoints");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
@@ -41,17 +49,8 @@ public class ThornTab extends BaseTab {
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        // Thorn as a whole (killer560, 2026-10-13): first, so it is the card's switch. Off, every part below stands down
-        // (ThornConfig's effective getters) and its settings are hidden.
-        widgets.add(SettingsButtonWidget.builder(onOff("Thorn", cfg.isThornEnabled()), btn -> {
-                    cfg.setThornEnabled(!cfg.isThornEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
-        if (!cfg.isThornEnabled()) {
-            return widgets;
-        }
+        // No switch over the whole tab (killer560, 2026-10-14): the counter, each highlight and the stun spots are
+        // independent, each has its own switch, and the card is ON while any is.
 
         // ---- Spirit Bear counter ----
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Spirit Bear Counter", false), mc.font));

@@ -24,6 +24,12 @@ public class I4SensorsTab extends BaseTab {
         super("Sharp Shooter (i4)");
     }
 
+    /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): the Solver, Auto i4 and I4 Leap are separate features. */
+    @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Solver", "Auto i4", "I4 Leap");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
