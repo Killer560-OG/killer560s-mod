@@ -164,3 +164,15 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   onto the node", killer560 2026-10-14). A finished jump node now holds its tile for 3 s of real time
   (`RouteExecutor.jumpCooldownLeft`, gate line "jump cooldown N.Ns left"), then the latch rules apply as before; testkit
   96-ar-1014-jumpcd / 62-argrim-1014-jumpcd measure 3.04-3.10 s between fires, and a jump -> etherwarp route goes on at once.
+- **On Hypixel the item he warps onto is taken in the same batch as the landing** (killer560, 2026-10-14: "it never detects
+  secrets... it picks them up faster than it knows it grabs them"). His Mod Only Test log of a real Red Blue run logs "await
+  secret 1: item picked up by you" while #3's warp is still the active node, then "landed", then #4 sitting at 0/1: the take
+  packet is handled before the route's tick sees the landing, so it was counted in #3's window and wiped by `window()`. An
+  integrated server picks up a server tick later, so the sim never showed it. A secret got while the previous node was
+  acting, in its last `AwaitEvents.CARRY_TICKS` (10), within 6 blocks and unclaimed, now counts for the next node; the sim
+  picks up on the teleport step (`SimSecretItems.pickupOnLanding`), and the testkit's `HypixelOrder` forces that order on
+  any jar (96-ar-1015-landpickup).
+- **A left click only skips while the node is ALREADY waiting** - one made while the warp onto it was in flight went to
+  vanilla as a swing a tick before the await opened, and one while Kill Mimic held the hands was never read (that branch
+  of `tick` returned before `tickAction`). Both are taken now: held `EARLY_SKIP_TICKS` (10) for the next await, and Kill
+  Mimic is stopped by the skip (96-ar-1015-earlyskip, -mimicskip, 2026-10-15).

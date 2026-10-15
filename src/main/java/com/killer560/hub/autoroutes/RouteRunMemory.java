@@ -129,6 +129,26 @@ public final class RouteRunMemory {
         return out;
     }
 
+    /**
+     * The secrets of this run got at or after {@code sinceTick} within {@link #NEAR_NODE} of {@code nodePos}, used by
+     * no met await and not among {@code exclude}: what the node before this one picked up on its way in, just before
+     * this node's window opened ({@link AwaitEvents#CARRY_TICKS}).
+     */
+    static List<Got> unclaimedNearSince(Vec3 nodePos, int sinceTick, Set<String> exclude) {
+        check();
+        List<Got> out = new ArrayList<>();
+        if (nodePos == null) {
+            return out;
+        }
+        for (Got g : got.values()) {
+            if (g.tick() >= sinceTick && !claimed.contains(g.key()) && !exclude.contains(g.key())
+                    && g.pos().distanceTo(nodePos) <= NEAR_NODE) {
+                out.add(g);
+            }
+        }
+        return out;
+    }
+
     /** A node's await was met by {@code keys} (its window's secrets plus any remembered ones). */
     static void met(String nodeKey, java.util.Collection<String> keys) {
         check();

@@ -62,6 +62,13 @@ public final class MimicKiller {
         return state == State.AIM || state == State.USING;
     }
 
+    /** Lets go now (his left click skipped the node it held): the slot he held goes back, as when it finishes. */
+    static void cancel(Minecraft client, String why) {
+        if (state != State.IDLE) {
+            finish(client, client.player, why);
+        }
+    }
+
     /** From {@link AwaitEvents}: we just clicked a trapped chest. */
     static void onTrappedChestClicked(Minecraft client, BlockPos chest) {
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();

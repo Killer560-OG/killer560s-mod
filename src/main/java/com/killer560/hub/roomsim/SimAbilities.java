@@ -703,6 +703,10 @@ public final class SimAbilities {
         // Ice Fill judges every landing, not one position a tick: two hops handled in one server tick are two
         // tiles stood on (2026-10-05).
         com.killer560.hub.roomsim.puzzles.SimIceFillPuzzle.onTeleport(sp);
+        // Hypixel picks up the item he lands on in the same step that moves him: its take packet arrives right behind
+        // the position packet, before the client's next tick sees the landing (killer560's 2026-10-14 Hypixel log,
+        // Red Blue #3 -> #4). Vanilla, and the sim until now, picked it up a server tick later.
+        SimSecretItems.pickupOnLanding(sp);
     }
 
     /** Chat belongs on the client thread; the abilities run on the server's. */
