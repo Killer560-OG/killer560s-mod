@@ -1989,7 +1989,8 @@ public final class SimFloorLayout {
             // a pinned one at whichever of those positions the path reaches it.
             int fairyAt = fairyPin >= 0 ? -1 : 2 + rng.nextInt(Math.max(1, intermediates - 2));
             List<SpineStep> spine = planSpine(placed, placedFrom, entranceIdx, occupied, normal, fairyRoom,
-                    bloodRoom, fairyPin, bloodPin, fairyCells, intermediates, fairyAt, used, rng);
+                    bloodRoom, fairyPin, bloodPin, fairyCells, intermediates, fairyAt, used, rng,
+                    wantCells - minRooms);
             if (spine == null) {
                 return null;   // this seat could not take the path; attemptLoop draws another
             }
@@ -2507,7 +2508,8 @@ public final class SimFloorLayout {
     private static List<SpineStep> planSpine(List<Placement> placed, List<Candidate> placedFrom, int entranceIdx,
                                              int[] occupied, List<Candidate> normal, Candidate fairy,
                                              Candidate blood, int fairyPin, int bloodPin, Set<Long> fairyCells,
-                                             int intermediates, int fairyAt, Set<String> used, Random rng) {
+                                             int intermediates, int fairyAt, Set<String> used, Random rng,
+                                             int slack) {
         Map<String, Double> key = new HashMap<>();
         List<Candidate> ordinary = new ArrayList<>();
         for (Candidate c : normal) {
@@ -2523,6 +2525,7 @@ public final class SimFloorLayout {
         Spine search = new Spine(placed, placedFrom, occupied.clone(), ordinary, fairy, blood, fairyPin, bloodPin,
                 intermediates, fairyAt, new HashSet<>(used), key, rng);
         search.fairyCells.addAll(fairyCells);
+        search.slack = slack;
         Placement start = placed.get(entranceIdx);
         return search.extend(1, placedFrom.get(entranceIdx).byRotation()[start.rotation() / 90],
                 start.originX(), start.originZ(), entranceIdx, false) ? search.out : null;
@@ -2546,6 +2549,13 @@ public final class SimFloorLayout {
         final Set<Long> fairyCells = new HashSet<>();
         final List<SpineStep> out = new ArrayList<>();
         int budget = SPINE_BUDGET;
+        /**
+         * Cells beyond one a room the path's rooms may take together: the floor's cells less its room minimum. On a
+         * bounded floor (sim-designer-1015) an Entrance path of two 2x2s left 8 of 16 cells for 8 more rooms, and 22% of
+         * Entrance floors at Rooms to blood 4 came out a room short (testkit 73, tools/layoutsim -Dbounded=true).
+         */
+        int slack = Integer.MAX_VALUE;
+        int extraUsed;
 
         Spine(List<Placement> placed, List<Candidate> placedFrom, int[] occ, List<Candidate> ordinary,
               Candidate fairy, Candidate blood, int fairyPin, int bloodPin, int intermediates, int fairyAt,
@@ -2627,7 +2637,8 @@ public final class SimFloorLayout {
                                 continue;
                             }
                             int[] o = originFor(m, packed, need, tx, tz);
-                            if (!fits(occ, o[0], o[1], m.tilesX(), m.tilesZ())) {
+                            if (!fits(occ, o[0], o[1], m.tilesX(), m.tilesZ())
+                                    || extraUsed + m.tilesX() * m.tilesZ() - 1 > slack) {
                                 continue;
                             }
                             // Blood never next to the fairy (a room always between); everything before blood
@@ -2672,6 +2683,7 @@ public final class SimFloorLayout {
                 boolean isPin = st.pin() >= 0;
                 if (!isPin) {
                     mark(m, st.originX(), st.originZ(), Integer.MAX_VALUE);
+                    extraUsed += m.tilesX() * m.tilesZ() - 1;
                 }
                 out.add(st);
                 if (last) {
@@ -2694,6 +2706,7 @@ public final class SimFloorLayout {
                 if (!isPin) {
                     used.remove(st.candidate().name());
                     mark(m, st.originX(), st.originZ(), -1);
+                    extraUsed -= m.tilesX() * m.tilesZ() - 1;
                 }
                 out.remove(out.size() - 1);
             }
