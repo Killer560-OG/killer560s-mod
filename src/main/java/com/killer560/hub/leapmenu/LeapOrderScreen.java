@@ -206,8 +206,10 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         int x = 18;
         int y = 46;
         int w = Math.max(50, width - 2 * x);
-        int h = Math.max(40, height - 40 - y);
-        return new int[]{x, y, w, h};
+        int room = Math.max(40, height - 40 - y);
+        // Tall enough to fill a normal window, but not a long empty strip on a big one: past 280 units the row is centred.
+        int h = Math.min(room, 280);
+        return new int[]{x, y + (room - h) / 2, w, h};
     }
 
     /** The party as the dungeon tab list and the picks know it: you first, then the teammates in leap order. */
