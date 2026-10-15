@@ -100,6 +100,9 @@ public class ExperimentsTab extends BaseTab {
         y += 24;
         widgets.add(com.killer560.hub.gui.ScreenThemes.button("profit", contentX, y, contentWidth, 18));
         y += 22;
+        widgets.add(com.killer560.hub.gui.ScreenThemes.overlayButton(com.killer560.hub.gui.OverlayThemes.START_BUTTONS,
+                "Start Button Menu Theme", contentX, y, contentWidth, 18));
+        y += 22;
         return y;
     }
 

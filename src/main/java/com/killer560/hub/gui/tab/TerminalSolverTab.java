@@ -184,6 +184,10 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, 220, 20).build());
         y += 24;
 
+        widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.TERMINAL_SOLVER,
+                contentX, y, 220, 20));
+        y += 26;
+
         // ------------------------------------------------------------------ overlay colours
         y = buildColorSection(widgets, contentX, y, contentWidth, requestRebuild);
 

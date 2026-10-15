@@ -125,6 +125,14 @@ public class CroesusTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
+        // ---- Menu Theme (2026-10-15): the chest profit panel and the Start buttons ----
+        widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.CHEST_PROFIT,
+                contentX, y, contentWidth, 18));
+        y += 22;
+        widgets.add(com.killer560.hub.gui.ScreenThemes.overlayButton(com.killer560.hub.gui.OverlayThemes.START_BUTTONS,
+                "Start Button Menu Theme", contentX, y, contentWidth, 18));
+        y += 24;
+
         // ---- Profit Logger ----
         widgets.add(SettingsButtonWidget.builder(onOff("Croesus Profit Logger", cfg.isLoggerEnabled()), btn -> {
                     cfg.setLoggerEnabled(!cfg.isLoggerEnabled());

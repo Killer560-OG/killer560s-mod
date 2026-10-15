@@ -74,6 +74,17 @@ public final class TerminalSolverFeature {
     //
     // Read fresh on every draw rather than cached in a field, so dragging the colour picker live-updates
     // the terminal that's already open behind it.
+    /** The panel behind a terminal's custom GUI: the Panel Background Color setting, or on a Menu Theme the theme's panel. */
+    private static int panelBackground() {
+        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.TERMINAL_SOLVER);
+        return menu == null ? color(TerminalSolverConfig.OverlayColor.PANEL_BACKGROUND) : menu.panel();
+    }
+
+    private static int panelBorder() {
+        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.TERMINAL_SOLVER);
+        return menu == null ? color(TerminalSolverConfig.OverlayColor.PANEL_BORDER) : menu.accent();
+    }
+
     private static int color(TerminalSolverConfig.OverlayColor key) {
         return TerminalSolverConfig.color(key);
     }
@@ -1070,9 +1081,9 @@ public final class TerminalSolverFeature {
         graphics.pose().scale(layout.scale, layout.scale);
 
         graphics.fill(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING, layout.panelHeight + PANEL_PADDING,
-                color(TerminalSolverConfig.OverlayColor.PANEL_BACKGROUND));
+                panelBackground());
         graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2,
-                color(TerminalSolverConfig.OverlayColor.PANEL_BORDER));
+                panelBorder());
 
         List<Slot> slots = screen.getMenu().slots;
         int movingSlot = findMelodyMovingSlot(slots, currentTerminalSlotCount);
@@ -1229,9 +1240,9 @@ public final class TerminalSolverFeature {
         graphics.pose().scale(layout.scale, layout.scale);
 
         graphics.fill(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING, layout.panelHeight + PANEL_PADDING,
-                color(TerminalSolverConfig.OverlayColor.PANEL_BACKGROUND));
+                panelBackground());
         graphics.outline(-PANEL_PADDING, -PANEL_PADDING, layout.panelWidth + PANEL_PADDING * 2, layout.panelHeight + PANEL_PADDING * 2,
-                color(TerminalSolverConfig.OverlayColor.PANEL_BORDER));
+                panelBorder());
 
         List<Slot> slots = screen.getMenu().slots;
         for (Map.Entry<Integer, SlotHighlight> entry : currentHighlights.entrySet()) {
