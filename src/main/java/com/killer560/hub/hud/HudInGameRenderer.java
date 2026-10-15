@@ -96,7 +96,14 @@ public final class HudInGameRenderer {
         HudTextCache.begin(); // these elements' String lines keep their visual order between frames
         try {
             for (int i = 0; i < elements.size(); i++) {
-                com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, elements.get(i));
+                HudElement element = elements.get(i);
+                // A switched-off element draws nothing (each of these sixteen renders behind the same setting its
+                // isEnabledInSettings() reads - checked 2026-10-15), but drawAt resolved its position, scale and pose
+                // first: 2-3 us per element per frame with everything off (95-perf-features).
+                if (!element.isEnabledInSettings()) {
+                    continue;
+                }
+                com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, element);
             }
         } finally {
             HudTextCache.end();
