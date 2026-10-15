@@ -5,6 +5,7 @@
 	"package": "com.killer560.hub.mainmenu.mixin",
 	"client": [
 		"MainMenuButtonMixin",
+		"MainMenuLabelShadowMixin",
 		"MainMenuCopyrightMixin",
 		"MainMenuPanoramaMixin",
 		"MainMenuSplashMixin",

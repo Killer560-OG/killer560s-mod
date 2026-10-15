@@ -46,7 +46,8 @@ public abstract class MainMenuTitleScreenMixin {
             }
             TitleScreen self = (TitleScreen) (Object) this;
             graphics.text(Minecraft.getInstance().font, MainMenuTheme.modTag(), 2, self.height - 20,
-                    MainMenuTheme.argb(com.killer560.hub.mainmenu.MainMenuChrome.modTagColour(), alpha));
+                    MainMenuTheme.argb(com.killer560.hub.mainmenu.MainMenuChrome.modTagColour(), alpha),
+                    !com.killer560.hub.gui.MenuStyle.LIGHT);
         } catch (Throwable t) {
             MainMenuTheme.fail("mod tag", t);
         }

@@ -41,7 +41,7 @@ public final class MainMenuScenes {
             case STARFIELD -> starfield(r, w, h, t, accent, text, look.density());
             case AURORA -> aurora(r, w, h, t, accent, look.switchOn() | 0xFF000000, look.density());
             case SOFT_LIGHT -> softLight(r, w, h, t, accent, panel, light, look.density());
-            default -> glow(r, w / 2, 55, Math.min(w * 0.55, 300), Math.min(h * 0.4, 110), accent, 0x24, 5);
+            default -> glow(r, w / 2, 55, Math.min(w * 0.55, 300), Math.min(h * 0.4, 110), accent, 0x24, 9);
         }
         vignette(r, w, h, light);
         r.submit();
@@ -86,7 +86,7 @@ public final class MainMenuScenes {
             double s = (double) k / layers;
             double lrx = rx * s;
             double lry = ry * s;
-            int step = Math.max(2, (int) Math.ceil(lry / 14.0));
+            int step = Math.max(2, (int) Math.ceil(lry / 20.0));
             for (int y = (int) Math.floor(cy - lry); y < Math.ceil(cy + lry); y += step) {
                 double dy = ((y + step * 0.5) - cy) / lry;
                 double q = 1.0 - dy * dy;
@@ -136,9 +136,9 @@ public final class MainMenuScenes {
         int logoCx = w / 2 + (int) Math.round(Math.sin(t * 0.21) * Math.min(40, w * 0.06));
         int logoCy = 55 + (int) Math.round(Math.cos(t * 0.17) * 6);
         double breathe = 0.85 + 0.15 * Math.sin(t * 0.6);
-        glow(r, logoCx, logoCy, Math.min(w * 0.55, 300), Math.min(h * 0.40, 110), accent, (int) (0x2C * breathe), 5);
+        glow(r, logoCx, logoCy, Math.min(w * 0.55, 300), Math.min(h * 0.40, 110), accent, (int) (0x2C * breathe), 9);
         int lowCx = w / 2 - (int) Math.round(Math.sin(t * 0.13) * w * 0.12);
-        glow(r, lowCx, h + 10, w * 0.75, h * 0.42, accent, 0x26, 5);
+        glow(r, lowCx, h + 10, w * 0.75, h * 0.42, accent, 0x26, 9);
 
         int lightAccent = MenuStyle.mix(accent, 0xFFFFFFFF, 0.3f);
         int n = count(3500, w, h, density, 24, 70);
@@ -181,14 +181,22 @@ public final class MainMenuScenes {
 
         int left = (int) (w * 0.16);
         int right = (int) (w * 0.84);
-        int poolY = h - Math.max(18, h / 9);
+        int poolY = h - Math.max(34, h / 7);
 
         // Light coming over the lip at the top, and the curtain of falling water.
-        glow(r, w / 2, -6, (right - left) * 0.6, h * 0.22, water, 0x30, 4);
-        r.gradient(left, 0, right, poolY, MenuStyle.alpha(accent, 0x10), MenuStyle.alpha(accent, 0x2C));
+        glow(r, w / 2, -6, (right - left) * 0.6, h * 0.22, water, 0x40, 4);
+        r.gradient(left, 0, right, poolY, MenuStyle.alpha(accent, 0x18), MenuStyle.alpha(accent, 0x40));
+        // Sheets: wide, faint vertical bands of water that brighten and fade, so the fall has body between the streaks.
+        int sheets = 7;
+        for (int k = 0; k < sheets; k++) {
+            int sx = left + (int) ((right - left) * (k + 0.5) / sheets + Math.sin(t * 0.3 + k) * 6);
+            int sw = 10 + (int) (hash(k, 16) * 18);
+            int a = (int) (0x18 + 0x14 * Math.sin(t * (0.6 + hash(k, 17)) + k * 1.7));
+            r.gradient(sx - sw / 2, 0, sx + sw / 2, poolY, MenuStyle.alpha(water, a / 2), MenuStyle.alpha(water, a));
+        }
 
         // Streaks: a back layer (slow, dim, thin) and a front layer (fast, bright).
-        int n = count(170, right - left, h, density, 60, 360);
+        int n = count(120, right - left, h, density, 80, 480);
         for (int i = 0; i < n; i++) {
             double r1 = hash(i, 11);
             double r2 = hash(i, 12);
@@ -200,7 +208,7 @@ public final class MainMenuScenes {
             double cycle = poolY + len;
             double y = (t * speed + r1 * cycle * 7.0) % cycle - len;
             int x = left + (int) (hash(i, 15) * (right - left));
-            int a = (int) ((front ? 0x60 : 0x28) + r2 * (front ? 0x60 : 0x20));
+            int a = (int) ((front ? 0x80 : 0x38) + r2 * (front ? 0x60 : 0x28));
             int col = front ? (r3 > 0.8 ? foam : water) : accent;
             int wd = front && r1 > 0.8 ? 2 : 1;
             int y0 = (int) Math.round(y);
@@ -259,9 +267,9 @@ public final class MainMenuScenes {
     // ---------------------------------------------------------------- Starfield (Dark)
 
     private static void starfield(GuiRects r, int w, int h, double t, int accent, int text, float density) {
-        glow(r, (int) (w * 0.28 + Math.sin(t * 0.05) * 30), (int) (h * 0.35), w * 0.35, h * 0.28, accent, 0x1C, 5);
+        glow(r, (int) (w * 0.28 + Math.sin(t * 0.05) * 30), (int) (h * 0.35), w * 0.35, h * 0.28, accent, 0x1C, 9);
         glow(r, (int) (w * 0.74 - Math.sin(t * 0.04) * 30), (int) (h * 0.62), w * 0.32, h * 0.24,
-                MenuStyle.mix(accent, text, 0.5f), 0x14, 5);
+                MenuStyle.mix(accent, text, 0.5f), 0x14, 9);
         int star = MenuStyle.mix(text, 0xFFFFFFFF, 0.4f);
         int n = count(450, w, h, density, 60, 380);
         for (int i = 0; i < n; i++) {
@@ -325,7 +333,7 @@ public final class MainMenuScenes {
                         + Math.sin(x * 0.029 - t * 0.57 + phase) * h * 0.03;
                 double height = h * 0.20 * (0.55 + 0.45 * Math.sin(x * 0.017 + t * 0.45 + phase * 1.7));
                 double flicker = 0.75 + 0.25 * Math.sin(x * 0.06 + t * 1.6 + phase);
-                int a = (int) ((band == 2 ? 0x26 : 0x3A) * flicker);
+                int a = (int) ((band == 2 ? 0x48 : 0x70) * flicker);
                 int top = (int) (cy - height);
                 int mid = (int) cy;
                 int bottom = (int) (cy + height * 0.18);
@@ -367,6 +375,6 @@ public final class MainMenuScenes {
             disc(r, x, y, radius, MenuStyle.alpha(col, a));
             disc(r, x - radius * 0.25, y - radius * 0.25, radius * 0.45, MenuStyle.alpha(0xFFFFFFFF, a / 2));
         }
-        glow(r, w / 2, 55, Math.min(w * 0.55, 300), Math.min(h * 0.4, 110), accent, light ? 0x18 : 0x24, 5);
+        glow(r, w / 2, 55, Math.min(w * 0.55, 300), Math.min(h * 0.4, 110), accent, light ? 0x18 : 0x24, 9);
     }
 }
