@@ -63,9 +63,15 @@ public final class HudTextCache {
         }
         FormattedCharSequence seq = CACHE.get(text);
         if (seq == null) {
-            seq = !language.isDefaultRightToLeft() && leftToRightOnly(text)
-                    ? net.minecraft.util.FormattedCharSequence.forward(text, net.minecraft.network.chat.Style.EMPTY)
-                    : language.getVisualOrder(FormattedText.of(text));
+            if (!language.isDefaultRightToLeft() && leftToRightOnly(text)) {
+                // Formatting codes are applied here exactly as vanilla's reorder applies them (iterateFormatted from
+                // Style.EMPTY); FormattedCharSequence.forward would NOT, and drew "§6" literally (95-perf-fixes).
+                String s = text;
+                seq = sink -> net.minecraft.util.StringDecomposer.iterateFormatted(s,
+                        net.minecraft.network.chat.Style.EMPTY, sink);
+            } else {
+                seq = language.getVisualOrder(FormattedText.of(text));
+            }
             CACHE.put(text, seq);
         }
         return seq;
@@ -76,8 +82,8 @@ public final class HudTextCache {
      * right-to-left script, Hebrew, starts) and no dangling formatting code at the end. For such a string under a
      * left-to-right language, {@code FormattedBidiReorder.reorder} (javap, 26.1.2 and 26.2) finds one level-0 run, never
      * mirrors (only odd runs do), its Arabic shaper changes nothing, and it hands back the text's characters and styles
-     * from {@code StringDecomposer.iterateFormatted} in order - exactly what {@code FormattedCharSequence.forward(text,
-     * Style.EMPTY)} yields without building an ICU {@code Bidi}. A HUD line whose numbers change every tick (Advanced
+     * from {@code StringDecomposer.iterateFormatted} in order - exactly what {@code iterateFormatted(text, Style.EMPTY,
+     * sink)} yields, without building an ICU {@code Bidi}. A HUD line whose numbers change every tick (Advanced
      * Position while turning, any countdown) misses the cache every tick, so this is most of what a miss cost
      * (95-perf-features, 2026-10-15).
      */
