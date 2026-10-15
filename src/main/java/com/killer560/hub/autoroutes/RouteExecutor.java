@@ -212,6 +212,8 @@ public final class RouteExecutor {
     private static double nextWarpAt = Double.NEGATIVE_INFINITY;
     /** Ticks the warp under way has waited for the pace (for its "acted" line). */
     private static int warpPacedTicks;
+    /** Ticks this warp's use was held after a block click made with the same item (util/BlockClickGap). */
+    private static int warpClickHeldTicks;
 
     /** A warp is being sent on this tick: where the pace puts the next one. */
     private static void notePacedWarp() {
@@ -2080,6 +2082,7 @@ public final class RouteExecutor {
     private static boolean tickWarp(Minecraft client, LocalPlayer player, RouteNode node) {
         if (step == Step.PREP) {
             warpPacedTicks = 0;
+            warpClickHeldTicks = 0;
             int slot = ItemIdentity.findEtherwarpSlot(player);
             if (slot < 0) {
                 LOGGER.info("[AutoRoutes] Etherwarp: no hotbar item with ethermerge / ETHERWARP_CONDUIT");
@@ -2125,6 +2128,21 @@ public final class RouteExecutor {
                 warpPacedTicks++;
                 return false;
             }
+            // Hypixel ignores a use of the item he has just right-clicked a block with: every warp sent a tick after a
+            // chest or lever click (Secret Aura's or his) met its await got no landing on 2026-10-14 (util/BlockClickGap).
+            // Held, sneak down, until the gap has passed - then it goes as usual.
+            int clickHold = com.killer560.hub.util.BlockClickGap.ticksLeft(player.getMainHandItem());
+            if (clickHold > 0) {
+                if (warpClickHeldTicks == 0) {
+                    LOGGER.info("[AutoRoutes] Etherwarp: holding the use - a block click at {} {} tick(s) ago with the same "
+                                    + "item (Hypixel drops a use that soon after one), {} tick(s) to go",
+                            com.killer560.hub.util.BlockClickGap.lastClickPos() == null ? "?"
+                                    : com.killer560.hub.util.BlockClickGap.lastClickPos().toShortString(),
+                            com.killer560.hub.util.BlockClickGap.ticksSinceClick(), clickHold);
+                }
+                warpClickHeldTicks++;
+                return false;
+            }
             // The use goes out now, from where the server has him now: aim from here if he moved since the aim was
             // worked out. Obvious mode puts the look in the use packet itself, so it simply goes; legit mode turns the
             // camera to it first (aimReady's settle, or its timeout).
@@ -2146,6 +2164,8 @@ public final class RouteExecutor {
             useHeldItem(client, player, warpYaw, warpPitch, false);
             logActed(node, (hopIndex >= 0 ? " (path warp " + (hopIndex + 1) + "/" + node.pathHops.size() + ")" : "")
                     + (warpPacedTicks > 0 ? " (paced " + warpPacedTicks + " tick(s) by Etherwarps Per Second)" : "")
+                    + (warpClickHeldTicks > 0 ? " (held " + warpClickHeldTicks + " tick(s) after a block click with the "
+                    + "same item)" : "")
                     + " (sneak " + (hopIndex > 0 ? "held from the last warp" : sneakReadyAge == awaitDoneAge ? "already held"
                     : "went out in the firing tick's input packet") + ", "
                     + ItemIdentity.skyblockId(player.getMainHandItem()) + ")");
