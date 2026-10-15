@@ -848,6 +848,7 @@ public final class RouteExecutor {
             stop("world change");
             return;
         }
+        RouteRunMemory.noteProgress(route.roomName(), nextNode, ordered.size());
         checkCorrections(client, player);
         if (AutoRoutesFeature.screenBlocks(client)) {
             if (activeNode != null && (awaitHeld || (activeNode.awaitEnabled && !nodeActed))) {

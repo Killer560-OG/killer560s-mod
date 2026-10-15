@@ -208,6 +208,17 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                 (cfg.getEtherwarpsPerSecond() - AutoRoutesConfig.MIN_WARPS_PER_SECOND) / (double) warpSpan,
                 v -> cfg.setEtherwarpsPerSecond((int) Math.round(AutoRoutesConfig.MIN_WARPS_PER_SECOND + v * warpSpan)));
         y[0] += 24;
+        // killer560, 2026-10-15: a HUD of how far the room's route got, and of the rooms Auto Clear, Auto Secret and Autopilot
+        // plan to do next.
+        toggleCell(w, contentX, y[0], half, "Progress HUD", cfg::isProgressHud, cfg::setProgressHud, requestRebuild);
+        if (cfg.isProgressHud()) {
+            int roomSpan = AutoRoutesConfig.MAX_PROGRESS_ROOMS - AutoRoutesConfig.MIN_PROGRESS_ROOMS;
+            slider(w, contentX + half + GAP, y[0], right,
+                    () -> "Progress Rooms: " + cfg.getProgressHudRooms(),
+                    (cfg.getProgressHudRooms() - AutoRoutesConfig.MIN_PROGRESS_ROOMS) / (double) roomSpan,
+                    v -> cfg.setProgressHudRooms((int) Math.round(AutoRoutesConfig.MIN_PROGRESS_ROOMS + v * roomSpan)));
+        }
+        y[0] += 24;
 
         // killer560, 2026-10-04: "Move the open routes folder near the top" - where AP3 keeps Open AP3 Folder.
         // Filename and share/reload instructions are in the two buttons' tooltips.

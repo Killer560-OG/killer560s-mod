@@ -158,6 +158,12 @@ public final class AutoRoutesConfig {
     /** Each node's number (its position in the room's list - what /ar list, /ar delete and /ar remove take) drawn
      *  over it at all times, AP3's "Show Node Numbers". On by default like AP3's. */
     private boolean showNodeNumbers = true;
+    /** The Auto Routes Progress HUD (killer560, 2026-10-15): the room's route percent and, while Auto Clear, Auto Secret or
+     *  Autopilot runs, the rooms it will do next. Off by default; {@link #progressHudRooms} is how many upcoming rooms it lists. */
+    public static final int MIN_PROGRESS_ROOMS = 1;
+    public static final int MAX_PROGRESS_ROOMS = 15;
+    private boolean progressHud = false;
+    private int progressHudRooms = 5;
     private final Map<String, Integer> keybinds = new LinkedHashMap<>();
 
     private AutoRoutesConfig() {
@@ -235,6 +241,8 @@ public final class AutoRoutesConfig {
                 cfg.keybindsSectionOpen = ConfigJson.getBool(o, "keybindsSectionOpen", cfg.keybindsSectionOpen);
                 cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
                 cfg.showNodeNumbers = ConfigJson.getBool(o, "showNodeNumbers", cfg.showNodeNumbers);
+                cfg.progressHud = ConfigJson.getBool(o, "progressHud", cfg.progressHud);
+                cfg.setProgressHudRooms(ConfigJson.getInt(o, "progressHudRooms", cfg.progressHudRooms));
                 JsonObject keys = ConfigJson.getObject(o, "keybinds");
                 if (keys != null) {
                     for (String id : keys.keySet()) {
@@ -282,6 +290,8 @@ public final class AutoRoutesConfig {
             o.addProperty("reachTimeoutTicks", reachTimeoutTicks);
             o.addProperty("chatFeedback", chatFeedback);
             o.addProperty("showNodeNumbers", showNodeNumbers);
+            o.addProperty("progressHud", progressHud);
+            o.addProperty("progressHudRooms", progressHudRooms);
             JsonObject keys = new JsonObject();
             for (Map.Entry<String, Integer> e : keybinds.entrySet()) {
                 keys.addProperty(e.getKey(), e.getValue());
@@ -455,6 +465,14 @@ public final class AutoRoutesConfig {
     }
 
     // ------------------------------------------------------------------------------------------- tab layout
+
+    /** Whether the progress HUD is switched on (the setting alone; the draw also needs the master Auto Routes switch). */
+    public boolean isProgressHud() { return progressHud; }
+    public void setProgressHud(boolean v) { progressHud = v; }
+    public int getProgressHudRooms() { return progressHudRooms; }
+    public void setProgressHudRooms(int v) {
+        progressHudRooms = Math.max(MIN_PROGRESS_ROOMS, Math.min(MAX_PROGRESS_ROOMS, v));
+    }
 
     public boolean isShowNodeNumbers() { return showNodeNumbers; }
     public void setShowNodeNumbers(boolean v) { showNodeNumbers = v; }
