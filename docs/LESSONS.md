@@ -368,3 +368,5 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - The dungeon map item's start corner is fixed per floor; measuring it from the first 16-pixel run of colour 30 (as
   NoammAddons does for F4+) read (16,5) on two of his M5 runs (2026-10-08 log) and shifted the whole map for the run.
   `DungeonMapScanner.knownCorner` holds every floor; the run is only a size check and the fallback for an unknown floor.
+
+- **Hypixel prints the score block ("Team Score: N" and "> EXTRA STATS <") when a run is WIPED too**, so those lines do not mean the run was finished. Run Summary stored a 21 s wipe (score 2, D) as the fastest F7 and announced a personal best (killer560, 2026-10-15). The only line that proves a boss kill is "☠ Defeated X in ..." (`RunRecord.hypixelTime`); a PB now needs that plus Hypixel's own score at or above the PB Minimum Score. Personal bests are derived from stored runs, so the check lives in `RunRecord.countsForPb` and every best reads through it. Testkit 107-hx-runsummary-pb.
