@@ -2178,6 +2178,18 @@ public final class RouteExecutor {
         }
         if (step == Step.CONFIRM) {
             wantSneak = true;
+            // A block click is unpaired on the server (util/RightClick): while this hop is in flight the body already turns
+            // to the NEXT hop's look - its use has gone and its own look was reported last tick - so the server has heard
+            // that look by the time he lands and the next hop goes on the landing tick, not one later.
+            if (stepTicks >= 1 && hopIndex >= 0 && hopIndex + 1 < node.pathHops.size()
+                    && !AutoRoutesConfig.getInstance().isLegitMode() && com.killer560.hub.util.RightClick.unpaired()) {
+                RouteNode.PathHop next = node.pathHops.get(hopIndex + 1);
+                float nextYaw = RouteCoords.toRealYaw(frame, next.yaw());
+                if (!com.killer560.hub.util.RightClick.heard(player, nextYaw, next.pitch())) {
+                    turnBody(player, player.getYRot() + Mth.wrapDegrees(nextYaw - player.getYRot()),
+                            Mth.clamp(next.pitch(), -90f, 90f));
+                }
+            }
             if (landed(player, warpLanding)) {
                 LOGGER.info("[AutoRoutes] Etherwarp: landed at {} {} tick(s) after the use ({} from firing)",
                         fmt(player.position()), stepTicks, actionAge);

@@ -274,6 +274,11 @@ public final class RightClick {
         return true;
     }
 
+    /** Whether the server's last-heard look is {@code yaw}/{@code pitch} (any wrapping, within 0.05 degrees). */
+    public static boolean heard(LocalPlayer player, float yaw, float pitch) {
+        return sameLook(player, yaw, pitch);
+    }
+
     /** Whether a block click may still be waiting for its second half on the server. */
     public static boolean unpaired() {
         return unpaired;
