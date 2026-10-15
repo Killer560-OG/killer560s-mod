@@ -20,8 +20,10 @@ public final class MainMenuScenes {
     }
 
     /** Which background Amber's scene draws (killer560, 2026-10-15: "send me a quick video of it and I will tell you to
-     *  swap back or not"). NEW is {@link AmberForgeScene}; EMBERS is the original drifting embers, kept below. One line. */
-    public enum AmberScene { NEW, EMBERS }
+     *  swap back or not"). NEW is {@link AmberForgeScene} (the dusk colonnade); EMBERS is the original drifting embers,
+     *  kept below; SIMPLE is {@link AmberCalmScene}, the embers refined (depth, a low warm glow, faint heat haze). He
+     *  preferred the simpler style, so the default went back to EMBERS until he picks between EMBERS and SIMPLE. */
+    public enum AmberScene { NEW, EMBERS, SIMPLE }
 
     public static final AmberScene AMBER_SCENE = AmberScene.EMBERS;
 
@@ -36,6 +38,12 @@ public final class MainMenuScenes {
     /** Test hook: draws the old embers ({@code true}) or the constant's choice ({@code false}) for Amber. */
     public static void setOldEmbersForTest(boolean old) {
         amberScene = old ? AmberScene.EMBERS : AMBER_SCENE;
+    }
+
+    /** Test hook (testkit 1568/1569): draws the named Amber scene ({@code "NEW"}, {@code "EMBERS"}, {@code "SIMPLE"});
+     *  null or empty goes back to the constant's choice. */
+    public static void setAmberSceneForTest(String name) {
+        amberScene = name == null || name.isEmpty() ? AMBER_SCENE : AmberScene.valueOf(name);
     }
 
     /** Test probe (testkit 1568): while set, {@link #draw} adds the bytes it allocated, the frames and the rectangles
@@ -71,10 +79,10 @@ public final class MainMenuScenes {
         base(r, w, h, accent, panel, light);
         switch (look.scene()) {
             case EMBERS -> {
-                if (amberScene == AmberScene.NEW) {
-                    AmberForgeScene.draw(r, w, h, t, accent, look.density());
-                } else {
-                    embers(r, w, h, t, accent, look.density());
+                switch (amberScene) {
+                    case NEW -> AmberForgeScene.draw(r, w, h, t, accent, look.density());
+                    case SIMPLE -> AmberCalmScene.draw(r, w, h, t, accent, look.density());
+                    default -> embers(r, w, h, t, accent, look.density());
                 }
             }
             case WATERFALL -> waterfall(r, w, h, t, accent, panel, text, look.density());
