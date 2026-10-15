@@ -929,6 +929,9 @@ final class AutoBlaze {
             default -> {
             }
         }
+        if (secretStage != SecretStage.AURA && !SECRET_WARP.isActive()) {
+            SECRET_CAM.release(player); // held only for the last-leg warp and the chest click it readies
+        }
     }
 
     private static void findSecret(Minecraft client, LocalPlayer player) {
@@ -1089,13 +1092,13 @@ final class AutoBlaze {
             secretStage = SecretStage.DONE;
             return;
         }
+        SECRET_CAM.keep(player);
         if (SECRET_WARP.isActive()) {
-            SECRET_CAM.keep(player);
             SECRET_WARP.tick(client);
             if (SECRET_WARP.isActive()) {
                 return;
             }
-            SECRET_CAM.release(player);
+            // Landed: the camera is handed back by tickSecret unless the chest click is next (see below).
         }
         BlockPos goal = standGoal();
         boolean busy = com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy();
@@ -1111,6 +1114,12 @@ final class AutoBlaze {
             LOGGER.info("[AutoPuzzles] Blaze: at {} for the secret at {} (tick {})", fmt(player.position()),
                     AutoPuzzleUtil.fmt(secretReal), ticks);
             secretStage = secretIsChest ? SecretStage.AURA : SecretStage.DONE;
+            if (secretIsChest) {
+                // The body turns onto the chest now, under the camera, so the click goes next tick with no turn tick of
+                // its own (main: the landing's 2-tick sneak wait, then a turn, then the click - 4 ticks after landing).
+                BlockPos chest = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
+                AutoPuzzleUtil.aimBodyAt(player, chest != null ? chest : secretReal, SECRET_CAM);
+            }
             return;
         }
         if (busy) {

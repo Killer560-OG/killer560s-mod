@@ -40,6 +40,8 @@ public final class TurnFirst {
     private static TurnFirst current;
 
     private final Runnable onWrite;
+    /** True while the camera hold is this owner's own (an auto puzzle's free camera): no foreign wait then. */
+    private final java.util.function.BooleanSupplier ownHold;
     /** True from a turn until the body has been given back. */
     private boolean turned;
     /** This turn took the camera hold itself (nobody held it), so the hand-back joins the view and releases it. */
@@ -60,7 +62,18 @@ public final class TurnFirst {
 
     /** {@code onWrite}: run after every write to his rotation (an owner with a camera-turn detector rebases it). */
     public TurnFirst(Runnable onWrite) {
+        this(onWrite, () -> false);
+    }
+
+    /**
+     * {@code ownHold}: true while a held camera belongs to this owner's own run - an auto puzzle that holds its free camera
+     * for the whole room and asks for its clicks through this. Then the hold is not "somebody else turning him" and the
+     * turn goes at once: the {@link #FOREIGN_WAIT} that waited on it held every Auto Water lever 11 ticks late (killer560,
+     * 2026-10-15) and any other puzzle click made under the auto's own camera (a reward chest) the same.
+     */
+    public TurnFirst(Runnable onWrite, java.util.function.BooleanSupplier ownHold) {
         this.onWrite = onWrite;
+        this.ownHold = ownHold;
     }
 
     /**
@@ -159,7 +172,7 @@ public final class TurnFirst {
         if (current != null && current != this) {
             return false; // another aura's turn is out: wait for its hand-back instead of turning him under it
         }
-        if (!turned && ViewFreeze.isHeld() && ++foreignWait <= FOREIGN_WAIT) {
+        if (!turned && ViewFreeze.isHeld() && !ownHold.getAsBoolean() && ++foreignWait <= FOREIGN_WAIT) {
             // Somebody else holds the camera, so somebody else is turning his body - Auto Boulder walks him to the bars
             // and turns him to the chest at a human pace for Secret Aura. A snap from here would cut across that turn
             // (93-solve-boulder-aura's camera check, 2026-10-07). Give them half a second to bring the look round.

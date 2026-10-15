@@ -32,6 +32,8 @@ final class FreeCam {
 
     private final String tag;
     private boolean engaged;
+    /** Puzzle free cameras engaged right now, mod-wide (see {@link #anyEngaged}). */
+    private static int engagedCount;
 
     FreeCam(String tag) {
         this.tag = tag;
@@ -39,6 +41,15 @@ final class FreeCam {
 
     boolean isEngaged() {
         return engaged;
+    }
+
+    /**
+     * Whether an auto puzzle holds the camera right now. The puzzle autos' click turn ({@code AutoPuzzleUtil.TURN}) asks
+     * this: under one of these the hold is the auto's OWN, so the turn for its click goes at once instead of waiting for
+     * "whoever else is turning him" (util/TurnFirst's 10-tick foreign wait, which held Auto Water's levers 11 ticks late).
+     */
+    static boolean anyEngaged() {
+        return engagedCount > 0;
     }
 
     /** {@link #engage(LocalPlayer, float, float)} from where he is looking now. */
@@ -57,6 +68,7 @@ final class FreeCam {
             return;
         }
         engaged = true;
+        engagedCount++;
         AutoPuzzleActivity.note(tag);
         ViewFreeze.hold(viewYaw, Mth.clamp(viewPitch, -90f, 90f));
         LOGGER.info("[AutoPuzzles] {}: free camera held", tag);
@@ -80,6 +92,7 @@ final class FreeCam {
             return;
         }
         engaged = false;
+        engagedCount = Math.max(0, engagedCount - 1);
         float viewYaw = ViewFreeze.viewYaw();
         float viewPitch = ViewFreeze.viewPitch();
         if (player != null && !Float.isNaN(viewYaw)) {
@@ -103,6 +116,7 @@ final class FreeCam {
     void drop() {
         if (engaged) {
             engaged = false;
+            engagedCount = Math.max(0, engagedCount - 1);
             ViewFreeze.release();
         }
     }
