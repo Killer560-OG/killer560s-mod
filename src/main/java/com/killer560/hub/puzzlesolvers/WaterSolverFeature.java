@@ -361,6 +361,31 @@ public final class WaterSolverFeature {
         return new NextClick(bestLever == LeverBlock.WATER, leverRealPos(bestLever), bestLever.z, bestTime);
     }
 
+    /**
+     * Every remaining click, soonest first, in {@link #nextClick}'s order (its first entry IS {@link #nextClick}). Auto
+     * Water reads the ones after the next to pick a standing spot that also reaches a click due too soon after it for a
+     * warp in between.
+     */
+    public static List<NextClick> upcomingClicks() {
+        List<NextClick> out = new ArrayList<>();
+        if (patternIdentifier == -1 || solutions.isEmpty() || LiveMapFeature.currentRoomClayAndRotation() == null) {
+            return out;
+        }
+        List<Map.Entry<LeverBlock, Double>> flat = new ArrayList<>();
+        for (Map.Entry<LeverBlock, List<Double>> entry : solutions.entrySet()) {
+            List<Double> times = entry.getValue();
+            for (int i = entry.getKey().clicked; i < times.size(); i++) {
+                flat.add(Map.entry(entry.getKey(), times.get(i)));
+            }
+        }
+        flat.sort((x, y) -> compareClick(x.getKey(), x.getValue(), y.getKey(), y.getValue()));
+        for (Map.Entry<LeverBlock, Double> e : flat) {
+            LeverBlock lever = e.getKey();
+            out.add(new NextClick(lever == LeverBlock.WATER, leverRealPos(lever), lever.z, e.getValue()));
+        }
+        return out;
+    }
+
     private static int compareClick(LeverBlock a, double ta, LeverBlock b, double tb) {
         boolean aZero = ta == 0.0;
         boolean bZero = tb == 0.0;
