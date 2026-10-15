@@ -64,7 +64,9 @@ public final class ProfileTracker {
         }
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             String plain = com.killer560.hub.util.TabText.plain(info);
-            if (plain == null) {
+            // Only a line containing "Profile:" can match; testing for it first spares ~80 trims and Matchers per scan
+            // in any world without that line, where this scans every 10 ticks forever (95-perf-features, 2026-10-15).
+            if (plain == null || !plain.contains("Profile:")) {
                 continue;
             }
             Matcher m = TAB_PROFILE.matcher(plain.trim());
