@@ -32,6 +32,7 @@ public abstract class AwaitEventsGameModeMixin {
         try {
             if (cir.getReturnValue() != InteractionResult.FAIL && hit != null) {
                 AwaitEvents.onLocalBlockClick(hit.getBlockPos());
+                AwaitEvents.onUseSent();
             }
         } catch (RuntimeException ignored) {
             // never breaks a click
@@ -41,6 +42,7 @@ public abstract class AwaitEventsGameModeMixin {
     @Inject(method = "useItem", at = @At("HEAD"), require = 0)
     private void killer560smod$awaitUse(Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
         AwaitEvents.onLocalWeaponUse();
+        AwaitEvents.onUseSent();
     }
 
     @Inject(method = "attack", at = @At("HEAD"), require = 0)
