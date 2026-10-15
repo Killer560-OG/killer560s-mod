@@ -141,6 +141,10 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   went out about four ticks before the "kill" he was watching for ("attacking them before the kill timer actually went
   off", 2026-10-15). It now clicks on the first tick with time left < ping ticks + Trigger Offset - the kill timer's own
   test shifted by the offset - so the delay is exactly -offset ticks (testkit 177, 792).
+- **A click cap holds at the client, not at the server.** Blood Camp's clicks go exactly the attack-speed cap apart
+  (5 ticks at 100 Attack Speed), but the testkit server saw them 4 and 6 ticks apart, alternating (186, 2026-10-15): each
+  end acts on a packet only at its own tick, so one landing a tick late and the next on time is a 4. The mean was exactly
+  5. Assert the cap on the client's own click ticks, and at the server only the mean and "never more than a tick under".
 - **QUOI's aura ranges are eye to block CENTRE; ours are eye to block BOX.** A centre distance is 0.5-0.87 longer than the box
   distance, so QUOI's 4.7 skull range is 3.8-4.2 to the box and was TIGHTER than our 4.5-to-the-box skull cap, though the
   number is bigger (2026-10-12). Compare in one measure. Skull Range now uses QUOI's centre measure (testkit 842: 4.8 not

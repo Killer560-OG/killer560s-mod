@@ -95,6 +95,17 @@ public class AutoBloodCampTab extends BaseTab {
             y += 20;
         }
 
+        if (cfg.getTriggerBotRaw() || cfg.getAuraRaw()) {
+            // killer560, 2026-10-15: "add a never miss setting where it attacks the tick it detects the mob is actually
+            // there not just when it thinks it will spawn".
+            widgets.add(SettingsButtonWidget.builder(onOff("Never Miss", cfg.isNeverMiss()), btn -> {
+                        cfg.setNeverMiss(!cfg.isNeverMiss());
+                        cfg.save();
+                        btn.setMessage(onOff("Never Miss", cfg.isNeverMiss()));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 20;
+        }
+
         if (cfg.getAuraRaw()) {
             widgets.add(SettingsButtonWidget.builder(onOff("Freecam Mode", cfg.isAuraFreecam()), btn -> {
                         cfg.setAuraFreecam(!cfg.isAuraFreecam());

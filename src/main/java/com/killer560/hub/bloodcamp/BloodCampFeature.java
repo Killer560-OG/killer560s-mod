@@ -443,28 +443,64 @@ public final class BloodCampFeature {
         lastInBloodRoom = inRoom;
 
         // ---- Aura: pick the mob, then turn (before the Trigger Bot looks, as a hand would already be moving) ------
-        Map.Entry<ArmorStand, BloodMobState> auraPick = null;
+        // Two kinds of target. A mob still on its way (a tracked trip, from AURA_START_TICKS before it is due), and -
+        // killer560, 2026-10-15: "if I run into the room after the kill timer and there are mobs on the floor the aura
+        // should kill them" - any mob already standing in the Blood Room that no live trip accounts for: landed before
+        // he arrived, past its trip, or hit but still alive. Only ever one he can SEE (killer560, 2026-10-15: "make
+        // sure it doesn't track them through walls"): a ray from his eye reaches its box without meeting a block.
+        Map.Entry<ArmorStand, BloodMobState> auraTrip = null;
+        Entity auraFloor = null;
         if (cfg.isAuraEnabled() && inRoom) {
             double best = Double.MAX_VALUE;
             for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
                 BloodMobState data = entry.getValue();
-                if (data.endVector == null || entry.getKey().isRemoved() || data.confirmed || data.gaveUp) {
+                if (!liveTrip(entry.getKey(), data, now)) {
                     continue;
                 }
                 double remaining = remainingTicks(data, now);
-                if (remaining > AURA_START_TICKS || remaining <= -RETRY_STALE_TICKS) {
+                if (remaining > AURA_START_TICKS) {
+                    continue;
+                }
+                Entity mob = nearestMob(client, data.endVector);
+                if (!visible(client, mob != null ? mob.getBoundingBox() : aimBox(data.endVector))) {
                     continue;
                 }
                 if (remaining < best) {
                     best = remaining;
-                    auraPick = entry;
+                    auraTrip = entry;
+                }
+            }
+            // A mob already on the floor is killable now: it goes ahead of a trip still more than its own angle away.
+            float yaw = client.player.getYRot();
+            float pitch = client.player.getXRot();
+            for (Entity mob : floorMobs(client, now)) {
+                if (!visible(client, mob.getBoundingBox())) {
+                    continue;
+                }
+                float[] a = BloodCampAim.angles(client.player.getEyePosition(), mob.getBoundingBox().getCenter());
+                double score = (Math.abs(net.minecraft.util.Mth.wrapDegrees(a[0] - yaw)) + Math.abs(a[1] - pitch)) * 0.01;
+                if (score < best) {
+                    best = score;
+                    auraFloor = mob;
+                    auraTrip = null;
                 }
             }
         }
-        Vec3 auraPoint = auraPick == null ? null : aimPoint(client, auraPick.getValue());
+        Vec3 auraPoint = auraFloor != null ? aimPoint(auraFloor, auraFloor.getId())
+                : auraTrip == null ? null : aimPoint(client, auraTrip.getValue());
+        Object auraKey = auraFloor != null ? (Object) ("mob" + auraFloor.getId())
+                : auraTrip == null ? null : auraTrip.getKey().getId();
         lastAuraPoint = auraPoint;
-        AIM.tick(client, auraPick == null ? null : auraPick.getKey().getId(), auraPoint,
-                cfg.isAuraEnabled() && cfg.isAuraFreecam());
+        lastAuraFloorTarget = auraFloor == null ? -1 : auraFloor.getId();
+        AIM.tick(client, auraKey, auraPoint, cfg.isAuraEnabled() && cfg.isAuraFreecam());
+
+        // ---- Attack speed (killer560, 2026-10-15: "limit it to only be able to attack as fast as their attack speed
+        // allows them to. For triggerbot do the same."): no click from Blood Camp - Trigger Bot, its retries or the Aura -
+        // comes sooner after the last than the held weapon's cooldown (util/AttackCooldown).
+        int cooldown = com.killer560.hub.util.AttackCooldown.intervalTicks(client);
+        lastCooldownTicks = cooldown;
+        boolean cooldownReady = now - lastClickTick >= cooldown;
+        boolean neverMiss = cfg.isNeverMiss();
 
         // ---- Trigger Bot ------------------------------------------------------------------------------------------
         // killer560 (2026-09-20): "if I have two levers in my range at once ... have it only pick one and then the
@@ -472,12 +508,13 @@ public final class BloodCampFeature {
         //
         // WHEN (killer560, 2026-10-15: "Triggerbot was attacking them before the kill timer actually went off", and an
         // offset of -10..10, default -1, negative = late). The kill timer is the moment the box turns green and the Kill
-        // Sound plays: the first tick the time left is under your ping (killable). The click used to aim for Hit Lead
-        // (3) + 1 tick-boundary allowance + ping ticks before the countdown's end - the same ping the kill timer uses
-        // PLUS four more ticks, so it always went out about four ticks before the box went green. Now the click goes on
-        // the first tick with time left < ping ticks + offset: the kill timer's own tick, shifted by exactly the offset
-        // (-1 clicks one tick after the box goes green). With Auto Detect Lag off the ping term is left out, so the click
-        // is timed from the countdown's own end instead.
+        // Sound plays: the first tick the time left is under your ping (killable). The click goes on the first tick with
+        // time left < ping ticks + offset: the kill timer's own tick, shifted by exactly the offset. With Auto Detect Lag
+        // off the ping term is left out, so the click is timed from the countdown's own end instead.
+        //
+        // NEVER MISS (killer560, 2026-10-15: "attacks the tick it detects the mob is actually there not just when it
+        // thinks it will spawn"): the timer is not used at all - the first click goes the first tick a living mob stands
+        // on the landing spot, in reach under his look, in sight.
         double clickBelow = triggerTargetTicks(cfg, client);
         boolean triggerBotUsable = cfg.isTriggerBotEnabled() && inRoom
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client);
@@ -487,7 +524,7 @@ public final class BloodCampFeature {
         BloodMobState triggerData = null;
         boolean triggerIsRetry = false;
         double bestRemaining = Double.MAX_VALUE;
-        if (triggerBotUsable) {
+        if (triggerBotUsable && cooldownReady) {
             int retryWindow = hitConfirmTicks(pingMs);
             for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
                 ArmorStand entity = entry.getKey();
@@ -502,8 +539,13 @@ public final class BloodCampFeature {
                 boolean retry = false;
                 Entity mob = nearestMob(client, data.endVector);
                 if (data.clicks == 0) {
-                    // Only inside the window: due, but not so long ago that the prediction is stale.
-                    if (remainingTicks >= clickBelow || remainingTicks < clickBelow - TRIGGER_WINDOW_TICKS) {
+                    if (neverMiss) {
+                        if (mob == null || remainingTicks < -RETRY_STALE_TICKS
+                                || resolveAttackTarget(client, entity, data.endVector, reach) == null) {
+                            continue;
+                        }
+                    } else if (remainingTicks >= clickBelow || remainingTicks < clickBelow - TRIGGER_WINDOW_TICKS) {
+                        // Only inside the window: due, but not so long ago that the prediction is stale.
                         continue;
                     }
                 } else {
@@ -532,16 +574,12 @@ public final class BloodCampFeature {
                 // "if my crosshair is looking in a blood mobs spawn hitbox when it goes to spawn have it click once."
                 // aimBox is that spawn hitbox, a mob-sized box standing on the predicted spot and reaching up through
                 // the drawn box; the stand's or the real mob's own box is accepted too. Judged on the BODY's look (what
-                // the movement packets report - the camera can be elsewhere in Freecam Mode), and on both the look the
-                // server was last told and the one this tick's packet will carry, so the server never sees an attack
-                // its reported look misses (GrimAC Hitboxes, docs/LESSONS-AUTOMATION.md).
+                // the movement packets report - the camera can be elsewhere in Freecam Mode), on both the look the
+                // server was last told and the one this tick's packet will carry, and never through a block.
                 if (!aimedAt(client, aimBox(data.endVector)) && !aimedAt(client, entity.getBoundingBox())
                         && (mob == null || !aimedAt(client, mob.getBoundingBox()))) {
                     continue;
                 }
-                // A LEFT CLICK, the way his own button does it: on a mob within melee reach that the crosshair is on, an
-                // attack plus the swing; otherwise the swing alone - a click on air, which is all a real left click sends
-                // there (and what a shortbow shoots on).
                 triggerTarget = entity;
                 triggerHit = resolveAttackTarget(client, entity, data.endVector, reach);
                 triggerData = data;
@@ -549,10 +587,62 @@ public final class BloodCampFeature {
                 bestRemaining = remainingTicks;
             }
         }
+
+        // ---- Aura's own attack -------------------------------------------------------------------------------------
+        // The Aura kills what it aims at: a floor mob at once, a mob on its way once it is killable (the Trigger Bot's
+        // moment, or with Never Miss the tick it is really there) - only an attack on a living mob in melee reach under
+        // his body's look, in sight, never a swing at air. It keeps hitting (at the weapon's pace) until the mob dies.
+        Entity auraHit = null;
+        BloodMobState auraHitData = null;
+        if (triggerTarget == null && cooldownReady && cfg.isAuraEnabled() && inRoom
+                && !com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
+            Entity mob = null;
+            if (auraFloor != null) {
+                mob = auraFloor;
+            } else if (auraTrip != null) {
+                BloodMobState data = auraTrip.getValue();
+                double remaining = remainingTicks(data, now);
+                Entity m = nearestMob(client, data.endVector);
+                if (m != null && (neverMiss || remaining < clickBelow)) {
+                    mob = m;
+                    auraHitData = data;
+                }
+            }
+            if (mob != null && aimedAt(client, mob.getBoundingBox())) {
+                Entity hit = lookTarget(client, reach);
+                if (hit == mob) {
+                    auraHit = hit;
+                }
+            }
+            if (auraHit == null) {
+                auraHitData = null;
+            }
+        }
+
         // Mod-wide one-interaction-per-tick gate, after the target is chosen and before anything is marked: a
         // denial leaves the mob as it was, so it is simply clicked on the next tick it allows.
-        if (triggerTarget != null
+        if ((triggerTarget != null || auraHit != null)
                 && com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
+            lastClickTick = now;
+            RECENT_CLICKS.addLast(now);
+            while (RECENT_CLICKS.size() > 32) {
+                RECENT_CLICKS.removeFirst();
+            }
+            if (triggerTarget == null) {
+                client.gameMode.attack(client.player, auraHit);
+                client.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+                auraAttacks++;
+                if (auraHitData != null) {
+                    auraHitData.clicks++;
+                    auraHitData.lastClickTick = now;
+                    auraHitData.lastClickAttacked = true;
+                    auraHitData.lastAttackedId = auraHit.getId();
+                    auraHitData.retryGap = 2 + java.util.concurrent.ThreadLocalRandom.current().nextInt(3);
+                }
+                lastTrigger = "aura attack " + auraHit.getType().toShortString() + " #" + auraHit.getId();
+                LOGGER.info("[BloodCamp] Aura attacked: {}", lastTrigger);
+                return;
+            }
             if (triggerHit != null) {
                 client.gameMode.attack(client.player, triggerHit);
                 triggerAttacks++;
@@ -569,6 +659,7 @@ public final class BloodCampFeature {
                 triggerRetries++;
             } else {
                 lastTriggerAt = bestRemaining;
+                lastTriggerMobPresent = nearestMob(client, triggerData.endVector) != null;
             }
             lastTrigger = (triggerIsRetry ? "retry " : "") + (triggerHit == null ? "swing" : "attack "
                     + triggerHit.getType().toShortString() + " #" + triggerHit.getId())
@@ -576,6 +667,144 @@ public final class BloodCampFeature {
                     client.player.getEyePosition().distanceTo(triggerData.endVector));
             LOGGER.info("[BloodCamp] Trigger Bot clicked: {}", lastTrigger);
         }
+    }
+
+    /** Game tick of Blood Camp's last click (Trigger Bot or Aura) - the attack-speed cap counts from it. */
+    private static long lastClickTick = Long.MIN_VALUE / 2;
+    /** Testkit: the cap in force last tick, Aura attacks sent, the floor mob the Aura last aimed at (-1 none), and
+     *  whether a living mob stood on the spot when the last first click went. */
+    private static int lastCooldownTicks;
+    private static int auraAttacks;
+    private static int lastAuraFloorTarget = -1;
+    private static boolean lastTriggerMobPresent;
+
+    /** Game ticks of Blood Camp's last 32 clicks, oldest first (the testkit checks the client's own spacing). */
+    private static final java.util.ArrayDeque<Long> RECENT_CLICKS = new java.util.ArrayDeque<>();
+
+    public static List<Long> recentClickTicks() {
+        return new ArrayList<>(RECENT_CLICKS);
+    }
+
+    public static int lastCooldownTicks() {
+        return lastCooldownTicks;
+    }
+
+    public static int auraAttacks() {
+        return auraAttacks;
+    }
+
+    public static int lastAuraFloorTarget() {
+        return lastAuraFloorTarget;
+    }
+
+    public static boolean lastTriggerMobPresent() {
+        return lastTriggerMobPresent;
+    }
+
+    /** A trip the Aura and the Trigger Bot still act on: it has a path, its stand is there, and it is not settled. */
+    private static boolean liveTrip(ArmorStand stand, BloodMobState data, long now) {
+        return data.endVector != null && !stand.isRemoved() && !data.confirmed && !data.gaveUp
+                && remainingTicks(data, now) > -RETRY_STALE_TICKS;
+    }
+
+    /**
+     * Mobs already standing in the Blood Room (the Watcher's room tile) that no live trip accounts for, the Watcher
+     * himself excluded. A mob hit by a trip's click but still alive is one of these, so it is finished off.
+     */
+    private static List<Entity> floorMobs(Minecraft client, long now) {
+        List<Entity> out = new ArrayList<>();
+        Entity watcher = watcherEntityId == null ? null : client.level.getEntity(watcherEntityId);
+        if (watcher == null) {
+            return out;
+        }
+        double cx = com.killer560.hub.livemap.LiveMapFeature.START_X + 32.0 * roomTile(watcher.getX());
+        double cz = com.killer560.hub.livemap.LiveMapFeature.START_Z + 32.0 * roomTile(watcher.getZ());
+        AABB room = new AABB(cx - 16, watcher.getY() - 40, cz - 16, cx + 16, watcher.getY() + 40, cz + 16);
+        for (Entity mob : client.level.getEntities(client.player, room, BloodCampFeature::isAttackableMob)) {
+            if (mob.getId() == watcherEntityId) {
+                continue;
+            }
+            boolean onTrip = false;
+            for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
+                BloodMobState data = entry.getValue();
+                if (liveTrip(entry.getKey(), data, now)
+                        && mob.position().distanceTo(data.endVector) <= TARGET_SEARCH_RADIUS) {
+                    onTrip = true;
+                    break;
+                }
+            }
+            if (!onTrip) {
+                out.add(mob);
+            }
+        }
+        return out;
+    }
+
+    /** The aim point on a floor mob: its upper chest, with a small fixed offset from its id (no two alike). */
+    static Vec3 aimPoint(Entity mob, int seed) {
+        AABB b = mob.getBoundingBox();
+        java.util.Random r = new java.util.Random(seed * 31L + 7L);
+        double w = b.getXsize();
+        return new Vec3(b.getCenter().x + (r.nextDouble() * 2 - 1) * 0.12 * w,
+                b.minY + b.getYsize() * (AIM_HEIGHT_FRACTION + (r.nextDouble() * 2 - 1) * 0.06),
+                b.getCenter().z + (r.nextDouble() * 2 - 1) * 0.12 * w);
+    }
+
+    /**
+     * Whether he can see any of {@code box}: a ray from his eye to its centre, its upper part or its top meets no block
+     * first (killer560, 2026-10-15: "make sure it doesn't track them through walls").
+     */
+    static boolean visible(Minecraft client, AABB box) {
+        Vec3 eye = client.player.getEyePosition();
+        Vec3 c = box.getCenter();
+        Vec3[] points = {c, new Vec3(c.x, box.minY + box.getYsize() * 0.75, c.z), new Vec3(c.x, box.maxY - 0.05, c.z)};
+        for (Vec3 p : points) {
+            if (clearTo(client, eye, p)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** No block between {@code from} and {@code to}. */
+    private static boolean clearTo(Minecraft client, Vec3 from, Vec3 to) {
+        net.minecraft.world.phys.HitResult hit = client.level.clip(new net.minecraft.world.level.ClipContext(from, to,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE,
+                client.player));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS
+                || hit.getLocation().distanceToSqr(from) >= from.distanceToSqr(to) - 1e-6;
+    }
+
+    /** How far his body's look runs before it meets a block (at most {@code range}). */
+    private static double blockDistance(Minecraft client, Vec3 eye, Vec3 dir, double range) {
+        Vec3 end = eye.add(dir.scale(range));
+        net.minecraft.world.phys.HitResult hit = client.level.clip(new net.minecraft.world.level.ClipContext(eye, end,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE,
+                client.player));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? range : hit.getLocation().distanceTo(eye);
+    }
+
+    /** The nearest living, attackable mob his body's look meets within {@code range}, before any block, or null. */
+    private static Entity lookTarget(Minecraft client, double range) {
+        Vec3 eye = client.player.getEyePosition();
+        Vec3 dir = Vec3.directionFromRotation(client.player.getXRot(), client.player.getYRot());
+        double limit = Math.min(range, blockDistance(client, eye, dir, range));
+        Vec3 end = eye.add(dir.scale(limit));
+        Entity best = null;
+        double bestD = Double.MAX_VALUE;
+        for (Entity candidate : client.level.getEntities(client.player,
+                new AABB(eye, end).inflate(1.0), BloodCampFeature::isAttackableMob)) {
+            Vec3 hit = candidate.getBoundingBox().clip(eye, end).orElse(null);
+            if (hit == null) {
+                continue;
+            }
+            double d = eye.distanceToSqr(hit);
+            if (d < bestD) {
+                bestD = d;
+                best = candidate;
+            }
+        }
+        return best;
     }
 
     /** Ticks before a mob is due the Aura starts turning toward it (a trip is 38.8 ticks, the first wave 78.8). */
@@ -873,15 +1102,25 @@ public final class BloodCampFeature {
         AABB grown = box.inflate(AIM_INFLATE);
         // The BODY's look (getXRot/getYRot, what movement packets carry), never the view: in Freecam Mode the camera is
         // somewhere else. Both the look the last movement packet reported and the one this tick's will carry must hit.
-        Vec3 now = eyes.add(Vec3.directionFromRotation(client.player.getXRot(), client.player.getYRot()).scale(AIM_RANGE));
-        if (!grown.clip(eyes, now).isPresent()) {
+        // And never through a wall (killer560, 2026-10-15): the look must reach the box before it meets a block.
+        Vec3 dirNow = Vec3.directionFromRotation(client.player.getXRot(), client.player.getYRot());
+        if (!reachesBeforeBlock(client, grown, eyes, dirNow)) {
             return false;
         }
         if (Float.isNaN(reportedYaw)) {
             return true;
         }
-        Vec3 last = eyes.add(Vec3.directionFromRotation(reportedPitch, reportedYaw).scale(AIM_RANGE));
-        return grown.clip(eyes, last).isPresent();
+        return reachesBeforeBlock(client, grown, eyes, Vec3.directionFromRotation(reportedPitch, reportedYaw));
+    }
+
+    /** Whether the ray from {@code eye} along {@code dir} meets {@code box} within AIM_RANGE before any block. */
+    private static boolean reachesBeforeBlock(Minecraft client, AABB box, Vec3 eye, Vec3 dir) {
+        Vec3 end = eye.add(dir.scale(AIM_RANGE));
+        Vec3 hit = box.contains(eye) ? eye : box.clip(eye, end).orElse(null);
+        if (hit == null) {
+            return false;
+        }
+        return hit.distanceTo(eye) <= blockDistance(client, eye, dir, AIM_RANGE) + 1e-6;
     }
 
     /**
@@ -898,7 +1137,9 @@ public final class BloodCampFeature {
      */
     private static Entity resolveAttackTarget(Minecraft client, ArmorStand stand, Vec3 predicted, double range) {
         Vec3 eyes = client.player.getEyePosition();
-        Vec3 end = eyes.add(Vec3.directionFromRotation(client.player.getXRot(), client.player.getYRot()).scale(range));
+        Vec3 dir = Vec3.directionFromRotation(client.player.getXRot(), client.player.getYRot());
+        // Reach ends at the first block on the way: nothing is attacked through a wall.
+        Vec3 end = eyes.add(dir.scale(Math.min(range, blockDistance(client, eyes, dir, range))));
         AABB search = new AABB(predicted, predicted).inflate(TARGET_SEARCH_RADIUS);
         Entity best = null;
         double bestDistance = Double.MAX_VALUE;
