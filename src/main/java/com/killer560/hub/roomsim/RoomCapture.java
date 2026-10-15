@@ -155,13 +155,16 @@ public final class RoomCapture {
         int originX = LiveMapFeature.START_X + minGx * 16 - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
         int originZ = LiveMapFeature.START_Z + minGz * 16 - RoomLibrary.TILE / 2 - RoomLibrary.WALL_MARGIN;
 
-        // Every chunk the footprint touches, loaded for real.
+        // Every chunk the footprint touches, loaded for real. Asked of the CHUNK SOURCE, never the level:
+        // ClientLevel.hasChunk is hard-wired to return true (javap 26.1.2), and a chunk the client does not have reads
+        // as an empty chunk - all air - so asking the level would capture a missing chunk as a hole in the room.
+        // ChunkSource.hasChunk is vanilla's answer even with the Chunk Cache on (ChunkCacheChunkSourceMixin).
         List<String> unloaded = new ArrayList<>();
         int chunks = 0;
         for (int cx = originX >> 4; cx <= (originX + sizeX - 1) >> 4; cx++) {
             for (int cz = originZ >> 4; cz <= (originZ + sizeZ - 1) >> 4; cz++) {
                 chunks++;
-                if (!level.hasChunk(cx, cz)) {
+                if (!level.getChunkSource().hasChunk(cx, cz)) {
                     unloaded.add(towards(client, (cx << 4) + 8, (cz << 4) + 8));
                 }
             }
