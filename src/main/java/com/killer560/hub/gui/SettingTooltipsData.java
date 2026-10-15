@@ -510,8 +510,8 @@ final class SettingTooltipsData {
         d.put("clear chain key", "Keybind for /ap3 clear.");
         d.put("reload chains file key", "Keybind for /ap3 reload.");
         d.put("stop chain key", "Keybind for /ap3 stop. Works even with AP3 off.");
-        d.put("class overrides", "Sets a player's class by hand for every feature in the mod.");
-        d.put("class overrides/class selection overlay", "Pick a player in the bar, then a class box, to assign their class on the class-selection screen.");
+        d.put("class selection overlay", "On the class-selection screen, shows your party across the top. Pick a player, then a class box, to set their class; it is the same class the Leap Order editor (/class) sets.");
+        d.put("edit classes", "Opens the Leap Order editor (the same screen as /leaporder and /class): pick your class, then set each teammate's class and leap spot.");
         d.put("current party", "Lists your party and their classes; click Override to set a different class.");
         d.put("override", "Left click cycles this player's class override, right click goes back.");
         d.put("remove override", "Removes this player's override.");
@@ -941,7 +941,7 @@ final class SettingTooltipsData {
         d.put("save current as new", "Saves your current mod settings as a new profile.");
         d.put("load", "Applies this profile's settings right away.");
         d.put("export", "Zips this profile into the share folder and opens that folder, so you can send the zip to someone.");
-        d.put("new blank profile", "Creates a profile with every setting off (named from the box above, or Blank). Your routes, waypoints, class overrides and HUD layout come along; nothing changes until you Load it.");
+        d.put("new blank profile", "Creates a profile with every setting off (named from the box above, or Blank). Your routes, waypoints, class picks, leap order and HUD layout come along; nothing changes until you Load it.");
         d.put("import profile (open folder)", "Opens the import folder. Drop a profile .zip in and it is imported within a couple of seconds, named after the file.");
 
         // Lever Aura (in Dungeon > Secrets since 2026-09-21)
@@ -1821,7 +1821,6 @@ final class SettingTooltipsData {
         d.put("door keys/tracer thickness", "How thick that tracer line is drawn (1-10).");
         d.put("door keys/esp through walls", "Draws the key circle and tracer through walls (cheat build only).");
         d.put("name changer/color", "Opens the color picker for this name.");
-        d.put("ap3/class overrides", "Read-only copy of Dungeon > Class Overrides.");
         d.put("mod chat/mod chat", "A private chat with other mod users: /kc <message> sends one line, /chat k makes your typed chat go there.");
         d.put("mod chat/room", "Party keeps mod chat to your party; Lobby reaches every mod user on your current server.");
         d.put("mod chat/log to chat", "Prints received mod chat into your chat (on by default); off shows each message briefly instead.");

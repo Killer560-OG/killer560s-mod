@@ -71,6 +71,24 @@ public final class LeapMenuConfig {
      *  next run is compared with it across a restart. Empty until a run has started. */
     private final List<String> lastRunParty = new ArrayList<>();
 
+    // ---- class picks (formerly the separate Class Overrides file; one store with the Leap Order, 2026-10-15) ------------
+
+    /** The legacy file the picks used to live in ({@code killer560smod-classoverrides.json}): read once into
+     *  {@link #classPicks} and removed. A profile saved before 2026-10-15 can put it back; the next load migrates it again. */
+    private static final Path LEGACY_PICKS_PATH = ModPaths.config("killer560smod-classoverrides.json");
+    /** A friend's file, not a network input - but still bounded. */
+    public static final int MAX_PICKS = 64;
+    /** Key prefix for a pick that has not resolved a UUID yet. */
+    private static final String UNRESOLVED_PREFIX = "name:";
+
+    /** One class pick: the class a player is treated as playing everywhere in the mod (it wins over the tab list).
+     *  {@code ign} is the typed / last-known name, {@code uuid} null until {@link PlayerNames} resolves one. */
+    private record Pick(String ign, UUID uuid, DungeonClass clazz) {
+    }
+
+    /** Key ({@code uuid.toString()} once resolved, else {@code "name:" + lowercase ign}) -&gt; pick, in insertion order. */
+    private final Map<String, Pick> classPicks = new LinkedHashMap<>();
+
     private LeapMenuConfig() {
     }
 
@@ -135,10 +153,73 @@ public final class LeapMenuConfig {
                 if (root.has("lastEditedClass") && root.get("lastEditedClass").isJsonPrimitive()) {
                     cfg.lastEditedClass = root.get("lastEditedClass").getAsString();
                 }
+                if (root.has("classPicks") && root.get("classPicks").isJsonArray()) {
+                    readPicks(cfg, root.getAsJsonArray("classPicks"));
+                }
             } catch (Exception ignored) {
             }
         }
+        migrateLegacyPicks(cfg);
         instance = cfg;
+    }
+
+    private static void readPicks(LeapMenuConfig cfg, JsonArray picks) {
+        for (JsonElement el : picks) {
+            if (cfg.classPicks.size() >= MAX_PICKS || !el.isJsonObject()) {
+                continue;
+            }
+            JsonObject o = el.getAsJsonObject();
+            String ign = cleanIgn(ConfigJson.getString(o, "ign", null));
+            DungeonClass clazz = DungeonClass.byName(ConfigJson.getString(o, "class", null));
+            if (ign != null && clazz != null) {
+                putPick(cfg, new Pick(ign, parseUuid(ConfigJson.getString(o, "uuid", null)), clazz));
+            }
+        }
+    }
+
+    /** Moves the old Class Overrides file into this config: its picks are added (a pick already here wins), the result
+     *  is saved, and only then is the old file deleted - so a failed save loses nothing. Both file formats the old
+     *  store ever wrote are read (an array of {ign, uuid?, class}, and the pre-2026-09-21 ign -> class object). */
+    private static void migrateLegacyPicks(LeapMenuConfig cfg) {
+        if (!Files.exists(LEGACY_PICKS_PATH)) {
+            return;
+        }
+        try {
+            JsonObject o = JsonParser.parseString(Files.readString(LEGACY_PICKS_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+            JsonElement raw = o.get("overrides");
+            if (raw != null && raw.isJsonArray()) {
+                for (JsonElement el : raw.getAsJsonArray()) {
+                    if (!el.isJsonObject()) {
+                        continue;
+                    }
+                    JsonObject e = el.getAsJsonObject();
+                    addMigrated(cfg, ConfigJson.getString(e, "ign", null), parseUuid(ConfigJson.getString(e, "uuid", null)),
+                            ConfigJson.getString(e, "class", null));
+                }
+            } else if (raw != null && raw.isJsonObject()) {
+                for (String ign : raw.getAsJsonObject().keySet()) {
+                    addMigrated(cfg, ign, null, ConfigJson.getString(raw.getAsJsonObject(), ign, null));
+                }
+            }
+            cfg.save();
+            if (Files.readString(CONFIG_PATH, StandardCharsets.UTF_8).contains("classPicks")) {
+                Files.delete(LEGACY_PICKS_PATH);
+            }
+        } catch (Exception e) {
+            // unreadable or unwritable: leave the old file where it is, the next load tries again
+        }
+    }
+
+    private static void addMigrated(LeapMenuConfig cfg, String rawIgn, UUID uuid, String className) {
+        String ign = cleanIgn(rawIgn);
+        DungeonClass clazz = DungeonClass.byName(className);
+        if (ign == null || clazz == null || cfg.classPicks.size() >= MAX_PICKS) {
+            return;
+        }
+        Pick pick = new Pick(ign, uuid, clazz);
+        if (!cfg.classPicks.containsKey(keyOf(pick)) && cfg.findPick(ign) == null) {
+            putPick(cfg, pick);
+        }
     }
 
     /** {@code null}/blank = empty slot. A plain string is the pre-2026-09-21 format (an IGN, "" = empty); an
@@ -231,6 +312,17 @@ public final class LeapMenuConfig {
             if (lastEditedClass != null) {
                 root.addProperty("lastEditedClass", lastEditedClass);
             }
+            JsonArray picks = new JsonArray();
+            for (Pick p : classPicks.values()) {
+                JsonObject o = new JsonObject();
+                o.addProperty("ign", p.ign());
+                if (p.uuid() != null) {
+                    o.addProperty("uuid", p.uuid().toString());
+                }
+                o.addProperty("class", p.clazz().name());
+                picks.add(o);
+            }
+            root.add("classPicks", picks);
             Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -437,6 +529,124 @@ public final class LeapMenuConfig {
 
     public void setLastEditedClass(DungeonClass playing) {
         this.lastEditedClass = playing == null ? null : playing.name();
+    }
+
+    // ---- class picks API (ClassOverrides is the static front for it) --------------------------------------------------
+
+    private static String keyOf(Pick p) {
+        return p.uuid() != null ? p.uuid().toString() : UNRESOLVED_PREFIX + p.ign().toLowerCase(Locale.ROOT);
+    }
+
+    /** Stores {@code p} and, with no UUID yet, asks {@link PlayerNames} to resolve one and upgrade it. */
+    private static void putPick(LeapMenuConfig cfg, Pick p) {
+        cfg.classPicks.put(keyOf(p), p);
+        if (p.uuid() == null) {
+            resolvePickAsync(cfg, p.ign());
+        }
+    }
+
+    /** Upgrades the unresolved pick for {@code ign} to the UUID form once {@link PlayerNames} resolves it, if it is still
+     *  exactly what it was when the lookup started. Mutates {@code cfg} directly (never {@link #getInstance()}, which
+     *  may be the OLD instance while {@link #load()} builds a new one). */
+    private static void resolvePickAsync(LeapMenuConfig cfg, String ign) {
+        PlayerNames.resolveAsync(ign, uuid -> {
+            if (uuid == null) {
+                return;
+            }
+            String oldKey = UNRESOLVED_PREFIX + ign.toLowerCase(Locale.ROOT);
+            Pick old = cfg.classPicks.get(oldKey);
+            if (old != null && ign.equalsIgnoreCase(old.ign())) {
+                cfg.classPicks.remove(oldKey);
+                cfg.classPicks.put(uuid.toString(), new Pick(old.ign(), uuid, old.clazz()));
+                cfg.save();
+            }
+        });
+    }
+
+    /** UUID first (when {@link PlayerNames} knows one for the name), then the typed name for a pick still unresolved. */
+    private Pick findPick(String ign) {
+        String clean = ign.trim();
+        UUID uuid = PlayerNames.uuidFor(clean);
+        Pick p = uuid != null ? classPicks.get(uuid.toString()) : null;
+        return p != null ? p : classPicks.get(UNRESOLVED_PREFIX + clean.toLowerCase(Locale.ROOT));
+    }
+
+    /** The class picked for {@code ign}, or null when none. */
+    public DungeonClass pickOf(String ign) {
+        Pick p = ign == null ? null : findPick(ign);
+        return p == null ? null : p.clazz();
+    }
+
+    public boolean hasPick(String ign) {
+        return ign != null && findPick(ign) != null;
+    }
+
+    /** Sets (or replaces) the pick for {@code ign} and saves; a null class clears it. @return true when stored. */
+    public boolean setPick(String ign, DungeonClass cls) {
+        String clean = cleanIgn(ign);
+        if (clean == null) {
+            return false;
+        }
+        if (cls == null) {
+            return clearPick(clean);
+        }
+        Pick existing = findPick(clean);
+        if (existing == null && classPicks.size() >= MAX_PICKS) {
+            return false;
+        }
+        UUID uuid = existing != null ? existing.uuid() : PlayerNames.uuidFor(clean);
+        if (existing != null) {
+            classPicks.remove(keyOf(existing));
+        }
+        Pick fresh = new Pick(clean, uuid, cls);
+        classPicks.put(keyOf(fresh), fresh);
+        save();
+        if (uuid == null) {
+            resolvePickAsync(this, clean);
+        }
+        return true;
+    }
+
+    /** Removes the pick for {@code ign} and saves. @return true when one existed. */
+    public boolean clearPick(String ign) {
+        if (ign == null) {
+            return false;
+        }
+        Pick existing = findPick(ign);
+        boolean removed = existing != null && classPicks.remove(keyOf(existing)) != null;
+        if (removed) {
+            save();
+        }
+        return removed;
+    }
+
+    public void clearAllPicks() {
+        if (!classPicks.isEmpty()) {
+            classPicks.clear();
+            save();
+        }
+    }
+
+    /** Every pick, current display name -&gt; class, in insertion order (a copy). */
+    public Map<String, DungeonClass> allPicks() {
+        Map<String, DungeonClass> out = new LinkedHashMap<>();
+        for (Pick p : classPicks.values()) {
+            String current = p.uuid() != null ? PlayerNames.nameFor(p.uuid()) : null;
+            out.put(current != null ? current : p.ign(), p.clazz());
+        }
+        return java.util.Collections.unmodifiableMap(out);
+    }
+
+    /** A Minecraft IGN: 1-16 of {@code [A-Za-z0-9_]}, formatting and whitespace stripped. Null when it is not one. */
+    public static String cleanIgn(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String t = raw.replaceAll("\u00a7.", "").strip();
+        if (t.isEmpty() || t.length() > 16 || !t.matches("[A-Za-z0-9_]+")) {
+            return null;
+        }
+        return t;
     }
 
     /** A teammate's class from the dungeon tab list (read by the leap menu colours and the Live Map). */

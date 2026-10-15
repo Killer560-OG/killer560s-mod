@@ -555,7 +555,6 @@ public final class ProfileManager {
                 com.killer560.hub.autoroutes.RouteStore::reload,
                 com.killer560.hub.ap3.Ap3Config::load,
                 com.killer560.hub.ap3.Ap3Store::reload,
-                com.killer560.hub.dungeonclass.ClassOverrides::load,
                 com.killer560.hub.dungeonclass.ClassSelectionOverlayConfig::load,
                 com.killer560.hub.leapcounter.LeapCounterConfig::load,
                 com.killer560.hub.armourdye.ArmourDyeConfig::load,
@@ -638,6 +637,7 @@ public final class ProfileManager {
             "killer560smod-waypointroutes-routes.json",
             "killer560smod-autoroutes.json",
             "killer560smod-etherwarp-waypoints.json",
+            "killer560smod-leapmenu.json",
             "killer560smod-classoverrides.json",
             "killer560smod-autotrap.json",
             // Where his HUD elements sit and how big they are: a layout, not a switch (HudConfig is left as it is).

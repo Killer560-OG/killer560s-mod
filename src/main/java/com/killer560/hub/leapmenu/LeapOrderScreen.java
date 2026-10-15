@@ -8,7 +8,6 @@ import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.spiritleap.SpiritLeapOverlayConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -66,6 +65,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         return themedBounds.clone();
     }
 
+    private static final int CARD_GAP = 6;
     private static final int BOX_W = 180;
     private static final int BOX_H = 50;
     private static final int GAP = 6;
@@ -84,6 +84,14 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     public LeapOrderScreen(Screen parent) {
         super(Component.literal("Leap Order"));
         this.parent = parent;
+    }
+
+    /** What {@code /leaporder}, {@code /class} and {@code /killer560 leaporder|class} run: opens this editor over whatever
+     *  is showing, one tick later (never from inside command execution). */
+    public static int openFromCommand() {
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> client.setScreenAndShow(new LeapOrderScreen(McCompat.screen(client))));
+        return 1;
     }
 
     /** When the editor last asked Hypixel for the party list (any instance): opening it again within
@@ -127,12 +135,16 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         selectedSpot = -1;
         int cx = width / 2;
         if (editing == null) {
-            int bw = 110;
-            int bh = 22;
+            // Page 1 (redesigned 2026-10-15, killer560: "make this menu use a better amount of its space"): the five
+            // classes are tall cards side by side across the whole panel, each listing the party members who are on
+            // that class right now, instead of a short list in the middle of an empty screen.
             DungeonClass[] classes = DungeonClass.values();
-            int y = height / 2 - (classes.length * (bh + 4)) / 2;
+            int[] area = classArea();
+            int cardGap = CARD_GAP;
+            int cardW = (area[2] - cardGap * (classes.length - 1)) / classes.length;
+            int x = area[0] + (area[2] - (cardW * classes.length + cardGap * (classes.length - 1))) / 2;
             for (DungeonClass c : classes) {
-                addRenderableWidget(new ColoredButton(cx - bw / 2, y, bw, bh, c.displayName(), c.color(), () -> {
+                addRenderableWidget(new ClassCard(x, area[1], cardW, area[3], c, () -> {
                     editing = c;
                     LeapMenuConfig cfg = LeapMenuConfig.getInstance();
                     cfg.setLastEditedClass(c);
@@ -142,10 +154,10 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                         rebuild();
                     }
                 }));
-                y += bh + 4;
+                x += cardW + cardGap;
             }
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
-                    .bounds(cx - 40, height - 30, 80, 20).build());
+                    .bounds(cx - 60, height - 30, 120, 20).build());
             return;
         }
 
@@ -167,7 +179,6 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
             for (String name : PartyTracker.teammatesInLeapOrder()) {
                 ClassOverrides.clear(name);
             }
-            ClassOverrides.getInstance().save();
             rebuild();
         }).bounds(bx + (bw + 6), by, bw, 20).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset Positions"), btn -> {
@@ -189,11 +200,39 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         addClassButtons();
     }
 
+    /** {x, y, w, h} of the row of class cards on page 1: from under the header's subtitle to above the Done button, and
+     *  from edge to edge of the panel (inside its 12 unit margin). */
+    private int[] classArea() {
+        int x = 18;
+        int y = 46;
+        int w = Math.max(50, width - 2 * x);
+        int h = Math.max(40, height - 40 - y);
+        return new int[]{x, y, w, h};
+    }
+
+    /** The party as the dungeon tab list and the picks know it: you first, then the teammates in leap order. */
+    private static java.util.List<String> partyNames() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null) {
+            String self = client.player.getGameProfile().name();
+            if (self != null && !self.isBlank()) {
+                out.add(self);
+            }
+        }
+        for (String n : PartyTracker.teammatesInLeapOrder()) {
+            if (out.stream().noneMatch(n::equalsIgnoreCase)) {
+                out.add(n);
+            }
+        }
+        return out;
+    }
+
     /**
-     * Class Overrides, bundled into Leap Order (killer560, 2026-09-21: "I would like this to be bundled into the
-     * leaporder in a sense"): every spot with a player gets a button at the bottom of its box that cycles that
-     * player's mod-wide class override (None -> Mage -> Tank -> Healer -> Archer -> Berserker -> None), the same
-     * store the Class Overrides tab edits. Right-clicking a spot does the same when the boxes are too small for it.
+     * Class picks, bundled into Leap Order (killer560, 2026-09-21: "I would like this to be bundled into the
+     * leaporder in a sense"; the separate Class Overrides tab was removed 2026-10-15 and this is now the only editor):
+     * every spot with a player gets a button at the bottom of its box that cycles that player's mod-wide class pick
+     * (None -> Mage -> Tank -> Healer -> Archer -> Berserker -> None), stored with the Leap Order itself. Right-clicking a spot does the same when the boxes are too small for it.
      */
     private void addClassButtons() {
         String[] layout = currentLayout();
@@ -219,19 +258,18 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     private static Component classButtonText(String name) {
         DungeonClass override = ClassOverrides.has(name) ? ClassOverrides.classOf(name, null) : null;
         DungeonClass shown = override != null ? override : PartyTracker.classOf(name);
-        String cls = shown == null ? "\u00a77?" : com.killer560.hub.gui.tab.ClassOverridesTab.colourCode(shown) + shown.displayName();
+        String cls = shown == null ? "\u00a77?" : com.killer560.hub.dungeonclass.DungeonClass.colourCode(shown) + shown.displayName();
         return Component.literal("Class: " + cls + (override != null ? " \u00a78(override)" : ""));
     }
 
     private static void cycleOverride(String name, int dir) {
         DungeonClass override = ClassOverrides.has(name) ? ClassOverrides.classOf(name, null) : null;
-        DungeonClass next = com.killer560.hub.gui.tab.ClassOverridesTab.step(override, dir);
+        DungeonClass next = com.killer560.hub.dungeonclass.DungeonClass.step(override, dir);
         if (next == null) {
             ClassOverrides.clear(name);
         } else {
             ClassOverrides.set(name, next);
         }
-        ClassOverrides.getInstance().save();
     }
 
     // ---- the class wizard ----------------------------------------------------------------------------------------------
@@ -267,7 +305,6 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         } else {
             ClassOverrides.set(name, cls);
         }
-        ClassOverrides.getInstance().save();
     }
 
     /** The order the wizard's Class button steps through: unknown, then every class. */
@@ -275,7 +312,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
             DungeonClass.ARCHER, DungeonClass.BERSERKER};
 
     public static Component wizardClassText(DungeonClass cls) {
-        return Component.literal("Class: " + (cls == null ? "\u00a77?" : com.killer560.hub.gui.tab.ClassOverridesTab.colourCode(cls)
+        return Component.literal("Class: " + (cls == null ? "\u00a77?" : com.killer560.hub.dungeonclass.DungeonClass.colourCode(cls)
                 + cls.displayName()));
     }
 
@@ -374,11 +411,12 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     }
 
 
+    /** The four spots keep the leap menu's proportions but grow to fill the panel (2026-10-15; before, they stopped at the
+     *  Custom Leap Menu's own scale and sat as a small block in the middle of a big screen). */
     private float boxScale() {
-        float scale = SpiritLeapOverlayConfig.getInstance().getScale();
-        float fitW = (width - 20) / (float) (BOX_W * 2 + GAP * 2);
+        float fitW = (width - 40) / (float) (BOX_W * 2 + GAP * 2);
         float fitH = (height - 90) / (float) (BOX_H * 2 + GAP * 2);
-        return Math.max(0.4f, Math.min(scale, Math.min(fitW, fitH)));
+        return Math.max(0.4f, Math.min(2.5f, Math.min(fitW, fitH)));
     }
 
     /** @return {x0, y0, w, h} of a spot, laid out exactly like the custom leap menu. */
@@ -416,7 +454,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         head.submit();
         if (editing == null) {
             ScreenChrome.titleCentred(graphics, "Leap Order", width / 2, 16, false);
-            ScreenChrome.centered(graphics, "Select your class", width / 2, height / 2 - 90, MenuStyle.TXT_SOFT);
+            ScreenChrome.centered(graphics, "Select the class you are playing", width / 2, 32, MenuStyle.TXT_SOFT);
         } else if (wizard != null) {
             renderWizard(graphics);
         } else {
@@ -441,8 +479,22 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                 card.submit();
                 if (name != null) {
                     // Above the class button when the box has one.
-                    int textY = b[3] >= 34 ? b[1] + (b[3] - 17) / 2 - 4 : b[1] + b[3] / 2 - 4;
-                    ScreenChrome.centered(graphics, name, b[0] + b[2] / 2, textY, color);
+                    boolean withButton = b[3] >= 34;
+                    int bodyH = withButton ? b[3] - 17 : b[3];
+                    int textY = b[1] + bodyH / 2 - 4;
+                    int face = Math.max(12, Math.min(40, bodyH - 8));
+                    int textCx = b[0] + b[2] / 2;
+                    if (b[2] >= face + 70) {
+                        // The teammate's face on the left (the custom leap menu draws it too), the name in the rest.
+                        int fx = b[0] + 8;
+                        int fy = b[1] + (bodyH - face) / 2;
+                        GuiRects fr = GuiRects.begin(graphics);
+                        fr.fill(fx - 1, fy - 1, fx + face + 1, fy + face + 1, MenuStyle.BLACK);
+                        fr.submit();
+                        com.killer560.hub.livemap.LeapMapView.drawFace(graphics, name, fx, fy, face);
+                        textCx = fx + face + (b[0] + b[2] - fx - face) / 2;
+                    }
+                    ScreenChrome.centered(graphics, name, textCx, textY, color);
                     if (cfg.isPinned(editing, name)) {
                         // Subtle: moved by hand, so the default order leaves this one alone until Reset.
                         MenuStyle.text(graphics, "pinned", b[0] + b[2] - font.width("pinned") - 4, b[1] + 4, MenuStyle.DIM2);
@@ -513,6 +565,73 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    /** One class on page 1: a tall card with the class name in a band of its colour and, under it, everyone in the party
+     *  who is on that class now (you marked). Its message is the class name, so it is found like the old button. */
+    private static final class ClassCard extends AbstractWidget {
+        private final DungeonClass cls;
+        private final Runnable onClick;
+
+        ClassCard(int x, int y, int w, int h, DungeonClass cls, Runnable onClick) {
+            super(x, y, w, h, Component.literal(cls.displayName()));
+            this.cls = cls;
+            this.onClick = onClick;
+        }
+
+        @Override
+        protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+            int c = ScreenChrome.readable(cls.color());
+            boolean last = LeapMenuConfig.getInstance().getLastEditedClass() == cls;
+            int x = getX();
+            int y = getY();
+            int w = getWidth();
+            int h = getHeight();
+            GuiRects r = GuiRects.begin(graphics);
+            ScreenChrome.card(r, x, y, w, h, isHovered, last);
+            r.outline(x + 1, y + 1, w - 2, h - 2, c);
+            int band = Math.min(26, Math.max(16, h / 4));
+            r.fill(x + 2, y + 2, x + w - 2, y + 2 + band, MenuStyle.alpha(cls.color(), 0x60));
+            r.submit();
+            ScreenChrome.centered(graphics, cls.displayName(), x + w / 2, y + 2 + (band - 8) / 2, c);
+            Minecraft client = Minecraft.getInstance();
+            String self = client.player == null ? null : client.player.getGameProfile().name();
+            int ly = y + band + 8;
+            int lines = Math.max(0, (y + h - 14 - ly) / 11);
+            int shown = 0;
+            int on = 0;
+            for (String name : partyNames()) {
+                if (PartyTracker.classOf(name) != cls) {
+                    continue;
+                }
+                on++;
+                if (shown < lines) {
+                    boolean me = self != null && self.equalsIgnoreCase(name);
+                    String label = me ? name + " (you)" : name;
+                    ScreenChrome.centered(graphics, MenuStyle.ellipsize(label, w - 8), x + w / 2, ly, MenuStyle.TXT);
+                    ly += 11;
+                    shown++;
+                }
+            }
+            if (on > shown) {
+                ScreenChrome.centered(graphics, "+" + (on - shown) + " more", x + w / 2, ly, MenuStyle.DIM);
+            } else if (on == 0) {
+                ScreenChrome.centered(graphics, "nobody yet", x + w / 2, ly, MenuStyle.DIM2);
+            }
+            if (last && h >= 40) {
+                ScreenChrome.centered(graphics, "last used", x + w / 2, y + h - 12, MenuStyle.DIM2);
+            }
+        }
+
+        @Override
+        public void onClick(MouseButtonEvent event, boolean doubleClick) {
+            onClick.run();
+        }
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput output) {
+            output.add(NarratedElementType.TITLE, getMessage());
+        }
     }
 
     /** A class-colored button for the class picker. */
