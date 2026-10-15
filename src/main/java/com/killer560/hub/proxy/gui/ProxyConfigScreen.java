@@ -16,7 +16,9 @@ import net.minecraft.network.chat.Component;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Instance proxy editor, opened from the Swap Accounts screen's "Set Instance Proxy" button. Lets the user
+ * Universal proxy editor, opened from the Swap Accounts screen's "Set Universal Proxy" button (called Set Instance Proxy
+ * until 2026-10-15, killer560: "change set instance proxy to be called set universal proxy"). It edits this instance's
+ * proxy, which the Universal switch publishes to every instance (the saved file and its keys are unchanged). Lets the user
  * pick the SOCKS version, enter the proxy address, optionally supply
  * credentials, and Apply / Go Back / Reset. While the universal proxy is ON, saving here also republishes
  * the settings to the universal file (see {@link ProxyConfig#syncUniversalFromInstance()}).
@@ -50,7 +52,7 @@ public class ProxyConfigScreen extends Screen implements MenuThemedScreen {
 
     /** @param target the per-instance proxy ({@link ProxyConfig#getInstance()}) or the shared universal one. */
     public ProxyConfigScreen(Screen parent, ProxyConfig target) {
-        super(Component.literal(target.isUniversal() ? "Universal Proxy" : "Instance Proxy"));
+        super(Component.literal("Universal Proxy"));
         this.parent = parent;
         this.target = target;
         this.selectedType = target.getType();
@@ -73,7 +75,7 @@ public class ProxyConfigScreen extends Screen implements MenuThemedScreen {
         int actionButtonsTop = passwordFieldTop + 40;
         this.warningY = actionButtonsTop + 28;
         this.panelW = Math.max(FIELD_WIDTH + 40, Math.max(this.font.width(footerLine()),
-                this.universalOn ? this.font.width("Universal is ON - Apply also updates every instance.") : 0) + 24);
+                this.font.width(universalLine())) + 24);
         this.panelX = centerX - this.panelW / 2;
         this.panelY = typeButtonsTop - 44;
         this.panelH = this.warningY + 12 * footerLines() + 6 - this.panelY;
@@ -219,9 +221,9 @@ public class ProxyConfigScreen extends Screen implements MenuThemedScreen {
         ScreenChrome.centered(guiGraphics, "Login (optional)", centerX, user[1] - 14, MenuStyle.OR);
         super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         ScreenChrome.centered(guiGraphics, footerLine(), centerX, this.warningY, MenuStyle.RED);
-        if (this.universalOn) {
-            ScreenChrome.centered(guiGraphics, "Universal is ON - Apply also updates every instance.", centerX,
-                    this.warningY + 12, MenuStyle.OR);
+        if (!this.target.isUniversal()) {
+            ScreenChrome.centered(guiGraphics, universalLine(), centerX, this.warningY + 12,
+                    this.universalOn ? MenuStyle.OR : MenuStyle.DIM);
         }
     }
 
@@ -229,9 +231,16 @@ public class ProxyConfigScreen extends Screen implements MenuThemedScreen {
         return "Do NOT use free proxies.";
     }
 
-    /** Lines under the buttons: the warning, plus the Universal note when it shows (read in init, so both count). */
+    /** What Apply reaches: every instance while the Universal switch is on, this one while it is off. */
+    private String universalLine() {
+        return this.universalOn ? "Universal is ON - Apply also updates every instance."
+                : "Universal is OFF - only this instance uses this proxy.";
+    }
+
+    /** Lines under the buttons: the warning and the Universal note (the note is left out only when editing the shared
+     *  file directly). */
     private int footerLines() {
-        return this.universalOn ? 2 : 1;
+        return this.target.isUniversal() ? 1 : 2;
     }
 
     @Override

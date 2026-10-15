@@ -385,3 +385,7 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - `getUseItemRemainingTicks()` is 0 when NOTHING is being used, so a draw read as `72000 - remaining` calls an idle bow fully
   drawn: Trajectories drew a full-power arc for any bow merely held (testkit 1082 on main: 885 arc px). Gate on
   `isUsingItem()` in the main hand first. Shortbows (lore "Shortbow: Instantly shoots!") are `BowItem`s too; test them first.
+- **The Universal proxy is a file in Prism's SHARED folder** (`%APPDATA%/PrismLauncher/prismaccountswitcher/universal-proxy.json`), not in the
+  instance, so a test client that presses Swap Accounts' Universal switch writes the proxy every one of his instances
+  connects through (testkit 1851 on main read that real path, 2026-10-15). `-Dprismaccountswitcher.universalProxyFile`
+  moves it (docs/TESTING-HOOKS.md); the testkit sets it, and 1851 refuses to press the switch on a jar that ignores it.
