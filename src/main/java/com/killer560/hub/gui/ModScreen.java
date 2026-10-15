@@ -162,6 +162,62 @@ public class ModScreen extends Screen {
     private AbstractWidget flashWidget;
     private long flashUntil;
 
+    // ---- animation (gui/MenuAnim; killer560 2026-10-15: "make animations for it smooth") ---------------------------
+    /** Per-card animation state, by feature (the grid's items are rebuilt on every change; this is not). */
+    private static final class CardAnim {
+        final MenuAnim.Tween hover = new MenuAnim.Tween(MenuAnim.HOVER_MS, false);
+        final MenuAnim.Tween lift = new MenuAnim.Tween(MenuAnim.HOVER_MS, true);
+        final MenuAnim.Tween knob = new MenuAnim.Tween(MenuAnim.TOGGLE_MS, true);
+        final MenuAnim.Tween on = new MenuAnim.Tween(MenuAnim.TOGGLE_MS, false);
+        final MenuAnim.Tween sel = new MenuAnim.Tween(MenuAnim.HOVER_MS, false);
+        final MenuAnim.Tween press = new MenuAnim.Tween(MenuAnim.PRESS_MS, false);
+        final MenuAnim.Tween x = new MenuAnim.Tween(MenuAnim.LAYOUT_MS, true);
+        final MenuAnim.Tween y = new MenuAnim.Tween(MenuAnim.LAYOUT_MS, true);
+        final MenuAnim.Tween w = new MenuAnim.Tween(MenuAnim.LAYOUT_MS, true);
+    }
+
+    private final Map<BaseTab, CardAnim> cardAnims = new IdentityHashMap<>();
+    /** When this menu was first drawn, and when it was closed (its fade out is drawn over what comes next). */
+    private long openedAt = Long.MIN_VALUE;
+    private long closedAt = Long.MIN_VALUE;
+    /** Which page the grid shows (category index, -2 Favourites); a change slides the new page in. */
+    private int gridContext = Integer.MIN_VALUE;
+    private long gridContextAt = Long.MIN_VALUE;
+    private final MenuAnim.Tween gridScrollShown = new MenuAnim.Tween(MenuAnim.SCROLL_MS, true);
+    /** The drawer's (or page's) scroll as drawn; widgets are laid out at {@link #scrollOffset}. */
+    private final MenuAnim.Tween scrollShown = new MenuAnim.Tween(MenuAnim.SCROLL_MS, true);
+    private Object scrollContext;
+    /** The drawer: when it opened (slides in), when it switched feature (its content fades in), its title switch. */
+    private long drawerOpenedAt = Long.MIN_VALUE;
+    private long drawerSwitchedAt = Long.MIN_VALUE;
+    private BaseTab drawerShownTab;
+    private final MenuAnim.Tween drawerKnob = new MenuAnim.Tween(MenuAnim.TOGGLE_MS, true);
+    private final MenuAnim.Tween drawerOn = new MenuAnim.Tween(MenuAnim.TOGGLE_MS, false);
+    /** The drawer that was just closed, still sliding out (its widgets drawn, never clicked). */
+    private ScrollingContentPane closingPane;
+    private BaseTab closingTab;
+    private MasterSwitch closingMaster;
+    private SettingsButtonWidget closingAdvanced;
+    private int closingX, closingY, closingW, closingH, closingContentY, closingVisible, closingScroll, closingMax;
+    private long closingAt = Long.MIN_VALUE;
+    /** The sidebar: the selection box's y, and each row's hover and selected shade. */
+    private final MenuAnim.Tween sideSelY = new MenuAnim.Tween(MenuAnim.CATEGORY_MS, true);
+    private MenuAnim.Tween[] sideHover = new MenuAnim.Tween[0];
+    private MenuAnim.Tween[] sideSel = new MenuAnim.Tween[0];
+    private long paletteShownAt = Long.MIN_VALUE;
+    private long tooltipShownAt = Long.MIN_VALUE;
+    /** True while a closed menu draws its fade out over the next screen (rows keep the menu's look). */
+    static boolean drawingClosed;
+
+    private CardAnim cardAnim(BaseTab tab) {
+        CardAnim a = cardAnims.get(tab);
+        if (a == null) {
+            a = new CardAnim();
+            cardAnims.put(tab, a);
+        }
+        return a;
+    }
+
     public ModScreen(Screen parent) {
         this(parent, -1);
     }
@@ -403,6 +459,18 @@ public class ModScreen extends Screen {
     // ---- layout ----------------------------------------------------------------------------------------------------
 
     private void layout() {
+        layoutPanels();
+        if (sideHover.length != side.size()) {
+            sideHover = new MenuAnim.Tween[side.size()];
+            sideSel = new MenuAnim.Tween[side.size()];
+            for (int i = 0; i < side.size(); i++) {
+                sideHover[i] = new MenuAnim.Tween(MenuAnim.HOVER_MS, false);
+                sideSel[i] = new MenuAnim.Tween(MenuAnim.CATEGORY_MS, false);
+            }
+        }
+    }
+
+    private void layoutPanels() {
         int bodyY = headerY + headerH + 5;
         int bodyH = panelY + panelH - 4 - bodyY;
         sideX = panelX + 4;
@@ -485,6 +553,7 @@ public class ModScreen extends Screen {
 
     private void rebuild() {
         rebuilds++;
+        collectRowAnims();
         this.clearWidgets();
         SettingTooltips.clearScopes();
         layout();
@@ -526,11 +595,116 @@ public class ModScreen extends Screen {
             // if it changed.
             if (openFeature == built && (advancedHeader != null) != reserved) {
                 hasAdvanced.put(built, advancedHeader != null);
+                adoptRowAnims();
+                noteDrawerChange();
                 rebuild();
                 return;
             }
         }
+        adoptRowAnims();
+        noteDrawerChange();
         resumeLiveDrag();
+    }
+
+    /** The pane and drawer as they were before this rebuild, kept in case the drawer just closed (it slides out). */
+    private ScrollingContentPane priorPane;
+    private BaseTab priorDrawerTab;
+    private MasterSwitch priorMaster;
+    private SettingsButtonWidget priorAdvanced;
+    private int priorX, priorY, priorW, priorH, priorContentY, priorVisible, priorMax;
+
+    /** Starts the drawer's open / switch / close animation when this rebuild changed which feature it shows. */
+    private void noteDrawerChange() {
+        BaseTab now = openFeature != null && !pageMode() ? openFeature : null;
+        BaseTab before = drawerShownTab;
+        drawerShownTab = now;
+        if (now == before) {
+            return;
+        }
+        long t = MenuAnim.now();
+        if (before == null) {
+            drawerOpenedAt = t;
+            closingPane = null;
+        } else if (now != null) {
+            drawerSwitchedAt = t;
+        } else if (priorPane != null && priorDrawerTab == before) {
+            closingPane = priorPane;
+            closingTab = before;
+            closingMaster = priorMaster;
+            closingAdvanced = priorAdvanced;
+            closingX = priorX;
+            closingY = priorY;
+            closingW = priorW;
+            closingH = priorH;
+            closingContentY = priorContentY;
+            closingVisible = priorVisible;
+            closingMax = priorMax;
+            closingScroll = Math.round(scrollShown.get());
+            closingAt = t;
+        }
+        if (now != null) {
+            drawerKnob.snap(drawerMaster != null && drawerMaster.isOn() ? 1f : 0f);
+            drawerOn.snap(drawerKnob.target());
+        }
+    }
+
+    // ---- row animation hand-over: a rebuilt row keeps animating from where its predecessor was ----------------------
+    private final Map<String, MenuAnim.RowAnim> priorRowAnims = new java.util.HashMap<>();
+    private BaseTab priorRowTab;
+
+    private BaseTab paneTab() {
+        return pageMode() ? selected() : openFeature;
+    }
+
+    private void collectRowAnims() {
+        priorRowAnims.clear();
+        priorRowTab = null;
+        priorPane = contentPane;
+        priorDrawerTab = drawerShownTab;
+        priorMaster = drawerMaster;
+        priorAdvanced = advancedHeader;
+        priorX = drawerX;
+        priorY = drawerY;
+        priorW = drawerW;
+        priorH = drawerH;
+        priorContentY = contentY;
+        priorVisible = visibleContentHeight;
+        priorMax = maxScroll;
+        if (contentPane == null) {
+            return;
+        }
+        priorRowTab = paneTab();
+        for (AbstractWidget w : contentPane.children()) {
+            if (w instanceof MenuAnim.Animated a) {
+                String key = a.animKey();
+                while (priorRowAnims.containsKey(key)) {
+                    key = key + "#";
+                }
+                priorRowAnims.put(key, a.anim());
+            }
+        }
+    }
+
+    private void adoptRowAnims() {
+        if (contentPane == null || priorRowAnims.isEmpty() || priorRowTab != paneTab()) {
+            priorRowAnims.clear();
+            return;
+        }
+        java.util.Set<String> used = new java.util.HashSet<>();
+        for (AbstractWidget w : contentPane.children()) {
+            if (w instanceof MenuAnim.Animated a) {
+                String key = a.animKey();
+                while (used.contains(key)) {
+                    key = key + "#";
+                }
+                used.add(key);
+                MenuAnim.RowAnim old = priorRowAnims.get(key);
+                if (old != null && old != a.anim()) {
+                    a.anim().copyFrom(old);
+                }
+            }
+        }
+        priorRowAnims.clear();
     }
 
     /**
@@ -839,6 +1013,38 @@ public class ModScreen extends Screen {
         gridContentH = y - (gridY + GRID_PAD) + GRID_PAD - GAP;
         gridMax = Math.max(0, gridContentH - (gridH - 2 * GRID_PAD) + GRID_PAD);
         gridScroll = Math.max(0, Math.min(gridScroll, gridMax));
+        placeCards();
+    }
+
+    /**
+     * Gives every card its new place. On the same page a card that moved (the drawer opened and the grid narrowed, a
+     * favourite was removed) glides there; a new page puts every card in place at once and slides the page in.
+     */
+    private void placeCards() {
+        int ctx = pageMode() ? -3 : favouritesSelected ? -2 : selectedTab;
+        boolean switched = ctx != gridContext;
+        if (switched) {
+            if (gridContext != Integer.MIN_VALUE) {
+                gridContextAt = MenuAnim.now();
+            }
+            gridContext = ctx;
+            gridScrollShown.snap(gridScroll);
+        }
+        for (Item it : items) {
+            if (it.kind != ItemKind.CARD) {
+                continue;
+            }
+            CardAnim a = cardAnim(it.tab);
+            if (switched || !a.x.placed()) {
+                a.x.snap(it.x);
+                a.y.snap(it.y);
+                a.w.snap(it.w);
+            } else {
+                a.x.set(it.x);
+                a.y.set(it.y);
+                a.w.set(it.w);
+            }
+        }
     }
 
     private void scrollGridTo(BaseTab leaf) {
@@ -1205,6 +1411,7 @@ public class ModScreen extends Screen {
                 return;
             }
             clickSound();
+            cardAnim(it.tab).press.play(1f, 0f);
             int[] sw = cardSwitch(it);
             if (FeatureCards.state(it.tab) != null && inside(mx, gy, sw[0] - 3, sw[1] - 3, sw[2] + 6, sw[3] + 6)) {
                 toggleCard(it.tab);
@@ -1428,29 +1635,186 @@ public class ModScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        if (!drawingClosed) {
+            MenuAnim.frame();
+        }
+        if (openedAt == Long.MIN_VALUE) {
+            openedAt = MenuAnim.now();
+        }
         if (openFeature != null && drawerMaster != null) {
             FeatureCards.setKnownState(openFeature, drawerMaster.isOn());
         }
         MenuStyle.use();
-        g.fill(0, 0, this.width, this.height, MenuStyle.BACKDROP);
+        // Opening: the whole menu fades in and grows from 96%; closing (drawn over the next screen) the reverse.
+        float fadeP;
+        float growP;
+        if (closedAt != Long.MIN_VALUE) {
+            fadeP = 1f - MenuAnim.progress(closedAt, MenuAnim.CLOSE_MS, false);
+            growP = 1f - MenuAnim.progress(closedAt, MenuAnim.CLOSE_MS, true);
+        } else {
+            fadeP = MenuAnim.progress(openedAt, MenuAnim.OPEN_MS, false);
+            growP = MenuAnim.progress(openedAt, MenuAnim.OPEN_MS, true);
+        }
+        float prevFade = MenuAnim.pushFade(fadeP);
+        boolean grown = growP < 1f;
+        try {
+            g.fill(0, 0, this.width, this.height, MenuStyle.BACKDROP);
+            if (grown) {
+                float sc = 0.96f + 0.04f * growP;
+                float cx = panelX + panelW / 2f;
+                float cy = panelY + panelH / 2f;
+                g.pose().pushMatrix();
+                g.pose().translate(cx, cy);
+                g.pose().scale(sc, sc);
+                g.pose().translate(-cx, -cy);
+            }
+            drawMenu(g, mouseX, mouseY, partialTick);
+        } finally {
+            if (grown) {
+                g.pose().popMatrix();
+            }
+            MenuAnim.popFade(prevFade);
+        }
+    }
+
+    private void drawMenu(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         drawFrame(g);
         drawHeader(g, mouseX, mouseY);
         drawSidebar(g, mouseX, mouseY);
+        // The drawer's (or page's) scroll eases toward where its rows are laid out; the pane draws them displaced.
+        Object sc = paneTab();
+        if (sc != scrollContext) {
+            scrollContext = sc;
+            scrollShown.snap(scrollOffset);
+        } else {
+            scrollShown.set(scrollOffset);
+        }
+        drawnScroll = Math.round(scrollShown.get());
+        if (contentPane != null) {
+            contentPane.drawDy = scrollOffset - drawnScroll;
+            contentPane.drawDx = 0;
+            contentPane.alpha = 1f;
+            contentPane.clipRight = Integer.MAX_VALUE;
+        }
         if (pageMode()) {
+            closingPane = null;
             drawPageWell(g);
         } else {
             drawGrid(g, mouseX, mouseY);
+            drawClosingDrawer(g, partialTick);
             if (openFeature != null) {
-                drawDrawer(g, mouseX, mouseY);
+                // Opening slides the drawer in from the right as it fades in; switching feature fades its rows in.
+                float slide = 1f - MenuAnim.progress(drawerOpenedAt, MenuAnim.DRAWER_MS, true);
+                float drawerFade = MenuAnim.progress(drawerOpenedAt, MenuAnim.DRAWER_MS, false);
+                float rows = 0.25f + 0.75f * MenuAnim.progress(drawerSwitchedAt, MenuAnim.CATEGORY_MS, false);
+                int dx = Math.round(slide * DRAWER_SLIDE);
+                float prev = MenuAnim.pushFade(drawerFade);
+                boolean moved = dx != 0;
+                if (moved) {
+                    g.enableScissor(drawerX - 6, drawerY - 2, panelX + panelW - 4, drawerY + drawerH + 2);
+                    g.pose().pushMatrix();
+                    g.pose().translate(dx, 0);
+                }
+                try {
+                    drawDrawer(g, mouseX, mouseY);
+                } finally {
+                    if (moved) {
+                        g.pose().popMatrix();
+                        g.disableScissor();
+                    }
+                    MenuAnim.popFade(prev);
+                }
+                if (contentPane != null) {
+                    contentPane.drawDx = dx;
+                    contentPane.alpha = drawerFade * rows;
+                    contentPane.clipRight = panelX + panelW - 4;
+                }
             }
         }
         boolean paletteUp = paletteOpen && !searchQuery.isBlank();
         super.extractRenderState(g, paletteUp ? -1 : mouseX, paletteUp ? -1 : mouseY, partialTick);
         drawContentDecor(g);
         if (paletteUp) {
-            drawPalette(g, mouseX, mouseY);
+            if (paletteShownAt == Long.MIN_VALUE) {
+                paletteShownAt = MenuAnim.now();
+            }
+            float prev = MenuAnim.pushFade(MenuAnim.progress(paletteShownAt, MenuAnim.TOOLTIP_MS, false));
+            try {
+                drawPalette(g, mouseX, mouseY);
+            } finally {
+                MenuAnim.popFade(prev);
+            }
         } else {
+            paletteShownAt = Long.MIN_VALUE;
             drawSettingTooltip(g, mouseX, mouseY);
+        }
+    }
+
+    /** How far (layout units) the drawer slides in from / out to the right. */
+    private static final int DRAWER_SLIDE = 28;
+    /** The drawer's scroll as drawn this frame (its scrollbar). */
+    private int drawnScroll;
+
+    /** The drawer that was just closed, sliding out and fading over the grid; its rows are drawn but never pressed. */
+    private void drawClosingDrawer(GuiGraphicsExtractor g, float partialTick) {
+        if (closingPane == null) {
+            return;
+        }
+        float fade = 1f - MenuAnim.progress(closingAt, MenuAnim.DRAWER_MS, false);
+        float slide = MenuAnim.progress(closingAt, MenuAnim.DRAWER_MS, true);
+        if (fade <= 0f) {
+            closingPane = null;
+            return;
+        }
+        // Drawn with the drawer's own code: the closed drawer's geometry and parts are swapped in for the call.
+        BaseTab openWas = openFeature;
+        MasterSwitch masterWas = drawerMaster;
+        SettingsButtonWidget advWas = advancedHeader;
+        int xw = drawerX;
+        int yw = drawerY;
+        int ww = drawerW;
+        int hw = drawerH;
+        int cyw = contentY;
+        int vw = visibleContentHeight;
+        int mw = maxScroll;
+        int sw = drawnScroll;
+        openFeature = closingTab;
+        drawerMaster = closingMaster;
+        advancedHeader = closingAdvanced;
+        drawerX = closingX;
+        drawerY = closingY;
+        drawerW = closingW;
+        drawerH = closingH;
+        contentY = closingContentY;
+        visibleContentHeight = closingVisible;
+        maxScroll = closingMax;
+        drawnScroll = closingScroll;
+        int dx = Math.round(slide * DRAWER_SLIDE);
+        float prev = MenuAnim.pushFade(fade);
+        g.enableScissor(drawerX - 6, drawerY - 2, panelX + panelW - 4, drawerY + drawerH + 2);
+        g.pose().pushMatrix();
+        g.pose().translate(dx, 0);
+        try {
+            drawDrawer(g, -1, -1);
+            closingPane.drawDx = 0;
+            closingPane.alpha = 1f;
+            closingPane.clipRight = Integer.MAX_VALUE;
+            closingPane.extractRenderState(g, -1, -1, partialTick);
+        } finally {
+            g.pose().popMatrix();
+            g.disableScissor();
+            MenuAnim.popFade(prev);
+            openFeature = openWas;
+            drawerMaster = masterWas;
+            advancedHeader = advWas;
+            drawerX = xw;
+            drawerY = yw;
+            drawerW = ww;
+            drawerH = hw;
+            contentY = cyw;
+            visibleContentHeight = vw;
+            maxScroll = mw;
+            drawnScroll = sw;
         }
     }
 
@@ -1551,33 +1915,49 @@ public class ModScreen extends Screen {
         for (int y : sideSeparators) {
             MenuStyle.separator(r, sideX + 6, sideX + sideW - 6, y);
         }
-        for (SideEntry e : side) {
+        // Hover shades ease in and out per row; the selection box glides from the old category to the new one.
+        SideEntry selEntry = null;
+        for (int i = 0; i < side.size(); i++) {
+            SideEntry e = side.get(i);
             boolean sel = e.favourites() ? favouritesSelected : (!favouritesSelected && e.tab() == selectedTab);
             boolean hover = inside(mouseX, mouseY, e.x(), e.y(), e.w(), e.h());
+            sideHover[i].set(hover && !sel ? 1f : 0f);
+            sideSel[i].set(sel ? 1f : 0f);
             if (sel) {
-                MenuStyle.dropShadow(r, e.x(), e.y(), e.w(), e.h(), 2);
-                MenuStyle.glow(r, e.x(), e.y(), e.w(), e.h(), MenuStyle.OR, 0x22);
-                MenuStyle.hGradient(r, e.x() + 1, e.y() + 1, e.x() + e.w() - 1, e.y() + e.h() - 1, MenuStyle.SEL_TOP, MenuStyle.SEL_BOTTOM, 6);
-                r.outline(e.x(), e.y(), e.w(), e.h(), MenuStyle.ACCENT_EDGE);
-                r.fill(e.x() + 1, e.y() + 1, e.x() + e.w() - 1, e.y() + 2, MenuStyle.HILITE);
-                r.fill(e.x() + 1, e.y() + 1, e.x() + 3, e.y() + e.h() - 1, MenuStyle.OR);
-            } else if (hover) {
-                r.fill(e.x(), e.y(), e.x() + e.w(), e.y() + e.h(), MenuStyle.alpha(MenuStyle.TXT, 0x14));
+                selEntry = e;
+            }
+            float hv = sideHover[i].get();
+            if (hv > 0f) {
+                r.fill(e.x(), e.y(), e.x() + e.w(), e.y() + e.h(), MenuStyle.alpha(MenuStyle.TXT, Math.round(0x14 * hv)));
             }
         }
+        if (selEntry != null) {
+            sideSelY.set(selEntry.y());
+            int ex = selEntry.x();
+            int ey = Math.round(sideSelY.get());
+            int ew = selEntry.w();
+            int eh = selEntry.h();
+            MenuStyle.dropShadow(r, ex, ey, ew, eh, 2);
+            MenuStyle.glow(r, ex, ey, ew, eh, MenuStyle.OR, 0x22);
+            MenuStyle.hGradient(r, ex + 1, ey + 1, ex + ew - 1, ey + eh - 1, MenuStyle.SEL_TOP, MenuStyle.SEL_BOTTOM, 6);
+            r.outline(ex, ey, ew, eh, MenuStyle.ACCENT_EDGE);
+            r.fill(ex + 1, ey + 1, ex + ew - 1, ey + 2, MenuStyle.HILITE);
+            r.fill(ex + 1, ey + 1, ex + 3, ey + eh - 1, MenuStyle.OR);
+        }
         r.submit();
-        for (SideEntry e : side) {
-            boolean sel = e.favourites() ? favouritesSelected : (!favouritesSelected && e.tab() == selectedTab);
-            boolean hover = inside(mouseX, mouseY, e.x(), e.y(), e.w(), e.h());
+        for (int i = 0; i < side.size(); i++) {
+            SideEntry e = side.get(i);
+            float hv = sideHover[i].get();
+            float sl = sideSel[i].get();
             int ty = e.y() + (e.h() - 8) / 2;
-            int tc = sel ? MenuStyle.OR : (hover ? MenuStyle.TXT_SOFT : MenuStyle.DIM);
-            MenuStyle.text(g, e.icon(), e.x() + 7, ty, sel ? MenuStyle.OR : MenuStyle.DIM2);
+            int tc = MenuStyle.ease(MenuStyle.ease(MenuStyle.DIM, MenuStyle.TXT_SOFT, hv), MenuStyle.OR, sl);
+            MenuStyle.text(g, e.icon(), e.x() + 7, ty, MenuStyle.ease(MenuStyle.DIM2, MenuStyle.OR, sl));
             String count = sideCount(e);
             int cw = font.width(count);
             String label = MenuStyle.ellipsize(e.label(), e.w() - 26 - cw - 4);
             MenuStyle.text(g, label, e.x() + 20, ty, tc);
             if (!count.isEmpty()) {
-                MenuStyle.flat(g, count, e.x() + e.w() - 5 - cw, ty, sel ? MenuStyle.OR2 : MenuStyle.DIM2);
+                MenuStyle.flat(g, count, e.x() + e.w() - 5 - cw, ty, MenuStyle.ease(MenuStyle.DIM2, MenuStyle.OR2, sl));
             }
         }
     }
@@ -1605,7 +1985,7 @@ public class ModScreen extends Screen {
     private void drawPageWell(GuiGraphicsExtractor g) {
         GuiRects r = GuiRects.begin(g);
         MenuStyle.well(r, gridX, gridY, gridW, gridH, MenuStyle.WELL);
-        MenuStyle.scrollbar(r, gridX + gridW - 7, gridY + 5, gridH - 10, scrollOffset, maxScroll, visibleContentHeight);
+        MenuStyle.scrollbar(r, gridX + gridW - 7, gridY + 5, gridH - 10, drawnScroll, maxScroll, visibleContentHeight);
         r.submit();
     }
 
@@ -1618,10 +1998,33 @@ public class ModScreen extends Screen {
         boolean paletteUp = paletteOpen && !searchQuery.isBlank();
         boolean overGrid = !paletteUp && inside(mouseX, mouseY, gridX, clipTop, gridW, clipBottom - clipTop)
                 && !(openFeature != null && drawerOverlay);
+        // The grid's scroll eases toward gridScroll (where clicks land); a new page slides up and fades in.
+        gridScrollShown.set(gridScroll);
+        int shown = Math.round(gridScrollShown.get());
+        float pageFade = MenuAnim.progress(gridContextAt, MenuAnim.CATEGORY_MS, false);
+        int pageDy = Math.round((1f - MenuAnim.progress(gridContextAt, MenuAnim.CATEGORY_MS, true)) * PAGE_SLIDE);
+        boolean smooth = MenuAnim.mode() == MenuAnim.Mode.SMOOTH;
+        float prevFade = MenuAnim.pushFade(pageFade);
         g.enableScissor(gridX + 1, clipTop, gridX + gridW - 1, clipBottom);
         try {
             for (Item it : items) {
-                int y = it.y - gridScroll;
+                int y = it.y - shown + pageDy;
+                // Hover and clicks are judged on the final layout (where a press lands), never on a card in flight.
+                int hitY = it.y - gridScroll;
+                if (it.kind == ItemKind.CARD) {
+                    CardAnim a = cardAnim(it.tab);
+                    int ay = Math.round(a.y.get()) - shown + pageDy;
+                    if (Math.min(ay, y) + it.h + 8 < clipTop || Math.max(ay, y) - 8 > clipBottom) {
+                        continue;
+                    }
+                    boolean hover = overGrid && inside(mouseX, mouseY, it.x, hitY, it.w, it.h);
+                    int[] sw = cardSwitch(it);
+                    boolean swHover = hover && inside(mouseX, mouseY, sw[0] - 3, sw[1] - gridScroll - 3, sw[2] + 6, sw[3] + 6);
+                    int[] st = cardStar(it);
+                    boolean starHover = hover && inside(mouseX, mouseY, st[0] - 2, st[1] - gridScroll - 2, st[2] + 4, st[3] + 4);
+                    drawCard(g, it, a, Math.round(a.x.get()), ay, Math.round(a.w.get()), hover, swHover, starHover, smooth);
+                    continue;
+                }
                 if (y + it.h + 8 < clipTop || y - 8 > clipBottom) {
                     continue;
                 }
@@ -1633,71 +2036,105 @@ public class ModScreen extends Screen {
                         MenuStyle.text(g, it.text.toUpperCase(Locale.ROOT), it.x + 6, y + 4,
                                 it.red ? MenuStyle.RED : MenuStyle.OR2);
                     }
-                    case BLOCK -> it.block.render(g, it.x, y, it.w, overGrid ? mouseX : -1, overGrid ? mouseY : -1);
-                    case CARD -> drawCard(g, it, y, overGrid && inside(mouseX, mouseY, it.x, y, it.w, it.h),
-                            overGrid ? mouseX : -1, overGrid ? mouseY : -1);
+                    case BLOCK -> it.block.render(g, it.x, y, it.w, overGrid && y == hitY ? mouseX : -1,
+                            overGrid && y == hitY ? mouseY : -1);
+                    default -> {
+                    }
                 }
             }
         } finally {
             g.disableScissor();
+            MenuAnim.popFade(prevFade);
         }
         if (!drawerOverlay || openFeature == null) {
             GuiRects sb = GuiRects.begin(g);
-            MenuStyle.scrollbar(sb, gridX + gridW - 7, gridY + 5, gridH - 10, gridScroll, gridMax, gridH - 2 * GRID_PAD);
+            MenuStyle.scrollbar(sb, gridX + gridW - 7, gridY + 5, gridH - 10, shown, gridMax, gridH - 2 * GRID_PAD);
             sb.submit();
         }
     }
 
-    private void drawCard(GuiGraphicsExtractor g, Item it, int y, boolean hover, int mouseX, int mouseY) {
+    /** How far (layout units) a new page of cards rises as it fades in. */
+    private static final int PAGE_SLIDE = 10;
+
+    /**
+     * One card at its drawn place ({@code x}, {@code y}, {@code w}: where its glide has got to). Hover, the switch's
+     * knob, the selected glow, the switched-off veil and a press all ease ({@link CardAnim}); a hovered card lifts a unit
+     * under Smooth. Settled, it draws exactly the pixels it always did.
+     */
+    private void drawCard(GuiGraphicsExtractor g, Item it, CardAnim a, int x, int y, int w, boolean hoverNow,
+                          boolean swHover, boolean starHover, boolean smooth) {
         BaseTab tab = it.tab;
         Boolean state = FeatureCards.state(tab);
         boolean selected = openFeature == tab;
         boolean fav = MenuConfig.getInstance().isFavourite(id(tab));
-        int x = it.x;
-        int w = it.w;
         int h = it.h;
-        GuiRects r = GuiRects.begin(g);
-        MenuStyle.dropShadow(r, x, y, w, h, 3);
-        if (selected) {
-            MenuStyle.glow(r, x, y, w, h, MenuStyle.OR, 0x50);
+        a.hover.set(hoverNow ? 1f : 0f);
+        a.lift.set(hoverNow && smooth ? 1f : 0f);
+        a.sel.set(selected ? 1f : 0f);
+        float on = state == null || state ? 1f : 0f;
+        a.knob.set(on);
+        a.on.set(on);
+        float hv = a.hover.get();
+        float sl = a.sel.get();
+        float pr = a.press.get();
+        float lift = a.lift.get();
+        boolean hover = hv >= 0.5f;
+        boolean lifted = lift > 0f;
+        if (lifted) {
+            g.pose().pushMatrix();
+            g.pose().translate(0f, -lift);
         }
-        MenuStyle.bevel(r, x, y, w, h, hover ? MenuStyle.CARD_HOVER_TOP : MenuStyle.CARD_TOP,
-                hover ? MenuStyle.CARD_HOVER_BOTTOM : MenuStyle.CARD_BOTTOM);
-        if (selected) {
-            r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.OR);
-        } else if (hover) {
-            r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.ACCENT_EDGE);
-        }
-        int[] sw = cardSwitch(it);
-        if (state != null) {
-            boolean swHover = mouseX >= 0 && inside(mouseX, mouseY, sw[0] - 3, sw[1] - 3 - (it.y - y), sw[2] + 6, sw[3] + 6);
-            MenuStyle.toggle(r, sw[0], sw[1] - (it.y - y), state, swHover);
-        }
-        r.submit();
-        FeatureCards.CardText text = FeatureCards.cardText(tab, w, h, state != null);
-        int ty = y + 6;
-        int nameColour = tab.isCheatOnly() ? MenuStyle.RED_TITLE : (hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
-        for (String line : text.name()) {
-            MenuStyle.text(g, line, x + 7, ty, nameColour);
-            ty += 10;
-        }
-        ty += 2;
-        for (String line : text.desc()) {
-            MenuStyle.flat(g, line, x + 7, ty, MenuStyle.DIM);
-            ty += 10;
-        }
-        int[] st = cardStar(it);
-        int sy = st[1] - (it.y - y);
-        boolean starHover = mouseX >= 0 && inside(mouseX, mouseY, st[0] - 2, sy - 2, st[2] + 4, st[3] + 4);
-        if (fav || hover) {
-            g.text(font, fav ? "★" : "☆", st[0] + 1, sy + 1, fav ? (starHover ? MenuStyle.OR_LIGHT : MenuStyle.OR)
-                    : (starHover ? MenuStyle.OR : MenuStyle.DIM2), true);
-        }
-        g.text(font, "⚙", x + w - 13, y + h - 12, hover || selected ? MenuStyle.OR2 : MenuStyle.GEAR, false);
-        if (Boolean.FALSE.equals(state) && !selected) {
-            GuiRects o = GuiRects.begin(g);
-            o.fill(x, y, x + w, y + h, hover ? MenuStyle.OFF_VEIL_HOVER : MenuStyle.OFF_VEIL);
-            o.submit();
+        try {
+            GuiRects r = GuiRects.begin(g);
+            MenuStyle.dropShadow(r, x, y, w, h, 3);
+            int glow = Math.round(0x50 * Math.max(sl, pr));
+            if (glow > 0) {
+                MenuStyle.glow(r, x, y, w, h, MenuStyle.OR, glow);
+            }
+            MenuStyle.bevel(r, x, y, w, h, MenuStyle.ease(MenuStyle.CARD_TOP, MenuStyle.CARD_HOVER_TOP, hv),
+                    MenuStyle.ease(MenuStyle.CARD_BOTTOM, MenuStyle.CARD_HOVER_BOTTOM, hv));
+            float edge = Math.max(hv, sl);
+            if (edge > 0f) {
+                // hover's dim accent ring, the selected card's full accent ring, faded in from nothing
+                int ring = MenuStyle.ease(MenuStyle.ACCENT_EDGE, MenuStyle.OR, sl);
+                r.outline(x - 1, y - 1, w + 2, h + 2, edge >= 1f ? ring
+                        : MenuStyle.alpha(ring, Math.round(((ring >>> 24) & 0xFF) * edge)));
+            }
+            if (state != null) {
+                MenuStyle.toggle(r, x + w - 7 - MenuStyle.SWITCH_W, y + 7, a.knob.get(), a.on.get(), swHover ? 1f : 0f);
+            }
+            r.submit();
+            FeatureCards.CardText text = FeatureCards.cardText(tab, w, h, state != null);
+            int ty = y + 6;
+            int nameColour = tab.isCheatOnly() ? MenuStyle.RED_TITLE : MenuStyle.ease(MenuStyle.TXT, MenuStyle.TXT_HOVER, hv);
+            for (String line : text.name()) {
+                MenuStyle.text(g, line, x + 7, ty, nameColour);
+                ty += 10;
+            }
+            ty += 2;
+            for (String line : text.desc()) {
+                MenuStyle.flat(g, line, x + 7, ty, MenuStyle.DIM);
+                ty += 10;
+            }
+            int stx = x + 5;
+            int sty = y + h - 13;
+            if (fav || hover) {
+                g.text(font, fav ? "★" : "☆", stx + 1, sty + 1, fav ? (starHover ? MenuStyle.OR_LIGHT : MenuStyle.OR)
+                        : (starHover ? MenuStyle.OR : MenuStyle.DIM2), true);
+            }
+            g.text(font, "⚙", x + w - 13, y + h - 12, MenuStyle.ease(MenuStyle.GEAR, MenuStyle.OR2, Math.max(hv, sl)), false);
+            // the switched-off veil fades with the switch (and lifts while the card is open)
+            float veil = (1f - a.on.get()) * (1f - sl);
+            if (veil > 0f) {
+                int c = MenuStyle.ease(MenuStyle.OFF_VEIL, MenuStyle.OFF_VEIL_HOVER, hv);
+                GuiRects o = GuiRects.begin(g);
+                o.fill(x, y, x + w, y + h, veil >= 1f ? c : MenuStyle.alpha(c, Math.round(((c >>> 24) & 0xFF) * veil)));
+                o.submit();
+            }
+        } finally {
+            if (lifted) {
+                g.pose().popMatrix();
+            }
         }
     }
 
@@ -1714,7 +2151,11 @@ public class ModScreen extends Screen {
         MenuStyle.separator(r, drawerX + 1, drawerX + drawerW - 1, drawerY + 25);
         if (drawerMaster != null) {
             int[] s = drawerSwitchBounds();
-            MenuStyle.toggle(r, s[0], s[1], drawerMaster.isOn(), inside(mouseX, mouseY, s[0] - 2, s[1] - 2, s[2] + 4, s[3] + 4));
+            float on = drawerMaster.isOn() ? 1f : 0f;
+            drawerKnob.set(on);
+            drawerOn.set(on);
+            MenuStyle.toggle(r, s[0], s[1], drawerKnob.get(), drawerOn.get(),
+                    inside(mouseX, mouseY, s[0] - 2, s[1] - 2, s[2] + 4, s[3] + 4) ? 1f : 0f);
         }
         boolean adv = advancedLabel(openFeature);
         boolean advOpen = advancedHeader != null && advancedHeader.parts().on();
@@ -1729,7 +2170,7 @@ public class ModScreen extends Screen {
             }
             MenuStyle.separator(r, drawerX + 1, drawerX + drawerW - 1, drawerY + 26 + 16);
         }
-        MenuStyle.scrollbar(r, drawerX + drawerW - 8, contentY, visibleContentHeight, scrollOffset, maxScroll,
+        MenuStyle.scrollbar(r, drawerX + drawerW - 8, contentY, visibleContentHeight, drawnScroll, maxScroll,
                 visibleContentHeight);
         r.submit();
         int[] c = drawerCloseBounds();
@@ -1768,9 +2209,10 @@ public class ModScreen extends Screen {
             int a = (int) (0x90 * Math.min(1.0, (flashUntil - System.currentTimeMillis()) / 600.0));
             g.enableScissor(contentPane.getX(), contentPane.getY(), contentPane.getX() + contentPane.getWidth(),
                     contentPane.getY() + contentPane.getHeight());
-            MenuStyle.glow(r, flashWidget.getX(), flashWidget.getY(), flashWidget.getWidth(), flashWidget.getHeight(),
+            int fy = flashWidget.getY() + contentPane.drawDy;
+            MenuStyle.glow(r, flashWidget.getX(), fy, flashWidget.getWidth(), flashWidget.getHeight(),
                     MenuStyle.OR, a);
-            r.outline(flashWidget.getX() - 1, flashWidget.getY() - 1, flashWidget.getWidth() + 2,
+            r.outline(flashWidget.getX() - 1, fy - 1, flashWidget.getWidth() + 2,
                     flashWidget.getHeight() + 2, MenuStyle.alpha(MenuStyle.OR, a + 0x40));
             r.submit();
             g.disableScissor();
@@ -1898,10 +2340,25 @@ public class ModScreen extends Screen {
             tooltipKey = key;
             tooltipWidget = hovered;
             tooltipHoverSinceMs = now;
+            tooltipShownAt = Long.MIN_VALUE;
         }
         if (key == null || now - tooltipHoverSinceMs < 350L || text == null || text.isBlank()) {
             return;
         }
+        // After its delay the box fades in and rises a few units into place.
+        if (tooltipShownAt == Long.MIN_VALUE) {
+            tooltipShownAt = MenuAnim.now();
+        }
+        float prevFade = MenuAnim.pushFade(MenuAnim.progress(tooltipShownAt, MenuAnim.TOOLTIP_MS, false));
+        try {
+            drawTooltipBox(graphics, mouseX, mouseY, text,
+                    Math.round((1f - MenuAnim.progress(tooltipShownAt, MenuAnim.TOOLTIP_MS, true)) * 3f));
+        } finally {
+            MenuAnim.popFade(prevFade);
+        }
+    }
+
+    private void drawTooltipBox(GuiGraphicsExtractor graphics, int mouseX, int mouseY, String text, int rise) {
         int maxW = 220;
         List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(text), maxW);
         int w = 0;
@@ -1917,6 +2374,7 @@ public class ModScreen extends Screen {
         if (y + h + 8 > this.height) {
             y = Math.max(4, mouseY - h - 16);
         }
+        y += rise;
         GuiRects r = GuiRects.begin(graphics);
         MenuStyle.dropShadow(r, x - 4, y - 4, w + 8, h + 8, 3);
         r.outline(x - 5, y - 5, w + 10, h + 10, MenuStyle.OR2);
@@ -1940,7 +2398,34 @@ public class ModScreen extends Screen {
         if (openFeature != null) {
             FeatureCards.refresh(openFeature);
         }
+        // The menu is gone at once (whatever comes next takes input now); its fade out is drawn over it (MenuCloseFade).
+        if (MenuAnim.mode() != MenuAnim.Mode.OFF) {
+            closedAt = MenuAnim.now();
+            MenuCloseFade.start(this);
+        }
         McCompat.setScreen(this.minecraft, parent);
+    }
+
+    /** Draws this closed menu fading out, over whatever is on screen now. False once the fade has finished. */
+    boolean drawClosing(GuiGraphicsExtractor g, float partialTick) {
+        if (closedAt == Long.MIN_VALUE || MenuAnim.progress(closedAt, MenuAnim.CLOSE_MS, false) >= 1f) {
+            return false;
+        }
+        drawingClosed = true;
+        try {
+            extractRenderState(g, -1, -1, partialTick);
+        } finally {
+            drawingClosed = false;
+        }
+        return true;
+    }
+
+    @Override
+    public void added() {
+        super.added();
+        // Reopened (the same object back from a colour picker, or a new menu): no old fade out left over it.
+        closedAt = Long.MIN_VALUE;
+        MenuCloseFade.stop();
     }
 
     @Override
@@ -2225,6 +2710,13 @@ public class ModScreen extends Screen {
         private final List<AbstractWidget> children;
         private GuiEventListener focused;
         private boolean dragging;
+        /** Drawing only (gui/MenuAnim): the rows are drawn {@code drawDy} below where they are laid out (an easing
+         *  scroll), the whole pane {@code drawDx} to the right (the drawer sliding), at {@code alpha}, clipped at
+         *  {@code clipRight}. Clicks and hover always use the laid-out positions. */
+        int drawDx;
+        int drawDy;
+        float alpha = 1f;
+        int clipRight = Integer.MAX_VALUE;
 
         ScrollingContentPane(int x, int y, int width, int height, List<AbstractWidget> children) {
             super(x, y, width, height, Component.empty());
@@ -2238,9 +2730,23 @@ public class ModScreen extends Screen {
 
         @Override
         protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-            int top = getY();
-            int bottom = getY() + getHeight();
-            graphics.enableScissor(getX(), top, getX() + getWidth(), bottom);
+            int dy = drawDy;
+            int top = getY() - dy;
+            int bottom = getY() + getHeight() - dy;
+            boolean clipped = clipRight != Integer.MAX_VALUE;
+            if (clipped) {
+                graphics.enableScissor(getX() - 8, getY() - 2, clipRight, getY() + getHeight() + 2);
+            }
+            if (drawDx != 0) {
+                graphics.pose().pushMatrix();
+                graphics.pose().translate(drawDx, 0);
+            }
+            graphics.enableScissor(getX(), getY(), getX() + getWidth(), getY() + getHeight());
+            if (dy != 0) {
+                graphics.pose().pushMatrix();
+                graphics.pose().translate(0, dy);
+            }
+            float prevFade = MenuAnim.pushFade(alpha);
             try {
                 // Section headings (SectionHeaders' "§6§l" / "§c§l" StringWidgets) get the menu's section band.
                 GuiRects bands = GuiRects.begin(graphics);
@@ -2270,7 +2776,17 @@ public class ModScreen extends Screen {
                 }
             } finally {
                 // Must run even if a child's render throws, or the rest of the frame inherits this clip.
+                MenuAnim.popFade(prevFade);
+                if (dy != 0) {
+                    graphics.pose().popMatrix();
+                }
                 graphics.disableScissor();
+                if (drawDx != 0) {
+                    graphics.pose().popMatrix();
+                }
+                if (clipped) {
+                    graphics.disableScissor();
+                }
             }
         }
 

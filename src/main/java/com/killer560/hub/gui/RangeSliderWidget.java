@@ -12,7 +12,7 @@ import net.minecraft.network.chat.Component;
  *  both ends of a slider"). Same look as {@link ThemedSliderButton}: dark track, dim-orange border (bright on hover),
  *  the span between the two handles filled, both handles solid orange. Clicking grabs the nearest handle; dragging
  *  moves it, and a handle pushed past the other drags it along so low &lt;= high always holds. */
-public abstract class RangeSliderWidget extends AbstractWidget {
+public abstract class RangeSliderWidget extends AbstractWidget implements MenuAnim.Animated {
 
     private static final int TRACK_BG = 0xFF1A1A1A;
     private static final int TRACK_BORDER = 0xFF663D1A;
@@ -27,6 +27,20 @@ public abstract class RangeSliderWidget extends AbstractWidget {
     private int low;
     private int high;
     private int dragging = -1; // 0 = low handle, 1 = high handle
+    /** Its hover, eased in the mod menu (gui/MenuAnim); handed to its rebuilt copy. */
+    private final MenuAnim.RowAnim anim = new MenuAnim.RowAnim();
+
+    @Override
+    public MenuAnim.RowAnim anim() {
+        return anim;
+    }
+
+    @Override
+    public String animKey() {
+        String plain = net.minecraft.ChatFormatting.stripFormatting(getMessage().getString());
+        int colon = plain == null ? -1 : plain.indexOf(':');
+        return "R|" + (colon > 0 ? plain.substring(0, colon).trim() : "");
+    }
 
     protected RangeSliderWidget(int x, int y, int width, int height, int minValue, int maxValue, int low, int high) {
         super(x, y, width, height, Component.empty());
@@ -94,10 +108,13 @@ public abstract class RangeSliderWidget extends AbstractWidget {
             int colon = plain.indexOf(':');
             String label = colon > 0 ? plain.substring(0, colon).trim() : "";
             String value = colon > 0 ? plain.substring(colon + 1).trim() : plain.trim();
-            boolean hover = isHovered || dragging >= 0;
+            anim.hover.set(isHovered || dragging >= 0 ? 1f : 0f);
+            anim.press.set(isHovered ? 1f : 0f); // the row band follows the plain hover, as before
+            float hover = anim.hover.get();
+            float band = anim.press.get();
             com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(graphics);
-            if (isHovered) {
-                r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, 0x0E));
+            if (band > 0f) {
+                r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, Math.round(0x0E * band)));
             }
             MenuStyle.separator(r, x0, x0 + w, y0 + h - 2);
             int cy = y0 + h - 6;
@@ -114,7 +131,7 @@ public abstract class RangeSliderWidget extends AbstractWidget {
             MenuStyle.knob(r, highC - 4, cy - 4, hover);
             r.submit();
             graphics.text(font, MenuStyle.ellipsize(label, w - 12 - font.width(value)), x0 + 4, y0 + 1,
-                    isHovered ? MenuStyle.TXT_HOVER : MenuStyle.TXT, MenuStyle.TEXT_SHADOW);
+                    MenuStyle.ease(MenuStyle.TXT, MenuStyle.TXT_HOVER, band), MenuStyle.TEXT_SHADOW);
             graphics.text(font, value, x0 + w - 4 - font.width(value), y0 + 1, MenuStyle.DIM, MenuStyle.TEXT_SHADOW);
             return;
         }

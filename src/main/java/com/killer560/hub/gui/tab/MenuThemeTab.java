@@ -45,6 +45,14 @@ public class MenuThemeTab extends BaseTab {
                     btn.setMessage(themeText());
                     requestRebuild.run(); // the colour rows show the new theme's colours
                 }).bounds(contentX, y, contentWidth, 20).build());
+        y += 22;
+        // killer560, 2026-10-15: "for the mod menu can you make animations for it smooth" (gui/MenuAnim).
+        widgets.add(SettingsButtonWidget.cycling(animationsText(), (btn, dir) -> {
+                    MenuConfig c = MenuConfig.getInstance(); // a profile load replaces the instance this tab was built with
+                    c.setAnimations(SettingsButtonWidget.step(c.getAnimations(), dir));
+                    c.save();
+                    btn.setMessage(animationsText());
+                }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Custom Colors", false),
@@ -134,6 +142,10 @@ public class MenuThemeTab extends BaseTab {
         y += 6;
         com.killer560.hub.mainmenu.MainMenuSettings.build(widgets, contentX, y, contentWidth, requestRebuild);
         return widgets;
+    }
+
+    private static Component animationsText() {
+        return Component.literal("Animations: §6" + MenuConfig.getInstance().getAnimations().label);
     }
 
     private static Component themeText() {
