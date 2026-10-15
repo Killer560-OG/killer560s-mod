@@ -312,3 +312,19 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   both, after the click), and the use goes the next tick; on the landing it ends at once, re-waiving the gate's teleport
   settle (a Hypixel landing comes a round trip after the use, past the 3-tick waiver taken then). Clean on GrimAC
   (1015-grim-water-clickwarp: click, turn and sneak the same tick, use the next).
+- **Vanilla's answer to a server teleport bypasses the send tap** (2026-10-15, his Mod Only Test log 15:55, Flags #13/#15/#18).
+  `ClientPacketListener.handleMovePlayer` sends the accept and a `PosRot` on `Connection.send` directly (javap, both
+  versions), not through `ClientCommonPacketListenerImpl.send`, so `util/RightClick` kept tracing the server's ray from where
+  he stood BEFORE a warp: a path hop a tick after the last landing went bare under an unpaired AOTV chest click, the server
+  (tracing from the landing) paired and dropped it, "no landing after 62 ticks". `RightClickTeleportMixin` (RETURN of
+  `handleMovePlayer`) records it. Separately, the sim fired a warp on a block half and then traced the use half from the
+  landing (and from the 1.8 eye, 0.27 above the aim's), missed, and warped AGAIN (11.2 blocks on): the use half of a click
+  whose ability fired now always pairs with it - one right click, one ability.
+  Testkit 96-ar-1015-pathland.
+- **Another feature's warp landing is not a correction of the map's trip** (2026-10-15, 88 alarms in one Ice Fill crossing).
+  A trip with every landing answered sits in its arrival settle (or waits to plan again) for ~9 ticks; Auto Ice Fill started
+  hopping on the first tile inside that window and each 1-block hop read "the server moved you off the last landing", then
+  "while waiting to plan again", and the replan of the old goal dragged him back across the room against the chest claim.
+  `ClearExecutor` counts its own uses against `RightClick.usesSent()`; a moving packet another feature's use (last ~2 s)
+  accounts for is that feature's landing: in the settle the trip ends as arrived, while planning it is not reported. A move
+  with no use behind it still reports (testkit 93-solve-icefill-maptrip asserts both).

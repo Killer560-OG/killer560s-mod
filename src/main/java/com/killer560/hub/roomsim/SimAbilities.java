@@ -129,8 +129,7 @@ public final class SimAbilities {
             if (player instanceof ServerPlayer sp && simServer(sp)) {
                 String id = CheatUtils.skyblockId(sp.getItemInHand(hand));
                 storedClicks.put(sp.getUUID(), new StoredClick(sp.level().getServer().getTickCount(),
-                        hitResult.getBlockPos().immutable(), id, id != null && isAbilityItem(id), false,
-                        new Vec3(sp.getX(), sp.getY(), sp.getZ())));
+                        hitResult.getBlockPos().immutable(), id, id != null && isAbilityItem(id), false));
             }
             return InteractionResult.PASS;
         });
@@ -164,9 +163,7 @@ public final class SimAbilities {
      */
     static final int ABILITY_CLICK_PAIR_TICKS = 2;
 
-    /** @param feet where the server had him when the click arrived - before an ability it fired moved him */
-    private record StoredClick(int serverTick, BlockPos pos, String skyblockId, boolean denied, boolean abilityFired,
-                               Vec3 feet) {
+    private record StoredClick(int serverTick, BlockPos pos, String skyblockId, boolean denied, boolean abilityFired) {
     }
 
     private static final java.util.Map<java.util.UUID, StoredClick> storedClicks = new java.util.concurrent.ConcurrentHashMap<>();
@@ -199,13 +196,22 @@ public final class SimAbilities {
         }
         float yaw = look != null ? look[0] : sp.getYRot();
         float pitch = look != null ? look[1] : sp.getXRot();
-        // A click whose ability fired ON the block (a sneaking AOTV click etherwarps) has its use half traced from where he
-        // clicked: the two halves are one right click, sent together and aimed at that block from that spot. Traced from
-        // where the etherwarp had just put him, the ray along the same look could miss, and the use half then fired a
-        // SECOND etherwarp past the first - a path hop landing 11.2 blocks beyond its block (his Mod Only Test log,
-        // 2026-10-15 15:55:37, Flags #18), which is what "ends up in a random spot" was.
-        Vec3 feet = c.abilityFired() && c.feet() != null ? c.feet() : new Vec3(sp.getX(), sp.getY(), sp.getZ());
-        Vec3 eye = new Vec3(feet.x, feet.y + (sp.isShiftKeyDown() ? PAIR_SNEAK_EYE : 1.62), feet.z);
+        int age = sp.level().getServer().getTickCount() - c.serverTick();
+        if (c.abilityFired() && age <= ABILITY_CLICK_PAIR_TICKS) {
+            // ONE RIGHT CLICK, ONE ABILITY. A click whose ability fired on the block (a sneaking AOTV click etherwarps) and
+            // the use half that follows it are one right click: a vanilla player etherwarping onto a block in reach sends
+            // both and warps once. Traced from where that etherwarp had just put him - and from the 1.8 eye, 0.27 above
+            // the one the click was aimed from - the ray could miss, and the use half fired a SECOND etherwarp along the
+            // same look: a path hop landing 11.2 blocks past its block (his Mod Only Test log, 2026-10-15 15:55:37, Flags
+            // #18), which is what "ends up in a random spot" was. Testkit 96-ar-1015-pathland.
+            storedClicks.remove(sp.getUUID());
+            usesTakenAsClickHalf++;
+            com.killer560.hub.util.ModLog.get("killer560smod-sim").info(String.format(java.util.Locale.ROOT,
+                    "[Sim] use of %s taken as the second half of the block click at %s whose ability already fired %d "
+                            + "server tick(s) ago - one right click, one ability", id, c.pos().toShortString(), age));
+            return true;
+        }
+        Vec3 eye = new Vec3(sp.getX(), sp.getY() + (sp.isShiftKeyDown() ? PAIR_SNEAK_EYE : 1.62), sp.getZ());
         Vec3 end = eye.add(com.killer560.hub.livemap.autoclear.TeleportUtils.getLook(yaw, pitch).scale(PAIR_TRACE));
         BlockHitResult ray = sp.level().clip(new net.minecraft.world.level.ClipContext(eye, end,
                 net.minecraft.world.level.ClipContext.Block.OUTLINE, net.minecraft.world.level.ClipContext.Fluid.NONE, sp));
@@ -371,7 +377,7 @@ public final class SimAbilities {
         if (onBlock != null) {
             // The ability fires on the block: on Hypixel the client's use half follows in the same tick and pairs with it.
             storedClicks.computeIfPresent(sp.getUUID(), (k, c) -> new StoredClick(c.serverTick(), c.pos(), c.skyblockId(),
-                    c.denied(), true, c.feet()));
+                    c.denied(), true));
         }
         boolean fired;
         if (ETHERWARP_ITEMS.contains(id)) {
