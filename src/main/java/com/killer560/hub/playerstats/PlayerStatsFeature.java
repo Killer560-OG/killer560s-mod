@@ -150,6 +150,11 @@ public final class PlayerStatsFeature {
         if (mode == PlayerStatsConfig.HeldItemName.HIDDEN) {
             return true;
         }
+        // Auto hides the name only under a drawn readout, and none is drawn while Health and Mana Bars is off: skip
+        // measuring the held item's name every frame for an answer that is always false (95-perf, 2026-10-15).
+        if (!PlayerStatsConfig.getInstance().isEnabled()) {
+            return false;
+        }
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         if (mc.player == null) {
             return false;
