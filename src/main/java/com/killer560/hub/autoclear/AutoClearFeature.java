@@ -779,11 +779,8 @@ public final class AutoClearFeature {
             action = "landing";
             return;
         }
-        // A hop toward one mob is one reposition for one mob: only when the plan's block for it reaches that mob alone
-        // (a block reaching several is fewer repositions in all - killer560, 2026-10-15).
         boolean canHop = cfg.isHyperionHops() && hopsOffFor != targetId
-                && ItemIdentity.findHotbarSlot(player, AutoClearConfig.Weapon.HYPERION.itemId()) >= 0
-                && coverCountFor(target) <= 1;
+                && ItemIdentity.findHotbarSlot(player, AutoClearConfig.Weapon.HYPERION.itemId()) >= 0;
         if (cachedHops == -2) {
             cachedHops = canHop ? WeaponReach.hyperionHopsNeeded(client.level, player, feet, box, MAX_HOPS) : -1;
         }
@@ -793,6 +790,12 @@ public final class AutoClearFeature {
         int hypeTicks = cachedHops > 0 ? 2 + USE_REPEAT_TICKS * (cachedHops - 1) : Integer.MAX_VALUE;
         if (canHop && hypeTicks <= etherTicks) {
             WeaponReach.Aim hop = WeaponReach.hyperionHop(client.level, player, feet, box);
+            // A hop is a reposition too: where the plan's block for this mob reaches others as well, the hop must reach
+            // every one of them from where it lands, or it would cost a reposition the plan does not (killer560,
+            // 2026-10-15: "the least amount of total repositions in the room").
+            if (hop != null && !hopKeepsPlan(client, hop, target)) {
+                hop = null;
+            }
             if (hop != null) {
                 action = hop.what() + " (" + cachedHops + " hop(s) ~" + hypeTicks + " ticks vs etherwarp ~" + etherTicks + ")";
                 if (aimAndHold(client, player, AutoClearConfig.Weapon.HYPERION.itemId(), "Hyperion", hop, Phase.HOP)) {
@@ -1198,6 +1201,33 @@ public final class AutoClearFeature {
             }
         }
         return null;
+    }
+
+    /**
+     * Whether one Hyperion hop does what the plan's block for {@code target} does: a single hop (no chain) whose landing
+     * reaches, with the blast, every live mob that block reaches. Always true when that block reaches the target alone.
+     */
+    private static boolean hopKeepsPlan(Minecraft client, WeaponReach.Aim hop, Entity target) {
+        for (int i = 0; i < coverSpots.size(); i++) {
+            Set<Integer> ids = coverMobs.get(i);
+            if (!ids.contains(target.getId())) {
+                continue;
+            }
+            if (ids.size() <= 1) {
+                return true;
+            }
+            if (cachedHops != 1 || hop.expectFeet() == null) {
+                return false;
+            }
+            for (int id : ids) {
+                Entity e = client.level.getEntity(id);
+                if (e != null && e.isAlive() && !WeaponReach.hyperionHits(hop.expectFeet(), e.getBoundingBox())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return true;
     }
 
     /** How many mobs the plan's block for {@code mob} reaches (0 when it has none). */
