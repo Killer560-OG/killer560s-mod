@@ -84,10 +84,9 @@ No property. Both show only while their key is held in the key modes, and a harn
 
 ## Menu animation clock (`gui/MenuAnim`)
 
-- `-Dkiller560.test.menuAnimClock=ticks` makes the mod menu's animation clock advance one second per client tick instead
-  of with the wall clock, so every menu animation has finished by the tick after it started. The gametest lockstep
-  renders one frame per tick as fast as it can; on the wall clock a screenshot a few ticks after a click would catch a
-  fade half done. The testkit sets it for every run.
+- `-Dkiller560.test.menuAnimClock=instant` makes every mod menu animation instant (as Animations: Off) while no case
+  drives the clock. The gametest lockstep renders one frame per tick as fast as it can, and many cases read the very
+  frame after a click; on the wall clock they would read a fade half done. The testkit sets it for every run.
 - `MenuAnim.setClockForTest(ms)` fixes the clock (a negative value goes back to the real one), so a case can step it
   1/30 s or 1/300 s per frame and compare (testkit 1590-1596). `ModScreen.animState()` / `cardAnimState(tab)` read the
   animations; `ModScreen.allocProbe` adds up the bytes the render thread allocates inside each menu frame

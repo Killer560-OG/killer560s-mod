@@ -13,10 +13,10 @@ package com.killer560.hub.gui;
  * Animations setting ({@link Mode}, Menu Theme drawer) picks the durations: Smooth, Reduced (colour and opacity fades
  * only, nothing moves or grows) or Off (every tween is already at its target).
  *
- * <p>Test hooks (docs/TESTING-HOOKS.md): {@link #setClockForTest} fixes the clock; {@code -Dkiller560.test.menuAnimClock=ticks}
- * makes it advance one SECOND per client tick instead of with the wall clock, so every animation has finished by the
- * tick after it started. The gametest lockstep renders one frame per tick as fast as it can, so a wall-clock fade would
- * be caught half done by any screenshot a few ticks later; the animation cases drive the clock themselves.
+ * <p>Test hooks (docs/TESTING-HOOKS.md): {@link #setClockForTest} fixes the clock; {@code -Dkiller560.test.menuAnimClock=instant}
+ * makes every animation instant (as Off) while no case is driving the clock. The gametest lockstep renders one frame per
+ * tick as fast as it can, and many cases read the very frame after a click (its text, its pixels); the animation cases
+ * drive the clock themselves and get the real durations.
  */
 public final class MenuAnim {
 
@@ -59,9 +59,9 @@ public final class MenuAnim {
     public static final int LAYOUT_MS = 180;
 
     // ---- clock ------------------------------------------------------------------------------------------------------
-    private static final boolean TICK_CLOCK = "ticks".equalsIgnoreCase(System.getProperty("killer560.test.menuAnimClock"));
+    private static final boolean INSTANT_UNLESS_DRIVEN = "instant".equalsIgnoreCase(
+            System.getProperty("killer560.test.menuAnimClock"));
     private static long testClockNanos = -1L;
-    private static long ticks;
     private static long frameNanos = clockNanos();
     private static long eventNanos = Long.MIN_VALUE;
     /** How many times the clock has moved, and its count when the last input came. */
@@ -100,9 +100,6 @@ public final class MenuAnim {
         if (testClockNanos >= 0) {
             return testClockNanos;
         }
-        if (TICK_CLOCK) {
-            return ticks * 1_000_000_000L;
-        }
         return System.nanoTime();
     }
 
@@ -127,13 +124,6 @@ public final class MenuAnim {
         }
     }
 
-    /** Advances the ticks clock (registered only under {@code killer560.test.menuAnimClock=ticks}). */
-    public static void registerTickClock() {
-        if (TICK_CLOCK) {
-            net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(c -> ticks++);
-        }
-    }
-
     public static Mode mode() {
         return MenuConfig.getInstance().getAnimations();
     }
@@ -142,7 +132,7 @@ public final class MenuAnim {
      *  something (a slide, a knob, a scale) - Reduced keeps only colour and opacity fades, a little shorter. */
     public static long durationNanos(int ms, boolean motion) {
         Mode m = mode();
-        if (m == Mode.OFF || (motion && m == Mode.REDUCED)) {
+        if (m == Mode.OFF || (motion && m == Mode.REDUCED) || (INSTANT_UNLESS_DRIVEN && testClockNanos < 0)) {
             return 0L;
         }
         return (m == Mode.REDUCED ? ms * 3L / 4L : ms) * 1_000_000L;

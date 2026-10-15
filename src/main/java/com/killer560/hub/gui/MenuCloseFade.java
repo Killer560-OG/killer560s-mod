@@ -36,7 +36,6 @@ public final class MenuCloseFade {
     }
 
     public static void register() {
-        MenuAnim.registerTickClock();
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("killer560smod", "menu_close_fade"), (g, delta) -> {
             if (closing != null && McCompat.screen(Minecraft.getInstance()) == null) {
                 draw(g);
