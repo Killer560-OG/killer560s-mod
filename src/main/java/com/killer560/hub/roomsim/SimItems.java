@@ -396,8 +396,8 @@ public final class SimItems {
                 // Kill Mimic must fire it straight down, pitch 90.0 (killer560, 2026-10-11), and testkit 644/651/653
                 // read this line.
                 com.killer560.hub.util.ModLog.get("killer560smod-sim").info(
-                        "[Sim] Spirit Sceptre at {} (pitch {})", sp.blockPosition().toShortString(),
-                        Float.toString(sp.getXRot()));
+                        "[Sim] Spirit Sceptre at {} (pitch {}) yaw {}", sp.blockPosition().toShortString(),
+                        Float.toString(sp.getXRot()), Float.toString(sp.getYRot()));
                 SimAbilities.onClient(() -> SimAim.with(aim, () -> SimSpiritSceptre.fire(Minecraft.getInstance())));
                 yield true;
             }

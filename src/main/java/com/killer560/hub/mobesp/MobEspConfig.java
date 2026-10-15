@@ -20,8 +20,8 @@ import java.nio.file.Path;
  * <li>old mobesp {@code enabled} -> {@code starredMobs}; {@code colorHex} -> {@code starredColor};
  *     {@code cheatMode} -> {@code throughWalls}; an old file with no {@code style} keeps the Glow look it had.
  * <li>old {@code killer560smod-cheatutils.json} Wither ESP: {@code witherEspEnabled} -> {@code withers}, and the
- *     colour of the phase it was filtered to (Maxor/Storm/Goldor/Necron; "all phases" -> Maxor) ->
- *     {@code witherColor}. CheatUtilsConfig no longer reads or writes those keys.
+ *     colour of the phase it was filtered to is no longer carried over: the ESP uses the Wither Boss Highlight's colour
+ *     (killer560, 2026-10-15), so an old {@code witherColor} key is ignored. CheatUtilsConfig no longer reads or writes those keys.
  * </ul>
  */
 public final class MobEspConfig {
@@ -76,8 +76,9 @@ public final class MobEspConfig {
     private boolean bats = false;
     /** Cheat build only (was Cheat Utils' Wither ESP) - see {@link #isWithersEnabled()}. */
     private boolean withers = false;
-    /** killer560, 2026-09-21: "for the esp also have an option to have a tracer line to him." Wither ESP only
-     *  (cheat build), so it is through walls and un-ranged exactly like the boxes it belongs to. */
+    /** killer560, 2026-09-21: "for the esp also have an option to have a tracer line to him." One setting for both
+     *  wither modes since 2026-10-15: with the cheat ESP on the line goes to every wither through walls, with only the
+     *  Wither Boss Highlight (both builds) only to a wither that can be seen without cheating. */
     private boolean witherTracer = false;
     private float witherTracerThickness = 2.0f;
     /** The non-ESP wither highlight (both builds) - never draws through walls. */
@@ -86,7 +87,7 @@ public final class MobEspConfig {
     /** One-time marker for the gold -> Amber default change. */
     private boolean starredColorAmberMigrated = false;
     private int batColor = DEFAULT_BAT_COLOR;
-    private int witherColor = DEFAULT_WITHER_COLOR;
+    /** The colour of the wither bosses in BOTH modes (the ESP used to have a colour of its own). */
     private int witherHighlightColor = DEFAULT_WITHER_COLOR;
     private WitherStyle witherHighlightStyle = WitherStyle.GLOW;
     private Style style = Style.OUTLINE;
@@ -184,7 +185,6 @@ public final class MobEspConfig {
 
             if (obj.has("withers")) {
                 cfg.withers = ConfigJson.getBool(obj, "withers", false);
-                cfg.witherColor = ConfigJson.getInt(obj, "witherColor", DEFAULT_WITHER_COLOR);
             } else {
                 migrated |= migrateWitherEsp(cfg);
             }
@@ -199,7 +199,7 @@ public final class MobEspConfig {
         }
     }
 
-    /** Pulls the old Cheat Utils Wither ESP enabled flag + colour, if that file still has them. */
+    /** Pulls the old Cheat Utils Wither ESP enabled flag, if that file still has it. */
     private static boolean migrateWitherEsp(MobEspConfig cfg) {
         if (!Files.exists(OLD_CHEATUTILS_PATH)) {
             return false;
@@ -210,15 +210,6 @@ public final class MobEspConfig {
                 return false;
             }
             cfg.withers = ConfigJson.getBool(o, "witherEspEnabled", false);
-            String colorKey = switch (ConfigJson.getString(o, "witherPhaseFilter", "P3")) {
-                case "P2" -> "stormColor";
-                case "P3" -> "goldorColor";
-                case "P4" -> "necronColor";
-                default -> "maxorColor";
-            };
-            if (o.has(colorKey)) {
-                cfg.witherColor = ConfigJson.getInt(o, colorKey, DEFAULT_WITHER_COLOR);
-            }
             return true;
         } catch (Exception e) {
             return false;
@@ -248,7 +239,6 @@ public final class MobEspConfig {
             obj.addProperty("starredColor", starredColor);
             obj.addProperty("starredColorAmberMigrated", starredColorAmberMigrated);
             obj.addProperty("batColor", batColor);
-            obj.addProperty("witherColor", witherColor);
             obj.addProperty("witherHighlightColor", witherHighlightColor);
             obj.addProperty("witherHighlightStyle", witherHighlightStyle.name());
             obj.addProperty("style", style.name());
@@ -282,8 +272,9 @@ public final class MobEspConfig {
     public boolean getWithersRaw() { return esp; }
     public void setWithers(boolean v) { esp = v; }
 
-    /** Tracer to the wither the Wither ESP is drawing - cheat build only, like the ESP it hangs off. */
-    public boolean isWitherTracerEnabled() { return cheat() && esp && witherTracer && com.killer560.hub.util.SkyblockGate.allows(); }
+    /** Tracer to the withers being highlighted - both builds. Whether it may go through walls is the feature's call:
+     *  only the cheat ESP does that. */
+    public boolean isWitherTracerEnabled() { return witherTracer && com.killer560.hub.util.SkyblockGate.allows(); }
     public boolean getWitherTracerRaw() { return witherTracer; }
     public void setWitherTracer(boolean v) { witherTracer = v; }
 
@@ -306,8 +297,6 @@ public final class MobEspConfig {
     public void setStarredColor(int v) { starredColor = v; }
     public int getBatColor() { return batColor; }
     public void setBatColor(int v) { batColor = v; }
-    public int getWitherColor() { return witherColor; }
-    public void setWitherColor(int v) { witherColor = v; }
     public int getWitherHighlightColor() { return witherHighlightColor; }
     public void setWitherHighlightColor(int v) { witherHighlightColor = v; }
 

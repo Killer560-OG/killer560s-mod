@@ -35,7 +35,7 @@ public class ThornTab extends BaseTab {
     public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
         return switchRows(built, "Spirit Bear HUD", "Show Overkill", "Overkill Chat", "Overkill To Party",
                 "Thorn Highlight", "Spirit Bear Highlight", "Spirit Mob Highlight", "Spirit Bow Highlight",
-                "Stun Spot Waypoints");
+                "Stun Spot Waypoints", "All Mobs Through Walls", "Bats Through Walls");
     }
 
     @Override
@@ -142,6 +142,9 @@ public class ThornTab extends BaseTab {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Cheat Build - Thorn ESP", true), mc.font));
             y += 16;
             widgets.add(toggle(contentX, y, colW, "Thorn ESP Through Walls", cfg::getThroughWallsRaw, cfg::setThroughWalls));
+            y += 22;
+            widgets.add(toggle(contentX, y, colW, "All Mobs Through Walls", cfg::getAllMobsThroughWallsRaw, cfg::setAllMobsThroughWalls));
+            widgets.add(toggle(col2X, y, colW, "Bats Through Walls", cfg::getBatsThroughWallsRaw, cfg::setBatsThroughWalls));
         }
         return widgets;
     }

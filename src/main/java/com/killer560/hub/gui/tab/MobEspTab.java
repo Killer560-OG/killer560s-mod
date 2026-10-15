@@ -29,10 +29,10 @@ import com.killer560.hub.compat.McCompat;
  * <li><b>Starred Mob Hitboxes</b> (orange) - starred mobs + bats, colours, box style, line width, and the selection
  *     rule: Room Scoped (current dungeon room + margin) or the Range slider. Always depth-tested / line-of-sight.</li>
  * <li><b>Wither Boss Highlight</b> (orange) - the non-ESP F7/M7 wither highlight: Glow Hitbox or Hitbox Fill, never
- *     through walls, never range-limited. Exists on both builds.</li>
+ *     through walls, never range-limited, with an optional Tracer line to a wither you can see. Exists on both builds.</li>
  * <li><b>ESP</b> (red, cheat jar only) - ONE switch for everything ESP (2026-10-09): the starred mobs and bats above
- *     through walls, and the F7/M7 wither bosses through walls at any range; under it the wither colour and an
- *     optional Tracer line from your eyes to each wither.</li>
+ *     through walls, and the F7/M7 wither bosses through walls at any range. It uses the Wither Boss Highlight's
+ *     colour and Tracer, the tracer then going to every wither through walls.</li>
  * </ul>
  * The legit jar never constructs a single widget of the red sections (killer560: "If you are on the legit version it
  * shouldnt mention cheat things at all"), which is also why the tab itself is named "Starred Mob Hitboxes" there and
@@ -146,37 +146,9 @@ public class MobEspTab extends BaseTab {
                     btn.setMessage(witherStyleText(cfg));
                 }).bounds(contentX, y, colW, 18).build());
         y += 22;
-
-        // ---- ESP (cheat jar only - not disabled, absent) ----
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return widgets;
-        }
-        // One switch for the whole section (killer560, 2026-10-09: "Make it so there is one toggle for ESP and that is
-        // for all things in that section"): starred mobs and bats through walls, and the wither bosses through walls.
-        // The old Through Walls and Wither Bosses toggles are gone; the wither colour and the tracer sit under it.
-        y += 6;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("ESP", true), mc.font));
-        y += 16;
-        widgets.add(SettingsButtonWidget.builder(onOff("ESP", cfg.isEspRaw()), btn -> {
-                    cfg.setEsp(!cfg.isEspRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 22;
-        if (!cfg.isEspRaw()) {
-            return widgets;
-        }
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Wither Boss Color", cfg.getWitherColor()), btn -> {
-                    Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Wither Boss Color",
-                            cfg.getWitherColor(), MobEspConfig.DEFAULT_WITHER_COLOR, argb -> {
-                        cfg.setWitherColor(argb);
-                        cfg.save();
-                    }));
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 22;
-
-        // killer560, 2026-09-21: "for the esp also have an option to have a tracer line to him" (Goldor).
+        // killer560, 2026-09-21: "for the esp also have an option to have a tracer line to him"; 2026-10-15: "for legit
+        // have the tracer option there but only have tracers appear for the bosses if the boss can be seen legitly."
+        // One Tracer for both modes: the legit highlight draws it only to a wither it can see, the cheat ESP to every one.
         widgets.add(SettingsButtonWidget.builder(onOff("Tracer", cfg.getWitherTracerRaw()), btn -> {
                     cfg.setWitherTracer(!cfg.getWitherTracerRaw());
                     cfg.save();
@@ -199,6 +171,24 @@ public class MobEspTab extends BaseTab {
                 }
             });
         }
+        y += 22;
+
+        // ---- ESP (cheat jar only - not disabled, absent) ----
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return widgets;
+        }
+        // One switch for the whole section (killer560, 2026-10-09: "Make it so there is one toggle for ESP and that is
+        // for all things in that section"): starred mobs and bats through walls, and the wither bosses through walls.
+        // The old Through Walls and Wither Bosses toggles are gone. The wither colour and the tracer are the Wither Boss
+        // Highlight's above (killer560, 2026-10-15), so the ESP has no colour or tracer of its own.
+        y += 6;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("ESP", true), mc.font));
+        y += 16;
+        widgets.add(SettingsButtonWidget.builder(onOff("ESP", cfg.isEspRaw()), btn -> {
+                    cfg.setEsp(!cfg.isEspRaw());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).build());
         return widgets;
     }
 

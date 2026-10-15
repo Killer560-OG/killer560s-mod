@@ -380,6 +380,7 @@ final class SettingTooltipsData {
         d.put("duration", "How long this lasts: timer countdown length, or Mage beam lifetime in ticks.");
         d.put("test start", "Starts this timer now so you can see it on the HUD.");
         d.put("secrets hud", "Shows secrets found in your current room out of its total.");
+        d.put("secrets text color", "Opens a color picker for the Secrets HUD text; type or paste a hex color there.");
         d.put("mimic killed msg", "Sends the message below to party chat when the Mimic dies.");
         d.put("mimic killed msg message", "Type the party chat message sent when the Mimic is killed.");
         d.put("prince killed msg", "Sends the message below to party chat when a Prince is killed.");
@@ -965,6 +966,8 @@ final class SettingTooltipsData {
         d.put("thorn esp style", "How Thorn highlights are drawn: Outline Box, Filled Box or Glow; left click cycles forward, right click back.");
         d.put("thorn esp line width", "Outline thickness for the Thorn highlight boxes, 1-10.");
         d.put("thorn esp through walls", "Thorn highlights also show targets behind walls (cheat build only).");
+        d.put("all mobs through walls", "Highlights every mob in the Thorn fight except bats, through walls, in the Spirit Mob color (cheat build only).");
+        d.put("bats through walls", "Highlights the bats in the Thorn fight through walls, in the Spirit Mob color (cheat build only).");
         d.put("stun spot waypoints", "Draws your saved stun spot waypoints during the F4/M4 boss.");
         d.put("stun spot color", "Opens a color picker for stun-spot waypoints.");
         d.put("stun spot labels", "Shows each stun spot's name above its box.");
@@ -1803,7 +1806,6 @@ final class SettingTooltipsData {
         d.put("dungeon esp/wither boss highlight", "Highlights the F7/M7 wither bosses at any range while you can see them.");
         d.put("starred mob hitboxes/wither boss highlight", "Highlights the F7/M7 wither bosses at any range while you can see them.");
         d.put("dungeon esp/esp", "Cheat build: one switch for every ESP here - starred mobs and bats through walls, and the F7/M7 wither bosses through walls at any range.");
-        d.put("dungeon esp/wither boss color", "Color of the wither bosses while ESP is on.");
         d.put("dungeon esp/wither style", "How the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
         d.put("starred mob hitboxes/wither style", "Picks how the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
         d.put("solver highlights/solver highlights", "Solver Highlights as a whole - off, no puzzle or boss solver draws its boxes, waypoints or lines in the world (the solvers still solve, and their chat and HUD lines still show).");
@@ -2046,8 +2048,10 @@ final class SettingTooltipsData {
         d.put("goldor triggerbot/click type", "Attack is a left click for melee; Use is a right click for a Terminator or Juju shot.");
         d.put("goldor triggerbot/aim delay", "How long your crosshair must stay on Goldor before it clicks, 0-500 ms. Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
         d.put("goldor triggerbot/range", "How far away Goldor can be and still get clicked, 3-50 blocks.");
-        d.put("dungeon esp/tracer", "Cheat build: while ESP is on, draws a line from you to each wither boss.");
+        d.put("dungeon esp/tracer", "Draws a line from you to each wither boss: only to one you can see with the Wither Boss Highlight, to every one through walls while ESP is on.");
         d.put("dungeon esp/tracer thickness", "How thick the wither boss tracer line is drawn, 1.0-10.0.");
+        d.put("starred mob hitboxes/tracer", "Draws a line from you to a wither boss you can see (line of sight only) while the Wither Boss Highlight is on.");
+        d.put("starred mob hitboxes/tracer thickness", "How thick the wither boss tracer line is drawn, 1.0-10.0.");
         d.put("party commands/party (pc)", "Commands typed in party chat count; replies go to party chat.");
         d.put("party commands/guild (gc)", "Commands typed in guild chat count; replies go to guild chat.");
         d.put("party commands/all chat (ac)", "Commands typed in all chat count; replies go to all chat. Party-changing ones still need a teammate.");
