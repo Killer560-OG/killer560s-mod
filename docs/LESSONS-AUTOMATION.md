@@ -298,4 +298,4 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   server's packet confirms its last landing (`finishArrivalEarly`, asked by Auto Routes at the top of its tick): 2 ticks in
   the sim. Two things the settle had hidden: he is still 0.05 above the block on that tick, so a planned-ahead first warp
   is aimed again from where he is (a look planned from the block's height missed: "Failed from ..."), and `canPath`'s
-  on-ground rule held the next trip a tick or two (`canPath(layout, true)` accepts that settling).
+  on-ground rule held the next trip a tick or two (`canPath(layout, true)` accepts that settling). And the map's body turn must be handed back before the route turns the body for its first action that same tick: left to `ClearExecutor`'s own tick, later in START, it undid the route's turn and the warp drew GrimAC BadPacketsJ (62-argrim-imwarp-run).
