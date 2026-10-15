@@ -2103,7 +2103,7 @@ public final class RouteExecutor {
             // must hear this warp's look before the use, or the use is taken as that click's end and nothing happens.
             // Turned here, while the sneak is still on its way to the server, it costs no tick.
             if (!AutoRoutesConfig.getInstance().isLegitMode()
-                    && com.killer560.hub.util.RightClick.mustTurnFirst(player, warpYaw, warpPitch, null)) {
+                    && com.killer560.hub.util.RightClick.mustTurnFirst(player, warpYaw, warpPitch, "[AutoRoutes] Etherwarp")) {
                 turnBody(player, player.getYRot() + Mth.wrapDegrees(warpYaw - player.getYRot()),
                         Mth.clamp(warpPitch, -90f, 90f));
             }
