@@ -22,6 +22,21 @@ final class SettingTooltipsData {
         autoSecret(d);
         menuTheme(d);
         colourPicker(d);
+        slotTextAndCompactor(d);
+    }
+
+    private static void slotTextAndCompactor(Map<String, String> d) {
+        d.put("slot text", "Draws small text in the corner of items in menus and your inventory: pet levels, enchanted book levels, minion tiers, skill levels and more. Each kind has its own switch.");
+        d.put("slot text/show", "Always shows the text, only while the key is held, or hides it while the key is held. Left click goes forward, right click back.");
+        d.put("slot text/key", "The key (or mouse button) for the Show setting. Click, then press the key. Escape clears it.");
+        d.put("slot text/skyblock only", "Only draw slot text on Hypixel Skyblock.");
+        for (com.killer560.hub.slottext.SlotTextType t : com.killer560.hub.slottext.SlotTextType.values()) {
+            d.put("slot text/" + t.label.toLowerCase(java.util.Locale.ROOT), t.description);
+        }
+        d.put("compactor preview", "Hover a Personal Compactor or Personal Deletor and its tooltip shows a grid of the items you set up in it, without opening it.");
+        d.put("compactor preview/show", "On Hover adds the grid to the tooltip whenever you hover the item. While Holding Key adds it only while the key is held. Left click goes forward, right click back.");
+        d.put("compactor preview/key", "The key (or mouse button) that shows the grid in While Holding Key mode. Click, then press the key. Escape clears it.");
+        d.put("compactor preview/skyblock only", "Only show the grid on Hypixel Skyblock.");
     }
 
     private static void colourPicker(Map<String, String> d) {

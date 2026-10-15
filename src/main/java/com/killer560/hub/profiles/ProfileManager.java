@@ -495,6 +495,8 @@ public final class ProfileManager {
                 com.killer560.hub.itembrowser.ItemBrowserConfig::load,
                 com.killer560.hub.itemprotect.ItemProtectConfig::load,
                 com.killer560.hub.itemrarity.ItemRarityConfig::load,
+                com.killer560.hub.slottext.SlotTextConfig::load,
+                com.killer560.hub.compactorpreview.CompactorPreviewConfig::load,
                 com.killer560.hub.leapmenu.LeapMenuConfig::load,
                 com.killer560.hub.leapmessage.LeapMessageConfig::load,
                 com.killer560.hub.livemap.LiveMapConfig::load,

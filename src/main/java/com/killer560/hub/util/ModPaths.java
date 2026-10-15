@@ -192,6 +192,8 @@ public final class ModPaths {
         t.put("inventorytheme", "interface/inventorytheme");
         t.put("enchantcolors", "interface/enchantcolors");
         t.put("itemrarity", "interface/itemrarity");
+        t.put("slottext", "interface/slottext");
+        t.put("compactorpreview", "interface/compactorpreview");
         t.put("tooltipscroll", "interface/tooltipscroll");
         t.put("motionblur", "interface/motionblur");
         t.put("fullbright", "interface/fullbright");
