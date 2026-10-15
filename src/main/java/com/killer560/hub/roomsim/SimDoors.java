@@ -76,6 +76,9 @@ public final class SimDoors {
     /** How many blocks of floor the carve had to lay this build, because the doorway had none. */
     public static int FLOORED;
 
+    /** Doorway trim blocks (a room's own top layer over its opening) the carve left standing this build. */
+    public static int KEPT_TRIM;
+
     /**
      * Every position a doorway carve opened, so nothing gets put back into a doorway afterwards.
      *
@@ -161,6 +164,35 @@ public final class SimDoors {
             case DungeonLayout.DOOR_BLOOD -> McBlocks.RED_TERRACOTTA.defaultBlockState();
             default -> null;
         };
+        // KEEP A DOORWAY'S OWN TOP TRIM inside each room.
+        //
+        // The carve is 3 wide, 4 high and 3 deep into each room, and the rooms' own doorways are already open - so
+        // inside a room what it removed was almost always decoration, and nearly always the same piece: the top layer, one block in
+        // from the wall, over open air. A pair of upside-down stairs in the top corners (Altar, Melon, Withermancer),
+        // a row of iron bars (Archway, Balcony, Skull, Well), a slab between two stairs (Dino Site, Mossy, Pirate),
+        // spruce slabs (Chambers, Slime, Spider), nether brick stairs on Blood - 157 blocks over 65 doorways in 31
+        // rooms of the shipped library, all of them in the top layer one block in from the wall, came out of the sim
+        // as bare 3x4 holes while Hypixel shows them trimmed (sim-deuces-1015, sweeping after Deuces). Such a
+        // block is left: it hangs over air in the room's capture, it is never in the seam (d == 0, which belongs
+        // to both rooms), and a wall the carve has to cut through - solid below as well - is still cut.
+        // A door's fill (coal, terracotta, infested brick) is never kept: a captured door is solid all the way down.
+        java.util.Set<BlockPos> keep = new java.util.HashSet<>();
+        int top = floorY + DOOR_HEIGHT - 1;
+        for (int d = -depth; d <= depth; d++) {
+            if (d == 0) {
+                continue;
+            }
+            for (int w = -halfWidth; w <= halfWidth; w++) {
+                BlockPos trim = alongX
+                        ? new BlockPos(centre.getX() + d, top, centre.getZ() + w)
+                        : new BlockPos(centre.getX() + w, top, centre.getZ() + d);
+                if (!level.getBlockState(trim).isAir() && level.getBlockState(trim.below()).isAir()
+                        && !level.getBlockState(trim).is(Blocks.CHEST)
+                        && !level.getBlockState(trim).is(Blocks.TRAPPED_CHEST)) {
+                    keep.add(trim);
+                }
+            }
+        }
         java.util.List<BlockPos> filled = new java.util.ArrayList<>();
         for (int d = -depth; d <= depth; d++) {
             for (int w = -halfWidth; w <= halfWidth; w++) {
@@ -168,6 +200,10 @@ public final class SimDoors {
                     BlockPos at = alongX
                             ? new BlockPos(centre.getX() + d, y, centre.getZ() + w)
                             : new BlockPos(centre.getX() + w, y, centre.getZ() + d);
+                    if (keep.contains(at)) {
+                        KEPT_TRIM++;
+                        continue;
+                    }
                     // Recorded, so the next floor's clear reaches it - a carve wrote straight into the level
                     // and was outside the bounds the paste recorded.
                     SimBuildQueue.touched(at.getX(), at.getZ());

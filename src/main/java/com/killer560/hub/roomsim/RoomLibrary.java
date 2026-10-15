@@ -500,6 +500,9 @@ public final class RoomLibrary {
         int onDisk = fresh.size();
         // Still no lock held. mergeBundled reads the jar and merges into the same local map.
         int rescued = mergeBundled(fresh);
+        // The braziers a capture recorded with their fire knocked out, relit - after the merge so the rooms that
+        // win are the ones lit, before anything (the audit, the paste) reads a block. See RoomBraziers.
+        int braziers = RoomBraziers.lightAll(fresh);
         // AFTER the merge, so a bundled room that replaced a bad local one is what gets checked - and before
         // the map is swapped in, so nothing can ever see an unaudited library. Still off the render thread,
         // for the same reason the reads above are.
@@ -523,9 +526,10 @@ public final class RoomLibrary {
             complete = completeCountLocked();
         }
         LOGGER.info("Room library: {} room(s), {} from the jar and {} from disk ({} read off disk), "
-                        + "{} bundled room(s) replaced an unusable local copy, {} complete, {} ms",
-                fresh.size(), fromJar, fresh.size() - fromJar, onDisk, rescued, complete,
-                System.currentTimeMillis() - startedAt);
+                        + "{} bundled room(s) replaced an unusable local copy, {} complete, {} brazier(s) relit in {} "
+                        + "room(s), {} ms",
+                fresh.size(), fromJar, fresh.size() - fromJar, onDisk, rescued, complete, braziers,
+                RoomBraziers.lastRooms(), System.currentTimeMillis() - startedAt);
     }
 
     /**
