@@ -55,7 +55,8 @@ import java.util.Locale;
  * here keeps a timer: after a chest click the warp goes the next tick, as his own does.
  * <p>
  * Fed by {@code RightClickSendMixin} from the packets as they leave the client (vanilla's, every feature's, the sim's).
- * Client thread only. The client cannot see the verdict itself, so any unpaired block click counts.
+ * Client thread only. The client cannot see the verdict itself, so any unpaired block click made with an item in hand
+ * counts (an empty hand cannot be denied an item).
  */
 public final class RightClick {
 

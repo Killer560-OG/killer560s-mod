@@ -191,7 +191,8 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   item-use sender: `mustTurnFirst` (unpaired click AND the heard look's ray meets a block AND the use's look not yet heard ->
   turn the body, send next tick; Auto Routes turns on the firing tick while the sneak goes out, so it costs nothing) and
   `beforeUse`/`beforePlainUse` (the use's look meets a block within reach -> send vanilla's click on that block first, so the
-  use pairs with it). The sim models the pairing (`SimAbilities.takenAsClickHalf`, heard look from `SimUseLookMixin`) and the
+  use pairs with it). A click with an empty hand counts as harmless (and replaces an earlier verdict): the one real warp
+  a tick after a click made with another item (Grand Library 17:29:35, Dungeon Breaker) landed. The sim models the pairing (`SimAbilities.takenAsClickHalf`, heard look from `SimUseLookMixin`) and the
   testkit's `HypixelUseAfterClick` forces it on any jar (96-ar-1015-warpclick, -puzzleclick, 1015-sim-clickgap). Every use
   and block click logs one `[RightClick]` line (seq, item, slot, rotation, heard look, shift, screen, unpaired click, ray);
   a WARN line ending "takes this use as that click's second half" is the failure happening.
