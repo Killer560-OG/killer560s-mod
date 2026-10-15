@@ -208,3 +208,17 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   the hit block and its six neighbours, so a boom that opened a crypt a block over read as "superboom didn't break anything"
   and stopped the route (his Museum stack, 2026-10-06). It now watches a radius-3 cube, and a boom that changes nothing
   within a round trip completes (nothing left to blow) instead of stopping; 96-ar-museum plays his exact route.
+- **Anything else on the Interactive Map's planner thread delays every trip.** The floor graph may only be searched from
+  `ClearExecutor`'s single planner thread, so Auto Secret's room-order trip searches ran in front of a real trip: on a cold
+  graph one search took 1197 ms and the trip's first warp went 1865 ms after it was asked for (144's first run, 2026-10-15).
+  `RoomTour` now skips its searches while a trip search waits (`ClearExecutor.tripSearchWaiting`) or the graph is not warm
+  (`EtherwarpPathfinder.graphWarm`), and a trip whose path is being planned ahead waits for that search instead of queueing
+  a second one behind it.
+- **A START handler registered late sees the previous tick's number.** `ClearExecutor` counted `clientTicks` inside its own
+  START handler, registered from `LiveMapFeature` after Auto Routes and Auto Secret, so their START code in tick N read N-1
+  and a route-end-to-warp gap measured one tick long. The count now runs in its own Fabric phase ordered before the
+  default (`ClearExecutor.TICK_COUNT_PHASE`); every START handler reads the same tick.
+- A route used to complete only after the interact delay and a walk-step tick past its last node, though that delay is a wait
+  before a NEXT node; `RouteExecutor.finishAction` now completes it the tick the last node finishes. A one-node route then
+  completes on its arming tick, inside `RouteExecutor.start`, so nothing ever sees it running: Auto Secret watches
+  `RouteExecutor.completions()` / `lastCompletedRoom()` instead of `isRunning()`.
